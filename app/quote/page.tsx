@@ -1,11 +1,5 @@
-import EmbedPage from "@/components/EmbedPage";
+import QuotePage from "@/app/photoclinic/page";
 
-export default function QuotePage() {
-  return (
-    <EmbedPage
-      title="견적서 생성"
-      badge="Quote Builder"
-      src="https://photoclinic-quote.vercel.app/photoclinic"
-    />
-  );
+export default function Quote() {
+  return <QuotePage />;
 }
