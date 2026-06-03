@@ -79,7 +79,7 @@ const TOOLS = [
         properties: {
           page: {
             type: "string",
-            enum: ["quote", "conti", "delivery-mail", "diagnosis", "channel-analyzer", "instagram-promo-design", "photo-sorting"],
+            enum: ["quote", "conti", "delivery-mail", "diagnosis", "channel-analyzer", "instagram-promo-design", "photo-sorting", "website-builder", "photo-retouching", "image-generator"],
           },
         },
         required: ["page"],
@@ -104,11 +104,11 @@ Rules:
 4. Before executing a tool, describe what you will do and wait for approval.
 5. Do NOT call tools directly. Instead respond with a description so the UI can show an approval card.
 
-Packages:
-- Premium 150만원: Profile, staged shots, interior
-- Premium Plus 250만원: Premium + brand video
-- Homepage 350만원: Premium + website
-- Branding 200만원: Blog/SNS content`;
+Packages (use exact packageId):
+- standard: 스탠다드 135만원 - 프로필 + 연출사진
+- premium: 프리미엄 200만원 - 프로필 + 연출사진 + 인테리어
+- premium-plus-1: 프리미엄 플러스1 360만원 - 프로필 + 연출사진 + 인테리어 + 포인트영상
+- premium-plus-2: 프리미엄 플러스2 450만원 - 프로필 + 연출사진 + 인테리어 + 브랜드필름`;
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -207,13 +207,13 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     if (input.memo)          params.set("memo", input.memo);
     return {
       action: "navigate",
-      url: "https://photoclinic-quote.vercel.app/photoclinic?" + params.toString(),
+      url: "/quote?" + params.toString(),
       message: input.hospitalName + " " + "견적서 페이지를 열었어요!",
     };
   }
 
   if (name === "send_file_transfer") {
-    const origin = req.headers.get("origin") || "https://photoclinic-ai.vercel.app";
+    const origin = req.headers.get("origin") || "https://olivia-agent-smoky.vercel.app";
     const r = await fetch(origin + "/api/send-delivery", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
