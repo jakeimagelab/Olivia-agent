@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, CheckSquare, ChevronDown, ClipboardList,
@@ -309,8 +308,6 @@ function EmptyRow() {
    메인
 ════════════════════════════════════════ */
 export default function ContiPage() {
-  const searchParams = useSearchParams();
-
   const [form, setForm] = useState({
     hospitalName:  "",
     specialties:   [] as string[],
@@ -327,12 +324,13 @@ export default function ContiPage() {
 
   // URL 파라미터로 자동 입력 (올리비아 에이전트 연동)
   useEffect(() => {
-    const hospitalName = searchParams.get("hospitalName");
-    const dept         = searchParams.get("dept");
-    const shootDate    = searchParams.get("shootDate");
-    const spaces       = searchParams.get("spaces");
-    const doctors      = searchParams.get("doctors");
-    const extras       = searchParams.get("extras");
+    if (typeof window === "undefined") return;
+    const params       = new URLSearchParams(window.location.search);
+    const hospitalName = params.get("hospitalName");
+    const dept         = params.get("dept");
+    const spaces       = params.get("spaces");
+    const doctors      = params.get("doctors");
+    const extras       = params.get("extras");
 
     if (hospitalName || dept) {
       setForm(prev => ({
@@ -346,7 +344,7 @@ export default function ContiPage() {
           : prev.locationItems,
       }));
     }
-  }, [searchParams]);
+  }, []);
   const [result,           setResult]           = useState<ContiResult | null>(null);
   const [error,            setError]            = useState("");
   const [tab,              setTab]              = useState<"conti" | "checklist" | "schedule">("conti");
