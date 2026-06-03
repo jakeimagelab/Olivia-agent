@@ -100,8 +100,8 @@ const SYSTEM_PROMPT = `당신은 포토클리닉(병원 전문 브랜드 촬영 
 4. 한국어로만 대화합니다`;
 
 export async function POST(req: NextRequest) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return NextResponse.json({ ok: false, error: "API 키 없음" }, { status: 500 });
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return NextResponse.json({ ok: false, error: "OPENAI_API_KEY 미설정" }, { status: 500 });
 
   const body = await req.json();
   const { messages, pendingTool } = body;
@@ -113,19 +113,33 @@ export async function POST(req: NextRequest) {
   }
 
   // Claude API 호출
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  // OpenAI function calling 형식으로 변환
+  const openaiTools = TOOLS.map((t: any) => ({
+    type: "function",
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.input_schema,
+    },
+  }));
+
+  const openaiMessages = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...messages,
+  ];
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
+      "Authorization": `Bearer ${key}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "gpt-4o",
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      tools: TOOLS,
-      messages,
+      tools: openaiTools,
+      tool_choice: "auto",
+      messages: openaiMessages,
     }),
   });
 
@@ -135,21 +149,22 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await res.json();
+  const choice = data.choices?.[0];
+  const msg    = choice?.message;
 
-  // 텍스트 응답
-  const textBlock = data.content?.find((b: any) => b.type === "text");
-  const toolBlock = data.content?.find((b: any) => b.type === "tool_use");
-
-  if (toolBlock) {
-    // 도구 사용 → 승인 요청
+  // 도구 호출
+  if (msg?.tool_calls?.length > 0) {
+    const tc = msg.tool_calls[0];
+    let input: any = {};
+    try { input = JSON.parse(tc.function.arguments); } catch(e) {}
     return NextResponse.json({
       ok: true,
       type: "tool_request",
-      text: textBlock?.text || "",
+      text: msg.content || "",
       tool: {
-        name: toolBlock.name,
-        input: toolBlock.input,
-        id: toolBlock.id,
+        name:  tc.function.name,
+        input,
+        id:    tc.id,
       },
     });
   }
@@ -157,7 +172,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     type: "message",
-    text: textBlock?.text || "",
+    text: msg?.content || "",
   });
 }
 
