@@ -54,6 +54,35 @@ export default function OliviaChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
+  const GREETING: Message = {
+    role: "assistant",
+    content: "안녕하세요, 정연호 대표님! 올리비아예요 ✨\n무엇을 도와드릴까요?\n\n예시:\n• \"포토클리닉병원 프리미엄 견적서 만들어줘\"\n• \"오늘 촬영한 원본파일 병원에 전달해줘\"\n• \"포토클리닉병원 콘티 작성해줘\"",
+  };
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("olivia_chat");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed); return;
+        }
+      }
+    } catch (e) {}
+    setMessages([GREETING]);
+  }, []);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try {
+      const toSave = messages.map(m => ({
+        role: m.role, content: m.content,
+        toolResult: m.toolResult, isApproved: m.isApproved,
+      }));
+      localStorage.setItem("olivia_chat", JSON.stringify(toSave.slice(-50)));
+    } catch (e) {}
+  }, [messages]);
+
   // 처음 열 때 인사말
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -172,7 +201,10 @@ export default function OliviaChat() {
     setMessages(prev => [...prev, { role: "assistant", content: "알겠어요! 다른 방법으로 도와드릴까요?" }]);
   };
 
-  const clearChat = () => setMessages([]);
+  const clearChat = () => {
+    try { localStorage.removeItem("olivia_chat"); } catch(e) {}
+    setMessages([GREETING]);
+  };
 
   return (
     <>
