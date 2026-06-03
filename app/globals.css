@@ -1887,3 +1887,57 @@ textarea:focus {
     flex-direction: column;
   }
 }
+
+/* ── 견적서 액션 버튼 바 ─────────────────────────────── */
+.action-button-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e8e0d4;
+  background: #faf9f7;
+  border-radius: 0 0 12px 12px;
+}
+
+.action-button-bar .primary-button {
+  flex: 1;
+  min-width: 140px;
+  height: 46px;
+  background: #155855;
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: inherit;
+  transition: filter .15s;
+}
+
+.action-button-bar .primary-button:hover { filter: brightness(.9); }
+
+.action-button-bar .secondary-button {
+  height: 46px;
+  padding: 0 18px;
+  background: #fff;
+  color: #5A7470;
+  border: 1.5px solid #C8DDD9;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: inherit;
+}
+
+.action-button-bar .secondary-button:hover {
+  border-color: #155855;
+  color: #155855;
+}
