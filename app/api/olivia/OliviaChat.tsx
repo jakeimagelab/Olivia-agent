@@ -59,7 +59,7 @@ export default function OliviaChat() {
     if (open && messages.length === 0) {
       setMessages([{
         role: "assistant",
-        content: "안녕하세요, 정연호 대표님! 올리비아예요 ✨\n무엇을 도와드릴까요?\n\n예시:\n• \"ABC병원 프리미엄 견적서 만들어줘\"\n• \"오늘 촬영한 ABC파일 이채안 선생님께 보내줘\"\n• \"ABC병원 콘티 작성해줘\"",
+        content: "안녕하세요, 정연호 대표님! 올리비아예요 ✨\n무엇을 도와드릴까요?\n\n예시:\n• \"포토클리닉병원 프리미엄 견적서 만들어줘\"\n• \"오늘 촬영한 원본파일 병원에 전달해줘\"\n• \"포토클리닉병원 콘티 작성해줘\"",
       }]);
     }
   }, [open]);
