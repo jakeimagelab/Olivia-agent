@@ -144,11 +144,22 @@ export async function POST(req: NextRequest) {
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    return NextResponse.json({ ok: false, error: err }, { status: 500 });
+    let errMsg = "OpenAI API 오류 " + res.status;
+    try { const e = await res.json(); errMsg = e.error?.message || errMsg; } catch(e) {}
+    return NextResponse.json({ ok: false, error: errMsg }, { status: 500 });
   }
 
-  const data = await res.json();
+  const rawText = await res.text();
+  if (!rawText || rawText.trim() === "") {
+    return NextResponse.json({ ok: false, error: "OpenAI 응답이 비어있습니다. API 키를 확인해주세요." }, { status: 500 });
+  }
+  let data: any;
+  try { data = JSON.parse(rawText); } catch(e) {
+    return NextResponse.json({ ok: false, error: "응답 파싱 실패: " + rawText.slice(0, 200) }, { status: 500 });
+  }
+  if (data.error) {
+    return NextResponse.json({ ok: false, error: "OpenAI 오류: " + (data.error.message || JSON.stringify(data.error)) }, { status: 500 });
+  }
   const choice = data.choices?.[0];
   const msg    = choice?.message;
 
