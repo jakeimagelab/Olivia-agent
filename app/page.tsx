@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import OliviaChat from "@/components/OliviaChat";
 import { FormEvent, useEffect, useState } from "react";
 import {
   Activity,
@@ -85,11 +86,11 @@ const adminMenus = [
     meta: "AI Image Generator"
   },
   {
-    title: "납품 메일 발송",
-    description: "NAS 링크를 입력하면 포토클리닉 브랜드 메일로 병원에 바로 발송합니다.",
+    title: "파일 전송 메일",
+    description: "촬영 완료 후 NAS 링크를 병원에 포토클리닉 브랜드 메일로 바로 전송합니다.",
     href: "/delivery-mail",
     icon: Mail,
-    meta: "Delivery Mail"
+    meta: "File Transfer"
   }
 ];
 
@@ -253,6 +254,7 @@ export default function AdminHome() {
           })}
         </div>
 
+        <OliviaChat />
         <footer className="admin-status-strip">
           <ShieldCheck size={18} />
           <span>관리자 세션이 활성화되어 있습니다.</span>
