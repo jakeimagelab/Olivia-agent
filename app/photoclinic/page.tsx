@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeft,
   Download,
   Plus,
   RefreshCcw,
@@ -310,7 +312,7 @@ export default function QuoteBuilder() {
   const [pdfImportMessage, setPdfImportMessage] = useState("");
   const [manualPdfQuote, setManualPdfQuote] = useState<ImportedPdfQuote | null>(null);
   const [recentQuoteMessage, setRecentQuoteMessage] = useState("");
-  const [basePreviewScale, setBasePreviewScale] = useState(0.48);
+  const [basePreviewScale, setBasePreviewScale] = useState(0.62);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
@@ -1053,6 +1055,16 @@ export default function QuoteBuilder() {
       <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8">
         <div className="min-w-0 space-y-5">
           <header className="rounded-lg border border-[#155855]/15 bg-white px-5 py-5 shadow-sm">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{ height: "28px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#E85D2C", letterSpacing: "0.1em", textTransform: "uppercase" }}>Quote Builder</span>
+              </div>
+              <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 700, color: "#5A7470", textDecoration: "none", border: "1px solid #C8DDD9", padding: "6px 14px", borderRadius: "8px" }}>
+                <ArrowLeft size={14} />
+                관리자 홈
+              </Link>
+            </div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e85d2c]">
               Photo Clinic Admin
             </p>
@@ -1565,7 +1577,7 @@ export default function QuoteBuilder() {
             </div>
           </div>
 
-          <div className="preview-shell" ref={previewShellRef}>
+          <div className="preview-shell" ref={previewShellRef} style={{ minHeight: "520px", display: "flex", alignItems: "flex-start" }}>
             <div
               className="quote-preview-viewport"
               style={{
