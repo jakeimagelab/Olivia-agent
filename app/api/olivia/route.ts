@@ -72,6 +72,28 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "create_contract",
+      description: "Create a contract from an approved quote. Navigates to contract page with quote data.",
+      parameters: {
+        type: "object",
+        properties: {
+          hospitalName:  { type: "string",  description: "Hospital name" },
+          contactName:   { type: "string",  description: "Contact name" },
+          phone:         { type: "string",  description: "Phone" },
+          email:         { type: "string",  description: "Email" },
+          quoteNumber:   { type: "string",  description: "Quote number" },
+          shootDate:     { type: "string",  description: "Shoot date" },
+          totalAmount:   { type: "number",  description: "Total amount" },
+          packageName:   { type: "string",  description: "Package name" },
+          memo:          { type: "string",  description: "Memo" },
+        },
+        required: ["hospitalName", "totalAmount"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "open_page",
       description: "Navigate to a specific page.",
       parameters: {
@@ -95,6 +117,7 @@ Available tools:
 - create_quote: Generate a photography quote
 - send_file_transfer: Send files via email to clients
 - create_conti: Create a shooting plan
+- create_contract: Generate a contract from an approved quote
 - open_page: Navigate to a page
 
 Rules:
@@ -234,6 +257,32 @@ async function executeTool(name: string, input: any, req: NextRequest) {
       action: "navigate",
       url: "/conti?" + params.toString(),
       message: input.hospitalName + " " + "콘티 페이지를 열었어요!",
+    };
+  }
+
+  if (name === "create_contract") {
+    const params = new URLSearchParams();
+    const data = {
+      hospitalName:  input.hospitalName  || "",
+      contactName:   input.contactName   || "",
+      phone:         input.phone         || "",
+      email:         input.email         || "",
+      quoteNumber:   input.quoteNumber   || "",
+      shootDate:     input.shootDate     || null,
+      totalAmount:   input.totalAmount   || 0,
+      depositAmount: Math.round((input.totalAmount || 0) * 0.5),
+      balanceAmount: Math.round((input.totalAmount || 0) * 0.5),
+      supplyAmount:  Math.round((input.totalAmount || 0) / 1.1),
+      vat:           Math.round((input.totalAmount || 0) / 11),
+      discountAmount: 0,
+      items: [{ name: input.packageName || "촬영 패키지", qty: 1, unitPrice: input.totalAmount || 0, subtotal: input.totalAmount || 0, note: "" }],
+      memos: input.memo || null,
+    };
+    params.set("data", encodeURIComponent(JSON.stringify(data)));
+    return {
+      action: "navigate",
+      url: "/contract?" + params.toString(),
+      message: input.hospitalName + " 계약서 페이지를 열었어요!",
     };
   }
 

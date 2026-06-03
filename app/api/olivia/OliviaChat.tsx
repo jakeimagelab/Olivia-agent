@@ -18,6 +18,7 @@ const C = {
 
 const TOOL_LABELS: Record<string, string> = {
   create_quote:       "견적서 생성",
+  create_contract:    "계약서 생성",
   send_file_transfer: "파일 전송 메일 발송",
   create_conti:       "촬영 콘티 생성",
   open_page:          "페이지 이동",
@@ -25,6 +26,7 @@ const TOOL_LABELS: Record<string, string> = {
 
 const TOOL_ICONS: Record<string, string> = {
   create_quote:       "📋",
+  create_contract:    "📝",
   send_file_transfer: "📨",
   create_conti:       "🎬",
   open_page:          "🔗",
@@ -37,6 +39,8 @@ function summarizeTool(name: string, input: any): string {
       return `${input.hospitalName || ""}${input.packageId ? " · " + input.packageId : ""}`;
     case "send_file_transfer":
       return `${input.hospitalName || ""} → ${input.toEmail || ""}`;
+    case "create_contract":
+      return `${input.hospitalName || ""} · ${input.totalAmount ? input.totalAmount.toLocaleString("ko-KR") + "원" : ""}`;
     case "create_conti":
       return `${input.hospitalName || ""} · ${input.dept || ""} · ${input.shootDate || ""}`;
     case "open_page":
