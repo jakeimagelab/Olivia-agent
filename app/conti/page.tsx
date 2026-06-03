@@ -447,31 +447,38 @@ export default function ContiPage() {
     pdf.save(`${form.hospitalName || "병원"}_촬영콘티_${tab}.pdf`);
   };
 
-  /* ── 엑셀 다운로드 (3시트) ── */
-  const handleExcel = async () => {
+  /* ── 스프레드시트용 CSV 다운로드 ── */
+  const handleSpreadsheetDownload = () => {
     if (!result) return;
-    const XLSX = await import("xlsx");
-    const wb = XLSX.utils.book_new();
 
-    const ws1 = XLSX.utils.aoa_to_sheet([
+    const csvCell = (value: string | number) =>
+      `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const toCsv = (rows: Array<Array<string | number>>) =>
+      rows.map(row => row.map(csvCell).join(",")).join("\n");
+    const downloadCsv = (name: string, rows: Array<Array<string | number>>) => {
+      const blob = new Blob([`\uFEFF${toCsv(rows)}`], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${form.hospitalName || "병원"}_${name}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    };
+
+    downloadCsv("촬영콘티", [
       ["진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원/환자역할", "비고"],
       ...result.conti.map(r => [r.category, r.duration, r.location, r.cameraAngle, r.keyword, r.description, r.personnel, r.notes])
     ]);
-    XLSX.utils.book_append_sheet(wb, ws1, "촬영 콘티");
-
-    const ws2 = XLSX.utils.aoa_to_sheet([
+    downloadCsv("준비체크리스트", [
       ["번호", "분류", "체크리스트", "준비여부", "비고"],
       ...result.checklist.map(r => [r.number, r.category, r.item, "", r.notes])
     ]);
-    XLSX.utils.book_append_sheet(wb, ws2, "준비 체크리스트");
-
-    const ws3 = XLSX.utils.aoa_to_sheet([
+    downloadCsv("타임테이블", [
       ["시간", "내용", "구분", "요청사항", "비고"],
       ...result.schedule.map(r => [r.time, r.activity, r.type, r.requirements, r.notes])
     ]);
-    XLSX.utils.book_append_sheet(wb, ws3, "타임테이블");
-
-    XLSX.writeFile(wb, `${form.hospitalName || "병원"}_촬영콘티.xlsx`);
   };
 
   /* ════════════════════════════════
@@ -695,13 +702,13 @@ export default function ContiPage() {
                 <button className="admin-secondary-link" onClick={() => setResult(null)} style={{ cursor: "pointer" }}>
                   <RotateCcw size={15} /> 다시 입력
                 </button>
-                <button onClick={handleExcel} style={{
+                <button onClick={handleSpreadsheetDownload} style={{
                   display: "inline-flex", alignItems: "center", gap: 7,
                   padding: "0 18px", minHeight: 42, border: "1px solid #16a34a",
                   borderRadius: 8, background: "#f0fdf4", color: "#16a34a",
                   fontWeight: 900, fontSize: 14, cursor: "pointer"
                 }}>
-                  <FileSpreadsheet size={16} /> 엑셀 다운로드
+                  <FileSpreadsheet size={16} /> CSV 다운로드
                 </button>
                 <button className="admin-primary-button" onClick={handlePDF} style={{ padding: "0 20px", cursor: "pointer" }}>
                   <Download size={16} /> PDF 다운로드
