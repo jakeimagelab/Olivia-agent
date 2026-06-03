@@ -312,7 +312,7 @@ export default function QuoteBuilder() {
   const [pdfImportMessage, setPdfImportMessage] = useState("");
   const [manualPdfQuote, setManualPdfQuote] = useState<ImportedPdfQuote | null>(null);
   const [recentQuoteMessage, setRecentQuoteMessage] = useState("");
-  const [basePreviewScale, setBasePreviewScale] = useState(0.62);
+  const [basePreviewScale, setBasePreviewScale] = useState(0.75);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
@@ -1577,12 +1577,14 @@ export default function QuoteBuilder() {
             </div>
           </div>
 
-          <div className="preview-shell" ref={previewShellRef} style={{ minHeight: "520px", display: "flex", alignItems: "flex-start" }}>
+          <div className="preview-shell" ref={previewShellRef} style={{ padding: "8px", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
             <div
               className="quote-preview-viewport"
               style={{
                 width: `${1123 * previewScale}px`,
-                height: `${794 * previewScale}px`
+                height: `${794 * previewScale}px`,
+                overflow: "hidden",
+                flexShrink: 0,
               }}
             >
             <div
