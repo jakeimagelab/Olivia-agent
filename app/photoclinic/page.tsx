@@ -315,6 +315,19 @@ export default function QuoteBuilder() {
   const [basePreviewScale, setBasePreviewScale] = useState(0.75);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
+  // 컨테이너 너비에 맞게 자동 스케일 계산
+  useEffect(() => {
+    const updateScale = () => {
+      if (!previewShellRef.current) return;
+      const containerW = previewShellRef.current.clientWidth - 16;
+      const scale = Math.min(containerW / 1123, 0.92);
+      setBasePreviewScale(Number(scale.toFixed(3)));
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
+
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
   const previewPercent = Math.round(previewZoom * 100);
 
@@ -1577,14 +1590,13 @@ export default function QuoteBuilder() {
             </div>
           </div>
 
-          <div className="preview-shell" ref={previewShellRef} style={{ padding: "8px", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
+          <div className="preview-shell" ref={previewShellRef} style={{ padding: "8px" }}>
             <div
               className="quote-preview-viewport"
               style={{
                 width: `${1123 * previewScale}px`,
                 height: `${794 * previewScale}px`,
                 overflow: "hidden",
-                flexShrink: 0,
               }}
             >
             <div
