@@ -315,17 +315,32 @@ export default function QuoteBuilder() {
   const [basePreviewScale, setBasePreviewScale] = useState(0.75);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
-  // 컨테이너 너비에 맞게 자동 스케일 계산
+  // 컨테이너 너비에 맞게 자동 스케일 (ResizeObserver)
   useEffect(() => {
+    const shell = previewShellRef.current;
+    if (!shell) return;
+
     const updateScale = () => {
-      if (!previewShellRef.current) return;
-      const containerW = previewShellRef.current.clientWidth - 16;
-      const scale = Math.min(containerW / 1123, 0.92);
-      setBasePreviewScale(Number(scale.toFixed(3)));
+      const style = window.getComputedStyle(shell);
+      const paddingX =
+        Number.parseFloat(style.paddingLeft || "0") + Number.parseFloat(style.paddingRight || "0");
+      const borderX =
+        Number.parseFloat(style.borderLeftWidth || "0") + Number.parseFloat(style.borderRightWidth || "0");
+      const shellWidth = shell.getBoundingClientRect().width;
+      const availableWidth = Math.max(0, shellWidth - paddingX - borderX - 2);
+      const nextScale = Math.min(1, Math.max(0.12, availableWidth / 1123));
+      setBasePreviewScale(Number(nextScale.toFixed(3)));
     };
+
     updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(shell);
     window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateScale);
+    };
   }, []);
 
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
