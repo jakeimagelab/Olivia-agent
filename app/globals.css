@@ -1942,3 +1942,39 @@ textarea:focus {
   border-color: #155855;
   color: #155855;
 }
+
+/* 선금/잔금 비율 버튼 */
+.deposit-btn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 9px;
+  border: 1.5px solid #C8DDD9;
+  background: #fff;
+  color: #5A7470;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.deposit-btn.active {
+  border: 2px solid #155855;
+  background: #EAF4F2;
+  color: #155855;
+  font-weight: 700;
+}
+.deposit-summary {
+  background: #F0F7F5;
+  border-radius: 9px;
+  padding: 12px 14px;
+  font-size: 12px;
+}
+.deposit-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  color: #155855;
+  border-bottom: 1px solid #C8DDD9;
+}
+.deposit-row:last-child { border-bottom: none; }
+.deposit-row span { color: #5A7470; }
