@@ -70,6 +70,7 @@ type ContractQuoteData = {
   totalAmount: number;
   depositAmount: number;
   balanceAmount: number;
+  depositRate: number;
   memos: string | null;
   formState?: {
     customer: CustomerInfo;
@@ -307,6 +308,7 @@ export default function QuoteBuilder() {
   const [discountRate, setDiscountRate] = useState(0);
   const [extraDiscount, setExtraDiscount] = useState(0);
   const [memo, setMemo] = useState("");
+  const [depositRate, setDepositRate] = useState(50); // 선금 비율 (%)
   const [isGenerating, setIsGenerating] = useState(false);
   const [isImportingQuotePdf, setIsImportingQuotePdf] = useState(false);
   const [pdfImportMessage, setPdfImportMessage] = useState("");
@@ -624,8 +626,9 @@ export default function QuoteBuilder() {
       discountAmount: discountTotal,
       vat,
       totalAmount:  finalAmount,
-      depositAmount: Math.round(finalAmount * 0.5),
-      balanceAmount: Math.round(finalAmount * 0.5),
+      depositAmount: Math.round(finalAmount * depositRate / 100),
+      balanceAmount: Math.round(finalAmount * (100 - depositRate) / 100),
+      depositRate,
       memos:        memo || null,
       formState: {
         customer,
@@ -641,7 +644,8 @@ export default function QuoteBuilder() {
         benefitItems,
         discountRate,
         extraDiscount,
-        memo
+        memo,
+        depositRate
       }
     };
   };
@@ -1563,6 +1567,48 @@ export default function QuoteBuilder() {
                 ))}
               </div>
             )}
+          </Panel>
+
+          <Panel title="선금 / 잔금 비율">
+            <div className="grid gap-3">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+                {[100, 70, 50, 30].map(rate => (
+                  <button
+                    key={rate}
+                    type="button"
+                    onClick={() => setDepositRate(rate)}
+                    style={{
+                      padding: "10px 0",
+                      borderRadius: "9px",
+                      border: depositRate === rate ? "2px solid #155855" : "1.5px solid #C8DDD9",
+                      background: depositRate === rate ? "#EAF4F2" : "#fff",
+                      color: depositRate === rate ? "#155855" : "#5A7470",
+                      fontWeight: depositRate === rate ? 700 : 500,
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {rate}%
+                  </button>
+                ))}
+              </div>
+              <div style={{ background: "#F0F7F5", borderRadius: "9px", padding: "12px 14px", fontSize: "12px", color: "#155855", lineHeight: "1.8" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ color: "#5A7470" }}>선금 ({depositRate}%)</span>
+                  <strong>{won(Math.round(finalAmount * depositRate / 100))}원</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #C8DDD9", paddingTop: "4px" }}>
+                  <span style={{ color: "#5A7470" }}>잔금 ({100 - depositRate}%)</span>
+                  <strong>{won(Math.round(finalAmount * (100 - depositRate) / 100))}원</strong>
+                </div>
+                {depositRate === 100 && (
+                  <div style={{ marginTop: "6px", fontSize: "11px", color: "#E85D2C", fontWeight: 700 }}>
+                    ✓ 100만원 미만 — 전액 선금
+                  </div>
+                )}
+              </div>
+            </div>
           </Panel>
 
           <div className="action-button-bar">
