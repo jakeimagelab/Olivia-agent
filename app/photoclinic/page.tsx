@@ -779,6 +779,7 @@ export default function QuoteBuilder() {
       totalAmount: parsed.totalAmount,
       depositAmount: Math.round(parsed.totalAmount * 0.5),
       balanceAmount: parsed.totalAmount - Math.round(parsed.totalAmount * 0.5),
+      depositRate: 50,
       memos: "기존 견적서 PDF를 기준으로 생성한 계약서입니다."
     };
   };
