@@ -1021,31 +1021,21 @@ export default function QuoteBuilder() {
 
   return (
     <main className="min-h-screen bg-[#faf7f2] text-[#222222]">
-      <div style={{maxWidth:"860px",margin:"0 auto",padding:"0 16px"}}>
-        <div style={{display:"flex",gap:"8px",marginBottom:"16px",background:"#fff",border:"1px solid #C8DDD9",borderRadius:"12px",padding:"6px"}}>
-          <button type="button" onClick={() => setActiveTab("form")}
-            style={{flex:1,height:"40px",borderRadius:"8px",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"13px",fontWeight:700,
-              background:activeTab==="form"?"#155855":"transparent",color:activeTab==="form"?"#fff":"#5A7470"}}>
-            📝 견적 입력
-          </button>
-          <button type="button" onClick={() => setActiveTab("preview")}
-            style={{flex:1,height:"40px",borderRadius:"8px",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"13px",fontWeight:700,
-              background:activeTab==="preview"?"#155855":"transparent",color:activeTab==="preview"?"#fff":"#5A7470"}}>
-            👁 미리보기
-          </button>
+      <div style={{maxWidth:"860px",margin:"0 auto",padding:"20px 16px 0"}}>
+        <div style={{display:"flex",gap:"8px",background:"#fff",border:"1px solid #C8DDD9",borderRadius:"12px",padding:"6px"}}>
+          <button type="button" onClick={() => setActiveTab("form")} style={{flex:1,height:"38px",borderRadius:"8px",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"13px",fontWeight:700,background:activeTab==="form"?"#155855":"transparent",color:activeTab==="form"?"#fff":"#5A7470"}}>📝 견적 입력</button>
+          <button type="button" onClick={() => setActiveTab("preview")} style={{flex:1,height:"38px",borderRadius:"8px",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"13px",fontWeight:700,background:activeTab==="preview"?"#155855":"transparent",color:activeTab==="preview"?"#fff":"#5A7470"}}>👁 미리보기</button>
         </div>
       </div>
       <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8"
-        style={{display: activeTab==="form" ? undefined : "none"}}>
+        style={{display:activeTab==="form"?undefined:"none"}}>
         <div className="min-w-0 space-y-5">
           <header className="rounded-lg border border-[#155855]/15 bg-white px-5 py-5 shadow-sm">
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px"}}>
-              <span style={{fontSize:"11px",fontWeight:700,color:"#E85D2C",letterSpacing:"0.1em",textTransform:"uppercase"}}>Quote Builder</span>
-              <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:"6px",fontSize:"12px",fontWeight:700,color:"#5A7470",textDecoration:"none",border:"1px solid #C8DDD9",padding:"6px 14px",borderRadius:"8px"}}>
-                <ArrowLeft size={14} />관리자 홈
-              </Link>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e85d2c]" style={{margin:0}}>PHOTO CLINIC · QUOTE BUILDER</p>
+              <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:"6px",fontSize:"12px",fontWeight:700,color:"#5A7470",textDecoration:"none",border:"1px solid #C8DDD9",padding:"5px 12px",borderRadius:"8px"}}><ArrowLeft size={13}/>관리자 홈</Link>
             </div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e85d2c]">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e85d2c]" style={{display:"none"}}>
               Photo Clinic Admin
             </p>
             <h1 className="mt-2 text-2xl font-bold text-[#155855] sm:text-3xl">
@@ -1520,9 +1510,10 @@ export default function QuoteBuilder() {
           <Panel title="선금 / 잔금 비율">
             <div className="grid gap-3">
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"8px"}}>
-                {[100,70,50,30].map(rate => (
+                {([100,70,50,30] as number[]).map(rate => (
                   <button key={rate} type="button" onClick={() => setDepositRate(rate)}
-                    style={{padding:"10px 0",borderRadius:"9px",fontFamily:"inherit",fontSize:"12px",fontWeight:depositRate===rate?700:500,cursor:"pointer",
+                    style={{padding:"10px 0",borderRadius:"9px",fontFamily:"inherit",fontSize:"12px",
+                      fontWeight:depositRate===rate?700:500,cursor:"pointer",
                       border:depositRate===rate?"2px solid #155855":"1.5px solid #C8DDD9",
                       background:depositRate===rate?"#EAF4F2":"#fff",
                       color:depositRate===rate?"#155855":"#5A7470"}}>
@@ -1530,10 +1521,10 @@ export default function QuoteBuilder() {
                   </button>
                 ))}
               </div>
-              <div style={{background:"#F0F7F5",borderRadius:"9px",padding:"12px 14px",fontSize:"12px",color:"#155855",lineHeight:"1.8"}}>
+              <div style={{background:"#F0F7F5",borderRadius:"9px",padding:"12px 14px",fontSize:"12px",color:"#155855",lineHeight:1.8}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:"4px"}}>
                   <span style={{color:"#5A7470"}}>선금 ({depositRate}%)</span>
-                  <strong>{won(Math.round(finalAmount * depositRate / 100))}원</strong>
+                  <strong>{won(Math.round(finalAmount*depositRate/100))}원</strong>
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #C8DDD9",paddingTop:"4px"}}>
                   <span style={{color:"#5A7470"}}>잔금 ({100-depositRate}%)</span>
@@ -1564,270 +1555,7 @@ export default function QuoteBuilder() {
           </div>
         </div>
 
-        <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
-            <div>
-              <p className="text-sm font-bold text-[#155855]">실시간 견적서 미리보기</p>
-              <p className="text-xs text-[#797168]">A4 가로형 1페이지 · 100%는 화면 맞춤</p>
-            </div>
-            <div className="preview-zoom-controls" aria-label="견적서 미리보기 확대 축소">
-              <button type="button" onClick={zoomOutPreview} aria-label="미리보기 축소">
-                <ZoomOut size={16} />
-              </button>
-              <button type="button" onClick={resetPreviewZoom} className="zoom-percent" aria-label="미리보기 확대 비율 초기화">
-                {previewPercent}%
-              </button>
-              <button type="button" onClick={zoomInPreview} aria-label="미리보기 확대">
-                <ZoomIn size={16} />
-              </button>
-            </div>
-          </div>
-
-          <div className="preview-shell" ref={previewShellRef}>
-            <div
-              className="quote-preview-viewport"
-              style={{
-                width: `${1123 * previewScale}px`,
-                height: `${794 * previewScale}px`
-              }}
-            >
-            <div
-              ref={previewRef}
-              className="quote-page"
-              style={{ transform: `scale(${previewScale})` }}
-            >
-              <aside className="brand-rail">
-                <div className="rail-slogan">
-                  <p>브랜드를 담습니다.</p>
-                  <p>정직하고,</p>
-                  <p>자연스럽게.</p>
-                </div>
-                <div className="rail-address">
-                  <span>TO.</span>
-                  <strong>{customer.hospitalName || "병원명"}</strong>
-                  <small>{customer.managerName || "담당자"}</small>
-                </div>
-                <div className="rail-notice">
-                  <strong>결제 조건</strong>
-                  <span>선금 50%, 잔금 50% 기준</span>
-                  <span>세부 조건은 상호 협의 가능</span>
-                </div>
-                <div className="rail-notice">
-                  <strong>포토클리닉</strong>
-                  <span>제이크이미지연구소</span>
-                  <span>병원 전문 브랜드 촬영</span>
-                </div>
-              </aside>
-
-              <div className="quote-content">
-                <header className="quote-hero">
-                  <div className="invoice-meta">
-                    <div>
-                      <span>견적번호</span>
-                      <strong>{customer.quoteNumber}</strong>
-                    </div>
-                    <div>
-                      <span>견적일</span>
-                      <strong>{displayDate(customer.quoteDate)}</strong>
-                    </div>
-                    <div>
-                      <span>촬영 예정일</span>
-                      <strong>{displayDate(customer.shootDate)}</strong>
-                    </div>
-                    <div>
-                      <span>견적 유효기간</span>
-                      <strong>{displayDate(customer.validUntil)}</strong>
-                    </div>
-                  </div>
-                  <h2>
-                    {quoteTitle || "포토클리닉 브랜드사진 견적서"}
-                  </h2>
-                </header>
-
-                <section className="client-strip">
-                  <Info label="병원명" value={customer.hospitalName || "-"} />
-                  <Info label="담당자명" value={customer.managerName || "-"} />
-                  <Info label="연락처" value={customer.phone || "-"} />
-                  <Info label="이메일" value={customer.email || "-"} />
-                </section>
-
-                <section className="estimate-table-wrap">
-                  <table className="quote-table">
-                    <thead>
-                      <tr>
-                        <th>항목</th>
-                        <th>수량</th>
-                        <th>가격</th>
-                        <th>소계</th>
-                        <th>비고</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="category-row">
-                        <td colSpan={5}>촬영 콘텐츠</td>
-                      </tr>
-                      {selectedPackage ? (
-                        <tr>
-                          <td>
-                            1. {selectedPackage.name} 패키지
-                            <small>{selectedPackage.composition}</small>
-                          </td>
-                          <td></td>
-                          <td>{amount(selectedPackage.price)}</td>
-                          <td>{amount(selectedPackage.price)}</td>
-                          <td>촬영 패키지</td>
-                        </tr>
-                      ) : null}
-                      {selectedSingleItems.length > 0 ? (
-                        <tr className="category-row">
-                          <td colSpan={5}>단일 항목</td>
-                        </tr>
-                      ) : null}
-                      {selectedSingleItems.map((item, index) => (
-                        <tr key={item.id}>
-                          <td>{(selectedPackage ? 2 : 1) + index}. {item.name}</td>
-                          <td></td>
-                          <td>{amount(item.price)}</td>
-                          <td>{amount(item.price)}</td>
-                          <td>단일 콘텐츠</td>
-                        </tr>
-                      ))}
-                      {optionItems.map((item, index) => (
-                        <tr key={item.name}>
-                          <td>{(selectedPackage ? 1 : 0) + selectedSingleItems.length + index + 1}. {item.name}</td>
-                          <td>{item.detail}</td>
-                          <td>{amount(item.amount)}</td>
-                          <td>{amount(item.amount)}</td>
-                          <td>-</td>
-                        </tr>
-                      ))}
-                      {visibleCustomItems.map((item, index) => (
-                        <tr key={item.id}>
-                          <td>
-                            {(selectedPackage ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || "기타 항목"}
-                            {item.detail ? <small>- {item.detail}</small> : null}
-                          </td>
-                          <td></td>
-                          <td>{amount(item.amount)}</td>
-                          <td>{amount(item.amount)}</td>
-                          <td>기타</td>
-                        </tr>
-                      ))}
-                      {visibleBenefitItems.length > 0 ? (
-                        <tr className="category-row">
-                          <td colSpan={5}>서비스 및 혜택</td>
-                        </tr>
-                      ) : null}
-                      {visibleBenefitItems.map((item, index) => (
-                        <tr key={item.id}>
-                          <td>{(selectedPackage ? 1 : 0) + selectedSingleItems.length + optionItems.length + visibleCustomItems.length + index + 1}. {item.name}</td>
-                          <td></td>
-                          <td>-</td>
-                          <td>-</td>
-                          <td>서비스 및 혜택</td>
-                        </tr>
-                      ))}
-                      {discountRate > 0 ? (
-                        <tr className="discount-row">
-                          <td>{discountRate}% 할인</td>
-                          <td>-</td>
-                          <td>-{amount(rateDiscountAmount)}</td>
-                          <td>-{amount(rateDiscountAmount)}</td>
-                          <td>촬영콘텐츠 합계 기준</td>
-                        </tr>
-                      ) : null}
-                      {extraDiscountAmount > 0 ? (
-                        <tr className="discount-row">
-                          <td>추가할인(절삭)</td>
-                          <td>-</td>
-                          <td>-{amount(extraDiscountAmount)}</td>
-                          <td>-{amount(extraDiscountAmount)}</td>
-                          <td>최종금액 조정</td>
-                        </tr>
-                      ) : null}
-                      {contentSubtotal === 0 ? (
-                        <tr>
-                          <td>선택된 촬영 항목 없음</td>
-                          <td>-</td>
-                          <td>0</td>
-                          <td>0</td>
-                          <td>-</td>
-                        </tr>
-                      ) : null}
-                      <tr className="blank-row"><td colSpan={5}></td></tr>
-                    </tbody>
-                  </table>
-                </section>
-
-                <footer className="quote-bottom">
-                  <div className="payment-box">
-                    <div>
-                      <strong>선금50%</strong>
-                      <span>{amount(Math.round(finalAmount / 2))}</span>
-                    </div>
-                    <div>
-                      <strong>잔금50%</strong>
-                      <span>{amount(finalAmount - Math.round(finalAmount / 2))}</span>
-                    </div>
-                    <p>세부 결제 조건은 상호 협의에 따라 조정될 수 있습니다.</p>
-                  </div>
-
-                  <div className="total-signature">
-                    <div className="total-box">
-                      <div>
-                        <span>공급가액</span>
-                        <strong>{amount(supplyAmount)}</strong>
-                      </div>
-                      <div>
-                        <span>할인 합계</span>
-                        <strong>{discountTotal ? `-${amount(discountTotal)}` : "0"}</strong>
-                      </div>
-                      <div>
-                        <span>부가세/10%</span>
-                        <strong>{amount(vat)}</strong>
-                      </div>
-                      <div className="grand-total">
-                        <span>KRW</span>
-                        <strong>{amount(finalAmount)}</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="contract-note">
-                    <div>
-                      <strong>계약 안내</strong>
-                      <p>
-                        본 견적서는 상호 협의 및 선금 입금 시 계약서의 효력을 대신할 수 있습니다. 촬영 범위 변경 시 최종 금액은 조정될 수 있습니다.
-                      </p>
-                      {memo.trim() ? <small>{memo}</small> : null}
-                    </div>
-                  </div>
-                </footer>
-
-                <div className="quote-brand-mark">
-                  <div className="brand-mark-spacer" aria-hidden="true" />
-                  <div className="brand-logo-stack">
-                    <img
-                      src="/assets/photoclinic-logo.png?v=3"
-                      alt="PHOTO CLINIC"
-                      className="brand-logo-image"
-                    />
-                    <p>제이크이미지연구소 · 병원 전문 브랜드 촬영</p>
-                  </div>
-                  <div className="signature-area brand-signature">
-                    <span>Director Signature</span>
-                    <img src="/assets/ceo-signature.png" alt="Director Signature" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            </div>
-          </div>
-        </aside>
-      </section>
-      <section className="mx-auto max-w-[860px] min-w-0 px-4 py-5 sm:px-6 lg:py-8"
-        style={{display: activeTab==="preview" ? undefined : "none"}}>
-        <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]">
+        <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]" style={{display:activeTab==="preview"?"block":"none"}}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
               <p className="text-sm font-bold text-[#155855]">실시간 견적서 미리보기</p>
@@ -2089,5 +1817,98 @@ export default function QuoteBuilder() {
         </aside>
       </section>
     </main>
+  );
+}
+
+function Panel({
+  title,
+  icon,
+  action,
+  children
+}: {
+  title: string;
+  icon?: ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border border-[#ded7cc] bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-base font-bold text-[#155855]">
+          {icon}
+          {title}
+        </h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field({
+  label,
+  children
+}: {
+  label: string;
+  children: ReactElement;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function QuantityField({
+  label,
+  price,
+  unit,
+  value,
+  onChange
+}: {
+  label: string;
+  price: string;
+  unit: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="quantity-field">
+      <div>
+        <strong>{label}</strong>
+        <span>{price}</span>
+      </div>
+      <div className="stepper" aria-label={`${label} 수량`}>
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          aria-label={`${label} 줄이기`}
+          disabled={value === 0}
+        >
+          -
+        </button>
+        <output>
+          {value}
+          <em>{unit}</em>
+        </output>
+        <button
+          type="button"
+          onClick={() => onChange(value + 1)}
+          aria-label={`${label} 늘리기`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
