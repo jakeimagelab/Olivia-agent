@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 
 const C = {
@@ -21,6 +22,38 @@ export default function DeliveryMailPage() {
   const [sending,      setSending]      = useState(false);
   const [result,       setResult]       = useState<"success"|"error"|null>(null);
   const [errMsg,       setErrMsg]       = useState("");
+
+  // 연락처 관련
+  const { data: session } = useSession();
+  const [contacts,       setContacts]       = useState<{name:string;email:string;phone:string;org:string}[]>([]);
+  const [contactsLoaded, setContactsLoaded] = useState(false);
+  const [contactSearch,  setContactSearch]  = useState("");
+  const [showDropdown,   setShowDropdown]   = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const loadContacts = async () => {
+    if (contactsLoaded) return;
+    try {
+      const res  = await fetch("/api/contacts");
+      const data = await res.json();
+      if (data.ok) { setContacts(data.contacts); setContactsLoaded(true); }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
+        setShowDropdown(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filteredContacts = contacts.filter(c =>
+    c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+    c.email.toLowerCase().includes(contactSearch.toLowerCase()) ||
+    c.org.toLowerCase().includes(contactSearch.toLowerCase())
+  ).slice(0, 8);
 
   const iS: React.CSSProperties = {
     width: "100%", border: `1px solid ${C.border}`, borderRadius: 9,
@@ -153,8 +186,57 @@ export default function DeliveryMailPage() {
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
                     이메일 *
                   </label>
-                  <input type="email" value={toEmail} onChange={e => setToEmail(e.target.value)}
-                    placeholder="client@email.com" style={iS}/>
+                  <div style={{ position: "relative" }} ref={dropdownRef}>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input type="email" value={toEmail}
+                        onChange={e => { setToEmail(e.target.value); setContactSearch(e.target.value); setShowDropdown(true); }}
+                        onFocus={() => { setShowDropdown(true); if (!contactsLoaded && session) loadContacts(); }}
+                        placeholder="client@email.com" style={{ ...iS, flex: 1 }}/>
+                      {session ? (
+                        <button onClick={() => { setShowDropdown(!showDropdown); loadContacts(); }}
+                          style={{ height: 38, padding: "0 10px", background: C.mint, border: `1px solid ${C.border}`,
+                                   borderRadius: 8, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
+                          title="연락처 검색">👥</button>
+                      ) : (
+                        <button onClick={() => signIn("google")}
+                          style={{ height: 38, padding: "0 10px", background: "#fff", border: `1px solid ${C.border}`,
+                                   borderRadius: 8, fontSize: 10, cursor: "pointer", fontFamily: "inherit",
+                                   color: C.muted, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>
+                          G 연락처
+                        </button>
+                      )}
+                    </div>
+                    {showDropdown && filteredContacts.length > 0 && (
+                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200,
+                                     background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10,
+                                     boxShadow: "0 4px 16px rgba(0,0,0,.1)", marginTop: 4,
+                                     maxHeight: 240, overflowY: "auto" }}>
+                        <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
+                          <input value={contactSearch} onChange={e => setContactSearch(e.target.value)}
+                            placeholder="이름·이메일·회사 검색..."
+                            style={{ ...iS, height: 30, fontSize: 11, padding: "4px 10px" }}/>
+                        </div>
+                        {filteredContacts.map((c, i) => (
+                          <div key={i}
+                            onClick={() => { setToEmail(c.email); setToName(c.name); setHospitalName(prev => prev || c.org); setShowDropdown(false); setContactSearch(""); }}
+                            style={{ padding: "9px 12px", cursor: "pointer", borderBottom: `1px solid ${C.border}`,
+                                     display: "flex", flexDirection: "column", gap: 2 }}
+                            onMouseEnter={e => (e.currentTarget.style.background = C.mint)}
+                            onMouseLeave={e => (e.currentTarget.style.background = "")}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: C.txt }}>{c.name}</span>
+                            <span style={{ fontSize: 11, color: C.muted }}>{c.email}</span>
+                            {c.org && <span style={{ fontSize: 10, color: C.hint }}>{c.org}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {session ? (
+                    <div style={{ fontSize: 10, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
+                      <span>✓ Google 연락처 {contactsLoaded ? `${contacts.length}명` : "연동됨"}</span>
+                      <button onClick={() => signOut()} style={{ background: "none", border: "none", fontSize: 10, color: C.hint, cursor: "pointer", padding: 0 }}>연동 해제</button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
