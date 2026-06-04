@@ -315,7 +315,7 @@ export default function QuoteBuilder() {
   const [pdfImportMessage, setPdfImportMessage] = useState("");
   const [manualPdfQuote, setManualPdfQuote] = useState<ImportedPdfQuote | null>(null);
   const [recentQuoteMessage, setRecentQuoteMessage] = useState("");
-  const [basePreviewScale, setBasePreviewScale] = useState(0.75);
+  const [basePreviewScale, setBasePreviewScale] = useState(0.85);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
   // 컨테이너 너비에 맞게 자동 스케일 (ResizeObserver)
@@ -331,7 +331,7 @@ export default function QuoteBuilder() {
         Number.parseFloat(style.borderLeftWidth || "0") + Number.parseFloat(style.borderRightWidth || "0");
       const shellWidth = shell.getBoundingClientRect().width;
       const availableWidth = Math.max(0, shellWidth - paddingX - borderX - 2);
-      const nextScale = Math.min(1, Math.max(0.12, availableWidth / 1123));
+      const nextScale = Math.min(1.0, Math.max(0.12, availableWidth / 1123));
       setBasePreviewScale(Number(nextScale.toFixed(3)));
     };
 
@@ -374,7 +374,7 @@ export default function QuoteBuilder() {
         Number.parseFloat(style.borderLeftWidth || "0") + Number.parseFloat(style.borderRightWidth || "0");
       const shellWidth = shell.getBoundingClientRect().width;
       const availableWidth = Math.max(0, shellWidth - paddingX - borderX - 2);
-      const nextScale = Math.min(1, Math.max(0.12, availableWidth / 1123));
+      const nextScale = Math.min(1.0, Math.max(0.12, availableWidth / 1123));
       setBasePreviewScale(Number(nextScale.toFixed(3)));
     };
 
@@ -1086,7 +1086,29 @@ export default function QuoteBuilder() {
 
   return (
     <main className="min-h-screen bg-[#faf7f2] text-[#222222]">
-      <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8">
+      <section className="mx-auto max-w-[860px] min-w-0 px-4 py-5 sm:px-6 lg:py-8">
+        {/* 탭 버튼 */}
+        <div style={{ display:"flex", gap:"8px", marginBottom:"16px", background:"#fff",
+                      border:"1px solid #C8DDD9", borderRadius:"12px", padding:"6px" }}>
+          <button type="button"
+            onClick={() => setActiveTab("form")}
+            style={{ flex:1, height:"40px", borderRadius:"8px", border:"none", cursor:"pointer",
+                     fontFamily:"inherit", fontSize:"13px", fontWeight:700,
+                     background: activeTab==="form" ? "#155855" : "transparent",
+                     color: activeTab==="form" ? "#fff" : "#5A7470" }}>
+            📝 견적 입력
+          </button>
+          <button type="button"
+            onClick={() => setActiveTab("preview")}
+            style={{ flex:1, height:"40px", borderRadius:"8px", border:"none", cursor:"pointer",
+                     fontFamily:"inherit", fontSize:"13px", fontWeight:700,
+                     background: activeTab==="preview" ? "#155855" : "transparent",
+                     color: activeTab==="preview" ? "#fff" : "#5A7470" }}>
+            👁 미리보기
+          </button>
+        </div>
+        <div style={{ display: activeTab==="form" ? "block" : "none" }}>
+        <div className="min-w-0 space-y-5">
         <div className="min-w-0 space-y-5">
           <header className="rounded-lg border border-[#155855]/15 bg-white px-5 py-5 shadow-sm">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
@@ -1634,7 +1656,9 @@ export default function QuoteBuilder() {
           </div>
         </div>
 
-        <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]">
+        </div>{/* form div 닫기 */}
+        <div style={{ display: activeTab==="preview" ? "block" : "none" }}>
+        <aside className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
               <p className="text-sm font-bold text-[#155855]">실시간 견적서 미리보기</p>
@@ -1895,6 +1919,7 @@ export default function QuoteBuilder() {
             </div>
           </div>
         </aside>
+        </aside></div>{/* preview div 닫기 */}
       </section>
     </main>
   );
