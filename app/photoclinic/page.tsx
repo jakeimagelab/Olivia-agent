@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft,
   Download,
   Plus,
   RefreshCcw,
@@ -272,7 +270,6 @@ export default function QuoteBuilder() {
   const [extraDiscount, setExtraDiscount] = useState(0);
   const [memo, setMemo] = useState("");
   const [depositRate, setDepositRate] = useState(50);
-  const [activeTab, setActiveTab] = useState<"form"|"preview">("form");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isImportingQuotePdf, setIsImportingQuotePdf] = useState(false);
   const [pdfImportMessage, setPdfImportMessage] = useState("");
@@ -1021,21 +1018,10 @@ export default function QuoteBuilder() {
 
   return (
     <main className="min-h-screen bg-[#faf7f2] text-[#222222]">
-      <div style={{maxWidth:"860px",margin:"0 auto",padding:"20px 16px 0"}}>
-        <div style={{display:"flex",gap:"8px",background:"#fff",border:"1px solid #C8DDD9",borderRadius:"12px",padding:"6px"}}>
-          <button type="button" onClick={() => setActiveTab("form")} style={{flex:1,height:"38px",borderRadius:"8px",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"13px",fontWeight:700,background:activeTab==="form"?"#155855":"transparent",color:activeTab==="form"?"#fff":"#5A7470"}}>📝 견적 입력</button>
-          <button type="button" onClick={() => setActiveTab("preview")} style={{flex:1,height:"38px",borderRadius:"8px",border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:"13px",fontWeight:700,background:activeTab==="preview"?"#155855":"transparent",color:activeTab==="preview"?"#fff":"#5A7470"}}>👁 미리보기</button>
-        </div>
-      </div>
-      <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8"
-        style={{display:activeTab==="form"?undefined:"none"}}>
+      <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8">
         <div className="min-w-0 space-y-5">
           <header className="rounded-lg border border-[#155855]/15 bg-white px-5 py-5 shadow-sm">
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e85d2c]" style={{margin:0}}>PHOTO CLINIC · QUOTE BUILDER</p>
-              <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:"6px",fontSize:"12px",fontWeight:700,color:"#5A7470",textDecoration:"none",border:"1px solid #C8DDD9",padding:"5px 12px",borderRadius:"8px"}}><ArrowLeft size={13}/>관리자 홈</Link>
-            </div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e85d2c]" style={{display:"none"}}>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e85d2c]">
               Photo Clinic Admin
             </p>
             <h1 className="mt-2 text-2xl font-bold text-[#155855] sm:text-3xl">
@@ -1509,26 +1495,26 @@ export default function QuoteBuilder() {
 
           <Panel title="선금 / 잔금 비율">
             <div className="grid gap-3">
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"8px"}}>
-                {([100,70,50,30] as number[]).map(rate => (
-                  <button key={rate} type="button" onClick={() => setDepositRate(rate)}
-                    style={{padding:"10px 0",borderRadius:"9px",fontFamily:"inherit",fontSize:"12px",
-                      fontWeight:depositRate===rate?700:500,cursor:"pointer",
-                      border:depositRate===rate?"2px solid #155855":"1.5px solid #C8DDD9",
-                      background:depositRate===rate?"#EAF4F2":"#fff",
-                      color:depositRate===rate?"#155855":"#5A7470"}}>
+              <div className="flex gap-2">
+                {([100, 70, 50, 30] as number[]).map((rate) => (
+                  <button
+                    key={rate}
+                    type="button"
+                    onClick={() => setDepositRate(rate)}
+                    className={depositRate === rate ? "deposit-btn active" : "deposit-btn"}
+                  >
                     {rate}%
                   </button>
                 ))}
               </div>
-              <div style={{background:"#F0F7F5",borderRadius:"9px",padding:"12px 14px",fontSize:"12px",color:"#155855",lineHeight:1.8}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:"4px"}}>
-                  <span style={{color:"#5A7470"}}>선금 ({depositRate}%)</span>
-                  <strong>{won(Math.round(finalAmount*depositRate/100))}원</strong>
+              <div className="deposit-summary">
+                <div className="deposit-row">
+                  <span>선금 ({depositRate}%)</span>
+                  <strong>{won(Math.round(finalAmount * depositRate / 100))}원</strong>
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #C8DDD9",paddingTop:"4px"}}>
-                  <span style={{color:"#5A7470"}}>잔금 ({100-depositRate}%)</span>
-                  <strong>{won(Math.round(finalAmount*(100-depositRate)/100))}원</strong>
+                <div className="deposit-row">
+                  <span>잔금 ({100 - depositRate}%)</span>
+                  <strong>{won(Math.round(finalAmount * (100 - depositRate) / 100))}원</strong>
                 </div>
               </div>
             </div>
@@ -1555,7 +1541,7 @@ export default function QuoteBuilder() {
           </div>
         </div>
 
-        <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]" style={{display:activeTab==="preview"?"block":"none"}}>
+        <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
               <p className="text-sm font-bold text-[#155855]">실시간 견적서 미리보기</p>
