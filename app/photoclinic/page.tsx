@@ -310,6 +310,7 @@ export default function QuoteBuilder() {
   const [extraDiscount, setExtraDiscount] = useState(0);
   const [memo, setMemo] = useState("");
   const [depositRate, setDepositRate] = useState(50); // 선금 비율 (%)
+  const [activeTab, setActiveTab] = useState<"form"|"preview">("form");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isImportingQuotePdf, setIsImportingQuotePdf] = useState(false);
   const [pdfImportMessage, setPdfImportMessage] = useState("");
