@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
 import Link from "next/link";
 
 const C = {
@@ -24,7 +23,26 @@ export default function DeliveryMailPage() {
   const [errMsg,       setErrMsg]       = useState("");
 
   // 연락처 관련
-  const { data: session } = useSession();
+  const [session, setSession] = useState<{name:string;email:string;accessToken:string}|null>(null);
+
+  // 세션 확인
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then(r => r.json())
+      .then(d => { if (d.ok) setSession(d.session); })
+      .catch(() => {});
+  }, []);
+
+  // URL 파라미터로 로그인 결과 확인
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("auth") === "success") {
+      fetch("/api/auth/session")
+        .then(r => r.json())
+        .then(d => { if (d.ok) setSession(d.session); });
+      window.history.replaceState({}, "", "/delivery-mail");
+    }
+  }, []);
   const [contacts,       setContacts]       = useState<{name:string;email:string;phone:string;org:string}[]>([]);
   const [contactsLoaded, setContactsLoaded] = useState(false);
   const [contactSearch,  setContactSearch]  = useState("");
@@ -198,7 +216,7 @@ export default function DeliveryMailPage() {
                                    borderRadius: 8, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
                           title="연락처 검색">👥</button>
                       ) : (
-                        <button onClick={() => signIn("google")}
+                        <button onClick={() => window.location.href = "/api/auth/google"}
                           style={{ height: 38, padding: "0 10px", background: "#fff", border: `1px solid ${C.border}`,
                                    borderRadius: 8, fontSize: 10, cursor: "pointer", fontFamily: "inherit",
                                    color: C.muted, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>
@@ -234,7 +252,7 @@ export default function DeliveryMailPage() {
                   {session ? (
                     <div style={{ fontSize: 10, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
                       <span>✓ Google 연락처 {contactsLoaded ? `${contacts.length}명` : "연동됨"}</span>
-                      <button onClick={() => signOut()} style={{ background: "none", border: "none", fontSize: 10, color: C.hint, cursor: "pointer", padding: 0 }}>연동 해제</button>
+                      <button onClick={() => window.location.href = "/api/auth/signout"} style={{ background: "none", border: "none", fontSize: 10, color: C.hint, cursor: "pointer", padding: 0 }}>연동 해제</button>
                     </div>
                   ) : null}
                 </div>
