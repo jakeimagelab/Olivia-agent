@@ -1657,7 +1657,8 @@ export default function QuoteBuilder() {
           </div>
         </div>
 
-        </div>{/* form div 닫기 */}
+        </div>
+        </div>{/* form tab div */}
         <div style={{ display: activeTab==="preview" ? "block" : "none" }}>
         <aside className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
@@ -1920,7 +1921,8 @@ export default function QuoteBuilder() {
             </div>
           </div>
         </aside>
-        </aside></div>{/* preview div 닫기 */}
+        </div>
+        </div>{/* preview tab div */}
       </section>
     </main>
   );
