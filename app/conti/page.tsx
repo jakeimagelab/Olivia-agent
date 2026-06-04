@@ -11,12 +11,20 @@ import {
 /* ════════════════════════════════════════
    프리셋
 ════════════════════════════════════════ */
+// ※ 진료과 순서: PDF 콘티 기준 / 실제 촬영 빈도 순
 const SPECIALTY_OPTIONS = [
-  "소아청소년과", "이비인후과", "내과", "외과", "정형외과",
-  "피부과", "성형외과", "안과", "치과", "한의원",
-  "산부인과", "비뇨기과", "신경과", "신경외과", "정신건강의학과",
-  "재활의학과", "가정의학과", "응급의학과", "영상의학과", "마취통증의학과",
-  "혈액종양내과", "감염내과", "소화기내과", "순환기내과"
+  // 소아·이비인후
+  "소아청소년과", "이비인후과(청각치료포함)",
+  // 내과·검진
+  "검진내과",
+  // 근골격·통증계 (C-ARM / 초음파주사 / 통증치료 공통)
+  "정형외과", "신경외과", "마취통증의학과", "재활의학과",
+  // 미용·외모
+  "성형외과", "피부과",
+  // 기타 전문과
+  "안과", "치과", "산부인과", "비뇨기과", "외과",
+  // 정신·한방
+  "정신건강의학과", "한방병원(한의원)",
 ];
 const STAFF_ROLE_PRESETS = [
   "간호사", "수간호사", "병동 간호사", "외래 간호사",
@@ -43,11 +51,22 @@ interface ContiResult  { conti: ContiRow[]; checklist: ChecklistRow[]; schedule:
    색상
 ════════════════════════════════════════ */
 const CAT_COLORS = [
-  { key: "하모니",    bg: "#FEF3C7", text: "#92400E" },
-  { key: "외래",     bg: "#FCE7F3", text: "#9D174D" },
-  { key: "진료",     bg: "#FCE7F3", text: "#9D174D" },
-  { key: "병동",     bg: "#EDE9FE", text: "#5B21B6" },
-  { key: "인테리어", bg: "#F3F4F6", text: "#374151" }
+  { key: "하모니",       bg: "#FEF3C7", text: "#92400E" },
+  { key: "공통",         bg: "#FEF3C7", text: "#92400E" },
+  { key: "인포데스크",   bg: "#FEF3C7", text: "#92400E" },
+  { key: "C-ARM",        bg: "#FEE2E2", text: "#991B1B" },
+  { key: "씨암",         bg: "#FEE2E2", text: "#991B1B" },
+  { key: "시술",         bg: "#FEE2E2", text: "#991B1B" },
+  { key: "초음파",       bg: "#DBEAFE", text: "#1E40AF" },
+  { key: "주사",         bg: "#DBEAFE", text: "#1E40AF" },
+  { key: "외래",         bg: "#FCE7F3", text: "#9D174D" },
+  { key: "진료",         bg: "#FCE7F3", text: "#9D174D" },
+  { key: "상담",         bg: "#FCE7F3", text: "#9D174D" },
+  { key: "병동",         bg: "#EDE9FE", text: "#5B21B6" },
+  { key: "재활",         bg: "#D1FAE5", text: "#065F46" },
+  { key: "물리치료",     bg: "#D1FAE5", text: "#065F46" },
+  { key: "인테리어",     bg: "#F3F4F6", text: "#374151" },
+  { key: "수술",         bg: "#FEE2E2", text: "#991B1B" },
 ];
 const getColor = (cat: string) =>
   CAT_COLORS.find(c => cat.includes(c.key)) ?? { bg: "#E6F4F1", text: "#155855" };
@@ -548,7 +567,11 @@ export default function ContiPage() {
               </h2>
               <p style={{ margin: "0 0 20px", color: "rgba(255,255,255,0.72)", fontSize: 14, lineHeight: 1.65 }}>
                 병원 규모, 직원, 장소는 진료과에 맞게 자동으로 설정됩니다.<br />
-                생성 후 셀을 클릭해 직접 수정할 수 있어요.
+                생성 후 셀을 클릭해 직접 수정할 수 있어요.<br />
+                <span style={{ color: "#FEF3C7", fontWeight: 700 }}>
+                  ✦ 2개 이상 선택 시 종합병원 콘티로 생성됩니다 &nbsp;|&nbsp;
+                  정형·신경·마취·재활 선택 시 C-ARM·초음파 주사치료 컷이 자동 포함됩니다
+                </span>
               </p>
 
               {/* 진료과 선택 (흰 배경) */}
