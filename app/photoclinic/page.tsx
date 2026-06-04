@@ -10,8 +10,6 @@ import {
   Upload,
   UserRound,
   WalletCards,
-  ZoomIn,
-  ZoomOut,
   FileText
 } from "lucide-react";
 
@@ -275,11 +273,8 @@ export default function QuoteBuilder() {
   const [pdfImportMessage, setPdfImportMessage] = useState("");
   const [manualPdfQuote, setManualPdfQuote] = useState<ImportedPdfQuote | null>(null);
   const [recentQuoteMessage, setRecentQuoteMessage] = useState("");
-  const [basePreviewScale, setBasePreviewScale] = useState(0.48);
-  const [previewZoom, setPreviewZoom] = useState(1);
+  const [previewScale, setPreviewScale] = useState(0.72);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
-  const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
-  const previewPercent = Math.round(previewZoom * 100);
 
   useEffect(() => {
     try {
@@ -304,10 +299,16 @@ export default function QuoteBuilder() {
         Number.parseFloat(style.paddingLeft || "0") + Number.parseFloat(style.paddingRight || "0");
       const borderX =
         Number.parseFloat(style.borderLeftWidth || "0") + Number.parseFloat(style.borderRightWidth || "0");
+      const paddingY =
+        Number.parseFloat(style.paddingTop || "0") + Number.parseFloat(style.paddingBottom || "0");
+      const borderY =
+        Number.parseFloat(style.borderTopWidth || "0") + Number.parseFloat(style.borderBottomWidth || "0");
       const shellWidth = shell.getBoundingClientRect().width;
+      const shellHeight = shell.getBoundingClientRect().height;
       const availableWidth = Math.max(0, shellWidth - paddingX - borderX - 2);
-      const nextScale = Math.min(1, Math.max(0.12, availableWidth / 1123));
-      setBasePreviewScale(Number(nextScale.toFixed(3)));
+      const availableHeight = Math.max(0, shellHeight - paddingY - borderY - 2);
+      const nextScale = Math.min(1.2, Math.max(0.2, Math.min(availableWidth / 1123, availableHeight / 794)));
+      setPreviewScale(Number(nextScale.toFixed(3)));
     };
 
     updateScale();
@@ -320,40 +321,6 @@ export default function QuoteBuilder() {
       window.removeEventListener("resize", updateScale);
     };
   }, []);
-
-  const getPreviewZoomMax = () => {
-    if (typeof window === "undefined") return 1.8;
-    return window.matchMedia("(max-width: 768px)").matches ? 1.35 : 1.8;
-  };
-
-  const keepZoomControlsReachable = () => {
-    window.requestAnimationFrame(() => {
-      const shell = previewShellRef.current;
-      if (!shell) return;
-
-      // 모바일에서 확대 후 가로 스크롤 때문에 전체 페이지가 밀리지 않도록
-      // 미리보기 내부 스크롤만 중앙 기준으로 정리합니다.
-      const maxScrollLeft = Math.max(0, shell.scrollWidth - shell.clientWidth);
-      shell.scrollLeft = Math.min(shell.scrollLeft, maxScrollLeft);
-    });
-  };
-
-  const zoomOutPreview = () => {
-    setPreviewZoom((value) => Math.max(0.7, Number((value - 0.1).toFixed(1))));
-    keepZoomControlsReachable();
-  };
-
-  const zoomInPreview = () => {
-    setPreviewZoom((value) => Math.min(getPreviewZoomMax(), Number((value + 0.1).toFixed(1))));
-    keepZoomControlsReachable();
-  };
-
-  const resetPreviewZoom = () => {
-    setPreviewZoom(1);
-    window.requestAnimationFrame(() => {
-      if (previewShellRef.current) previewShellRef.current.scrollLeft = 0;
-    });
-  };
 
   const createNextQuoteNumber = () => {
     const date = todayValue().replaceAll("-", "");
@@ -1541,22 +1508,11 @@ export default function QuoteBuilder() {
           </div>
         </div>
 
-        <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]">
+        <aside className="min-w-0 md:sticky md:top-4 md:self-start lg:top-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
               <p className="text-sm font-bold text-[#155855]">실시간 견적서 미리보기</p>
-              <p className="text-xs text-[#797168]">A4 가로형 1페이지 · 100%는 화면 맞춤</p>
-            </div>
-            <div className="preview-zoom-controls" aria-label="견적서 미리보기 확대 축소">
-              <button type="button" onClick={zoomOutPreview} aria-label="미리보기 축소">
-                <ZoomOut size={16} />
-              </button>
-              <button type="button" onClick={resetPreviewZoom} className="zoom-percent" aria-label="미리보기 확대 비율 초기화">
-                {previewPercent}%
-              </button>
-              <button type="button" onClick={zoomInPreview} aria-label="미리보기 확대">
-                <ZoomIn size={16} />
-              </button>
+              <p className="text-xs text-[#797168]">A4 가로형 1페이지 · 화면 자동 맞춤</p>
             </div>
           </div>
 
@@ -1568,11 +1524,11 @@ export default function QuoteBuilder() {
                 height: `${794 * previewScale}px`
               }}
             >
-            <div
-              ref={previewRef}
-              className="quote-page"
-              style={{ transform: `scale(${previewScale})` }}
-            >
+              <div
+                ref={previewRef}
+                className="quote-page"
+                style={{ transform: `scale(${previewScale})` }}
+              >
               <aside className="brand-rail">
                 <div className="rail-slogan">
                   <p>브랜드를 담습니다.</p>
