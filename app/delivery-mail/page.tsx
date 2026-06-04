@@ -228,22 +228,22 @@ export default function DeliveryMailPage() {
                       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200,
                                      background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10,
                                      boxShadow: "0 4px 16px rgba(0,0,0,.1)", marginTop: 4,
-                                     maxHeight: 240, overflowY: "auto" }}>
+                                     maxHeight: 360, overflowY: "auto" }}>
                         <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
                           <input value={contactSearch} onChange={e => setContactSearch(e.target.value)}
                             placeholder="이름·이메일·회사 검색..."
-                            style={{ ...iS, height: 30, fontSize: 11, padding: "4px 10px" }}/>
+                            style={{ ...iS, height: 38, fontSize: 13, padding: "8px 12px" }}/>
                         </div>
                         {filteredContacts.map((c, i) => (
                           <div key={i}
                             onClick={() => { setToEmail(c.email); setToName(c.name); setHospitalName(prev => prev || c.org); setShowDropdown(false); setContactSearch(""); }}
-                            style={{ padding: "9px 12px", cursor: "pointer", borderBottom: `1px solid ${C.border}`,
-                                     display: "flex", flexDirection: "column", gap: 2 }}
+                            style={{ padding: "12px 16px", cursor: "pointer", borderBottom: `1px solid ${C.border}`,
+                                     display: "flex", flexDirection: "column", gap: 4 }}
                             onMouseEnter={e => (e.currentTarget.style.background = C.mint)}
                             onMouseLeave={e => (e.currentTarget.style.background = "")}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: C.txt }}>{c.name}</span>
-                            <span style={{ fontSize: 11, color: C.muted }}>{c.email}</span>
-                            {c.org && <span style={{ fontSize: 10, color: C.hint }}>{c.org}</span>}
+                            <span style={{ fontSize: 14, fontWeight: 700, color: C.txt }}>{c.name}</span>
+                            <span style={{ fontSize: 13, color: C.muted }}>{c.email}</span>
+                            {c.org && <span style={{ fontSize: 12, color: C.hint }}>{c.org}</span>}
                           </div>
                         ))}
                       </div>
