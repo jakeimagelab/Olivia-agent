@@ -699,13 +699,12 @@ textarea:focus {
 }
 
 .preview-shell {
-  overflow: auto;
+  overflow: hidden;
   border-radius: 8px;
   background: #e8e0d4;
   padding: 8px;
   box-shadow: 0 24px 70px rgba(34, 34, 34, 0.14);
-  display: flex;
-  justify-content: center;
+  width: 100%;
 }
 
 .quote-page {
