@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";
-
 export const metadata: Metadata = {
   metadataBase: new URL("https://olivia-agent-smoky.vercel.app"),
   title: "포토클리닉 AI 비서 관리자",
@@ -13,9 +11,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="ko">
       <body className="min-h-screen font-sans antialiased">
-        <SessionProviderWrapper>
-          {children}
-        </SessionProviderWrapper>
+        {children}
       </body>
     </html>
   );
