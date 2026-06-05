@@ -1,5 +1,5 @@
-import PhotoclinicQuoteBuilder from "../../components/PhotoclinicQuoteBuilder";
+import PhotoclinicPage from "@/app/photoclinic/page";
 
 export default function Quote() {
-  return <PhotoclinicQuoteBuilder />;
+  return <PhotoclinicPage />;
 }
