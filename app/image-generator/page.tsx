@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Download, ImagePlus, Loader2, Maximize2, Sparkles, Upload, UserRound, X } from "lucide-react";
+import { ArrowLeft, Camera, Download, ImagePlus, Loader2, Maximize2, Sparkles, Upload, UserRound, X } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 
-type Mode = "scene" | "avatar";
+type Mode = "scene" | "avatar" | "photoVariation";
 type DetailTab = "scene" | "background";
 
 type GeneratorForm = {
@@ -25,6 +25,7 @@ type GeneratorForm = {
   backgroundMustShow: string;
   backgroundAvoid: string;
   referenceAnalysis: string;
+  variationRequest: string;
   extraRequest: string;
 };
 
@@ -52,6 +53,7 @@ const initialForm: GeneratorForm = {
   backgroundMustShow: "상담 테이블, 부드러운 커튼 또는 창가 빛, 병원 공간의 깊이감",
   backgroundAvoid: "복잡한 소품, 어두운 배경, 차가운 형광등 느낌, 과도한 병원 장비 노출",
   referenceAnalysis: "",
+  variationRequest: "원본 사진의 촬영감, 인물 배치, 창가 자연광, 병원 공간 톤, 카메라 거리감은 90% 이상 유지. 아주 살짝 낮은 구도, 아이가 조금 더 미소 짓는 표정, 손과 스푼 위치만 자연스럽게 미세 변화.",
   extraRequest: ""
 };
 
@@ -119,7 +121,22 @@ function selectedShootingPresetPrompt(title: string) {
 
 function buildPrompt(form: GeneratorForm) {
   const isAvatar = form.mode === "avatar";
+  const isPhotoVariation = form.mode === "photoVariation";
   const presetPrompt = selectedShootingPresetPrompt(form.shootingPreset);
+
+  if (isPhotoVariation) {
+    return [
+      "Create highly faithful subtle variations from the uploaded original photograph.",
+      "Preserve at least 90 percent of the original photo's feeling: same real camera photography style, same clinic or hospital room atmosphere, same bright natural window light, same warm ivory-white color grade, same depth of field, same subject placement, same overall composition, same crop ratio, and same documentary editorial medical branding mood.",
+      "Do not redesign the scene. Do not change the location identity. Do not replace the people with different-looking people. Do not turn it into illustration, CGI, 3D render, stock photo, or overly polished AI image.",
+      "Make only tiny believable photographer-like variations: a slightly lower camera angle, a very small change in facial expression such as a softer smile, tiny natural hand or gaze changes, subtle micro-adjustments in framing, and gentle exposure/color variations.",
+      "The output must look like another frame from the same real photoshoot, captured seconds before or after the original.",
+      form.variationRequest && `Specific variation request: ${form.variationRequest}.`,
+      form.referenceAnalysis && `Reference analysis: ${form.referenceAnalysis}.`,
+      form.extraRequest && `Additional request: ${form.extraRequest}.`,
+      ...photorealRules
+    ].filter(Boolean).join(" ");
+  }
 
   // Flux Dev는 자연스러운 영어 문장 묘사가 훨씬 효과적
   const subjectLine = isAvatar
@@ -194,11 +211,14 @@ function buildPrompt(form: GeneratorForm) {
 export default function ImageGeneratorPage() {
   const [form, setForm] = useState<GeneratorForm>(initialForm);
   const [detailTab, setDetailTab] = useState<DetailTab>("scene");
+  const [variationImage, setVariationImage] = useState<File | null>(null);
+  const [variationPreview, setVariationPreview] = useState("");
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState("");
   const [styleReferenceImage, setStyleReferenceImage] = useState<File | null>(null);
   const [styleReferencePreview, setStyleReferencePreview] = useState("");
   const [hasFaceConsent, setHasFaceConsent] = useState(false);
+  const [hasVariationConsent, setHasVariationConsent] = useState(false);
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -206,6 +226,13 @@ export default function ImageGeneratorPage() {
   const prompt = useMemo(() => {
     const basePrompt = buildPrompt(form);
     const referenceInstructions = [];
+    if (form.mode === "photoVariation" && variationImage) {
+      referenceInstructions.push(
+        "업로드된 원본 사진을 베리에이션 기준 이미지로 사용한다.",
+        "원본 사진의 촬영감, 조명, 구도, 색감, 인물 간 거리, 병원 공간 분위기를 90% 이상 유지한다.",
+        "새 콘셉트로 바꾸지 말고 같은 촬영 현장에서 나온 다른 컷처럼 아주 미세한 변화만 만든다."
+      );
+    }
     if (referenceImage) {
       referenceInstructions.push(
         "업로드된 원장 프로필 사진을 인물 참조 이미지로 사용한다.",
@@ -224,7 +251,7 @@ export default function ImageGeneratorPage() {
       basePrompt,
       ...referenceInstructions
     ].join(" ");
-  }, [form, referenceImage, styleReferenceImage]);
+  }, [form, variationImage, referenceImage, styleReferenceImage]);
 
   const update = (key: keyof GeneratorForm, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -237,6 +264,23 @@ export default function ImageGeneratorPage() {
       return;
     }
     setReferencePreview(URL.createObjectURL(file));
+  };
+
+  const handleVariationImage = (file: File | null) => {
+    setVariationImage(file);
+    if (!file) {
+      setVariationPreview("");
+      return;
+    }
+    setVariationPreview(URL.createObjectURL(file));
+    setForm((prev) => ({
+      ...prev,
+      mode: "photoVariation",
+      scene: prev.scene || "원본 촬영 사진 베리에이션",
+      department: prev.department || "병원",
+      doctorDescription: prev.doctorDescription || "원본 사진 속 인물과 분위기 유지",
+      content: prev.content || "원본 사진과 거의 같은 촬영감으로 미세한 표정, 구도, 손동작만 변주"
+    }));
   };
 
   const handleStyleReferenceImage = (file: File | null) => {
@@ -258,7 +302,17 @@ export default function ImageGeneratorPage() {
     event.preventDefault();
     setErrorMessage("");
 
-    if (!form.department.trim() || !form.scene.trim() || !form.doctorDescription.trim() || !form.content.trim()) {
+    if (form.mode === "photoVariation" && !variationImage) {
+      setErrorMessage("베리에이션할 원본 사진을 업로드해주세요.");
+      return;
+    }
+
+    if (form.mode === "photoVariation" && !hasVariationConsent) {
+      setErrorMessage("업로드한 사진을 AI 베리에이션 생성에 사용할 권한과 동의를 확인해주세요.");
+      return;
+    }
+
+    if (form.mode !== "photoVariation" && (!form.department.trim() || !form.scene.trim() || !form.doctorDescription.trim() || !form.content.trim())) {
       setErrorMessage("진료과, 장면, 원장/인물, 내용은 꼭 입력해주세요.");
       return;
     }
@@ -272,7 +326,9 @@ export default function ImageGeneratorPage() {
     try {
       const payload = new FormData();
       payload.append("prompt", prompt);
-      payload.append("category", form.mode === "avatar" ? "포토클리닉 의료진 아바타" : form.scene);
+      payload.append("generationMode", form.mode);
+      payload.append("category", form.mode === "avatar" ? "포토클리닉 의료진 아바타" : form.mode === "photoVariation" ? "내가 찍은 사진 베리에이션" : form.scene);
+      if (variationImage) payload.append("variationImage", variationImage);
       if (referenceImage) payload.append("referenceImage", referenceImage);
       if (styleReferenceImage) payload.append("styleReferenceImage", styleReferenceImage);
 
@@ -347,7 +403,55 @@ export default function ImageGeneratorPage() {
               <strong>의료진 아바타 생성</strong>
               <span>원장, 의료진 프로필 이미지</span>
             </button>
+            <button
+              type="button"
+              className={form.mode === "photoVariation" ? "mode-card active" : "mode-card"}
+              onClick={() => setForm((prev) => ({ ...prev, mode: "photoVariation" }))}
+            >
+              <Camera size={22} />
+              <strong>내 사진 베리에이션</strong>
+              <span>찍은 사진 느낌 90% 이상 유지</span>
+            </button>
           </div>
+
+          <section className={form.mode === "photoVariation" ? "photo-variation-panel active" : "photo-variation-panel"}>
+            <div>
+              <p className="admin-kicker">MY PHOTO VARIATION</p>
+              <h2>내가 찍은 사진 베리에이션</h2>
+              <p>
+                원본 사진의 촬영감, 조명, 구도, 색감, 인물 배치, 병원 공간 분위기를 최대한 유지하고 아주 작은 표정·구도 변화만 만듭니다.
+              </p>
+            </div>
+            <label className="variation-upload-box">
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => handleVariationImage(event.target.files?.[0] || null)}
+              />
+              {variationPreview ? (
+                <img src={variationPreview} alt="베리에이션 원본 사진" />
+              ) : (
+                <span>
+                  <Upload size={24} />
+                  원본 사진 업로드
+                </span>
+              )}
+            </label>
+            <label className="field variation-request">
+              <span>원하는 아주 작은 변화</span>
+              <textarea
+                value={form.variationRequest}
+                onChange={(event) => update("variationRequest", event.target.value)}
+                placeholder="예: 90% 이상 원본 느낌 유지, 살짝 아래 구도, 아이가 조금 더 미소, 손 위치만 자연스럽게 변화"
+              />
+            </label>
+            {variationImage ? (
+              <label className="face-consent">
+                <input type="checkbox" checked={hasVariationConsent} onChange={(event) => setHasVariationConsent(event.target.checked)} />
+                <span>업로드한 사진을 AI 베리에이션 생성 참조로 사용할 권한과 등장 인물/병원 측 동의를 확인했습니다.</span>
+              </label>
+            ) : null}
+          </section>
 
           <section className="reference-upload-panel">
             <div>
