@@ -4,6 +4,7 @@ import { generateWithFluxDev, generateWithFluxRedux, urlToDataUrl } from "@/lib/
 type ImageGeneratorPayload = {
   prompt: string;
   category: string;
+  generationMode?: string;
 };
 
 type OpenAIImageItem = {
@@ -59,6 +60,32 @@ async function applyFaceWithOpenAI(
   );
 }
 
+async function generatePhotoVariationWithOpenAI(
+  prompt: string,
+  sourceImage: File,
+  count = 4
+): Promise<string[]> {
+  const editForm = new FormData();
+  editForm.append("model", "gpt-image-1");
+  editForm.append("prompt", prompt);
+  editForm.append("n", String(count));
+  editForm.append("size", "1536x1024");
+  editForm.append("image[]", sourceImage);
+
+  const response = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: editForm
+  });
+
+  const data = (await response.json()) as OpenAIImageResponse;
+  if (!response.ok) throw new Error(data.error?.message || "OpenAI 사진 베리에이션 생성에 실패했습니다.");
+
+  return (data.data || []).map((item) =>
+    item.b64_json ? `data:image/png;base64,${item.b64_json}` : item.url || ""
+  );
+}
+
 // ─────────────────────────────────────────
 // 메인 라우트
 // ─────────────────────────────────────────
@@ -71,6 +98,8 @@ export async function POST(request: Request) {
 
     const prompt = isMultipart ? String(formData?.get("prompt") || "") : body?.prompt || "";
     const category = isMultipart ? String(formData?.get("category") || "") : body?.category || "";
+    const generationMode = isMultipart ? String(formData?.get("generationMode") || "") : body?.generationMode || "";
+    const variationImage = formData?.get("variationImage");
     const faceImage = formData?.get("referenceImage");
     const styleImage = formData?.get("styleReferenceImage");
 
@@ -92,8 +121,29 @@ export async function POST(request: Request) {
     let imageUrls: string[];
     const hasFace = faceImage instanceof File;
     const hasStyle = styleImage instanceof File;
+    const hasVariationImage = variationImage instanceof File;
 
-    if (hasStyle && hasFace) {
+    if (generationMode === "photoVariation") {
+      if (!hasVariationImage) {
+        return NextResponse.json({ error: "베리에이션할 원본 사진이 없습니다." }, { status: 400 });
+      }
+
+      const strictVariationPrompt = [
+        prompt,
+        "Critical preservation rule: keep the uploaded original photo's real photoshoot feeling, subject layout, camera distance, lighting direction, color temperature, background identity, crop orientation, and hospital documentary mood at least 90 percent similar.",
+        "Only introduce tiny believable variations that could happen within the same photoshoot: slightly lower angle, subtly softer smile, tiny hand/gaze movement, minimal framing shift.",
+        "Do not create a new concept, do not change the hospital room, do not alter age/gender/ethnicity, do not add unrelated props, do not make it look AI-generated."
+      ].join(" ");
+
+      if (process.env.OPENAI_API_KEY) {
+        console.log("[Pipeline] OpenAI edits — high fidelity source photo variation");
+        imageUrls = await generatePhotoVariationWithOpenAI(strictVariationPrompt, variationImage, 4);
+      } else {
+        console.log("[Pipeline] Flux Redux — source photo variation");
+        imageUrls = await generateWithFluxRedux(variationImage, strictVariationPrompt, 4);
+      }
+
+    } else if (hasStyle && hasFace) {
       // ── B안: 2단계 파이프라인 ──────────────────────────────
       // 1단계: Flux Redux로 스타일 레퍼런스 기반 이미지 4장 생성
       console.log("[Pipeline] Step 1: Flux Redux — style reference");
