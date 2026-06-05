@@ -779,13 +779,10 @@ export default function QuoteBuilder() {
 
       let fullText = pageTexts.join("\n").trim();
       if (!fullText || fullText.length < 30) {
-        setPdfImportMessage("텍스트가 없는 이미지형 PDF입니다. OCR로 내용을 읽는 중입니다. 잠시만 기다려주세요.");
+        setPdfImportMessage("이미지형 PDF입니다. Google Vision AI로 텍스트를 인식 중입니다. 잠시만 기다려주세요...");
 
         try {
-          const tesseractUrl = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js";
-          const tesseract = (await import(/* webpackIgnore: true */ tesseractUrl)) as any;
-          const { createWorker } = tesseract;
-          const worker = await createWorker("kor+eng");
+          setPdfImportMessage("Google Vision AI로 이미지를 분석 중입니다. 잠시만 기다려주세요...");
           const ocrTexts: string[] = [];
           const pageLimit = Math.min(pdf.numPages, 2);
 
@@ -799,15 +796,26 @@ export default function QuoteBuilder() {
             canvas.width = viewport.width;
             canvas.height = viewport.height;
             await page.render({ canvasContext: context, viewport }).promise;
-            const result = await worker.recognize(canvas);
-            ocrTexts.push(result.data.text);
+
+            // Canvas → base64 (data URL 제외)
+            const dataUrl   = canvas.toDataURL("image/jpeg", 0.95);
+            const imageBase64 = dataUrl.split(",")[1];
+
+            // Google Vision API 호출
+            const visionRes = await fetch("/api/ocr-pdf", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ imageBase64 }),
+            });
+            const visionData = await visionRes.json() as { ok: boolean; text?: string; error?: string };
+            if (!visionData.ok) throw new Error(visionData.error || "OCR 실패");
+            if (visionData.text) ocrTexts.push(visionData.text);
           }
 
-          await worker.terminate();
           fullText = ocrTexts.join("\n").trim();
         } catch {
           setManualPdfQuote(makeManualPdfQuote(file.name));
-          setPdfImportMessage("이미지형 PDF라 자동 추출이 어렵습니다. 아래에 병원명과 금액을 입력하면 계약서로 만들 수 있습니다.");
+          setPdfImportMessage("이미지형 PDF 분석에 실패했습니다. 아래에 병원명과 금액을 입력하면 계약서로 만들 수 있습니다.");
           return;
         }
 
