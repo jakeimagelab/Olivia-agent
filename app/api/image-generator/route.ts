@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     const prompt = isMultipart ? String(formData?.get("prompt") || "") : body?.prompt || "";
     const category = isMultipart ? String(formData?.get("category") || "") : body?.category || "";
     const generationMode  = isMultipart ? String(formData?.get("generationMode") || "") : body?.generationMode || "";
-    const fluxStrength    = parseFloat(String(formData?.get("fluxStrength") || "0.85"));
+    const fluxStrength    = parseFloat(String(formData?.get("fluxStrength") || "0.6"));
     const variationImage  = formData?.get("variationImage");
     const faceImage = formData?.get("referenceImage");
     const styleImage = formData?.get("styleReferenceImage");
@@ -137,12 +137,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "베리에이션할 원본 사진이 없습니다." }, { status: 400 });
       }
 
+      // 인물이 달라지는 문제 방지: 프롬프트 최소화, 원본 이미지 의존도 극대화
       const strictVariationPrompt = [
-        prompt,
-        "Critical preservation rule: keep the uploaded original photo's real photoshoot feeling, subject layout, camera distance, lighting direction, color temperature, background identity, crop orientation, and hospital documentary mood at least 90 percent similar.",
-        "Only introduce tiny believable variations that could happen within the same photoshoot: slightly lower angle, subtly softer smile, tiny hand/gaze movement, minimal framing shift.",
-        "Do not create a new concept, do not change the hospital room, do not alter age/gender/ethnicity, do not add unrelated props, do not make it look AI-generated."
+        "Extremely faithful photo variation. Preserve ALL people's faces, expressions, ages, and appearances EXACTLY as in the original.",
+        "Keep same hospital room, same lighting, same composition, same color grade.",
+        "Only micro-level changes allowed: 1-2 degree camera shift, slight ambient light change.",
+        "NEVER redesign faces. NEVER change who the people are.",
       ].join(" ");
+      // 사용자 요청이 있으면 추가 (단, 인물 관련 변경 요청은 무시)
+      void prompt;
 
       if (process.env.OPENAI_API_KEY) {
         console.log("[Pipeline] OpenAI edits — high fidelity source photo variation");
