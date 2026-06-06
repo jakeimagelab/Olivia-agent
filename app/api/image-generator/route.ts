@@ -5,6 +5,8 @@ type ImageGeneratorPayload = {
   prompt: string;
   category: string;
   generationMode?: string;
+  fluxStrength?: number;
+  openaiStrength?: number;
 };
 
 type OpenAIImageItem = {
@@ -146,7 +148,7 @@ export async function POST(request: Request) {
         imageUrls = await generatePhotoVariationWithOpenAI(strictVariationPrompt, variationImage, 4);
       } else {
         console.log("[Pipeline] Flux Redux — source photo variation");
-        imageUrls = await generateWithFluxRedux(variationImage, strictVariationPrompt, 4);
+        imageUrls = await generateWithFluxRedux(variationImage, strictVariationPrompt, 4, { redux_strength: fluxStrength });
       }
 
     } else if (hasStyle && hasFace) {
