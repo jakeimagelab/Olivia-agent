@@ -40,9 +40,10 @@ export async function uploadToFal(file: File): Promise<string> {
    원본 사진을 기반으로 여러 버전 생성
 ───────────────────────────────────────── */
 export async function generateWithFluxRedux(
-  image:  File,
-  prompt: string,
-  count = 4,
+  image:   File,
+  prompt:  string,
+  count  = 4,
+  options: { redux_strength?: number; guidance_scale?: number; steps?: number } = {},
 ): Promise<string[]> {
   const imageUrl = await uploadToFal(image);
 
@@ -53,11 +54,12 @@ export async function generateWithFluxRedux(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      redux_image_url:        imageUrl,
-      num_images:             count,
-      enable_safety_checker:  false,
-      guidance_scale:         3.5,
-      num_inference_steps:    28,
+      redux_image_url:       imageUrl,
+      num_images:            count,
+      enable_safety_checker: false,
+      redux_strength:        options.redux_strength  ?? 0.75,
+      guidance_scale:        options.guidance_scale  ?? 3.5,
+      num_inference_steps:   options.steps           ?? 28,
     }),
   });
 
