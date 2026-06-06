@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateWithFluxDev, generateWithFluxRedux, urlToDataUrl } from "@/lib/replicate";
+import { generateWithFluxDev, generateWithFluxRedux, urlToDataUrl } from "@/lib/fal";
 
 type ImageGeneratorPayload = {
   prompt: string;
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     }
 
     // 토큰 없을 때 플레이스홀더
-    if (!process.env.REPLICATE_API_TOKEN && !process.env.OPENAI_API_KEY) {
+    if (!process.env.FAL_API_KEY && !process.env.OPENAI_API_KEY) {
       return NextResponse.json({
         images: Array.from({ length: 4 }, (_, i) => ({
           imageUrl: `https://placehold.co/1024x1024/faf7f2/155855.png?text=PHOTOCLINIC+AI+${i + 1}`,
