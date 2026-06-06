@@ -52,7 +52,10 @@ async function applyFaceWithOpenAI(
     body: editForm
   });
 
-  const data = (await response.json()) as OpenAIImageResponse;
+  const rawText = await response.text();
+  let data: OpenAIImageResponse;
+  try { data = JSON.parse(rawText); }
+  catch { throw new Error(`OpenAI 응답 오류 (${response.status}): ${rawText.slice(0, 120)}`); }
   if (!response.ok) throw new Error(data.error?.message || "OpenAI 이미지 편집에 실패했습니다.");
 
   return (data.data || []).map((item) =>
@@ -78,7 +81,10 @@ async function generatePhotoVariationWithOpenAI(
     body: editForm
   });
 
-  const data = (await response.json()) as OpenAIImageResponse;
+  const rawText = await response.text();
+  let data: OpenAIImageResponse;
+  try { data = JSON.parse(rawText); }
+  catch { throw new Error(`OpenAI 응답 오류 (${response.status}): ${rawText.slice(0, 120)}`); }
   if (!response.ok) throw new Error(data.error?.message || "OpenAI 사진 베리에이션 생성에 실패했습니다.");
 
   return (data.data || []).map((item) =>
