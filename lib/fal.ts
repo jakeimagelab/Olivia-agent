@@ -57,9 +57,11 @@ export async function generateWithFluxRedux(
       redux_image_url:       imageUrl,
       num_images:            count,
       enable_safety_checker: false,
-      redux_strength:        options.redux_strength  ?? 0.75,
+      redux_strength:        options.redux_strength  ?? 0.6,
       guidance_scale:        options.guidance_scale  ?? 3.5,
-      num_inference_steps:   options.steps           ?? 28,
+      num_inference_steps:   options.steps           ?? 50,
+      output_format:         "jpeg",
+      output_quality:        95,
     }),
   });
 
