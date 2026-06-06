@@ -491,7 +491,7 @@ export default function ImageGeneratorPage() {
             ) : null}
           </section>
 
-          <section className={form.mode === "photoVariation" ? "reference-upload-panel hidden-section" : "reference-upload-panel"}>
+          <section className="reference-upload-panel" style={{display: form.mode === "photoVariation" ? "none" : undefined}}>
             <div>
               <p className="admin-kicker">FACE REFERENCE</p>
               <h2>원장 프로필 사진 참조</h2>
@@ -522,7 +522,7 @@ export default function ImageGeneratorPage() {
             ) : null}
           </section>
 
-          <section className={form.mode === "photoVariation" ? "style-reference-panel hidden-section" : "style-reference-panel"}>
+          <section className="style-reference-panel" style={{display: form.mode === "photoVariation" ? "none" : undefined}}>
             <div>
               <p className="admin-kicker">STYLE REFERENCE</p>
               <h2>참고 이미지 업로드 / 분석</h2>
@@ -553,7 +553,7 @@ export default function ImageGeneratorPage() {
             </label>
           </section>
 
-          <section className={form.mode === "photoVariation" ? "instagram-style-panel hidden-section" : "instagram-style-panel"}>
+          <section className="instagram-style-panel" style={{display: form.mode === "photoVariation" ? "none" : undefined}}>
             <div>
               <p className="admin-kicker">INSTAGRAM STYLE</p>
               <h2>포토클리닉 인스타그램 톤</h2>
@@ -573,7 +573,7 @@ export default function ImageGeneratorPage() {
             </div>
           </section>
 
-          <section className={form.mode === "photoVariation" ? "shooting-preset-panel hidden-section" : "shooting-preset-panel"}>
+          <section className="shooting-preset-panel" style={{display: form.mode === "photoVariation" ? "none" : undefined}}>
             <div>
               <p className="admin-kicker">PHOTOCLINIC SHOOTING LOOK</p>
               <h2>포토클리닉 촬영감 프리셋</h2>
@@ -594,7 +594,7 @@ export default function ImageGeneratorPage() {
             </div>
           </section>
 
-          <section className="photoreal-rules-panel">
+          <section className="photoreal-rules-panel" style={{display: form.mode === "photoVariation" ? "none" : undefined}}>
             <div>
               <p className="admin-kicker">REAL PHOTO QUALITY</p>
               <h2>실사 품질 고정 규칙</h2>
@@ -609,7 +609,7 @@ export default function ImageGeneratorPage() {
             </ul>
           </section>
 
-          <section className="detail-tabs-panel">
+          <section className="detail-tabs-panel" style={{display: form.mode === "photoVariation" ? "none" : undefined}}>
             <div className="detail-tab-list">
               <button type="button" className={detailTab === "scene" ? "detail-tab active" : "detail-tab"} onClick={() => setDetailTab("scene")}>
                 장면 설명
