@@ -219,8 +219,8 @@ export default function ImageGeneratorPage() {
   const [styleReferencePreview, setStyleReferencePreview] = useState("");
   const [hasFaceConsent, setHasFaceConsent] = useState(false);
   const [hasVariationConsent, setHasVariationConsent] = useState(false);
-  const [fluxStrength, setFluxStrength]   = useState(0.85); // Flux Redux 강도 (낮을수록 원본 유지)
-  const [openaiStrength, setOpenaiStrength] = useState(0.7); // OpenAI 변화 강도
+  const [fluxStrength, setFluxStrength]   = useState(0.6); // Flux Redux 강도 (낮을수록 원본 유지)
+  const [openaiStrength, setOpenaiStrength] = useState(0.4); // OpenAI 변화 강도
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -411,8 +411,8 @@ export default function ImageGeneratorPage() {
               onClick={() => setForm((prev) => ({ ...prev, mode: "photoVariation" }))}
             >
               <Camera size={22} />
-              <strong>내 사진 베리에이션</strong>
-              <span>찍은 사진 느낌 90% 이상 유지</span>
+              <strong>내 사진 변형 생성</strong>
+              <span>원본 인물·구도·분위기 그대로 유지</span>
             </button>
           </div>
 
@@ -455,8 +455,8 @@ export default function ImageGeneratorPage() {
                   <span>낮을수록 원본과 유사 · 높을수록 변화 많음</span>
                 </div>
                 <div className="strength-slider-group">
-                  <span className="strength-label">원본 유지</span>
-                  <input type="range" min="0.5" max="1.0" step="0.05"
+                  <span className="strength-label">원본 그대로</span>
+                  <input type="range" min="0.3" max="0.95" step="0.05"
                     value={fluxStrength}
                     onChange={(e) => setFluxStrength(parseFloat(e.target.value))}
                     className="strength-slider"
