@@ -2061,3 +2061,58 @@ textarea:focus {
 }
 .deposit-row:last-child { border-bottom: none; }
 .deposit-row span { color: #5A7470; }
+
+/* ── 베리에이션 모드 숨김 ──────────────────────────── */
+.hidden-section {
+  display: none !important;
+}
+
+/* ── 강도 슬라이더 ─────────────────────────────────── */
+.variation-strength-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #EAF4F2;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 4px;
+}
+.variation-strength-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.variation-strength-row > div:first-child strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #155855;
+}
+.variation-strength-row > div:first-child span {
+  display: block;
+  font-size: 11px;
+  color: #9BB5B0;
+  margin-top: 2px;
+}
+.strength-slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.strength-slider {
+  flex: 1;
+  accent-color: #155855;
+  height: 4px;
+}
+.strength-label {
+  font-size: 10px;
+  color: #9BB5B0;
+  white-space: nowrap;
+}
+.strength-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #155855;
+  min-width: 36px;
+  text-align: right;
+}
