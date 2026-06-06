@@ -106,8 +106,9 @@ export async function POST(request: Request) {
 
     const prompt = isMultipart ? String(formData?.get("prompt") || "") : body?.prompt || "";
     const category = isMultipart ? String(formData?.get("category") || "") : body?.category || "";
-    const generationMode = isMultipart ? String(formData?.get("generationMode") || "") : body?.generationMode || "";
-    const variationImage = formData?.get("variationImage");
+    const generationMode  = isMultipart ? String(formData?.get("generationMode") || "") : body?.generationMode || "";
+    const fluxStrength    = parseFloat(String(formData?.get("fluxStrength") || "0.85"));
+    const variationImage  = formData?.get("variationImage");
     const faceImage = formData?.get("referenceImage");
     const styleImage = formData?.get("styleReferenceImage");
 
