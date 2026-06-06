@@ -48,6 +48,7 @@ export default function VariationPage() {
       const fd = new FormData();
       fd.append("image",     file);
       fd.append("direction", direction);
+      fd.append("strength",  String(strength));
       fd.append("count",     "4");
 
       const res  = await fetch("/api/variation", { method: "POST", body: fd });
@@ -201,7 +202,7 @@ export default function VariationPage() {
               fontFamily: "inherit",
             }}>
             {loading ? (
-              <><Loader2 size={18} className="animate-spin" />베리에이션 생성 중... (약 60초)</>
+              <><Loader2 size={18} className="animate-spin" />2단계 생성 중... (약 90초)</>
             ) : (
               <><Sparkles size={18} />베리에이션 4장 생성</>
             )}
@@ -240,9 +241,9 @@ export default function VariationPage() {
               <Loader2 size={48} className="animate-spin mb-5" style={{ color: "#155855" }} />
               <p className="text-base font-bold mb-2" style={{ color: "#155855" }}>AI가 베리에이션을 만들고 있어요</p>
               <p className="text-xs leading-relaxed" style={{ color: "#9BB5B0" }}>
-                원본 사진의 조명·구도·분위기를 분석하고<br />
-                포토클리닉 스타일로 4가지 버전 생성 중...<br />
-                약 60초 소요됩니다
+                <b style={{ color: "#155855" }}>Step 1.</b> fal.ai Flux — 조명·분위기 변형 중<br />
+                <b style={{ color: "#155855" }}>Step 2.</b> OpenAI — 원본 얼굴·피부 복원 중<br />
+                약 90초 소요됩니다
               </p>
             </div>
           )}
