@@ -219,6 +219,8 @@ export default function ImageGeneratorPage() {
   const [styleReferencePreview, setStyleReferencePreview] = useState("");
   const [hasFaceConsent, setHasFaceConsent] = useState(false);
   const [hasVariationConsent, setHasVariationConsent] = useState(false);
+  const [fluxStrength, setFluxStrength]   = useState(0.85); // Flux Redux 강도 (낮을수록 원본 유지)
+  const [openaiStrength, setOpenaiStrength] = useState(0.7); // OpenAI 변화 강도
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -445,6 +447,42 @@ export default function ImageGeneratorPage() {
                 placeholder="예: 90% 이상 원본 느낌 유지, 살짝 아래 구도, 아이가 조금 더 미소, 손 위치만 자연스럽게 변화"
               />
             </label>
+            {/* ── 강도 조절 슬라이더 ── */}
+            <div className="variation-strength-panel">
+              <div className="variation-strength-row">
+                <div>
+                  <strong>Flux 원본 유지 강도</strong>
+                  <span>낮을수록 원본과 유사 · 높을수록 변화 많음</span>
+                </div>
+                <div className="strength-slider-group">
+                  <span className="strength-label">원본 유지</span>
+                  <input type="range" min="0.5" max="1.0" step="0.05"
+                    value={fluxStrength}
+                    onChange={(e) => setFluxStrength(parseFloat(e.target.value))}
+                    className="strength-slider"
+                  />
+                  <span className="strength-label">변화 많음</span>
+                  <span className="strength-value">{Math.round(fluxStrength * 100)}%</span>
+                </div>
+              </div>
+              <div className="variation-strength-row">
+                <div>
+                  <strong>OpenAI 변화 강도</strong>
+                  <span>OpenAI API 사용 시 적용 · 낮을수록 원본 느낌 유지</span>
+                </div>
+                <div className="strength-slider-group">
+                  <span className="strength-label">미세 변화</span>
+                  <input type="range" min="0.3" max="1.0" step="0.05"
+                    value={openaiStrength}
+                    onChange={(e) => setOpenaiStrength(parseFloat(e.target.value))}
+                    className="strength-slider"
+                  />
+                  <span className="strength-label">큰 변화</span>
+                  <span className="strength-value">{Math.round(openaiStrength * 100)}%</span>
+                </div>
+              </div>
+            </div>
+
             {variationImage ? (
               <label className="face-consent">
                 <input type="checkbox" checked={hasVariationConsent} onChange={(event) => setHasVariationConsent(event.target.checked)} />
@@ -453,7 +491,7 @@ export default function ImageGeneratorPage() {
             ) : null}
           </section>
 
-          <section className="reference-upload-panel">
+          <section className={form.mode === "photoVariation" ? "reference-upload-panel hidden-section" : "reference-upload-panel"}>
             <div>
               <p className="admin-kicker">FACE REFERENCE</p>
               <h2>원장 프로필 사진 참조</h2>
@@ -484,7 +522,7 @@ export default function ImageGeneratorPage() {
             ) : null}
           </section>
 
-          <section className="style-reference-panel">
+          <section className={form.mode === "photoVariation" ? "style-reference-panel hidden-section" : "style-reference-panel"}>
             <div>
               <p className="admin-kicker">STYLE REFERENCE</p>
               <h2>참고 이미지 업로드 / 분석</h2>
@@ -515,7 +553,7 @@ export default function ImageGeneratorPage() {
             </label>
           </section>
 
-          <section className="instagram-style-panel">
+          <section className={form.mode === "photoVariation" ? "instagram-style-panel hidden-section" : "instagram-style-panel"}>
             <div>
               <p className="admin-kicker">INSTAGRAM STYLE</p>
               <h2>포토클리닉 인스타그램 톤</h2>
@@ -535,7 +573,7 @@ export default function ImageGeneratorPage() {
             </div>
           </section>
 
-          <section className="shooting-preset-panel">
+          <section className={form.mode === "photoVariation" ? "shooting-preset-panel hidden-section" : "shooting-preset-panel"}>
             <div>
               <p className="admin-kicker">PHOTOCLINIC SHOOTING LOOK</p>
               <h2>포토클리닉 촬영감 프리셋</h2>
