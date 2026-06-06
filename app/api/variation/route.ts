@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { generateWithFluxRedux } from "@/lib/replicate";
+import { generateWithFluxRedux } from "@/lib/fal";
 
-export const dynamic = "force-dynamic";
+export const dynamic    = "force-dynamic";
 export const maxDuration = 120;
 
 // 포토클리닉 스타일 기본값 — 역광·림라이트·화사한 병원 분위기
@@ -31,7 +31,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "이미지가 없습니다." }, { status: 400 });
     }
 
-    if (!process.env.REPLICATE_API_TOKEN) {
+    // FAL_API_KEY 없을 때 플레이스홀더 반환
+    if (!process.env.FAL_API_KEY) {
       return NextResponse.json({
         ok: true,
         images: Array.from({ length: count }, (_, i) => ({
@@ -41,13 +42,13 @@ export async function POST(request: Request) {
       });
     }
 
-    const dirPrompt   = DIRECTION_PROMPTS[direction] || DIRECTION_PROMPTS.natural;
-    const fullPrompt  = `${BASE_STYLE}, ${dirPrompt}`;
+    const dirPrompt  = DIRECTION_PROMPTS[direction] ?? DIRECTION_PROMPTS.natural;
+    const fullPrompt = `${BASE_STYLE}, ${dirPrompt}`;
 
     const urls = await generateWithFluxRedux(file, fullPrompt, count);
 
     return NextResponse.json({
-      ok: true,
+      ok:     true,
       images: urls.map((url, i) => ({ url, no: i + 1 })),
     });
   } catch (e) {
