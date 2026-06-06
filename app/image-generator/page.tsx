@@ -278,7 +278,7 @@ export default function ImageGeneratorPage() {
     setForm((prev) => ({
       ...prev,
       mode: "photoVariation",
-      scene: prev.scene || "원본 촬영 사진 베리에이션",
+      scene: prev.scene || "내 사진 변형 생성",
       department: prev.department || "병원",
       doctorDescription: prev.doctorDescription || "원본 사진 속 인물과 분위기 유지",
       content: prev.content || "원본 사진과 거의 같은 촬영감으로 미세한 표정, 구도, 손동작만 변주"
@@ -305,12 +305,12 @@ export default function ImageGeneratorPage() {
     setErrorMessage("");
 
     if (form.mode === "photoVariation" && !variationImage) {
-      setErrorMessage("베리에이션할 원본 사진을 업로드해주세요.");
+      setErrorMessage("변형 생성할 원본 사진을 업로드해주세요.");
       return;
     }
 
     if (form.mode === "photoVariation" && !hasVariationConsent) {
-      setErrorMessage("업로드한 사진을 AI 베리에이션 생성에 사용할 권한과 동의를 확인해주세요.");
+      setErrorMessage("업로드한 사진을 AI 변형 생성에 사용할 권한과 동의를 확인해주세요.");
       return;
     }
 
@@ -329,7 +329,7 @@ export default function ImageGeneratorPage() {
       const payload = new FormData();
       payload.append("prompt", prompt);
       payload.append("generationMode", form.mode);
-      payload.append("category", form.mode === "avatar" ? "포토클리닉 의료진 아바타" : form.mode === "photoVariation" ? "내가 찍은 사진 베리에이션" : form.scene);
+      payload.append("category", form.mode === "avatar" ? "포토클리닉 의료진 아바타" : form.mode === "photoVariation" ? "내 사진 변형 생성" : form.scene);
       if (variationImage) payload.append("variationImage", variationImage);
       if (referenceImage) payload.append("referenceImage", referenceImage);
       if (styleReferenceImage) payload.append("styleReferenceImage", styleReferenceImage);
@@ -396,15 +396,7 @@ export default function ImageGeneratorPage() {
               <strong>사진 장면 생성</strong>
               <span>상담, 시술, 공간, 접수 장면</span>
             </button>
-            <button
-              type="button"
-              className={form.mode === "avatar" ? "mode-card active" : "mode-card"}
-              onClick={() => setForm((prev) => ({ ...prev, mode: "avatar" }))}
-            >
-              <UserRound size={22} />
-              <strong>의료진 아바타 생성</strong>
-              <span>원장, 의료진 프로필 이미지</span>
-            </button>
+
             <button
               type="button"
               className={form.mode === "photoVariation" ? "mode-card active" : "mode-card"}
@@ -419,7 +411,7 @@ export default function ImageGeneratorPage() {
           <section className={form.mode === "photoVariation" ? "photo-variation-panel active" : "photo-variation-panel"}>
             <div>
               <p className="admin-kicker">MY PHOTO VARIATION</p>
-              <h2>내가 찍은 사진 베리에이션</h2>
+              <h2>내 사진 변형 생성</h2>
               <p>
                 원본 사진의 촬영감, 조명, 구도, 색감, 인물 배치, 병원 공간 분위기를 최대한 유지하고 아주 작은 표정·구도 변화만 만듭니다.
               </p>
@@ -431,7 +423,7 @@ export default function ImageGeneratorPage() {
                 onChange={(event) => handleVariationImage(event.target.files?.[0] || null)}
               />
               {variationPreview ? (
-                <img src={variationPreview} alt="베리에이션 원본 사진" />
+                <img src={variationPreview} alt="원본 사진" />
               ) : (
                 <span>
                   <Upload size={24} />
