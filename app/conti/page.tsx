@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, CheckSquare, ChevronDown, ClipboardList,
+  ArrowLeft, CheckSquare, ChevronDown, ChevronUp, ClipboardList,
   Clock, Download, FileSpreadsheet, FileText,
   Pencil, Plus, RotateCcw, Sparkles, Trash2, X, Zap
 } from "lucide-react";
@@ -175,8 +175,32 @@ function DeleteRowBtn({ onClick }: { onClick: () => void }) {
 }
 
 /* ════════════════════════════════════════
-   진료과 멀티셀렉트
+   행 이동 버튼 (위/아래)
 ════════════════════════════════════════ */
+function MoveRowBtns({ onUp, onDown, isFirst, isLast }: {
+  onUp: () => void; onDown: () => void; isFirst: boolean; isLast: boolean;
+}) {
+  const btnStyle = (disabled: boolean): React.CSSProperties => ({
+    display: "flex", alignItems: "center", justifyContent: "center",
+    width: 26, height: 26, border: "1px solid rgba(21,88,85,0.2)",
+    borderRadius: 4, background: disabled ? "#f9fafb" : "#fff",
+    color: disabled ? "#d1d5db" : "#155855",
+    cursor: disabled ? "default" : "pointer", flexShrink: 0,
+    opacity: disabled ? 0.4 : 0.8, transition: "opacity 120ms"
+  });
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <button type="button" onClick={onUp} disabled={isFirst} title="위로 이동" style={btnStyle(isFirst)}>
+        <ChevronUp size={12} />
+      </button>
+      <button type="button" onClick={onDown} disabled={isLast} title="아래로 이동" style={btnStyle(isLast)}>
+        <ChevronDown size={12} />
+      </button>
+    </div>
+  );
+}
+
+
 function SpecialtyPicker({ selected, onChange }: { selected: string[]; onChange: (v: string[]) => void }) {
   const [open, setOpen]     = useState(false);
   const [custom, setCustom] = useState("");
@@ -408,6 +432,33 @@ export default function ContiPage() {
 
   const delContiRow = (i: number) => setResult(prev => prev ? { ...prev, conti: prev.conti.filter((_, idx) => idx !== i) } : prev);
 
+  const moveContiRow = (i: number, dir: -1 | 1) => setResult(prev => {
+    if (!prev) return prev;
+    const rows = [...prev.conti];
+    const j = i + dir;
+    if (j < 0 || j >= rows.length) return prev;
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+    return { ...prev, conti: rows };
+  });
+
+  const moveChecklistRow = (i: number, dir: -1 | 1) => setResult(prev => {
+    if (!prev) return prev;
+    const rows = [...prev.checklist];
+    const j = i + dir;
+    if (j < 0 || j >= rows.length) return prev;
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+    return { ...prev, checklist: rows.map((r, idx) => ({ ...r, number: idx + 1 })) };
+  });
+
+  const moveScheduleRow = (i: number, dir: -1 | 1) => setResult(prev => {
+    if (!prev) return prev;
+    const rows = [...prev.schedule];
+    const j = i + dir;
+    if (j < 0 || j >= rows.length) return prev;
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+    return { ...prev, schedule: rows };
+  });
+
   const addChecklistRow = () => setResult(prev => {
     if (!prev) return prev;
     const number = prev.checklist.length + 1;
@@ -490,38 +541,30 @@ export default function ContiPage() {
     pdf.save(`${form.hospitalName || "병원"}_촬영콘티_${tab}.pdf`);
   };
 
-  /* ── 스프레드시트용 CSV 다운로드 ── */
-  const handleSpreadsheetDownload = () => {
+  /* ── Excel(xlsx) 단일 파일 다운로드 (3탭 전체 포함) ── */
+  const handleSpreadsheetDownload = async () => {
     if (!result) return;
+    const XLSX = await import("xlsx");
 
-    const csvCell = (value: string | number) =>
-      `"${String(value ?? "").replaceAll('"', '""')}"`;
-    const toCsv = (rows: Array<Array<string | number>>) =>
-      rows.map(row => row.map(csvCell).join(",")).join("\n");
-    const downloadCsv = (name: string, rows: Array<Array<string | number>>) => {
-      const blob = new Blob([`\uFEFF${toCsv(rows)}`], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${form.hospitalName || "병원"}_${name}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    };
-
-    downloadCsv("촬영콘티", [
+    const contiData = [
       ["진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원/환자역할", "비고"],
       ...result.conti.map(r => [r.category, r.duration, r.location, r.cameraAngle, r.keyword, r.description, r.personnel, r.notes])
-    ]);
-    downloadCsv("준비체크리스트", [
+    ];
+    const checklistData = [
       ["번호", "분류", "체크리스트", "준비여부", "비고"],
       ...result.checklist.map(r => [r.number, r.category, r.item, "", r.notes])
-    ]);
-    downloadCsv("타임테이블", [
+    ];
+    const scheduleData = [
       ["시간", "내용", "구분", "요청사항", "비고"],
       ...result.schedule.map(r => [r.time, r.activity, r.type, r.requirements, r.notes])
-    ]);
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(contiData),     "촬영콘티");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(checklistData), "준비체크리스트");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(scheduleData),  "타임테이블");
+
+    XLSX.writeFile(wb, `${form.hospitalName || "병원"}_촬영콘티.xlsx`);
   };
 
   /* ════════════════════════════════
@@ -755,7 +798,7 @@ export default function ContiPage() {
                   borderRadius: 8, background: "#f0fdf4", color: "#16a34a",
                   fontWeight: 900, fontSize: 14, cursor: "pointer"
                 }}>
-                  <FileSpreadsheet size={16} /> CSV 다운로드
+                  <FileSpreadsheet size={16} /> Excel 다운로드
                 </button>
                 <button className="admin-primary-button" onClick={handlePDF} style={{ padding: "0 20px", cursor: "pointer" }}>
                   <Download size={16} /> PDF 다운로드
@@ -800,8 +843,8 @@ export default function ContiPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원 / 환자역할", "비고", ""].map(h => (
-                          <th key={h} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
+                        {["진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원 / 환자역할", "비고", "", ""].map((h, idx) => (
+                          <th key={idx} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -820,6 +863,9 @@ export default function ContiPage() {
                             <td style={{ ...TD, minWidth: 180 }}><EditableCell value={row.description} onChange={v => updateConti(i, "description", v)} multiline /></td>
                             <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.personnel} onChange={v => updateConti(i, "personnel", v)} /></td>
                             <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.notes} onChange={v => updateConti(i, "notes", v)} placeholder="-" /></td>
+                            <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
+                              <MoveRowBtns onUp={() => moveContiRow(i, -1)} onDown={() => moveContiRow(i, 1)} isFirst={i === 0} isLast={i === result.conti.length - 1} />
+                            </td>
                             <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
                               <DeleteRowBtn onClick={() => delContiRow(i)} />
                             </td>
@@ -847,8 +893,8 @@ export default function ContiPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["번호", "분류", "체크리스트", "준비여부", "비고", ""].map(h => (
-                          <th key={h} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
+                        {["번호", "분류", "체크리스트", "준비여부", "비고", "", ""].map((h, idx) => (
+                          <th key={idx} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -862,6 +908,9 @@ export default function ContiPage() {
                             <div style={{ width: 20, height: 20, border: "2px solid rgba(21,88,85,0.25)", borderRadius: 4 }} />
                           </td>
                           <td style={{ ...TD, minWidth: 120 }}><EditableCell value={row.notes} onChange={v => updateChecklist(i, "notes", v)} placeholder="-" /></td>
+                          <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
+                            <MoveRowBtns onUp={() => moveChecklistRow(i, -1)} onDown={() => moveChecklistRow(i, 1)} isFirst={i === 0} isLast={i === result.checklist.length - 1} />
+                          </td>
                           <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
                             <DeleteRowBtn onClick={() => delChecklistRow(i)} />
                           </td>
@@ -883,8 +932,8 @@ export default function ContiPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["시간", "내용", "구분", "요청사항", "비고", ""].map(h => (
-                          <th key={h} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
+                        {["시간", "내용", "구분", "요청사항", "비고", "", ""].map((h, idx) => (
+                          <th key={idx} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -896,6 +945,9 @@ export default function ContiPage() {
                           <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.type} onChange={v => updateSchedule(i, "type", v)} color="var(--orange)" /></td>
                           <td style={{ ...TD, minWidth: 160 }}><EditableCell value={row.requirements} onChange={v => updateSchedule(i, "requirements", v)} /></td>
                           <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.notes} onChange={v => updateSchedule(i, "notes", v)} placeholder="-" /></td>
+                          <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
+                            <MoveRowBtns onUp={() => moveScheduleRow(i, -1)} onDown={() => moveScheduleRow(i, 1)} isFirst={i === 0} isLast={i === result.schedule.length - 1} />
+                          </td>
                           <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
                             <DeleteRowBtn onClick={() => delScheduleRow(i)} />
                           </td>
@@ -915,7 +967,7 @@ export default function ContiPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
               <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
                 <FileText size={12} style={{ display: "inline", marginRight: 4 }} />
-                PDF는 현재 탭 기준, 엑셀은 3개 탭 전체를 저장합니다.
+                PDF는 현재 탭 기준, Excel은 3개 탭(촬영콘티·체크리스트·타임테이블) 전체를 한 파일로 저장합니다.
               </p>
             </div>
           </section>
