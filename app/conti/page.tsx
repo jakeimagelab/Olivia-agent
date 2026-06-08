@@ -618,48 +618,57 @@ export default function ContiPage() {
     } finally { setLoading(false); }
   };
 
-  /* ── JSON 저장 (콘티 내보내기) ── */
+  /* ── localStorage 저장 ── */
+  const STORAGE_KEY = "photoclinic_contis";
+
+  const getSavedContis = (): Array<{ id: string; savedAt: string; hospitalName: string; title: string; result: ContiResult; specialties: string[] }> => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+  };
+
   const handleSaveJSON = () => {
     if (!result) return;
-    const saveData = {
-      version: 1,
+    const saved = getSavedContis();
+    const id = `conti_${Date.now()}`;
+    const entry = {
+      id,
       savedAt: new Date().toISOString(),
-      hospitalName: form.hospitalName,
+      hospitalName: form.hospitalName || "병원명 없음",
       specialties: form.specialties,
       title: resultTitle,
       result,
     };
-    const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${form.hospitalName || "병원"}_콘티_${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    // 같은 병원명이 있으면 덮어쓰기
+    const existingIdx = saved.findIndex(s => s.hospitalName === entry.hospitalName);
+    if (existingIdx >= 0) saved[existingIdx] = entry;
+    else saved.unshift(entry);
+    // 최대 20개 보관
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved.slice(0, 20)));
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 2000);
   };
 
-  /* ── JSON 불러오기 (콘티 가져오기) ── */
-  const loadInputRef = useRef<HTMLInputElement>(null);
-  const handleLoadJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target?.result as string);
-        if (!data.result) throw new Error("유효하지 않은 콘티 파일입니다.");
-        setResult(data.result);
-        setResultTitle(data.title || data.hospitalName || "불러온 콘티");
-        if (data.hospitalName) setForm(prev => ({ ...prev, hospitalName: data.hospitalName, specialties: data.specialties || prev.specialties }));
-        setTab("conti");
-      } catch {
-        alert("콘티 파일을 읽을 수 없습니다. 올바른 JSON 파일인지 확인해주세요.");
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
+  /* ── localStorage 불러오기 ── */
+  const [showLoadPanel, setShowLoadPanel] = useState(false);
+  const [savedList, setSavedList]         = useState<ReturnType<typeof getSavedContis>>([]);
+  const [saveToast, setSaveToast]         = useState(false);
+
+  const openLoadPanel = () => {
+    setSavedList(getSavedContis());
+    setShowLoadPanel(true);
+  };
+
+  const loadConti = (entry: ReturnType<typeof getSavedContis>[0]) => {
+    setResult(entry.result);
+    setResultTitle(entry.title || entry.hospitalName);
+    setForm(prev => ({ ...prev, hospitalName: entry.hospitalName, specialties: entry.specialties || prev.specialties }));
+    setTab("conti");
+    setShowLoadPanel(false);
+  };
+
+  const deleteConti = (id: string) => {
+    const updated = getSavedContis().filter(s => s.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setSavedList(updated);
   };
 
 
@@ -734,10 +743,9 @@ export default function ContiPage() {
                 </div>
                 {/* 불러오기 버튼 */}
                 <div>
-                  <input ref={loadInputRef} type="file" accept=".json" onChange={handleLoadJSON} style={{ display: "none" }} />
                   <button
                     type="button"
-                    onClick={() => loadInputRef.current?.click()}
+                    onClick={openLoadPanel}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 7,
                       padding: "0 18px", minHeight: 42,
@@ -1336,6 +1344,84 @@ export default function ContiPage() {
 
       </div>
     </div>
+
+    {/* 저장 완료 토스트 */}
+    {saveToast && (
+      <div style={{
+        position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)",
+        zIndex: 9999, background: "#155855", color: "#fff",
+        padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 800,
+        boxShadow: "0 8px 24px rgba(21,88,85,0.3)",
+        animation: "fadeIn .2s ease"
+      }}>
+        ✓ 콘티가 저장됐어요
+      </div>
+    )}
+
+    {/* 불러오기 패널 */}
+    {showLoadPanel && (
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 500,
+        background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center"
+      }} onClick={() => setShowLoadPanel(false)}>
+        <div style={{
+          background: "#fff", borderRadius: 16, width: "min(560px, 90vw)",
+          maxHeight: "70vh", overflow: "hidden", display: "flex", flexDirection: "column",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.25)"
+        }} onClick={e => e.stopPropagation()}>
+          {/* 패널 헤더 */}
+          <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(21,88,85,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 900, color: "#155855" }}>📂 저장된 콘티</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>클릭하면 바로 불러와요 · 최대 20개 보관</div>
+            </div>
+            <button onClick={() => setShowLoadPanel(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#9ca3af" }}>✕</button>
+          </div>
+          {/* 목록 */}
+          <div style={{ overflowY: "auto", padding: "12px 16px", flex: 1 }}>
+            {savedList.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 0", color: "#9ca3af", fontSize: 14 }}>
+                저장된 콘티가 없어요<br />
+                <span style={{ fontSize: 12 }}>콘티 생성 후 "콘티 저장" 버튼을 눌러주세요</span>
+              </div>
+            ) : savedList.map(entry => (
+              <div key={entry.id} style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "14px 16px", borderRadius: 10, marginBottom: 8,
+                border: "1px solid rgba(21,88,85,0.12)", background: "#fafaf9",
+                cursor: "pointer", transition: "all 120ms ease"
+              }}
+                onMouseEnter={e => (e.currentTarget.style.background = "rgba(21,88,85,0.05)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#fafaf9")}
+                onClick={() => loadConti(entry)}
+              >
+                <div style={{ fontSize: 28, flexShrink: 0 }}>🎬</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: "#155855", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {entry.hospitalName}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                    {entry.specialties?.join(" · ")} &nbsp;·&nbsp; {new Date(entry.savedAt).toLocaleDateString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                    {entry.result.conti.length}컷 · 체크 {entry.result.checklist.length}개
+                  </div>
+                </div>
+                <button
+                  onClick={e => { e.stopPropagation(); deleteConti(entry.id); }}
+                  style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 6, borderRadius: 6, flexShrink: 0, opacity: 0.6 }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = "0.6")}
+                  title="삭제"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* 올리비아 채팅 - 콘티 페이지 컨텍스트 */}
     <OliviaChat
