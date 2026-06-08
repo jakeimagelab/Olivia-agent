@@ -61,7 +61,7 @@ export default function OliviaChat({ pageContext, contextData }: OliviaChatProps
   const [input,    setInput]    = useState("");
   const [loading,  setLoading]  = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLInputElement>(null);
+  const inputRef  = useRef<HTMLTextAreaElement>(null);
 
   const GREETING: Message = {
     role: "assistant",
@@ -376,19 +376,31 @@ export default function OliviaChat({ pageContext, contextData }: OliviaChatProps
           <div style={{
             padding: "10px 12px",
             borderTop: `1px solid ${C.border}`,
-            display: "flex", gap: 8, alignItems: "center",
+            display: "flex", gap: 8, alignItems: "flex-end",
           }}>
-            <input
+            <textarea
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
-              placeholder="무엇이 필요하세요?"
+              onKeyDown={e => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder={"무엇이 필요하세요?\n(⌘+Enter로 전송)"}
               disabled={loading}
+              rows={1}
               style={{
                 flex: 1, border: `1px solid ${C.border}`, borderRadius: 10,
                 padding: "9px 13px", fontSize: 12, fontFamily: "inherit",
                 background: C.bg, color: C.txt, outline: "none",
+                resize: "none", lineHeight: 1.6, maxHeight: 120, overflowY: "auto",
+              }}
+              onInput={e => {
+                const el = e.currentTarget;
+                el.style.height = "auto";
+                el.style.height = Math.min(el.scrollHeight, 120) + "px";
               }}
             />
             <button onClick={send} disabled={loading || !input.trim()}
@@ -396,7 +408,7 @@ export default function OliviaChat({ pageContext, contextData }: OliviaChatProps
                 width: 38, height: 38, background: input.trim() ? C.orange : C.border,
                 border: "none", borderRadius: 10, cursor: input.trim() ? "pointer" : "default",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 16, flexShrink: 0, transition: "background .15s",
+                fontSize: 16, flexShrink: 0, transition: "background .15s", marginBottom: 1,
               }}>
               ➤
             </button>
