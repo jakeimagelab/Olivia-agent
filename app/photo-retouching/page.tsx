@@ -1,17 +1,14 @@
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, SearchCheck, Wand2 } from "lucide-react";
+import { ExternalLink, SearchCheck, Wand2 } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
 
 export default function PhotoRetouchingPage() {
   return (
-    <main className="admin-shell">
+    <div className="pc-page">
+      <PageHeader title="Photo Retouching" />
+      <main className="admin-shell">
       <section className="placeholder-page" aria-labelledby="photo-retouching-title">
-        <div className="brand-lockup">
-          <img
-            src="https://photoclinic-diangnoisis.vercel.app/logo.svg"
-            alt="포토클리닉"
-          />
-          <span>Photo Retouching</span>
-        </div>
+        <div style={{display:"none"}}>
 
         <div className="placeholder-icon">
           <Wand2 size={34} />
@@ -45,5 +42,6 @@ export default function PhotoRetouchingPage() {
         </div>
       </section>
     </main>
+    </div>
   );
 }

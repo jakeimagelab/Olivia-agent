@@ -246,37 +246,23 @@ export default function ContractPage() {
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
 
       {/* NAV */}
-      <nav style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, height: 54,
-                    padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 6px rgba(21,88,85,.07)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="11" fill="#E85D2C"/>
-            <circle cx="12" cy="12" r="11" fill="#155855" clipPath="url(#ncc)"/>
-            <defs><clipPath id="ncc"><rect x="12" y="0" width="12" height="24"/></clipPath></defs>
-            <circle cx="12" cy="12" r="7" fill="#EB8F22"/>
-            <circle cx="12" cy="12" r="7" fill="#569082" clipPath="url(#ncc)"/>
-            <circle cx="12" cy="12" r="3" fill="white"/>
-          </svg>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>PHOTOCLINIC · 브랜드촬영 계약서</div>
-            <div style={{ fontSize: 9, color: C.hint }}>{quote.hospitalName} · {quote.quoteNumber}</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => window.history.back()}
-            style={{ height: 34, padding: "0 14px", background: C.surface, border: `1px solid ${C.border}`,
-                     borderRadius: 8, fontSize: 12, cursor: "pointer", fontFamily: "inherit", color: C.muted }}>
+      <header className="pc-header">
+        <div className="pc-header-left">
+          <button onClick={() => window.history.back()} className="pc-header-back">
             ← 견적서로
           </button>
-          <button onClick={downloadPdf} disabled={pdfGenerating}
-            style={{ height: 34, padding: "0 14px", background: C.teal, color: "#fff",
-                     border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                     cursor: "pointer", fontFamily: "inherit" }}>
+          <div className="pc-header-divider" />
+          <div className="pc-header-brand">
+            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <span className="pc-header-title">브랜드촬영 계약서</span>
+          </div>
+        </div>
+        <div className="pc-header-actions">
+          <button onClick={downloadPdf} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
             {pdfGenerating ? "PDF 생성 중..." : "PDF 저장"}
           </button>
         </div>
-      </nav>
+      </header>
 
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "24px 20px", display: "grid",
                     gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 20, alignItems: "start" }}>

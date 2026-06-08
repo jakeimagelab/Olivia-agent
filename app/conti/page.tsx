@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import OliviaChat from "@/components/OliviaChat";
+import PageHeader from "@/components/PageHeader";
 import {
   ArrowLeft, CheckSquare, ChevronDown, ClipboardList,
   Clock, Download, FileSpreadsheet, FileText, GripVertical,
@@ -1119,15 +1120,7 @@ ${header("타임테이블")}
   return (
     <>
     <div style={{ minHeight: "100vh", background: "var(--ivory)" }}>
-      <header className="analyzer-header">
-        <div className="brand-lockup">
-          <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" />
-          <span>Conti Generator</span>
-        </div>
-        <Link className="admin-secondary-link" href="/">
-          <ArrowLeft size={17} />관리자 홈
-        </Link>
-      </header>
+      <PageHeader title="Conti Generator" />
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 24px" }}>
 

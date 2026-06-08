@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Camera, Download, ImagePlus, Loader2, Maximize2, Sparkles, Upload, UserRound, X } from "lucide-react";
+import { Camera, Download, ImagePlus, Loader2, Maximize2, Sparkles, Upload, UserRound, X } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
 import { FormEvent, useMemo, useState } from "react";
 
 type Mode = "scene" | "avatar" | "photoVariation";
@@ -365,16 +366,7 @@ export default function ImageGeneratorPage() {
 
   return (
     <main className="image-generator-page">
-      <header className="image-generator-header">
-        <div className="brand-lockup">
-          <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" />
-          <span>AI Image Generator</span>
-        </div>
-        <Link className="admin-secondary-link" href="/">
-          <ArrowLeft size={17} />
-          관리자 홈
-        </Link>
-      </header>
+      <PageHeader title="AI Image Generator" />
 
       <section className="image-generator-hero">
         <p className="admin-kicker">PHOTOCLINIC AI IMAGE GENERATOR</p>

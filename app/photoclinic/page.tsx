@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import OliviaChat from "@/components/OliviaChat";
+import PageHeader from "@/components/PageHeader";
 import {
   ArrowLeft,
   Download,
@@ -1028,6 +1029,8 @@ export default function QuoteBuilder() {
   };
 
   return (
+    <>
+    <PageHeader title="Quote Builder" />
     <main className="min-h-screen bg-[#faf7f2] text-[#222222]">
       <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8">
         <div className="min-w-0 space-y-5">
@@ -1826,6 +1829,7 @@ export default function QuoteBuilder() {
         }}
       />
     </main>
+    </>
   );
 }
 

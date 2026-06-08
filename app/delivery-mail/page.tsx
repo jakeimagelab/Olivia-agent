@@ -110,35 +110,16 @@ export default function DeliveryMailPage() {
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
 
       {/* NAV */}
-      <nav style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, height: 54,
-                    padding: "0 24px", display: "flex", alignItems: "center", gap: 12,
-                    position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 6px rgba(21,88,85,.07)" }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="11" fill="#E85D2C"/>
-            <circle cx="12" cy="12" r="11" fill="#155855" clipPath="url(#nav1)"/>
-            <defs><clipPath id="nav1"><rect x="12" y="0" width="12" height="24"/></clipPath></defs>
-            <circle cx="12" cy="12" r="7" fill="#EB8F22"/>
-            <circle cx="12" cy="12" r="7" fill="#569082" clipPath="url(#nav1)"/>
-            <circle cx="12" cy="12" r="3" fill="white"/>
-          </svg>
-          <span style={{ fontSize: 12, color: C.hint }}>← 대시보드</span>
-        </Link>
-        <div style={{ width: 1, height: 16, background: C.border }}/>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>파일 전송 메일</div>
-          <div style={{ fontSize: 9, color: C.hint }}>NAS 링크 → 포토클리닉 브랜드 메일로 전달</div>
+      <header className="pc-header">
+        <div className="pc-header-left">
+          <a href="/" className="pc-header-back">← 관리자 홈</a>
+          <div className="pc-header-divider" />
+          <div className="pc-header-brand">
+            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <span className="pc-header-title">File Transfer</span>
+          </div>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button onClick={() => setPreview(!preview)}
-            style={{ height: 34, padding: "0 16px", background: preview ? C.mint : C.surface,
-                     border: `1px solid ${preview ? C.teal : C.border}`,
-                     borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                     color: preview ? C.teal : C.muted, fontFamily: "inherit" }}>
-            {preview ? "✓ 미리보기 ON" : "미리보기"}
-          </button>
-        </div>
-      </nav>
+      </header>
 
       <div style={{ maxWidth: preview ? 1100 : 560, margin: "0 auto", padding: "28px 20px",
                     display: "grid", gridTemplateColumns: preview ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
