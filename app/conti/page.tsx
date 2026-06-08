@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, CheckSquare, ChevronDown, ChevronUp, ClipboardList,
-  Clock, Download, FileSpreadsheet, FileText,
+  ArrowLeft, CheckSquare, ChevronDown, ClipboardList,
+  Clock, Download, FileSpreadsheet, FileText, GripVertical,
   Pencil, Plus, RotateCcw, Sparkles, Trash2, X, Zap
 } from "lucide-react";
 
@@ -42,7 +42,7 @@ const PATIENT_TYPE_PRESETS = [
 interface StaffItem    { role: string; count: number; detail: string; }
 interface PatientItem  { type: string; count: number; detail: string; }
 interface LocationItem { floor: string; spaces: string; notes: string; }
-interface ContiRow     { category: string; duration: string; location: string; cameraAngle: string; keyword: string; description: string; personnel: string; notes: string; }
+interface ContiRow     { category: string; duration: string; location: string; cameraAngle: string; keyword: string; description: string; personnel: string; notes: string; color?: string; }
 interface ChecklistRow { number: number; category: string; item: string; notes: string; }
 interface ScheduleRow  { time: string; activity: string; type: string; requirements: string; notes: string; }
 interface ContiResult  { conti: ContiRow[]; checklist: ChecklistRow[]; schedule: ScheduleRow[]; }
@@ -175,27 +175,91 @@ function DeleteRowBtn({ onClick }: { onClick: () => void }) {
 }
 
 /* ════════════════════════════════════════
-   행 이동 버튼 (위/아래)
+   드래그 핸들
 ════════════════════════════════════════ */
-function MoveRowBtns({ onUp, onDown, isFirst, isLast }: {
-  onUp: () => void; onDown: () => void; isFirst: boolean; isLast: boolean;
-}) {
-  const btnStyle = (disabled: boolean): React.CSSProperties => ({
-    display: "flex", alignItems: "center", justifyContent: "center",
-    width: 26, height: 26, border: "1px solid rgba(21,88,85,0.2)",
-    borderRadius: 4, background: disabled ? "#f9fafb" : "#fff",
-    color: disabled ? "#d1d5db" : "#155855",
-    cursor: disabled ? "default" : "pointer", flexShrink: 0,
-    opacity: disabled ? 0.4 : 0.8, transition: "opacity 120ms"
-  });
+function DragHandle() {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <button type="button" onClick={onUp} disabled={isFirst} title="위로 이동" style={btnStyle(isFirst)}>
-        <ChevronUp size={12} />
-      </button>
-      <button type="button" onClick={onDown} disabled={isLast} title="아래로 이동" style={btnStyle(isLast)}>
-        <ChevronDown size={12} />
-      </button>
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      width: 28, height: 28, cursor: "grab", color: "rgba(21,88,85,0.35)",
+      borderRadius: 4, flexShrink: 0, transition: "color 120ms",
+    }}
+      onMouseEnter={e => (e.currentTarget.style.color = "rgba(21,88,85,0.8)")}
+      onMouseLeave={e => (e.currentTarget.style.color = "rgba(21,88,85,0.35)")}
+    >
+      <GripVertical size={16} />
+    </div>
+  );
+}
+
+
+/* ════════════════════════════════════════
+   행 색상 팔레트
+════════════════════════════════════════ */
+const ROW_PALETTE = [
+  { bg: "#FEF3C7", text: "#92400E", label: "노랑" },
+  { bg: "#FEE2E2", text: "#991B1B", label: "빨강" },
+  { bg: "#DBEAFE", text: "#1E40AF", label: "파랑" },
+  { bg: "#D1FAE5", text: "#065F46", label: "초록" },
+  { bg: "#EDE9FE", text: "#5B21B6", label: "보라" },
+  { bg: "#FCE7F3", text: "#9D174D", label: "분홍" },
+  { bg: "#E6F4F1", text: "#155855", label: "민트" },
+  { bg: "#F3F4F6", text: "#374151", label: "회색" },
+  { bg: "#FFF7ED", text: "#C2410C", label: "주황" },
+  { bg: "#ffffff", text: "#374151", label: "흰색" },
+];
+
+function ColorPickerCell({ bg, text, onChange }: {
+  bg: string; text: string; onChange: (bg: string, text: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+      <button
+        type="button"
+        title="행 색상 변경"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: 18, height: 18, borderRadius: "50%",
+          background: bg, border: `2px solid ${text}`,
+          cursor: "pointer", display: "block",
+          boxShadow: open ? `0 0 0 2px ${text}` : "none",
+          transition: "box-shadow 120ms"
+        }}
+      />
+      {open && (
+        <div style={{
+          position: "absolute", top: 24, left: 0, zIndex: 100,
+          background: "#fff", border: "1px solid rgba(21,88,85,0.18)",
+          borderRadius: 10, boxShadow: "0 8px 28px rgba(21,88,85,0.18)",
+          padding: 10, display: "grid", gridTemplateColumns: "repeat(5, 28px)", gap: 6,
+        }}>
+          {ROW_PALETTE.map(p => (
+            <button
+              key={p.bg}
+              type="button"
+              title={p.label}
+              onClick={() => { onChange(p.bg, p.text); setOpen(false); }}
+              style={{
+                width: 28, height: 28, borderRadius: 6,
+                background: p.bg, border: `2px solid ${p.text}`,
+                cursor: "pointer",
+                boxShadow: bg === p.bg ? `0 0 0 2px #155855` : "none",
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -409,6 +473,14 @@ export default function ContiPage() {
       return { ...prev, conti: rows };
     });
 
+  const updateContiColor = (i: number, bg: string, text: string) =>
+    setResult(prev => {
+      if (!prev) return prev;
+      const rows = [...prev.conti];
+      rows[i] = { ...rows[i], color: `${bg}|${text}` };
+      return { ...prev, conti: rows };
+    });
+
   const updateChecklist = (i: number, field: keyof ChecklistRow, v: string) =>
     setResult(prev => {
       if (!prev) return prev;
@@ -432,32 +504,51 @@ export default function ContiPage() {
 
   const delContiRow = (i: number) => setResult(prev => prev ? { ...prev, conti: prev.conti.filter((_, idx) => idx !== i) } : prev);
 
-  const moveContiRow = (i: number, dir: -1 | 1) => setResult(prev => {
+  const moveContiRow = (from: number, to: number) => setResult(prev => {
     if (!prev) return prev;
     const rows = [...prev.conti];
-    const j = i + dir;
-    if (j < 0 || j >= rows.length) return prev;
-    [rows[i], rows[j]] = [rows[j], rows[i]];
+    const [moved] = rows.splice(from, 1);
+    rows.splice(to, 0, moved);
     return { ...prev, conti: rows };
   });
 
-  const moveChecklistRow = (i: number, dir: -1 | 1) => setResult(prev => {
+  const moveChecklistRow = (from: number, to: number) => setResult(prev => {
     if (!prev) return prev;
     const rows = [...prev.checklist];
-    const j = i + dir;
-    if (j < 0 || j >= rows.length) return prev;
-    [rows[i], rows[j]] = [rows[j], rows[i]];
+    const [moved] = rows.splice(from, 1);
+    rows.splice(to, 0, moved);
     return { ...prev, checklist: rows.map((r, idx) => ({ ...r, number: idx + 1 })) };
   });
 
-  const moveScheduleRow = (i: number, dir: -1 | 1) => setResult(prev => {
+  const moveScheduleRow = (from: number, to: number) => setResult(prev => {
     if (!prev) return prev;
     const rows = [...prev.schedule];
-    const j = i + dir;
-    if (j < 0 || j >= rows.length) return prev;
-    [rows[i], rows[j]] = [rows[j], rows[i]];
+    const [moved] = rows.splice(from, 1);
+    rows.splice(to, 0, moved);
     return { ...prev, schedule: rows };
   });
+
+  const dragRef = useRef<{ type: string; index: number } | null>(null);
+  const [dragOver, setDragOver] = useState<{ type: string; index: number } | null>(null);
+
+  const handleDragStart = (type: string, index: number) => {
+    dragRef.current = { type, index };
+  };
+  const handleDragOver = (e: React.DragEvent, type: string, index: number) => {
+    e.preventDefault();
+    setDragOver({ type, index });
+  };
+  const handleDrop = (type: string, toIndex: number) => {
+    if (!dragRef.current || dragRef.current.type !== type) return;
+    const from = dragRef.current.index;
+    if (from === toIndex) { setDragOver(null); return; }
+    if (type === "conti")     moveContiRow(from, toIndex);
+    if (type === "checklist") moveChecklistRow(from, toIndex);
+    if (type === "schedule")  moveScheduleRow(from, toIndex);
+    dragRef.current = null;
+    setDragOver(null);
+  };
+  const handleDragEnd = () => { dragRef.current = null; setDragOver(null); };
 
   const addChecklistRow = () => setResult(prev => {
     if (!prev) return prev;
@@ -813,7 +904,7 @@ export default function ContiPage() {
               borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "#155855",
               fontWeight: 700, marginBottom: 16
             }}>
-              <Pencil size={13} /> 셀을 클릭하면 직접 수정할 수 있습니다
+              <Pencil size={13} /> 셀 클릭으로 수정 · 왼쪽 ⠿ 핸들로 드래그하여 순서 변경
             </div>
 
             {/* 탭 */}
@@ -843,18 +934,38 @@ export default function ContiPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원 / 환자역할", "비고", "", ""].map((h, idx) => (
+                        {["", "진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원 / 환자역할", "비고", ""].map((h, idx) => (
                           <th key={idx} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {result.conti.map((row, i) => {
-                        const c = getColor(row.category);
+                        const rawColor = row.color ? row.color.split("|") : null;
+                        const c = rawColor
+                          ? { bg: rawColor[0], text: rawColor[1] }
+                          : getColor(row.category);
+                        const isDragOver = dragOver?.type === "conti" && dragOver.index === i;
                         return (
-                          <tr key={i}>
+                          <tr key={i}
+                            draggable
+                            onDragStart={() => handleDragStart("conti", i)}
+                            onDragOver={e => handleDragOver(e, "conti", i)}
+                            onDrop={() => handleDrop("conti", i)}
+                            onDragEnd={handleDragEnd}
+                            style={{ outline: isDragOver ? "2px solid #155855" : "none", background: isDragOver ? "rgba(21,88,85,0.06)" : undefined }}
+                          >
+                            <td style={{ ...TD, width: 36, padding: "6px 4px", cursor: "grab" }}>
+                              <DragHandle />
+                            </td>
                             <td style={{ ...TD, background: c.bg, minWidth: 80 }}>
-                              <EditableCell value={row.category} onChange={v => updateConti(i, "category", v)} bold color={c.text} />
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
+                                <ColorPickerCell
+                                  bg={c.bg} text={c.text}
+                                  onChange={(bg, text) => updateContiColor(i, bg, text)}
+                                />
+                                <EditableCell value={row.category} onChange={v => updateConti(i, "category", v)} bold color={c.text} />
+                              </div>
                             </td>
                             <td style={{ ...TD, minWidth: 70 }}><EditableCell value={row.duration} onChange={v => updateConti(i, "duration", v)} /></td>
                             <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.location} onChange={v => updateConti(i, "location", v)} /></td>
@@ -863,9 +974,6 @@ export default function ContiPage() {
                             <td style={{ ...TD, minWidth: 180 }}><EditableCell value={row.description} onChange={v => updateConti(i, "description", v)} multiline /></td>
                             <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.personnel} onChange={v => updateConti(i, "personnel", v)} /></td>
                             <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.notes} onChange={v => updateConti(i, "notes", v)} placeholder="-" /></td>
-                            <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
-                              <MoveRowBtns onUp={() => moveContiRow(i, -1)} onDown={() => moveContiRow(i, 1)} isFirst={i === 0} isLast={i === result.conti.length - 1} />
-                            </td>
                             <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
                               <DeleteRowBtn onClick={() => delContiRow(i)} />
                             </td>
@@ -893,29 +1001,37 @@ export default function ContiPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["번호", "분류", "체크리스트", "준비여부", "비고", "", ""].map((h, idx) => (
+                        {["", "번호", "분류", "체크리스트", "준비여부", "비고", ""].map((h, idx) => (
                           <th key={idx} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {result.checklist.map((row, i) => (
-                        <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#fafaf9" }}>
-                          <td style={{ ...TD, width: 48, textAlign: "center", fontWeight: 800, color: "#155855" }}>{row.number}</td>
-                          <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.category} onChange={v => updateChecklist(i, "category", v)} bold /></td>
-                          <td style={{ ...TD, minWidth: 200 }}><EditableCell value={row.item} onChange={v => updateChecklist(i, "item", v)} /></td>
-                          <td style={{ ...TD, width: 80 }}>
-                            <div style={{ width: 20, height: 20, border: "2px solid rgba(21,88,85,0.25)", borderRadius: 4 }} />
-                          </td>
-                          <td style={{ ...TD, minWidth: 120 }}><EditableCell value={row.notes} onChange={v => updateChecklist(i, "notes", v)} placeholder="-" /></td>
-                          <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
-                            <MoveRowBtns onUp={() => moveChecklistRow(i, -1)} onDown={() => moveChecklistRow(i, 1)} isFirst={i === 0} isLast={i === result.checklist.length - 1} />
-                          </td>
-                          <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
-                            <DeleteRowBtn onClick={() => delChecklistRow(i)} />
-                          </td>
-                        </tr>
-                      ))}
+                      {result.checklist.map((row, i) => {
+                        const isDragOver = dragOver?.type === "checklist" && dragOver.index === i;
+                        return (
+                          <tr key={i}
+                            draggable
+                            onDragStart={() => handleDragStart("checklist", i)}
+                            onDragOver={e => handleDragOver(e, "checklist", i)}
+                            onDrop={() => handleDrop("checklist", i)}
+                            onDragEnd={handleDragEnd}
+                            style={{ background: isDragOver ? "rgba(21,88,85,0.06)" : i % 2 === 0 ? "#fff" : "#fafaf9", outline: isDragOver ? "2px solid #155855" : "none" }}
+                          >
+                            <td style={{ ...TD, width: 36, padding: "6px 4px", cursor: "grab" }}><DragHandle /></td>
+                            <td style={{ ...TD, width: 48, textAlign: "center", fontWeight: 800, color: "#155855" }}>{row.number}</td>
+                            <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.category} onChange={v => updateChecklist(i, "category", v)} bold /></td>
+                            <td style={{ ...TD, minWidth: 200 }}><EditableCell value={row.item} onChange={v => updateChecklist(i, "item", v)} /></td>
+                            <td style={{ ...TD, width: 80 }}>
+                              <div style={{ width: 20, height: 20, border: "2px solid rgba(21,88,85,0.25)", borderRadius: 4 }} />
+                            </td>
+                            <td style={{ ...TD, minWidth: 120 }}><EditableCell value={row.notes} onChange={v => updateChecklist(i, "notes", v)} placeholder="-" /></td>
+                            <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
+                              <DeleteRowBtn onClick={() => delChecklistRow(i)} />
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                   <div style={{ padding: "10px 12px", borderTop: "1px dashed rgba(21,88,85,0.15)" }}>
@@ -932,27 +1048,35 @@ export default function ContiPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["시간", "내용", "구분", "요청사항", "비고", "", ""].map((h, idx) => (
+                        {["", "시간", "내용", "구분", "요청사항", "비고", ""].map((h, idx) => (
                           <th key={idx} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {result.schedule.map((row, i) => (
-                        <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : "#fafaf9" }}>
-                          <td style={{ ...TD, minWidth: 120 }}><EditableCell value={row.time} onChange={v => updateSchedule(i, "time", v)} bold color="#155855" /></td>
-                          <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.activity} onChange={v => updateSchedule(i, "activity", v)} bold /></td>
-                          <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.type} onChange={v => updateSchedule(i, "type", v)} color="var(--orange)" /></td>
-                          <td style={{ ...TD, minWidth: 160 }}><EditableCell value={row.requirements} onChange={v => updateSchedule(i, "requirements", v)} /></td>
-                          <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.notes} onChange={v => updateSchedule(i, "notes", v)} placeholder="-" /></td>
-                          <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
-                            <MoveRowBtns onUp={() => moveScheduleRow(i, -1)} onDown={() => moveScheduleRow(i, 1)} isFirst={i === 0} isLast={i === result.schedule.length - 1} />
-                          </td>
-                          <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
-                            <DeleteRowBtn onClick={() => delScheduleRow(i)} />
-                          </td>
-                        </tr>
-                      ))}
+                      {result.schedule.map((row, i) => {
+                        const isDragOver = dragOver?.type === "schedule" && dragOver.index === i;
+                        return (
+                          <tr key={i}
+                            draggable
+                            onDragStart={() => handleDragStart("schedule", i)}
+                            onDragOver={e => handleDragOver(e, "schedule", i)}
+                            onDrop={() => handleDrop("schedule", i)}
+                            onDragEnd={handleDragEnd}
+                            style={{ background: isDragOver ? "rgba(21,88,85,0.06)" : i % 2 === 0 ? "#fff" : "#fafaf9", outline: isDragOver ? "2px solid #155855" : "none" }}
+                          >
+                            <td style={{ ...TD, width: 36, padding: "6px 4px", cursor: "grab" }}><DragHandle /></td>
+                            <td style={{ ...TD, minWidth: 120 }}><EditableCell value={row.time} onChange={v => updateSchedule(i, "time", v)} bold color="#155855" /></td>
+                            <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.activity} onChange={v => updateSchedule(i, "activity", v)} bold /></td>
+                            <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.type} onChange={v => updateSchedule(i, "type", v)} color="var(--orange)" /></td>
+                            <td style={{ ...TD, minWidth: 160 }}><EditableCell value={row.requirements} onChange={v => updateSchedule(i, "requirements", v)} /></td>
+                            <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.notes} onChange={v => updateSchedule(i, "notes", v)} placeholder="-" /></td>
+                            <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
+                              <DeleteRowBtn onClick={() => delScheduleRow(i)} />
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                   <div style={{ padding: "10px 12px", borderTop: "1px dashed rgba(21,88,85,0.15)" }}>
