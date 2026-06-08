@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import OliviaChat from "@/components/OliviaChat";
 import {
   ArrowLeft, CheckSquare, ChevronDown, ClipboardList,
   Clock, Download, FileSpreadsheet, FileText, GripVertical,
@@ -455,6 +456,7 @@ export default function ContiPage() {
   const [result,           setResult]           = useState<ContiResult | null>(null);
   const [error,            setError]            = useState("");
   const [tab,              setTab]              = useState<"conti" | "checklist" | "schedule">("conti");
+  const [fieldView,        setFieldView]        = useState(false); // 아이패드 현장 뷰
   const [resultTitle,      setResultTitle]      = useState("");
   const [quickSpecialties, setQuickSpecialties] = useState<string[]>([]);
   const [quickLoading,     setQuickLoading]     = useState(false);
@@ -616,7 +618,51 @@ export default function ContiPage() {
     } finally { setLoading(false); }
   };
 
-  /* ── PDF 다운로드 ── */
+  /* ── JSON 저장 (콘티 내보내기) ── */
+  const handleSaveJSON = () => {
+    if (!result) return;
+    const saveData = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      hospitalName: form.hospitalName,
+      specialties: form.specialties,
+      title: resultTitle,
+      result,
+    };
+    const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${form.hospitalName || "병원"}_콘티_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  /* ── JSON 불러오기 (콘티 가져오기) ── */
+  const loadInputRef = useRef<HTMLInputElement>(null);
+  const handleLoadJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        if (!data.result) throw new Error("유효하지 않은 콘티 파일입니다.");
+        setResult(data.result);
+        setResultTitle(data.title || data.hospitalName || "불러온 콘티");
+        if (data.hospitalName) setForm(prev => ({ ...prev, hospitalName: data.hospitalName, specialties: data.specialties || prev.specialties }));
+        setTab("conti");
+      } catch {
+        alert("콘티 파일을 읽을 수 없습니다. 올바른 JSON 파일인지 확인해주세요.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+
   const handlePDF = async () => {
     if (!printRef.current) return;
     const { default: html2canvas } = await import("html2canvas");
@@ -679,9 +725,33 @@ export default function ContiPage() {
         {!result && (
           <section>
             <div style={{ marginBottom: 32 }}>
-              <p className="admin-kicker">병원 • 메디컬 성장 플랫폼</p>
-              <h1 style={{ margin: 0, color: "var(--deep-green)", fontSize: "clamp(26px,5vw,44px)", fontWeight: 800 }}>촬영 콘티 자동 생성</h1>
-              <p style={{ marginTop: 12, color: "#4d5b56", fontSize: 15, lineHeight: 1.75 }}>병원 정보를 입력하면 AI가 촬영 콘티 · 준비 체크리스트 · 타임테이블을 한 번에 생성합니다.</p>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <p className="admin-kicker">병원 • 메디컬 성장 플랫폼</p>
+                  <h1 style={{ margin: 0, color: "var(--deep-green)", fontSize: "clamp(26px,5vw,44px)", fontWeight: 800 }}>촬영 콘티 자동 생성</h1>
+                  <p style={{ marginTop: 12, color: "#4d5b56", fontSize: 15, lineHeight: 1.75 }}>병원 정보를 입력하면 AI가 촬영 콘티 · 준비 체크리스트 · 타임테이블을 한 번에 생성합니다.</p>
+                </div>
+                {/* 불러오기 버튼 */}
+                <div>
+                  <input ref={loadInputRef} type="file" accept=".json" onChange={handleLoadJSON} style={{ display: "none" }} />
+                  <button
+                    type="button"
+                    onClick={() => loadInputRef.current?.click()}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 7,
+                      padding: "0 18px", minHeight: 42,
+                      border: "1.5px dashed rgba(21,88,85,0.4)",
+                      borderRadius: 8, background: "#fff", color: "#155855",
+                      fontWeight: 800, fontSize: 14, cursor: "pointer",
+                      transition: "all 160ms ease"
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(21,88,85,0.05)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
+                  >
+                    <FileText size={16} /> 이전 콘티 불러오기
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* ══ ⚡ 빠른 시작 ══ */}
@@ -870,7 +940,7 @@ export default function ContiPage() {
         )}
 
         {/* ══ 결과 ══ */}
-        {result && (
+        {result && !fieldView && (
           <section>
             {/* 결과 헤더 */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 20 }}>
@@ -882,6 +952,22 @@ export default function ContiPage() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="admin-secondary-link" onClick={() => setResult(null)} style={{ cursor: "pointer" }}>
                   <RotateCcw size={15} /> 다시 입력
+                </button>
+                <button onClick={() => setFieldView(true)} style={{
+                  display: "inline-flex", alignItems: "center", gap: 7,
+                  padding: "0 18px", minHeight: 42, border: "1px solid #7c3aed",
+                  borderRadius: 8, background: "#f5f3ff", color: "#7c3aed",
+                  fontWeight: 900, fontSize: 14, cursor: "pointer"
+                }}>
+                  📋 현장 뷰
+                </button>
+                <button onClick={handleSaveJSON} style={{
+                  display: "inline-flex", alignItems: "center", gap: 7,
+                  padding: "0 18px", minHeight: 42, border: "1.5px dashed rgba(21,88,85,0.4)",
+                  borderRadius: 8, background: "#fff", color: "#155855",
+                  fontWeight: 900, fontSize: 14, cursor: "pointer"
+                }}>
+                  <FileText size={16} /> 콘티 저장
                 </button>
                 <button onClick={handleSpreadsheetDownload} style={{
                   display: "inline-flex", alignItems: "center", gap: 7,
@@ -1096,7 +1182,170 @@ export default function ContiPage() {
             </div>
           </section>
         )}
+
+        {/* ══ 아이패드 현장 뷰 ══ */}
+        {result && fieldView && (
+          <div style={{ position: "fixed", inset: 0, background: "#0f1f1e", zIndex: 200, overflowY: "auto" }}>
+            {/* 현장 뷰 헤더 */}
+            <div style={{
+              position: "sticky", top: 0, zIndex: 10,
+              background: "#155855", padding: "16px 24px",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 24 }}>📋</span>
+                <div>
+                  <div style={{ color: "#fff", fontWeight: 900, fontSize: 20 }}>{resultTitle} 촬영 콘티</div>
+                  <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>{form.specialties.join(" · ")}</div>
+                </div>
+              </div>
+              <button onClick={() => setFieldView(false)} style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "10px 20px", border: "1.5px solid rgba(255,255,255,0.3)",
+                borderRadius: 10, background: "rgba(255,255,255,0.1)", color: "#fff",
+                fontWeight: 800, fontSize: 15, cursor: "pointer"
+              }}>✕ 편집 모드로</button>
+            </div>
+
+            <div style={{ padding: "24px 20px", maxWidth: 960, margin: "0 auto" }}>
+
+              {/* 촬영 콘티 카드 목록 */}
+              <div style={{ marginBottom: 36 }}>
+                <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 900, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  🎬 <span>촬영 콘티</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.5)" }}>({result.conti.length}컷)</span>
+                </h2>
+                <div style={{ display: "grid", gap: 14 }}>
+                  {result.conti.map((row, i) => {
+                    const rawColor = row.color ? row.color.split("|") : null;
+                    const c = rawColor ? { bg: rawColor[0], text: rawColor[1] } : getColor(row.category);
+                    return (
+                      <div key={i} style={{
+                        background: "#1a2e2c", borderRadius: 16,
+                        border: `2px solid ${c.bg}`,
+                        overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.3)"
+                      }}>
+                        {/* 카드 헤더 */}
+                        <div style={{
+                          background: c.bg, padding: "12px 20px",
+                          display: "flex", alignItems: "center", justifyContent: "space-between"
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{
+                              background: "rgba(0,0,0,0.15)", color: c.text,
+                              fontSize: 12, fontWeight: 900, padding: "2px 10px", borderRadius: 99
+                            }}>#{i + 1}</span>
+                            <span style={{ color: c.text, fontWeight: 900, fontSize: 18 }}>{row.category}</span>
+                          </div>
+                          <span style={{
+                            background: "rgba(0,0,0,0.12)", color: c.text,
+                            fontSize: 13, fontWeight: 800, padding: "4px 14px", borderRadius: 99
+                          }}>⏱ {row.duration}</span>
+                        </div>
+                        {/* 카드 바디 */}
+                        <div style={{ padding: "16px 20px", display: "grid", gap: 12 }}>
+                          {/* 키워드 */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ color: "#E85D2C", fontWeight: 900, fontSize: 20 }}>{row.keyword}</span>
+                          </div>
+                          {/* 설명 */}
+                          <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, lineHeight: 1.7, margin: 0, whiteSpace: "pre-line" }}>
+                            {row.description}
+                          </p>
+                          {/* 메타 정보 */}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
+                            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 14px" }}>
+                              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>📍 장소</div>
+                              <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{row.location || "—"}</div>
+                            </div>
+                            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 14px" }}>
+                              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>📷 카메라</div>
+                              <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{row.cameraAngle || "—"}</div>
+                            </div>
+                            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 14px" }}>
+                              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>👥 필요인원</div>
+                              <div style={{ color: "#fff", fontSize: 14 }}>{row.personnel || "—"}</div>
+                            </div>
+                            {row.notes && (
+                              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "10px 14px" }}>
+                                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 700, marginBottom: 4 }}>📝 비고</div>
+                                <div style={{ color: "#fff", fontSize: 14 }}>{row.notes}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 체크리스트 */}
+              <div style={{ marginBottom: 36 }}>
+                <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 900, marginBottom: 16 }}>✅ 준비 체크리스트</h2>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {result.checklist.map((row, i) => (
+                    <label key={i} style={{
+                      display: "flex", alignItems: "center", gap: 14,
+                      background: "#1a2e2c", borderRadius: 12, padding: "14px 18px",
+                      cursor: "pointer", userSelect: "none"
+                    }}>
+                      <input type="checkbox" style={{ width: 24, height: 24, accentColor: "#155855", cursor: "pointer", flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 700 }}>{row.category} · </span>
+                        <span style={{ color: "#fff", fontSize: 16, fontWeight: 600 }}>{row.item}</span>
+                        {row.notes && <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginLeft: 8 }}>({row.notes})</span>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 타임테이블 */}
+              <div style={{ marginBottom: 40 }}>
+                <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 900, marginBottom: 16 }}>⏰ 타임테이블</h2>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {result.schedule.map((row, i) => (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "stretch", gap: 0,
+                      background: "#1a2e2c", borderRadius: 12, overflow: "hidden"
+                    }}>
+                      <div style={{
+                        background: "#155855", padding: "14px 18px",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        minWidth: 100, flexShrink: 0
+                      }}>
+                        <span style={{ color: "#fff", fontWeight: 900, fontSize: 15 }}>{row.time}</span>
+                      </div>
+                      <div style={{ padding: "14px 18px", flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ color: "#fff", fontWeight: 800, fontSize: 16 }}>{row.activity}</span>
+                          {row.type && <span style={{ color: "#E85D2C", fontSize: 12, fontWeight: 700, background: "rgba(232,93,44,0.15)", padding: "2px 8px", borderRadius: 99 }}>{row.type}</span>}
+                        </div>
+                        {row.requirements && <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>{row.requirements}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
+
+    {/* 올리비아 채팅 - 콘티 페이지 컨텍스트 */}
+    <OliviaChat
+      pageContext="촬영 콘티 생성 페이지"
+      contextData={result ? {
+        병원명: form.hospitalName || "미입력",
+        진료과: form.specialties.join(", ") || "미입력",
+        상태: "콘티 생성 완료",
+      } : {
+        상태: "콘티 입력 중",
+      }}
+    />
   );
 }
