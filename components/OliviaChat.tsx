@@ -51,11 +51,13 @@ function summarizeTool(name: string, input: any): string {
 }
 
 interface OliviaChatProps {
-  pageContext?: string; // 현재 페이지 컨텍스트 (예: "conti", "quote" 등)
-  contextData?: Record<string, string>; // 현재 작업 중인 데이터
+  pageContext?: string;
+  contextData?: Record<string, string>;
+  contiData?: object | null;           // 현재 콘티 전체 데이터
+  onContiUpdate?: (data: object) => void; // 콘티 수정 콜백
 }
 
-export default function OliviaChat({ pageContext, contextData }: OliviaChatProps = {}) {
+export default function OliviaChat({ pageContext, contextData, contiData, onContiUpdate }: OliviaChatProps = {}) {
   const [open,     setOpen]     = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input,    setInput]    = useState("");
@@ -126,10 +128,14 @@ export default function OliviaChat({ pageContext, contextData }: OliviaChatProps
         .filter(m => !m.toolRequest || m.isApproved !== undefined)
         .map(m => ({ role: m.role, content: m.content }));
 
-      // 현재 페이지 컨텍스트를 첫 메시지 앞에 시스템 힌트로 주입
+      // 콘티 데이터가 있으면 컨텍스트에 포함
+      const contiHint = contiData
+        ? `\n\n[현재 편집 중인 콘티 데이터 (JSON)]\n${JSON.stringify(contiData, null, 2)}\n\n콘티 수정 요청 시, 응답 맨 끝에 반드시 다음 형식으로 수정된 전체 콘티를 포함해주세요:\n<CONTI_UPDATE>{"conti":[...],"checklist":[...],"schedule":[...]}</CONTI_UPDATE>`
+        : "";
+
       const contextHint = pageContext
-        ? `[현재 페이지: ${pageContext}${contextData ? " / " + Object.entries(contextData).map(([k,v]) => `${k}: ${v}`).join(", ") : ""}]`
-        : null;
+        ? `[현재 페이지: ${pageContext}${contextData ? " / " + Object.entries(contextData).map(([k,v]) => `${k}: ${v}`).join(", ") : ""}]${contiHint}`
+        : contiHint || null;
 
       const res  = await fetch("/api/olivia", {
         method: "POST",
@@ -143,7 +149,6 @@ export default function OliviaChat({ pageContext, contextData }: OliviaChatProps
       if (!data.ok) throw new Error(data.error);
 
       if (data.type === "tool_request") {
-        // 도구 사용 승인 요청
         setMessages(prev => [...prev,
           {
             role: "assistant",
@@ -157,7 +162,26 @@ export default function OliviaChat({ pageContext, contextData }: OliviaChatProps
           },
         ]);
       } else {
-        setMessages(prev => [...prev, { role: "assistant", content: data.text }]);
+        const rawText: string = data.text || "";
+
+        // 콘티 업데이트 태그 파싱
+        const contiMatch = rawText.match(/<CONTI_UPDATE>([\s\S]*?)<\/CONTI_UPDATE>/);
+        if (contiMatch && onContiUpdate) {
+          try {
+            const parsed = JSON.parse(contiMatch[1]);
+            onContiUpdate(parsed);
+            // 태그 제거한 텍스트만 표시
+            const cleanText = rawText.replace(/<CONTI_UPDATE>[\s\S]*?<\/CONTI_UPDATE>/, "").trim();
+            setMessages(prev => [...prev, {
+              role: "assistant",
+              content: cleanText + "\n\n✅ 콘티가 업데이트됐어요!",
+            }]);
+          } catch {
+            setMessages(prev => [...prev, { role: "assistant", content: rawText }]);
+          }
+        } else {
+          setMessages(prev => [...prev, { role: "assistant", content: rawText }]);
+        }
       }
     } catch (e: any) {
       setMessages(prev => [...prev, { role: "assistant", content: "⚠ 오류가 발생했어요: " + e.message }]);
