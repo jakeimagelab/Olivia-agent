@@ -1433,6 +1433,12 @@ export default function ContiPage() {
       } : {
         상태: "콘티 입력 중",
       }}
+      contiData={result ?? null}
+      onContiUpdate={(updated: any) => {
+        if (updated?.conti)     setResult(prev => prev ? { ...prev, conti: updated.conti } : prev);
+        if (updated?.checklist) setResult(prev => prev ? { ...prev, checklist: updated.checklist } : prev);
+        if (updated?.schedule)  setResult(prev => prev ? { ...prev, schedule: updated.schedule } : prev);
+      }}
     />
     </>
   );
