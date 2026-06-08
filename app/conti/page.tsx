@@ -708,6 +708,7 @@ export default function ContiPage() {
      렌더
   ════════════════════════════════ */
   return (
+    <>
     <div style={{ minHeight: "100vh", background: "var(--ivory)" }}>
       <header className="analyzer-header">
         <div className="brand-lockup">
@@ -1347,5 +1348,6 @@ export default function ContiPage() {
         상태: "콘티 입력 중",
       }}
     />
+    </>
   );
 }
