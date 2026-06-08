@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import OliviaChat from "@/components/OliviaChat";
 import {
   ArrowLeft,
   Download,
@@ -1817,6 +1818,13 @@ export default function QuoteBuilder() {
           </div>
         </aside>
       </section>
+      <OliviaChat
+        pageContext="견적서 작성 페이지"
+        contextData={{
+          병원명: customer.hospitalName || "미입력",
+          담당자: customer.managerName || "미입력",
+        }}
+      />
     </main>
   );
 }
