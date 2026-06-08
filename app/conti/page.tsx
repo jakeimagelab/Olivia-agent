@@ -825,36 +825,28 @@ export default function ContiPage() {
   };
 
 
-  /* ── PDF 다운로드 (jsPDF 직접 렌더링, 3개 파일) ── */
+  /* ── PDF 다운로드 (jsPDF 직접 그리기, autotable 없음) ── */
   const handlePDF = async () => {
     if (!result) return;
     const { default: jsPDF } = await import("jspdf");
-    const autoTable = (await import("jspdf-autotable")).default;
 
     const hospitalName = form.hospitalName || "병원";
     const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
-    const deepGreen: [number,number,number] = [21, 88, 85];
-    const orange: [number,number,number]    = [232, 93, 44];
-    const ivory: [number,number,number]     = [250, 247, 242];
+    const DG: [number,number,number] = [21,88,85];
+    const OR: [number,number,number] = [232,93,44];
 
-    const drawPageHeader = (doc: any, title: string) => {
+    const drawHeader = (doc: any, title: string) => {
       const pw = doc.internal.pageSize.getWidth();
-      doc.setFillColor(...deepGreen);
-      doc.rect(0, 0, pw, 18, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8); doc.setFont("helvetica", "bold");
-      doc.text("PHOTO CLINIC", 14, 7);
-      doc.setFontSize(6); doc.setFont("helvetica", "normal");
-      doc.text("병원 브랜딩 포토그래피", 14, 12);
-      doc.setFontSize(11); doc.setFont("helvetica", "bold");
-      doc.text(`${hospitalName}  ${title}`, pw / 2, 10, { align: "center" });
-      doc.setFontSize(7); doc.setFont("helvetica", "normal");
-      doc.text(today, pw - 14, 10, { align: "right" });
-      doc.setFillColor(...orange);
-      doc.rect(0, 18, pw, 1.2, "F");
+      doc.setFillColor(...DG); doc.rect(0,0,pw,18,"F");
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.text("PHOTO CLINIC",14,7);
+      doc.setFontSize(6); doc.setFont("helvetica","normal"); doc.text("병원 브랜딩 포토그래피",14,12);
+      doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.text(`${hospitalName}  ${title}`,pw/2,10,{align:"center"});
+      doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.text(today,pw-14,10,{align:"right"});
+      doc.setFillColor(...OR); doc.rect(0,18,pw,1.2,"F");
     };
 
-    const CAT_COLOR_MAP: Record<string,[number,number,number]> = {
+    const CAT_BG: Record<string,[number,number,number]> = {
       "하모니":[254,243,199],"공통":[254,243,199],"인포데스크":[254,243,199],
       "치과":[209,250,229],"교정":[209,250,229],
       "상담":[252,231,243],"진료":[252,231,243],
@@ -863,86 +855,126 @@ export default function ContiPage() {
       "재활":[209,250,229],"물리치료":[209,250,229],
       "인테리어":[243,244,246],
     };
-    const getCatColor = (cat: string): [number,number,number] =>
-      CAT_COLOR_MAP[Object.keys(CAT_COLOR_MAP).find(k => cat.includes(k)) || ""] || [230,244,241];
+    const getCatBg = (cat: string): [number,number,number] =>
+      CAT_BG[Object.keys(CAT_BG).find(k => cat.includes(k)) || ""] || [230,244,241];
 
-    // 1. 촬영 콘티
-    const doc1 = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    drawPageHeader(doc1, "촬영 콘티");
-    autoTable(doc1, {
-      startY: 24,
-      head: [["진료과","소요시간","장소","카메라 구도","키워드","설명","필요인원 / 환자역할","비고"]],
-      body: result.conti.map(r => [r.category,r.duration,r.location,r.cameraAngle,r.keyword,r.description,r.personnel,r.notes||"-"]),
-      styles: { fontSize: 8, cellPadding: 3, lineColor: [220,220,220], lineWidth: 0.3, overflow: "linebreak" },
-      headStyles: { fillColor: deepGreen, textColor: 255, fontStyle: "bold", fontSize: 8, halign: "center" },
-      columnStyles: {
-        0:{cellWidth:22,halign:"center",fontStyle:"bold"},
-        1:{cellWidth:14,halign:"center"},
-        2:{cellWidth:22},3:{cellWidth:30},
-        4:{cellWidth:28,textColor:orange,fontStyle:"bold"},
-        5:{cellWidth:62},6:{cellWidth:40},7:{cellWidth:22},
-      },
-      didParseCell: (data: any) => {
-        if (data.section === "body" && data.column.index === 0)
-          data.cell.styles.fillColor = getCatColor(String(data.cell.raw||""));
-      },
-      alternateRowStyles: { fillColor: [252,252,250] },
-      margin: { left:10, right:10 },
-    });
-    const ph1 = doc1.internal.pageSize.getHeight();
-    const pw1 = doc1.internal.pageSize.getWidth();
-    doc1.setFillColor(...ivory); doc1.rect(10, ph1-12, pw1-20, 8, "F");
-    doc1.setFontSize(7); doc1.setTextColor(120,120,120);
-    doc1.text(`총 ${result.conti.length}컷  ·  ${form.specialties.join(", ")}`, pw1/2, ph1-7, {align:"center"});
+    // 공통 표 그리기 함수
+    const drawTable = (
+      doc: any,
+      startY: number,
+      headers: string[],
+      rows: string[][],
+      colWidths: number[],
+      marginL = 10,
+      rowH = 8,
+      catColIdx = -1
+    ): number => {
+      const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
+      let y = startY;
+      const totalW = colWidths.reduce((a,b)=>a+b,0);
 
-    // 2. 준비 체크리스트
-    const doc2 = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawPageHeader(doc2, "준비 체크리스트");
-    autoTable(doc2, {
-      startY: 24,
-      head: [["#","분류","체크리스트 항목","준비여부","비고"]],
-      body: result.checklist.map(r => [r.number,r.category,r.item,"☐",r.notes||"-"]),
-      styles: { fontSize: 9, cellPadding: 3.5, lineColor: [220,220,220], lineWidth: 0.3, overflow: "linebreak" },
-      headStyles: { fillColor: deepGreen, textColor: 255, fontStyle: "bold", fontSize: 9, halign: "center" },
-      columnStyles: {
-        0:{cellWidth:10,halign:"center",fontStyle:"bold",textColor:deepGreen},
-        1:{cellWidth:28,fontStyle:"bold"},2:{cellWidth:105},
-        3:{cellWidth:16,halign:"center"},4:{cellWidth:31},
-      },
-      alternateRowStyles: { fillColor: [250,250,248] },
-      margin: { left:14, right:14 },
-    });
-    const ph2 = doc2.internal.pageSize.getHeight();
-    const pw2 = doc2.internal.pageSize.getWidth();
-    doc2.setFontSize(7); doc2.setTextColor(120,120,120);
-    doc2.text(`총 ${result.checklist.length}개 항목`, pw2/2, ph2-8, {align:"center"});
+      // 헤더 행
+      doc.setFillColor(...DG);
+      doc.rect(marginL, y, totalW, rowH, "F");
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(7.5); doc.setFont("helvetica","bold");
+      let x = marginL;
+      headers.forEach((h, i) => {
+        doc.text(h, x + colWidths[i]/2, y + rowH/2 + 2.5, { align:"center", maxWidth: colWidths[i]-2 });
+        x += colWidths[i];
+      });
+      y += rowH;
 
-    // 3. 타임테이블
-    const doc3 = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    drawPageHeader(doc3, "타임테이블");
-    autoTable(doc3, {
-      startY: 24,
-      head: [["시간","내용","구분","요청사항","비고"]],
-      body: result.schedule.map(r => [r.time,r.activity,r.type,r.requirements,r.notes||"-"]),
-      styles: { fontSize: 9, cellPadding: 3.5, lineColor: [220,220,220], lineWidth: 0.3, overflow: "linebreak" },
-      headStyles: { fillColor: deepGreen, textColor: 255, fontStyle: "bold", fontSize: 9, halign: "center" },
-      columnStyles: {
-        0:{cellWidth:38,halign:"center",fontStyle:"bold",textColor:deepGreen},
-        1:{cellWidth:55,fontStyle:"bold"},
-        2:{cellWidth:25,textColor:orange},
-        3:{cellWidth:50},4:{cellWidth:24},
-      },
-      alternateRowStyles: { fillColor: [240,248,247] },
-      margin: { left:14, right:14 },
-    });
-    const ph3 = doc3.internal.pageSize.getHeight();
-    const pw3 = doc3.internal.pageSize.getWidth();
-    doc3.setFontSize(7); doc3.setTextColor(120,120,120);
-    doc3.text(`총 ${result.schedule.length}개 일정`, pw3/2, ph3-8, {align:"center"});
+      // 데이터 행
+      doc.setFont("helvetica","normal");
+      rows.forEach((row, ri) => {
+        // 행 높이 동적 계산 (설명 셀 줄바꿈 고려)
+        let maxLines = 1;
+        row.forEach((cell, ci) => {
+          const lines = doc.splitTextToSize(cell || "", colWidths[ci] - 3).length;
+          if (lines > maxLines) maxLines = lines;
+        });
+        const rh = Math.max(rowH, maxLines * 4.5 + 3);
 
+        // 페이지 넘김
+        if (y + rh > ph - 15) {
+          doc.addPage();
+          drawHeader(doc, "");
+          y = 24;
+          // 헤더 재출력
+          doc.setFillColor(...DG); doc.rect(marginL, y, totalW, rowH, "F");
+          doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
+          let hx = marginL;
+          headers.forEach((h,i) => {
+            doc.text(h, hx+colWidths[i]/2, y+rowH/2+2.5, {align:"center",maxWidth:colWidths[i]-2});
+            hx += colWidths[i];
+          });
+          y += rowH;
+          doc.setFont("helvetica","normal");
+        }
+
+        // 배경
+        const bg: [number,number,number] = catColIdx >= 0 ? getCatBg(row[catColIdx]||"") : (ri%2===0 ? [255,255,255] : [249,250,248]);
+        doc.setFillColor(...bg); doc.rect(marginL, y, totalW, rh, "F");
+
+        // 테두리
+        doc.setDrawColor(220,220,220); doc.setLineWidth(0.2);
+        doc.rect(marginL, y, totalW, rh, "S");
+
+        // 텍스트
+        let cx = marginL;
+        row.forEach((cell, ci) => {
+          const isKeyword = catColIdx >= 0 && ci === 4;
+          const isCat = ci === catColIdx;
+          doc.setTextColor(...(isKeyword ? OR : isCat ? [80,40,0] : [40,40,40]));
+          doc.setFontSize(isCat ? 8 : 7.5);
+          doc.setFont("helvetica", isCat || isKeyword ? "bold" : "normal");
+          const lines = doc.splitTextToSize(cell||"-", colWidths[ci]-3);
+          doc.text(lines, cx + colWidths[ci]/2, y + 4.5, { align:"center", maxWidth: colWidths[ci]-3 });
+          cx += colWidths[ci];
+        });
+
+        y += rh;
+      });
+
+      return y;
+    };
+
+    // ── 1. 촬영 콘티 ──────────────────────────
+    const doc1 = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
+    drawHeader(doc1, "촬영 콘티");
+    const contiRows = result.conti.map(r => [r.category,r.duration||"",r.location,r.cameraAngle,r.keyword,r.description,r.personnel,r.notes||"-"]);
+    const endY1 = drawTable(doc1, 24, ["진료과","소요시간","장소","카메라 구도","키워드","설명","필요인원/환자역할","비고"],
+      contiRows, [22,14,22,30,28,60,40,22], 10, 8, 0);
+    doc1.setFontSize(7); doc1.setTextColor(150,150,150);
+    doc1.text(`총 ${result.conti.length}컷 · ${form.specialties.join(", ")}`,
+      doc1.internal.pageSize.getWidth()/2, endY1+6, {align:"center"});
     doc1.save(`${hospitalName}_촬영콘티.pdf`);
-    setTimeout(() => doc2.save(`${hospitalName}_준비체크리스트.pdf`), 300);
-    setTimeout(() => doc3.save(`${hospitalName}_타임테이블.pdf`), 600);
+
+    // ── 2. 준비 체크리스트 ──────────────────────
+    await new Promise(r => setTimeout(r, 300));
+    const doc2 = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
+    drawHeader(doc2, "준비 체크리스트");
+    const checkRows = result.checklist.map(r => [String(r.number),r.category,r.item,"☐",r.notes||"-"]);
+    drawTable(doc2, 24, ["#","분류","체크리스트 항목","준비여부","비고"],
+      checkRows, [10,28,108,16,28], 14, 8);
+    doc2.setFontSize(7); doc2.setTextColor(150,150,150);
+    doc2.text(`총 ${result.checklist.length}개 항목`, doc2.internal.pageSize.getWidth()/2,
+      doc2.internal.pageSize.getHeight()-8, {align:"center"});
+    doc2.save(`${hospitalName}_준비체크리스트.pdf`);
+
+    // ── 3. 타임테이블 ───────────────────────────
+    await new Promise(r => setTimeout(r, 300));
+    const doc3 = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
+    drawHeader(doc3, "타임테이블");
+    const schedRows = result.schedule.map(r => [r.time,r.activity,r.type||"",r.requirements||"",r.notes||"-"]);
+    drawTable(doc3, 24, ["시간","내용","구분","요청사항","비고"],
+      schedRows, [38,55,25,48,24], 14, 8);
+    doc3.setFontSize(7); doc3.setTextColor(150,150,150);
+    doc3.text(`총 ${result.schedule.length}개 일정`, doc3.internal.pageSize.getWidth()/2,
+      doc3.internal.pageSize.getHeight()-8, {align:"center"});
+    doc3.save(`${hospitalName}_타임테이블.pdf`);
   };
 
   /* ── Excel 다운로드 (열너비 적용, 3시트) ── */
