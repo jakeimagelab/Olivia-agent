@@ -884,11 +884,11 @@ export default function ContiPage() {
 
     const checkRows = result.checklist.map((r,i) => `
       <tr style="background:${i%2===0?"#fff":"#fafaf9"}">
-        <td style="text-align:center;font-weight:900;color:#155855">${r.number}</td>
-        <td style="font-weight:700">${r.category}</td>
+        <td style="text-align:center;font-weight:900;color:#155855;white-space:nowrap">${r.number}</td>
+        <td style="font-weight:700;white-space:nowrap">${r.category}</td>
         <td>${r.item}</td>
         <td style="text-align:center;font-size:16px">☐</td>
-        <td>${r.notes||"-"}</td>
+        <td style="white-space:nowrap">${r.notes||"-"}</td>
       </tr>
     `).join("");
 
@@ -1035,7 +1035,7 @@ ${header("준비 체크리스트")}
     <thead>
       <tr>
         <th style="width:28px">#</th>
-        <th style="width:70px">분류</th>
+        <th style="width:90px">분류</th>
         <th>체크리스트 항목</th>
         <th style="width:44px">준비여부</th>
         <th style="width:70px">비고</th>
