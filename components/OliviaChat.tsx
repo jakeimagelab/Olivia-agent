@@ -50,7 +50,12 @@ function summarizeTool(name: string, input: any): string {
   }
 }
 
-export default function OliviaChat() {
+interface OliviaChatProps {
+  pageContext?: string; // 현재 페이지 컨텍스트 (예: "conti", "quote" 등)
+  contextData?: Record<string, string>; // 현재 작업 중인 데이터
+}
+
+export default function OliviaChat({ pageContext, contextData }: OliviaChatProps = {}) {
   const [open,     setOpen]     = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input,    setInput]    = useState("");
@@ -117,15 +122,22 @@ export default function OliviaChat() {
     setLoading(true);
 
     try {
-      // Claude API 메시지 형식으로 변환
       const apiMessages = updated
         .filter(m => !m.toolRequest || m.isApproved !== undefined)
         .map(m => ({ role: m.role, content: m.content }));
 
+      // 현재 페이지 컨텍스트를 첫 메시지 앞에 시스템 힌트로 주입
+      const contextHint = pageContext
+        ? `[현재 페이지: ${pageContext}${contextData ? " / " + Object.entries(contextData).map(([k,v]) => `${k}: ${v}`).join(", ") : ""}]`
+        : null;
+
       const res  = await fetch("/api/olivia", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({
+          messages: apiMessages,
+          pageContext: contextHint,
+        }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
