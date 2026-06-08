@@ -45,7 +45,7 @@ interface PatientItem  { type: string; count: number; detail: string; }
 interface LocationItem { floor: string; spaces: string; notes: string; }
 interface ContiRow     { category: string; duration: string; location: string; cameraAngle: string; keyword: string; description: string; personnel: string; notes: string; color?: string; }
 interface ChecklistRow { number: number; category: string; item: string; notes: string; }
-interface ScheduleRow  { time: string; activity: string; type: string; requirements: string; notes: string; }
+interface ScheduleRow  { time: string; duration?: string; activity: string; type: string; requirements: string; notes: string; }
 interface ContiResult  { conti: ContiRow[]; checklist: ChecklistRow[]; schedule: ScheduleRow[]; }
 
 /* ════════════════════════════════════════
@@ -178,6 +178,159 @@ function DeleteRowBtn({ onClick }: { onClick: () => void }) {
 /* ════════════════════════════════════════
    드래그 핸들
 ════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   시간 선택 셀
+════════════════════════════════════════ */
+const TIME_OPTIONS: string[] = [];
+for (let h = 8; h <= 20; h++) {
+  TIME_OPTIONS.push(`${String(h).padStart(2,"0")}:00`);
+  TIME_OPTIONS.push(`${String(h).padStart(2,"0")}:30`);
+}
+
+const DURATION_OPTIONS = ["10분","15분","20분","30분","45분","60분","90분","120분"];
+
+function parseMins(t: string): number {
+  const m = t.match(/(\d+):(\d+)/);
+  return m ? parseInt(m[1]) * 60 + parseInt(m[2]) : 0;
+}
+function addMins(t: string, mins: number): string {
+  const total = parseMins(t) + mins;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+}
+function durationToMins(d: string): number {
+  const m = d.match(/(\d+)/);
+  return m ? parseInt(m[1]) : 0;
+}
+
+function TimePickerCell({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // "HH:MM - HH:MM" 형식에서 시작 시간만 추출
+  const startTime = value.match(/(\d{2}:\d{2})/)?.[1] || "";
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const select = (t: string) => {
+    // 기존 종료시간 유지하면서 시작시간만 교체
+    const endMatch = value.match(/- (\d{2}:\d{2})/);
+    onChange(endMatch ? `${t} - ${endMatch[1]}` : t);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          cursor: "pointer", fontWeight: 700, color: "#155855", fontSize: 13,
+          padding: "3px 6px", borderRadius: 6, minWidth: 90,
+          background: open ? "rgba(21,88,85,0.08)" : "transparent",
+          border: "1px solid " + (open ? "#155855" : "transparent"),
+          transition: "all 120ms", whiteSpace: "nowrap"
+        }}
+        title="시작 시간 선택"
+      >
+        {value || <span style={{ color: "#bbb", fontStyle: "italic", fontWeight: 400 }}>시간 선택</span>}
+      </div>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 200,
+          background: "#fff", border: "1px solid rgba(21,88,85,0.2)",
+          borderRadius: 10, boxShadow: "0 8px 28px rgba(21,88,85,0.18)",
+          padding: 6, maxHeight: 220, overflowY: "auto", minWidth: 100,
+        }}>
+          {TIME_OPTIONS.map(t => (
+            <div key={t} onClick={() => select(t)} style={{
+              padding: "7px 14px", fontSize: 13, fontWeight: startTime === t ? 900 : 500,
+              color: startTime === t ? "#155855" : "#374151",
+              background: startTime === t ? "rgba(21,88,85,0.08)" : "transparent",
+              borderRadius: 6, cursor: "pointer", whiteSpace: "nowrap"
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(21,88,85,0.06)")}
+              onMouseLeave={e => (e.currentTarget.style.background = startTime === t ? "rgba(21,88,85,0.08)" : "transparent")}
+            >{t}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DurationPickerCell({ timeValue, onTimeChange }: {
+  timeValue: string;
+  onTimeChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // 현재 소요시간 계산 (시작~종료 차이)
+  const times = timeValue.match(/(\d{2}:\d{2})/g);
+  const currentMins = times && times.length >= 2 ? parseMins(times[1]) - parseMins(times[0]) : 0;
+  const currentLabel = currentMins > 0 ? `${currentMins}분` : "";
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const select = (d: string) => {
+    const mins = durationToMins(d);
+    const startMatch = timeValue.match(/(\d{2}:\d{2})/);
+    if (startMatch) {
+      const end = addMins(startMatch[1], mins);
+      onTimeChange(`${startMatch[1]} - ${end}`);
+    }
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          cursor: "pointer", fontSize: 12, fontWeight: 700,
+          color: currentLabel ? "#E85D2C" : "#bbb",
+          padding: "3px 8px", borderRadius: 99, whiteSpace: "nowrap",
+          background: open ? "rgba(232,93,44,0.08)" : "rgba(232,93,44,0.06)",
+          border: "1px solid " + (open ? "#E85D2C" : "rgba(232,93,44,0.2)"),
+          transition: "all 120ms", display: "inline-block"
+        }}
+        title="소요시간 선택 → 종료시간 자동 계산"
+      >
+        {currentLabel || "소요시간"}
+      </div>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 200,
+          background: "#fff", border: "1px solid rgba(21,88,85,0.2)",
+          borderRadius: 10, boxShadow: "0 8px 28px rgba(21,88,85,0.18)",
+          padding: 6, minWidth: 90,
+        }}>
+          {DURATION_OPTIONS.map(d => (
+            <div key={d} onClick={() => select(d)} style={{
+              padding: "7px 14px", fontSize: 13, fontWeight: currentLabel === d ? 900 : 500,
+              color: currentLabel === d ? "#E85D2C" : "#374151",
+              background: currentLabel === d ? "rgba(232,93,44,0.08)" : "transparent",
+              borderRadius: 6, cursor: "pointer"
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = "rgba(232,93,44,0.06)")}
+              onMouseLeave={e => (e.currentTarget.style.background = currentLabel === d ? "rgba(232,93,44,0.08)" : "transparent")}
+            >{d}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DragHandle() {
   return (
     <div style={{
@@ -1143,7 +1296,7 @@ export default function ContiPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["", "시간", "내용", "구분", "요청사항", "비고", ""].map((h, idx) => (
+                        {["", "시간", "소요시간", "내용", "구분", "요청사항", "비고", ""].map((h, idx) => (
                           <th key={idx} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
                         ))}
                       </tr>
@@ -1161,7 +1314,18 @@ export default function ContiPage() {
                             style={{ background: isDragOver ? "rgba(21,88,85,0.06)" : i % 2 === 0 ? "#fff" : "#fafaf9", outline: isDragOver ? "2px solid #155855" : "none" }}
                           >
                             <td style={{ ...TD, width: 36, padding: "6px 4px", cursor: "grab" }}><DragHandle /></td>
-                            <td style={{ ...TD, minWidth: 120 }}><EditableCell value={row.time} onChange={v => updateSchedule(i, "time", v)} bold color="#155855" /></td>
+                            <td style={{ ...TD, minWidth: 130 }}>
+                              <TimePickerCell
+                                value={row.time}
+                                onChange={v => updateSchedule(i, "time", v)}
+                              />
+                            </td>
+                            <td style={{ ...TD, minWidth: 80 }}>
+                              <DurationPickerCell
+                                timeValue={row.time}
+                                onTimeChange={v => updateSchedule(i, "time", v)}
+                              />
+                            </td>
                             <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.activity} onChange={v => updateSchedule(i, "activity", v)} bold /></td>
                             <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.type} onChange={v => updateSchedule(i, "type", v)} color="var(--orange)" /></td>
                             <td style={{ ...TD, minWidth: 160 }}><EditableCell value={row.requirements} onChange={v => updateSchedule(i, "requirements", v)} /></td>
