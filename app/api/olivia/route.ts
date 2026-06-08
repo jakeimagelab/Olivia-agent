@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
   ];
 
   const payload = {
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     max_tokens: 1024,
     tools: TOOLS,
     tool_choice: "auto",
