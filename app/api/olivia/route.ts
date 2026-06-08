@@ -140,15 +140,20 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { messages, pendingTool } = body;
+  const { messages, pendingTool, pageContext } = body;
 
   if (pendingTool) {
     const result = await executeTool(pendingTool.name, pendingTool.input, req);
     return NextResponse.json({ ok: true, toolResult: result });
   }
 
+  // 페이지 컨텍스트가 있으면 시스템 프롬프트에 추가
+  const systemWithContext = pageContext
+    ? `${SYSTEM}\n\n현재 사용자가 보고 있는 화면: ${pageContext}\n이 컨텍스트를 참고하여 더 정확하게 도움을 주세요.`
+    : SYSTEM;
+
   const openaiMessages = [
-    { role: "system", content: SYSTEM },
+    { role: "system", content: systemWithContext },
     ...(messages || []),
   ];
 
