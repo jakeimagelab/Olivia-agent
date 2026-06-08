@@ -254,9 +254,13 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         style={{
           position: "fixed", bottom: 24, right: 24, zIndex: 1000,
           width: 56, height: 56, borderRadius: "50%",
-          background: open ? C.orange : C.teal,
+          background: open
+            ? C.orange
+            : "linear-gradient(135deg, #155855 0%, #1e7870 100%)",
           border: "none", cursor: "pointer",
-          boxShadow: "0 4px 16px rgba(21,88,85,.35)",
+          boxShadow: open
+            ? "0 6px 20px rgba(232,93,44,.4)"
+            : "0 6px 20px rgba(21,88,85,.35)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 22, transition: "all .2s",
         }}
@@ -269,10 +273,10 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       {open && (
         <div style={{
           position: "fixed", bottom: 92, right: 24, zIndex: 999,
-          width: 360, height: 520,
-          background: C.surface, borderRadius: 18,
+          width: 380, height: 540,
+          background: C.surface, borderRadius: 20,
           border: `1px solid ${C.border}`,
-          boxShadow: "0 8px 32px rgba(21,88,85,.18)",
+          boxShadow: "0 20px 60px rgba(21,88,85,.18), 0 4px 16px rgba(0,0,0,.08)",
           display: "flex", flexDirection: "column",
           overflow: "hidden",
           animation: "fadeIn .2s ease",
