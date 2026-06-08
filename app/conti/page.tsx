@@ -825,159 +825,209 @@ export default function ContiPage() {
   };
 
 
-  /* ── PDF 다운로드 (jsPDF 직접 그리기, autotable 없음) ── */
-  const handlePDF = async () => {
+  /* ── PDF 인쇄 (브라우저 print, 한글 완벽 지원, 3섹션 1파일) ── */
+  const handlePDF = () => {
     if (!result) return;
-    const { default: jsPDF } = await import("jspdf");
-
     const hospitalName = form.hospitalName || "병원";
-    const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
-    const DG: [number,number,number] = [21,88,85];
-    const OR: [number,number,number] = [232,93,44];
+    const today = new Date().toLocaleDateString("ko-KR", { year:"numeric", month:"long", day:"numeric" });
+    const specialties = form.specialties.join(" · ");
 
-    const drawHeader = (doc: any, title: string) => {
-      const pw = doc.internal.pageSize.getWidth();
-      doc.setFillColor(...DG); doc.rect(0,0,pw,18,"F");
-      doc.setTextColor(255,255,255);
-      doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.text("PHOTO CLINIC",14,7);
-      doc.setFontSize(6); doc.setFont("helvetica","normal"); doc.text("병원 브랜딩 포토그래피",14,12);
-      doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.text(`${hospitalName}  ${title}`,pw/2,10,{align:"center"});
-      doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.text(today,pw-14,10,{align:"right"});
-      doc.setFillColor(...OR); doc.rect(0,18,pw,1.2,"F");
+    const CAT_BG: Record<string,string> = {
+      "하모니":"#FEF3C7","공통":"#FEF3C7","인포데스크":"#FEF3C7",
+      "치과":"#D1FAE5","교정":"#D1FAE5",
+      "상담":"#FCE7F3","진료":"#FCE7F3",
+      "C-ARM":"#FEE2E2","씨암":"#FEE2E2","시술":"#FEE2E2","수술":"#FEE2E2",
+      "초음파":"#DBEAFE","주사":"#DBEAFE",
+      "재활":"#D1FAE5","물리치료":"#D1FAE5",
+      "인테리어":"#F3F4F6",
     };
-
-    const CAT_BG: Record<string,[number,number,number]> = {
-      "하모니":[254,243,199],"공통":[254,243,199],"인포데스크":[254,243,199],
-      "치과":[209,250,229],"교정":[209,250,229],
-      "상담":[252,231,243],"진료":[252,231,243],
-      "C-ARM":[254,226,226],"씨암":[254,226,226],"시술":[254,226,226],"수술":[254,226,226],
-      "초음파":[219,234,254],"주사":[219,234,254],
-      "재활":[209,250,229],"물리치료":[209,250,229],
-      "인테리어":[243,244,246],
+    const CAT_FG: Record<string,string> = {
+      "하모니":"#92400E","공통":"#92400E","인포데스크":"#92400E",
+      "치과":"#065F46","교정":"#065F46",
+      "상담":"#9D174D","진료":"#9D174D",
+      "C-ARM":"#991B1B","씨암":"#991B1B","시술":"#991B1B","수술":"#991B1B",
+      "초음파":"#1E40AF","주사":"#1E40AF",
+      "재활":"#065F46","물리치료":"#065F46",
+      "인테리어":"#374151",
     };
-    const getCatBg = (cat: string): [number,number,number] =>
-      CAT_BG[Object.keys(CAT_BG).find(k => cat.includes(k)) || ""] || [230,244,241];
+    const getCatBg = (cat: string) => CAT_BG[Object.keys(CAT_BG).find(k=>cat.includes(k))||""]||"#E6F4F1";
+    const getCatFg = (cat: string) => CAT_FG[Object.keys(CAT_FG).find(k=>cat.includes(k))||""]||"#155855";
 
-    // 공통 표 그리기 함수
-    const drawTable = (
-      doc: any,
-      startY: number,
-      headers: string[],
-      rows: string[][],
-      colWidths: number[],
-      marginL = 10,
-      rowH = 8,
-      catColIdx = -1
-    ): number => {
-      const pw = doc.internal.pageSize.getWidth();
-      const ph = doc.internal.pageSize.getHeight();
-      let y = startY;
-      const totalW = colWidths.reduce((a,b)=>a+b,0);
+    const header = (title: string) => `
+      <div class="page-header">
+        <div class="brand">
+          <span class="brand-name">PHOTO CLINIC</span>
+          <span class="brand-sub">병원 브랜딩 포토그래피</span>
+        </div>
+        <div class="doc-title">${hospitalName} &nbsp;${title}</div>
+        <div class="doc-date">${today}</div>
+      </div>
+      <div class="orange-bar"></div>
+    `;
 
-      // 헤더 행
-      doc.setFillColor(...DG);
-      doc.rect(marginL, y, totalW, rowH, "F");
-      doc.setTextColor(255,255,255);
-      doc.setFontSize(7.5); doc.setFont("helvetica","bold");
-      let x = marginL;
-      headers.forEach((h, i) => {
-        doc.text(h, x + colWidths[i]/2, y + rowH/2 + 2.5, { align:"center", maxWidth: colWidths[i]-2 });
-        x += colWidths[i];
-      });
-      y += rowH;
+    const contiRows = result.conti.map((r,i) => `
+      <tr>
+        <td style="background:${getCatBg(r.category)};color:${getCatFg(r.category)};font-weight:900">${r.category}</td>
+        <td style="text-align:center">${r.duration||"-"}</td>
+        <td>${r.location||"-"}</td>
+        <td>${r.cameraAngle||"-"}</td>
+        <td style="color:#E85D2C;font-weight:900">${r.keyword||"-"}</td>
+        <td>${r.description||"-"}</td>
+        <td>${r.personnel||"-"}</td>
+        <td>${r.notes||"-"}</td>
+      </tr>
+    `).join("");
 
-      // 데이터 행
-      doc.setFont("helvetica","normal");
-      rows.forEach((row, ri) => {
-        // 행 높이 동적 계산 (설명 셀 줄바꿈 고려)
-        let maxLines = 1;
-        row.forEach((cell, ci) => {
-          const lines = doc.splitTextToSize(cell || "", colWidths[ci] - 3).length;
-          if (lines > maxLines) maxLines = lines;
-        });
-        const rh = Math.max(rowH, maxLines * 4.5 + 3);
+    const checkRows = result.checklist.map((r,i) => `
+      <tr style="background:${i%2===0?"#fff":"#fafaf9"}">
+        <td style="text-align:center;font-weight:900;color:#155855">${r.number}</td>
+        <td style="font-weight:700">${r.category}</td>
+        <td>${r.item}</td>
+        <td style="text-align:center;font-size:16px">☐</td>
+        <td>${r.notes||"-"}</td>
+      </tr>
+    `).join("");
 
-        // 페이지 넘김
-        if (y + rh > ph - 15) {
-          doc.addPage();
-          drawHeader(doc, "");
-          y = 24;
-          // 헤더 재출력
-          doc.setFillColor(...DG); doc.rect(marginL, y, totalW, rowH, "F");
-          doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
-          let hx = marginL;
-          headers.forEach((h,i) => {
-            doc.text(h, hx+colWidths[i]/2, y+rowH/2+2.5, {align:"center",maxWidth:colWidths[i]-2});
-            hx += colWidths[i];
-          });
-          y += rowH;
-          doc.setFont("helvetica","normal");
-        }
+    const schedRows = result.schedule.map((r,i) => `
+      <tr style="background:${i%2===0?"#EDF8F7":"#fff"}">
+        <td style="text-align:center;font-weight:900;color:#155855">${r.time||"-"}</td>
+        <td style="font-weight:700">${r.activity||"-"}</td>
+        <td style="color:#E85D2C">${r.type||"-"}</td>
+        <td>${r.requirements||"-"}</td>
+        <td>${r.notes||"-"}</td>
+      </tr>
+    `).join("");
 
-        // 배경
-        const bg: [number,number,number] = catColIdx >= 0 ? getCatBg(row[catColIdx]||"") : (ri%2===0 ? [255,255,255] : [249,250,248]);
-        doc.setFillColor(...bg); doc.rect(marginL, y, totalW, rh, "F");
+    const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>${hospitalName} 촬영 콘티</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Noto Sans KR',sans-serif; font-size:9pt; color:#222; background:#fff; }
 
-        // 테두리
-        doc.setDrawColor(220,220,220); doc.setLineWidth(0.2);
-        doc.rect(marginL, y, totalW, rh, "S");
+  .page-header { display:flex; align-items:center; justify-content:space-between; background:#155855; padding:10px 16px; color:#fff; }
+  .brand { display:flex; flex-direction:column; }
+  .brand-name { font-size:10pt; font-weight:900; letter-spacing:0.1em; }
+  .brand-sub { font-size:7pt; opacity:0.7; margin-top:2px; }
+  .doc-title { font-size:13pt; font-weight:900; }
+  .doc-date { font-size:8pt; opacity:0.8; }
+  .orange-bar { height:3px; background:#E85D2C; }
 
-        // 텍스트
-        let cx = marginL;
-        row.forEach((cell, ci) => {
-          const isKeyword = catColIdx >= 0 && ci === 4;
-          const isCat = ci === catColIdx;
-          doc.setTextColor(...(isKeyword ? OR : isCat ? [80,40,0] : [40,40,40]));
-          doc.setFontSize(isCat ? 8 : 7.5);
-          doc.setFont("helvetica", isCat || isKeyword ? "bold" : "normal");
-          const lines = doc.splitTextToSize(cell||"-", colWidths[ci]-3);
-          doc.text(lines, cx + colWidths[ci]/2, y + 4.5, { align:"center", maxWidth: colWidths[ci]-3 });
-          cx += colWidths[ci];
-        });
+  .section { padding:16px; }
+  .section-title { font-size:11pt; font-weight:900; color:#155855; margin-bottom:10px; border-left:4px solid #E85D2C; padding-left:8px; }
+  .section-meta { font-size:8pt; color:#888; margin-bottom:10px; }
 
-        y += rh;
-      });
+  table { width:100%; border-collapse:collapse; font-size:8pt; }
+  th { background:#155855; color:#fff; font-weight:900; padding:7px 6px; text-align:center; border:1px solid #0e3f3c; font-size:8pt; }
+  td { padding:6px; border:1px solid #e5e7eb; vertical-align:top; line-height:1.5; }
 
-      return y;
-    };
+  /* 페이지 나누기 */
+  .page-break { page-break-before:always; margin-top:0; }
 
-    // ── 1. 촬영 콘티 ──────────────────────────
-    const doc1 = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
-    drawHeader(doc1, "촬영 콘티");
-    const contiRows = result.conti.map(r => [r.category,r.duration||"",r.location,r.cameraAngle,r.keyword,r.description,r.personnel,r.notes||"-"]);
-    const endY1 = drawTable(doc1, 24, ["진료과","소요시간","장소","카메라 구도","키워드","설명","필요인원/환자역할","비고"],
-      contiRows, [22,14,22,30,28,60,40,22], 10, 8, 0);
-    doc1.setFontSize(7); doc1.setTextColor(150,150,150);
-    doc1.text(`총 ${result.conti.length}컷 · ${form.specialties.join(", ")}`,
-      doc1.internal.pageSize.getWidth()/2, endY1+6, {align:"center"});
-    doc1.save(`${hospitalName}_촬영콘티.pdf`);
+  /* 인쇄 설정 */
+  @media print {
+    @page { margin:8mm; }
+    @page :first { margin-top:8mm; }
+    body { font-size:8pt; }
+    .no-print { display:none; }
+  }
 
-    // ── 2. 준비 체크리스트 ──────────────────────
-    await new Promise(r => setTimeout(r, 300));
-    const doc2 = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
-    drawHeader(doc2, "준비 체크리스트");
-    const checkRows = result.checklist.map(r => [String(r.number),r.category,r.item,"☐",r.notes||"-"]);
-    drawTable(doc2, 24, ["#","분류","체크리스트 항목","준비여부","비고"],
-      checkRows, [10,28,108,16,28], 14, 8);
-    doc2.setFontSize(7); doc2.setTextColor(150,150,150);
-    doc2.text(`총 ${result.checklist.length}개 항목`, doc2.internal.pageSize.getWidth()/2,
-      doc2.internal.pageSize.getHeight()-8, {align:"center"});
-    doc2.save(`${hospitalName}_준비체크리스트.pdf`);
+  /* 인쇄 버튼 */
+  .print-btn {
+    position:fixed; top:16px; right:16px;
+    background:#155855; color:#fff; border:none;
+    padding:10px 20px; border-radius:8px; font-family:inherit;
+    font-size:13pt; font-weight:700; cursor:pointer; z-index:999;
+  }
+  .print-btn:hover { background:#0e3f3c; }
 
-    // ── 3. 타임테이블 ───────────────────────────
-    await new Promise(r => setTimeout(r, 300));
-    const doc3 = new jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
-    drawHeader(doc3, "타임테이블");
-    const schedRows = result.schedule.map(r => [r.time,r.activity,r.type||"",r.requirements||"",r.notes||"-"]);
-    drawTable(doc3, 24, ["시간","내용","구분","요청사항","비고"],
-      schedRows, [38,55,25,48,24], 14, 8);
-    doc3.setFontSize(7); doc3.setTextColor(150,150,150);
-    doc3.text(`총 ${result.schedule.length}개 일정`, doc3.internal.pageSize.getWidth()/2,
-      doc3.internal.pageSize.getHeight()-8, {align:"center"});
-    doc3.save(`${hospitalName}_타임테이블.pdf`);
+  /* 하단 요약 */
+  .summary { background:#F0F9F8; border:1px solid #C8DDD9; border-radius:6px; padding:8px 12px; margin-top:10px; font-size:8pt; color:#155855; }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨️ PDF 저장</button>
+
+<!-- ① 촬영 콘티 -->
+${header("촬영 콘티")}
+<div class="section">
+  <p class="section-meta">진료과: ${specialties} &nbsp;·&nbsp; 총 ${result.conti.length}컷</p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:60px">진료과</th>
+        <th style="width:44px">소요시간</th>
+        <th style="width:56px">장소</th>
+        <th style="width:80px">카메라 구도</th>
+        <th style="width:70px">키워드</th>
+        <th>설명</th>
+        <th style="width:90px">필요인원/환자역할</th>
+        <th style="width:50px">비고</th>
+      </tr>
+    </thead>
+    <tbody>${contiRows}</tbody>
+  </table>
+</div>
+
+<!-- ② 준비 체크리스트 -->
+<div class="page-break"></div>
+${header("준비 체크리스트")}
+<div class="section">
+  <p class="section-meta">총 ${result.checklist.length}개 항목</p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:28px">#</th>
+        <th style="width:70px">분류</th>
+        <th>체크리스트 항목</th>
+        <th style="width:44px">준비여부</th>
+        <th style="width:70px">비고</th>
+      </tr>
+    </thead>
+    <tbody>${checkRows}</tbody>
+  </table>
+</div>
+
+<!-- ③ 타임테이블 -->
+<div class="page-break"></div>
+${header("타임테이블")}
+<div class="section">
+  <p class="section-meta">총 ${result.schedule.length}개 일정</p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:90px">시간</th>
+        <th style="width:110px">내용</th>
+        <th style="width:60px">구분</th>
+        <th>요청사항</th>
+        <th style="width:60px">비고</th>
+      </tr>
+    </thead>
+    <tbody>${schedRows}</tbody>
+  </table>
+</div>
+
+<script>
+  // 폰트 로드 후 자동으로 인쇄 다이얼로그 열기
+  document.fonts.ready.then(() => {
+    setTimeout(() => window.print(), 500);
+  });
+</script>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    if (win) win.document.title = `${hospitalName}_촬영콘티`;
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
-  /* ── Excel 다운로드 (열너비 적용, 3시트) ── */
+    /* ── Excel 다운로드 (열너비 적용, 3시트) ── */
   const handleSpreadsheetDownload = async () => {
     if (!result) return;
     const XLSX = await import("xlsx");
