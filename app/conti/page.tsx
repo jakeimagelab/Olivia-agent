@@ -871,14 +871,14 @@ export default function ContiPage() {
 
     const contiRows = result.conti.map((r,i) => `
       <tr>
-        <td style="background:${getCatBg(r.category)};color:${getCatFg(r.category)};font-weight:900">${r.category}</td>
+        <td style="background:${getCatBg(r.category)};color:${getCatFg(r.category)};font-weight:900;text-align:center">${r.category}</td>
         <td style="text-align:center">${r.duration||"-"}</td>
-        <td>${r.location||"-"}</td>
-        <td>${r.cameraAngle||"-"}</td>
-        <td style="color:#E85D2C;font-weight:900">${r.keyword||"-"}</td>
-        <td>${r.description||"-"}</td>
-        <td>${r.personnel||"-"}</td>
-        <td>${r.notes||"-"}</td>
+        <td style="text-align:center">${r.location||"-"}</td>
+        <td style="font-size:7pt;color:#4b5563;line-height:1.5">${r.cameraAngle||"-"}</td>
+        <td style="color:#E85D2C;font-weight:900;text-align:center">${r.keyword||"-"}</td>
+        <td style="font-size:7.5pt">${r.description||"-"}</td>
+        <td style="font-size:7.5pt">${r.personnel||"-"}</td>
+        <td style="font-size:7pt;color:#888;text-align:center">${r.notes||"-"}</td>
       </tr>
     `).join("");
 
@@ -1012,14 +1012,14 @@ ${header("촬영 콘티")}
   <table>
     <thead>
       <tr>
-        <th style="width:60px">진료과</th>
-        <th style="width:44px">소요시간</th>
-        <th style="width:56px">장소</th>
-        <th style="width:80px">카메라 구도</th>
-        <th style="width:70px">키워드</th>
+        <th style="width:58px">진료과</th>
+        <th style="width:40px">소요시간</th>
+        <th style="width:52px">장소</th>
+        <th style="width:100px">카메라 구도</th>
+        <th style="width:68px">키워드</th>
         <th>설명</th>
-        <th style="width:90px">필요인원/환자역할</th>
-        <th style="width:50px">비고</th>
+        <th style="width:86px">필요인원/환자역할</th>
+        <th style="width:40px">비고</th>
       </tr>
     </thead>
     <tbody>${contiRows}</tbody>
