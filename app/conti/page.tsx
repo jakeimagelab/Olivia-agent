@@ -853,13 +853,17 @@ export default function ContiPage() {
     const getCatBg = (cat: string) => CAT_BG[Object.keys(CAT_BG).find(k=>cat.includes(k))||""]||"#E6F4F1";
     const getCatFg = (cat: string) => CAT_FG[Object.keys(CAT_FG).find(k=>cat.includes(k))||""]||"#155855";
 
-    const header = (title: string) => `
+    const shootDate = form.hospitalName ? "" : "";  // 촬영일자는 resultTitle에서 추출하거나 빈값
+    const header = (title: string, isFirst = false) => `
       <div class="page-header">
         <div class="brand">
           <span class="brand-name">PHOTO CLINIC</span>
           <span class="brand-sub">병원 브랜딩 포토그래피</span>
         </div>
-        <div class="doc-title">${hospitalName} &nbsp;${title}</div>
+        <div class="doc-info">
+          <div class="doc-title">${hospitalName}</div>
+          <div class="doc-section">${title}</div>
+        </div>
         <div class="doc-date">${today}</div>
       </div>
       <div class="orange-bar"></div>
@@ -912,17 +916,33 @@ export default function ContiPage() {
   .brand { display:flex; flex-direction:column; }
   .brand-name { font-size:10pt; font-weight:900; letter-spacing:0.1em; }
   .brand-sub { font-size:7pt; opacity:0.7; margin-top:2px; }
-  .doc-title { font-size:13pt; font-weight:900; }
-  .doc-date { font-size:8pt; opacity:0.8; }
+  .doc-info { display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .doc-title { font-size:13pt; font-weight:900; line-height:1.2; }
+  .doc-section { font-size:9pt; font-weight:400; opacity:0.85; letter-spacing:0.05em; }
+  .doc-date { font-size:8pt; opacity:0.8; text-align:right; }
   .orange-bar { height:3px; background:#E85D2C; }
 
   .section { padding:16px; }
   .section-title { font-size:11pt; font-weight:900; color:#155855; margin-bottom:10px; border-left:4px solid #E85D2C; padding-left:8px; }
   .section-meta { font-size:8pt; color:#888; margin-bottom:10px; }
 
-  table { width:100%; border-collapse:collapse; font-size:8pt; }
-  th { background:#155855; color:#fff; font-weight:900; padding:7px 6px; text-align:center; border:1px solid #0e3f3c; font-size:8pt; }
-  td { padding:6px; border:1px solid #e5e7eb; vertical-align:top; line-height:1.5; }
+  table { width:100%; border-collapse:collapse; font-size:8pt; table-layout:fixed; }
+  th { background:#155855; color:#fff; font-weight:900; padding:7px 6px; text-align:center; border:1px solid #0e3f3c; font-size:8pt; word-break:keep-all; }
+  td { padding:6px; border:1px solid #e5e7eb; vertical-align:top; line-height:1.6; word-break:keep-all; overflow-wrap:break-word; white-space:pre-wrap; }
+
+  /* 표지 */
+  .cover { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:90vh; text-align:center; padding:40px; }
+  .cover-logo { font-size:11pt; font-weight:900; letter-spacing:0.2em; color:#155855; margin-bottom:6px; }
+  .cover-logo-sub { font-size:8pt; color:#888; margin-bottom:60px; }
+  .cover-hospital { font-size:28pt; font-weight:900; color:#155855; margin-bottom:12px; word-break:keep-all; }
+  .cover-subtitle { font-size:16pt; font-weight:700; color:#E85D2C; margin-bottom:40px; }
+  .cover-meta { display:flex; flex-direction:column; gap:10px; background:#F0F9F8; border:1px solid #C8DDD9; border-radius:12px; padding:24px 40px; margin-bottom:40px; min-width:320px; }
+  .cover-meta-row { display:flex; align-items:center; gap:16px; font-size:10pt; }
+  .cover-meta-label { color:#888; font-size:9pt; min-width:60px; }
+  .cover-meta-value { font-weight:700; color:#222; }
+  .cover-bar { width:60px; height:4px; background:#E85D2C; border-radius:2px; margin:0 auto; }
+  .cover-toc { margin-top:20px; display:flex; gap:20px; }
+  .cover-toc-item { background:#fff; border:1px solid #C8DDD9; border-radius:8px; padding:10px 18px; font-size:9pt; color:#155855; font-weight:700; }
 
   /* 페이지 나누기 */
   .page-break { page-break-before:always; margin-top:0; }
@@ -952,7 +972,40 @@ export default function ContiPage() {
 
 <button class="print-btn no-print" onclick="window.print()">🖨️ PDF 저장</button>
 
-<!-- ① 촬영 콘티 -->
+<!-- ① 표지 -->
+<div class="cover">
+  <div class="cover-logo">PHOTO CLINIC</div>
+  <div class="cover-logo-sub">병원 브랜딩 포토그래피</div>
+  <div class="cover-bar" style="margin-bottom:40px"></div>
+  <div class="cover-hospital">${hospitalName}</div>
+  <div class="cover-subtitle">촬영 콘티 패키지</div>
+  <div class="cover-meta">
+    <div class="cover-meta-row">
+      <span class="cover-meta-label">촬영일자</span>
+      <span class="cover-meta-value">_______년 &nbsp;_______월 &nbsp;_______일</span>
+    </div>
+    <div class="cover-meta-row">
+      <span class="cover-meta-label">진료과</span>
+      <span class="cover-meta-value">${specialties}</span>
+    </div>
+    <div class="cover-meta-row">
+      <span class="cover-meta-label">총 컷 수</span>
+      <span class="cover-meta-value">${result.conti.length}컷</span>
+    </div>
+    <div class="cover-meta-row">
+      <span class="cover-meta-label">작성일</span>
+      <span class="cover-meta-value">${today}</span>
+    </div>
+  </div>
+  <div class="cover-toc">
+    <div class="cover-toc-item">📋 &nbsp;촬영 콘티</div>
+    <div class="cover-toc-item">✅ &nbsp;준비 체크리스트</div>
+    <div class="cover-toc-item">⏰ &nbsp;타임테이블</div>
+  </div>
+</div>
+
+<!-- ② 촬영 콘티 -->
+<div class="page-break"></div>
 ${header("촬영 콘티")}
 <div class="section">
   <p class="section-meta">진료과: ${specialties} &nbsp;·&nbsp; 총 ${result.conti.length}컷</p>
@@ -973,7 +1026,7 @@ ${header("촬영 콘티")}
   </table>
 </div>
 
-<!-- ② 준비 체크리스트 -->
+<!-- ③ 준비 체크리스트 -->
 <div class="page-break"></div>
 ${header("준비 체크리스트")}
 <div class="section">
@@ -992,7 +1045,7 @@ ${header("준비 체크리스트")}
   </table>
 </div>
 
-<!-- ③ 타임테이블 -->
+<!-- ④ 타임테이블 -->
 <div class="page-break"></div>
 ${header("타임테이블")}
 <div class="section">
