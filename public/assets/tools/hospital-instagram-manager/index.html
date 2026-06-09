@@ -1,0 +1,1399 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hospital Instagram Manager</title>
+  <style>
+    :root {
+      --bg: #f3f4f1;
+      --panel: #ffffff;
+      --ink: #171918;
+      --muted: #6b706d;
+      --line: #dddfda;
+      --soft: #ecefea;
+      --green: #23584f;
+      --green-2: #dce9e4;
+      --coral: #d9694f;
+      --amber: #c98c3f;
+      --blue: #415f83;
+      --danger: #b93232;
+      --radius: 8px;
+      --shadow: 0 18px 48px rgba(30, 37, 33, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input, textarea, select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      padding: 24px 18px;
+      color: #fff;
+      background: #17211f;
+      overflow-y: auto;
+    }
+
+    .brand {
+      padding: 6px 6px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 19px;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+
+    .brand span {
+      display: block;
+      margin-top: 7px;
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav button {
+      width: 100%;
+      min-height: 42px;
+      padding: 0 12px;
+      color: rgba(255, 255, 255, 0.72);
+      background: transparent;
+      border: 0;
+      border-radius: var(--radius);
+      text-align: left;
+    }
+
+    .nav button.active,
+    .nav button:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .side-note {
+      margin-top: auto;
+      padding: 14px;
+      color: rgba(255, 255, 255, 0.72);
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    main {
+      min-width: 0;
+      padding: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      margin-bottom: 7px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 34px;
+      line-height: 1.12;
+      font-weight: 750;
+    }
+
+    .lead {
+      max-width: 760px;
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      min-height: 38px;
+      padding: 0 14px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .btn.primary {
+      color: #fff;
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .btn.warn {
+      color: #fff;
+      background: var(--coral);
+      border-color: var(--coral);
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid.metrics {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .grid.two {
+      grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 18px 18px 0;
+    }
+
+    .panel-title {
+      font-size: 17px;
+      font-weight: 750;
+    }
+
+    .panel-sub {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .metric {
+      padding: 18px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .metric label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      min-height: 40px;
+      padding: 10px 11px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      outline: none;
+    }
+
+    textarea {
+      min-height: 92px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(35, 88, 79, 0.12);
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .item {
+      padding: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .item-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .item-title {
+      font-weight: 750;
+      line-height: 1.35;
+    }
+
+    .item-meta {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 9px;
+      color: var(--green);
+      background: var(--green-2);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .pill.coral {
+      color: #8a3927;
+      background: #f5e2dc;
+    }
+
+    .pill.blue {
+      color: #284566;
+      background: #e1e9f1;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 96px 1fr 54px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .bar {
+      height: 9px;
+      background: var(--soft);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar i {
+      display: block;
+      height: 100%;
+      background: var(--green);
+      border-radius: inherit;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .day {
+      min-height: 128px;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .day strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .calendar-card {
+      padding: 8px;
+      background: var(--green-2);
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .warning-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .warning-list li {
+      padding: 10px 12px;
+      color: #761d1d;
+      background: #fde9e7;
+      border: 1px solid #f3c3bd;
+      border-radius: var(--radius);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .empty {
+      padding: 24px;
+      color: var(--muted);
+      text-align: center;
+      background: #fff;
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+    }
+
+    .mini-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .small-btn {
+      min-height: 30px;
+      padding: 0 10px;
+      color: var(--ink);
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .small-btn.danger {
+      color: #fff;
+      background: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    @media (max-width: 1080px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .grid.metrics, .grid.two, .grid.three { grid-template-columns: 1fr; }
+      .calendar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      main { padding: 18px; }
+      .topbar { display: grid; }
+      .actions { justify-content: flex-start; }
+      .form-grid { grid-template-columns: 1fr; }
+      .calendar { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>Hospital Instagram Manager</strong>
+        <span>병원 채널 분석, 콘텐츠 기획, 게시 일정 관리를 한 화면에서 정리합니다.</span>
+      </div>
+      <nav class="nav" aria-label="주요 메뉴">
+        <button class="active" data-tab="dashboard">대시보드</button>
+        <button data-tab="profile">내 인스타그램 분석</button>
+        <button data-tab="competitors">병원 채널 분석</button>
+        <button data-tab="planner">콘텐츠 기획</button>
+        <button data-tab="calendar">캘린더</button>
+        <button data-tab="library">게시물 관리</button>
+        <button data-tab="guide">표현 가이드</button>
+      </nav>
+      <div class="side-note">
+        현재 버전은 브라우저 로컬 저장 기반입니다. 공식 Meta API 자동 업로드는 다음 단계에서 연결하는 구조로 설계했습니다.
+      </div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Clinic Social Desk</div>
+          <h1>병원 인스타그램 운영 대시보드</h1>
+          <p class="lead">성과 데이터를 입력하면 계정 상태를 읽고, 병원 채널 분석과 연결해 다음 콘텐츠 주제와 캘린더까지 제안합니다.</p>
+        </div>
+        <div class="actions">
+          <button class="btn" id="seedBtn">샘플 데이터</button>
+          <button class="btn" id="exportBtn">JSON 내보내기</button>
+          <label class="btn" for="importFile">JSON 가져오기</label>
+          <input class="file-input" id="importFile" type="file" accept="application/json">
+          <button class="btn warn" id="resetBtn">초기화</button>
+        </div>
+      </div>
+
+      <section class="tab-panel active" id="dashboard">
+        <div class="grid metrics" id="metrics"></div>
+        <div class="grid two" style="margin-top:14px;">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">이번 주 추천 액션</h2>
+                <p class="panel-sub">입력된 성과와 기획 상태를 기준으로 자동 정리됩니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="list" id="actionList"></ul>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">성과 좋은 콘텐츠 타입</h2>
+                <p class="panel-sub">저장된 게시물의 평균 반응으로 계산합니다.</p>
+              </div>
+            </div>
+            <div class="panel-body stack" id="typeBars"></div>
+          </section>
+        </div>
+        <div class="grid two" style="margin-top:14px;">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">최근 기획안</h2>
+                <p class="panel-sub">생성된 아이디어를 바로 게시물 관리로 보낼 수 있습니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="list" id="recentIdeas"></ul>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">다가오는 일정</h2>
+                <p class="panel-sub">예약일이 가까운 콘텐츠 순서입니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="list" id="upcomingList"></ul>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="profile">
+        <div class="grid two">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">내 계정 기본 정보</h2>
+                <p class="panel-sub">현재는 수동 입력 기반입니다. 이후 Meta API와 연결할 수 있습니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <form class="form-grid" id="profileForm">
+                <div class="field">
+                  <label for="clinicName">병원명</label>
+                  <input id="clinicName" placeholder="예: 포토클리닉">
+                </div>
+                <div class="field">
+                  <label for="instagramId">인스타그램 ID</label>
+                  <input id="instagramId" placeholder="@clinic_official">
+                </div>
+                <div class="field">
+                  <label for="specialty">진료 분야</label>
+                  <select id="specialty">
+                    <option>피부과</option>
+                    <option>성형외과</option>
+                    <option>치과</option>
+                    <option>안과</option>
+                    <option>한의원</option>
+                    <option>다이어트/비만</option>
+                    <option>기타 병원</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="followers">팔로워</label>
+                  <input id="followers" type="number" min="0" placeholder="12000">
+                </div>
+                <div class="field full">
+                  <label for="brandTone">브랜드 톤</label>
+                  <select id="brandTone">
+                    <option>신뢰 중심</option>
+                    <option>전문적인</option>
+                    <option>고급스러운</option>
+                    <option>친근한</option>
+                    <option>상담 유도형</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label for="accountMemo">계정 메모</label>
+                  <textarea id="accountMemo" placeholder="현재 고민, 주력 시술, 원하는 이미지 방향을 적어주세요."></textarea>
+                </div>
+                <div class="field full">
+                  <button class="btn primary" type="submit">계정 정보 저장</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">최근 게시물 입력</h2>
+                <p class="panel-sub">좋아요, 댓글, 저장, 공유, 조회수를 넣으면 분석에 반영됩니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <form class="form-grid" id="postForm">
+                <div class="field full">
+                  <label for="postTitle">게시물 제목</label>
+                  <input id="postTitle" placeholder="예: 여름 색소 관리 체크리스트">
+                </div>
+                <div class="field">
+                  <label for="postType">형식</label>
+                  <select id="postType">
+                    <option>릴스</option>
+                    <option>카드뉴스</option>
+                    <option>전후사진</option>
+                    <option>의료진 소개</option>
+                    <option>후기/사례</option>
+                    <option>이벤트</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="postDate">게시일</label>
+                  <input id="postDate" type="date">
+                </div>
+                <div class="field"><label for="likes">좋아요</label><input id="likes" type="number" min="0"></div>
+                <div class="field"><label for="comments">댓글</label><input id="comments" type="number" min="0"></div>
+                <div class="field"><label for="saves">저장</label><input id="saves" type="number" min="0"></div>
+                <div class="field"><label for="shares">공유</label><input id="shares" type="number" min="0"></div>
+                <div class="field"><label for="views">조회수</label><input id="views" type="number" min="0"></div>
+                <div class="field full"><button class="btn primary" type="submit">게시물 추가</button></div>
+              </form>
+            </div>
+          </section>
+        </div>
+        <section class="panel" style="margin-top:14px;">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">내 게시물 성과 목록</h2>
+              <p class="panel-sub">성과가 높은 콘텐츠는 콘텐츠 기획에 우선 반영됩니다.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="list" id="postList"></ul>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" id="competitors">
+        <div class="grid two">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">병원 채널 분석 입력</h2>
+                <p class="panel-sub">경쟁 병원이나 참고 채널의 콘텐츠 패턴을 기록합니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <form class="form-grid" id="competitorForm">
+                <div class="field">
+                  <label for="competitorName">채널명</label>
+                  <input id="competitorName" placeholder="예: 강남OO피부과">
+                </div>
+                <div class="field">
+                  <label for="competitorHandle">계정 ID</label>
+                  <input id="competitorHandle" placeholder="@clinic_example">
+                </div>
+                <div class="field">
+                  <label for="competitorFormat">강한 포맷</label>
+                  <select id="competitorFormat">
+                    <option>릴스</option>
+                    <option>카드뉴스</option>
+                    <option>전후사진</option>
+                    <option>원장님 설명</option>
+                    <option>고객 후기</option>
+                    <option>이벤트</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="competitorHook">대표 후킹</label>
+                  <input id="competitorHook" placeholder="예: 3초 안에 보여주는 전후 변화">
+                </div>
+                <div class="field full">
+                  <label for="competitorMemo">분석 메모</label>
+                  <textarea id="competitorMemo" placeholder="반응 좋은 주제, 디자인 톤, 상담 유도 방식 등을 적어주세요."></textarea>
+                </div>
+                <div class="field full"><button class="btn primary" type="submit">채널 분석 저장</button></div>
+              </form>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">채널 패턴 요약</h2>
+                <p class="panel-sub">저장된 경쟁 채널에서 자주 등장하는 포맷을 봅니다.</p>
+              </div>
+            </div>
+            <div class="panel-body stack" id="competitorSummary"></div>
+          </section>
+        </div>
+        <section class="panel" style="margin-top:14px;">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">저장된 병원 채널</h2>
+              <p class="panel-sub">콘텐츠 기획 생성 시 참고 신호로 사용됩니다.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="list" id="competitorList"></ul>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" id="planner">
+        <div class="grid two">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">AI 콘텐츠 기획 생성</h2>
+                <p class="panel-sub">내 계정 성과와 병원 채널 분석을 참고해 기획안을 만듭니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <form class="form-grid" id="ideaForm">
+                <div class="field">
+                  <label for="ideaGoal">목표</label>
+                  <select id="ideaGoal">
+                    <option>상담 문의 증가</option>
+                    <option>저장/공유 증가</option>
+                    <option>신뢰도 강화</option>
+                    <option>릴스 도달 확장</option>
+                    <option>이벤트 안내</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="ideaCount">생성 개수</label>
+                  <select id="ideaCount">
+                    <option>3</option>
+                    <option>5</option>
+                    <option>7</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label for="ideaFocus">이번 주 강조할 주제</label>
+                  <input id="ideaFocus" placeholder="예: 여름 피부, 웨딩 전 관리, 상담 예약">
+                </div>
+                <div class="field full">
+                  <button class="btn primary" type="submit">기획안 생성</button>
+                </div>
+              </form>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">의료광고 표현 체크</h2>
+                <p class="panel-sub">캡션 초안의 과장 표현을 빠르게 점검합니다.</p>
+              </div>
+            </div>
+            <div class="panel-body stack">
+              <textarea id="complianceText" placeholder="검토할 캡션을 붙여넣으세요."></textarea>
+              <button class="btn" id="checkTextBtn">표현 점검</button>
+              <ul class="warning-list" id="warningList"></ul>
+            </div>
+          </section>
+        </div>
+        <section class="panel" style="margin-top:14px;">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">생성된 콘텐츠 기획안</h2>
+              <p class="panel-sub">마음에 드는 기획은 게시물 관리로 보내 일정화합니다.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="list" id="ideaList"></ul>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" id="calendar">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">콘텐츠 캘린더</h2>
+              <p class="panel-sub">예약일이 들어간 콘텐츠를 이번 주 기준으로 보여줍니다.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="calendar" id="calendarGrid"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" id="library">
+        <div class="grid two">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">게시물 직접 등록</h2>
+                <p class="panel-sub">생성된 기획 외에 직접 게시물을 등록할 수 있습니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <form class="form-grid" id="contentForm">
+                <div class="field full"><label for="contentTitle">제목</label><input id="contentTitle"></div>
+                <div class="field"><label for="contentType">형식</label><select id="contentType"><option>릴스</option><option>카드뉴스</option><option>전후사진</option><option>피드</option><option>스토리</option></select></div>
+                <div class="field"><label for="contentDate">예약일</label><input id="contentDate" type="date"></div>
+                <div class="field full"><label for="contentCaption">캡션</label><textarea id="contentCaption"></textarea></div>
+                <div class="field full"><button class="btn primary" type="submit">게시물 저장</button></div>
+              </form>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">상태 기준</h2>
+                <p class="panel-sub">기획부터 게시 완료까지 운영 흐름을 관리합니다.</p>
+              </div>
+            </div>
+            <div class="panel-body stack">
+              <div class="item"><span class="pill">기획</span><p class="item-meta">아이디어만 있는 상태</p></div>
+              <div class="item"><span class="pill blue">제작중</span><p class="item-meta">이미지/영상 제작 단계</p></div>
+              <div class="item"><span class="pill coral">검토필요</span><p class="item-meta">의료광고 표현 또는 내부 확인 필요</p></div>
+              <div class="item"><span class="pill">예약완료</span><p class="item-meta">업로드 날짜 확정</p></div>
+            </div>
+          </section>
+        </div>
+        <section class="panel" style="margin-top:14px;">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">게시물 보관함</h2>
+              <p class="panel-sub">상태를 바꿔가며 운영합니다.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="list" id="contentList"></ul>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel" id="guide">
+        <div class="grid two">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">주의 표현</h2>
+                <p class="panel-sub">의료 콘텐츠에서 검토가 필요한 표현입니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="warning-list" id="guideWarnings"></ul>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">권장 콘텐츠 원칙</h2>
+                <p class="panel-sub">병원 채널의 신뢰도를 유지하는 기본 기준입니다.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="list">
+                <li class="item"><strong>정보성 먼저</strong><p class="item-meta">시술 홍보보다 증상, 과정, 주의사항, 회복 관리 정보를 먼저 제공합니다.</p></li>
+                <li class="item"><strong>개인차 명시</strong><p class="item-meta">결과, 통증, 회복 기간에는 개인차가 있음을 캡션에 반영합니다.</p></li>
+                <li class="item"><strong>상담 유도는 차분하게</strong><p class="item-meta">불안 조장보다 확인과 상담의 필요성을 안내하는 톤이 안정적입니다.</p></li>
+                <li class="item"><strong>전후사진은 맥락 포함</strong><p class="item-meta">기간, 조건, 개인차, 촬영 환경에 대한 내부 기준을 정해두는 것이 좋습니다.</p></li>
+              </ul>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "hospital-instagram-manager-v1";
+    const warningTerms = ["무조건", "100%", "완치", "부작용 없음", "최고", "유일", "보장", "즉시 효과", "평생", "절대"];
+    const formatPool = ["릴스", "카드뉴스", "전후사진", "의료진 소개", "FAQ", "후기/사례", "공간/장비 소개"];
+    const topicPool = {
+      "피부과": ["색소", "여드름", "리프팅", "모공", "홍조", "스킨부스터"],
+      "성형외과": ["눈성형", "코성형", "윤곽", "회복 과정", "수술 전 체크", "상담 포인트"],
+      "치과": ["임플란트", "교정", "미백", "스케일링", "충치", "잇몸 관리"],
+      "안과": ["시력교정", "라식/라섹", "노안", "안구건조", "렌즈", "검진"],
+      "한의원": ["체질", "통증", "다이어트", "침 치료", "생활 습관", "회복 관리"],
+      "다이어트/비만": ["식단", "체형 관리", "요요", "상담 전 체크", "생활 루틴", "운동"],
+      "기타 병원": ["진료 과정", "검진", "증상 체크", "생활 관리", "상담 전 질문", "치료 후 관리"]
+    };
+
+    const defaultState = {
+      profile: {
+        clinicName: "",
+        instagramId: "",
+        specialty: "피부과",
+        followers: 0,
+        brandTone: "신뢰 중심",
+        accountMemo: ""
+      },
+      posts: [],
+      competitors: [],
+      ideas: [],
+      contents: []
+    };
+
+    let state = loadState();
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function loadState() {
+      try {
+        return { ...defaultState, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") };
+      } catch {
+        return structuredClone(defaultState);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      render();
+    }
+
+    function uid() {
+      return Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    function number(value) {
+      return Number(value || 0).toLocaleString("ko-KR");
+    }
+
+    function pct(value) {
+      return `${Number(value || 0).toFixed(1)}%`;
+    }
+
+    function scorePost(post) {
+      return Number(post.likes || 0) + Number(post.comments || 0) * 4 + Number(post.saves || 0) * 5 + Number(post.shares || 0) * 4 + Math.round(Number(post.views || 0) / 100);
+    }
+
+    function engagementRate() {
+      const followers = Number(state.profile.followers || 0);
+      if (!followers || !state.posts.length) return 0;
+      const avg = state.posts.reduce((sum, post) => sum + Number(post.likes || 0) + Number(post.comments || 0), 0) / state.posts.length;
+      return (avg / followers) * 100;
+    }
+
+    function bestType() {
+      const map = {};
+      state.posts.forEach((post) => {
+        map[post.type] = map[post.type] || { score: 0, count: 0 };
+        map[post.type].score += scorePost(post);
+        map[post.type].count += 1;
+      });
+      return Object.entries(map)
+        .map(([type, data]) => ({ type, avg: data.score / data.count }))
+        .sort((a, b) => b.avg - a.avg)[0];
+    }
+
+    function render() {
+      renderMetrics();
+      renderActions();
+      renderTypeBars();
+      renderProfileForm();
+      renderPosts();
+      renderCompetitors();
+      renderIdeas();
+      renderContents();
+      renderCalendar();
+      renderWarningsGuide();
+    }
+
+    function renderMetrics() {
+      const scheduled = state.contents.filter((item) => item.status === "예약완료").length;
+      const warnings = state.contents.reduce((sum, item) => sum + findWarnings(item.caption || "").length, 0);
+      const best = bestType();
+      $("metrics").innerHTML = [
+        ["팔로워", number(state.profile.followers), state.profile.instagramId || "계정 정보를 입력하세요"],
+        ["평균 참여율", pct(engagementRate()), "최근 게시물 기준"],
+        ["강한 포맷", best ? best.type : "-", best ? `평균 점수 ${Math.round(best.avg)}` : "데이터 필요"],
+        ["예약 콘텐츠", number(scheduled), warnings ? `주의 표현 ${warnings}건` : "검토 경고 없음"]
+      ].map(([label, value, sub]) => `
+        <div class="metric"><label>${label}</label><strong>${value}</strong><span>${sub}</span></div>
+      `).join("");
+    }
+
+    function renderActions() {
+      const actions = [];
+      const er = engagementRate();
+      const best = bestType();
+      if (!state.posts.length) actions.push(["최근 게시물 5개 이상 입력", "내 계정 분석 정확도를 높이기 위한 첫 단계입니다."]);
+      if (er && er < 2.5) actions.push(["저장형 카드뉴스 강화", "참여율이 낮을 때는 체크리스트, FAQ, 비교 콘텐츠가 안정적입니다."]);
+      if (best?.type === "릴스") actions.push(["릴스 후킹 문장 A/B 테스트", "성과 좋은 형식을 유지하되 첫 2초 문구를 2개 버전으로 실험하세요."]);
+      if (!state.competitors.length) actions.push(["참고 병원 채널 3개 기록", "기획 생성 품질이 좋아집니다."]);
+      if (state.ideas.length < 3) actions.push(["이번 주 콘텐츠 기획 생성", "목표와 주제를 넣어 최소 3개를 만들어보세요."]);
+      actions.push(["의료광고 표현 검토", "게시 전 과장 표현, 보장 표현, 절대 표현을 확인하세요."]);
+      $("actionList").innerHTML = actions.map(([title, meta]) => `<li class="item"><div class="item-title">${title}</div><div class="item-meta">${meta}</div></li>`).join("");
+      $("recentIdeas").innerHTML = state.ideas.slice(0, 4).map(ideaCard).join("") || `<div class="empty">아직 생성된 기획안이 없습니다.</div>`;
+      $("upcomingList").innerHTML = state.contents
+        .filter((item) => item.date)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(0, 5)
+        .map(contentCard)
+        .join("") || `<div class="empty">예약된 콘텐츠가 없습니다.</div>`;
+    }
+
+    function renderTypeBars() {
+      const types = {};
+      state.posts.forEach((post) => {
+        types[post.type] = types[post.type] || { score: 0, count: 0 };
+        types[post.type].score += scorePost(post);
+        types[post.type].count += 1;
+      });
+      const rows = Object.entries(types).map(([type, data]) => ({ type, avg: Math.round(data.score / data.count) })).sort((a, b) => b.avg - a.avg);
+      const max = Math.max(...rows.map((row) => row.avg), 1);
+      $("typeBars").innerHTML = rows.map((row) => `
+        <div class="bar-row"><span>${row.type}</span><div class="bar"><i style="width:${Math.max(8, row.avg / max * 100)}%"></i></div><b>${row.avg}</b></div>
+      `).join("") || `<div class="empty">게시물 성과를 입력하면 포맷별 점수가 표시됩니다.</div>`;
+    }
+
+    function renderProfileForm() {
+      Object.entries(state.profile).forEach(([key, value]) => {
+        const el = $(key);
+        if (el) el.value = value;
+      });
+    }
+
+    function renderPosts() {
+      $("postList").innerHTML = state.posts
+        .sort((a, b) => scorePost(b) - scorePost(a))
+        .map((post) => `
+          <li class="item">
+            <div class="item-top">
+              <div>
+                <div class="item-title">${escapeHtml(post.title)}</div>
+                <div class="item-meta">${post.date || "-"} · ${post.type} · 성과 점수 ${scorePost(post)}</div>
+              </div>
+              <span class="pill">${post.type}</span>
+            </div>
+            <div class="item-meta">좋아요 ${number(post.likes)} · 댓글 ${number(post.comments)} · 저장 ${number(post.saves)} · 공유 ${number(post.shares)} · 조회 ${number(post.views)}</div>
+            <div class="mini-actions"><button class="small-btn danger" data-delete-post="${post.id}">삭제</button></div>
+          </li>
+        `).join("") || `<div class="empty">최근 게시물 데이터를 입력하세요.</div>`;
+    }
+
+    function renderCompetitors() {
+      const summary = {};
+      state.competitors.forEach((item) => {
+        summary[item.format] = (summary[item.format] || 0) + 1;
+      });
+      const rows = Object.entries(summary).sort((a, b) => b[1] - a[1]);
+      const max = Math.max(...rows.map((row) => row[1]), 1);
+      $("competitorSummary").innerHTML = rows.map(([format, count]) => `
+        <div class="bar-row"><span>${format}</span><div class="bar"><i style="width:${count / max * 100}%"></i></div><b>${count}</b></div>
+      `).join("") || `<div class="empty">참고 병원 채널을 저장하면 패턴이 표시됩니다.</div>`;
+      $("competitorList").innerHTML = state.competitors.map((item) => `
+        <li class="item">
+          <div class="item-top">
+            <div>
+              <div class="item-title">${escapeHtml(item.name)} <span class="item-meta">${escapeHtml(item.handle)}</span></div>
+              <div class="item-meta">강한 포맷: ${item.format} · 후킹: ${escapeHtml(item.hook || "-")}</div>
+            </div>
+            <span class="pill blue">${item.format}</span>
+          </div>
+          <div class="item-meta">${escapeHtml(item.memo || "")}</div>
+          <div class="mini-actions"><button class="small-btn danger" data-delete-competitor="${item.id}">삭제</button></div>
+        </li>
+      `).join("") || `<div class="empty">분석할 병원 채널을 입력하세요.</div>`;
+    }
+
+    function renderIdeas() {
+      $("ideaList").innerHTML = state.ideas.map(ideaCard).join("") || `<div class="empty">아직 생성된 콘텐츠 기획안이 없습니다.</div>`;
+    }
+
+    function renderContents() {
+      $("contentList").innerHTML = state.contents.map(contentCard).join("") || `<div class="empty">게시물 보관함이 비어 있습니다.</div>`;
+    }
+
+    function renderCalendar() {
+      const today = new Date();
+      const start = new Date(today);
+      start.setDate(today.getDate() - today.getDay() + 1);
+      const days = ["월", "화", "수", "목", "금", "토", "일"];
+      $("calendarGrid").innerHTML = days.map((label, index) => {
+        const date = new Date(start);
+        date.setDate(start.getDate() + index);
+        const key = date.toISOString().slice(0, 10);
+        const items = state.contents.filter((item) => item.date === key);
+        return `<div class="day"><strong>${label} ${key.slice(5)}</strong>${items.map((item) => `<div class="calendar-card">${escapeHtml(item.title)}<br>${item.type}</div>`).join("")}</div>`;
+      }).join("");
+    }
+
+    function renderWarningsGuide() {
+      $("guideWarnings").innerHTML = warningTerms.map((term) => `<li><strong>${term}</strong> 표현은 맥락에 따라 과장 또는 보장 표현으로 보일 수 있어 검토가 필요합니다.</li>`).join("");
+    }
+
+    function ideaCard(idea) {
+      return `
+        <li class="item">
+          <div class="item-top">
+            <div>
+              <div class="item-title">${escapeHtml(idea.title)}</div>
+              <div class="item-meta">${idea.format} · ${idea.goal} · ${idea.tone}</div>
+            </div>
+            <span class="pill">${idea.format}</span>
+          </div>
+          <div class="item-meta">${escapeHtml(idea.caption)}</div>
+          <div class="mini-actions">
+            <button class="small-btn" data-add-idea="${idea.id}">게시물로 보내기</button>
+            <button class="small-btn danger" data-delete-idea="${idea.id}">삭제</button>
+          </div>
+        </li>
+      `;
+    }
+
+    function contentCard(item) {
+      const warnings = findWarnings(item.caption || "");
+      const statusClass = item.status === "검토필요" || warnings.length ? "coral" : item.status === "제작중" ? "blue" : "";
+      return `
+        <li class="item">
+          <div class="item-top">
+            <div>
+              <div class="item-title">${escapeHtml(item.title)}</div>
+              <div class="item-meta">${item.date || "날짜 없음"} · ${item.type}</div>
+            </div>
+            <span class="pill ${statusClass}">${warnings.length ? "검토필요" : item.status}</span>
+          </div>
+          <div class="item-meta">${escapeHtml(item.caption || "")}</div>
+          ${warnings.length ? `<ul class="warning-list" style="margin-top:10px;">${warnings.map((w) => `<li>${w}</li>`).join("")}</ul>` : ""}
+          <div class="mini-actions">
+            <button class="small-btn" data-status="${item.id}:제작중">제작중</button>
+            <button class="small-btn" data-status="${item.id}:검토필요">검토필요</button>
+            <button class="small-btn" data-status="${item.id}:예약완료">예약완료</button>
+            <button class="small-btn danger" data-delete-content="${item.id}">삭제</button>
+          </div>
+        </li>
+      `;
+    }
+
+    function generateIdeas(goal, focus, count) {
+      const specialty = state.profile.specialty || "기타 병원";
+      const tone = state.profile.brandTone || "신뢰 중심";
+      const topics = topicPool[specialty] || topicPool["기타 병원"];
+      const competitorFormat = state.competitors[0]?.format;
+      const strong = bestType()?.type;
+      const ideas = [];
+      for (let i = 0; i < count; i += 1) {
+        const topic = focus || topics[(i + state.ideas.length) % topics.length];
+        const format = competitorFormat || strong || formatPool[i % formatPool.length];
+        const angle = [
+          `${topic} 상담 전 꼭 확인할 3가지`,
+          `${topic}, 이런 경우에는 먼저 진단이 필요합니다`,
+          `${topic} 관리 전후로 달라지는 생활 습관`,
+          `${topic}에 대해 환자분들이 자주 묻는 질문`,
+          `${topic} 시술/진료 과정을 차분하게 보여주는 콘텐츠`
+        ][i % 5];
+        ideas.push({
+          id: uid(),
+          title: angle,
+          format,
+          goal,
+          tone,
+          caption: makeCaption(angle, specialty, tone, goal)
+        });
+      }
+      state.ideas = [...ideas, ...state.ideas];
+    }
+
+    function makeCaption(title, specialty, tone, goal) {
+      const toneLine = {
+        "신뢰 중심": "정확한 진단과 개인별 상태 확인이 먼저입니다.",
+        "전문적인": "증상과 원인을 구분해 치료 방향을 세우는 것이 중요합니다.",
+        "고급스러운": "과한 설명보다 필요한 정보만 차분하게 정리했습니다.",
+        "친근한": "처음 상담 전 편하게 확인해보실 수 있도록 정리했습니다.",
+        "상담 유도형": "내 상태에 맞는 방향은 상담을 통해 확인하는 것이 좋습니다."
+      }[tone] || "개인별 상태에 따라 적합한 방향은 달라질 수 있습니다.";
+      return `${title}\n\n${specialty} 콘텐츠에서는 결과보다 과정과 기준을 먼저 보여주는 것이 중요합니다. ${toneLine}\n\n개인별 상태에 따라 진료 방향과 회복 과정은 달라질 수 있습니다.`;
+    }
+
+    function findWarnings(text) {
+      return warningTerms
+        .filter((term) => text.includes(term))
+        .map((term) => `"${term}" 표현은 보장/과장으로 읽힐 수 있어 대체 문구 검토가 필요합니다.`);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function seedData() {
+      state = {
+        profile: {
+          clinicName: "포토클리닉",
+          instagramId: "@photoclinic_kr",
+          specialty: "피부과",
+          followers: 12840,
+          brandTone: "신뢰 중심",
+          accountMemo: "색소, 리프팅, 여름 피부 관리 콘텐츠를 강화하고 상담 문의 전환을 높이고 싶음."
+        },
+        posts: [
+          { id: uid(), title: "여름 색소 관리 체크리스트", type: "카드뉴스", date: "2026-06-01", likes: 420, comments: 22, saves: 180, shares: 41, views: 0 },
+          { id: uid(), title: "원장님이 설명하는 리프팅 상담 기준", type: "릴스", date: "2026-06-03", likes: 610, comments: 36, saves: 95, shares: 58, views: 18200 },
+          { id: uid(), title: "모공 관리 전후 케어 루틴", type: "전후사진", date: "2026-06-05", likes: 510, comments: 18, saves: 130, shares: 22, views: 0 }
+        ],
+        competitors: [
+          { id: uid(), name: "강남 A 피부과", handle: "@skin_a", format: "릴스", hook: "첫 2초 질문형 후킹", memo: "원장님이 직접 설명하는 짧은 릴스 반응이 좋음." },
+          { id: uid(), name: "청담 B 클리닉", handle: "@clinic_b", format: "카드뉴스", hook: "체크리스트형 제목", memo: "저장 유도형 카드뉴스 구성이 명확함." }
+        ],
+        ideas: [],
+        contents: [
+          { id: uid(), title: "색소 상담 전 체크할 3가지", type: "카드뉴스", date: "2026-06-12", caption: "여름 색소 관리는 원인과 피부 상태 확인이 먼저입니다.", status: "예약완료" }
+        ]
+      };
+      generateIdeas("상담 문의 증가", "여름 피부", 3);
+      saveState();
+    }
+
+    document.querySelectorAll("[data-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("[data-tab]").forEach((item) => item.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
+        button.classList.add("active");
+        $(button.dataset.tab).classList.add("active");
+      });
+    });
+
+    $("profileForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.profile = {
+        clinicName: $("clinicName").value,
+        instagramId: $("instagramId").value,
+        specialty: $("specialty").value,
+        followers: Number($("followers").value || 0),
+        brandTone: $("brandTone").value,
+        accountMemo: $("accountMemo").value
+      };
+      saveState();
+    });
+
+    $("postForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.posts.push({
+        id: uid(),
+        title: $("postTitle").value || "제목 없는 게시물",
+        type: $("postType").value,
+        date: $("postDate").value,
+        likes: Number($("likes").value || 0),
+        comments: Number($("comments").value || 0),
+        saves: Number($("saves").value || 0),
+        shares: Number($("shares").value || 0),
+        views: Number($("views").value || 0)
+      });
+      event.target.reset();
+      saveState();
+    });
+
+    $("competitorForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.competitors.unshift({
+        id: uid(),
+        name: $("competitorName").value || "이름 없는 채널",
+        handle: $("competitorHandle").value,
+        format: $("competitorFormat").value,
+        hook: $("competitorHook").value,
+        memo: $("competitorMemo").value
+      });
+      event.target.reset();
+      saveState();
+    });
+
+    $("ideaForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      generateIdeas($("ideaGoal").value, $("ideaFocus").value.trim(), Number($("ideaCount").value));
+      saveState();
+    });
+
+    $("contentForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      state.contents.unshift({
+        id: uid(),
+        title: $("contentTitle").value || "제목 없는 콘텐츠",
+        type: $("contentType").value,
+        date: $("contentDate").value,
+        caption: $("contentCaption").value,
+        status: "기획"
+      });
+      event.target.reset();
+      saveState();
+    });
+
+    $("checkTextBtn").addEventListener("click", () => {
+      const warnings = findWarnings($("complianceText").value);
+      $("warningList").innerHTML = warnings.map((warning) => `<li>${warning}</li>`).join("") || `<li>현재 입력문에서는 주요 주의 표현이 발견되지 않았습니다. 최종 검수는 내부 기준에 따라 진행하세요.</li>`;
+    });
+
+    document.body.addEventListener("click", (event) => {
+      const target = event.target;
+      const deletePost = target.dataset.deletePost;
+      const deleteCompetitor = target.dataset.deleteCompetitor;
+      const deleteIdea = target.dataset.deleteIdea;
+      const deleteContent = target.dataset.deleteContent;
+      const addIdea = target.dataset.addIdea;
+      const status = target.dataset.status;
+      if (deletePost) state.posts = state.posts.filter((item) => item.id !== deletePost);
+      if (deleteCompetitor) state.competitors = state.competitors.filter((item) => item.id !== deleteCompetitor);
+      if (deleteIdea) state.ideas = state.ideas.filter((item) => item.id !== deleteIdea);
+      if (deleteContent) state.contents = state.contents.filter((item) => item.id !== deleteContent);
+      if (addIdea) {
+        const idea = state.ideas.find((item) => item.id === addIdea);
+        if (idea) state.contents.unshift({ id: uid(), title: idea.title, type: idea.format, date: "", caption: idea.caption, status: "기획" });
+      }
+      if (status) {
+        const [id, nextStatus] = status.split(":");
+        const item = state.contents.find((content) => content.id === id);
+        if (item) item.status = nextStatus;
+      }
+      if (deletePost || deleteCompetitor || deleteIdea || deleteContent || addIdea || status) saveState();
+    });
+
+    $("seedBtn").addEventListener("click", seedData);
+
+    $("resetBtn").addEventListener("click", () => {
+      if (!confirm("저장된 모든 데이터를 초기화할까요?")) return;
+      state = structuredClone(defaultState);
+      localStorage.removeItem(STORAGE_KEY);
+      render();
+    });
+
+    $("exportBtn").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), state }, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "hospital-instagram-manager-data.json";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    $("importFile").addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        try {
+          const data = JSON.parse(reader.result);
+          state = data.state || data;
+          saveState();
+          alert("가져오기가 완료되었습니다.");
+        } catch {
+          alert("JSON 파일을 읽을 수 없습니다.");
+        }
+      });
+      reader.readAsText(file);
+    });
+
+    render();
+  </script>
+</body>
+</html>
