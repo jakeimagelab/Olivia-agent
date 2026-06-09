@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, ArrowRight, Check, Globe2, Pencil, Download,
@@ -1516,6 +1516,23 @@ const defaultIntake: IntakeData = {
   address: "", concept: "", pages: ["메인", "소개", "진료항목", "오시는길"], memo: ""
 };
 
+const SAVE_KEY = "wb_saved_projects";
+
+interface SavedProject {
+  id: string;
+  name: string;
+  savedAt: string;
+  intake: IntakeData;
+  designPrefs: DesignPrefs;
+  customTheme: CustomTheme;
+  content: SiteContent | null;
+  step: Step;
+}
+
+function loadSavedProjects(): SavedProject[] {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY) || "[]"); } catch { return []; }
+}
+
 export default function WebsiteBuilderPage() {
   const [step, setStep] = useState<Step>(1);
   const [intake, setIntake] = useState<IntakeData>(() => {
@@ -1544,6 +1561,45 @@ export default function WebsiteBuilderPage() {
     additionalNote: "",
   });
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // ── 저장/불러오기 ──
+  const [showLoadPanel, setShowLoadPanel] = useState(false);
+  const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
+  const [saveMsg, setSaveMsg] = useState("");
+
+  useEffect(() => {
+    setSavedProjects(loadSavedProjects());
+  }, [showLoadPanel]);
+
+  const handleSaveProject = () => {
+    const projects = loadSavedProjects();
+    const newProject: SavedProject = {
+      id: Date.now().toString(),
+      name: intake.hospitalName || "이름 없음",
+      savedAt: new Date().toLocaleString("ko-KR"),
+      intake, designPrefs, customTheme, content, step,
+    };
+    const updated = [newProject, ...projects].slice(0, 20); // 최대 20개
+    localStorage.setItem(SAVE_KEY, JSON.stringify(updated));
+    setSavedProjects(updated);
+    setSaveMsg("저장됨!");
+    setTimeout(() => setSaveMsg(""), 2000);
+  };
+
+  const handleLoadProject = (project: SavedProject) => {
+    setIntake(project.intake);
+    setDesignPrefs(project.designPrefs);
+    setCustomTheme(project.customTheme);
+    setContent(project.content);
+    setStep(project.step);
+    setShowLoadPanel(false);
+  };
+
+  const handleDeleteProject = (id: string) => {
+    const updated = loadSavedProjects().filter(p => p.id !== id);
+    localStorage.setItem(SAVE_KEY, JSON.stringify(updated));
+    setSavedProjects(updated);
+  };
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -1580,10 +1636,106 @@ export default function WebsiteBuilderPage() {
             <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" />
             <span>Website Builder</span>
           </div>
-          <Link href="/" className="admin-secondary-link" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <ArrowLeft size={16} /> 관리자 홈
-          </Link>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* 저장 버튼 */}
+            <button onClick={handleSaveProject} style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+              background: saveMsg ? "#155855" : "#f0f7f5", color: saveMsg ? "#fff" : "#155855",
+              border: "1.5px solid #c8ddd9", cursor: "pointer", transition: "all .2s"
+            }}>
+              <Save size={13} /> {saveMsg || "작업 저장"}
+            </button>
+            {/* 불러오기 버튼 */}
+            <button onClick={() => setShowLoadPanel(!showLoadPanel)} style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+              background: showLoadPanel ? "#E85D2C" : "#fff",
+              color: showLoadPanel ? "#fff" : "#555",
+              border: "1.5px solid #e0dcd4", cursor: "pointer", transition: "all .2s"
+            }}>
+              <FileText size={13} /> 작업 불러오기 {savedProjects.length > 0 && `(${savedProjects.length})`}
+            </button>
+            <Link href="/" className="admin-secondary-link" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <ArrowLeft size={16} /> 관리자 홈
+            </Link>
+          </div>
         </header>
+
+        {/* ── 불러오기 패널 ── */}
+        {showLoadPanel && (
+          <div style={{
+            background: "#fff", border: "1.5px solid #e5e0d8", borderRadius: 14,
+            padding: "20px 24px", margin: "12px 0", boxShadow: "0 4px 20px rgba(0,0,0,.08)"
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: "#222" }}>
+              📂 저장된 작업 불러오기
+            </div>
+            <div style={{ fontSize: 12, color: "#888", marginBottom: 16 }}>
+              최근 저장한 작업을 클릭하면 해당 상태로 바로 이동합니다.
+            </div>
+            {savedProjects.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "28px 0", color: "#aaa", fontSize: 13 }}>
+                저장된 작업이 없습니다.<br />
+                <span style={{ fontSize: 11 }}>상단 "작업 저장" 버튼으로 현재 진행상황을 저장하세요.</span>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {savedProjects.map((project) => (
+                  <div key={project.id} style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "14px 16px", borderRadius: 10,
+                    border: "1.5px solid #e8e3db", background: "#faf8f5",
+                    transition: "all .15s"
+                  }}>
+                    {/* 컬러 미리보기 */}
+                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                      {[project.customTheme.primary, project.customTheme.accent, project.customTheme.bg].map((c, i) => (
+                        <div key={i} style={{
+                          width: 14, height: 32, borderRadius: 4, background: c,
+                          border: "1px solid rgba(0,0,0,.1)"
+                        }} />
+                      ))}
+                    </div>
+                    {/* 정보 */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#222", marginBottom: 3 }}>
+                        {project.name}
+                      </div>
+                      <div style={{ display: "flex", gap: 10, fontSize: 11, color: "#888", flexWrap: "wrap" }}>
+                        <span>Step {project.step} · {STEP_LABELS[project.step - 1]}</span>
+                        <span>·</span>
+                        <span>{project.intake.specialties || "진료과 미입력"}</span>
+                        <span>·</span>
+                        <span>{project.savedAt}</span>
+                      </div>
+                      {project.content && (
+                        <div style={{ fontSize: 11, color: "#155855", marginTop: 3 }}>
+                          ✓ AI 생성 완료 · "{project.content.hero.headline}"
+                        </div>
+                      )}
+                    </div>
+                    {/* 액션 버튼 */}
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => handleLoadProject(project)} style={{
+                        padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                        background: "#155855", color: "#fff", border: "none", cursor: "pointer"
+                      }}>
+                        불러오기
+                      </button>
+                      <button onClick={() => handleDeleteProject(project.id)} style={{
+                        padding: "7px 10px", borderRadius: 8, fontSize: 12,
+                        background: "#fff", color: "#aaa", border: "1.5px solid #e0dcd4", cursor: "pointer"
+                      }}>
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ padding: "12px 0 0" }}>
           <StepBar current={step} />
@@ -1645,3 +1797,4 @@ export default function WebsiteBuilderPage() {
     </main>
   );
 }
+
