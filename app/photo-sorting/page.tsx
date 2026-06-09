@@ -33,12 +33,12 @@ export default function PhotoSortingPage() {
 
               <div style={{ fontSize: 11, fontWeight: 700, color: "#5A7470", marginBottom: 8 }}>촬영 유형</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 14 }}>
-                <button id="btnS" onClick={() => setType("studio")} style={typeBtnStyle(true)}>
+                <button id="btnS" onClick={() => (window as any).setType("studio")} style={typeBtnStyle(true)}>
                   <div style={{ fontSize: 18, marginBottom: 5 }}>🏢</div>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>스튜디오</div>
                   <div style={{ fontSize: 10, color: "#5A7470", marginTop: 3, lineHeight: 1.5 }}>의상·포즈 변경 사이<br />준비 시간 기준으로 분류</div>
                 </button>
-                <button id="btnL" onClick={() => setType("location")} style={typeBtnStyle(false)}>
+                <button id="btnL" onClick={() => (window as any).setType("location")} style={typeBtnStyle(false)}>
                   <div style={{ fontSize: 18, marginBottom: 5 }}>🏥</div>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>병원 로케이션</div>
                   <div style={{ fontSize: 10, color: "#5A7470", marginTop: 3, lineHeight: 1.5 }}>공간 이동 사이<br />시간 간격 기준으로 분류</div>
@@ -62,7 +62,7 @@ export default function PhotoSortingPage() {
                   <span id="gapVal" style={{ fontSize: 14, fontWeight: 700, color: "#155855" }}>3분</span>
                 </div>
                 <input type="range" id="gapSlider" min="1" max="30" defaultValue="3"
-                  onChange={(e) => onGap(e.target.value)}
+                  onChange={(e) => (window as any).onGap(e.target.value)}
                   style={{ width: "100%", accentColor: "#155855", height: 4 }} />
                 <div id="gapHint" style={{ fontSize: 10, color: "#9BB5B0", marginTop: 5, lineHeight: 1.5 }}>
                   촬영 사이 3분 이상 쉬면 새 Scene으로 분류합니다
@@ -75,7 +75,7 @@ export default function PhotoSortingPage() {
                   <span id="colorTh" style={{ fontSize: 11, color: "#155855", fontWeight: 700 }}>중간</span>
                 </div>
                 <input type="range" id="colorSlider" min="1" max="5" defaultValue="3"
-                  onChange={(e) => onColorTh(e.target.value)}
+                  onChange={(e) => (window as any).onColorTh(e.target.value)}
                   style={{ width: "100%", accentColor: "#155855", height: 4 }} />
                 <div id="colorHint" style={{ fontSize: 10, color: "#9BB5B0", marginTop: 5, lineHeight: 1.5 }}>
                   첫 프레임 배경 컬러가 크게 달라지면 시간 간격 무관하게 새 Scene으로 추가 분류
@@ -114,7 +114,7 @@ export default function PhotoSortingPage() {
                 ⚠ Chrome 또는 Edge 최신 버전이 필요합니다
               </div>
 
-              <button id="pickBtn" onClick={() => pickFolder()} style={btnStyle("#155855")}>
+              <button id="pickBtn" onClick={() => (window as any).pickFolder()} style={btnStyle("#155855")}>
                 📂 폴더 선택하기
               </button>
 
@@ -165,7 +165,7 @@ export default function PhotoSortingPage() {
               <div id="pName" style={{ fontSize: 13, fontWeight: 700, color: "#155855" }}></div>
               <div id="pSub" style={{ fontSize: 10, color: "#9BB5B0" }}></div>
             </div>
-            <button onClick={() => resetAll()} style={{ height: 34, padding: "0 14px", background: "#fff", border: "1.5px solid #C8DDD9", borderRadius: 9, fontSize: 11, fontFamily: "inherit", fontWeight: 700, cursor: "pointer" }}>다시 선택</button>
+            <button onClick={() => (window as any).resetAll()} style={{ height: 34, padding: "0 14px", background: "#fff", border: "1.5px solid #C8DDD9", borderRadius: 9, fontSize: 11, fontFamily: "inherit", fontWeight: 700, cursor: "pointer" }}>다시 선택</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9, marginBottom: 12 }}>
             {[
@@ -195,7 +195,7 @@ export default function PhotoSortingPage() {
           </div>
           <div id="warnSkip" className="hidden" style={warnStyle}></div>
           <div id="emptyMsg" className="hidden" style={{ textAlign: "center", padding: 20, color: "#5A7470", fontSize: 13 }}>분류할 파일이 없습니다</div>
-          <button id="startBtn" onClick={() => runSort()} style={btnStyle("#E85D2C")}>파일 분류 시작 →</button>
+          <button id="startBtn" onClick={() => (window as any).runSort()} style={btnStyle("#E85D2C")}>파일 분류 시작 →</button>
         </div>
 
         {/* SORTING */}
@@ -233,7 +233,7 @@ export default function PhotoSortingPage() {
               <div id="logBox" style={{ background: "#EDF5F3", border: "1px solid #C8DDD9", borderRadius: 10, padding: "11px 13px", maxHeight: 200, overflowY: "auto" }} />
             </div>
             <div style={{ padding: "0 16px 16px" }}>
-              <button onClick={() => resetAll()} style={btnStyle("#155855")}>새 폴더 분류하기</button>
+              <button onClick={() => (window as any).resetAll()} style={btnStyle("#155855")}>새 폴더 분류하기</button>
             </div>
           </div>
         </div>
