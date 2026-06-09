@@ -94,6 +94,26 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "create_website",
+      description: "Start the hospital website creation workflow. Opens the website builder with pre-filled hospital info.",
+      parameters: {
+        type: "object",
+        properties: {
+          hospitalName: { type: "string", description: "Hospital name" },
+          doctorName:   { type: "string", description: "Doctor/director name" },
+          specialties:  { type: "string", description: "Medical specialties" },
+          phone:        { type: "string", description: "Phone number" },
+          address:      { type: "string", description: "Address" },
+          concept:      { type: "string", description: "Design concept/mood" },
+          memo:         { type: "string", description: "Additional notes" },
+        },
+        required: ["hospitalName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "open_page",
       description: "Navigate to a specific page.",
       parameters: {
@@ -118,6 +138,7 @@ Available tools:
 - send_file_transfer: Send files via email to clients
 - create_conti: Create a shooting plan
 - create_contract: Generate a contract from an approved quote
+- create_website: Start hospital website creation workflow
 - open_page: Navigate to a page
 
 Rules:
@@ -298,6 +319,22 @@ async function executeTool(name: string, input: any, req: NextRequest) {
       action: "navigate",
       url: "/contract?" + params.toString(),
       message: input.hospitalName + " 계약서 페이지를 열었어요!",
+    };
+  }
+
+  if (name === "create_website") {
+    const params = new URLSearchParams();
+    if (input.hospitalName) params.set("hospitalName", input.hospitalName);
+    if (input.doctorName)   params.set("doctorName",   input.doctorName);
+    if (input.specialties)  params.set("specialties",  input.specialties);
+    if (input.phone)        params.set("phone",         input.phone);
+    if (input.address)      params.set("address",       input.address);
+    if (input.concept)      params.set("concept",       input.concept);
+    if (input.memo)         params.set("memo",          input.memo);
+    return {
+      action: "navigate",
+      url: "/website-builder?" + params.toString(),
+      message: `${input.hospitalName} 홈페이지 제작 페이지를 열었어요! 순서대로 진행해주세요 🌐`,
     };
   }
 
