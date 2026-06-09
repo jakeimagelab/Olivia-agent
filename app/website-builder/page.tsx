@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, ArrowRight, Check, Globe2, Pencil, Download,
   RotateCcw, RotateCw, Save, Eye, Palette,
-  ChevronRight, Loader2, Phone, MapPin, Clock, Star,
-  Building2, User2, FileText, CheckCircle2, AlertCircle
+  Loader2, FileText, CheckCircle2, AlertCircle, Layout
 } from "lucide-react";
+import { TEMPLATES, getTemplateById } from "./templates";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -309,7 +309,7 @@ const FEATURE_OPTIONS = [
   { id: "review",   label: "후기·리뷰 섹션" },
 ];
 
-function DesignPicker({ intake, designPrefs, onPrefsChange, onGenerate, isGenerating, content, customTheme, onThemeChange, onNext, onBack }: {
+function DesignPicker({ intake, designPrefs, onPrefsChange, onGenerate, isGenerating, content, customTheme, onThemeChange, selectedTemplateId, onTemplateChange, onNext, onBack }: {
   intake: IntakeData;
   designPrefs: DesignPrefs;
   onPrefsChange: (p: DesignPrefs) => void;
@@ -318,6 +318,8 @@ function DesignPicker({ intake, designPrefs, onPrefsChange, onGenerate, isGenera
   content: SiteContent | null;
   customTheme: CustomTheme;
   onThemeChange: (t: CustomTheme) => void;
+  selectedTemplateId: string;
+  onTemplateChange: (id: string) => void;
   onNext: () => void;
   onBack: () => void;
 }) {
@@ -356,8 +358,64 @@ function DesignPicker({ intake, designPrefs, onPrefsChange, onGenerate, isGenera
         홈페이지 디자인
       </h2>
       <p style={{ color: "#666", marginBottom: 24, fontSize: 14 }}>
-        세부 디자인 방향을 설정하고, AI로 콘텐츠를 자동 생성합니다.
+        템플릿을 선택하고, 세부 디자인 방향을 설정한 뒤 AI로 콘텐츠를 자동 생성합니다.
       </p>
+
+      {/* ── 템플릿 선택 ── */}
+      <DesignSection icon="🖼" title="템플릿 선택" desc="홈페이지 레이아웃 스타일을 선택하세요">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {TEMPLATES.map(tpl => {
+            const selected = selectedTemplateId === tpl.id;
+            return (
+              <button key={tpl.id} onClick={() => onTemplateChange(tpl.id)} style={{
+                padding: 0, borderRadius: 14, cursor: "pointer", textAlign: "left",
+                border: selected ? `2.5px solid ${tpl.tagColor}` : "1.5px solid #e0dcd4",
+                background: "#fff", overflow: "hidden", transition: "all .15s",
+                boxShadow: selected ? `0 4px 16px ${tpl.tagColor}33` : "none"
+              }}>
+                {/* 미리보기 스켈레톤 */}
+                <div style={{
+                  background: tpl.previewBg, height: 80, padding: "10px 12px",
+                  display: "flex", flexDirection: "column", gap: 6, position: "relative"
+                }}>
+                  <div style={{ height: 10, borderRadius: 4, background: tpl.previewLines[0], width: "60%" }} />
+                  <div style={{ height: 7, borderRadius: 4, background: tpl.previewLines[0] + "66", width: "80%" }} />
+                  <div style={{ height: 7, borderRadius: 4, background: tpl.previewLines[0] + "44", width: "50%" }} />
+                  <div style={{ display: "flex", gap: 5, marginTop: 2 }}>
+                    {[0,1,2].map(i => (
+                      <div key={i} style={{ flex: 1, height: 20, borderRadius: 6, background: tpl.previewLines[2] }} />
+                    ))}
+                  </div>
+                  {selected && (
+                    <div style={{
+                      position: "absolute", top: 8, right: 8,
+                      width: 20, height: 20, borderRadius: "50%",
+                      background: tpl.tagColor, display: "flex", alignItems: "center", justifyContent: "center"
+                    }}>
+                      <Check size={11} color="#fff" />
+                    </div>
+                  )}
+                </div>
+                {/* 정보 */}
+                <div style={{ padding: "10px 12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: "#222" }}>{tpl.name}</span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10,
+                      background: tpl.tagColor + "18", color: tpl.tagColor
+                    }}>{tpl.tag}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#888", lineHeight: 1.5 }}>{tpl.desc}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 10, padding: "10px 14px", background: "#f0f7f5",
+                      borderRadius: 8, fontSize: 12, color: "#155855" }}>
+          💡 나중에 더 많은 템플릿이 추가될 예정입니다. 편집 화면에서도 변경 가능합니다.
+        </div>
+      </DesignSection>
 
       {/* ── 레퍼런스 URL ── */}
       <DesignSection icon="🔗" title="레퍼런스 홈페이지" desc="참고하고 싶은 병원 홈페이지 URL을 입력하세요">
@@ -734,10 +792,12 @@ interface EditHistory {
   future: SiteContent[];
 }
 
-function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }: {
+function WebsiteEditor({ content, customTheme, intake, selectedTemplateId, onTemplateChange, onSave, onNext, onBack }: {
   content: SiteContent;
   customTheme: CustomTheme;
   intake: IntakeData;
+  selectedTemplateId: string;
+  onTemplateChange: (id: string) => void;
   onSave: (c: SiteContent) => void;
   onNext: () => void;
   onBack: () => void;
@@ -747,13 +807,31 @@ function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }:
     present: deepClone(content),
     future: []
   });
-  const [editing, setEditing] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
   const [savedMsg, setSavedMsg] = useState(false);
   const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
 
   const c = history.present;
-  const t = { ...customTheme, preview: `linear-gradient(135deg, ${customTheme.primary} 0%, ${customTheme.primary}cc 100%)` };
+
+  // iframe 렌더링 (템플릿 기반 HTML 생성)
+  const iframeSrcDoc = useMemo(() => {
+    const tpl = getTemplateById(selectedTemplateId);
+    return tpl.render({
+      intake: {
+        hospitalName: intake.hospitalName,
+        phone: intake.phone,
+        address: intake.address,
+        specialties: intake.specialties,
+      },
+      content: c,
+      theme: {
+        primary: customTheme.primary,
+        accent: customTheme.accent,
+        bg: customTheme.bg,
+        textColor: customTheme.textColor,
+      },
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c, customTheme, selectedTemplateId, intake]);
 
   const push = (next: SiteContent) => {
     setHistory(h => ({
@@ -780,68 +858,10 @@ function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }:
     });
   };
 
-  const startEdit = (key: string, value: string) => {
-    setEditing(key);
-    setEditValue(value);
-  };
-
-  const commitEdit = () => {
-    if (!editing) return;
-    const next = deepClone(c);
-    const keys = editing.split(".");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let obj: any = next;
-    for (let i = 0; i < keys.length - 1; i++) {
-      if (/^\d+$/.test(keys[i + 1])) {
-        obj = obj[keys[i]];
-      } else {
-        obj = obj[keys[i]];
-      }
-    }
-    obj[keys[keys.length - 1]] = editValue;
-    push(next);
-    setEditing(null);
-  };
-
   const handleSave = () => {
     onSave(history.present);
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 2000);
-  };
-
-  // Inline editable text
-  const ET = ({ path, style = {} }: { path: string; style?: React.CSSProperties }) => {
-    const keys = path.split(".");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let val: any = c;
-    for (const k of keys) val = val?.[/^\d+$/.test(k) ? parseInt(k) : k];
-    const isEditing = editing === path;
-    return isEditing ? (
-      <input
-        autoFocus
-        value={editValue}
-        onChange={e => setEditValue(e.target.value)}
-        onBlur={commitEdit}
-        onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditing(null); }}
-        style={{
-          ...style, background: "rgba(255,255,255,.9)", border: "2px solid #E85D2C",
-          borderRadius: 4, padding: "2px 6px", outline: "none", width: "100%"
-        }}
-      />
-    ) : (
-      <span
-        onClick={() => startEdit(path, String(val || ""))}
-        style={{
-          ...style, cursor: "text", borderRadius: 4, padding: "1px 4px",
-          transition: "all .15s",
-          outline: "1px dashed transparent",
-        }}
-        title="클릭하여 편집"
-        className="editable-span"
-      >
-        {String(val || "")}
-      </span>
-    );
   };
 
   return (
@@ -869,9 +889,23 @@ function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }:
             {activeTab === "preview" ? <Pencil size={14} /> : <Eye size={14} />}
             <span style={{ fontSize: 12 }}>{activeTab === "preview" ? "편집 패널 열기" : "패널 닫기"}</span>
           </button>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,.3)", marginLeft: 4 }}>
-            텍스트 클릭 → 바로 편집
-          </span>
+          <div style={{ width: 1, height: 20, background: "#444", margin: "0 4px" }} />
+          {/* 템플릿 전환 */}
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <Layout size={13} color="rgba(255,255,255,.4)" />
+            {TEMPLATES.map(tpl => (
+              <button key={tpl.id} onClick={() => onTemplateChange(tpl.id)}
+                title={`${tpl.name} 템플릿`}
+                style={{
+                  padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                  cursor: "pointer", border: "none",
+                  background: selectedTemplateId === tpl.id ? tpl.tagColor : "rgba(255,255,255,.1)",
+                  color: "#fff", transition: "all .15s"
+                }}>
+                {tpl.name}
+              </button>
+            ))}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {savedMsg && (
@@ -944,161 +978,17 @@ function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }:
         </div>
       )}
 
-        {/* Preview — 풀 와이드 */}
-        <div style={{
-          background: "#fff", overflowY: "auto",
-          maxHeight: activeTab === "edit" ? "calc(100vh - 320px)" : "calc(100vh - 160px)",
-          minHeight: 500
-        }}>
-          <style>{`
-            .editable-span:hover { outline: 1px dashed #E85D2C !important; background: rgba(232,93,44,.05) !important; }
-            @keyframes spin { to { transform: rotate(360deg); } }
-          `}</style>
-
-          {/* ── Hero ── */}
-          <div style={{
-            background: t.preview, padding: "60px 40px", color: "#fff", position: "relative"
-          }}>
-            <div style={{ fontSize: 11, letterSpacing: ".15em", opacity: .6, marginBottom: 12 }}>
-              {intake.hospitalName}
-            </div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.4, marginBottom: 12 }}>
-              <ET path="hero.headline" style={{ color: "#fff", fontSize: 28, fontWeight: 700 }} />
-            </h1>
-            <p style={{ opacity: .8, marginBottom: 24, fontSize: 15 }}>
-              <ET path="hero.subline" style={{ color: "rgba(255,255,255,.8)", fontSize: 15 }} />
-            </p>
-            <div style={{
-              display: "inline-block", background: t.accent, color: "#fff",
-              padding: "10px 24px", borderRadius: 8, fontWeight: 700, fontSize: 14
-            }}>
-              <ET path="hero.cta" style={{ color: "#fff", fontWeight: 700 }} />
-            </div>
-            {intake.phone && (
-              <div style={{ position: "absolute", top: 20, right: 28, display: "flex",
-                            alignItems: "center", gap: 6, fontSize: 13, opacity: .8 }}>
-                <Phone size={13} /> {intake.phone}
-              </div>
-            )}
-          </div>
-
-          {/* ── About ── */}
-          <div style={{ padding: "40px", borderBottom: "1px solid #f0ede8" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", color: t.primary,
-                          textTransform: "uppercase", marginBottom: 10 }}>About</div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 14, color: "#222" }}>
-              <ET path="about.title" style={{ fontSize: 20, fontWeight: 700, color: "#222" }} />
-            </h2>
-            <p style={{ color: "#555", lineHeight: 1.8, fontSize: 14 }}>
-              <ET path="about.body" style={{ color: "#555", fontSize: 14 }} />
-            </p>
-          </div>
-
-          {/* ── Services ── */}
-          <div style={{ padding: "40px", background: "#faf8f5", borderBottom: "1px solid #f0ede8" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", color: t.primary,
-                          textTransform: "uppercase", marginBottom: 10 }}>Services</div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: "#222" }}>진료항목</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {c.services.map((svc, i) => (
-                <div key={i} style={{
-                  background: "#fff", borderRadius: 10, padding: "16px 18px",
-                  border: "1px solid #e8e5df", transition: "all .2s"
-                }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: t.primary, marginBottom: 6 }}>
-                    <ET path={`services.${i}.name`} style={{ fontWeight: 700, fontSize: 14, color: t.primary }} />
-                  </div>
-                  <div style={{ fontSize: 12, color: "#777" }}>
-                    <ET path={`services.${i}.desc`} style={{ fontSize: 12, color: "#777" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Doctors ── */}
-          <div style={{ padding: "40px", borderBottom: "1px solid #f0ede8" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", color: t.primary,
-                          textTransform: "uppercase", marginBottom: 10 }}>Doctors</div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: "#222" }}>의료진</h2>
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              {c.doctors.map((doc, i) => (
-                <div key={i} style={{
-                  background: "#f8f7f4", borderRadius: 12, padding: "20px",
-                  flex: "1 1 160px", border: "1px solid #e8e5df"
-                }}>
-                  <div style={{
-                    width: 56, height: 56, borderRadius: "50%",
-                    background: `linear-gradient(135deg, ${t.primary}, ${t.accent})`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    marginBottom: 12, color: "#fff", fontWeight: 700, fontSize: 18
-                  }}>
-                    <User2 size={24} />
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
-                    <ET path={`doctors.${i}.name`} style={{ fontWeight: 700, fontSize: 15 }} />
-                  </div>
-                  <div style={{ fontSize: 12, color: t.primary, marginBottom: 6 }}>
-                    <ET path={`doctors.${i}.title`} style={{ fontSize: 12, color: t.primary }} />
-                  </div>
-                  <div style={{ fontSize: 12, color: "#777" }}>
-                    <ET path={`doctors.${i}.bio`} style={{ fontSize: 12, color: "#777" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Notice ── */}
-          <div style={{
-            padding: "24px 40px",
-            background: `linear-gradient(135deg, ${t.primary}11 0%, ${t.accent}11 100%)`,
-            borderBottom: "1px solid #f0ede8"
-          }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-              <Star size={16} color={t.accent} style={{ marginTop: 2, flexShrink: 0 }} />
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
-                  <ET path="notice.title" style={{ fontWeight: 700, fontSize: 14 }} />
-                </div>
-                <div style={{ fontSize: 13, color: "#555" }}>
-                  <ET path="notice.body" style={{ fontSize: 13, color: "#555" }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Location ── */}
-          <div style={{ padding: "40px", background: "#faf8f5", borderBottom: "1px solid #f0ede8" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".1em", color: t.primary,
-                          textTransform: "uppercase", marginBottom: 10 }}>Location</div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: "#222" }}>오시는길</h2>
-            <div style={{ display: "grid", gap: 12 }}>
-              <LocationRow icon={<MapPin size={15} />} label="주소">
-                <ET path="location.address" style={{ fontSize: 14 }} />
-              </LocationRow>
-              <LocationRow icon={<Clock size={15} />} label="진료시간">
-                <ET path="location.hours" style={{ fontSize: 14 }} />
-              </LocationRow>
-              <LocationRow icon={<Building2 size={15} />} label="주차">
-                <ET path="location.parking" style={{ fontSize: 14 }} />
-              </LocationRow>
-            </div>
-          </div>
-
-          {/* ── Footer ── */}
-          <div style={{ background: t.primary, padding: "28px 40px", color: "#fff" }}>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>
-              {intake.hospitalName}
-            </div>
-            <div style={{ fontSize: 12, opacity: .6, marginBottom: 4 }}>
-              <ET path="footer.tagline" style={{ fontSize: 12, color: "rgba(255,255,255,.6)" }} />
-            </div>
-            <div style={{ fontSize: 11, opacity: .4 }}>
-              <ET path="footer.copy" style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }} />
-            </div>
-          </div>
-        </div>
+        {/* Preview — iframe 기반 템플릿 렌더링 */}
+        <iframe
+          srcDoc={iframeSrcDoc}
+          style={{
+            width: "100%", border: "none", display: "block",
+            height: activeTab === "edit" ? "calc(100vh - 360px)" : "calc(100vh - 160px)",
+            minHeight: 480
+          }}
+          title="홈페이지 미리보기"
+          sandbox="allow-same-origin"
+        />
 
       <div style={{ display: "flex", justifyContent: "space-between", padding: "16px 24px",
                     borderTop: "1px solid #e5e0d8", background: "#faf8f5" }}>
@@ -1113,36 +1003,6 @@ function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }:
   );
 }
 
-function LocationRow({ icon, label, children }: {
-  icon: React.ReactNode; label: string; children: React.ReactNode
-}) {
-  return (
-    <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-      <div style={{ color: "#888", marginTop: 2 }}>{icon}</div>
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#999", marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: 14, color: "#444" }}>{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function EditSection({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <button onClick={() => setOpen(!open)} style={{
-        width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
-        background: "#f3f2f0", border: "none", borderRadius: 8, padding: "8px 12px",
-        fontWeight: 700, fontSize: 12, color: "#444", cursor: "pointer", marginBottom: open ? 8 : 0
-      }}>
-        {title}
-        <ChevronRight size={13} style={{ transform: open ? "rotate(90deg)" : "none", transition: ".2s" }} />
-      </button>
-      {open && <div style={{ paddingLeft: 4 }}>{children}</div>}
-    </div>
-  );
-}
 
 function EditField({ label, value, onChange, multiline }: {
   label: string; value: string; onChange: (v: string) => void; multiline?: boolean;
@@ -1169,71 +1029,23 @@ function EditField({ label, value, onChange, multiline }: {
 
 // ─── Step 4: Complete ─────────────────────────────────────────────────────────
 
-function CompletionView({ intake, content, customTheme, onNext, onBack }: {
+function CompletionView({ intake, content, customTheme, selectedTemplateId, onNext, onBack }: {
   intake: IntakeData;
   content: SiteContent;
   customTheme: CustomTheme;
+  selectedTemplateId: string;
   onNext: () => void;
   onBack: () => void;
 }) {
   const [downloading, setDownloading] = useState(false);
 
   const generateHTML = () => {
-    const t = { ...customTheme, preview: `linear-gradient(135deg, ${customTheme.primary} 0%, ${customTheme.primary}cc 100%)` };
-    return `<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>${intake.hospitalName}</title>
-<meta name="description" content="${content.about.body.slice(0, 120)}" />
-<meta name="keywords" content="${content.keywords?.join(", ")}" />
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Apple SD Gothic Neo',sans-serif;color:#222;line-height:1.75;word-break:keep-all}
-img{max-width:100%;display:block}
-a{color:inherit;text-decoration:none}
-.container{max-width:1100px;margin:0 auto;padding:0 40px}
-header{background:${t.primary};padding:16px 0;position:sticky;top:0;z-index:100}
-header .wrap{display:flex;justify-content:space-between;align-items:center;max-width:1100px;margin:0 auto;padding:0 40px}
-header .logo{color:#fff;font-weight:800;font-size:18px}
-header nav a{color:rgba(255,255,255,.8);margin-left:28px;font-size:14px}
-.hero{background:${t.preview};padding:100px 40px;text-align:center;color:#fff}
-.hero h1{font-size:2.4rem;font-weight:800;line-height:1.4;margin-bottom:16px}
-.hero p{font-size:1.1rem;opacity:.8;margin-bottom:32px}
-.btn{display:inline-block;background:${t.accent};color:#fff;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px}
-.section{padding:64px 0}
-.section-label{font-size:11px;font-weight:700;letter-spacing:.15em;color:${t.primary};text-transform:uppercase;margin-bottom:12px}
-.section h2{font-size:1.6rem;font-weight:700;margin-bottom:24px}
-.services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
-.service-card{background:#fff;border:1px solid #e8e5df;border-radius:12px;padding:20px}
-.service-card h3{font-size:15px;font-weight:700;color:${t.primary};margin-bottom:8px}
-.service-card p{font-size:13px;color:#777}
-.doctors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px}
-.doc-card{background:#f8f7f4;border-radius:12px;padding:24px;text-align:center}
-.doc-avatar{width:64px;height:64px;border-radius:50%;background:${t.primary};margin:0 auto 14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px}
-.doc-name{font-weight:700;font-size:16px;margin-bottom:4px}
-.doc-title{font-size:12px;color:${t.primary};margin-bottom:6px}
-.doc-bio{font-size:12px;color:#777}
-.location-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px}
-.location-item label{font-size:11px;font-weight:700;color:#999;display:block;margin-bottom:6px}
-.location-item p{font-size:14px;color:#444}
-footer{background:${t.primary};color:#fff;padding:36px 0}
-footer .tagline{opacity:.6;font-size:13px;margin-top:8px}
-footer .copy{opacity:.4;font-size:12px;margin-top:6px}
-@media(max-width:768px){.hero{padding:60px 24px}.hero h1{font-size:1.6rem}.services-grid,.doctors-grid{grid-template-columns:1fr}.location-grid{grid-template-columns:1fr}}
-</style>
-</head>
-<body>
-<header><div class="wrap"><a class="logo" href="#">${intake.hospitalName}</a><nav><a href="#about">소개</a><a href="#services">진료항목</a><a href="#doctors">의료진</a><a href="#location">오시는길</a></nav></div></header>
-<section class="hero"><div class="container"><h1>${content.hero.headline}</h1><p>${content.hero.subline}</p><a class="btn" href="tel:${intake.phone}">${content.hero.cta}</a></div></section>
-<section class="section" id="about"><div class="container"><div class="section-label">About</div><h2>${content.about.title}</h2><p>${content.about.body}</p></div></section>
-<section class="section" id="services" style="background:#faf8f5"><div class="container"><div class="section-label">Services</div><h2>진료항목</h2><div class="services-grid">${content.services.map(s => `<div class="service-card"><h3>${s.name}</h3><p>${s.desc}</p></div>`).join("")}</div></div></section>
-<section class="section" id="doctors"><div class="container"><div class="section-label">Doctors</div><h2>의료진</h2><div class="doctors-grid">${content.doctors.map(d => `<div class="doc-card"><div class="doc-avatar">👨‍⚕️</div><div class="doc-name">${d.name}</div><div class="doc-title">${d.title}</div><div class="doc-bio">${d.bio}</div></div>`).join("")}</div></div></section>
-<section class="section" id="location" style="background:#faf8f5"><div class="container"><div class="section-label">Location</div><h2>오시는길</h2><div class="location-grid"><div><div class="location-item"><label>주소</label><p>${content.location.address || intake.address}</p></div><div class="location-item" style="margin-top:20px"><label>진료시간</label><p>${content.location.hours}</p></div></div><div class="location-item"><label>주차</label><p>${content.location.parking}</p></div></div></div></section>
-<footer><div class="container"><div style="font-weight:800;font-size:18px">${intake.hospitalName}</div><div class="tagline">${content.footer.tagline}</div><div class="copy">${content.footer.copy}</div></div></footer>
-</body>
-</html>`;
+    const tpl = getTemplateById(selectedTemplateId);
+    return tpl.render({
+      intake: { hospitalName: intake.hospitalName, phone: intake.phone, address: intake.address, specialties: intake.specialties },
+      content,
+      theme: { primary: customTheme.primary, accent: customTheme.accent, bg: customTheme.bg, textColor: customTheme.textColor },
+    });
   };
 
   const handleDownload = () => {
@@ -1526,6 +1338,7 @@ interface SavedProject {
   customTheme: CustomTheme;
   content: SiteContent | null;
   step: Step;
+  templateId?: string;
 }
 
 function loadSavedProjects(): SavedProject[] {
@@ -1560,6 +1373,7 @@ export default function WebsiteBuilderPage() {
     additionalNote: "",
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("classic");
 
   // ── 저장/불러오기 ──
   const [showLoadPanel, setShowLoadPanel] = useState(false);
@@ -1576,7 +1390,7 @@ export default function WebsiteBuilderPage() {
       id: Date.now().toString(),
       name: intake.hospitalName || "이름 없음",
       savedAt: new Date().toLocaleString("ko-KR"),
-      intake, designPrefs, customTheme, content, step,
+      intake, designPrefs, customTheme, content, step, templateId: selectedTemplateId,
     };
     const updated = [newProject, ...projects].slice(0, 20); // 최대 20개
     localStorage.setItem(SAVE_KEY, JSON.stringify(updated));
@@ -1591,6 +1405,7 @@ export default function WebsiteBuilderPage() {
     setCustomTheme(project.customTheme);
     setContent(project.content);
     setStep(project.step);
+    if (project.templateId) setSelectedTemplateId(project.templateId);
     setShowLoadPanel(false);
   };
 
@@ -1760,6 +1575,8 @@ export default function WebsiteBuilderPage() {
                 content={content}
                 customTheme={customTheme}
                 onThemeChange={setCustomTheme}
+                selectedTemplateId={selectedTemplateId}
+                onTemplateChange={setSelectedTemplateId}
                 onNext={() => setStep(3)}
                 onBack={() => setStep(1)}
               />
@@ -1769,6 +1586,8 @@ export default function WebsiteBuilderPage() {
                 content={content}
                 customTheme={customTheme}
                 intake={intake}
+                selectedTemplateId={selectedTemplateId}
+                onTemplateChange={setSelectedTemplateId}
                 onSave={setContent}
                 onNext={() => setStep(4)}
                 onBack={() => setStep(2)}
@@ -1779,6 +1598,7 @@ export default function WebsiteBuilderPage() {
                 intake={intake}
                 content={content}
                 customTheme={customTheme}
+                selectedTemplateId={selectedTemplateId}
                 onNext={() => setStep(5)}
                 onBack={() => setStep(3)}
               />
