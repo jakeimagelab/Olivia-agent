@@ -845,15 +845,16 @@ function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }:
   };
 
   return (
-    <div>
+    <div style={{ margin: "0 -36px" }}>
       {/* Editor Toolbar */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: "#1C1C1C", borderRadius: 12, padding: "10px 16px", marginBottom: 16
+        background: "#1C1C1C", padding: "10px 24px", marginBottom: 0,
+        position: "sticky", top: 0, zIndex: 50
       }}>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button onClick={undo} disabled={!history.past.length}
-            style={{ ...toolBtn, opacity: history.past.length ? 1 : 0.3 }} title="실행취소">
+            style={{ ...toolBtn, opacity: history.past.length ? 1 : 0.3 }} title="실행취소 (Ctrl+Z)">
             <RotateCcw size={15} />
           </button>
           <button onClick={redo} disabled={!history.future.length}
@@ -863,12 +864,15 @@ function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }:
           <div style={{ width: 1, height: 20, background: "#444", margin: "0 4px" }} />
           <button
             onClick={() => setActiveTab(activeTab === "preview" ? "edit" : "preview")}
-            style={{ ...toolBtn, background: activeTab === "edit" ? "#E85D2C" : "transparent" }}>
-            {activeTab === "preview" ? <Pencil size={15} /> : <Eye size={15} />}
-            <span style={{ fontSize: 12 }}>{activeTab === "preview" ? "편집 패널" : "미리보기"}</span>
+            style={{ ...toolBtn, background: activeTab === "edit" ? "#E85D2C" : "rgba(255,255,255,.08)",
+                     color: "#fff", borderRadius: 8, padding: "6px 14px" }}>
+            {activeTab === "preview" ? <Pencil size={14} /> : <Eye size={14} />}
+            <span style={{ fontSize: 12 }}>{activeTab === "preview" ? "편집 패널 열기" : "패널 닫기"}</span>
           </button>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,.3)", marginLeft: 4 }}>
+            텍스트 클릭 → 바로 편집
+          </span>
         </div>
-
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {savedMsg && (
             <span style={{ color: "#4ade80", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
@@ -876,80 +880,75 @@ function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }:
             </span>
           )}
           <button onClick={handleSave}
-            style={{ ...toolBtn, background: "#155855", padding: "6px 14px" }}>
+            style={{ background: "#155855", color: "#fff", border: "none", borderRadius: 8,
+                     padding: "7px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                     display: "flex", alignItems: "center", gap: 6 }}>
             <Save size={14} /> 저장
           </button>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 16 }}>
-        {/* Edit Panel */}
-        {activeTab === "edit" && (
-          <div style={{
-            width: 280, flexShrink: 0, background: "#fff", borderRadius: 12,
-            border: "1px solid #e5e0d8", padding: 16, maxHeight: 680, overflowY: "auto"
-          }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 16, color: "#333" }}>
-              편집 패널
-            </div>
-
-            <EditSection title="히어로 섹션">
-              <EditField label="헤드라인" value={c.hero.headline}
-                onChange={v => push({ ...deepClone(c), hero: { ...c.hero, headline: v } })} />
-              <EditField label="서브 문구" value={c.hero.subline}
-                onChange={v => push({ ...deepClone(c), hero: { ...c.hero, subline: v } })} />
-              <EditField label="CTA 버튼" value={c.hero.cta}
-                onChange={v => push({ ...deepClone(c), hero: { ...c.hero, cta: v } })} />
-            </EditSection>
-
-            <EditSection title="병원 소개">
-              <EditField label="제목" value={c.about.title}
-                onChange={v => push({ ...deepClone(c), about: { ...c.about, title: v } })} />
-              <EditField label="본문" value={c.about.body} multiline
-                onChange={v => push({ ...deepClone(c), about: { ...c.about, body: v } })} />
-            </EditSection>
-
-            <EditSection title="오시는길">
-              <EditField label="주소" value={c.location.address}
-                onChange={v => push({ ...deepClone(c), location: { ...c.location, address: v } })} />
-              <EditField label="진료시간" value={c.location.hours}
-                onChange={v => push({ ...deepClone(c), location: { ...c.location, hours: v } })} />
-              <EditField label="주차" value={c.location.parking}
-                onChange={v => push({ ...deepClone(c), location: { ...c.location, parking: v } })} />
-            </EditSection>
-
-            <EditSection title="진료항목" >
-              {c.services.map((svc, i) => (
-                <div key={i} style={{ marginBottom: 8, background: "#f8f7f4", borderRadius: 8, padding: "8px 10px" }}>
-                  <EditField label={`항목 ${i + 1} 이름`} value={svc.name}
-                    onChange={v => {
-                      const next = deepClone(c);
-                      next.services[i].name = v;
-                      push(next);
-                    }} />
-                  <EditField label="설명" value={svc.desc}
-                    onChange={v => {
-                      const next = deepClone(c);
-                      next.services[i].desc = v;
-                      push(next);
-                    }} />
-                </div>
-              ))}
-            </EditSection>
-
-            <EditSection title="푸터">
-              <EditField label="슬로건" value={c.footer.tagline}
-                onChange={v => push({ ...deepClone(c), footer: { ...c.footer, tagline: v } })} />
-              <EditField label="저작권" value={c.footer.copy}
-                onChange={v => push({ ...deepClone(c), footer: { ...c.footer, copy: v } })} />
-            </EditSection>
-          </div>
-        )}
-
-        {/* Preview */}
+      {/* 편집 패널 (상단 드로어) */}
+      {activeTab === "edit" && (
         <div style={{
-          flex: 1, background: "#fff", borderRadius: 12, overflow: "hidden",
-          border: "1px solid #e5e0d8", maxHeight: 680, overflowY: "auto"
+          background: "#f8f7f4", borderBottom: "2px solid #e5e0d8",
+          padding: "20px 24px", display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr", gap: 16
+        }}>
+          {/* 히어로 */}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 12, color: "#E85D2C", marginBottom: 10,
+                          textTransform: "uppercase", letterSpacing: ".06em" }}>Hero</div>
+            <EditField label="헤드라인" value={c.hero.headline}
+              onChange={v => push({ ...deepClone(c), hero: { ...c.hero, headline: v } })} />
+            <EditField label="서브 문구" value={c.hero.subline}
+              onChange={v => push({ ...deepClone(c), hero: { ...c.hero, subline: v } })} />
+            <EditField label="CTA 버튼" value={c.hero.cta}
+              onChange={v => push({ ...deepClone(c), hero: { ...c.hero, cta: v } })} />
+          </div>
+          {/* 소개 */}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 12, color: "#155855", marginBottom: 10,
+                          textTransform: "uppercase", letterSpacing: ".06em" }}>About</div>
+            <EditField label="제목" value={c.about.title}
+              onChange={v => push({ ...deepClone(c), about: { ...c.about, title: v } })} />
+            <EditField label="본문" value={c.about.body} multiline
+              onChange={v => push({ ...deepClone(c), about: { ...c.about, body: v } })} />
+            <div style={{ fontWeight: 700, fontSize: 12, color: "#155855", margin: "12px 0 8px",
+                          textTransform: "uppercase", letterSpacing: ".06em" }}>Location</div>
+            <EditField label="주소" value={c.location.address}
+              onChange={v => push({ ...deepClone(c), location: { ...c.location, address: v } })} />
+            <EditField label="진료시간" value={c.location.hours}
+              onChange={v => push({ ...deepClone(c), location: { ...c.location, hours: v } })} />
+            <EditField label="주차" value={c.location.parking}
+              onChange={v => push({ ...deepClone(c), location: { ...c.location, parking: v } })} />
+          </div>
+          {/* 진료항목 + 푸터 */}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 12, color: "#888", marginBottom: 10,
+                          textTransform: "uppercase", letterSpacing: ".06em" }}>Services</div>
+            {c.services.map((svc, i) => (
+              <div key={i} style={{ marginBottom: 8, background: "#fff", borderRadius: 8,
+                                    padding: "8px 10px", border: "1px solid #e8e3db" }}>
+                <EditField label={`항목 ${i + 1}`} value={svc.name}
+                  onChange={v => { const next = deepClone(c); next.services[i].name = v; push(next); }} />
+                <EditField label="설명" value={svc.desc}
+                  onChange={v => { const next = deepClone(c); next.services[i].desc = v; push(next); }} />
+              </div>
+            ))}
+            <div style={{ fontWeight: 700, fontSize: 12, color: "#888", margin: "10px 0 8px",
+                          textTransform: "uppercase", letterSpacing: ".06em" }}>Footer</div>
+            <EditField label="슬로건" value={c.footer.tagline}
+              onChange={v => push({ ...deepClone(c), footer: { ...c.footer, tagline: v } })} />
+          </div>
+        </div>
+      )}
+
+        {/* Preview — 풀 와이드 */}
+        <div style={{
+          background: "#fff", overflowY: "auto",
+          maxHeight: activeTab === "edit" ? "calc(100vh - 320px)" : "calc(100vh - 160px)",
+          minHeight: 500
         }}>
           <style>{`
             .editable-span:hover { outline: 1px dashed #E85D2C !important; background: rgba(232,93,44,.05) !important; }
@@ -1100,9 +1099,9 @@ function WebsiteEditor({ content, customTheme, intake, onSave, onNext, onBack }:
             </div>
           </div>
         </div>
-      </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "16px 24px",
+                    borderTop: "1px solid #e5e0d8", background: "#faf8f5" }}>
         <button onClick={onBack} style={btnSecondary}>
           <ArrowLeft size={16} /> 이전
         </button>
