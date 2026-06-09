@@ -243,7 +243,7 @@ export default function PhotoSortingPage() {
           <div className="pc-card" style={{ borderColor: "#FACCB8" }}>
             <div style={{ padding: "16px 20px" }}>
               <div id="errMsg" style={{ fontSize: 13, color: "#E85D2C", whiteSpace: "pre-wrap", lineHeight: 1.7, marginBottom: 14 }}></div>
-              <button onClick={() => resetAll()} style={{ width: "100%", height: 34, padding: "0 14px", background: "#fff", border: "1.5px solid #C8DDD9", borderRadius: 9, fontSize: 11, fontFamily: "inherit", fontWeight: 700, cursor: "pointer" }}>다시 시도</button>
+              <button onClick={() => (window as any).resetAll()} style={{ width: "100%", height: 34, padding: "0 14px", background: "#fff", border: "1.5px solid #C8DDD9", borderRadius: 9, fontSize: 11, fontFamily: "inherit", fontWeight: 700, cursor: "pointer" }}>다시 시도</button>
             </div>
           </div>
         </div>
