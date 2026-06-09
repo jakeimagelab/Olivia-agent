@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   Activity,
   ArrowRight,
+  CalendarCheck,
   ClipboardList,
   FileVideo,
   Globe2,
@@ -49,6 +50,13 @@ const adminMenus = [
     href: "/instagram-promo-design",
     icon: Images,
     meta: "Promotion Design"
+  },
+  {
+    title: "인스타그램 매니저",
+    description: "병원 인스타그램 성과 분석, 채널 분석, 콘텐츠 기획과 캘린더를 관리합니다.",
+    href: "/hospital-instagram-manager",
+    icon: CalendarCheck,
+    meta: "Content Manager"
   },
   {
     title: "사진 분류 시스템",
