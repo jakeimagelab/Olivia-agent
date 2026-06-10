@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { logActivity } from "@/lib/activityLogger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -170,6 +171,7 @@ export async function POST(req: NextRequest) {
 
   // 도구 실행 요청
   if (pendingTool) {
+    await logActivity("olivia_chat", undefined, { tool: pendingTool.name });
     const result = await executeTool(pendingTool.name, pendingTool.input, req);
     return NextResponse.json({ ok: true, toolResult: result });
   }
@@ -230,6 +232,7 @@ export async function POST(req: NextRequest) {
 
 async function executeTool(name: string, input: any, req: NextRequest) {
   if (name === "create_quote") {
+    await logActivity("create_quote", input.hospitalName, { package: input.packageId });
     const params = new URLSearchParams();
     if (input.hospitalName)  params.set("hospitalName", input.hospitalName);
     if (input.packageId)     params.set("pkg", input.packageId);
@@ -251,6 +254,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
   }
 
   if (name === "send_file_transfer") {
+    await logActivity("send_file", input.hospitalName, { email: input.toEmail });
     const origin = req.headers.get("origin") || "https://olivia-agent-smoky.vercel.app";
     const r = await fetch(origin + "/api/send-delivery", {
       method: "POST",
@@ -266,6 +270,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
   }
 
   if (name === "create_conti") {
+    await logActivity("create_conti", input.hospitalName, { dept: input.dept });
     const params = new URLSearchParams();
     Object.entries(input).forEach(([k, v]) => { if (v) params.set(k, String(v)); });
     return {
@@ -276,6 +281,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
   }
 
   if (name === "create_contract") {
+    await logActivity("create_contract", input.hospitalName, { amount: input.totalAmount });
     const params = new URLSearchParams();
     const data = {
       hospitalName:  input.hospitalName  || "",
@@ -302,6 +308,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
   }
 
   if (name === "create_website") {
+    await logActivity("create_website", input.hospitalName, { specialties: input.specialties });
     const params = new URLSearchParams();
     if (input.hospitalName) params.set("hospitalName", input.hospitalName);
     if (input.doctorName)   params.set("doctorName",   input.doctorName);
