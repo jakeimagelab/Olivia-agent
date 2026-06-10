@@ -875,35 +875,35 @@ export default function ContiPage() {
     `;
 
     const contiRows = result.conti.map((r,i) => `
-      <tr>
-        <td style="background:${getCatBg(r.category)};color:${getCatFg(r.category)};font-weight:900;text-align:center" contenteditable="true">${r.category}</td>
-        <td style="text-align:center" contenteditable="true">${r.duration||"-"}</td>
-        <td style="text-align:center" contenteditable="true">${r.location||"-"}</td>
-        <td style="font-size:7pt;color:#4b5563;line-height:1.5" contenteditable="true">${r.cameraAngle||"-"}</td>
-        <td style="color:#E85D2C;font-weight:900;text-align:center" contenteditable="true">${r.keyword||"-"}</td>
-        <td style="font-size:7.5pt" contenteditable="true">${r.description||"-"}</td>
-        <td style="font-size:7.5pt" contenteditable="true">${r.personnel||"-"}</td>
-        <td style="font-size:7pt;color:#888;text-align:center" contenteditable="true">${r.notes||"-"}</td>
+      <tr style="background:${i%2===0?"#fff":"#fafaf9"}">
+        <td style="background:${getCatBg(r.category)};color:${getCatFg(r.category)};font-weight:900;text-align:center;font-size:7pt;word-break:keep-all;vertical-align:middle" contenteditable="true">${r.category}</td>
+        <td style="text-align:center;font-size:7pt;vertical-align:middle;white-space:nowrap" contenteditable="true">${r.duration||"-"}</td>
+        <td style="text-align:center;font-size:7pt;vertical-align:middle;word-break:keep-all" contenteditable="true">${r.location||"-"}</td>
+        <td style="font-size:6.5pt;color:#4b5563;line-height:1.4;vertical-align:middle" contenteditable="true">${r.cameraAngle||"-"}</td>
+        <td style="color:#E85D2C;font-weight:900;text-align:center;font-size:7pt;vertical-align:middle;word-break:keep-all" contenteditable="true">${r.keyword||"-"}</td>
+        <td style="font-size:7pt;vertical-align:middle;line-height:1.5" contenteditable="true">${r.description||"-"}</td>
+        <td style="font-size:6.5pt;vertical-align:middle;line-height:1.4;color:#374151" contenteditable="true">${r.personnel||"-"}</td>
+        <td style="font-size:6.5pt;color:#666;text-align:center;vertical-align:middle;word-break:keep-all" contenteditable="true">${r.notes||"-"}</td>
       </tr>
     `).join("");
 
     const checkRows = result.checklist.map((r,i) => `
       <tr style="background:${i%2===0?"#fff":"#fafaf9"}">
-        <td style="text-align:center;font-weight:900;color:#155855;white-space:nowrap">${r.number}</td>
-        <td style="font-weight:700;white-space:nowrap" contenteditable="true">${r.category}</td>
-        <td contenteditable="true">${r.item}</td>
-        <td style="text-align:center;font-size:16px">☐</td>
-        <td style="white-space:nowrap" contenteditable="true">${r.notes||"-"}</td>
+        <td style="text-align:center;font-weight:900;color:#155855;white-space:nowrap;vertical-align:middle;font-size:7.5pt">${r.number}</td>
+        <td style="font-weight:700;white-space:nowrap;vertical-align:middle;font-size:7pt;color:#155855" contenteditable="true">${r.category}</td>
+        <td style="vertical-align:middle;font-size:7.5pt" contenteditable="true">${r.item}</td>
+        <td style="text-align:center;font-size:14px;vertical-align:middle">☐</td>
+        <td style="white-space:nowrap;vertical-align:middle;font-size:7pt;color:#666" contenteditable="true">${r.notes||"-"}</td>
       </tr>
     `).join("");
 
     const schedRows = result.schedule.map((r,i) => `
       <tr style="background:${i%2===0?"#EDF8F7":"#fff"}">
-        <td style="text-align:center;font-weight:900;color:#155855" contenteditable="true">${r.time||"-"}</td>
-        <td style="font-weight:700" contenteditable="true">${r.activity||"-"}</td>
-        <td style="color:#E85D2C" contenteditable="true">${r.type||"-"}</td>
-        <td contenteditable="true">${r.requirements||"-"}</td>
-        <td contenteditable="true">${r.notes||"-"}</td>
+        <td style="text-align:center;font-weight:900;color:#155855;white-space:nowrap;vertical-align:middle;font-size:7.5pt" contenteditable="true">${r.time||"-"}</td>
+        <td style="font-weight:700;vertical-align:middle;font-size:7.5pt" contenteditable="true">${r.activity||"-"}</td>
+        <td style="color:#E85D2C;text-align:center;vertical-align:middle;font-size:7pt;white-space:nowrap" contenteditable="true">${r.type||"-"}</td>
+        <td style="vertical-align:middle;font-size:7.5pt" contenteditable="true">${r.requirements||"-"}</td>
+        <td style="vertical-align:middle;font-size:7pt;color:#666;text-align:center;white-space:nowrap" contenteditable="true">${r.notes||"-"}</td>
       </tr>
     `).join("");
 
@@ -931,9 +931,9 @@ export default function ContiPage() {
   .section-title { font-size:11pt; font-weight:900; color:#155855; margin-bottom:10px; border-left:4px solid #E85D2C; padding-left:8px; }
   .section-meta { font-size:8pt; color:#888; margin-bottom:10px; }
 
-  table { width:100%; border-collapse:collapse; font-size:8pt; table-layout:fixed; }
-  th { background:#155855; color:#fff; font-weight:900; padding:7px 6px; text-align:center; border:1px solid #0e3f3c; font-size:8pt; word-break:keep-all; }
-  td { padding:6px; border:1px solid #e5e7eb; vertical-align:top; line-height:1.6; word-break:keep-all; overflow-wrap:break-word; white-space:pre-wrap; }
+  table { width:100%; border-collapse:collapse; font-size:7.5pt; table-layout:fixed; }
+  th { background:#155855; color:#fff; font-weight:900; padding:6px 5px; text-align:center; border:1px solid #0e3f3c; font-size:7.5pt; word-break:keep-all; line-height:1.3; }
+  td { padding:5px 6px; border:1px solid #e5e7eb; vertical-align:middle; line-height:1.45; word-break:keep-all; overflow-wrap:break-word; white-space:normal; }
 
   /* 표지 */
   .cover { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:90vh; text-align:center; padding:40px; }
@@ -954,7 +954,8 @@ export default function ContiPage() {
 
   /* 인쇄 설정 */
   @media print {
-    @page { margin:8mm; }
+    @page { margin:6mm 8mm; size: A4 landscape; }
+    @page:first { size: A4 portrait; }
     @page :first { margin-top:8mm; }
     body { font-size:8pt; }
     .no-print { display:none; }
@@ -1021,14 +1022,14 @@ ${header("촬영 콘티")}
   <table>
     <thead>
       <tr>
-        <th style="width:58px">진료과</th>
-        <th style="width:40px">소요시간</th>
-        <th style="width:52px">장소</th>
-        <th style="width:100px">카메라 구도</th>
-        <th style="width:68px">키워드</th>
+        <th style="width:55px">진료과</th>
+        <th style="width:36px">소요<br/>시간</th>
+        <th style="width:48px">장소</th>
+        <th style="width:82px">카메라 구도</th>
+        <th style="width:65px">키워드</th>
         <th>설명</th>
-        <th style="width:86px">필요인원/환자역할</th>
-        <th style="width:40px">비고</th>
+        <th style="width:90px">필요인원/환자역할</th>
+        <th style="width:38px">비고</th>
       </tr>
     </thead>
     <tbody>${contiRows}</tbody>
@@ -1036,18 +1037,19 @@ ${header("촬영 콘티")}
 </div>
 
 <!-- ③ 준비 체크리스트 -->
-<div class="page-break"></div>
+<div class="page-break" style="page-break-before:always"></div>
+<style>@page { size: A4 portrait; }</style>
 ${header("준비 체크리스트")}
 <div class="section">
   <p class="section-meta">총 ${result.checklist.length}개 항목</p>
   <table>
     <thead>
       <tr>
-        <th style="width:28px">#</th>
-        <th style="width:90px">분류</th>
+        <th style="width:26px">#</th>
+        <th style="width:80px">분류</th>
         <th>체크리스트 항목</th>
-        <th style="width:44px">준비여부</th>
-        <th style="width:70px">비고</th>
+        <th style="width:40px">준비<br/>여부</th>
+        <th style="width:55px">비고</th>
       </tr>
     </thead>
     <tbody>${checkRows}</tbody>
@@ -1062,11 +1064,11 @@ ${header("타임테이블")}
   <table>
     <thead>
       <tr>
-        <th style="width:90px">시간</th>
-        <th style="width:110px">내용</th>
-        <th style="width:60px">구분</th>
+        <th style="width:95px">시간</th>
+        <th style="width:100px">내용</th>
+        <th style="width:45px">구분</th>
         <th>요청사항</th>
-        <th style="width:60px">비고</th>
+        <th style="width:45px">비고</th>
       </tr>
     </thead>
     <tbody>${schedRows}</tbody>
