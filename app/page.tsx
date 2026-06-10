@@ -5,6 +5,7 @@ import OliviaChat from "@/components/OliviaChat";
 import { FormEvent, useEffect, useState } from "react";
 import {
   Activity,
+  BarChart2,
   ArrowRight,
   CalendarCheck,
   ClipboardList,
@@ -99,6 +100,13 @@ const adminMenus = [
     href: "/delivery-mail",
     icon: Mail,
     meta: "File Transfer"
+  },
+  {
+    title: "업무 리포트",
+    description: "올리비아 AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",
+    href: "/report",
+    icon: BarChart2,
+    meta: "Weekly Report"
   }
 ];
 
