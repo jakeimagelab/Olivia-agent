@@ -11,8 +11,8 @@ export async function POST(req: NextRequest) {
       designPrefs
     } = body;
 
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-    if (!OPENAI_API_KEY) return NextResponse.json({ error: "No API key" }, { status: 500 });
+    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+    if (!ANTHROPIC_API_KEY) return NextResponse.json({ error: "ANTHROPIC_API_KEY 미설정" }, { status: 500 });
 
     // 디자인 프리퍼런스 정리
     const layoutLabel: Record<string, string> = {
@@ -104,19 +104,20 @@ ${refUrlsText}
 ${featuresText}
 추가 디자인 메모: ${designPrefs?.additionalNote || "없음"}`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "claude-sonnet-4-5",
+        max_tokens: 4096,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           { role: "user", content: userMsg },
         ],
-        max_tokens: 1500,
         temperature: 0.75,
       }),
     });
@@ -127,7 +128,7 @@ ${featuresText}
     }
 
     const data = await response.json();
-    const raw = data.choices?.[0]?.message?.content || "{}";
+    const raw = data.content?.[0]?.text || "{}";
 
     let content;
     try {

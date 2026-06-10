@@ -1,131 +1,119 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const TOOLS = [
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ── Claude tool 형식 ──────────────────────────────────────────
+const TOOLS: Anthropic.Tool[] = [
   {
-    type: "function",
-    function: {
-      name: "create_quote",
-      description: "Create a quote for hospital photography. Opens the quote page with pre-filled data.",
-      parameters: {
-        type: "object",
-        properties: {
-          hospitalName:  { type: "string",  description: "Hospital or client name" },
-          packageId:     { type: "string",  description: "Package: premium | premium_plus | homepage | branding" },
-          contactName:   { type: "string",  description: "Contact person name" },
-          email:         { type: "string",  description: "Email address" },
-          phone:         { type: "string",  description: "Phone number" },
-          shootDate:     { type: "string",  description: "Shoot date YYYY-MM-DD" },
-          profileCount:  { type: "number",  description: "Extra profile persons" },
-          stagedCount:   { type: "number",  description: "Extra staged persons" },
-          floorCount:    { type: "number",  description: "Extra interior floors" },
-          largeHospital: { type: "boolean", description: "Hospital-grade scale" },
-          droneCount:    { type: "number",  description: "Drone shoot count" },
-          memo:          { type: "string",  description: "Memo" },
-        },
-        required: ["hospitalName"],
+    name: "create_quote",
+    description: "Create a quote for hospital photography. Opens the quote page with pre-filled data.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName:  { type: "string",  description: "Hospital or client name" },
+        packageId:     { type: "string",  description: "Package: standard | premium | premium-plus-1 | premium-plus-2" },
+        contactName:   { type: "string",  description: "Contact person name" },
+        email:         { type: "string",  description: "Email address" },
+        phone:         { type: "string",  description: "Phone number" },
+        shootDate:     { type: "string",  description: "Shoot date YYYY-MM-DD" },
+        profileCount:  { type: "number",  description: "Extra profile persons" },
+        stagedCount:   { type: "number",  description: "Extra staged persons" },
+        floorCount:    { type: "number",  description: "Extra interior floors" },
+        largeHospital: { type: "boolean", description: "Hospital-grade scale" },
+        droneCount:    { type: "number",  description: "Drone shoot count" },
+        memo:          { type: "string",  description: "Memo" },
       },
+      required: ["hospitalName"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "send_file_transfer",
-      description: "Send a file delivery email with NAS link to client.",
-      parameters: {
-        type: "object",
-        properties: {
-          hospitalName: { type: "string", description: "Client name" },
-          toName:       { type: "string", description: "Recipient name" },
-          toEmail:      { type: "string", description: "Recipient email" },
-          nasLink:      { type: "string", description: "NAS download link" },
-          shootDate:    { type: "string", description: "Shoot date" },
-          packageName:  { type: "string", description: "Package name" },
-          fileCount:    { type: "number", description: "File count" },
-          message:      { type: "string", description: "Extra message" },
-        },
-        required: ["hospitalName", "toEmail", "nasLink"],
+    name: "send_file_transfer",
+    description: "Send a file delivery email with NAS link to client.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName: { type: "string", description: "Client name" },
+        toName:       { type: "string", description: "Recipient name" },
+        toEmail:      { type: "string", description: "Recipient email" },
+        nasLink:      { type: "string", description: "NAS download link" },
+        shootDate:    { type: "string", description: "Shoot date" },
+        packageName:  { type: "string", description: "Package name" },
+        fileCount:    { type: "number", description: "File count" },
+        message:      { type: "string", description: "Extra message" },
       },
+      required: ["hospitalName", "toEmail", "nasLink"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "create_conti",
-      description: "Create a shooting plan/conti document for a hospital.",
-      parameters: {
-        type: "object",
-        properties: {
-          hospitalName: { type: "string", description: "Hospital name" },
-          dept:         { type: "string", description: "Medical department" },
-          shootDate:    { type: "string", description: "Shoot date" },
-          spaces:       { type: "string", description: "Space info" },
-          doctors:      { type: "string", description: "Medical staff info" },
-          extras:       { type: "string", description: "Extra requests" },
-        },
-        required: ["hospitalName", "dept", "shootDate", "spaces"],
+    name: "create_conti",
+    description: "Create a shooting plan/conti document for a hospital.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName: { type: "string", description: "Hospital name" },
+        dept:         { type: "string", description: "Medical department" },
+        shootDate:    { type: "string", description: "Shoot date" },
+        spaces:       { type: "string", description: "Space info" },
+        doctors:      { type: "string", description: "Medical staff info" },
+        extras:       { type: "string", description: "Extra requests" },
       },
+      required: ["hospitalName", "dept", "shootDate", "spaces"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "create_contract",
-      description: "Create a contract from an approved quote. Navigates to contract page with quote data.",
-      parameters: {
-        type: "object",
-        properties: {
-          hospitalName:  { type: "string",  description: "Hospital name" },
-          contactName:   { type: "string",  description: "Contact name" },
-          phone:         { type: "string",  description: "Phone" },
-          email:         { type: "string",  description: "Email" },
-          quoteNumber:   { type: "string",  description: "Quote number" },
-          shootDate:     { type: "string",  description: "Shoot date" },
-          totalAmount:   { type: "number",  description: "Total amount" },
-          packageName:   { type: "string",  description: "Package name" },
-          memo:          { type: "string",  description: "Memo" },
-        },
-        required: ["hospitalName", "totalAmount"],
+    name: "create_contract",
+    description: "Create a contract from an approved quote.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName:  { type: "string",  description: "Hospital name" },
+        contactName:   { type: "string",  description: "Contact name" },
+        phone:         { type: "string",  description: "Phone" },
+        email:         { type: "string",  description: "Email" },
+        quoteNumber:   { type: "string",  description: "Quote number" },
+        shootDate:     { type: "string",  description: "Shoot date" },
+        totalAmount:   { type: "number",  description: "Total amount" },
+        packageName:   { type: "string",  description: "Package name" },
+        memo:          { type: "string",  description: "Memo" },
       },
+      required: ["hospitalName", "totalAmount"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "create_website",
-      description: "Start the hospital website creation workflow. Opens the website builder with pre-filled hospital info.",
-      parameters: {
-        type: "object",
-        properties: {
-          hospitalName: { type: "string", description: "Hospital name" },
-          doctorName:   { type: "string", description: "Doctor/director name" },
-          specialties:  { type: "string", description: "Medical specialties" },
-          phone:        { type: "string", description: "Phone number" },
-          address:      { type: "string", description: "Address" },
-          concept:      { type: "string", description: "Design concept/mood" },
-          memo:         { type: "string", description: "Additional notes" },
-        },
-        required: ["hospitalName"],
+    name: "create_website",
+    description: "Start the hospital website creation workflow.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName: { type: "string", description: "Hospital name" },
+        doctorName:   { type: "string", description: "Doctor/director name" },
+        specialties:  { type: "string", description: "Medical specialties" },
+        phone:        { type: "string", description: "Phone number" },
+        address:      { type: "string", description: "Address" },
+        concept:      { type: "string", description: "Design concept/mood" },
+        memo:         { type: "string", description: "Additional notes" },
       },
+      required: ["hospitalName"],
     },
   },
   {
-    type: "function",
-    function: {
-      name: "open_page",
-      description: "Navigate to a specific page.",
-      parameters: {
-        type: "object",
-        properties: {
-          page: {
-            type: "string",
-            enum: ["quote", "conti", "delivery-mail", "diagnosis", "channel-analyzer", "instagram-promo-design", "photo-sorting", "website-builder", "photo-retouching", "image-generator"],
-          },
+    name: "open_page",
+    description: "Navigate to a specific page.",
+    input_schema: {
+      type: "object",
+      properties: {
+        page: {
+          type: "string",
+          enum: ["quote", "conti", "delivery-mail", "diagnosis", "channel-analyzer",
+                 "instagram-promo-design", "photo-sorting", "website-builder",
+                 "photo-retouching", "image-generator"],
         },
-        required: ["page"],
       },
+      required: ["page"],
     },
   },
 ];
@@ -165,87 +153,67 @@ Packages (use exact packageId):
 - premium-plus-2: 프리미엄 플러스2 450만원 - 프로필 + 연출사진 + 인테리어 + 브랜드필름`;
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ ok: false, error: "OPENAI_API_KEY 미설정" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "ANTHROPIC_API_KEY 미설정" }, { status: 500 });
   }
 
   const body = await req.json();
   const { messages, pendingTool, pageContext } = body;
 
+  // 도구 실행 요청
   if (pendingTool) {
     const result = await executeTool(pendingTool.name, pendingTool.input, req);
     return NextResponse.json({ ok: true, toolResult: result });
   }
 
-  // 페이지 컨텍스트가 있으면 시스템 프롬프트에 추가
+  // 시스템 프롬프트에 페이지 컨텍스트 추가
   const systemWithContext = pageContext
     ? `${SYSTEM}\n\n현재 사용자가 보고 있는 화면: ${pageContext}\n이 컨텍스트를 참고하여 더 정확하게 도움을 주세요.`
     : SYSTEM;
 
-  const openaiMessages = [
-    { role: "system", content: systemWithContext },
-    ...(messages || []),
-  ];
+  // OpenAI 형식 → Anthropic 형식 변환
+  // system 역할 메시지 제거, user/assistant만 남김
+  const anthropicMessages: Anthropic.MessageParam[] = (messages || [])
+    .filter((m: any) => m.role === "user" || m.role === "assistant")
+    .map((m: any) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
 
-  const payload = {
-    model: "gpt-4o-mini",
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 1024,
+    system: systemWithContext,
     tools: TOOLS,
-    tool_choice: "auto",
-    messages: openaiMessages,
-  };
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
+    messages: anthropicMessages,
   });
 
-  const rawText = await res.text();
+  // tool_use 블록 확인
+  const toolUseBlock = response.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+  );
+  const textBlock = response.content.find(
+    (b): b is Anthropic.TextBlock => b.type === "text"
+  );
 
-  if (!rawText || rawText.trim() === "") {
-    return NextResponse.json({ ok: false, error: "OpenAI no response" }, { status: 500 });
-  }
-
-  let data: any;
-  try {
-    data = JSON.parse(rawText);
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: "Parse error: " + rawText.slice(0, 200) }, { status: 500 });
-  }
-
-  if (!res.ok) {
-    const msg = data?.error?.message || "OpenAI error " + res.status;
-    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
-  }
-
-  if (data.error) {
-    return NextResponse.json({ ok: false, error: data.error.message || JSON.stringify(data.error) }, { status: 500 });
-  }
-
-  const choice = data.choices?.[0];
-  const msg = choice?.message;
-
-  if (msg?.tool_calls?.length > 0) {
-    const tc = msg.tool_calls[0];
-    let input: any = {};
-    try { input = JSON.parse(tc.function.arguments); } catch (e) {}
+  if (toolUseBlock) {
     return NextResponse.json({
       ok: true,
       type: "tool_request",
-      text: msg.content || "",
-      tool: { name: tc.function.name, input, id: tc.id },
+      text: textBlock?.text || "",
+      tool: {
+        name: toolUseBlock.name,
+        input: toolUseBlock.input,
+        id: toolUseBlock.id,
+      },
     });
   }
 
   return NextResponse.json({
     ok: true,
     type: "message",
-    text: msg?.content || "",
+    text: textBlock?.text || "",
   });
 }
 
@@ -267,7 +235,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     return {
       action: "navigate",
       url: "/quote?" + params.toString(),
-      message: input.hospitalName + " " + "견적서 페이지를 열었어요!",
+      message: input.hospitalName + " 견적서 페이지를 열었어요!",
     };
   }
 
@@ -282,7 +250,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     if (!d.ok) throw new Error(d.error);
     return {
       action: "done",
-      message: input.hospitalName + " " + "파일 전송 메일을 " + input.toEmail + "로 발송했어요!",
+      message: input.hospitalName + " 파일 전송 메일을 " + input.toEmail + "로 발송했어요!",
     };
   }
 
@@ -292,7 +260,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     return {
       action: "navigate",
       url: "/conti?" + params.toString(),
-      message: input.hospitalName + " " + "콘티 페이지를 열었어요!",
+      message: input.hospitalName + " 콘티 페이지를 열었어요!",
     };
   }
 
@@ -334,7 +302,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     return {
       action: "navigate",
       url: "/website-builder?" + params.toString(),
-      message: `${input.hospitalName} 홈페이지 제작 페이지를 열었어요! 순서대로 진행해주세요 🌐`,
+      message: `${input.hospitalName} 홈페이지 제작 페이지를 열었어요! 🌐`,
     };
   }
 

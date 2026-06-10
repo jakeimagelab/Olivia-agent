@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "OPENAI_API_KEY 환경변수가 설정되지 않았습니다." },
+      { error: "ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다." },
       { status: 500 }
     );
   }
@@ -377,21 +377,22 @@ ${hasPainSpec ? "4. C-ARM 시술, 초음파 주사치료 장면 반드시 포함
   }
 
   /* ══════════════════════════════════════════
-     OpenAI 호출
+     Anthropic API 호출
   ══════════════════════════════════════════ */
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "gpt-4o",
+      model: "claude-sonnet-4-5",
+      max_tokens: 8192,
+      system: systemPrompt,
       messages: [
-        { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      response_format: { type: "json_object" },
       temperature: 0.7,
     }),
   });
@@ -400,13 +401,16 @@ ${hasPainSpec ? "4. C-ARM 시술, 초음파 주사치료 장면 반드시 포함
 
   if (!response.ok) {
     return NextResponse.json(
-      { error: data.error?.message || "OpenAI API 오류가 발생했습니다." },
+      { error: data.error?.message || "Anthropic API 오류가 발생했습니다." },
       { status: 500 }
     );
   }
 
+  const raw = data.content?.[0]?.text || "{}";
+
   try {
-    const result = JSON.parse(data.choices[0].message.content);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const result = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
     return NextResponse.json(result);
   } catch {
     return NextResponse.json(
