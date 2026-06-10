@@ -363,7 +363,7 @@ function DesignPicker({ intake, designPrefs, onPrefsChange, onGenerate, isGenera
 
       {/* ── 템플릿 선택 ── */}
       <DesignSection icon="🖼" title="템플릿 선택" desc="홈페이지 레이아웃 스타일을 선택하세요">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {TEMPLATES.map(tpl => {
             const selected = selectedTemplateId === tpl.id;
             return (
@@ -1421,13 +1421,19 @@ export default function WebsiteBuilderPage() {
       const res = await fetch("/api/website-design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...intake, designPrefs, customTheme }) // customTheme 전달
+        body: JSON.stringify({ ...intake, designPrefs })
       });
       const data = await res.json();
       if (data.content) {
         setContent(data.content);
-        // ✅ 사용자가 직접 설정한 customTheme 우선 — AI가 덮어쓰지 않음
-        // (colorTheme은 무시, customTheme 그대로 유지)
+        // AI가 추천한 colorTheme이 있으면 해당 프리셋으로 자동 적용
+        if (data.content.colorTheme) {
+          const preset = COLOR_PRESETS.find(p =>
+            p.label === (data.content.colorTheme === "green" ? "그린 클린" :
+                         data.content.colorTheme === "blue"  ? "블루 프레시" : "다크 프리미엄")
+          );
+          if (preset) setCustomTheme(preset.theme);
+        }
       }
     } catch (err) {
       console.error(err);
