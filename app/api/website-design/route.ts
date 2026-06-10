@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       hospitalName, doctorName, specialties, phone, address, concept, pages, memo,
-      designPrefs
+      designPrefs, customTheme
     } = body;
 
     const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -102,7 +102,14 @@ export async function POST(req: NextRequest) {
 강조 포인트: ${emphasisLabel[designPrefs?.emphasisPoint] || "원장·의료진 중심"}
 ${refUrlsText}
 ${featuresText}
-추가 디자인 메모: ${designPrefs?.additionalNote || "없음"}`;
+추가 디자인 메모: ${designPrefs?.additionalNote || "없음"}
+
+=== 사용자 지정 컬러 (반드시 준수) ===
+${customTheme ? `메인 컬러: ${customTheme.primary}
+강조 컬러: ${customTheme.accent}
+배경 컬러: ${customTheme.bg}
+텍스트 컬러: ${customTheme.textColor}
+⚠️ 위 컬러는 사용자가 직접 선택한 값입니다. colorTheme 필드에 임의 값을 넣지 말고, 위 컬러를 그대로 반영하세요.` : "기본 컬러 사용"}`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
