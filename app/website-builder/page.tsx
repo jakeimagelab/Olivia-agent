@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, ArrowRight, Check, Globe2, Pencil, Download,
@@ -792,6 +792,264 @@ interface EditHistory {
   future: SiteContent[];
 }
 
+// ── Medical icon emoji grid ───────────────────────────────────────────────────
+const MEDICAL_EMOJIS = [
+  "💊","🩺","🔬","💉","🏥","❤️‍🩹","🧬","👁️","🦷","🦴",
+  "🧠","🫁","🩻","🩹","💆‍♀️","🌡️","🩸","🧪","⚕️","🌿",
+  "🌸","🏃","💪","🫀","🫂","✨","🎯","📋","🔍","📅",
+  "🗓️","📞","🏆","⭐","💫","🎗️","🔒","🌟","💎","🎪"
+];
+
+// ── FloatingToolbar ───────────────────────────────────────────────────────────
+
+interface SelectedElInfo {
+  field: string;
+  editType: string;
+  value: string;
+  rect: { top: number; left: number; width: number; height: number };
+  computedStyle: { color: string; fontSize: number; fontWeight: string; bg: string };
+}
+
+function FloatingToolbar({
+  selectedEl, iframeRef, toolbarText, setToolbarText,
+  showIconGrid, setShowIconGrid,
+  showImageInput, setShowImageInput,
+  imageUrl, setImageUrl,
+  styleOverrides, setStyleOverrides,
+  sendToIframe, onTextCommit, onStyleChange, onDeselect,
+}: {
+  selectedEl: SelectedElInfo;
+  iframeRef: React.RefObject<HTMLIFrameElement>;
+  toolbarText: string;
+  setToolbarText: (v: string) => void;
+  showIconGrid: boolean;
+  setShowIconGrid: (v: boolean) => void;
+  showImageInput: boolean;
+  setShowImageInput: (v: boolean) => void;
+  imageUrl: string;
+  setImageUrl: (v: string) => void;
+  styleOverrides: Record<string, { color?: string; fontSize?: string; fontWeight?: string; bg?: string }>;
+  setStyleOverrides: React.Dispatch<React.SetStateAction<Record<string, { color?: string; fontSize?: string; fontWeight?: string; bg?: string }>>>;
+  sendToIframe: (type: string, payload: object) => void;
+  onTextCommit: (field: string, value: string) => void;
+  onStyleChange: (field: string, style: { color?: string; fontSize?: string; fontWeight?: string; bg?: string }) => void;
+  onDeselect: () => void;
+}) {
+  const iframeRect = iframeRef.current?.getBoundingClientRect();
+  const iframeTop  = iframeRect?.top ?? 54; // below the top toolbar
+  const iframeLeft = iframeRect?.left ?? 0;
+
+  // Compute position: prefer above element, fall back to below
+  const TOOLBAR_HEIGHT = 220;
+  const TOOLBAR_WIDTH  = 340;
+  const elTop    = iframeTop  + selectedEl.rect.top;
+  const elLeft   = iframeLeft + selectedEl.rect.left;
+  const elBottom = elTop + selectedEl.rect.height;
+
+  let top  = elTop - TOOLBAR_HEIGHT - 8;
+  let left = elLeft;
+  if (top < iframeTop) top = elBottom + 8; // show below if not enough room above
+  // Clamp to viewport
+  if (left + TOOLBAR_WIDTH > window.innerWidth - 8) left = window.innerWidth - TOOLBAR_WIDTH - 8;
+  if (left < 8) left = 8;
+
+  const currentOverride = styleOverrides[selectedEl.field] || {};
+  const currentColor    = currentOverride.color || selectedEl.computedStyle.color || '#000000';
+  const currentBg       = currentOverride.bg    || selectedEl.computedStyle.bg || '#ffffff';
+
+  const commitText = () => {
+    if (toolbarText !== selectedEl.value) {
+      sendToIframe('setText', { field: selectedEl.field, value: toolbarText });
+      onTextCommit(selectedEl.field, toolbarText);
+    }
+  };
+
+  const panelStyle: React.CSSProperties = {
+    position: "fixed",
+    top, left,
+    width: TOOLBAR_WIDTH,
+    background: "#fff",
+    borderRadius: 16,
+    boxShadow: "0 8px 40px rgba(0,0,0,.22)",
+    border: "1.5px solid #e5e0d8",
+    zIndex: 2000,
+    padding: "14px",
+    fontSize: 13,
+  };
+
+  const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48];
+
+  return (
+    <div style={panelStyle} onMouseDown={e => e.stopPropagation()}>
+      {/* Header row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ fontWeight: 700, fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: ".06em" }}>
+          {selectedEl.editType === 'text' ? '텍스트 편집' :
+           selectedEl.editType === 'bg'   ? '배경색 편집' :
+           selectedEl.editType === 'icon' ? '아이콘 선택' : '이미지 편집'}
+          {" · "}<span style={{ color: "#E85D2C" }}>{selectedEl.field}</span>
+        </span>
+        <button onClick={onDeselect} style={{
+          background: "none", border: "none", cursor: "pointer",
+          color: "#aaa", fontSize: 18, lineHeight: 1, padding: "0 4px"
+        }}>×</button>
+      </div>
+
+      {/* TEXT editType */}
+      {selectedEl.editType === 'text' && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* Text input */}
+          <textarea
+            value={toolbarText}
+            onChange={e => setToolbarText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitText(); } }}
+            onBlur={commitText}
+            rows={3}
+            style={{
+              width: "100%", border: "1.5px solid #e0dcd4", borderRadius: 8,
+              padding: "8px 10px", fontSize: 13, resize: "vertical",
+              fontFamily: "inherit", outline: "none",
+            }}
+          />
+          {/* Font size buttons */}
+          <div>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 5 }}>글자 크기</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {FONT_SIZES.map(sz => (
+                <button key={sz} onClick={() => onStyleChange(selectedEl.field, { fontSize: sz + 'px' })}
+                  style={{
+                    padding: "3px 7px", borderRadius: 5, fontSize: 11, cursor: "pointer",
+                    border: currentOverride.fontSize === sz + 'px' ? "2px solid #E85D2C" : "1.5px solid #e0dcd4",
+                    background: currentOverride.fontSize === sz + 'px' ? "#fff5f2" : "#fff",
+                    fontWeight: currentOverride.fontSize === sz + 'px' ? 700 : 500,
+                  }}>
+                  {sz}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Color + Bold + Italic */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>색상</div>
+              <div style={{ position: "relative", width: 36, height: 36 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 8,
+                  background: currentColor, border: "2px solid #e0dcd4",
+                }} />
+                <input type="color" value={currentColor}
+                  onChange={e => onStyleChange(selectedEl.field, { color: e.target.value })}
+                  style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+                />
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>굵기</div>
+              <button onClick={() => {
+                  const isBold = currentOverride.fontWeight === 'bold' || currentOverride.fontWeight === '700';
+                  onStyleChange(selectedEl.field, { fontWeight: isBold ? '400' : '700' });
+                }}
+                style={{
+                  width: 36, height: 36, border: "1.5px solid #e0dcd4", borderRadius: 8,
+                  fontWeight: 700, fontSize: 14, cursor: "pointer",
+                  background: (currentOverride.fontWeight === 'bold' || currentOverride.fontWeight === '700') ? "#E85D2C" : "#fff",
+                  color: (currentOverride.fontWeight === 'bold' || currentOverride.fontWeight === '700') ? "#fff" : "#333",
+                }}>B</button>
+            </div>
+          </div>
+          {/* hint */}
+          <div style={{ fontSize: 11, color: "#aaa", marginTop: 2 }}>
+            💡 더블클릭 → 직접 입력 가능
+          </div>
+        </div>
+      )}
+
+      {/* BG editType */}
+      {selectedEl.editType === 'bg' && (
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <span style={{ fontSize: 13, color: "#555" }}>배경색</span>
+          <div style={{ position: "relative", width: 40, height: 40 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 8,
+              background: currentBg, border: "2px solid #e0dcd4",
+            }} />
+            <input type="color" value={currentBg.startsWith('rgb') ? '#ffffff' : currentBg}
+              onChange={e => onStyleChange(selectedEl.field, { bg: e.target.value })}
+              style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }}
+            />
+          </div>
+          <span style={{ fontSize: 12, color: "#aaa" }}>{currentBg}</span>
+        </div>
+      )}
+
+      {/* ICON editType */}
+      {selectedEl.editType === 'icon' && (
+        <div>
+          <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>의료 아이콘 선택</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: 4, maxHeight: 140, overflowY: "auto" }}>
+            {MEDICAL_EMOJIS.map(emoji => (
+              <button key={emoji} onClick={() => {
+                  onStyleChange(selectedEl.field, {});
+                  sendToIframe('applyStyle', { field: selectedEl.field, style: { content: emoji } });
+                  setStyleOverrides(prev => ({ ...prev, [selectedEl.field]: { ...prev[selectedEl.field] } }));
+                }}
+                style={{
+                  fontSize: 20, lineHeight: 1, padding: "5px 3px", cursor: "pointer",
+                  border: "1px solid transparent", borderRadius: 6, background: "none",
+                  transition: ".1s",
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = "#f5f0eb")}
+                onMouseOut={e  => (e.currentTarget.style.background = "none")}>
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* IMG editType */}
+      {selectedEl.editType === 'img' && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              type="text"
+              placeholder="이미지 URL 입력..."
+              value={imageUrl}
+              onChange={e => setImageUrl(e.target.value)}
+              style={{
+                flex: 1, border: "1.5px solid #e0dcd4", borderRadius: 8,
+                padding: "8px 10px", fontSize: 13, outline: "none",
+              }}
+            />
+            <button onClick={() => sendToIframe('setImg', { field: selectedEl.field, src: imageUrl })}
+              style={{
+                background: "#E85D2C", color: "#fff", border: "none", borderRadius: 8,
+                padding: "8px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer",
+              }}>
+              적용
+            </button>
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: "#888", display: "block", marginBottom: 4 }}>또는 파일 업로드</label>
+            <input type="file" accept="image/*" onChange={e => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = ev => {
+                const src = ev.target?.result as string;
+                sendToIframe('setImg', { field: selectedEl.field, src });
+              };
+              reader.readAsDataURL(file);
+            }} style={{ fontSize: 12 }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── WebsiteEditor (full-screen) ────────────────────────────────────────────────
+
 function WebsiteEditor({ content, customTheme, intake, selectedTemplateId, onTemplateChange, onSave, onNext, onBack }: {
   content: SiteContent;
   customTheme: CustomTheme;
@@ -802,45 +1060,38 @@ function WebsiteEditor({ content, customTheme, intake, selectedTemplateId, onTem
   onNext: () => void;
   onBack: () => void;
 }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [history, setHistory] = useState<EditHistory>({
     past: [],
     present: deepClone(content),
     future: []
   });
   const [savedMsg, setSavedMsg] = useState(false);
-  const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
+  const [selectedEl, setSelectedEl] = useState<SelectedElInfo | null>(null);
+  const [styleOverrides, setStyleOverrides] = useState<Record<string, { color?: string; fontSize?: string; fontWeight?: string; bg?: string }>>({});
+  const [toolbarText, setToolbarText] = useState('');
+  const [showIconGrid, setShowIconGrid] = useState(false);
+  const [showImageInput, setShowImageInput] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
 
   const c = history.present;
 
-  // iframe 렌더링 (템플릿 기반 HTML 생성)
-  const iframeSrcDoc = useMemo(() => {
-    const tpl = getTemplateById(selectedTemplateId);
-    return tpl.render({
-      intake: {
-        hospitalName: intake.hospitalName,
-        phone: intake.phone,
-        address: intake.address,
-        specialties: intake.specialties,
-      },
-      content: c,
-      theme: {
-        primary: customTheme.primary,
-        accent: customTheme.accent,
-        bg: customTheme.bg,
-        textColor: customTheme.textColor,
-      },
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [c, customTheme, selectedTemplateId, intake]);
+  // ── Hide body overflow for full-screen mode ──────────────────────────────────
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
 
-  const push = (next: SiteContent) => {
+  // ── Undo/Redo helpers ────────────────────────────────────────────────────────
+  const push = useCallback((next: SiteContent) => {
     setHistory(h => ({
       past: [...h.past.slice(-30), h.present],
       present: next,
       future: []
     }));
     onSave(next);
-  };
+  }, [onSave]);
 
   const undo = () => {
     setHistory(h => {
@@ -864,49 +1115,125 @@ function WebsiteEditor({ content, customTheme, intake, selectedTemplateId, onTem
     setTimeout(() => setSavedMsg(false), 2000);
   };
 
+  // ── sendToIframe helper ───────────────────────────────────────────────────────
+  const sendToIframe = useCallback((type: string, payload: object) => {
+    iframeRef.current?.contentWindow?.postMessage({ _wb: 1, type, payload }, '*');
+  }, []);
+
+  // ── Field update helper (parse dot-path like "services.0.name") ──────────────
+  const updateField = useCallback((field: string, value: string, base: SiteContent): SiteContent => {
+    const next = deepClone(base);
+    const parts = field.split('.');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let obj: any = next;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const key = /^\d+$/.test(parts[i]) ? parseInt(parts[i]) : parts[i];
+      if (obj[key] === undefined) return base;
+      obj = obj[key];
+    }
+    const lastKey = /^\d+$/.test(parts[parts.length - 1])
+      ? parseInt(parts[parts.length - 1])
+      : parts[parts.length - 1];
+    obj[lastKey] = value;
+    return next;
+  }, []);
+
+  // ── postMessage listener ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (!e.data?._wb) return;
+
+      if (e.data.type === 'select') {
+        setSelectedEl(e.data.payload);
+        setToolbarText(e.data.payload.value || '');
+        setShowIconGrid(false);
+        setShowImageInput(false);
+      }
+
+      if (e.data.type === 'deselect') {
+        setSelectedEl(null);
+      }
+
+      if (e.data.type === 'change') {
+        const { field, value } = e.data.payload as { field: string; value: string };
+        setHistory(h => {
+          const next = updateField(field, value, h.present);
+          onSave(next);
+          return { past: [...h.past.slice(-30), h.present], present: next, future: [] };
+        });
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [onSave, updateField]);
+
+  // ── iframe srcDoc ─────────────────────────────────────────────────────────────
+  const iframeSrcDoc = useMemo(() => {
+    const tpl = getTemplateById(selectedTemplateId);
+    return tpl.render({
+      intake: {
+        hospitalName: intake.hospitalName,
+        phone: intake.phone,
+        address: intake.address,
+        specialties: intake.specialties,
+      },
+      content: c,
+      theme: {
+        primary: customTheme.primary,
+        accent: customTheme.accent,
+        bg: customTheme.bg,
+        textColor: customTheme.textColor,
+      },
+      editMode: true,
+      styleOverrides,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c, customTheme, selectedTemplateId, intake, styleOverrides]);
+
   return (
-    <div style={{ margin: "0 -36px" }}>
-      {/* Editor Toolbar */}
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#f0f0f0",
+                  display: "flex", flexDirection: "column" }}>
+
+      {/* ── TOP TOOLBAR ── */}
       <div style={{
+        height: 54, background: "#1C1C1C",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: "#1C1C1C", padding: "10px 24px", marginBottom: 0,
-        position: "sticky", top: 0, zIndex: 50
+        padding: "0 16px", flexShrink: 0, zIndex: 10,
       }}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {/* Left: undo/redo + template switcher */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <button onClick={undo} disabled={!history.past.length}
-            style={{ ...toolBtn, opacity: history.past.length ? 1 : 0.3 }} title="실행취소 (Ctrl+Z)">
-            <RotateCcw size={15} />
+            style={{ ...toolBtn, opacity: history.past.length ? 1 : 0.3 }} title="실행취소">
+            <RotateCcw size={14} />
           </button>
           <button onClick={redo} disabled={!history.future.length}
             style={{ ...toolBtn, opacity: history.future.length ? 1 : 0.3 }} title="다시실행">
-            <RotateCw size={15} />
+            <RotateCw size={14} />
           </button>
-          <div style={{ width: 1, height: 20, background: "#444", margin: "0 4px" }} />
-          <button
-            onClick={() => setActiveTab(activeTab === "preview" ? "edit" : "preview")}
-            style={{ ...toolBtn, background: activeTab === "edit" ? "#E85D2C" : "rgba(255,255,255,.08)",
-                     color: "#fff", borderRadius: 8, padding: "6px 14px" }}>
-            {activeTab === "preview" ? <Pencil size={14} /> : <Eye size={14} />}
-            <span style={{ fontSize: 12 }}>{activeTab === "preview" ? "편집 패널 열기" : "패널 닫기"}</span>
-          </button>
-          <div style={{ width: 1, height: 20, background: "#444", margin: "0 4px" }} />
-          {/* 템플릿 전환 */}
-          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            <Layout size={13} color="rgba(255,255,255,.4)" />
-            {TEMPLATES.map(tpl => (
-              <button key={tpl.id} onClick={() => onTemplateChange(tpl.id)}
-                title={`${tpl.name} 템플릿`}
-                style={{
-                  padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  cursor: "pointer", border: "none",
-                  background: selectedTemplateId === tpl.id ? tpl.tagColor : "rgba(255,255,255,.1)",
-                  color: "#fff", transition: "all .15s"
-                }}>
-                {tpl.name}
-              </button>
-            ))}
-          </div>
+          <div style={{ width: 1, height: 18, background: "#444", margin: "0 4px" }} />
+          <Layout size={12} color="rgba(255,255,255,.4)" />
+          {TEMPLATES.map(tpl => (
+            <button key={tpl.id} onClick={() => onTemplateChange(tpl.id)}
+              title={`${tpl.name} 템플릿`}
+              style={{
+                padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                cursor: "pointer", border: "none",
+                background: selectedTemplateId === tpl.id ? tpl.tagColor : "rgba(255,255,255,.1)",
+                color: "#fff", transition: "all .15s"
+              }}>
+              {tpl.name}
+            </button>
+          ))}
         </div>
+
+        {/* Center: hint */}
+        <div style={{ color: "rgba(255,255,255,.4)", fontSize: 12 }}>
+          {selectedEl
+            ? <span style={{ color: "#E85D2C" }}>편집 중: {selectedEl.field}</span>
+            : "요소를 클릭해서 편집하세요"}
+        </div>
+
+        {/* Right: save + done */}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {savedMsg && (
             <span style={{ color: "#4ade80", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
@@ -915,87 +1242,60 @@ function WebsiteEditor({ content, customTheme, intake, selectedTemplateId, onTem
           )}
           <button onClick={handleSave}
             style={{ background: "#155855", color: "#fff", border: "none", borderRadius: 8,
-                     padding: "7px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                     padding: "7px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer",
                      display: "flex", alignItems: "center", gap: 6 }}>
             <Save size={14} /> 저장
           </button>
         </div>
       </div>
 
-      {/* 편집 패널 (상단 드로어) */}
-      {activeTab === "edit" && (
-        <div style={{
-          background: "#f8f7f4", borderBottom: "2px solid #e5e0d8",
-          padding: "20px 24px", display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr", gap: 16
-        }}>
-          {/* 히어로 */}
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#E85D2C", marginBottom: 10,
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>Hero</div>
-            <EditField label="헤드라인" value={c.hero.headline}
-              onChange={v => push({ ...deepClone(c), hero: { ...c.hero, headline: v } })} />
-            <EditField label="서브 문구" value={c.hero.subline}
-              onChange={v => push({ ...deepClone(c), hero: { ...c.hero, subline: v } })} />
-            <EditField label="CTA 버튼" value={c.hero.cta}
-              onChange={v => push({ ...deepClone(c), hero: { ...c.hero, cta: v } })} />
-          </div>
-          {/* 소개 */}
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#155855", marginBottom: 10,
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>About</div>
-            <EditField label="제목" value={c.about.title}
-              onChange={v => push({ ...deepClone(c), about: { ...c.about, title: v } })} />
-            <EditField label="본문" value={c.about.body} multiline
-              onChange={v => push({ ...deepClone(c), about: { ...c.about, body: v } })} />
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#155855", margin: "12px 0 8px",
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>Location</div>
-            <EditField label="주소" value={c.location.address}
-              onChange={v => push({ ...deepClone(c), location: { ...c.location, address: v } })} />
-            <EditField label="진료시간" value={c.location.hours}
-              onChange={v => push({ ...deepClone(c), location: { ...c.location, hours: v } })} />
-            <EditField label="주차" value={c.location.parking}
-              onChange={v => push({ ...deepClone(c), location: { ...c.location, parking: v } })} />
-          </div>
-          {/* 진료항목 + 푸터 */}
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#888", marginBottom: 10,
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>Services</div>
-            {c.services.map((svc, i) => (
-              <div key={i} style={{ marginBottom: 8, background: "#fff", borderRadius: 8,
-                                    padding: "8px 10px", border: "1px solid #e8e3db" }}>
-                <EditField label={`항목 ${i + 1}`} value={svc.name}
-                  onChange={v => { const next = deepClone(c); next.services[i].name = v; push(next); }} />
-                <EditField label="설명" value={svc.desc}
-                  onChange={v => { const next = deepClone(c); next.services[i].desc = v; push(next); }} />
-              </div>
-            ))}
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#888", margin: "10px 0 8px",
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>Footer</div>
-            <EditField label="슬로건" value={c.footer.tagline}
-              onChange={v => push({ ...deepClone(c), footer: { ...c.footer, tagline: v } })} />
-          </div>
-        </div>
+      {/* ── IFRAME ── */}
+      <iframe
+        ref={iframeRef}
+        srcDoc={iframeSrcDoc}
+        style={{ flex: 1, border: "none", display: "block" }}
+        title="홈페이지 미리보기"
+        sandbox="allow-scripts allow-same-origin"
+      />
+
+      {/* ── FLOATING TOOLBAR ── */}
+      {selectedEl && (
+        <FloatingToolbar
+          selectedEl={selectedEl}
+          iframeRef={iframeRef}
+          toolbarText={toolbarText}
+          setToolbarText={setToolbarText}
+          showIconGrid={showIconGrid}
+          setShowIconGrid={setShowIconGrid}
+          showImageInput={showImageInput}
+          setShowImageInput={setShowImageInput}
+          imageUrl={imageUrl}
+          setImageUrl={setImageUrl}
+          styleOverrides={styleOverrides}
+          setStyleOverrides={setStyleOverrides}
+          sendToIframe={sendToIframe}
+          onTextCommit={(field, value) => {
+            const next = updateField(field, value, c);
+            push(next);
+          }}
+          onStyleChange={(field, style) => {
+            setStyleOverrides(prev => ({ ...prev, [field]: { ...prev[field], ...style } }));
+            sendToIframe('applyStyle', { field, style });
+          }}
+          onDeselect={() => { setSelectedEl(null); sendToIframe('deselect', {}); }}
+        />
       )}
 
-        {/* Preview — iframe 기반 템플릿 렌더링 */}
-        <iframe
-          srcDoc={iframeSrcDoc}
-          style={{
-            width: "100%", border: "none", display: "block",
-            height: activeTab === "edit" ? "calc(100vh - 360px)" : "calc(100vh - 160px)",
-            minHeight: 480
-          }}
-          title="홈페이지 미리보기"
-          sandbox="allow-same-origin"
-        />
-
-      <div style={{ display: "flex", justifyContent: "space-between", padding: "16px 24px",
-                    borderTop: "1px solid #e5e0d8", background: "#faf8f5" }}>
+      {/* ── BOTTOM BAR ── */}
+      <div style={{
+        height: 56, background: "#fff", borderTop: "1px solid #e5e0d8",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 24px", flexShrink: 0,
+      }}>
         <button onClick={onBack} style={btnSecondary}>
           <ArrowLeft size={16} /> 이전
         </button>
-        <button onClick={onNext} style={btnPrimary}>
+        <button onClick={() => { onSave(c); onNext(); }} style={btnPrimary}>
           제작 완료 <ArrowRight size={16} />
         </button>
       </div>
@@ -1442,6 +1742,25 @@ export default function WebsiteBuilderPage() {
     }
   };
 
+  // Step 3 renders full-screen outside admin shell
+  if (step === 3 && content) {
+    return (
+      <>
+        <WebsiteEditor
+          content={content}
+          customTheme={customTheme}
+          intake={intake}
+          selectedTemplateId={selectedTemplateId}
+          onTemplateChange={setSelectedTemplateId}
+          onSave={setContent}
+          onNext={() => setStep(4)}
+          onBack={() => setStep(2)}
+        />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </>
+    );
+  }
+
   return (
     <main className="admin-shell">
       <section className="admin-dashboard" style={{ maxWidth: 900 }}>
@@ -1579,18 +1898,6 @@ export default function WebsiteBuilderPage() {
                 onTemplateChange={setSelectedTemplateId}
                 onNext={() => setStep(3)}
                 onBack={() => setStep(1)}
-              />
-            )}
-            {step === 3 && content && (
-              <WebsiteEditor
-                content={content}
-                customTheme={customTheme}
-                intake={intake}
-                selectedTemplateId={selectedTemplateId}
-                onTemplateChange={setSelectedTemplateId}
-                onSave={setContent}
-                onNext={() => setStep(4)}
-                onBack={() => setStep(2)}
               />
             )}
             {step === 4 && content && (

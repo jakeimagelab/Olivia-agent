@@ -1,4 +1,5 @@
 import type { SiteTemplate, TemplateRenderData } from "./types";
+import { getInjectScript } from "./inject";
 
 // ─── Template 4: 메디홈 스타일 ─────────────────────────────────────────────────
 // medihomebridge.kr 스타일:
@@ -18,9 +19,21 @@ export const medihomeTemplate: SiteTemplate = {
   previewBg: "#EEF4FF",
   previewLines: ["#0066CC", "#003399", "#dde8ff"],
 
-  render: ({ intake, content, theme }: TemplateRenderData) => {
+  render: ({ intake, content, theme, editMode = false, styleOverrides = {} }: TemplateRenderData) => {
     const services = content.services || [];
     const doctors  = content.doctors  || [];
+
+    const wb = (cls: string) => editMode ? ` ${cls}` : '';
+    const os = (field: string): string => {
+      const o = styleOverrides[field];
+      if (!o) return '';
+      const parts: string[] = [];
+      if (o.color)      parts.push(`color:${o.color}`);
+      if (o.fontSize)   parts.push(`font-size:${o.fontSize}`);
+      if (o.fontWeight) parts.push(`font-weight:${o.fontWeight}`);
+      if (o.bg)         parts.push(`background-color:${o.bg}`);
+      return parts.length ? ` style="${parts.join(';')}"` : '';
+    };
 
     return `<!DOCTYPE html>
 <html lang="ko">
@@ -267,7 +280,7 @@ img{max-width:100%;display:block}
   .services__grid{grid-template-columns:1fr 1fr}
   .stats__grid{grid-template-columns:1fr 1fr}
   .location__grid{grid-template-columns:1fr}
-  .footer__top{grid-template-columns:1fr}gap:28px}
+  .footer__top{grid-template-columns:1fr;gap:28px}
   .header__nav a{padding:8px 10px;font-size:13px}
   .hero__title{font-size:2rem}
 }
@@ -309,14 +322,14 @@ img{max-width:100%;display:block}
 </header>
 
 <!-- ══ HERO ══ -->
-<section class="hero">
+<section class="hero${wb('wb-bg')}" data-field="section-hero">
   ${intake.phone ? `<div class="hero__phone">📞 ${intake.phone}</div>` : ""}
   <div class="hero__inner">
     <div class="hero__kicker">${intake.specialties || "전문 의료"} · ${intake.hospitalName}</div>
-    <h1 class="hero__title">${content.hero.headline.replace(/([^\s]{6,})/g, "<em>$1</em>")}</h1>
-    <p class="hero__desc">${content.hero.subline}</p>
+    <h1 class="hero__title${wb('wb-hero-headline')}"${os('hero.headline')}>${content.hero.headline.replace(/([^\s]{6,})/g, "<em>$1</em>")}</h1>
+    <p class="hero__desc${wb('wb-hero-subline')}"${os('hero.subline')}>${content.hero.subline}</p>
     <div class="hero__actions">
-      <a class="hero__btn-main" href="tel:${intake.phone || "#"}">${content.hero.cta}</a>
+      <a class="hero__btn-main${wb('wb-hero-cta')}" href="tel:${intake.phone || "#"}"${os('hero.cta')}>${content.hero.cta}</a>
       <a class="hero__btn-sub" href="#services">진료항목 보기</a>
     </div>
     <div class="hero__badges">
@@ -350,14 +363,14 @@ img{max-width:100%;display:block}
   </div>
 </div>
 
-<!-- ══ SPLIT 1: ABOUT (텍스트 좌, 비주얼 우) ══ -->
+<!-- ══ SPLIT 1: ABOUT ══ -->
 <section id="about">
   <div class="split">
     <div class="split__text">
       <div class="split__num">01</div>
       <div class="split__tag">병원 소개</div>
-      <h2 class="split__title">${content.about.title}</h2>
-      <p class="split__body">${content.about.body}</p>
+      <h2 class="split__title${wb('wb-about-title')}"${os('about.title')}>${content.about.title}</h2>
+      <p class="split__body${wb('wb-about-body')}"${os('about.body')}>${content.about.body}</p>
       <ul class="split__list">
         <li>환자 중심의 따뜻한 진료</li>
         <li>최신 장비와 검증된 치료법</li>
@@ -382,7 +395,7 @@ img{max-width:100%;display:block}
   </div>
 </section>
 
-<!-- ══ SPLIT 2: SERVICES (비주얼 좌, 텍스트 우) ══ -->
+<!-- ══ SERVICES ══ -->
 <section id="services" class="section--gray">
   <div class="container">
     <div class="sec-hd sec-hd--center">
@@ -396,16 +409,16 @@ img{max-width:100%;display:block}
         return `
       <div class="svc-card">
         <div class="svc-card__num">${String(i+1).padStart(2,"0")}</div>
-        <span class="svc-card__icon">${icons[i % icons.length]}</span>
-        <div class="svc-card__name">${s.name}</div>
-        <div class="svc-card__desc">${s.desc}</div>
+        <span class="svc-card__icon${wb('wb-svc-icon')}"${os('services.'+i+'.icon')}>${icons[i % icons.length]}</span>
+        <div class="svc-card__name${wb('wb-svc-name')}"${os('services.'+i+'.name')}>${s.name}</div>
+        <div class="svc-card__desc${wb('wb-svc-desc')}"${os('services.'+i+'.desc')}>${s.desc}</div>
       </div>`;
       }).join("")}
     </div>
   </div>
 </section>
 
-<!-- ══ SPLIT 3: DOCTORS (텍스트 좌, 비주얼 우, 다크) ══ -->
+<!-- ══ DOCTORS ══ -->
 <section class="section section--dark" id="doctors">
   <div class="split" style="max-width:1140px;margin:0 auto">
     <div class="split__text">
@@ -416,20 +429,20 @@ img{max-width:100%;display:block}
         풍부한 임상 경험과 지속적인 학술 활동으로 최신 의료 지식을 갖춘 전문의가 진료합니다.
       </p>
       <ul class="split__list split__list--white">
-        ${doctors.map(d => `<li>${d.name} — ${d.title}</li>`).join("")}
+        ${doctors.map((d, i) => `<li class="${wb('wb-doc-name').trim()}${wb('wb-doc-title').trim()}">${d.name} — ${d.title}</li>`).join("")}
       </ul>
     </div>
     <div class="split__visual split__visual--dark">
       <div class="split__visual-inner">
         <div class="doctors__grid" style="grid-template-columns:1fr 1fr;gap:14px;max-width:320px">
-          ${doctors.slice(0,4).map(d => `
+          ${doctors.slice(0,4).map((d, i) => `
           <div class="doc-card" style="background:#1a2a42;border-color:#2a3a55">
             <div class="doc-card__photo" style="height:90px;font-size:36px">👨‍⚕️
               <div class="doc-card__badge">${d.title.split(" ")[0]}</div>
             </div>
             <div class="doc-card__body" style="padding:14px">
-              <div class="doc-card__name" style="color:#fff;font-size:15px">${d.name}</div>
-              <div class="doc-card__bio" style="color:rgba(255,255,255,.5);font-size:12px;margin-top:4px">${d.bio}</div>
+              <div class="doc-card__name${wb('wb-doc-name')}" style="color:#fff;font-size:15px"${os('doctors.'+i+'.name')}>${d.name}</div>
+              <div class="doc-card__bio${wb('wb-doc-bio')}" style="color:rgba(255,255,255,.5);font-size:12px;margin-top:4px"${os('doctors.'+i+'.bio')}>${d.bio}</div>
             </div>
           </div>`).join("")}
         </div>
@@ -438,7 +451,7 @@ img{max-width:100%;display:block}
   </div>
 </section>
 
-<!-- ══ SPLIT 4: NOTICE (비주얼 좌, 텍스트 우) ══ -->
+<!-- ══ NOTICE ══ -->
 ${content.notice ? `
 <section>
   <div class="split">
@@ -467,8 +480,8 @@ ${content.notice ? `
     <div class="split__text">
       <div class="split__num">03</div>
       <div class="split__tag">공지·이벤트</div>
-      <h2 class="split__title">${content.notice.title}</h2>
-      <p class="split__body">${content.notice.body}</p>
+      <h2 class="split__title${wb('wb-notice-title')}"${os('notice.title')}>${content.notice.title}</h2>
+      <p class="split__body${wb('wb-notice-body')}"${os('notice.body')}>${content.notice.body}</p>
       <a href="tel:${intake.phone||""}"
         style="display:inline-flex;align-items:center;gap:8px;margin-top:8px;
           background:${theme.primary};color:#fff;padding:12px 24px;border-radius:8px;
@@ -492,21 +505,21 @@ ${content.notice ? `
           <div class="location__icon">📍</div>
           <div class="location__detail">
             <label>주소</label>
-            <p>${content.location.address || intake.address || "주소를 입력해주세요"}</p>
+            <p class="${wb('wb-location-address').trim()}"${os('location.address')}>${content.location.address || intake.address || "주소를 입력해주세요"}</p>
           </div>
         </div>
         <div class="location__row">
           <div class="location__icon">🕐</div>
           <div class="location__detail">
             <label>진료시간</label>
-            <p>${content.location.hours}</p>
+            <p class="${wb('wb-location-hours').trim()}"${os('location.hours')}>${content.location.hours}</p>
           </div>
         </div>
         <div class="location__row">
           <div class="location__icon">🅿️</div>
           <div class="location__detail">
             <label>주차</label>
-            <p>${content.location.parking}</p>
+            <p class="${wb('wb-location-parking').trim()}"${os('location.parking')}>${content.location.parking}</p>
           </div>
         </div>
         ${intake.phone ? `
@@ -529,7 +542,7 @@ ${content.notice ? `
 <!-- ══ CTA ══ -->
 <section class="cta-section">
   <div style="position:relative;z-index:1">
-    <h2>${content.hero.headline}</h2>
+    <h2 class="${wb('wb-hero-headline').trim()}">${content.hero.headline}</h2>
     <p>지금 바로 전화 또는 온라인으로 편리하게 예약하세요</p>
     <div class="cta-section__btns">
       <a class="cta-btn-main" href="tel:${intake.phone||""}">${content.hero.cta}</a>
@@ -547,7 +560,7 @@ ${content.notice ? `
           <div class="footer__brand-mark">M</div>
           <div class="footer__brand-name">${intake.hospitalName}</div>
         </div>
-        <div class="footer__tagline">${content.footer.tagline}</div>
+        <div class="footer__tagline${wb('wb-footer-tagline')}"${os('footer.tagline')}>${content.footer.tagline}</div>
         <div class="footer__copy">${content.footer.copy}</div>
       </div>
       <div>
@@ -574,7 +587,7 @@ ${content.notice ? `
     </div>
   </div>
 </footer>
-
+${editMode ? getInjectScript() : ''}
 </body>
 </html>`;
   }
