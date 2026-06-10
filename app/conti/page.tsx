@@ -983,33 +983,33 @@ export default function ContiPage() {
 
 <!-- ① 표지 -->
 <div class="cover">
-  <div class="cover-logo">PHOTO CLINIC</div>
-  <div class="cover-logo-sub">병원 브랜딩 포토그래피</div>
+  <div class="cover-logo" contenteditable="true">PHOTO CLINIC</div>
+  <div class="cover-logo-sub" contenteditable="true">병원 브랜딩 포토그래피</div>
   <div class="cover-bar" style="margin-bottom:40px"></div>
-  <div class="cover-hospital">${hospitalName}</div>
-  <div class="cover-subtitle">촬영 콘티 패키지</div>
+  <div class="cover-hospital" contenteditable="true">${hospitalName}</div>
+  <div class="cover-subtitle" contenteditable="true">브랜드촬영 콘티</div>
   <div class="cover-meta">
     <div class="cover-meta-row">
       <span class="cover-meta-label">촬영일자</span>
-      <span class="cover-meta-value">_______년 &nbsp;_______월 &nbsp;_______일</span>
+      <span class="cover-meta-value" contenteditable="true" style="min-width:160px;display:inline-block" data-placeholder="날짜 입력">　</span>
     </div>
     <div class="cover-meta-row">
       <span class="cover-meta-label">진료과</span>
-      <span class="cover-meta-value">${specialties}</span>
+      <span class="cover-meta-value" contenteditable="true">${specialties}</span>
     </div>
     <div class="cover-meta-row">
       <span class="cover-meta-label">총 컷 수</span>
-      <span class="cover-meta-value">${result.conti.length}컷</span>
+      <span class="cover-meta-value" contenteditable="true">${result.conti.length}컷</span>
     </div>
     <div class="cover-meta-row">
       <span class="cover-meta-label">작성일</span>
-      <span class="cover-meta-value">${today}</span>
+      <span class="cover-meta-value" contenteditable="true">${today}</span>
     </div>
   </div>
   <div class="cover-toc">
-    <div class="cover-toc-item">📋 &nbsp;촬영 콘티</div>
-    <div class="cover-toc-item">✅ &nbsp;준비 체크리스트</div>
-    <div class="cover-toc-item">⏰ &nbsp;타임테이블</div>
+    <div class="cover-toc-item" contenteditable="true">📋 &nbsp;촬영 콘티</div>
+    <div class="cover-toc-item" contenteditable="true">✅ &nbsp;준비 체크리스트</div>
+    <div class="cover-toc-item" contenteditable="true">⏰ &nbsp;타임테이블</div>
   </div>
 </div>
 
