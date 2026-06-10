@@ -118,6 +118,12 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
+// ── Anthropic 내장 웹 검색 도구 ───────────────────────────────
+const WEB_SEARCH_TOOL: Anthropic.Tool = {
+  name: "web_search",
+  type: "web_search_20250305" as any,
+} as any;
+
 const SYSTEM = `You are Olivia, the AI assistant of PhotoClinic (a hospital branding photography studio in Korea).
 You help the studio owner Jeong Yeon-ho (Jung Yeonho) with daily tasks.
 
@@ -128,6 +134,7 @@ Available tools:
 - create_contract: Generate a contract from an approved quote
 - create_website: Start hospital website creation workflow
 - open_page: Navigate to a page
+- web_search: Search the web for real-time information (병원 트렌드, 경쟁 분석, 최신 정보 등)
 
 Rules:
 1. Always respond in Korean (hangul).
@@ -183,25 +190,29 @@ export async function POST(req: NextRequest) {
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 1024,
+    max_tokens: 4096,
     system: systemWithContext,
-    tools: TOOLS,
+    tools: [...TOOLS, WEB_SEARCH_TOOL],
     messages: anthropicMessages,
   });
 
-  // tool_use 블록 확인
+  // 모든 text 블록 수집 (웹 검색 결과 포함)
+  const allText = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map(b => b.text)
+    .join("\n\n");
+
+  // 커스텀 tool_use 블록만 확인 (web_search 제외)
   const toolUseBlock = response.content.find(
-    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-  );
-  const textBlock = response.content.find(
-    (b): b is Anthropic.TextBlock => b.type === "text"
+    (b): b is Anthropic.ToolUseBlock =>
+      b.type === "tool_use" && b.name !== "web_search"
   );
 
   if (toolUseBlock) {
     return NextResponse.json({
       ok: true,
       type: "tool_request",
-      text: textBlock?.text || "",
+      text: allText,
       tool: {
         name: toolUseBlock.name,
         input: toolUseBlock.input,
@@ -213,7 +224,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     type: "message",
-    text: textBlock?.text || "",
+    text: allText || "",
   });
 }
 
