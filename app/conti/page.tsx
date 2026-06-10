@@ -107,9 +107,10 @@ function EditableCell({
 
   const base: React.CSSProperties = {
     width: "100%", fontSize: 13, lineHeight: 1.6,
-    border: "1.5px solid var(--deep-green)", borderRadius: 4,
+    border: "1.5px solid #155855", borderRadius: 4,
     padding: "4px 6px", background: "#fffef9", outline: "none",
-    fontWeight: bold ? 900 : 400, color: color ?? "#374151"
+    fontWeight: bold ? 900 : 400, color: color ?? "#374151",
+    boxShadow: "0 0 0 3px rgba(21,88,85,0.12)",
   };
 
   if (editing) {
@@ -133,22 +134,25 @@ function EditableCell({
   return (
     <div
       onClick={() => { setDraft(value); setEditing(true); }}
-      title="클릭하여 편집"
+      title="✏️ 클릭하여 편집"
       style={{
         cursor: "text", minHeight: 24, padding: "3px 4px",
         borderRadius: 4, lineHeight: 1.6,
         fontWeight: bold ? 900 : 400, color: color ?? "#374151",
-        transition: "background 100ms ease",
+        transition: "all 100ms ease",
         whiteSpace: multiline ? "pre-line" : undefined,
-        position: "relative"
+        position: "relative", border: "1px solid transparent",
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLDivElement).style.background = "rgba(21,88,85,0.06)";
-        (e.currentTarget as HTMLDivElement).style.outline = "1px dashed rgba(21,88,85,0.25)";
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.background = "rgba(21,88,85,0.06)";
+        el.style.border = "1px dashed rgba(21,88,85,0.35)";
+        el.style.borderRadius = "4px";
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLDivElement).style.background = "transparent";
-        (e.currentTarget as HTMLDivElement).style.outline = "none";
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.background = "transparent";
+        el.style.border = "1px solid transparent";
       }}
     >
       {value || <span style={{ color: "#bbb", fontStyle: "italic", fontWeight: 400 }}>{placeholder}</span>}
@@ -795,8 +799,8 @@ export default function ContiPage() {
     const existingIdx = saved.findIndex(s => s.hospitalName === entry.hospitalName);
     if (existingIdx >= 0) saved[existingIdx] = entry;
     else saved.unshift(entry);
-    // 최대 20개 보관
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved.slice(0, 20)));
+    // 최대 5개 보관
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved.slice(0, 5)));
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 2000);
   };
@@ -872,34 +876,34 @@ export default function ContiPage() {
 
     const contiRows = result.conti.map((r,i) => `
       <tr>
-        <td style="background:${getCatBg(r.category)};color:${getCatFg(r.category)};font-weight:900;text-align:center">${r.category}</td>
-        <td style="text-align:center">${r.duration||"-"}</td>
-        <td style="text-align:center">${r.location||"-"}</td>
-        <td style="font-size:7pt;color:#4b5563;line-height:1.5">${r.cameraAngle||"-"}</td>
-        <td style="color:#E85D2C;font-weight:900;text-align:center">${r.keyword||"-"}</td>
-        <td style="font-size:7.5pt">${r.description||"-"}</td>
-        <td style="font-size:7.5pt">${r.personnel||"-"}</td>
-        <td style="font-size:7pt;color:#888;text-align:center">${r.notes||"-"}</td>
+        <td style="background:${getCatBg(r.category)};color:${getCatFg(r.category)};font-weight:900;text-align:center" contenteditable="true">${r.category}</td>
+        <td style="text-align:center" contenteditable="true">${r.duration||"-"}</td>
+        <td style="text-align:center" contenteditable="true">${r.location||"-"}</td>
+        <td style="font-size:7pt;color:#4b5563;line-height:1.5" contenteditable="true">${r.cameraAngle||"-"}</td>
+        <td style="color:#E85D2C;font-weight:900;text-align:center" contenteditable="true">${r.keyword||"-"}</td>
+        <td style="font-size:7.5pt" contenteditable="true">${r.description||"-"}</td>
+        <td style="font-size:7.5pt" contenteditable="true">${r.personnel||"-"}</td>
+        <td style="font-size:7pt;color:#888;text-align:center" contenteditable="true">${r.notes||"-"}</td>
       </tr>
     `).join("");
 
     const checkRows = result.checklist.map((r,i) => `
       <tr style="background:${i%2===0?"#fff":"#fafaf9"}">
         <td style="text-align:center;font-weight:900;color:#155855;white-space:nowrap">${r.number}</td>
-        <td style="font-weight:700;white-space:nowrap">${r.category}</td>
-        <td>${r.item}</td>
+        <td style="font-weight:700;white-space:nowrap" contenteditable="true">${r.category}</td>
+        <td contenteditable="true">${r.item}</td>
         <td style="text-align:center;font-size:16px">☐</td>
-        <td style="white-space:nowrap">${r.notes||"-"}</td>
+        <td style="white-space:nowrap" contenteditable="true">${r.notes||"-"}</td>
       </tr>
     `).join("");
 
     const schedRows = result.schedule.map((r,i) => `
       <tr style="background:${i%2===0?"#EDF8F7":"#fff"}">
-        <td style="text-align:center;font-weight:900;color:#155855">${r.time||"-"}</td>
-        <td style="font-weight:700">${r.activity||"-"}</td>
-        <td style="color:#E85D2C">${r.type||"-"}</td>
-        <td>${r.requirements||"-"}</td>
-        <td>${r.notes||"-"}</td>
+        <td style="text-align:center;font-weight:900;color:#155855" contenteditable="true">${r.time||"-"}</td>
+        <td style="font-weight:700" contenteditable="true">${r.activity||"-"}</td>
+        <td style="color:#E85D2C" contenteditable="true">${r.type||"-"}</td>
+        <td contenteditable="true">${r.requirements||"-"}</td>
+        <td contenteditable="true">${r.notes||"-"}</td>
       </tr>
     `).join("");
 
@@ -971,7 +975,11 @@ export default function ContiPage() {
 </head>
 <body>
 
-<button class="print-btn no-print" onclick="window.print()">🖨️ PDF 저장</button>
+<div class="no-print edit-bar">
+  <div class="edit-bar-title">📝 최종 확인 및 편집</div>
+  <div class="edit-bar-desc">인쇄 전 내용을 직접 클릭하여 수정할 수 있습니다. 파란색 밑줄 항목은 편집 가능합니다.</div>
+  <button class="print-btn" onclick="window.print()">🖨️ PDF 저장 / 인쇄</button>
+</div>
 
 <!-- ① 표지 -->
 <div class="cover">
@@ -1067,9 +1075,7 @@ ${header("타임테이블")}
 
 <script>
   // 폰트 로드 후 자동으로 인쇄 다이얼로그 열기
-  document.fonts.ready.then(() => {
-    setTimeout(() => window.print(), 500);
-  });
+  // 자동 인쇄 없음 — 사용자가 편집 후 직접 인쇄 버튼 클릭
 </script>
 </body>
 </html>`;
@@ -1392,7 +1398,7 @@ ${header("타임테이블")}
               borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "#155855",
               fontWeight: 700, marginBottom: 16
             }}>
-              <Pencil size={13} /> 셀 클릭으로 수정 · 왼쪽 ⠿ 핸들로 드래그하여 순서 변경
+              <Pencil size={13} /> 셀 클릭 즉시 편집 · ⠿ 핸들로 드래그하여 순서 변경
             </div>
 
             {/* 탭 */}
@@ -1777,7 +1783,7 @@ ${header("타임테이블")}
           <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(21,88,85,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <div style={{ fontSize: 17, fontWeight: 900, color: "#155855" }}>📂 저장된 콘티</div>
-              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>클릭하면 바로 불러와요 · 최대 20개 보관</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>클릭하면 바로 불러와요 · 최대 5개 보관</div>
             </div>
             <button onClick={() => setShowLoadPanel(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#9ca3af" }}>✕</button>
           </div>
