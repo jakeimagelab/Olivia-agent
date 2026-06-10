@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import nodemailer from "nodemailer";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   // 지난 7일 활동 데이터 집계
-  const { data: logs } = await supabaseAdmin
+  const { data: logs } = await getSupabaseAdmin()
     .from("activity_logs")
     .select("*")
     .gte("created_at", weekAgo.toISOString());
