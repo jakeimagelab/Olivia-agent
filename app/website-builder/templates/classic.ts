@@ -1,4 +1,5 @@
 import type { SiteTemplate, TemplateRenderData } from "./types";
+import { getInjectScript } from "./inject";
 
 // ─── Template 1: 클래식 ────────────────────────────────────────────────────────
 // 깔끔하고 균형 잡힌 표준 병원 레이아웃. 헤더·섹션 분리 명확.
@@ -12,7 +13,8 @@ export const classicTemplate: SiteTemplate = {
   previewBg: "#f0f7f5",
   previewLines: ["#155855", "#E85D2C", "#e8e3db"],
 
-  render: ({ intake, content, theme }: TemplateRenderData) => {
+  render: (data: TemplateRenderData) => {
+    const { intake, content, theme, editMode } = data;
     const grad = `linear-gradient(135deg, ${theme.primary} 0%, ${theme.primary}cc 100%)`;
     return `<!DOCTYPE html>
 <html lang="ko">
@@ -116,60 +118,60 @@ footer{background:${theme.primary};color:#fff;padding:44px 0}
   </div>
 </header>
 
-<section class="hero">
+<section class="hero wb-bg" data-field="hero">
   ${intake.phone ? `<div class="hero-tel">📞 ${intake.phone}</div>` : ""}
   <div class="wrap">
     <div class="label">${intake.hospitalName}</div>
-    <h1>${content.hero.headline}</h1>
-    <p>${content.hero.subline}</p>
-    <a class="btn" href="tel:${intake.phone||""}">${content.hero.cta} →</a>
+    <h1 class="wb-hero-headline">${content.hero.headline}</h1>
+    <p class="wb-hero-subline">${content.hero.subline}</p>
+    <a class="btn wb-hero-cta" href="tel:${intake.phone||""}">${content.hero.cta} →</a>
   </div>
 </section>
 
-<section class="section" id="about">
+<section class="section wb-bg" data-field="about" id="about">
   <div class="wrap">
     <div class="section-label">About</div>
-    <h2>${content.about.title}</h2>
-    <p class="lead">${content.about.body}</p>
+    <h2 class="wb-about-title">${content.about.title}</h2>
+    <p class="lead wb-about-body">${content.about.body}</p>
     ${content.notice ? `
     <div class="notice">
-      <div class="notice-title">📢 ${content.notice.title}</div>
-      <div class="notice-body">${content.notice.body}</div>
+      <div class="notice-title wb-notice-title">📢 ${content.notice.title}</div>
+      <div class="notice-body wb-notice-body">${content.notice.body}</div>
     </div>` : ""}
   </div>
 </section>
 
-<section class="section bg-gray" id="services">
+<section class="section bg-gray wb-bg" data-field="services" id="services">
   <div class="wrap">
     <div class="section-label">Services</div>
     <h2>진료항목</h2>
     <div class="services-grid">
       ${content.services.map(s => `
       <div class="service-card">
-        <h3>${s.name}</h3>
-        <p>${s.desc}</p>
+        <h3 class="wb-svc-name">${s.name}</h3>
+        <p class="wb-svc-desc">${s.desc}</p>
       </div>`).join("")}
     </div>
   </div>
 </section>
 
-<section class="section" id="doctors">
+<section class="section wb-bg" data-field="doctors" id="doctors">
   <div class="wrap">
     <div class="section-label">Doctors</div>
     <h2>의료진</h2>
     <div class="doctors-grid">
       ${content.doctors.map(d => `
       <div class="doc-card">
-        <div class="doc-avatar">👨‍⚕️</div>
-        <div class="doc-name">${d.name}</div>
-        <div class="doc-title">${d.title}</div>
-        <div class="doc-bio">${d.bio}</div>
+        <div class="doc-avatar wb-svc-icon">👨‍⚕️</div>
+        <div class="doc-name wb-doc-name">${d.name}</div>
+        <div class="doc-title wb-doc-title">${d.title}</div>
+        <div class="doc-bio wb-doc-bio">${d.bio}</div>
       </div>`).join("")}
     </div>
   </div>
 </section>
 
-<section class="section bg-gray" id="location">
+<section class="section bg-gray wb-bg" data-field="location" id="location">
   <div class="wrap">
     <div class="section-label">Location</div>
     <h2>오시는길</h2>
@@ -177,17 +179,17 @@ footer{background:${theme.primary};color:#fff;padding:44px 0}
       <div>
         <div class="location-item">
           <label>주소</label>
-          <p>${content.location.address || intake.address || ""}</p>
+          <p class="wb-location-address">${content.location.address || intake.address || ""}</p>
         </div>
         <div class="location-item">
           <label>진료시간</label>
-          <p>${content.location.hours}</p>
+          <p class="wb-location-hours">${content.location.hours}</p>
         </div>
       </div>
       <div>
         <div class="location-item">
           <label>주차</label>
-          <p>${content.location.parking}</p>
+          <p class="wb-location-parking">${content.location.parking}</p>
         </div>
         ${intake.phone ? `<div class="location-item"><label>전화</label><p>${intake.phone}</p></div>` : ""}
       </div>
@@ -195,11 +197,11 @@ footer{background:${theme.primary};color:#fff;padding:44px 0}
   </div>
 </section>
 
-<footer>
+<footer class="wb-bg" data-field="footer">
   <div class="footer-inner">
     <div>
       <div class="footer-logo">${intake.hospitalName}</div>
-      <div class="footer-tagline">${content.footer.tagline}</div>
+      <div class="footer-tagline wb-footer-tagline">${content.footer.tagline}</div>
       <div class="footer-copy">${content.footer.copy}</div>
     </div>
     <div class="footer-info">
@@ -208,6 +210,7 @@ footer{background:${theme.primary};color:#fff;padding:44px 0}
     </div>
   </div>
 </footer>
+${editMode ? getInjectScript() : ""}
 </body>
 </html>`;
   }

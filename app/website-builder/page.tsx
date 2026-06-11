@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, ArrowRight, Check, Globe2, Pencil, Download,
@@ -784,7 +784,144 @@ const miniInputFull: React.CSSProperties = {
   outline: "none", fontFamily: "inherit"
 };
 
-// ─── Step 3: Visual Editor ────────────────────────────────────────────────────
+// ─── Step 3: Inline Editor ────────────────────────────────────────────────────
+
+const MEDICAL_EMOJIS = [
+  "💊","🩺","🔬","💉","🏥","❤️‍🩹","🧬","👁️","🦷","🦴","🧠","🫁",
+  "🩻","🩹","💆‍♀️","🌡️","🩸","🧪","⚕️","🌿","🌸","🏃","💪","🫀",
+  "🫂","✨","🎯","📋","🔍","📅","🗓️","📞","🏆","⭐","💫","🎗️","🔒","🌟","💎","🎪"
+];
+
+interface SelectedElInfo {
+  field: string;
+  editType: "text" | "bg" | "icon" | "img";
+  value: string;
+  rect: { top: number; left: number; width: number; height: number };
+  computedStyle: { color: string; fontSize: number; fontWeight: string; bg: string };
+}
+
+function rgbToHex(rgb: string): string {
+  const m = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (!m) return rgb.startsWith("#") ? rgb : "#000000";
+  return "#" + [m[1], m[2], m[3]].map(v => parseInt(v).toString(16).padStart(2, "0")).join("");
+}
+
+const tbFloatBtn: React.CSSProperties = {
+  background: "rgba(255,255,255,.12)", border: "none", borderRadius: 6,
+  color: "#fff", padding: "5px 9px", fontSize: 12, cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center",
+};
+
+function FloatingToolbar({ sel, iframeRect, onSendStyle, onClose }: {
+  sel: SelectedElInfo;
+  iframeRect: DOMRect | null;
+  onSendStyle: (style: Record<string, string>) => void;
+  onClose: () => void;
+}) {
+  if (!iframeRect) return null;
+  const rawTop = iframeRect.top + sel.rect.top - 58;
+  const toolbarTop = rawTop < 8 ? iframeRect.top + sel.rect.top + sel.rect.height + 8 : rawTop;
+  const toolbarLeft = Math.max(8, Math.min(iframeRect.left + sel.rect.left, window.innerWidth - 460));
+
+  const base: React.CSSProperties = {
+    position: "fixed", top: toolbarTop, left: toolbarLeft, zIndex: 9999,
+    background: "#1C1C1C", borderRadius: 12, padding: "8px 10px",
+    display: "flex", alignItems: "center", gap: 6,
+    boxShadow: "0 8px 32px rgba(0,0,0,.55)", flexWrap: "wrap", maxWidth: 460,
+  };
+  const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48];
+  const curSize = parseFloat(String(sel.computedStyle.fontSize)) || 16;
+  const isBold = String(sel.computedStyle.fontWeight) === "700" || Number(sel.computedStyle.fontWeight) >= 700;
+
+  if (sel.editType === "text") {
+    return (
+      <div style={base} onMouseDown={e => e.stopPropagation()}>
+        <button onClick={() => onSendStyle({ fontSize: `${Math.max(10, curSize - 2)}px` })}
+          style={tbFloatBtn} title="작게">A-</button>
+        <select value={curSize}
+          onChange={e => onSendStyle({ fontSize: `${e.target.value}px` })}
+          style={{ background: "#333", color: "#fff", border: "none", borderRadius: 6,
+                   padding: "4px 6px", fontSize: 12, cursor: "pointer" }}>
+          {FONT_SIZES.map(s => <option key={s} value={s}>{s}px</option>)}
+        </select>
+        <button onClick={() => onSendStyle({ fontSize: `${Math.min(96, curSize + 2)}px` })}
+          style={tbFloatBtn} title="크게">A+</button>
+        <div style={{ width: 1, height: 20, background: "#555" }} />
+        <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }} title="글자 색상">
+          <span style={{ fontSize: 11, color: "#aaa" }}>색</span>
+          <input type="color" defaultValue={rgbToHex(String(sel.computedStyle.color))}
+            onChange={e => onSendStyle({ color: e.target.value })}
+            style={{ width: 28, height: 22, border: "none", borderRadius: 4, cursor: "pointer", background: "transparent" }} />
+        </label>
+        <div style={{ width: 1, height: 20, background: "#555" }} />
+        <button onClick={() => onSendStyle({ fontWeight: isBold ? "400" : "700" })}
+          style={{ ...tbFloatBtn, background: isBold ? "#E85D2C" : "rgba(255,255,255,.1)", fontWeight: 700 }}>B</button>
+        <div style={{ width: 1, height: 20, background: "#555" }} />
+        <button onClick={onClose} style={{ ...tbFloatBtn, color: "#888" }}>✕</button>
+      </div>
+    );
+  }
+  if (sel.editType === "bg") {
+    return (
+      <div style={base} onMouseDown={e => e.stopPropagation()}>
+        <span style={{ fontSize: 11, color: "#aaa" }}>배경색</span>
+        <input type="color" defaultValue="#ffffff"
+          onChange={e => onSendStyle({ bg: e.target.value })}
+          style={{ width: 36, height: 26, border: "none", borderRadius: 4, cursor: "pointer" }} />
+        <button onClick={onClose} style={{ ...tbFloatBtn, color: "#888" }}>✕</button>
+      </div>
+    );
+  }
+  if (sel.editType === "icon") {
+    return (
+      <div style={{ ...base, maxWidth: 360, gap: 4, padding: "10px 12px" }}
+        onMouseDown={e => e.stopPropagation()}>
+        <span style={{ fontSize: 11, color: "#aaa", width: "100%", marginBottom: 4 }}>아이콘 선택</span>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {MEDICAL_EMOJIS.map(em => (
+            <button key={em} onClick={() => { onSendStyle({ content: em }); onClose(); }}
+              style={{ background: "rgba(255,255,255,.08)", border: "none", borderRadius: 6,
+                       padding: "4px 5px", fontSize: 20, cursor: "pointer" }}>{em}</button>
+          ))}
+        </div>
+        <button onClick={onClose} style={{ ...tbFloatBtn, color: "#888", alignSelf: "flex-start", marginTop: 4 }}>✕</button>
+      </div>
+    );
+  }
+  if (sel.editType === "img") {
+    return (
+      <div style={{ ...base, flexDirection: "column", alignItems: "stretch", gap: 8, padding: "12px 14px" }}
+        onMouseDown={e => e.stopPropagation()}>
+        <span style={{ fontSize: 11, color: "#aaa" }}>이미지 URL</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input id="wb-img-url" type="text" placeholder="https://..." defaultValue={sel.value}
+            style={{ flex: 1, background: "#333", color: "#fff", border: "1px solid #555",
+                     borderRadius: 6, padding: "6px 10px", fontSize: 12 }} />
+          <button onClick={() => {
+            const url = (document.getElementById("wb-img-url") as HTMLInputElement)?.value;
+            if (url) { onSendStyle({ src: url }); onClose(); }
+          }} style={{ ...tbFloatBtn, background: "#E85D2C", padding: "6px 12px" }}>적용</button>
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <span style={{ fontSize: 11, color: "#aaa" }}>또는 파일 업로드</span>
+          <input type="file" accept="image/*" id="wb-img-file" style={{ display: "none" }}
+            onChange={e => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = ev => {
+                if (ev.target?.result) { onSendStyle({ src: ev.target.result as string }); onClose(); }
+              };
+              reader.readAsDataURL(file);
+            }} />
+          <label htmlFor="wb-img-file" style={{ ...tbFloatBtn, background: "#155855", cursor: "pointer" }}>📁 파일</label>
+        </label>
+        <button onClick={onClose} style={{ ...tbFloatBtn, color: "#888" }}>✕</button>
+      </div>
+    );
+  }
+  return null;
+}
 
 interface EditHistory {
   past: SiteContent[];
@@ -802,112 +939,146 @@ function WebsiteEditor({ content, customTheme, intake, selectedTemplateId, onTem
   onNext: () => void;
   onBack: () => void;
 }) {
-  const [history, setHistory] = useState<EditHistory>({
-    past: [],
-    present: deepClone(content),
-    future: []
-  });
+  const [history, setHistory] = useState<EditHistory>({ past: [], present: deepClone(content), future: [] });
   const [savedMsg, setSavedMsg] = useState(false);
-  const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
+  const [selectedEl, setSelectedEl] = useState<SelectedElInfo | null>(null);
+  const [styleOverrides, setStyleOverrides] = useState<Record<string, Record<string, string>>>({});
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const iframeRectRef = useRef<DOMRect | null>(null);
 
   const c = history.present;
 
-  // iframe 렌더링 (템플릿 기반 HTML 생성)
+  // Body scroll lock
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  // iframe srcDoc with editMode: true
   const iframeSrcDoc = useMemo(() => {
     const tpl = getTemplateById(selectedTemplateId);
     return tpl.render({
-      intake: {
-        hospitalName: intake.hospitalName,
-        phone: intake.phone,
-        address: intake.address,
-        specialties: intake.specialties,
-      },
+      intake: { hospitalName: intake.hospitalName, phone: intake.phone, address: intake.address, specialties: intake.specialties },
       content: c,
-      theme: {
-        primary: customTheme.primary,
-        accent: customTheme.accent,
-        bg: customTheme.bg,
-        textColor: customTheme.textColor,
-      },
+      theme: { primary: customTheme.primary, accent: customTheme.accent, bg: customTheme.bg, textColor: customTheme.textColor },
+      editMode: true,
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c, customTheme, selectedTemplateId, intake]);
 
+  const sendToIframe = useCallback((msg: object) => {
+    try { iframeRef.current?.contentWindow?.postMessage({ _wb: 1, ...msg }, "*"); } catch(e) {}
+  }, []);
+
+  // Re-apply styleOverrides after iframe reloads
+  const handleIframeLoad = useCallback(() => {
+    iframeRectRef.current = iframeRef.current?.getBoundingClientRect() ?? null;
+    Object.entries(styleOverrides).forEach(([field, style]) => {
+      sendToIframe({ type: "applyStyle", payload: { field, style } });
+    });
+  }, [styleOverrides, sendToIframe]);
+
+  // postMessage listener
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (!e.data?._wb) return;
+      const { type, payload } = e.data;
+      if (type === "select") {
+        iframeRectRef.current = iframeRef.current?.getBoundingClientRect() ?? null;
+        setSelectedEl({ field: payload.field, editType: payload.editType, value: payload.value,
+                        rect: payload.rect, computedStyle: payload.computedStyle });
+      }
+      if (type === "deselect") setSelectedEl(null);
+      if (type === "change") {
+        const { field, value } = payload;
+        const next = deepClone(c);
+        const parts = (field as string).split(".");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let obj: any = next;
+        for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
+        obj[parts[parts.length - 1]] = value;
+        push(next);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c]);
+
+  const applyStyle = useCallback((style: Record<string, string>) => {
+    if (!selectedEl) return;
+    const field = selectedEl.field;
+    if (style.src !== undefined) {
+      sendToIframe({ type: "setImg", payload: { field, src: style.src } });
+    } else {
+      sendToIframe({ type: "applyStyle", payload: { field, style } });
+    }
+    setStyleOverrides(prev => ({ ...prev, [field]: { ...(prev[field] || {}), ...style } }));
+    setSelectedEl(prev => prev ? { ...prev, computedStyle: { ...prev.computedStyle, ...style as unknown as typeof prev.computedStyle } } : prev);
+  }, [selectedEl, sendToIframe]);
+
   const push = (next: SiteContent) => {
-    setHistory(h => ({
-      past: [...h.past.slice(-30), h.present],
-      present: next,
-      future: []
-    }));
+    setHistory(h => ({ past: [...h.past.slice(-30), h.present], present: next, future: [] }));
     onSave(next);
   };
 
-  const undo = () => {
-    setHistory(h => {
-      if (!h.past.length) return h;
-      const prev = h.past[h.past.length - 1];
-      return { past: h.past.slice(0, -1), present: prev, future: [h.present, ...h.future] };
-    });
-  };
+  const undo = () => setHistory(h => {
+    if (!h.past.length) return h;
+    const prev = h.past[h.past.length - 1];
+    return { past: h.past.slice(0, -1), present: prev, future: [h.present, ...h.future] };
+  });
 
-  const redo = () => {
-    setHistory(h => {
-      if (!h.future.length) return h;
-      const next = h.future[0];
-      return { past: [...h.past, h.present], present: next, future: h.future.slice(1) };
-    });
-  };
+  const redo = () => setHistory(h => {
+    if (!h.future.length) return h;
+    const next = h.future[0];
+    return { past: [...h.past, h.present], present: next, future: h.future.slice(1) };
+  });
 
-  const handleSave = () => {
-    onSave(history.present);
-    setSavedMsg(true);
-    setTimeout(() => setSavedMsg(false), 2000);
+  const handleSave = () => { onSave(history.present); setSavedMsg(true); setTimeout(() => setSavedMsg(false), 2000); };
+
+  const handleOutsideClick = () => {
+    if (selectedEl) { sendToIframe({ type: "deselect", payload: {} }); setSelectedEl(null); }
   };
 
   return (
-    <div style={{ margin: "0 -36px" }}>
-      {/* Editor Toolbar */}
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", flexDirection: "column", background: "#111" }}
+      onClick={handleOutsideClick}>
+
+      {/* ── 툴바 ── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: "#1C1C1C", padding: "10px 24px", marginBottom: 0,
-        position: "sticky", top: 0, zIndex: 50
-      }}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        background: "#1C1C1C", padding: "10px 20px", flexShrink: 0,
+        borderBottom: "1px solid #333"
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <button onClick={onBack} style={{ ...toolBtn, color: "#aaa" }} title="뒤로">
+            <ArrowLeft size={15} />
+          </button>
+          <div style={{ width: 1, height: 20, background: "#444" }} />
           <button onClick={undo} disabled={!history.past.length}
-            style={{ ...toolBtn, opacity: history.past.length ? 1 : 0.3 }} title="실행취소 (Ctrl+Z)">
+            style={{ ...toolBtn, opacity: history.past.length ? 1 : 0.3 }} title="실행취소">
             <RotateCcw size={15} />
           </button>
           <button onClick={redo} disabled={!history.future.length}
             style={{ ...toolBtn, opacity: history.future.length ? 1 : 0.3 }} title="다시실행">
             <RotateCw size={15} />
           </button>
-          <div style={{ width: 1, height: 20, background: "#444", margin: "0 4px" }} />
-          <button
-            onClick={() => setActiveTab(activeTab === "preview" ? "edit" : "preview")}
-            style={{ ...toolBtn, background: activeTab === "edit" ? "#E85D2C" : "rgba(255,255,255,.08)",
-                     color: "#fff", borderRadius: 8, padding: "6px 14px" }}>
-            {activeTab === "preview" ? <Pencil size={14} /> : <Eye size={14} />}
-            <span style={{ fontSize: 12 }}>{activeTab === "preview" ? "편집 패널 열기" : "패널 닫기"}</span>
-          </button>
-          <div style={{ width: 1, height: 20, background: "#444", margin: "0 4px" }} />
-          {/* 템플릿 전환 */}
-          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            <Layout size={13} color="rgba(255,255,255,.4)" />
-            {TEMPLATES.map(tpl => (
-              <button key={tpl.id} onClick={() => onTemplateChange(tpl.id)}
-                title={`${tpl.name} 템플릿`}
-                style={{
-                  padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                  cursor: "pointer", border: "none",
-                  background: selectedTemplateId === tpl.id ? tpl.tagColor : "rgba(255,255,255,.1)",
-                  color: "#fff", transition: "all .15s"
-                }}>
-                {tpl.name}
-              </button>
-            ))}
-          </div>
+          <div style={{ width: 1, height: 20, background: "#444" }} />
+          <Layout size={13} color="rgba(255,255,255,.4)" />
+          {TEMPLATES.map(tpl => (
+            <button key={tpl.id} onClick={() => onTemplateChange(tpl.id)} title={`${tpl.name} 템플릿`}
+              style={{ padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                       cursor: "pointer", border: "none",
+                       background: selectedTemplateId === tpl.id ? tpl.tagColor : "rgba(255,255,255,.1)",
+                       color: "#fff", transition: "all .15s" }}>
+              {tpl.name}
+            </button>
+          ))}
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ color: "rgba(255,255,255,.3)", fontSize: 11, marginRight: 4 }}>
+            💡 클릭 → 스타일 편집 · 더블클릭 → 텍스트 직접 입력
+          </span>
           {savedMsg && (
             <span style={{ color: "#4ade80", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
               <Check size={13} /> 저장됨
@@ -919,86 +1090,35 @@ function WebsiteEditor({ content, customTheme, intake, selectedTemplateId, onTem
                      display: "flex", alignItems: "center", gap: 6 }}>
             <Save size={14} /> 저장
           </button>
+          <button onClick={onNext}
+            style={{ background: "#E85D2C", color: "#fff", border: "none", borderRadius: 8,
+                     padding: "7px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                     display: "flex", alignItems: "center", gap: 6 }}>
+            완료 <ArrowRight size={14} />
+          </button>
         </div>
       </div>
 
-      {/* 편집 패널 (상단 드로어) */}
-      {activeTab === "edit" && (
-        <div style={{
-          background: "#f8f7f4", borderBottom: "2px solid #e5e0d8",
-          padding: "20px 24px", display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr", gap: 16
-        }}>
-          {/* 히어로 */}
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#E85D2C", marginBottom: 10,
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>Hero</div>
-            <EditField label="헤드라인" value={c.hero.headline}
-              onChange={v => push({ ...deepClone(c), hero: { ...c.hero, headline: v } })} />
-            <EditField label="서브 문구" value={c.hero.subline}
-              onChange={v => push({ ...deepClone(c), hero: { ...c.hero, subline: v } })} />
-            <EditField label="CTA 버튼" value={c.hero.cta}
-              onChange={v => push({ ...deepClone(c), hero: { ...c.hero, cta: v } })} />
-          </div>
-          {/* 소개 */}
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#155855", marginBottom: 10,
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>About</div>
-            <EditField label="제목" value={c.about.title}
-              onChange={v => push({ ...deepClone(c), about: { ...c.about, title: v } })} />
-            <EditField label="본문" value={c.about.body} multiline
-              onChange={v => push({ ...deepClone(c), about: { ...c.about, body: v } })} />
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#155855", margin: "12px 0 8px",
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>Location</div>
-            <EditField label="주소" value={c.location.address}
-              onChange={v => push({ ...deepClone(c), location: { ...c.location, address: v } })} />
-            <EditField label="진료시간" value={c.location.hours}
-              onChange={v => push({ ...deepClone(c), location: { ...c.location, hours: v } })} />
-            <EditField label="주차" value={c.location.parking}
-              onChange={v => push({ ...deepClone(c), location: { ...c.location, parking: v } })} />
-          </div>
-          {/* 진료항목 + 푸터 */}
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#888", marginBottom: 10,
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>Services</div>
-            {c.services.map((svc, i) => (
-              <div key={i} style={{ marginBottom: 8, background: "#fff", borderRadius: 8,
-                                    padding: "8px 10px", border: "1px solid #e8e3db" }}>
-                <EditField label={`항목 ${i + 1}`} value={svc.name}
-                  onChange={v => { const next = deepClone(c); next.services[i].name = v; push(next); }} />
-                <EditField label="설명" value={svc.desc}
-                  onChange={v => { const next = deepClone(c); next.services[i].desc = v; push(next); }} />
-              </div>
-            ))}
-            <div style={{ fontWeight: 700, fontSize: 12, color: "#888", margin: "10px 0 8px",
-                          textTransform: "uppercase", letterSpacing: ".06em" }}>Footer</div>
-            <EditField label="슬로건" value={c.footer.tagline}
-              onChange={v => push({ ...deepClone(c), footer: { ...c.footer, tagline: v } })} />
-          </div>
-        </div>
-      )}
+      {/* ── iframe ── */}
+      <iframe
+        ref={iframeRef}
+        srcDoc={iframeSrcDoc}
+        onLoad={handleIframeLoad}
+        onClick={e => e.stopPropagation()}
+        style={{ flex: 1, border: "none", display: "block", width: "100%" }}
+        title="홈페이지 편집"
+        sandbox="allow-scripts allow-same-origin"
+      />
 
-        {/* Preview — iframe 기반 템플릿 렌더링 */}
-        <iframe
-          srcDoc={iframeSrcDoc}
-          style={{
-            width: "100%", border: "none", display: "block",
-            height: activeTab === "edit" ? "calc(100vh - 360px)" : "calc(100vh - 160px)",
-            minHeight: 480
-          }}
-          title="홈페이지 미리보기"
-          sandbox="allow-same-origin"
+      {/* ── FloatingToolbar ── */}
+      {selectedEl && (
+        <FloatingToolbar
+          sel={selectedEl}
+          iframeRect={iframeRectRef.current}
+          onSendStyle={applyStyle}
+          onClose={() => { sendToIframe({ type: "deselect", payload: {} }); setSelectedEl(null); }}
         />
-
-      <div style={{ display: "flex", justifyContent: "space-between", padding: "16px 24px",
-                    borderTop: "1px solid #e5e0d8", background: "#faf8f5" }}>
-        <button onClick={onBack} style={btnSecondary}>
-          <ArrowLeft size={16} /> 이전
-        </button>
-        <button onClick={onNext} style={btnPrimary}>
-          제작 완료 <ArrowRight size={16} />
-        </button>
-      </div>
+      )}
     </div>
   );
 }

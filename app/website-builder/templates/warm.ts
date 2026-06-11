@@ -1,4 +1,5 @@
 import type { SiteTemplate, TemplateRenderData } from "./types";
+import { getInjectScript } from "./inject";
 
 // ─── Template 3: 따뜻한 ────────────────────────────────────────────────────────
 // 라운드 모서리, 부드러운 색감, 친근한 느낌의 케어 중심 레이아웃.
@@ -13,7 +14,8 @@ export const warmTemplate: SiteTemplate = {
   previewBg: "#fff8f3",
   previewLines: ["#e07050", "#fbbf24", "#f5ede8"],
 
-  render: ({ intake, content, theme }: TemplateRenderData) => {
+  render: (data: TemplateRenderData) => {
+    const { intake, content, theme, editMode } = data;
     return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -194,14 +196,14 @@ footer{background:${theme.primary};padding:48px 0;color:#fff}
   </div>
 </header>
 
-<section class="hero">
+<section class="hero wb-bg" data-field="hero">
   <div class="hero-inner">
     <div>
       <div class="hero-badge">✨ ${intake.hospitalName}</div>
-      <h1>${content.hero.headline}</h1>
-      <p>${content.hero.subline}</p>
+      <h1 class="wb-hero-headline">${content.hero.headline}</h1>
+      <p class="wb-hero-subline">${content.hero.subline}</p>
       <div class="hero-actions">
-        <a class="btn-round" href="tel:${intake.phone||""}">${content.hero.cta}</a>
+        <a class="btn-round wb-hero-cta" href="tel:${intake.phone||""}">${content.hero.cta}</a>
         <a class="btn-ghost" href="#services">진료항목 보기</a>
       </div>
     </div>
@@ -231,21 +233,21 @@ footer{background:${theme.primary};padding:48px 0;color:#fff}
   </div>
 </section>
 
-<section class="features">
+<section class="features wb-bg" data-field="features">
   <div class="wrap">
     <div class="features-grid">
       <div class="feature-item">
-        <span class="feature-icon">🤝</span>
+        <span class="feature-icon wb-svc-icon">🤝</span>
         <h3>친절한 상담</h3>
         <p>처음 오시는 분도 편안하게 진료받으실 수 있도록 세심하게 안내드립니다.</p>
       </div>
       <div class="feature-item">
-        <span class="feature-icon">🔬</span>
+        <span class="feature-icon wb-svc-icon">🔬</span>
         <h3>정확한 진단</h3>
         <p>최신 의료 장비와 풍부한 임상 경험으로 정확한 진단을 제공합니다.</p>
       </div>
       <div class="feature-item">
-        <span class="feature-icon">💝</span>
+        <span class="feature-icon wb-svc-icon">💝</span>
         <h3>환자 중심</h3>
         <p>환자분의 회복과 건강이 저희의 최우선 목표입니다.</p>
       </div>
@@ -253,13 +255,13 @@ footer{background:${theme.primary};padding:48px 0;color:#fff}
   </div>
 </section>
 
-<section class="about" id="about">
+<section class="about wb-bg" data-field="about" id="about">
   <div class="wrap">
     <div class="about-inner">
       <div>
         <div class="about-tag">About</div>
-        <h2>${content.about.title}</h2>
-        <p>${content.about.body}</p>
+        <h2 class="wb-about-title">${content.about.title}</h2>
+        <p class="wb-about-body">${content.about.body}</p>
         <div class="about-stats">
           <div class="about-stat">
             <div class="about-stat-num">${content.services.length}+</div>
@@ -285,15 +287,15 @@ footer{background:${theme.primary};padding:48px 0;color:#fff}
         </div>`).join("")}
         ${content.notice ? `
         <div class="notice-box">
-          <h4>📢 ${content.notice.title}</h4>
-          <p>${content.notice.body}</p>
+          <h4>📢 <span class="wb-notice-title">${content.notice.title}</span></h4>
+          <p class="wb-notice-body">${content.notice.body}</p>
         </div>` : ""}
       </div>
     </div>
   </div>
 </section>
 
-<section class="services" id="services">
+<section class="services wb-bg" data-field="services" id="services">
   <div class="wrap">
     <div class="section-head">
       <div class="section-tag">Services</div>
@@ -304,16 +306,16 @@ footer{background:${theme.primary};padding:48px 0;color:#fff}
         const emojis = ["💊","🩺","🔬","💉","🏥","❤️","🧬","👁️","🦷","🦴"];
         return `
       <div class="service-card">
-        <span class="service-emoji">${emojis[i % emojis.length]}</span>
-        <h3>${s.name}</h3>
-        <p>${s.desc}</p>
+        <span class="service-emoji wb-svc-icon">${emojis[i % emojis.length]}</span>
+        <h3 class="wb-svc-name">${s.name}</h3>
+        <p class="wb-svc-desc">${s.desc}</p>
       </div>`;
       }).join("")}
     </div>
   </div>
 </section>
 
-<section class="doctors" id="doctors">
+<section class="doctors wb-bg" data-field="doctors" id="doctors">
   <div class="wrap">
     <div class="section-head">
       <div class="section-tag">Our Doctors</div>
@@ -322,18 +324,18 @@ footer{background:${theme.primary};padding:48px 0;color:#fff}
     <div class="doctors-grid">
       ${content.doctors.map(d => `
       <div class="doc-card">
-        <div class="doc-top">👨‍⚕️</div>
+        <div class="doc-top wb-svc-icon">👨‍⚕️</div>
         <div class="doc-body">
-          <div class="doc-name">${d.name}</div>
-          <div class="doc-title">${d.title}</div>
-          <div class="doc-bio">${d.bio}</div>
+          <div class="doc-name wb-doc-name">${d.name}</div>
+          <div class="doc-title wb-doc-title">${d.title}</div>
+          <div class="doc-bio wb-doc-bio">${d.bio}</div>
         </div>
       </div>`).join("")}
     </div>
   </div>
 </section>
 
-<section class="location" id="location">
+<section class="location wb-bg" data-field="location" id="location">
   <div class="wrap">
     <div class="section-head">
       <div class="section-tag">Location</div>
@@ -345,21 +347,21 @@ footer{background:${theme.primary};padding:48px 0;color:#fff}
           <div class="loc-icon">📍</div>
           <div class="loc-info">
             <label>주소</label>
-            <p>${content.location.address || intake.address || ""}</p>
+            <p class="wb-location-address">${content.location.address || intake.address || ""}</p>
           </div>
         </div>
         <div class="loc-row">
           <div class="loc-icon">🕐</div>
           <div class="loc-info">
             <label>진료시간</label>
-            <p>${content.location.hours}</p>
+            <p class="wb-location-hours">${content.location.hours}</p>
           </div>
         </div>
         <div class="loc-row">
           <div class="loc-icon">🅿️</div>
           <div class="loc-info">
             <label>주차</label>
-            <p>${content.location.parking}</p>
+            <p class="wb-location-parking">${content.location.parking}</p>
           </div>
         </div>
         ${intake.phone ? `
@@ -379,11 +381,11 @@ footer{background:${theme.primary};padding:48px 0;color:#fff}
   </div>
 </section>
 
-<footer>
+<footer class="wb-bg" data-field="footer">
   <div class="footer-inner">
     <div>
       <div class="footer-logo">${intake.hospitalName}</div>
-      <div class="footer-tagline">${content.footer.tagline}</div>
+      <div class="footer-tagline wb-footer-tagline">${content.footer.tagline}</div>
       <div class="footer-copy">${content.footer.copy}</div>
     </div>
     <div class="footer-right">
@@ -392,7 +394,7 @@ footer{background:${theme.primary};padding:48px 0;color:#fff}
     </div>
   </div>
 </footer>
-
+${editMode ? getInjectScript() : ""}
 </body>
 </html>`;
   }

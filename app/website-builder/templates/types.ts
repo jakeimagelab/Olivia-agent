@@ -29,6 +29,8 @@ export interface TemplateRenderData {
   intake: TemplateIntake;
   content: TemplateContent;
   theme: TemplateTheme;
+  editMode?: boolean;
+  styleOverrides?: Record<string, { color?: string; fontSize?: string; fontWeight?: string; bg?: string }>;
 }
 
 export interface SiteTemplate {
