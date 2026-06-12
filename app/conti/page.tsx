@@ -1661,91 +1661,44 @@ ${header("타임테이블")}
               {/* ── 체크리스트 ── */}
               {/* ══ 씬 참고 탭 ══ */}
               {tab === "scenes" && result && (
-                <div style={{ display: "flex", gap: 20 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, color: "#5A7470" }}>
+                      촬영 씬 구성 한눈에 보기 — 총 {result.conti.length}컷
+                    </div>
+                    <button
+                      onClick={() => {
+                        const prompt = `아래 병원 촬영 콘티를 보고, 각 씬을 일러스트 스타일의 스토리보드로 그려주세요.
 
-                  {/* ── 왼쪽: GPT 채팅창 ── */}
-                  <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: 0, height: "calc(100vh - 260px)", position: "sticky", top: 80 }}>
-                    <div style={{ background: "#155855", color: "#fff", padding: "10px 14px", borderRadius: "12px 12px 0 0", fontSize: 12, fontWeight: 900, display: "flex", alignItems: "center", gap: 6 }}>
-                      🎨 씬 이미지 생성 채팅
-                    </div>
-                    {/* 초기 안내 */}
-                    {gptMessages.length === 0 && (
-                      <div style={{ background: "#EAF4F2", padding: "10px 14px", fontSize: 11, color: "#5A7470", lineHeight: 1.7, borderLeft: "1px solid #C8DDD9", borderRight: "1px solid #C8DDD9" }}>
-                        💡 <strong>사용법:</strong><br/>
-                        • "씬 1, 2, 3 이미지 그려줘"<br/>
-                        • "공통 씬들 이미지 만들어줘"<br/>
-                        • "전체 4개 생성해줘"<br/>
-                        <span style={{ color: "#9ca3af", fontSize: 10 }}>* 한 번에 최대 4개 생성</span>
-                      </div>
-                    )}
-                    {/* 메시지 목록 */}
-                    <div style={{
-                      flex: 1, overflowY: "auto", background: "#fff",
-                      border: "1px solid #C8DDD9", borderTop: "none", borderBottom: "none",
-                      padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8,
-                    }}>
-                      {gptMessages.map((msg, i) => (
-                        <div key={i} style={{
-                          display: "flex", flexDirection: "column",
-                          alignItems: msg.role === "user" ? "flex-end" : "flex-start",
-                          gap: 4,
-                        }}>
-                          <div style={{
-                            maxWidth: "85%", padding: "8px 11px", borderRadius: msg.role === "user" ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
-                            background: msg.role === "user" ? "#155855" : "#F3F4F6",
-                            color: msg.role === "user" ? "#fff" : "#374151",
-                            fontSize: 11, lineHeight: 1.6,
-                          }}>
-                            {msg.content}
-                          </div>
-                          {msg.images && msg.images.length > 0 && (
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, maxWidth: "85%" }}>
-                              {msg.images.map((url, j) => (
-                                <img key={j} src={url} alt="" style={{ width: 60, height: 45, objectFit: "cover", borderRadius: 6 }} />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {gptLoading && (
-                        <div style={{ display: "flex", gap: 4, padding: "8px 11px", background: "#F3F4F6", borderRadius: "12px 12px 12px 4px", width: "fit-content" }}>
-                          {[0,1,2].map(j => (
-                            <div key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "#155855", animation: `bounce 1s ease-in-out ${j*0.15}s infinite` }} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {/* 입력창 */}
-                    <div style={{ border: "1px solid #C8DDD9", borderTop: "none", borderRadius: "0 0 12px 12px", background: "#fff", padding: "8px 10px", display: "flex", gap: 6 }}>
-                      <input
-                        value={gptInput}
-                        onChange={e => setGptInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendGptMessage(); }}}
-                        placeholder="씬 1, 2, 3 이미지 그려줘..."
-                        disabled={gptLoading}
-                        style={{
-                          flex: 1, border: "1px solid #E5E7EB", borderRadius: 8, padding: "7px 10px",
-                          fontSize: 11, fontFamily: "inherit", outline: "none", resize: "none",
-                        }}
-                      />
-                      <button
-                        onClick={sendGptMessage}
-                        disabled={gptLoading || !gptInput.trim()}
-                        style={{
-                          width: 36, height: 36, borderRadius: 8, border: "none",
-                          background: gptLoading || !gptInput.trim() ? "#E5E7EB" : "#E85D2C",
-                          color: gptLoading || !gptInput.trim() ? "#9ca3af" : "#fff",
-                          cursor: gptLoading || !gptInput.trim() ? "not-allowed" : "pointer",
-                          fontSize: 14, fontFamily: "inherit",
-                        }}
-                      >→</button>
-                    </div>
-                  </div>
+스타일:
+- 수채화 스케치 일러스트
+- 따뜻한 베이지/화이트 톤
+- 한국 병원 환경, 전문적이고 친근한 분위기
+- 씬 번호와 제목 포함
+- 진료과별로 행을 구분한 가로형 스토리보드 한 장
 
-                  {/* ── 오른쪽: 씬 카드 그리드 ── */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: "#5A7470", marginBottom: 16 }}>
-                    촬영 씬 구성 한눈에 보기 — 총 {result.conti.length}컷
+씬 목록:
+${result.conti.map((r, i) =>
+  `씬${i+1}. [${r.category}] ${r.location} / ${r.keyword} / ${r.duration}
+  설명: ${r.description}
+  인원: ${r.personnel}`
+).join("
+
+")}`;
+                        navigator.clipboard.writeText(prompt);
+                        alert("✅ ChatGPT 프롬프트가 복사됐어요!
+ChatGPT에 붙여넣기 하세요.");
+                      }}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        padding: "0 16px", height: 36, borderRadius: 8,
+                        border: "1.5px solid #155855", background: "#EAF4F2",
+                        color: "#155855", fontWeight: 900, fontSize: 12,
+                        cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      📋 ChatGPT 프롬프트 복사
+                    </button>
                   </div>
                   {/* 진료과별 그룹 */}
                   {(() => {
@@ -1809,7 +1762,6 @@ ${header("타임테이블")}
                       </div>
                     ));
                   })()}
-                  </div>
                 </div>
               )}
 
