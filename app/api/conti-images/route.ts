@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 interface ContiRow {
   category: string;
@@ -12,7 +12,12 @@ interface ContiRow {
 }
 
 function buildPrompt(row: ContiRow): string {
-  return `Korean medical clinic storyboard illustration. Scene: ${row.category} in ${row.location}. Concept: ${row.keyword}. People: ${row.personnel}. Style: clean watercolor sketch, warm beige tones, professional medical setting, no text`;
+  return `Korean medical clinic storyboard illustration. Watercolor sketch style, soft warm beige tones, clean professional setting.
+Scene: ${row.category} at ${row.location}.
+Concept: ${row.keyword}.
+People: ${row.personnel}.
+Action: ${row.description?.slice(0, 150)}.
+Style: anime-inspired medical illustration, no text, no labels, warm lighting.`;
 }
 
 export async function POST(req: NextRequest) {
@@ -28,7 +33,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "rows 필요" }, { status: 400 });
   }
 
-  // 최대 4개만 순차 생성 (동시 요청 제한 + 타임아웃 방지)
   const targets = rows.slice(0, 4);
   const images: Record<string, string> = {};
   const errors: string[] = [];
@@ -36,6 +40,7 @@ export async function POST(req: NextRequest) {
   for (let i = 0; i < targets.length; i++) {
     try {
       const prompt = buildPrompt(targets[i]);
+
       const res = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: {
@@ -43,24 +48,49 @@ export async function POST(req: NextRequest) {
           "Authorization": `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "dall-e-2",
-          prompt: prompt.slice(0, 1000), // DALL-E 2 프롬프트 1000자 제한
+          model: "gpt-image-1",
+          prompt: prompt.slice(0, 1500),
           n: 1,
-          size: "256x256", // 가장 작고 빠른 사이즈
-          response_format: "url",
+          size: "1024x1024",
+          quality: "low",          // low = 빠르고 저렴
+          output_format: "jpeg",   // jpeg = 용량 작음
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        errors.push(`씬${i+1}: ${data.error?.message || "실패"}`);
+        // gpt-image-1 실패 시 dall-e-2로 폴백
+        const fallback = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "dall-e-2",
+            prompt: prompt.slice(0, 1000),
+            n: 1,
+            size: "512x512",
+            response_format: "url",
+          }),
+        });
+        const fd = await fallback.json();
+        if (fd.data?.[0]?.url) {
+          images[String(i)] = fd.data[0].url;
+        } else {
+          errors.push(`씬${i+1}: ${data.error?.message || "실패"}`);
+        }
         continue;
       }
 
-      if (data.data?.[0]?.url) {
+      // gpt-image-1은 base64 반환
+      if (data.data?.[0]?.b64_json) {
+        images[String(i)] = `data:image/jpeg;base64,${data.data[0].b64_json}`;
+      } else if (data.data?.[0]?.url) {
         images[String(i)] = data.data[0].url;
       }
+
     } catch (e: any) {
       errors.push(`씬${i+1}: ${e.message}`);
     }
