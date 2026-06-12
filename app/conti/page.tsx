@@ -777,7 +777,6 @@ export default function ContiPage() {
       setResultTitle(quickSpecialties.join(" · ") + " — 기본 콘티");
       setForm(prev => ({ ...prev, specialties: quickSpecialties }));
       setTab("scenes");
-      if (data.conti?.length > 0) generateSceneImages(data.conti);
     } catch (err: unknown) {
       setQuickError(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally { setQuickLoading(false); }
@@ -803,7 +802,6 @@ export default function ContiPage() {
       setResult(data);
       setResultTitle(form.hospitalName || form.specialties.join(" · "));
       setTab("scenes");
-      if (data.conti?.length > 0) generateSceneImages(data.conti);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally { setLoading(false); }
@@ -1560,91 +1558,60 @@ ${header("타임테이블")}
               )}
 
               {/* ── 체크리스트 ── */}
-              {/* ══ 씬 이미지 탭 ══ */}
-              {tab === "scenes" && (
+              {/* ══ 씬 참고 탭 ══ */}
+              {tab === "scenes" && result && (
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <div style={{ fontSize: 13, color: "#5A7470" }}>
-                      콘티 씬별 참고 이미지 (AI 생성) — 첫 4개 씬 자동 생성
-                    </div>
-                    <button
-                      onClick={() => result && generateSceneImages(result.conti)}
-                      disabled={generatingImages}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 6,
-                        padding: "0 16px", height: 36, borderRadius: 8,
-                        border: "1.5px solid #E85D2C", background: "#fff7f5",
-                        color: "#E85D2C", fontWeight: 900, fontSize: 12,
-                        cursor: generatingImages ? "not-allowed" : "pointer",
-                        opacity: generatingImages ? 0.6 : 1, fontFamily: "inherit",
-                      }}
-                    >
-                      {generatingImages ? "🎨 생성 중..." : "🎨 이미지 재생성"}
-                    </button>
+                  <div style={{ fontSize: 12, color: "#5A7470", marginBottom: 16 }}>
+                    촬영 씬 구성 한눈에 보기 — 총 {result.conti.length}컷
                   </div>
-
-                  {imageError && (
-                    <div style={{ padding: "10px 14px", background: "#fff0f0", border: "1px solid #fecaca", borderRadius: 8, fontSize: 12, color: "#dc2626", marginBottom: 12 }}>
-                      ⚠ {imageError}
-                    </div>
-                  )}
-
-                  {/* 씬 그리드 */}
-                  {result && (() => {
-                    // 진료과별 그룹핑
+                  {/* 진료과별 그룹 */}
+                  {(() => {
                     const groups: Record<string, { row: typeof result.conti[0]; idx: number }[]> = {};
                     result.conti.forEach((row, idx) => {
                       const cat = row.category || "기타";
                       if (!groups[cat]) groups[cat] = [];
                       groups[cat].push({ row, idx });
                     });
-
                     return Object.entries(groups).map(([cat, items]) => (
-                      <div key={cat} style={{ marginBottom: 24 }}>
+                      <div key={cat} style={{ marginBottom: 28 }}>
+                        {/* 진료과 헤더 */}
                         <div style={{
-                          display: "inline-flex", alignItems: "center", gap: 8,
-                          background: "#155855", color: "#fff", padding: "4px 14px",
-                          borderRadius: 6, fontSize: 12, fontWeight: 900, marginBottom: 12,
-                        }}>
-                          {cat}
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
+                          display: "inline-flex", alignItems: "center",
+                          background: "#155855", color: "#fff",
+                          padding: "4px 14px", borderRadius: 6,
+                          fontSize: 12, fontWeight: 900, marginBottom: 12,
+                        }}>{cat}</div>
+                        {/* 씬 카드 그리드 */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
                           {items.map(({ row, idx }) => (
-                            <div key={idx} style={{ background: "#fff", border: "1px solid rgba(21,88,85,.1)", borderRadius: 12, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,.06)" }}>
-                              {/* 이미지 영역 */}
-                              <div style={{ position: "relative", paddingTop: "66%", background: "#f5f5f0" }}>
-                                {sceneImages[String(idx)] ? (
-                                  <img
-                                    src={sceneImages[String(idx)]}
-                                    alt={`씬${idx+1}`}
-                                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                                  />
-                                ) : generatingImages && idx < 4 ? (
-                                  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                                    <div style={{ width: 28, height: 28, border: "3px solid #C8DDD9", borderTopColor: "#155855", borderRadius: "50%", animation: "spin .8s linear infinite" }} />
-                                    <div style={{ fontSize: 11, color: "#9ca3af" }}>생성 중...</div>
-                                  </div>
-                                ) : (
-                                  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                                    <div style={{ fontSize: 28 }}>🎬</div>
-                                    <div style={{ fontSize: 10, color: "#9ca3af" }}>{idx < 4 ? "이미지 없음" : "4개 이상 미생성"}</div>
-                                  </div>
-                                )}
-                                {/* 씬 번호 */}
-                                <div style={{ position: "absolute", top: 8, left: 8, background: "#E85D2C", color: "#fff", fontSize: 10, fontWeight: 900, padding: "2px 8px", borderRadius: 4 }}>
-                                  씬 {idx + 1}
-                                </div>
+                            <div key={idx} style={{
+                              background: "#fff", border: "1px solid rgba(21,88,85,.1)",
+                              borderRadius: 12, overflow: "hidden",
+                              boxShadow: "0 1px 6px rgba(0,0,0,.05)",
+                            }}>
+                              {/* 상단 컬러 바 + 씬번호 */}
+                              <div style={{
+                                background: "linear-gradient(135deg,#155855,#1e7870)",
+                                padding: "10px 12px",
+                                display: "flex", justifyContent: "space-between", alignItems: "center",
+                              }}>
+                                <span style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.7)", letterSpacing: ".1em" }}>
+                                  씬 {String(idx + 1).padStart(2, "0")}
+                                </span>
+                                <span style={{ fontSize: 10, color: "rgba(255,255,255,.8)" }}>⏱ {row.duration}</span>
                               </div>
-                              {/* 씬 정보 */}
+                              {/* 씬 내용 */}
                               <div style={{ padding: "10px 12px" }}>
-                                <div style={{ fontSize: 12, fontWeight: 900, color: "#155855", marginBottom: 4 }}>
-                                  {row.keyword || row.description?.slice(0, 30)}
+                                <div style={{ fontSize: 13, fontWeight: 900, color: "#E85D2C", marginBottom: 4, lineHeight: 1.3 }}>
+                                  {row.keyword}
                                 </div>
-                                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 3 }}>
-                                  📍 {row.location} · ⏱ {row.duration}
+                                <div style={{ fontSize: 11, color: "#374151", marginBottom: 6, lineHeight: 1.5 }}>
+                                  {row.description?.slice(0, 60)}{(row.description?.length || 0) > 60 ? "..." : ""}
                                 </div>
-                                <div style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.5 }}>
-                                  👥 {row.personnel?.slice(0, 50)}{(row.personnel?.length || 0) > 50 ? "..." : ""}
+                                <div style={{ borderTop: "1px solid #f0f0f0", paddingTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
+                                  <div style={{ fontSize: 10, color: "#6b7280" }}>📍 {row.location}</div>
+                                  <div style={{ fontSize: 10, color: "#6b7280" }}>👥 {row.personnel?.slice(0, 40)}{(row.personnel?.length || 0) > 40 ? "..." : ""}</div>
+                                  {row.cameraAngle && <div style={{ fontSize: 10, color: "#6b7280" }}>📷 {row.cameraAngle?.slice(0, 30)}</div>}
                                 </div>
                               </div>
                             </div>
