@@ -746,6 +746,7 @@ export default function ContiPage() {
       setResultTitle(quickSpecialties.join(" · ") + " — 기본 콘티");
       setForm(prev => ({ ...prev, specialties: quickSpecialties }));
       setTab("conti");
+      if (data.conti?.length > 0) generateSceneImages(data.conti);
     } catch (err: unknown) {
       setQuickError(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally { setQuickLoading(false); }
@@ -771,9 +772,37 @@ export default function ContiPage() {
       setResult(data);
       setResultTitle(form.hospitalName || form.specialties.join(" · "));
       setTab("conti");
+      if (data.conti?.length > 0) generateSceneImages(data.conti);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally { setLoading(false); }
+  };
+
+  /* ── 씬 이미지 자동 생성 (DALL-E 3) ── */
+  const generateSceneImages = async (contiRows: ContiRow[]) => {
+    if (!process.env.NEXT_PUBLIC_ENABLE_SCENE_IMAGES && typeof window !== "undefined") {
+      // 환경변수로 ON/OFF 가능
+    }
+    setGeneratingImages(true);
+    setImageError("");
+    setSceneImages({});
+    try {
+      const res = await fetch("/api/conti-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: contiRows.slice(0, 6) }),
+      });
+      const data = await res.json();
+      if (data.ok && data.images) {
+        setSceneImages(data.images);
+      } else {
+        setImageError(data.error || "이미지 생성 실패");
+      }
+    } catch (e: any) {
+      setImageError(e.message);
+    } finally {
+      setGeneratingImages(false);
+    }
   };
 
   /* ── localStorage 저장 ── */
@@ -1371,6 +1400,19 @@ ${header("타임테이블")}
                 }}>
                   📋 현장 뷰
                 </button>
+                <button
+                  onClick={() => result && generateSceneImages(result.conti)}
+                  disabled={generatingImages}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 7,
+                    padding: "0 18px", minHeight: 42, border: "1px solid #E85D2C",
+                    borderRadius: 8, background: generatingImages ? "#fff0eb" : "#fff7f5",
+                    color: "#E85D2C", fontWeight: 900, fontSize: 14,
+                    cursor: generatingImages ? "not-allowed" : "pointer", opacity: generatingImages ? 0.7 : 1,
+                  }}
+                >
+                  {generatingImages ? "🎨 이미지 생성 중..." : "🎨 씬 이미지 생성"}
+                </button>
                 <button onClick={handleSaveJSON} style={{
                   display: "inline-flex", alignItems: "center", gap: 7,
                   padding: "0 18px", minHeight: 42, border: "1.5px dashed rgba(21,88,85,0.4)",
@@ -1393,6 +1435,12 @@ ${header("타임테이블")}
               </div>
             </div>
 
+            {/* 이미지 오류 */}
+            {imageError && (
+              <div style={{ padding: "8px 12px", background: "#fff0f0", border: "1px solid #fcccc", borderRadius: 8, fontSize: 12, color: "#dc2626", marginBottom: 8 }}>
+                씬 이미지 생성 오류: {imageError}
+              </div>
+            )}
             {/* 편집 안내 */}
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 6,
@@ -1430,7 +1478,7 @@ ${header("타임테이블")}
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["", "진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원 / 환자역할", "비고", ""].map((h, idx) => (
+                        {["", "씬", "진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원 / 환자역할", "비고", ""].map((h, idx) => (
                           <th key={idx} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
                         ))}
                       </tr>
@@ -1453,6 +1501,21 @@ ${header("타임테이블")}
                           >
                             <td style={{ ...TD, width: 36, padding: "6px 4px", cursor: "grab" }}>
                               <DragHandle />
+                            </td>
+                            <td style={{ ...TD, width: 80, padding: "4px" }}>
+                              {i < 6 && sceneImages[i] ? (
+                                <img
+                                  src={sceneImages[i]}
+                                  alt={`씬${i+1}`}
+                                  style={{ width: 72, height: 54, objectFit: "cover", borderRadius: 6, display: "block" }}
+                                />
+                              ) : i < 6 && generatingImages ? (
+                                <div style={{ width: 72, height: 54, borderRadius: 6, background: "rgba(21,88,85,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                                  🎨
+                                </div>
+                              ) : (
+                                <div style={{ width: 72, height: 54, borderRadius: 6, background: "rgba(21,88,85,0.04)", border: "1px dashed rgba(21,88,85,0.15)" }} />
+                              )}
                             </td>
                             <td style={{ ...TD, background: c.bg, minWidth: 80 }}>
                               <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
