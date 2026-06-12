@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 최대 6개만 생성 (비용 절감)
-  const targets = rows.slice(0, 6);
+  const targets = rows.slice(0, 10);
 
   const results = await Promise.allSettled(
     targets.map(async (row, i) => {
@@ -44,11 +44,10 @@ export async function POST(req: NextRequest) {
           "Authorization": `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "dall-e-3",
+          model: "dall-e-2",
           prompt,
           n: 1,
-          size: "1024x1024",
-          quality: "standard",
+          size: "512x512",
           response_format: "url",
         }),
       });
