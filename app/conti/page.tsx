@@ -1668,26 +1668,24 @@ ${header("타임테이블")}
                     </div>
                     <button
                       onClick={() => {
-                        const prompt = `아래 병원 촬영 콘티를 보고, 각 씬을 일러스트 스타일의 스토리보드로 그려주세요.
-
-스타일:
-- 수채화 스케치 일러스트
-- 따뜻한 베이지/화이트 톤
-- 한국 병원 환경, 전문적이고 친근한 분위기
-- 씬 번호와 제목 포함
-- 진료과별로 행을 구분한 가로형 스토리보드 한 장
-
-씬 목록:
-${result.conti.map((r, i) =>
-  `씬${i+1}. [${r.category}] ${r.location} / ${r.keyword} / ${r.duration}
-  설명: ${r.description}
-  인원: ${r.personnel}`
-).join("
-
-")}`;
+                        const sceneList = result.conti.map((r, i) =>
+                          "씬" + (i+1) + ". [" + r.category + "] " + r.location + " / " + r.keyword + " / " + r.duration + "\n  설명: " + r.description + "\n  인원: " + r.personnel
+                        ).join("\n\n");
+                        const prompt = [
+                          "아래 병원 촬영 콘티를 보고, 각 씬을 일러스트 스타일의 스토리보드로 그려주세요.",
+                          "",
+                          "스타일:",
+                          "- 수채화 스케치 일러스트",
+                          "- 따뜻한 베이지/화이트 톤",
+                          "- 한국 병원 환경, 전문적이고 친근한 분위기",
+                          "- 씬 번호와 제목 포함",
+                          "- 진료과별로 행을 구분한 가로형 스토리보드 한 장",
+                          "",
+                          "씬 목록:",
+                          sceneList
+                        ].join("\n");
                         navigator.clipboard.writeText(prompt);
-                        alert("✅ ChatGPT 프롬프트가 복사됐어요!
-ChatGPT에 붙여넣기 하세요.");
+                        alert("✅ ChatGPT 프롬프트 복사 완료! ChatGPT에 붙여넣기 하세요.");
                       }}
                       style={{
                         display: "inline-flex", alignItems: "center", gap: 6,
