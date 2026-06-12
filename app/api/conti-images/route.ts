@@ -12,12 +12,7 @@ interface ContiRow {
 }
 
 function buildPrompt(row: ContiRow): string {
-  return `Medical clinic photography scene illustration, watercolor and sketch style, soft warm tones:
-Scene: ${row.category} at ${row.location}
-Concept: ${row.keyword}
-Description: ${row.description}
-People: ${row.personnel}
-Style: Korean medical clinic, professional, clean, warm beige and white tones, anime-inspired illustration, storyboard concept art, no text, no labels`;
+  return `Korean medical clinic storyboard illustration. Scene: ${row.category} in ${row.location}. Concept: ${row.keyword}. People: ${row.personnel}. Style: clean watercolor sketch, warm beige tones, professional medical setting, no text`;
 }
 
 export async function POST(req: NextRequest) {
@@ -26,17 +21,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "OPENAI_API_KEY 미설정" }, { status: 500 });
   }
 
-  const { rows } = await req.json() as { rows: ContiRow[] };
-  if (!rows || rows.length === 0) {
+  const body = await req.json();
+  const rows: ContiRow[] = body.rows || [];
+
+  if (rows.length === 0) {
     return NextResponse.json({ error: "rows 필요" }, { status: 400 });
   }
 
-  // 최대 6개만 생성 (비용 절감)
-  const targets = rows.slice(0, 10);
+  // 최대 4개만 순차 생성 (동시 요청 제한 + 타임아웃 방지)
+  const targets = rows.slice(0, 4);
+  const images: Record<string, string> = {};
+  const errors: string[] = [];
 
-  const results = await Promise.allSettled(
-    targets.map(async (row, i) => {
-      const prompt = buildPrompt(row);
+  for (let i = 0; i < targets.length; i++) {
+    try {
+      const prompt = buildPrompt(targets[i]);
       const res = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: {
@@ -45,24 +44,33 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           model: "dall-e-2",
-          prompt,
+          prompt: prompt.slice(0, 1000), // DALL-E 2 프롬프트 1000자 제한
           n: 1,
-          size: "512x512",
+          size: "256x256", // 가장 작고 빠른 사이즈
           response_format: "url",
         }),
       });
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || "이미지 생성 실패");
-      return { index: i, url: data.data[0].url };
-    })
-  );
 
-  const images: Record<number, string> = {};
-  results.forEach((r, i) => {
-    if (r.status === "fulfilled") {
-      images[r.value.index] = r.value.url;
+      if (!res.ok) {
+        errors.push(`씬${i+1}: ${data.error?.message || "실패"}`);
+        continue;
+      }
+
+      if (data.data?.[0]?.url) {
+        images[String(i)] = data.data[0].url;
+      }
+    } catch (e: any) {
+      errors.push(`씬${i+1}: ${e.message}`);
     }
-  });
+  }
 
-  return NextResponse.json({ ok: true, images });
+  return NextResponse.json({
+    ok: true,
+    images,
+    errors: errors.length > 0 ? errors : undefined,
+    generated: Object.keys(images).length,
+    total: targets.length,
+  });
 }
