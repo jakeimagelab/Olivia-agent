@@ -612,6 +612,37 @@ export default function ContiPage() {
     }
   }, []);
   const [result,           setResult]           = useState<ContiResult | null>(null);
+  const [sceneImages,      setSceneImages]      = useState<Record<number, string>>({});
+  const [generatingImages, setGeneratingImages] = useState(false);
+  const [imageError,       setImageError]       = useState("");
+
+  /* ── 씬 이미지 자동 생성 (DALL-E 3) ── */
+  const generateSceneImages = async (contiRows: ContiRow[]) => {
+    if (!process.env.NEXT_PUBLIC_ENABLE_SCENE_IMAGES && typeof window !== "undefined") {
+      // 환경변수로 ON/OFF 가능
+    }
+    setGeneratingImages(true);
+    setImageError("");
+    setSceneImages({});
+    try {
+      const res = await fetch("/api/conti-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: contiRows.slice(0, 10) }),
+      });
+      const data = await res.json();
+      if (data.ok && data.images) {
+        setSceneImages(data.images);
+      } else {
+        setImageError(data.error || "이미지 생성 실패");
+      }
+    } catch (e: any) {
+      setImageError(e.message);
+    } finally {
+      setGeneratingImages(false);
+    }
+  };
+
   const [error,            setError]            = useState("");
   const [tab,              setTab]              = useState<"conti" | "checklist" | "schedule">("conti");
   const [fieldView,        setFieldView]        = useState(false); // 아이패드 현장 뷰
@@ -776,33 +807,6 @@ export default function ContiPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally { setLoading(false); }
-  };
-
-  /* ── 씬 이미지 자동 생성 (DALL-E 3) ── */
-  const generateSceneImages = async (contiRows: ContiRow[]) => {
-    if (!process.env.NEXT_PUBLIC_ENABLE_SCENE_IMAGES && typeof window !== "undefined") {
-      // 환경변수로 ON/OFF 가능
-    }
-    setGeneratingImages(true);
-    setImageError("");
-    setSceneImages({});
-    try {
-      const res = await fetch("/api/conti-images", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: contiRows.slice(0, 6) }),
-      });
-      const data = await res.json();
-      if (data.ok && data.images) {
-        setSceneImages(data.images);
-      } else {
-        setImageError(data.error || "이미지 생성 실패");
-      }
-    } catch (e: any) {
-      setImageError(e.message);
-    } finally {
-      setGeneratingImages(false);
-    }
   };
 
   /* ── localStorage 저장 ── */
@@ -1503,13 +1507,13 @@ ${header("타임테이블")}
                               <DragHandle />
                             </td>
                             <td style={{ ...TD, width: 80, padding: "4px" }}>
-                              {i < 6 && sceneImages[i] ? (
+                              {i < 10 && sceneImages[i] ? (
                                 <img
                                   src={sceneImages[i]}
                                   alt={`씬${i+1}`}
                                   style={{ width: 72, height: 54, objectFit: "cover", borderRadius: 6, display: "block" }}
                                 />
-                              ) : i < 6 && generatingImages ? (
+                              ) : i < 10 && generatingImages ? (
                                 <div style={{ width: 72, height: 54, borderRadius: 6, background: "rgba(21,88,85,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
                                   🎨
                                 </div>
