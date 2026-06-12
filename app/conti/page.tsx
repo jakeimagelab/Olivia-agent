@@ -613,6 +613,9 @@ export default function ContiPage() {
   }, []);
   const [result,           setResult]           = useState<ContiResult | null>(null);
   const [sceneImages,      setSceneImages]      = useState<Record<string, string>>({});
+  const [gptMessages,      setGptMessages]      = useState<{role:"user"|"assistant"; content:string; images?:string[]}[]>([]);
+  const [gptInput,         setGptInput]         = useState("");
+  const [gptLoading,       setGptLoading]       = useState(false);
   const [generatingImages, setGeneratingImages] = useState(false);
   const [imageError,       setImageError]       = useState("");
 
@@ -805,6 +808,104 @@ export default function ContiPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally { setLoading(false); }
+  };
+
+  /* ── GPT 이미지 채팅 ── */
+  const sendGptMessage = async () => {
+    if (!gptInput.trim() || gptLoading || !result) return;
+
+    const userMsg = gptInput.trim();
+    setGptInput("");
+    setGptLoading(true);
+
+    // 콘티 컨텍스트 자동 주입
+    const contiSummary = result.conti.slice(0, 10).map((r, i) =>
+      `씬${i+1}: ${r.category} / ${r.location} / ${r.keyword} / ${r.personnel}`
+    ).join("\n");
+
+    const systemPrompt = `당신은 병원 촬영 콘티 스토리보드 일러스트 생성 전문가입니다.
+현재 콘티 내용:
+${contiSummary}
+
+사용자가 특정 씬 이미지를 요청하면 gpt-image-1로 생성해주세요.
+스타일: 수채화 스케치, 한국 병원 환경, 따뜻한 베이지/화이트 톤, 의료 일러스트`;
+
+    const newMessages: typeof gptMessages = [
+      ...gptMessages,
+      { role: "user", content: userMsg }
+    ];
+    setGptMessages(newMessages);
+
+    try {
+      // 1. 서버 API를 통해 GPT 응답 생성
+      const chatRes = await fetch("/api/conti-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          systemPrompt,
+        }),
+      });
+
+      const chatData = await chatRes.json();
+      const reply = chatData.reply || "";
+
+      // 이미지 생성 키워드 감지
+      const wantsImage = /이미지|그려|생성|만들어|illustrat|draw|creat/i.test(userMsg);
+
+      if (wantsImage) {
+        // 씬 번호 추출
+        const sceneMatch = userMsg.match(/씬\s*(\d+)/g);
+        const sceneNums = sceneMatch
+          ? sceneMatch.map(s => parseInt(s.replace(/\D/g, "")) - 1)
+          : [0, 1, 2, 3];
+
+        const targets = sceneNums.slice(0, 4).filter(i => i < result.conti.length);
+
+        setGptMessages(prev => [...prev, {
+          role: "assistant",
+          content: `씬 ${targets.map(i => i+1).join(", ")} 이미지를 생성할게요! 잠시만 기다려주세요... 🎨`
+        }]);
+
+        // 이미지 생성 API 호출
+        const imgRes = await fetch("/api/conti-images", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: targets.map(i => result.conti[i]) }),
+        });
+        const imgData = await imgRes.json();
+
+        if (imgData.ok && imgData.images) {
+          // 인덱스 매핑 (targets 배열 기준)
+          const newImages: Record<string, string> = { ...sceneImages };
+          targets.forEach((sceneIdx, arrIdx) => {
+            if (imgData.images[String(arrIdx)]) {
+              newImages[String(sceneIdx)] = imgData.images[String(arrIdx)];
+            }
+          });
+          setSceneImages(newImages);
+
+          setGptMessages(prev => [...prev.slice(0, -1), {
+            role: "assistant",
+            content: `✅ 씬 ${targets.map(i => i+1).join(", ")} 이미지 생성 완료! 위 카드에서 확인하세요.`,
+            images: targets.map(i => newImages[String(i)]).filter(Boolean),
+          }]);
+        } else {
+          setGptMessages(prev => [...prev.slice(0, -1), {
+            role: "assistant",
+            content: `❌ 이미지 생성 실패: ${imgData.errors?.join(", ") || "알 수 없는 오류"}`,
+          }]);
+        }
+      } else {
+        setGptMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      }
+    } catch (e: any) {
+      setGptMessages(prev => [...prev, {
+        role: "assistant", content: `오류: ${e.message}`
+      }]);
+    } finally {
+      setGptLoading(false);
+    }
   };
 
   /* ── localStorage 저장 ── */
@@ -1560,7 +1661,89 @@ ${header("타임테이블")}
               {/* ── 체크리스트 ── */}
               {/* ══ 씬 참고 탭 ══ */}
               {tab === "scenes" && result && (
-                <div>
+                <div style={{ display: "flex", gap: 20 }}>
+
+                  {/* ── 왼쪽: GPT 채팅창 ── */}
+                  <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: 0, height: "calc(100vh - 260px)", position: "sticky", top: 80 }}>
+                    <div style={{ background: "#155855", color: "#fff", padding: "10px 14px", borderRadius: "12px 12px 0 0", fontSize: 12, fontWeight: 900, display: "flex", alignItems: "center", gap: 6 }}>
+                      🎨 씬 이미지 생성 채팅
+                    </div>
+                    {/* 초기 안내 */}
+                    {gptMessages.length === 0 && (
+                      <div style={{ background: "#EAF4F2", padding: "10px 14px", fontSize: 11, color: "#5A7470", lineHeight: 1.7, borderLeft: "1px solid #C8DDD9", borderRight: "1px solid #C8DDD9" }}>
+                        💡 <strong>사용법:</strong><br/>
+                        • "씬 1, 2, 3 이미지 그려줘"<br/>
+                        • "공통 씬들 이미지 만들어줘"<br/>
+                        • "전체 4개 생성해줘"<br/>
+                        <span style={{ color: "#9ca3af", fontSize: 10 }}>* 한 번에 최대 4개 생성</span>
+                      </div>
+                    )}
+                    {/* 메시지 목록 */}
+                    <div style={{
+                      flex: 1, overflowY: "auto", background: "#fff",
+                      border: "1px solid #C8DDD9", borderTop: "none", borderBottom: "none",
+                      padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8,
+                    }}>
+                      {gptMessages.map((msg, i) => (
+                        <div key={i} style={{
+                          display: "flex", flexDirection: "column",
+                          alignItems: msg.role === "user" ? "flex-end" : "flex-start",
+                          gap: 4,
+                        }}>
+                          <div style={{
+                            maxWidth: "85%", padding: "8px 11px", borderRadius: msg.role === "user" ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+                            background: msg.role === "user" ? "#155855" : "#F3F4F6",
+                            color: msg.role === "user" ? "#fff" : "#374151",
+                            fontSize: 11, lineHeight: 1.6,
+                          }}>
+                            {msg.content}
+                          </div>
+                          {msg.images && msg.images.length > 0 && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, maxWidth: "85%" }}>
+                              {msg.images.map((url, j) => (
+                                <img key={j} src={url} alt="" style={{ width: 60, height: 45, objectFit: "cover", borderRadius: 6 }} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {gptLoading && (
+                        <div style={{ display: "flex", gap: 4, padding: "8px 11px", background: "#F3F4F6", borderRadius: "12px 12px 12px 4px", width: "fit-content" }}>
+                          {[0,1,2].map(j => (
+                            <div key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "#155855", animation: `bounce 1s ease-in-out ${j*0.15}s infinite` }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* 입력창 */}
+                    <div style={{ border: "1px solid #C8DDD9", borderTop: "none", borderRadius: "0 0 12px 12px", background: "#fff", padding: "8px 10px", display: "flex", gap: 6 }}>
+                      <input
+                        value={gptInput}
+                        onChange={e => setGptInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendGptMessage(); }}}
+                        placeholder="씬 1, 2, 3 이미지 그려줘..."
+                        disabled={gptLoading}
+                        style={{
+                          flex: 1, border: "1px solid #E5E7EB", borderRadius: 8, padding: "7px 10px",
+                          fontSize: 11, fontFamily: "inherit", outline: "none", resize: "none",
+                        }}
+                      />
+                      <button
+                        onClick={sendGptMessage}
+                        disabled={gptLoading || !gptInput.trim()}
+                        style={{
+                          width: 36, height: 36, borderRadius: 8, border: "none",
+                          background: gptLoading || !gptInput.trim() ? "#E5E7EB" : "#E85D2C",
+                          color: gptLoading || !gptInput.trim() ? "#9ca3af" : "#fff",
+                          cursor: gptLoading || !gptInput.trim() ? "not-allowed" : "pointer",
+                          fontSize: 14, fontFamily: "inherit",
+                        }}
+                      >→</button>
+                    </div>
+                  </div>
+
+                  {/* ── 오른쪽: 씬 카드 그리드 ── */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, color: "#5A7470", marginBottom: 16 }}>
                     촬영 씬 구성 한눈에 보기 — 총 {result.conti.length}컷
                   </div>
@@ -1589,17 +1772,23 @@ ${header("타임테이블")}
                               borderRadius: 12, overflow: "hidden",
                               boxShadow: "0 1px 6px rgba(0,0,0,.05)",
                             }}>
-                              {/* 상단 컬러 바 + 씬번호 */}
-                              <div style={{
-                                background: "linear-gradient(135deg,#155855,#1e7870)",
-                                padding: "10px 12px",
-                                display: "flex", justifyContent: "space-between", alignItems: "center",
-                              }}>
-                                <span style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.7)", letterSpacing: ".1em" }}>
-                                  씬 {String(idx + 1).padStart(2, "0")}
-                                </span>
-                                <span style={{ fontSize: 10, color: "rgba(255,255,255,.8)" }}>⏱ {row.duration}</span>
-                              </div>
+                              {/* 이미지 or 컬러바 */}
+                              {sceneImages[String(idx)] ? (
+                                <div style={{ position: "relative" }}>
+                                  <img src={sceneImages[String(idx)]} alt={`씬${idx+1}`} style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
+                                  <div style={{ position: "absolute", top: 6, left: 6, background: "#E85D2C", color: "#fff", fontSize: 9, fontWeight: 900, padding: "2px 7px", borderRadius: 4 }}>씬 {idx+1}</div>
+                                  <div style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,.5)", color: "#fff", fontSize: 9, padding: "2px 7px", borderRadius: 4 }}>⏱ {row.duration}</div>
+                                </div>
+                              ) : (
+                                <div style={{
+                                  background: "linear-gradient(135deg,#155855,#1e7870)",
+                                  padding: "10px 12px",
+                                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                                }}>
+                                  <span style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.7)", letterSpacing: ".1em" }}>씬 {String(idx + 1).padStart(2, "0")}</span>
+                                  <span style={{ fontSize: 10, color: "rgba(255,255,255,.8)" }}>⏱ {row.duration}</span>
+                                </div>
+                              )}
                               {/* 씬 내용 */}
                               <div style={{ padding: "10px 12px" }}>
                                 <div style={{ fontSize: 13, fontWeight: 900, color: "#E85D2C", marginBottom: 4, lineHeight: 1.3 }}>
@@ -1620,6 +1809,7 @@ ${header("타임테이블")}
                       </div>
                     ));
                   })()}
+                  </div>
                 </div>
               )}
 
