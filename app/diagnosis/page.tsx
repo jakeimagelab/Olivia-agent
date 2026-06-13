@@ -4,8 +4,10 @@ import { useState, useCallback } from "react";
 import PageHeader from "@/components/PageHeader";
 import {
   Q1_OPTIONS, Q2_OPTIONS, Q3_OPTIONS, Q4_OPTIONS,
-  Q5_OPTIONS, Q6_OPTIONS, Q7_OPTIONS, Q8_OPTIONS, TOTAL_STEPS,
+  Q5_OPTIONS, Q6_OPTIONS, Q7_OPTIONS, Q8_OPTIONS,
 } from "@/lib/diagnosis/questions";
+
+const TOTAL_STEPS = 11; // 10개 질문 + 사진 업로드
 import { recommend } from "@/lib/diagnosis/recommendation";
 import type { Answers, Concern, Content, Department, Impression, Usage, Budget, Stage, Timeline } from "@/lib/diagnosis/types";
 
@@ -66,31 +68,56 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
   );
 }
 
-// ── 점수 게이지 ───────────────────────────────────────────────
-function ScoreBar({ label, value }: { label: string; value: number }) {
-  const pct = Math.round(value * 100);
-  const color = pct >= 70 ? C.orange : pct >= 40 ? C.yellow : C.teal;
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
-        <span style={{ fontWeight: 700, color: "#374151" }}>{label}</span>
-        <span style={{ fontWeight: 800, color }}>{pct}점</span>
-      </div>
-      <div style={{ height: 8, background: "#F3F4F6", borderRadius: 99, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 99, transition: "width .6s ease" }} />
-      </div>
-    </div>
-  );
-}
 
 export default function DiagnosisPage() {
   const [step, setStep]     = useState(1);
   const [answers, setAnswers] = useState<Partial<Answers>>({ concerns: [], usages: [], impressions: [], contents: [], consultationOptin: true });
   const [result, setResult] = useState<ReturnType<typeof recommend> | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadedPhotos, setUploadedPhotos] = useState<{category: string; name: string; size: number; preview?: string}[]>([]);
+  const [photoConsent, setPhotoConsent] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, "uploading" | "done" | "error">>({});
   const [submitted, setSubmitted]   = useState(false);
 
   const set = useCallback((key: keyof Answers, val: any) => setAnswers(prev => ({ ...prev, [key]: val })), []);
+
+  const PHOTO_CATEGORIES = [
+    { category: "원장님 프로필사진", desc: "현재 홈페이지, 플레이스에서 사용 중인 원장님 사진" },
+    { category: "진료연출장면",     desc: "진료, 상담, 시술 연출 등 신뢰감을 주는 장면" },
+    { category: "병원 공간사진",    desc: "로비, 상담실, 진료실 등 병원 분위기" },
+    { category: "원하는 이미지",    desc: "벤치마킹, 참고 이미지, 원하는 분위기 사진" },
+  ];
+
+  const handlePhotoChange = async (category: string, files: FileList | null) => {
+    const selected = Array.from(files ?? []);
+    if (!selected.length) return;
+
+    const newPhotos = selected.map(f => ({
+      category, name: f.name, size: f.size,
+      preview: f.type.startsWith("image/") ? URL.createObjectURL(f) : undefined,
+    }));
+
+    setUploadedPhotos(prev => [...prev.filter(p => p.category !== category), ...newPhotos]);
+
+    // Supabase Storage 업로드 (환경변수 있을 때만)
+    const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !anon) return;
+
+    setUploadProgress(prev => ({ ...prev, [category]: "uploading" }));
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(url, anon);
+      for (const file of selected) {
+        const path = `diagnosis/${Date.now()}_${category.replace(/\s/g,"_")}_${file.name}`;
+        const { error } = await sb.storage.from("uploads").upload(path, file, { upsert: true });
+        if (error) throw error;
+      }
+      setUploadProgress(prev => ({ ...prev, [category]: "done" }));
+    } catch {
+      setUploadProgress(prev => ({ ...prev, [category]: "error" }));
+    }
+  };
 
   const next = () => {
     if (step < TOTAL_STEPS) setStep(s => s + 1);
@@ -107,7 +134,7 @@ export default function DiagnosisPage() {
       await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...answers, consultationOptin: true }),
+        body: JSON.stringify({ ...answers, consultationOptin: true, uploadedPhotos: uploadedPhotos.map(p => ({ category: p.category, name: p.name, size: p.size })), photoUploadConsent: photoConsent }),
       });
       setSubmitted(true);
     } catch {}
@@ -119,9 +146,7 @@ export default function DiagnosisPage() {
     const PKG_COLOR: Record<string, string> = {
       Premium: C.teal, "Premium Plus": C.orange, Homepage: C.yellow, "Branding Content": C.sage,
     };
-    const SCORE_LABELS: Record<string, string> = {
-      branding: "브랜딩 시급도", trust: "신뢰감 부족", space: "공간 이미지", treatment: "진료 장면", content: "콘텐츠 부족",
-    };
+
     return (
       <div style={{ minHeight: "100vh", background: C.bg }}>
         <PageHeader title="병원이미지 진단" />
@@ -135,15 +160,7 @@ export default function DiagnosisPage() {
             <div style={{ fontSize: 14, opacity: .8, lineHeight: 1.7 }}>{result.summary}</div>
           </div>
 
-          {/* 점수 카드 */}
-          {result.score && (
-            <div style={{ background: C.white, borderRadius: 14, padding: "20px 24px", marginBottom: 16, border: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 14 }}>📊 영역별 진단 점수</div>
-              {Object.entries(result.score).map(([k, v]) => (
-                <ScoreBar key={k} label={SCORE_LABELS[k] || k} value={v as number} />
-              ))}
-            </div>
-          )}
+
 
           {/* 위험 요소 */}
           {result.risks?.length > 0 && (
@@ -230,6 +247,7 @@ export default function DiagnosisPage() {
     if (step === 8) return !!answers.budget;
     if (step === 9) return !!answers.timeline;
     if (step === 10) return !!(answers.hospitalName && answers.phone && answers.email);
+    if (step === 11) return true; // 사진 업로드는 선택사항
     return true;
   })();
 
@@ -244,6 +262,7 @@ export default function DiagnosisPage() {
     8: "예산 범위가 어떻게 되시나요?",
     9: "촬영 시기가 언제인가요?",
     10: "마지막으로 연락처를 입력해주세요",
+    11: "현재 사용 중인 병원 사진을 올려주세요 (선택)",
   };
 
   return (
@@ -394,7 +413,7 @@ export default function DiagnosisPage() {
             fontSize: 15, fontWeight: 900, cursor: canNext ? "pointer" : "not-allowed",
             fontFamily: "inherit", transition: "all 150ms",
           }}>
-            {step === TOTAL_STEPS ? "🔍 진단 결과 보기" : "다음 →"}
+            {step === TOTAL_STEPS ? "📋 진단 완료 · 결과 보기" : "다음 →"}
           </button>
         </div>
       </div>
