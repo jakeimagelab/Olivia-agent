@@ -17,7 +17,7 @@ const C = {
 // ── SNS 탭 메뉴 ───────────────────────────────────────────
 const TABS = [
   { id: "blog",    label: "블로그 포스팅", icon: FileText,   status: "active",  badge: "" },
-  { id: "insta",   label: "인스타그램",    icon: Instagram,  status: "coming",  badge: "준비중" },
+  { id: "insta",   label: "인스타그램",    icon: Instagram,  status: "active",  badge: "" },
   { id: "place",   label: "네이버 플레이스", icon: MapPin,   status: "coming",  badge: "준비중" },
 ] as const;
 
@@ -398,7 +398,20 @@ export default function SnsManagerPage() {
       {/* 탭 내용 */}
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px 80px" }}>
         {tab === "blog"  && <BlogTab />}
-        {tab === "insta" && <ComingSoon label="인스타그램 캡션 자동 생성" />}
+        {tab === "insta" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "calc(100vh - 160px)" }}>
+            <div style={{ fontSize: 12, color: "#5A7470", padding: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
+              <Instagram size={13} />
+              병원 인스타그램 매니저 — 캡션 생성, 피드 기획, 채널 분석
+            </div>
+            <iframe
+              src="/assets/tools/hospital-instagram-manager/index.html"
+              style={{ flex: 1, border: "none", borderRadius: 14, background: "#fff", boxShadow: "0 2px 16px rgba(21,88,85,.08)" }}
+              title="인스타그램 매니저"
+              allow="clipboard-write; clipboard-read"
+            />
+          </div>
+        )}
         {tab === "place" && <ComingSoon label="네이버 플레이스 리뷰 답변" />}
       </div>
     </div>

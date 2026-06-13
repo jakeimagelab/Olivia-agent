@@ -52,6 +52,7 @@ const adminMenus = [
     icon: CalendarCheck,
     meta: "SNS Manager"
   },
+
   {
     title: "사진 분류 시스템",
     description: "촬영 사진을 용도와 카테고리별로 빠르게 분류하고 정리합니다.",
