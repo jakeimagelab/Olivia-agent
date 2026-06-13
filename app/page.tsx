@@ -46,18 +46,11 @@ const adminMenus = [
     meta: "Channel Analysis"
   },
   {
-    title: "인스타그램 디자인",
-    description: "촬영 사진으로 카드뉴스와 피드 디자인을 자동 생성합니다.",
-    href: "/instagram-promo-design",
-    icon: Images,
-    meta: "Promotion Design"
-  },
-  {
-    title: "인스타그램 매니저",
-    description: "병원 인스타그램 성과 분석, 채널 분석, 콘텐츠 기획과 캘린더를 관리합니다.",
-    href: "/hospital-instagram-manager",
+    title: "SNS 콘텐츠 매니저",
+    description: "블로그 포스팅 자동 생성, 인스타그램 캡션, 네이버 플레이스 관리를 한 곳에서.",
+    href: "/sns-manager",
     icon: CalendarCheck,
-    meta: "Content Manager"
+    meta: "SNS Manager"
   },
   {
     title: "사진 분류 시스템",
