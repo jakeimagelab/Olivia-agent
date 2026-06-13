@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { mockReviews } from "@/lib/mockData";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const mockReviews = [
+  {
+    id: "mock-review-1",
+    hospital_name: "온유성형외과",
+    reviewer_name: "김실장님",
+    channel: "카카오톡",
+    rating: 5,
+    review_text: "원장님과 직원들이 촬영 결과물을 보고 정말 만족했습니다. 병원 분위기가 따뜻하고 전문적으로 잘 표현됐어요.",
+    permission_to_publish: true,
+    delivered_at: "2026-06-13",
+    created_at: new Date().toISOString()
+  }
+];
 
 export async function GET() {
   try {

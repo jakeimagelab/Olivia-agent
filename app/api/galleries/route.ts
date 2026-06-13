@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { mockGalleries } from "@/lib/mockData";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +9,33 @@ type GalleryItemInput = {
   thumbnailUrl?: string;
   nasFileUrl?: string;
 };
+
+const mockGalleries = [
+  {
+    id: "mock-gallery-1",
+    hospital_name: "온유성형외과",
+    contact_name: "김실장님",
+    contact_email: "client@example.com",
+    shoot_date: "2026-06-12",
+    nas_link: "https://nas.photoclinic.kr/share/onyou-20260612",
+    description: "대표원장 프로필, 상담실, 로비 공간 촬영",
+    created_at: new Date().toISOString(),
+    items: [
+      {
+        id: "mock-item-1",
+        title: "대표원장 프로필",
+        thumbnail_url: "https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=600&q=80&auto=format&fit=crop",
+        nas_file_url: "https://nas.photoclinic.kr/share/onyou-20260612/profile-01"
+      },
+      {
+        id: "mock-item-2",
+        title: "상담실 공간",
+        thumbnail_url: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=600&q=80&auto=format&fit=crop",
+        nas_file_url: "https://nas.photoclinic.kr/share/onyou-20260612/space-01"
+      }
+    ]
+  }
+];
 
 export async function GET() {
   try {
