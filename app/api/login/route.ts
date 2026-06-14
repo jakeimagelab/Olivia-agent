@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const COOKIE_NAME = "pc_admin_session";
-
 export async function POST(req: NextRequest) {
   const { password } = await req.json().catch(() => ({ password: "" }));
   const adminPassword = process.env.ADMIN_PASSWORD;
@@ -21,7 +19,7 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAME, "active", {
+  res.cookies.set("pc_admin_session", "active", {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
