@@ -89,6 +89,7 @@ export default function GalleryPage() {
   const [saving, setSaving] = useState(false);
   const [sharingId, setSharingId] = useState("");
   const [message, setMessage] = useState("");
+  const [editingId, setEditingId] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [form, setForm] = useState({
@@ -164,6 +165,37 @@ export default function GalleryPage() {
     return data.url as string;
   };
 
+  const resetForm = () => {
+    setForm({ hospitalName: "", contactName: "", contactEmail: "", shootDate: "", nasLink: "", description: "", thumbnailUrl: "" });
+    setEditingId("");
+    setThumbnailFile(null);
+    setThumbnailPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return "";
+    });
+  };
+
+  const startEdit = (gallery: Gallery) => {
+    const thumbnailUrl = gallery.items?.[0]?.thumbnail_url || "";
+    setEditingId(gallery.id);
+    setThumbnailFile(null);
+    setThumbnailPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return "";
+    });
+    setMessage("");
+    setForm({
+      hospitalName: gallery.hospital_name || "",
+      contactName: gallery.contact_name || "",
+      contactEmail: gallery.contact_email || "",
+      shootDate: gallery.shoot_date || "",
+      nasLink: gallery.nas_link || "",
+      description: gallery.description || "",
+      thumbnailUrl
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
@@ -171,19 +203,14 @@ export default function GalleryPage() {
     try {
       const uploadedThumbnailUrl = await uploadThumbnail();
       const res = await fetch("/api/galleries", {
-        method: "POST",
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, thumbnailUrl: uploadedThumbnailUrl })
+        body: JSON.stringify({ ...form, id: editingId, thumbnailUrl: uploadedThumbnailUrl })
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
-      setMessage("갤러리를 저장했습니다.");
-      setForm({ hospitalName: "", contactName: "", contactEmail: "", shootDate: "", nasLink: "", description: "", thumbnailUrl: "" });
-      setThumbnailFile(null);
-      setThumbnailPreview((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return "";
-      });
+      setMessage(editingId ? "갤러리 카드를 수정했습니다." : "갤러리를 저장했습니다.");
+      resetForm();
       await loadGalleries();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "저장 실패");
@@ -241,7 +268,7 @@ export default function GalleryPage() {
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
             <div style={{ background: C.mint, padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>촬영 갤러리 등록</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>{editingId ? "갤러리 카드 편집" : "촬영 갤러리 등록"}</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>원본 사진은 NAS에 두고, 카드용 작은 대표 미리보기만 저장합니다.</div>
             </div>
             <div style={{ padding: 20, display: "grid", gap: 12 }}>
@@ -270,9 +297,16 @@ export default function GalleryPage() {
             </div>
           </div>
 
-          <button disabled={saving} style={{ minHeight: 50, border: 0, borderRadius: 12, background: C.teal, color: "#fff", fontWeight: 900, fontSize: 15 }}>
-            {saving ? "저장 중..." : "갤러리 저장"}
-          </button>
+          <div style={{ display: "grid", gridTemplateColumns: editingId ? "1fr 120px" : "1fr", gap: 10 }}>
+            <button disabled={saving} style={{ minHeight: 50, border: 0, borderRadius: 12, background: C.teal, color: "#fff", fontWeight: 900, fontSize: 15 }}>
+              {saving ? "저장 중..." : editingId ? "카드 수정 저장" : "갤러리 저장"}
+            </button>
+            {editingId ? (
+              <button type="button" onClick={resetForm} style={{ minHeight: 50, border: `1px solid ${C.border}`, borderRadius: 12, background: C.surface, color: C.teal, fontWeight: 900, fontSize: 14 }}>
+                취소
+              </button>
+            ) : null}
+          </div>
           {message ? <div style={{ color: message.includes("실패") || message.includes("없습니다") ? C.orange : C.teal, fontSize: 13, fontWeight: 800 }}>{message}</div> : null}
         </form>
 
@@ -308,25 +342,44 @@ export default function GalleryPage() {
                           {gallery.contact_name || "담당자 미입력"} · {gallery.contact_email || "이메일 미입력"}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => shareGallery(gallery)}
-                        disabled={!canSendMail || sharingId === gallery.id}
-                        title={canSendMail ? "갤러리 메일 보내기" : "공유 이메일을 먼저 입력하세요"}
-                        style={{
-                          border: 0,
-                          borderRadius: 10,
-                          background: canSendMail ? C.orange : C.border,
-                          color: canSendMail ? "#fff" : C.muted,
-                          padding: "9px 11px",
-                          fontSize: 12,
-                          fontWeight: 900,
-                          whiteSpace: "nowrap",
-                          cursor: canSendMail ? "pointer" : "not-allowed"
-                        }}
-                      >
-                        {sharingId === gallery.id ? "발송 중" : "메일 보내기"}
-                      </button>
+                      <div style={{ display: "grid", gap: 7, justifyItems: "end" }}>
+                        <button
+                          type="button"
+                          onClick={() => shareGallery(gallery)}
+                          disabled={!canSendMail || sharingId === gallery.id}
+                          title={canSendMail ? "갤러리 메일 보내기" : "공유 이메일을 먼저 입력하세요"}
+                          style={{
+                            border: 0,
+                            borderRadius: 10,
+                            background: canSendMail ? C.orange : C.border,
+                            color: canSendMail ? "#fff" : C.muted,
+                            padding: "9px 11px",
+                            fontSize: 12,
+                            fontWeight: 900,
+                            whiteSpace: "nowrap",
+                            cursor: canSendMail ? "pointer" : "not-allowed"
+                          }}
+                        >
+                          {sharingId === gallery.id ? "발송 중" : "메일 보내기"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startEdit(gallery)}
+                          style={{
+                            border: `1px solid ${C.border}`,
+                            borderRadius: 10,
+                            background: C.surface,
+                            color: C.teal,
+                            padding: "8px 11px",
+                            fontSize: 12,
+                            fontWeight: 900,
+                            whiteSpace: "nowrap",
+                            cursor: "pointer"
+                          }}
+                        >
+                          카드 수정
+                        </button>
+                      </div>
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
