@@ -203,11 +203,16 @@ export default function GalleryPage() {
     try {
       const uploadedThumbnailUrl = await uploadThumbnail();
       const res = await fetch("/api/galleries", {
-        method: editingId ? "PATCH" : "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, id: editingId, thumbnailUrl: uploadedThumbnailUrl })
       });
-      const data = await res.json();
+      const text = await res.text();
+      const data = text.startsWith("<")
+        ? { ok: false, error: "저장 API가 HTML 오류 페이지를 반환했습니다. 배포 파일을 다시 확인해 주세요." }
+        : text
+          ? JSON.parse(text)
+          : { ok: false, error: "빈 응답이 돌아왔습니다." };
       if (!data.ok) throw new Error(data.error);
       setMessage(editingId ? "갤러리 카드를 수정했습니다." : "갤러리를 저장했습니다.");
       resetForm();
