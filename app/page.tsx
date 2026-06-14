@@ -96,20 +96,6 @@ const adminMenus = [
     meta: "File Transfer"
   },
   {
-    title: "촬영 갤러리",
-    description: "NAS 링크 기반 갤러리를 만들고 썸네일로 확인한 뒤 병원에 Gmail로 공유합니다.",
-    href: "/gallery",
-    icon: Images,
-    meta: "Gallery Delivery"
-  },
-  {
-    title: "리뷰 콘텐츠",
-    description: "납품 후 리뷰를 DB에 모으고 요약해 인스타그램 카드뉴스와 캡션으로 정리합니다.",
-    href: "/review-studio",
-    icon: Sparkles,
-    meta: "Review Studio"
-  },
-  {
     title: "업무 리포트",
     description: "올리비아 AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",
     href: "/report",
