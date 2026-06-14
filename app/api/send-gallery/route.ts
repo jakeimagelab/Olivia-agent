@@ -1,8 +1,116 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendGmail } from "@/lib/gmail";
+import tls from "node:tls";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type GmailPayload = {
+  user: string;
+  appPassword: string;
+  to: string;
+  fromName: string;
+  subject: string;
+  html: string;
+};
+
+const encodeHeader = (value: string) =>
+  /[^\x20-\x7E]/.test(value)
+    ? `=?UTF-8?B?${Buffer.from(value, "utf-8").toString("base64")}?=`
+    : value;
+
+const foldBase64 = (value: string) => value.replace(/.{1,76}/g, "$&\r\n").trimEnd();
+
+const readResponse = (socket: tls.TLSSocket) =>
+  new Promise<string>((resolve, reject) => {
+    let output = "";
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("Gmail SMTP 응답 시간이 초과되었습니다."));
+    }, 15000);
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      socket.off("data", onData);
+      socket.off("error", onError);
+    };
+
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+
+    const onData = (chunk: Buffer) => {
+      output += chunk.toString("utf-8");
+      const lines = output.trimEnd().split(/\r?\n/);
+      const last = lines[lines.length - 1] || "";
+      if (/^\d{3}\s/.test(last)) {
+        cleanup();
+        resolve(output);
+      }
+    };
+
+    socket.on("data", onData);
+    socket.on("error", onError);
+  });
+
+const sendGmailCommand = async (socket: tls.TLSSocket, command: string, ok: number[]) => {
+  socket.write(`${command}\r\n`);
+  const response = await readResponse(socket);
+  const code = Number(response.slice(0, 3));
+  if (!ok.includes(code)) throw new Error(response.trim());
+  return response;
+};
+
+async function sendGmail(payload: GmailPayload) {
+  const boundary = `photoclinic-${Date.now()}`;
+  const messageId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@photoclinic.local>`;
+  const mime = [
+    `From: ${encodeHeader(payload.fromName)} <${payload.user}>`,
+    `To: <${payload.to}>`,
+    `Subject: ${encodeHeader(payload.subject)}`,
+    "MIME-Version: 1.0",
+    `Message-ID: ${messageId}`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    "Content-Type: text/html; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    foldBase64(Buffer.from(payload.html, "utf-8").toString("base64")),
+    "",
+    `--${boundary}--`,
+    "",
+  ].join("\r\n");
+
+  const socket = tls.connect({
+    host: "smtp.gmail.com",
+    port: 465,
+    servername: "smtp.gmail.com",
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    socket.once("secureConnect", resolve);
+    socket.once("error", reject);
+  });
+
+  try {
+    const greeting = await readResponse(socket);
+    if (!greeting.startsWith("220")) throw new Error(greeting.trim());
+
+    await sendGmailCommand(socket, "EHLO photoclinic.local", [250]);
+    await sendGmailCommand(socket, "AUTH LOGIN", [334]);
+    await sendGmailCommand(socket, Buffer.from(payload.user).toString("base64"), [334]);
+    await sendGmailCommand(socket, Buffer.from(payload.appPassword.replace(/\s/g, "")).toString("base64"), [235]);
+    await sendGmailCommand(socket, `MAIL FROM:<${payload.user}>`, [250]);
+    await sendGmailCommand(socket, `RCPT TO:<${payload.to}>`, [250, 251]);
+    await sendGmailCommand(socket, "DATA", [354]);
+    await sendGmailCommand(socket, `${mime}\r\n.`, [250]);
+    await sendGmailCommand(socket, "QUIT", [221]);
+    return messageId;
+  } finally {
+    socket.end();
+  }
+}
 
 export async function POST(req: NextRequest) {
   const gmailUser = process.env.GMAIL_USER;
