@@ -14,7 +14,7 @@
 - 인스타그램 디자인: 준비 페이지
 - 홈페이지 제작: 준비 페이지
 - 사진 보정: Evoto 연동 검토 준비 페이지
-- 촬영 갤러리: NAS 공유 링크와 선택 대표 이미지 주소를 Supabase에 저장하고 Gmail로 병원에 공유
+- 촬영 갤러리: NAS 공유 링크와 카드용 대표 썸네일을 Supabase에 저장하고 Gmail로 병원에 공유
 - 리뷰 콘텐츠: 납품 후 리뷰를 DB에 수집하고 인스타그램 카드뉴스/캡션 초안 생성
 
 ## 새 기능 설정
@@ -33,7 +33,7 @@ supabase/photo-gallery-reviews.sql
 - `photo_gallery_items`
 - `delivery_reviews`
 
-실제 이미지는 저장하지 않습니다. NAS 공유 링크와 선택 입력한 대표 이미지 주소만 DB에 저장합니다.
+원본 사진은 저장하지 않습니다. NAS 공유 링크는 DB에 저장하고, 대표 이미지는 카드용 작은 썸네일로 줄여 Supabase Storage의 `gallery-thumbnails` 버킷에 저장합니다.
 
 ### 환경 변수
 
