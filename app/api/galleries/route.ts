@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
     shootDate,
     nasLink,
     description,
+    thumbnailUrl,
     items = []
   } = body as {
     hospitalName?: string;
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
     shootDate?: string;
     nasLink?: string;
     description?: string;
+    thumbnailUrl?: string;
     items?: GalleryItemInput[];
   };
 
@@ -98,9 +100,17 @@ export async function POST(req: NextRequest) {
 
     if (galleryError) throw galleryError;
 
-    const cleanItems = items
-      .filter((item) => item.thumbnailUrl || item.nasFileUrl || item.title)
-      .map((item, index) => ({
+    const cleanItems = thumbnailUrl
+      ? [
+          {
+            gallery_id: gallery.id,
+            title: "대표 이미지",
+            thumbnail_url: thumbnailUrl,
+            nas_file_url: nasLink,
+            sort_order: 0
+          }
+        ]
+      : items.filter((item) => item.thumbnailUrl || item.nasFileUrl || item.title).map((item, index) => ({
         gallery_id: gallery.id,
         title: item.title || `썸네일 ${index + 1}`,
         thumbnail_url: item.thumbnailUrl || "",
