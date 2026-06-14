@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Activity,
   ArrowRight,
@@ -154,7 +155,7 @@ export default function AdminHome() {
         </div>
 
         <nav className="pc-nav">
-          {sideMain.map((item, index) => <SideLink key={`${item.href}-${item.label}`} item={item} active={index === 0} />)}
+          {sideMain.map((item) => <SideLink key={`${item.href}-${item.label}`} item={item} />)}
         </nav>
 
         <div className="pc-nav-section">
@@ -245,10 +246,14 @@ export default function AdminHome() {
   );
 }
 
-function SideLink({ item, active = false }: { item: { label: string; href: string; icon: any }; active?: boolean }) {
+function SideLink({ item }: { item: { label: string; href: string; icon: any } }) {
   const Icon = item.icon;
+  const pathname = usePathname();
+  const isActive = item.href === "/"
+    ? pathname === "/"
+    : pathname?.startsWith(item.href);
   return (
-    <Link className={active ? "pc-nav-link active" : "pc-nav-link"} href={item.href}>
+    <Link className={isActive ? "pc-nav-link active" : "pc-nav-link"} href={item.href}>
       <Icon size={22} />
       <span>{item.label}</span>
     </Link>
