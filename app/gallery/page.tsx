@@ -34,6 +34,17 @@ const C = {
   mint: "#EAF4F2"
 };
 
+const displayDate = (value?: string) => {
+  if (!value) return "촬영일 미입력";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+};
+
 export default function GalleryPage() {
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,7 +179,7 @@ export default function GalleryPage() {
               <label className="field">
                 <span>대표 이미지 주소 (선택)</span>
                 <input style={fieldStyle} value={form.thumbnailUrl} onChange={(e) => set("thumbnailUrl", e.target.value)} placeholder="갤러리 카드에 보여줄 대표 사진 주소" />
-                <small style={{ color: C.muted, lineHeight: 1.6 }}>비워도 저장됩니다. NAS 링크 안의 사진을 자동으로 저장하지 않기 때문에, 카드에 사진을 보이게 하고 싶을 때만 입력하세요.</small>
+                <small style={{ color: C.muted, lineHeight: 1.6 }}>비워도 저장됩니다. NAS 페이지에서 공개 미리보기가 보이면 자동으로 대표 이미지를 찾아보고, 막혀 있으면 빈 카드로 표시됩니다.</small>
               </label>
               <label className="field"><span>촬영 내용</span><textarea style={{ ...fieldStyle, minHeight: 82, resize: "vertical" }} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="대표원장 프로필, 상담실, 로비 공간 촬영" /></label>
             </div>
@@ -187,26 +198,69 @@ export default function GalleryPage() {
           </div>
           {loading ? <div style={{ color: C.muted }}>불러오는 중...</div> : null}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
-            {galleries.map((gallery) => (
-              <article key={gallery.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 14px 34px rgba(21,88,85,.08)" }}>
-                <div style={{ background: C.border }}>
-                  {gallery.items?.[0]?.thumbnail_url ? (
-                    <img src={gallery.items[0].thumbnail_url} alt="" style={{ width: "100%", aspectRatio: "16 / 10", objectFit: "cover" }} />
-                  ) : (
-                    <div style={{ aspectRatio: "16 / 10", background: C.mint, display: "grid", placeItems: "center", color: C.teal, fontSize: 13, fontWeight: 800 }}>
-                      대표 이미지 없음
+            {galleries.map((gallery) => {
+              const thumbnailUrl = gallery.items?.[0]?.thumbnail_url || "";
+              const canSendMail = Boolean(gallery.contact_email);
+              return (
+                <article key={gallery.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 14px 34px rgba(21,88,85,.08)" }}>
+                  <div style={{ position: "relative", background: C.border }}>
+                    {thumbnailUrl ? (
+                      <img src={thumbnailUrl} alt="" style={{ width: "100%", aspectRatio: "16 / 10", objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <div style={{ aspectRatio: "16 / 10", background: `linear-gradient(135deg, ${C.mint}, #DDEDEA)`, display: "grid", placeItems: "center", color: C.teal, fontSize: 13, fontWeight: 800 }}>
+                        대표 이미지 없음
+                      </div>
+                    )}
+                    <div style={{ position: "absolute", left: 12, top: 12, background: "rgba(255,255,255,.92)", color: C.teal, borderRadius: 999, padding: "6px 10px", fontSize: 11, fontWeight: 900 }}>
+                      {displayDate(gallery.shoot_date)}
                     </div>
-                  )}
-                </div>
-                <div style={{ padding: 16, display: "grid", gap: 8 }}>
-                  <button type="button" onClick={() => shareGallery(gallery)} style={{ border: 0, background: "none", padding: 0, color: C.teal, fontSize: 18, fontWeight: 900, textAlign: "left", cursor: "pointer" }}>
-                    {sharingId === gallery.id ? "메일 보내는 중..." : gallery.hospital_name}
-                  </button>
-                  <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.65 }}>{gallery.description || "촬영 갤러리"}</p>
-                  <a href={gallery.nas_link} target="_blank" rel="noreferrer" style={{ color: C.orange, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>NAS 링크 열기</a>
-                </div>
-              </article>
-            ))}
+                  </div>
+                  <div style={{ padding: 16, display: "grid", gap: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+                      <div style={{ minWidth: 0 }}>
+                        <h2 style={{ margin: 0, color: C.teal, fontSize: 20, fontWeight: 900, lineHeight: 1.25 }}>{gallery.hospital_name}</h2>
+                        <p style={{ margin: "6px 0 0", color: C.muted, fontSize: 12, lineHeight: 1.5 }}>
+                          {gallery.contact_name || "담당자 미입력"} · {gallery.contact_email || "이메일 미입력"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => shareGallery(gallery)}
+                        disabled={!canSendMail || sharingId === gallery.id}
+                        title={canSendMail ? "갤러리 메일 보내기" : "공유 이메일을 먼저 입력하세요"}
+                        style={{
+                          border: 0,
+                          borderRadius: 10,
+                          background: canSendMail ? C.orange : C.border,
+                          color: canSendMail ? "#fff" : C.muted,
+                          padding: "9px 11px",
+                          fontSize: 12,
+                          fontWeight: 900,
+                          whiteSpace: "nowrap",
+                          cursor: canSendMail ? "pointer" : "not-allowed"
+                        }}
+                      >
+                        {sharingId === gallery.id ? "발송 중" : "메일 보내기"}
+                      </button>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      <div style={{ background: C.mint, borderRadius: 10, padding: "10px 11px" }}>
+                        <div style={{ color: C.hint, fontSize: 10, fontWeight: 900, letterSpacing: ".08em" }}>SHOOT DATE</div>
+                        <div style={{ color: C.teal, fontSize: 12, fontWeight: 900, marginTop: 4 }}>{displayDate(gallery.shoot_date)}</div>
+                      </div>
+                      <div style={{ background: C.mint, borderRadius: 10, padding: "10px 11px" }}>
+                        <div style={{ color: C.hint, fontSize: 10, fontWeight: 900, letterSpacing: ".08em" }}>PREVIEW</div>
+                        <div style={{ color: C.teal, fontSize: 12, fontWeight: 900, marginTop: 4 }}>{thumbnailUrl ? "대표 이미지 연결" : "대표 이미지 없음"}</div>
+                      </div>
+                    </div>
+
+                    <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.65 }}>{gallery.description || "촬영 갤러리"}</p>
+                    <a href={gallery.nas_link} target="_blank" rel="noreferrer" style={{ color: C.orange, fontSize: 12, fontWeight: 900, textDecoration: "none" }}>NAS 링크 열기 →</a>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       </section>
