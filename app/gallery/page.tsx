@@ -7,9 +7,7 @@ type GalleryItem = {
   id?: string;
   title: string;
   thumbnail_url?: string;
-  thumbnailUrl?: string;
   nas_file_url?: string;
-  nasFileUrl?: string;
 };
 
 type Gallery = {
@@ -36,12 +34,6 @@ const C = {
   mint: "#EAF4F2"
 };
 
-const emptyItems: GalleryItem[] = [
-  { title: "대표 썸네일", thumbnailUrl: "", nasFileUrl: "" },
-  { title: "공간 썸네일", thumbnailUrl: "", nasFileUrl: "" },
-  { title: "의료진 썸네일", thumbnailUrl: "", nasFileUrl: "" }
-];
-
 export default function GalleryPage() {
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,9 +46,9 @@ export default function GalleryPage() {
     contactEmail: "",
     shootDate: "",
     nasLink: "",
-    description: ""
+    description: "",
+    thumbnailUrl: ""
   });
-  const [items, setItems] = useState<GalleryItem[]>(emptyItems);
 
   const fieldStyle: React.CSSProperties = {
     width: "100%",
@@ -89,10 +81,6 @@ export default function GalleryPage() {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
-  const updateItem = (index: number, patch: Partial<GalleryItem>) => {
-    setItems((current) => current.map((item, i) => (i === index ? { ...item, ...patch } : item)));
-  };
-
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
@@ -101,13 +89,12 @@ export default function GalleryPage() {
       const res = await fetch("/api/galleries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, items })
+        body: JSON.stringify(form)
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       setMessage("갤러리를 저장했습니다.");
-      setForm({ hospitalName: "", contactName: "", contactEmail: "", shootDate: "", nasLink: "", description: "" });
-      setItems(emptyItems);
+      setForm({ hospitalName: "", contactName: "", contactEmail: "", shootDate: "", nasLink: "", description: "", thumbnailUrl: "" });
       await loadGalleries();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "저장 실패");
@@ -123,7 +110,7 @@ export default function GalleryPage() {
     }
     setSharingId(gallery.id);
     setMessage("");
-    const firstImage = gallery.items?.[0]?.thumbnail_url || gallery.items?.[0]?.thumbnailUrl || "";
+    const firstImage = gallery.items?.[0]?.thumbnail_url || "";
     try {
       const res = await fetch("/api/send-gallery", {
         method: "POST",
@@ -166,7 +153,7 @@ export default function GalleryPage() {
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
             <div style={{ background: C.mint, padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>촬영 갤러리 등록</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>이미지는 저장하지 않고 NAS 링크와 썸네일 URL만 저장합니다.</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>실제 이미지는 저장하지 않고 NAS 링크와 대표 미리보기 주소만 저장합니다.</div>
             </div>
             <div style={{ padding: 20, display: "grid", gap: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -178,25 +165,12 @@ export default function GalleryPage() {
                 <label className="field"><span>공유 이메일</span><input style={fieldStyle} type="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} placeholder="client@hospital.com" /></label>
               </div>
               <label className="field"><span>NAS 갤러리 링크 *</span><input style={fieldStyle} value={form.nasLink} onChange={(e) => set("nasLink", e.target.value)} placeholder="https://nas.photoclinic.kr/share/..." /></label>
+              <label className="field">
+                <span>대표 이미지 주소 (선택)</span>
+                <input style={fieldStyle} value={form.thumbnailUrl} onChange={(e) => set("thumbnailUrl", e.target.value)} placeholder="갤러리 카드에 보여줄 대표 사진 주소" />
+                <small style={{ color: C.muted, lineHeight: 1.6 }}>비워도 저장됩니다. NAS 링크 안의 사진을 자동으로 저장하지 않기 때문에, 카드에 사진을 보이게 하고 싶을 때만 입력하세요.</small>
+              </label>
               <label className="field"><span>촬영 내용</span><textarea style={{ ...fieldStyle, minHeight: 82, resize: "vertical" }} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="대표원장 프로필, 상담실, 로비 공간 촬영" /></label>
-            </div>
-          </div>
-
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ background: C.mint, padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>썸네일</div>
-            </div>
-            <div style={{ padding: 20, display: "grid", gap: 10 }}>
-              {items.map((item, index) => (
-                <div key={index} style={{ display: "grid", gap: 8, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
-                  <input style={fieldStyle} value={item.title} onChange={(e) => updateItem(index, { title: e.target.value })} placeholder="썸네일 이름" />
-                  <input style={fieldStyle} value={item.thumbnailUrl || ""} onChange={(e) => updateItem(index, { thumbnailUrl: e.target.value })} placeholder="썸네일 이미지 URL" />
-                  <input style={fieldStyle} value={item.nasFileUrl || ""} onChange={(e) => updateItem(index, { nasFileUrl: e.target.value })} placeholder="개별 NAS 파일 링크" />
-                </div>
-              ))}
-              <button type="button" onClick={() => setItems((current) => [...current, { title: "추가 썸네일", thumbnailUrl: "", nasFileUrl: "" }])} style={{ minHeight: 42, border: `1px solid ${C.border}`, borderRadius: 10, background: C.mint, color: C.teal, fontWeight: 800 }}>
-                썸네일 추가
-              </button>
             </div>
           </div>
 
@@ -215,16 +189,14 @@ export default function GalleryPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
             {galleries.map((gallery) => (
               <article key={gallery.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 14px 34px rgba(21,88,85,.08)" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2, background: C.border }}>
-                  {(gallery.items || []).slice(0, 4).map((item, index) => {
-                    const thumb = item.thumbnail_url || item.thumbnailUrl || "";
-                    return thumb ? (
-                      <img key={item.id || index} src={thumb} alt="" style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover" }} />
-                    ) : (
-                      <div key={item.id || index} style={{ aspectRatio: "1 / 1", background: C.mint }} />
-                    );
-                  })}
-                  {!(gallery.items || []).length ? <div style={{ gridColumn: "1 / -1", aspectRatio: "16 / 9", background: C.mint }} /> : null}
+                <div style={{ background: C.border }}>
+                  {gallery.items?.[0]?.thumbnail_url ? (
+                    <img src={gallery.items[0].thumbnail_url} alt="" style={{ width: "100%", aspectRatio: "16 / 10", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ aspectRatio: "16 / 10", background: C.mint, display: "grid", placeItems: "center", color: C.teal, fontSize: 13, fontWeight: 800 }}>
+                      대표 이미지 없음
+                    </div>
+                  )}
                 </div>
                 <div style={{ padding: 16, display: "grid", gap: 8 }}>
                   <button type="button" onClick={() => shareGallery(gallery)} style={{ border: 0, background: "none", padding: 0, color: C.teal, fontSize: 18, fontWeight: 900, textAlign: "left", cursor: "pointer" }}>
