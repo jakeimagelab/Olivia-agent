@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 
 type GalleryItem = {
   id?: string;
@@ -45,12 +45,52 @@ const displayDate = (value?: string) => {
   });
 };
 
+const compressImage = (file: File) =>
+  new Promise<Blob>((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const maxSize = 1200;
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const width = Math.round(img.width * scale);
+      const height = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("이미지를 처리할 수 없습니다."));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("대표 이미지를 만들 수 없습니다."));
+        },
+        "image/webp",
+        0.78
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("이미지 파일을 읽을 수 없습니다."));
+    };
+
+    img.src = objectUrl;
+  });
+
 export default function GalleryPage() {
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sharingId, setSharingId] = useState("");
   const [message, setMessage] = useState("");
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [form, setForm] = useState({
     hospitalName: "",
     contactName: "",
@@ -92,20 +132,58 @@ export default function GalleryPage() {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const handleThumbnailChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setMessage("대표 이미지는 사진 파일만 선택할 수 있습니다.");
+      return;
+    }
+
+    setThumbnailFile(file);
+    setThumbnailPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+    set("thumbnailUrl", "");
+  };
+
+  const uploadThumbnail = async () => {
+    if (!thumbnailFile) return form.thumbnailUrl;
+
+    const compressed = await compressImage(thumbnailFile);
+    const payload = new FormData();
+    payload.append("file", compressed, `${Date.now()}-${thumbnailFile.name.replace(/\.[^.]+$/, "")}.webp`);
+
+    const res = await fetch("/api/gallery-thumbnail", {
+      method: "POST",
+      body: payload
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || "대표 이미지 업로드 실패");
+    return data.url as string;
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setMessage("");
     try {
+      const uploadedThumbnailUrl = await uploadThumbnail();
       const res = await fetch("/api/galleries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, thumbnailUrl: uploadedThumbnailUrl })
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       setMessage("갤러리를 저장했습니다.");
       setForm({ hospitalName: "", contactName: "", contactEmail: "", shootDate: "", nasLink: "", description: "", thumbnailUrl: "" });
+      setThumbnailFile(null);
+      setThumbnailPreview((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return "";
+      });
       await loadGalleries();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "저장 실패");
@@ -164,7 +242,7 @@ export default function GalleryPage() {
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
             <div style={{ background: C.mint, padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>촬영 갤러리 등록</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>실제 이미지는 저장하지 않고 NAS 링크와 대표 미리보기 주소만 저장합니다.</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>원본 사진은 NAS에 두고, 카드용 작은 대표 미리보기만 저장합니다.</div>
             </div>
             <div style={{ padding: 20, display: "grid", gap: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -177,9 +255,16 @@ export default function GalleryPage() {
               </div>
               <label className="field"><span>NAS 갤러리 링크 *</span><input style={fieldStyle} value={form.nasLink} onChange={(e) => set("nasLink", e.target.value)} placeholder="https://nas.photoclinic.kr/share/..." /></label>
               <label className="field">
-                <span>대표 이미지 주소 (선택)</span>
-                <input style={fieldStyle} value={form.thumbnailUrl} onChange={(e) => set("thumbnailUrl", e.target.value)} placeholder="갤러리 카드에 보여줄 대표 사진 주소" />
-                <small style={{ color: C.muted, lineHeight: 1.6 }}>비워도 저장됩니다. NAS 페이지에서 공개 미리보기가 보이면 자동으로 대표 이미지를 찾아보고, 막혀 있으면 빈 카드로 표시됩니다.</small>
+                <span>대표 이미지 업로드 (선택)</span>
+                <input style={fieldStyle} type="file" accept="image/*" onChange={handleThumbnailChange} />
+                <small style={{ color: C.muted, lineHeight: 1.6 }}>원본은 저장하지 않고, 갤러리 카드용 작은 WebP 미리보기로 줄여서 저장합니다.</small>
+              </label>
+              {thumbnailPreview ? (
+                <img src={thumbnailPreview} alt="" style={{ width: "100%", aspectRatio: "16 / 10", objectFit: "cover", borderRadius: 12, border: `1px solid ${C.border}` }} />
+              ) : null}
+              <label className="field">
+                <span>대표 이미지 주소 직접 입력 (선택)</span>
+                <input style={fieldStyle} value={form.thumbnailUrl} onChange={(e) => set("thumbnailUrl", e.target.value)} placeholder="이미지 주소가 따로 있을 때만 입력" />
               </label>
               <label className="field"><span>촬영 내용</span><textarea style={{ ...fieldStyle, minHeight: 82, resize: "vertical" }} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="대표원장 프로필, 상담실, 로비 공간 촬영" /></label>
             </div>
