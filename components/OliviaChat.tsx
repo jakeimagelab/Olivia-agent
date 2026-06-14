@@ -184,13 +184,32 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
   const [messages, setMessages] = useState<Message[]>([]);
   const [input,    setInput]    = useState("");
   const [loading,  setLoading]  = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
 
+  const quickPrompts = [
+    "이번 달 콘텐츠 추천해줘",
+    "부족한 콘텐츠 찾아줘",
+    "인스타 캡션 만들어줘",
+    "월간 리포트 코멘트 작성해줘",
+    "촬영 콘티로 이동해줘",
+    "파일 전송 메일 작성해줘"
+  ];
+
   const GREETING: Message = {
     role: "assistant",
-    content: "안녕하세요, 정연호 대표님! 올리비아예요 ✨\n무엇을 도와드릴까요?\n\n예시:\n• \"포토클리닉병원 프리미엄 견적서 만들어줘\"\n• \"오늘 촬영한 원본파일 병원에 전달해줘\"\n• \"포토클리닉병원 콘티 작성해줘\"",
+    content: "안녕하세요, 정연호 대표님. 올리비아예요.\n월간 포토클리닉 구독 운영을 도와드릴게요.\n\n예시:\n• \"온유성형외과 이번 달 콘텐츠 추천해줘\"\n• \"리포트 코멘트 작성해줘\"\n• \"촬영 콘티로 이동해줘\"\n• \"파일 전송 메일 작성해줘\"",
   };
+
+  useEffect(() => {
+    fetch("/api/auth/check")
+      .then((res) => res.json())
+      .then((data) => setIsAuthenticated(Boolean(data.authenticated)))
+      .catch(() => setIsAuthenticated(false))
+      .finally(() => setIsAuthReady(true));
+  }, []);
 
   useEffect(() => {
     try {
@@ -221,7 +240,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     if (open && messages.length === 0) {
       setMessages([{
         role: "assistant",
-        content: "안녕하세요, 정연호 대표님! 올리비아예요 ✨\n무엇을 도와드릴까요?\n\n예시:\n• \"ABC병원 프리미엄 견적서 만들어줘\"\n• \"오늘 촬영한 ABC파일 이채안 선생님께 보내줘\"\n• \"ABC병원 콘티 작성해줘\"",
+        content: "안녕하세요, 정연호 대표님. 올리비아예요.\n월간 콘텐츠 운영, 기존 촬영 업무, 리포트 작성까지 같이 도와드릴게요.",
       }]);
     }
   }, [open]);
@@ -257,7 +276,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
 
       const contextHint = pageContext
         ? `[현재 페이지: ${pageContext}${contextData ? " / " + Object.entries(contextData).map(([k,v]) => `${k}: ${v}`).join(", ") : ""}]${contiHint}`
-        : contiHint || null;
+        : `[현재 페이지: 월간 포토클리닉 구독 콘텐츠 운영 시스템]${contiHint}`;
 
       const res  = await fetch("/api/olivia", {
         method: "POST",
@@ -368,6 +387,8 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     setMessages([GREETING]);
   };
 
+  if (!isAuthReady || !isAuthenticated) return null;
+
   return (
     <>
       {/* 플로팅 버튼 */}
@@ -417,7 +438,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             }}>✨</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>올리비아</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)" }}>PHOTO CLINIC AI 비서</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)" }}>월간 포토클리닉 운영 비서</div>
             </div>
             <button onClick={clearChat}
               style={{ background: "rgba(255,255,255,.15)", border: "none", color: "#fff",
@@ -533,8 +554,36 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
 
           {/* 입력창 */}
           <div style={{
-            padding: "10px 12px",
             borderTop: `1px solid ${C.border}`,
+            padding: "9px 12px 0",
+            display: "flex",
+            gap: 6,
+            overflowX: "auto",
+          }}>
+            {quickPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => setInput(prompt)}
+                style={{
+                  flex: "0 0 auto",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 999,
+                  background: C.mint,
+                  color: C.teal,
+                  padding: "6px 9px",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+          <div style={{
+            padding: "10px 12px",
             display: "flex", gap: 8, alignItems: "flex-end",
           }}>
             <textarea
