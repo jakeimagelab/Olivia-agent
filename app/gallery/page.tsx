@@ -160,7 +160,12 @@ export default function GalleryPage() {
       method: "POST",
       body: payload
     });
-    const data = await res.json();
+    const text = await res.text();
+    const data = text.startsWith("<")
+      ? { ok: false, error: "대표 이미지 업로드 API가 없습니다. app/api/gallery-thumbnail/route.ts 파일까지 배포해 주세요." }
+      : text
+        ? JSON.parse(text)
+        : { ok: false, error: "대표 이미지 업로드 응답이 비어 있습니다." };
     if (!data.ok) throw new Error(data.error || "대표 이미지 업로드 실패");
     return data.url as string;
   };
