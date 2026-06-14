@@ -5,101 +5,75 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   Activity,
   ArrowRight,
-  BarChart2,
+  BarChart3,
+  Bell,
+  BriefcaseMedical,
+  Building2,
   CalendarDays,
+  Camera,
   ClipboardList,
-  Database,
+  FileImage,
   FileText,
   FileVideo,
-  Globe2,
+  FolderOpen,
+  Grid2X2,
+  Hospital,
   ImageDown,
-  Images,
   LayoutGrid,
   LockKeyhole,
   LogOut,
   Mail,
-  Megaphone,
-  ShieldCheck,
+  PenLine,
+  Send,
   Sparkles,
-  Users,
   Wand2
 } from "lucide-react";
 
-const dashboardStats = [
-  { label: "이번 달 구독 병원", value: "18곳" },
-  { label: "제작 예정 콘텐츠", value: "146건" },
-  { label: "검수 대기 콘텐츠", value: "23건" },
-  { label: "발송 리포트", value: "12건" }
+const stats = [
+  { label: "이번 달 구독 병원", value: "18", unit: "곳", note: "전체 24곳", icon: Building2, tone: "green" },
+  { label: "제작 예정 콘텐츠", value: "146", unit: "건", note: "이번 달 캘린더 기준", icon: FileText, tone: "green" },
+  { label: "검수 대기 콘텐츠", value: "23", unit: "건", note: "병원 검수 대기 중", icon: Activity, tone: "orange" },
+  { label: "발송 리포트", value: "12", unit: "건", note: "이번 달 발송 완료", icon: Send, tone: "orange" }
 ];
 
-const primaryMenus = [
-  {
-    title: "월간 포토클리닉",
-    description: "월 50만원 구독 병원의 이번 달 콘텐츠 운영 현황을 확인합니다.",
-    href: "/monthly-report",
-    icon: Megaphone,
-    meta: "Monthly Photoclinic"
-  },
-  {
-    title: "병원 구독 관리",
-    description: "구독 병원, 담당자, 월 제공 수량, 상태와 계약 메모를 관리합니다.",
-    href: "/subscription",
-    icon: Users,
-    meta: "Subscription"
-  },
-  {
-    title: "콘텐츠 자산 보관함",
-    description: "촬영 사진과 영상 소스를 병원별, 채널별, 카테고리별로 정리합니다.",
-    href: "/assets",
-    icon: Database,
-    meta: "Assets"
-  },
-  {
-    title: "콘텐츠 캘린더",
-    description: "구독 병원의 월간 SNS, 블로그, 플레이스 콘텐츠 일정을 관리합니다.",
-    href: "/content-calendar",
-    icon: CalendarDays,
-    meta: "Calendar"
-  },
-  {
-    title: "SNS 디자인 생성",
-    description: "촬영 자산으로 카드뉴스, 릴스 썸네일, 플레이스 이미지를 만듭니다.",
-    href: "/sns-design",
-    icon: LayoutGrid,
-    meta: "SNS Design"
-  },
-  {
-    title: "블로그/플레이스 콘텐츠",
-    description: "사진과 주제를 바탕으로 블로그, 플레이스, 캡션 초안을 생성합니다.",
-    href: "/content-writer",
-    icon: FileText,
-    meta: "Content Writer"
-  },
-  {
-    title: "채널 진단 리포트",
-    description: "홈페이지, 인스타그램, 블로그, 플레이스 운영 상태를 진단합니다.",
-    href: "/channel-audit",
-    icon: Activity,
-    meta: "Channel Audit"
-  },
-  {
-    title: "월간 운영 리포트",
-    description: "이번 달 제작물, 부족한 콘텐츠, 다음 달 추천안을 리포트로 정리합니다.",
-    href: "/monthly-report",
-    icon: BarChart2,
-    meta: "Monthly Report"
-  }
+const mainMenus = [
+  { title: "월간 포토클리닉", description: "촬영부터 콘텐츠 제작까지 월간 구독 서비스 운영을 한눈에 관리합니다.", href: "/monthly-report", icon: Camera, accent: "green" },
+  { title: "병원 구독 관리", description: "구독 중인 병원 정보, 계약 현황, 제공 범위와 진행 상황을 관리합니다.", href: "/subscription", icon: Hospital, accent: "green" },
+  { title: "콘텐츠 자산 보관함", description: "촬영한 사진과 영상 자산을 병원별, 카테고리별로 정리하고 재활용합니다.", href: "/assets", icon: FolderOpen, accent: "green" },
+  { title: "콘텐츠 캘린더", description: "병원별 월간 콘텐츠 일정을 계획하고 제작·발행 현황을 관리합니다.", href: "/content-calendar", icon: CalendarDays, accent: "green" },
+  { title: "SNS 디자인 생성", description: "촬영 사진을 활용해 인스타그램, 릴스, 네이버 플레이스용 디자인을 생성합니다.", href: "/sns-design", icon: LayoutGrid, accent: "orange" },
+  { title: "블로그/플레이스 콘텐츠", description: "블로그 글, 네이버 플레이스 소식 등 검색 최적화 콘텐츠를 자동 생성합니다.", href: "/content-writer", icon: PenLine, accent: "orange" },
+  { title: "채널 진단", description: "병원의 홈페이지, SNS, 블로그 채널을 진단하고 개선 제안을 제공합니다.", href: "/channel-audit", icon: BarChart3, accent: "orange" },
+  { title: "월간 리포트", description: "월간 제작 콘텐츠, 채널 성과, 개선 제안을 정리해 리포트를 발송합니다.", href: "/monthly-report", icon: FileImage, accent: "orange" }
 ];
 
-const legacyMenus = [
-  { title: "견적서", description: "촬영 패키지와 옵션 견적서를 생성합니다.", href: "/quote", icon: ClipboardList, meta: "Quote" },
-  { title: "병원이미지 진단", description: "현재 사진 콘텐츠 방향을 진단합니다.", href: "/diagnosis", icon: ImageDown, meta: "Diagnosis" },
-  { title: "촬영 콘티", description: "촬영 콘티, 체크리스트, 타임테이블을 만듭니다.", href: "/conti", icon: FileVideo, meta: "Conti" },
-  { title: "파일 전송", description: "NAS 링크를 포토클리닉 브랜드 메일로 전송합니다.", href: "/delivery-mail", icon: Mail, meta: "Delivery" },
-  { title: "홈페이지 제작", description: "병원 홈페이지 제작 요청과 기획 정보를 정리합니다.", href: "/website-builder", icon: Globe2, meta: "Website" },
-  { title: "사진 분류", description: "촬영 사진을 용도와 카테고리별로 분류합니다.", href: "/photo-sorting", icon: Images, meta: "Sorting" },
-  { title: "AI 이미지 생성", description: "포토클리닉 톤의 보조 이미지를 생성합니다.", href: "/image-generator", icon: Sparkles, meta: "Image" },
-  { title: "사진 보정", description: "보정 워크플로와 Evoto 연동을 준비합니다.", href: "/photo-retouching", icon: Wand2, meta: "Retouching" }
+const sideMain = [
+  { label: "대시보드", href: "/", icon: Grid2X2 },
+  { label: "월간 포토클리닉", href: "/monthly-report", icon: Camera },
+  { label: "병원 구독 관리", href: "/subscription", icon: Hospital },
+  { label: "콘텐츠 자산 보관함", href: "/assets", icon: FolderOpen },
+  { label: "콘텐츠 캘린더", href: "/content-calendar", icon: CalendarDays },
+  { label: "SNS 디자인 생성", href: "/sns-design", icon: LayoutGrid },
+  { label: "블로그/플레이스 콘텐츠", href: "/content-writer", icon: Mail },
+  { label: "채널 진단", href: "/channel-audit", icon: BarChart3 },
+  { label: "월간 리포트", href: "/monthly-report", icon: FileImage }
+];
+
+const sideLegacy = [
+  { label: "견적서 생성", href: "/quote", icon: ClipboardList },
+  { label: "병원이미지 진단", href: "/diagnosis", icon: ImageDown },
+  { label: "촬영 콘티 생성", href: "/conti", icon: FileVideo },
+  { label: "파일 전송 메일", href: "/delivery-mail", icon: Mail },
+  { label: "홈페이지 제작", href: "/website-builder", icon: BriefcaseMedical },
+  { label: "사진 분류 시스템", href: "/photo-sorting", icon: FolderOpen },
+  { label: "AI 이미지 생성기", href: "/image-generator", icon: Sparkles },
+  { label: "사진 보정", href: "/photo-retouching", icon: Wand2 }
+];
+
+const activities = [
+  "온유성형외과 콘텐츠 4건 제작 완료",
+  "바른이치과 블로그 글 2건 검수 요청",
+  "라온피부과 월간 리포트 발송 완료"
 ];
 
 export default function AdminHome() {
@@ -118,19 +92,16 @@ export default function AdminHome() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMessage("");
-
     const res = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password })
     });
     const data = await res.json();
-
     if (!data.ok) {
       setErrorMessage(data.error || "로그인에 실패했습니다.");
       return;
     }
-
     setIsAuthenticated(true);
     setPassword("");
   };
@@ -140,9 +111,7 @@ export default function AdminHome() {
     setIsAuthenticated(false);
   };
 
-  if (!isReady) {
-    return <main className="admin-shell"><div className="admin-loading" /></main>;
-  }
+  if (!isReady) return <main className="admin-shell"><div className="admin-loading" /></main>;
 
   if (!isAuthenticated) {
     return (
@@ -155,20 +124,12 @@ export default function AdminHome() {
           <div>
             <p className="admin-kicker">월간 포토클리닉</p>
             <h1 id="login-title">구독 콘텐츠 운영 관리자</h1>
-            <p className="login-copy">
-              촬영한 사진과 영상을 매달 병원 홍보 콘텐츠로 전환하는 포토클리닉 운영 시스템입니다.
-            </p>
+            <p className="login-copy">촬영한 사진과 영상을 매달 병원 홍보 콘텐츠로 전환하는 운영 시스템입니다.</p>
           </div>
           <form className="login-form" onSubmit={handleSubmit}>
             <label className="field">
               <span>관리자 비밀번호</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="ADMIN_PASSWORD"
-                autoComplete="current-password"
-              />
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="ADMIN_PASSWORD" autoComplete="current-password" />
             </label>
             {errorMessage ? <p className="login-error">{errorMessage}</p> : null}
             <button className="admin-primary-button" type="submit">
@@ -182,78 +143,114 @@ export default function AdminHome() {
   }
 
   return (
-    <main className="admin-shell">
-      <section className="admin-dashboard" aria-labelledby="dashboard-title">
-        <header className="admin-dashboard-header">
-          <div className="brand-lockup">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" />
-            <span>PHOTOCLINIC SUBSCRIPTION</span>
+    <main className="pc-console">
+      <aside className="pc-sidebar">
+        <div className="pc-sidebar-brand">
+          <div className="pc-brand-mark"><Camera size={27} /></div>
+          <div>
+            <strong>PHOTOCLINIC</strong>
+            <span>포토클리닉</span>
           </div>
-          <button className="admin-logout-button" type="button" onClick={handleLogout}>
-            <LogOut size={17} />
-            로그아웃
-          </button>
+        </div>
+
+        <nav className="pc-nav">
+          {sideMain.map((item, index) => <SideLink key={`${item.href}-${item.label}`} item={item} active={index === 0} />)}
+        </nav>
+
+        <div className="pc-nav-section">
+          <span>기타 기능</span>
+        </div>
+        <nav className="pc-nav pc-nav-legacy">
+          {sideLegacy.map((item) => <SideLink key={`${item.href}-${item.label}`} item={item} />)}
+        </nav>
+
+        <div className="pc-sidebar-user">
+          <div className="pc-avatar">●</div>
+          <div>
+            <strong>포토클리닉 관리자</strong>
+            <span>관리자</span>
+          </div>
+        </div>
+      </aside>
+
+      <section className="pc-main">
+        <header className="pc-topbar">
+          <div />
+          <div className="pc-top-actions">
+            <button className="pc-icon-button" type="button" aria-label="알림">
+              <Bell size={22} />
+              <span>3</span>
+            </button>
+            <button className="pc-logout-link" type="button" onClick={handleLogout}>
+              <LogOut size={20} />
+              로그아웃
+            </button>
+          </div>
         </header>
 
-        <div className="subscription-hero">
-          <p className="admin-kicker">월간 포토클리닉 · 구독 콘텐츠 운영</p>
-          <h1 id="dashboard-title">포토클리닉 구독 콘텐츠 운영</h1>
+        <section className="pc-hero">
+          <h1>포토클리닉 구독 콘텐츠 운영</h1>
           <p>촬영한 사진과 영상을 매달 병원 홍보 콘텐츠로 전환합니다.</p>
-        </div>
-
-        <div className="subscription-stat-grid">
-          {dashboardStats.map((stat) => (
-            <article key={stat.label} className="subscription-stat-card">
-              <span>{stat.label}</span>
-              <strong>{stat.value}</strong>
-            </article>
-          ))}
-        </div>
-
-        <section className="dashboard-section">
-          <div className="dashboard-section-head">
-            <h2>구독 운영 메뉴</h2>
-            <p>병원별 월간 콘텐츠 제작, 검수, 리포트까지 한 흐름으로 관리합니다.</p>
-          </div>
-          <div className="admin-menu-grid">
-            {primaryMenus.map((item) => <DashboardCard key={item.title} item={item} />)}
-          </div>
         </section>
 
-        <section className="dashboard-section">
-          <div className="dashboard-section-head">
-            <h2>기존 촬영 업무</h2>
-            <p>단발 촬영과 제작 보조 기능은 유지하되, 구독 운영 흐름 안에서 활용합니다.</p>
-          </div>
-          <div className="admin-menu-grid compact">
-            {legacyMenus.map((item) => <DashboardCard key={item.title} item={item} />)}
-          </div>
+        <section className="pc-stat-grid">
+          {stats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <article key={stat.label} className="pc-stat-card">
+                <div className={`pc-stat-icon ${stat.tone}`}><Icon size={34} /></div>
+                <div>
+                  <span>{stat.label}</span>
+                  <strong>{stat.value}<small>{stat.unit}</small></strong>
+                  <p>{stat.note}</p>
+                </div>
+              </article>
+            );
+          })}
         </section>
 
-        <footer className="admin-status-strip">
-          <ShieldCheck size={18} />
-          <span>관리자 세션이 활성화되어 있습니다.</span>
-        </footer>
+        <section className="pc-card-grid">
+          {mainMenus.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.title} className={`pc-menu-card ${item.accent}`} href={item.href}>
+                <div className="pc-menu-icon"><Icon size={28} /></div>
+                <div>
+                  <h2>{item.title}</h2>
+                  <p>{item.description}</p>
+                </div>
+                <span className="pc-card-arrow"><ArrowRight size={24} /></span>
+              </Link>
+            );
+          })}
+        </section>
+
+        <section className="pc-activity-strip">
+          <div className="pc-activity-title">
+            <Activity size={28} />
+            <strong>최근 활동</strong>
+          </div>
+          <div className="pc-activity-list">
+            {activities.map((activity, index) => (
+              <div key={activity}>
+                <span />
+                <p>{activity}<small>{index === 0 ? "2시간 전" : index === 1 ? "4시간 전" : "1일 전"}</small></p>
+              </div>
+            ))}
+          </div>
+          <Link className="pc-activity-more" href="/report">전체 활동 보기 <ArrowRight size={18} /></Link>
+        </section>
       </section>
     </main>
   );
 }
 
-function DashboardCard({ item }: { item: typeof primaryMenus[number] }) {
+function SideLink({ item, active = false }: { item: { label: string; href: string; icon: any }; active?: boolean }) {
   const Icon = item.icon;
   return (
-    <Link className="admin-menu-card" href={item.href}>
-      <div className="admin-menu-icon">
-        <Icon size={26} />
-      </div>
-      <div className="admin-menu-copy">
-        <span>{item.meta}</span>
-        <h2>{item.title}</h2>
-        <p>{item.description}</p>
-      </div>
-      <div className="admin-menu-action" aria-hidden="true">
-        <ArrowRight size={21} />
-      </div>
+    <Link className={active ? "pc-nav-link active" : "pc-nav-link"} href={item.href}>
+      <Icon size={22} />
+      <span>{item.label}</span>
     </Link>
   );
 }
