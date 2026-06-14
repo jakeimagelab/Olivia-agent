@@ -10,6 +10,55 @@ type GalleryItemInput = {
   nasFileUrl?: string;
 };
 
+const imageUrlPattern = /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i;
+
+const toAbsoluteUrl = (value: string, baseUrl: string) => {
+  try {
+    return new URL(value, baseUrl).toString();
+  } catch {
+    return "";
+  }
+};
+
+const findFirstImageUrl = (html: string, baseUrl: string) => {
+  const candidates = [
+    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+    /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+    /<img[^>]+src=["']([^"']+)["']/i,
+    /<a[^>]+href=["']([^"']+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^"']*)?)["']/i
+  ];
+
+  for (const pattern of candidates) {
+    const match = html.match(pattern);
+    if (match?.[1]) return toAbsoluteUrl(match[1], baseUrl);
+  }
+
+  return "";
+};
+
+const extractThumbnailFromNasLink = async (nasLink: string) => {
+  if (imageUrlPattern.test(nasLink)) return nasLink;
+
+  try {
+    const res = await fetch(nasLink, {
+      redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 PhotoClinic Gallery Preview"
+      }
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.startsWith("image/")) return res.url || nasLink;
+    if (!contentType.includes("text/html")) return "";
+
+    const html = await res.text();
+    return findFirstImageUrl(html, res.url || nasLink);
+  } catch {
+    return "";
+  }
+};
+
 const mockGalleries = [
   {
     id: "mock-gallery-1",
@@ -100,12 +149,14 @@ export async function POST(req: NextRequest) {
 
     if (galleryError) throw galleryError;
 
-    const cleanItems = thumbnailUrl
+    const autoThumbnailUrl = thumbnailUrl || await extractThumbnailFromNasLink(nasLink);
+
+    const cleanItems = autoThumbnailUrl
       ? [
           {
             gallery_id: gallery.id,
             title: "대표 이미지",
-            thumbnail_url: thumbnailUrl,
+            thumbnail_url: autoThumbnailUrl,
             nas_file_url: nasLink,
             sort_order: 0
           }
