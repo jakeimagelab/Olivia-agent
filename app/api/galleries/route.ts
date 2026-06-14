@@ -175,6 +175,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
+    id,
     hospitalName,
     contactName,
     contactEmail,
@@ -184,6 +185,7 @@ export async function POST(req: NextRequest) {
     thumbnailUrl,
     items = []
   } = body as {
+    id?: string;
     hospitalName?: string;
     contactName?: string;
     contactEmail?: string;
@@ -200,6 +202,43 @@ export async function POST(req: NextRequest) {
 
   try {
     const supabase = getSupabaseAdmin();
+    if (id) {
+      const { data: gallery, error: galleryError } = await supabase
+        .from("photo_galleries")
+        .update({
+          hospital_name: hospitalName,
+          contact_name: contactName || "",
+          contact_email: contactEmail || "",
+          shoot_date: shootDate || null,
+          nas_link: nasLink,
+          description: description || ""
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (galleryError) throw galleryError;
+
+      if (thumbnailUrl) {
+        const { error: deleteError } = await supabase
+          .from("photo_gallery_items")
+          .delete()
+          .eq("gallery_id", id);
+        if (deleteError) throw deleteError;
+
+        const { error: itemError } = await supabase.from("photo_gallery_items").insert({
+          gallery_id: id,
+          title: "대표 이미지",
+          thumbnail_url: thumbnailUrl,
+          nas_file_url: nasLink,
+          sort_order: 0
+        });
+        if (itemError) throw itemError;
+      }
+
+      return NextResponse.json({ ok: true, gallery });
+    }
+
     const { data: gallery, error: galleryError } = await supabase
       .from("photo_galleries")
       .insert({
