@@ -47,20 +47,24 @@ export default function PerClientsPage() {
   const iS: React.CSSProperties = { width:"100%", border:`1.5px solid ${C.border}`, borderRadius:8, padding:"0 12px", height:40, fontSize:13, outline:"none", background:C.white, color:C.txt, fontFamily:"inherit", boxSizing:"border-box" };
 
   return (
-    <main style={{ minHeight:"100vh", background:C.bg, padding:"0 0 60px" }}>
-      <div style={{ background:C.teal, color:"#fff", padding:"20px 24px 18px" }}>
-        <div style={{ maxWidth:920, margin:"0 auto", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <div>
-            <Link href="/per" style={{ color:"rgba(255,255,255,.7)", fontSize:12, textDecoration:"none" }}>← PER 대시보드</Link>
-            <h1 style={{ margin:"4px 0 0", fontSize:20, fontWeight:800 }}>병원별 포인트 관리</h1>
+    <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
+      <header className="pc-header">
+        <div className="pc-header-left">
+          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
+          <div className="pc-header-divider" />
+          <div className="pc-header-brand">
+            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <span className="pc-header-title">병원별 포인트 관리</span>
           </div>
-          <button onClick={() => setAddModal(true)} style={{ background:C.orange, color:"#fff", border:"none", borderRadius:8, padding:"9px 16px", fontWeight:700, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
-            <Plus size={15}/> 포인트 적립
+        </div>
+        <div className="pc-header-actions">
+          <button onClick={() => setAddModal(true)} style={{ display:"flex", alignItems:"center", gap:6, height:36, padding:"0 14px", border:"none", borderRadius:9, background:C.orange, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+            <Plus size={13}/> 포인트 적립
           </button>
         </div>
-      </div>
+      </header>
 
-      <div style={{ maxWidth:920, margin:"0 auto", padding:"20px 16px 0" }}>
+      <div style={{ maxWidth:920, margin:"0 auto", padding:"24px 20px 100px" }}>
         <div style={{ position:"relative", marginBottom:20 }}>
           <Search size={14} style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:C.hint }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="병원명 검색..." style={{ ...iS, paddingLeft:34, height:42 }} />
