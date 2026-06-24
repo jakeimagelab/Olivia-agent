@@ -11,6 +11,10 @@ const protectedApiPrefixes = [
   "/api/report",
   "/api/ocr-pdf",
   "/api/blog",
+  "/api/workflow",
+  "/api/agent",
+  "/api/clients",
+  "/api/projects",
 ];
 
 export function middleware(req: NextRequest) {
