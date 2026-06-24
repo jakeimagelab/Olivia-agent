@@ -225,7 +225,16 @@ export default function ReviewStudioPage() {
   );
 
   return (
-    <div style={{ background: C.bg, color: C.txt }}>
+    <div style={{ color: C.txt }}>
+
+      {/* ── 히어로 배너 ── */}
+      <div style={{ background: `linear-gradient(135deg, ${C.teal}, #22876A)`, color: "#fff", padding: "28px 24px 24px" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, opacity: .8, marginBottom: 4 }}>⭐ Review Studio</div>
+          <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800 }}>클라이언트 후기 콘텐츠</h1>
+          <p style={{ margin: 0, fontSize: 13, opacity: .8 }}>받은 반응을 정리하고 인스타그램 홍보 콘텐츠로 재활용합니다.</p>
+        </div>
+      </div>
 
       {/* ── 모바일 탭 바 ── */}
       {isMobile && (
