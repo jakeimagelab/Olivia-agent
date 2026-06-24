@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ApprovalCard, C, EmptyBox, LoadingBox, Pill, SectionCard, StatCard, TaskRow, useApi, WorkflowIcons, WorkflowShell, fmtDate, priorityColor, statusColor } from "./_components";
 
-const fallback = { ok: true, summary: {}, priorityTasks: [], approvals: [], workflowRuns: [] };
+const fallback = { ok: true, summary: {}, priorityTasks: [], approvals: [], workflowRuns: [], mock: false };
 
 export default function WorkflowDashboardPage() {
   const { data, loading, mock, reload } = useApi<any>("/api/workflow/summary", fallback);
