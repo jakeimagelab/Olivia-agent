@@ -11,7 +11,7 @@ export async function GET(
   const supabase = getSupabaseAdmin();
   const { id } = await params;
 
-  const [clientRes, runRes, mailingRes] = await Promise.all([
+  const [clientRes, runRes] = await Promise.all([
     supabase.from("clients").select("*").eq("id", id).single(),
     supabase
       .from("workflow_runs")
@@ -21,19 +21,11 @@ export async function GET(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase
-      .from("mailing_queue")
-      .select("id, type, status, subject, to_email, created_at")
-      .or(`hospital_name.eq.${id}`)
-      .order("created_at", { ascending: false })
-      .limit(10)
-      .then(() => ({ data: [] as any[], error: null })), // mailing_queue may not have client_id yet
   ]);
 
   if (clientRes.error || !clientRes.data)
     return NextResponse.json({ ok: false, error: "고객을 찾을 수 없습니다." }, { status: 404 });
 
-  // Try to fetch mailing queue by hospital name
   const { data: mailings } = await supabase
     .from("mailing_queue")
     .select("id, type, status, subject, to_email, created_at")
