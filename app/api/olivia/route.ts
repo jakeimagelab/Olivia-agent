@@ -408,7 +408,7 @@ Available tools:
 - create_conti: Create a shooting plan
 - create_contract: Generate a contract from an approved quote
 - create_website: Start hospital website creation workflow
-- open_page: Navigate to a page (calendar, clients, mailing, gallery, review-studio 등 앱 이동)
+- open_page: Navigate to a page (calendar, clients, mailing, gallery, review-studio, workflow 등 앱 이동)
 - web_search: Search the web for real-time information (병원 트렌드, 경쟁 분석, 최신 정보 등)
 - calendar_add: 캘린더에 할일/일정 추가 (단건)
 - calendar_add_bulk: 여러 일정을 한번에 추가 (2개 이상 반드시 사용)
