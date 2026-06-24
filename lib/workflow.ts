@@ -250,7 +250,7 @@ export const MOCK_LOGS = [
 export const MOCK_TEMPLATE = {
   id: "template-hospital-shoot-basic",
   name: "병원 촬영 기본 워크플로우",
-  description: "상담 접수부터 갤러리 전달, 리뷰 요청, PER 포인트 적립까지 이어지는 기본 촬영 운영 플로우입니다.",
+  description: "상담·미팅부터 원본전달, 최종파일 전달, 후기 콘텐츠 제작, 리워드 적립까지 이어지는 14단계 촬영 운영 플로우입니다.",
   type: "hospital_shoot",
   is_active: true,
   steps: WORKFLOW_STEPS,
