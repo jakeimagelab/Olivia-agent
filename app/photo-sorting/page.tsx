@@ -562,6 +562,7 @@ export default function PhotoSortingPage() {
   );
 }
 
+
 function typeBtnStyle(on: boolean): React.CSSProperties {
   return { padding:"14px 12px", border:`2px solid ${on?"#155855":"#C8DDD9"}`, borderRadius:12, background:on?"#EAF4F2":"#fff", cursor:"pointer", fontFamily:"inherit", textAlign:"left", transition:"all .15s" };
 }
