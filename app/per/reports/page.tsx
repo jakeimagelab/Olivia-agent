@@ -76,7 +76,7 @@ export default function PerReportsPage() {
           {/* 캠페인 리포트 생성 */}
           <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:20 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-              <BarChart2 size={16} color:"#7C3AED"/>
+              <BarChart2 size={16} color="#7C3AED"/>
               <span style={{ fontWeight:800, fontSize:14 }}>반기별 기부 캠페인 리포트</span>
             </div>
             <select value={selCamp} onChange={e => setSelCamp(e.target.value)} style={{ ...iS, marginBottom:12 }}>
