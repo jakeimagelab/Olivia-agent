@@ -494,6 +494,6 @@ export default function ClientsPage() {
           </button>
         </div>
       )}
-    </main>
+    </div>
   );
 }
