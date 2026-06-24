@@ -1,6 +1,6 @@
 "use client";
 
-import { C, EmptyBox, LoadingBox, Pill, SectionCard, useApi, WorkflowShell } from "../_components";
+import { C, EmptyBox, LoadingBox, Pill, SectionCard, useApi, WorkflowShell } from "../WorkflowComponents";
 
 const fallback = { ok: true, templates: [] };
 

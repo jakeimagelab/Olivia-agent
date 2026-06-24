@@ -1,6 +1,6 @@
 "use client";
 
-import { ActionButton, ApprovalCard, C, EmptyBox, LoadingBox, Pill, SectionCard, useApi, WorkflowShell } from "../_components";
+import { ActionButton, ApprovalCard, C, EmptyBox, LoadingBox, Pill, SectionCard, useApi, WorkflowShell } from "../WorkflowComponents";
 import { useState } from "react";
 
 const fallback = { ok: true, approvals: [] };

@@ -1,6 +1,6 @@
 "use client";
 
-import { ActionButton, C, EmptyBox, LoadingBox, Pill, SectionCard, TaskRow, useApi, WorkflowShell, priorityColor, statusColor } from "../_components";
+import { ActionButton, C, EmptyBox, LoadingBox, Pill, SectionCard, TaskRow, useApi, WorkflowShell, priorityColor, statusColor } from "../WorkflowComponents";
 import { useState } from "react";
 
 const fallback = { ok: true, tasks: [] };
