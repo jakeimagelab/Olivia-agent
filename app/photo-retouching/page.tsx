@@ -484,26 +484,10 @@ export default function PhotoRetouchingPage() {
   const scoreColor = sc >= 80 ? "#059669" : sc >= 60 ? "#D97706" : C.orange;
 
   return (
-    <main
-      style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}
+    <div
+      style={{ background: C.bg, color: C.txt }}
       onPaste={handleGlobalPaste}
     >
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
-          <div className="pc-header-divider"/>
-          <div className="pc-header-brand">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="" className="pc-header-logo"/>
-            <span className="pc-header-title">사진 보정</span>
-          </div>
-        </div>
-      </header>
-
-      {/* ── 사진 작업실 탭 ── */}
-      <nav style={{ background: C.white, borderBottom: `1px solid ${C.border}`, display: "flex", overflowX: "auto" }}>
-        <Link href="/photo-sorting"    className="pc-photo-tab"        style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>📁 사진 분류</Link>
-        <Link href="/photo-retouching" className="pc-photo-tab active" style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>🎨 색감·보정</Link>
-      </nav>
 
       {/* 페이지 탭 */}
       <div style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
