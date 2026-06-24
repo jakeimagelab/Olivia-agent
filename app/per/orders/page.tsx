@@ -34,15 +34,20 @@ export default function PerOrdersPage() {
   };
 
   return (
-    <main style={{ minHeight:"100vh", background:C.bg, padding:"0 0 60px" }}>
-      <div style={{ background:C.teal, color:"#fff", padding:"20px 24px 18px" }}>
-        <div style={{ maxWidth:960, margin:"0 auto" }}>
-          <Link href="/per" style={{ color:"rgba(255,255,255,.7)", fontSize:12, textDecoration:"none" }}>← PER 대시보드</Link>
-          <h1 style={{ margin:"4px 0 0", fontSize:20, fontWeight:800 }}>제품 신청 관리</h1>
+    <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
+      <header className="pc-header">
+        <div className="pc-header-left">
+          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
+          <div className="pc-header-divider" />
+          <div className="pc-header-brand">
+            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <span className="pc-header-title">제품 신청 관리</span>
+          </div>
         </div>
-      </div>
+        <div className="pc-header-actions" />
+      </header>
 
-      <div style={{ maxWidth:960, margin:"0 auto", padding:"20px 16px 0" }}>
+      <div style={{ maxWidth:960, margin:"0 auto", padding:"24px 20px 100px" }}>
         <div style={{ display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" }}>
           {["전체",...Object.keys(ORDER_STATUS_LABEL)].map(s => (
             <button key={s} onClick={() => setStatusF(s)}
