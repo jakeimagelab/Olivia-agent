@@ -56,22 +56,25 @@ export default function PerCampaignsPage() {
   };
 
   return (
-    <main style={{ minHeight:"100vh", background:C.bg, padding:"0 0 60px" }}>
-      <div style={{ background:`linear-gradient(135deg,${C.teal},#7C3AED)`, color:"#fff", padding:"20px 24px 18px" }}>
-        <div style={{ maxWidth:960, margin:"0 auto", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <div>
-            <Link href="/per" style={{ color:"rgba(255,255,255,.7)", fontSize:12, textDecoration:"none" }}>← PER 대시보드</Link>
-            <h1 style={{ margin:"4px 0 0", fontSize:20, fontWeight:800 }}>기부 캠페인 관리</h1>
-            <p style={{ margin:"4px 0 0", fontSize:12, opacity:.75 }}>반기별 공동 기부 캠페인을 생성하고 운영합니다.</p>
+    <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
+      <header className="pc-header">
+        <div className="pc-header-left">
+          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
+          <div className="pc-header-divider" />
+          <div className="pc-header-brand">
+            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <span className="pc-header-title">기부 캠페인</span>
           </div>
+        </div>
+        <div className="pc-header-actions">
           <button onClick={() => { setEditing(null); setForm({ title:"", periodLabel:"", startDate:"", endDate:"", donationTarget:"", description:"", goalAmount:"" }); setModal(true); }}
-            style={{ background:"rgba(255,255,255,.15)", color:"#fff", border:"1px solid rgba(255,255,255,.3)", borderRadius:8, padding:"9px 16px", fontWeight:700, fontSize:13, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
-            <Plus size={15}/> 캠페인 생성
+            style={{ display:"flex", alignItems:"center", gap:6, height:36, padding:"0 14px", border:"none", borderRadius:9, background:C.teal, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+            <Plus size={13}/> 캠페인 생성
           </button>
         </div>
-      </div>
+      </header>
 
-      <div style={{ maxWidth:960, margin:"0 auto", padding:"20px 16px 0", display:"grid", gridTemplateColumns:"1fr 340px", gap:20 }}>
+      <div style={{ maxWidth:960, margin:"0 auto", padding:"24px 20px 100px", display:"grid", gridTemplateColumns:"1fr 340px", gap:20 }}>
         {/* 캠페인 목록 */}
         <div>
           {loading ? <div style={{ textAlign:"center", padding:40, color:C.hint }}>로딩 중...</div> :
