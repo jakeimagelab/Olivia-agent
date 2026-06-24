@@ -305,11 +305,12 @@ const cleanCalendarTitle = (text: string) =>
     .trim();
 
 function calendarShortcutFromText(text: string) {
-  const isCalendarText = /(캘린더|일정|할일|메모|기록|저장|촬영|미팅|상담|회의)/.test(text);
+  const isCalendarText = /(캘린더|일정|할일|메모|기록|저장|촬영|미팅|상담|회의|모임|약속)/.test(text);
   if (!isCalendarText) return null;
 
   const date = parseKoreanDate(text);
   const time = parseKoreanTime(text);
+  const location = parseLocation(text);
   const title = cleanCalendarTitle(text);
 
   const makeTool = (name: string, input: Record<string, unknown>) => ({
