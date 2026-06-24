@@ -129,7 +129,7 @@ insert into public.workflow_templates (id, name, description, type, is_active)
 values (
   '11111111-1111-1111-1111-111111111111',
   '병원 촬영 기본 워크플로우',
-  '상담 접수부터 갤러리 전달, 리뷰 요청, PER 포인트 적립까지 이어지는 기본 촬영 운영 플로우입니다.',
+  '상담·미팅부터 원본전달, 최종파일 전달, 후기 콘텐츠 제작, 리워드 적립까지 이어지는 14단계 촬영 운영 플로우입니다.',
   'hospital_shoot',
   true
 )
@@ -140,37 +140,38 @@ on conflict (id) do update set
   is_active = excluded.is_active,
   updated_at = now();
 
+-- 구 22단계 삭제 후 새 14단계로 교체
+delete from public.workflow_steps
+where template_id = '11111111-1111-1111-1111-111111111111'
+  and step_key not in (
+    'consult_meeting','quote','contract','conti','shooting',
+    'backup_sorting','original_delivery','retouching','revision',
+    'final_delivery','review_content','reward','customer_care','content_planning'
+  );
+
 insert into public.workflow_steps
   (template_id, step_key, name, description, order_index, requires_approval, creates_mailing_draft, visible_to_client, expected_days)
 values
-  ('11111111-1111-1111-1111-111111111111','consult_received','상담접수','상담 메모와 문의 경로를 정리합니다.',1,false,false,false,0),
-  ('11111111-1111-1111-1111-111111111111','client_created','고객정보 생성','병원명, 담당자, 연락처, 채널 정보를 정리합니다.',2,false,false,false,1),
-  ('11111111-1111-1111-1111-111111111111','materials_request','사전자료 요청','촬영 전 필요한 로고, 공간, 의료진 자료를 요청합니다.',3,true,true,true,1),
-  ('11111111-1111-1111-1111-111111111111','quote_draft','견적서 생성','상담 내용을 바탕으로 견적서 초안을 생성합니다.',4,true,false,false,1),
-  ('11111111-1111-1111-1111-111111111111','quote_waiting_send','견적 발송 대기','견적서 발송 전 대표님 승인을 기다립니다.',5,true,true,false,1),
-  ('11111111-1111-1111-1111-111111111111','contract_draft','계약서 생성','승인된 견적을 바탕으로 계약서 초안을 생성합니다.',6,true,false,false,1),
-  ('11111111-1111-1111-1111-111111111111','contract_waiting_send','계약 발송 대기','계약서 발송 전 승인을 기다립니다.',7,true,true,false,1),
-  ('11111111-1111-1111-1111-111111111111','prep_request','촬영 준비사항 요청','촬영 전 준비사항 체크리스트와 요청 메일을 생성합니다.',8,true,true,true,2),
-  ('11111111-1111-1111-1111-111111111111','conti_draft','콘티 생성','촬영 콘티와 타임테이블 초안을 생성합니다.',9,true,false,false,2),
-  ('11111111-1111-1111-1111-111111111111','conti_waiting_send','콘티 발송 대기','콘티 확인 메일 발송 전 승인을 기다립니다.',10,true,true,true,1),
-  ('11111111-1111-1111-1111-111111111111','shoot_reminder','촬영 전 리마인드','촬영 D-3/D-1 리마인드 메일을 준비합니다.',11,true,true,true,1),
-  ('11111111-1111-1111-1111-111111111111','shoot_done','촬영 완료','촬영 완료 후 납품 플로우로 전환합니다.',12,false,false,false,0),
-  ('11111111-1111-1111-1111-111111111111','original_delivery','원본 전달','원본 전달 메일 초안을 생성합니다.',13,true,true,true,1),
-  ('11111111-1111-1111-1111-111111111111','retouching','보정 진행','보정 상태와 수정 요청을 관리합니다.',14,false,false,true,7),
-  ('11111111-1111-1111-1111-111111111111','gallery_delivery','갤러리 전달','갤러리 전달 메일과 고객 포털 링크를 준비합니다.',15,true,true,true,1),
-  ('11111111-1111-1111-1111-111111111111','revision_manage','수정 요청 관리','수정 요청을 분류하고 처리 상태를 관리합니다.',16,false,false,true,3),
-  ('11111111-1111-1111-1111-111111111111','review_request','리뷰 요청','리뷰 요청 메일과 안내 문구를 생성합니다.',17,true,true,true,1),
-  ('11111111-1111-1111-1111-111111111111','review_collected','리뷰 수집','수집된 리뷰를 정리합니다.',18,false,false,false,3),
-  ('11111111-1111-1111-1111-111111111111','content_production','콘텐츠 제작','리뷰와 촬영 결과를 활용한 콘텐츠 초안을 생성합니다.',19,true,false,false,7),
-  ('11111111-1111-1111-1111-111111111111','monthly_report','월간 리포트','월간 성과 리포트 초안을 생성합니다.',20,true,true,true,2),
-  ('11111111-1111-1111-1111-111111111111','per_points','PER 포인트 적립','촬영 금액 기준 PER 포인트 적립 후보를 생성합니다.',21,true,false,true,1),
-  ('11111111-1111-1111-1111-111111111111','next_proposal','재제안 / 구독 제안','후속 촬영 또는 구독 제안을 생성합니다.',22,true,true,false,3)
+  ('11111111-1111-1111-1111-111111111111','consult_meeting',   '상담 / 미팅',                  '상담 메모, 병원 정보 등록. 필요 시 사전자료 요청 포함.',        1, false, false, false, 0),
+  ('11111111-1111-1111-1111-111111111111','quote',             '견적서 생성 / 전달',            '자동 생성 후 승인 시 발송. 거절 시 이유를 notes에 기록.',       2, true,  true,  true,  1),
+  ('11111111-1111-1111-1111-111111111111','contract',          '계약서 작성 / 전달',            '자동 생성 후 승인 시에만 다음 단계로 전진.',                    3, true,  true,  true,  1),
+  ('11111111-1111-1111-1111-111111111111','conti',             '콘티 작성 / 전달',              '일부 자동 생성, 보완 후 승인 시 발송. /api/conti 연결.',        4, true,  true,  true,  2),
+  ('11111111-1111-1111-1111-111111111111','shooting',          '촬영',                         '자동화 대상 아님. 상태 전환만 수동.',                           5, false, false, false, 0),
+  ('11111111-1111-1111-1111-111111111111','backup_sorting',    '백업 및 분류',                  'RAW/JPG 자동 분류. 씬별 분류는 사람이 보완.',                   6, false, false, false, 1),
+  ('11111111-1111-1111-1111-111111111111','original_delivery', '원본 데이터 전달',              'NAS 공유링크 생성 후 자동 발송. 승인 불필요.',                   7, false, false, true,  1),
+  ('11111111-1111-1111-1111-111111111111','retouching',        '보정',                         '수동. Evoto 일부 활용, 색감 체크 기능 보조.',                    8, false, false, false, 7),
+  ('11111111-1111-1111-1111-111111111111','revision',          '보정 전달 후 수정 접수',        '수정 요청 접수 시 담당자 알람, 승인 후 재발송.',                 9, true,  true,  true,  3),
+  ('11111111-1111-1111-1111-111111111111','final_delivery',    '최종파일 전달 + 후기 요청',     '최종파일 메일에 후기 작성폼 동시 포함. 승인 후 발송.',          10, true,  true,  true,  1),
+  ('11111111-1111-1111-1111-111111111111','review_content',    '후기 DB 저장 / 콘텐츠 제작',   '인스타/블로그용 소스로 자동 변환 후 승인.',                     11, true,  false, false, 3),
+  ('11111111-1111-1111-1111-111111111111','reward',            '고객 리워드 (1%)',              '촬영 금액의 1% 자동 산출 및 PER 포인트 적립.',                  12, false, false, false, 1),
+  ('11111111-1111-1111-1111-111111111111','customer_care',     '고객관리 (주기 알람/이벤트)',   '조건 충족 시 자동 발송 트리거, 이벤트 내용 승인.',              13, true,  true,  true,  0),
+  ('11111111-1111-1111-1111-111111111111','content_planning',  '스토리 콘텐츠 기획',           '기획은 사람, 블로그 소스 연계만 자동 보조.',                    14, false, false, false, 0)
 on conflict (template_id, step_key) do update set
-  name = excluded.name,
-  description = excluded.description,
-  order_index = excluded.order_index,
-  requires_approval = excluded.requires_approval,
+  name            = excluded.name,
+  description     = excluded.description,
+  order_index     = excluded.order_index,
+  requires_approval    = excluded.requires_approval,
   creates_mailing_draft = excluded.creates_mailing_draft,
-  visible_to_client = excluded.visible_to_client,
-  expected_days = excluded.expected_days,
-  updated_at = now();
+  visible_to_client    = excluded.visible_to_client,
+  expected_days        = excluded.expected_days,
+  updated_at      = now();
