@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       project_name: body.project_name ?? "",
       manager_name: body.manager_name ?? "",
       shoot_date: body.shoot_date || null,
-      current_step_key: body.current_step_key ?? "consult_received",
+      current_step_key: body.current_step_key ?? "consult_meeting",
       next_action: body.next_action ?? "고객 정보와 사전자료 요청 정리",
       status: body.status ?? "active",
     })
