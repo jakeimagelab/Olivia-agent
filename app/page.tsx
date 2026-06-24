@@ -7,7 +7,7 @@ import {
   FileVideo, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
   NotebookPen, ShieldCheck, Sparkles, Users, Wand2, Lightbulb,
   AlertCircle, CheckCircle2, Clock, RefreshCw, Calendar, Check,
-  FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Award,
+  FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Award, Link2,
 } from "lucide-react";
 
 /* ─── types ─────────────────────────────────────────────── */
