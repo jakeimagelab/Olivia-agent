@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       project_name: body.project_name ?? "포토클리닉 촬영 프로젝트",
       manager_name: body.manager_name ?? "",
       shoot_date: body.shoot_date || null,
-      current_step_key: body.current_step_key ?? "consult_received",
+      current_step_key: body.current_step_key ?? "consult_meeting",
       next_action: body.next_action ?? "상담 메모 분석 및 고객 정보 정리",
       status: "active",
     })
