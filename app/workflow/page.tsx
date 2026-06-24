@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ApprovalCard, C, EmptyBox, LoadingBox, Pill, SectionCard, StatCard, TaskRow, useApi, WorkflowIcons, WorkflowShell, fmtDate, priorityColor, statusColor } from "./_components";
+import { ApprovalCard, C, EmptyBox, LoadingBox, Pill, SectionCard, StatCard, TaskRow, useApi, WorkflowIcons, WorkflowShell, fmtDate, priorityColor, statusColor } from "./WorkflowComponents";
 
 const fallback = { ok: true, summary: {}, priorityTasks: [], approvals: [], workflowRuns: [], mock: false };
 
