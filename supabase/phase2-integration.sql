@@ -49,17 +49,17 @@ create table if not exists public.mailing_queue (
   updated_at       timestamptz not null default now()
 );
 
--- 이미 존재하는 경우를 위한 컬럼 추가 (CREATE TABLE 분기 양쪽에서 안전하게 동작)
+-- 기존 mailing_queue에 워크플로우 연결 컬럼 추가
+-- (기존 컬럼: type, source_module, hospital_name, to_email, subject, body, status, sent_at 등)
 alter table public.mailing_queue
-  add column if not exists scheduled_at     timestamptz,
-  add column if not exists sent_at          timestamptz,
-  add column if not exists mailing_type     text not null default 'general',
-  add column if not exists workflow_run_id  uuid references public.workflow_runs(id) on delete set null,
+  add column if not exists scheduled_at      timestamptz,
+  add column if not exists mailing_type      text not null default 'general',
+  add column if not exists workflow_run_id   uuid references public.workflow_runs(id) on delete set null,
   add column if not exists workflow_step_key text not null default '',
-  add column if not exists agent_task_id    uuid references public.agent_tasks(id) on delete set null,
-  add column if not exists approval_id      uuid references public.agent_approvals(id) on delete set null;
+  add column if not exists agent_task_id     uuid references public.agent_tasks(id) on delete set null,
+  add column if not exists approval_id       uuid references public.agent_approvals(id) on delete set null;
 
-create index if not exists mailing_queue_status_idx       on public.mailing_queue(status, scheduled_at);
+create index if not exists mailing_queue_created_idx      on public.mailing_queue(created_at desc);
 create index if not exists mailing_queue_client_idx       on public.mailing_queue(client_id);
 create index if not exists mailing_queue_workflow_run_idx  on public.mailing_queue(workflow_run_id);
 create index if not exists mailing_queue_agent_task_idx   on public.mailing_queue(agent_task_id);
