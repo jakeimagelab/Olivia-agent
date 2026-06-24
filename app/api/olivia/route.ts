@@ -345,6 +345,7 @@ function calendarShortcutFromText(text: string) {
       date: resolvedDate,
       title,
       time: time || undefined,
+      location: location || undefined,
       category: inferCategory(text),
       memo: text,
     });
