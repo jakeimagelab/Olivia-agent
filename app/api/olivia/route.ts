@@ -751,9 +751,17 @@ async function executeTool(name: string, input: any, req: NextRequest) {
   }
 
   if (name === "open_page") {
+    const pageMap: Record<string, string> = {
+      workflow: "/workflow",
+      "workflow-tasks": "/workflow/tasks",
+      "workflow-approvals": "/workflow/approvals",
+      "workflow-templates": "/workflow/templates",
+      "workflow-logs": "/workflow/logs",
+    };
+
     return {
       action: "navigate",
-      url: "/" + input.page,
+      url: pageMap[input.page] || "/" + input.page,
       message: "페이지로 이동할게요!",
     };
   }
