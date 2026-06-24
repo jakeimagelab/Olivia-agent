@@ -237,6 +237,12 @@ export default function ReviewStudioPage() {
         </div>
       </header>
 
+      {/* ── 고객 허브 탭 ── */}
+      <nav style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, display: "flex", overflowX: "auto" }}>
+        <Link href="/clients"       style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: C.muted, borderBottom: "2px solid transparent", textDecoration: "none", display: "inline-block" }}>👥 고객 목록</Link>
+        <Link href="/review-studio" style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: C.teal, borderBottom: `2px solid ${C.teal}`, textDecoration: "none", display: "inline-block" }}>⭐ 후기 콘텐츠</Link>
+      </nav>
+
       {/* ── 모바일 탭 바 ── */}
       {isMobile && (
         <div style={{ display: "flex", background: C.surface, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 56, zIndex: 50 }}>
