@@ -13,7 +13,12 @@ export async function GET() {
       .select("*, steps:workflow_steps(*)")
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return NextResponse.json({ ok: true, templates: data ?? [] });
+
+    if (!data?.length) {
+      return NextResponse.json({ ok: true, mock: true, templates: [MOCK_TEMPLATE] });
+    }
+
+    return NextResponse.json({ ok: true, templates: data });
   } catch (error) {
     return NextResponse.json({ ok: true, mock: true, note: error instanceof Error ? error.message : String(error), templates: [MOCK_TEMPLATE] });
   }
