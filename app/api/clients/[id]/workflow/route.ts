@@ -5,13 +5,14 @@ import { MOCK_AGENT_TASKS, MOCK_APPROVALS, MOCK_WORKFLOW_RUNS } from "@/lib/work
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const db = getSupabaseAdmin();
     const { data: runs, error: runError } = await db
       .from("workflow_runs")
       .select("*")
-      .eq("client_id", params.id)
+      .eq("client_id", id)
       .order("updated_at", { ascending: false });
     if (runError) throw runError;
 
@@ -31,7 +32,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
       ok: true,
       mock: true,
       note: error instanceof Error ? error.message : String(error),
-      runs: MOCK_WORKFLOW_RUNS.filter((run) => run.client_id === params.id || params.id),
+      runs: MOCK_WORKFLOW_RUNS.filter((run) => run.client_id === id || id),
       tasks: MOCK_AGENT_TASKS,
       approvals: MOCK_APPROVALS,
       logs: [],
@@ -39,13 +40,14 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const body = await req.json();
   const db = getSupabaseAdmin();
   const { data, error } = await db
     .from("workflow_runs")
     .insert({
-      client_id: params.id,
+      client_id: id,
       template_id: body.template_id ?? null,
       client_name: body.client_name ?? "",
       project_name: body.project_name ?? "포토클리닉 촬영 프로젝트",
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     .single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   await db.from("agent_logs").insert({
-    client_id: params.id,
+    client_id: id,
     workflow_run_id: data.id,
     log_type: "workflow_started",
     message: `${data.client_name || "고객"} 워크플로우가 시작되었습니다.`,
