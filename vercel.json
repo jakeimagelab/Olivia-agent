@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/daily-ideas",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/shoot-reminder",
+      "schedule": "0 0 * * *"
     }
   ]
 }
