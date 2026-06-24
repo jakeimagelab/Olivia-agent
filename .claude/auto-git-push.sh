@@ -1,6 +1,6 @@
 #!/bin/bash
 # Auto git add + commit + push for Olivia-agent project
-REPO="/tmp/olivia-v14/Olivia-agent-main"
+REPO="/tmp/olivia-v2/Olivia-agent-main"
 FILE=$(jq -r '.tool_input.file_path // empty' 2>/dev/null)
 
 # Only act on files that belong to this project

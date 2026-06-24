@@ -11,7 +11,11 @@ export async function GET(req: NextRequest) {
   const session = await validatePortalToken(token);
   if (!session) return NextResponse.json({ ok: false, error: "유효하지 않은 링크이거나 만료되었습니다." }, { status: 401 });
 
-  await logPortalEvent({ clientId: session.clientId, eventType: "portal_accessed" });
+  await logPortalEvent({
+    clientId: session.clientId,
+    eventType: "portal_accessed",
+    workflowRunId: session.workflowRunId,
+  });
 
   return NextResponse.json({ ok: true, session });
 }

@@ -44,13 +44,34 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  await logPortalEvent({
-    clientId: session.clientId,
-    eventType: "revision_requested",
-    targetType: "revision_request",
-    targetId: data.id,
-    memo: title,
-  });
+  const taskPriority = priority === "urgent" ? "urgent" : priority === "high" ? "high" : "normal";
+
+  await Promise.all([
+    db.from("agent_tasks").insert({
+      client_id: session.clientId,
+      workflow_run_id: session.workflowRunId,
+      task_type: "revision_review",
+      title: `수정 요청 검토: ${title}`,
+      description: content,
+      input_data: { revisionId: data.id, requestType: requestType ?? "general", priority: priority ?? "normal" },
+      priority: taskPriority,
+      status: "pending",
+    }),
+    session.workflowRunId
+      ? db
+          .from("workflow_runs")
+          .update({ current_step_key: "revision_manage", updated_at: new Date().toISOString() })
+          .eq("id", session.workflowRunId)
+      : Promise.resolve(),
+    logPortalEvent({
+      clientId: session.clientId,
+      eventType: "revision_requested",
+      targetType: "revision_request",
+      targetId: data.id,
+      memo: title,
+      workflowRunId: session.workflowRunId,
+    }),
+  ]);
 
   return NextResponse.json({ ok: true, id: data.id });
 }

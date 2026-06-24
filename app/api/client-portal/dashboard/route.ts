@@ -13,13 +13,14 @@ export async function GET(req: NextRequest) {
   const db = getSupabaseAdmin();
   const clientId = session.clientId;
 
-  const [clientRes, galleryRes, revisionRes, reviewRes, eventsRes, perRes] = await Promise.all([
+  const [clientRes, galleryRes, revisionRes, reviewRes, eventsRes, perRes, workflowRes] = await Promise.all([
     db.from("clients").select("*").eq("id", clientId).single(),
     db.from("galleries").select("id,title,shoot_date,status,gallery_link,retouched_link,original_link,created_at").eq("hospital_id", clientId).order("created_at", { ascending: false }).limit(5),
     db.from("client_revision_requests").select("id,title,status,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(5),
     db.from("client_reviews").select("id,overall_rating,created_at").eq("client_id", clientId).limit(1),
     db.from("client_portal_events").select("event_type,memo,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(10),
     db.from("clients").select("available_points,total_earned_points,reward_tier,per_joined").eq("id", clientId).single(),
+    db.from("workflow_runs").select("id,current_step_key,status,shoot_date,next_action").eq("client_id", clientId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   return NextResponse.json({
@@ -31,5 +32,6 @@ export async function GET(req: NextRequest) {
     hasReview: (reviewRes.data?.length ?? 0) > 0,
     events: eventsRes.data ?? [],
     per: perRes.data,
+    workflowRun: workflowRes.data ?? null,
   });
 }
