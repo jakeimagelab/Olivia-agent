@@ -56,7 +56,7 @@ export async function validatePortalToken(token: string): Promise<PortalSession 
 
   const c = data.clients as any;
   const runData = runResult.data;
-  const currentStepKey = runData?.current_step_key ?? "consult_received";
+  const currentStepKey = runData?.current_step_key ?? "consult_meeting";
   const currentStepName = STEP_NAME[currentStepKey] ?? currentStepKey;
 
   return {
