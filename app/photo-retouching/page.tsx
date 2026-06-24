@@ -821,6 +821,6 @@ export default function PhotoRetouchingPage() {
         )}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </main>
+    </div>
   );
 }
