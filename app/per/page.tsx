@@ -64,9 +64,9 @@ export default function PerDashboard() {
 
       {/* ── 고객 허브 탭 ── */}
       <nav style={{ background: C.white, borderBottom: `1px solid ${C.border}`, display: "flex", overflowX: "auto" }}>
-        <Link href="/clients"       style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: C.muted, borderBottom: "2px solid transparent", textDecoration: "none", display: "inline-block" }}>👥 고객 목록</Link>
-        <Link href="/review-studio" style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: C.muted, borderBottom: "2px solid transparent", textDecoration: "none", display: "inline-block" }}>⭐ 후기 콘텐츠</Link>
-        <Link href="/per"           style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: C.teal,  borderBottom: `2px solid ${C.teal}`, textDecoration: "none", display: "inline-block" }}>🏆 PER 리워드</Link>
+        <Link href="/clients"       className="pc-hub-tab"        style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>👥 고객 목록</Link>
+        <Link href="/review-studio" className="pc-hub-tab"        style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>⭐ 후기 콘텐츠</Link>
+        <Link href="/per"           className="pc-hub-tab active" style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>🏆 PER 리워드</Link>
       </nav>
 
       {/* 히어로 배너 */}
