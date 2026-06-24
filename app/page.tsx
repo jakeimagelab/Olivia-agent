@@ -487,13 +487,13 @@ function DailyIdeaBanner({idea}:{idea:DashboardData["todayIdea"]}) {
 type ToolDef = {title:string; desc:string; href:string; icon:React.ComponentType<{size?:number}>; meta:string; orange:boolean};
 
 const TOOLS_WORK: ToolDef[] = [
+  {title:"올리비아 워크플로우", desc:"상담부터 촬영 후 전달까지 병원별 단계·작업 큐·승인 대기함을 관리합니다.", href:"/workflow", icon:Sparkles, meta:"Agent Workflow", orange:true },
   {title:"업무 캘린더",    desc:"날짜별 촬영·미팅·행정 할일과 상담 메모를 한 화면에서 관리합니다.", href:"/calendar",        icon:Calendar,      meta:"Task Calendar",      orange:true },
   {title:"견적서 생성",    desc:"촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.",           href:"/quote",           icon:ClipboardList, meta:"Quote Builder",      orange:false},
   {title:"촬영 콘티 생성", desc:"병원 정보 입력 시 AI가 콘티·체크리스트·타임테이블을 생성합니다.",href:"/conti",           icon:FileVideo,     meta:"Conti Generator",    orange:false},
   {title:"고객 관리",      desc:"병원별 업무 상태·촬영 이력을 관리하고 갤러리를 공유합니다.",     href:"/clients",         icon:Users,         meta:"Client Management",  orange:false},
   {title:"PER 리워드",     desc:"촬영 금액 1% 포인트 적립·리워드 제품·기부 참여 ESG 리워드 프로그램.", href:"/per",         icon:Award,         meta:"ESG Reward",         orange:true },
   {title:"고객 포털 관리",  desc:"병원 고객에게 전달할 고객 전용 포털 링크를 생성하고 수정 요청·리뷰를 관리합니다.", href:"/portal-admin", icon:Link2,        meta:"Client Portal",      orange:false},
-  {title:"올리비아 워크플로우", desc:"상담부터 촬영 후 전달까지 병원별 단계·작업 큐·승인 대기함을 관리합니다.", href:"/workflow", icon:Sparkles, meta:"Agent Workflow", orange:true },
   {title:"통합 메일링",    desc:"견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.", href:"/mailing",         icon:Mail,          meta:"Unified Mailing",    orange:false},
   {title:"사진 분류",      desc:"촬영 사진을 용도와 카테고리별로 빠르게 분류하고 정리합니다.",    href:"/photo-sorting",   icon:Images,        meta:"Photo Sorting",      orange:false},
   {title:"업무 리포트",    desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",     href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
