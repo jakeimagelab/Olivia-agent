@@ -5,28 +5,76 @@ export type AgentTaskPriority = "low" | "normal" | "high" | "urgent";
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "revision_requested";
 
 export const WORKFLOW_STEPS = [
-  { key: "consult_received",    name: "상담접수",          next: "고객정보 생성",     requiresApproval: false, days: 0, order_index: 1,  visible_to_client: false, creates_mailing_draft: false, related_feature: "clients"   },
-  { key: "client_created",      name: "고객정보 생성",     next: "사전자료 요청",     requiresApproval: false, days: 1, order_index: 2,  visible_to_client: false, creates_mailing_draft: false, related_feature: "clients"   },
-  { key: "materials_request",   name: "사전자료 요청",     next: "견적서 생성",       requiresApproval: true,  days: 1, order_index: 3,  visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing"   },
-  { key: "quote_draft",         name: "견적서 생성",       next: "견적 발송 승인",    requiresApproval: true,  days: 1, order_index: 4,  visible_to_client: false, creates_mailing_draft: false, related_feature: "quotes"    },
-  { key: "quote_waiting_send",  name: "견적 발송 대기",    next: "계약서 생성",       requiresApproval: true,  days: 1, order_index: 5,  visible_to_client: false, creates_mailing_draft: true,  related_feature: "mailing"   },
-  { key: "contract_draft",      name: "계약서 생성",       next: "계약 발송 승인",    requiresApproval: true,  days: 1, order_index: 6,  visible_to_client: false, creates_mailing_draft: false, related_feature: "contracts" },
-  { key: "contract_waiting_send", name: "계약 발송 대기",  next: "촬영 준비사항 요청", requiresApproval: true, days: 1, order_index: 7,  visible_to_client: false, creates_mailing_draft: true,  related_feature: "mailing"   },
-  { key: "prep_request",        name: "촬영 준비사항 요청", next: "콘티 생성",         requiresApproval: true,  days: 2, order_index: 8,  visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing"   },
-  { key: "conti_draft",         name: "콘티 생성",         next: "콘티 발송 승인",    requiresApproval: true,  days: 2, order_index: 9,  visible_to_client: false, creates_mailing_draft: false, related_feature: "conti"     },
-  { key: "conti_waiting_send",  name: "콘티 발송 대기",    next: "촬영 전 리마인드",  requiresApproval: true,  days: 1, order_index: 10, visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing"   },
-  { key: "shoot_reminder",      name: "촬영 전 리마인드",  next: "촬영 완료",         requiresApproval: true,  days: 1, order_index: 11, visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing"   },
-  { key: "shoot_done",          name: "촬영 완료",         next: "원본 전달",         requiresApproval: false, days: 0, order_index: 12, visible_to_client: false, creates_mailing_draft: false, related_feature: "clients"   },
-  { key: "original_delivery",   name: "원본 전달",         next: "보정 진행",         requiresApproval: true,  days: 1, order_index: 13, visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing"   },
-  { key: "retouching",          name: "보정 진행",         next: "갤러리 전달",       requiresApproval: false, days: 7, order_index: 14, visible_to_client: true,  creates_mailing_draft: false, related_feature: "gallery"   },
-  { key: "gallery_delivery",    name: "갤러리 전달",       next: "수정 요청 관리",    requiresApproval: true,  days: 1, order_index: 15, visible_to_client: true,  creates_mailing_draft: true,  related_feature: "portal"    },
-  { key: "revision_manage",     name: "수정 요청 관리",    next: "리뷰 요청",         requiresApproval: false, days: 3, order_index: 16, visible_to_client: true,  creates_mailing_draft: false, related_feature: "revision"  },
-  { key: "review_request",      name: "리뷰 요청",         next: "리뷰 수집",         requiresApproval: true,  days: 1, order_index: 17, visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing"   },
-  { key: "review_collected",    name: "리뷰 수집",         next: "콘텐츠 제작",       requiresApproval: false, days: 3, order_index: 18, visible_to_client: false, creates_mailing_draft: false, related_feature: "review"    },
-  { key: "content_production",  name: "콘텐츠 제작",       next: "월간 리포트",       requiresApproval: true,  days: 7, order_index: 19, visible_to_client: false, creates_mailing_draft: false, related_feature: "content"   },
-  { key: "monthly_report",      name: "월간 리포트",       next: "PER 포인트 적립",   requiresApproval: true,  days: 2, order_index: 20, visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing"   },
-  { key: "per_points",          name: "PER 포인트 적립",   next: "재제안 / 구독 제안", requiresApproval: true,  days: 1, order_index: 21, visible_to_client: true,  creates_mailing_draft: false, related_feature: "per"       },
-  { key: "next_proposal",       name: "재제안 / 구독 제안", next: "완료",              requiresApproval: true,  days: 3, order_index: 22, visible_to_client: false, creates_mailing_draft: true,  related_feature: "mailing"   },
+  {
+    key: "consult_meeting",   name: "상담 / 미팅",
+    order_index: 1,  requires_approval: false, automation_level: "manual" as const,
+    visible_to_client: false, creates_mailing_draft: false, related_feature: "clients",
+  },
+  {
+    key: "quote",             name: "견적서 생성 / 전달",
+    order_index: 2,  requires_approval: true,  automation_level: "draft_then_approve" as const,
+    visible_to_client: true,  creates_mailing_draft: true,  related_feature: "quotes",
+  },
+  {
+    key: "contract",          name: "계약서 작성 / 전달",
+    order_index: 3,  requires_approval: true,  automation_level: "draft_then_approve" as const,
+    visible_to_client: true,  creates_mailing_draft: true,  related_feature: "contracts",
+  },
+  {
+    key: "conti",             name: "콘티 작성 / 전달",
+    order_index: 4,  requires_approval: true,  automation_level: "draft_then_approve" as const,
+    visible_to_client: true,  creates_mailing_draft: true,  related_feature: "conti",
+  },
+  {
+    key: "shooting",          name: "촬영",
+    order_index: 5,  requires_approval: false, automation_level: "manual" as const,
+    visible_to_client: false, creates_mailing_draft: false, related_feature: "clients",
+  },
+  {
+    key: "backup_sorting",    name: "백업 및 분류",
+    order_index: 6,  requires_approval: false, automation_level: "full" as const,
+    visible_to_client: false, creates_mailing_draft: false, related_feature: "photo-sorting",
+  },
+  {
+    key: "original_delivery", name: "원본 데이터 전달",
+    order_index: 7,  requires_approval: false, automation_level: "full" as const,
+    visible_to_client: true,  creates_mailing_draft: false, related_feature: "mailing",
+  },
+  {
+    key: "retouching",        name: "보정",
+    order_index: 8,  requires_approval: false, automation_level: "manual" as const,
+    visible_to_client: false, creates_mailing_draft: false, related_feature: "photo-retouching",
+  },
+  {
+    key: "revision",          name: "보정 전달 후 수정 접수",
+    order_index: 9,  requires_approval: true,  automation_level: "draft_then_approve" as const,
+    visible_to_client: true,  creates_mailing_draft: true,  related_feature: "revision",
+  },
+  {
+    key: "final_delivery",    name: "최종파일 전달 + 후기 요청",
+    order_index: 10, requires_approval: true,  automation_level: "draft_then_approve" as const,
+    visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing",
+  },
+  {
+    key: "review_content",    name: "후기 DB 저장 / 콘텐츠 제작",
+    order_index: 11, requires_approval: true,  automation_level: "draft_then_approve" as const,
+    visible_to_client: false, creates_mailing_draft: false, related_feature: "review-studio",
+  },
+  {
+    key: "reward",            name: "고객 리워드 (1%)",
+    order_index: 12, requires_approval: false, automation_level: "full" as const,
+    visible_to_client: false, creates_mailing_draft: false, related_feature: "per",
+  },
+  {
+    key: "customer_care",     name: "고객관리 (주기 알람/이벤트)",
+    order_index: 13, requires_approval: true,  automation_level: "draft_then_approve" as const,
+    visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing",
+  },
+  {
+    key: "content_planning",  name: "스토리 콘텐츠 기획",
+    order_index: 14, requires_approval: false, automation_level: "manual" as const,
+    visible_to_client: false, creates_mailing_draft: false, related_feature: "content",
+  },
 ];
 
 export const STEP_NAME: Record<string, string> = Object.fromEntries(WORKFLOW_STEPS.map((step) => [step.key, step.name]));
