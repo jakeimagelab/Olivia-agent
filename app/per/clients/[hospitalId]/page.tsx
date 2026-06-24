@@ -49,23 +49,27 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
   const filteredTx = txFilter === "전체" ? transactions : transactions.filter((t:any) => t.type === txFilter);
 
   return (
-    <main style={{ minHeight:"100vh", background:C.bg, padding:"0 0 60px" }}>
-      <div style={{ background:C.teal, color:"#fff", padding:"20px 24px 18px" }}>
-        <div style={{ maxWidth:900, margin:"0 auto" }}>
-          <Link href="/per/clients" style={{ color:"rgba(255,255,255,.7)", fontSize:12, textDecoration:"none" }}>← 병원별 포인트 관리</Link>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:6 }}>
-            <div>
-              <h1 style={{ margin:0, fontSize:22, fontWeight:800 }}>{client.name}</h1>
-              <div style={{ fontSize:13, opacity:.8, marginTop:4 }}>{client.manager_name} · {client.phone}</div>
-            </div>
-            <span style={{ background:TIER_COLOR[client.reward_tier ?? "standard"], color:"#fff", borderRadius:20, padding:"4px 14px", fontWeight:800, fontSize:12 }}>
-              {TIER_LABEL[client.reward_tier ?? "standard"]} 등급
-            </span>
+    <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
+      <header className="pc-header">
+        <div className="pc-header-left">
+          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
+          <div className="pc-header-divider" />
+          <div className="pc-header-brand">
+            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <span className="pc-header-title">{client.name}</span>
           </div>
         </div>
-      </div>
+        <div className="pc-header-actions">
+          <Link href="/per/clients" style={{ display:"flex", alignItems:"center", height:36, padding:"0 14px", border:`1px solid ${C.border}`, borderRadius:9, background:C.light, color:C.teal, fontWeight:700, fontSize:13, textDecoration:"none" }}>
+            ← 병원 목록
+          </Link>
+          <span style={{ background:TIER_COLOR[client.reward_tier ?? "standard"], color:"#fff", borderRadius:20, padding:"4px 14px", fontWeight:800, fontSize:12 }}>
+            {TIER_LABEL[client.reward_tier ?? "standard"]} 등급
+          </span>
+        </div>
+      </header>
 
-      <div style={{ maxWidth:900, margin:"0 auto", padding:"20px 16px 0" }}>
+      <div style={{ maxWidth:900, margin:"0 auto", padding:"24px 20px 100px" }}>
         {/* 포인트 요약 */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, marginBottom:24 }}>
           {[
