@@ -288,13 +288,9 @@ export default function ReviewStudioPage() {
 
       {/* ── 데스크탑 레이아웃 ── */}
       {!isMobile && (
-        <section style={{ maxWidth: 1220, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "410px 1fr", gap: 22, alignItems: "start" }}>
+        <section style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "410px 1fr", gap: 22, alignItems: "start" }}>
           <ReviewForm />
           <section style={{ display: "grid", gap: 16 }}>
-            <div>
-              <p style={{ margin: 0, color: C.orange, fontSize: 12, fontWeight: 900, letterSpacing: ".12em", textTransform: "uppercase" }}>Review → Content</p>
-              <h1 style={{ margin: "6px 0 0", color: C.teal, fontSize: 38, lineHeight: 1.15 }}>클라이언트 후기 → 홍보 콘텐츠</h1>
-            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 230px", gap: 12, alignItems: "start" }}>
               <ReviewList />
               <div style={{ position: "sticky", top: 18 }}>
