@@ -54,9 +54,10 @@ export default function PortalReviewPage() {
     else alert(d.error ?? "오류가 발생했습니다.");
   };
 
-  if (loading || dataLoading) return <PortalLoading />;
+  if (loading) return <PortalLoading />;
   if (error) return <PortalError message={error} />;
   if (!session) return <PortalError message="세션 정보를 불러올 수 없습니다." />;
+  if (dataLoading) return <PortalLoading />;
 
   if (submitted || existing) {
     const r = existing ?? form;
