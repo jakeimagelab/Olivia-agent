@@ -36,15 +36,20 @@ export default function PerSettingsPage() {
   const previewPoints = Math.floor(2000000 * (Number(form.reward_rate) || 0.01));
 
   return (
-    <main style={{ minHeight:"100vh", background:C.bg, padding:"0 0 60px" }}>
-      <div style={{ background:C.teal, color:"#fff", padding:"20px 24px 18px" }}>
-        <div style={{ maxWidth:700, margin:"0 auto" }}>
-          <Link href="/per" style={{ color:"rgba(255,255,255,.7)", fontSize:12, textDecoration:"none" }}>← PER 대시보드</Link>
-          <h1 style={{ margin:"4px 0 0", fontSize:20, fontWeight:800 }}>포인트 정책 설정</h1>
+    <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
+      <header className="pc-header">
+        <div className="pc-header-left">
+          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
+          <div className="pc-header-divider" />
+          <div className="pc-header-brand">
+            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <span className="pc-header-title">포인트 정책 설정</span>
+          </div>
         </div>
-      </div>
+        <div className="pc-header-actions" />
+      </header>
 
-      <div style={{ maxWidth:700, margin:"0 auto", padding:"24px 16px 0" }}>
+      <div style={{ maxWidth:700, margin:"0 auto", padding:"24px 20px 100px" }}>
         <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:28, marginBottom:20 }}>
           <h2 style={{ margin:"0 0 20px", fontSize:15, fontWeight:800, display:"flex", alignItems:"center", gap:8 }}>
             <Settings size={16} color={C.teal}/> 적립 정책
