@@ -379,8 +379,8 @@ function pageShortcutFromText(text: string) {
     [/이미지\s*생성|디렉터|AI\s*이미지/, "image-generator"],
     [/사진\s*분류/, "photo-sorting"],
     [/사진\s*보정|보정/, "photo-retouching"],
-    [/워크플로우|업무\s*흐름|작업\s*큐|승인\s*대기|승인함|에이전트\s*작업/, "workflow"],
     [/메모/, "memo"],
+    [/워크플로우|업무\s*흐름|작업\s*큐|승인\s*대기|승인함|에이전트\s*작업/, "workflow"],
   ];
 
   const found = pages.find(([pattern]) => pattern.test(text));
