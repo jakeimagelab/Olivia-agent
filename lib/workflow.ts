@@ -190,15 +190,15 @@ export const MOCK_AGENT_TASKS = [
 export const MOCK_APPROVALS = [
   {
     id: "approval-sample-1",
-    title: "운정표병원 갤러리 전달 승인",
-    description: "촬영 사진 전달 메일을 병원 담당자에게 발송하기 전 승인해주세요.",
+    title: "운정표병원 최종파일 전달 승인",
+    description: "최종 보정본 전달 메일을 병원 담당자에게 발송하기 전 승인해주세요.",
     client_name: "운정표병원",
     project_name: "브랜드 촬영 4월",
     approval_type: "mailing",
     status: "pending",
     related_type: "mailing_queue",
     related_id: "mail-sample-1",
-    preview_data: { subject: "[포토클리닉] 운정표병원 촬영 갤러리 공유", button: "갤러리 확인하기" },
+    preview_data: { subject: "[포토클리닉] 운정표병원 최종 촬영본 공유", button: "파일 확인하기" },
     admin_memo: "",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
