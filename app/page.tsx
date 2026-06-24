@@ -498,12 +498,12 @@ const TOOLS_WORK: ToolDef[] = [
   {title:"사진 분류",      desc:"촬영 사진을 용도와 카테고리별로 빠르게 분류하고 정리합니다.",    href:"/photo-sorting",   icon:Images,        meta:"Photo Sorting",      orange:false},
   {title:"업무 리포트",    desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",     href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
   {title:"사진 보정",      desc:"색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 확인합니다.", href:"/photo-retouching", icon:Wand2, meta:"Photo Retouching", orange:false},
+  {title:"클라이언트 후기 콘텐츠",desc:"클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다.", href:"/review-studio",   icon:Sparkles,      meta:"Review Studio",      orange:false},
 ];
 
 const TOOLS_CONTENT: ToolDef[] = [
   {title:"아이디어 제안",       desc:"오늘 제작할 클라이언트 홍보 콘텐츠 아이디어를 AI가 매일 제안합니다.",   href:"/daily-ideas",     icon:Lightbulb,     meta:"Idea Proposal",      orange:true },
   {title:"홍보 콘텐츠 제작",    desc:"블로그·인스타·네이버 플레이스 홍보 콘텐츠를 클라이언트별로 제작합니다.",href:"/sns-manager",     icon:CalendarCheck, meta:"Content Production", orange:false},
-  {title:"클라이언트 후기 콘텐츠",desc:"클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다.", href:"/review-studio",   icon:Sparkles,      meta:"Review Studio",      orange:false},
   {title:"병원이미지 진단",      desc:"병원 현황에 맞는 사진 콘텐츠 방향을 AI가 진단합니다.",              href:"/diagnosis",       icon:ImageDown,     meta:"Clinic Diagnosis",   orange:false},
   {title:"병원 채널 분석",       desc:"인스타그램·홈페이지·네이버 플레이스·블로그를 함께 분석합니다.",      href:"/channel-analyzer",icon:Activity,      meta:"Channel Analysis",   orange:false},
   {title:"리얼 이미지 디렉터",   desc:"올리비아가 촬영 디렉팅하고 OpenAI gpt-image-1로 실사 병원 이미지를 생성합니다.", href:"/image-generator", icon:Sparkles, meta:"Real Image Director", orange:true },
