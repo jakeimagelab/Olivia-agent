@@ -4257,8 +4257,12 @@ html { scroll-behavior: smooth; }
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-main, .pc-page {
+main, .pc-page, .pc-page-content {
   animation: pc-fade-up 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+/* 공유 레이아웃 내 헤더·탭은 애니메이션 없이 즉시 표시 */
+.pc-header, nav.pc-hub-nav, nav.pc-photo-nav {
+  animation: none;
 }
 
 /* ── 고객 허브 탭 링크 ── */
