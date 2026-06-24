@@ -369,35 +369,7 @@ export default function ClientsPage() {
   };
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}>
-
-      {/* ── 헤더 ── */}
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
-          <div className="pc-header-divider" />
-          <div className="pc-header-brand">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">고객 관리</span>
-          </div>
-        </div>
-        <div className="pc-header-actions">
-          <button onClick={() => { resetForm(); setTab(tab === "form" ? "list" : "form"); }} style={{
-            display: "flex", alignItems: "center", gap: 6, height: 36, padding: "0 16px",
-            border: "none", borderRadius: 9, background: tab === "form" ? C.muted : C.orange,
-            color: "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
-          }}>
-            {tab === "form" ? <><X size={14} /> 닫기</> : <><Plus size={14} /> 등록</>}
-          </button>
-        </div>
-      </header>
-
-      {/* ── 고객 허브 탭 ── */}
-      <nav style={{ background: C.white, borderBottom: `1px solid ${C.border}`, display: "flex", overflowX: "auto" }}>
-        <Link href="/clients"       className="pc-hub-tab active" style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>👥 고객 목록</Link>
-        <Link href="/review-studio" className="pc-hub-tab"        style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>⭐ 후기 콘텐츠</Link>
-        <Link href="/per"           className="pc-hub-tab"        style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>🏆 PER 리워드</Link>
-      </nav>
+    <div style={{ background: C.bg, color: C.txt }}>
 
       {/* ── 탭 바 ── */}
       <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "0 24px" }}>
