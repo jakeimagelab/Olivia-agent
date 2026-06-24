@@ -4,7 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(_: Request, { params }: { params: { id: string } }) {
+export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const db = getSupabaseAdmin();
   const now = new Date().toISOString();
   const { data, error } = await db
@@ -16,12 +17,12 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       output_data: { message: "1차 MVP에서는 실제 AI 생성 대신 실행 완료 상태로 기록합니다.", completedAt: now },
       updated_at: now,
     })
-    .eq("id", params.id)
+    .eq("id", id)
     .select()
     .single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   await db.from("agent_logs").insert({
-    agent_task_id: params.id,
+    agent_task_id: id,
     workflow_run_id: data.workflow_run_id,
     log_type: "task_completed",
     message: `${data.title} 작업이 완료 처리되었습니다.`,
