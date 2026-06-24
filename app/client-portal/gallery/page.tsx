@@ -20,9 +20,10 @@ export default function PortalGalleryPage() {
       .finally(() => setDataLoading(false));
   }, [token, loading]);
 
-  if (loading || dataLoading) return <PortalLoading />;
+  if (loading) return <PortalLoading />;
   if (error) return <PortalError message={error} />;
   if (!session) return <PortalError message="세션 정보를 불러올 수 없습니다." />;
+  if (dataLoading) return <PortalLoading />;
 
   return (
     <div>
