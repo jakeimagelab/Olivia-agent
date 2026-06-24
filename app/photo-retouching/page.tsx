@@ -499,6 +499,12 @@ export default function PhotoRetouchingPage() {
         </div>
       </header>
 
+      {/* ── 사진 작업실 탭 ── */}
+      <nav style={{ background: C.white, borderBottom: `1px solid ${C.border}`, display: "flex", overflowX: "auto" }}>
+        <Link href="/photo-sorting"    style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: C.muted, borderBottom: "2px solid transparent", textDecoration: "none", display: "inline-block" }}>📁 사진 분류</Link>
+        <Link href="/photo-retouching" style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: C.teal, borderBottom: `2px solid ${C.teal}`, textDecoration: "none", display: "inline-block" }}>🎨 색감·보정</Link>
+      </nav>
+
       {/* 페이지 탭 */}
       <div style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px", display: "flex" }}>
