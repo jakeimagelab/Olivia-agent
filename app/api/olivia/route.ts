@@ -283,13 +283,24 @@ const inferCategory = (text: string) => {
   return "general";
 };
 
+const parseLocation = (text: string): string => {
+  // "장소는 XXX", "위치는 XXX", "장소: XXX", "위치: XXX"
+  const m = text.match(/(?:장소|위치)\s*[는은:]\s*([^,，。\n]+)/);
+  if (m) return m[1].trim();
+  return "";
+};
+
 const cleanCalendarTitle = (text: string) =>
   text
+    // 장소/위치 표현 전체 제거 (값 포함)
+    .replace(/(?:장소|위치)\s*[는은:]\s*[^,，。\n]*/g, "")
     .replace(/(캘린더|일정|할일|업무)/g, "")
     .replace(/(추가|등록|넣어|잡아|메모|기록|저장|해줘|해줄래|부탁|완료|삭제|지워|취소|수정|변경|바꿔|옮겨|조회|보여줘|알려줘)/g, "")
     .replace(/(오늘|내일|모레|어제|금일|이번\s*주|다음\s*주|다다음\s*주|[월화수목금토일]요일)/g, "")
     .replace(/\d{1,2}\s*월\s*\d{1,2}\s*일/g, "")
     .replace(/(오전|오후)?\s*\d{1,2}\s*시(\s*\d{1,2}\s*분)?/g, "")
+    // 남은 쉼표/구두점 정리
+    .replace(/[,，、]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
