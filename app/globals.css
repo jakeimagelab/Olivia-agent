@@ -4244,3 +4244,49 @@ a.pc-nav-link, a.pc-header-back {
     padding: 0 8px !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   페이지 전환 & 탭 내비게이션 전환 효과
+   ═══════════════════════════════════════════════════════════ */
+
+/* 부드러운 스크롤 */
+html { scroll-behavior: smooth; }
+
+/* 페이지 진입 페이드업 — main 또는 .pc-page 루트에 적용 */
+@keyframes pc-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+main, .pc-page {
+  animation: pc-fade-up 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ── 고객 허브 탭 링크 ── */
+.pc-hub-tab {
+  color: #5A7470;
+  border-bottom: 2px solid transparent;
+  transition: color 0.18s ease, border-bottom-color 0.18s ease, background 0.15s ease;
+}
+.pc-hub-tab:hover {
+  color: #155855;
+  background: rgba(21, 88, 85, 0.05);
+}
+.pc-hub-tab.active {
+  color: #155855;
+  border-bottom-color: #155855;
+}
+
+/* ── 사진 작업실 탭 링크 ── */
+.pc-photo-tab {
+  color: #5A7470;
+  border-bottom: 2px solid transparent;
+  transition: color 0.18s ease, border-bottom-color 0.18s ease, background 0.15s ease;
+}
+.pc-photo-tab:hover {
+  color: #155855;
+  background: rgba(21, 88, 85, 0.05);
+}
+.pc-photo-tab.active {
+  color: #155855;
+  border-bottom-color: #155855;
+}
