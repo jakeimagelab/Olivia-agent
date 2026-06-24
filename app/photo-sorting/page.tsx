@@ -320,13 +320,13 @@ export default function PhotoSortingPage() {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#EDF5F3" }}>
+    <div className="pc-page" style={{ minHeight: "100vh", background: "#EDF5F3" }}>
       <PageHeader title="Photo Sorting" />
 
       {/* ── 사진 작업실 탭 ── */}
       <nav style={{ background: "#FFFFFF", borderBottom: "1px solid rgba(21,88,85,.12)", display: "flex", overflowX: "auto" }}>
-        <Link href="/photo-sorting"    style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: "#155855", borderBottom: "2px solid #155855", textDecoration: "none", display: "inline-block" }}>📁 사진 분류</Link>
-        <Link href="/photo-retouching" style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: "#5A7470", borderBottom: "2px solid transparent", textDecoration: "none", display: "inline-block" }}>🎨 색감·보정</Link>
+        <Link href="/photo-sorting"    className="pc-photo-tab active" style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>📁 사진 분류</Link>
+        <Link href="/photo-retouching" className="pc-photo-tab"        style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}>🎨 색감·보정</Link>
       </nav>
 
       <main style={{ maxWidth: 620, margin: "0 auto", padding: "24px 16px 60px" }}>
