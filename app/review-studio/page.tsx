@@ -297,6 +297,6 @@ export default function ReviewStudioPage() {
           </section>
         </section>
       )}
-    </main>
+    </div>
   );
 }
