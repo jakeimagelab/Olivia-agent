@@ -1,5 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 import { getSupabaseAdmin } from "@/lib/supabase";
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+async function generateAndSaveDraft(review: {
+  id: string; hospital_name: string; reviewer_name?: string;
+  rating?: number; review_text: string;
+}) {
+  try {
+    const db = getSupabaseAdmin();
+    const msg = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 400,
+      messages: [{
+        role: "user",
+        content: `병원 촬영 후기를 바탕으로 인스타그램 캡션 초안을 한국어로 작성해줘. 150자 이내, 해시태그 5개 포함. JSON만 응답:
+{"caption":"...", "hashtags":"#포토클리닉 ..."}
+
+후기: "${review.review_text}"
+병원: ${review.hospital_name} (${review.rating}점)`,
+      }],
+    });
+    const raw = (msg.content[0] as Anthropic.TextBlock).text;
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return;
+    const parsed = JSON.parse(m[0]);
+    await db.from("mailing_queue").insert({
+      type: "review_form",
+      status: "draft",
+      hospital_name: review.hospital_name,
+      subject: `[자동생성] ${review.hospital_name} 후기 콘텐츠 초안`,
+      body: `${parsed.caption}\n\n${parsed.hashtags}`,
+      source_module: "review-auto",
+      created_at: new Date().toISOString(),
+    });
+  } catch {
+    // 백그라운드 실패는 무시
+  }
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,6 +121,16 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    // 백그라운드: 인스타 콘텐츠 초안 자동 생성 (응답 블로킹 없음)
+    if (data && Boolean(body.permissionToPublish)) {
+      generateAndSaveDraft({
+        id: data.id, hospital_name: data.hospital_name,
+        reviewer_name: data.reviewer_name, rating: data.rating,
+        review_text: data.review_text,
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ ok: true, review: data });
   } catch (error) {
     return NextResponse.json(

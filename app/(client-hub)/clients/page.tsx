@@ -375,17 +375,34 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
   const [fileCount, setFileCount] = useState("");
   const [checklist, setChecklist] = useState(SHOOTING_DEFAULT.map((item) => ({ item, done: false })));
   const [notes, setNotes] = useState("");
+  // final_delivery 전용
+  const [finalNasLink, setFinalNasLink] = useState("");
+  const [finalFileCount, setFinalFileCount] = useState("");
+  const [finalPackage, setFinalPackage] = useState("");
 
   const advance = async (toKey: string) => {
     if (!workflowRun?.id) return;
     setAdvancing(true);
+    const payload: Record<string, unknown> = { workflow_run_id: workflowRun.id, to_step_key: toKey };
+    // 최종 전달 완료 시 배송 데이터 전달
+    if (selectedStepKey === "final_delivery" && toKey === "review_content" && finalNasLink) {
+      payload.deliveryData = { nasLink: finalNasLink, fileCount: finalFileCount, packageName: finalPackage };
+    }
     const res = await fetch("/api/workflow/advance", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workflow_run_id: workflowRun.id, to_step_key: toKey }),
+      body: JSON.stringify(payload),
     });
     const d = await res.json();
-    if (d.ok) onAdvance();
-    else setAdvMsg(d.error || "오류가 발생했습니다.");
+    if (d.ok) {
+      if (d.automated && d.action === "final_delivery_queued") {
+        setAdvMsg("✅ 보정본 배송 메일이 메일링함에 자동 등록됐습니다.");
+        setTimeout(() => { setAdvMsg(""); onAdvance(); }, 2000);
+      } else {
+        onAdvance();
+      }
+    } else {
+      setAdvMsg(d.error || "오류가 발생했습니다.");
+    }
     setAdvancing(false);
   };
 
@@ -516,8 +533,36 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
               </div>
             )}
 
+            {/* 최종 전달 — 배송 정보 + 자동 메일 */}
+            {selectedStepKey === "final_delivery" && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ background: "#FFF8F5", border: `1px solid ${C.orange}30`, borderRadius: 12, padding: "14px 18px", marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: C.orange, marginBottom: 10 }}>
+                    ✉️ 완료 시 보정본 배송 메일이 자동으로 메일링함에 등록됩니다
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>NAS 공유 링크 *</label>
+                      <input value={finalNasLink} onChange={(e) => setFinalNasLink(e.target.value)} placeholder="https://nas.example.com/share/..."
+                        style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0 12px", height: 40, fontSize: 13, fontFamily: "inherit", outline: "none", color: C.txt, boxSizing: "border-box" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>전달 수량</label>
+                      <input value={finalFileCount} onChange={(e) => setFinalFileCount(e.target.value)} placeholder="예: 85"
+                        style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0 12px", height: 40, fontSize: 13, fontFamily: "inherit", outline: "none", color: C.txt, boxSizing: "border-box" }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>폴더 구성 (패키지명)</label>
+                    <input value={finalPackage} onChange={(e) => setFinalPackage(e.target.value)} placeholder="예: 프리미엄 패키지 : 프로필, 연출, 인테리어"
+                      style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0 12px", height: 40, fontSize: 13, fontFamily: "inherit", outline: "none", color: C.txt, boxSizing: "border-box" }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 기본 단계 — 설명 + 앱 링크 */}
-            {!["shooting", "original_delivery", "consult_meeting"].includes(selectedStepKey) && (
+            {!["shooting", "original_delivery", "consult_meeting", "final_delivery"].includes(selectedStepKey) && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18, padding: "14px 18px", background: C.light, borderRadius: 10 }}>
                 <div style={{ fontSize: 13, color: C.teal, lineHeight: 1.6 }}>
                   <strong>{client.name}</strong>의 <strong>{STEP_NAME[selectedStepKey]}</strong> 단계를 진행하세요.
