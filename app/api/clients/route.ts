@@ -52,21 +52,44 @@ export async function POST(req: NextRequest) {
 
   if (!name) return NextResponse.json({ ok: false, error: "병원명 필수" }, { status: 400 });
 
+  // 기본 컬럼 (항상 존재)
+  const insertPayload: Record<string, unknown> = {
+    name,
+    manager_name: manager_name || null,
+    phone: phone || null,
+    email: email || null,
+    website_url: website_url || null,
+    instagram_url: instagram_url || null,
+    blog_url: blog_url || null,
+    naver_place_url: naver_place_url || null,
+    memo: memo || null,
+    subscription_status: subscription_status || "none",
+  };
+
+  // 확장 컬럼 — Supabase 스키마에 없으면 무시
+  if (department    !== undefined) insertPayload.department     = department    || null;
+  if (director_name !== undefined) insertPayload.director_name  = director_name  || null;
+  if (main_treatments !== undefined) insertPayload.main_treatments = main_treatments || null;
+  if (doctor_count  !== undefined) insertPayload.doctor_count   = doctor_count  ?? null;
+  if (special_notes !== undefined) insertPayload.special_notes  = special_notes  || null;
+
   const { data: client, error } = await supabase
     .from("clients")
-    .insert({
-      name, manager_name, phone, email, department,
-      website_url, instagram_url, blog_url, naver_place_url, memo,
-      subscription_status: subscription_status || "none",
-      director_name: director_name || null,
-      main_treatments: main_treatments || null,
-      doctor_count: doctor_count ?? null,
-      special_notes: special_notes || null,
-    })
+    .insert(insertPayload)
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    // 컬럼 없음 오류면 해당 필드 제거 후 재시도
+    if (error.message.includes("schema cache")) {
+      const safePayload = { name, manager_name, phone, email, website_url, instagram_url, blog_url, naver_place_url, memo, subscription_status: subscription_status || "none" };
+      const retry = await supabase.from("clients").insert(safePayload).select("id").single();
+      if (retry.error) return NextResponse.json({ ok: false, error: retry.error.message }, { status: 500 });
+      await supabase.from("workflow_runs").insert({ client_id: retry.data.id, client_name: name, current_step_key: "consult_meeting", status: "active", started_at: new Date().toISOString() });
+      return NextResponse.json({ ok: true, id: retry.data.id, warning: "일부 컬럼이 DB에 없어 기본 정보만 저장됐습니다. Supabase에서 ALTER TABLE을 실행해 주세요." });
+    }
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
 
   // 고객 등록 = 워크플로우 1단계 자동 시작
   await supabase.from("workflow_runs").insert({
