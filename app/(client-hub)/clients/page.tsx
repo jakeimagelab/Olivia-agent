@@ -13,28 +13,28 @@ const C = {
   hint: "#9BB5B0", txt: "#1C2B28", light: "#EAF4F2", green: "#22876A",
 };
 
-const STEP_FEATURE: Record<string, { title: string; href: string; icon: string; desc: string }> = {
-  consult_meeting:   { title: "상담/미팅",    href: "/consultation",      icon: "🤝", desc: "병원 정보 등록 + AI 메모 분석" },
-  quote:             { title: "견적서",        href: "/quote",             icon: "📄", desc: "패키지 선택 → PDF 견적서 생성" },
-  contract:          { title: "계약서",        href: "/contract",          icon: "✍️", desc: "계약서 생성 및 메일 전달" },
-  conti:             { title: "촬영 콘티",     href: "/conti",             icon: "🎬", desc: "AI 촬영 콘티·체크리스트 생성" },
-  shooting:          { title: "촬영",          href: "/shooting",          icon: "📸", desc: "촬영 체크리스트 및 완료 처리" },
-  backup_sorting:    { title: "백업·분류",     href: "/photo-sorting",     icon: "🗂️", desc: "RAW/JPG 자동 분류 및 백업" },
-  original_delivery: { title: "원본 전달",     href: "/original-delivery", icon: "📦", desc: "원본 파일 링크 생성 및 발송" },
-  retouching:        { title: "보정",          href: "/photo-sorting",     icon: "🎨", desc: "색감 체크 및 보정 가이드" },
-  revision:          { title: "수정 접수",     href: "/mailing",           icon: "🔄", desc: "수정 요청 접수 및 알람 발송" },
-  final_delivery:    { title: "최종 전달",     href: "/delivery-mail",     icon: "🚀", desc: "최종파일 + 후기 요청 메일" },
-  review_content:    { title: "후기 콘텐츠",  href: "/review-studio",     icon: "⭐", desc: "후기 → SNS 콘텐츠 자동 변환" },
-  reward:            { title: "리워드 적립",   href: "/per",               icon: "🎁", desc: "PER 포인트 자동 산출 및 적립" },
-  customer_care:     { title: "고객관리 알람", href: "/mailing",           icon: "💌", desc: "주기 알람·이벤트 메일 발송" },
-  content_planning:  { title: "콘텐츠 기획",  href: "/content-writer",    icon: "✏️", desc: "블로그 기반 콘텐츠 기획" },
+const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = {
+  consult_meeting:   { icon: "🤝", desc: "병원 기본 정보 등록, 상담 내용 AI 분析",  href: "/consultation" },
+  quote:             { icon: "📄", desc: "패키지 선택 및 PDF 견적서 자동 생성",      href: "/quote" },
+  contract:          { icon: "✍️", desc: "계약서 생성 및 이메일 전달",               href: "/contract" },
+  conti:             { icon: "🎬", desc: "AI 촬영 콘티 및 체크리스트 생성",          href: "/conti" },
+  shooting:          { icon: "📸", desc: "촬영 당일 체크리스트 진행 및 완료 처리",   href: "/shooting" },
+  backup_sorting:    { icon: "🗂️", desc: "RAW/JPG 자동 분류 및 백업 관리",          href: "/photo-sorting" },
+  original_delivery: { icon: "📦", desc: "원본 파일 NAS 링크 생성 및 발송",          href: "/original-delivery" },
+  retouching:        { icon: "🎨", desc: "색감 보정 및 보정 가이드 작성",             href: "/photo-sorting" },
+  revision:          { icon: "🔄", desc: "수정 요청 접수 및 알람 발송",               href: "/mailing" },
+  final_delivery:    { icon: "🚀", desc: "최종 파일 + 후기 요청 메일 발송",           href: "/delivery-mail" },
+  review_content:    { icon: "⭐", desc: "후기 텍스트 → SNS 콘텐츠 자동 변환",       href: "/review-studio" },
+  reward:            { icon: "🎁", desc: "PER 포인트 자동 산출 및 적립",              href: "/per" },
+  customer_care:     { icon: "💌", desc: "주기 알람 및 이벤트 메일 발송",             href: "/mailing" },
+  content_planning:  { icon: "✏️", desc: "블로그 기반 콘텐츠 기획 및 작성",          href: "/content-writer" },
 };
 
 const PROMO_APPS = [
   { title: "아이디어 제안",    desc: "오늘의 홍보 콘텐츠 아이디어 AI 제안",   href: "/daily-ideas",      icon: "💡" },
   { title: "홍보 콘텐츠 제작", desc: "블로그·인스타 콘텐츠 클라이언트별 제작", href: "/sns-manager",      icon: "📢" },
   { title: "병원이미지 진단",  desc: "병원 현황 맞춤 사진 방향 AI 진단",      href: "/diagnosis",        icon: "🔬" },
-  { title: "채널 분석",        desc: "인스타·홈페이지·블로그 함께 분석",      href: "/channel-analyzer", icon: "📊" },
+  { title: "채널 분석",        desc: "인스타·홈페이지·블로그 함께 분析",      href: "/channel-analyzer", icon: "📊" },
   { title: "AI 이미지 제작",   desc: "실사 병원 이미지 AI 생성·디렉팅",      href: "/image-generator",  icon: "🎨" },
   { title: "홈페이지 제작",    desc: "병원 홈페이지 제작 기획 정리",          href: "/website-builder",  icon: "🌐" },
 ];
@@ -46,6 +46,13 @@ const MAIL_LABELS: Record<string, string> = {
 const MAIL_COLOR: Record<string, string> = {
   draft: C.hint, ready: C.orange, sent: C.green, failed: "#DC2626",
 };
+
+const SHOOTING_DEFAULT = [
+  "원장님 프로필 (단독)", "원장님 + 직원 단체사진",
+  "진료실 / 시술실 공간", "대기실 / 로비 공간",
+  "시술 연출 (협조 필요)", "의료 장비 / 기기",
+  "외부 전경 / 간판",     "상품 / 패키지 이미지",
+];
 
 function stepBadgeColor(key: string) {
   const idx = WORKFLOW_STEPS.findIndex((s) => s.key === key);
@@ -271,60 +278,22 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
         {/* 1. 워크플로우 Bar */}
         <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "14px 18px", marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 900, color: C.muted, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 10 }}>
-            워크플로우 14단계 — 현재 진행 단계 기준
+            단계를 클릭하면 아래 앱 패널이 전환됩니다
           </div>
           <WorkflowBar currentStepKey={currentStepKey} selectedStepKey={selectedStep} onSelect={setSelectedStep} />
         </div>
 
-        {/* 2. 업무 앱 카드 14개 (가로 스크롤) */}
-        <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "14px 18px", marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, color: C.muted, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 12 }}>
-            업무 앱 — 단계별 기능 (클릭하여 앱 열기)
-          </div>
-          <div style={{ overflowX: "auto", paddingBottom: 6 }}>
-            <div style={{ display: "flex", gap: 10, minWidth: "max-content" }}>
-              {WORKFLOW_STEPS.map((step, idx) => {
-                const feature = STEP_FEATURE[step.key];
-                const isCurrent = step.key === currentStepKey;
-                const isDone = idx < currentIdx;
-                const href = feature ? `${feature.href}?client_id=${clientId}` : null;
-
-                return (
-                  <div key={step.key} style={{
-                    width: 148, flexShrink: 0, borderRadius: 12,
-                    background: isCurrent ? C.teal : isDone ? "#F0FDF8" : C.white,
-                    border: `2px solid ${isCurrent ? C.teal : isDone ? "rgba(34,135,106,.3)" : C.border}`,
-                    padding: "12px", display: "flex", flexDirection: "column", gap: 6,
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 10, fontWeight: 900, color: isCurrent ? "rgba(255,255,255,.65)" : isDone ? C.green : C.hint }}>
-                        {isDone ? "✓ 완료" : isCurrent ? "▶ 진행중" : `Step ${idx + 1}`}
-                      </span>
-                      <span style={{ fontSize: 20 }}>{feature?.icon ?? "📌"}</span>
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 900, color: isCurrent ? "#fff" : C.teal, lineHeight: 1.3 }}>
-                      {STEP_NAME[step.key] || step.name}
-                    </div>
-                    <div style={{ fontSize: 10, color: isCurrent ? "rgba(255,255,255,.65)" : C.muted, lineHeight: 1.5, flex: 1 }}>
-                      {feature?.desc ?? ""}
-                    </div>
-                    {href && (
-                      <Link href={href} style={{
-                        display: "block", textAlign: "center", padding: "6px 0",
-                        background: isCurrent ? "rgba(255,255,255,.2)" : C.light,
-                        color: isCurrent ? "#fff" : C.teal,
-                        border: isCurrent ? "1px solid rgba(255,255,255,.3)" : `1px solid ${C.border}`,
-                        borderRadius: 7, fontSize: 11, fontWeight: 800, textDecoration: "none",
-                      }}>
-                        {feature?.title} 열기 →
-                      </Link>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        {/* 2. 인라인 스텝 패널 */}
+        <StepPanel
+          key={selectedStep}
+          selectedStepKey={selectedStep}
+          currentStepKey={currentStepKey}
+          currentIdx={currentIdx}
+          client={client}
+          workflowRun={workflowRun}
+          onAdvance={load}
+          clientId={clientId}
+        />
 
         {/* 3. 고객 통합 뷰 */}
         <div style={{ display: "grid", gridTemplateColumns: mailingQueue.length > 0 ? "1fr 1fr" : "1fr", gap: 16, marginBottom: 28 }}>
@@ -376,6 +345,207 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── STEP PANEL (인라인 전환) ── */
+type SPProps = {
+  selectedStepKey: string;
+  currentStepKey: string;
+  currentIdx: number;
+  client: any;
+  workflowRun: any;
+  onAdvance: () => void;
+  clientId: string;
+};
+
+function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workflowRun, onAdvance, clientId }: SPProps) {
+  const selectedIdx = WORKFLOW_STEPS.findIndex((s) => s.key === selectedStepKey);
+  const isCurrent = selectedStepKey === currentStepKey;
+  const isDone = selectedIdx < currentIdx;
+  const info = STEP_INFO[selectedStepKey] ?? { icon: "📌", desc: "", href: "/" };
+  const nextStepKey = WORKFLOW_STEPS[selectedIdx + 1]?.key;
+  const nextStepName = nextStepKey ? (STEP_NAME[nextStepKey] || nextStepKey) : null;
+
+  const [advancing, setAdvancing] = useState(false);
+  const [advMsg, setAdvMsg] = useState("");
+  const [nasLink, setNasLink] = useState("");
+  const [fileCount, setFileCount] = useState("");
+  const [checklist, setChecklist] = useState(SHOOTING_DEFAULT.map((item) => ({ item, done: false })));
+  const [notes, setNotes] = useState("");
+
+  const advance = async (toKey: string) => {
+    if (!workflowRun?.id) return;
+    setAdvancing(true);
+    const res = await fetch("/api/workflow/advance", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workflow_run_id: workflowRun.id, to_step_key: toKey }),
+    });
+    const d = await res.json();
+    if (d.ok) onAdvance();
+    else setAdvMsg(d.error || "오류가 발생했습니다.");
+    setAdvancing(false);
+  };
+
+  const toggleCheck = (idx: number) =>
+    setChecklist((prev) => prev.map((c, i) => (i === idx ? { ...c, done: !c.done } : c)));
+
+  const headerBg = isCurrent ? C.teal : isDone ? "#F0FDF8" : "rgba(21,88,85,.03)";
+  const headerTxt = isCurrent ? "#fff" : C.teal;
+  const checkDone = checklist.filter((c) => c.done).length;
+
+  return (
+    <div style={{
+      background: C.white, borderRadius: 14, overflow: "hidden", marginBottom: 16,
+      border: `1.5px solid ${isCurrent ? C.teal : isDone ? "rgba(34,135,106,.3)" : C.border}`,
+    }}>
+      {/* 헤더 */}
+      <div style={{ padding: "14px 20px", background: headerBg, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 26 }}>{info.icon}</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: headerTxt, lineHeight: 1.2 }}>
+                Step {selectedIdx + 1} · {STEP_NAME[selectedStepKey] || selectedStepKey}
+              </div>
+              <div style={{ fontSize: 11, color: isCurrent ? "rgba(255,255,255,.7)" : C.muted, marginTop: 3 }}>{info.desc}</div>
+            </div>
+          </div>
+          <span style={{
+            fontSize: 10, fontWeight: 800, padding: "4px 12px", borderRadius: 99, flexShrink: 0,
+            background: isCurrent ? "rgba(255,255,255,.2)" : isDone ? "rgba(34,135,106,.12)" : C.light,
+            color: isCurrent ? "#fff" : isDone ? C.green : C.muted,
+            border: isCurrent ? "1px solid rgba(255,255,255,.3)" : "none",
+          }}>
+            {isCurrent ? "▶ 진행 중" : isDone ? "✓ 완료" : "대기 중"}
+          </span>
+        </div>
+      </div>
+
+      {/* 바디 */}
+      <div style={{ padding: "20px" }}>
+
+        {/* ── 완료된 단계 ── */}
+        {isDone && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ fontSize: 13, color: C.muted }}>이 단계는 완료됐습니다. 앱에서 내용을 재확인할 수 있습니다.</div>
+            <Link href={`${info.href}?client_id=${clientId}`}
+              style={{ padding: "8px 18px", background: C.light, color: C.teal, borderRadius: 8, fontSize: 12, fontWeight: 800, textDecoration: "none", border: `1px solid rgba(21,88,85,.2)` }}>
+              {STEP_NAME[selectedStepKey]} 앱 열기 →
+            </Link>
+          </div>
+        )}
+
+        {/* ── 대기 중인 단계 ── */}
+        {!isCurrent && !isDone && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 13, color: C.muted, marginBottom: 4 }}>아직 이 단계에 도달하지 않았습니다.</div>
+              <div style={{ fontSize: 11, color: C.hint }}>현재 단계: {STEP_NAME[currentStepKey]}</div>
+            </div>
+            <Link href={`${info.href}?client_id=${clientId}`}
+              style={{ padding: "8px 18px", background: "rgba(21,88,85,.04)", color: C.muted, borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: "none", border: `1px solid ${C.border}` }}>
+              미리 열기
+            </Link>
+          </div>
+        )}
+
+        {/* ── 현재 진행 단계 ── */}
+        {isCurrent && (
+          <>
+            {/* 촬영 — 인라인 체크리스트 */}
+            {selectedStepKey === "shooting" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+                <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ padding: "10px 14px", background: "rgba(21,88,85,.04)", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>촬영 체크리스트</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: checkDone === checklist.length ? C.green : C.muted }}>{checkDone}/{checklist.length}</span>
+                  </div>
+                  <div style={{ padding: "6px" }}>
+                    {checklist.map((item, idx) => (
+                      <label key={idx} onClick={() => toggleCheck(idx)}
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 8px", borderRadius: 6, cursor: "pointer", background: item.done ? C.light : "transparent" }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, border: `2px solid ${item.done ? C.green : C.border}`, background: item.done ? C.green : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {item.done && <span style={{ color: "#fff", fontSize: 11, lineHeight: 1 }}>✓</span>}
+                        </div>
+                        <span style={{ fontSize: 12, color: item.done ? C.muted : C.txt, textDecoration: item.done ? "line-through" : "none" }}>{item.item}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 2 }}>촬영 현장 메모</div>
+                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={7}
+                    placeholder="특이사항, 추가 요청, 컷 수 등"
+                    style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12, fontFamily: "inherit", resize: "none", outline: "none", color: C.txt, boxSizing: "border-box", flex: 1 }} />
+                </div>
+              </div>
+            )}
+
+            {/* 원본 전달 — NAS 링크 인라인 */}
+            {selectedStepKey === "original_delivery" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>NAS 공유 링크</label>
+                  <input value={nasLink} onChange={(e) => setNasLink(e.target.value)} placeholder="https://nas.example.com/share/..."
+                    style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0 12px", height: 40, fontSize: 13, fontFamily: "inherit", outline: "none", color: C.txt, boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>파일 수량</label>
+                  <input value={fileCount} onChange={(e) => setFileCount(e.target.value)} placeholder="예: RAW 324컷 / JPG 324컷"
+                    style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0 12px", height: 40, fontSize: 13, fontFamily: "inherit", outline: "none", color: C.txt, boxSizing: "border-box" }} />
+                </div>
+              </div>
+            )}
+
+            {/* 상담/미팅 — 고객 정보 요약 */}
+            {selectedStepKey === "consult_meeting" && (
+              <div style={{ background: C.light, borderRadius: 10, padding: "14px 18px", marginBottom: 18, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+                {[
+                  ["병원이름", client.name], ["원장이름", client.director_name],
+                  ["진료과", client.department], ["의료진 수", client.doctor_count ? `${client.doctor_count}명` : null],
+                  ["주요 시술", client.main_treatments], ["특이사항", client.special_notes],
+                ].filter(([, v]) => v).map(([label, value]) => (
+                  <div key={label as string}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 2 }}>{label}</div>
+                    <div style={{ fontSize: 12, color: C.txt, fontWeight: 600 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 기본 단계 — 설명 + 앱 링크 */}
+            {!["shooting", "original_delivery", "consult_meeting"].includes(selectedStepKey) && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18, padding: "14px 18px", background: C.light, borderRadius: 10 }}>
+                <div style={{ fontSize: 13, color: C.teal, lineHeight: 1.6 }}>
+                  <strong>{client.name}</strong>의 <strong>{STEP_NAME[selectedStepKey]}</strong> 단계를 진행하세요.
+                </div>
+                <Link href={`${info.href}?client_id=${clientId}`}
+                  style={{ padding: "10px 22px", background: C.white, color: C.teal, borderRadius: 8, fontSize: 13, fontWeight: 800, textDecoration: "none", border: `1.5px solid ${C.teal}`, whiteSpace: "nowrap" }}>
+                  전체 앱에서 열기 →
+                </Link>
+              </div>
+            )}
+
+            {/* 완료 버튼 */}
+            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+              {advMsg && <div style={{ fontSize: 12, color: C.orange, width: "100%" }}>{advMsg}</div>}
+              {nextStepKey ? (
+                <>
+                  <span style={{ fontSize: 11, color: C.hint }}>완료 후 다음 단계: <strong style={{ color: C.teal }}>{nextStepName}</strong></span>
+                  <button onClick={() => advance(nextStepKey)} disabled={advancing}
+                    style={{ height: 42, padding: "0 24px", background: advancing ? C.hint : C.green, color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 900, cursor: advancing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                    {advancing ? "처리 중..." : `✓ 완료 → ${nextStepName}`}
+                  </button>
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: C.green, fontWeight: 700 }}>🎉 14단계 모두 완료! 워크플로우가 마무리됐습니다.</div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
