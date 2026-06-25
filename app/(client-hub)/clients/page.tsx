@@ -327,7 +327,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
         </div>
 
         {/* 3. 고객 통합 뷰 */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
+        <div style={{ display: "grid", gridTemplateColumns: mailingQueue.length > 0 ? "1fr 1fr" : "1fr", gap: 16, marginBottom: 28 }}>
           <InfoPanel client={client} onUpdate={load} />
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {mailingQueue.length > 0 && (
