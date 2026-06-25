@@ -4255,7 +4255,7 @@ html { scroll-behavior: smooth; }
 /* 페이지 진입 페이드업 — main 또는 .pc-page 루트에 적용 */
 @keyframes pc-fade-up {
   from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 main, .pc-page, .pc-page-content {
   animation: pc-fade-up 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
