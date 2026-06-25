@@ -7,7 +7,7 @@ import {
   FileVideo, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
   NotebookPen, ShieldCheck, Sparkles, Users, Wand2, Lightbulb,
   AlertCircle, CheckCircle2, Clock, RefreshCw, Calendar, Check,
-  FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2,
+  FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2, Bell,
 } from "lucide-react";
 
 /* ─── types ─────────────────────────────────────────────── */
@@ -192,27 +192,65 @@ function TodayTasks({ tasks, onRefresh }:{ tasks:CalTask[]; onRefresh:()=>void }
 
 /* ─── olivia greeting (compact) ─────────────────────────── */
 
-function OliviaGreeting() {
-  const full="안녕하세요, 정연호 대표님. 오늘도 좋은 하루 되세요!";
-  const [shown,setShown]=useState("");
-  useEffect(()=>{
-    let i=0; const t=setInterval(()=>{ i++; setShown(full.slice(0,i)); if(i>=full.length)clearInterval(t); },55);
-    return ()=>clearInterval(t);
-  },[]);
-  const today=new Date().toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"});
+function TodayAlertBanner({tasks, totalPending}:{tasks:CalTask[]; totalPending:number}) {
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "좋은 아침이에요" : hour < 18 ? "수고하고 계세요" : "오늘도 고생많으셨어요";
+  const today = now.toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"});
+
+  const remaining = tasks.filter(t=>!t.completed);
+  const done = tasks.filter(t=>t.completed).length;
+  const nextTask = remaining.sort((a,b)=>{
+    const ta=a.time?a.time.split("~")[0].trim():"99:99";
+    const tb=b.time?b.time.split("~")[0].trim():"99:99";
+    return ta.localeCompare(tb);
+  })[0];
+
   return(
-    <div style={{background:"linear-gradient(135deg,#155855 0%,#0d3e3b 100%)",borderRadius:14,padding:"16px 18px",boxShadow:"0 4px 20px rgba(21,88,85,.2)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-        <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#E85D2C,#EB8F22)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>✨</div>
-        <div>
-          <div style={{fontSize:9,fontWeight:900,color:"rgba(255,255,255,.45)",letterSpacing:".12em",textTransform:"uppercase"}}>OLIVIA · AI 비서</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,.55)",marginTop:1}}>{today}</div>
+    <div style={{background:"linear-gradient(135deg,#155855 0%,#0d3e3b 100%)",borderRadius:14,padding:"14px 16px",boxShadow:"0 4px 20px rgba(21,88,85,.18)"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:28,height:28,borderRadius:8,background:"rgba(232,93,44,.85)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <Bell size={13} color="#fff"/>
+          </div>
+          <div>
+            <div style={{fontSize:9,fontWeight:900,color:"rgba(255,255,255,.45)",letterSpacing:".1em",textTransform:"uppercase"}}>OLIVIA DAILY BRIEF</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,.5)"}}>{today}</div>
+          </div>
         </div>
+        {totalPending>0&&(
+          <div style={{background:"#E85D2C",borderRadius:99,padding:"2px 10px",fontSize:11,fontWeight:900,color:"#fff"}}>
+            대기 {totalPending}건
+          </div>
+        )}
       </div>
-      <p style={{fontSize:13,color:"#fff",lineHeight:1.6,margin:0,minHeight:20}}>
-        {shown}
-        {shown.length<full.length&&<span style={{display:"inline-block",width:2,height:"1em",background:"#EB8F22",marginLeft:1,verticalAlign:"text-bottom",animation:"blink 1s step-end infinite"}}/>}
+
+      <p style={{fontSize:13,fontWeight:700,color:"#fff",margin:"0 0 10px",lineHeight:1.5}}>
+        {greeting}, 정연호 대표님.
+        {remaining.length>0
+          ? <> 오늘 할일 <span style={{color:"#EB8F22",fontWeight:900}}>{remaining.length}개</span> 남았어요.</>
+          : tasks.length>0
+            ? <> 오늘 할일 <span style={{color:"#6EE7B7",fontWeight:900}}>모두 완료</span>했어요!</>
+            : <> 오늘 등록된 일정이 없어요.</>
+        }
       </p>
+
+      {nextTask&&(
+        <Link href="/calendar" style={{textDecoration:"none"}}>
+          <div style={{background:"rgba(255,255,255,.1)",borderRadius:9,padding:"8px 12px",display:"flex",alignItems:"center",gap:8,border:"1px solid rgba(255,255,255,.12)"}}>
+            <Clock size={11} color="rgba(255,255,255,.6)"/>
+            <span style={{fontSize:11,color:"rgba(255,255,255,.7)",flexShrink:0}}>다음:</span>
+            {nextTask.time&&<span style={{fontSize:10,fontWeight:800,color:"#EB8F22",background:"rgba(235,143,34,.2)",padding:"1px 6px",borderRadius:4,flexShrink:0}}>{nextTask.time}</span>}
+            <span style={{fontSize:11,fontWeight:700,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nextTask.title}</span>
+          </div>
+        </Link>
+      )}
+
+      {tasks.length>0&&done>0&&(
+        <div style={{marginTop:8,height:3,background:"rgba(255,255,255,.1)",borderRadius:99}}>
+          <div style={{height:"100%",background:"#6EE7B7",width:`${(done/tasks.length)*100}%`,borderRadius:99,transition:"width .4s"}}/>
+        </div>
+      )}
       <style>{`@keyframes blink{50%{opacity:0}}`}</style>
     </div>
   );
@@ -462,7 +500,8 @@ function DailyIdeaBanner({idea}:{idea:DashboardData["todayIdea"]}) {
 type ToolDef = {title:string; desc:string; href:string; icon:React.ComponentType<{size?:number}>; meta:string; orange:boolean};
 
 const TOOLS_WORK: ToolDef[] = [
-  {title:"업무 캘린더",    desc:"날짜별 촬영·미팅·행정 할일과 상담 메모를 한 화면에서 관리합니다.",                      href:"/calendar",        icon:Calendar,      meta:"Task Calendar",      orange:true },
+  {title:"상담 메모",      desc:"상담 내용을 빠르게 기록하고 병원 DB로 등록합니다. 고객 관리와 자동 연결됩니다.",           href:"/memo",            icon:NotebookPen,   meta:"Consult Memo",       orange:true },
+  {title:"업무 캘린더",    desc:"날짜별 촬영·미팅·행정 할일을 한 화면에서 관리합니다.",                                   href:"/calendar",        icon:Calendar,      meta:"Task Calendar",      orange:false},
   {title:"견적서 생성",    desc:"촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.",                                   href:"/quote",           icon:ClipboardList, meta:"Quote Builder",      orange:false},
   {title:"촬영 콘티 생성", desc:"병원 정보 입력 시 AI가 콘티·체크리스트·타임테이블을 생성합니다.",                        href:"/conti",           icon:FileVideo,     meta:"Conti Generator",    orange:false},
   {title:"고객 관리",      desc:"병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다.",               href:"/clients",         icon:Users,         meta:"Client Management",  orange:true },
@@ -485,79 +524,58 @@ const TOOLS_CONTENT: ToolDef[] = [
 /* ─── workflow pipeline strip ────────────────────────────── */
 
 const PIPELINE = [
-  { n:1,  label:"상담·메모",  sub:"DB 등록",      href:"/memo",             color:"#7C3AED", dot:"🗂" },
-  { n:2,  label:"견적서",     sub:"생성·전달",    href:"/quote",            color:"#155855", dot:"📋" },
-  { n:3,  label:"계약서",     sub:"작성·전달",    href:"/mailing",          color:"#155855", dot:"📝" },
-  { n:4,  label:"콘티",       sub:"작성·승인",    href:"/conti",            color:"#0891B2", dot:"🎬" },
-  { n:5,  label:"촬영",       sub:"일정 관리",    href:"/calendar",         color:"#D97706", dot:"📷" },
-  { n:6,  label:"분류·보정",  sub:"RAW→JPG→전달", href:"/photo-retouching", color:"#E85D2C", dot:"🎨" },
-  { n:7,  label:"원본 전달",  sub:"NAS 공유링크",  href:"/clients",          color:"#0891B2", dot:"📤" },
-  { n:8,  label:"수정 접수",  sub:"포털·알림",    href:"/portal-admin",     color:"#9333EA", dot:"🔄" },
-  { n:9,  label:"최종 전달",  sub:"메일 자동화",  href:"/mailing",          color:"#E85D2C", dot:"✉️" },
-  { n:10, label:"후기 수집",  sub:"DB 저장",      href:"/review-studio",    color:"#059669", dot:"⭐" },
-  { n:11, label:"콘텐츠 제작",sub:"SNS·블로그",   href:"/sns-manager",      color:"#059669", dot:"📱" },
+  { n:1,  label:"상담·메모",  href:"/memo",             color:"#7C3AED" },
+  { n:2,  label:"견적",       href:"/quote",            color:"#155855" },
+  { n:3,  label:"계약",       href:"/mailing",          color:"#155855" },
+  { n:4,  label:"콘티",       href:"/conti",            color:"#0891B2" },
+  { n:5,  label:"촬영",       href:"/calendar",         color:"#D97706" },
+  { n:6,  label:"보정",       href:"/photo-retouching", color:"#E85D2C" },
+  { n:7,  label:"원본전달",   href:"/clients",          color:"#0891B2" },
+  { n:8,  label:"수정",       href:"/portal-admin",     color:"#9333EA" },
+  { n:9,  label:"최종전달",   href:"/mailing",          color:"#E85D2C" },
+  { n:10, label:"후기",       href:"/review-studio",    color:"#059669" },
+  { n:11, label:"콘텐츠",     href:"/sns-manager",      color:"#059669" },
 ];
 
 function WorkflowStrip() {
   return (
-    <div style={{ marginBottom: 28 }}>
-      <div style={{ fontSize:10, fontWeight:900, color:"#9BB5B0", letterSpacing:".1em", textTransform:"uppercase", marginBottom:10 }}>
-        🔁 업무 파이프라인 · 포토클리닉 14단계
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ fontSize:10, fontWeight:900, color:"#9BB5B0", letterSpacing:".08em", textTransform:"uppercase", marginBottom:8 }}>
+        업무 파이프라인
       </div>
       <div style={{
-        background:"#fff", borderRadius:14, border:"1px solid rgba(21,88,85,.1)",
-        padding:"14px 16px", overflowX:"auto",
-        boxShadow:"0 1px 8px rgba(21,88,85,.05)",
+        background:"#fff", borderRadius:12, border:"1px solid rgba(21,88,85,.1)",
+        padding:"10px 14px", overflowX:"auto",
+        boxShadow:"0 1px 6px rgba(21,88,85,.04)",
       }}>
-        <div style={{ display:"flex", alignItems:"center", gap:0, minWidth:"max-content" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:2, minWidth:"max-content" }}>
           {PIPELINE.map((step, i) => (
             <React.Fragment key={step.n}>
               <Link href={step.href} style={{ textDecoration:"none", flexShrink:0 }}>
                 <div style={{
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:4,
-                  padding:"8px 10px", borderRadius:10, cursor:"pointer",
-                  transition:"background .15s",
-                  minWidth:72,
+                  display:"flex", alignItems:"center", gap:5,
+                  padding:"5px 9px", borderRadius:7, cursor:"pointer",
+                  transition:"background .12s, box-shadow .12s",
                 }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = `${step.color}10`}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                onMouseEnter={e => { const el=e.currentTarget as HTMLElement; el.style.background=`${step.color}12`; el.style.boxShadow=`0 1px 6px ${step.color}25`; }}
+                onMouseLeave={e => { const el=e.currentTarget as HTMLElement; el.style.background="transparent"; el.style.boxShadow="none"; }}
                 >
-                  <div style={{
-                    width:32, height:32, borderRadius:"50%",
-                    background:`${step.color}15`,
-                    border:`1.5px solid ${step.color}40`,
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:14, lineHeight:1,
-                  }}>{step.dot}</div>
-                  <div style={{ fontSize:10, fontWeight:900, color:"#1C2B28", textAlign:"center", lineHeight:1.3 }}>{step.label}</div>
-                  <div style={{ fontSize:9, color:"#9BB5B0", textAlign:"center", lineHeight:1.2 }}>{step.sub}</div>
-                  <div style={{
-                    fontSize:8, fontWeight:900, color:step.color,
-                    background:`${step.color}12`, borderRadius:99,
-                    padding:"1px 6px", letterSpacing:".05em",
-                  }}>STEP {step.n}</div>
+                  <span style={{
+                    fontSize:9, fontWeight:900, color:step.color,
+                    background:`${step.color}15`, borderRadius:5,
+                    padding:"2px 5px", flexShrink:0, letterSpacing:".02em",
+                    lineHeight:1.4,
+                  }}>{String(step.n).padStart(2,"0")}</span>
+                  <span style={{ fontSize:11, fontWeight:700, color:"#1C2B28", whiteSpace:"nowrap" }}>{step.label}</span>
                 </div>
               </Link>
               {i < PIPELINE.length - 1 && (
-                <div style={{ color:"#D1E8E4", fontSize:14, fontWeight:900, flexShrink:0, paddingBottom:12 }}>›</div>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{flexShrink:0, opacity:.35}}>
+                  <path d="M3 2l4 3-4 3" stroke="#155855" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               )}
             </React.Fragment>
           ))}
-        </div>
-        <div style={{ marginTop:10, borderTop:"1px solid rgba(21,88,85,.06)", paddingTop:8, display:"flex", gap:16, flexWrap:"wrap" }}>
-          {[
-            { color:"#7C3AED", label:"상담·관리" },
-            { color:"#155855", label:"문서·계약" },
-            { color:"#D97706", label:"촬영" },
-            { color:"#E85D2C", label:"보정·전달" },
-            { color:"#059669", label:"후기·콘텐츠" },
-          ].map(l => (
-            <div key={l.label} style={{ display:"flex", alignItems:"center", gap:5 }}>
-              <div style={{ width:8, height:8, borderRadius:"50%", background:l.color, flexShrink:0 }}/>
-              <span style={{ fontSize:10, color:"#9BB5B0" }}>{l.label}</span>
-            </div>
-          ))}
-          <div style={{ marginLeft:"auto", fontSize:10, color:"#C4B5FD", fontWeight:700 }}>클릭하면 해당 툴로 이동</div>
         </div>
       </div>
     </div>
@@ -744,11 +762,14 @@ function DashboardPanel({data,loading,onRefresh}:{data:DashboardData|null; loadi
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
 
-      {/* greeting */}
-      <OliviaGreeting/>
+      {/* greeting + today alert */}
+      <TodayAlertBanner tasks={data?.todayTasks ?? []} totalPending={totalTasks}/>
 
       {/* today tasks */}
       {data && <TodayTasks tasks={data.todayTasks ?? []} onRefresh={onRefresh}/>}
+
+      {/* quick memo — consult input */}
+      {data && <QuickMemoWidget memos={data.recentMemos ?? []} onRefresh={onRefresh}/>}
 
       {/* total task count */}
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:"#fff",borderRadius:10,border:"1px solid rgba(21,88,85,.1)",boxShadow:"0 1px 6px rgba(21,88,85,.05)"}}>
@@ -775,9 +796,6 @@ function DashboardPanel({data,loading,onRefresh}:{data:DashboardData|null; loadi
 
       {/* daily idea */}
       {data?.todayIdea&&<DailyIdeaBanner idea={data.todayIdea}/>}
-
-      {/* quick memo */}
-      {data && <QuickMemoWidget memos={data.recentMemos ?? []} onRefresh={onRefresh}/>}
 
       {/* recent activity */}
       {data&&<RecentActivity data={data}/>}
