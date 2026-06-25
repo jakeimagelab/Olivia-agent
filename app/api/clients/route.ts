@@ -52,48 +52,49 @@ export async function POST(req: NextRequest) {
 
   if (!name) return NextResponse.json({ ok: false, error: "병원명 필수" }, { status: 400 });
 
-  // 기본 컬럼 (항상 존재)
+  // 보내려는 모든 필드
   const insertPayload: Record<string, unknown> = {
     name,
-    manager_name: manager_name || null,
-    phone: phone || null,
-    email: email || null,
-    website_url: website_url || null,
-    instagram_url: instagram_url || null,
-    blog_url: blog_url || null,
+    manager_name:    manager_name    || null,
+    phone:           phone           || null,
+    email:           email           || null,
+    website_url:     website_url     || null,
+    instagram_url:   instagram_url   || null,
+    blog_url:        blog_url        || null,
     naver_place_url: naver_place_url || null,
-    memo: memo || null,
+    memo:            memo            || null,
     subscription_status: subscription_status || "none",
+    department:      department      || null,
+    director_name:   director_name   || null,
+    main_treatments: main_treatments || null,
+    doctor_count:    doctor_count    ?? null,
+    special_notes:   special_notes   || null,
   };
 
-  // 확장 컬럼 — Supabase 스키마에 없으면 무시
-  if (department    !== undefined) insertPayload.department     = department    || null;
-  if (director_name !== undefined) insertPayload.director_name  = director_name  || null;
-  if (main_treatments !== undefined) insertPayload.main_treatments = main_treatments || null;
-  if (doctor_count  !== undefined) insertPayload.doctor_count   = doctor_count  ?? null;
-  if (special_notes !== undefined) insertPayload.special_notes  = special_notes  || null;
+  // 없는 컬럼은 자동으로 제거하며 최대 15회 재시도
+  let client: { id: string } | null = null;
+  for (let attempt = 0; attempt < 15; attempt++) {
+    const { data, error } = await supabase
+      .from("clients")
+      .insert(insertPayload)
+      .select("id")
+      .single();
 
-  const { data: client, error } = await supabase
-    .from("clients")
-    .insert(insertPayload)
-    .select("id")
-    .single();
+    if (!error) { client = data; break; }
 
-  if (error) {
-    // 스키마 캐시 오류 → name만으로 최소 재시도 (다른 컬럼들이 없을 수 있음)
-    if (error.message.includes("schema cache") || error.message.includes("column")) {
-      const minPayload: Record<string, unknown> = { name, subscription_status: subscription_status || "none" };
-      // 있을 가능성 높은 컬럼들만 추가
-      if (manager_name) minPayload.manager_name = manager_name;
-      if (phone)        minPayload.phone         = phone;
-      if (email)        minPayload.email         = email;
-      if (memo)         minPayload.memo          = memo;
-      const retry = await supabase.from("clients").insert(minPayload).select("id").single();
-      if (retry.error) return NextResponse.json({ ok: false, error: "DB 스키마 설정이 필요합니다. Supabase SQL Editor에서 컬럼을 추가해 주세요." }, { status: 500 });
-      await supabase.from("workflow_runs").insert({ client_id: retry.data.id, client_name: name, current_step_key: "consult_meeting", status: "active", started_at: new Date().toISOString() });
-      return NextResponse.json({ ok: true, id: retry.data.id, warning: "DB 컬럼 미완성 — 병원명만 저장됨. Supabase ALTER TABLE 실행 필요." });
+    // 스키마에 없는 컬럼 → 해당 컬럼만 제거 후 재시도
+    const missing = error.message.match(/Could not find the '(\w+)' column/)?.[1];
+    if (missing && missing in insertPayload) {
+      delete insertPayload[missing];
+      continue;
     }
+
+    // 그 외 진짜 오류
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  if (!client) {
+    return NextResponse.json({ ok: false, error: "고객 등록에 실패했습니다." }, { status: 500 });
   }
 
   // 고객 등록 = 워크플로우 1단계 자동 시작
