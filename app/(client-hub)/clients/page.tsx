@@ -193,21 +193,25 @@ function ListView() {
       </div>
 
       {showModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
-          <div style={{ background: C.bg, borderRadius: 20, width: "100%", maxWidth: 600, padding: 28, boxShadow: "0 24px 80px rgba(0,0,0,.24)", maxHeight: "calc(100vh - 80px)", overflowY: "auto" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, letterSpacing: ".1em", marginBottom: 4 }}>STEP 1 · 상담/미팅</div>
-                <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 900, color: C.teal }}>신규 고객 등록</h2>
-                <p style={{ margin: 0, fontSize: 12, color: C.muted }}>등록 즉시 워크플로우 1단계가 자동으로 시작됩니다.</p>
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,.45)", overflowY: "auto" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
+        >
+          <div style={{ minHeight: "100%", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px 60px" }}>
+            <div style={{ background: C.bg, borderRadius: 20, width: "100%", maxWidth: 600, padding: 28, boxShadow: "0 24px 80px rgba(0,0,0,.24)" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, letterSpacing: ".1em", marginBottom: 4 }}>STEP 1 · 상담/미팅</div>
+                  <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 900, color: C.teal }}>신규 고객 등록</h2>
+                  <p style={{ margin: 0, fontSize: 12, color: C.muted }}>등록 즉시 워크플로우 1단계가 자동으로 시작됩니다.</p>
+                </div>
+                <button onClick={() => setShowModal(false)} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, cursor: "pointer", fontSize: 18, color: C.muted, fontFamily: "inherit", flexShrink: 0 }}>×</button>
               </div>
-              <button onClick={() => setShowModal(false)} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, cursor: "pointer", fontSize: 18, color: C.muted, fontFamily: "inherit", flexShrink: 0 }}>×</button>
+              <ConsultMeetingForm
+                onCancel={() => setShowModal(false)}
+                onSuccess={(id) => { setShowModal(false); router.push(`/clients?id=${id}`); }}
+              />
             </div>
-            <ConsultMeetingForm
-              onCancel={() => setShowModal(false)}
-              onSuccess={(id) => { setShowModal(false); router.push(`/clients?id=${id}`); }}
-            />
           </div>
         </div>
       )}
