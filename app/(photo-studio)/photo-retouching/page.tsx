@@ -140,56 +140,6 @@ function SyncUpload({ label, preview, onFile, onClear, badge }: {
   );
 }
 
-// ── 존 비교 행 ─────────────────────────────────────────────
-function ZoneRow({ icon, label, zone }: { icon: string; label: string; zone: any }) {
-  const ref = zone?.reference;
-  const tgt = zone?.target;
-  const { score, dist } = zone ?? {};
-  const ok   = score !== null && score !== undefined && score >= 85;
-  const warn = score !== null && score !== undefined && score < 65;
-
-  return (
-    <div style={{ paddingBottom: 16, marginBottom: 16, borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-        <span style={{ fontSize: 15 }}>{icon}</span>
-        <span style={{ fontSize: 12, fontWeight: 800, color: C.txt }}>{label}</span>
-        {score !== null && score !== undefined ? (
-          <span style={{
-            marginLeft: "auto", fontSize: 11, fontWeight: 900, padding: "2px 10px", borderRadius: 6,
-            background: ok ? "#E6F4EA" : warn ? "#FFF0EB" : "#FFFBEA",
-            color: ok ? "#166534" : warn ? C.orange : "#92400E",
-          }}>
-            {ok ? "✓ 일치" : `차이 ${dist}`}
-          </span>
-        ) : (
-          <span style={{ marginLeft: "auto", fontSize: 11, color: C.hint }}>미감지</span>
-        )}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center" }}>
-        {ref ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, background: ref.hex, border: `1px solid ${C.border}`, flexShrink: 0 }}/>
-            <div>
-              <div style={{ fontSize: 10, color: C.hint, fontFamily: "monospace" }}>{ref.hex}</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.4 }}>{ref.note}</div>
-            </div>
-          </div>
-        ) : <div style={{ fontSize: 11, color: C.hint, fontStyle: "italic" }}>미감지</div>}
-        <div style={{ fontSize: 16, color: C.hint, textAlign: "center" }}>→</div>
-        {tgt ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 10, color: C.hint, fontFamily: "monospace" }}>{tgt.hex}</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.4 }}>{tgt.note}</div>
-            </div>
-            <div style={{ width: 44, height: 44, borderRadius: 10, background: tgt.hex, border: `1px solid ${C.border}`, flexShrink: 0 }}/>
-          </div>
-        ) : <div style={{ fontSize: 11, color: C.hint, fontStyle: "italic", textAlign: "right" }}>미감지</div>}
-      </div>
-    </div>
-  );
-}
-
 // ── 동기화 탭 ──────────────────────────────────────────────
 function SyncTab() {
   const [refPreview,  setRefPreview]  = useState("");
@@ -202,13 +152,7 @@ function SyncTab() {
   const [result,      setResult]      = useState<any>(null);
   const [error,       setError]       = useState("");
   const [copied,      setCopied]      = useState(false);
-  const [resTab,      setResTab]      = useState<"zones"|"ps"|"cameraraw">("zones");
-
-  const ZONE_DEFS = [
-    { key: "face",       icon: "🧑", label: "얼굴톤" },
-    { key: "gown",       icon: "🥼", label: "가운컬러" },
-    { key: "background", icon: "🖼",  label: "배경컬러" },
-  ] as const;
+  const [resTab,      setResTab]      = useState<"swatch"|"ps"|"cameraraw">("swatch");
 
   const loadImg = (file: File, setPreview: (s:string)=>void, setB64: (s:string)=>void, setMime: (s:string)=>void) => {
     if (!file.type.startsWith("image/")) return;
@@ -232,7 +176,7 @@ function SyncTab() {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
-      setResult(data); setResTab("zones");
+      setResult(data); setResTab("swatch");
     } catch (e: any) {
       setError(e.message || "분석 실패");
     } finally { setLoading(false); }
@@ -254,12 +198,12 @@ function SyncTab() {
       <div style={{ background: C.mint, borderRadius: 12, padding: "14px 18px", display: "flex", gap: 12, alignItems: "center", borderLeft: `3px solid ${C.teal}` }}>
         <div style={{ fontSize: 20 }}>🔄</div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: C.teal, marginBottom: 2 }}>색감 동기화 — 3존 분석</div>
-          <div style={{ fontSize: 12, color: C.muted }}>두 사진을 업로드하면 <strong>얼굴톤 · 가운컬러 · 배경컬러</strong>를 각각 분석해 차이와 보정값을 알려줍니다.</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.teal, marginBottom: 2 }}>색감 동기화</div>
+          <div style={{ fontSize: 12, color: C.muted }}>기준 사진과 동기화할 사진을 올리면 두 사진의 피부톤 차이를 분석하고 Photoshop · Camera Raw 보정값을 알려줍니다.</div>
         </div>
       </div>
 
-      {/* 업로드 */}
+      {/* 두 장 업로드 */}
       <div style={{ display: "flex", gap: 16 }}>
         <SyncUpload label="기준 사진" badge="기준" preview={refPreview}
           onFile={f => { setResult(null); loadImg(f, setRefPreview, setRefB64, setRefMime); }}
@@ -278,60 +222,49 @@ function SyncTab() {
         fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
       }}>
         {loading
-          ? <><RefreshCw size={16} style={{ animation: "spin .7s linear infinite" }}/> AI 3존 분석 중…</>
-          : "🔄 색감 동기화 분석 (얼굴톤 · 가운 · 배경)"}
+          ? <><RefreshCw size={16} style={{ animation: "spin .7s linear infinite" }}/> AI 분석 중… (두 장 동시 처리)</>
+          : "🔄 색감 동기화 분석"}
       </button>
 
       {error && <div style={{ padding: "12px 16px", background: "#FFF0EB", borderRadius: 10, fontSize: 13, color: C.orange }}>{error}</div>}
 
+      {/* 결과 */}
       {result && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* 점수 카드 */}
-          <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px 22px" }}>
-            <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 14 }}>
-              <div style={{
-                width: 76, height: 76, borderRadius: "50%", flexShrink: 0,
-                background: `conic-gradient(${scoreColor} ${sc}%, #E5E7EB ${sc}%)`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "inset 0 0 0 13px #fff",
-              }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{sc}</div>
-                  <div style={{ fontSize: 9, color: C.hint }}>일치율</div>
-                </div>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 4 }}>
-                  {sc >= 85 ? "색감이 거의 동일합니다." : sc >= 65 ? "소폭 조정으로 동기화 가능합니다." : "색감 차이가 있습니다. 아래 가이드로 보정하세요."}
-                </div>
-                {result.overallNotes?.reference && (
-                  <div style={{ fontSize: 11, color: C.hint }}>
-                    기준: {result.overallNotes.reference} &nbsp;/&nbsp; 대상: {result.overallNotes.target}
-                  </div>
-                )}
+          <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px 22px", display: "flex", gap: 20, alignItems: "center" }}>
+            <div style={{
+              width: 76, height: 76, borderRadius: "50%", flexShrink: 0,
+              background: `conic-gradient(${scoreColor} ${sc}%, #E5E7EB ${sc}%)`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "inset 0 0 0 13px #fff",
+            }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{sc}</div>
+                <div style={{ fontSize: 9, color: C.hint }}>일치율</div>
               </div>
             </div>
-            {/* 존별 미니 점수 */}
-            <div style={{ display: "flex", gap: 8 }}>
-              {ZONE_DEFS.map(({ key, icon, label }) => {
-                const z = result.zones?.[key];
-                const zsc = z?.score;
-                const col = zsc == null ? C.hint : zsc >= 85 ? "#059669" : zsc >= 65 ? "#D97706" : C.orange;
-                return (
-                  <div key={key} style={{ flex: 1, textAlign: "center", background: "#F4F8F7", borderRadius: 10, padding: "10px 8px" }}>
-                    <div style={{ fontSize: 18, marginBottom: 3 }}>{icon}</div>
-                    <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: col }}>{zsc ?? "–"}</div>
-                  </div>
-                );
-              })}
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "#EAF4F2", color: C.teal, fontWeight: 700 }}>
+                  기준: {result.reference.colorTemp} · {result.reference.saturation}채도
+                </div>
+                <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "#FFF8F5", color: C.orange, fontWeight: 700 }}>
+                  대상: {result.target.colorTemp} · {result.target.saturation}채도
+                </div>
+              </div>
+              <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
+                {sc >= 85 ? "색감이 거의 동일합니다. 보정이 거의 필요 없어요." :
+                  sc >= 65 ? "소폭 조정으로 동기화 가능합니다." :
+                  "색감 차이가 있습니다. 아래 가이드로 보정하세요."}
+              </div>
             </div>
           </div>
 
           {/* 결과 탭 */}
           <div style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
-            {([["zones","🗺 3존 비교"],["ps","🖥 Photoshop"],["cameraraw","🎛 Camera Raw"]] as const).map(([id, lbl]) => (
+            {([["swatch","🎨 피부톤 비교"],["ps","🖥 Photoshop"],["cameraraw","🎛 Camera Raw"]] as const).map(([id, lbl]) => (
               <button key={id} onClick={() => setResTab(id)} style={{
                 flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
                 fontFamily: "inherit", fontSize: 12, fontWeight: resTab === id ? 900 : 500,
@@ -341,17 +274,40 @@ function SyncTab() {
             ))}
           </div>
 
-          {/* 3존 비교 */}
-          {resTab === "zones" && (
+          {/* 피부톤 비교 */}
+          {resTab === "swatch" && (
             <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: C.teal }}>기준 사진</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, marginBottom: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.teal, textAlign: "center" }}>기준 사진</div>
                 <div/>
-                <div style={{ fontSize: 11, fontWeight: 800, color: C.orange, textAlign: "right" }}>대상 사진</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.orange, textAlign: "center" }}>대상 사진</div>
               </div>
-              {ZONE_DEFS.map(({ key, icon, label }) => (
-                <ZoneRow key={key} icon={icon} label={label} zone={result.zones?.[key]} />
-              ))}
+              {(["highlight","mid","shadow"] as const).map(k => {
+                const lbl = { highlight:"하이라이트", mid:"미드톤", shadow:"쉐도우" }[k];
+                const d = result.diff[k];
+                const ok = d.dist <= 10;
+                const warn = d.dist > 25;
+                return (
+                  <div key={k} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: result.reference[k].hex, border: `1px solid ${C.border}`, flexShrink: 0 }}/>
+                      <div style={{ fontSize: 10, color: C.hint }}>{result.reference[k].hex}</div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, marginBottom: 3 }}>{lbl}</div>
+                      <div style={{ fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 6,
+                        background: ok ? "#E6F4EA" : warn ? "#FFF0EB" : "#FFFBEA",
+                        color: ok ? "#166534" : warn ? C.orange : "#92400E" }}>
+                        {ok ? "✓" : `±${d.dist}`}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+                      <div style={{ fontSize: 10, color: C.hint }}>{result.target[k].hex}</div>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: result.target[k].hex, border: `1px solid ${C.border}`, flexShrink: 0 }}/>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -361,7 +317,7 @@ function SyncTab() {
               <div style={{ background: "#1E2D2A", borderRadius: 14, padding: "20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop · 대상 사진 적용 (얼굴톤 기준)</div>
+                    <div style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop 2026 · 대상 사진에 적용</div>
                     <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", marginBottom: 2 }}>색상 균형 (Color Balance)</div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>이미지 → 조정 → 색상 균형 (Shift+Ctrl+B) · 중간 영역 · 광도 유지 ✓</div>
                   </div>
@@ -371,9 +327,9 @@ function SyncTab() {
                 </div>
                 {result.photoshop?.hasAdjustment ? (
                   <>
-                    <SyncSlider label="녹청↔빨강" value={result.photoshop.balance.cyanRed} />
-                    <SyncSlider label="마젠타↔녹색" value={result.photoshop.balance.magGreen} />
-                    <SyncSlider label="노랑↔파랑" value={result.photoshop.balance.yellowBlue} />
+                    <SyncSlider label="녹청↔빨강" value={result.photoshop.overall.cyanRed} />
+                    <SyncSlider label="마젠타↔녹색" value={result.photoshop.overall.magGreen} />
+                    <SyncSlider label="노랑↔파랑" value={result.photoshop.overall.yellowBlue} />
                   </>
                 ) : (
                   <div style={{ textAlign: "center", padding: "20px 0", color: "rgba(255,255,255,.5)", fontSize: 13 }}>
@@ -397,19 +353,20 @@ function SyncTab() {
           {/* Camera Raw */}
           {resTab === "cameraraw" && (
             <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
-              <div style={{ fontSize: 12, fontWeight: 900, color: C.muted, marginBottom: 16 }}>대상 사진 → Camera Raw 조정 (배경 기준 색온도 · 얼굴 기준 노출)</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 900, color: C.muted, marginBottom: 16 }}>대상 사진 → Camera Raw 조정 (기준 사진 기준)</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
-                  ["색온도", result.adjustments.temperature ? (result.adjustments.temperature > 0 ? `+${result.adjustments.temperature}` : String(result.adjustments.temperature)) + "K" : "±0K", Math.abs(result.adjustments.temperature) >= 50],
+                  ["색온도", result.adjustments.temperature ? (result.adjustments.temperature > 0 ? `+${result.adjustments.temperature}` : String(result.adjustments.temperature)) + "K" : "±0", result.adjustments.temperature !== 0],
                   ["노출", result.adjustments.exposure > 0 ? `+${result.adjustments.exposure}` : String(result.adjustments.exposure || "±0"), Math.abs(result.adjustments.exposure) >= 0.05],
+                  ["Vibrance", result.adjustments.vibrance > 0 ? `+${result.adjustments.vibrance}` : String(result.adjustments.vibrance || "±0"), result.adjustments.vibrance !== 0],
                 ].map(([lbl, val, hi]) => (
-                  <div key={String(lbl)} style={{ background: hi ? "#1C2B28" : "#F4F8F7", borderRadius: 12, padding: "20px", textAlign: "center", border: hi ? `2px solid ${C.orange}` : `1px solid ${C.border}` }}>
+                  <div key={String(lbl)} style={{ background: hi ? "#1C2B28" : "#F4F8F7", borderRadius: 12, padding: "16px", textAlign: "center", border: hi ? `2px solid ${C.orange}` : `1px solid ${C.border}` }}>
                     <div style={{ fontSize: 11, color: hi ? "rgba(255,255,255,.4)" : C.hint, marginBottom: 6 }}>{lbl}</div>
-                    <div style={{ fontSize: 26, fontWeight: 900, color: hi ? (String(val).startsWith("+") ? "#6EE7B7" : "#FCA5A5") : C.muted }}>{val}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: hi ? (String(val).startsWith("+") ? "#6EE7B7" : "#FCA5A5") : C.muted }}>{val}</div>
                   </div>
                 ))}
               </div>
-              {!result.photoshop?.hasAdjustment && Math.abs(result.adjustments?.temperature ?? 0) < 50 && (
+              {!result.photoshop?.hasAdjustment && result.adjustments.temperature === 0 && (
                 <div style={{ marginTop: 16, textAlign: "center", fontSize: 13, color: "#059669", fontWeight: 700 }}>
                   ✓ 두 사진의 색감이 거의 동일합니다
                 </div>
@@ -484,10 +441,20 @@ export default function PhotoRetouchingPage() {
   const scoreColor = sc >= 80 ? "#059669" : sc >= 60 ? "#D97706" : C.orange;
 
   return (
-    <div
-      style={{ background: C.bg, color: C.txt }}
+    <main
+      style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}
       onPaste={handleGlobalPaste}
     >
+      <header className="pc-header">
+        <div className="pc-header-left">
+          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
+          <div className="pc-header-divider"/>
+          <div className="pc-header-brand">
+            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="" className="pc-header-logo"/>
+            <span className="pc-header-title">사진 보정</span>
+          </div>
+        </div>
+      </header>
 
       {/* 페이지 탭 */}
       <div style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
@@ -821,6 +788,6 @@ export default function PhotoRetouchingPage() {
         )}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
+    </main>
   );
 }
