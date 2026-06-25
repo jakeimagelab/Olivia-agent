@@ -80,13 +80,18 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    // 컬럼 없음 오류면 해당 필드 제거 후 재시도
-    if (error.message.includes("schema cache")) {
-      const safePayload = { name, manager_name, phone, email, website_url, instagram_url, blog_url, naver_place_url, memo, subscription_status: subscription_status || "none" };
-      const retry = await supabase.from("clients").insert(safePayload).select("id").single();
-      if (retry.error) return NextResponse.json({ ok: false, error: retry.error.message }, { status: 500 });
+    // 스키마 캐시 오류 → name만으로 최소 재시도 (다른 컬럼들이 없을 수 있음)
+    if (error.message.includes("schema cache") || error.message.includes("column")) {
+      const minPayload: Record<string, unknown> = { name, subscription_status: subscription_status || "none" };
+      // 있을 가능성 높은 컬럼들만 추가
+      if (manager_name) minPayload.manager_name = manager_name;
+      if (phone)        minPayload.phone         = phone;
+      if (email)        minPayload.email         = email;
+      if (memo)         minPayload.memo          = memo;
+      const retry = await supabase.from("clients").insert(minPayload).select("id").single();
+      if (retry.error) return NextResponse.json({ ok: false, error: `DB 컬럼 누락. Supabase SQL Editor에서 아래 실행 후 재시도:\nALTER TABLE clients ADD COLUMN IF NOT EXISTS department text DEFAULT '', ADD COLUMN IF NOT EXISTS director_name text DEFAULT '', ADD COLUMN IF NOT EXISTS main_treatments text DEFAULT '', ADD COLUMN IF NOT EXISTS doctor_count integer, ADD COLUMN IF NOT EXISTS special_notes text DEFAULT '', ADD COLUMN IF NOT EXISTS website_url text, ADD COLUMN IF NOT EXISTS instagram_url text, ADD COLUMN IF NOT EXISTS blog_url text, ADD COLUMN IF NOT EXISTS naver_place_url text;` }, { status: 500 });
       await supabase.from("workflow_runs").insert({ client_id: retry.data.id, client_name: name, current_step_key: "consult_meeting", status: "active", started_at: new Date().toISOString() });
-      return NextResponse.json({ ok: true, id: retry.data.id, warning: "일부 컬럼이 DB에 없어 기본 정보만 저장됐습니다. Supabase에서 ALTER TABLE을 실행해 주세요." });
+      return NextResponse.json({ ok: true, id: retry.data.id, warning: "DB 컬럼 미완성 — 병원명만 저장됨. Supabase ALTER TABLE 실행 필요." });
     }
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
