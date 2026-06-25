@@ -1149,12 +1149,32 @@ ${contiSummary}
   const handlePdfImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // 10 MB 이상이면 Vercel 4.5 MB 업로드 제한에 걸림
+    if (file.size > 10 * 1024 * 1024) {
+      setPdfError("파일이 너무 큽니다. 10MB 이하의 파일을 사용해 주세요.");
+      if (pdfInputRef.current) pdfInputRef.current.value = "";
+      return;
+    }
+
     setPdfLoading(true);
     setPdfError("");
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res  = await fetch("/api/conti/parse-pdf", { method: "POST", body: fd });
+      const res = await fetch("/api/conti/parse-pdf", { method: "POST", body: fd });
+
+      // Vercel 에러 페이지나 텍스트 응답을 JSON 파싱 오류 없이 처리
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        const text = await res.text();
+        throw new Error(
+          res.status === 413 ? "파일이 너무 커서 업로드할 수 없습니다. (최대 4.5MB)"
+          : res.status === 504 || res.status === 524 ? "AI 분석 시간이 초과됐습니다. 더 작은 파일을 사용해 주세요."
+          : `서버 오류 (${res.status}): ${text.slice(0, 120)}`
+        );
+      }
+
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "PDF 인식 실패");
       const parsed: ContiResult = {
