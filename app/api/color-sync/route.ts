@@ -10,46 +10,50 @@ function toHex(r: number, g: number, b: number) {
   return `#${[r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 }
 
-function calcPsColorBalance(cur: { r: number; g: number; b: number }, tgt: { r: number; g: number; b: number }) {
-  return {
-    cyanRed:    Math.round(Math.max(-20, Math.min(20, -(cur.r - tgt.r) * 0.6))),
-    magGreen:   Math.round(Math.max(-20, Math.min(20, -(cur.g - tgt.g) * 0.4))),
-    yellowBlue: Math.round(Math.max(-20, Math.min(20, -(cur.b - tgt.b) * 0.6))),
-  };
+function calcPsColorBalance(current: { r: number; g: number; b: number }, target: { r: number; g: number; b: number }) {
+  const dr = current.r - target.r;
+  const dg = current.g - target.g;
+  const db = current.b - target.b;
+  const cyanRed    = Math.round(Math.max(-20, Math.min(20, -dr * 0.6)));
+  const magGreen   = Math.round(Math.max(-20, Math.min(20, -dg * 0.4)));
+  const yellowBlue = Math.round(Math.max(-20, Math.min(20, -db * 0.6)));
+  return { cyanRed, magGreen, yellowBlue };
 }
 
-function zoneDist(a: any, b: any) {
-  return Math.round(Math.sqrt((a.r - b.r) ** 2 + (a.g - b.g) ** 2 + (a.b - b.b) ** 2));
+function calcCameraRawTemp(refWhite: any, tgtWhite: any): number {
+  if (!refWhite?.found || !tgtWhite?.found) return 0;
+  const refBias = refWhite.b - refWhite.r;
+  const tgtBias = tgtWhite.b - tgtWhite.r;
+  const diff = tgtBias - refBias;
+  return Math.round(Math.max(-200, Math.min(200, -diff * 12)));
 }
 
 async function analyzeImage(base64: string, mime: string, role: "reference" | "target") {
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 700,
+    max_tokens: 512,
     messages: [{
       role: "user",
       content: [
         { type: "image", source: { type: "base64", media_type: mime as any, data: base64 } },
         {
           type: "text",
-          text: `전문 사진 리터처로서 이 인물 사진(${role === "reference" ? "기준 사진" : "동기화 대상 사진"})을 3가지 영역으로 구분해 RGB를 정밀 분석하세요.
+          text: `전문 사진 리터처로서 이 인물 사진(${role === "reference" ? "기준 사진" : "동기화 대상 사진"})의 피부톤 RGB를 정밀 분석하세요.
 
 JSON만 응답 (다른 텍스트 없이):
 {
   "detected": true,
-  "face": {"r": 숫자, "g": 숫자, "b": 숫자, "note": "피부톤 한 줄 특징", "found": true},
-  "gown": {"r": 숫자, "g": 숫자, "b": 숫자, "note": "가운·의복 색감 특징", "found": true},
-  "background": {"r": 숫자, "g": 숫자, "b": 숫자, "note": "배경 색감 특징", "found": true},
-  "overallNote": "전체 색감 한 줄 요약",
-  "confidence": 0~100
+  "skinHighlight": {"r": 숫자, "g": 숫자, "b": 숫자},
+  "skinMid":       {"r": 숫자, "g": 숫자, "b": 숫자},
+  "skinShadow":    {"r": 숫자, "g": 숫자, "b": 숫자},
+  "whiteRef":      {"r": 숫자, "g": 숫자, "b": 숫자, "found": true/false},
+  "colorTemp":     "쿨" | "뉴트럴" | "약간웜" | "웜",
+  "saturation":    "낮음" | "적당" | "높음",
+  "skinNote":      "색감 한 줄 요약",
+  "confidence":    0~100
 }
 
-- face: 얼굴·피부 영역 평균 RGB (미드톤 기준)
-- gown: 흰색 가운·의복 영역 평균 RGB
-- background: 촬영 배경 영역 평균 RGB
-- 해당 영역이 없거나 식별 불가 시 found: false, r/g/b: 0
-
-인물 없으면: {"detected": false}`,
+인물/피부 없으면: {"detected": false}`
         },
       ],
     }],
@@ -67,80 +71,115 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "두 장의 이미지가 필요합니다" }, { status: 400 });
     }
 
+    // 두 이미지 병렬 분석
     const [ref, tgt] = await Promise.all([
       analyzeImage(referenceBase64, referenceMime, "reference"),
       analyzeImage(targetBase64, targetMime, "target"),
     ]);
 
-    if (!ref.detected) return NextResponse.json({ ok: false, error: "기준 사진에서 인물을 찾지 못했습니다" }, { status: 422 });
-    if (!tgt.detected) return NextResponse.json({ ok: false, error: "동기화 사진에서 인물을 찾지 못했습니다" }, { status: 422 });
+    if (!ref.detected) return NextResponse.json({ ok: false, error: "기준 사진에서 피부를 찾지 못했습니다" }, { status: 422 });
+    if (!tgt.detected) return NextResponse.json({ ok: false, error: "동기화 사진에서 피부를 찾지 못했습니다" }, { status: 422 });
 
-    // 3존 분석
-    const ZONES = [
-      { key: "face",       weight: 0.4 },
-      { key: "gown",       weight: 0.4 },
-      { key: "background", weight: 0.2 },
-    ] as const;
+    // 미드톤 기준 차이
+    const hlDiff = {
+      r: ref.skinHighlight.r - tgt.skinHighlight.r,
+      g: ref.skinHighlight.g - tgt.skinHighlight.g,
+      b: ref.skinHighlight.b - tgt.skinHighlight.b,
+      dist: Math.round(Math.sqrt(
+        (ref.skinHighlight.r - tgt.skinHighlight.r) ** 2 +
+        (ref.skinHighlight.g - tgt.skinHighlight.g) ** 2 +
+        (ref.skinHighlight.b - tgt.skinHighlight.b) ** 2
+      )),
+    };
+    const midDiff = {
+      r: ref.skinMid.r - tgt.skinMid.r,
+      g: ref.skinMid.g - tgt.skinMid.g,
+      b: ref.skinMid.b - tgt.skinMid.b,
+      dist: Math.round(Math.sqrt(
+        (ref.skinMid.r - tgt.skinMid.r) ** 2 +
+        (ref.skinMid.g - tgt.skinMid.g) ** 2 +
+        (ref.skinMid.b - tgt.skinMid.b) ** 2
+      )),
+    };
+    const shDiff = {
+      r: ref.skinShadow.r - tgt.skinShadow.r,
+      g: ref.skinShadow.g - tgt.skinShadow.g,
+      b: ref.skinShadow.b - tgt.skinShadow.b,
+      dist: Math.round(Math.sqrt(
+        (ref.skinShadow.r - tgt.skinShadow.r) ** 2 +
+        (ref.skinShadow.g - tgt.skinShadow.g) ** 2 +
+        (ref.skinShadow.b - tgt.skinShadow.b) ** 2
+      )),
+    };
 
-    type ZoneKey = "face" | "gown" | "background";
-    const zoneResults: Record<ZoneKey, any> = { face: null, gown: null, background: null };
-    let totalWeight = 0;
-    let weightedScore = 0;
+    const avgDist = (hlDiff.dist + midDiff.dist + shDiff.dist) / 3;
+    const syncScore = Math.max(0, Math.round(100 - avgDist * 1.2));
 
-    for (const { key, weight } of ZONES) {
-      const r = ref[key];
-      const t = tgt[key];
-      const bothFound = r?.found && t?.found;
-      const dist = bothFound ? zoneDist(r, t) : 0;
-      const score = bothFound ? Math.max(0, Math.round(100 - dist * 1.5)) : null;
+    // Photoshop 색상균형 — 미드톤 기준 (대상 → 기준으로 맞춤)
+    const psBalance = calcPsColorBalance(tgt.skinMid, ref.skinMid);
 
-      if (bothFound) {
-        weightedScore += score! * weight;
-        totalWeight += weight;
-      }
+    // 평균 전체 보정값
+    const avgRef = {
+      r: Math.round((ref.skinHighlight.r + ref.skinMid.r + ref.skinShadow.r) / 3),
+      g: Math.round((ref.skinHighlight.g + ref.skinMid.g + ref.skinShadow.g) / 3),
+      b: Math.round((ref.skinHighlight.b + ref.skinMid.b + ref.skinShadow.b) / 3),
+    };
+    const avgTgt = {
+      r: Math.round((tgt.skinHighlight.r + tgt.skinMid.r + tgt.skinShadow.r) / 3),
+      g: Math.round((tgt.skinHighlight.g + tgt.skinMid.g + tgt.skinShadow.g) / 3),
+      b: Math.round((tgt.skinHighlight.b + tgt.skinMid.g + tgt.skinShadow.b) / 3),
+    };
+    const psOverall = calcPsColorBalance(avgTgt, avgRef);
 
-      zoneResults[key] = {
-        reference: r?.found ? { r: r.r, g: r.g, b: r.b, hex: toHex(r.r, r.g, r.b), note: r.note } : null,
-        target:    t?.found ? { r: t.r, g: t.g, b: t.b, hex: toHex(t.r, t.g, t.b), note: t.note } : null,
-        dist: bothFound ? dist : null,
-        score,
-      };
-    }
+    // 색온도 차이
+    const tempAdj = calcCameraRawTemp(ref.whiteRef, tgt.whiteRef);
 
-    const syncScore = totalWeight > 0 ? Math.max(0, Math.round(weightedScore / totalWeight)) : 0;
+    // 노출 차이
+    const refBright = (ref.skinMid.r + ref.skinMid.g + ref.skinMid.b) / 3;
+    const tgtBright = (tgt.skinMid.r + tgt.skinMid.g + tgt.skinMid.b) / 3;
+    const expAdj = parseFloat(((refBright - tgtBright) / 100).toFixed(2));
 
-    // Photoshop 조정 — 얼굴톤 기준
-    const fR = ref.face?.found ? ref.face : null;
-    const fT = tgt.face?.found ? tgt.face : null;
-    const psBalance = (fR && fT) ? calcPsColorBalance(fT, fR) : { cyanRed: 0, magGreen: 0, yellowBlue: 0 };
+    // 채도 차이
+    const satMap: Record<string, number> = { 낮음: -1, 적당: 0, 높음: 1 };
+    const satDiff = (satMap[ref.saturation] ?? 0) - (satMap[tgt.saturation] ?? 0);
+    const vibranceAdj = satDiff * 4;
 
-    // 노출 — 얼굴 밝기 기준
-    const expAdj = (fR && fT)
-      ? parseFloat((((fR.r + fR.g + fR.b) / 3 - (fT.r + fT.g + fT.b) / 3) / 100).toFixed(2))
-      : 0;
-
-    // 색온도 — 배경 중성 기준
-    const bgR = ref.background?.found ? ref.background : null;
-    const bgT = tgt.background?.found ? tgt.background : null;
-    const tempAdj = (bgR && bgT)
-      ? Math.round(Math.max(-200, Math.min(200, -((bgT.b - bgT.r) - (bgR.b - bgR.r)) * 12)))
-      : 0;
-
-    // 자연어 가이드
+    // 자연어 가이드 생성
     const guide: string[] = [];
-    if (Math.abs(tempAdj) >= 50)          guide.push(`색온도 ${tempAdj > 0 ? `+${tempAdj}` : tempAdj}K (${tempAdj > 0 ? "더 웜하게" : "더 쿨하게"})`);
-    if (Math.abs(expAdj) >= 0.05)         guide.push(`노출 ${expAdj > 0 ? `+${expAdj}` : expAdj} (${expAdj > 0 ? "더 밝게" : "더 어둡게"})`);
-    if (Math.abs(psBalance.cyanRed) >= 2)    guide.push(`녹청↔빨강 ${psBalance.cyanRed > 0 ? `+${psBalance.cyanRed}` : psBalance.cyanRed}`);
-    if (Math.abs(psBalance.yellowBlue) >= 2) guide.push(`노랑↔파랑 ${psBalance.yellowBlue > 0 ? `+${psBalance.yellowBlue}` : psBalance.yellowBlue}`);
-    if (Math.abs(psBalance.magGreen) >= 2)   guide.push(`마젠타↔녹색 ${psBalance.magGreen > 0 ? `+${psBalance.magGreen}` : psBalance.magGreen}`);
+    if (Math.abs(tempAdj) >= 50) {
+      guide.push(`색온도 ${tempAdj > 0 ? `+${tempAdj}` : tempAdj} (${tempAdj > 0 ? "기준보다 쿨, 웜하게" : "기준보다 웜, 쿨하게"})`);
+    }
+    if (Math.abs(expAdj) >= 0.05) {
+      guide.push(`노출 ${expAdj > 0 ? `+${expAdj}` : expAdj} (${expAdj > 0 ? "기준보다 어두움" : "기준보다 밝음"})`);
+    }
+    if (Math.abs(psOverall.cyanRed) >= 2) {
+      guide.push(`Photoshop 색상균형 녹청↔빨강 ${psOverall.cyanRed > 0 ? `+${psOverall.cyanRed}` : psOverall.cyanRed}`);
+    }
+    if (Math.abs(psOverall.yellowBlue) >= 2) {
+      guide.push(`Photoshop 색상균형 노랑↔파랑 ${psOverall.yellowBlue > 0 ? `+${psOverall.yellowBlue}` : psOverall.yellowBlue} (${psOverall.yellowBlue < 0 ? "기준보다 쿨톤" : "기준보다 웜톤"})`);
+    }
+    if (Math.abs(psOverall.magGreen) >= 2) {
+      guide.push(`Photoshop 색상균형 마젠타↔녹색 ${psOverall.magGreen > 0 ? `+${psOverall.magGreen}` : psOverall.magGreen}`);
+    }
 
     return NextResponse.json({
       ok: true,
       syncScore,
-      zones: zoneResults,
-      overallNotes: { reference: ref.overallNote ?? "", target: tgt.overallNote ?? "" },
-      adjustments: { temperature: tempAdj, exposure: expAdj },
-      photoshop: { balance: psBalance, guide, hasAdjustment: guide.length > 0 },
+      reference: {
+        highlight: { ...ref.skinHighlight, hex: toHex(ref.skinHighlight.r, ref.skinHighlight.g, ref.skinHighlight.b) },
+        mid:       { ...ref.skinMid,       hex: toHex(ref.skinMid.r, ref.skinMid.g, ref.skinMid.b) },
+        shadow:    { ...ref.skinShadow,    hex: toHex(ref.skinShadow.r, ref.skinShadow.g, ref.skinShadow.b) },
+        colorTemp: ref.colorTemp, saturation: ref.saturation, skinNote: ref.skinNote, confidence: ref.confidence,
+      },
+      target: {
+        highlight: { ...tgt.skinHighlight, hex: toHex(tgt.skinHighlight.r, tgt.skinHighlight.g, tgt.skinHighlight.b) },
+        mid:       { ...tgt.skinMid,       hex: toHex(tgt.skinMid.r, tgt.skinMid.g, tgt.skinMid.b) },
+        shadow:    { ...tgt.skinShadow,    hex: toHex(tgt.skinShadow.r, tgt.skinShadow.g, tgt.skinShadow.b) },
+        colorTemp: tgt.colorTemp, saturation: tgt.saturation, skinNote: tgt.skinNote, confidence: tgt.confidence,
+      },
+      diff: { highlight: hlDiff, mid: midDiff, shadow: shDiff },
+      adjustments: { temperature: tempAdj, exposure: expAdj, vibrance: vibranceAdj },
+      photoshop: { midtone: psBalance, overall: psOverall, guide, hasAdjustment: guide.length > 0 },
     });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
