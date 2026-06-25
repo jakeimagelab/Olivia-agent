@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { STEP_NAME, WORKFLOW_STEPS } from "@/lib/workflow";
 import ConsultMeetingForm from "./_components/ConsultMeetingForm";
@@ -192,9 +193,9 @@ function ListView() {
         )}
       </div>
 
-      {showModal && (
+      {showModal && typeof document !== "undefined" && createPortal(
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,.45)", overflowY: "auto" }}
+          style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,.45)", overflowY: "auto" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
         >
           <div style={{ minHeight: "100%", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px 60px" }}>
@@ -213,7 +214,8 @@ function ListView() {
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
