@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       if (email)        minPayload.email         = email;
       if (memo)         minPayload.memo          = memo;
       const retry = await supabase.from("clients").insert(minPayload).select("id").single();
-      if (retry.error) return NextResponse.json({ ok: false, error: `DB 컬럼 누락. Supabase SQL Editor에서 아래 실행 후 재시도:\nALTER TABLE clients ADD COLUMN IF NOT EXISTS department text DEFAULT '', ADD COLUMN IF NOT EXISTS director_name text DEFAULT '', ADD COLUMN IF NOT EXISTS main_treatments text DEFAULT '', ADD COLUMN IF NOT EXISTS doctor_count integer, ADD COLUMN IF NOT EXISTS special_notes text DEFAULT '', ADD COLUMN IF NOT EXISTS website_url text, ADD COLUMN IF NOT EXISTS instagram_url text, ADD COLUMN IF NOT EXISTS blog_url text, ADD COLUMN IF NOT EXISTS naver_place_url text;` }, { status: 500 });
+      if (retry.error) return NextResponse.json({ ok: false, error: "DB 스키마 설정이 필요합니다. Supabase SQL Editor에서 컬럼을 추가해 주세요." }, { status: 500 });
       await supabase.from("workflow_runs").insert({ client_id: retry.data.id, client_name: name, current_step_key: "consult_meeting", status: "active", started_at: new Date().toISOString() });
       return NextResponse.json({ ok: true, id: retry.data.id, warning: "DB 컬럼 미완성 — 병원명만 저장됨. Supabase ALTER TABLE 실행 필요." });
     }
