@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import React, { FormEvent, useEffect, useState } from "react";
+import React, { FormEvent, useEffect, useRef, useState } from "react";
 import {
   Activity, BarChart2, ArrowRight, CalendarCheck, ClipboardList,
   FileVideo, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
   NotebookPen, ShieldCheck, Sparkles, Users, Wand2, Lightbulb,
   AlertCircle, CheckCircle2, Clock, RefreshCw, Calendar, Check,
-  FileText, Image, Star, Smartphone, CircleDollarSign, Pipette,
+  FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2,
 } from "lucide-react";
 
 /* ─── types ─────────────────────────────────────────────── */
@@ -252,6 +252,137 @@ function TaskChip({icon:Icon,label,count,href,accent,warn}:TaskChipProps) {
   );
 }
 
+/* ─── quick memo widget ──────────────────────────────────── */
+
+type MemoItem = { id: string; raw_memo: string; created_at: string };
+
+function QuickMemoWidget({ memos: initMemos, onRefresh }: { memos: MemoItem[]; onRefresh: () => void }) {
+  const [memos, setMemos] = useState<MemoItem[]>(initMemos);
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedAnim, setSavedAnim] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => { setMemos(initMemos); }, [initMemos]);
+  useEffect(() => { if (open) textareaRef.current?.focus(); }, [open]);
+
+  const submit = async () => {
+    if (!text.trim() || saving) return;
+    setSaving(true);
+    try {
+      const r = await fetch("/api/memo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raw_memo: text }),
+      });
+      if (r.ok) {
+        const now = new Date().toISOString();
+        setMemos(prev => [{ id: now, raw_memo: text, created_at: now }, ...prev].slice(0, 5));
+        setText(""); setOpen(false); setSavedAnim(true);
+        setTimeout(() => setSavedAnim(false), 1800);
+        onRefresh();
+      }
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{
+      background: "#fff", borderRadius: 12,
+      border: `1px solid ${savedAnim ? "rgba(124,58,237,.35)" : "rgba(21,88,85,.1)"}`,
+      overflow: "hidden", boxShadow: "0 1px 8px rgba(21,88,85,.05)", transition: "border-color .4s",
+    }}>
+      <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(21,88,85,.07)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <NotebookPen size={13} color="#7C3AED"/>
+          <span style={{ fontSize: 10, fontWeight: 900, color: "#7C3AED", letterSpacing: ".08em", textTransform: "uppercase" }}>메모</span>
+          {memos.length > 0 && <span style={{ fontSize: 10, color: "#9BB5B0", fontWeight: 700 }}>{memos.length}</span>}
+          {savedAnim && <span style={{ fontSize: 10, fontWeight: 800, color: "#7C3AED" }}>저장됨 ✓</span>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Link href="/memo" style={{ fontSize: 10, fontWeight: 800, color: "#9BB5B0", textDecoration: "none" }}>전체 →</Link>
+          <button onClick={() => { setOpen(o => !o); setText(""); }} style={{
+            display: "flex", alignItems: "center", gap: 3, fontSize: 10, fontWeight: 800,
+            color: open ? "#E85D2C" : "#fff", background: open ? "transparent" : "#7C3AED",
+            border: open ? "1px solid rgba(232,93,44,.3)" : "none",
+            borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
+          }}>{open ? "✕" : "+ 메모"}</button>
+        </div>
+      </div>
+
+      {open && (
+        <div style={{ padding: "10px 12px", borderBottom: "1px solid rgba(21,88,85,.07)", background: "#FAFAF8" }}>
+          <textarea
+            ref={textareaRef} value={text} onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
+            placeholder="상담 내용이나 메모를 입력하세요… (⌘Enter 저장)"
+            rows={3}
+            style={{
+              width: "100%", border: "1.5px solid rgba(124,58,237,.25)", borderRadius: 8,
+              padding: "8px 10px", fontSize: 12, lineHeight: 1.65, resize: "vertical",
+              fontFamily: "inherit", color: "#1C2B28", background: "#fff",
+              outline: "none", boxSizing: "border-box", transition: "border-color .15s",
+            }}
+            onFocus={e => (e.target.style.borderColor = "rgba(124,58,237,.6)")}
+            onBlur={e => (e.target.style.borderColor = "rgba(124,58,237,.25)")}
+          />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+            <span style={{ fontSize: 9, color: "#9BB5B0" }}>AI가 상담 정보를 자동 분석합니다</span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => { setOpen(false); setText(""); }} style={{
+                fontSize: 11, fontWeight: 700, color: "#9BB5B0", background: "none",
+                border: "1px solid rgba(21,88,85,.15)", borderRadius: 7, padding: "4px 10px",
+                cursor: "pointer", fontFamily: "inherit",
+              }}>취소</button>
+              <button onClick={submit} disabled={!text.trim() || saving} style={{
+                fontSize: 11, fontWeight: 800, color: "#fff",
+                background: (!text.trim() || saving) ? "#C4B5FD" : "#7C3AED",
+                border: "none", borderRadius: 7, padding: "4px 14px",
+                cursor: (!text.trim() || saving) ? "not-allowed" : "pointer",
+                fontFamily: "inherit", transition: "background .15s",
+              }}>{saving ? "분석 중…" : "저장"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {memos.length === 0 ? (
+        <div style={{ padding: "14px", textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: "#9BB5B0", marginBottom: 4 }}>저장된 메모가 없어요</div>
+          <button onClick={() => setOpen(true)} style={{
+            fontSize: 11, fontWeight: 800, color: "#7C3AED", background: "none",
+            border: "none", cursor: "pointer", fontFamily: "inherit",
+          }}>+ 첫 메모 추가하기</button>
+        </div>
+      ) : (
+        <div style={{ padding: "4px 8px 6px", display: "flex", flexDirection: "column" }}>
+          {memos.slice(0, 4).map(memo => (
+            <Link key={memo.id} href="/memo" style={{ textDecoration: "none" }}>
+              <div style={{
+                display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px",
+                borderRadius: 7, transition: "background .1s", cursor: "pointer",
+              }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F5F0FF"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+              >
+                <div style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, marginTop: 1, background: "#F5F0FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <NotebookPen size={9} color="#7C3AED"/>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#1C2B28", lineHeight: 1.45, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {memo.raw_memo}
+                  </div>
+                  <div style={{ fontSize: 9, color: "#9BB5B0", marginTop: 1 }}>{relTime(memo.created_at)}</div>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── recent activity ────────────────────────────────────── */
 
 function RecentActivity({data}:{data:DashboardData}) {
@@ -331,14 +462,16 @@ function DailyIdeaBanner({idea}:{idea:DashboardData["todayIdea"]}) {
 type ToolDef = {title:string; desc:string; href:string; icon:React.ComponentType<{size?:number}>; meta:string; orange:boolean};
 
 const TOOLS_WORK: ToolDef[] = [
-  {title:"업무 캘린더",    desc:"날짜별 촬영·미팅·행정 할일과 상담 메모를 한 화면에서 관리합니다.", href:"/calendar",        icon:Calendar,      meta:"Task Calendar",      orange:true },
-  {title:"견적서 생성",    desc:"촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.",           href:"/quote",           icon:ClipboardList, meta:"Quote Builder",      orange:false},
-  {title:"촬영 콘티 생성", desc:"병원 정보 입력 시 AI가 콘티·체크리스트·타임테이블을 생성합니다.",href:"/conti",           icon:FileVideo,     meta:"Conti Generator",    orange:false},
-  {title:"고객 관리",      desc:"병원별 업무 상태·촬영 이력을 관리하고 갤러리를 공유합니다.",     href:"/clients",         icon:Users,         meta:"Client Management",  orange:false},
-  {title:"통합 메일링",    desc:"견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.", href:"/mailing",         icon:Mail,          meta:"Unified Mailing",    orange:true },
-  {title:"사진 분류",      desc:"촬영 사진을 용도와 카테고리별로 빠르게 분류하고 정리합니다.",    href:"/photo-sorting",   icon:Images,        meta:"Photo Sorting",      orange:false},
-  {title:"업무 리포트",    desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",     href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
-  {title:"사진 보정",      desc:"색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 확인합니다.", href:"/photo-retouching", icon:Wand2, meta:"Photo Retouching", orange:true },
+  {title:"올리비아 워크플로우", desc:"상담부터 촬영 후 전달까지 병원별 단계·작업 큐·승인 대기함을 관리합니다.", href:"/workflow",         icon:Sparkles,      meta:"Agent Workflow",     orange:true },
+  {title:"업무 캘린더",         desc:"날짜별 촬영·미팅·행정 할일과 상담 메모를 한 화면에서 관리합니다.",          href:"/calendar",        icon:Calendar,      meta:"Task Calendar",      orange:true },
+  {title:"견적서 생성",         desc:"촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.",                      href:"/quote",           icon:ClipboardList, meta:"Quote Builder",      orange:false},
+  {title:"촬영 콘티 생성",      desc:"병원 정보 입력 시 AI가 콘티·체크리스트·타임테이블을 생성합니다.",           href:"/conti",           icon:FileVideo,     meta:"Conti Generator",    orange:false},
+  {title:"고객 관리",           desc:"병원별 업무 상태·촬영 이력을 관리하고 갤러리를 공유합니다.",                href:"/clients",         icon:Users,         meta:"Client Management",  orange:false},
+  {title:"고객 포털 관리",      desc:"병원 고객에게 전달할 고객 전용 포털 링크를 생성하고 수정 요청·리뷰를 관리합니다.", href:"/portal-admin", icon:Link2,        meta:"Client Portal",      orange:false},
+  {title:"통합 메일링",         desc:"견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.",            href:"/mailing",         icon:Mail,          meta:"Unified Mailing",    orange:false},
+  {title:"사진 분류",           desc:"촬영 사진을 용도와 카테고리별로 빠르게 분류하고 정리합니다.",               href:"/photo-sorting",   icon:Images,        meta:"Photo Sorting",      orange:false},
+  {title:"업무 리포트",         desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",                href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
+  {title:"사진 보정",           desc:"색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 확인합니다.", href:"/photo-retouching", icon:Wand2,        meta:"Photo Retouching",   orange:true },
 ];
 
 const TOOLS_CONTENT: ToolDef[] = [
@@ -561,6 +694,9 @@ function DashboardPanel({data,loading,onRefresh}:{data:DashboardData|null; loadi
 
       {/* daily idea */}
       {data?.todayIdea&&<DailyIdeaBanner idea={data.todayIdea}/>}
+
+      {/* quick memo */}
+      {data && <QuickMemoWidget memos={data.recentMemos ?? []} onRefresh={onRefresh}/>}
 
       {/* recent activity */}
       {data&&<RecentActivity data={data}/>}
