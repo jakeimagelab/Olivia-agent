@@ -462,16 +462,14 @@ function DailyIdeaBanner({idea}:{idea:DashboardData["todayIdea"]}) {
 type ToolDef = {title:string; desc:string; href:string; icon:React.ComponentType<{size?:number}>; meta:string; orange:boolean};
 
 const TOOLS_WORK: ToolDef[] = [
-  {title:"올리비아 워크플로우", desc:"상담부터 촬영 후 전달까지 병원별 단계·작업 큐·승인 대기함을 관리합니다.", href:"/workflow",         icon:Sparkles,      meta:"Agent Workflow",     orange:true },
-  {title:"업무 캘린더",         desc:"날짜별 촬영·미팅·행정 할일과 상담 메모를 한 화면에서 관리합니다.",          href:"/calendar",        icon:Calendar,      meta:"Task Calendar",      orange:true },
-  {title:"견적서 생성",         desc:"촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.",                      href:"/quote",           icon:ClipboardList, meta:"Quote Builder",      orange:false},
-  {title:"촬영 콘티 생성",      desc:"병원 정보 입력 시 AI가 콘티·체크리스트·타임테이블을 생성합니다.",           href:"/conti",           icon:FileVideo,     meta:"Conti Generator",    orange:false},
-  {title:"고객 관리",           desc:"병원별 업무 상태·촬영 이력을 관리하고 갤러리를 공유합니다.",                href:"/clients",         icon:Users,         meta:"Client Management",  orange:false},
-  {title:"고객 포털 관리",      desc:"병원 고객에게 전달할 고객 전용 포털 링크를 생성하고 수정 요청·리뷰를 관리합니다.", href:"/portal-admin", icon:Link2,        meta:"Client Portal",      orange:false},
-  {title:"통합 메일링",         desc:"견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.",            href:"/mailing",         icon:Mail,          meta:"Unified Mailing",    orange:false},
-  {title:"사진 분류",           desc:"촬영 사진을 용도와 카테고리별로 빠르게 분류하고 정리합니다.",               href:"/photo-sorting",   icon:Images,        meta:"Photo Sorting",      orange:false},
-  {title:"업무 리포트",         desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",                href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
-  {title:"사진 보정",           desc:"색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 확인합니다.", href:"/photo-retouching", icon:Wand2,        meta:"Photo Retouching",   orange:true },
+  {title:"업무 캘린더",    desc:"날짜별 촬영·미팅·행정 할일과 상담 메모를 한 화면에서 관리합니다.",                      href:"/calendar",        icon:Calendar,      meta:"Task Calendar",      orange:true },
+  {title:"견적서 생성",    desc:"촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.",                                   href:"/quote",           icon:ClipboardList, meta:"Quote Builder",      orange:false},
+  {title:"촬영 콘티 생성", desc:"병원 정보 입력 시 AI가 콘티·체크리스트·타임테이블을 생성합니다.",                        href:"/conti",           icon:FileVideo,     meta:"Conti Generator",    orange:false},
+  {title:"고객 관리",      desc:"병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다.",               href:"/clients",         icon:Users,         meta:"Client Management",  orange:true },
+  {title:"고객 포털 관리", desc:"병원 고객에게 전달할 고객 전용 포털 링크를 생성하고 수정 요청·리뷰를 관리합니다.",        href:"/portal-admin",    icon:Link2,         meta:"Client Portal",      orange:false},
+  {title:"통합 메일링",    desc:"견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.",                         href:"/mailing",         icon:Mail,          meta:"Unified Mailing",    orange:false},
+  {title:"사진 보정",      desc:"사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.",     href:"/photo-retouching", icon:Wand2,        meta:"Photo Studio",       orange:false},
+  {title:"업무 리포트",    desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",                             href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
 ];
 
 const TOOLS_CONTENT: ToolDef[] = [
@@ -483,6 +481,88 @@ const TOOLS_CONTENT: ToolDef[] = [
   {title:"리얼 이미지 디렉터",   desc:"올리비아가 촬영 디렉팅하고 OpenAI gpt-image-1로 실사 병원 이미지를 생성합니다.", href:"/image-generator", icon:Sparkles, meta:"Real Image Director", orange:true },
   {title:"홈페이지 제작",        desc:"병원 홈페이지 제작 요청과 기획 정보를 정리합니다.",                  href:"/website-builder", icon:Globe2,        meta:"Website Builder",    orange:false},
 ];
+
+/* ─── workflow pipeline strip ────────────────────────────── */
+
+const PIPELINE = [
+  { n:1,  label:"상담·메모",  sub:"DB 등록",      href:"/memo",             color:"#7C3AED", dot:"🗂" },
+  { n:2,  label:"견적서",     sub:"생성·전달",    href:"/quote",            color:"#155855", dot:"📋" },
+  { n:3,  label:"계약서",     sub:"작성·전달",    href:"/mailing",          color:"#155855", dot:"📝" },
+  { n:4,  label:"콘티",       sub:"작성·승인",    href:"/conti",            color:"#0891B2", dot:"🎬" },
+  { n:5,  label:"촬영",       sub:"일정 관리",    href:"/calendar",         color:"#D97706", dot:"📷" },
+  { n:6,  label:"분류·보정",  sub:"RAW→JPG→전달", href:"/photo-retouching", color:"#E85D2C", dot:"🎨" },
+  { n:7,  label:"원본 전달",  sub:"NAS 공유링크",  href:"/clients",          color:"#0891B2", dot:"📤" },
+  { n:8,  label:"수정 접수",  sub:"포털·알림",    href:"/portal-admin",     color:"#9333EA", dot:"🔄" },
+  { n:9,  label:"최종 전달",  sub:"메일 자동화",  href:"/mailing",          color:"#E85D2C", dot:"✉️" },
+  { n:10, label:"후기 수집",  sub:"DB 저장",      href:"/review-studio",    color:"#059669", dot:"⭐" },
+  { n:11, label:"콘텐츠 제작",sub:"SNS·블로그",   href:"/sns-manager",      color:"#059669", dot:"📱" },
+];
+
+function WorkflowStrip() {
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ fontSize:10, fontWeight:900, color:"#9BB5B0", letterSpacing:".1em", textTransform:"uppercase", marginBottom:10 }}>
+        🔁 업무 파이프라인 · 포토클리닉 14단계
+      </div>
+      <div style={{
+        background:"#fff", borderRadius:14, border:"1px solid rgba(21,88,85,.1)",
+        padding:"14px 16px", overflowX:"auto",
+        boxShadow:"0 1px 8px rgba(21,88,85,.05)",
+      }}>
+        <div style={{ display:"flex", alignItems:"center", gap:0, minWidth:"max-content" }}>
+          {PIPELINE.map((step, i) => (
+            <React.Fragment key={step.n}>
+              <Link href={step.href} style={{ textDecoration:"none", flexShrink:0 }}>
+                <div style={{
+                  display:"flex", flexDirection:"column", alignItems:"center", gap:4,
+                  padding:"8px 10px", borderRadius:10, cursor:"pointer",
+                  transition:"background .15s",
+                  minWidth:72,
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = `${step.color}10`}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                >
+                  <div style={{
+                    width:32, height:32, borderRadius:"50%",
+                    background:`${step.color}15`,
+                    border:`1.5px solid ${step.color}40`,
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    fontSize:14, lineHeight:1,
+                  }}>{step.dot}</div>
+                  <div style={{ fontSize:10, fontWeight:900, color:"#1C2B28", textAlign:"center", lineHeight:1.3 }}>{step.label}</div>
+                  <div style={{ fontSize:9, color:"#9BB5B0", textAlign:"center", lineHeight:1.2 }}>{step.sub}</div>
+                  <div style={{
+                    fontSize:8, fontWeight:900, color:step.color,
+                    background:`${step.color}12`, borderRadius:99,
+                    padding:"1px 6px", letterSpacing:".05em",
+                  }}>STEP {step.n}</div>
+                </div>
+              </Link>
+              {i < PIPELINE.length - 1 && (
+                <div style={{ color:"#D1E8E4", fontSize:14, fontWeight:900, flexShrink:0, paddingBottom:12 }}>›</div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+        <div style={{ marginTop:10, borderTop:"1px solid rgba(21,88,85,.06)", paddingTop:8, display:"flex", gap:16, flexWrap:"wrap" }}>
+          {[
+            { color:"#7C3AED", label:"상담·관리" },
+            { color:"#155855", label:"문서·계약" },
+            { color:"#D97706", label:"촬영" },
+            { color:"#E85D2C", label:"보정·전달" },
+            { color:"#059669", label:"후기·콘텐츠" },
+          ].map(l => (
+            <div key={l.label} style={{ display:"flex", alignItems:"center", gap:5 }}>
+              <div style={{ width:8, height:8, borderRadius:"50%", background:l.color, flexShrink:0 }}/>
+              <span style={{ fontSize:10, color:"#9BB5B0" }}>{l.label}</span>
+            </div>
+          ))}
+          <div style={{ marginLeft:"auto", fontSize:10, color:"#C4B5FD", fontWeight:700 }}>클릭하면 해당 툴로 이동</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ToolCard({tool}:{tool:ToolDef}) {
   const Icon=tool.icon;
@@ -502,6 +582,7 @@ function ToolCard({tool}:{tool:ToolDef}) {
 function ToolGrid() {
   return(
     <>
+      <WorkflowStrip/>
       <div style={{fontSize:10,fontWeight:900,color:"#9BB5B0",letterSpacing:".1em",textTransform:"uppercase",paddingBottom:12}}>📅 업무 서포트</div>
       <div className="admin-menu-grid" style={{marginBottom:32}}>
         {TOOLS_WORK.map(t=><ToolCard key={t.href} tool={t}/>)}
