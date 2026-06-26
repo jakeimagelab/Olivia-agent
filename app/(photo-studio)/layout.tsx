@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 
@@ -17,10 +18,15 @@ const TITLE: Record<string, string> = {
 export default function PhotoStudioLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = TITLE[pathname] ?? "사진 작업실";
+  const [inIframe, setInIframe] = useState(false);
+
+  useEffect(() => {
+    try { setInIframe(window.self !== window.top); } catch (_) { setInIframe(true); }
+  }, []);
 
   return (
     <div style={{ minHeight: "100vh", background: "#EDF5F3", fontFamily: "'Noto Sans KR', sans-serif" }}>
-      <PageHeader title={title} />
+      {!inIframe && <PageHeader title={title} />}
 
       <nav style={{ background: "#FFFFFF", borderBottom: "1px solid rgba(21,88,85,.12)", display: "flex", overflowX: "auto" }}>
         {PHOTO_TABS.map(t => (
