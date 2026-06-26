@@ -15,15 +15,17 @@ const iS: React.CSSProperties = {
   outline: "none", background: C.white, color: C.txt, boxSizing: "border-box",
 };
 
+/* DB 컬럼에 1:1 대응하는 폼 타입 */
 type F = {
-  name: string; director_name: string; department: string;
-  main_treatments: string; doctor_count: string;
-  website_url: string; instagram_url: string; special_notes: string;
+  name: string;         // → hospital_name
+  manager_name: string; // → contact_name (담당자)
+  phone: string;        // → phone
+  email: string;        // → email
+  department: string;   // → specialty
 };
 
 const EMPTY: F = {
-  name: "", director_name: "", department: "", main_treatments: "",
-  doctor_count: "", website_url: "", instagram_url: "", special_notes: "",
+  name: "", manager_name: "", phone: "", email: "", department: "",
 };
 
 interface Props {
@@ -42,7 +44,7 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
 
   const set =
     (k: keyof F) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((p) => ({ ...p, [k]: e.target.value }));
 
   const extract = async () => {
@@ -57,20 +59,13 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
       const d = await res.json();
       if (!d.ok) throw new Error(d.error || "추출 실패");
 
-      const mapping: Partial<F> = {
-        name: d.hospital_name || "",
-        director_name: d.manager_name || "",
-        department: d.department || "",
-        special_notes: d.special_notes || "",
-        doctor_count: d.doctors_count ? String(d.doctors_count) : "",
-      };
-      setForm((prev) => {
-        const n = { ...prev };
-        for (const [k, v] of Object.entries(mapping) as [keyof F, string][]) {
-          if (!n[k] && v) n[k] = v;
-        }
-        return n;
-      });
+      setForm((prev) => ({
+        name:         prev.name         || d.hospital_name  || "",
+        manager_name: prev.manager_name || d.manager_name   || d.contact_name || "",
+        phone:        prev.phone        || d.phone          || "",
+        email:        prev.email        || d.email          || "",
+        department:   prev.department   || d.department     || d.specialty    || "",
+      }));
       setMsg({ text: "AI 추출 완료 — 내용을 확인하고 필요하면 수정하세요.", ok: true });
     } catch (e: any) {
       setMsg({ text: e.message || "AI 추출 중 오류가 발생했습니다.", ok: false });
@@ -88,9 +83,12 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
-          doctor_count: form.doctor_count ? parseInt(form.doctor_count, 10) : null,
-          memo: memo.trim() || null,
+          name:         form.name,
+          manager_name: form.manager_name || null,
+          phone:        form.phone        || null,
+          email:        form.email        || null,
+          department:   form.department   || null,
+          memo:         memo.trim()       || null,
         }),
       });
       const d = await res.json();
@@ -104,56 +102,63 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
     }
   };
 
+  const FIELDS: { key: keyof F; label: string; placeholder: string; type?: string }[] = [
+    { key: "name",         label: "병원이름 *",  placeholder: "온유성형외과",         type: "text" },
+    { key: "manager_name", label: "담당자",       placeholder: "김실장 / 홍길동 원장",  type: "text" },
+    { key: "phone",        label: "연락처",       placeholder: "010-1234-5678",        type: "tel"  },
+    { key: "email",        label: "이메일",       placeholder: "contact@clinic.com",   type: "email"},
+    { key: "department",   label: "진료과",       placeholder: "피부과, 성형외과",      type: "text" },
+  ];
+
   return (
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {/* 구조화 필드 */}
+      {/* 기본 정보 */}
       <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
         <div style={{ padding: "12px 18px", background: "rgba(21,88,85,.03)", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>병원 기본 정보</div>
+          <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>등록 후 고객 상세에서 언제든 수정할 수 있습니다.</div>
         </div>
-        <div style={{ padding: 18, display: "grid", gap: 14 }}>
+        <div style={{ padding: 18, display: "grid", gap: 12 }}>
+          {/* 병원이름 + 담당자 */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>병원이름 *</label>
-              <input value={form.name} onChange={set("name")} placeholder="온유성형외과" style={iS} required />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>원장이름</label>
-              <input value={form.director_name} onChange={set("director_name")} placeholder="홍길동 원장" style={iS} />
-            </div>
+            {FIELDS.slice(0, 2).map(({ key, label, placeholder, type }) => (
+              <div key={key}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>{label}</label>
+                <input
+                  type={type}
+                  value={form[key]}
+                  onChange={set(key)}
+                  placeholder={placeholder}
+                  required={key === "name"}
+                  style={iS}
+                />
+              </div>
+            ))}
           </div>
+          {/* 연락처 + 이메일 */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>진료과</label>
-              <input value={form.department} onChange={set("department")} placeholder="피부과, 성형외과" style={iS} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>의료진 수</label>
-              <input type="number" value={form.doctor_count} onChange={set("doctor_count")} placeholder="3" min="1" style={iS} />
-            </div>
+            {FIELDS.slice(2, 4).map(({ key, label, placeholder, type }) => (
+              <div key={key}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>{label}</label>
+                <input
+                  type={type}
+                  value={form[key]}
+                  onChange={set(key)}
+                  placeholder={placeholder}
+                  style={iS}
+                />
+              </div>
+            ))}
           </div>
+          {/* 진료과 */}
           <div>
-            <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>주요 진료 / 시술</label>
-            <input value={form.main_treatments} onChange={set("main_treatments")} placeholder="리프팅, 보톡스, 필러, 레이저 토닝" style={iS} />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>홈페이지</label>
-              <input value={form.website_url} onChange={set("website_url")} placeholder="https://clinic.com" style={iS} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>인스타그램</label>
-              <input value={form.instagram_url} onChange={set("instagram_url")} placeholder="@clinic_insta" style={iS} />
-            </div>
-          </div>
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>기타 특이사항</label>
-            <textarea
-              value={form.special_notes}
-              onChange={set("special_notes")}
-              placeholder="원장님 직접 응대, 촬영 전 협의 필요 등"
-              rows={2}
-              style={{ ...iS, height: "auto", padding: "10px 12px", resize: "vertical", lineHeight: 1.6 }}
+            <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>진료과</label>
+            <input
+              type="text"
+              value={form.department}
+              onChange={set("department")}
+              placeholder="피부과, 성형외과"
+              style={iS}
             />
           </div>
         </div>
@@ -162,15 +167,15 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
       {/* AI 메모 추출 */}
       <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
         <div style={{ padding: "12px 18px", background: "rgba(124,58,237,.03)", borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: "#7C3AED" }}>빠른 메모 (AI 자동 추출)</div>
-          <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>상담 내용을 자유롭게 적으면 AI가 위 필드를 자동으로 채웁니다.</div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: "#7C3AED" }}>상담 메모 (AI 자동 추출)</div>
+          <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>자유롭게 적으면 AI가 위 필드를 자동으로 채웁니다. 메모는 그대로 저장됩니다.</div>
         </div>
         <div style={{ padding: 18 }}>
           <textarea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             rows={5}
-            placeholder={"오늘 온유성형외과 김실장님과 통화. 피부과 전문 3인 클리닉으로 리프팅 시술 위주 촬영 희망.\n예산은 150만원 내외, 평일 오전 촬영 선호. 홈페이지 리뉴얼 예정이라 웹용 이미지도 필요하다고 함."}
+            placeholder={"오늘 ABC피부과 김실장님과 통화. 010-1234-5678, contact@abc.com\n피부과 전문으로 리프팅 시술 위주 촬영 희망. 예산 150만원 내외, 평일 오전 선호."}
             style={{ ...iS, height: "auto", padding: "12px", resize: "vertical", lineHeight: 1.7, fontSize: 12 }}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
