@@ -21,7 +21,11 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
   const [inIframe, setInIframe] = useState(false);
 
   useEffect(() => {
-    try { setInIframe(window.self !== window.top); } catch (_) { setInIframe(true); }
+    const isEmbed =
+      (window.self !== window.top) ||
+      document.documentElement.classList.contains("pc-embed") ||
+      new URLSearchParams(window.location.search).get("embed") === "1";
+    setInIframe(isEmbed);
   }, []);
 
   return (
