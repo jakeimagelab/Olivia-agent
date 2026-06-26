@@ -4264,6 +4264,10 @@ main, .pc-page, .pc-page-content {
 .pc-header, nav.pc-hub-nav, nav.pc-photo-nav {
   animation: none;
 }
+/* AppModal iframe 임베드 모드: pc-header 숨김 */
+.pc-embed .pc-header {
+  display: none !important;
+}
 
 /* ── 고객 허브 탭 링크 ── */
 .pc-hub-tab {
