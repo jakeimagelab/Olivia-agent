@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { MOCK_AGENT_TASKS, MOCK_APPROVALS, MOCK_WORKFLOW_RUNS } from "@/lib/workflow";
+import { buildNextAction, createStepTasks, ensureStepRun } from "@/lib/workflowAutomation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,20 +53,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       client_name: body.client_name ?? "",
       project_name: body.project_name ?? "포토클리닉 촬영 프로젝트",
       manager_name: body.manager_name ?? "",
+      contact_name: body.contact_name ?? body.manager_name ?? "",
+      contact_email: body.contact_email ?? body.email ?? "",
       shoot_date: body.shoot_date || null,
       current_step_key: body.current_step_key ?? "consult_meeting",
-      next_action: body.next_action ?? "상담 메모 분석 및 고객 정보 정리",
+      next_action: body.next_action ?? buildNextAction(body.current_step_key ?? "consult_meeting"),
       status: "active",
     })
     .select()
     .single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  await ensureStepRun(db, data.id, data.current_step_key, "in_progress");
+  const taskResult = await createStepTasks(db, data.id, data.current_step_key);
   await db.from("agent_logs").insert({
     client_id: id,
     workflow_run_id: data.id,
     log_type: "workflow_started",
     message: `${data.client_name || "고객"} 워크플로우가 시작되었습니다.`,
+    output_summary: `created_tasks: ${taskResult.created.length}`,
     success: true,
   });
-  return NextResponse.json({ ok: true, run: data });
+  return NextResponse.json({ ok: true, run: data, tasks: taskResult.created });
 }
