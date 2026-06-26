@@ -611,12 +611,12 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
 
   const startEdit = () => {
     setForm({
-      name: client.name || "", director_name: client.director_name || "",
-      department: client.department || "", main_treatments: client.main_treatments || "",
-      doctor_count: client.doctor_count ? String(client.doctor_count) : "",
-      manager_name: client.manager_name || "", email: client.email || "",
-      phone: client.phone || "", website_url: client.website_url || "",
-      instagram_url: client.instagram_url || "", special_notes: client.special_notes || "",
+      name:         client.hospital_name || client.name || "",
+      manager_name: client.contact_name  || client.manager_name || "",
+      phone:        client.phone         || "",
+      email:        client.email         || "",
+      department:   client.specialty     || client.department    || "",
+      memo:         client.memo          || "",
     });
     setEditing(true); setMsg("");
   };
@@ -625,7 +625,7 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
     setSaving(true); setMsg("");
     const res = await fetch(`/api/clients/${client.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, doctor_count: form.doctor_count ? parseInt(form.doctor_count, 10) : null }),
+      body: JSON.stringify(form),
     });
     const d = await res.json();
     if (d.ok) { setEditing(false); onUpdate(); setMsg("저장됐습니다."); }
@@ -641,16 +641,17 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
   };
 
   const rows: [string, string][] = [
-    ["name", "병원이름"], ["director_name", "원장이름"], ["department", "진료과"],
-    ["main_treatments", "주요 시술"], ["doctor_count", "의료진 수"],
-    ["manager_name", "담당자"], ["email", "이메일"], ["phone", "연락처"],
-    ["website_url", "홈페이지"], ["instagram_url", "인스타그램"], ["special_notes", "특이사항"],
+    ["name",         "병원이름"],
+    ["manager_name", "담당자"],
+    ["phone",        "연락처"],
+    ["email",        "이메일"],
+    ["department",   "진료과"],
+    ["memo",         "메모"],
   ];
 
   const displayVal = (key: string) => {
-    const v = client[key];
+    const v = client[key] ?? client[{ name:"hospital_name", manager_name:"contact_name", department:"specialty" }[key] ?? key];
     if (!v) return "—";
-    if (key === "doctor_count") return `${v}명`;
     return String(v);
   };
 

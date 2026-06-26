@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+/* ── 실제 DB 컬럼: hospital_name, contact_name, phone, email, specialty, memo ── */
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,34 +14,38 @@ export async function GET(
   const { id } = await params;
 
   const [clientRes, runRes] = await Promise.all([
-    supabase.from("clients").select("*").eq("id", id).single(),
-    supabase
-      .from("workflow_runs")
-      .select("*")
-      .eq("client_id", id)
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    supabase.from("clients")
+      .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at")
+      .eq("id", id).single(),
+    supabase.from("workflow_runs")
+      .select("*").eq("client_id", id).eq("status", "active")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   if (clientRes.error || !clientRes.data)
     return NextResponse.json({ ok: false, error: "고객을 찾을 수 없습니다." }, { status: 404 });
 
-  const client = clientRes.data;
-  // hospital_name/name 둘 다 대응
-  const displayName = client.hospital_name ?? client.name ?? "";
+  const c = clientRes.data;
+  const hospitalName = (c.hospital_name ?? "") as string;
 
   const { data: mailings } = await supabase
     .from("mailing_queue")
     .select("id, type, status, subject, to_email, created_at")
-    .eq("hospital_name", displayName)
+    .eq("hospital_name", hospitalName)
     .order("created_at", { ascending: false })
     .limit(10);
 
+  // 프론트가 기대하는 필드명으로 정규화
+  const client = {
+    ...c,
+    name:         hospitalName,
+    manager_name: c.contact_name ?? "",
+    department:   c.specialty    ?? "",
+  };
+
   return NextResponse.json({
     ok: true,
-    client: { ...client, name: displayName },
+    client,
     workflowRun: runRes.data ?? null,
     mailingQueue: mailings ?? [],
   });
@@ -53,40 +59,26 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
 
-  // 보내려는 모든 필드 수집
-  const allAllowed = [
-    "hospital_name", "name",
-    "manager_name", "phone", "email", "department",
-    "website_url", "instagram_url", "blog_url", "naver_place_url", "memo",
-    "subscription_status", "workflow_status",
-    "director_name", "main_treatments", "doctor_count", "special_notes",
-  ];
-
+  // 프론트 필드 → 실제 DB 컬럼 매핑
   const patch: Record<string, unknown> = {};
-  for (const key of allAllowed) {
-    if (key in body) patch[key] = body[key];
-  }
-  // 프론트가 name으로 보내면 hospital_name에도 적용
-  if ("name" in body) {
-    patch.hospital_name = body.name;
-    patch.name = body.name;
-  }
+  const hospitalName = body.name || body.hospital_name;
+  if (hospitalName !== undefined)                       patch.hospital_name = hospitalName;
+  if (body.contact_name  !== undefined)                 patch.contact_name  = body.contact_name  || null;
+  if (body.manager_name  !== undefined)                 patch.contact_name  = body.manager_name  || null;
+  if (body.director_name !== undefined)                 patch.contact_name  = body.director_name || null;
+  if (body.phone         !== undefined)                 patch.phone         = body.phone         || null;
+  if (body.email         !== undefined)                 patch.email         = body.email         || null;
+  if (body.specialty     !== undefined)                 patch.specialty     = body.specialty     || null;
+  if (body.department    !== undefined)                 patch.specialty     = body.department    || null;
+  if (body.memo          !== undefined)                 patch.memo          = body.memo          || null;
 
-  // 없는 컬럼 자동 감지·제거 후 재시도 (최대 20회)
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const { error } = await supabase.from("clients").update(patch).eq("id", id);
-    if (!error) return NextResponse.json({ ok: true });
+  if (Object.keys(patch).length === 0)
+    return NextResponse.json({ ok: true });
 
-    const missing = error.message.match(/Could not find the '(\w+)' column/)?.[1];
-    if (missing && missing in patch) {
-      delete patch[missing];
-      continue;
-    }
+  const { error } = await supabase.from("clients").update(patch).eq("id", id);
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: false, error: "저장에 실패했습니다." }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(

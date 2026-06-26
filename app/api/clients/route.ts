@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+/* ── 실제 DB 컬럼: hospital_name, contact_name, phone, email, specialty, memo ── */
+
 export async function GET(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { searchParams } = new URL(req.url);
@@ -11,11 +13,10 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("clients")
-    .select("*")
+    .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at")
     .order("created_at", { ascending: false });
 
-  // hospital_name 또는 name 컬럼 — 둘 중 있는 것으로 검색
-  if (q) query = query.or(`hospital_name.ilike.%${q}%,name.ilike.%${q}%`);
+  if (q) query = query.ilike("hospital_name", `%${q}%`);
 
   const [clientsRes, runsRes] = await Promise.all([
     query,
@@ -32,12 +33,7 @@ export async function GET(req: NextRequest) {
     (runsRes.data ?? []).map((r) => [r.client_id, r])
   );
 
-  const clients = (clientsRes.data ?? []).map((c) => ({
-    ...c,
-    // 프론트가 c.name을 기대하므로 hospital_name이 있으면 name으로도 노출
-    name: c.name ?? c.hospital_name ?? "",
-    active_run: runMap[c.id] ?? null,
-  }));
+  const clients = (clientsRes.data ?? []).map((c) => normalizeClient(c, runMap[c.id] ?? null));
 
   return NextResponse.json({ ok: true, clients });
 }
@@ -46,79 +42,42 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const body = await req.json();
 
-  const {
-    name, manager_name, phone, email, department,
-    website_url, instagram_url, blog_url, naver_place_url, memo,
-    subscription_status,
-    director_name, main_treatments, doctor_count, special_notes,
-  } = body;
+  const hospitalName = body.name || body.hospital_name;
+  if (!hospitalName) return NextResponse.json({ ok: false, error: "병원명 필수" }, { status: 400 });
 
-  if (!name) return NextResponse.json({ ok: false, error: "병원명 필수" }, { status: 400 });
+  const { data: client, error } = await supabase
+    .from("clients")
+    .insert({
+      hospital_name: hospitalName,
+      contact_name:  body.director_name || body.contact_name || body.manager_name || null,
+      phone:         body.phone         || null,
+      email:         body.email         || null,
+      specialty:     body.department    || body.specialty     || null,
+      memo:          body.memo          || null,
+    })
+    .select("id")
+    .single();
 
-  // hospital_name / name 둘 다 시도 (어느 컬럼이 실제로 있는지 모르므로)
-  const insertPayload: Record<string, unknown> = {
-    hospital_name:   name,           // 실제 테이블 컬럼명
-    name:            name,           // 혹시 name 컬럼도 있을 경우
-    manager_name:    manager_name    || null,
-    phone:           phone           || null,
-    email:           email           || null,
-    website_url:     website_url     || null,
-    instagram_url:   instagram_url   || null,
-    blog_url:        blog_url        || null,
-    naver_place_url: naver_place_url || null,
-    memo:            memo            || null,
-    subscription_status: subscription_status || "none",
-    department:      department      || null,
-    director_name:   director_name   || null,
-    main_treatments: main_treatments || null,
-    doctor_count:    doctor_count    ?? null,
-    special_notes:   special_notes   || null,
-  };
-
-  // 없는 컬럼은 에러 메시지에서 자동 감지해 제거 후 재시도 (최대 20회)
-  let client: { id: string } | null = null;
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const { data, error } = await supabase
-      .from("clients")
-      .insert(insertPayload)
-      .select("id")
-      .single();
-
-    if (!error) { client = data; break; }
-
-    // 스키마에 없는 컬럼 자동 제거
-    const missing = error.message.match(/Could not find the '(\w+)' column/)?.[1];
-    if (missing && missing in insertPayload) {
-      delete insertPayload[missing];
-      continue;
-    }
-
-    // null 제약 위반 — hospital_name/name 둘 중 하나만 남기기
-    if (error.message.includes("not-null") && error.message.includes("hospital_name")) {
-      insertPayload.hospital_name = name;
-      delete insertPayload.name;
-      continue;
-    }
-    if (error.message.includes("not-null") && error.message.includes('"name"')) {
-      insertPayload.name = name;
-      delete insertPayload.hospital_name;
-      continue;
-    }
-
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  }
-
-  if (!client) {
-    return NextResponse.json({ ok: false, error: "고객 등록에 실패했습니다." }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   await supabase.from("workflow_runs").insert({
     client_id:        client.id,
-    client_name:      name,
+    client_name:      hospitalName,
     current_step_key: "consult_meeting",
     status:           "active",
     started_at:       new Date().toISOString(),
   });
 
   return NextResponse.json({ ok: true, id: client.id });
+}
+
+/* 프론트가 기대하는 필드명으로 정규화 */
+function normalizeClient(c: Record<string, unknown>, activeRun: unknown) {
+  return {
+    ...c,
+    name:         c.hospital_name ?? "",
+    manager_name: c.contact_name  ?? "",
+    department:   c.specialty     ?? "",
+    active_run:   activeRun,
+  };
 }
