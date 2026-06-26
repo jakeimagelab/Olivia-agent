@@ -659,21 +659,21 @@ function AppModal({tool, onClose}:{tool:ToolDef; onClose:()=>void}) {
     const iframe = iframeRef.current;
     if (!iframe) return;
     try {
-      // 1. iframe 내부 pc-header 숨기기 (동일 오리진)
       const doc = iframe.contentDocument;
       if (doc) {
-        const style = doc.createElement("style");
-        style.textContent = `
-          .pc-header { display:none !important; }
-          .admin-dashboard-header { display:none !important; }
-        `;
-        doc.head.appendChild(style);
+        // 1. <html>에 pc-embed 클래스 추가 → SPA 네비게이션 후에도 유지됨
+        doc.documentElement.classList.add("pc-embed");
+        // 2. CSS 인라인 보험 (네비게이션 후 head가 교체될 경우 대비)
+        if (!doc.getElementById("__pc_embed_style__")) {
+          const style = doc.createElement("style");
+          style.id = "__pc_embed_style__";
+          style.textContent = ".pc-header{display:none!important}.admin-dashboard-header{display:none!important}";
+          doc.head.appendChild(style);
+        }
       }
-      // 2. iframe이 루트(/)로 이동하면 모달 닫기
+      // 3. iframe이 루트(/)로 이동하면 모달 닫기
       const path = iframe.contentWindow?.location.pathname;
-      if (path === "/") {
-        onClose();
-      }
+      if (path === "/") onClose();
     } catch (_) { /* cross-origin: 무시 */ }
   };
 
