@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (q) query = query.ilike("name", `%${q}%`);
+  // hospital_name 또는 name 컬럼 — 둘 중 있는 것으로 검색
+  if (q) query = query.or(`hospital_name.ilike.%${q}%,name.ilike.%${q}%`);
 
   const [clientsRes, runsRes] = await Promise.all([
     query,
@@ -33,6 +34,8 @@ export async function GET(req: NextRequest) {
 
   const clients = (clientsRes.data ?? []).map((c) => ({
     ...c,
+    // 프론트가 c.name을 기대하므로 hospital_name이 있으면 name으로도 노출
+    name: c.name ?? c.hospital_name ?? "",
     active_run: runMap[c.id] ?? null,
   }));
 
@@ -52,9 +55,10 @@ export async function POST(req: NextRequest) {
 
   if (!name) return NextResponse.json({ ok: false, error: "병원명 필수" }, { status: 400 });
 
-  // 보내려는 모든 필드
+  // hospital_name / name 둘 다 시도 (어느 컬럼이 실제로 있는지 모르므로)
   const insertPayload: Record<string, unknown> = {
-    name,
+    hospital_name:   name,           // 실제 테이블 컬럼명
+    name:            name,           // 혹시 name 컬럼도 있을 경우
     manager_name:    manager_name    || null,
     phone:           phone           || null,
     email:           email           || null,
@@ -71,9 +75,9 @@ export async function POST(req: NextRequest) {
     special_notes:   special_notes   || null,
   };
 
-  // 없는 컬럼은 자동으로 제거하며 최대 15회 재시도
+  // 없는 컬럼은 에러 메시지에서 자동 감지해 제거 후 재시도 (최대 20회)
   let client: { id: string } | null = null;
-  for (let attempt = 0; attempt < 15; attempt++) {
+  for (let attempt = 0; attempt < 20; attempt++) {
     const { data, error } = await supabase
       .from("clients")
       .insert(insertPayload)
@@ -82,14 +86,25 @@ export async function POST(req: NextRequest) {
 
     if (!error) { client = data; break; }
 
-    // 스키마에 없는 컬럼 → 해당 컬럼만 제거 후 재시도
+    // 스키마에 없는 컬럼 자동 제거
     const missing = error.message.match(/Could not find the '(\w+)' column/)?.[1];
     if (missing && missing in insertPayload) {
       delete insertPayload[missing];
       continue;
     }
 
-    // 그 외 진짜 오류
+    // null 제약 위반 — hospital_name/name 둘 중 하나만 남기기
+    if (error.message.includes("not-null") && error.message.includes("hospital_name")) {
+      insertPayload.hospital_name = name;
+      delete insertPayload.name;
+      continue;
+    }
+    if (error.message.includes("not-null") && error.message.includes('"name"')) {
+      insertPayload.name = name;
+      delete insertPayload.hospital_name;
+      continue;
+    }
+
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
@@ -97,13 +112,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "고객 등록에 실패했습니다." }, { status: 500 });
   }
 
-  // 고객 등록 = 워크플로우 1단계 자동 시작
   await supabase.from("workflow_runs").insert({
-    client_id: client.id,
-    client_name: name,
+    client_id:        client.id,
+    client_name:      name,
     current_step_key: "consult_meeting",
-    status: "active",
-    started_at: new Date().toISOString(),
+    status:           "active",
+    started_at:       new Date().toISOString(),
   });
 
   return NextResponse.json({ ok: true, id: client.id });
