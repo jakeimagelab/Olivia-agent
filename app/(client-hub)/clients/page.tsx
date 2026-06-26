@@ -256,55 +256,83 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
   return (
     <div style={{ color: C.txt }}>
       {/* 헤더 */}
-      <div style={{ background: `linear-gradient(135deg, ${C.teal}, #0d3e3b)`, color: "#fff", padding: "20px 24px 18px" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          <button onClick={onBack} style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit", marginBottom: 12 }}>
-            ← 고객 목록
+      <div style={{ background: `linear-gradient(135deg, ${C.teal}, #0d3e3b)`, color: "#fff", padding: "16px 24px 14px" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={onBack} style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+            ← 목록
           </button>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-            <div>
-              <h1 style={{ margin: "0 0 5px", fontSize: 22, fontWeight: 900 }}>{client.name}</h1>
-              <div style={{ fontSize: 12, opacity: 0.8, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                {client.department && <span>{client.department}</span>}
-                {client.director_name && <span>원장: {client.director_name}</span>}
-                {client.doctor_count && <span>의료진 {client.doctor_count}명</span>}
-              </div>
-            </div>
-            {workflowRun && (
-              <span style={{ background: "rgba(255,255,255,.2)", border: "1px solid rgba(255,255,255,.3)", borderRadius: 99, padding: "4px 14px", fontSize: 12, fontWeight: 800 }}>
-                현재: {STEP_NAME[currentStepKey] || currentStepKey}
-              </span>
-            )}
+          <div style={{ flex: 1 }}>
+            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>{client.name}</h1>
+            {client.specialty && <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>{client.specialty}</div>}
+          </div>
+          <div style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 10, padding: "6px 14px", textAlign: "center", flexShrink: 0 }}>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,.6)", letterSpacing: ".08em" }}>진행</div>
+            <div style={{ fontSize: 15, fontWeight: 900 }}>{currentIdx}/{WORKFLOW_STEPS.length}</div>
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 20px 80px" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 16px 80px", display: "grid", gridTemplateColumns: "220px 1fr", gap: 14, alignItems: "start" }}>
 
-        {/* 1. 워크플로우 Bar */}
-        <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "14px 18px", marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, color: C.muted, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 10 }}>
-            단계를 클릭하면 아래 앱 패널이 전환됩니다
+        {/* ── 왼쪽: 14단계 체크리스트 ── */}
+        <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden", position: "sticky", top: 16 }}>
+          <div style={{ padding: "10px 14px", background: "rgba(21,88,85,.04)", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: C.teal }}>전체 단계 ({currentIdx}/{WORKFLOW_STEPS.length})</div>
+            <div style={{ marginTop: 6, height: 4, borderRadius: 99, background: C.border, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(currentIdx / WORKFLOW_STEPS.length) * 100}%`, background: C.teal, borderRadius: 99, transition: "width .4s" }} />
+            </div>
           </div>
-          <WorkflowBar currentStepKey={currentStepKey} selectedStepKey={selectedStep} onSelect={setSelectedStep} />
+          <div style={{ maxHeight: "calc(100vh - 160px)", overflowY: "auto" }}>
+            {WORKFLOW_STEPS.map((step, idx) => {
+              const isDone = idx < currentIdx;
+              const isCurrent = step.key === currentStepKey;
+              const isSelected = step.key === selectedStep;
+              return (
+                <button key={step.key} onClick={() => setSelectedStep(step.key)}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 14px", border: "none", textAlign: "left",
+                    background: isCurrent ? `${C.teal}10` : isSelected ? `${C.teal}06` : "transparent",
+                    borderLeft: isCurrent ? `3px solid ${C.teal}` : isSelected ? `3px solid ${C.border}` : "3px solid transparent",
+                    cursor: "pointer", fontFamily: "inherit",
+                    borderBottom: `1px solid ${C.border}`,
+                  }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: isDone ? 11 : 10, fontWeight: 900,
+                    background: isDone ? C.green : isCurrent ? C.teal : C.light,
+                    color: isDone || isCurrent ? "#fff" : C.muted,
+                  }}>
+                    {isDone ? "✓" : idx + 1}
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: isCurrent ? 900 : isDone ? 600 : 500, color: isCurrent ? C.teal : isDone ? C.muted : C.txt, flex: 1 }}>
+                    {STEP_NAME[step.key] || step.key}
+                  </span>
+                  {isCurrent && <span style={{ fontSize: 8, fontWeight: 900, color: C.orange, background: `${C.orange}15`, borderRadius: 99, padding: "2px 6px" }}>NOW</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* 2. 인라인 스텝 패널 */}
-        <StepPanel
-          key={selectedStep}
-          selectedStepKey={selectedStep}
-          currentStepKey={currentStepKey}
-          currentIdx={currentIdx}
-          client={client}
-          workflowRun={workflowRun}
-          onAdvance={load}
-          clientId={clientId}
-        />
+        {/* ── 오른쪽: 선택된 단계 패널 ── */}
+        {/* 오른쪽 컬럼 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <StepPanel
+            key={selectedStep}
+            selectedStepKey={selectedStep}
+            currentStepKey={currentStepKey}
+            currentIdx={currentIdx}
+            client={client}
+            workflowRun={workflowRun}
+            onAdvance={load}
+            clientId={clientId}
+          />
 
-        {/* 3. 고객 통합 뷰 */}
-        <div style={{ display: "grid", gridTemplateColumns: mailingQueue.length > 0 ? "1fr 1fr" : "1fr", gap: 16, marginBottom: 28 }}>
-          <InfoPanel client={client} onUpdate={load} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* 고객 기본정보 + 메일 현황 */}
+          <div style={{ display: "grid", gridTemplateColumns: mailingQueue.length > 0 ? "1fr 1fr" : "1fr", gap: 14 }}>
+            <InfoPanel client={client} onUpdate={load} />
             {mailingQueue.length > 0 && (
               <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
                 <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
@@ -328,10 +356,9 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
               </div>
             )}
           </div>
-        </div>
 
-        {/* 4. 홍보 콘텐츠 앱 */}
-        <div>
+          {/* 홍보 콘텐츠 앱 */}
+          <div>
           <div style={{ fontSize: 11, fontWeight: 900, color: C.muted, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12, paddingLeft: 2 }}>
             📢 홍보 콘텐츠 앱
           </div>
@@ -350,8 +377,10 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
               </Link>
             ))}
           </div>
+          </div>
         </div>
-      </div>
+
+      </div>{/* 2컬럼 그리드 끝 */}
     </div>
   );
 }
