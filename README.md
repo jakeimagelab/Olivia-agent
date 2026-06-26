@@ -16,6 +16,7 @@
 - 사진 보정: Evoto 연동 검토 준비 페이지
 - 촬영 갤러리: NAS 공유 링크와 카드용 대표 썸네일을 Supabase에 저장하고 Gmail로 병원에 공유
 - 리뷰 콘텐츠: 납품 후 리뷰를 DB에 수집하고 인스타그램 카드뉴스/캡션 초안 생성
+- 올리비아 워크플로우 자동화: 단계 진입 시 작업 생성, 실행 시 초안/메일링 큐/승인 생성, 승인 후 다음 단계 이동
 
 ## 새 기능 설정
 
@@ -25,6 +26,9 @@ Supabase SQL Editor에서 아래 파일 내용을 실행합니다.
 
 ```text
 supabase/photo-gallery-reviews.sql
+supabase/workflow-agent.sql
+supabase/workflow-14step-migration.sql
+supabase/workflow-automation-engine.sql
 ```
 
 생성되는 테이블:
@@ -32,8 +36,29 @@ supabase/photo-gallery-reviews.sql
 - `photo_galleries`
 - `photo_gallery_items`
 - `delivery_reviews`
+- `workflow_templates`
+- `workflow_steps`
+- `workflow_runs`
+- `workflow_step_runs`
+- `agent_tasks`
+- `agent_approvals`
+- `agent_logs`
 
 원본 사진은 저장하지 않습니다. NAS 공유 링크는 DB에 저장하고, 대표 이미지는 카드용 작은 썸네일로 줄여 Supabase Storage의 `gallery-thumbnails` 버킷에 저장합니다.
+
+`workflow-automation-engine.sql`은 기존 워크플로우 테이블에 자동화용 컬럼과 중복 방지 인덱스를 추가합니다. 이 SQL까지 실행해야 `/api/workflow/start`, `/api/workflow/advance`, `/api/workflow/create-step-tasks`, 승인 후 다음 단계 이동이 정상 동작합니다.
+
+자동화 흐름:
+
+```text
+워크플로우 시작
+→ 현재 단계 agent_tasks 자동 생성
+→ 작업 실행
+→ 초안 / mailing_queue / agent_approval 생성
+→ 대표님 승인
+→ mailing_queue ready
+→ 완료 조건 충족 시 다음 단계 자동 이동
+```
 
 ### 환경 변수
 
