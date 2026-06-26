@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -60,13 +61,25 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  await supabase.from("workflow_runs").insert({
+  const { data: run } = await supabase.from("workflow_runs").insert({
     client_id:        client.id,
     client_name:      hospitalName,
     current_step_key: "consult_meeting",
+    next_action:      buildNextAction("consult_meeting"),
     status:           "active",
     started_at:       new Date().toISOString(),
-  });
+  }).select().single();
+
+  if (run?.id) {
+    await ensureStepRun(supabase, run.id, "consult_meeting", "in_progress");
+    const taskResult = await createStepTasks(supabase, run.id, "consult_meeting");
+    await logAgent(supabase, {
+      workflow_run_id: run.id,
+      log_type: "workflow_started",
+      message: `${hospitalName} 고객 생성 후 워크플로우가 시작되었습니다.`,
+      output_summary: `created_tasks: ${taskResult.created.length}`,
+    });
+  }
 
   return NextResponse.json({ ok: true, id: client.id });
 }
