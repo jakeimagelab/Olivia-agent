@@ -36,7 +36,7 @@ create table if not exists public.workflow_runs (
   project_name text default '',
   manager_name text default '',
   shoot_date date,
-  current_step_key text not null default 'consult_received',
+  current_step_key text not null default 'consult_meeting',
   next_action text default '',
   status text not null default 'active'
     check (status in ('active','paused','completed','canceled')),
