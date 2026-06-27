@@ -5,9 +5,8 @@ import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 
 const PHOTO_TABS = [
-  { href: "/photo-sorting",    label: "📁 사진 분류" },
-  { href: "/photo-retouching", label: "🎨 색감·보정" },
-  { href: "/raw-select",       label: "🎯 AI 컷 정리 & RAW 셀렉" },
+  { href: "/photo-sorting",    label: "📁 사진 분류",  matches: ["/photo-sorting", "/raw-select"] },
+  { href: "/photo-retouching", label: "🎨 색감·보정",  matches: ["/photo-retouching"] },
 ];
 
 const TITLE: Record<string, string> = {
@@ -29,7 +28,7 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
           <Link
             key={t.href}
             href={t.href}
-            className={`pc-photo-tab${pathname === t.href ? " active" : ""}`}
+            className={`pc-photo-tab${t.matches.includes(pathname) ? " active" : ""}`}
             style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}
           >
             {t.label}
