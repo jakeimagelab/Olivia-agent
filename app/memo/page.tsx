@@ -16,6 +16,16 @@ const iS: React.CSSProperties = {
   background: C.surface, color: C.txt, outline: "none",
 };
 
+type HistoryMemo = {
+  id: string;
+  raw_memo: string;
+  summary: string;
+  extracted_data: Extracted | null;
+  recommended_package: string;
+  next_action: string;
+  created_at: string;
+};
+
 type Extracted = {
   summary?: string;
   hospital_name?: string;
