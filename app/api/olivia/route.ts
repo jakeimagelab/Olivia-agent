@@ -340,7 +340,7 @@ function calendarShortcutFromText(text: string) {
   if (/(추가|등록|넣어|잡아|예약|메모|기록|저장)/.test(text)) {
     const resolvedDate = date || formatDate(new Date(`${TODAY}T00:00:00+09:00`));
     if (!title) {
-      return { ok: true, type: "message", text: "어떤 일정 제목으로 추가할까요? 예: 내일 오후 3시 온유성형외과 미팅 추가해줘" };
+      return { ok: true, type: "message", text: "어떤 일정 제목으로 추가할까요? 예: 내일 오후 3시 포토클리닉 미팅 추가해줘" };
     }
     return makeTool("calendar_add", {
       date: resolvedDate,
