@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+export async function GET() {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data } = await supabase
+      .from("consultation_memos")
+      .select("id, raw_memo, summary, extracted_data, recommended_package, next_action, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    return NextResponse.json({ ok: true, memos: data ?? [] });
+  } catch {
+    return NextResponse.json({ ok: false, memos: [] });
+  }
+}
+
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
