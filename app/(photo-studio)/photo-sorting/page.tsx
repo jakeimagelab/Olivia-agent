@@ -571,7 +571,7 @@ export default function PhotoSortingPage() {
       const file = await sf.handle.getFile();
       const thumb = await loadThumb(file, 100);
       const brightness = await quickBrightness(file);
-      files.push({ name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime, thumbUrl:thumb, brightness, lightingStatus:"normal", clothingLabel:"미분류", poseType:"Unknown", isFamilyProfile:false, confidence:0, notes:[], analyzed:false, groupKey:"__PENDING__" });
+      files.push({ name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime, thumbUrl:thumb, brightness, lightingStatus:"normal", hasGown:false, innerWear:"기타", clothingLabel:"미분류", poseType:"Unknown", isFamilyProfile:false, confidence:0, analyzed:false, groupKey:"__PENDING__" });
       done++;
     }
     setStudioFiles(files);
