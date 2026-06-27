@@ -967,11 +967,20 @@ export default function RawSelectPage() {
   /* ── Layout ─────────────────────────────────────────────── */
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.txt }}>
-      {/* Banner */}
-      <div style={{ background: "linear-gradient(135deg, #1A4F4C 0%, #155855 100%)", color: "#fff", padding: "18px 24px" }}>
+      {/* 서브탭 */}
+      <div style={{ background: "#FFFFFF", borderBottom: "1px solid rgba(21,88,85,.12)", display: "flex", padding: "0 8px" }}>
+        <Link href="/photo-sorting" style={{ padding: "11px 20px", fontSize: 13, fontWeight: 600, color: "#9BB5B0", textDecoration: "none", whiteSpace: "nowrap", display: "inline-block", borderBottom: "2.5px solid transparent" }}>
+          📁 사진 분류
+        </Link>
+        <span style={{ padding: "11px 20px", fontSize: 13, fontWeight: 800, color: "#155855", borderBottom: "2.5px solid #155855", cursor: "default", whiteSpace: "nowrap" }}>
+          🎯 AI 컷 정리 & RAW 셀렉
+        </span>
+      </div>
+
+      {/* 기능 안내 배너 */}
+      <div style={{ background: "linear-gradient(135deg, #1A4F4C 0%, #155855 100%)", color: "#fff", padding: "14px 24px" }}>
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
-          <h1 style={{ margin: 0, fontSize: 17, fontWeight: 900 }}>🎯 AI 컷 정리 & RAW 셀렉</h1>
-          <p style={{ margin: "6px 0 0", fontSize: 11, lineHeight: 1.7, opacity: 0.8, maxWidth: 660 }}>
+          <p style={{ margin: 0, fontSize: 11, lineHeight: 1.7, opacity: 0.8, maxWidth: 660 }}>
             AI가 최종 사진을 대신 고르는 기능이 아닙니다. 눈 감은 컷·흔들린 컷·조명 문제 컷·중복컷을 먼저 정리하고, 남은 JPG와 같은 파일명의 RAW를 자동으로 SELECT 폴더에 모아주는 셀렉 보조 기능입니다.
           </p>
         </div>
