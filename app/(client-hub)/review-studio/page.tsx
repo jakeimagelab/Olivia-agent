@@ -122,7 +122,7 @@ export default function ReviewStudioPage() {
           {/* 2열 → 모바일 1열 */}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
             <label className="field"><span>클라이언트명 *</span><input style={inputStyle} value={form.hospitalName} onChange={e => set("hospitalName", e.target.value)} placeholder="포토클리닉" /></label>
-            <label className="field"><span>리뷰 작성자</span><input style={inputStyle} value={form.reviewerName} onChange={e => set("reviewerName", e.target.value)} placeholder="김실장님" /></label>
+            <label className="field"><span>리뷰 작성자</span><input style={inputStyle} value={form.reviewerName} onChange={e => set("reviewerName", e.target.value)} placeholder="정연호" /></label>
           </div>
           {/* 3열 → 모바일 1열 */}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10 }}>
