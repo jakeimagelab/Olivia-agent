@@ -265,6 +265,43 @@ function visualDist(a: number[], b: number[]): number {
   return s / a.length; // 0~1, 클수록 장면 차이 큼
 }
 
+async function computePortraitScore(file: File): Promise<number> {
+  // Returns 0-1. ≥0.58 → 카메라 정면 응시 프로필 컷으로 판단
+  return new Promise(res => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const W = 32, H = 32;
+      const c = document.createElement("canvas"); c.width = W; c.height = H;
+      c.getContext("2d")!.drawImage(img, 0, 0, W, H);
+      const d = c.getContext("2d")!.getImageData(0, 0, W, H).data;
+      const lum = Array.from({length: W*H}, (_,i) =>
+        (0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2]) / 255
+      );
+      // 1. 좌우 대칭도 (상단 절반 — 얼굴 영역)
+      let symDiff = 0;
+      for (let y = 2; y < 16; y++) for (let x = 0; x < 16; x++)
+        symDiff += Math.abs(lum[y*W+x] - lum[y*W+(W-1-x)]);
+      const symmetry = 1 - Math.min(symDiff / (14 * 16 * 0.5), 1);
+      // 2. 가로 무게중심 (중앙일수록 프로필)
+      let wx = 0, wt = 0;
+      for (let y = 2; y < 18; y++) for (let x = 0; x < W; x++) {
+        wx += x * lum[y*W+x]; wt += lum[y*W+x];
+      }
+      const cx = wt > 0 ? wx / wt / W : 0.5;
+      const centeredness = Math.max(0, 1 - Math.abs(cx - 0.5) * 4);
+      // 3. 장면 단순도 (분산 낮을수록 깔끔한 배경 — 프로필)
+      const mean = lum.reduce((s,v)=>s+v,0)/lum.length;
+      const variance = lum.reduce((s,v)=>s+(v-mean)**2,0)/lum.length;
+      const simplicity = 1 - Math.min(variance * 5, 1);
+      URL.revokeObjectURL(url);
+      res(symmetry*0.40 + centeredness*0.35 + simplicity*0.25);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); res(0); };
+    img.src = url;
+  });
+}
+
 async function quickBrightness(file: File): Promise<number> {
   return new Promise(res => {
     const url = URL.createObjectURL(file);
