@@ -1049,7 +1049,11 @@ export default function PhotoSortingPage() {
       if(i!==activeScene)return s;
       const cands=s.files.filter(f=>f.rejectReason==="ok"&&(f.dupGroupId===null||f.isDupRep));
       const n=count===0?cands.length:Math.min(count,cands.length);
-      const topNames=new Set([...cands].sort((a,b)=>(b.blurScore??0)-(a.blurScore??0)).slice(0,n).map(f=>f.name));
+      const topNames=new Set([...cands].sort((a,b)=>{
+        const eDiff=(b.expressionScore??0)-(a.expressionScore??0);
+        if(Math.abs(eDiff)>0.1)return eDiff;
+        return (b.blurScore??0)-(a.blurScore??0);
+      }).slice(0,n).map(f=>f.name));
       return {...s,selectCount:count,files:s.files.map(f=>({...f,selected:topNames.has(f.name)}))};
     }));
     const rejectLabel: Record<RejectReason,string>={ok:"",pending:"?",blur:"흔들림",dark:"어두움",overexposed:"노출과다",eyes_closed:"눈감힘"};
