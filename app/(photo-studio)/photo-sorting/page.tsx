@@ -591,6 +591,8 @@ export default function PhotoSortingPage() {
     const selectedTotal = scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.selected).length,0);
     let processed = 0, rawCopied = 0, rawMissing = 0;
     const updated = scenes.map(s=>({...s, files:s.files.map(f=>({...f}))}));
+    // 프로필 컷 전용 폴더 (씬 무관하게 공통으로 사용)
+    let portraitOutDir: FileSystemDirectoryHandle | null = null;
     for (let si = 0; si < updated.length; si++) {
       const sc = updated[si];
       const sceneName = sc.editedName||sc.originalName;
@@ -600,7 +602,13 @@ export default function PhotoSortingPage() {
         if (cancelRef.current) break;
         const pf = sc.files[fi];
         setProgress({ cur:processed, total:selectedTotal, msg:`파일 정리: ${pf.name}` });
-        try { await copyFileHandle(pf.handle, sceneOutDir, pf.name); log.push(`✅ JPG: ${pf.name}`); } catch { log.push(`❌ JPG: ${pf.name} 실패`); }
+        // 카메라 응시 프로필 컷 → 별도 프로필 폴더
+        let destJpgDir = sceneOutDir;
+        if (pf.isPortraitLike) {
+          if (!portraitOutDir) portraitOutDir = await (selectedJpgDir as any).getDirectoryHandle("프로필", { create:true });
+          destJpgDir = portraitOutDir;
+        }
+        try { await copyFileHandle(pf.handle, destJpgDir, pf.name); log.push(`✅ JPG${pf.isPortraitLike?" [프로필]":""}: ${pf.name}`); } catch { log.push(`❌ JPG: ${pf.name} 실패`); }
         const rawHandle = rawIndex.get(pf.basename.toLowerCase());
         if (rawHandle) {
           try {
