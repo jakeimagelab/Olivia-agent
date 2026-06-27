@@ -1052,7 +1052,13 @@ export default function PhotoSortingPage() {
       const topNames=new Set([...cands].sort((a,b)=>(b.blurScore??0)-(a.blurScore??0)).slice(0,n).map(f=>f.name));
       return {...s,selectCount:count,files:s.files.map(f=>({...f,selected:topNames.has(f.name)}))};
     }));
-    const rejectLabel: Record<RejectReason,string>={ok:"",pending:"?",blur:"흔들림",dark:"어두움",overexposed:"노출과다"};
+    const rejectLabel: Record<RejectReason,string>={ok:"",pending:"?",blur:"흔들림",dark:"어두움",overexposed:"노출과다",eyes_closed:"눈감힘"};
+    const exprBadge: Record<string,{label:string;bg:string;color:string}> = {
+      smile:   {label:"😊 미소",   bg:"#D1FAE5", color:"#065F46"},
+      focused: {label:"🎯 집중",   bg:"#DBEAFE", color:"#1E40AF"},
+      neutral: {label:"😐 자연",   bg:"#F3F4F6", color:"#6B7280"},
+      bad:     {label:"⚠ 어색",   bg:"#FEE2E2", color:"#B91C1C"},
+    };
     return (
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
         <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
