@@ -205,6 +205,86 @@ function MemoPage() {
         </div>
       )}
 
+      {/* 이전 메모 히스토리 패널 */}
+      {history.length > 0 && (
+        <div style={{ maxWidth: 1100, margin: "8px auto 0", padding: "0 20px" }}>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
+            <button
+              onClick={() => setHistoryOpen(o => !o)}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "12px 18px",
+                background: C.mint, border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>📋 이전 상담 기록</span>
+              <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{history.length}건</span>
+              <span style={{ marginLeft: "auto", fontSize: 11, color: C.hint }}>{historyOpen ? "▲ 접기" : "▼ 펼치기"}</span>
+            </button>
+            {historyOpen && (
+              <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                {history.map(m => (
+                  <div key={m.id} style={{ borderTop: `1px solid ${C.border}` }}>
+                    <button
+                      onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
+                      style={{ width: "100%", display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 18px",
+                        background: expandedId === m.id ? C.mint : "transparent", border: "none",
+                        cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 2 }}>
+                          {m.summary || m.raw_memo.slice(0, 50)}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {m.raw_memo.slice(0, 80)}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 10, color: C.hint, whiteSpace: "nowrap", flexShrink: 0, marginTop: 2 }}>
+                        {relTime(m.created_at)}
+                      </span>
+                    </button>
+                    {expandedId === m.id && m.extracted_data && (
+                      <div style={{ padding: "10px 18px 14px", background: "#FAFDFB", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
+                        {[
+                          ["병원명", m.extracted_data.hospital_name],
+                          ["담당자", m.extracted_data.manager_name],
+                          ["연락처", m.extracted_data.phone],
+                          ["희망일", m.extracted_data.preferred_date],
+                          ["예산", m.extracted_data.budget],
+                          ["촬영 항목", (m.extracted_data.shooting_items || []).join(", ")],
+                          ["특이사항", m.extracted_data.special_notes],
+                          ["추천 패키지", m.recommended_package],
+                          ["다음 액션", m.next_action],
+                        ].filter(([, v]) => v).map(([label, val]) => (
+                          <div key={label as string} style={{ display: "flex", gap: 6, fontSize: 11 }}>
+                            <span style={{ fontWeight: 800, color: C.muted, whiteSpace: "nowrap" }}>{label}:</span>
+                            <span style={{ color: C.txt }}>{val as string}</span>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => {
+                            if (m.extracted_data) {
+                              setRawMemo(m.raw_memo);
+                              setResult(m.extracted_data);
+                              setEdited({ ...m.extracted_data });
+                              setExpandedId(null);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }
+                          }}
+                          style={{ gridColumn: "1/-1", marginTop: 6, padding: "6px 14px",
+                            background: C.teal, color: "#fff", border: "none", borderRadius: 8,
+                            fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+                            alignSelf: "start", width: "fit-content" }}
+                        >
+                          이 메모 불러오기
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: result ? "1fr 1fr" : "1fr", gap: 22, alignItems: "start" }}>
 
         {/* 메모 입력 */}
