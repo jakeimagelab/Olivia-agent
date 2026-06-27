@@ -683,13 +683,16 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
 
 
 /* ─── MonthView ───────────────────────────────────────── */
-function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onSelectDateAndAdd, onPrev, onNext }: {
+function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onSelectDateAndAdd, onUpdateTask, onPrev, onNext }: {
   year: number; month: number; todayStr: string; selectedDate: string;
   tasksByDate: Record<string, CalTask[]>;
   onSelectDate: (d: string) => void; onSelectDateAndAdd: (d: string) => void;
+  onUpdateTask: (id: string, fields: Partial<CalTask>) => void;
   onPrev: () => void; onNext: () => void;
 }) {
   const { cells, first } = buildMonthCells(year, month);
+  const [dragTask,     setDragTask]     = useState<CalTask | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
