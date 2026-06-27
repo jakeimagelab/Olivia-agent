@@ -1763,7 +1763,7 @@ ${header("타임테이블")}
                 <div style={{ display: "grid", gap: 14 }}>
                   <label className="field">
                     <span>병원명 *</span>
-                    <input value={form.hospitalName} onChange={e => set("hospitalName", e.target.value)} placeholder="예: 운정표병원" required />
+                    <input value={form.hospitalName} onChange={e => set("hospitalName", e.target.value)} placeholder="예: 포토클리닉" required />
                   </label>
                   <div className="field">
                     <span>진료과목 * (복수 선택 가능)</span>
