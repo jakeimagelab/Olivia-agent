@@ -413,7 +413,7 @@ function BrandMailTab() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
-                  <input value={toName} onChange={e => setToName(e.target.value)} placeholder="홍길동 실장님" style={iS} />
+                  <input value={toName} onChange={e => setToName(e.target.value)} placeholder="정연호 실장님" style={iS} />
                 </div>
                 <div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
