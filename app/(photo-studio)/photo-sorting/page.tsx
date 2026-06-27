@@ -1,585 +1,850 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useCallback, useRef, useState } from "react";
 
-/* ── 핵심 JS (index.html 원본 기반, 버그 수정) ────────────────── */
-const SCRIPT = `
-"use strict";
-var RAW_EXTS   = new Set(["cr2","arw","nef","dng","raf","rw2","cr3"]);
-var JPG_EXTS   = new Set(["jpg","jpeg","png","webp","heic","tif","tiff"]);
-var VIDEO_EXTS = new Set(["mp4","mov","avi","mts","m2ts","mkv","wmv","mpg","mpeg","m4v"]);
-var COLOR_TH   = {1:20,2:35,3:55,4:80,5:110};
-var COLOR_LBL  = {1:"매우 세밀",2:"세밀",3:"중간",4:"넓게",5:"매우 넓게"};
-var shootType="studio", dirHandle=null, allFiles=[], jpgScenes=[], vidScenes=[], logLines=[];
+/* ── Types ──────────────────────────────────────────────── */
 
-function $(id){ return document.getElementById(id); }
+type RejectReason = "ok" | "pending" | "blur" | "dark" | "overexposed";
+type SelectCount = 3 | 5 | 7 | 10 | 0; // 0 = 전체 후보
 
-window.onGap = function(v){
-  v=parseInt(v,10);
-  $("gapVal").textContent=v+"분";
-  $("gapHint").textContent="촬영 사이 "+v+"분 이상 쉬면 새 Scene으로 분류합니다";
-  $("ruleGapS").textContent=v+"분";
-  $("ruleGapL").textContent=v+"분";
-};
-window.onColorTh = function(v){
-  $("colorTh").textContent=COLOR_LBL[v];
-  $("colorHint").textContent=
-    v==1?"배경 컬러가 조금만 달라도 새 Scene — 매우 세밀하게 분류":
-    v==5?"배경이 완전히 다를 때만 새 Scene — 큰 변화만 감지":
-    "첫 프레임 배경 컬러가 "+COLOR_LBL[v].toLowerCase()+" 수준으로 달라지면 새 Scene 추가";
-};
-window.setType = function(t){
-  shootType=t;
-  var isS=(t==="studio");
-  $("btnS").style.borderColor=isS?"#155855":"#C8DDD9";
-  $("btnS").style.background=isS?"#EAF4F2":"#fff";
-  $("btnL").style.borderColor=!isS?"#155855":"#C8DDD9";
-  $("btnL").style.background=!isS?"#EAF4F2":"#fff";
-  $("ruleS").classList.toggle("hidden",!isS);
-  $("ruleL").classList.toggle("hidden",isS);
-  var def=isS?3:5;
-  $("gapSlider").value=def; window.onGap(def);
-};
-function showView(id){
-  ["vIdle","vScan","vPreview","vSort","vDone","vErr"].forEach(function(v){
-    $(v).classList.toggle("hidden",v!==id);
-  });
-}
-window.resetAll = function(){ dirHandle=null;allFiles=[];jpgScenes=[];vidScenes=[];logLines=[]; showView("vIdle"); };
-function showErr(msg){ $("errMsg").textContent=msg; showView("vErr"); }
-
-window.pickFolder = function(){
-  window.showDirectoryPicker({mode:"readwrite"})
-    .then(function(dir){
-      dirHandle=dir;
-      $("scanMsg").textContent=dir.name+" 스캔 중...";
-      $("scanSub").textContent="파일 목록을 읽고 있습니다";
-      showView("vScan");
-      return scanDir(dir);
-    })
-    .catch(function(e){
-      if(e.name!=="AbortError") showErr(e.message||"폴더 접근 실패");
-      else showView("vIdle");
-    });
-};
-
-async function scanDir(dir){
-  var found=[];
-  for await(var entry of dir.values()){
-    if(entry.kind!=="file") continue;
-    var name=entry.name;
-    if(name.startsWith(".")||name==="sort_log.txt") continue;
-    var ext=(name.split(".").pop()||"").toLowerCase();
-    var kind=RAW_EXTS.has(ext)?"RAW":JPG_EXTS.has(ext)?"JPG":VIDEO_EXTS.has(ext)?"VIDEO":"SKIP";
-    var mtime=null;
-    try{var f0=await entry.getFile(); mtime=f0.lastModified;}catch(e){}
-    found.push({name,ext,kind,handle:entry,mtime,sceneIdx:1,vidColor:null});
-  }
-  allFiles=found.sort(function(a,b){return(a.mtime||0)-(b.mtime||0);});
-  var vids=allFiles.filter(function(f){return f.kind==="VIDEO";});
-  if(vids.length>0&&$("doVidScene").checked){
-    $("abox").classList.remove("hidden");
-    $("scanMsg").textContent="🎬 영상 분석 중...";
-    $("scanSub").textContent=vids.length+"개 영상 첫 프레임 분석";
-    await analyzeVideos(vids);
-    $("abox").classList.add("hidden");
-  }
-  jpgScenes=buildScenes(allFiles.filter(function(f){return f.kind==="JPG";}),"jpg");
-  vidScenes=buildScenes(vids,"vid");
-  renderPreview(dir.name);
+interface ScannedFile {
+  name: string;
+  basename: string;
+  handle: FileSystemFileHandle;
+  mtime: number;
 }
 
-async function analyzeVideos(vids){
-  var ctx=$("cv").getContext("2d",{willReadFrequently:true});
-  var vid=$("vidAnalyze");
-  for(var i=0;i<vids.length;i++){
-    var f=vids[i];
-    try{
-      var file=await f.handle.getFile();
-      var url=URL.createObjectURL(file);
-      var color=await getVideoFirstFrame(vid,ctx,url);
-      f.vidColor=color;
+interface PhotoFile {
+  name: string;
+  basename: string;
+  handle: FileSystemFileHandle;
+  mtime: number;
+  thumbUrl: string | null;
+  blurScore: number | null;
+  brightness: number | null;
+  hash: string | null;
+  rejectReason: RejectReason;
+  selected: boolean;
+  dupGroupId: string | null;
+  isDupRep: boolean;
+}
+
+interface Scene {
+  index: number;
+  originalName: string;
+  suggestedName: string;
+  editedName: string;
+  files: PhotoFile[];
+  selectCount: SelectCount;
+  nameLoading: boolean;
+  nameConfidence?: number;
+  nameReason?: string;
+  sceneDir: FileSystemDirectoryHandle | null;
+}
+
+interface Stats {
+  totalJpg: number;
+  totalRaw: number;
+  totalScenes: number;
+  totalRejected: number;
+  totalDupRemoved: number;
+  totalSelected: number;
+  totalRawCopied: number;
+  totalRawMissing: number;
+}
+
+/* ── Constants ───────────────────────────────────────────── */
+
+const RAW_EXTS = new Set(["arw","cr3","cr2","nef","raf","dng","orf","rw2"]);
+const JPG_EXTS = new Set(["jpg","jpeg"]);
+
+const STEP_LABELS = ["폴더 선택","파일 분류","씬 검토·승인","AI 분석","후보 선택","파일 정리","완료"];
+
+const C = {
+  teal:"#155855", orange:"#E85D2C", green:"#22876A",
+  white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470",
+  hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2", bg:"#EDF5F3",
+  red:"#DC2626", yellow:"#D97706",
+};
+
+/* ── Image Helpers ───────────────────────────────────────── */
+
+async function loadThumb(file: File, size = 120): Promise<string | null> {
+  return new Promise(res => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(size / img.width, size / img.height, 1);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url);
-    }catch(e){f.vidColor=null;}
-    var pct=Math.round((i+1)/vids.length*100);
-    $("aFill").style.width=pct+"%"; $("aPct").textContent=pct+"%"; $("aTxt").textContent=(i+1)+" / "+vids.length;
-  }
-}
-
-function getVideoFirstFrame(vid,ctx,url){
-  return new Promise(function(resolve){
-    var done=false;
-    function finish(r){if(!done){done=true;resolve(r);}}
-    function extract(){
-      try{
-        ctx.clearRect(0,0,64,64); ctx.drawImage(vid,0,0,64,64);
-        var d=ctx.getImageData(0,0,64,64).data;
-        var r=0,g=0,b=0;
-        for(var i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];}
-        var n=d.length/4; finish([r/n,g/n,b/n]);
-      }catch(e){finish(null);}
-    }
-    var timeout=setTimeout(function(){finish(null);},5000);
-    vid.onloadedmetadata=function(){vid.currentTime=0;};
-    vid.onseeked=function(){clearTimeout(timeout);extract();};
-    vid.onerror=function(){clearTimeout(timeout);finish(null);};
-    vid.src=url; vid.load();
+      res(c.toDataURL("image/jpeg", 0.6));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+    img.src = url;
   });
 }
 
-function colorDist(a,b){
-  if(!a||!b)return 0;
-  return Math.sqrt(Math.pow(a[0]-b[0],2)+Math.pow(a[1]-b[1],2)+Math.pow(a[2]-b[2],2));
-}
-
-function buildScenes(files,type){
-  if(files.length===0)return[];
-  var gapMs=parseInt($("gapSlider").value,10)*60000;
-  var colorThVal=parseInt($("colorSlider").value,10);
-  var colorThNum=COLOR_TH[colorThVal]||55;
-  var groups=[],cur=[files[0]],prevColor=files[0].vidColor||null,curReason="";
-  for(var i=1;i<files.length;i++){
-    var f=files[i];
-    var gap=(f.mtime||0)-(files[i-1].mtime||0);
-    var newScene=false,reason="";
-    if(gap>=gapMs){newScene=true;reason="time";}
-    if(!newScene&&type==="vid"&&f.vidColor&&prevColor){
-      if(colorDist(f.vidColor,prevColor)>colorThNum){newScene=true;reason="color";}
-    }
-    if(newScene){groups.push({files:cur.slice(),reason:curReason});curReason=reason;cur=[];}
-    cur.push(f);
-    if(f.vidColor)prevColor=f.vidColor;
-  }
-  if(cur.length>0)groups.push({files:cur.slice(),reason:curReason});
-  groups.forEach(function(g,idx){g.files.forEach(function(ff){ff.sceneIdx=idx+1;});});
-  return groups;
-}
-
-function renderPreview(name){
-  var rawF=allFiles.filter(function(f){return f.kind==="RAW";});
-  var jpgF=allFiles.filter(function(f){return f.kind==="JPG";});
-  var vidF=allFiles.filter(function(f){return f.kind==="VIDEO";});
-  var skipF=allFiles.filter(function(f){return f.kind==="SKIP";});
-  var doRaw=$("doRaw").checked, doVidScene=$("doVidScene").checked;
-  var total=(doRaw?rawF.length:0)+jpgF.length+vidF.length;
-  $("pName").textContent=name;
-  $("pSub").textContent="파일 "+allFiles.length+"개 발견 · "+total+"개 분류 예정";
-  function setN(id,n){var el=$(id);el.textContent=n;el.style.color=n>0?"#155855":"#9BB5B0";}
-  setN("nRaw",doRaw?rawF.length:0); setN("nJpg",jpgF.length); setN("nVid",vidF.length);
-  $("dJpg").textContent="→ JPG/ × "+jpgScenes.length+"Scene";
-  $("dVid").textContent=doVidScene?"→ VIDEO/ × "+vidScenes.length+"Scene":"→ VIDEO/ (미분류)";
-  renderSceneList("jpgSceneList","jpgShTxt","jpgShSub","jpgSceneRows",jpgScenes,"jpg");
-  if(doVidScene&&vidScenes.length>0)
-    renderSceneList("vidSceneList","vidShTxt","vidShSub","vidSceneRows",vidScenes,"vid");
-  else $("vidSceneList").classList.add("hidden");
-  if(skipF.length>0){
-    $("warnSkip").classList.remove("hidden");
-    $("warnSkip").innerHTML="⚠ 지원하지 않는 형식 "+skipF.length+"개 건너뜀: "+skipF.slice(0,5).map(function(f){return f.name;}).join(", ")+(skipF.length>5?" 외 "+(skipF.length-5)+"개":"");
-  }else{$("warnSkip").classList.add("hidden");}
-  $("emptyMsg").classList.toggle("hidden",total>0);
-  var btn=$("startBtn");
-  btn.disabled=(total===0);
-  btn.textContent=total>0?total+"개 파일 분류 시작 →":"분류할 파일 없음";
-  showView("vPreview");
-}
-
-function renderSceneList(listId,headTxtId,headSubId,rowsId,scenes,type){
-  if(scenes.length===0){$(listId).classList.add("hidden");return;}
-  $(listId).classList.remove("hidden");
-  var gapMin=$("gapSlider").value;
-  var label=type==="vid"?"VIDEO Scene":"JPG Scene";
-  $(headTxtId).textContent=label+" "+scenes.length+"개 ("+gapMin+"분 기준)";
-  var html="";
-  for(var i=0;i<scenes.length;i++){
-    var g=scenes[i];
-    var firstT=g.files[0].mtime||0,lastT=g.files[g.files.length-1].mtime||0;
-    var durMin=Math.round((lastT-firstT)/60000);
-    var durTxt=durMin>0?"약 "+durMin+"분":"1분 미만";
-    var gapTxt="";
-    if(i>0){
-      var prev=scenes[i-1].files[scenes[i-1].files.length-1];
-      var sec=Math.round(((g.files[0].mtime||0)-(prev.mtime||0))/1000);
-      gapTxt=sec>=60?Math.round(sec/60)+"분 뒤":sec+"초 뒤";
-    }
-    var reasonTag=g.reason==="color"?'<span class="stag color">컬러 변화</span>':g.reason==="time"?'<span class="stag time">시간 간격</span>':"";
-    var nmClass=type==="vid"?"snm vid":"snm";
-    html+='<div class="sr"><span class="'+nmClass+'">Scene'+String(i+1).padStart(2,"0")+'</span><span style="min-width:40px;color:#1C2B28;">'+g.files.length+(type==="vid"?"개":"장")+'</span><span style="font-size:10px;color:#5A7470;">'+durTxt+'</span>'+reasonTag+'<span style="font-size:10px;color:#9BB5B0;margin-left:auto;font-family:monospace;">'+gapTxt+'</span></div>';
-  }
-  $(rowsId).innerHTML=html;
-}
-
-window.runSort = async function(){
-  showView("vSort");
-  var doRaw=$("doRaw").checked, doVidScene=$("doVidScene").checked, gapMin=$("gapSlider").value;
-  logLines=["["+new Date().toLocaleString("ko-KR")+"] 분류 시작: "+dirHandle.name,
-    "유형: "+(shootType==="studio"?"스튜디오":"로케이션")+" · 간격 "+gapMin+"분",
-    "JPG Scene: "+jpgScenes.length+"개 · VIDEO Scene: "+vidScenes.length+"개"];
-  var rawFiles=allFiles.filter(function(f){return f.kind==="RAW";});
-  var jpgFiles=allFiles.filter(function(f){return f.kind==="JPG";});
-  var vidFiles=allFiles.filter(function(f){return f.kind==="VIDEO";});
-  var total=(doRaw?rawFiles.length:0)+jpgFiles.length+vidFiles.length;
-  var moved=0;
-
-  function mkDir(p,n){return p.getDirectoryHandle(n,{create:true});}
-
-  async function moveFile(fh,destDir,fname){
-    var file=await fh.getFile(), buf=await file.arrayBuffer();
-    var fn=fname,n=1;
-    while(true){
-      try{await destDir.getFileHandle(fn);
-        var e=fname.split(".").pop()||"";
-        var s=fname.slice(0,fname.length-e.length-1);
-        fn=s+"_"+String(n).padStart(3,"0")+"."+e; n++;
-      }catch(err){break;}
-    }
-    var nh=await destDir.getFileHandle(fn,{create:true});
-    var wr=await nh.createWritable(); await wr.write(buf); await wr.close();
-    // 원본 삭제 — dirHandle.removeEntry() 사용 (표준 API)
-    try{await dirHandle.removeEntry(fh.name);}catch(err){}
-    return fn;
-  }
-
-  function setP(n,msg){
-    var pct=Math.round(n/total*100);
-    $("pPct").textContent=pct; $("pFill").style.width=pct+"%";
-    if(msg)$("pMsg").textContent=msg;
-  }
-
-  try{
-    if(doRaw&&rawFiles.length>0){
-      var rawDir=await mkDir(dirHandle,"RAW");
-      for(var ri=0;ri<rawFiles.length;ri++){
-        var rf=rawFiles[ri];
-        var dest=await moveFile(rf.handle,rawDir,rf.name);
-        logLines.push(rf.name+" → RAW/"+dest);
-        moved++;setP(moved,"RAW 이동 중...");
+async function analyzeJpg(file: File): Promise<{
+  blurScore: number; brightness: number; hash: string; thumbUrl: string;
+}> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 280;
+      const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      const { data } = ctx.getImageData(0, 0, w, h);
+      const gray = new Float32Array(w * h);
+      let brightSum = 0;
+      for (let i = 0; i < gray.length; i++) {
+        const v = 0.299*data[i*4] + 0.587*data[i*4+1] + 0.114*data[i*4+2];
+        gray[i] = v; brightSum += v;
       }
-    }
-    if(jpgFiles.length>0){
-      var jpgDir=await mkDir(dirHandle,"JPG");
-      for(var ji=0;ji<jpgFiles.length;ji++){
-        var jf=jpgFiles[ji];
-        var sn="Scene"+String(jf.sceneIdx||1).padStart(2,"0");
-        var sd=await mkDir(jpgDir,sn);
-        var d2=await moveFile(jf.handle,sd,jf.name);
-        logLines.push(jf.name+" → JPG/"+sn+"/"+d2);
-        moved++;setP(moved,"JPG 분류 중... "+moved+"/"+total);
-      }
-    }
-    if(vidFiles.length>0){
-      var vidDir=await mkDir(dirHandle,"VIDEO");
-      for(var vi=0;vi<vidFiles.length;vi++){
-        var vf=vidFiles[vi];
-        if(doVidScene){
-          var vsn="Scene"+String(vf.sceneIdx||1).padStart(2,"0");
-          var vsd=await mkDir(vidDir,vsn);
-          var d3=await moveFile(vf.handle,vsd,vf.name);
-          logLines.push(vf.name+" → VIDEO/"+vsn+"/"+d3);
-        }else{
-          var d4=await moveFile(vf.handle,vidDir,vf.name);
-          logLines.push(vf.name+" → VIDEO/"+d4);
+      const brightness = brightSum / gray.length;
+      let lapSum = 0, lapCount = 0;
+      for (let y = 1; y < h-1; y++) {
+        for (let x = 1; x < w-1; x++) {
+          const c = y*w+x;
+          const lap = gray[c]*4 - gray[(y-1)*w+x] - gray[(y+1)*w+x] - gray[y*w+(x-1)] - gray[y*w+(x+1)];
+          lapSum += lap*lap; lapCount++;
         }
-        moved++;setP(moved,"VIDEO 분류 중...");
       }
-    }
-    try{
-      var lh=await dirHandle.getFileHandle("sort_log.txt",{create:true});
-      var lw=await lh.createWritable();
-      await lw.write(logLines.join("\\n")+"\\n");
-      await lw.close();
-    }catch(le){}
-    $("dRaw").textContent=doRaw?rawFiles.length:0;
-    $("dJpgN").textContent=jpgScenes.length+"개";
-    $("dVidN").textContent=doVidScene?vidScenes.length+"개":"-";
-    var lh2=logLines.slice(0,30).map(function(l){return'<div style="font-size:11px;font-family:monospace;color:#5A7470;padding:2px 0;border-bottom:.5px solid #C8DDD9;">'+l+'</div>';}).join("");
-    if(logLines.length>30)lh2+='<div style="font-size:11px;color:#9BB5B0;">외 '+(logLines.length-30)+'건</div>';
-    $("logBox").innerHTML=lh2;
-    showView("vDone");
-  }catch(e){showErr(e.message||"분류 중 오류가 발생했습니다");}
-};
-
-// 지원 여부 체크
-if(!("showDirectoryPicker" in window)){
-  var btn=document.getElementById("pickBtn");
-  var warn=document.getElementById("notSupported");
-  if(btn) btn.disabled=true;
-  if(warn) warn.classList.remove("hidden");
-}
-`;
-
-export default function PhotoSortingPage() {
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.textContent = SCRIPT;
-    document.body.appendChild(script);
-    return () => {
-      try { document.body.removeChild(script); } catch (_) {}
+      const blurScore = lapCount > 0 ? Math.sqrt(lapSum / lapCount) : 0;
+      const hc = document.createElement("canvas");
+      hc.width = 8; hc.height = 8;
+      const hCtx = hc.getContext("2d")!;
+      hCtx.drawImage(img, 0, 0, 8, 8);
+      const hd = hCtx.getImageData(0, 0, 8, 8).data;
+      const hGray: number[] = [];
+      for (let i = 0; i < 64; i++) hGray.push(0.299*hd[i*4] + 0.587*hd[i*4+1] + 0.114*hd[i*4+2]);
+      const hMean = hGray.reduce((a,b)=>a+b,0)/64;
+      const hash = hGray.map(v=>v>=hMean?"1":"0").join("");
+      const tc = document.createElement("canvas");
+      const ts = Math.min(160/img.width, 160/img.height, 1);
+      tc.width = Math.round(img.width*ts); tc.height = Math.round(img.height*ts);
+      tc.getContext("2d")!.drawImage(img, 0, 0, tc.width, tc.height);
+      const thumbUrl = tc.toDataURL("image/jpeg", 0.72);
+      URL.revokeObjectURL(url);
+      resolve({ blurScore, brightness, hash, thumbUrl });
     };
-  }, []);
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load fail")); };
+    img.src = url;
+  });
+}
 
+async function getApiThumb(file: File): Promise<string> {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(480/img.width, 480/img.height, 1);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width*scale); c.height = Math.round(img.height*scale);
+      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL("image/jpeg", 0.6));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(); };
+    img.src = url;
+  });
+}
+
+function hammingDist(a: string, b: string): number {
+  let d = 0;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) d++;
+  return d;
+}
+
+function applyDuplicates(files: PhotoFile[]): PhotoFile[] {
+  const maxDist = Math.round(64 * 0.05);
+  const result = files.map(f => ({ ...f, dupGroupId: null as string | null, isDupRep: false }));
+  let gid = 0;
+  for (let i = 0; i < result.length; i++) {
+    if (!result[i].hash || result[i].dupGroupId !== null || result[i].rejectReason !== "ok") continue;
+    const group: number[] = [i];
+    for (let j = i+1; j < result.length; j++) {
+      if (!result[j].hash || result[j].dupGroupId !== null || result[j].rejectReason !== "ok") continue;
+      if (hammingDist(result[i].hash!, result[j].hash!) <= maxDist) group.push(j);
+    }
+    if (group.length > 1) {
+      const gname = `g${++gid}`;
+      let repIdx = group[0];
+      for (const idx of group) { if ((result[idx].blurScore ?? 0) > (result[repIdx].blurScore ?? 0)) repIdx = idx; }
+      for (const idx of group) { result[idx].dupGroupId = gname; result[idx].isDupRep = (idx === repIdx); }
+    }
+  }
+  return result;
+}
+
+async function copyFileHandle(src: FileSystemFileHandle, destDir: FileSystemDirectoryHandle, fileName: string) {
+  const file = await src.getFile();
+  const buf = await file.arrayBuffer();
+  const dest = await (destDir as any).getFileHandle(fileName, { create: true });
+  const wr = await dest.createWritable();
+  await wr.write(buf); await wr.close();
+}
+
+function makeCSV(headers: string[], rows: string[][]): string {
+  const esc = (s: string) => `"${String(s).replace(/"/g,'""')}"`;
+  return [headers.map(esc).join(","), ...rows.map(r=>r.map(esc).join(","))].join("\n");
+}
+
+function downloadCSV(content: string, filename: string) {
+  const blob = new Blob(["﻿"+content], { type:"text/csv;charset=utf-8" });
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: filename });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ── UI Components ───────────────────────────────────────── */
+
+function Btn({ onClick, disabled, children, variant="primary", style: s }: {
+  onClick?:()=>void; disabled?:boolean; children:React.ReactNode;
+  variant?:"primary"|"secondary"|"danger"; style?:React.CSSProperties;
+}) {
+  const base: React.CSSProperties = { height:42, padding:"0 22px", border:"none", borderRadius:10, fontFamily:"inherit", fontSize:13, fontWeight:800, cursor:disabled?"not-allowed":"pointer", opacity:disabled?0.5:1, transition:"opacity .15s" };
+  const v = { primary:{background:C.teal,color:"#fff"}, secondary:{background:C.white,color:C.teal,border:`1.5px solid ${C.border}`}, danger:{background:C.red,color:"#fff"} };
+  return <button onClick={onClick} disabled={disabled} style={{...base,...v[variant],...s}}>{children}</button>;
+}
+
+function Card({ children, style: s }: { children:React.ReactNode; style?:React.CSSProperties }) {
+  return <div style={{background:C.white,borderRadius:14,border:`1px solid ${C.border}`,overflow:"hidden",...s}}>{children}</div>;
+}
+
+function ProgressBar({ cur, total, msg }: { cur:number; total:number; msg:string }) {
+  const pct = total > 0 ? Math.round((cur/total)*100) : 0;
   return (
-    <div>
-      {/* 서브탭 */}
-      <div style={{ background: "#FFFFFF", borderBottom: "1px solid rgba(21,88,85,.12)", display: "flex", padding: "0 8px" }}>
-        <span style={{ padding: "11px 20px", fontSize: 13, fontWeight: 800, color: "#155855", borderBottom: "2.5px solid #155855", cursor: "default", whiteSpace: "nowrap" }}>
-          📁 사진 분류
-        </span>
-        <Link href="/raw-select" style={{ padding: "11px 20px", fontSize: 13, fontWeight: 600, color: "#9BB5B0", textDecoration: "none", whiteSpace: "nowrap", display: "inline-block", borderBottom: "2.5px solid transparent" }}>
-          🎯 AI 컷 정리 & RAW 셀렉
-        </Link>
+    <Card>
+      <div style={{padding:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+          <span style={{fontSize:13,fontWeight:700}}>{cur} / {total}</span>
+          <span style={{fontSize:13,fontWeight:900,color:C.teal}}>{pct}%</span>
+        </div>
+        <div style={{height:8,background:C.border,borderRadius:4,overflow:"hidden",marginBottom:12}}>
+          <div style={{height:"100%",width:`${pct}%`,background:C.teal,borderRadius:4,transition:"width .2s"}}/>
+        </div>
+        <div style={{fontSize:11,color:C.hint,wordBreak:"break-all"}}>{msg}</div>
       </div>
-
-      <div style={{ maxWidth: 620, margin: "0 auto", padding: "24px 16px 60px" }}>
-
-        {/* IDLE */}
-        <div id="vIdle">
-          <div className="pc-card" style={{ marginBottom: 12 }}>
-            <div className="pc-card-header">
-              <div className="pc-card-title">📁 촬영 파일 자동 분류</div>
-            </div>
-            <div style={{ padding: "16px 20px" }}>
-              <p style={{ fontSize: 11, color: "#5A7470", marginBottom: 16, lineHeight: 1.6 }}>
-                RAW · JPG(Scene별) · VIDEO(Scene별) 자동 정리 · 파일이 외부로 전송되지 않습니다
-              </p>
-
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#5A7470", marginBottom: 8 }}>촬영 유형</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 14 }}>
-                <button id="btnS" onClick={() => (window as any).setType("studio")} style={typeBtnStyle(true)}>
-                  <div style={{ fontSize: 18, marginBottom: 5 }}>🏢</div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>스튜디오</div>
-                  <div style={{ fontSize: 10, color: "#5A7470", marginTop: 3, lineHeight: 1.5 }}>의상·포즈 변경 사이<br />준비 시간 기준으로 분류</div>
-                </button>
-                <button id="btnL" onClick={() => (window as any).setType("location")} style={typeBtnStyle(false)}>
-                  <div style={{ fontSize: 18, marginBottom: 5 }}>🏥</div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>병원 로케이션</div>
-                  <div style={{ fontSize: 10, color: "#5A7470", marginTop: 3, lineHeight: 1.5 }}>공간 이동 사이<br />시간 간격 기준으로 분류</div>
-                </button>
-              </div>
-
-              <div id="ruleS" style={ruleBoxStyle("s")}>
-                <strong style={{ fontWeight: 700, color: "#155855" }}>Scene 구분 기준</strong><br />
-                촬영 중단 후 <span id="ruleGapS" style={{ color: "#155855", fontWeight: 700 }}>3분</span> 이상 지나면 새 Scene<br />
-                <span style={{ color: "#9BB5B0", fontSize: 11 }}>사진·영상 모두 같은 기준으로 분류합니다</span>
-              </div>
-              <div id="ruleL" className="hidden" style={ruleBoxStyle("l")}>
-                <strong style={{ fontWeight: 700, color: "#E85D2C" }}>Scene 구분 기준</strong><br />
-                촬영 중단 후 <span id="ruleGapL" style={{ color: "#E85D2C", fontWeight: 700 }}>5분</span> 이상 지나면 새 Scene<br />
-                <span style={{ color: "#9BB5B0", fontSize: 11 }}>사진·영상 모두 같은 기준으로 분류합니다</span>
-              </div>
-
-              <div style={slBoxStyle}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#5A7470" }}>Scene 구분 시간 간격</span>
-                  <span id="gapVal" style={{ fontSize: 14, fontWeight: 700, color: "#155855" }}>3분</span>
-                </div>
-                <input type="range" id="gapSlider" min="1" max="30" defaultValue="3"
-                  onChange={(e) => (window as any).onGap(e.target.value)}
-                  style={{ width: "100%", accentColor: "#155855", height: 4 }} />
-                <div id="gapHint" style={{ fontSize: 10, color: "#9BB5B0", marginTop: 5, lineHeight: 1.5 }}>
-                  촬영 사이 3분 이상 쉬면 새 Scene으로 분류합니다
-                </div>
-              </div>
-
-              <div style={slBoxStyle} id="videoColorBox">
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#5A7470" }}>🎬 영상 컬러 분석</span>
-                  <span id="colorTh" style={{ fontSize: 11, color: "#155855", fontWeight: 700 }}>중간</span>
-                </div>
-                <input type="range" id="colorSlider" min="1" max="5" defaultValue="3"
-                  onChange={(e) => (window as any).onColorTh(e.target.value)}
-                  style={{ width: "100%", accentColor: "#155855", height: 4 }} />
-                <div id="colorHint" style={{ fontSize: 10, color: "#9BB5B0", marginTop: 5, lineHeight: 1.5 }}>
-                  첫 프레임 배경 컬러가 크게 달라지면 시간 간격 무관하게 새 Scene으로 추가 분류
-                </div>
-              </div>
-
-              <details style={{ marginBottom: 14 }}>
-                <summary style={{ fontSize: 11, fontWeight: 700, color: "#5A7470", cursor: "pointer", padding: "4px 0", listStyle: "none" }}>▸ 파일 옵션</summary>
-                <div style={{ paddingTop: 6 }}>
-                  <div style={tglRowStyle}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700 }}>📷 RAW 파일 정리</div>
-                      <div style={{ fontSize: 10, color: "#9BB5B0", marginTop: 2 }}>CR2·ARW·NEF·DNG → RAW/ 폴더</div>
-                    </div>
-                    <label style={tglStyle}>
-                      <input type="checkbox" id="doRaw" defaultChecked style={{ opacity: 0, width: 0, height: 0 }} />
-                      <span></span>
-                    </label>
-                  </div>
-                  <div style={tglRowStyle}>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700 }}>🎬 영상 Scene 분류</div>
-                      <div style={{ fontSize: 10, color: "#9BB5B0", marginTop: 2 }}>VIDEO/Scene01/ 형태로 분류</div>
-                    </div>
-                    <label style={tglStyle}>
-                      <input type="checkbox" id="doVidScene" defaultChecked style={{ opacity: 0, width: 0, height: 0 }} />
-                      <span></span>
-                    </label>
-                  </div>
-                </div>
-              </details>
-
-              <div id="notSupported" className="hidden" style={warnStyle}>
-                ⚠ Chrome 또는 Edge 최신 버전이 필요합니다
-              </div>
-              <button id="pickBtn" onClick={() => (window as any).pickFolder()} style={btnStyle("#155855")}>
-                📂 폴더 선택하기
-              </button>
-
-              <div style={{ background: "#EDF5F3", borderRadius: 10, padding: "12px 14px", marginTop: 12 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#5A7470", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 7 }}>분류 결과 구조</div>
-                {[["📷 RAW/","CR2·ARW·NEF·DNG","#E85D2C"],["🖼 JPG/Scene01~/","시간 간격 기준 분류","#155855"],["🎬 VIDEO/Scene01~/","시간+컬러 기준 분류","#569082"],["📄 sort_log.txt","분류 기록 저장","#9BB5B0"]].map(([k,v,c])=>(
-                  <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom:"1px solid #C8DDD9", fontSize:11 }}>
-                    <span style={{ fontFamily:"monospace", fontWeight:700, color:c as string }}>{k}</span>
-                    <span style={{ fontSize:10, color:"#9BB5B0" }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SCANNING */}
-        <div id="vScan" className="hidden">
-          <div className="pc-card">
-            <div style={{ padding:"44px 22px", textAlign:"center" }}>
-              <div style={{ width:28,height:28,border:"3px solid #C8DDD9",borderTopColor:"#155855",borderRadius:"50%",animation:"spin .7s linear infinite",margin:"0 auto 14px" }}/>
-              <div id="scanMsg" style={{ fontSize:14,fontWeight:700,color:"#155855" }}>스캔 중...</div>
-              <div id="scanSub" style={{ fontSize:11,color:"#5A7470",marginTop:6 }}></div>
-            </div>
-          </div>
-          <div id="abox" className="hidden" style={{ background:"#fff",border:"1px solid #C8DDD9",borderRadius:12,padding:"16px 18px",marginBottom:12 }}>
-            <div style={{ fontSize:12,fontWeight:700,color:"#155855",marginBottom:8,display:"flex",justifyContent:"space-between" }}>
-              <span id="aTitle">🎬 영상 분석 중...</span>
-              <span id="aPct" style={{ color:"#155855" }}>0%</span>
-            </div>
-            <div style={{ height:7,background:"#EDF5F3",borderRadius:4,overflow:"hidden",marginBottom:7 }}>
-              <div id="aFill" style={{ height:"100%",background:"#155855",borderRadius:4,transition:"width .3s",width:"0%" }}/>
-            </div>
-            <div id="aTxt" style={{ fontSize:10,color:"#9BB5B0",marginTop:4 }}>0 / 0</div>
-          </div>
-        </div>
-
-        {/* PREVIEW */}
-        <div id="vPreview" className="hidden">
-          <div style={{ display:"flex",alignItems:"center",gap:10,background:"#fff",border:"1px solid #C8DDD9",borderRadius:11,padding:"10px 14px",marginBottom:12 }}>
-            <span style={{ fontSize:16 }}>📍</span>
-            <div style={{ flex:1 }}>
-              <div id="pName" style={{ fontSize:13,fontWeight:700,color:"#155855" }}></div>
-              <div id="pSub" style={{ fontSize:10,color:"#9BB5B0" }}></div>
-            </div>
-            <button onClick={() => (window as any).resetAll()} style={{ height:34,padding:"0 14px",background:"#fff",border:"1.5px solid #C8DDD9",borderRadius:9,fontSize:11,fontFamily:"inherit",fontWeight:700,cursor:"pointer" }}>다시 선택</button>
-          </div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9,marginBottom:12 }}>
-            {[{id:"nRaw",icon:"📷",label:"RAW",dest:"→ RAW/"},{id:"nJpg",icon:"🖼",label:"JPG",destId:"dJpg"},{id:"nVid",icon:"🎬",label:"VIDEO",destId:"dVid"}].map(({id,icon,label,dest,destId})=>(
-              <div key={id} style={{ border:"1.5px solid #C8DDD9",borderRadius:12,padding:"12px 10px",textAlign:"center",background:"#fff" }}>
-                <div style={{ fontSize:20,marginBottom:4 }}>{icon}</div>
-                <div style={{ fontSize:9,fontWeight:700,color:"#5A7470",textTransform:"uppercase",letterSpacing:".06em" }}>{label}</div>
-                <div id={id} style={{ fontSize:26,fontWeight:700,color:"#9BB5B0" }}>0</div>
-                {destId ? <div id={destId} style={{ fontSize:9,color:"#9BB5B0",marginTop:2 }}></div>
-                        : <div style={{ fontSize:9,color:"#9BB5B0",marginTop:2 }}>{dest}</div>}
-              </div>
-            ))}
-          </div>
-          <div id="jpgSceneList" className="hidden" style={{ border:"1px solid #C8DDD9",borderRadius:12,overflow:"hidden",marginBottom:12 }}>
-            <div style={{ padding:"10px 14px",background:"#EAF4F2",fontSize:11,fontWeight:700,color:"#155855",borderBottom:"1px solid #C8DDD9",display:"flex",justifyContent:"space-between" }}>
-              <span id="jpgShTxt"></span><span id="jpgShSub" style={{ fontSize:10,fontWeight:400,color:"#5A7470" }}></span>
-            </div>
-            <div id="jpgSceneRows"></div>
-          </div>
-          <div id="vidSceneList" className="hidden" style={{ border:"1px solid #C8DDD9",borderRadius:12,overflow:"hidden",marginBottom:12 }}>
-            <div style={{ padding:"10px 14px",background:"#EEF7F5",fontSize:11,fontWeight:700,color:"#155855",borderBottom:"1px solid #C8DDD9",display:"flex",justifyContent:"space-between" }}>
-              <span id="vidShTxt"></span><span style={{ fontSize:10,fontWeight:400,color:"#5A7470" }}>🎬 영상 Scene</span>
-            </div>
-            <div id="vidSceneRows"></div>
-          </div>
-          <div id="warnSkip" className="hidden" style={warnStyle}></div>
-          <div id="emptyMsg" className="hidden" style={{ textAlign:"center",padding:20,color:"#5A7470",fontSize:13 }}>분류할 파일이 없습니다</div>
-          <button id="startBtn" onClick={() => (window as any).runSort()} style={btnStyle("#E85D2C")}>파일 분류 시작 →</button>
-        </div>
-
-        {/* SORTING */}
-        <div id="vSort" className="hidden">
-          <div className="pc-card">
-            <div style={{ padding:"32px 22px",textAlign:"center" }}>
-              <div style={{ fontSize:15,fontWeight:700,color:"#155855",marginBottom:14 }}>분류 중... <span id="pPct">0</span>%</div>
-              <div style={{ height:7,background:"#EDF5F3",borderRadius:4,overflow:"hidden" }}>
-                <div id="pFill" style={{ height:"100%",background:"#155855",borderRadius:4,transition:"width .3s",width:"0%" }}/>
-              </div>
-              <div id="pMsg" style={{ fontSize:11,color:"#5A7470",marginTop:7 }}>파일을 이동하고 있습니다</div>
-            </div>
-          </div>
-        </div>
-
-        {/* DONE */}
-        <div id="vDone" className="hidden">
-          <div className="pc-card">
-            <div style={{ background:"#EAF4F2",padding:22,textAlign:"center",borderBottom:"1px solid #C8DDD9" }}>
-              <div style={{ fontSize:42,marginBottom:8 }}>✅</div>
-              <div style={{ fontSize:17,fontWeight:700,color:"#155855",marginBottom:4 }}>분류 완료!</div>
-              <div style={{ fontSize:13,color:"#5A7470" }}>sort_log.txt 저장됨</div>
-            </div>
-            <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,padding:16 }}>
-              {[{id:"dRaw",label:"RAW"},{id:"dJpgN",label:"JPG Scene"},{id:"dVidN",label:"VIDEO Scene"}].map(({id,label})=>(
-                <div key={id} style={{ background:"#EDF5F3",borderRadius:10,padding:12,textAlign:"center" }}>
-                  <div style={{ fontSize:10,color:"#9BB5B0",marginBottom:4 }}>{label}</div>
-                  <div id={id} style={{ fontSize:22,fontWeight:700,color:"#155855" }}>0</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ padding:"0 16px 8px" }}>
-              <div id="logBox" style={{ background:"#EDF5F3",border:"1px solid #C8DDD9",borderRadius:10,padding:"11px 13px",maxHeight:200,overflowY:"auto" }}/>
-            </div>
-            <div style={{ padding:"0 16px 16px" }}>
-              <button onClick={() => (window as any).resetAll()} style={btnStyle("#155855")}>새 폴더 분류하기</button>
-            </div>
-          </div>
-        </div>
-
-        {/* ERROR */}
-        <div id="vErr" className="hidden">
-          <div className="pc-card" style={{ borderColor:"#FACCB8" }}>
-            <div style={{ padding:"16px 20px" }}>
-              <div id="errMsg" style={{ fontSize:13,color:"#E85D2C",whiteSpace:"pre-wrap",lineHeight:1.7,marginBottom:14 }}></div>
-              <button onClick={() => (window as any).resetAll()} style={{ width:"100%",height:34,padding:"0 14px",background:"#fff",border:"1.5px solid #C8DDD9",borderRadius:9,fontSize:11,fontFamily:"inherit",fontWeight:700,cursor:"pointer" }}>다시 시도</button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <canvas id="cv" style={{ display:"none" }} width={64} height={64}/>
-      <video id="vidAnalyze" style={{ display:"none" }} muted crossOrigin="anonymous" preload="metadata"/>
-
-      <style>{`
-        .hidden{display:none!important;}
-        .tgl{position:relative;width:40px;height:22px;flex-shrink:0;margin-left:12px;display:inline-block;}
-        .tgl input{opacity:0;width:0;height:0;}
-        .tgl span{position:absolute;inset:0;background:#ccc;border-radius:22px;cursor:pointer;transition:.2s;}
-        .tgl span::before{content:'';position:absolute;width:16px;height:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;}
-        .tgl input:checked+span{background:#155855;}
-        .tgl input:checked+span::before{transform:translateX(18px);}
-        .sr{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #C8DDD9;font-size:12px;}
-        .sr:last-child{border-bottom:none;}
-        .snm{font-weight:700;color:#155855;min-width:80px;font-family:monospace;font-size:11px;}
-        .snm.vid{color:#569082;}
-        .stag{font-size:9px;padding:2px 7px;border-radius:8px;font-weight:600;white-space:nowrap;}
-        .stag.color{background:#EEF0FF;color:#3B4FBF;}
-        .stag.time{background:#FDF5E0;color:#C8860A;}
-        @keyframes spin{to{transform:rotate(360deg);}}
-      `}</style>
-    </div>
+    </Card>
   );
 }
 
+/* ── Main Component ─────────────────────────────────────── */
 
-function typeBtnStyle(on: boolean): React.CSSProperties {
-  return { padding:"14px 12px", border:`2px solid ${on?"#155855":"#C8DDD9"}`, borderRadius:12, background:on?"#EAF4F2":"#fff", cursor:"pointer", fontFamily:"inherit", textAlign:"left", transition:"all .15s" };
+export default function PhotoSortingPage() {
+  const [step, setStep] = useState(0);
+  const [rootDir, setRootDir] = useState<FileSystemDirectoryHandle|null>(null);
+  const [gapMinutes, setGapMinutes] = useState(10);
+  const [scenes, setScenes] = useState<Scene[]>([]);
+  const [rawCount, setRawCount] = useState(0);
+  const [progress, setProgress] = useState({ cur:0, total:0, msg:"" });
+  const [activeScene, setActiveScene] = useState(0);
+  const [copyLog, setCopyLog] = useState<string[]>([]);
+  const [stats, setStats] = useState<Stats|null>(null);
+  const cancelRef = useRef(false);
+
+  const hasFS = typeof window !== "undefined" && "showDirectoryPicker" in window;
+
+  const pickDir = async () => {
+    try {
+      const h = await (window as any).showDirectoryPicker({ mode:"readwrite" });
+      setRootDir(h);
+    } catch (_) {}
+  };
+
+  /* ── Step 0 → 2: 스캔·분류·씬 네이밍 ──────────────── */
+  const handleSort = useCallback(async () => {
+    if (!rootDir) return;
+    setStep(1);
+    cancelRef.current = false;
+    setCopyLog([]);
+
+    // 1) 루트 폴더 스캔
+    const rawFiles: ScannedFile[] = [];
+    const jpgFiles: ScannedFile[] = [];
+    setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
+
+    for await (const [name, handle] of (rootDir as any).entries()) {
+      if (handle.kind !== "file") continue;
+      const ext = name.split(".").pop()?.toLowerCase() ?? "";
+      const file = await (handle as FileSystemFileHandle).getFile();
+      const entry: ScannedFile = { name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified };
+      if (RAW_EXTS.has(ext)) rawFiles.push(entry);
+      else if (JPG_EXTS.has(ext)) jpgFiles.push(entry);
+    }
+
+    setRawCount(rawFiles.length);
+
+    // 2) JPG를 시간 순 정렬 후 씬 그룹화
+    jpgFiles.sort((a,b)=>a.mtime-b.mtime);
+    const gapMs = gapMinutes * 60 * 1000;
+    const groups: ScannedFile[][] = jpgFiles.length > 0 ? [[jpgFiles[0]]] : [];
+    for (let i = 1; i < jpgFiles.length; i++) {
+      if (jpgFiles[i].mtime - jpgFiles[i-1].mtime > gapMs) groups.push([jpgFiles[i]]);
+      else groups[groups.length-1].push(jpgFiles[i]);
+    }
+
+    // 3) JPG_SCENE 폴더 생성 + 씬별 복사
+    const jpgSceneDir = await (rootDir as any).getDirectoryHandle("JPG_SCENE", { create:true });
+    const total = jpgFiles.length;
+    let done = 0;
+    const newScenes: Scene[] = [];
+
+    for (let si = 0; si < groups.length; si++) {
+      if (cancelRef.current) break;
+      const sceneNum = String(si+1).padStart(2,"0");
+      const originalName = `Scene${sceneNum}`;
+      const sceneDir = await (jpgSceneDir as any).getDirectoryHandle(originalName, { create:true });
+
+      const photoFiles: PhotoFile[] = [];
+      for (const sf of groups[si]) {
+        if (cancelRef.current) break;
+        setProgress({ cur:done, total, msg:`${originalName} / ${sf.name}` });
+        try {
+          await copyFileHandle(sf.handle, sceneDir, sf.name);
+          // 씬 네이밍용 썸네일은 처음 4장만
+          const thumb = photoFiles.length < 4 ? await loadThumb(await sf.handle.getFile()) : null;
+          photoFiles.push({
+            name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime,
+            thumbUrl:thumb, blurScore:null, brightness:null, hash:null,
+            rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false,
+          });
+        } catch {
+          photoFiles.push({
+            name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime,
+            thumbUrl:null, blurScore:null, brightness:null, hash:null,
+            rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false,
+          });
+        }
+        done++;
+        setCopyLog(prev => [...prev.slice(-30), `✅ ${sf.name} → ${originalName}`]);
+      }
+
+      newScenes.push({
+        index:si+1, originalName, suggestedName:originalName, editedName:originalName,
+        files:photoFiles, selectCount:5, nameLoading:true, sceneDir,
+      });
+    }
+
+    setScenes(newScenes);
+    setProgress({ cur:total, total, msg:"씬 분류 완료 — AI 씬 이름 분석 중..." });
+    setStep(2);
+
+    // 4) AI 씬 네이밍
+    const updated = newScenes.map(s=>({...s}));
+    for (let i = 0; i < updated.length; i++) {
+      try {
+        const sampleFiles = updated[i].files.slice(0,4);
+        const thumbs: string[] = [];
+        for (const pf of sampleFiles) {
+          const f = await pf.handle.getFile();
+          thumbs.push(await getApiThumb(f));
+        }
+        const res = await fetch("/api/scene-naming", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ thumbnails:thumbs, originalName:updated[i].originalName }),
+        });
+        const data = await res.json();
+        if (data.ok && data.name) {
+          const num = String(updated[i].index).padStart(2,"0");
+          const suggested = `${num}_${data.name}`;
+          updated[i] = {...updated[i], suggestedName:suggested, editedName:suggested, nameLoading:false, nameConfidence:data.confidence, nameReason:data.reason};
+        } else {
+          updated[i] = {...updated[i], nameLoading:false};
+        }
+      } catch {
+        updated[i] = {...updated[i], nameLoading:false};
+      }
+      setScenes([...updated]);
+    }
+  }, [rootDir, gapMinutes]);
+
+  /* ── Step 3: AI 품질 분석 ───────────────────────────── */
+  const runAnalysis = useCallback(async () => {
+    setStep(3);
+    cancelRef.current = false;
+    const total = scenes.reduce((s,sc)=>s+sc.files.length,0);
+    let done = 0;
+
+    const updated = scenes.map(s=>({...s, files:s.files.map(f=>({...f}))}));
+
+    for (let si = 0; si < updated.length; si++) {
+      for (let fi = 0; fi < updated[si].files.length; fi++) {
+        if (cancelRef.current) break;
+        const pf = updated[si].files[fi];
+        setProgress({ cur:done, total, msg:`${updated[si].editedName} / ${pf.name}` });
+        try {
+          const file = await pf.handle.getFile();
+          const { blurScore, brightness, hash, thumbUrl } = await analyzeJpg(file);
+          let rejectReason: RejectReason = "ok";
+          if (blurScore < 18) rejectReason = "blur";
+          else if (brightness < 38) rejectReason = "dark";
+          else if (brightness > 230) rejectReason = "overexposed";
+          updated[si].files[fi] = {...pf, blurScore, brightness, hash, thumbUrl, rejectReason};
+        } catch {
+          updated[si].files[fi] = {...pf, rejectReason:"ok"};
+        }
+        done++;
+      }
+      // 씬 내 중복 그룹화
+      updated[si].files = applyDuplicates(updated[si].files);
+      setScenes([...updated]);
+    }
+
+    setProgress({ cur:total, total, msg:"분석 완료" });
+
+    // selectCount에 따라 자동 선택
+    const withSel = updated.map(sc => {
+      const candidates = sc.files.filter(f=>f.rejectReason==="ok"&&(f.dupGroupId===null||f.isDupRep));
+      const n = sc.selectCount === 0 ? candidates.length : Math.min(sc.selectCount, candidates.length);
+      const topNames = new Set(
+        [...candidates].sort((a,b)=>(b.blurScore??0)-(a.blurScore??0)).slice(0,n).map(f=>f.name)
+      );
+      return {...sc, files:sc.files.map(f=>({...f, selected:topNames.has(f.name)}))};
+    });
+    setScenes(withSel);
+    setStep(4);
+  }, [scenes]);
+
+  /* ── Step 5: 파일 정리 ──────────────────────────────── */
+  const runOutput = useCallback(async () => {
+    if (!rootDir) return;
+    setStep(5);
+    cancelRef.current = false;
+    const log: string[] = [];
+    const rawMatchRows: string[][] = [];
+
+    const rootName = rootDir.name;
+    const selectedJpgDir = await (rootDir as any).getDirectoryHandle(`selected_${rootName}`, { create:true });
+    const selectedRawDir = await (rootDir as any).getDirectoryHandle("Selected_RAW", { create:true });
+
+    // RAW 인덱스 (루트에서)
+    const rawIndex = new Map<string, FileSystemFileHandle>();
+    for await (const [name, handle] of (rootDir as any).entries()) {
+      if (handle.kind !== "file") continue;
+      const ext = name.split(".").pop()?.toLowerCase() ?? "";
+      if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/,"").toLowerCase(), handle as FileSystemFileHandle);
+    }
+
+    const selectedTotal = scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.selected).length,0);
+    let processed = 0, rawCopied = 0, rawMissing = 0;
+    const updated = scenes.map(s=>({...s, files:s.files.map(f=>({...f}))}));
+
+    for (let si = 0; si < updated.length; si++) {
+      const sc = updated[si];
+      const sceneName = sc.editedName || sc.originalName;
+      const sceneOutDir = await (selectedJpgDir as any).getDirectoryHandle(sceneName, { create:true });
+
+      for (let fi = 0; fi < sc.files.length; fi++) {
+        if (!sc.files[fi].selected) continue;
+        if (cancelRef.current) break;
+        const pf = sc.files[fi];
+        setProgress({ cur:processed, total:selectedTotal, msg:`파일 정리: ${pf.name}` });
+
+        // 선택 JPG 복사
+        try {
+          await copyFileHandle(pf.handle, sceneOutDir, pf.name);
+          log.push(`✅ JPG: ${pf.name} → selected_${rootName}/${sceneName}/`);
+        } catch { log.push(`❌ JPG: ${pf.name} 실패`); }
+
+        // RAW 매칭
+        const rawHandle = rawIndex.get(pf.basename.toLowerCase());
+        if (rawHandle) {
+          try {
+            const rawFile = await rawHandle.getFile();
+            await copyFileHandle(rawHandle, selectedRawDir, rawFile.name);
+            log.push(`✅ RAW: ${rawFile.name} → Selected_RAW/`);
+            rawMatchRows.push([sceneName, pf.name, rawFile.name, "복사 완료"]);
+            rawCopied++;
+          } catch {
+            log.push(`❌ RAW: ${pf.basename} 복사 실패`);
+            rawMatchRows.push([sceneName, pf.name, "", "실패"]);
+          }
+        } else {
+          log.push(`⚠️ RAW: ${pf.basename} 없음`);
+          rawMatchRows.push([sceneName, pf.name, "", "누락"]);
+          rawMissing++;
+        }
+        processed++;
+        setCopyLog([...log]);
+      }
+      setScenes([...updated]);
+    }
+
+    // 리포트
+    const reportDir = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
+    const writeReport = async (name: string, content: string) => {
+      try {
+        const fh = await (reportDir as any).getFileHandle(name, { create:true });
+        const wr = await fh.createWritable();
+        await wr.write("﻿"+content); await wr.close();
+      } catch (_) {}
+    };
+    await writeReport("raw_match_report.csv", makeCSV(["씬","선택JPG","RAW","상태"], rawMatchRows));
+    await writeReport("selected_list.csv", makeCSV(["씬","JPG","블러","밝기"],
+      updated.flatMap(s=>s.files.filter(f=>f.selected).map(f=>[s.editedName,f.name,f.blurScore?.toFixed(1)??"",f.brightness?.toFixed(0)??""]))));
+
+    setStats({
+      totalJpg:scenes.reduce((s,sc)=>s+sc.files.length,0),
+      totalRaw:rawCount,
+      totalScenes:scenes.length,
+      totalRejected:scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.rejectReason!=="ok"&&f.rejectReason!=="pending").length,0),
+      totalDupRemoved:scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.dupGroupId!==null&&!f.isDupRep).length,0),
+      totalSelected:scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.selected).length,0),
+      totalRawCopied:rawCopied, totalRawMissing:rawMissing,
+    });
+    setStep(6);
+  }, [scenes, rootDir, rawCount]);
+
+  /* ── Step Indicator ──────────────────────────────────── */
+  const renderStepIndicator = () => (
+    <div style={{background:C.white,borderBottom:`1px solid ${C.border}`,padding:"10px 24px",overflowX:"auto"}}>
+      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+        {STEP_LABELS.map((lbl,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+            <div style={{width:22,height:22,borderRadius:"50%",fontSize:9,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",background:i<step?C.green:i===step?C.teal:C.border,color:i<=step?"#fff":C.muted}}>{i<step?"✓":i+1}</div>
+            <span style={{fontSize:11,fontWeight:i===step?800:500,color:i===step?C.teal:C.hint}}>{lbl}</span>
+            {i<STEP_LABELS.length-1&&<span style={{color:C.border,fontSize:10}}>›</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  /* ── STEP 0 ─────────────────────────────────────────── */
+  const Step0 = () => (
+    <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:640}}>
+      <div style={{padding:16,background:C.light,borderRadius:12,fontSize:12,color:C.teal,border:`1px solid rgba(21,88,85,.15)`,lineHeight:1.8}}>
+        <strong>📦 통합 자동화 워크플로우</strong><br/>
+        RAW+JPG가 함께 있는 백업 폴더 하나만 선택하세요.<br/>
+        1) RAW/JPG 분리 → 2) Scene 분류 → 3) AI 씬 이름 추천 → 4) 품질 분석 → 5) 후보 선택 → 6) RAW 매칭
+      </div>
+      <Card>
+        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>📁 백업 폴더 선택</div>
+        <div style={{padding:20,display:"flex",flexDirection:"column",gap:16}}>
+          <button
+            onClick={pickDir}
+            style={{height:54,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}
+          >
+            {rootDir ? <><span>✅</span> {rootDir.name}</> : <><span>📂</span> 백업 폴더 선택 (RAW+JPG 혼합 폴더)</>}
+          </button>
+
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:8}}>
+              씬 구분 기준 시간 간격: <span style={{color:C.teal}}>{gapMinutes}분</span>
+            </div>
+            <input
+              type="range" min={3} max={60} value={gapMinutes}
+              onChange={e=>setGapMinutes(Number(e.target.value))}
+              style={{width:"100%"}}
+            />
+            <div style={{fontSize:10,color:C.hint,marginTop:4}}>연속 JPG 사이 {gapMinutes}분 이상 공백이면 다른 씬으로 분류합니다</div>
+          </div>
+        </div>
+      </Card>
+
+      {!hasFS && (
+        <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>
+          ⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.
+        </div>
+      )}
+
+      <Btn onClick={handleSort} disabled={!rootDir || !hasFS}>
+        분류 시작 →
+      </Btn>
+    </div>
+  );
+
+  /* ── STEP 1 ─────────────────────────────────────────── */
+  const Step1 = () => (
+    <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>📂 파일 분류 중...</div>
+      <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
+      <div style={{maxHeight:200,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
+        {copyLog.slice(-20).map((line,i)=><div key={i} style={{color:C.green,padding:"1px 0"}}>{line}</div>)}
+      </div>
+      <div style={{fontSize:11,color:C.hint}}>원본 파일은 삭제되지 않습니다. JPG만 JPG_SCENE 폴더로 복사됩니다.</div>
+    </div>
+  );
+
+  /* ── STEP 2: 씬 검토 & 승인 ─────────────────────────── */
+  const Step2 = () => {
+    const allLoaded = scenes.every(s=>!s.nameLoading);
+    return (
+      <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:800}}>
+        <div style={{padding:14,background:"#FEF3C7",borderRadius:10,fontSize:12,color:"#92400E",border:"1px solid #FCD34D"}}>
+          ⚠️ AI가 씬 이름을 추천했습니다. 100% 정확하지 않을 수 있습니다. <strong>직접 수정 후 승인</strong>해주세요.
+        </div>
+
+        <Card>
+          <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>
+            🏷️ 씬 폴더명 검토 — JPG {scenes.reduce((s,sc)=>s+sc.files.length,0)}장 / RAW {rawCount}개
+          </div>
+          <div style={{padding:"8px 0"}}>
+            {scenes.map((sc,i)=>(
+              <div key={i} style={{display:"grid",gridTemplateColumns:"100px 28px 1fr auto",gap:10,alignItems:"center",padding:"10px 20px",borderBottom:i<scenes.length-1?`1px solid ${C.border}`:"none"}}>
+                {/* 썸네일들 */}
+                <div style={{display:"flex",gap:3}}>
+                  {sc.files.slice(0,3).map((f,fi)=>
+                    f.thumbUrl
+                      ? <img key={fi} src={f.thumbUrl} style={{width:28,height:20,objectFit:"cover",borderRadius:3}} alt=""/>
+                      : <div key={fi} style={{width:28,height:20,background:C.border,borderRadius:3}}/>
+                  )}
+                </div>
+                <div style={{fontSize:10,color:C.hint,fontFamily:"monospace",textAlign:"center"}}>{sc.files.length}장</div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  {sc.nameLoading
+                    ? <span style={{fontSize:12,color:C.hint}}>AI 분석 중...</span>
+                    : <input
+                        value={sc.editedName}
+                        onChange={e=>setScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:e.target.value}:s))}
+                        style={{flex:1,height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}
+                      />
+                  }
+                  {sc.nameConfidence!=null && !sc.nameLoading &&
+                    <span style={{fontSize:9,background:C.light,color:C.teal,padding:"2px 6px",borderRadius:4,whiteSpace:"nowrap"}}>
+                      {Math.round(sc.nameConfidence*100)}%
+                    </span>
+                  }
+                </div>
+                <div style={{fontSize:10,color:C.hint,whiteSpace:"nowrap"}}>{sc.originalName}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <div style={{padding:14,background:C.light,borderRadius:10,fontSize:11,color:C.muted}}>
+          📁 생성될 폴더 구조: <span style={{fontFamily:"monospace",color:C.teal}}>JPG_SCENE/ → selected_{rootDir?.name}/ → Selected_RAW/</span>
+        </div>
+
+        <div style={{display:"flex",gap:10}}>
+          <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
+          <Btn onClick={runAnalysis} disabled={!allLoaded}>
+            {allLoaded ? "✅ 승인 → AI 분석 시작" : "AI 씬 이름 분석 중..."}
+          </Btn>
+        </div>
+      </div>
+    );
+  };
+
+  /* ── STEP 3 ─────────────────────────────────────────── */
+  const Step3 = () => (
+    <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>🔍 AI 품질 분석 중...</div>
+      <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
+      <div style={{fontSize:11,color:C.hint}}>각 사진의 선명도·밝기·중복 여부를 분석합니다.</div>
+      <button onClick={()=>{cancelRef.current=true;}} style={{padding:"8px 16px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,fontSize:12,cursor:"pointer",color:C.muted,fontFamily:"inherit",alignSelf:"flex-start"}}>
+        중단
+      </button>
+    </div>
+  );
+
+  /* ── STEP 4: 후보 선택 ─────────────────────────────── */
+  const Step4 = () => {
+    const sc = scenes[activeScene];
+    if (!sc) return null;
+
+    const candidates = sc.files.filter(f=>f.rejectReason==="ok"&&(f.dupGroupId===null||f.isDupRep));
+    const rejected = sc.files.filter(f=>f.rejectReason!=="ok"&&f.rejectReason!=="pending");
+    const dups = sc.files.filter(f=>f.dupGroupId!==null&&!f.isDupRep);
+    const selected = sc.files.filter(f=>f.selected).length;
+
+    const COUNT_OPTIONS: {v:SelectCount;l:string}[] = [{v:3,l:"3장"},{v:5,l:"5장"},{v:7,l:"7장"},{v:10,l:"10장"},{v:0,l:"전체"}];
+
+    const applyCount = (count: SelectCount) => {
+      setScenes(prev=>prev.map((s,i)=>{
+        if (i!==activeScene) return s;
+        const cands = s.files.filter(f=>f.rejectReason==="ok"&&(f.dupGroupId===null||f.isDupRep));
+        const n = count===0?cands.length:Math.min(count,cands.length);
+        const topNames = new Set([...cands].sort((a,b)=>(b.blurScore??0)-(a.blurScore??0)).slice(0,n).map(f=>f.name));
+        return {...s, selectCount:count, files:s.files.map(f=>({...f,selected:topNames.has(f.name)}))};
+      }));
+    };
+
+    const rejectLabel: Record<RejectReason,string> = {ok:"",pending:"?",blur:"흔들림",dark:"어두움",overexposed:"노출과다"};
+
+    return (
+      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+        {/* 씬 탭 */}
+        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
+          {scenes.map((s,i)=>(
+            <button key={i} onClick={()=>setActiveScene(i)} style={{
+              padding:"7px 14px",borderRadius:8,border:`1.5px solid ${i===activeScene?C.teal:C.border}`,
+              background:i===activeScene?C.light:C.white,fontSize:12,fontWeight:i===activeScene?800:600,
+              color:i===activeScene?C.teal:C.muted,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap",
+            }}>
+              {s.editedName||s.originalName}
+              <span style={{marginLeft:6,fontSize:10,color:C.hint}}>{s.files.filter(f=>f.selected).length}선택</span>
+            </button>
+          ))}
+        </div>
+
+        {/* 씬 통계 */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+          {[
+            {label:"전체 JPG",value:sc.files.length},
+            {label:"1차 제외",value:rejected.length,color:C.red},
+            {label:"중복 제거",value:dups.length,color:C.yellow},
+            {label:"선택됨",value:selected,color:C.green},
+          ].map(({label,value,color})=>(
+            <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
+              <div style={{fontSize:22,fontWeight:900,color:color??C.teal}}>{value}</div>
+              <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* 씬별 선택 장수 */}
+        <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <span style={{fontSize:12,fontWeight:700,color:C.muted,whiteSpace:"nowrap"}}>이 씬 선택 장수:</span>
+          {COUNT_OPTIONS.map(({v,l})=>(
+            <button key={v} onClick={()=>applyCount(v)} style={{
+              padding:"6px 14px",borderRadius:8,border:`1.5px solid ${sc.selectCount===v?C.teal:C.border}`,
+              background:sc.selectCount===v?C.light:C.white,fontSize:12,fontWeight:sc.selectCount===v?800:600,
+              color:sc.selectCount===v?C.teal:C.muted,cursor:"pointer",fontFamily:"inherit",
+            }}>{l}</button>
+          ))}
+          <span style={{fontSize:10,color:C.hint}}>후보 {candidates.length}장 중 AI 추천 순으로 선택</span>
+        </div>
+
+        {/* 사진 그리드 */}
+        {candidates.length === 0
+          ? <div style={{padding:32,textAlign:"center",color:C.hint,fontSize:13}}>후보 없음</div>
+          : (
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+              {sc.files.filter(f=>f.rejectReason==="ok"&&(f.dupGroupId===null||f.isDupRep)).map((f,_)=>{
+                const fi = sc.files.indexOf(f);
+                return (
+                  <div key={f.name} onClick={()=>setScenes(prev=>prev.map((s,i)=>i!==activeScene?s:{...s,files:s.files.map((pf,idx)=>idx===fi?{...pf,selected:!pf.selected}:pf)}))}
+                    style={{borderRadius:10,overflow:"hidden",border:`2px solid ${f.selected?C.teal:C.border}`,cursor:"pointer",background:C.white,position:"relative"}}>
+                    {f.thumbUrl
+                      ? <img src={f.thumbUrl} alt={f.name} style={{width:"100%",aspectRatio:"3/2",objectFit:"cover",display:"block"}}/>
+                      : <div style={{width:"100%",aspectRatio:"3/2",background:C.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:C.hint}}>로드 중</div>
+                    }
+                    <div style={{padding:"4px 8px"}}>
+                      <div style={{fontSize:9,color:C.hint,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
+                      <div style={{display:"flex",gap:3,marginTop:2,flexWrap:"wrap"}}>
+                        {f.blurScore!=null&&<span style={{fontSize:8,background:C.light,color:C.teal,padding:"1px 4px",borderRadius:3}}>선명{f.blurScore.toFixed(0)}</span>}
+                        {f.rejectReason!=="ok"&&f.rejectReason!=="pending"&&<span style={{fontSize:8,background:"#FEE2E2",color:C.red,padding:"1px 4px",borderRadius:3}}>{rejectLabel[f.rejectReason]}</span>}
+                        {f.dupGroupId&&<span style={{fontSize:8,background:"#FEF3C7",color:C.yellow,padding:"1px 4px",borderRadius:3}}>{f.isDupRep?"대표":"중복"}</span>}
+                      </div>
+                    </div>
+                    <div style={{position:"absolute",top:5,right:5,width:18,height:18,borderRadius:"50%",background:f.selected?C.teal:"rgba(255,255,255,.8)",border:`2px solid ${f.selected?C.teal:C.border}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      {f.selected&&<span style={{color:"#fff",fontSize:10,fontWeight:900}}>✓</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        }
+
+        <div style={{display:"flex",gap:10,paddingTop:8}}>
+          <Btn variant="secondary" onClick={()=>setStep(2)}>← 뒤로</Btn>
+          <Btn onClick={runOutput} disabled={scenes.every(s=>s.files.filter(f=>f.selected).length===0)}>
+            선택 완료 → 파일 정리 ({scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.selected).length,0)}장) →
+          </Btn>
+        </div>
+      </div>
+    );
+  };
+
+  /* ── STEP 5 ─────────────────────────────────────────── */
+  const Step5 = () => (
+    <div style={{maxWidth:680,display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>📦 파일 정리 중...</div>
+      <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
+      <div style={{maxHeight:260,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
+        {copyLog.slice(-40).map((line,i)=>(
+          <div key={i} style={{color:line.startsWith("✅")?C.green:line.startsWith("❌")?C.red:C.yellow}}>{line}</div>
+        ))}
+      </div>
+      <div style={{fontSize:11,color:C.hint}}>원본 파일은 삭제되지 않습니다.</div>
+    </div>
+  );
+
+  /* ── STEP 6 ─────────────────────────────────────────── */
+  const Step6 = () => {
+    if (!stats) return null;
+    const rows = [
+      {label:"처리된 씬",value:stats.totalScenes},
+      {label:"전체 JPG",value:stats.totalJpg},
+      {label:"원본 RAW",value:stats.totalRaw,color:C.muted},
+      {label:"1차 제외",value:stats.totalRejected,color:C.red},
+      {label:"중복 제거",value:stats.totalDupRemoved,color:C.yellow},
+      {label:"최종 선택",value:stats.totalSelected,color:C.teal},
+      {label:"RAW 복사 완료",value:stats.totalRawCopied,color:C.green},
+      {label:"RAW 누락",value:stats.totalRawMissing,color:stats.totalRawMissing>0?C.red:C.hint},
+    ];
+    return (
+      <div style={{maxWidth:600}}>
+        <Card>
+          <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.green}}>✅ 작업 완료!</div>
+          <div style={{padding:20}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+              {rows.map(({label,value,color})=>(
+                <div key={label} style={{background:C.bg,borderRadius:8,padding:"12px 14px"}}>
+                  <div style={{fontSize:20,fontWeight:900,color:color??C.txt}}>{value}</div>
+                  <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{background:C.light,borderRadius:10,padding:14,fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.9}}>
+              📁 <strong style={{color:C.teal}}>JPG_SCENE/</strong> — 씬별 분류된 JPG<br/>
+              📁 <strong style={{color:C.teal}}>selected_{rootDir?.name}/</strong> — AI가 선택한 JPG (씬별 하위 폴더)<br/>
+              📁 <strong style={{color:C.teal}}>Selected_RAW/</strong> — 선택된 JPG와 매칭된 RAW (씬 구분 없음)<br/>
+              📊 <strong style={{color:C.teal}}>AI_SELECT_REPORT/</strong> — CSV 리포트
+            </div>
+
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["씬","선택JPG","RAW","상태"],scenes.flatMap(s=>s.files.filter(f=>f.selected).map(f=>[s.editedName,f.name,"",""]))),"selected_list.csv")}>
+                ↓ 선택 목록 CSV
+              </Btn>
+              <Btn onClick={()=>{setStep(0);setScenes([]);setRootDir(null);setRawCount(0);setCopyLog([]);setStats(null);}}>
+                처음으로
+              </Btn>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
+  /* ── Layout ──────────────────────────────────────────── */
+  return (
+    <div>
+      {/* 서브탭 */}
+      <div style={{background:"#FFFFFF",borderBottom:"1px solid rgba(21,88,85,.12)",display:"flex",padding:"0 8px"}}>
+        <span style={{padding:"11px 20px",fontSize:13,fontWeight:800,color:"#155855",borderBottom:"2.5px solid #155855",cursor:"default",whiteSpace:"nowrap"}}>
+          📁 사진 분류
+        </span>
+        <Link href="/raw-select" style={{padding:"11px 20px",fontSize:13,fontWeight:600,color:"#9BB5B0",textDecoration:"none",whiteSpace:"nowrap",display:"inline-block",borderBottom:"2.5px solid transparent"}}>
+          🎯 AI 컷 정리 & RAW 셀렉 (독립 실행)
+        </Link>
+      </div>
+
+      {/* 메인 */}
+      <div style={{background:C.bg,minHeight:"100vh",color:C.txt}}>
+        {renderStepIndicator()}
+        <div style={{maxWidth:960,margin:"0 auto",padding:"28px 20px 80px"}}>
+          {step===0&&<Step0/>}
+          {step===1&&<Step1/>}
+          {step===2&&<Step2/>}
+          {step===3&&<Step3/>}
+          {step===4&&<Step4/>}
+          {step===5&&<Step5/>}
+          {step===6&&<Step6/>}
+        </div>
+      </div>
+    </div>
+  );
 }
-const ruleBoxStyle=(t:"s"|"l"):React.CSSProperties=>({ borderRadius:10, padding:"13px 15px", marginBottom:14, fontSize:12, lineHeight:1.9, background:t==="s"?"#EAF4F2":"#FFF8F5", border:`1px solid ${t==="s"?"#C8DDD9":"#FACCB8"}` });
-const slBoxStyle:React.CSSProperties={ background:"#EDF5F3", borderRadius:10, padding:"13px 14px", marginBottom:10 };
-const warnStyle:React.CSSProperties={ background:"#FDF5E0", border:"1px solid #F0D080", borderRadius:10, padding:"10px 14px", fontSize:11, color:"#C8860A", lineHeight:1.6, marginBottom:12 };
-const tglRowStyle:React.CSSProperties={ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0", borderTop:"1px solid #C8DDD9" };
-const tglStyle:React.CSSProperties={ position:"relative", width:40, height:22, flexShrink:0, marginLeft:12, display:"inline-block" };
-function btnStyle(bg:string):React.CSSProperties{ return { width:"100%", height:50, background:bg, color:"#fff", border:"none", borderRadius:11, fontSize:15, fontFamily:"inherit", fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }; }
