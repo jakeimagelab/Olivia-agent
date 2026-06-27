@@ -376,7 +376,13 @@ function EditTaskForm({ task, onSave, onCancel }: {
   return (
     <div style={{ background: C.surface, border: `1.5px solid ${C.teal}`,
       borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-      <div style={{ fontSize: 10, fontWeight: 900, color: C.teal, letterSpacing: ".06em" }}>✏️ 편집</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 900, color: C.teal, letterSpacing: ".06em" }}>✏️ 편집</div>
+        <div style={{ marginLeft: "auto", fontSize: 11, fontWeight: 800, color: C.muted,
+          background: C.mint, padding: "3px 10px", borderRadius: 20 }}>
+          {new Date(task.date + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
+        </div>
+      </div>
       <input value={title} onChange={e => setTitle(e.target.value)}
         onKeyDown={e => e.key === "Enter" && submit()} placeholder="할일 제목"
         style={{ fontSize: 14, fontWeight: 700, border: "none", borderBottom: `1px solid ${C.border}`,
