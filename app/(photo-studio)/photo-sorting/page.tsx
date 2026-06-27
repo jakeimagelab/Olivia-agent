@@ -494,11 +494,24 @@ export default function PhotoSortingPage() {
       }
     }
     setRawCount(rawFiles.length);
-    jpgFiles.sort((a,b)=>a.mtime-b.mtime);
 
-    // 씬 분리 기준: 시간 간격 OR 시각적 장면 변화
+    // ① RAW 전체 → RAW(원본)/ 이동
+    const rawBase = await (rootDir as any).getDirectoryHandle("RAW(원본)", { create:true }) as FileSystemDirectoryHandle;
+    setRawBaseDir(rawBase);
+    for (let i = 0; i < rawFiles.length; i++) {
+      const rf = rawFiles[i];
+      setProgress({ cur:i, total:rawFiles.length, msg:`RAW 이동: ${rf.name}` });
+      try {
+        await copyFileHandle(rf.handle, rawBase, rf.name);
+        try { await (rootDir as any).removeEntry(rf.name); } catch {}
+        setCopyLog(prev => [...prev.slice(-30), `📁 ${rf.name} → RAW(원본)/`]);
+      } catch { setCopyLog(prev => [...prev.slice(-30), `❌ RAW 이동 실패: ${rf.name}`]); }
+    }
+
+    // ② JPG → 씬 분리 후 JPG(분류)/ 하위로 이동
+    jpgFiles.sort((a,b)=>a.mtime-b.mtime);
     const gapMs = gapMinutes*60*1000;
-    const VIS_THRESHOLD = 0.18; // 0~1, 클수록 엄격. 0.18 ≈ 장비·공간 변화 감지
+    const VIS_THRESHOLD = 0.18;
     const groups: ScannedFile[][] = jpgFiles.length > 0 ? [[jpgFiles[0]]] : [];
     for (let i = 1; i < jpgFiles.length; i++) {
       const timeBreak = jpgFiles[i].mtime - jpgFiles[i-1].mtime > gapMs;
@@ -506,39 +519,37 @@ export default function PhotoSortingPage() {
       if (timeBreak || visBreak) groups.push([jpgFiles[i]]);
       else groups[groups.length-1].push(jpgFiles[i]);
     }
-
-    const jpgSceneDir = await (rootDir as any).getDirectoryHandle("JPG_SCENE", { create:true });
+    const jpgBase = await (rootDir as any).getDirectoryHandle("JPG(분류)", { create:true }) as FileSystemDirectoryHandle;
+    setJpgBaseDir(jpgBase);
     const total = jpgFiles.length; let done = 0;
     const newScenes: Scene[] = [];
     for (let si = 0; si < groups.length; si++) {
       if (cancelRef.current) break;
       const sceneNum = String(si+1).padStart(2,"0");
-      const originalName = `Scene${sceneNum}`;
-      const sceneDir = await (jpgSceneDir as any).getDirectoryHandle(originalName, { create:true });
+      const originalName = sceneNum; // 초기 폴더명: "01", "02", ...
+      const sceneDir = await (jpgBase as any).getDirectoryHandle(originalName, { create:true }) as FileSystemDirectoryHandle;
       const photoFiles: PhotoFile[] = [];
       for (const sf of groups[si]) {
         if (cancelRef.current) break;
-        setProgress({ cur:done, total, msg:`${originalName} / ${sf.name}` });
+        setProgress({ cur:done, total, msg:`씬${sceneNum} / ${sf.name}` });
         try {
           await copyFileHandle(sf.handle, sceneDir, sf.name);
-          // 이동 모드: 씬 폴더에 복사 완료 후 원본 삭제, 핸들을 새 위치로 교체
-          const destHandle = await (sceneDir as any).getFileHandle(sf.name);
-          if (moveJpg) {
-            try { await (rootDir as any).removeEntry(sf.name); } catch {}
-          }
+          const destHandle = await (sceneDir as any).getFileHandle(sf.name) as FileSystemFileHandle;
+          try { await (rootDir as any).removeEntry(sf.name); } catch {}
           const thumb = photoFiles.length < 4 ? await loadThumb(await destHandle.getFile()) : null;
           photoFiles.push({ name:sf.name, basename:sf.basename, handle:destHandle, mtime:sf.mtime, thumbUrl:thumb, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false });
         } catch {
           photoFiles.push({ name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime, thumbUrl:null, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false });
         }
-        const action = moveJpg ? "이동" : "복사";
-        done++; setCopyLog(prev => [...prev.slice(-30), `✅ ${sf.name} → ${originalName} (${action})`]);
+        done++; setCopyLog(prev => [...prev.slice(-30), `✅ ${sf.name} → JPG(분류)/씬${sceneNum}`]);
       }
       newScenes.push({ index:si+1, originalName, suggestedName:originalName, editedName:originalName, files:photoFiles, selectCount:5, nameLoading:true, sceneDir });
     }
     setScenes(newScenes);
     setProgress({ cur:total, total, msg:"씬 분류 완료 — AI 씬 이름 분석 중..." });
     setStep(2);
+
+    // ③ AI 씬 이름 지정 + 폴더 이름 변경: "01" → "01. 씬이름"
     const updated = newScenes.map(s=>({...s}));
     for (let i = 0; i < updated.length; i++) {
       try {
@@ -549,8 +560,13 @@ export default function PhotoSortingPage() {
         const data = await res.json();
         if (data.ok && data.name) {
           const num = String(updated[i].index).padStart(2,"0");
-          const suggested = `${num}_${data.name}`;
-          updated[i] = {...updated[i], suggestedName:suggested, editedName:suggested, nameLoading:false, nameConfidence:data.confidence, nameReason:data.reason};
+          const suggested = `${num}. ${data.name}`;
+          const newSceneDir = await renameDirHandle(jpgBase, updated[i].originalName, suggested, updated[i].sceneDir as any);
+          const newFiles = updated[i].files.map(f => ({...f}));
+          for (const pf of newFiles) {
+            try { pf.handle = await (newSceneDir as any).getFileHandle(pf.name) as FileSystemFileHandle; } catch {}
+          }
+          updated[i] = {...updated[i], suggestedName:suggested, editedName:suggested, nameLoading:false, nameConfidence:data.confidence, nameReason:data.reason, sceneDir:newSceneDir, files:newFiles};
         } else { updated[i] = {...updated[i], nameLoading:false}; }
       } catch { updated[i] = {...updated[i], nameLoading:false}; }
       setScenes([...updated]);
