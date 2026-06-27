@@ -603,7 +603,13 @@ export default function PhotoSortingPage() {
           const data = await res.json();
           if (data.ok) {
             const isEtc = data.lightingStatus !== "normal";
-            result[idx] = { ...file, lightingStatus:data.lightingStatus||"normal", clothingLabel:data.clothingLabel||"미분류", poseType:data.poseType||"Unknown", isFamilyProfile:data.isFamilyProfile||false, confidence:data.confidence||0.5, notes:data.notes||[], analyzed:true, groupKey:isEtc?"__ETC__":`${data.clothingLabel}_${data.poseType}` };
+            const hasGown: boolean = data.hasGown ?? false;
+            const innerWear: StudioInnerWear = (["셔츠","넥타이셔츠","스크럽","블라우스","탑","기타"] as StudioInnerWear[]).includes(data.innerWear) ? data.innerWear : "기타";
+            const poseType: StudioPoseType = (["Standing","Sitting","Unknown"] as StudioPoseType[]).includes(data.poseType) ? data.poseType : "Unknown";
+            const isFamilyProfile: boolean = data.isFamilyProfile ?? false;
+            const clothingLabel = computeClothingLabel(hasGown, innerWear, isFamilyProfile);
+            const groupKey = isEtc ? "__ETC__" : computeGroupKey(hasGown, innerWear, poseType, isFamilyProfile);
+            result[idx] = { ...file, lightingStatus:data.lightingStatus||"normal", hasGown, innerWear, clothingLabel, poseType, isFamilyProfile, confidence:data.confidence||0.5, analyzed:true, groupKey };
           } else {
             result[idx] = { ...file, analyzed:true, lightingStatus:"etc_test", groupKey:"__ETC__" };
           }
