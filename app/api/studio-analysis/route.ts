@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     strict: "얼굴 밝기가 조금이라도 부족하면 ETC로 분류하세요.",
   }[lightingSensitivity as string] ?? "";
 
-  const prompt = `이 사진은 스튜디오 프로필 촬영 이미지입니다. 아래 기준으로만 분류하세요.
+  const prompt = `이 사진은 스튜디오 의사/병원 관계자 프로필 촬영 이미지입니다. 아래 기준으로만 분류하세요.
 
 1. 조명 상태 (lightingStatus):
    - "normal": 얼굴과 상체가 정상적으로 노출된 경우
@@ -26,29 +26,33 @@ export async function POST(req: NextRequest) {
    ${sensitivityNote}
    ★ 배경이 어둡다는 이유만으로 ETC 처리하지 마세요. 얼굴/상체가 정상이면 normal입니다.
 
-2. 의상 (clothingLabel):
-   - 겉옷(가운/자켓/수트)과 속옷(셔츠/스크럽)을 구분하세요.
-   - 한글 라벨로 의상 조합을 간결하게 작성하세요.
-   - 예시: 블루스트라이프셔츠_가운, 네이비스크럽, 네이비스크럽_가운, 화이트셔츠_넥타이, 가운_넥타이, 그레이스크럽
-   - 여러 명이 함께 있으면 "가족프로필_캐주얼" 형태로
-   - 최대 30자, 특수문자 금지
+2. 흰 가운 착용 여부 (hasGown): true | false
+   - 흰색 의사 가운(lab coat)을 겉에 입고 있으면 true
+   - 가운을 벗은 상태이거나 미착용이면 false
 
-3. 포즈 (poseType):
+3. 가운 안 의상 또는 주요 의상 (innerWear) — 아래 값 중 하나만 선택:
+   - "셔츠"      — 남성 셔츠 (넥타이 없음)
+   - "넥타이셔츠" — 남성 셔츠 + 넥타이 착용
+   - "스크럽"    — 스크럽복 (수술복 스타일, 남녀 공통)
+   - "블라우스"  — 여성 블라우스 또는 셔츠
+   - "탑"        — 여성 탑 또는 티셔츠
+   - "기타"      — 정장, 개인 복장, 또는 판단 불가
+
+4. 포즈 (poseType):
    - "Standing" 또는 "Sitting" 중 하나만 선택
-   - 팔짱·손깍지 등 세부 포즈는 분류 안 함
    - 의자·테이블에 앉아 있으면 Sitting
    - 판단 불가 시 "Unknown"
 
-4. 가족 프로필 여부 (isFamilyProfile): 여러 명이 함께 촬영된 경우 true
+5. 가족·단체 프로필 여부 (isFamilyProfile): 두 명 이상 함께 촬영된 경우 true
 
 반드시 아래 JSON 형식으로만 응답하세요:
 {
   "lightingStatus": "normal",
-  "clothingLabel": "한글의상라벨",
+  "hasGown": true,
+  "innerWear": "셔츠",
   "poseType": "Standing",
   "isFamilyProfile": false,
-  "confidence": 0.87,
-  "notes": ["메모1"]
+  "confidence": 0.87
 }`;
 
   try {
@@ -62,7 +66,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 300,
+        max_tokens: 150,
         messages: [{
           role: "user",
           content: [
