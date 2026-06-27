@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState, useCallback } from "react";
 import { RefreshCw, Camera, Copy, Check } from "lucide-react";
 
