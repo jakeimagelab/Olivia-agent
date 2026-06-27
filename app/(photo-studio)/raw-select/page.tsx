@@ -210,15 +210,17 @@ async function listJpgFiles(dirHandle: FileSystemDirectoryHandle): Promise<[stri
   return result.sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-async function buildRawIndex(rawDir: FileSystemDirectoryHandle): Promise<Map<string, FileSystemFileHandle>> {
-  const map = new Map<string, FileSystemFileHandle>();
+interface RawEntry { handle: FileSystemFileHandle; parent: FileSystemDirectoryHandle; }
+
+async function buildRawIndex(rawDir: FileSystemDirectoryHandle): Promise<Map<string, RawEntry>> {
+  const map = new Map<string, RawEntry>();
   async function traverse(dir: FileSystemDirectoryHandle) {
     for await (const [name, handle] of (dir as any).entries()) {
       if (handle.kind === "file") {
         const ext = name.split(".").pop()?.toLowerCase() ?? "";
         if (RAW_EXTS.has(ext)) {
           const base = name.replace(/\.[^.]+$/, "").toLowerCase();
-          map.set(base, handle);
+          map.set(base, { handle, parent: dir });
         }
       } else if (handle.kind === "directory") {
         await traverse(handle);
