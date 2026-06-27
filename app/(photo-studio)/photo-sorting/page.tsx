@@ -15,8 +15,9 @@ interface ScannedFile {
 }
 
 /* ── Field-mode types ── */
-type RejectReason = "ok" | "pending" | "blur" | "dark" | "overexposed";
+type RejectReason = "ok" | "pending" | "blur" | "dark" | "overexposed" | "eyes_closed";
 type SelectCount  = 3 | 5 | 7 | 10 | 0;
+type ExpressionType = "smile" | "focused" | "neutral" | "bad" | null;
 
 interface PhotoFile {
   name: string; basename: string;
@@ -25,7 +26,9 @@ interface PhotoFile {
   blurScore: number | null; brightness: number | null; hash: string | null;
   rejectReason: RejectReason; selected: boolean;
   dupGroupId: string | null; isDupRep: boolean;
-  isPortraitLike: boolean; // 카메라를 정면 응시하는 프로필성 컷
+  isPortraitLike: boolean;
+  expressionScore: number | null;   // AI 표정 점수 0~1
+  expressionType: ExpressionType;   // AI 표정 유형
 }
 
 interface Scene {
