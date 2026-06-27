@@ -50,6 +50,16 @@ type Extracted = {
 
 const NEXT_ACTIONS = ["견적서 만들기", "콘티 만들기", "제안서 만들기", "병원 이미지 진단 시작하기", "클라이언트 등록하기"];
 
+function relTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "방금";
+  if (m < 60) return `${m}분 전`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}시간 전`;
+  return `${Math.floor(h / 24)}일 전`;
+}
+
 function MemoPage() {
   const searchParams = useSearchParams();
   const dateParam    = searchParams.get("date") ?? "";
@@ -63,6 +73,13 @@ function MemoPage() {
   const [calAdding, setCalAdding]       = useState(false);
   const [calSaved, setCalSaved]         = useState(false);
   const [calError, setCalError]         = useState("");
+  const [history, setHistory]           = useState<HistoryMemo[]>([]);
+  const [historyOpen, setHistoryOpen]   = useState(true);
+  const [expandedId, setExpandedId]     = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/memo").then(r => r.json()).then(d => { if (d.ok) setHistory(d.memos); }).catch(() => {});
+  }, []);
 
   const analyze = async () => {
     if (!rawMemo.trim()) { setError("상담 메모를 입력해주세요."); return; }
