@@ -94,7 +94,7 @@ export async function GET() {
       workflowRuns: MOCK_WORKFLOW_RUNS,
       automation: {
         todayCreatedTasks: MOCK_AGENT_TASKS,
-        readyMailing: [{ id: "mail-sample-1", hospital_name: "운정표병원", subject: "[포토클리닉] 최종 촬영본 공유", status: "ready" }],
+        readyMailing: [{ id: "mail-sample-1", hospital_name: "포토클리닉", subject: "[포토클리닉] 최종 촬영본 공유", status: "ready" }],
         waitingCustomer: MOCK_WORKFLOW_RUNS.slice(0, 2),
         delayedRuns: MOCK_WORKFLOW_RUNS.filter((run) => run.delayed),
         movableRuns: MOCK_WORKFLOW_RUNS.slice(0, 1),
