@@ -449,12 +449,13 @@ export default function PhotoSortingPage() {
 
   /* ── field state ── */
   const [gapMinutes,  setGapMinutes]  = useState(10);
-  const [moveJpg,     setMoveJpg]     = useState(false);
   const [scenes,      setScenes]      = useState<Scene[]>([]);
   const [rawCount,    setRawCount]    = useState(0);
   const [activeScene, setActiveScene] = useState(0);
   const [copyLog,     setCopyLog]     = useState<string[]>([]);
   const [fieldStats,  setFieldStats]  = useState<FieldStats | null>(null);
+  const [jpgBaseDir,  setJpgBaseDir]  = useState<FileSystemDirectoryHandle | null>(null);
+  const [rawBaseDir,  setRawBaseDir]  = useState<FileSystemDirectoryHandle | null>(null);
 
   /* ── studio state ── */
   const [studioOpts, setStudioOpts] = useState<StudioOptions>({ lightingSensitivity:"medium" });
