@@ -466,11 +466,10 @@ export default function PhotoSortingPage() {
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       const file = await (handle as FileSystemFileHandle).getFile();
       if (RAW_EXTS.has(ext)) {
-        rawFiles.push({ name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified, visualVec:[] });
+        rawFiles.push({ name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified });
       } else if (JPG_EXTS.has(ext)) {
         setProgress({ cur:0, total:0, msg:`스캔: ${name}` });
-        const visualVec = await quickVisualVector(file);
-        jpgFiles.push({ name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified, visualVec });
+        jpgFiles.push({ name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified });
       }
     }
     setRawCount(rawFiles.length);
