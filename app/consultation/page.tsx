@@ -167,7 +167,7 @@ function ConsultationInner() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>병원이름 *</label>
-                    <input value={form.name} onChange={set("name")} placeholder="온유성형외과" style={iS} required />
+                    <input value={form.name} onChange={set("name")} placeholder="포토클리닉" style={iS} required />
                   </div>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>원장이름</label>
