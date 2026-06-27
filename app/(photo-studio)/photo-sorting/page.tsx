@@ -382,7 +382,7 @@ export default function PhotoSortingPage() {
   const [fieldStats,  setFieldStats]  = useState<FieldStats | null>(null);
 
   /* ── studio state ── */
-  const [studioOpts, setStudioOpts] = useState<StudioOptions>({ clothingSensitivity:"medium", lightingSensitivity:"medium" });
+  const [studioOpts, setStudioOpts] = useState<StudioOptions>({ lightingSensitivity:"medium" });
   const [studioFiles,  setStudioFiles]  = useState<StudioPhotoFile[]>([]);
   const [studioGroups, setStudioGroups] = useState<StudioGroup[]>([]);
   const [studioRawCount, setStudioRawCount] = useState(0);
