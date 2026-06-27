@@ -171,7 +171,7 @@ function ConsultationInner() {
                   </div>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>원장이름</label>
-                    <input value={form.director_name} onChange={set("director_name")} placeholder="홍길동 원장" style={iS} />
+                    <input value={form.director_name} onChange={set("director_name")} placeholder="정연호 원장" style={iS} />
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
