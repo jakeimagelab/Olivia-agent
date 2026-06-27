@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 
 /* ── 핵심 JS (index.html 원본 기반, 버그 수정) ────────────────── */
