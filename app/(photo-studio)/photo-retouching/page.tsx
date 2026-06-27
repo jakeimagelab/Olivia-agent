@@ -445,17 +445,6 @@ export default function PhotoRetouchingPage() {
       style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}
       onPaste={handleGlobalPaste}
     >
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
-          <div className="pc-header-divider"/>
-          <div className="pc-header-brand">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="" className="pc-header-logo"/>
-            <span className="pc-header-title">사진 보정</span>
-          </div>
-        </div>
-      </header>
-
       {/* 페이지 탭 */}
       <div style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px", display: "flex" }}>
