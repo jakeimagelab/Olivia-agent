@@ -1820,14 +1820,43 @@ export default function CalendarPage() {
             borderRadius: 8, fontSize: isMobile ? 11 : 12, fontWeight: 800,
             border: `1px solid ${C.border}`, background: C.surface, color: C.teal, cursor: "pointer",
           }}>오늘</button>
-          {!isMobile && (
-            <a href="/api/calendar/ics" target="_blank" rel="noreferrer"
-              style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700,
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setShowIcsModal(v => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 5, fontSize: isMobile ? 11 : 12, fontWeight: 700,
                 color: C.teal, background: C.mint, border: `1px solid ${C.border}`,
-                borderRadius: 8, padding: "6px 12px", textDecoration: "none" }}>
+                borderRadius: 8, padding: isMobile ? "5px 10px" : "6px 12px", cursor: "pointer", fontFamily: "inherit" }}>
               📱 아이폰 구독
-            </a>
-          )}
+            </button>
+            {showIcsModal && (
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 280,
+                background: "#fff", border: `1px solid ${C.border}`, borderRadius: 12,
+                boxShadow: "0 8px 24px rgba(0,0,0,.12)", padding: 16, zIndex: 999 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: C.teal, marginBottom: 10 }}>📱 아이폰 캘린더 구독</div>
+                <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.7, marginBottom: 12 }}>
+                  아이폰에서 아래 버튼을 탭하면<br/>캘린더 앱이 열리고 구독이 시작됩니다.
+                </div>
+                <a href={webcalUrl}
+                  style={{ display: "block", textAlign: "center", padding: "9px 0", background: C.teal,
+                    color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 800, textDecoration: "none", marginBottom: 10 }}>
+                  캘린더 앱으로 구독하기
+                </a>
+                <div style={{ fontSize: 10, color: C.hint, marginBottom: 6 }}>또는 URL 직접 복사:</div>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input readOnly value={webcalUrl}
+                    style={{ flex: 1, fontSize: 10, padding: "5px 8px", border: `1px solid ${C.border}`,
+                      borderRadius: 6, background: "#F8FFFE", color: C.muted, fontFamily: "monospace" }}/>
+                  <button onClick={() => { navigator.clipboard.writeText(webcalUrl); }}
+                    style={{ padding: "5px 10px", fontSize: 11, fontWeight: 700, background: C.mint,
+                      border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", color: C.teal, fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                    복사
+                  </button>
+                </div>
+                <div style={{ fontSize: 10, color: C.hint, marginTop: 8, lineHeight: 1.6 }}>
+                  💡 아이폰 설정 → 캘린더 → 계정 → 기타 → 구독 캘린더 추가에서도 URL을 붙여넣을 수 있습니다.
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
