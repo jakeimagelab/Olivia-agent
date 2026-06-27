@@ -736,14 +736,24 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
           const tasks      = tasksByDate[dateStr] ?? [];
           const dow        = (first + day - 1) % 7;
 
+          const isDragOver = dragOverDate === dateStr && dragTask?.date !== dateStr;
           return (
-            <div key={idx} onClick={() => onSelectDateAndAdd(dateStr)} style={{
-              overflow: "hidden", padding: "6px 5px 4px", cursor: "pointer",
-              background: isToday ? "#FFF5F4" : isSelected ? "#EAF4F2" : C.surface,
-              transition: "background .1s",
-              outline: isSelected ? `2px solid ${C.teal}` : isToday ? `2px solid ${C.todayRed}` : "none",
-              outlineOffset: "-2px",
-            }}>
+            <div key={idx}
+              onClick={() => onSelectDateAndAdd(dateStr)}
+              onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverDate(dateStr); }}
+              onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverDate(null); }}
+              onDrop={e => {
+                e.preventDefault();
+                if (dragTask && dragTask.date !== dateStr) onUpdateTask(dragTask.id, { date: dateStr });
+                setDragTask(null); setDragOverDate(null);
+              }}
+              style={{
+                overflow: "hidden", padding: "6px 5px 4px", cursor: "pointer",
+                background: isDragOver ? "#D4EDE8" : isToday ? "#FFF5F4" : isSelected ? "#EAF4F2" : C.surface,
+                transition: "background .1s",
+                outline: isDragOver ? `2px solid ${C.teal}` : isSelected ? `2px solid ${C.teal}` : isToday ? `2px solid ${C.todayRed}` : "none",
+                outlineOffset: "-2px",
+              }}>
               {/* date number */}
               <div style={{ display: "flex", justifyContent: "flex-end", paddingRight: 2, marginBottom: 3 }}>
                 <div style={{
@@ -764,14 +774,18 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                   const cat = CATS[t.category] ?? CATS.general;
                   return (
                     <div key={t.id}
+                      draggable
+                      onDragStart={e => { e.stopPropagation(); setDragTask(t); e.dataTransfer.effectAllowed = "move"; }}
+                      onDragEnd={() => { setDragTask(null); setDragOverDate(null); }}
                       onClick={e => { e.stopPropagation(); onSelectDate(dateStr); }}
                       style={{
                         fontSize: 10.5, fontWeight: 700, color: "#fff",
-                        background: t.completed ? "#A0AEC0" : cat.color,
+                        background: dragTask?.id === t.id ? "#A0AEC0" : t.completed ? "#A0AEC0" : cat.color,
                         borderRadius: 3, padding: "2px 5px",
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        opacity: t.completed ? 0.6 : 1,
-                        lineHeight: 1.3,
+                        opacity: dragTask?.id === t.id ? 0.4 : t.completed ? 0.6 : 1,
+                        lineHeight: 1.3, cursor: "grab",
+                        transition: "opacity .15s",
                       }}>
                       {t.time ? `${t.time.slice(0,5)} ` : ""}{t.title}
                     </div>
