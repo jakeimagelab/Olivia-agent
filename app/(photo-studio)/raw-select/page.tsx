@@ -372,7 +372,7 @@ export default function RawSelectPage() {
         if (data.ok && data.name) {
           const num = updated[i].originalName.replace(/\D/g, "").padStart(2, "0") || String(i + 1).padStart(2, "0");
           const suggested = `${num}_${data.name}`;
-          updated[i] = { ...updated[i], suggestedName: suggested, editedName: suggested, nameLoading: false };
+          updated[i] = { ...updated[i], suggestedName: suggested, editedName: suggested, nameLoading: false, nameConfidence: data.confidence, nameReason: data.reason };
         } else {
           updated[i] = { ...updated[i], nameLoading: false };
         }
