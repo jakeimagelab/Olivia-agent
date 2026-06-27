@@ -510,9 +510,9 @@ export default function PhotoSortingPage() {
             try { await (rootDir as any).removeEntry(sf.name); } catch {}
           }
           const thumb = photoFiles.length < 4 ? await loadThumb(await destHandle.getFile()) : null;
-          photoFiles.push({ name:sf.name, basename:sf.basename, handle:destHandle, mtime:sf.mtime, thumbUrl:thumb, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false });
+          photoFiles.push({ name:sf.name, basename:sf.basename, handle:destHandle, mtime:sf.mtime, thumbUrl:thumb, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false });
         } catch {
-          photoFiles.push({ name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime, thumbUrl:null, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false });
+          photoFiles.push({ name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime, thumbUrl:null, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false });
         }
         const action = moveJpg ? "이동" : "복사";
         done++; setCopyLog(prev => [...prev.slice(-30), `✅ ${sf.name} → ${originalName} (${action})`]);
