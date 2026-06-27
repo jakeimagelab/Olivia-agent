@@ -1547,13 +1547,13 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
           <div key={w} style={{ textAlign: "center", fontSize: 7.5, fontWeight: 700, paddingBottom: 2,
             color: i===0 ? "#DC2626" : i===6 ? "#2563EB" : C.hint }}>{w}</div>
         ))}
-        {cells.map((day, idx) => {
-          if (!day) return <div key={idx}/>;
-          const ds = `${year}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+        {cells.map((cell, idx) => {
+          if (!cell.isCurrent) return <div key={idx}/>;
+          const ds = `${cell.year}-${String(cell.month+1).padStart(2,"0")}-${String(cell.day).padStart(2,"0")}`;
           const isToday    = ds === todayStr;
           const isSelected = ds === selectedDate;
           const hasTasks   = (tasksByDate[ds]?.length ?? 0) > 0;
-          const dow = (first + day - 1) % 7;
+          const dow = new Date(cell.year, cell.month, cell.day).getDay();
           return (
             <div key={idx} onClick={e => { e.stopPropagation(); onSelectDate(ds); }}
               style={{ display: "flex", alignItems: "center", justifyContent: "center",
@@ -1565,7 +1565,7 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
               }}>
                 <span style={{ fontSize: 8, fontWeight: isToday || isSelected ? 900 : 600,
                   color: isToday || isSelected ? "#fff" : dow===0 ? "#DC2626" : dow===6 ? "#2563EB" : C.txt }}>
-                  {day}
+                  {cell.day}
                 </span>
               </div>
               {hasTasks && !isToday && !isSelected && (
