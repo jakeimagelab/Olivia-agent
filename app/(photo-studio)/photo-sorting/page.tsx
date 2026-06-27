@@ -766,28 +766,15 @@ export default function PhotoSortingPage() {
           )}
 
           {photoMode==="studio" && (
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <div>
-                <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>의상 변화 감지 강도</div>
-                <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                  {(["low","medium","high"] as ClothingSensitivity[]).map(v=>(
-                    <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
-                      <input type="radio" name="clothing" value={v} checked={studioOpts.clothingSensitivity===v} onChange={()=>setStudioOpts(o=>({...o,clothingSensitivity:v}))} style={{marginTop:1}}/>
-                      <span style={{color:studioOpts.clothingSensitivity===v?C.teal:C.muted,fontWeight:studioOpts.clothingSensitivity===v?800:500}}>{STUDIO_CLOTHING_SENSITIVITY[v]}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>조명 불량 ETC 기준</div>
-                <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                  {(["loose","medium","strict"] as LightingSensitivity[]).map(v=>(
-                    <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
-                      <input type="radio" name="lighting" value={v} checked={studioOpts.lightingSensitivity===v} onChange={()=>setStudioOpts(o=>({...o,lightingSensitivity:v}))} style={{marginTop:1}}/>
-                      <span style={{color:studioOpts.lightingSensitivity===v?C.teal:C.muted,fontWeight:studioOpts.lightingSensitivity===v?800:500}}>{STUDIO_LIGHTING_SENSITIVITY[v]}</span>
-                    </label>
-                  ))}
-                </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>조명 불량 ETC 기준</div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {(["loose","medium","strict"] as LightingSensitivity[]).map(v=>(
+                  <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
+                    <input type="radio" name="lighting" value={v} checked={studioOpts.lightingSensitivity===v} onChange={()=>setStudioOpts(o=>({...o,lightingSensitivity:v}))} style={{marginTop:1}}/>
+                    <span style={{color:studioOpts.lightingSensitivity===v?C.teal:C.muted,fontWeight:studioOpts.lightingSensitivity===v?800:500}}>{STUDIO_LIGHTING_SENSITIVITY[v]}</span>
+                  </label>
+                ))}
               </div>
             </div>
           )}
