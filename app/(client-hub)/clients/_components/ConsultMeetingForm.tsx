@@ -103,8 +103,8 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
   };
 
   const FIELDS: { key: keyof F; label: string; placeholder: string; type?: string }[] = [
-    { key: "name",         label: "병원이름 *",  placeholder: "온유성형외과",         type: "text" },
-    { key: "manager_name", label: "담당자",       placeholder: "김실장 / 홍길동 원장",  type: "text" },
+    { key: "name",         label: "병원이름 *",  placeholder: "포토클리닉",            type: "text" },
+    { key: "manager_name", label: "담당자",       placeholder: "정연호 / 정연호 원장",  type: "text" },
     { key: "phone",        label: "연락처",       placeholder: "010-1234-5678",        type: "tel"  },
     { key: "email",        label: "이메일",       placeholder: "contact@clinic.com",   type: "email"},
     { key: "department",   label: "진료과",       placeholder: "피부과, 성형외과",      type: "text" },
