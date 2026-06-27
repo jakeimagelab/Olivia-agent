@@ -317,7 +317,7 @@ export default function ContractPage() {
                   이메일
                 </label>
                 <input value={quote.email} onChange={e => updateQuote("email", e.target.value)}
-                  placeholder="hospital@email.com" style={iS}/>
+                  placeholder="photoclnic@gmail.com" style={iS}/>
               </div>
             </div>
           </div>
