@@ -715,7 +715,7 @@ export default function PhotoSortingPage() {
       if (handle.kind !== "file") continue;
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       const file = await (handle as FileSystemFileHandle).getFile();
-      const entry: ScannedFile = { name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified, visualVec:[] };
+      const entry: ScannedFile = { name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified };
       if (RAW_EXTS.has(ext)) rawFiles.push(entry);
       else if (JPG_EXTS.has(ext)) jpgFiles.push(entry);
     }
