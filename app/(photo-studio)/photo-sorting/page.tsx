@@ -11,7 +11,7 @@ type PhotoMode = "field" | "studio";
 interface ScannedFile {
   name: string; basename: string;
   handle: FileSystemFileHandle; mtime: number;
-  visualVec?: number[];
+  visualVec: number[];
 }
 
 /* ── Field-mode types ── */
