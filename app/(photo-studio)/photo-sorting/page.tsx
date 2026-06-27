@@ -1092,8 +1092,15 @@ export default function PhotoSortingPage() {
                   {f.isPortraitLike&&<div style={{position:"absolute",top:5,left:5,background:"#7C3AED",color:"#fff",fontSize:8,fontWeight:800,padding:"2px 6px",borderRadius:4,letterSpacing:0.5}}>📸 프로필</div>}
                   <div style={{padding:"4px 8px"}}>
                     <div style={{fontSize:9,color:C.hint,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
-                    {f.blurScore!=null&&<span style={{fontSize:8,background:C.light,color:C.teal,padding:"1px 4px",borderRadius:3}}>선명{f.blurScore.toFixed(0)}</span>}
-                    {f.rejectReason!=="ok"&&f.rejectReason!=="pending"&&<span style={{fontSize:8,background:"#FEE2E2",color:C.red,padding:"1px 4px",borderRadius:3,marginLeft:2}}>{rejectLabel[f.rejectReason]}</span>}
+                    <div style={{display:"flex",flexWrap:"wrap",gap:2,marginTop:2}}>
+                      {f.blurScore!=null&&<span style={{fontSize:8,background:C.light,color:C.teal,padding:"1px 4px",borderRadius:3}}>선명{f.blurScore.toFixed(0)}</span>}
+                      {f.expressionType&&exprBadge[f.expressionType]&&(
+                        <span style={{fontSize:8,background:exprBadge[f.expressionType].bg,color:exprBadge[f.expressionType].color,padding:"1px 4px",borderRadius:3}}>
+                          {exprBadge[f.expressionType].label}
+                          {f.expressionScore!=null&&` ${(f.expressionScore*100).toFixed(0)}`}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div style={{position:"absolute",top:5,right:5,width:18,height:18,borderRadius:"50%",background:f.selected?C.teal:"rgba(255,255,255,.8)",border:`2px solid ${f.selected?C.teal:C.border}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
                     {f.selected&&<span style={{color:"#fff",fontSize:10,fontWeight:900}}>✓</span>}
