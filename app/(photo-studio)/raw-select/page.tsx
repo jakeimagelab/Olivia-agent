@@ -931,22 +931,25 @@ export default function RawSelectPage() {
             <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>📊 리포트: <span style={{ fontFamily: "monospace", color: C.teal }}>{outputDir?.name}/AI_SELECT_REPORT</span></div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {[
-                { label: "RAW 매칭 리포트", file: "raw_match_report" },
-                { label: "선택 JPG 목록", file: "selected_jpg_list" },
-                { label: "제외 사진 목록", file: "rejected_photos" },
-              ].map(({ label, file }) => (
-                <Btn key={file} variant="secondary" onClick={() => {
-                  const rows2 = file === "raw_match_report"
-                    ? scenes.flatMap(s => s.files.filter(f => f.selected).map(f => [s.editedName, f.name, f.rawFile ?? "", f.rawStatus ?? "", f.rawFile ? `RAW_SELECT/${s.editedName}/${f.rawFile}` : ""]))
-                    : file === "selected_jpg_list"
-                    ? scenes.flatMap(s => s.files.filter(f => f.selected).map(f => [s.editedName, f.name, f.blurScore?.toFixed(1) ?? "", f.brightness?.toFixed(0) ?? "", f.dupGroupId ?? "", f.isDupRep ? "Y" : "", f.rawStatus ?? ""]))
-                    : scenes.flatMap(s => s.files.filter(f => f.rejectReason !== "ok" && f.rejectReason !== "pending").map(f => [s.editedName, f.name, f.rejectReason, f.blurScore?.toFixed(1) ?? "", f.brightness?.toFixed(0) ?? ""]));
-                  const headers2 = file === "raw_match_report" ? ["씬", "JPG", "RAW", "상태", "경로"]
-                    : file === "selected_jpg_list" ? ["씬", "JPG", "블러", "밝기", "중복그룹", "대표컷", "RAW 상태"]
-                    : ["씬", "JPG", "제외 사유", "블러", "밝기"];
-                  downloadCSV(makeCSV(headers2, rows2), `${file}.csv`);
-                }}>
+              {([
+                { label: "RAW 매칭 리포트", fn: () => downloadCSV(makeCSV(["씬","JPG","RAW","상태","저장 경로"], scenes.flatMap(s => s.files.filter(f => f.selected).map(f => [s.editedName, f.name, f.rawFile ?? "", f.rawStatus ?? "", f.rawFile ? `RAW_SELECT/${s.editedName}/${f.rawFile}` : ""]))), "raw_match_report.csv") },
+                { label: "선택 JPG 목록", fn: () => downloadCSV(makeCSV(["씬","JPG","블러","밝기","중복그룹","대표컷","RAW 상태"], scenes.flatMap(s => s.files.filter(f => f.selected).map(f => [s.editedName, f.name, f.blurScore?.toFixed(1) ?? "", f.brightness?.toFixed(0) ?? "", f.dupGroupId ?? "", f.isDupRep ? "Y" : "", f.rawStatus ?? ""]))), "selected_jpg_list.csv") },
+                { label: "제외 사진 목록", fn: () => downloadCSV(makeCSV(["씬","JPG","제외 사유","블러","밝기"], scenes.flatMap(s => s.files.filter(f => f.rejectReason !== "ok" && f.rejectReason !== "pending").map(f => [s.editedName, f.name, f.rejectReason === "blur" ? "흔들림" : f.rejectReason === "dark" ? "어두움" : "노출과다", f.blurScore?.toFixed(1) ?? "", f.brightness?.toFixed(0) ?? ""]))), "rejected_photos.csv") },
+                { label: "중복 그룹", fn: () => {
+                  const rows: string[][] = [];
+                  for (const s of scenes) {
+                    const groups = new Map<string, PhotoFile[]>();
+                    for (const f of s.files) { if (f.dupGroupId) { if (!groups.has(f.dupGroupId)) groups.set(f.dupGroupId, []); groups.get(f.dupGroupId)!.push(f); } }
+                    for (const [gid, fs] of groups.entries()) {
+                      const rep = fs.find(f => f.isDupRep);
+                      rows.push([s.editedName, gid, rep?.name ?? "", fs.filter(f => !f.isDupRep).map(f => f.name).join(" | ")]);
+                    }
+                  }
+                  downloadCSV(makeCSV(["씬","그룹ID","대표컷","중복파일"], rows), "duplicate_groups.csv");
+                }},
+                { label: "씬 네이밍 리포트", fn: () => downloadCSV(makeCSV(["원본 폴더","AI 추천","최종 폴더","신뢰도","판단 근거"], scenes.map(s => [s.originalName, s.suggestedName, s.editedName, s.nameConfidence != null ? (s.nameConfidence * 100).toFixed(0) + "%" : "", s.nameReason ?? ""])), "scene_naming_report.csv") },
+              ] as { label: string; fn: () => void }[]).map(({ label, fn }) => (
+                <Btn key={label} variant="secondary" onClick={fn}>
                   ↓ {label}
                 </Btn>
               ))}
