@@ -422,7 +422,7 @@ function BrandMailTab() {
                       <input type="email" value={toEmail}
                         onChange={e => { setToEmail(e.target.value); setContactSearch(e.target.value); setShowDropdown(true); }}
                         onFocus={() => { setShowDropdown(true); if (!contactsLoaded && session) loadContacts(); }}
-                        placeholder="client@email.com" style={{ ...iS, flex: 1 }} />
+                        placeholder="photoclnic@gmail.com" style={{ ...iS, flex: 1 }} />
                       {session ? (
                         <button onClick={() => { setShowDropdown(!showDropdown); loadContacts(); }}
                           style={{ height: 38, padding: "0 10px", background: C.mint, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
