@@ -540,9 +540,9 @@ export default function PhotoSortingPage() {
           const destHandle = await (sceneDir as any).getFileHandle(sf.name) as FileSystemFileHandle;
           try { await (rootDir as any).removeEntry(sf.name); } catch {}
           const thumb = photoFiles.length < 4 ? await loadThumb(await destHandle.getFile()) : null;
-          photoFiles.push({ name:sf.name, basename:sf.basename, handle:destHandle, mtime:sf.mtime, thumbUrl:thumb, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false });
+          photoFiles.push({ name:sf.name, basename:sf.basename, handle:destHandle, mtime:sf.mtime, thumbUrl:thumb, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false, expressionScore:null, expressionType:null });
         } catch {
-          photoFiles.push({ name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime, thumbUrl:null, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false });
+          photoFiles.push({ name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime, thumbUrl:null, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false, expressionScore:null, expressionType:null });
         }
         done++; setCopyLog(prev => [...prev.slice(-30), `✅ ${sf.name} → JPG(분류)/씬${sceneNum}`]);
       }
