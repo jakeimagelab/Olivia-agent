@@ -556,7 +556,9 @@ export default function PhotoSortingPage() {
           if (blurScore < 18) rejectReason = "blur";
           else if (brightness < 38) rejectReason = "dark";
           else if (brightness > 230) rejectReason = "overexposed";
-          updated[si].files[fi] = {...pf, blurScore, brightness, hash, thumbUrl, rejectReason};
+          const portraitScore = await computePortraitScore(file);
+          const isPortraitLike = portraitScore >= 0.58;
+          updated[si].files[fi] = {...pf, blurScore, brightness, hash, thumbUrl, rejectReason, isPortraitLike};
         } catch { updated[si].files[fi] = {...pf, rejectReason:"ok"}; }
         done++;
       }
