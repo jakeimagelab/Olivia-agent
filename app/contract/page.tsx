@@ -289,7 +289,7 @@ export default function ContractPage() {
                   병원명
                 </label>
                 <input value={quote.hospitalName} onChange={e => updateQuote("hospitalName", e.target.value)}
-                  placeholder="ABC병원" style={iS}/>
+                  placeholder="포토클리닉" style={iS}/>
               </div>
               <div>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 3 }}>
