@@ -583,7 +583,7 @@ export default function PhotoSortingPage() {
 
   const runStudioAnalysis = async (files: StudioPhotoFile[]) => {
     const total = files.length; let done = 0;
-    const CONCURRENCY = 4;
+    const CONCURRENCY = 8;
     const result = files.map(f => ({...f}));
     const indices = Array.from({length: total}, (_, i) => i);
     let qi = 0;
