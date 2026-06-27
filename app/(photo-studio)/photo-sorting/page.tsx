@@ -90,11 +90,6 @@ const C = {
   red:"#DC2626", yellow:"#D97706", purple:"#7C3AED",
 };
 
-const STUDIO_CLOTHING_SENSITIVITY: Record<ClothingSensitivity, string> = {
-  low:    "낮음 — 가운/스크럽/수트처럼 큰 변화만 분류",
-  medium: "보통 — 셔츠 컬러·가운 착용 여부까지 분류 (권장)",
-  high:   "높음 — 넥타이·스트라이프 등 세부 요소까지 분류",
-};
 const STUDIO_LIGHTING_SENSITIVITY: Record<LightingSensitivity, string> = {
   loose:  "느슨함 — 거의 시꺼먼 컷만 ETC",
   medium: "보통 — 얼굴이 명확히 어두운 컷 ETC (권장)",
