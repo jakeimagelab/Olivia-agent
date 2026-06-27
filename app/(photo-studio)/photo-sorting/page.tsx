@@ -261,6 +261,30 @@ async function getStudioThumb(file: File, maxSize = 480): Promise<string> {
 }
 
 
+async function quickVisualVector(file: File): Promise<number[]> {
+  return new Promise(res => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas"); c.width = 16; c.height = 16;
+      c.getContext("2d")!.drawImage(img, 0, 0, 16, 16);
+      const d = c.getContext("2d")!.getImageData(0, 0, 16, 16).data;
+      const v: number[] = [];
+      for (let i = 0; i < d.length; i += 4)
+        v.push((0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]) / 255);
+      URL.revokeObjectURL(url); res(v);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); res([]); };
+    img.src = url;
+  });
+}
+
+function visualDist(a: number[], b: number[]): number {
+  if (!a.length || !b.length) return 0;
+  let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]);
+  return s / a.length;
+}
+
 async function computePortraitScore(file: File): Promise<number> {
   // Returns 0-1. ≥0.58 → 카메라 정면 응시 프로필 컷으로 판단
   return new Promise(res => {
