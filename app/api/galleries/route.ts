@@ -128,8 +128,8 @@ const extractThumbnailFromNasLink = async (nasLink: string) => {
 const mockGalleries = [
   {
     id: "mock-gallery-1",
-    hospital_name: "온유성형외과",
-    contact_name: "김실장님",
+    hospital_name: "포토클리닉",
+    contact_name: "정연호",
     contact_email: "client@example.com",
     shoot_date: "2026-06-12",
     nas_link: "https://nas.photoclinic.kr/share/onyou-20260612",
