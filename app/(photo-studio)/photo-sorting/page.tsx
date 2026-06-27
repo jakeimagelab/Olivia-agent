@@ -991,6 +991,7 @@ export default function PhotoSortingPage() {
               return (
                 <div key={f.name} onClick={()=>setScenes(prev=>prev.map((s,i)=>i!==activeScene?s:{...s,files:s.files.map((pf,idx)=>idx===fi?{...pf,selected:!pf.selected}:pf)}))} style={{borderRadius:10,overflow:"hidden",border:`2px solid ${f.selected?C.teal:C.border}`,cursor:"pointer",background:C.white,position:"relative"}}>
                   {f.thumbUrl?<img src={f.thumbUrl} alt={f.name} style={{width:"100%",aspectRatio:"3/2",objectFit:"cover",display:"block"}}/>:<div style={{width:"100%",aspectRatio:"3/2",background:C.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:C.hint}}>로드 중</div>}
+                  {f.isPortraitLike&&<div style={{position:"absolute",top:5,left:5,background:"#7C3AED",color:"#fff",fontSize:8,fontWeight:800,padding:"2px 6px",borderRadius:4,letterSpacing:0.5}}>📸 프로필</div>}
                   <div style={{padding:"4px 8px"}}>
                     <div style={{fontSize:9,color:C.hint,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
                     {f.blurScore!=null&&<span style={{fontSize:8,background:C.light,color:C.teal,padding:"1px 4px",borderRadius:3}}>선명{f.blurScore.toFixed(0)}</span>}
