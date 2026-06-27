@@ -1638,6 +1638,16 @@ export default function CalendarPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  useEffect(() => {
+    if (!showIcsModal) return;
+    const close = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest("[data-ics-modal]")) setShowIcsModal(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showIcsModal]);
+
   const tasksByDate = useMemo(() => {
     const map: Record<string, CalTask[]> = {};
     for (const t of allTasks) {
