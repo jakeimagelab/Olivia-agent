@@ -95,6 +95,8 @@ function MemoPage() {
       setResult(data);
       setEdited({ ...data, preferred_date: data.preferred_date || dateParam || "" });
       setSaved(false);
+      // 히스토리 새로고침
+      fetch("/api/memo").then(r => r.json()).then(d => { if (d.ok) setHistory(d.memos); }).catch(() => {});
     } catch (e: any) {
       setError(e.message || "분석에 실패했습니다.");
     } finally {
