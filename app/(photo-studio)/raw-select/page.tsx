@@ -29,6 +29,8 @@ interface Scene {
   dirHandle: FileSystemDirectoryHandle;
   files: PhotoFile[];
   nameLoading: boolean;
+  nameConfidence?: number;
+  nameReason?: string;
 }
 
 interface Options {
