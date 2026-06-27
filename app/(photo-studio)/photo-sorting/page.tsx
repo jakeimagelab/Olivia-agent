@@ -42,11 +42,10 @@ interface FieldStats {
 /* ── Studio-mode types ── */
 type StudioLightingStatus = "normal" | "etc_dark" | "etc_black" | "etc_test";
 type StudioPoseType       = "Standing" | "Sitting" | "Unknown";
-type ClothingSensitivity  = "low" | "medium" | "high";
+type StudioInnerWear      = "셔츠" | "넥타이셔츠" | "스크럽" | "블라우스" | "탑" | "기타";
 type LightingSensitivity  = "loose" | "medium" | "strict";
 
 interface StudioOptions {
-  clothingSensitivity: ClothingSensitivity;
   lightingSensitivity: LightingSensitivity;
 }
 
@@ -55,9 +54,11 @@ interface StudioPhotoFile {
   handle: FileSystemFileHandle; mtime: number;
   thumbUrl: string | null; brightness: number | null;
   lightingStatus: StudioLightingStatus;
-  clothingLabel: string; poseType: StudioPoseType;
+  hasGown: boolean; innerWear: StudioInnerWear;
+  clothingLabel: string; // computed display string
+  poseType: StudioPoseType;
   isFamilyProfile: boolean; confidence: number;
-  notes: string[]; analyzed: boolean; groupKey: string;
+  analyzed: boolean; groupKey: string;
 }
 
 interface StudioGroup {
