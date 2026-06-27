@@ -580,17 +580,19 @@ export default function PhotoSortingPage() {
     setStep(3); cancelRef.current = false;
     const total = scenes.reduce((s,sc)=>s+sc.files.length,0); let done = 0;
     const updated = scenes.map(s=>({...s, files:s.files.map(f=>({...f}))}));
+
+    // ① 1차: Canvas 분석 (선명도·밝기·해시) — 순차
     for (let si = 0; si < updated.length; si++) {
       for (let fi = 0; fi < updated[si].files.length; fi++) {
         if (cancelRef.current) break;
         const pf = updated[si].files[fi];
-        setProgress({ cur:done, total, msg:`${updated[si].editedName} / ${pf.name}` });
+        setProgress({ cur:done, total, msg:`선명도 분석: ${pf.name}` });
         try {
           const file = await pf.handle.getFile();
           const { blurScore, brightness, hash, thumbUrl } = await analyzeJpg(file);
           let rejectReason: RejectReason = "ok";
-          if (blurScore < 18) rejectReason = "blur";
-          else if (brightness < 38) rejectReason = "dark";
+          if (blurScore < 18)   rejectReason = "blur";
+          else if (brightness < 38)  rejectReason = "dark";
           else if (brightness > 230) rejectReason = "overexposed";
           const portraitScore = await computePortraitScore(file);
           const isPortraitLike = portraitScore >= 0.58;
@@ -601,12 +603,60 @@ export default function PhotoSortingPage() {
       updated[si].files = applyDuplicates(updated[si].files);
       setScenes([...updated]);
     }
+
+    // ② 2차: AI 표정·눈감힘 분석 — 8개 병렬 (기술 필터 통과한 사진만)
+    setProgress({ cur:0, total, msg:"AI 표정 분석 중..." });
+    const CONC = 8;
+    for (let si = 0; si < updated.length; si++) {
+      const okIndices = updated[si].files
+        .map((f, i) => ({ f, i }))
+        .filter(({ f }) => f.rejectReason === "ok");
+
+      for (let bi = 0; bi < okIndices.length; bi += CONC) {
+        if (cancelRef.current) break;
+        const batch = okIndices.slice(bi, bi + CONC);
+        setProgress({ cur:bi, total:okIndices.length, msg:`${updated[si].editedName || updated[si].originalName} 표정 분석 (${bi+1}/${okIndices.length})` });
+        await Promise.all(batch.map(async ({ f, i }) => {
+          try {
+            const file = await f.handle.getFile();
+            const thumb = await getApiThumb(file);
+            const res = await fetch("/api/photo-quality", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ thumbnail: thumb }),
+            });
+            const data = await res.json();
+            if (data.ok) {
+              const rejectReason: RejectReason = data.eyesClosed ? "eyes_closed" : f.rejectReason;
+              updated[si].files[i] = {
+                ...updated[si].files[i],
+                rejectReason,
+                expressionScore: data.expressionScore ?? null,
+                expressionType: data.expressionType ?? null,
+              };
+            }
+          } catch {}
+        }));
+      }
+      setScenes([...updated]);
+    }
+
     setProgress({ cur:total, total, msg:"분석 완료" });
+
+    // ③ 자동 선택: 눈감힘 제외 후 표정 점수 → 선명도 순
     const withSel = updated.map(sc => {
-      const cands = sc.files.filter(f=>f.rejectReason==="ok"&&(f.dupGroupId===null||f.isDupRep));
-      const n = sc.selectCount===0?cands.length:Math.min(sc.selectCount,cands.length);
-      const topNames = new Set([...cands].sort((a,b)=>(b.blurScore??0)-(a.blurScore??0)).slice(0,n).map(f=>f.name));
-      return {...sc, files:sc.files.map(f=>({...f, selected:topNames.has(f.name)}))};
+      const cands = sc.files.filter(f =>
+        f.rejectReason === "ok" && (f.dupGroupId === null || f.isDupRep)
+      );
+      const n = sc.selectCount === 0 ? cands.length : Math.min(sc.selectCount, cands.length);
+      const topNames = new Set(
+        [...cands].sort((a, b) => {
+          const eDiff = (b.expressionScore ?? 0) - (a.expressionScore ?? 0);
+          if (Math.abs(eDiff) > 0.1) return eDiff;
+          return (b.blurScore ?? 0) - (a.blurScore ?? 0);
+        }).slice(0, n).map(f => f.name)
+      );
+      return { ...sc, files: sc.files.map(f => ({ ...f, selected: topNames.has(f.name) })) };
     });
     setScenes(withSel); setStep(4);
   }, [scenes]);
