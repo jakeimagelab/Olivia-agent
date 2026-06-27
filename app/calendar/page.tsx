@@ -742,15 +742,15 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)",
         gridAutoRows: "108px", gap: "1px", background: C.border,
         border: `1px solid ${C.border}`, flex: 1, overflow: "hidden" }}>
-        {cells.map((day, idx) => {
-          if (!day) return <div key={idx} style={{ background: C.bg }}/>;
-          const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+        {cells.map((cell, idx) => {
+          const dateStr    = `${cell.year}-${String(cell.month+1).padStart(2,"0")}-${String(cell.day).padStart(2,"0")}`;
           const isToday    = dateStr === todayStr;
           const isSelected = dateStr === selectedDate;
           const tasks      = tasksByDate[dateStr] ?? [];
-          const dow        = (first + day - 1) % 7;
-
+          const dow        = new Date(cell.year, cell.month, cell.day).getDay();
           const isDragOver = dragOverDate === dateStr && dragTask?.date !== dateStr;
+          const dimmed     = !cell.isCurrent;
+
           return (
             <div key={idx}
               onClick={() => onSelectDateAndAdd(dateStr)}
@@ -763,7 +763,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
               }}
               style={{
                 overflow: "hidden", padding: "6px 5px 4px", cursor: "pointer",
-                background: isDragOver ? "#D4EDE8" : isToday ? "#FFF5F4" : isSelected ? "#EAF4F2" : C.surface,
+                background: isDragOver ? "#D4EDE8" : isToday ? "#FFF5F4" : isSelected ? "#EAF4F2" : dimmed ? "#F3F6F5" : C.surface,
                 transition: "background .1s",
                 outline: isDragOver ? `2px solid ${C.teal}` : isSelected ? `2px solid ${C.teal}` : isToday ? `2px solid ${C.todayRed}` : "none",
                 outlineOffset: "-2px",
@@ -776,9 +776,11 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                   <span style={{
-                    fontSize: 14, fontWeight: isToday ? 900 : isSelected ? 800 : 600,
+                    fontSize: 14,
+                    fontWeight: isToday ? 900 : isSelected ? 800 : 600,
+                    opacity: dimmed ? 0.38 : 1,
                     color: isToday ? "#fff" : dow===0 ? "#C0201A" : dow===6 ? "#1D4ED8" : C.txt,
-                  }}>{day}</span>
+                  }}>{cell.day}</span>
                 </div>
               </div>
 
@@ -797,7 +799,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                         background: dragTask?.id === t.id ? "#A0AEC0" : t.completed ? "#A0AEC0" : cat.color,
                         borderRadius: 3, padding: "2px 5px",
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        opacity: dragTask?.id === t.id ? 0.4 : t.completed ? 0.6 : 1,
+                        opacity: dragTask?.id === t.id ? 0.4 : dimmed ? 0.45 : t.completed ? 0.6 : 1,
                         lineHeight: 1.3, cursor: "grab",
                         transition: "opacity .15s",
                       }}>
@@ -806,7 +808,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                   );
                 })}
                 {tasks.length > 4 && (
-                  <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, paddingLeft: 3, lineHeight: 1 }}>
+                  <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, paddingLeft: 3, lineHeight: 1, opacity: dimmed ? 0.45 : 1 }}>
                     +{tasks.length-4}개 더
                   </span>
                 )}
