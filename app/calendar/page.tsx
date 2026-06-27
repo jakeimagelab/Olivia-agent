@@ -1532,7 +1532,7 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
   tasksByDate: Record<string, CalTask[]>;
   onSelectDate: (d: string) => void; onClick: () => void;
 }) {
-  const { cells, first } = buildMonthCells(year, m);
+  const { cells } = buildMonthCells(year, m);
   return (
     <div onClick={onClick} style={{
       background: C.surface, border: `1px solid ${C.border}`,
