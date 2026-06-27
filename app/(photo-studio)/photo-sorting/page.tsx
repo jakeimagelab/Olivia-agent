@@ -261,10 +261,20 @@ async function quickBrightness(file: File): Promise<number> {
   });
 }
 
+function computeClothingLabel(hasGown: boolean, innerWear: StudioInnerWear, isFamilyProfile: boolean): string {
+  if (isFamilyProfile) return "가족프로필";
+  return hasGown ? `가운+${innerWear}` : innerWear;
+}
+
+function computeGroupKey(hasGown: boolean, innerWear: StudioInnerWear, poseType: StudioPoseType, isFamilyProfile: boolean): string {
+  if (isFamilyProfile) return `가족프로필_${poseType}`;
+  return `${hasGown ? "가운" : "노가운"}_${innerWear}_${poseType}`;
+}
+
 function createStudioFolderName(index: number, clothingLabel: string, poseType: StudioPoseType, isFamilyProfile: boolean): string {
   const prefix = String(index).padStart(2, "0");
   const type = isFamilyProfile ? "가족프로필" : "프로필";
-  const clean = clothingLabel.replace(/[/\\:*?"<>|]/g, "").replace(/\s+/g, "_").slice(0, 30);
+  const clean = clothingLabel.replace(/[/\\:*?"<>|]/g, "").replace(/\s+/g, "");
   return poseType === "Unknown" ? `${prefix}_${type}_${clean}` : `${prefix}_${type}_${clean}_${poseType}`;
 }
 
@@ -272,23 +282,24 @@ function buildStudioGroups(files: StudioPhotoFile[]): StudioGroup[] {
   const etcFiles    = files.filter(f => f.groupKey === "__ETC__");
   const normalFiles = files.filter(f => f.groupKey !== "__ETC__");
 
-  // Consecutive grouping — same clothing+pose run = same group
-  const runs: { key: string; files: StudioPhotoFile[] }[] = [];
-  for (const file of normalFiles) {
-    const last = runs[runs.length - 1];
-    if (last && last.key === file.groupKey) last.files.push(file);
-    else runs.push({ key: file.groupKey, files: [file] });
+  // 같은 groupKey는 촬영 순서 무관하게 하나로 합산
+  const groupMap = new Map<string, StudioPhotoFile[]>();
+  const keyOrder: string[] = [];
+  for (const f of normalFiles) {
+    if (!groupMap.has(f.groupKey)) { groupMap.set(f.groupKey, []); keyOrder.push(f.groupKey); }
+    groupMap.get(f.groupKey)!.push(f);
   }
 
   const groups: StudioGroup[] = [];
   let idx = 1;
-  for (const run of runs) {
-    const first = run.files[0];
-    const isFamily = run.files.some(f => f.isFamilyProfile);
+  for (const key of keyOrder) {
+    const groupFiles = groupMap.get(key)!;
+    const first = groupFiles[0];
+    const isFamily = groupFiles.some(f => f.isFamilyProfile);
     const folderName = createStudioFolderName(idx, first.clothingLabel, first.poseType, isFamily);
     groups.push({
-      key: run.key, clothingLabel: first.clothingLabel, poseType: first.poseType,
-      isFamilyProfile: isFamily, files: run.files,
+      key, clothingLabel: first.clothingLabel, poseType: first.poseType,
+      isFamilyProfile: isFamily, files: groupFiles,
       suggestedFolderName: folderName, editedFolderName: folderName,
       index: idx, isEtc: false,
     });
