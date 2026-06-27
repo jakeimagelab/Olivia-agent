@@ -1176,15 +1176,15 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         </div>
       </div>
 
-      {/* Ghost card — floats above everything, follows cursor smoothly */}
+      {/* Ghost card — floats above everything, position updated via ref (no React re-render) */}
       {dragging && (() => {
         const cat = CATS[dragging.task.category] ?? CATS.general;
         const cardW = 130;
         return (
-          <div style={{
+          <div ref={ghostRef} style={{
             position: "fixed", left: 0, top: 0, pointerEvents: "none", zIndex: 9999,
             willChange: "transform",
-            transform: `translate(${dragging.currentX - dragging.offsetX}px, ${dragging.currentY - dragging.offsetY}px) rotate(2deg) scale(1.05)`,
+            transform: `translate(${dragging.currentX - dragging.offsetX}px,${dragging.currentY - dragging.offsetY}px) rotate(2deg) scale(1.05)`,
           }}>
             <div style={{
               width: cardW,
