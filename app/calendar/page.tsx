@@ -710,7 +710,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
   onUpdateTask: (id: string, fields: Partial<CalTask>) => void;
   onPrev: () => void; onNext: () => void;
 }) {
-  const { cells, first } = buildMonthCells(year, month);
+  const { cells } = buildMonthCells(year, month);
   const [dragTask,     setDragTask]     = useState<CalTask | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
