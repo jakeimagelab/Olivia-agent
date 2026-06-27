@@ -125,6 +125,22 @@ async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirecto
   await wr.write(buf); await wr.close();
 }
 
+// 폴더 이름 변경: 파일을 새 폴더로 이동 후 기존 폴더 삭제
+async function renameDirHandle(parentDir: any, oldName: string, newName: string, srcDir: any): Promise<FileSystemDirectoryHandle> {
+  if (oldName === newName) return srcDir as FileSystemDirectoryHandle;
+  const newDir = await parentDir.getDirectoryHandle(newName, { create: true });
+  const entries: [string, FileSystemFileHandle][] = [];
+  for await (const [fname, fhandle] of srcDir.entries()) {
+    if (fhandle.kind === "file") entries.push([fname, fhandle as FileSystemFileHandle]);
+  }
+  for (const [fname, fhandle] of entries) {
+    await copyFileHandle(fhandle, newDir as FileSystemDirectoryHandle, fname);
+    await srcDir.removeEntry(fname);
+  }
+  try { await parentDir.removeEntry(oldName); } catch {}
+  return newDir as FileSystemDirectoryHandle;
+}
+
 function makeCSV(headers: string[], rows: string[][]): string {
   const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
   return [headers.map(esc).join(","), ...rows.map(r => r.map(esc).join(","))].join("\n");
