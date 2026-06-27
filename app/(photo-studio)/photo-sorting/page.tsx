@@ -670,9 +670,9 @@ export default function PhotoSortingPage() {
         }
 
         if (group.isEtc) {
-          etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), "", "", file.notes.join("; ")]);
+          etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), "", "", ""]);
         }
-        classRows.push([file.name, "", folderName, file.clothingLabel, file.poseType, file.lightingStatus, String(Math.round(file.confidence*100)/100), file.notes.join("; ")]);
+        classRows.push([file.name, "", folderName, file.clothingLabel, file.poseType, file.lightingStatus, String(Math.round(file.confidence*100)/100), ""]);
         processed++;
         setStudioCopyLog([...log]);
       }
