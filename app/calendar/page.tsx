@@ -1797,6 +1797,7 @@ export default function CalendarPage() {
                 selectedDate={selectedDate} tasksByDate={tasksByDate}
                 onSelectDate={handleSelectDate}
                 onSelectDateAndAdd={handleSelectDateAndAdd}
+                onUpdateTask={updateTaskFields}
                 onPrev={prevPeriod} onNext={nextPeriod}/>
             </div>
             {/* 데스크탑: 우측 사이드 패널 */}
