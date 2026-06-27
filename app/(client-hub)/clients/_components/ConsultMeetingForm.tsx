@@ -175,7 +175,7 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             rows={5}
-            placeholder={"오늘 ABC피부과 김실장님과 통화. 010-1234-5678, contact@abc.com\n피부과 전문으로 리프팅 시술 위주 촬영 희망. 예산 150만원 내외, 평일 오전 선호."}
+            placeholder={"오늘 포토클리닉 정연호 실장님과 통화. 010-0000-0000, photoclnic@gmail.com\n피부과 전문으로 리프팅 시술 위주 촬영 희망. 예산 150만원 내외, 평일 오전 선호."}
             style={{ ...iS, height: "auto", padding: "12px", resize: "vertical", lineHeight: 1.7, fontSize: 12 }}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
