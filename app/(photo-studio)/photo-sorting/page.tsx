@@ -25,6 +25,7 @@ interface PhotoFile {
   blurScore: number | null; brightness: number | null; hash: string | null;
   rejectReason: RejectReason; selected: boolean;
   dupGroupId: string | null; isDupRep: boolean;
+  isPortraitLike: boolean; // 카메라를 정면 응시하는 프로필성 컷
 }
 
 interface Scene {
