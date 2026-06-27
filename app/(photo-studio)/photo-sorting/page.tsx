@@ -395,6 +395,7 @@ export default function PhotoSortingPage() {
 
   /* ── field state ── */
   const [gapMinutes,  setGapMinutes]  = useState(10);
+  const [moveJpg,     setMoveJpg]     = useState(false);
   const [scenes,      setScenes]      = useState<Scene[]>([]);
   const [rawCount,    setRawCount]    = useState(0);
   const [activeScene, setActiveScene] = useState(0);
