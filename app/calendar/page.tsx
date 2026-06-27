@@ -78,11 +78,25 @@ function getWeekDates(dateStr: string): Date[] {
   });
 }
 
+type MonthCell = { year: number; month: number; day: number; isCurrent: boolean };
+
 function buildMonthCells(year: number, month: number) {
-  const first = new Date(year, month, 1).getDay();
-  const days  = new Date(year, month+1, 0).getDate();
-  const cells = [...Array(first).fill(null), ...Array.from({length: days}, (_, i) => i+1)];
-  while (cells.length % 7 !== 0) cells.push(null);
+  const first    = new Date(year, month, 1).getDay();
+  const days     = new Date(year, month+1, 0).getDate();
+  const prevY    = month === 0 ? year-1 : year;
+  const prevM    = month === 0 ? 11 : month-1;
+  const prevDays = new Date(prevY, prevM+1, 0).getDate();
+  const nextY    = month === 11 ? year+1 : year;
+  const nextM    = month === 11 ? 0 : month+1;
+
+  const cells: MonthCell[] = [];
+  for (let i = first-1; i >= 0; i--)
+    cells.push({ year: prevY, month: prevM, day: prevDays-i, isCurrent: false });
+  for (let d = 1; d <= days; d++)
+    cells.push({ year, month, day: d, isCurrent: true });
+  let nd = 1;
+  while (cells.length % 7 !== 0)
+    cells.push({ year: nextY, month: nextM, day: nd++, isCurrent: false });
   return { cells, first };
 }
 
