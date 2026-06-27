@@ -179,7 +179,7 @@ export default function DeliveryMailPage() {
                     담당자명
                   </label>
                   <input value={toName} onChange={e => setToName(e.target.value)}
-                    placeholder="홍길동 실장님" style={iS}/>
+                    placeholder="정연호 실장님" style={iS}/>
                 </div>
                 <div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
