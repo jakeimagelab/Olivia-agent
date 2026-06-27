@@ -889,24 +889,17 @@ export default function PhotoSortingPage() {
           </button>
 
           {photoMode==="field" && (
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div>
                 <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:8}}>씬 구분 시간 간격: <span style={{color:C.teal}}>{gapMinutes}분</span></div>
                 <input type="range" min={3} max={60} value={gapMinutes} onChange={e=>setGapMinutes(Number(e.target.value))} style={{width:"100%"}}/>
-                <div style={{fontSize:10,color:C.hint,marginTop:4}}>연속 JPG 사이 {gapMinutes}분 이상 공백 OR 장면 구성이 크게 달라지면 → 다른 씬</div>
+                <div style={{fontSize:10,color:C.hint,marginTop:4}}>시간 초과 OR 장면 구성 변화 감지 → 다른 씬으로 분리</div>
               </div>
-              <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",userSelect:"none"}}>
-                <input type="checkbox" checked={moveJpg} onChange={e=>setMoveJpg(e.target.checked)} style={{width:16,height:16,accentColor:C.orange,cursor:"pointer"}}/>
-                <span style={{fontSize:12,fontWeight:800,color:moveJpg?C.orange:C.muted}}>
-                  JPG 이동 모드 (원본 자동 삭제)
-                </span>
-              </label>
-              {moveJpg && (
-                <div style={{padding:"10px 14px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980",lineHeight:1.7}}>
-                  ⚠️ JPG가 씬 폴더로 <strong>이동</strong>됩니다. 원본 위치에서 삭제되며 <strong>복구 불가</strong>합니다.<br/>
-                  RAW 파일은 이동하지 않습니다.
-                </div>
-              )}
+              <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.7}}>
+                📂 RAW → <strong>RAW(원본)/</strong> 이동<br/>
+                🖼 JPG → <strong>JPG(분류)/씬폴더/</strong> 이동<br/>
+                ✅ 선택본 → <strong>Selected[XX]/</strong> (씬 폴더 내부)
+              </div>
             </div>
           )}
 
