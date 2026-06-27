@@ -609,60 +609,73 @@ export default function PhotoSortingPage() {
   }, [scenes]);
 
   const runFieldOutput = useCallback(async () => {
-    if (!rootDir) return;
+    if (!rootDir || !jpgBaseDir || !rawBaseDir) return;
     setStep(5); cancelRef.current = false;
     const log: string[] = [], rawMatchRows: string[][] = [];
-    const rootName = rootDir.name;
-    const selectedJpgDir = await (rootDir as any).getDirectoryHandle(`selected_${rootName}`, { create:true });
-    const selectedRawDir = await (rootDir as any).getDirectoryHandle("Selected_RAW",          { create:true });
+
+    // RAW 인덱스: RAW(원본)/ 에서 스캔
     const rawIndex = new Map<string, FileSystemFileHandle>();
-    for await (const [name, handle] of (rootDir as any).entries()) {
+    for await (const [name, handle] of (rawBaseDir as any).entries()) {
       if (handle.kind !== "file") continue;
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/,"").toLowerCase(), handle as FileSystemFileHandle);
     }
+    const selectedRawDir = await (rawBaseDir as any).getDirectoryHandle("SelectedRAW", { create:true }) as FileSystemDirectoryHandle;
+
     const selectedTotal = scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.selected).length,0);
     let processed = 0, rawCopied = 0, rawMissing = 0;
     const updated = scenes.map(s=>({...s, files:s.files.map(f=>({...f}))}));
-    // 프로필 컷 전용 폴더 (씬 무관하게 공통으로 사용)
     let portraitOutDir: FileSystemDirectoryHandle | null = null;
+
     for (let si = 0; si < updated.length; si++) {
       const sc = updated[si];
-      const sceneName = sc.editedName||sc.originalName;
-      const sceneOutDir = await (selectedJpgDir as any).getDirectoryHandle(sceneName, { create:true });
+      const sceneNum = String(sc.index).padStart(2,"0");
+      const sceneName = sc.editedName || sc.originalName;
+      // 선택 파일 폴더: 씬 폴더 내부에 Selected[XX]/ 생성
+      const selectedSubDir = await (sc.sceneDir as any).getDirectoryHandle(`Selected${sceneNum}`, { create:true }) as FileSystemDirectoryHandle;
+
       for (let fi = 0; fi < sc.files.length; fi++) {
         if (!sc.files[fi].selected) continue;
         if (cancelRef.current) break;
         const pf = sc.files[fi];
         setProgress({ cur:processed, total:selectedTotal, msg:`파일 정리: ${pf.name}` });
-        // 카메라 응시 프로필 컷 → 별도 프로필 폴더
-        let destJpgDir = sceneOutDir;
+
+        // 프로필 컷 → JPG(분류)/프로필/
+        let destJpgDir: FileSystemDirectoryHandle = selectedSubDir;
         if (pf.isPortraitLike) {
-          if (!portraitOutDir) portraitOutDir = await (selectedJpgDir as any).getDirectoryHandle("프로필", { create:true });
+          if (!portraitOutDir) portraitOutDir = await (jpgBaseDir as any).getDirectoryHandle("프로필", { create:true }) as FileSystemDirectoryHandle;
           destJpgDir = portraitOutDir;
         }
-        try { await copyFileHandle(pf.handle, destJpgDir, pf.name); log.push(`✅ JPG${pf.isPortraitLike?" [프로필]":""}: ${pf.name}`); } catch { log.push(`❌ JPG: ${pf.name} 실패`); }
+        try {
+          await copyFileHandle(pf.handle, destJpgDir, pf.name);
+          try { await (sc.sceneDir as any).removeEntry(pf.name); } catch {}
+          log.push(`✅ JPG${pf.isPortraitLike?" [프로필]":""}: ${pf.name}`);
+        } catch { log.push(`❌ JPG: ${pf.name} 실패`); }
+
+        // 매칭 RAW: RAW(원본)/에서 찾아 SelectedRAW/로 이동
         const rawHandle = rawIndex.get(pf.basename.toLowerCase());
         if (rawHandle) {
           try {
             const rawFile = await rawHandle.getFile();
             await copyFileHandle(rawHandle, selectedRawDir, rawFile.name);
+            try { await (rawBaseDir as any).removeEntry(rawFile.name); } catch {}
             log.push(`✅ RAW: ${rawFile.name}`);
-            rawMatchRows.push([pf.isPortraitLike?"프로필":sceneName, pf.name, rawFile.name, "복사 완료"]); rawCopied++;
-          } catch { log.push(`❌ RAW: ${pf.basename} 복사 실패`); rawMatchRows.push([sceneName, pf.name, "", "실패"]); }
+            rawMatchRows.push([pf.isPortraitLike?"프로필":sceneName, pf.name, rawFile.name, "이동 완료"]); rawCopied++;
+          } catch { log.push(`❌ RAW: ${pf.basename} 이동 실패`); rawMatchRows.push([sceneName, pf.name, "", "실패"]); }
         } else { log.push(`⚠️ RAW: ${pf.basename} 없음`); rawMatchRows.push([sceneName, pf.name, "", "누락"]); rawMissing++; }
         processed++; setCopyLog([...log]);
       }
       setScenes([...updated]);
     }
-    const reportDir = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
+    // 리포트: JPG(분류)/_AI_REPORT/ 에 저장
+    const reportDir = await (jpgBaseDir as any).getDirectoryHandle("_AI_REPORT", { create:true });
     const wr = async (name: string, content: string) => {
       try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch {}
     };
     await wr("raw_match_report.csv", makeCSV(["씬","선택JPG","RAW","상태"], rawMatchRows));
     setFieldStats({ totalJpg:scenes.reduce((s,sc)=>s+sc.files.length,0), totalRaw:rawCount, totalScenes:scenes.length, totalRejected:scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.rejectReason!=="ok"&&f.rejectReason!=="pending").length,0), totalDupRemoved:scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.dupGroupId!==null&&!f.isDupRep).length,0), totalSelected:scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.selected).length,0), totalRawCopied:rawCopied, totalRawMissing:rawMissing });
     setStep(6);
-  }, [scenes, rootDir, rawCount]);
+  }, [scenes, rootDir, jpgBaseDir, rawBaseDir, rawCount]);
 
   /* ════════════════════════════════════════════
      STUDIO-MODE HANDLERS
