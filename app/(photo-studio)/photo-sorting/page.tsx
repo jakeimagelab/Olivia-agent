@@ -615,7 +615,7 @@ export default function PhotoSortingPage() {
             const rawFile = await rawHandle.getFile();
             await copyFileHandle(rawHandle, selectedRawDir, rawFile.name);
             log.push(`✅ RAW: ${rawFile.name}`);
-            rawMatchRows.push([sceneName, pf.name, rawFile.name, "복사 완료"]); rawCopied++;
+            rawMatchRows.push([pf.isPortraitLike?"프로필":sceneName, pf.name, rawFile.name, "복사 완료"]); rawCopied++;
           } catch { log.push(`❌ RAW: ${pf.basename} 복사 실패`); rawMatchRows.push([sceneName, pf.name, "", "실패"]); }
         } else { log.push(`⚠️ RAW: ${pf.basename} 없음`); rawMatchRows.push([sceneName, pf.name, "", "누락"]); rawMissing++; }
         processed++; setCopyLog([...log]);
