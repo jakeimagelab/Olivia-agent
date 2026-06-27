@@ -296,7 +296,7 @@ export default function ContractPage() {
                   대표원장
                 </label>
                 <input value={quote.contactName} onChange={e => updateQuote("contactName", e.target.value)}
-                  placeholder="홍길동" style={iS}/>
+                  placeholder="정연호" style={iS}/>
               </div>
               <div>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 3 }}>
