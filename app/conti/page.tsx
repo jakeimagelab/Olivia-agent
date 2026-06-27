@@ -1853,7 +1853,7 @@ ${header("타임테이블")}
                   <input
                     value={resultTitle}
                     onChange={e => setResultTitle(e.target.value)}
-                    placeholder="제목 입력 (예: ABC병원 촬영 콘티)"
+                    placeholder="제목 입력 (예: 포토클리닉 촬영 콘티)"
                     style={{
                       fontSize: 28, fontWeight: 800, color: "var(--deep-green)",
                       fontFamily: "inherit",
