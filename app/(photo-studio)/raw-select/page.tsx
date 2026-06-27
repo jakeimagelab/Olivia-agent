@@ -429,7 +429,7 @@ export default function RawSelectPage() {
     setStep(4);
   }, [scenes, options]);
 
-  /* ── Step 5: RAW copy ───────────────────────────────────── */
+  /* ── Step 5: RAW copy / move ───────────────────────────── */
   const runRawCopy = useCallback(async () => {
     if (!rawDir || !outputDir) return;
     setStep(5);
@@ -440,10 +440,11 @@ export default function RawSelectPage() {
     const reportsDir = await (outputDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create: true });
 
     const log: string[] = [];
-    const reportRows: string[][] = [];
+    const rawMatchRows: string[][] = [];
     let copied = 0, missing = 0;
     const selectedTotal = scenes.reduce((s, sc) => s + sc.files.filter(f => f.selected).length, 0);
     let processed = 0;
+    const isMove = options.rawOperation === "move";
 
     const updated = scenes.map(s => ({ ...s, files: s.files.map(f => ({ ...f })) }));
 
@@ -456,26 +457,30 @@ export default function RawSelectPage() {
         if (!sc.files[fi].selected) continue;
         if (cancelRef.current) break;
         const pf = sc.files[fi];
-        setProgress({ cur: processed, total: selectedTotal, msg: `복사 중: ${pf.name}` });
+        setProgress({ cur: processed, total: selectedTotal, msg: `${isMove ? "이동" : "복사"} 중: ${pf.name}` });
 
-        const rawHandle = rawIndex.get(pf.basename.toLowerCase());
-        if (rawHandle) {
+        const entry = rawIndex.get(pf.basename.toLowerCase());
+        if (entry) {
           try {
-            const rawFile = await rawHandle.getFile();
-            await copyFileHandle(rawHandle, sceneDir, rawFile.name);
+            const rawFile = await entry.handle.getFile();
+            await copyFileHandle(entry.handle, sceneDir, rawFile.name);
+            if (isMove) {
+              try { await (entry.parent as any).removeEntry(rawFile.name); } catch (_) {}
+            }
+            const status = isMove ? "moved" : "copied";
             updated[si].files[fi] = { ...pf, rawFile: rawFile.name, rawStatus: "copied" };
             log.push(`✅ ${pf.name} → ${sceneName}/${rawFile.name}`);
-            reportRows.push([sceneName, pf.name, rawFile.name, "copied", `RAW_SELECT/${sceneName}/${rawFile.name}`]);
+            rawMatchRows.push([sceneName, pf.name, rawFile.name, status, `RAW_SELECT/${sceneName}/${rawFile.name}`]);
             copied++;
-          } catch (e: any) {
+          } catch {
             updated[si].files[fi] = { ...pf, rawStatus: "failed" };
-            log.push(`❌ ${pf.name}: 복사 실패`);
-            reportRows.push([sceneName, pf.name, "", "failed", ""]);
+            log.push(`❌ ${pf.name}: ${isMove ? "이동" : "복사"} 실패`);
+            rawMatchRows.push([sceneName, pf.name, "", "failed", ""]);
           }
         } else {
           updated[si].files[fi] = { ...pf, rawStatus: "missing" };
           log.push(`⚠️ ${pf.name}: RAW 없음`);
-          reportRows.push([sceneName, pf.name, "", "missing", ""]);
+          rawMatchRows.push([sceneName, pf.name, "", "missing", ""]);
           missing++;
         }
         processed++;
@@ -484,17 +489,17 @@ export default function RawSelectPage() {
       setScenes([...updated]);
     }
 
-    // Write reports
-    const writeReport = async (name: string, csv: string) => {
+    // ── Write all reports ─────────────────────────────────
+    const writeReport = async (name: string, content: string) => {
       try {
         const fh = await (reportsDir as any).getFileHandle(name, { create: true });
         const wr = await fh.createWritable();
-        await wr.write("﻿" + csv); await wr.close();
+        await wr.write("﻿" + content); await wr.close();
       } catch (_) {}
     };
-    await writeReport("raw_match_report.csv", makeCSV(
-      ["씬", "JPG", "RAW", "상태", "저장 경로"], reportRows
-    ));
+
+    await writeReport("raw_match_report.csv", makeCSV(["씬", "JPG", "RAW", "상태", "저장 경로"], rawMatchRows));
+
     await writeReport("selected_jpg_list.csv", makeCSV(
       ["씬", "JPG", "블러", "밝기", "중복그룹", "대표컷", "RAW 상태"],
       updated.flatMap(s => s.files.filter(f => f.selected).map(f => [
@@ -502,6 +507,7 @@ export default function RawSelectPage() {
         f.dupGroupId ?? "", f.isDupRep ? "Y" : "", f.rawStatus ?? "",
       ]))
     ));
+
     await writeReport("rejected_photos.csv", makeCSV(
       ["씬", "JPG", "제외 사유", "블러", "밝기"],
       updated.flatMap(s => s.files.filter(f => f.rejectReason !== "ok" && f.rejectReason !== "pending").map(f => [
@@ -511,7 +517,34 @@ export default function RawSelectPage() {
       ]))
     ));
 
-    setStats({
+    await writeReport("duplicate_groups.csv", makeCSV(
+      ["씬", "그룹ID", "대표컷", "중복파일 목록", "유사도 기준(%)"],
+      updated.flatMap(s => {
+        const groups = new Map<string, PhotoFile[]>();
+        for (const f of s.files) {
+          if (f.dupGroupId) {
+            if (!groups.has(f.dupGroupId)) groups.set(f.dupGroupId, []);
+            groups.get(f.dupGroupId)!.push(f);
+          }
+        }
+        return Array.from(groups.entries()).map(([gid, fs]) => {
+          const rep = fs.find(f => f.isDupRep);
+          const dups = fs.filter(f => !f.isDupRep);
+          return [s.editedName, gid, rep?.name ?? "", dups.map(f => f.name).join(" | "), String(options.dupThreshold)];
+        });
+      })
+    ));
+
+    await writeReport("scene_naming_report.csv", makeCSV(
+      ["원본 폴더명", "AI 추천 폴더명", "최종 폴더명", "신뢰도", "판단 근거"],
+      updated.map(s => [
+        s.originalName, s.suggestedName, s.editedName,
+        s.nameConfidence != null ? (s.nameConfidence * 100).toFixed(0) + "%" : "",
+        s.nameReason ?? "",
+      ])
+    ));
+
+    const finalStats: SummaryStats = {
       totalScenes: updated.length,
       totalJpg: updated.reduce((s, sc) => s + sc.files.length, 0),
       totalRejected: updated.reduce((s, sc) => s + sc.files.filter(f => f.rejectReason !== "ok" && f.rejectReason !== "pending").length, 0),
@@ -519,9 +552,25 @@ export default function RawSelectPage() {
       totalSelected: updated.reduce((s, sc) => s + sc.files.filter(f => f.selected).length, 0),
       totalRawCopied: copied,
       totalRawMissing: missing,
-    });
+    };
+
+    const summaryJson = JSON.stringify({
+      total_scenes: finalStats.totalScenes,
+      total_jpg: finalStats.totalJpg,
+      total_rejected: finalStats.totalRejected,
+      total_duplicate_removed: finalStats.totalDuplicateRemoved,
+      total_selected_jpg: finalStats.totalSelected,
+      total_raw_matched: copied,
+      total_raw_missing: missing,
+      raw_operation: options.rawOperation,
+      output_path: outputDir?.name ?? "",
+      created_at: new Date().toISOString(),
+    }, null, 2);
+    await writeReport("summary.json", summaryJson);
+
+    setStats(finalStats);
     setStep(6);
-  }, [scenes, rawDir, outputDir]);
+  }, [scenes, rawDir, outputDir, options]);
 
   /* ── Render helpers ─────────────────────────────────────── */
 
