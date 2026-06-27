@@ -227,7 +227,7 @@ function QueueTab() {
 
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>수신 이메일 *</label>
-              <input value={editing.to_email} onChange={e => setEditing(p => ({ ...p, to_email: e.target.value }))} placeholder="hospital@email.com" style={iS} />
+              <input value={editing.to_email} onChange={e => setEditing(p => ({ ...p, to_email: e.target.value }))} placeholder="photoclnic@gmail.com" style={iS} />
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>메일 제목</label>
