@@ -395,7 +395,7 @@ function QuickMemoWidget({ memos: initMemos, onRefresh }: { memos: MemoItem[]; o
       ) : (
         <div style={{ padding: "4px 8px 6px", display: "flex", flexDirection: "column" }}>
           {memos.slice(0, 4).map(memo => (
-            <Link key={memo.id} href="/memo" style={{ textDecoration: "none" }}>
+            <Link key={memo.id} href={`/memo?ref=${encodeURIComponent(memo.id)}`} style={{ textDecoration: "none" }}>
               <div style={{
                 display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px",
                 borderRadius: 7, transition: "background .1s", cursor: "pointer",
