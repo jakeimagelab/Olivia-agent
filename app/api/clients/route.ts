@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
+import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,12 +20,15 @@ export async function GET(req: NextRequest) {
 
   if (q) query = query.ilike("hospital_name", `%${q}%`);
 
-  const [clientsRes, runsRes] = await Promise.all([
+  const [clientsRes, runsRes, tasksRes, approvalsRes, mailingRes] = await Promise.all([
     query,
     supabase
       .from("workflow_runs")
-      .select("client_id, current_step_key, status, started_at")
+      .select("id, client_id, client_name, project_name, current_step_key, status, started_at")
       .eq("status", "active"),
+    supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(300),
+    supabase.from("agent_approvals").select("*").order("created_at", { ascending: false }).limit(300),
+    supabase.from("mailing_queue").select("*").order("created_at", { ascending: false }).limit(300),
   ]);
 
   if (clientsRes.error)
@@ -34,7 +38,17 @@ export async function GET(req: NextRequest) {
     (runsRes.data ?? []).map((r) => [r.client_id, r])
   );
 
-  const clients = (clientsRes.data ?? []).map((c) => normalizeClient(c, runMap[c.id] ?? null));
+  const clients = (clientsRes.data ?? []).map((c) => {
+    const run = runMap[c.id] ?? null;
+    const normalized = normalizeClient(c, run);
+    const nextAction = run ? buildWorkflowNextAction({
+      run,
+      tasks: (tasksRes.data ?? []).filter((task) => task.workflow_run_id === run.id),
+      approvals: (approvalsRes.data ?? []).filter((approval) => approval.workflow_run_id === run.id),
+      mailing: (mailingRes.data ?? []).filter((mail) => mail.workflow_run_id === run.id || mail.hospital_name === c.hospital_name),
+    }) : null;
+    return { ...normalized, next_action: nextAction };
+  });
 
   return NextResponse.json({ ok: true, clients });
 }
