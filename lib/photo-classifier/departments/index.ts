@@ -1,16 +1,28 @@
 import type { DepartmentClassificationConfig, MedicalDepartment } from "../types";
-import { dermatologyConfig } from "./dermatology";
-import { generalConfig } from "./general";
+import { dermatologyConfig }            from "./dermatology";
+import { orthopedicsNeurosurgeryConfig } from "./orthopedics-neurosurgery";
+import { dentistryConfig }              from "./dentistry";
+import { plasticSurgeryConfig }         from "./plastic-surgery";
+import { generalConfig }                from "./general";
 
 const departmentRegistry: Partial<Record<MedicalDepartment, DepartmentClassificationConfig>> = {
-  dermatology: dermatologyConfig,
-  general: generalConfig,
+  dermatology:              dermatologyConfig,
+  orthopedics_neurosurgery: orthopedicsNeurosurgeryConfig,
+  dentistry:                dentistryConfig,
+  plastic_surgery:          plasticSurgeryConfig,
+  general:                  generalConfig,
 };
 
 export function getDepartmentConfig(
-  department: MedicalDepartment
+  department: MedicalDepartment,
 ): DepartmentClassificationConfig {
   return departmentRegistry[department] ?? generalConfig;
 }
 
-export { dermatologyConfig, generalConfig };
+export {
+  dermatologyConfig,
+  orthopedicsNeurosurgeryConfig,
+  dentistryConfig,
+  plasticSurgeryConfig,
+  generalConfig,
+};
