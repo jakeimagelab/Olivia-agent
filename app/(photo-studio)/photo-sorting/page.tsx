@@ -534,8 +534,9 @@ export default function PhotoSortingPage() {
         rawFiles.push({ name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified, visualVec:[] });
       } else if (JPG_EXTS.has(ext)) {
         setProgress({ cur:0, total:0, msg:`스캔: ${name}` });
-        const visualVec = await quickVisualVector(file);
-        jpgFiles.push({ name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified, visualVec });
+        const [visualVec, exifTime] = await Promise.all([quickVisualVector(file), readExifDateTime(file)]);
+        const mtime = exifTime ?? file.lastModified;
+        jpgFiles.push({ name, basename:name.replace(/\.[^.]+$/,""), handle, mtime, visualVec });
       }
     }
     setRawCount(rawFiles.length);
