@@ -21,52 +21,58 @@ export const COMMON_SYSTEM_PROMPT = `당신은 병원 홍보/홈페이지용 사
 - suggestedFolderName은 진료과 config의 folderName 형식을 따르세요 (예: "임플란트수술", "C-ARM시술").
 - 응답은 반드시 지정된 JSON Schema를 따르세요.`;
 
-export const photoSceneAnalysisSchema = {
+const SCHEMA_BODY: Record<string, unknown> = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "department",
+    "sceneId",
+    "sceneType",
+    "displayName",
+    "suggestedFolderName",
+    "confidence",
+    "detectedCues",
+    "negativeCues",
+    "reason",
+    "needsReview",
+  ],
+  properties: {
+    department: {
+      type: "string",
+      enum: [
+        "dermatology",
+        "dentistry",
+        "orthopedics_neurosurgery",
+        "plastic_surgery",
+        "ophthalmology",
+        "pediatrics",
+        "korean_medicine",
+        "obgyn",
+        "internal_medicine_checkup",
+        "general",
+      ],
+    },
+    sceneId:             { type: "string" },
+    sceneType:           { type: "string" },
+    displayName:         { type: "string" },
+    suggestedFolderName: { type: "string" },
+    confidence:          { type: "number", minimum: 0, maximum: 1 },
+    detectedCues:        { type: "array", items: { type: "string" } },
+    negativeCues:        { type: "array", items: { type: "string" } },
+    reason:              { type: "string" },
+    needsReview:         { type: "boolean" },
+  },
+};
+
+export const photoSceneAnalysisSchema: {
+  name: string;
+  strict: boolean;
+  schema: Record<string, unknown>;
+} = {
   name: "photo_scene_analysis",
   strict: true,
-  schema: {
-    type: "object",
-    additionalProperties: false,
-    required: [
-      "department",
-      "sceneId",
-      "sceneType",
-      "displayName",
-      "suggestedFolderName",
-      "confidence",
-      "detectedCues",
-      "negativeCues",
-      "reason",
-      "needsReview",
-    ],
-    properties: {
-      department: {
-        type: "string",
-        enum: [
-          "dermatology",
-          "dentistry",
-          "orthopedics_neurosurgery",
-          "plastic_surgery",
-          "ophthalmology",
-          "pediatrics",
-          "korean_medicine",
-          "obgyn",
-          "internal_medicine_checkup",
-          "general",
-        ],
-      },
-      sceneId:             { type: "string" },
-      sceneType:           { type: "string" },
-      displayName:         { type: "string" },
-      suggestedFolderName: { type: "string" },
-      confidence:          { type: "number", minimum: 0, maximum: 1 },
-      detectedCues:        { type: "array", items: { type: "string" } },
-      negativeCues:        { type: "array", items: { type: "string" } },
-      reason:              { type: "string" },
-      needsReview:         { type: "boolean" },
-    },
-  },
-} as const;
+  schema: SCHEMA_BODY,
+};
 
 export type PhotoSceneAnalysisOutput = {
   department: string;
