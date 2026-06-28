@@ -614,6 +614,12 @@ export default function ContiPage() {
     }
   }, []);
   const [result,           setResult]           = useState<ContiResult | null>(null);
+  const historyRef = useRef<ContiResult[]>([]);
+  const historyIndexRef = useRef(-1);
+  const skipHistoryRef = useRef(false);
+  const resultSignatureRef = useRef("");
+  const lastAutoSavedSignatureRef = useRef("");
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sceneImages,      setSceneImages]      = useState<Record<string, string>>({});
   const [gptMessages,      setGptMessages]      = useState<{role:"user"|"assistant"; content:string; images?:string[]}[]>([]);
   const [gptInput,         setGptInput]         = useState("");
@@ -1228,34 +1234,141 @@ ${contiSummary}
   const [savedList,     setSavedList]     = useState<SavedConti[]>([]);
   const [saveToast,     setSaveToast]     = useState(false);
   const [saveLoading,   setSaveLoading]   = useState(false);
+  const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [historyToast,  setHistoryToast]  = useState("");
   const [loadLoading,   setLoadLoading]   = useState(false);
   const [editingId,     setEditingId]     = useState<string | null>(null);
   const [editingName,   setEditingName]   = useState("");
 
-  const handleSaveJSON = async () => {
+  useEffect(() => {
     if (!result) return;
-    setSaveLoading(true);
+
+    const signature = JSON.stringify(result);
+    if (signature === resultSignatureRef.current) return;
+
+    if (skipHistoryRef.current) {
+      skipHistoryRef.current = false;
+      resultSignatureRef.current = signature;
+      return;
+    }
+
+    const currentIndex = historyIndexRef.current;
+    const nextHistory = historyRef.current.slice(0, currentIndex + 1);
+    nextHistory.push(structuredClone(result));
+
+    if (nextHistory.length > 80) nextHistory.shift();
+    historyRef.current = nextHistory;
+    historyIndexRef.current = nextHistory.length - 1;
+    resultSignatureRef.current = signature;
+  }, [result]);
+
+  const restoreHistory = (direction: "undo" | "redo") => {
+    const nextIndex = direction === "undo"
+      ? historyIndexRef.current - 1
+      : historyIndexRef.current + 1;
+    const snapshot = historyRef.current[nextIndex];
+    if (!snapshot) {
+      setHistoryToast(direction === "undo" ? "되돌릴 내역이 없어요." : "다시 복귀할 내역이 없어요.");
+      setTimeout(() => setHistoryToast(""), 1600);
+      return;
+    }
+
+    skipHistoryRef.current = true;
+    historyIndexRef.current = nextIndex;
+    resultSignatureRef.current = JSON.stringify(snapshot);
+    setResult(structuredClone(snapshot));
+    setHistoryToast(direction === "undo" ? "이전 상태로 되돌렸어요." : "다시 복귀했어요.");
+    setTimeout(() => setHistoryToast(""), 1600);
+  };
+
+  const saveConti = async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!result) return;
+    if (silent) setAutoSaveState("saving");
+    else setSaveLoading(true);
+
+    const payload = {
+      hospitalName: form.hospitalName || "병원명 없음",
+      specialties: form.specialties,
+      title: resultTitle,
+      result,
+    };
+
     try {
       const res = await fetch("/api/conti/saves", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          hospitalName: form.hospitalName || "병원명 없음",
-          specialties: form.specialties,
-          title: resultTitle,
-          result,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
-      setSaveToast(true);
-      setTimeout(() => setSaveToast(false), 2000);
+      lastAutoSavedSignatureRef.current = JSON.stringify(payload);
+      if (silent) {
+        setAutoSaveState("saved");
+      } else {
+        setSaveToast(true);
+        setAutoSaveState("saved");
+        setTimeout(() => setSaveToast(false), 2000);
+      }
     } catch (e: any) {
-      alert("저장 실패: " + e.message);
+      if (silent) setAutoSaveState("error");
+      else alert("저장 실패: " + e.message);
     } finally {
-      setSaveLoading(false);
+      if (!silent) setSaveLoading(false);
     }
   };
+
+  const handleSaveJSON = () => saveConti({ silent: false });
+
+  useEffect(() => {
+    if (!result) return;
+
+    const payloadSignature = JSON.stringify({
+      hospitalName: form.hospitalName || "병원명 없음",
+      specialties: form.specialties,
+      title: resultTitle,
+      result,
+    });
+
+    if (payloadSignature === lastAutoSavedSignatureRef.current) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    setAutoSaveState("idle");
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveConti({ silent: true });
+    }, 2500);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [result, resultTitle, form.hospitalName, form.specialties]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.metaKey || !result) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "s") {
+        event.preventDefault();
+        handleSaveJSON();
+        return;
+      }
+
+      if (key === "z" && event.shiftKey) {
+        event.preventDefault();
+        restoreHistory("redo");
+        return;
+      }
+
+      if (key === "z") {
+        event.preventDefault();
+        restoreHistory("undo");
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [result, resultTitle, form.hospitalName, form.specialties, saveLoading]);
 
   const openLoadPanel = async () => {
     setShowLoadPanel(true);
@@ -1919,6 +2032,18 @@ ${header("타임테이블")}
                 }}>
                   <FileText size={16} /> {saveLoading ? "저장 중..." : "콘티 저장"}
                 </button>
+                <div style={{
+                  minHeight: 42, display: "flex", flexDirection: "column", justifyContent: "center",
+                  padding: "0 12px", borderRadius: 8, background: "#F0F9F8",
+                  border: "1px solid rgba(21,88,85,0.12)", color: "#155855",
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 900 }}>
+                    {autoSaveState === "saving" ? "자동 저장 중..." : autoSaveState === "saved" ? "자동 저장됨" : autoSaveState === "error" ? "자동 저장 실패" : "자동 저장 대기"}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#5A7470", marginTop: 2 }}>
+                    ⌘S 저장 · ⌘Z 되돌리기 · ⇧⌘Z 다시 복귀
+                  </div>
+                </div>
                 <button onClick={handleSpreadsheetDownload} style={{
                   display: "inline-flex", alignItems: "center", gap: 7,
                   padding: "0 18px", minHeight: 42, border: "1px solid #16a34a",
@@ -2697,6 +2822,18 @@ ${header("타임테이블")}
         animation: "fadeIn .2s ease"
       }}>
         ✓ 콘티가 저장됐어요
+      </div>
+    )}
+
+    {historyToast && (
+      <div style={{
+        position: "fixed", bottom: 154, left: "50%", transform: "translateX(-50%)",
+        zIndex: 9999, background: "#1C2B28", color: "#fff",
+        padding: "10px 20px", borderRadius: 12, fontSize: 13, fontWeight: 800,
+        boxShadow: "0 8px 24px rgba(28,43,40,0.25)",
+        animation: "fadeIn .2s ease"
+      }}>
+        {historyToast}
       </div>
     )}
 
