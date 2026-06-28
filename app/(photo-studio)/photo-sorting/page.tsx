@@ -1117,8 +1117,9 @@ export default function PhotoSortingPage() {
             &nbsp;&nbsp;└ 프로필/ (자동 분류됨)
           </div>
         </div>
-        <div style={{display:"flex",gap:10,paddingTop:4}}>
+        <div style={{display:"flex",gap:10,paddingTop:4,flexWrap:"wrap"}}>
           <Btn variant="secondary" onClick={()=>setStep(2)}>← 뒤로</Btn>
+          <Btn variant="secondary" onClick={()=>window.open('bridge://')}>Adobe Bridge 열기</Btn>
           <Btn onClick={runRawMatch}>RAW 매칭 시작 →</Btn>
         </div>
       </div>
