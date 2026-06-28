@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
       .eq("status", "pending");
 
     const advanceResult = (approvals || []).length ? { advanced: false, reason: "waiting_approval" } : await maybeAdvanceWorkflow(db, workflowRunId, stepKey);
+    const nextStepKey = advanceResult.advanced && "result" in advanceResult
+      ? advanceResult.result?.to_step_key ?? null
+      : null;
 
     return NextResponse.json({
       ok: true,
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
       waitingApprovals: approvals?.length || 0,
       advanced: Boolean(advanceResult.advanced),
       currentStepKey: stepKey,
-      nextStepKey: advanceResult.advanced ? advanceResult.result?.to_step_key : null,
+      nextStepKey,
       message: buildMessage(results.length, approvals?.length || 0, Boolean(advanceResult.advanced)),
     });
   } catch (error) {
