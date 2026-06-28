@@ -5,8 +5,9 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { STEP_NAME, WORKFLOW_STEPS } from "@/lib/workflow";
+import { buildStepAppLink } from "@/lib/clientAppLinks";
+import NextActionCard from "@/components/NextActionCard";
 import ConsultMeetingForm from "./_components/ConsultMeetingForm";
-import WorkflowBar from "./_components/WorkflowBar";
 
 const C = {
   teal: "#155855", orange: "#E85D2C", bg: "#F0F9F8",
@@ -22,7 +23,7 @@ const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = 
   shooting:          { icon: "📸", desc: "촬영 당일 체크리스트 진행 및 완료 처리",   href: "/shooting" },
   backup_sorting:    { icon: "🗂️", desc: "RAW/JPG 자동 분류 및 백업 관리",          href: "/photo-sorting" },
   original_delivery: { icon: "📦", desc: "원본 파일 NAS 링크 생성 및 발송",          href: "/original-delivery" },
-  retouching:        { icon: "🎨", desc: "색감 보정 및 보정 가이드 작성",             href: "/photo-sorting" },
+  retouching:        { icon: "🎨", desc: "색감 보정 및 보정 가이드 작성",             href: "/photo-retouching" },
   revision:          { icon: "🔄", desc: "수정 요청 접수 및 알람 발송",               href: "/mailing" },
   final_delivery:    { icon: "🚀", desc: "최종 파일 + 후기 요청 메일 발송",           href: "/delivery-mail" },
   review_content:    { icon: "⭐", desc: "후기 텍스트 → SNS 콘텐츠 자동 변환",       href: "/review-studio" },
@@ -181,10 +182,16 @@ function ListView() {
                     </span>
                   </div>
                   {c.director_name && <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>원장: {c.director_name}</div>}
+                  {c.next_action?.label && (
+                    <div style={{ marginTop: 8, padding: "8px 10px", background: C.light, borderRadius: 8 }}>
+                      <div style={{ fontSize: 10, color: C.hint, fontWeight: 900, marginBottom: 2 }}>다음 액션</div>
+                      <div style={{ fontSize: 12, color: C.teal, fontWeight: 800, lineHeight: 1.45 }}>{c.next_action.label}</div>
+                    </div>
+                  )}
                   {c.main_treatments && <div style={{ fontSize: 11, color: C.hint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.main_treatments}</div>}
                   <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between" }}>
                     <span style={{ fontSize: 11, color: C.hint }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" }) : ""}</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: C.teal }}>상세 보기 →</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: C.teal }}>{c.next_action?.primaryButtonLabel || "처리하기"} →</span>
                   </div>
                 </div>
               );
@@ -226,6 +233,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedStep, setSelectedStep] = useState("");
+  const [showAllSteps, setShowAllSteps] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -272,10 +280,17 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
         </div>
       </div>
 
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 16px 80px", display: "grid", gridTemplateColumns: "220px 1fr", gap: 14, alignItems: "start" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
+        <NextActionCard client={client} workflowRun={workflowRun} onRefresh={load} />
+
+        <button onClick={() => setShowAllSteps((v) => !v)}
+          style={{ minHeight: 44, border: `1px solid ${C.border}`, borderRadius: 12, background: C.white, color: C.teal, fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px" }}>
+          <span>전체 단계 {showAllSteps ? "접기" : "보기"} ({currentIdx + 1}/{WORKFLOW_STEPS.length})</span>
+          <span style={{ color: C.orange }}>{showAllSteps ? "접기 ↑" : "펼치기 ↓"}</span>
+        </button>
 
         {/* ── 왼쪽: 14단계 체크리스트 ── */}
-        <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden", position: "sticky", top: 16 }}>
+        {showAllSteps && <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
           <div style={{ padding: "10px 14px", background: "rgba(21,88,85,.04)", borderBottom: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 11, fontWeight: 900, color: C.teal }}>전체 단계 ({currentIdx}/{WORKFLOW_STEPS.length})</div>
             <div style={{ marginTop: 6, height: 4, borderRadius: 99, background: C.border, overflow: "hidden" }}>
@@ -314,7 +329,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
               );
             })}
           </div>
-        </div>
+        </div>}
 
         {/* ── 오른쪽: 선택된 단계 패널 ── */}
         {/* 오른쪽 컬럼 */}
@@ -364,7 +379,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
             {PROMO_APPS.map((app) => (
-              <Link key={app.href} href={`${app.href}?client_id=${clientId}`}
+              <Link key={app.href} href={`${app.href}?clientId=${clientId}&client_id=${clientId}${workflowRun?.id ? `&workflowRunId=${workflowRun.id}` : ""}&stepKey=${currentStepKey}`}
                 style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 16px", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, textDecoration: "none", transition: "all .15s" }}
                 onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = C.teal; el.style.boxShadow = "0 4px 12px rgba(21,88,85,.1)"; }}
                 onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = C.border; el.style.boxShadow = "none"; }}>
@@ -483,7 +498,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
         {isDone && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div style={{ fontSize: 13, color: C.muted }}>이 단계는 완료됐습니다. 앱에서 내용을 재확인할 수 있습니다.</div>
-            <Link href={`${info.href}?client_id=${clientId}`}
+            <Link href={buildStepAppLink({ stepKey: selectedStepKey, clientId, workflowRunId: workflowRun?.id })}
               style={{ padding: "8px 18px", background: C.light, color: C.teal, borderRadius: 8, fontSize: 12, fontWeight: 800, textDecoration: "none", border: `1px solid rgba(21,88,85,.2)` }}>
               {STEP_NAME[selectedStepKey]} 앱 열기 →
             </Link>
@@ -497,7 +512,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
               <div style={{ fontSize: 13, color: C.muted, marginBottom: 4 }}>아직 이 단계에 도달하지 않았습니다.</div>
               <div style={{ fontSize: 11, color: C.hint }}>현재 단계: {STEP_NAME[currentStepKey]}</div>
             </div>
-            <Link href={`${info.href}?client_id=${clientId}`}
+            <Link href={buildStepAppLink({ stepKey: selectedStepKey, clientId, workflowRunId: workflowRun?.id })}
               style={{ padding: "8px 18px", background: "rgba(21,88,85,.04)", color: C.muted, borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: "none", border: `1px solid ${C.border}` }}>
               미리 열기
             </Link>
@@ -602,7 +617,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
                 <div style={{ fontSize: 13, color: C.teal, lineHeight: 1.6 }}>
                   <strong>{client.name}</strong>의 <strong>{STEP_NAME[selectedStepKey]}</strong> 단계를 진행하세요.
                 </div>
-                <Link href={`${info.href}?client_id=${clientId}`}
+                <Link href={buildStepAppLink({ stepKey: selectedStepKey, clientId, workflowRunId: workflowRun?.id })}
                   style={{ padding: "10px 22px", background: C.white, color: C.teal, borderRadius: 8, fontSize: 13, fontWeight: 800, textDecoration: "none", border: `1.5px solid ${C.teal}`, whiteSpace: "nowrap" }}>
                   전체 앱에서 열기 →
                 </Link>
