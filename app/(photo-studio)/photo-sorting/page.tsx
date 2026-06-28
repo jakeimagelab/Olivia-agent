@@ -557,15 +557,9 @@ export default function PhotoSortingPage() {
     // ② JPG → 씬 분리 후 JPG(분류)/ 하위로 이동
     jpgFiles.sort((a,b)=>a.mtime-b.mtime);
     const gapMs = gapMinutes*60*1000;
-    const VIS_THRESHOLD = 0.40;
-    const MIN_VIS_GAP_MS = 60_000; // 시각 분리는 최소 1분 경과 후에만
     const groups: ScannedFile[][] = jpgFiles.length > 0 ? [[jpgFiles[0]]] : [];
     for (let i = 1; i < jpgFiles.length; i++) {
-      const gap = jpgFiles[i].mtime - jpgFiles[i-1].mtime;
-      const timeBreak = gap > gapMs;
-      const visBreak  = gap > MIN_VIS_GAP_MS &&
-                        visualDist(jpgFiles[i-1].visualVec, jpgFiles[i].visualVec) > VIS_THRESHOLD;
-      if (timeBreak || visBreak) groups.push([jpgFiles[i]]);
+      if (jpgFiles[i].mtime - jpgFiles[i-1].mtime > gapMs) groups.push([jpgFiles[i]]);
       else groups[groups.length-1].push(jpgFiles[i]);
     }
     const jpgBase = await (rootDir as any).getDirectoryHandle("JPG(분류)", { create:true }) as FileSystemDirectoryHandle;
