@@ -261,6 +261,47 @@ async function getStudioThumb(file: File, maxSize = 480): Promise<string> {
 }
 
 
+async function readExifDateTime(file: File): Promise<number | null> {
+  try {
+    const buf = await file.slice(0, 65536).arrayBuffer();
+    const view = new DataView(buf);
+    if (view.getUint16(0) !== 0xFFD8) return null;
+    let offset = 2;
+    while (offset < buf.byteLength - 4) {
+      const marker = view.getUint16(offset);
+      const segLen = view.getUint16(offset + 2);
+      if (marker === 0xFFE1) {
+        const hdr = String.fromCharCode(view.getUint8(offset+4),view.getUint8(offset+5),view.getUint8(offset+6),view.getUint8(offset+7));
+        if (hdr === "Exif") {
+          const ts = offset + 10;
+          const le = view.getUint16(ts) === 0x4949;
+          const g16 = (o:number) => view.getUint16(o, le);
+          const g32 = (o:number) => view.getUint32(o, le);
+          if (g16(ts+2) !== 42) return null;
+          const ifd0 = ts + g32(ts+4);
+          const n0 = g16(ifd0);
+          let exifOff = 0;
+          for (let i=0;i<n0;i++){const e=ifd0+2+i*12;if(g16(e)===0x8769){exifOff=ts+g32(e+8);break;}}
+          if (!exifOff) return null;
+          const ne = g16(exifOff);
+          for (let i=0;i<ne;i++){
+            const e=exifOff+2+i*12;
+            if(g16(e)===0x9003){
+              const vo=ts+g32(e+8);
+              let s="";for(let c=0;c<19;c++)s+=String.fromCharCode(view.getUint8(vo+c));
+              const m=s.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+              if(m)return new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`).getTime();
+            }
+          }
+        }
+      }
+      if (marker === 0xFFDA) break;
+      offset += 2 + segLen;
+    }
+  } catch {}
+  return null;
+}
+
 async function quickVisualVector(file: File): Promise<number[]> {
   return new Promise(res => {
     const url = URL.createObjectURL(file);
