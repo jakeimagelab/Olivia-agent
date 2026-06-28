@@ -441,23 +441,22 @@ export default function PhotoRetouchingPage() {
 
   return (
     <main
-      style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}
+      style={{ background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}
       onPaste={handleGlobalPaste}
     >
-      {/* 페이지 탭 */}
-      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, display: "flex", padding: "0 20px", overflowX: "auto" }}>
-        {([["check","🎨 색감 체크"],["sync","🔄 색감 동기화"],["recipe","📋 보정 레시피"]] as const).map(([id, lbl]) => (
-          <button key={id} onClick={() => setTab(id)} style={{
-            padding: "14px 22px", border: "none", background: "none", cursor: "pointer",
-            fontFamily: "inherit", fontSize: 14, fontWeight: tab === id ? 800 : 500,
-            color: tab === id ? C.teal : C.muted,
-            borderBottom: `2.5px solid ${tab === id ? C.teal : "transparent"}`,
-            marginBottom: -1, whiteSpace: "nowrap",
-          }}>{lbl}</button>
-        ))}
-      </div>
-
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
+        {/* 페이지 탭 */}
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 4, display: "flex", gap: 4, overflowX: "auto", marginBottom: 20 }}>
+          {([["check","🎨 색감 체크"],["sync","🔄 색감 동기화"],["recipe","📋 보정 레시피"]] as const).map(([id, lbl]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              flex: 1, minWidth: 150, padding: "12px 18px", border: "none", borderRadius: 10, cursor: "pointer",
+              fontFamily: "inherit", fontSize: 14, fontWeight: tab === id ? 900 : 700,
+              color: tab === id ? "#fff" : C.muted,
+              background: tab === id ? C.teal : "transparent",
+              whiteSpace: "nowrap",
+            }}>{lbl}</button>
+          ))}
+        </div>
 
         {/* ── 색감 체크 ── */}
         {tab === "check" && (
