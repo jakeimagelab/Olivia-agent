@@ -507,7 +507,7 @@ const TOOLS_WORK: ToolDef[] = [
   {title:"고객 관리",      desc:"병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다.",               href:"/clients",         icon:Users,         meta:"Client Management",  orange:true },
   {title:"고객 포털 관리", desc:"병원 고객에게 전달할 고객 전용 포털 링크를 생성하고 수정 요청·리뷰를 관리합니다.",        href:"/portal-admin",    icon:Link2,         meta:"Client Portal",      orange:false},
   {title:"통합 메일링",    desc:"견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.",                         href:"/mailing",         icon:Mail,          meta:"Unified Mailing",    orange:false},
-  {title:"사진 보정",      desc:"사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.",     href:"/photo-retouching", icon:Wand2,        meta:"Photo Studio",       orange:false},
+  {title:"사진 작업실",    desc:"사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.",     href:"/photo-sorting",    icon:Wand2,        meta:"Photo Studio",       orange:false},
   {title:"업무 리포트",    desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",                             href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
 ];
 
