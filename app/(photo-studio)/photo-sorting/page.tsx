@@ -1127,7 +1127,7 @@ export default function PhotoSortingPage() {
 
   const FieldStep5 = () => (
     <div style={{maxWidth:680,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>📦 파일 정리 중...</div>
+      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>RAW 매칭 중...</div>
       <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
       <div style={{maxHeight:260,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
         {copyLog.slice(-40).map((l,i)=><div key={i} style={{color:l.startsWith("✅")?C.green:l.startsWith("❌")?C.red:C.yellow}}>{l}</div>)}
@@ -1137,10 +1137,19 @@ export default function PhotoSortingPage() {
 
   const FieldStep6 = () => {
     if (!fieldStats) return null;
-    const rows = [{label:"처리된 씬",value:fieldStats.totalScenes},{label:"전체 JPG",value:fieldStats.totalJpg},{label:"원본 RAW",value:fieldStats.totalRaw,color:C.muted},{label:"1차 제외",value:fieldStats.totalRejected,color:C.red},{label:"중복 제거",value:fieldStats.totalDupRemoved,color:C.yellow},{label:"최종 선택",value:fieldStats.totalSelected,color:C.teal},{label:"RAW 복사 완료",value:fieldStats.totalRawCopied,color:C.green},{label:"RAW 누락",value:fieldStats.totalRawMissing,color:fieldStats.totalRawMissing>0?C.red:C.hint}];
+    const rows = [
+      {label:"처리된 씬",   value:fieldStats.totalScenes},
+      {label:"전체 JPG",    value:fieldStats.totalJpg},
+      {label:"원본 RAW",    value:fieldStats.totalRaw,       color:C.muted},
+      {label:"불량컷 분류", value:fieldStats.totalRejected,  color:C.red},
+      {label:"프로필 이동", value:fieldStats.portraitMoved,  color:"#7C3AED"},
+      {label:"베스트컷",    value:fieldStats.totalSelected,  color:C.teal},
+      {label:"RAW 매칭완료",value:fieldStats.totalRawCopied, color:C.green},
+      {label:"RAW 누락",    value:fieldStats.totalRawMissing,color:fieldStats.totalRawMissing>0?C.red:C.hint},
+    ];
     return (
       <Card style={{maxWidth:560}}>
-        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.green}}>✅ 현장촬영 분류 완료!</div>
+        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.green}}>✅ RAW 매칭 완료!</div>
         <div style={{padding:20}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
             {rows.map(({label,value,color})=>(
