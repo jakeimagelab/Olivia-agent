@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import GlobalOliviaChat from "@/components/GlobalOliviaChat";
+import GlobalClientContextBridge from "@/components/GlobalClientContextBridge";
 import CursorEffect from "@/components/CursorEffect";
 import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-screen font-sans antialiased">
         <SplashScreen />
         <CursorEffect />
+        <GlobalClientContextBridge />
         {children}
         <GlobalOliviaChat />
         <script dangerouslySetInnerHTML={{ __html: `

@@ -129,6 +129,22 @@ export default function GalleryPage() {
     loadGalleries();
   }, []);
 
+  useEffect(() => {
+    const applyContext = (event: Event) => {
+      const context = (event as CustomEvent<any>).detail;
+      if (!context?.clientId) return;
+      setForm((current) => ({
+        ...current,
+        hospitalName: current.hospitalName || context.hospitalName || context.clientName || "",
+        contactName: current.contactName || context.contactName || "",
+        contactEmail: current.contactEmail || context.email || "",
+        shootDate: current.shootDate || context.shootingDate || "",
+      }));
+    };
+    window.addEventListener("olivia-client-context", applyContext);
+    return () => window.removeEventListener("olivia-client-context", applyContext);
+  }, []);
+
   const set = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
   };

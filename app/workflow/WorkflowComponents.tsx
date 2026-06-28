@@ -207,7 +207,7 @@ export function ApprovalCard({ approval, onRefresh }: { approval: any; onRefresh
       </div>
       {approval.status === "pending" ? (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <ActionButton onClick={() => action("approve")}>승인</ActionButton>
+          <ActionButton onClick={() => action("approve")}>승인하고 다음 단계 진행</ActionButton>
           <ActionButton onClick={() => action("request-revision")} tone="plain">수정 요청</ActionButton>
           <ActionButton onClick={() => action("reject")} tone="orange">반려</ActionButton>
           {approval.related_type === "mailing_queue" || approval.approval_type === "mailing" ? <Link href="/mailing" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.green, fontSize: 12, fontWeight: 900, textDecoration: "none" }}>메일링함 <ArrowRight size={13} /></Link> : null}
