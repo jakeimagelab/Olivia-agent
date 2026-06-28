@@ -1082,87 +1082,44 @@ export default function PhotoSortingPage() {
   );
 
   const FieldStep4 = () => {
-    const sc = scenes[activeScene];
-    if (!sc) return null;
-    const candidates = sc.files.filter(f=>f.rejectReason==="ok"&&(f.dupGroupId===null||f.isDupRep));
-    const rejected   = sc.files.filter(f=>f.rejectReason!=="ok"&&f.rejectReason!=="pending");
-    const dups       = sc.files.filter(f=>f.dupGroupId!==null&&!f.isDupRep);
-    const selected   = sc.files.filter(f=>f.selected).length;
-    const COUNT_OPTS: {v:SelectCount;l:string}[] = [{v:3,l:"3장"},{v:5,l:"5장"},{v:7,l:"7장"},{v:10,l:"10장"},{v:0,l:"전체"}];
-    const applyCount = (count:SelectCount) => setScenes(prev=>prev.map((s,i)=>{
-      if(i!==activeScene)return s;
-      const cands=s.files.filter(f=>f.rejectReason==="ok"&&(f.dupGroupId===null||f.isDupRep));
-      const n=count===0?cands.length:Math.min(count,cands.length);
-      const topNames=new Set([...cands].sort((a,b)=>{
-        const eDiff=(b.expressionScore??0)-(a.expressionScore??0);
-        if(Math.abs(eDiff)>0.1)return eDiff;
-        return (b.blurScore??0)-(a.blurScore??0);
-      }).slice(0,n).map(f=>f.name));
-      return {...s,selectCount:count,files:s.files.map(f=>({...f,selected:topNames.has(f.name)}))};
-    }));
-    const rejectLabel: Record<RejectReason,string>={ok:"",pending:"?",blur:"흔들림",dark:"어두움",overexposed:"노출과다",eyes_closed:"눈감힘"};
-    const exprBadge: Record<string,{label:string;bg:string;color:string}> = {
-      smile:   {label:"😊 미소",   bg:"#D1FAE5", color:"#065F46"},
-      focused: {label:"🎯 집중",   bg:"#DBEAFE", color:"#1E40AF"},
-      neutral: {label:"😐 자연",   bg:"#F3F4F6", color:"#6B7280"},
-      bad:     {label:"⚠ 어색",   bg:"#FEE2E2", color:"#B91C1C"},
-    };
+    if (!fieldStats) return null;
+    const totalOk = scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.rejectReason==="ok"&&!f.isPortraitLike).length,0);
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:14}}>
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
-          {scenes.map((s,i)=>(
-            <button key={i} onClick={()=>setActiveScene(i)} style={{padding:"7px 14px",borderRadius:8,border:`1.5px solid ${i===activeScene?C.teal:C.border}`,background:i===activeScene?C.light:C.white,fontSize:12,fontWeight:i===activeScene?800:600,color:i===activeScene?C.teal:C.muted,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-              {s.editedName||s.originalName}<span style={{marginLeft:6,fontSize:10,color:C.hint}}>{s.files.filter(f=>f.selected).length}선택</span>
-            </button>
-          ))}
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-          {[{label:"전체 JPG",value:sc.files.length},{label:"1차 제외",value:rejected.length,color:C.red},{label:"중복 제거",value:dups.length,color:C.yellow},{label:"선택됨",value:selected,color:C.green}].map(({label,value,color})=>(
+      <div style={{maxWidth:540,display:"flex",flexDirection:"column",gap:16}}>
+        <div style={{fontSize:14,fontWeight:800,color:C.green}}>AI 분류 완료</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+          {[
+            {label:"검토 대상",value:totalOk,color:C.teal},
+            {label:"불량컷 분류됨",value:fieldStats.totalRejected,color:C.red},
+            {label:"프로필 이동됨",value:fieldStats.portraitMoved,color:"#7C3AED"},
+          ].map(({label,value,color})=>(
             <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
-              <div style={{fontSize:22,fontWeight:900,color:color??C.teal}}>{value}</div>
+              <div style={{fontSize:22,fontWeight:900,color}}>{value}</div>
               <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
             </div>
           ))}
         </div>
-        <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-          <span style={{fontSize:12,fontWeight:700,color:C.muted}}>선택 장수:</span>
-          {COUNT_OPTS.map(({v,l})=>(
-            <button key={v} onClick={()=>applyCount(v)} style={{padding:"6px 14px",borderRadius:8,border:`1.5px solid ${sc.selectCount===v?C.teal:C.border}`,background:sc.selectCount===v?C.light:C.white,fontSize:12,fontWeight:sc.selectCount===v?800:600,color:sc.selectCount===v?C.teal:C.muted,cursor:"pointer",fontFamily:"inherit"}}>{l}</button>
-          ))}
-        </div>
-        {candidates.length > 0 ? (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:8}}>
-            {sc.files.filter(f=>f.rejectReason==="ok"&&(f.dupGroupId===null||f.isDupRep)).map(f=>{
-              const fi=sc.files.indexOf(f);
-              return (
-                <div key={f.name} onClick={()=>setScenes(prev=>prev.map((s,i)=>i!==activeScene?s:{...s,files:s.files.map((pf,idx)=>idx===fi?{...pf,selected:!pf.selected}:pf)}))} style={{borderRadius:10,overflow:"hidden",border:`2px solid ${f.selected?C.teal:C.border}`,cursor:"pointer",background:C.white,position:"relative"}}>
-                  {f.thumbUrl?<img src={f.thumbUrl} alt={f.name} style={{width:"100%",aspectRatio:"3/2",objectFit:"cover",display:"block"}}/>:<div style={{width:"100%",aspectRatio:"3/2",background:C.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:C.hint}}>로드 중</div>}
-                  {f.isPortraitLike&&<div style={{position:"absolute",top:5,left:5,background:"#7C3AED",color:"#fff",fontSize:8,fontWeight:800,padding:"2px 6px",borderRadius:4,letterSpacing:0.5}}>📸 프로필</div>}
-                  <div style={{padding:"4px 8px"}}>
-                    <div style={{fontSize:9,color:C.hint,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:2,marginTop:2}}>
-                      {f.blurScore!=null&&<span style={{fontSize:8,background:C.light,color:C.teal,padding:"1px 4px",borderRadius:3}}>선명{f.blurScore.toFixed(0)}</span>}
-                      {f.expressionType&&exprBadge[f.expressionType]&&(
-                        <span style={{fontSize:8,background:exprBadge[f.expressionType].bg,color:exprBadge[f.expressionType].color,padding:"1px 4px",borderRadius:3}}>
-                          {exprBadge[f.expressionType].label}
-                          {f.expressionScore!=null&&` ${(f.expressionScore*100).toFixed(0)}`}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{position:"absolute",top:5,right:5,width:18,height:18,borderRadius:"50%",background:f.selected?C.teal:"rgba(255,255,255,.8)",border:`2px solid ${f.selected?C.teal:C.border}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    {f.selected&&<span style={{color:"#fff",fontSize:10,fontWeight:900}}>✓</span>}
-                  </div>
-                </div>
-              );
-            })}
+        <div style={{background:"#F0FDF4",borderRadius:12,border:"1px solid #86EFAC",padding:20}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#166534",marginBottom:10}}>Finder에서 베스트컷을 선택해주세요</div>
+          <div style={{fontSize:12,color:"#166534",lineHeight:2}}>
+            1. Finder에서 <b>JPG(분류)/</b> 폴더 열기<br/>
+            2. 각 씬 폴더 안의 <b>Selected[XX]/</b> 폴더에 베스트컷 이동<br/>
+            3. 완료되면 아래 버튼 클릭
           </div>
-        ) : <div style={{padding:32,textAlign:"center",color:C.hint,fontSize:13}}>후보 없음</div>}
-        <div style={{display:"flex",gap:10,paddingTop:8}}>
+        </div>
+        <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"14px 16px"}}>
+          <div style={{fontSize:10,color:C.hint,marginBottom:6,fontWeight:700}}>폴더 구조</div>
+          <div style={{fontSize:11,fontFamily:"monospace",color:C.txt,lineHeight:2}}>
+            JPG(분류)/<br/>
+            &nbsp;&nbsp;├ 01. 씬이름/<br/>
+            &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├ <b>Selected01/</b> ← 베스트컷 여기로<br/>
+            &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└ _불량컷/ (자동 분류됨)<br/>
+            &nbsp;&nbsp;└ 프로필/ (자동 분류됨)
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10,paddingTop:4}}>
           <Btn variant="secondary" onClick={()=>setStep(2)}>← 뒤로</Btn>
-          <Btn onClick={runFieldOutput} disabled={scenes.every(s=>s.files.filter(f=>f.selected).length===0)}>
-            선택 완료 → 파일 정리 ({scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.selected).length,0)}장) →
-          </Btn>
+          <Btn onClick={runRawMatch}>RAW 매칭 시작 →</Btn>
         </div>
       </div>
     );
