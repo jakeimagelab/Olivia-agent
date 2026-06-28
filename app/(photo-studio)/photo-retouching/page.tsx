@@ -445,18 +445,16 @@ export default function PhotoRetouchingPage() {
       onPaste={handleGlobalPaste}
     >
       {/* 페이지 탭 */}
-      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}` }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px", display: "flex" }}>
-          {([["check","🎨 색감 체크"],["sync","🔄 색감 동기화"],["recipe","📋 보정 레시피"]] as const).map(([id, lbl]) => (
-            <button key={id} onClick={() => setTab(id)} style={{
-              padding: "14px 22px", border: "none", background: "none", cursor: "pointer",
-              fontFamily: "inherit", fontSize: 14, fontWeight: tab === id ? 800 : 500,
-              color: tab === id ? C.teal : C.muted,
-              borderBottom: `2.5px solid ${tab === id ? C.teal : "transparent"}`,
-              marginBottom: -1,
-            }}>{lbl}</button>
-          ))}
-        </div>
+      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, display: "flex", padding: "0 20px", overflowX: "auto" }}>
+        {([["check","🎨 색감 체크"],["sync","🔄 색감 동기화"],["recipe","📋 보정 레시피"]] as const).map(([id, lbl]) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            padding: "14px 22px", border: "none", background: "none", cursor: "pointer",
+            fontFamily: "inherit", fontSize: 14, fontWeight: tab === id ? 800 : 500,
+            color: tab === id ? C.teal : C.muted,
+            borderBottom: `2.5px solid ${tab === id ? C.teal : "transparent"}`,
+            marginBottom: -1, whiteSpace: "nowrap",
+          }}>{lbl}</button>
+        ))}
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
