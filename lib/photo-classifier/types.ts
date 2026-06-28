@@ -22,7 +22,62 @@ export type DermatologySceneType =
   | "reception"
   | "etc";
 
-export type SceneType = DermatologySceneType | "unknown";
+export type OrthoNeuroRehabSceneType =
+  | "xray"
+  | "c_arm_procedure"
+  | "ultrasound_procedure"
+  | "doctor_consultation"
+  | "physical_therapy"
+  | "shockwave_manual_therapy"
+  | "harmony"
+  | "profile"
+  | "interior"
+  | "reception"
+  | "etc";
+
+export type DentistrySceneType =
+  | "info_desk"
+  | "manager_consultation"
+  | "doctor_consultation"
+  | "harmony"
+  | "dental_treatment"
+  | "implant_surgery"
+  | "profile"
+  | "interior"
+  | "etc";
+
+export type PlasticSurgerySceneType =
+  | "manager_consultation"
+  | "doctor_consultation"
+  | "surgery_scene"
+  | "injection_treatment"
+  | "lifting_laser_treatment"
+  | "harmony"
+  | "doctor_treatment"
+  | "profile"
+  | "interior"
+  | "reception"
+  | "etc";
+
+export type SceneType =
+  | DermatologySceneType
+  | OrthoNeuroRehabSceneType
+  | DentistrySceneType
+  | PlasticSurgerySceneType
+  | "unknown";
+
+export type PhotoSceneAnalysisResult = {
+  department: MedicalDepartment;
+  sceneId: string;
+  sceneType: string;
+  displayName: string;
+  suggestedFolderName: string;
+  confidence: number;
+  detectedCues: string[];
+  negativeCues: string[];
+  reason: string;
+  needsReview: boolean;
+};
 
 export interface DepartmentSceneRule {
   sceneType: SceneType;
