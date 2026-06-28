@@ -681,25 +681,41 @@ export default function PhotoSortingPage() {
       setScenes([...updated]);
     }
 
-    setProgress({ cur:total, total, msg:"분석 완료" });
+    setProgress({ cur:total, total, msg:"불량컷 분류 중..." });
 
-    // ③ 자동 선택: 눈감힘 제외 후 표정 점수 → 선명도 순
-    const withSel = updated.map(sc => {
-      const cands = sc.files.filter(f =>
-        f.rejectReason === "ok" && (f.dupGroupId === null || f.isDupRep)
-      );
-      const n = sc.selectCount === 0 ? cands.length : Math.min(sc.selectCount, cands.length);
-      const topNames = new Set(
-        [...cands].sort((a, b) => {
-          const eDiff = (b.expressionScore ?? 0) - (a.expressionScore ?? 0);
-          if (Math.abs(eDiff) > 0.1) return eDiff;
-          return (b.blurScore ?? 0) - (a.blurScore ?? 0);
-        }).slice(0, n).map(f => f.name)
-      );
-      return { ...sc, files: sc.files.map(f => ({ ...f, selected: topNames.has(f.name) })) };
-    });
-    setScenes(withSel); setStep(4);
-  }, [scenes]);
+    // ③ 불량컷 → _불량컷/, 프로필 → JPG(분류)/프로필/, Selected[XX]/ 사전 생성
+    let badTotal = 0, portraitTotal = 0;
+    let portraitOutDir: FileSystemDirectoryHandle | null = null;
+    for (let si = 0; si < updated.length; si++) {
+      if (cancelRef.current) break;
+      const sc = updated[si];
+      const sceneNum = String(sc.index).padStart(2,"0");
+      // Selected 폴더 사전 생성 (작가가 Finder에서 바로 사용)
+      try { await (sc.sceneDir as any).getDirectoryHandle(`Selected${sceneNum}`, { create:true }); } catch {}
+      // 불량컷 → _불량컷/
+      const badFiles = sc.files.filter(f => f.rejectReason !== "ok" && f.rejectReason !== "pending");
+      if (badFiles.length > 0) {
+        try {
+          const badDir = await (sc.sceneDir as any).getDirectoryHandle("_불량컷", { create:true }) as FileSystemDirectoryHandle;
+          for (const pf of badFiles) {
+            try { await copyFileHandle(pf.handle, badDir, pf.name); await (sc.sceneDir as any).removeEntry(pf.name); badTotal++; } catch {}
+          }
+        } catch {}
+      }
+      // 프로필 컷 → JPG(분류)/프로필/
+      const portraitFiles = sc.files.filter(f => f.isPortraitLike && f.rejectReason === "ok");
+      if (portraitFiles.length > 0 && jpgBaseDir) {
+        try {
+          if (!portraitOutDir) portraitOutDir = await (jpgBaseDir as any).getDirectoryHandle("프로필", { create:true }) as FileSystemDirectoryHandle;
+          for (const pf of portraitFiles) {
+            try { await copyFileHandle(pf.handle, portraitOutDir, pf.name); await (sc.sceneDir as any).removeEntry(pf.name); portraitTotal++; } catch {}
+          }
+        } catch {}
+      }
+    }
+    setFieldStats({ totalJpg:total, totalRaw:rawCount, totalScenes:updated.length, totalRejected:badTotal, totalDupRemoved:updated.reduce((s,sc)=>s+sc.files.filter(f=>f.dupGroupId!==null&&!f.isDupRep).length,0), totalSelected:0, totalRawCopied:0, totalRawMissing:0, portraitMoved:portraitTotal });
+    setScenes(updated); setStep(4);
+  }, [scenes, jpgBaseDir, rawCount]);
 
   const runFieldOutput = useCallback(async () => {
     if (!rootDir || !jpgBaseDir || !rawBaseDir) return;
