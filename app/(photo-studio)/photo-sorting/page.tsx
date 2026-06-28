@@ -2,47 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
+import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
+import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
 ═══════════════════════════════════════════════ */
 type PhotoMode = "field" | "studio";
-
-interface ScannedFile {
-  name: string; basename: string;
-  handle: FileSystemFileHandle; mtime: number;
-  visualVec: number[];
-}
-
-/* ── Field-mode types ── */
-type RejectReason = "ok" | "pending" | "blur" | "dark" | "overexposed" | "eyes_closed";
-type SelectCount  = 3 | 5 | 7 | 10 | 0;
-type ExpressionType = "smile" | "focused" | "neutral" | "bad" | null;
-
-interface PhotoFile {
-  name: string; basename: string;
-  handle: FileSystemFileHandle; mtime: number;
-  thumbUrl: string | null;
-  blurScore: number | null; brightness: number | null; hash: string | null;
-  rejectReason: RejectReason; selected: boolean;
-  dupGroupId: string | null; isDupRep: boolean;
-  isPortraitLike: boolean;
-  expressionScore: number | null;   // AI 표정 점수 0~1
-  expressionType: ExpressionType;   // AI 표정 유형
-}
-
-interface Scene {
-  index: number; originalName: string; suggestedName: string; editedName: string;
-  files: PhotoFile[]; selectCount: SelectCount; nameLoading: boolean;
-  nameConfidence?: number; nameReason?: string;
-  sceneDir: FileSystemDirectoryHandle | null;
-}
-
-interface FieldStats {
-  totalJpg: number; totalRaw: number; totalScenes: number;
-  totalRejected: number; totalDupRemoved: number; totalSelected: number;
-  totalRawCopied: number; totalRawMissing: number; portraitMoved: number;
-}
 
 /* ── Studio-mode types ── */
 type StudioLightingStatus = "normal" | "etc_dark" | "etc_black" | "etc_test";
@@ -50,9 +16,7 @@ type StudioPoseType       = "Standing" | "Sitting" | "Unknown";
 type StudioInnerWear      = "셔츠" | "넥타이셔츠" | "스크럽" | "블라우스" | "탑" | "기타";
 type LightingSensitivity  = "loose" | "medium" | "strict";
 
-interface StudioOptions {
-  lightingSensitivity: LightingSensitivity;
-}
+interface StudioOptions { lightingSensitivity: LightingSensitivity; }
 
 interface StudioPhotoFile {
   name: string; basename: string;
@@ -60,8 +24,7 @@ interface StudioPhotoFile {
   thumbUrl: string | null; brightness: number | null;
   lightingStatus: StudioLightingStatus;
   hasGown: boolean; innerWear: StudioInnerWear;
-  clothingLabel: string; // computed display string
-  poseType: StudioPoseType;
+  clothingLabel: string; poseType: StudioPoseType;
   isFamilyProfile: boolean; confidence: number;
   analyzed: boolean; groupKey: string;
 }
@@ -85,8 +48,23 @@ interface StudioStats {
 const RAW_EXTS = new Set(["arw","cr3","cr2","nef","raf","dng","orf","rw2"]);
 const JPG_EXTS = new Set(["jpg","jpeg"]);
 
-const FIELD_STEPS  = ["폴더 선택","파일 분류","씬 검토·승인","AI 분석","후보 선택","파일 정리","완료"];
-const STUDIO_STEPS = ["폴더 선택","파일 분류","AI 분석","그룹 검토·승인","그룹 확인","파일 정리","완료"];
+const FIELD_STEPS  = ["설정","파일 분류","씬 검토","분석 중","선택 안내","RAW SELECT","완료"];
+const STUDIO_STEPS = ["폴더 선택","파일 분류","AI 분석","그룹 검토","그룹 확인","파일 정리","완료"];
+
+const DEPARTMENTS: { value: MedicalDepartment; label: string }[] = [
+  { value:"dermatology",            label:"피부과" },
+  { value:"dentistry",              label:"치과" },
+  { value:"ophthalmology",          label:"안과" },
+  { value:"orthopedics_neurosurgery", label:"정형외과/신경외과" },
+  { value:"pediatrics",             label:"소아과" },
+  { value:"korean_medicine",        label:"한의원" },
+  { value:"plastic_surgery",        label:"성형외과" },
+  { value:"obgyn",                  label:"산부인과" },
+  { value:"internal_medicine_checkup", label:"내과/검진센터" },
+  { value:"general",                label:"기타" },
+];
+
+const GAP_OPTIONS = [3, 5, 7, 10];
 
 const C = {
   teal:"#155855", orange:"#E85D2C", green:"#22876A",
@@ -128,7 +106,6 @@ async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirecto
   await wr.write(buf); await wr.close();
 }
 
-// 폴더 이름 변경: 파일을 새 폴더로 이동 후 기존 폴더 삭제
 async function renameDirHandle(parentDir: any, oldName: string, newName: string, srcDir: any): Promise<FileSystemDirectoryHandle> {
   if (oldName === newName) return srcDir as FileSystemDirectoryHandle;
   const newDir = await parentDir.getDirectoryHandle(newName, { create: true });
@@ -155,10 +132,15 @@ function downloadCSV(content: string, filename: string) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 
+function formatTime(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+
 /* ════════════════════════════════════════════════
    FIELD-MODE HELPERS
 ═══════════════════════════════════════════════ */
-async function analyzeJpg(file: File): Promise<{ blurScore: number; brightness: number; hash: string; thumbUrl: string }> {
+async function analyzeJpg(file: File): Promise<{ blurScore: number; brightness: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -182,47 +164,12 @@ async function analyzeJpg(file: File): Promise<{ blurScore: number; brightness: 
         lapSum += lap*lap; lapCount++;
       }
       const blurScore = lapCount > 0 ? Math.sqrt(lapSum/lapCount) : 0;
-      const hc = document.createElement("canvas"); hc.width = 8; hc.height = 8;
-      hc.getContext("2d")!.drawImage(img, 0, 0, 8, 8);
-      const hd = hc.getContext("2d")!.getImageData(0, 0, 8, 8).data;
-      const hGray = Array.from({length:64}, (_,i) => 0.299*hd[i*4]+0.587*hd[i*4+1]+0.114*hd[i*4+2]);
-      const hMean = hGray.reduce((a,b)=>a+b,0)/64;
-      const hash = hGray.map(v => v>=hMean?"1":"0").join("");
-      const tc = document.createElement("canvas");
-      const ts = Math.min(160/img.width, 160/img.height, 1);
-      tc.width = Math.round(img.width*ts); tc.height = Math.round(img.height*ts);
-      tc.getContext("2d")!.drawImage(img, 0, 0, tc.width, tc.height);
       URL.revokeObjectURL(url);
-      resolve({ blurScore, brightness, hash, thumbUrl: tc.toDataURL("image/jpeg", 0.72) });
+      resolve({ blurScore, brightness });
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load fail")); };
     img.src = url;
   });
-}
-
-function hammingDist(a: string, b: string) {
-  let d = 0; for (let i = 0; i < Math.min(a.length,b.length); i++) if (a[i]!==b[i]) d++; return d;
-}
-
-function applyDuplicates(files: PhotoFile[]): PhotoFile[] {
-  const maxDist = Math.round(64*0.05);
-  const result = files.map(f => ({...f, dupGroupId: null as string|null, isDupRep: false}));
-  let gid = 0;
-  for (let i = 0; i < result.length; i++) {
-    if (!result[i].hash||result[i].dupGroupId!==null||result[i].rejectReason!=="ok") continue;
-    const group = [i];
-    for (let j = i+1; j < result.length; j++) {
-      if (!result[j].hash||result[j].dupGroupId!==null||result[j].rejectReason!=="ok") continue;
-      if (hammingDist(result[i].hash!, result[j].hash!) <= maxDist) group.push(j);
-    }
-    if (group.length > 1) {
-      const gname = `g${++gid}`;
-      let rep = group[0];
-      for (const idx of group) if ((result[idx].blurScore??0)>(result[rep].blurScore??0)) rep=idx;
-      for (const idx of group) { result[idx].dupGroupId=gname; result[idx].isDupRep=(idx===rep); }
-    }
-  }
-  return result;
 }
 
 async function getApiThumb(file: File): Promise<string> {
@@ -241,25 +188,38 @@ async function getApiThumb(file: File): Promise<string> {
   });
 }
 
-/* ════════════════════════════════════════════════
-   STUDIO-MODE HELPERS
-═══════════════════════════════════════════════ */
-async function getStudioThumb(file: File, maxSize = 480): Promise<string> {
-  return new Promise((res, rej) => {
+async function computePortraitScore(file: File): Promise<number> {
+  return new Promise(res => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const s = Math.min(maxSize/img.width, maxSize/img.height, 1);
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width*s); c.height = Math.round(img.height*s);
-      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.75));
+      const W = 32, H = 32;
+      const c = document.createElement("canvas"); c.width = W; c.height = H;
+      c.getContext("2d")!.drawImage(img, 0, 0, W, H);
+      const d = c.getContext("2d")!.getImageData(0, 0, W, H).data;
+      const lum = Array.from({length: W*H}, (_,i) =>
+        (0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2]) / 255
+      );
+      let symDiff = 0;
+      for (let y = 2; y < 16; y++) for (let x = 0; x < 16; x++)
+        symDiff += Math.abs(lum[y*W+x] - lum[y*W+(W-1-x)]);
+      const symmetry = 1 - Math.min(symDiff / (14 * 16 * 0.5), 1);
+      let wx = 0, wt = 0;
+      for (let y = 2; y < 18; y++) for (let x = 0; x < W; x++) {
+        wx += x * lum[y*W+x]; wt += lum[y*W+x];
+      }
+      const cx = wt > 0 ? wx / wt / W : 0.5;
+      const centeredness = Math.max(0, 1 - Math.abs(cx - 0.5) * 4);
+      const mean = lum.reduce((s,v)=>s+v,0)/lum.length;
+      const variance = lum.reduce((s,v)=>s+(v-mean)**2,0)/lum.length;
+      const simplicity = 1 - Math.min(variance * 5, 1);
+      URL.revokeObjectURL(url);
+      res(symmetry*0.40 + centeredness*0.35 + simplicity*0.25);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("load")); };
+    img.onerror = () => { URL.revokeObjectURL(url); res(0); };
     img.src = url;
   });
 }
-
 
 async function readExifDateTime(file: File): Promise<number | null> {
   try {
@@ -302,63 +262,21 @@ async function readExifDateTime(file: File): Promise<number | null> {
   return null;
 }
 
-async function quickVisualVector(file: File): Promise<number[]> {
-  return new Promise(res => {
+/* ════════════════════════════════════════════════
+   STUDIO-MODE HELPERS
+═══════════════════════════════════════════════ */
+async function getStudioThumb(file: File, maxSize = 480): Promise<string> {
+  return new Promise((res, rej) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      const c = document.createElement("canvas"); c.width = 16; c.height = 16;
-      c.getContext("2d")!.drawImage(img, 0, 0, 16, 16);
-      const d = c.getContext("2d")!.getImageData(0, 0, 16, 16).data;
-      const v: number[] = [];
-      for (let i = 0; i < d.length; i += 4)
-        v.push((0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]) / 255);
-      URL.revokeObjectURL(url); res(v);
+      const s = Math.min(maxSize/img.width, maxSize/img.height, 1);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width*s); c.height = Math.round(img.height*s);
+      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.75));
     };
-    img.onerror = () => { URL.revokeObjectURL(url); res([]); };
-    img.src = url;
-  });
-}
-
-function visualDist(a: number[], b: number[]): number {
-  if (!a.length || !b.length) return 0;
-  let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]);
-  return s / a.length;
-}
-
-async function computePortraitScore(file: File): Promise<number> {
-  // Returns 0-1. ≥0.58 → 카메라 정면 응시 프로필 컷으로 판단
-  return new Promise(res => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const W = 32, H = 32;
-      const c = document.createElement("canvas"); c.width = W; c.height = H;
-      c.getContext("2d")!.drawImage(img, 0, 0, W, H);
-      const d = c.getContext("2d")!.getImageData(0, 0, W, H).data;
-      const lum = Array.from({length: W*H}, (_,i) =>
-        (0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2]) / 255
-      );
-      // 1. 좌우 대칭도 (상단 절반 — 얼굴 영역)
-      let symDiff = 0;
-      for (let y = 2; y < 16; y++) for (let x = 0; x < 16; x++)
-        symDiff += Math.abs(lum[y*W+x] - lum[y*W+(W-1-x)]);
-      const symmetry = 1 - Math.min(symDiff / (14 * 16 * 0.5), 1);
-      // 2. 가로 무게중심 (중앙일수록 프로필)
-      let wx = 0, wt = 0;
-      for (let y = 2; y < 18; y++) for (let x = 0; x < W; x++) {
-        wx += x * lum[y*W+x]; wt += lum[y*W+x];
-      }
-      const cx = wt > 0 ? wx / wt / W : 0.5;
-      const centeredness = Math.max(0, 1 - Math.abs(cx - 0.5) * 4);
-      // 3. 장면 단순도 (분산 낮을수록 깔끔한 배경 — 프로필)
-      const mean = lum.reduce((s,v)=>s+v,0)/lum.length;
-      const variance = lum.reduce((s,v)=>s+(v-mean)**2,0)/lum.length;
-      const simplicity = 1 - Math.min(variance * 5, 1);
-      URL.revokeObjectURL(url);
-      res(symmetry*0.40 + centeredness*0.35 + simplicity*0.25);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); res(0); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("load")); };
     img.src = url;
   });
 }
@@ -400,15 +318,12 @@ function createStudioFolderName(index: number, clothingLabel: string, poseType: 
 function buildStudioGroups(files: StudioPhotoFile[]): StudioGroup[] {
   const etcFiles    = files.filter(f => f.groupKey === "__ETC__");
   const normalFiles = files.filter(f => f.groupKey !== "__ETC__");
-
-  // 같은 groupKey는 촬영 순서 무관하게 하나로 합산
   const groupMap = new Map<string, StudioPhotoFile[]>();
   const keyOrder: string[] = [];
   for (const f of normalFiles) {
     if (!groupMap.has(f.groupKey)) { groupMap.set(f.groupKey, []); keyOrder.push(f.groupKey); }
     groupMap.get(f.groupKey)!.push(f);
   }
-
   const groups: StudioGroup[] = [];
   let idx = 1;
   for (const key of keyOrder) {
@@ -416,24 +331,12 @@ function buildStudioGroups(files: StudioPhotoFile[]): StudioGroup[] {
     const first = groupFiles[0];
     const isFamily = groupFiles.some(f => f.isFamilyProfile);
     const folderName = createStudioFolderName(idx, first.clothingLabel, first.poseType, isFamily);
-    groups.push({
-      key, clothingLabel: first.clothingLabel, poseType: first.poseType,
-      isFamilyProfile: isFamily, files: groupFiles,
-      suggestedFolderName: folderName, editedFolderName: folderName,
-      index: idx, isEtc: false,
-    });
+    groups.push({ key, clothingLabel: first.clothingLabel, poseType: first.poseType, isFamilyProfile: isFamily, files: groupFiles, suggestedFolderName: folderName, editedFolderName: folderName, index: idx, isEtc: false });
     idx++;
   }
-
   if (etcFiles.length > 0) {
-    groups.unshift({
-      key: "__ETC__", clothingLabel: "조명불량", poseType: "Unknown",
-      isFamilyProfile: false, files: etcFiles,
-      suggestedFolderName: "00_ETC_조명불량", editedFolderName: "00_ETC_조명불량",
-      index: 0, isEtc: true,
-    });
+    groups.unshift({ key: "__ETC__", clothingLabel: "조명불량", poseType: "Unknown", isFamilyProfile: false, files: etcFiles, suggestedFolderName: "00_ETC_조명불량", editedFolderName: "00_ETC_조명불량", index: 0, isEtc: true });
   }
-
   return groups;
 }
 
@@ -480,6 +383,20 @@ function SectionPill({ label, count, color }: { label: string; count: number; co
   );
 }
 
+function Toggle({ label, desc, value, onChange }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+      <div>
+        <div style={{fontSize:12,fontWeight:700,color:C.txt}}>{label}</div>
+        {desc && <div style={{fontSize:10,color:C.hint,marginTop:2,lineHeight:1.5}}>{desc}</div>}
+      </div>
+      <button onClick={() => onChange(!value)} style={{flexShrink:0,width:44,height:24,borderRadius:12,border:"none",cursor:"pointer",background:value?C.teal:C.border,position:"relative",transition:"background .2s",fontFamily:"inherit"}}>
+        <span style={{position:"absolute",top:2,left:value?22:2,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s",display:"block"}}/>
+      </button>
+    </div>
+  );
+}
+
 /* ════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════ */
@@ -493,19 +410,24 @@ export default function PhotoSortingPage() {
   const hasFS = typeof window !== "undefined" && "showDirectoryPicker" in window;
 
   /* ── field state ── */
-  const [gapMinutes,  setGapMinutes]  = useState(10);
-  const [scenes,      setScenes]      = useState<Scene[]>([]);
-  const [rawCount,    setRawCount]    = useState(0);
-  const [activeScene, setActiveScene] = useState(0);
-  const [copyLog,     setCopyLog]     = useState<string[]>([]);
-  const [fieldStats,  setFieldStats]  = useState<FieldStats | null>(null);
-  const [jpgBaseDir,  setJpgBaseDir]  = useState<FileSystemDirectoryHandle | null>(null);
-  const [rawBaseDir,  setRawBaseDir]  = useState<FileSystemDirectoryHandle | null>(null);
+  const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
+  const [gapMinutes,                 setGapMinutes]                 = useState(5);
+  const [departmentLogicEnabled,     setDepartmentLogicEnabled]     = useState(true);
+  const [aiNamingEnabled,            setAiNamingEnabled]            = useState(false);
+  const [qualityAnalysisEnabled,     setQualityAnalysisEnabled]     = useState(false);
+  const [profileClassificationEnabled, setProfileClassificationEnabled] = useState(true);
+  const [rawSelectMode,              setRawSelectMode]              = useState<"move"|"copy">("move");
+  const [fieldScenes,                setFieldScenes]                = useState<FieldScene[]>([]);
+  const [fieldRawCount,              setFieldRawCount]              = useState(0);
+  const [fieldJpgBaseDir,            setFieldJpgBaseDir]            = useState<FileSystemDirectoryHandle | null>(null);
+  const [fieldRawBaseDir,            setFieldRawBaseDir]            = useState<FileSystemDirectoryHandle | null>(null);
+  const [fieldStats,                 setFieldStats]                 = useState<FieldStats | null>(null);
+  const [copyLog,                    setCopyLog]                    = useState<string[]>([]);
 
   /* ── studio state ── */
-  const [studioOpts, setStudioOpts] = useState<StudioOptions>({ lightingSensitivity:"medium" });
-  const [studioFiles,  setStudioFiles]  = useState<StudioPhotoFile[]>([]);
-  const [studioGroups, setStudioGroups] = useState<StudioGroup[]>([]);
+  const [studioOpts,     setStudioOpts]     = useState<StudioOptions>({ lightingSensitivity:"medium" });
+  const [studioFiles,    setStudioFiles]    = useState<StudioPhotoFile[]>([]);
+  const [studioGroups,   setStudioGroups]   = useState<StudioGroup[]>([]);
   const [studioRawCount, setStudioRawCount] = useState(0);
   const [studioCopyLog,  setStudioCopyLog]  = useState<string[]>([]);
   const [studioStats,    setStudioStats]    = useState<StudioStats | null>(null);
@@ -524,227 +446,319 @@ export default function PhotoSortingPage() {
   const handleFieldSort = useCallback(async () => {
     if (!rootDir) return;
     setStep(1); cancelRef.current = false; setCopyLog([]);
-    const rawFiles: ScannedFile[] = [], jpgFiles: ScannedFile[] = [];
+
+    // ① 스캔
+    const rawFiles: { name: string; handle: FileSystemFileHandle }[] = [];
+    const jpgEntries: { name: string; handle: FileSystemFileHandle; mtime: number }[] = [];
     setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
+
     for await (const [name, handle] of (rootDir as any).entries()) {
       if (handle.kind !== "file") continue;
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       const file = await (handle as FileSystemFileHandle).getFile();
       if (RAW_EXTS.has(ext)) {
-        rawFiles.push({ name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified, visualVec:[] });
+        rawFiles.push({ name, handle });
       } else if (JPG_EXTS.has(ext)) {
         setProgress({ cur:0, total:0, msg:`스캔: ${name}` });
-        const [visualVec, exifTime] = await Promise.all([quickVisualVector(file), readExifDateTime(file)]);
-        const mtime = exifTime ?? file.lastModified;
-        jpgFiles.push({ name, basename:name.replace(/\.[^.]+$/,""), handle, mtime, visualVec });
+        const exifTime = await readExifDateTime(file);
+        jpgEntries.push({ name, handle, mtime: exifTime ?? file.lastModified });
       }
     }
-    setRawCount(rawFiles.length);
+    setFieldRawCount(rawFiles.length);
 
-    // ① RAW 전체 → RAW(원본)/ 이동
-    const rawBase = await (rootDir as any).getDirectoryHandle("RAW(원본)", { create:true }) as FileSystemDirectoryHandle;
-    setRawBaseDir(rawBase);
+    // ② RAW → RAW/
+    const rawBase = await (rootDir as any).getDirectoryHandle("RAW", { create:true }) as FileSystemDirectoryHandle;
+    setFieldRawBaseDir(rawBase);
     for (let i = 0; i < rawFiles.length; i++) {
+      if (cancelRef.current) break;
       const rf = rawFiles[i];
       setProgress({ cur:i, total:rawFiles.length, msg:`RAW 이동: ${rf.name}` });
       try {
         await copyFileHandle(rf.handle, rawBase, rf.name);
         try { await (rootDir as any).removeEntry(rf.name); } catch {}
-        setCopyLog(prev => [...prev.slice(-30), `📁 ${rf.name} → RAW(원본)/`]);
-      } catch { setCopyLog(prev => [...prev.slice(-30), `❌ RAW 이동 실패: ${rf.name}`]); }
+        setCopyLog(prev => [...prev.slice(-50), `📁 ${rf.name} → RAW/`]);
+      } catch {
+        setCopyLog(prev => [...prev.slice(-50), `❌ RAW 이동 실패: ${rf.name}`]);
+      }
     }
 
-    // ② JPG → 씬 분리 후 JPG(분류)/ 하위로 이동
-    jpgFiles.sort((a,b)=>a.mtime-b.mtime);
-    const gapMs = gapMinutes*60*1000;
-    const groups: ScannedFile[][] = jpgFiles.length > 0 ? [[jpgFiles[0]]] : [];
-    for (let i = 1; i < jpgFiles.length; i++) {
-      if (jpgFiles[i].mtime - jpgFiles[i-1].mtime > gapMs) groups.push([jpgFiles[i]]);
-      else groups[groups.length-1].push(jpgFiles[i]);
+    // ③ JPG → 시간순 정렬 → Scene 분리
+    jpgEntries.sort((a, b) => a.mtime - b.mtime);
+    const gapMs = gapMinutes * 60 * 1000;
+    const groups: typeof jpgEntries[] = jpgEntries.length > 0 ? [[jpgEntries[0]]] : [];
+    for (let i = 1; i < jpgEntries.length; i++) {
+      if (jpgEntries[i].mtime - jpgEntries[i-1].mtime > gapMs) groups.push([jpgEntries[i]]);
+      else groups[groups.length-1].push(jpgEntries[i]);
     }
-    const jpgBase = await (rootDir as any).getDirectoryHandle("JPG(분류)", { create:true }) as FileSystemDirectoryHandle;
-    setJpgBaseDir(jpgBase);
-    const total = jpgFiles.length; let done = 0;
-    const newScenes: Scene[] = [];
+
+    // ④ JPG → JPG/SceneXX/
+    const jpgBase = await (rootDir as any).getDirectoryHandle("JPG", { create:true }) as FileSystemDirectoryHandle;
+    setFieldJpgBaseDir(jpgBase);
+    // SELECT/JPG_SELECT/ 미리 생성 (사용자 안내용)
+    try {
+      const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create:true });
+      await (selectDir as any).getDirectoryHandle("JPG_SELECT", { create:true });
+    } catch {}
+
+    const total = jpgEntries.length; let done = 0;
+    const newScenes: FieldScene[] = [];
+
     for (let si = 0; si < groups.length; si++) {
       if (cancelRef.current) break;
       const sceneNum = String(si+1).padStart(2,"0");
-      const originalName = sceneNum; // 초기 폴더명: "01", "02", ...
-      const sceneDir = await (jpgBase as any).getDirectoryHandle(originalName, { create:true }) as FileSystemDirectoryHandle;
-      const photoFiles: PhotoFile[] = [];
-      for (const sf of groups[si]) {
+      const folderName = `Scene${sceneNum}`;
+      const sceneDir = await (jpgBase as any).getDirectoryHandle(folderName, { create:true }) as FileSystemDirectoryHandle;
+      const sceneFiles: SceneFile[] = [];
+
+      for (const entry of groups[si]) {
         if (cancelRef.current) break;
-        setProgress({ cur:done, total, msg:`씬${sceneNum} / ${sf.name}` });
+        setProgress({ cur:done, total, msg:`${folderName} / ${entry.name}` });
         try {
-          await copyFileHandle(sf.handle, sceneDir, sf.name);
-          const destHandle = await (sceneDir as any).getFileHandle(sf.name) as FileSystemFileHandle;
-          try { await (rootDir as any).removeEntry(sf.name); } catch {}
-          const thumb = photoFiles.length < 4 ? await loadThumb(await destHandle.getFile()) : null;
-          photoFiles.push({ name:sf.name, basename:sf.basename, handle:destHandle, mtime:sf.mtime, thumbUrl:thumb, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false, expressionScore:null, expressionType:null });
+          await copyFileHandle(entry.handle, sceneDir, entry.name);
+          const destHandle = await (sceneDir as any).getFileHandle(entry.name) as FileSystemFileHandle;
+          try { await (rootDir as any).removeEntry(entry.name); } catch {}
+          let thumbUrl: string | null = null;
+          if (sceneFiles.length < 4) thumbUrl = await loadThumb(await destHandle.getFile(), 120);
+          sceneFiles.push({ name:entry.name, basename:entry.name.replace(/\.[^.]+$/,""), handle:destHandle, mtime:entry.mtime, thumbUrl });
+          setCopyLog(prev => [...prev.slice(-50), `✅ ${entry.name} → JPG/${folderName}/`]);
         } catch {
-          photoFiles.push({ name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime, thumbUrl:null, blurScore:null, brightness:null, hash:null, rejectReason:"pending", selected:false, dupGroupId:null, isDupRep:false, isPortraitLike:false, expressionScore:null, expressionType:null });
+          sceneFiles.push({ name:entry.name, basename:entry.name.replace(/\.[^.]+$/,""), handle:entry.handle, mtime:entry.mtime, thumbUrl:null });
         }
-        done++; setCopyLog(prev => [...prev.slice(-30), `✅ ${sf.name} → JPG(분류)/씬${sceneNum}`]);
+        done++;
       }
-      newScenes.push({ index:si+1, originalName, suggestedName:originalName, editedName:originalName, files:photoFiles, selectCount:5, nameLoading:true, sceneDir });
+
+      newScenes.push({
+        index: si+1, folderName, editedName: folderName,
+        startTime: groups[si][0].mtime,
+        endTime: groups[si][groups[si].length-1].mtime,
+        fileCount: sceneFiles.length, files: sceneFiles, sceneDir,
+        sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
+        subScenes: [], profileCount: 0, qualityRejectCount: 0,
+        nameLoading: aiNamingEnabled || departmentLogicEnabled,
+      });
     }
-    setScenes(newScenes);
-    setProgress({ cur:total, total, msg:"씬 분류 완료 — AI 씬 이름 분석 중..." });
+
+    setFieldScenes(newScenes);
+    setProgress({ cur:total, total, msg:"씬 분류 완료" });
     setStep(2);
 
-    // ③ AI 씬 이름 지정 + 폴더 이름 변경: "01" → "01. 씬이름"
-    const updated = newScenes.map(s=>({...s}));
+    // ⑤ 백그라운드: AI 씬 분석 (옵션)
+    if ((aiNamingEnabled || departmentLogicEnabled) && newScenes.length > 0) {
+      runSceneAiAnalysis(newScenes);
+    }
+  }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department]);
+
+  const runSceneAiAnalysis = async (scenes: FieldScene[]) => {
+    const updated = scenes.map(s => ({...s}));
     for (let i = 0; i < updated.length; i++) {
       try {
-        const sampleFiles = updated[i].files.slice(0,4);
-        const thumbs: string[] = [];
-        for (const pf of sampleFiles) thumbs.push(await getApiThumb(await pf.handle.getFile()));
-        const res = await fetch("/api/scene-naming", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ thumbnails:thumbs, originalName:updated[i].originalName }) });
+        const files = updated[i].files;
+        const n = files.length;
+        const idxSet = new Set([0, Math.min(1,n-1), Math.floor(n/2), Math.min(Math.floor(n/2)+1,n-1), Math.max(0,n-2), n-1]);
+        const thumbnails: string[] = [];
+        for (const idx of idxSet) {
+          try {
+            const f = await files[idx].handle.getFile();
+            thumbnails.push(await getApiThumb(f));
+          } catch {}
+          if (thumbnails.length >= 6) break;
+        }
+        const res = await fetch("/api/department-scene", {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ thumbnails, department }),
+        });
         const data = await res.json();
-        if (data.ok && data.name) {
+        if (data.ok) {
           const num = String(updated[i].index).padStart(2,"0");
-          const suggested = `${num}. ${data.name}`;
-          const newSceneDir = await renameDirHandle(jpgBase, updated[i].originalName, suggested, updated[i].sceneDir as any);
-          const newFiles = updated[i].files.map(f => ({...f}));
-          for (const pf of newFiles) {
-            try { pf.handle = await (newSceneDir as any).getFileHandle(pf.name) as FileSystemFileHandle; } catch {}
-          }
-          updated[i] = {...updated[i], suggestedName:suggested, editedName:suggested, nameLoading:false, nameConfidence:data.confidence, nameReason:data.reason, sceneDir:newSceneDir, files:newFiles};
-        } else { updated[i] = {...updated[i], nameLoading:false}; }
-      } catch { updated[i] = {...updated[i], nameLoading:false}; }
-      setScenes([...updated]);
+          const suggested = aiNamingEnabled && data.suggestedFolderName
+            ? `Scene${num}_${data.suggestedFolderName}` : null;
+          updated[i] = {
+            ...updated[i],
+            sceneType: data.sceneType ?? null,
+            suggestedName: suggested,
+            aiConfidence: data.confidence ?? null,
+            aiReason: data.reason ?? null,
+            editedName: aiNamingEnabled && suggested ? suggested : updated[i].editedName,
+            nameLoading: false,
+          };
+        } else {
+          updated[i] = { ...updated[i], nameLoading: false };
+        }
+      } catch {
+        updated[i] = { ...updated[i], nameLoading: false };
+      }
+      setFieldScenes([...updated]);
     }
-  }, [rootDir, gapMinutes]);
+  };
 
-  const runFieldAnalysis = useCallback(async () => {
-    setStep(3); cancelRef.current = false;
-    const total = scenes.reduce((s,sc)=>s+sc.files.length,0); let done = 0;
-    const updated = scenes.map(s=>({...s, files:s.files.map(f=>({...f}))}));
+  const mergeFieldScenes = useCallback(async (i: number, j: number) => {
+    if (!fieldJpgBaseDir) return;
+    const si = fieldScenes[i];
+    const sj = fieldScenes[j];
+    if (!si.sceneDir || !sj.sceneDir) return;
+    // 물리적으로 파일 이동
+    for (const f of sj.files) {
+      try {
+        await copyFileHandle(f.handle, si.sceneDir as FileSystemDirectoryHandle, f.name);
+        await (sj.sceneDir as any).removeEntry(f.name);
+      } catch {}
+    }
+    try { await (fieldJpgBaseDir as any).removeEntry(sj.folderName); } catch {}
+    setFieldScenes(prev => {
+      const copy = [...prev];
+      copy[i] = {
+        ...si,
+        files: [...si.files, ...sj.files],
+        fileCount: si.fileCount + sj.fileCount,
+        endTime: sj.endTime,
+      };
+      return copy.filter((_, idx) => idx !== j);
+    });
+  }, [fieldScenes, fieldJpgBaseDir]);
 
-    // ① 1차: Canvas 분석 (선명도·밝기·해시) — 순차
+  const handleConfirmScenes = useCallback(async () => {
+    if (!fieldJpgBaseDir) return;
+    // 이름 변경 적용
+    const updated = [...fieldScenes];
+    for (let i = 0; i < updated.length; i++) {
+      const sc = updated[i];
+      if (sc.editedName !== sc.folderName && sc.sceneDir) {
+        try {
+          const newDir = await renameDirHandle(fieldJpgBaseDir as any, sc.folderName, sc.editedName, sc.sceneDir);
+          const newFiles = sc.files.map(f => ({...f}));
+          for (const pf of newFiles) {
+            try { pf.handle = await (newDir as any).getFileHandle(pf.name) as FileSystemFileHandle; } catch {}
+          }
+          updated[i] = { ...sc, folderName:sc.editedName, sceneDir:newDir, files:newFiles };
+        } catch {}
+      }
+    }
+    setFieldScenes(updated);
+
+    if (qualityAnalysisEnabled || profileClassificationEnabled) {
+      setStep(3);
+      await runSecondaryAnalysis(updated);
+    } else {
+      setStep(4);
+      setFieldStats({
+        totalJpg: updated.reduce((s,sc)=>s+sc.fileCount,0),
+        totalRaw: fieldRawCount,
+        totalScenes: updated.length,
+        totalSubScenes: 0, totalProfile: 0, totalQualityReject: 0,
+        selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
+      });
+    }
+  }, [fieldScenes, fieldJpgBaseDir, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount]);
+
+  const runSecondaryAnalysis = async (scenes: FieldScene[]) => {
+    const total = scenes.reduce((s,sc)=>s+sc.fileCount,0);
+    let done = 0, qualityRejectTotal = 0, profileTotal = 0;
+    const qualityRows: string[][] = [];
+    const profileRows: string[][] = [];
+    let qualityExcDir: FileSystemDirectoryHandle | null = null;
+    let profileDir: FileSystemDirectoryHandle | null = null;
+    const updated = scenes.map(s => ({...s}));
+
     for (let si = 0; si < updated.length; si++) {
+      if (cancelRef.current) break;
       for (let fi = 0; fi < updated[si].files.length; fi++) {
         if (cancelRef.current) break;
         const pf = updated[si].files[fi];
-        setProgress({ cur:done, total, msg:`선명도 분석: ${pf.name}` });
+        setProgress({ cur:done, total, msg:`분석: ${pf.name}` });
         try {
           const file = await pf.handle.getFile();
-          const { blurScore, brightness, hash, thumbUrl } = await analyzeJpg(file);
-          let rejectReason: RejectReason = "ok";
-          if (blurScore < 18)   rejectReason = "blur";
-          else if (brightness < 38)  rejectReason = "dark";
-          else if (brightness > 230) rejectReason = "overexposed";
-          const portraitScore = await computePortraitScore(file);
-          const isPortraitLike = portraitScore >= 0.58;
-          updated[si].files[fi] = {...pf, blurScore, brightness, hash, thumbUrl, rejectReason, isPortraitLike};
-        } catch { updated[si].files[fi] = {...pf, rejectReason:"ok"}; }
+
+          if (qualityAnalysisEnabled) {
+            const { blurScore, brightness } = await analyzeJpg(file);
+            let rejectReason = "";
+            if (blurScore < 18) rejectReason = "흔들림";
+            else if (brightness < 38) rejectReason = "조명불량";
+            else if (brightness > 230) rejectReason = "확인필요";
+
+            if (rejectReason && updated[si].sceneDir && fieldJpgBaseDir) {
+              if (!qualityExcDir) qualityExcDir = await (fieldJpgBaseDir as any).getDirectoryHandle("00_QUALITY_EXCLUDED", { create:true }) as FileSystemDirectoryHandle;
+              const subDir = await (qualityExcDir as any).getDirectoryHandle(rejectReason, { create:true }) as FileSystemDirectoryHandle;
+              await copyFileHandle(pf.handle, subDir, pf.name);
+              try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch {}
+              qualityRows.push([pf.name, updated[si].editedName, rejectReason, ""]);
+              qualityRejectTotal++;
+              updated[si].qualityRejectCount++;
+            }
+          }
+
+          if (profileClassificationEnabled) {
+            const score = await computePortraitScore(file);
+            if (score >= 0.58 && updated[si].sceneDir && rootDir) {
+              if (!profileDir) profileDir = await (rootDir as any).getDirectoryHandle("PROFILE", { create:true }) as FileSystemDirectoryHandle;
+              await copyFileHandle(pf.handle, profileDir, pf.name);
+              try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch {}
+              profileRows.push([pf.name, updated[si].editedName, String(score.toFixed(2)), "PROFILE/"]);
+              profileTotal++;
+              updated[si].profileCount++;
+            }
+          }
+        } catch {}
         done++;
       }
-      updated[si].files = applyDuplicates(updated[si].files);
-      setScenes([...updated]);
+      setFieldScenes([...updated]);
     }
 
-    // ② 2차: AI 표정·눈감힘 분석 — 8개 병렬 (기술 필터 통과한 사진만)
-    setProgress({ cur:0, total, msg:"AI 표정 분석 중..." });
-    const CONC = 8;
-    for (let si = 0; si < updated.length; si++) {
-      const okIndices = updated[si].files
-        .map((f, i) => ({ f, i }))
-        .filter(({ f }) => f.rejectReason === "ok");
+    // 리포트 생성 (REPORT/ 폴더)
+    try {
+      const reportDir = await (rootDir as any).getDirectoryHandle("REPORT", { create:true });
+      const wr = async (name: string, content: string) => {
+        const fh = await (reportDir as any).getFileHandle(name, { create:true });
+        const w = await fh.createWritable();
+        await w.write("﻿" + content); await w.close();
+      };
+      if (qualityRows.length > 0)
+        await wr("quality_report.csv", makeCSV(["file_name","scene","reason","note"], qualityRows));
+      if (profileRows.length > 0)
+        await wr("profile_report.csv", makeCSV(["file_name","original_scene","portrait_score","moved_to"], profileRows));
+    } catch {}
 
-      for (let bi = 0; bi < okIndices.length; bi += CONC) {
-        if (cancelRef.current) break;
-        const batch = okIndices.slice(bi, bi + CONC);
-        setProgress({ cur:bi, total:okIndices.length, msg:`${updated[si].editedName || updated[si].originalName} 표정 분석 (${bi+1}/${okIndices.length})` });
-        await Promise.all(batch.map(async ({ f, i }) => {
-          try {
-            const file = await f.handle.getFile();
-            const thumb = await getApiThumb(file);
-            const res = await fetch("/api/photo-quality", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ thumbnail: thumb }),
-            });
-            const data = await res.json();
-            if (data.ok) {
-              const rejectReason: RejectReason = data.eyesClosed ? "eyes_closed" : f.rejectReason;
-              updated[si].files[i] = {
-                ...updated[si].files[i],
-                rejectReason,
-                expressionScore: data.expressionScore ?? null,
-                expressionType: data.expressionType ?? null,
-              };
-            }
-          } catch {}
-        }));
-      }
-      setScenes([...updated]);
-    }
+    setFieldStats({
+      totalJpg: total, totalRaw: fieldRawCount,
+      totalScenes: updated.length, totalSubScenes: 0,
+      totalProfile: profileTotal, totalQualityReject: qualityRejectTotal,
+      selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
+    });
+    setStep(4);
+  };
 
-    setProgress({ cur:total, total, msg:"불량컷 분류 중..." });
-
-    // ③ 불량컷 → _불량컷/, 프로필 → JPG(분류)/프로필/, Selected[XX]/ 사전 생성
-    let badTotal = 0, portraitTotal = 0;
-    let portraitOutDir: FileSystemDirectoryHandle | null = null;
-    for (let si = 0; si < updated.length; si++) {
-      if (cancelRef.current) break;
-      const sc = updated[si];
-      const sceneNum = String(sc.index).padStart(2,"0");
-      // Selected 폴더 사전 생성 (작가가 Finder에서 바로 사용)
-      try { await (sc.sceneDir as any).getDirectoryHandle(`Selected${sceneNum}`, { create:true }); } catch {}
-      // 불량컷 → _불량컷/
-      const badFiles = sc.files.filter(f => f.rejectReason !== "ok" && f.rejectReason !== "pending");
-      if (badFiles.length > 0) {
-        try {
-          const badDir = await (sc.sceneDir as any).getDirectoryHandle("_불량컷", { create:true }) as FileSystemDirectoryHandle;
-          for (const pf of badFiles) {
-            try { await copyFileHandle(pf.handle, badDir, pf.name); await (sc.sceneDir as any).removeEntry(pf.name); badTotal++; } catch {}
-          }
-        } catch {}
-      }
-      // 프로필 컷 → JPG(분류)/프로필/
-      const portraitFiles = sc.files.filter(f => f.isPortraitLike && f.rejectReason === "ok");
-      if (portraitFiles.length > 0 && jpgBaseDir) {
-        try {
-          if (!portraitOutDir) portraitOutDir = await (jpgBaseDir as any).getDirectoryHandle("프로필", { create:true }) as FileSystemDirectoryHandle;
-          for (const pf of portraitFiles) {
-            try { await copyFileHandle(pf.handle, portraitOutDir, pf.name); await (sc.sceneDir as any).removeEntry(pf.name); portraitTotal++; } catch {}
-          }
-        } catch {}
-      }
-    }
-    setFieldStats({ totalJpg:total, totalRaw:rawCount, totalScenes:updated.length, totalRejected:badTotal, totalDupRemoved:updated.reduce((s,sc)=>s+sc.files.filter(f=>f.dupGroupId!==null&&!f.isDupRep).length,0), totalSelected:0, totalRawCopied:0, totalRawMissing:0, portraitMoved:portraitTotal });
-    setScenes(updated); setStep(4);
-  }, [scenes, jpgBaseDir, rawCount]);
-
-  const runRawMatch = useCallback(async () => {
-    if (!jpgBaseDir || !rawBaseDir) return;
+  const runRawSelect = useCallback(async () => {
+    if (!rootDir || !fieldRawBaseDir) return;
     setStep(5); cancelRef.current = false;
     const log: string[] = [];
 
-    // JPG(분류)/ 하위 씬폴더의 Selected*/ 서브폴더에 있는 파일 basename 수집
+    // SELECT/JPG_SELECT/ 스캔 → 선택된 JPG basename 수집
     const selectedBasenames = new Set<string>();
-    for await (const [, sceneDirHandle] of (jpgBaseDir as any).entries()) {
-      if (sceneDirHandle.kind !== "directory") continue;
-      for await (const [subName, subHandle] of (sceneDirHandle as any).entries()) {
-        if (subHandle.kind !== "directory" || !subName.startsWith("Selected")) continue;
-        for await (const [fileName] of (subHandle as any).entries()) {
-          const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
-          if (JPG_EXTS.has(ext)) selectedBasenames.add(fileName.replace(/\.[^.]+$/,"").toLowerCase());
-        }
+    try {
+      const selectDir = await (rootDir as any).getDirectoryHandle("SELECT");
+      const jpgSelectDir = await (selectDir as any).getDirectoryHandle("JPG_SELECT");
+      for await (const [name] of (jpgSelectDir as any).entries()) {
+        const ext = name.split(".").pop()?.toLowerCase() ?? "";
+        if (JPG_EXTS.has(ext)) selectedBasenames.add(name.replace(/\.[^.]+$/,"").toLowerCase());
       }
+    } catch {
+      log.push("⚠️ SELECT/JPG_SELECT/ 폴더를 찾을 수 없습니다. 폴더에 선택 JPG를 넣어주세요.");
+      setCopyLog([...log]); return;
     }
 
-    // RAW(원본)/ 인덱스
+    // RAW/ 인덱스 생성
     const rawIndex = new Map<string, FileSystemFileHandle>();
-    for await (const [name, handle] of (rawBaseDir as any).entries()) {
+    for await (const [name, handle] of (fieldRawBaseDir as any).entries()) {
       if (handle.kind !== "file") continue;
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/,"").toLowerCase(), handle as FileSystemFileHandle);
     }
 
-    const selectedRawDir = await (rawBaseDir as any).getDirectoryHandle("SelectedRAW", { create:true }) as FileSystemDirectoryHandle;
-    let rawCopied = 0, rawMissing = 0; let processed = 0;
+    // SELECT/RAW_SELECT/ 생성
+    const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create:true });
+    const rawSelectDir = await (selectDir as any).getDirectoryHandle("RAW_SELECT", { create:true }) as FileSystemDirectoryHandle;
+
+    let rawMoved = 0, rawMissing = 0; let processed = 0;
+    const rawRows: string[][] = [];
 
     for (const basename of selectedBasenames) {
       if (cancelRef.current) break;
@@ -753,26 +767,53 @@ export default function PhotoSortingPage() {
       if (handle) {
         const rawFile = await handle.getFile();
         try {
-          await copyFileHandle(handle, selectedRawDir, rawFile.name);
-          try { await (rawBaseDir as any).removeEntry(rawFile.name); } catch {}
-          log.push(`✅ RAW: ${rawFile.name}`); rawCopied++;
-        } catch { log.push(`❌ RAW: ${rawFile.name} 실패`); }
-      } else { log.push(`⚠️ RAW 없음: ${basename}`); rawMissing++; }
+          if (rawSelectMode === "move") {
+            await copyFileHandle(handle, rawSelectDir, rawFile.name);
+            try { await (fieldRawBaseDir as any).removeEntry(rawFile.name); } catch {}
+            log.push(`✅ 이동: ${rawFile.name}`);
+          } else {
+            await copyFileHandle(handle, rawSelectDir, rawFile.name);
+            log.push(`✅ 복사: ${rawFile.name}`);
+          }
+          rawRows.push([`${basename}.jpg`, rawFile.name, "완료", `RAW/${rawFile.name}`, `SELECT/RAW_SELECT/${rawFile.name}`, "basename"]);
+          rawMoved++;
+        } catch {
+          log.push(`❌ 실패: ${rawFile.name}`);
+          rawRows.push([`${basename}.jpg`, rawFile.name, "실패", "", "", ""]);
+        }
+      } else {
+        log.push(`⚠️ RAW 없음: ${basename}`);
+        rawRows.push([`${basename}.jpg`, "", "누락", "", "", ""]);
+        rawMissing++;
+      }
       processed++; setCopyLog([...log]);
     }
 
-    // 리포트
+    // REPORT 생성
     try {
-      const reportDir = await (jpgBaseDir as any).getDirectoryHandle("_AI_REPORT", { create:true });
-      const fh = await (reportDir as any).getFileHandle("raw_match_report.csv", { create:true });
-      const w = await fh.createWritable();
-      await w.write("﻿" + makeCSV(["JPG basename","RAW 상태"], [...selectedBasenames].map(b => [b, rawIndex.has(b)?"이동완료":"누락"])));
-      await w.close();
+      const reportDir = await (rootDir as any).getDirectoryHandle("REPORT", { create:true });
+      const wr = async (name: string, content: string) => {
+        const fh = await (reportDir as any).getFileHandle(name, { create:true });
+        const w = await fh.createWritable();
+        await w.write("﻿" + content); await w.close();
+      };
+      await wr("raw_select_report.csv", makeCSV(["jpg_file","raw_file","status","source_path","destination_path","matched_by"], rawRows));
+      const summary = {
+        mode:"field", department, departmentDisplayName:DEPARTMENT_DISPLAY[department],
+        gapMinutes, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled,
+        rawSelectMode,
+        totalJpg: fieldStats?.totalJpg ?? 0, totalRaw: fieldRawCount,
+        totalScenes: fieldStats?.totalScenes ?? 0, totalSubScenes: 0,
+        totalProfile: fieldStats?.totalProfile ?? 0, totalQualityReject: fieldStats?.totalQualityReject ?? 0,
+        selectedJpg: selectedBasenames.size, selectedRawMoved: rawMoved, rawMissing,
+        createdAt: new Date().toISOString(),
+      };
+      await wr("summary.json", JSON.stringify(summary, null, 2));
     } catch {}
 
-    setFieldStats(prev => prev ? { ...prev, totalSelected:selectedBasenames.size, totalRawCopied:rawCopied, totalRawMissing:rawMissing } : null);
+    setFieldStats(prev => prev ? { ...prev, selectedJpg:selectedBasenames.size, selectedRawMoved:rawMoved, rawMissing } : null);
     setStep(6);
-  }, [jpgBaseDir, rawBaseDir]);
+  }, [rootDir, fieldRawBaseDir, rawSelectMode, fieldStats, fieldRawCount, department, gapMinutes, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled]);
 
   /* ════════════════════════════════════════════
      STUDIO-MODE HANDLERS
@@ -781,14 +822,14 @@ export default function PhotoSortingPage() {
     if (!rootDir) return;
     setStep(1); cancelRef.current = false;
     setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
-    const rawFiles: ScannedFile[] = [], jpgFiles: ScannedFile[] = [];
+    const rawFiles: {name:string,handle:FileSystemFileHandle}[] = [];
+    const jpgFiles: {name:string,handle:FileSystemFileHandle,mtime:number}[] = [];
     for await (const [name, handle] of (rootDir as any).entries()) {
       if (handle.kind !== "file") continue;
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       const file = await (handle as FileSystemFileHandle).getFile();
-      const entry: ScannedFile = { name, basename:name.replace(/\.[^.]+$/,""), handle, mtime:file.lastModified, visualVec:[] };
-      if (RAW_EXTS.has(ext)) rawFiles.push(entry);
-      else if (JPG_EXTS.has(ext)) jpgFiles.push(entry);
+      if (RAW_EXTS.has(ext)) rawFiles.push({ name, handle });
+      else if (JPG_EXTS.has(ext)) jpgFiles.push({ name, handle, mtime:file.lastModified });
     }
     setStudioRawCount(rawFiles.length);
     jpgFiles.sort((a,b)=>a.mtime-b.mtime);
@@ -799,13 +840,12 @@ export default function PhotoSortingPage() {
       const file = await sf.handle.getFile();
       const thumb = await loadThumb(file, 100);
       const brightness = await quickBrightness(file);
-      files.push({ name:sf.name, basename:sf.basename, handle:sf.handle, mtime:sf.mtime, thumbUrl:thumb, brightness, lightingStatus:"normal", hasGown:false, innerWear:"기타", clothingLabel:"미분류", poseType:"Unknown", isFamilyProfile:false, confidence:0, analyzed:false, groupKey:"__PENDING__" });
+      files.push({ name:sf.name, basename:sf.name.replace(/\.[^.]+$/,""), handle:sf.handle, mtime:sf.mtime, thumbUrl:thumb, brightness, lightingStatus:"normal", hasGown:false, innerWear:"기타", clothingLabel:"미분류", poseType:"Unknown", isFamilyProfile:false, confidence:0, analyzed:false, groupKey:"__PENDING__" });
       done++;
     }
     setStudioFiles(files);
     setProgress({ cur:total, total, msg:`파일 분류 완료 — JPG ${jpgFiles.length}장 / RAW ${rawFiles.length}개` });
     setStep(2);
-    // AI Vision analysis
     await runStudioAnalysis(files);
   }, [rootDir, studioOpts]);
 
@@ -815,7 +855,6 @@ export default function PhotoSortingPage() {
     const result = files.map(f => ({...f}));
     const indices = Array.from({length: total}, (_, i) => i);
     let qi = 0;
-
     const worker = async () => {
       while (qi < indices.length) {
         const idx = indices[qi++];
@@ -848,7 +887,6 @@ export default function PhotoSortingPage() {
         setStudioFiles([...result]);
       }
     };
-
     await Promise.all(Array.from({length: CONCURRENCY}, () => worker()));
     const groups = buildStudioGroups(result);
     setStudioGroups(groups);
@@ -863,28 +901,23 @@ export default function PhotoSortingPage() {
     const selectedJpgDir = await (rootDir as any).getDirectoryHandle(`selected_${rootName}`, { create:true });
     const selectedRawDir = await (rootDir as any).getDirectoryHandle("Selected_RAW", { create:true });
     const reportDir      = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
-
     const rawIndex = new Map<string, FileSystemFileHandle>();
     for await (const [name, handle] of (rootDir as any).entries()) {
       if (handle.kind !== "file") continue;
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/,"").toLowerCase(), handle as FileSystemFileHandle);
     }
-
     const totalFiles = studioGroups.reduce((s,g)=>s+g.files.length,0);
     let processed = 0, rawCopied = 0, rawMissing = 0;
     const classRows: string[][] = [], groupRows: string[][] = [], etcRows: string[][] = [], rawRows: string[][] = [];
-
     for (const group of studioGroups) {
       const folderName = group.editedFolderName || group.suggestedFolderName;
       const groupDir = await (selectedJpgDir as any).getDirectoryHandle(folderName, { create:true });
-
       for (const file of group.files) {
         if (cancelRef.current) break;
         setProgress({ cur:processed, total:totalFiles, msg:`${folderName}: ${file.name}` });
         try { await copyFileHandle(file.handle, groupDir, file.name); log.push(`✅ ${file.name} → ${folderName}/`); }
         catch { log.push(`❌ ${file.name} 실패`); }
-
         if (!group.isEtc) {
           const rawHandle = rawIndex.get(file.basename.toLowerCase());
           if (rawHandle) {
@@ -893,30 +926,21 @@ export default function PhotoSortingPage() {
               await copyFileHandle(rawHandle, selectedRawDir, rawFile.name);
               rawCopied++;
               rawRows.push([file.name, rawFile.name, folderName, "복사완료", `Selected_RAW/${rawFile.name}`]);
-              log.push(`✅ RAW: ${rawFile.name}`);
             } catch { rawRows.push([file.name, "", folderName, "실패", ""]); }
           } else {
-            rawMissing++;
-            rawRows.push([file.name, "", folderName, "누락", ""]);
-            log.push(`⚠️ RAW 누락: ${file.basename}`);
+            rawMissing++; rawRows.push([file.name, "", folderName, "누락", ""]);
           }
         }
-
-        if (group.isEtc) {
-          etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), "", "", ""]);
-        }
+        if (group.isEtc) etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), "", "", ""]);
         classRows.push([file.name, "", folderName, file.clothingLabel, file.poseType, file.lightingStatus, String(Math.round(file.confidence*100)/100), ""]);
-        processed++;
-        setStudioCopyLog([...log]);
+        processed++; setStudioCopyLog([...log]);
       }
-
       if (!group.isEtc) {
         const f = group.files[0], l = group.files[group.files.length-1];
         const avgConf = group.files.reduce((s,x)=>s+x.confidence,0)/group.files.length;
-        groupRows.push([String(group.index), folderName, group.clothingLabel, group.poseType, String(group.files.length), f.name, l.name, String(Math.round(avgConf*100)/100)]);
+        groupRows.push([String(group.index),folderName,group.clothingLabel,group.poseType,String(group.files.length),f.name,l.name,String(Math.round(avgConf*100)/100)]);
       }
     }
-
     const wr = async (name: string, content: string) => {
       try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch {}
     };
@@ -924,11 +948,9 @@ export default function PhotoSortingPage() {
     await wr("studio_group_report.csv",           makeCSV(["group_id","folder_name","clothing_label","pose_type","file_count","first_file","last_file","confidence"], groupRows));
     await wr("studio_etc_report.csv",             makeCSV(["file_name","reason","brightness_score","face_brightness_score","previous_frame_delta","ai_comment"], etcRows));
     await wr("raw_match_report.csv",              makeCSV(["jpg_file","raw_file","assigned_folder","status","destination_path"], rawRows));
-
     const etcGroup = studioGroups.find(g=>g.isEtc);
     const summary = { mode:"studio", total_jpg:studioFiles.length, total_raw:studioRawCount, total_groups:studioGroups.filter(g=>!g.isEtc).length, total_etc:etcGroup?.files.length??0, total_normal:studioGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0), total_raw_matched:rawCopied, total_raw_missing:rawMissing, output_path:`selected_${rootName}/`, created_at:new Date().toISOString() };
     await wr("summary.json", JSON.stringify(summary, null, 2));
-
     setStudioStats({ totalJpg:studioFiles.length, totalRaw:studioRawCount, totalGroups:studioGroups.filter(g=>!g.isEtc).length, totalEtc:etcGroup?.files.length??0, totalNormal:studioGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0), totalRawMatched:rawCopied, totalRawMissing:rawMissing });
     setStep(6);
   }, [studioGroups, rootDir, studioFiles, studioRawCount]);
@@ -951,85 +973,157 @@ export default function PhotoSortingPage() {
   );
 
   /* ════════════════════════════════════════════
-     STEP 0 — 폴더 선택 (SHARED)
+     STEP 0 — 설정 (FIELD)
   ═══════════════════════════════════════════ */
-  const Step0 = () => (
-    <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:660}}>
-      {/* Mode selector */}
-      <Card>
-        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>📷 촬영 모드 선택</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
-          {([["field","🏥 병원 현장촬영","시간 간격과 장소 변화 기준으로 Scene을 분류합니다."],["studio","🎞 스튜디오 프로필촬영","의상 변화·포즈·조명 불량 여부를 기준으로 분류합니다."]] as const).map(([m,title,desc])=>(
-            <button key={m} onClick={()=>setPhotoMode(m)} style={{padding:"16px 20px",textAlign:"left",border:"none",borderRight:m==="field"?`1px solid ${C.border}`:"none",background:photoMode===m?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
-              <div style={{fontSize:13,fontWeight:900,color:photoMode===m?C.teal:C.muted,marginBottom:4}}>{title}{photoMode===m&&" ✓"}</div>
-              <div style={{fontSize:11,color:C.hint,lineHeight:1.6}}>{desc}</div>
-            </button>
-          ))}
-        </div>
-      </Card>
+  const Step0 = () => {
+    const deptInfo: Record<string, string> = {
+      dermatology: "피부과 모드: 실장상담, 피부관리, 원장상담, 레이저시술, 장비시술, 주사시술, 프로필, 인테리어, 접수안내 장면을 기준으로 분류합니다.",
+      general: "기타 모드: 시간차 기준 Scene 분류를 우선 적용하고, 공통 장면 기준으로 이름을 추천합니다.",
+    };
+    return (
+      <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:700}}>
+        {/* 촬영 모드 선택 */}
+        <Card>
+          <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>촬영 모드</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+            {([["field","병원 현장촬영","시간 간격 기준으로 Scene을 분류합니다."],["studio","스튜디오 프로필촬영","의상·포즈·조명 기준으로 분류합니다."]] as const).map(([m,title,desc])=>(
+              <button key={m} onClick={()=>setPhotoMode(m)} style={{padding:"16px 20px",textAlign:"left",border:"none",borderRight:m==="field"?`1px solid ${C.border}`:"none",background:photoMode===m?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
+                <div style={{fontSize:13,fontWeight:900,color:photoMode===m?C.teal:C.muted,marginBottom:4}}>{title}{photoMode===m&&" ✓"}</div>
+                <div style={{fontSize:11,color:C.hint,lineHeight:1.6}}>{desc}</div>
+              </button>
+            ))}
+          </div>
+        </Card>
 
-      {/* Studio info banner */}
-      {photoMode==="studio" && (
-        <div style={{padding:14,background:"#F5F0FF",borderRadius:12,fontSize:11,color:"#4C1D95",border:"1px solid #DDD6FE",lineHeight:1.8}}>
-          <strong>스튜디오 프로필촬영 모드</strong>는 시간 간격보다 <strong>의상 변화와 포즈 변화</strong>를 우선으로 분류합니다.<br/>
-          포즈는 Standing / Sitting 두 가지로만 나눕니다. 조명이 불발된 컷은 <strong>00_ETC_조명불량</strong> 폴더로 분리합니다.<br/>
-          중복컷 분류는 이 모드에서 사용하지 않습니다.
-        </div>
-      )}
-
-      {/* Folder picker */}
-      <Card>
-        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>📁 백업 폴더 선택</div>
-        <div style={{padding:20,display:"flex",flexDirection:"column",gap:14}}>
-          <button onClick={pickDir} style={{height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
-            {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 백업 폴더 선택</>}
-          </button>
-
-          {photoMode==="field" && (
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <div>
-                <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:8}}>씬 구분 시간 간격: <span style={{color:C.teal}}>{gapMinutes}분</span></div>
-                <input type="range" min={3} max={60} value={gapMinutes} onChange={e=>setGapMinutes(Number(e.target.value))} style={{width:"100%"}}/>
-                <div style={{fontSize:10,color:C.hint,marginTop:4}}>시간 초과 OR 장면 구성 변화 감지 → 다른 씬으로 분리</div>
+        {photoMode === "field" && (
+          <>
+            {/* 폴더 선택 */}
+            <Card>
+              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>폴더 선택</div>
+              <div style={{padding:20}}>
+                <button onClick={pickDir} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
+                  {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 폴더 선택</>}
+                </button>
               </div>
-              <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.7}}>
-                📂 RAW → <strong>RAW(원본)/</strong> 이동<br/>
-                🖼 JPG → <strong>JPG(분류)/씬폴더/</strong> 이동<br/>
-                ✅ 선택본 → <strong>Selected[XX]/</strong> (씬 폴더 내부)
+            </Card>
+
+            {/* 진료과 선택 */}
+            <Card>
+              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>진료과 선택</div>
+              <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:12}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+                  {DEPARTMENTS.map(d => (
+                    <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"10px 14px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.white,cursor:"pointer",fontSize:12,fontWeight:department===d.value?900:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
+                      {d.label}{department===d.value&&" ✓"}
+                    </button>
+                  ))}
+                </div>
+                {deptInfo[department] && (
+                  <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.7}}>
+                    {deptInfo[department]}
+                  </div>
+                )}
               </div>
+            </Card>
+
+            {/* Scene 구분 시간 */}
+            <Card>
+              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>Scene 구분 시간</div>
+              <div style={{padding:"14px 20px"}}>
+                <div style={{display:"flex",gap:8,marginBottom:10}}>
+                  {GAP_OPTIONS.map(g => (
+                    <button key={g} onClick={()=>setGapMinutes(g)} style={{flex:1,padding:"10px 0",borderRadius:8,border:`1.5px solid ${gapMinutes===g?C.teal:C.border}`,background:gapMinutes===g?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:gapMinutes===g?900:600,color:gapMinutes===g?C.teal:C.muted,fontFamily:"inherit"}}>
+                      {g}분
+                    </button>
+                  ))}
+                </div>
+                <div style={{fontSize:11,color:C.hint}}>이전 JPG와 다음 JPG의 촬영 시간 차이가 설정 시간 이상이면 새 Scene으로 분리합니다.</div>
+              </div>
+            </Card>
+
+            {/* 옵션 */}
+            <Card>
+              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>분류 옵션</div>
+              <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:18}}>
+                <Toggle label="진료과 로직 사용" desc="선택한 진료과에 맞는 장면 분류 기준을 적용합니다." value={departmentLogicEnabled} onChange={setDepartmentLogicEnabled}/>
+                <Toggle label="AI 씬 이름 추천" desc="대표 이미지를 분석해 진료과에 맞는 폴더명을 추천합니다. 자동 변경 없이 검토 화면에서 확인 후 적용합니다." value={aiNamingEnabled} onChange={setAiNamingEnabled}/>
+                <Toggle label="품질 분석" desc="흔들림, 조명불량 등 불량컷을 00_QUALITY_EXCLUDED/ 폴더로 분리합니다." value={qualityAnalysisEnabled} onChange={setQualityAnalysisEnabled}/>
+                <Toggle label="프로필 자동 분류" desc="정면 응시·정지 포즈의 프로필 사진을 PROFILE/ 폴더로 분류합니다." value={profileClassificationEnabled} onChange={setProfileClassificationEnabled}/>
+              </div>
+            </Card>
+
+            {/* RAW SELECT 방식 */}
+            <Card>
+              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>RAW SELECT 처리 방식</div>
+              <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{display:"flex",gap:10}}>
+                  {(["move","copy"] as const).map(m => (
+                    <button key={m} onClick={()=>setRawSelectMode(m)} style={{flex:1,padding:"12px 0",borderRadius:8,border:`1.5px solid ${rawSelectMode===m?C.teal:C.border}`,background:rawSelectMode===m?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:rawSelectMode===m?900:600,color:rawSelectMode===m?C.teal:C.muted,fontFamily:"inherit"}}>
+                      {m === "move" ? "이동 (권장)" : "복사"}
+                    </button>
+                  ))}
+                </div>
+                {rawSelectMode === "copy" && (
+                  <div style={{padding:"10px 14px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>
+                    ⚠️ RAW 파일을 복사하면 저장 용량이 크게 증가할 수 있습니다. 기본 권장 방식은 이동입니다.
+                  </div>
+                )}
+                <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.9}}>
+                  <strong>결과 폴더 구조</strong><br/>
+                  RAW/ — 전체 RAW 파일 (이동)<br/>
+                  JPG/Scene01/, Scene02/... — JPG 씬별 분류<br/>
+                  PROFILE/ — 프로필 사진<br/>
+                  SELECT/JPG_SELECT/ — 선택한 JPG<br/>
+                  SELECT/RAW_SELECT/ — 선택 RAW ({rawSelectMode === "move" ? "이동" : "복사"})<br/>
+                  REPORT/ — 분류 리포트
+                </div>
+              </div>
+            </Card>
+
+            {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
+            <Btn onClick={handleFieldSort} disabled={!rootDir||!hasFS}>현장촬영 분류 시작 →</Btn>
+          </>
+        )}
+
+        {photoMode === "studio" && (
+          <>
+            <div style={{padding:14,background:"#F5F0FF",borderRadius:12,fontSize:11,color:"#4C1D95",border:"1px solid #DDD6FE",lineHeight:1.8}}>
+              <strong>스튜디오 프로필촬영 모드</strong>는 의상 변화와 포즈 변화를 기준으로 분류합니다.<br/>
+              포즈는 Standing / Sitting 두 가지로만 나눕니다. 조명 불량 컷은 <strong>00_ETC_조명불량</strong> 폴더로 분리합니다.
             </div>
-          )}
-
-          {photoMode==="studio" && (
-            <div>
-              <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>조명 불량 ETC 기준</div>
-              <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                {(["loose","medium","strict"] as LightingSensitivity[]).map(v=>(
-                  <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
-                    <input type="radio" name="lighting" value={v} checked={studioOpts.lightingSensitivity===v} onChange={()=>setStudioOpts(o=>({...o,lightingSensitivity:v}))} style={{marginTop:1}}/>
-                    <span style={{color:studioOpts.lightingSensitivity===v?C.teal:C.muted,fontWeight:studioOpts.lightingSensitivity===v?800:500}}>{STUDIO_LIGHTING_SENSITIVITY[v]}</span>
-                  </label>
-                ))}
+            <Card>
+              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.purple}}>폴더 선택</div>
+              <div style={{padding:20,display:"flex",flexDirection:"column",gap:14}}>
+                <button onClick={pickDir} style={{height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.purple,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
+                  {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 백업 폴더 선택</>}
+                </button>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>조명 불량 ETC 기준</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {(["loose","medium","strict"] as LightingSensitivity[]).map(v=>(
+                      <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
+                        <input type="radio" name="lighting" value={v} checked={studioOpts.lightingSensitivity===v} onChange={()=>setStudioOpts(o=>({...o,lightingSensitivity:v}))} style={{marginTop:1}}/>
+                        <span style={{color:studioOpts.lightingSensitivity===v?C.purple:C.muted,fontWeight:studioOpts.lightingSensitivity===v?800:500}}>{STUDIO_LIGHTING_SENSITIVITY[v]}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
-
-      <Btn onClick={photoMode==="field"?handleFieldSort:handleStudioSort} disabled={!rootDir||!hasFS}>
-        {photoMode==="field" ? "현장촬영 분류 시작 →" : "스튜디오 분류 시작 →"}
-      </Btn>
-    </div>
-  );
+            </Card>
+            {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
+            <Btn style={{background:C.purple}} onClick={handleStudioSort} disabled={!rootDir||!hasFS}>스튜디오 분류 시작 →</Btn>
+          </>
+        )}
+      </div>
+    );
+  };
 
   /* ════════════════════════════════════════════
-     FIELD STEPS 1–6
+     FIELD STEPS
   ═══════════════════════════════════════════ */
   const FieldStep1 = () => (
     <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>📂 파일 분류 중...</div>
+      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>파일 분류 중...</div>
       <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
       <div style={{maxHeight:200,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
         {copyLog.slice(-20).map((l,i)=><div key={i} style={{color:C.green}}>{l}</div>)}
@@ -1038,35 +1132,70 @@ export default function PhotoSortingPage() {
   );
 
   const FieldStep2 = () => {
-    const allLoaded = scenes.every(s=>!s.nameLoading);
+    const allLoaded = fieldScenes.every(s=>!s.nameLoading);
+    const totalJpg = fieldScenes.reduce((s,sc)=>s+sc.fileCount,0);
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:800}}>
+      <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:860}}>
         <div style={{padding:14,background:"#FEF3C7",borderRadius:10,fontSize:12,color:"#92400E",border:"1px solid #FCD34D"}}>
-          ⚠️ AI가 씬 이름을 추천했습니다. 직접 수정 후 <strong>승인</strong>해주세요.
+          Scene 분류가 완료됐습니다. 이름을 확인·수정하고 <strong>확정</strong>을 눌러주세요.
+          {(aiNamingEnabled||departmentLogicEnabled)&&!allLoaded&&<span style={{marginLeft:8,color:C.teal}}>AI 분석 중...</span>}
         </div>
+
         <Card>
           <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>
-            🏷️ 씬 폴더명 검토 — JPG {scenes.reduce((s,sc)=>s+sc.files.length,0)}장 / RAW {rawCount}개
+            씬 검토 — JPG {totalJpg}장 / RAW {fieldRawCount}개 / {DEPARTMENT_DISPLAY[department]}
           </div>
           <div style={{padding:"8px 0"}}>
-            {scenes.map((sc,i)=>(
-              <div key={i} style={{display:"grid",gridTemplateColumns:"90px 28px 1fr auto",gap:10,alignItems:"center",padding:"10px 20px",borderBottom:i<scenes.length-1?`1px solid ${C.border}`:"none"}}>
-                <div style={{display:"flex",gap:3}}>
-                  {sc.files.slice(0,3).map((f,fi)=>f.thumbUrl?<img key={fi} src={f.thumbUrl} style={{width:28,height:20,objectFit:"cover",borderRadius:3}} alt=""/>:<div key={fi} style={{width:28,height:20,background:C.border,borderRadius:3}}/>)}
+            {fieldScenes.map((sc,i)=>(
+              <div key={i} style={{borderBottom:i<fieldScenes.length-1?`1px solid ${C.border}`:"none",padding:"12px 20px"}}>
+                <div style={{display:"grid",gridTemplateColumns:"100px auto 1fr auto",gap:12,alignItems:"start"}}>
+                  {/* 썸네일 */}
+                  <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                    {sc.files.slice(0,3).map((f,fi)=>f.thumbUrl
+                      ?<img key={fi} src={f.thumbUrl} style={{width:30,height:22,objectFit:"cover",borderRadius:3}} alt=""/>
+                      :<div key={fi} style={{width:30,height:22,background:C.border,borderRadius:3}}/>
+                    )}
+                  </div>
+                  {/* 정보 */}
+                  <div style={{fontSize:10,color:C.hint,fontFamily:"monospace",whiteSpace:"nowrap"}}>
+                    {sc.fileCount}장<br/>
+                    {formatTime(sc.startTime)}<br/>
+                    {formatTime(sc.endTime)}
+                  </div>
+                  {/* 이름 편집 */}
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {sc.nameLoading
+                      ? <div style={{height:34,display:"flex",alignItems:"center",fontSize:12,color:C.hint}}>AI 분석 중...</div>
+                      : <input value={sc.editedName} onChange={e=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:e.target.value}:s))} style={{width:"100%",height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+                    }
+                    {sc.suggestedName && !sc.nameLoading && (
+                      <div style={{fontSize:10,color:C.muted}}>
+                        추천: <button onClick={()=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:sc.suggestedName!}:s))} style={{border:"none",background:"none",cursor:"pointer",color:C.teal,fontSize:10,fontFamily:"inherit",fontWeight:800}}>{sc.suggestedName}</button>
+                        {sc.aiConfidence&&<span style={{marginLeft:4,color:C.hint}}>{Math.round(sc.aiConfidence*100)}%</span>}
+                      </div>
+                    )}
+                    {sc.sceneType && !sc.nameLoading && (
+                      <div style={{fontSize:9,background:C.light,color:C.teal,display:"inline-block",padding:"1px 8px",borderRadius:4,width:"fit-content"}}>
+                        {sc.sceneType}{sc.aiReason&&<span style={{color:C.muted,marginLeft:4}}>{sc.aiReason}</span>}
+                      </div>
+                    )}
+                  </div>
+                  {/* 합치기 버튼 */}
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {i > 0 && <button onClick={()=>mergeFieldScenes(i-1,i)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↑ 합치기</button>}
+                    {i < fieldScenes.length-1 && <button onClick={()=>mergeFieldScenes(i,i+1)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↓ 합치기</button>}
+                  </div>
                 </div>
-                <div style={{fontSize:10,color:C.hint,fontFamily:"monospace",textAlign:"center"}}>{sc.files.length}장</div>
-                {sc.nameLoading
-                  ? <span style={{fontSize:12,color:C.hint}}>AI 분석 중...</span>
-                  : <input value={sc.editedName} onChange={e=>setScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:e.target.value}:s))} style={{flex:1,height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
-                }
-                {sc.nameConfidence!=null&&!sc.nameLoading&&<span style={{fontSize:9,background:C.light,color:C.teal,padding:"2px 6px",borderRadius:4,whiteSpace:"nowrap"}}>{Math.round(sc.nameConfidence*100)}%</span>}
               </div>
             ))}
           </div>
         </Card>
+
         <div style={{display:"flex",gap:10}}>
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
-          <Btn onClick={runFieldAnalysis} disabled={!allLoaded}>{allLoaded?"✅ 승인 → AI 분석 시작":"AI 씬 이름 분석 중..."}</Btn>
+          <Btn onClick={handleConfirmScenes} disabled={!allLoaded}>
+            {allLoaded ? "✅ 확정 →" : "AI 분석 중..."}
+          </Btn>
         </div>
       </div>
     );
@@ -1074,53 +1203,63 @@ export default function PhotoSortingPage() {
 
   const FieldStep3 = () => (
     <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>🔍 AI 품질 분석 중...</div>
+      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>분석 중...</div>
       <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
-      <div style={{fontSize:11,color:C.hint}}>선명도·밝기·중복 여부를 분석합니다.</div>
+      <div style={{fontSize:11,color:C.hint,lineHeight:1.7}}>
+        {qualityAnalysisEnabled && "• 흔들림·조명불량 분석 중\n"}
+        {profileClassificationEnabled && "• 프로필 자동 분류 중"}
+      </div>
       <button onClick={()=>{cancelRef.current=true;}} style={{padding:"8px 16px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,fontSize:12,cursor:"pointer",color:C.muted,fontFamily:"inherit",alignSelf:"flex-start"}}>중단</button>
     </div>
   );
 
   const FieldStep4 = () => {
     if (!fieldStats) return null;
-    const totalOk = scenes.reduce((s,sc)=>s+sc.files.filter(f=>f.rejectReason==="ok"&&!f.isPortraitLike).length,0);
     return (
-      <div style={{maxWidth:540,display:"flex",flexDirection:"column",gap:16}}>
-        <div style={{fontSize:14,fontWeight:800,color:C.green}}>AI 분류 완료</div>
+      <div style={{maxWidth:580,display:"flex",flexDirection:"column",gap:16}}>
+        <div style={{fontSize:14,fontWeight:800,color:C.green}}>분류 완료 — 베스트컷을 선택해주세요</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
           {[
-            {label:"검토 대상",value:totalOk,color:C.teal},
-            {label:"불량컷 분류됨",value:fieldStats.totalRejected,color:C.red},
-            {label:"프로필 이동됨",value:fieldStats.portraitMoved,color:"#7C3AED"},
-          ].map(({label,value,color})=>(
+            {label:"씬",       value:fieldStats.totalScenes,       color:C.teal},
+            {label:"전체 JPG", value:fieldStats.totalJpg,          color:C.txt},
+            {label:"프로필",   value:fieldStats.totalProfile,      color:C.purple},
+          ].concat(fieldStats.totalQualityReject > 0 ? [{label:"품질제외",value:fieldStats.totalQualityReject,color:C.red}] : []).map(({label,value,color})=>(
             <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
               <div style={{fontSize:22,fontWeight:900,color}}>{value}</div>
               <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
             </div>
           ))}
         </div>
+
         <div style={{background:"#F0FDF4",borderRadius:12,border:"1px solid #86EFAC",padding:20}}>
-          <div style={{fontSize:13,fontWeight:800,color:"#166534",marginBottom:10}}>Finder에서 베스트컷을 선택해주세요</div>
+          <div style={{fontSize:13,fontWeight:800,color:"#166534",marginBottom:10}}>베스트컷 선택 방법</div>
           <div style={{fontSize:12,color:"#166534",lineHeight:2}}>
-            1. Finder에서 <b>JPG(분류)/</b> 폴더 열기<br/>
-            2. 각 씬 폴더 안의 <b>Selected[XX]/</b> 폴더에 베스트컷 이동<br/>
-            3. 완료되면 아래 버튼 클릭
+            1. Finder에서 <strong>JPG/</strong> 폴더 열기<br/>
+            2. 각 씬 폴더 안에서 베스트컷 선택<br/>
+            3. 선택한 JPG를 <strong>SELECT/JPG_SELECT/</strong> 폴더로 복사<br/>
+            4. 완료되면 아래 버튼 클릭
           </div>
         </div>
+
         <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"14px 16px"}}>
           <div style={{fontSize:10,color:C.hint,marginBottom:6,fontWeight:700}}>폴더 구조</div>
           <div style={{fontSize:11,fontFamily:"monospace",color:C.txt,lineHeight:2}}>
-            JPG(분류)/<br/>
-            &nbsp;&nbsp;├ 01. 씬이름/<br/>
-            &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├ <b>Selected01/</b> ← 베스트컷 여기로<br/>
-            &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└ _불량컷/ (자동 분류됨)<br/>
-            &nbsp;&nbsp;└ 프로필/ (자동 분류됨)
+            {rootDir?.name ?? "폴더명"}/<br/>
+            &nbsp;&nbsp;├ RAW/ (전체 RAW)<br/>
+            &nbsp;&nbsp;├ JPG/<br/>
+            &nbsp;&nbsp;│&nbsp;&nbsp;├ Scene01/<br/>
+            &nbsp;&nbsp;│&nbsp;&nbsp;└ Scene02/<br/>
+            {fieldStats.totalProfile>0&&<>&nbsp;&nbsp;├ PROFILE/<br/></>}
+            &nbsp;&nbsp;└ <strong>SELECT/</strong><br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├ <strong>JPG_SELECT/</strong> ← 베스트컷 여기에<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ RAW_SELECT/ (자동 생성됨)
           </div>
         </div>
-        <div style={{display:"flex",gap:10,paddingTop:4,flexWrap:"wrap"}}>
-          <Btn variant="secondary" onClick={()=>setStep(2)}>← 뒤로</Btn>
-          <Btn variant="secondary" onClick={()=>window.open('bridge://')}>Adobe Bridge 열기</Btn>
-          <Btn onClick={runRawMatch}>RAW 매칭 시작 →</Btn>
+
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
+          <Btn variant="secondary" onClick={()=>window.open("bridge://")}>Bridge 열기</Btn>
+          <Btn onClick={runRawSelect}>RAW SELECT 시작 →</Btn>
         </div>
       </div>
     );
@@ -1128,29 +1267,30 @@ export default function PhotoSortingPage() {
 
   const FieldStep5 = () => (
     <div style={{maxWidth:680,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>RAW 매칭 중...</div>
+      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>RAW SELECT 처리 중...</div>
       <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
       <div style={{maxHeight:260,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
         {copyLog.slice(-40).map((l,i)=><div key={i} style={{color:l.startsWith("✅")?C.green:l.startsWith("❌")?C.red:C.yellow}}>{l}</div>)}
       </div>
+      <div style={{fontSize:11,color:C.hint}}>원본 RAW 파일은 삭제되지 않습니다. 선택된 RAW만 SELECT/RAW_SELECT/로 이동합니다.</div>
     </div>
   );
 
   const FieldStep6 = () => {
     if (!fieldStats) return null;
     const rows = [
-      {label:"처리된 씬",   value:fieldStats.totalScenes},
-      {label:"전체 JPG",    value:fieldStats.totalJpg},
-      {label:"원본 RAW",    value:fieldStats.totalRaw,       color:C.muted},
-      {label:"불량컷 분류", value:fieldStats.totalRejected,  color:C.red},
-      {label:"프로필 이동", value:fieldStats.portraitMoved,  color:"#7C3AED"},
-      {label:"베스트컷",    value:fieldStats.totalSelected,  color:C.teal},
-      {label:"RAW 매칭완료",value:fieldStats.totalRawCopied, color:C.green},
-      {label:"RAW 누락",    value:fieldStats.totalRawMissing,color:fieldStats.totalRawMissing>0?C.red:C.hint},
+      {label:"처리된 씬",       value:fieldStats.totalScenes,         color:C.teal},
+      {label:"전체 JPG",         value:fieldStats.totalJpg,            color:C.txt},
+      {label:"원본 RAW",         value:fieldStats.totalRaw,            color:C.muted},
+      {label:"품질 제외",        value:fieldStats.totalQualityReject,  color:C.red},
+      {label:"프로필 분류",      value:fieldStats.totalProfile,        color:"#7C3AED"},
+      {label:"선택 JPG",         value:fieldStats.selectedJpg,         color:C.teal},
+      {label:"RAW SELECT 완료",  value:fieldStats.selectedRawMoved,    color:C.green},
+      {label:"RAW 누락",         value:fieldStats.rawMissing,          color:fieldStats.rawMissing>0?C.red:C.hint},
     ];
     return (
-      <Card style={{maxWidth:560}}>
-        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.green}}>✅ RAW 매칭 완료!</div>
+      <Card style={{maxWidth:580}}>
+        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.green}}>✅ 완료!</div>
         <div style={{padding:20}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
             {rows.map(({label,value,color})=>(
@@ -1160,20 +1300,28 @@ export default function PhotoSortingPage() {
               </div>
             ))}
           </div>
-          <Btn onClick={()=>{setStep(0);setScenes([]);setRootDir(null);setRawCount(0);setCopyLog([]);setFieldStats(null);}}>처음으로</Btn>
+          <div style={{background:C.light,borderRadius:10,padding:14,fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.9}}>
+            📁 <strong style={{color:C.teal}}>RAW/</strong> — 전체 RAW (이동 완료)<br/>
+            📁 <strong style={{color:C.teal}}>JPG/SceneXX/</strong> — 씬별 JPG<br/>
+            📁 <strong style={{color:C.teal}}>SELECT/RAW_SELECT/</strong> — 선택 RAW ({rawSelectMode==="move"?"이동":"복사"} 완료)<br/>
+            📊 <strong style={{color:C.teal}}>REPORT/</strong> — scene_report, quality_report, raw_select_report, summary.json
+          </div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["scene","folder_name","file_count","start_time","end_time","scene_type"],fieldScenes.map(sc=>[String(sc.index),sc.editedName,String(sc.fileCount),new Date(sc.startTime).toISOString(),new Date(sc.endTime).toISOString(),sc.sceneType??""])),"scene_report.csv")}>↓ 씬 리포트 CSV</Btn>
+            <Btn onClick={()=>{setStep(0);setFieldScenes([]);setRootDir(null);setFieldRawCount(0);setCopyLog([]);setFieldStats(null);}}>처음으로</Btn>
+          </div>
         </div>
       </Card>
     );
   };
 
   /* ════════════════════════════════════════════
-     STUDIO STEPS 1–6
+     STUDIO STEPS
   ═══════════════════════════════════════════ */
   const StudioStep1 = () => (
     <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:800,color:C.purple}}>📂 파일 분류 중...</div>
+      <div style={{fontSize:14,fontWeight:800,color:C.purple}}>파일 분류 중...</div>
       <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
-      <div style={{fontSize:11,color:C.hint}}>RAW/JPG 분리 후 AI 분석 단계로 진행합니다.</div>
     </div>
   );
 
@@ -1182,7 +1330,7 @@ export default function PhotoSortingPage() {
     const total    = studioFiles.length;
     return (
       <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-        <div style={{fontSize:14,fontWeight:800,color:C.purple}}>🤖 AI 의상·포즈·조명 분석 중...</div>
+        <div style={{fontSize:14,fontWeight:800,color:C.purple}}>AI 의상·포즈·조명 분석 중...</div>
         <ProgressBar cur={analyzed} total={total} msg={progress.msg}/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           {[["전체 JPG",total,C.teal],["분석 완료",analyzed,C.green],["ETC 후보",studioFiles.filter(f=>f.groupKey==="__ETC__").length,C.red]].map(([l,v,c])=>(
@@ -1192,7 +1340,6 @@ export default function PhotoSortingPage() {
             </div>
           ))}
         </div>
-        <div style={{fontSize:11,color:C.hint}}>4장씩 병렬 분석 중입니다. 잠시 기다려주세요. (JPG 100장 기준 약 30~60초)</div>
       </div>
     );
   };
@@ -1203,26 +1350,22 @@ export default function PhotoSortingPage() {
     return (
       <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:820}}>
         <div style={{padding:14,background:"#F5F0FF",borderRadius:10,fontSize:12,color:C.purple,border:"1px solid #DDD6FE"}}>
-          ⚠️ AI가 의상·포즈 기준으로 그룹을 분류했습니다. 폴더명을 수정한 후 <strong>승인</strong>해주세요.
+          AI가 의상·포즈 기준으로 그룹을 분류했습니다. 폴더명을 수정한 후 <strong>승인</strong>해주세요.
         </div>
-
         {etcGroup && (
           <Card>
             <div style={{padding:"12px 18px",background:"#FEF2F2",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:12,fontWeight:900,color:C.red}}>⚡ 00_ETC_조명불량</span>
+              <span style={{fontSize:12,fontWeight:900,color:C.red}}>00_ETC_조명불량</span>
               <span style={{fontSize:11,color:C.red,background:"#FEE2E2",padding:"2px 8px",borderRadius:20}}>{etcGroup.files.length}장</span>
-              <span style={{fontSize:10,color:C.hint,marginLeft:"auto"}}>자동 분리됨 — 원본은 삭제되지 않음</span>
             </div>
             <div style={{display:"flex",gap:4,padding:"10px 18px",overflowX:"auto"}}>
-              {etcGroup.files.slice(0,8).map(f=>f.thumbUrl?<img key={f.name} src={f.thumbUrl} style={{width:52,height:38,objectFit:"cover",borderRadius:4,flexShrink:0,border:`1.5px solid ${C.red}40`}} alt=""/>:<div key={f.name} style={{width:52,height:38,background:C.border,borderRadius:4,flexShrink:0}}/>)}
-              {etcGroup.files.length>8&&<div style={{width:52,height:38,background:"#FEE2E2",borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:C.red,flexShrink:0}}>+{etcGroup.files.length-8}</div>}
+              {etcGroup.files.slice(0,8).map(f=>f.thumbUrl?<img key={f.name} src={f.thumbUrl} style={{width:52,height:38,objectFit:"cover",borderRadius:4,flexShrink:0}} alt=""/>:<div key={f.name} style={{width:52,height:38,background:C.border,borderRadius:4,flexShrink:0}}/>)}
             </div>
           </Card>
         )}
-
         <Card>
           <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>
-            🎞 의상·포즈 그룹 — {normalGroups.length}개 그룹 / JPG {normalGroups.reduce((s,g)=>s+g.files.length,0)}장
+            의상·포즈 그룹 — {normalGroups.length}개 / {normalGroups.reduce((s,g)=>s+g.files.length,0)}장
           </div>
           <div style={{padding:"8px 0"}}>
             {normalGroups.map((g,i)=>(
@@ -1231,24 +1374,17 @@ export default function PhotoSortingPage() {
                   <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
                     {g.files.slice(0,4).map(f=>f.thumbUrl?<img key={f.name} src={f.thumbUrl} style={{width:22,height:16,objectFit:"cover",borderRadius:2}} alt=""/>:<div key={f.name} style={{width:22,height:16,background:C.border,borderRadius:2}}/>)}
                   </div>
-                  <div style={{textAlign:"center"}}>
-                    <SectionPill label={g.poseType} count={g.files.length} color={g.poseType==="Standing"?C.teal:C.orange}/>
-                  </div>
-                  <input
-                    value={g.editedFolderName}
-                    onChange={e=>setStudioGroups(prev=>prev.map((p,j)=>p.key===g.key?{...p,editedFolderName:e.target.value}:p))}
-                    style={{height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}
-                  />
+                  <SectionPill label={g.poseType} count={g.files.length} color={g.poseType==="Standing"?C.teal:C.orange}/>
+                  <input value={g.editedFolderName} onChange={e=>setStudioGroups(prev=>prev.map(p=>p.key===g.key?{...p,editedFolderName:e.target.value}:p))} style={{height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
                   <span style={{fontSize:9,background:C.light,color:C.teal,padding:"2px 6px",borderRadius:4,whiteSpace:"nowrap"}}>신뢰도 {Math.round(g.files.reduce((s,f)=>s+f.confidence,0)/g.files.length*100)}%</span>
                 </div>
               </div>
             ))}
           </div>
         </Card>
-
         <div style={{display:"flex",gap:10}}>
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
-          <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>✅ 승인 → 그룹 확인</Btn>
+          <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>✅ 승인 →</Btn>
         </div>
       </div>
     );
@@ -1260,40 +1396,27 @@ export default function PhotoSortingPage() {
     const g = studioGroups[activeGroup] ?? normalGroups[0];
     return (
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
-        {/* Group tabs */}
         <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
           {studioGroups.map((grp,i)=>(
             <button key={grp.key} onClick={()=>setActiveGroup(i)} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${i===activeGroup?C.purple:C.border}`,background:i===activeGroup?"#F5F0FF":C.white,fontSize:11,fontWeight:i===activeGroup?800:600,color:i===activeGroup?C.purple:C.muted,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-              {grp.isEtc?"⚡ ETC":grp.editedFolderName.split("_").slice(1).join("_")}<span style={{marginLeft:4,fontSize:9,color:C.hint}}>{grp.files.length}장</span>
+              {grp.isEtc?"ETC":grp.editedFolderName.split("_").slice(1).join("_")}<span style={{marginLeft:4,fontSize:9,color:C.hint}}>{grp.files.length}장</span>
             </button>
           ))}
         </div>
-
-        {/* Summary stats */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-          {[
-            {label:"전체 그룹",value:normalGroups.length,color:C.purple},
-            {label:"전체 JPG",value:normalGroups.reduce((s,g)=>s+g.files.length,0)},
-            {label:"ETC",value:etcGroup?.files.length??0,color:C.red},
-            {label:"RAW 파일",value:studioRawCount,color:C.muted},
-          ].map(({label,value,color})=>(
+          {[{label:"전체 그룹",value:normalGroups.length,color:C.purple},{label:"전체 JPG",value:normalGroups.reduce((s,g)=>s+g.files.length,0),color:C.txt},{label:"ETC",value:etcGroup?.files.length??0,color:C.red},{label:"RAW 파일",value:studioRawCount,color:C.muted}].map(({label,value,color})=>(
             <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
-              <div style={{fontSize:22,fontWeight:900,color:color??C.teal}}>{value}</div>
+              <div style={{fontSize:22,fontWeight:900,color}}>{value}</div>
               <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
             </div>
           ))}
         </div>
-
-        {/* Active group photos */}
         {g && (
           <Card>
             <div style={{padding:"12px 18px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
               <span style={{fontSize:12,fontWeight:900,color:g.isEtc?C.red:C.purple}}>{g.editedFolderName}</span>
               <span style={{fontSize:11,color:C.hint}}>{g.files.length}장</span>
-              {!g.isEtc&&<>
-                <span style={{fontSize:10,background:C.light,color:C.teal,padding:"2px 8px",borderRadius:20}}>{g.clothingLabel}</span>
-                <span style={{fontSize:10,background:"#FFF0EB",color:C.orange,padding:"2px 8px",borderRadius:20}}>{g.poseType}</span>
-              </>}
+              {!g.isEtc&&<><span style={{fontSize:10,background:C.light,color:C.teal,padding:"2px 8px",borderRadius:20}}>{g.clothingLabel}</span><span style={{fontSize:10,background:"#FFF0EB",color:C.orange,padding:"2px 8px",borderRadius:20}}>{g.poseType}</span></>}
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:6,padding:12}}>
               {g.files.map(f=>(
@@ -1305,11 +1428,6 @@ export default function PhotoSortingPage() {
             </div>
           </Card>
         )}
-
-        <div style={{padding:12,background:C.light,borderRadius:10,fontSize:11,color:C.muted}}>
-          📁 출력 구조: <span style={{fontFamily:"monospace",color:C.teal}}>selected_{rootDir?.name}/[그룹폴더명]/ + Selected_RAW/ (씬 구분 없음)</span>
-        </div>
-
         <div style={{display:"flex",gap:10}}>
           <Btn variant="secondary" onClick={()=>setStep(3)}>← 그룹 수정</Btn>
           <Btn style={{background:C.purple}} onClick={runStudioOutput}>파일 정리 시작 →</Btn>
@@ -1320,12 +1438,11 @@ export default function PhotoSortingPage() {
 
   const StudioStep5 = () => (
     <div style={{maxWidth:680,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:800,color:C.purple}}>📦 스튜디오 파일 정리 중...</div>
+      <div style={{fontSize:14,fontWeight:800,color:C.purple}}>스튜디오 파일 정리 중...</div>
       <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
       <div style={{maxHeight:260,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
         {studioCopyLog.slice(-40).map((l,i)=><div key={i} style={{color:l.startsWith("✅")?C.green:l.startsWith("❌")?C.red:C.yellow}}>{l}</div>)}
       </div>
-      <div style={{fontSize:11,color:C.hint}}>원본 파일은 삭제되지 않습니다.</div>
     </div>
   );
 
@@ -1346,24 +1463,19 @@ export default function PhotoSortingPage() {
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
             {rows.map(({label,value,color})=>(
               <div key={label} style={{background:C.bg,borderRadius:8,padding:"12px 14px"}}>
-                <div style={{fontSize:20,fontWeight:900,color:color??C.txt}}>{value}</div>
+                <div style={{fontSize:20,fontWeight:900,color}}>{value}</div>
                 <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
               </div>
             ))}
           </div>
           <div style={{background:C.light,borderRadius:10,padding:14,fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.9}}>
             📁 <strong style={{color:C.teal}}>selected_{rootDir?.name}/</strong> — 의상·포즈별 하위 폴더에 JPG 정리<br/>
-            📁 <strong style={{color:C.teal}}>Selected_RAW/</strong> — 매칭 RAW (씬 구분 없음)<br/>
-            📁 <strong style={{color:C.red}}>00_ETC_조명불량/</strong> — 조명 불량 컷 별도 보관<br/>
+            📁 <strong style={{color:C.teal}}>Selected_RAW/</strong> — 매칭 RAW<br/>
             📊 <strong style={{color:C.teal}}>AI_SELECT_REPORT/</strong> — 4종 CSV + summary.json
           </div>
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["그룹","폴더명","의상","포즈","장수"], studioGroups.filter(g=>!g.isEtc).map(g=>[String(g.index),g.editedFolderName,g.clothingLabel,g.poseType,String(g.files.length)])),"studio_group_summary.csv")}>
-              ↓ 그룹 요약 CSV
-            </Btn>
-            <Btn onClick={()=>{setStep(0);setStudioFiles([]);setStudioGroups([]);setRootDir(null);setStudioRawCount(0);setStudioCopyLog([]);setStudioStats(null);}}>
-              처음으로
-            </Btn>
+            <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["그룹","폴더명","의상","포즈","장수"],studioGroups.filter(g=>!g.isEtc).map(g=>[String(g.index),g.editedFolderName,g.clothingLabel,g.poseType,String(g.files.length)])),"studio_group_summary.csv")}>↓ 그룹 요약 CSV</Btn>
+            <Btn onClick={()=>{setStep(0);setStudioFiles([]);setStudioGroups([]);setRootDir(null);setStudioRawCount(0);setStudioCopyLog([]);setStudioStats(null);}}>처음으로</Btn>
           </div>
         </div>
       </Card>
@@ -1375,30 +1487,26 @@ export default function PhotoSortingPage() {
   ═══════════════════════════════════════════ */
   return (
     <div>
-      {/* 서브탭 */}
       <div style={{background:"#FFFFFF",borderBottom:"1px solid rgba(21,88,85,.12)",display:"flex",padding:"0 8px"}}>
         <span style={{padding:"11px 20px",fontSize:13,fontWeight:800,color:"#155855",borderBottom:"2.5px solid #155855",cursor:"default",whiteSpace:"nowrap"}}>
-          📁 사진 분류
+          사진 분류
         </span>
         <Link href="/raw-select" style={{padding:"11px 20px",fontSize:13,fontWeight:600,color:"#9BB5B0",textDecoration:"none",whiteSpace:"nowrap",display:"inline-block",borderBottom:"2.5px solid transparent"}}>
-          🎯 AI 컷 정리 & RAW 셀렉 (독립 실행)
+          AI 컷 정리 & RAW 셀렉
         </Link>
       </div>
 
-      {/* Mode badge */}
       {step > 0 && (
         <div style={{background:photoMode==="studio"?"#F5F0FF":C.light,padding:"6px 24px",fontSize:11,fontWeight:800,color:photoMode==="studio"?C.purple:C.teal,borderBottom:`1px solid ${photoMode==="studio"?"#DDD6FE":C.border}`}}>
-          {photoMode==="studio"?"🎞 스튜디오 프로필촬영 모드":"🏥 병원 현장촬영 모드"}
+          {photoMode==="studio" ? "스튜디오 프로필촬영 모드" : `병원 현장촬영 — ${DEPARTMENT_DISPLAY[department]} — ${gapMinutes}분 간격`}
         </div>
       )}
 
       <div style={{background:C.bg,minHeight:"100vh",color:C.txt}}>
         {renderStepIndicator()}
         <div style={{maxWidth:960,margin:"0 auto",padding:"28px 20px 80px"}}>
-          {/* Shared step 0 */}
           {step===0 && <Step0/>}
 
-          {/* Field mode */}
           {photoMode==="field" && step===1 && <FieldStep1/>}
           {photoMode==="field" && step===2 && <FieldStep2/>}
           {photoMode==="field" && step===3 && <FieldStep3/>}
@@ -1406,7 +1514,6 @@ export default function PhotoSortingPage() {
           {photoMode==="field" && step===5 && <FieldStep5/>}
           {photoMode==="field" && step===6 && <FieldStep6/>}
 
-          {/* Studio mode */}
           {photoMode==="studio" && step===1 && <StudioStep1/>}
           {photoMode==="studio" && step===2 && <StudioStep2/>}
           {photoMode==="studio" && step===3 && <StudioStep3/>}
