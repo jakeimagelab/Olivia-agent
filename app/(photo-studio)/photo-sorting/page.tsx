@@ -41,7 +41,7 @@ interface Scene {
 interface FieldStats {
   totalJpg: number; totalRaw: number; totalScenes: number;
   totalRejected: number; totalDupRemoved: number; totalSelected: number;
-  totalRawCopied: number; totalRawMissing: number;
+  totalRawCopied: number; totalRawMissing: number; portraitMoved: number;
 }
 
 /* ── Studio-mode types ── */
