@@ -4,9 +4,10 @@ import { useRef, useState, useCallback } from "react";
 import { RefreshCw, Camera, Copy, Check } from "lucide-react";
 
 const C = {
-  teal: "#155855", orange: "#E85D2C", bg: "#EDF5F3",
+  teal: "#155855", orange: "#E85D2C", green: "#22876A",
   white: "#FFFFFF", border: "rgba(21,88,85,.12)", muted: "#5A7470",
-  hint: "#9BB5B0", txt: "#1C2B28", mint: "#EAF4F2", dark: "#1C2B28",
+  hint: "#9BB5B0", txt: "#1C2B28", light: "#EAF4F2", bg: "#EDF5F3",
+  mint: "#EAF4F2", dark: "#1C2B28",
 };
 
 const DNA_TARGETS = {
@@ -444,9 +445,38 @@ export default function PhotoRetouchingPage() {
       style={{ background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}
       onPaste={handleGlobalPaste}
     >
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
+      <div style={{ background: "#FFFFFF", borderBottom: `1px solid ${C.border}`, display: "flex", padding: "0 8px", overflowX: "auto" }}>
+        {([["check","색감 체크"],["sync","색감 동기화"],["recipe","보정 레시피"]] as const).map(([id, lbl]) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            padding: "11px 20px", border: "none", borderBottom: `2.5px solid ${tab === id ? C.teal : "transparent"}`,
+            background: "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 13,
+            fontWeight: tab === id ? 800 : 600, color: tab === id ? C.teal : C.hint,
+            whiteSpace: "nowrap",
+          }}>{lbl}</button>
+        ))}
+      </div>
+
+      <div style={{ background: C.light, padding: "6px 24px", fontSize: 11, fontWeight: 800, color: C.teal, borderBottom: `1px solid ${C.border}` }}>
+        포토클리닉 색감 작업실 — 업로드 · 분석 · 보정 가이드
+      </div>
+
+      <div style={{ background: C.bg, minHeight: "100vh", color: C.txt }}>
+        <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 20px 80px" }}>
         {/* 페이지 탭 */}
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 4, display: "flex", gap: 4, overflowX: "auto", marginBottom: 20 }}>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, marginBottom: 18 }}>
+          <div style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>PHOTO RETOUCHING</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: C.teal, marginBottom: 6 }}>
+            {tab === "check" ? "AI 색감 체크" : tab === "sync" ? "색감 동기화" : "포토클리닉 보정 레시피"}
+          </div>
+          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
+            {tab === "check"
+              ? "사진 한 장을 업로드하면 포토클리닉 컬러 DNA와 비교해 보정 방향을 정리합니다."
+              : tab === "sync"
+                ? "기준 사진과 대상 사진을 비교해 같은 톤으로 맞추는 보정값을 안내합니다."
+                : "Camera Raw와 Photoshop에서 바로 참고할 수 있는 기본 보정 기준입니다."}
+          </div>
+        </div>
+        <div style={{ display: "none" }}>
           {([["check","🎨 색감 체크"],["sync","🔄 색감 동기화"],["recipe","📋 보정 레시피"]] as const).map(([id, lbl]) => (
             <button key={id} onClick={() => setTab(id)} style={{
               flex: 1, minWidth: 150, padding: "12px 18px", border: "none", borderRadius: 10, cursor: "pointer",
@@ -460,7 +490,7 @@ export default function PhotoRetouchingPage() {
 
         {/* ── 색감 체크 ── */}
         {tab === "check" && (
-          <div style={{ display: "grid", gridTemplateColumns: result ? "340px 1fr" : "560px", gap: 24, justifyContent: "center" }}>
+          <div style={{ display: "grid", gridTemplateColumns: result ? "340px 1fr" : "minmax(0, 640px)", gap: 18, justifyContent: "center" }}>
 
             {/* 왼쪽 */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -471,9 +501,10 @@ export default function PhotoRetouchingPage() {
                   onDragOver={e => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   style={{
-                    border: `2px dashed ${dragging ? C.teal : C.border}`, borderRadius: 16,
-                    background: dragging ? C.mint : C.white, padding: "52px 24px",
+                    border: `1.5px dashed ${dragging ? C.teal : C.border}`, borderRadius: 14,
+                    background: dragging ? C.light : C.white, padding: "52px 24px",
                     textAlign: "center", cursor: "pointer", transition: "all .15s",
+                    boxShadow: "0 8px 24px rgba(21,88,85,.04)",
                   }}>
                   <div style={{ fontSize: 38, marginBottom: 14 }}>📷</div>
                   <div style={{ fontSize: 15, fontWeight: 900, color: C.teal, marginBottom: 8 }}>사진 업로드</div>
@@ -510,19 +541,19 @@ export default function PhotoRetouchingPage() {
               )}
 
               {/* DNA 미니카드 */}
-              <div style={{ background: C.dark, borderRadius: 14, padding: "18px" }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.35)", letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>포토클리닉</div>
-                <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", marginBottom: 2 }}>컬러 DNA v1</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)", marginBottom: 12 }}>3장 평균 확정값</div>
+              <div style={{ background: C.white, borderRadius: 14, padding: "18px", border: `1px solid ${C.border}`, boxShadow: "0 8px 24px rgba(21,88,85,.04)" }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>포토클리닉</div>
+                <div style={{ fontSize: 14, fontWeight: 900, color: C.teal, marginBottom: 2 }}>컬러 DNA v1</div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>3장 평균 확정값</div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                   {Object.values(DNA_TARGETS).map(t => (
                     <div key={t.hex} style={{ flex: 1, textAlign: "center" }}>
-                      <div style={{ height: 28, borderRadius: 6, background: t.hex, marginBottom: 4 }}/>
-                      <div style={{ fontSize: 9, color: "rgba(255,255,255,.35)" }}>{t.hex}</div>
+                      <div style={{ height: 28, borderRadius: 6, background: t.hex, marginBottom: 4, border: `1px solid ${C.border}` }}/>
+                      <div style={{ fontSize: 9, color: C.hint }}>{t.hex}</div>
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,.3)", lineHeight: 1.9 }}>
+                <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.9 }}>
                   5900K · Tint+3 · Expo+0.2<br/>
                   Highlights-30 · Shadows+20
                 </div>
@@ -771,6 +802,7 @@ export default function PhotoRetouchingPage() {
             </div>
           </div>
         )}
+      </div>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </main>
