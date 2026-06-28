@@ -271,7 +271,7 @@ export default function GalleryPage() {
         </div>
       </header>
 
-      <section style={{ maxWidth: 1220, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "420px 1fr", gap: 22, alignItems: "start" }}>
+      <section className="pc-mobile-stack" style={{ maxWidth: 1220, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "420px 1fr", gap: 22, alignItems: "start" }}>
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
             <div style={{ background: C.mint, padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
@@ -279,11 +279,11 @@ export default function GalleryPage() {
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>원본 사진은 NAS에 두고, 카드용 작은 대표 미리보기만 저장합니다.</div>
             </div>
             <div style={{ padding: 20, display: "grid", gap: 12 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <label className="field"><span>병원명 *</span><input style={fieldStyle} value={form.hospitalName} onChange={(e) => set("hospitalName", e.target.value)} placeholder="포토클리닉" /></label>
                 <label className="field"><span>촬영일</span><input style={fieldStyle} type="date" value={form.shootDate} onChange={(e) => set("shootDate", e.target.value)} /></label>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <label className="field"><span>담당자</span><input style={fieldStyle} value={form.contactName} onChange={(e) => set("contactName", e.target.value)} placeholder="정연호" /></label>
                 <label className="field"><span>공유 이메일</span><input style={fieldStyle} type="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} placeholder="photoclnic@gmail.com" /></label>
               </div>
@@ -304,7 +304,7 @@ export default function GalleryPage() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: editingId ? "1fr 120px" : "1fr", gap: 10 }}>
+          <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: editingId ? "1fr 120px" : "1fr", gap: 10 }}>
             <button disabled={saving} style={{ minHeight: 50, border: 0, borderRadius: 12, background: C.teal, color: "#fff", fontWeight: 900, fontSize: 15 }}>
               {saving ? "저장 중..." : editingId ? "카드 수정 저장" : "갤러리 저장"}
             </button>

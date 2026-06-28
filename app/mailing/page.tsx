@@ -187,7 +187,7 @@ function QueueTab() {
       )}
 
       {/* 목록 + 상세 */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: selected ? "380px 1fr" : "1fr", overflow: "hidden" }}>
+      <div className="pc-mobile-stack" style={{ flex: 1, display: "grid", gridTemplateColumns: selected ? "380px 1fr" : "1fr", overflow: "hidden" }}>
         <div style={{ borderRight: selected ? `1px solid ${C.border}` : "none", overflowY: "auto" }}>
           {loading && <div style={{ padding: 40, textAlign: "center", color: C.muted }}>불러오는 중...</div>}
           {!loading && items.length === 0 && (
@@ -363,7 +363,7 @@ function BrandMailTab() {
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
-      <div style={{ maxWidth: preview ? 1120 : 580, margin: "0 auto", display: "grid", gridTemplateColumns: preview ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
+      <div className="pc-mobile-stack" style={{ maxWidth: preview ? 1120 : 580, margin: "0 auto", display: "grid", gridTemplateColumns: preview ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
 
         {/* ── 입력 폼 ─────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -381,7 +381,7 @@ function BrandMailTab() {
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📋 사진 전달 정보</div>
             </div>
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>고객 *</label>
                   <input value={hospitalName} onChange={e => setHospitalName(e.target.value)} placeholder="고객사명" style={iS} />
@@ -391,7 +391,7 @@ function BrandMailTab() {
                   <input type="date" value={shootDate} onChange={e => setShootDate(e.target.value)} style={iS} />
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>촬영 내용</label>
                   <input value={packageName} onChange={e => setPackageName(e.target.value)} placeholder="Premium 촬영 내용" style={iS} />
@@ -410,7 +410,7 @@ function BrandMailTab() {
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>👤 받는 분</div>
             </div>
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
                   <input value={toName} onChange={e => setToName(e.target.value)} placeholder="정연호 실장님" style={iS} />

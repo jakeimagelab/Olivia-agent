@@ -150,7 +150,7 @@ function ConsultationInner() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 20px 60px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+      <div className="pc-mobile-stack" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 20px 60px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
 
         {/* 왼쪽: 병원 정보 폼 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -164,7 +164,7 @@ function ConsultationInner() {
                 </div>
               </div>
               <div style={{ padding: "20px", display: "grid", gap: 14 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>병원이름 *</label>
                     <input value={form.name} onChange={set("name")} placeholder="포토클리닉" style={iS} required />
@@ -174,7 +174,7 @@ function ConsultationInner() {
                     <input value={form.director_name} onChange={set("director_name")} placeholder="정연호 원장" style={iS} />
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>진료과</label>
                     <input value={form.department} onChange={set("department")} placeholder="피부과, 성형외과" style={iS} />
@@ -188,7 +188,7 @@ function ConsultationInner() {
                   <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>주요 진료 / 시술</label>
                   <input value={form.main_treatments} onChange={set("main_treatments")} placeholder="리프팅, 보톡스, 필러, 레이저 토닝" style={iS} />
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>홈페이지</label>
                     <input value={form.website_url} onChange={set("website_url")} placeholder="https://clinic.com" style={iS} />

@@ -986,7 +986,7 @@ export default function PhotoSortingPage() {
         {/* 촬영 모드 선택 */}
         <Card>
           <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>촬영 모드</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+          <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
             {([["field","병원 현장촬영","시간 간격 기준으로 Scene을 분류합니다."],["studio","스튜디오 프로필촬영","의상·포즈·조명 기준으로 분류합니다."]] as const).map(([m,title,desc])=>(
               <button key={m} onClick={()=>setPhotoMode(m)} style={{padding:"16px 20px",textAlign:"left",border:"none",borderRight:m==="field"?`1px solid ${C.border}`:"none",background:photoMode===m?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
                 <div style={{fontSize:13,fontWeight:900,color:photoMode===m?C.teal:C.muted,marginBottom:4}}>{title}{photoMode===m&&" ✓"}</div>
@@ -1149,7 +1149,7 @@ export default function PhotoSortingPage() {
           <div style={{padding:"8px 0"}}>
             {fieldScenes.map((sc,i)=>(
               <div key={i} style={{borderBottom:i<fieldScenes.length-1?`1px solid ${C.border}`:"none",padding:"12px 20px"}}>
-                <div style={{display:"grid",gridTemplateColumns:"100px auto 1fr auto",gap:12,alignItems:"start"}}>
+                <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"100px auto 1fr auto",gap:12,alignItems:"start"}}>
                   {/* 썸네일 */}
                   <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
                     {sc.files.slice(0,3).map((f,fi)=>f.thumbUrl
@@ -1219,7 +1219,7 @@ export default function PhotoSortingPage() {
     return (
       <div style={{maxWidth:580,display:"flex",flexDirection:"column",gap:16}}>
         <div style={{fontSize:14,fontWeight:800,color:C.green}}>분류 완료 — 베스트컷을 선택해주세요</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
           {[
             {label:"씬",       value:fieldStats.totalScenes,       color:C.teal},
             {label:"전체 JPG", value:fieldStats.totalJpg,          color:C.txt},
@@ -1293,7 +1293,7 @@ export default function PhotoSortingPage() {
       <Card style={{maxWidth:580}}>
         <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.green}}>✅ 완료!</div>
         <div style={{padding:20}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+          <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
             {rows.map(({label,value,color})=>(
               <div key={label} style={{background:C.bg,borderRadius:8,padding:"12px 14px"}}>
                 <div style={{fontSize:20,fontWeight:900,color:color??C.txt}}>{value}</div>
@@ -1333,7 +1333,7 @@ export default function PhotoSortingPage() {
       <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
         <div style={{fontSize:14,fontWeight:800,color:C.purple}}>AI 의상·포즈·조명 분석 중...</div>
         <ProgressBar cur={analyzed} total={total} msg={progress.msg}/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           {[["전체 JPG",total,C.teal],["분석 완료",analyzed,C.green],["ETC 후보",studioFiles.filter(f=>f.groupKey==="__ETC__").length,C.red]].map(([l,v,c])=>(
             <div key={l as string} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"10px 14px",textAlign:"center"}}>
               <div style={{fontSize:20,fontWeight:900,color:c as string}}>{v}</div>
@@ -1371,7 +1371,7 @@ export default function PhotoSortingPage() {
           <div style={{padding:"8px 0"}}>
             {normalGroups.map((g,i)=>(
               <div key={g.key} style={{borderBottom:i<normalGroups.length-1?`1px solid ${C.border}`:"none",padding:"12px 20px"}}>
-                <div style={{display:"grid",gridTemplateColumns:"100px 60px 1fr auto",gap:12,alignItems:"center"}}>
+                <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"100px 60px 1fr auto",gap:12,alignItems:"center"}}>
                   <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
                     {g.files.slice(0,4).map(f=>f.thumbUrl?<img key={f.name} src={f.thumbUrl} style={{width:22,height:16,objectFit:"cover",borderRadius:2}} alt=""/>:<div key={f.name} style={{width:22,height:16,background:C.border,borderRadius:2}}/>)}
                   </div>
@@ -1404,7 +1404,7 @@ export default function PhotoSortingPage() {
             </button>
           ))}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
           {[{label:"전체 그룹",value:normalGroups.length,color:C.purple},{label:"전체 JPG",value:normalGroups.reduce((s,g)=>s+g.files.length,0),color:C.txt},{label:"ETC",value:etcGroup?.files.length??0,color:C.red},{label:"RAW 파일",value:studioRawCount,color:C.muted}].map(({label,value,color})=>(
             <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
               <div style={{fontSize:22,fontWeight:900,color}}>{value}</div>
@@ -1461,7 +1461,7 @@ export default function PhotoSortingPage() {
       <Card style={{maxWidth:600}}>
         <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.purple}}>✅ 스튜디오 분류 완료!</div>
         <div style={{padding:20}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+          <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
             {rows.map(({label,value,color})=>(
               <div key={label} style={{background:C.bg,borderRadius:8,padding:"12px 14px"}}>
                 <div style={{fontSize:20,fontWeight:900,color}}>{value}</div>

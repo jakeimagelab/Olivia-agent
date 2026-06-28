@@ -277,7 +277,7 @@ function SyncTab() {
           {/* 피부톤 비교 */}
           {resTab === "swatch" && (
             <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, marginBottom: 8 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, marginBottom: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: C.teal, textAlign: "center" }}>기준 사진</div>
                 <div/>
                 <div style={{ fontSize: 11, fontWeight: 800, color: C.orange, textAlign: "center" }}>대상 사진</div>
@@ -288,7 +288,7 @@ function SyncTab() {
                 const ok = d.dist <= 10;
                 const warn = d.dist > 25;
                 return (
-                  <div key={k} style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                  <div key={k} className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center", marginBottom: 10 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <div style={{ width: 36, height: 36, borderRadius: 8, background: result.reference[k].hex, border: `1px solid ${C.border}`, flexShrink: 0 }}/>
                       <div style={{ fontSize: 10, color: C.hint }}>{result.reference[k].hex}</div>
@@ -354,7 +354,7 @@ function SyncTab() {
           {resTab === "cameraraw" && (
             <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
               <div style={{ fontSize: 12, fontWeight: 900, color: C.muted, marginBottom: 16 }}>대상 사진 → Camera Raw 조정 (기준 사진 기준)</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
                   ["색온도", result.adjustments.temperature ? (result.adjustments.temperature > 0 ? `+${result.adjustments.temperature}` : String(result.adjustments.temperature)) + "K" : "±0", result.adjustments.temperature !== 0],
                   ["노출", result.adjustments.exposure > 0 ? `+${result.adjustments.exposure}` : String(result.adjustments.exposure || "±0"), Math.abs(result.adjustments.exposure) >= 0.05],
@@ -490,7 +490,7 @@ export default function PhotoRetouchingPage() {
 
         {/* ── 색감 체크 ── */}
         {tab === "check" && (
-          <div style={{ display: "grid", gridTemplateColumns: result ? "340px 1fr" : "minmax(0, 640px)", gap: 18, justifyContent: "center" }}>
+          <div className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: result ? "340px 1fr" : "minmax(0, 640px)", gap: 18, justifyContent: "center" }}>
 
             {/* 왼쪽 */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -685,7 +685,7 @@ export default function PhotoRetouchingPage() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         <div style={{ background: C.dark, borderRadius: 14, padding: "18px" }}>
                           <div style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,.4)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 14 }}>Camera Raw 적용값</div>
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                          <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                             {([
                               ["색온도", result.adjustments?.temperature ? `${5900 + result.adjustments.temperature}K` : "5900K", !!result.adjustments?.temperature],
                               ["Tint", "+3", false],
@@ -758,7 +758,7 @@ export default function PhotoRetouchingPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px" }}>
                 <div style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>Camera Raw 기준값</div>
                 {[["색온도","5900K"],["색조 Tint","+3"],["노출","+0.2"],["하이라이트","-30"],["섀도우","+20"],["화이트","+8"],["블랙","+12"],["선명도","+8"],["Vibrance","-5"]].map(([k, v]) => (

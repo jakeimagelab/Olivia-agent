@@ -243,7 +243,7 @@ export default function ContractPage() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "24px 20px", display: "grid",
+      <div className="pc-mobile-stack" style={{ maxWidth: 1240, margin: "0 auto", padding: "24px 20px", display: "grid",
                     gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 20, alignItems: "start" }}>
 
         {/* 계약서 미리보기 */}
@@ -268,7 +268,7 @@ export default function ContractPage() {
           <div style={{ background: C.teal, borderRadius: 14, padding: "16px 18px", color: "#fff" }}>
             <div style={{ fontSize: 11, opacity: .7, marginBottom: 6 }}>계약 금액</div>
             <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 10 }}>{fmt(quote.totalAmount)}원</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div style={{ background: "rgba(255,255,255,.12)", borderRadius: 8, padding: "8px 10px" }}>
                 <div style={{ fontSize: 9, opacity: .7, marginBottom: 2 }}>선금 (50%)</div>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(quote.depositAmount)}원</div>

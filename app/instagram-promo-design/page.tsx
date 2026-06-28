@@ -284,7 +284,7 @@ export default function InstaDesignPage() {
     <div style={{ minHeight: "100vh", background: C.bg }}>
       <PageHeader title="인스타그램 디자이너" />
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px", display: "grid", gridTemplateColumns: "1fr 360px", gap: 24 }}>
+      <div className="pc-mobile-stack" style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px", display: "grid", gridTemplateColumns: "1fr 360px", gap: 24 }}>
 
         {/* ── 왼쪽: 설정 패널 ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

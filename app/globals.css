@@ -1272,6 +1272,208 @@ textarea:focus {
   }
 }
 
+@media (max-width: 720px) {
+  .pc-mobile-stack,
+  .pc-mobile-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pc-mobile-stack {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .pc-mobile-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .pc-mobile-actions > * {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .pc-header {
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .pc-header-left,
+  .pc-header-actions {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .pc-header-divider {
+    display: none;
+  }
+
+  .pc-header-title {
+    max-width: calc(100vw - 112px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+
+  .pc-header-logo {
+    height: 24px;
+    max-width: 112px;
+    object-fit: contain;
+  }
+
+  .pc-header-back {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .pc-main {
+    padding: 18px 16px 30px;
+  }
+
+  .pc-sidebar {
+    padding: 18px 16px;
+  }
+
+  .pc-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pc-nav-link {
+    min-height: 44px;
+    padding: 0 10px;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .pc-hero {
+    padding: 24px 0 20px;
+  }
+
+  .pc-hero h1,
+  .subscription-hero h1,
+  .login-panel h1,
+  .dashboard-hero h1,
+  .placeholder-page h1,
+  .ops-header h1 {
+    font-size: clamp(30px, 11vw, 42px);
+    line-height: 1.12;
+  }
+
+  .pc-hero p,
+  .subscription-hero p:last-child,
+  .login-copy,
+  .dashboard-hero p,
+  .placeholder-page p,
+  .ops-header span {
+    font-size: 14px;
+  }
+
+  .pc-stat-card {
+    min-height: 0;
+    grid-template-columns: 48px 1fr;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .pc-stat-icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  .pc-stat-card strong {
+    font-size: 32px;
+  }
+
+  .pc-menu-card,
+  .admin-menu-card {
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .pc-menu-card h2,
+  .admin-menu-copy h2 {
+    font-size: 18px;
+  }
+
+  .pc-activity-strip {
+    padding: 16px;
+  }
+
+  .admin-shell,
+  .ops-shell {
+    padding: 16px;
+  }
+
+  .admin-dashboard-header,
+  .brand-lockup {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ops-table-card,
+  .ops-panel,
+  .report-preview,
+  .ops-summary-grid,
+  .ops-two-column,
+  .design-workspace,
+  .ops-filter-bar,
+  .ops-asset-grid,
+  .calendar-board {
+    width: 100%;
+  }
+
+  .ops-table-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .report-preview {
+    padding: 18px;
+  }
+
+  .report-preview h2 {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 520px) {
+  .pc-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .pc-topbar,
+  .pc-top-actions,
+  .pc-activity-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pc-menu-icon,
+  .admin-menu-icon,
+  .placeholder-icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  .ops-asset-grid,
+  .calendar-board {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-menu-icon,
 .placeholder-icon {
   display: inline-flex;

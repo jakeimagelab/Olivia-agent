@@ -419,6 +419,7 @@ export default function ImageDirectorPage() {
 
       {/* Main 2-column layout */}
       <div
+        className="pc-mobile-stack"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 440px",
@@ -489,7 +490,7 @@ export default function ImageDirectorPage() {
 
           {/* Department + People + Age */}
           <div className="ops-panel">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div>
                 <label style={{ fontSize: "0.82rem", fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>
                   진료과
@@ -576,7 +577,7 @@ export default function ImageDirectorPage() {
 
           {/* Mood (multi), Lighting, Composition */}
           <div className="ops-panel">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
+            <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20 }}>
               <div>
                 <label style={{ fontSize: "0.82rem", fontWeight: 700, color: "#555", display: "block", marginBottom: 8 }}>
                   분위기 (복수선택)
@@ -708,7 +709,7 @@ export default function ImageDirectorPage() {
             <h3 style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--orange)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
               레퍼런스 이미지 (선택)
             </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               {(
                 [
                   { key: "space", label: "공간 레퍼런스", ref: spaceRef },
@@ -873,7 +874,7 @@ export default function ImageDirectorPage() {
             <div className="ops-panel">
               <p className="admin-kicker">1차 시안 ({images.length}장)</p>
               <p style={{ fontSize: "0.8rem", color: "#666", marginBottom: 12 }}>이미지를 클릭하면 선택됩니다.</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {images.map((img, i) => (
                   <div
                     key={i}
@@ -1008,7 +1009,7 @@ export default function ImageDirectorPage() {
           {refinedImages.length > 0 && stage === "checklist" && (
             <div className="ops-panel">
               <p className="admin-kicker">2차 정교화 결과</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
                 {refinedImages.map((img, i) => (
                   <div
                     key={i}

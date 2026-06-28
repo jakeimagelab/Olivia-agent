@@ -346,7 +346,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
           />
 
           {/* 고객 기본정보 + 메일 현황 */}
-          <div style={{ display: "grid", gridTemplateColumns: mailingQueue.length > 0 ? "1fr 1fr" : "1fr", gap: 14 }}>
+          <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: mailingQueue.length > 0 ? "1fr 1fr" : "1fr", gap: 14 }}>
             <InfoPanel client={client} onUpdate={load} />
             {mailingQueue.length > 0 && (
               <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
@@ -524,7 +524,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
           <>
             {/* 촬영 — 인라인 체크리스트 */}
             {selectedStepKey === "shooting" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
                 <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
                   <div style={{ padding: "10px 14px", background: "rgba(21,88,85,.04)", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>촬영 체크리스트</span>
@@ -553,7 +553,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
 
             {/* 원본 전달 — NAS 링크 인라인 */}
             {selectedStepKey === "original_delivery" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>NAS 공유 링크</label>
                   <input value={nasLink} onChange={(e) => setNasLink(e.target.value)} placeholder="https://nas.example.com/share/..."
@@ -590,7 +590,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
                   <div style={{ fontSize: 12, fontWeight: 900, color: C.orange, marginBottom: 10 }}>
                     ✉️ 완료 시 보정본 배송 메일이 자동으로 메일링함에 등록됩니다
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                  <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 }}>NAS 공유 링크 *</label>
                       <input value={finalNasLink} onChange={(e) => setFinalNasLink(e.target.value)} placeholder="https://nas.example.com/share/..."
@@ -715,7 +715,7 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
       {msg && <div style={{ padding: "8px 18px", background: msg.includes("실패") ? "#FFF0F0" : C.light, fontSize: 12, fontWeight: 700, color: msg.includes("실패") ? C.orange : C.green }}>{msg}</div>}
       <div style={{ padding: "12px 18px", display: "grid", gap: 10 }}>
         {rows.map(([key, label]) => (
-          <div key={key} style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "start" }}>
+          <div key={key} className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "start" }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, paddingTop: 3 }}>{label}</span>
             {editing ? (
               key === "special_notes" ? (

@@ -1882,7 +1882,7 @@ ${header("타임테이블")}
                     <span>진료과목 * (복수 선택 가능)</span>
                     <SpecialtyPicker selected={form.specialties} onChange={v => set("specialties", v)} />
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <label className="field"><span>원장님 인원</span><input type="number" min="1" value={form.doctors} onChange={e => set("doctors", e.target.value)} /></label>
                     <label className="field"><span>부원장님 인원</span><input type="number" min="0" value={form.viceDirectors} onChange={e => set("viceDirectors", e.target.value)} /></label>
                   </div>
@@ -1894,7 +1894,7 @@ ${header("타임테이블")}
                 <div style={{ display: "grid", gap: 8 }}>
                   {form.staffItems.length === 0 && <EmptyRow />}
                   {form.staffItems.map((item, i) => (
-                    <div key={i} style={{ display: "grid", gridTemplateColumns: "180px 80px 1fr 36px", gap: 8, alignItems: "center" }}>
+                    <div key={i} className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "180px 80px 1fr 36px", gap: 8, alignItems: "center" }}>
                       <div><input list={`sr-${i}`} value={item.role} onChange={e => updateStaff(i, { role: e.target.value })} placeholder="역할 선택 또는 입력" style={{ minHeight: 38, fontSize: 13, width: "100%" }} /><datalist id={`sr-${i}`}>{STAFF_ROLE_PRESETS.map(r => <option key={r} value={r} />)}</datalist></div>
                       <input type="number" min="1" value={item.count} onChange={e => updateStaff(i, { count: parseInt(e.target.value) || 1 })} style={{ minHeight: 38, fontSize: 13, textAlign: "center" }} />
                       <input value={item.detail} onChange={e => updateStaff(i, { detail: e.target.value })} placeholder="예: 진료 연출 시 환자 안내, 수액 체크 역할" style={{ minHeight: 38, fontSize: 13 }} />
@@ -1910,7 +1910,7 @@ ${header("타임테이블")}
                 <div style={{ display: "grid", gap: 8 }}>
                   {form.patientItems.length === 0 && <EmptyRow />}
                   {form.patientItems.map((item, i) => (
-                    <div key={i} style={{ display: "grid", gridTemplateColumns: "220px 80px 1fr 36px", gap: 8, alignItems: "center" }}>
+                    <div key={i} className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "220px 80px 1fr 36px", gap: 8, alignItems: "center" }}>
                       <div><input list={`pt-${i}`} value={item.type} onChange={e => updatePatient(i, { type: e.target.value })} placeholder="유형 선택 또는 입력" style={{ minHeight: 38, fontSize: 13, width: "100%" }} /><datalist id={`pt-${i}`}>{PATIENT_TYPE_PRESETS.map(t => <option key={t} value={t} />)}</datalist></div>
                       <input type="number" min="1" value={item.count} onChange={e => updatePatient(i, { count: parseInt(e.target.value) || 1 })} style={{ minHeight: 38, fontSize: 13, textAlign: "center" }} />
                       <input value={item.detail} onChange={e => updatePatient(i, { detail: e.target.value })} placeholder="예: 초음파 진료 장면, 수액실에서 부모와 대기" style={{ minHeight: 38, fontSize: 13 }} />
@@ -1922,13 +1922,13 @@ ${header("타임테이블")}
               </SectionBox>
 
               <SectionBox emoji="📍" title="촬영 공간 / 장소" desc="층 또는 구역별로 항목을 추가하세요.">
-                <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr 36px", gap: 8, marginBottom: 6 }}>
+                <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr 36px", gap: 8, marginBottom: 6 }}>
                   {["층/구역", "공간 목록", "비고", ""].map((h, i) => <span key={i} style={{ fontSize: 11, fontWeight: 800, color: "#9ca3af" }}>{h}</span>)}
                 </div>
                 <div style={{ display: "grid", gap: 8 }}>
                   {form.locationItems.length === 0 && <EmptyRow />}
                   {form.locationItems.map((item, i) => (
-                    <div key={i} style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr 36px", gap: 8, alignItems: "center" }}>
+                    <div key={i} className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "100px 1fr 1fr 36px", gap: 8, alignItems: "center" }}>
                       <input value={item.floor} onChange={e => updateLocation(i, { floor: e.target.value })} placeholder="예: 5층" style={{ minHeight: 38, fontSize: 13 }} />
                       <input value={item.spaces} onChange={e => updateLocation(i, { spaces: e.target.value })} placeholder="예: 외래(원장실, 초음파실, 수액실)" style={{ minHeight: 38, fontSize: 13 }} />
                       <input value={item.notes} onChange={e => updateLocation(i, { notes: e.target.value })} placeholder="예: 햇볕 잘 드는 공간 우선" style={{ minHeight: 38, fontSize: 13 }} />
