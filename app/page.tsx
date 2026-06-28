@@ -529,7 +529,7 @@ const PIPELINE = [
   { n:3,  label:"계약",       href:"/mailing",          color:"#155855" },
   { n:4,  label:"콘티",       href:"/conti",            color:"#0891B2" },
   { n:5,  label:"촬영",       href:"/calendar",         color:"#D97706" },
-  { n:6,  label:"보정",       href:"/photo-retouching", color:"#E85D2C" },
+  { n:6,  label:"보정",       href:"/photo-sorting",    color:"#E85D2C" },
   { n:7,  label:"원본전달",   href:"/clients",          color:"#0891B2" },
   { n:8,  label:"수정",       href:"/portal-admin",     color:"#9333EA" },
   { n:9,  label:"최종전달",   href:"/mailing",          color:"#E85D2C" },
