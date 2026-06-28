@@ -555,17 +555,18 @@ export default function PhotoSortingPage() {
         const files = updated[i].files;
         const n = files.length;
         const idxSet = new Set([0, Math.min(1,n-1), Math.floor(n/2), Math.min(Math.floor(n/2)+1,n-1), Math.max(0,n-2), n-1]);
-        const thumbnails: string[] = [];
+        const images: { fileName: string; base64: string }[] = [];
         for (const idx of idxSet) {
           try {
             const f = await files[idx].handle.getFile();
-            thumbnails.push(await getApiThumb(f));
+            images.push({ fileName: files[idx].name, base64: await getApiThumb(f) });
           } catch {}
-          if (thumbnails.length >= 6) break;
+          if (images.length >= 6) break;
         }
-        const res = await fetch("/api/department-scene", {
+        const sceneId = updated[i].folderName;
+        const res = await fetch("/api/photo-scene-analyze", {
           method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ thumbnails, department }),
+          body: JSON.stringify({ department, sceneId, images, options: { useHighModel: false } }),
         });
         const data = await res.json();
         if (data.ok) {
