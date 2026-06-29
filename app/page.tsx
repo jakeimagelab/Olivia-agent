@@ -904,17 +904,18 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
 
       {/* Mobile tab switcher */}
       <div style={{
-        display:"flex",background:"#fff",borderBottom:"1px solid rgba(21,88,85,.1)",
+        display:"flex",background:"#fff",borderBottom:"1px solid rgba(21,88,85,.08)",
         position:"sticky",top:50,zIndex:100,
+        boxShadow:"0 1px 6px rgba(21,88,85,.05)",
       }}>
-        {([["home","🏠 대시보드"],["apps","📱 앱"]] as const).map(([id,label])=>(
+        {([["home","대시보드"],["apps","도구 목록"]] as const).map(([id,label])=>(
           <button key={id} onClick={()=>setMobileTab(id)} style={{
-            flex:1,height:40,border:"none",
-            background:"none",
+            flex:1,height:42,border:"none",
+            background:mobileTab===id?"rgba(21,88,85,.04)":"none",
             borderBottom:`2.5px solid ${mobileTab===id?"#155855":"transparent"}`,
             color:mobileTab===id?"#155855":"#9BB5B0",
-            fontSize:12,fontWeight:mobileTab===id?900:600,
-            cursor:"pointer",fontFamily:"inherit",
+            fontSize:13,fontWeight:mobileTab===id?900:600,
+            cursor:"pointer",fontFamily:"inherit",transition:"all .15s",
           }}>{label}</button>
         ))}
       </div>
