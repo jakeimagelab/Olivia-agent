@@ -1532,7 +1532,7 @@ ${contiSummary}
   .cover-logo-sub { font-size:8pt; color:#888; margin-bottom:60px; }
   .cover-hospital { font-size:28pt; font-weight:900; color:#155855; margin-bottom:12px; word-break:keep-all; }
   .cover-subtitle { font-size:16pt; font-weight:700; color:#E85D2C; margin-bottom:40px; }
-  .cover-meta { display:flex; flex-direction:column; gap:10px; background:#F0F9F8; border:1px solid #C8DDD9; border-radius:12px; padding:24px 40px; margin-bottom:40px; min-width:320px; }
+  .cover-meta { display:flex; flex-direction:column; gap:10px; background:#F0F9F8; border:1px solid #C8DDD9; border-radius:12px; padding:24px 40px; margin-bottom:40px; min-width:320px; text-align:left; }
   .cover-meta-row { display:flex; align-items:center; gap:16px; font-size:10pt; }
   .cover-meta-label { color:#888; font-size:9pt; min-width:60px; }
   .cover-meta-value { font-weight:700; color:#222; }
