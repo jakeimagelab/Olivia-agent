@@ -188,6 +188,12 @@ export interface FieldScene {
   profileCount: number;
   qualityRejectCount: number;
   nameLoading: boolean;
+  // AI 상세 분석 결과 (병합 후보 판단에 사용)
+  aiPatientPosture?: string | null;
+  aiHasHandpiece?: boolean | null;
+  aiHasTreatmentDevice?: boolean | null;
+  aiHasTreatmentBed?: boolean | null;
+  aiHasConsultationDesk?: boolean | null;
 }
 
 export interface FieldStats {
