@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --font-sans: "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
   --deep-green: #155855;
   --orange: #E85D2C;
   --orange-soft: #EB754C;
