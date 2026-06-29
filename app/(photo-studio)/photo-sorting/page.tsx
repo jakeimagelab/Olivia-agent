@@ -2556,7 +2556,7 @@ export default function PhotoSortingPage() {
   ═══════════════════════════════════════════ */
   return (
     <div>
-      <div style={{background:"#FFFFFF",borderBottom:"1px solid rgba(21,88,85,.12)",display:"flex",padding:"0 8px"}}>
+      <div style={{background:"#FFFFFF",borderBottom:"1px solid rgba(21,88,85,.12)",display:"flex",padding:"0 8px",overflowX:"auto"}}>
         <span style={{padding:"11px 20px",fontSize:13,fontWeight:800,color:"#155855",borderBottom:"2.5px solid #155855",cursor:"default",whiteSpace:"nowrap"}}>
           사진 분류
         </span>
