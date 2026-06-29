@@ -147,6 +147,7 @@ export interface FieldSortOptions {
   qualityAnalysisEnabled: boolean;
   profileClassificationEnabled: boolean;
   rawSelectMode: "move" | "copy";
+  fastAnalyzeMode: boolean;
 }
 
 export interface SceneFile {
