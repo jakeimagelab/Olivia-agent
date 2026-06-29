@@ -542,11 +542,9 @@ function BrandMailTab() {
                   <p style={{ fontSize: 12, fontWeight: 700, color: C.txt, margin: "0 0 12px" }}>
                     {toName || hospitalName || "원장"} 원장님.
                   </p>
-                  <p style={{ fontSize: 11, color: C.muted, lineHeight: 1.8, margin: "0 0 12px" }}>
-                    {shootDate ? `${shootDate}에 진행하신 촬영 보정본 공유드립니다.` : "촬영 보정본 공유드립니다."}<br/>
-                    아래 링크를 통해 고화질 원본 파일을 다운로드 하실 수 있습니다.<br/>
-                    링크는 영구적으로 보관되나, 30일 이내로 다운받으시길 권장 드립니다.
-                  </p>
+                  <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.8, margin: "0 0 12px", whiteSpace: "pre-line" }}>
+                    {message}
+                  </div>
                   {(packageName || fileCount) && (
                     <div style={{ background: C.mint, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}>
                       {packageName && <div style={{ fontSize: 10, marginBottom: 3 }}><span style={{ color: C.hint, marginRight: 8, fontWeight: 700 }}>폴더 구성</span><span style={{ fontWeight: 700, color: C.txt }}>{packageName}</span></div>}
