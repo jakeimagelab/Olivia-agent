@@ -363,6 +363,47 @@ function buildStudioGroups(files: StudioPhotoFile[]): StudioGroup[] {
   return groups;
 }
 
+function personSoftMatch(a: PersonFeatures, b: PersonFeatures): boolean {
+  if (a.gender !== "unknown" && b.gender !== "unknown" && a.gender !== b.gender) return false;
+  if (a.hasGlasses !== b.hasGlasses) return false;
+  if (a.hairColor !== "unknown" && b.hairColor !== "unknown" && a.hairColor !== b.hairColor) {
+    const CLOSE: Record<string, string[]> = { black:["brown"], brown:["black","blonde"], blonde:["brown"], white_gray:[], other:[] };
+    if (!(CLOSE[a.hairColor] ?? []).includes(b.hairColor)) return false;
+  }
+  const BANDS = ["20s","30s","40s","50s","60s+","unknown"];
+  const ai = BANDS.indexOf(a.ageBand), bi = BANDS.indexOf(b.ageBand);
+  if (ai !== 5 && bi !== 5 && Math.abs(ai - bi) > 1) return false;
+  const LENS = ["bald","short","medium","long","unknown"];
+  const ali = LENS.indexOf(a.hairLength), bli = LENS.indexOf(b.hairLength);
+  if (ali !== 4 && bli !== 4 && Math.abs(ali - bli) > 1) return false;
+  return true;
+}
+
+function buildPersonGroups(files: StudioPhotoFile[]): PersonGroup[] {
+  const etcFiles    = files.filter(f => f.groupKey === "__ETC__");
+  const normalFiles = files.filter(f => f.groupKey !== "__ETC__" && f.groupKey !== "PENDING");
+  const keyOrder: string[] = [];
+  const groupMap = new Map<string, StudioPhotoFile[]>();
+  for (const f of normalFiles) {
+    if (!groupMap.has(f.groupKey)) { groupMap.set(f.groupKey, []); keyOrder.push(f.groupKey); }
+    groupMap.get(f.groupKey)!.push(f);
+  }
+  const BLANK_FEATURES: PersonFeatures = { gender:"unknown", ageBand:"unknown", hairColor:"unknown", hairLength:"unknown", hasGlasses:false };
+  const groups: PersonGroup[] = [];
+  let idx = 1;
+  for (const key of keyOrder) {
+    const gFiles = groupMap.get(key)!;
+    const first = gFiles[0];
+    const folderName = `${String(idx).padStart(2,"0")}_인물${idx}`;
+    groups.push({ id:key, label:`인물 ${idx}`, features:first.personFeatures ?? BLANK_FEATURES, sampleThumb:first.thumbUrl ?? "", files:gFiles, suggestedFolderName:folderName, editedFolderName:folderName, index:idx, isEtc:false });
+    idx++;
+  }
+  if (etcFiles.length > 0) {
+    groups.unshift({ id:"__ETC__", label:"조명불량", features:BLANK_FEATURES, sampleThumb:etcFiles[0]?.thumbUrl ?? "", files:etcFiles, suggestedFolderName:"00_ETC_조명불량", editedFolderName:"00_ETC_조명불량", index:0, isEtc:true });
+  }
+  return groups;
+}
+
 /* ════════════════════════════════════════════════
    SHARED UI COMPONENTS
 ═══════════════════════════════════════════════ */
