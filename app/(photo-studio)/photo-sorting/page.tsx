@@ -2581,8 +2581,8 @@ export default function PhotoSortingPage() {
 
           {photoMode==="studio" && step===1 && <StudioStep1/>}
           {photoMode==="studio" && step===2 && <StudioStep2/>}
-          {photoMode==="studio" && step===3 && <StudioStep3/>}
-          {photoMode==="studio" && step===4 && <StudioStep4/>}
+          {photoMode==="studio" && step===3 && (studioSubMode==="group" ? <StudioGroupStep3/> : <StudioStep3/>)}
+          {photoMode==="studio" && step===4 && (studioSubMode==="group" ? <StudioGroupStep4/> : <StudioStep4/>)}
           {photoMode==="studio" && step===5 && <StudioStep5/>}
           {photoMode==="studio" && step===6 && <StudioStep6/>}
         </div>
