@@ -1418,8 +1418,11 @@ export default function PhotoSortingPage() {
   ═══════════════════════════════════════════ */
   const FieldStep1 = () => (
     <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>파일 분류 중...</div>
-      <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
+      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>
+        {fastAnalyzeMode ? "⚡ 빠른 분석 중 (파일 이동 없음)..." : "파일 분류 중..."}
+      </div>
+      {progress.total > 0 && <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>}
+      {progress.total === 0 && <div style={{fontSize:12,color:C.hint}}>{progress.msg || "스캔 중..."}</div>}
       <div style={{maxHeight:200,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
         {copyLog.slice(-20).map((l,i)=><div key={i} style={{color:C.green}}>{l}</div>)}
       </div>
