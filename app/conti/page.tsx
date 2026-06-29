@@ -1628,7 +1628,6 @@ ${header("촬영 콘티")}
 
 <!-- ③ 준비 체크리스트 -->
 <div class="page-break" style="page-break-before:always"></div>
-<style>@page { size: A4 portrait; }</style>
 ${header("준비 체크리스트")}
 <div class="section">
   <p class="section-meta">총 ${result.checklist.length}개 항목</p>
