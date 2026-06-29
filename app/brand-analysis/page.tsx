@@ -249,7 +249,7 @@ async function downloadWord(r: BrandResult) {
 }
 
 async function downloadExcel(r: BrandResult) {
-  const XLSX = (await import("xlsx")).default;
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
   // Sheet 1: Summary
