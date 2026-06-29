@@ -1546,7 +1546,6 @@ ${contiSummary}
   /* 인쇄 설정 */
   @media print {
     @page { margin:6mm 8mm; size: A4 landscape; }
-    @page:first { size: A4 portrait; }
     @page :first { margin-top:8mm; }
     body { font-size:8pt; }
     .no-print { display:none; }
