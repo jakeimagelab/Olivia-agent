@@ -142,7 +142,7 @@ function EditableCell({
         borderRadius: 4, lineHeight: 1.6,
         fontWeight: bold ? 900 : 400, color: color ?? "#374151",
         transition: "all 100ms ease",
-        whiteSpace: multiline ? "pre-line" : undefined,
+        whiteSpace: multiline ? "pre-line" : "nowrap",
         position: "relative", border: "1px solid transparent",
       }}
       onMouseEnter={e => {
