@@ -881,6 +881,18 @@ export default function PhotoSortingPage() {
       }
     }
 
+    // 병합된 두 씬과 관련된 candidate를 모두 dismiss (stale 방지)
+    const affectedNames = new Set([si.folderName, sj.folderName]);
+    setDismissedCandidates(prev => {
+      const next = new Set([...prev]);
+      for (const cand of mergeCandidates) {
+        if (affectedNames.has(cand.fromFolderName) || affectedNames.has(cand.toFolderName)) {
+          next.add(cand.id);
+        }
+      }
+      return next;
+    });
+
     if (fastAnalyzeMode) {
       // 빠른 분석 모드: 메모리상 파일 배열만 합침 (파일 이동 없음)
       setFieldScenes(prev => {
