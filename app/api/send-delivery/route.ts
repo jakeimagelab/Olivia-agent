@@ -55,13 +55,7 @@ export async function POST(req: NextRequest) {
         <p style="font-size:14px;font-weight:700;color:#1C2B28;margin:0 0 18px;">
           ${toName || hospitalName} 원장님.
         </p>
-        <p style="font-size:13px;color:#5A7470;line-height:1.9;margin:0 0 20px;">
-          ${shootDate ? `${shootDate}에 진행하신 촬영 보정본 공유드립니다.` : "촬영 보정본 공유드립니다."}
-        </p>
-        <p style="font-size:13px;color:#5A7470;line-height:1.9;margin:0 0 20px;">
-          아래 링크를 통해 고화질 원본 파일을 다운로드 하실 수 있습니다.<br>
-          링크는 영구적으로 보관되나, 30일 이내로 다운받으시길 권장 드립니다.
-        </p>
+        <div style="font-size:13px;color:#5A7470;line-height:1.9;margin:0 0 20px;white-space:pre-line;">${message || (shootDate ? `${shootDate}에 진행하신 촬영 보정본 공유드립니다.\n아래 링크를 통해 고화질 원본 파일을 다운로드 하실 수 있습니다.\n링크는 영구적으로 보관되나, 30일 이내로 다운받으시길 권장 드립니다.` : `촬영 보정본 공유드립니다.\n아래 링크를 통해 고화질 원본 파일을 다운로드 하실 수 있습니다.\n링크는 영구적으로 보관되나, 30일 이내로 다운받으시길 권장 드립니다.`)}</div>
 
         ${packageName || fileCount ? `
         <!-- 납품 정보 -->
