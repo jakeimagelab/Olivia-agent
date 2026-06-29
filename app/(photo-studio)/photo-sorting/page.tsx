@@ -1070,7 +1070,10 @@ export default function PhotoSortingPage() {
       };
       await wr("raw_select_report.csv", makeCSV(["jpg_file","raw_file","status","source_path","destination_path","matched_by"], rawRows));
       const summary = {
-        mode:"field", department, departmentDisplayName:DEPARTMENT_DISPLAY[department],
+        mode:"field", fastAnalyzeMode, rawInitialMoveEnabled: !fastAnalyzeMode,
+        exifMode: fastAnalyzeMode ? "fast" : "precise", thumbnailMode: "lazy",
+        profileStrictMode: true, dermatologySecondPassEnhanced: department === "dermatology",
+        department, departmentDisplayName:DEPARTMENT_DISPLAY[department],
         gapMinutes, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled,
         rawSelectMode,
         totalJpg: fieldStats?.totalJpg ?? 0, totalRaw: fieldRawCount,
