@@ -2535,13 +2535,16 @@ export default function PhotoSortingPage() {
             ))}
           </div>
           <div style={{background:C.light,borderRadius:10,padding:14,fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.9}}>
-            📁 <strong style={{color:C.teal}}>selected_{rootDir?.name}/</strong> — 의상·포즈별 하위 폴더에 JPG 정리<br/>
+            📁 <strong style={{color:C.teal}}>selected_{rootDir?.name}/</strong> — {isGroup ? "인물별" : "의상·포즈별"} 하위 폴더에 JPG 정리<br/>
             📁 <strong style={{color:C.teal}}>Selected_RAW/</strong> — 매칭 RAW<br/>
             📊 <strong style={{color:C.teal}}>AI_SELECT_REPORT/</strong> — 4종 CSV + summary.json
           </div>
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["그룹","폴더명","의상","포즈","장수"],studioGroups.filter(g=>!g.isEtc).map(g=>[String(g.index),g.editedFolderName,g.clothingLabel,g.poseType,String(g.files.length)])),"studio_group_summary.csv")}>↓ 그룹 요약 CSV</Btn>
-            <Btn onClick={()=>{setStep(0);setStudioFiles([]);setStudioGroups([]);setRootDir(null);setStudioRawCount(0);setStudioCopyLog([]);setStudioStats(null);}}>처음으로</Btn>
+            {isGroup
+              ? <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["인물","폴더명","장수"],personGroups.filter(g=>!g.isEtc).map(g=>[g.label,g.editedFolderName,String(g.files.length)])),"person_group_summary.csv")}>↓ 인물 요약 CSV</Btn>
+              : <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["그룹","폴더명","의상","포즈","장수"],studioGroups.filter(g=>!g.isEtc).map(g=>[String(g.index),g.editedFolderName,g.clothingLabel,g.poseType,String(g.files.length)])),"studio_group_summary.csv")}>↓ 그룹 요약 CSV</Btn>
+            }
+            <Btn onClick={()=>{setStep(0);setStudioFiles([]);setStudioGroups([]);setPersonGroups([]);setRootDir(null);setStudioRawCount(0);setStudioCopyLog([]);setStudioStats(null);}}>처음으로</Btn>
           </div>
         </div>
       </Card>
