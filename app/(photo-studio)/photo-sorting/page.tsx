@@ -71,7 +71,8 @@ const RAW_EXTS = new Set(["arw","cr3","cr2","nef","raf","dng","orf","rw2"]);
 const JPG_EXTS = new Set(["jpg","jpeg"]);
 
 const FIELD_STEPS  = ["설정","파일 분류","씬 검토","분석 중","선택 안내","RAW SELECT","완료"];
-const STUDIO_STEPS = ["폴더 선택","파일 분류","AI 분석","그룹 검토","그룹 확인","파일 정리","완료"];
+const STUDIO_STEPS       = ["폴더 선택","파일 분류","AI 분석","그룹 검토","그룹 확인","파일 정리","완료"];
+const STUDIO_GROUP_STEPS = ["폴더 선택","파일 분류","AI 분석","인물 검토","인물 확인","파일 정리","완료"];
 
 const DEPARTMENTS: { value: MedicalDepartment; label: string }[] = [
   { value:"dermatology",            label:"피부과" },
