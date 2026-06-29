@@ -482,9 +482,13 @@ export async function POST(req: NextRequest) {
 
   // 도구 실행 요청
   if (pendingTool) {
-    await logActivity("olivia_chat", undefined, { tool: pendingTool.name });
-    const result = await executeTool(pendingTool.name, pendingTool.input, req);
-    return NextResponse.json({ ok: true, toolResult: result });
+    try {
+      await logActivity("olivia_chat", undefined, { tool: pendingTool.name });
+      const result = await executeTool(pendingTool.name, pendingTool.input, req);
+      return NextResponse.json({ ok: true, toolResult: result });
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, error: e?.message ?? "도구 실행 중 오류가 발생했어요." }, { status: 200 });
+    }
   }
 
   const lastUserText = [...(messages || [])].reverse().find((m: any) => m.role === "user")?.content || "";
