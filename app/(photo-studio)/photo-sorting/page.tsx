@@ -611,8 +611,27 @@ export default function PhotoSortingPage() {
     }
   }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode]);
 
+  // 피부과 2차 분리: 강한 전환 신호 감지
+  const isDermatologyStrongTransition = (
+    prevType: string, nextType: string,
+    prevPosture?: string, nextPosture?: string,
+    prevHandpiece?: boolean, nextHandpiece?: boolean,
+    prevDevice?: boolean, nextDevice?: boolean,
+  ): boolean => {
+    const consultTypes = new Set(["doctor_consultation", "manager_consultation", "skin_care"]);
+    const treatTypes   = new Set(["device_treatment", "lifting_laser_treatment", "laser_treatment", "injection_treatment"]);
+    if (consultTypes.has(prevType) && treatTypes.has(nextType)) return true;
+    if (prevPosture === "seated" && nextPosture === "lying_down") return true;
+    if (!prevHandpiece && nextHandpiece) return true;
+    if (!prevDevice && nextDevice) return true;
+    return false;
+  };
+
   const runSceneAiAnalysis = async (scenes: FieldScene[]) => {
     const updated = scenes.map(s => ({...s}));
+    // 피부과 2차 분리를 위한 AI 응답 캐시
+    const aiResults: Record<number, { sceneType: string; patientPosture?: string; hasHandpiece?: boolean; hasTreatmentDevice?: boolean; confidence: number }> = {};
+
     for (let i = 0; i < updated.length; i++) {
       try {
         const files = updated[i].files;
@@ -645,11 +664,43 @@ export default function PhotoSortingPage() {
             editedName: aiNamingEnabled && suggested ? suggested : updated[i].editedName,
             nameLoading: false,
           };
+          aiResults[i] = {
+            sceneType: data.sceneType ?? "etc",
+            patientPosture: data.patientPosture,
+            hasHandpiece: data.hasHandpiece,
+            hasTreatmentDevice: data.hasTreatmentDevice,
+            confidence: data.confidence ?? 0,
+          };
         } else {
           updated[i] = { ...updated[i], nameLoading: false };
         }
       } catch {
         updated[i] = { ...updated[i], nameLoading: false };
+      }
+      setFieldScenes([...updated]);
+    }
+
+    // 피부과 2차 분리 후보 감지
+    if (department === "dermatology" && Object.keys(aiResults).length >= 2) {
+      const keys = Object.keys(aiResults).map(Number).sort((a,b)=>a-b);
+      for (let k = 1; k < keys.length; k++) {
+        const prev = aiResults[keys[k-1]];
+        const curr = aiResults[keys[k]];
+        if (!prev || !curr) continue;
+        const isStrong = isDermatologyStrongTransition(
+          prev.sceneType, curr.sceneType,
+          prev.patientPosture, curr.patientPosture,
+          prev.hasHandpiece, curr.hasHandpiece,
+          prev.hasTreatmentDevice, curr.hasTreatmentDevice,
+        );
+        if (isStrong && curr.confidence >= 0.72) {
+          // 2차 분리 후보 마킹 — needsReview 플래그로 UI에 표시
+          const sceneIdx = keys[k];
+          updated[sceneIdx] = {
+            ...updated[sceneIdx],
+            aiReason: `⚠️ 2차 분리 후보: 이전 씬(${updated[keys[k-1]].editedName})과 장면 전환 감지 — ${updated[sceneIdx].aiReason ?? ""}`,
+          };
+        }
       }
       setFieldScenes([...updated]);
     }
