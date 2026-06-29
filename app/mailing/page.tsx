@@ -284,6 +284,10 @@ const btnSm: React.CSSProperties = {
 // ═══════════════════════════════════════════════════════════
 // 탭 2 — 브랜드 메일 보내기 (delivery-mail 통합)
 // ═══════════════════════════════════════════════════════════
+const DEFAULT_DELIVERY_BODY = `촬영 보정본 공유드립니다.
+아래 링크를 통해 고화질 원본 파일을 다운로드 하실 수 있습니다.
+링크는 영구적으로 보관되나, 30일 이내로 다운받으시길 권장 드립니다.`;
+
 function BrandMailTab() {
   const [hospitalName, setHospitalName] = useState("");
   const [toName,       setToName]       = useState("");
@@ -292,7 +296,7 @@ function BrandMailTab() {
   const [packageName,  setPackageName]  = useState("");
   const [fileCount,    setFileCount]    = useState("");
   const [nasLink,      setNasLink]      = useState("");
-  const [message,      setMessage]      = useState("");
+  const [message,      setMessage]      = useState(DEFAULT_DELIVERY_BODY);
   const [preview,      setPreview]      = useState(true);
   const [sending,      setSending]      = useState(false);
   const [result,       setResult]       = useState<"success" | "error" | null>(null);
