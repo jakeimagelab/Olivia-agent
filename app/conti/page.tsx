@@ -1616,10 +1616,10 @@ ${header("촬영 콘티")}
         <th style="width:55px">진료과</th>
         <th style="width:36px">소요<br/>시간</th>
         <th style="width:48px">장소</th>
-        <th style="width:82px">카메라 구도</th>
-        <th style="width:65px">키워드</th>
-        <th>설명</th>
-        <th style="width:90px">필요인원/환자역할</th>
+        <th style="width:140px">카메라 구도</th>
+        <th style="width:110px">키워드</th>
+        <th style="width:170px">설명</th>
+        <th style="width:110px">필요인원/환자역할</th>
         <th style="width:38px">비고</th>
       </tr>
     </thead>
