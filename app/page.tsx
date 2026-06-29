@@ -749,19 +749,37 @@ function AppModal({tool, onClose}:{tool:ToolDef; onClose:()=>void}) {
   );
 }
 
-/* ─── mobile: icon grid ──────────────────────────────────── */
+/* ─── mobile: card list ──────────────────────────────────── */
 
 function MobileToolGrid({onAppOpen}:{onAppOpen:(t:ToolDef)=>void}) {
-  return(
-    <div style={{padding:"0 4px", paddingBottom:120}}>
-      <div style={{fontSize:10, fontWeight:900, color:"#9BB5B0", letterSpacing:".1em", textTransform:"uppercase", padding:"4px 8px 10px"}}>📅 업무 서포트</div>
-      <div style={{display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:4, marginBottom:20}}>
-        {TOOLS_WORK.map(t=><AppIcon key={t.href} tool={t} onTap={()=>onAppOpen(t)}/>)}
-      </div>
-      <div style={{fontSize:10, fontWeight:900, color:"#9BB5B0", letterSpacing:".1em", textTransform:"uppercase", padding:"4px 8px 10px"}}>📢 홍보 콘텐츠</div>
-      <div style={{display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:4}}>
-        {TOOLS_CONTENT.map(t=><AppIcon key={t.href} tool={t} onTap={()=>onAppOpen(t)}/>)}
-      </div>
+  const sections = [
+    {emoji:"📅", label:"업무 서포트", tools:TOOLS_WORK},
+    {emoji:"📢", label:"홍보 & 분석", tools:TOOLS_CONTENT},
+  ] as const;
+  return (
+    <div style={{padding:"8px 12px", paddingBottom:120}}>
+      {sections.map(({emoji, label, tools})=>(
+        <div key={label} style={{marginBottom:28}}>
+          <div style={{
+            fontSize:11, fontWeight:900, color:"#9BB5B0",
+            letterSpacing:".08em", textTransform:"uppercase" as const,
+            padding:"0 4px 10px",
+          }}>{emoji} {label}</div>
+          <div style={{
+            background:"#fff", borderRadius:16,
+            border:"1px solid rgba(21,88,85,.09)",
+            boxShadow:"0 2px 16px rgba(21,88,85,.07)",
+            overflow:"hidden",
+          }}>
+            {(tools as readonly ToolDef[]).map((t,i)=>(
+              <React.Fragment key={t.href}>
+                {i>0 && <div style={{height:1, background:"rgba(21,88,85,.07)", margin:"0 16px"}}/>}
+                <MobileToolCard tool={t} onTap={()=>onAppOpen(t)}/>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
