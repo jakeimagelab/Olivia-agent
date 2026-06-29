@@ -2026,9 +2026,9 @@ ${header("타임테이블")}
                 </button>
                 <button onClick={() => setFieldView(true)} style={{
                   display: "inline-flex", alignItems: "center", gap: 7,
-                  padding: "0 18px", minHeight: 42, border: "1px solid #7c3aed",
-                  borderRadius: 8, background: "#f5f3ff", color: "#7c3aed",
-                  fontWeight: 900, fontSize: 14, cursor: "pointer"
+                  padding: "0 18px", minHeight: 42, border: "1px solid rgba(21,88,85,0.25)",
+                  borderRadius: 8, background: "#fff", color: "#155855",
+                  fontWeight: 800, fontSize: 14, cursor: "pointer"
                 }}>
                   📋 현장 뷰
                 </button>
@@ -2038,58 +2038,58 @@ ${header("타임테이블")}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 7,
                     padding: "0 18px", minHeight: 42,
-                    border: `1px solid ${shareCopied ? "#16a34a" : "#0284c7"}`,
-                    borderRadius: 8, background: shareCopied ? "#f0fdf4" : "#f0f9ff",
-                    color: shareCopied ? "#16a34a" : "#0284c7",
-                    fontWeight: 900, fontSize: 14,
+                    border: "1px solid rgba(21,88,85,0.25)",
+                    borderRadius: 8, background: shareCopied ? "rgba(21,88,85,0.06)" : "#fff",
+                    color: "#155855", fontWeight: 800, fontSize: 14,
                     cursor: shareLoading ? "not-allowed" : "pointer",
                     opacity: shareLoading ? 0.7 : 1,
                   }}
                 >
                   <Link2 size={16} />
-                  {shareLoading ? "링크 생성 중..." : shareCopied ? "링크 복사됨!" : "현장뷰 공유"}
+                  {shareLoading ? "링크 생성 중..." : shareCopied ? "복사됨!" : "현장뷰 공유"}
                 </button>
                 <button
                   onClick={() => result && generateSceneImages(result.conti)}
                   disabled={generatingImages}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 7,
-                    padding: "0 18px", minHeight: 42, border: "1px solid #E85D2C",
-                    borderRadius: 8, background: generatingImages ? "#fff0eb" : "#fff7f5",
-                    color: "#E85D2C", fontWeight: 900, fontSize: 14,
+                    padding: "0 18px", minHeight: 42,
+                    border: "1px solid rgba(21,88,85,0.25)",
+                    borderRadius: 8, background: "#fff", color: "#155855",
+                    fontWeight: 800, fontSize: 14,
                     cursor: generatingImages ? "not-allowed" : "pointer", opacity: generatingImages ? 0.7 : 1,
                   }}
                 >
-                  {generatingImages ? "🎨 이미지 생성 중..." : "🎨 씬 이미지 생성"}
+                  {generatingImages ? "⟳ 이미지 생성 중..." : "씬 이미지 생성"}
                 </button>
                 <button onClick={handleSaveJSON} disabled={saveLoading} style={{
                   display: "inline-flex", alignItems: "center", gap: 7,
-                  padding: "0 18px", minHeight: 42, border: "1.5px dashed rgba(21,88,85,0.4)",
+                  padding: "0 18px", minHeight: 42, border: "1px solid rgba(21,88,85,0.25)",
                   borderRadius: 8, background: "#fff", color: "#155855",
-                  fontWeight: 900, fontSize: 14, cursor: saveLoading ? "not-allowed" : "pointer",
+                  fontWeight: 800, fontSize: 14, cursor: saveLoading ? "not-allowed" : "pointer",
                   opacity: saveLoading ? 0.7 : 1,
                 }}>
                   <FileText size={16} /> {saveLoading ? "저장 중..." : "콘티 저장"}
                 </button>
                 <div style={{
                   minHeight: 42, display: "flex", flexDirection: "column", justifyContent: "center",
-                  padding: "0 12px", borderRadius: 8, background: "#F0F9F8",
-                  border: "1px solid rgba(21,88,85,0.12)", color: "#155855",
+                  padding: "0 12px", borderRadius: 8,
+                  border: "1px solid rgba(21,88,85,0.12)", color: "#5A7470",
                 }}>
-                  <div style={{ fontSize: 11, fontWeight: 900 }}>
-                    {autoSaveState === "saving" ? "자동 저장 중..." : autoSaveState === "saved" ? "자동 저장됨" : autoSaveState === "error" ? "자동 저장 실패" : "자동 저장 대기"}
+                  <div style={{ fontSize: 11, fontWeight: 700 }}>
+                    {autoSaveState === "saving" ? "저장 중..." : autoSaveState === "saved" ? "자동 저장됨" : autoSaveState === "error" ? "저장 실패" : "자동 저장 대기"}
                   </div>
-                  <div style={{ fontSize: 10, color: "#5A7470", marginTop: 2 }}>
-                    ⌘S 저장 · ⌘Z 되돌리기 · ⇧⌘Z 다시 복귀
+                  <div style={{ fontSize: 10, color: "#9BB5B0", marginTop: 2 }}>
+                    ⌘S · ⌘Z · ⇧⌘Z
                   </div>
                 </div>
                 <button onClick={handleSpreadsheetDownload} style={{
                   display: "inline-flex", alignItems: "center", gap: 7,
-                  padding: "0 18px", minHeight: 42, border: "1px solid #16a34a",
-                  borderRadius: 8, background: "#f0fdf4", color: "#16a34a",
-                  fontWeight: 900, fontSize: 14, cursor: "pointer"
+                  padding: "0 18px", minHeight: 42, border: "1px solid rgba(21,88,85,0.25)",
+                  borderRadius: 8, background: "#fff", color: "#155855",
+                  fontWeight: 800, fontSize: 14, cursor: "pointer"
                 }}>
-                  <FileSpreadsheet size={16} /> Excel 다운로드
+                  <FileSpreadsheet size={16} /> Excel
                 </button>
                 <button className="admin-primary-button" onClick={handlePDF} style={{ padding: "0 20px", cursor: "pointer" }}>
                   <Download size={16} /> PDF 다운로드
