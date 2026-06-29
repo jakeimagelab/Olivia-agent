@@ -1523,8 +1523,11 @@ ${contiSummary}
   .section-meta { font-size:8pt; color:#888; margin-bottom:10px; }
 
   table { width:100%; border-collapse:collapse; font-size:7.5pt; table-layout:fixed; }
-  th { background:#155855; color:#fff; font-weight:900; padding:6px 5px; text-align:center; border:1px solid #0e3f3c; font-size:7.5pt; word-break:keep-all; line-height:1.3; }
-  td { padding:5px 6px; border:1px solid #e5e7eb; vertical-align:middle; line-height:1.45; word-break:keep-all; overflow-wrap:break-word; white-space:normal; }
+  th { background:#155855; color:#fff; font-weight:900; padding:6px 5px; text-align:center; border:1px solid #0e3f3c; font-size:7.5pt; word-break:keep-all; line-height:1.3; position:relative; user-select:none; }
+  td { padding:5px 6px; border:1px solid #e5e7eb; vertical-align:middle; line-height:1.45; word-break:keep-all; overflow-wrap:break-word; white-space:normal; overflow:hidden; }
+  .col-resize { position:absolute; right:0; top:0; bottom:0; width:6px; cursor:col-resize; z-index:10; background:transparent; transition:background 120ms; }
+  .col-resize:hover, .col-resize.dragging { background:rgba(255,255,255,0.45); }
+  @media print { .col-resize, .print-btn { display:none !important; } }
 
   /* 표지 */
   .cover { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:90vh; text-align:center; padding:40px; }
