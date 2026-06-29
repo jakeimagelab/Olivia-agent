@@ -87,10 +87,10 @@ JSON 형식으로만 응답하세요:
       sceneType: "device_treatment",
       displayName: "장비시술",
       folderName: "05_장비시술",
-      description: "울쎄라, 써마지, 슈링크 등 대형 장비 사용 장면",
+      description: "울쎄라, 써마지, 슈링크 등 대형 장비 사용 장면 — 환자가 베드에 누워 핸드피스 시술을 받는 장면",
       priority: 3,
-      visualCues: ["대형 장비 본체", "핸드피스", "케이블", "장비 카트", "고객 누움"],
-      negativeCues: ["주사기", "시린지"],
+      visualCues: ["대형 장비 본체", "핸드피스", "케이블", "장비 카트", "고객 베드에 누움", "리프팅 장비", "고주파 장비", "초음파 장비", "시술 베드", "수건"],
+      negativeCues: ["주사기", "시린지", "고객이 의자에 앉음", "책상 앞 상담", "핸드피스 없음"],
     },
     {
       sceneType: "skin_care",
