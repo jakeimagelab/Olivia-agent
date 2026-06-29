@@ -1087,7 +1087,7 @@ export default function PhotoSortingPage() {
 
     setFieldStats(prev => prev ? { ...prev, selectedJpg:selectedBasenames.size, selectedRawMoved:rawMoved, rawMissing } : null);
     setStep(6);
-  }, [rootDir, fieldRawBaseDir, rawSelectMode, fieldStats, fieldRawCount, department, gapMinutes, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled]);
+  }, [rootDir, fieldRawBaseDir, rawSelectMode, fieldStats, fieldRawCount, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled]);
 
   /* ════════════════════════════════════════════
      STUDIO-MODE HANDLERS
