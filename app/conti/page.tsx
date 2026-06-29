@@ -46,7 +46,7 @@ interface StaffItem    { role: string; count: number; detail: string; }
 interface PatientItem  { type: string; count: number; detail: string; }
 interface LocationItem { floor: string; spaces: string; notes: string; }
 interface ContiRow     { category: string; duration: string; location: string; cameraAngle: string; keyword: string; description: string; personnel: string; notes: string; color?: string; }
-interface ChecklistRow { number: number; category: string; item: string; notes: string; }
+interface ChecklistRow { number: number; category: string; item: string; notes: string; color?: string; }
 interface ScheduleRow  { time: string; duration?: string; activity: string; type: string; requirements: string; notes: string; }
 interface ContiResult  { conti: ContiRow[]; checklist: ChecklistRow[]; schedule: ScheduleRow[]; }
 interface SavedConti   { id: string; saved_at: string; hospital_name: string; title: string; result: ContiResult; specialties: string[]; }
