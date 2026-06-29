@@ -1675,7 +1675,7 @@ export default function PhotoSortingPage() {
         {stepLabels.map((lbl,i)=>(
           <div key={i} style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
             <div style={{width:22,height:22,borderRadius:"50%",fontSize:9,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",background:i<step?(photoMode==="studio"?C.purple:C.green):i===step?C.teal:C.border,color:i<=step?"#fff":C.muted}}>{i<step?"✓":i+1}</div>
-            <span style={{fontSize:11,fontWeight:i===step?800:500,color:i===step?C.teal:C.hint}}>{lbl}</span>
+            <span className="ps-step-lbl" style={{fontWeight:i===step?800:500,color:i===step?C.teal:C.hint}}>{lbl}</span>
             {i<stepLabels.length-1&&<span style={{color:C.border,fontSize:10}}>›</span>}
           </div>
         ))}
