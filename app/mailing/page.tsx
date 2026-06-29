@@ -361,7 +361,7 @@ function BrandMailTab() {
 
   const resetForm = () => {
     setHospitalName(""); setToName(""); setToEmail(""); setShootDate("");
-    setPackageName(""); setFileCount(""); setNasLink(""); setMessage("");
+    setPackageName(""); setFileCount(""); setNasLink(""); setMessage(DEFAULT_DELIVERY_BODY);
     setResult(null); setErrMsg("");
   };
 
