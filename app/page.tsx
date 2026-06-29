@@ -620,32 +620,51 @@ function ToolGrid() {
 
 /* ─── mobile: app icon ───────────────────────────────────── */
 
-function AppIcon({tool, onTap}:{tool:ToolDef; onTap:()=>void}) {
+function MobileToolCard({tool, onTap}:{tool:ToolDef; onTap:()=>void}) {
   const Icon = tool.icon;
+  const [pressed, setPressed] = React.useState(false);
   const bg = tool.orange
     ? "linear-gradient(145deg,#E85D2C,#EB8F22)"
     : "linear-gradient(145deg,#155855,#1e7870)";
-  return(
-    <button onClick={onTap} style={{
-      display:"flex", flexDirection:"column", alignItems:"center", gap:6,
-      background:"none", border:"none", cursor:"pointer", padding:"6px 2px",
-      WebkitTapHighlightColor:"transparent",
-    }}>
+  return (
+    <button
+      onClick={onTap}
+      onTouchStart={()=>setPressed(true)}
+      onTouchEnd={()=>setPressed(false)}
+      onTouchCancel={()=>setPressed(false)}
+      style={{
+        display:"flex", alignItems:"center", gap:14,
+        width:"100%", padding:"13px 16px",
+        background: pressed ? "rgba(21,88,85,.06)" : "transparent",
+        border:"none", cursor:"pointer", textAlign:"left",
+        WebkitTapHighlightColor:"transparent", transition:"background .1s",
+      }}
+    >
       <div style={{
-        width:58, height:58, borderRadius:16,
-        background:bg,
+        width:44, height:44, borderRadius:12, flexShrink:0,
+        background:bg, color:"#fff",
         display:"flex", alignItems:"center", justifyContent:"center",
-        boxShadow:"0 4px 14px rgba(0,0,0,.18)",
-        flexShrink:0,
-        color:"#fff",
+        boxShadow:"0 3px 10px rgba(0,0,0,.14)",
       }}>
-        <Icon size={24}/>
+        <Icon size={20}/>
       </div>
-      <span style={{
-        fontSize:10, fontWeight:700, color:"#1C2B28",
-        textAlign:"center", lineHeight:1.3,
-        maxWidth:64, wordBreak:"keep-all",
-      }}>{tool.title}</span>
+      <div style={{flex:1, minWidth:0}}>
+        <div style={{fontSize:14, fontWeight:800, color:"#1a2b29", marginBottom:2}}>
+          {tool.title}
+        </div>
+        <div style={{
+          fontSize:11, color:"#7A9490", lineHeight:1.4,
+          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+        }}>{tool.desc}</div>
+      </div>
+      {tool.orange && (
+        <div style={{
+          fontSize:9, fontWeight:900, color:"#E85D2C",
+          background:"rgba(232,93,44,.1)", borderRadius:99,
+          padding:"2px 7px", letterSpacing:".04em", flexShrink:0,
+        }}>AI</div>
+      )}
+      <div style={{fontSize:20, color:"#D1E0DE", flexShrink:0, lineHeight:1}}>›</div>
     </button>
   );
 }
