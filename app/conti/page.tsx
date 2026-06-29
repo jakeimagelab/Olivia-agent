@@ -1668,8 +1668,36 @@ ${header("타임테이블")}
 </div>
 
 <script>
-  // 폰트 로드 후 자동으로 인쇄 다이얼로그 열기
-  // 자동 인쇄 없음 — 사용자가 편집 후 직접 인쇄 버튼 클릭
+  // 열 너비 드래그 조절
+  document.querySelectorAll('table').forEach(table => {
+    const ths = Array.from(table.querySelectorAll('th'));
+    ths.forEach((th, i) => {
+      if (i === ths.length - 1) return;
+      const handle = document.createElement('div');
+      handle.className = 'col-resize';
+      handle.title = '드래그하여 열 너비 조절';
+      th.appendChild(handle);
+
+      handle.addEventListener('mousedown', e => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startW = th.offsetWidth;
+        handle.classList.add('dragging');
+
+        const onMove = e => {
+          const newW = Math.max(24, startW + (e.clientX - startX));
+          th.style.width = newW + 'px';
+        };
+        const onUp = () => {
+          handle.classList.remove('dragging');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
+  });
 </script>
 </body>
 </html>`;
