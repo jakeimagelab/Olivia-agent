@@ -100,16 +100,10 @@ export default function PortalAdminPage() {
       </header>
 
       {/* 탭 */}
-      <div style={{ background:C.white, borderBottom:`1px solid ${C.border}`, padding:"0 24px", display:"flex", gap:4 }}>
-        {[
-          { key:"links",     icon:<Users size={13}/>,  label:"포털 링크 관리" },
-          { key:"revisions", icon:<Edit2 size={13}/>,  label:"수정 요청" },
-          { key:"reviews",   icon:<Star size={13}/>,   label:"고객 리뷰" },
-        ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key as any)} style={{ display:"flex", alignItems:"center", gap:6, padding:"12px 14px", background:"none", border:"none", borderBottom:tab===t.key?`2px solid ${C.teal}`:"2px solid transparent", color:tab===t.key?C.teal:C.muted, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
-            {t.icon} {t.label}
-          </button>
-        ))}
+      <div className="pc-tabs">
+        <button className={`pc-tab${tab === "links"     ? " pc-tab--active" : ""}`} onClick={() => setTab("links")}><Users size={13}/> 포털 링크 관리</button>
+        <button className={`pc-tab${tab === "revisions" ? " pc-tab--active" : ""}`} onClick={() => setTab("revisions")}><Edit2 size={13}/> 수정 요청</button>
+        <button className={`pc-tab${tab === "reviews"   ? " pc-tab--active" : ""}`} onClick={() => setTab("reviews")}><Star size={13}/> 고객 리뷰</button>
       </div>
 
       <div style={{ maxWidth:1000, margin:"0 auto", padding:"24px 20px 80px" }}>

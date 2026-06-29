@@ -1135,24 +1135,16 @@ export default function SnsManagerPage() {
       <PageHeader title="홍보 콘텐츠 제작" />
 
       {/* 탭 헤더 */}
-      <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "0 24px", overflowX: "auto" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 4, minWidth: "max-content" }}>
-          {TABS.map(({ id, label, icon: Icon, status }) => (
-            <button key={id} onClick={() => status === "active" && setTab(id as TabId)} style={{
-              display: "flex", alignItems: "center", gap: 7, padding: "14px 18px",
-              border: "none", background: "none", whiteSpace: "nowrap",
-              borderBottom: tab === id ? `2.5px solid ${C.teal}` : "2.5px solid transparent",
-              color: tab === id ? C.teal : status === "coming" ? "#C4C4C4" : C.muted,
-              fontWeight: tab === id ? 900 : 500, fontSize: 14,
-              cursor: status === "active" ? "pointer" : "default",
-              fontFamily: "inherit",
-            }}>
-              <Icon size={16} />
-              {label}
-              {status === "coming" && <span style={{ background: "#F3F4F6", color: "#9CA3AF", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 99, marginLeft: 2 }}>준비중</span>}
-            </button>
-          ))}
-        </div>
+      <div className="pc-tabs">
+        {TABS.map(({ id, label, icon: Icon, status }) => (
+          <button key={id} onClick={() => status === "active" && setTab(id as TabId)}
+            className={`pc-tab${tab === id ? " pc-tab--active" : ""}`}
+            style={{ cursor: status === "active" ? "pointer" : "default", color: status === "coming" ? "#C4C4C4" : undefined }}>
+            <Icon size={13} />
+            {label}
+            {status === "coming" && <span style={{ background: "#F3F4F6", color: "#9CA3AF", fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 99, marginLeft: 2 }}>준비중</span>}
+          </button>
+        ))}
       </div>
 
       {/* 탭 내용 */}

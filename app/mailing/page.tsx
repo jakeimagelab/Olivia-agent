@@ -893,32 +893,23 @@ type Tab = "queue" | "brand" | "custom";
 export default function MailingPage() {
   const [tab, setTab] = useState<Tab>("queue");
 
-  const tabBtn = (t: Tab): React.CSSProperties => ({
-    height: 38, padding: "0 18px", border: "none", borderRadius: 9,
-    background: tab === t ? C.teal : "transparent",
-    color: tab === t ? "#fff" : C.muted,
-    fontWeight: tab === t ? 800 : 600, fontSize: 13,
-    cursor: "pointer", fontFamily: "inherit",
-    transition: "all .15s",
-  });
-
   return (
-    <main style={{ height: "100vh", display: "flex", flexDirection: "column", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}>
+    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}>
       <header className="pc-header">
         <div className="pc-header-left">
           <Link href="/" className="pc-header-back">← 관리자 홈</Link>
           <div className="pc-header-divider" />
           <div className="pc-header-brand">
             <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">올리비아 통합 메일링</span>
+            <span className="pc-header-title">통합 메일링</span>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 4, background: C.mint, padding: 4, borderRadius: 12, marginLeft: "auto" }}>
-          <button style={tabBtn("queue")} onClick={() => setTab("queue")}>📥 임시저장 메일링</button>
-          <button style={tabBtn("brand")} onClick={() => setTab("brand")}>📷 파일 전달(리뷰)</button>
-          <button style={tabBtn("custom")} onClick={() => setTab("custom")}>✉️ 브랜드 메일</button>
-        </div>
       </header>
+      <div className="pc-tabs">
+        <button className={`pc-tab${tab === "queue"  ? " pc-tab--active" : ""}`} onClick={() => setTab("queue")}>📥 임시저장 메일링</button>
+        <button className={`pc-tab${tab === "brand"  ? " pc-tab--active" : ""}`} onClick={() => setTab("brand")}>📷 파일 전달(리뷰)</button>
+        <button className={`pc-tab${tab === "custom" ? " pc-tab--active" : ""}`} onClick={() => setTab("custom")}>✉️ 브랜드 메일</button>
+      </div>
 
       {tab === "queue"  && <QueueTab />}
       {tab === "brand"  && <BrandMailTab />}

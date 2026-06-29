@@ -217,32 +217,25 @@ function SeoDeliveryInner() {
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif", color: C.txt }}>
 
       {/* ── 헤더 ── */}
-      <div style={{ background: `linear-gradient(135deg, ${C.teal}, #0d3e3b)`, color: "#fff", padding: "16px 24px" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-            <Link href={clientId ? `/clients?id=${clientId}` : "/"}
-              style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", textDecoration: "none", whiteSpace: "nowrap" }}>
-              ← {clientId ? "고객관리" : "대시보드"}
-            </Link>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)", letterSpacing: ".1em" }}>AI 검색 최적화 납품 생성기</div>
-              <h1 style={{ margin: "2px 0 0", fontSize: 17, fontWeight: 900 }}>
-                {clientInfo ? `${clientInfo.hospital_name || clientInfo.name}` : "SEO Delivery Generator"}
-              </h1>
-            </div>
-            {clientInfo && (
-              <div style={{ background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 8, padding: "6px 14px", fontSize: 11, color: "rgba(255,255,255,.9)" }}>
-                {clientInfo.specialty || clientInfo.department || "진료과 미지정"}
-              </div>
-            )}
+      <header className="pc-header">
+        <div className="pc-header-left">
+          <Link href={clientId ? `/clients?id=${clientId}` : "/"} className="pc-header-back">
+            ← {clientId ? "고객관리" : "관리자 홈"}
+          </Link>
+          <div className="pc-header-divider" />
+          <div className="pc-header-brand">
+            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <span className="pc-header-title">
+              AI 검색 최적화 납품 생성{clientInfo ? ` · ${clientInfo.hospital_name || clientInfo.name}` : ""}
+            </span>
           </div>
-          {!clientId && (
-            <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,.5)" }}>
-              고객관리와 연결되지 않은 독립 실행 모드 · 고객관리 연결 시 URL에 ?clientId=xxx 추가
-            </div>
-          )}
         </div>
-      </div>
+        {!clientId && (
+          <div className="pc-header-actions" style={{ fontSize: 11, color: "#9BB5B0" }}>
+            독립 실행 모드
+          </div>
+        )}
+      </header>
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 16px 80px" }}>
         <div style={{ display: "grid", gridTemplateColumns: results.length ? "1fr 480px" : "1fr", gap: 16, alignItems: "start" }}>

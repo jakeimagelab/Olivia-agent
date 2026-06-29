@@ -3439,6 +3439,50 @@ textarea:focus {
   flex-shrink: 0;
 }
 
+/* ── 공통 탭 바 (underline 스타일) ─────────────────────── */
+.pc-tabs {
+  display: flex;
+  gap: 0;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(21,88,85,.12);
+  padding: 0 24px;
+  position: sticky;
+  top: 56px;
+  z-index: 99;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pc-tabs::-webkit-scrollbar { display: none; }
+
+.pc-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 13px 14px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #5A7470;
+  font-weight: 700;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 140ms, border-color 140ms;
+  flex-shrink: 0;
+}
+.pc-tab:hover { color: #155855; }
+.pc-tab--active {
+  color: #155855;
+  border-bottom-color: #155855;
+}
+.pc-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  opacity: .75;
+}
+.pc-tab--active .pc-tab-icon { opacity: 1; }
+
 /* ── 공통 페이지 래퍼 ────────────────────────────────── */
 .pc-page {
   min-height: 100vh;

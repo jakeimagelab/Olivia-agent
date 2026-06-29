@@ -2143,20 +2143,15 @@ ${header("타임테이블")}
             </div>
 
             {/* 탭 */}
-            <div style={{ display: "flex", borderBottom: "2px solid rgba(21,88,85,0.12)", marginBottom: 16 }}>
+            <div className="pc-tabs" style={{ marginLeft: -24, marginRight: -24, marginBottom: 16 }}>
               {([
                 { key: "conti",     label: "촬영 콘티",       Icon: ClipboardList },
                 { key: "scenes",    label: "촬영 씬(참고용)",  Icon: ImageIcon },
                 { key: "checklist", label: "준비 체크리스트", Icon: CheckSquare },
                 { key: "schedule",  label: "타임테이블",       Icon: Clock }
               ] as const).map(({ key, label, Icon }) => (
-                <button key={key} onClick={() => setTab(key)} style={{
-                  display: "flex", alignItems: "center", gap: 6, padding: "10px 20px",
-                  border: "none", borderBottom: tab === key ? "2px solid #155855" : "2px solid transparent",
-                  background: "none", color: tab === key ? "#155855" : "#6b7280",
-                  fontWeight: 800, fontSize: 14, cursor: "pointer", marginBottom: -2
-                }}>
-                  <Icon size={15} />{label}
+                <button key={key} onClick={() => setTab(key)} className={`pc-tab${tab === key ? " pc-tab--active" : ""}`}>
+                  <Icon size={13} />{label}
                 </button>
               ))}
             </div>
