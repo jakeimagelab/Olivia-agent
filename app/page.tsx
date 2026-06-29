@@ -927,9 +927,7 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
           </div>
         )}
         {mobileTab==="apps" && (
-          <div style={{padding:"14px 8px"}}>
-            <MobileToolGrid onAppOpen={t=>setActiveApp(t)}/>
-          </div>
+          <MobileToolGrid onAppOpen={t=>setActiveApp(t)}/>
         )}
       </div>
 
