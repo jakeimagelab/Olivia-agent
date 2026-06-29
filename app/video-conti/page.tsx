@@ -141,7 +141,9 @@ function Step1({
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   useEffect(() => {
-    fetch("/api/clients").then(r => r.json()).then(d => { if (d.ok) setClients(d.data ?? []); });
+    fetch("/api/clients").then(r => r.json()).then(d => {
+      if (d.ok) setClients((d.data ?? []).map((c: any) => ({ id: c.id, name: c.hospital_name, website_url: c.website_url ?? "" })));
+    });
   }, []);
 
   const handleClientChange = (id: string) => {
