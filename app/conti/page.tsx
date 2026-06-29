@@ -1795,9 +1795,9 @@ ${header("타임테이블")}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 7,
                       padding: "0 18px", minHeight: 42,
-                      border: "1.5px solid #7c3aed",
-                      borderRadius: 8, background: pdfLoading ? "#f5f3ff" : "#fff",
-                      color: "#7c3aed", fontWeight: 800, fontSize: 14,
+                      border: "1.5px solid rgba(21,88,85,0.4)",
+                      borderRadius: 8, background: "#fff",
+                      color: "#155855", fontWeight: 800, fontSize: 14,
                       cursor: pdfLoading ? "not-allowed" : "pointer",
                       transition: "all 160ms ease", opacity: pdfLoading ? 0.7 : 1,
                     }}
