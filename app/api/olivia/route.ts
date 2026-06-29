@@ -341,6 +341,18 @@ function calendarShortcutFromText(text: string) {
     });
   }
 
+  if (/(삭제|지워|취소)/.test(text)) {
+    return date && title ? makeTool("calendar_delete", { date, matchTitle: title }) : null;
+  }
+
+  if (/(완료|끝냈|처리)/.test(text)) {
+    return date && title ? makeTool("calendar_complete", { date, matchTitle: title, completed: true }) : null;
+  }
+
+  if (/(수정|변경|바꿔|옮겨|미뤄|앞당겨)/.test(text)) {
+    return date && title ? makeTool("calendar_update", { date, matchTitle: title, time: time || undefined }) : null;
+  }
+
   return null;
 }
 
