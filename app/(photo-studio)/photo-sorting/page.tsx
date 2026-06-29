@@ -858,9 +858,28 @@ export default function PhotoSortingPage() {
     }
   };
 
-  const mergeFieldScenes = useCallback(async (i: number, j: number) => {
+  const mergeFieldScenes = useCallback(async (i: number, j: number, candidateId?: string) => {
     const si = fieldScenes[i];
     const sj = fieldScenes[j];
+
+    // 병합 결정 기록
+    if (candidateId) {
+      const cand = mergeCandidates.find(c => c.id === candidateId);
+      if (cand) {
+        setMergeDecisions(prev => [...prev, {
+          candidateId: cand.id,
+          userAction: "merge",
+          fromFolderName: cand.fromFolderName,
+          toFolderName: cand.toFolderName,
+          fromSceneType: cand.fromSceneType,
+          toSceneType: cand.toSceneType,
+          mergeScore: cand.mergeScore,
+          matchedSignals: cand.matchedSignals,
+          blockedSignals: cand.blockedSignals,
+          recommendedAction: cand.recommendedAction,
+        }]);
+      }
+    }
 
     if (fastAnalyzeMode) {
       // 빠른 분석 모드: 메모리상 파일 배열만 합침 (파일 이동 없음)
