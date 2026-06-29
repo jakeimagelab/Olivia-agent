@@ -2267,7 +2267,9 @@ export default function PhotoSortingPage() {
     const total    = studioFiles.length;
     return (
       <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-        <div style={{fontSize:14,fontWeight:800,color:C.purple}}>AI 의상·포즈·조명 분석 중...</div>
+        <div style={{fontSize:14,fontWeight:800,color:C.purple}}>
+        {studioSubMode === "group" ? "AI 얼굴 분석 중..." : "AI 의상·포즈·조명 분석 중..."}
+      </div>
         <ProgressBar cur={analyzed} total={total} msg={progress.msg}/>
         <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           {[["전체 JPG",total,C.teal],["분석 완료",analyzed,C.green],["ETC 후보",studioFiles.filter(f=>f.groupKey==="__ETC__").length,C.red]].map(([l,v,c])=>(
