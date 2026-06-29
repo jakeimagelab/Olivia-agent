@@ -1146,6 +1146,44 @@ export default function PhotoSortingPage() {
           "reason","moved_to",
         ], profileRows));
 
+      // scene_merge_report.csv
+      if (mergeCandidates.length > 0) {
+        const allDecisions = [...mergeDecisions];
+        // 미결 후보도 기록
+        for (const cand of mergeCandidates) {
+          if (!allDecisions.find(d => d.candidateId === cand.id)) {
+            allDecisions.push({
+              candidateId: cand.id,
+              userAction: dismissedCandidates.has(cand.id) ? "keep_split" : "keep_split",
+              fromFolderName: cand.fromFolderName,
+              toFolderName: cand.toFolderName,
+              fromSceneType: cand.fromSceneType,
+              toSceneType: cand.toSceneType,
+              mergeScore: cand.mergeScore,
+              matchedSignals: cand.matchedSignals,
+              blockedSignals: cand.blockedSignals,
+              recommendedAction: cand.recommendedAction,
+            });
+          }
+        }
+        const mergeRows = allDecisions.map(d => [
+          d.candidateId,
+          d.fromFolderName,
+          d.toFolderName,
+          d.fromSceneType,
+          d.toSceneType,
+          d.mergeScore.toFixed(2),
+          d.recommendedAction,
+          d.userAction,
+          d.matchedSignals.join("|"),
+          d.blockedSignals.join("|"),
+        ]);
+        await wr("scene_merge_report.csv", makeCSV([
+          "candidate_id","from_scene","to_scene","from_scene_type","to_scene_type",
+          "merge_score","recommended_action","user_action","matched_signals","blocked_signals",
+        ], mergeRows));
+      }
+
       // summary.json
       const summary = {
         mode: "field",
@@ -1158,14 +1196,21 @@ export default function PhotoSortingPage() {
         department,
         departmentDisplayName: DEPARTMENT_DISPLAY[department],
         gapMinutes,
+        timeGapIsInitialOnly: true,
         departmentLogicEnabled,
         aiNamingEnabled,
         qualityAnalysisEnabled,
         profileClassificationEnabled,
         rawSelectMode,
+        strongTransitionDetectionEnabled: true,
+        mergeCandidateEnabled: true,
+        reviewRequiredBeforeMove: true,
         totalJpg: total,
         totalRaw: fieldRawCount,
-        totalScenes: updated.length,
+        totalInitialScenes: updated.length,
+        totalMergeCandidates: mergeCandidates.filter(c => c.recommendedAction === "merge").length,
+        totalKeepSplitRecommendations: mergeCandidates.filter(c => c.recommendedAction === "keep_split").length,
+        totalFinalScenes: updated.length,
         totalProfile: profileTotal,
         totalQualityReject: qualityRejectTotal,
         createdAt: new Date().toISOString(),
