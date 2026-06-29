@@ -2177,21 +2177,32 @@ ${header("타임테이블")}
                             <td style={{ ...TD, minWidth: 300 }}><EditableCell value={row.description} onChange={v => updateConti(i, "description", v)} multiline /></td>
                             <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.personnel} onChange={v => updateConti(i, "personnel", v)} /></td>
                             <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.notes} onChange={v => updateConti(i, "notes", v)} placeholder="-" /></td>
-                            <td style={{ ...TD, width: 72, padding: "6px 4px" }}>
-                              <div style={{ display: "flex", gap: 4 }}>
+                            <td style={{ ...TD, width: 76, padding: "6px 4px" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
                                 <button
                                   title="행 복사"
                                   onClick={() => dupContiRow(i)}
                                   style={{
                                     display: "flex", alignItems: "center", justifyContent: "center",
-                                    width: 30, height: 30, border: "1px solid rgba(21,88,85,0.25)",
-                                    borderRadius: 6, background: "#fff", color: "#155855",
-                                    cursor: "pointer", flexShrink: 0,
+                                    width: 28, height: 26, border: "1px solid rgba(21,88,85,0.3)",
+                                    borderRadius: 5, background: "#fff", color: "#155855",
+                                    cursor: "pointer",
                                   }}
                                 >
-                                  <Copy size={13} />
+                                  <Copy size={12} />
                                 </button>
-                                <DeleteRowBtn onClick={() => delContiRow(i)} />
+                                <button
+                                  title="행 삭제"
+                                  onClick={() => delContiRow(i)}
+                                  style={{
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    width: 28, height: 26, border: "1px solid #fca5a5",
+                                    borderRadius: 5, background: "#fff", color: "#ef4444",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
                               </div>
                             </td>
                           </tr>
