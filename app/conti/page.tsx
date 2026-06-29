@@ -1635,7 +1635,7 @@ ${header("준비 체크리스트")}
     <thead>
       <tr>
         <th style="width:26px">#</th>
-        <th style="width:80px">분류</th>
+        <th style="width:130px">분류</th>
         <th>체크리스트 항목</th>
         <th style="width:40px">준비<br/>여부</th>
         <th style="width:55px">비고</th>
