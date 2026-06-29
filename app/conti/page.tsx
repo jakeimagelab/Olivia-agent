@@ -1481,7 +1481,7 @@ ${contiSummary}
     const checkRows = result.checklist.map((r,i) => `
       <tr style="background:${i%2===0?"#fff":"#fafaf9"}">
         <td style="text-align:center;font-weight:900;color:#155855;white-space:nowrap;vertical-align:middle;font-size:7.5pt">${r.number}</td>
-        <td style="font-weight:700;white-space:nowrap;vertical-align:middle;font-size:7pt;color:#155855" contenteditable="true">${r.category}</td>
+        <td style="font-weight:700;word-break:keep-all;vertical-align:middle;font-size:7pt;color:#155855" contenteditable="true">${r.category}</td>
         <td style="vertical-align:middle;font-size:7.5pt" contenteditable="true">${r.item}</td>
         <td style="text-align:center;font-size:14px;vertical-align:middle">☐</td>
         <td style="white-space:nowrap;vertical-align:middle;font-size:7pt;color:#666" contenteditable="true">${r.notes||"-"}</td>
