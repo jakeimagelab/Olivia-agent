@@ -536,6 +536,9 @@ export default function PhotoSortingPage() {
   const [studioCopyLog,  setStudioCopyLog]  = useState<string[]>([]);
   const [studioStats,    setStudioStats]    = useState<StudioStats | null>(null);
   const [activeGroup,    setActiveGroup]    = useState(0);
+  const [studioSubMode,  setStudioSubMode]  = useState<StudioSubMode>("concept");
+  const [personGroups,   setPersonGroups]   = useState<PersonGroup[]>([]);
+  const [activePersonGroup, setActivePersonGroup] = useState(0);
 
   /* ── session persistence ── */
   useEffect(() => {
