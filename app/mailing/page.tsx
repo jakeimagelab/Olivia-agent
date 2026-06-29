@@ -483,16 +483,22 @@ function BrandMailTab() {
             </div>
           </div>
 
-          {/* 추가 메시지 */}
+          {/* 본문 편집 */}
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>✉️ 추가 메시지 (선택)</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>✉️ 본문 편집</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>다운로드 버튼 위에 표시되는 내용을 수정하세요</div>
             </div>
             <div style={{ padding: "18px 20px" }}>
-              <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3}
-                placeholder={`${hospitalName || "○○기업"} 촬영 파일 전송을 안내드립니다.\n아래 링크에서 사진을 다운로드해 주세요.`}
-                style={{ ...iS, resize: "vertical", lineHeight: 1.7 }} />
-              <div style={{ fontSize: 10, color: C.hint, marginTop: 5 }}>입력하지 않으면 기본 문구로 발송됩니다</div>
+              <textarea value={message} onChange={e => setMessage(e.target.value)} rows={5}
+                style={{ ...iS, resize: "vertical", lineHeight: 1.8 }} />
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                <div style={{ fontSize: 10, color: C.hint }}>{message.length}자</div>
+                <button onClick={() => setMessage(DEFAULT_DELIVERY_BODY)}
+                  style={{ fontSize: 10, color: C.hint, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
+                  기본 문구로 초기화
+                </button>
+              </div>
             </div>
           </div>
 
