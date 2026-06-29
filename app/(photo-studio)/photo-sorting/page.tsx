@@ -1315,6 +1315,23 @@ export default function PhotoSortingPage() {
               </div>
             </Card>
 
+            {/* 분류 모드 */}
+            <Card>
+              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>분류 모드</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+                {([
+                  ["fast",  "⚡ 빠른 분석",    "파일을 이동하지 않고 Scene 계획만 생성합니다.\nRAW는 원본 위치 유지. EXIF 생략. 10~30초 목표."],
+                  ["precise","🔍 정밀 정리",   "즉시 파일 이동 + EXIF 기반 정밀 정렬.\n파일이 많으면 시간이 걸릴 수 있습니다."],
+                ] as const).map(([val, title, desc]) => (
+                  <button key={val} onClick={()=>setFastAnalyzeMode(val==="fast")}
+                    style={{padding:"14px 18px",textAlign:"left",border:"none",borderRight:val==="fast"?`1px solid ${C.border}`:"none",background:fastAnalyzeMode===(val==="fast")?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
+                    <div style={{fontSize:13,fontWeight:900,color:fastAnalyzeMode===(val==="fast")?C.teal:C.muted,marginBottom:4}}>{title}{fastAnalyzeMode===(val==="fast")&&" ✓"}</div>
+                    <div style={{fontSize:10,color:C.hint,lineHeight:1.6,whiteSpace:"pre-line"}}>{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </Card>
+
             {/* 옵션 */}
             <Card>
               <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>분류 옵션</div>
@@ -1322,7 +1339,7 @@ export default function PhotoSortingPage() {
                 <Toggle label="진료과 로직 사용" desc="선택한 진료과에 맞는 장면 분류 기준을 적용합니다." value={departmentLogicEnabled} onChange={setDepartmentLogicEnabled}/>
                 <Toggle label="AI 씬 이름 추천" desc="대표 이미지를 분석해 진료과에 맞는 폴더명을 추천합니다. 자동 변경 없이 검토 화면에서 확인 후 적용합니다." value={aiNamingEnabled} onChange={setAiNamingEnabled}/>
                 <Toggle label="품질 분석" desc="흔들림, 조명불량 등 불량컷을 00_QUALITY_EXCLUDED/ 폴더로 분리합니다." value={qualityAnalysisEnabled} onChange={setQualityAnalysisEnabled}/>
-                <Toggle label="프로필 자동 분류" desc="정면 응시·정지 포즈의 프로필 사진을 PROFILE/ 폴더로 분류합니다." value={profileClassificationEnabled} onChange={setProfileClassificationEnabled}/>
+                <Toggle label="프로필 자동 분류 (엄격 모드)" desc="1인 단독·정면 응시·의도된 정지 포즈일 때만 PROFILE/ 폴더로 분류합니다. 상담/시술 장면은 제외됩니다." value={profileClassificationEnabled} onChange={setProfileClassificationEnabled}/>
               </div>
             </Card>
 
