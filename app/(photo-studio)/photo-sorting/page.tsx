@@ -1361,12 +1361,16 @@ export default function PhotoSortingPage() {
                 )}
                 <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.9}}>
                   <strong>결과 폴더 구조</strong><br/>
-                  RAW/ — 전체 RAW 파일 (이동)<br/>
+                  {fastAnalyzeMode
+                    ? <>⚡ 빠른 분석 모드: 씬 계획 생성 → 검토 → [폴더 정리 실행] 시 실제 이동<br/></>
+                    : <>🔍 정밀 정리 모드: 분류 즉시 파일 이동<br/></>
+                  }
+                  RAW/ — 전체 RAW 파일{fastAnalyzeMode ? " (정리 실행 후 이동)" : " (이동)"}<br/>
                   JPG/Scene01/, Scene02/... — JPG 씬별 분류<br/>
-                  PROFILE/ — 프로필 사진<br/>
+                  PROFILE/ — 프로필 사진 (1인·정면·정지 포즈만)<br/>
                   SELECT/JPG_SELECT/ — 선택한 JPG<br/>
                   SELECT/RAW_SELECT/ — 선택 RAW ({rawSelectMode === "move" ? "이동" : "복사"})<br/>
-                  REPORT/ — 분류 리포트
+                  REPORT/ — 분류 리포트 (summary.json, profile_report.csv)
                 </div>
               </div>
             </Card>
