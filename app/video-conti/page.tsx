@@ -142,7 +142,7 @@ function Step1({
 
   useEffect(() => {
     fetch("/api/clients").then(r => r.json()).then(d => {
-      if (d.ok) setClients((d.data ?? []).map((c: any) => ({ id: c.id, name: c.hospital_name, website_url: c.website_url ?? "" })));
+      if (d.ok) setClients((d.clients ?? []).map((c: any) => ({ id: c.id, name: c.hospital_name, website_url: c.website_url ?? "" })));
     });
   }, []);
 
