@@ -2107,14 +2107,14 @@ ${header("타임테이블")}
             {shareUrl && (
               <div style={{
                 display: "flex", alignItems: "center", gap: 10,
-                background: "#f0f9ff", border: "1px solid #bae6fd",
+                background: "rgba(21,88,85,0.05)", border: "1px solid rgba(21,88,85,0.15)",
                 borderRadius: 8, padding: "10px 14px", fontSize: 13,
                 marginBottom: 12, flexWrap: "wrap",
               }}>
-                <Link2 size={15} color="#0284c7" />
-                <span style={{ color: "#0284c7", fontWeight: 700 }}>공유 링크:</span>
+                <Link2 size={15} color="#155855" />
+                <span style={{ color: "#155855", fontWeight: 700 }}>공유 링크:</span>
                 <a href={shareUrl} target="_blank" rel="noopener noreferrer"
-                  style={{ color: "#0284c7", textDecoration: "underline", wordBreak: "break-all", flex: 1 }}>
+                  style={{ color: "#155855", textDecoration: "underline", wordBreak: "break-all", flex: 1 }}>
                   {shareUrl}
                 </a>
                 <button
@@ -2124,8 +2124,8 @@ ${header("타임테이블")}
                     setTimeout(() => setShareCopied(false), 2000);
                   }}
                   style={{
-                    padding: "4px 12px", border: "1px solid #0284c7",
-                    borderRadius: 6, background: "#fff", color: "#0284c7",
+                    padding: "4px 12px", border: "1px solid rgba(21,88,85,0.3)",
+                    borderRadius: 6, background: "#fff", color: "#155855",
                     fontWeight: 700, fontSize: 12, cursor: "pointer",
                   }}>
                   복사
