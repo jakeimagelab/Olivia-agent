@@ -4478,6 +4478,26 @@ a.pc-nav-link, a.pc-header-back {
     transform: none !important;
     box-shadow: none !important;
   }
+
+  /* ── 모바일 대시보드 홈 탭 카드 ── */
+  .admin-dashboard-section {
+    border-radius: 14px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* ── 데스크탑 그리드 카드 모바일에서 더 컴팩트하게 ── */
+  .admin-menu-card {
+    border-radius: 14px !important;
+  }
+  .admin-menu-icon {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 11px !important;
+  }
+  .admin-menu-copy h2 {
+    font-size: 15px !important;
+    margin-top: 6px !important;
+  }
 }
 
 /* ── 아주 작은 화면 (390px 이하) ── */
