@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
+import { buildMergeCandidates } from "@/lib/photo-classifier/scene-merge-candidate";
+import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
