@@ -1590,8 +1590,8 @@ ${contiSummary}
       <span class="cover-meta-value" contenteditable="true">${specialties}</span>
     </div>
     <div class="cover-meta-row">
-      <span class="cover-meta-label">총 컷 수</span>
-      <span class="cover-meta-value" contenteditable="true">${result.conti.length}컷</span>
+      <span class="cover-meta-label">컨셉</span>
+      <span class="cover-meta-value" contenteditable="true">${result.conti.length}컨셉</span>
     </div>
     <div class="cover-meta-row">
       <span class="cover-meta-label">작성일</span>
