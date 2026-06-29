@@ -1015,9 +1015,10 @@ export default function PhotoSortingPage() {
       setCopyLog([...log]); return;
     }
 
-    // RAW/ 인덱스 생성
+    // RAW/ 인덱스 생성 (RAW/ 폴더 또는 원본 위치에서 스캔)
     const rawIndex = new Map<string, FileSystemFileHandle>();
-    for await (const [name, handle] of (fieldRawBaseDir as any).entries()) {
+    const rawScanDir = fieldRawBaseDir ?? rootDir;
+    for await (const [name, handle] of (rawScanDir as any).entries()) {
       if (handle.kind !== "file") continue;
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/,"").toLowerCase(), handle as FileSystemFileHandle);
