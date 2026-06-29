@@ -793,6 +793,11 @@ export default function PhotoSortingPage() {
             aiReason: data.reason ?? null,
             editedName: aiNamingEnabled && suggested ? suggested : updated[i].editedName,
             nameLoading: false,
+            aiPatientPosture: data.patientPosture ?? null,
+            aiHasHandpiece: data.hasHandpiece ?? null,
+            aiHasTreatmentDevice: data.hasTreatmentDevice ?? null,
+            aiHasTreatmentBed: data.hasTreatmentBed ?? null,
+            aiHasConsultationDesk: data.hasConsultationDesk ?? null,
           };
           aiResults[i] = {
             sceneType: data.sceneType ?? "etc",
