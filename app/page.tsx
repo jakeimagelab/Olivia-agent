@@ -880,23 +880,24 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
 
       {/* Mobile sticky header */}
       <header style={{
-        position:"sticky",top:0,zIndex:200,height:50,
-        background:"rgba(250,247,242,.96)",backdropFilter:"blur(12px)",
-        borderBottom:"1px solid rgba(21,88,85,.1)",
+        position:"sticky",top:0,zIndex:200,height:52,
+        background:"rgba(250,247,242,.97)",backdropFilter:"blur(16px)",
+        borderBottom:"1px solid rgba(21,88,85,.08)",
         display:"flex",alignItems:"center",justifyContent:"space-between",
         padding:"0 16px",
+        boxShadow:"0 1px 8px rgba(21,88,85,.06)",
       }}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{height:22}}/>
-          <span style={{fontSize:11,fontWeight:900,color:"rgba(21,88,85,.6)",letterSpacing:".08em"}}>AI 관리자</span>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{height:24}}/>
+          <span style={{fontSize:11,fontWeight:700,color:"rgba(21,88,85,.5)",letterSpacing:".06em"}}>AI 관리자</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <button onClick={()=>load(true)} disabled={refreshing}
-            style={{width:30,height:30,border:"1px solid rgba(21,88,85,.18)",borderRadius:8,background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#155855"}}>
-            <RefreshCw size={12} style={{animation:refreshing?"spin 1s linear infinite":"none"}}/>
+            style={{width:32,height:32,border:"1px solid rgba(21,88,85,.14)",borderRadius:10,background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#155855",boxShadow:"0 1px 4px rgba(21,88,85,.06)"}}>
+            <RefreshCw size={13} style={{animation:refreshing?"spin 1s linear infinite":"none"}}/>
           </button>
-          <button onClick={onLogout} style={{height:30,padding:"0 10px",border:"1px solid rgba(21,88,85,.18)",borderRadius:8,background:"#fff",color:"#5A7470",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
-            <LogOut size={11}/>로그아웃
+          <button onClick={onLogout} style={{height:32,padding:"0 12px",border:"1px solid rgba(21,88,85,.14)",borderRadius:10,background:"#fff",color:"#5A7470",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:4,boxShadow:"0 1px 4px rgba(21,88,85,.06)"}}>
+            <LogOut size={12}/>로그아웃
           </button>
         </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
