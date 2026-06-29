@@ -459,6 +459,7 @@ export default function PhotoSortingPage() {
   const [fieldRawBaseDir,            setFieldRawBaseDir]            = useState<FileSystemDirectoryHandle | null>(null);
   const [fieldStats,                 setFieldStats]                 = useState<FieldStats | null>(null);
   const [copyLog,                    setCopyLog]                    = useState<string[]>([]);
+  const [savedSession,               setSavedSession]               = useState<SavedSortingSession | null>(null);
 
   /* ── studio state ── */
   const [studioOpts,     setStudioOpts]     = useState<StudioOptions>({ lightingSensitivity:"medium" });
