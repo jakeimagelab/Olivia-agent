@@ -710,29 +710,32 @@ function AppModal({tool, onClose}:{tool:ToolDef; onClose:()=>void}) {
     }}>
       {/* Header bar */}
       <div style={{
-        height:52, flexShrink:0,
-        display:"flex", alignItems:"center", gap:10,
+        height:54, flexShrink:0,
+        display:"flex", alignItems:"center", gap:12,
         padding:"0 16px",
-        background:"rgba(250,247,242,.96)",
-        backdropFilter:"blur(10px)",
-        borderBottom:"1px solid rgba(21,88,85,.12)",
+        background:"rgba(250,247,242,.97)",
+        backdropFilter:"blur(16px)",
+        borderBottom:"1px solid rgba(21,88,85,.08)",
+        boxShadow:"0 1px 8px rgba(21,88,85,.06)",
       }}>
         <button onClick={onClose} style={{
           display:"flex", alignItems:"center", justifyContent:"center",
           width:36, height:36, borderRadius:10,
-          border:"1px solid rgba(21,88,85,.18)",
+          border:"1px solid rgba(21,88,85,.14)",
           background:"#fff", cursor:"pointer", color:"#155855",
-          fontSize:18, lineHeight:1,
+          fontSize:18, lineHeight:1, flexShrink:0,
+          boxShadow:"0 1px 4px rgba(21,88,85,.06)",
         }}>←</button>
         <div style={{flex:1, minWidth:0}}>
-          <div style={{fontSize:13, fontWeight:900, color:"#155855", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{tool.title}</div>
-          <div style={{fontSize:10, color:"#9BB5B0"}}>{tool.meta}</div>
+          <div style={{fontSize:14, fontWeight:900, color:"#155855", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{tool.title}</div>
+          <div style={{fontSize:10, color:"#9BB5B0", fontWeight:600}}>{tool.meta}</div>
         </div>
         <Link href={tool.href} style={{
           fontSize:11, fontWeight:800, color:"#E85D2C",
-          textDecoration:"none", padding:"6px 10px",
-          border:"1px solid rgba(232,93,44,.3)", borderRadius:8,
-          background:"rgba(232,93,44,.05)", whiteSpace:"nowrap",
+          textDecoration:"none", padding:"7px 12px",
+          border:"1px solid rgba(232,93,44,.25)", borderRadius:10,
+          background:"rgba(232,93,44,.06)", whiteSpace:"nowrap",
+          boxShadow:"0 1px 4px rgba(232,93,44,.1)",
         }}>전체 화면 ↗</Link>
       </div>
       {/* App iframe */}
