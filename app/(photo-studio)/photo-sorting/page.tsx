@@ -398,6 +398,40 @@ function Toggle({ label, desc, value, onChange }: { label: string; desc?: string
 }
 
 /* ════════════════════════════════════════════════
+   SESSION PERSISTENCE
+═══════════════════════════════════════════════ */
+const SESSION_KEY = "photoclinic-sorting-session-v1";
+
+interface SavedSortingSession {
+  version: 1;
+  savedAt: string;
+  step: number;
+  rootDirName: string;
+  department: MedicalDepartment;
+  gapMinutes: number;
+  fastAnalyzeMode: boolean;
+  departmentLogicEnabled: boolean;
+  aiNamingEnabled: boolean;
+  qualityAnalysisEnabled: boolean;
+  profileClassificationEnabled: boolean;
+  rawSelectMode: "move" | "copy";
+  fieldRawCount: number;
+  fieldStats: FieldStats | null;
+  sceneSummary: {
+    index: number;
+    folderName: string;
+    editedName: string;
+    startTime: number;
+    endTime: number;
+    fileCount: number;
+    sceneType: string | null;
+    suggestedName: string | null;
+    aiConfidence: number | null;
+    aiReason: string | null;
+  }[];
+}
+
+/* ════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════ */
 export default function PhotoSortingPage() {
