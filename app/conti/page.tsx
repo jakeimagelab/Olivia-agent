@@ -2177,8 +2177,22 @@ ${header("타임테이블")}
                             <td style={{ ...TD, minWidth: 300 }}><EditableCell value={row.description} onChange={v => updateConti(i, "description", v)} multiline /></td>
                             <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.personnel} onChange={v => updateConti(i, "personnel", v)} /></td>
                             <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.notes} onChange={v => updateConti(i, "notes", v)} placeholder="-" /></td>
-                            <td style={{ ...TD, width: 36, padding: "6px 4px" }}>
-                              <DeleteRowBtn onClick={() => delContiRow(i)} />
+                            <td style={{ ...TD, width: 72, padding: "6px 4px" }}>
+                              <div style={{ display: "flex", gap: 4 }}>
+                                <button
+                                  title="행 복사"
+                                  onClick={() => dupContiRow(i)}
+                                  style={{
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    width: 30, height: 30, border: "1px solid rgba(21,88,85,0.25)",
+                                    borderRadius: 6, background: "#fff", color: "#155855",
+                                    cursor: "pointer", flexShrink: 0,
+                                  }}
+                                >
+                                  <Copy size={13} />
+                                </button>
+                                <DeleteRowBtn onClick={() => delContiRow(i)} />
+                              </div>
                             </td>
                           </tr>
                         );
