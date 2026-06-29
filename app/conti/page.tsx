@@ -1815,31 +1815,30 @@ ${header("타임테이블")}
 
             {/* ══ ⚡ 빠른 시작 ══ */}
             <div style={{
-              background: "linear-gradient(135deg, #155855 0%, #1e7870 100%)",
-              borderRadius: 12, padding: 28, marginBottom: 8,
-              boxShadow: "0 12px 36px rgba(21,88,85,0.22)"
+              background: "#F0F9F8",
+              border: "1px solid rgba(21,88,85,0.18)",
+              borderRadius: 14, padding: 28, marginBottom: 8,
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <Zap size={18} color="#FEF3C7" fill="#FEF3C7" />
-                <span style={{ color: "#FEF3C7", fontSize: 12, fontWeight: 900, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                <Zap size={16} color="#155855" />
+                <span style={{ color: "#155855", fontSize: 11, fontWeight: 900, letterSpacing: "0.12em", textTransform: "uppercase" }}>
                   Quick Start
                 </span>
               </div>
-              <h2 style={{ margin: "0 0 6px", color: "#ffffff", fontSize: "clamp(18px,3vw,26px)", fontWeight: 800 }}>
+              <h2 style={{ margin: "0 0 6px", color: "#155855", fontSize: "clamp(17px,2.5vw,22px)", fontWeight: 800 }}>
                 진료과만 선택하면 기본 콘티 바로 생성
               </h2>
-              <p style={{ margin: "0 0 20px", color: "rgba(255,255,255,0.72)", fontSize: 14, lineHeight: 1.65 }}>
-                병원 규모, 직원, 장소는 진료과에 맞게 자동으로 설정됩니다.<br />
-                생성 후 셀을 클릭해 직접 수정할 수 있어요.<br />
-                <span style={{ color: "#FEF3C7", fontWeight: 700 }}>
+              <p style={{ margin: "0 0 20px", color: "#5A7470", fontSize: 13, lineHeight: 1.65 }}>
+                병원 규모, 직원, 장소는 진료과에 맞게 자동으로 설정됩니다. 생성 후 셀을 클릭해 직접 수정할 수 있어요.<br />
+                <span style={{ color: "#E85D2C", fontWeight: 700 }}>
                   ✦ 2개 이상 선택 시 종합병원 콘티로 생성됩니다 &nbsp;|&nbsp;
                   정형·신경·마취·재활 선택 시 C-ARM·초음파 주사치료 컷이 자동 포함됩니다
                 </span>
               </p>
 
-              {/* 진료과 선택 (흰 배경) */}
-              <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: 16, marginBottom: 14 }}>
-                <p style={{ margin: "0 0 10px", color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: 800 }}>
+              {/* 진료과 선택 */}
+              <div style={{ background: "#fff", border: "1px solid rgba(21,88,85,0.12)", borderRadius: 10, padding: 16, marginBottom: 14 }}>
+                <p style={{ margin: "0 0 10px", color: "#5A7470", fontSize: 12, fontWeight: 800 }}>
                   진료과 선택 (복수 가능)
                 </p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1852,23 +1851,21 @@ ${header("타임테이블")}
                         padding: "6px 14px", borderRadius: 99, fontSize: 13, fontWeight: 700,
                         cursor: "pointer", transition: "all 120ms ease",
                         border: quickSpecialties.includes(s)
-                          ? "1.5px solid #FEF3C7"
-                          : "1.5px solid rgba(255,255,255,0.3)",
-                        background: quickSpecialties.includes(s)
-                          ? "#FEF3C7"
-                          : "rgba(255,255,255,0.08)",
-                        color: quickSpecialties.includes(s) ? "#92400E" : "rgba(255,255,255,0.9)"
+                          ? "1.5px solid #155855"
+                          : "1.5px solid rgba(21,88,85,0.2)",
+                        background: quickSpecialties.includes(s) ? "#155855" : "#fff",
+                        color: quickSpecialties.includes(s) ? "#fff" : "#5A7470",
                       }}
                     >{s}</button>
                   ))}
                 </div>
                 {quickSpecialties.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.15)" }}>
-                    <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, alignSelf: "center" }}>선택됨:</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(21,88,85,0.1)" }}>
+                    <span style={{ color: "#9BB5B0", fontSize: 12, alignSelf: "center" }}>선택됨:</span>
                     {quickSpecialties.map(s => (
                       <span key={s} style={{
                         display: "inline-flex", alignItems: "center", gap: 4,
-                        background: "#FEF3C7", color: "#92400E",
+                        background: "rgba(21,88,85,0.08)", color: "#155855",
                         fontSize: 12, fontWeight: 800, padding: "3px 10px", borderRadius: 99
                       }}>
                         {s}
@@ -1881,7 +1878,7 @@ ${header("타임테이블")}
               </div>
 
               {quickError && (
-                <p style={{ color: "#fca5a5", fontWeight: 800, fontSize: 13, margin: "0 0 10px" }}>⚠ {quickError}</p>
+                <p style={{ color: "#E85D2C", fontWeight: 800, fontSize: 13, margin: "0 0 10px" }}>⚠ {quickError}</p>
               )}
 
               <button type="button"
@@ -1889,17 +1886,16 @@ ${header("타임테이블")}
                 disabled={quickLoading}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
-                  padding: "0 28px", minHeight: 48, border: "none",
-                  borderRadius: 8, background: "#FEF3C7", color: "#92400E",
-                  fontWeight: 900, fontSize: 15, cursor: "pointer",
+                  padding: "0 28px", minHeight: 44, border: "none",
+                  borderRadius: 8, background: "#155855", color: "#fff",
+                  fontWeight: 900, fontSize: 14, cursor: "pointer",
                   opacity: quickLoading ? 0.7 : 1,
-                  boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
                   transition: "all 160ms ease"
                 }}
               >
                 {quickLoading
                   ? <><span>⟳</span> 생성 중…</>
-                  : <><Zap size={17} /> 기본 콘티 바로 생성</>
+                  : <><Zap size={16} /> 기본 콘티 바로 생성</>
                 }
               </button>
             </div>
