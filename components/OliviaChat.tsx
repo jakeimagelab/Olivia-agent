@@ -407,7 +407,8 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ pendingTool: data.tool }),
             });
-            const execData = await execRes.json();
+            let execData: any;
+            try { execData = await execRes.json(); } catch { throw new Error("서버 응답을 처리할 수 없어요. 잠시 후 다시 시도해주세요."); }
             if (!execData.ok) throw new Error(execData.error);
             const result = execData.toolResult;
             const resultMsg = result.message || "완료됐어요!";
