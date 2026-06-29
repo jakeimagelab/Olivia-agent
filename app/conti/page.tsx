@@ -2349,6 +2349,13 @@ ${header("타임테이블")}
                     <tbody>
                       {result.checklist.map((row, i) => {
                         const isDragOver = dragOver?.type === "checklist" && dragOver.index === i;
+                        const rawColor = row.color ? row.color.split("|") : null;
+                        const rowBg = isDragOver
+                          ? "rgba(21,88,85,0.06)"
+                          : rawColor
+                          ? rawColor[0]
+                          : i % 2 === 0 ? "#fff" : "#fafaf9";
+                        const rowText = rawColor ? rawColor[1] : "#374151";
                         return (
                           <tr key={i}
                             draggable
@@ -2356,11 +2363,20 @@ ${header("타임테이블")}
                             onDragOver={e => handleDragOver(e, "checklist", i)}
                             onDrop={() => handleDrop("checklist", i)}
                             onDragEnd={handleDragEnd}
-                            style={{ background: isDragOver ? "rgba(21,88,85,0.06)" : i % 2 === 0 ? "#fff" : "#fafaf9", outline: isDragOver ? "2px solid #155855" : "none" }}
+                            style={{ background: rowBg, outline: isDragOver ? "2px solid #155855" : "none" }}
                           >
                             <td style={{ ...TD, width: 36, padding: "6px 4px", cursor: "grab" }}><DragHandle /></td>
                             <td style={{ ...TD, width: 48, textAlign: "center", fontWeight: 800, color: "#155855" }}>{row.number}</td>
-                            <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.category} onChange={v => updateChecklist(i, "category", v)} bold /></td>
+                            <td style={{ ...TD, minWidth: 100, background: rowBg }}>
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
+                                <ColorPickerCell
+                                  bg={rawColor ? rawColor[0] : "#ffffff"}
+                                  text={rawColor ? rawColor[1] : "#374151"}
+                                  onChange={(bg, text) => updateChecklistColor(i, bg, text)}
+                                />
+                                <EditableCell value={row.category} onChange={v => updateChecklist(i, "category", v)} bold color={rowText} />
+                              </div>
+                            </td>
                             <td style={{ ...TD, minWidth: 200 }}><EditableCell value={row.item} onChange={v => updateChecklist(i, "item", v)} /></td>
                             <td style={{ ...TD, width: 80 }}>
                               <div style={{ width: 20, height: 20, border: "2px solid rgba(21,88,85,0.25)", borderRadius: 4 }} />
