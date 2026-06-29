@@ -470,6 +470,96 @@ export default function PhotoSortingPage() {
   const [studioStats,    setStudioStats]    = useState<StudioStats | null>(null);
   const [activeGroup,    setActiveGroup]    = useState(0);
 
+  /* ── session persistence ── */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw) as SavedSortingSession;
+      if (data.version === 1 && data.step >= 2) setSavedSession(data);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (step < 2) return;
+    try {
+      const data: SavedSortingSession = {
+        version: 1, savedAt: new Date().toISOString(),
+        step, rootDirName: rootDir?.name ?? "",
+        department, gapMinutes, fastAnalyzeMode,
+        departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled,
+        profileClassificationEnabled, rawSelectMode,
+        fieldRawCount, fieldStats,
+        sceneSummary: fieldScenes.map(s => ({
+          index: s.index, folderName: s.folderName, editedName: s.editedName,
+          startTime: s.startTime, endTime: s.endTime, fileCount: s.fileCount,
+          sceneType: s.sceneType, suggestedName: s.suggestedName,
+          aiConfidence: s.aiConfidence, aiReason: s.aiReason,
+        })),
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    } catch {}
+  }, [step, rootDir, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled, rawSelectMode, fieldRawCount, fieldStats, fieldScenes]);
+
+  const clearSession = () => {
+    try { localStorage.removeItem(SESSION_KEY); } catch {}
+    setSavedSession(null);
+  };
+
+  const handleRestore = async (saved: SavedSortingSession) => {
+    try {
+      const h = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+      const jpgBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("JPG").catch(() => null);
+      const rawBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("RAW").catch(() => null);
+      if (!jpgBase) { alert("선택한 폴더에 JPG/ 폴더가 없습니다.\n올바른 폴더를 선택하세요."); return; }
+
+      setRootDir(h);
+      setDepartment(saved.department);
+      setGapMinutes(saved.gapMinutes);
+      setFastAnalyzeMode(saved.fastAnalyzeMode);
+      setDepartmentLogicEnabled(saved.departmentLogicEnabled);
+      setAiNamingEnabled(saved.aiNamingEnabled);
+      setQualityAnalysisEnabled(saved.qualityAnalysisEnabled);
+      setProfileClassificationEnabled(saved.profileClassificationEnabled);
+      setRawSelectMode(saved.rawSelectMode);
+      setFieldRawCount(saved.fieldRawCount);
+      setFieldJpgBaseDir(jpgBase);
+      if (rawBase) setFieldRawBaseDir(rawBase);
+      setFieldStats(saved.fieldStats);
+
+      // Reconstruct scenes by re-scanning JPG/SceneXX/ directories
+      if (saved.sceneSummary.length > 0) {
+        const scenes: FieldScene[] = [];
+        for (const s of saved.sceneSummary) {
+          const sceneDir = await jpgBase.getDirectoryHandle(s.folderName).catch(() => null);
+          const files: SceneFile[] = [];
+          if (sceneDir) {
+            for await (const [fname, fh] of (sceneDir as any).entries()) {
+              const ext = (fname as string).split(".").pop()?.toLowerCase() ?? "";
+              if ((fh as FileSystemHandle).kind === "file" && ["jpg","jpeg"].includes(ext)) {
+                files.push({ name: fname as string, basename: (fname as string).replace(/\.[^.]+$/, ""), handle: fh as FileSystemFileHandle, mtime: s.startTime });
+              }
+            }
+            files.sort((a,b) => a.name.localeCompare(b.name));
+          }
+          scenes.push({
+            index: s.index, folderName: s.folderName, editedName: s.editedName,
+            startTime: s.startTime, endTime: s.endTime,
+            fileCount: files.length || s.fileCount, files, sceneDir,
+            sceneType: (s.sceneType as any) ?? null, suggestedName: s.suggestedName,
+            aiConfidence: s.aiConfidence, aiReason: s.aiReason,
+            subScenes: [], profileCount: 0, qualityRejectCount: 0, nameLoading: false,
+          });
+        }
+        setFieldScenes(scenes);
+      }
+
+      setSavedSession(null);
+      const targetStep = saved.step === 3 ? 2 : saved.step;
+      setStep(targetStep);
+    } catch {}
+  };
+
   const pickDir = async () => {
     try { const h = await (window as any).showDirectoryPicker({ mode:"readwrite" }); setRootDir(h); }
     catch (_) {}
