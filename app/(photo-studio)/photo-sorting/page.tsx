@@ -412,6 +412,7 @@ export default function PhotoSortingPage() {
   /* ── field state ── */
   const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
   const [gapMinutes,                 setGapMinutes]                 = useState(5);
+  const [fastAnalyzeMode,            setFastAnalyzeMode]            = useState(true);
   const [departmentLogicEnabled,     setDepartmentLogicEnabled]     = useState(true);
   const [aiNamingEnabled,            setAiNamingEnabled]            = useState(false);
   const [qualityAnalysisEnabled,     setQualityAnalysisEnabled]     = useState(false);
@@ -419,6 +420,7 @@ export default function PhotoSortingPage() {
   const [rawSelectMode,              setRawSelectMode]              = useState<"move"|"copy">("move");
   const [fieldScenes,                setFieldScenes]                = useState<FieldScene[]>([]);
   const [fieldRawCount,              setFieldRawCount]              = useState(0);
+  const [fieldRawHandles,            setFieldRawHandles]            = useState<{ name: string; handle: FileSystemFileHandle }[]>([]);
   const [fieldJpgBaseDir,            setFieldJpgBaseDir]            = useState<FileSystemDirectoryHandle | null>(null);
   const [fieldRawBaseDir,            setFieldRawBaseDir]            = useState<FileSystemDirectoryHandle | null>(null);
   const [fieldStats,                 setFieldStats]                 = useState<FieldStats | null>(null);
