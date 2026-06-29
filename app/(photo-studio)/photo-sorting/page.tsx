@@ -915,7 +915,7 @@ export default function PhotoSortingPage() {
       };
       return copy.filter((_, idx) => idx !== j);
     });
-  }, [fieldScenes, fieldJpgBaseDir, fastAnalyzeMode]);
+  }, [fieldScenes, fieldJpgBaseDir, fastAnalyzeMode, mergeCandidates]);
 
   const handleConfirmScenes = useCallback(async () => {
     if (!rootDir) return;
