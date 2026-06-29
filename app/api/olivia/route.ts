@@ -325,18 +325,7 @@ function calendarShortcutFromText(text: string) {
     return date ? makeTool("calendar_list", { date }) : null;
   }
 
-  if (/(삭제|지워|취소)/.test(text)) {
-    return date && title ? makeTool("calendar_delete", { date, matchTitle: title }) : null;
-  }
-
-  if (/(완료|끝냈|처리)/.test(text)) {
-    return date && title ? makeTool("calendar_complete", { date, matchTitle: title, completed: true }) : null;
-  }
-
-  if (/(수정|변경|바꿔|옮겨|미뤄|앞당겨)/.test(text)) {
-    return date && title ? makeTool("calendar_update", { date, matchTitle: title, time: time || undefined }) : null;
-  }
-
+  // "추가/등록"을 먼저 체크 — "취소 일정 등록해줘" 같이 두 키워드가 동시에 있을 때 추가 의도 우선
   if (/(추가|등록|넣어|잡아|예약|메모|기록|저장)/.test(text)) {
     const resolvedDate = date || formatDate(new Date(`${TODAY}T00:00:00+09:00`));
     if (!title) {
