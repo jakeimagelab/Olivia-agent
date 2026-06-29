@@ -1712,6 +1712,29 @@ export default function PhotoSortingPage() {
           {(aiNamingEnabled||departmentLogicEnabled)&&!allLoaded&&<span style={{marginLeft:8,color:C.teal}}>AI 분석 중...</span>}
         </div>
 
+        {/* 병합/분리 후보 요약 */}
+        {(() => {
+          const activeMerge = mergeCandidates.filter(c => c.recommendedAction === "merge" && !dismissedCandidates.has(c.id));
+          const activeSplit = mergeCandidates.filter(c => c.recommendedAction === "keep_split" && !dismissedCandidates.has(c.id));
+          if (activeMerge.length === 0 && activeSplit.length === 0) return null;
+          return (
+            <div style={{padding:"10px 14px",background:"#F8FAFC",borderRadius:10,border:`1px solid ${C.border}`,fontSize:11,color:C.muted,display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+              <span style={{fontWeight:800,color:C.txt}}>AI 씬 분석 결과</span>
+              {activeMerge.length > 0 && (
+                <span style={{background:"#DBEAFE",color:"#1D4ED8",borderRadius:5,padding:"2px 8px",fontWeight:700}}>
+                  🔗 병합 후보 {activeMerge.length}건
+                </span>
+              )}
+              {activeSplit.length > 0 && (
+                <span style={{background:"#FFEDD5",color:"#C2410C",borderRadius:5,padding:"2px 8px",fontWeight:700}}>
+                  ✂️ 분리 유지 추천 {activeSplit.length}건
+                </span>
+              )}
+              <span style={{color:C.hint}}>씬 사이 카드를 확인하세요</span>
+            </div>
+          );
+        })()}
+
         <Card>
           <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>
             씬 검토 — JPG {totalJpg}장 / RAW {fieldRawCount}개 / {DEPARTMENT_DISPLAY[department]}
