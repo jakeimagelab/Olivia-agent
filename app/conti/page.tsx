@@ -1470,10 +1470,10 @@ ${contiSummary}
         <td style="background:${getCatBg(r.category)};color:${getCatFg(r.category)};font-weight:900;text-align:center;font-size:7pt;word-break:keep-all;vertical-align:middle" contenteditable="true">${r.category}</td>
         <td style="text-align:center;font-size:7pt;vertical-align:middle;white-space:nowrap" contenteditable="true">${r.duration||"-"}</td>
         <td style="text-align:center;font-size:7pt;vertical-align:middle;word-break:keep-all" contenteditable="true">${r.location||"-"}</td>
-        <td style="font-size:6.5pt;color:#4b5563;line-height:1.4;vertical-align:middle" contenteditable="true">${r.cameraAngle||"-"}</td>
-        <td style="color:#E85D2C;font-weight:900;text-align:center;font-size:7pt;vertical-align:middle;word-break:keep-all" contenteditable="true">${r.keyword||"-"}</td>
+        <td style="font-size:6.5pt;color:#4b5563;line-height:1.4;vertical-align:middle;white-space:nowrap;overflow:hidden" contenteditable="true">${r.cameraAngle||"-"}</td>
+        <td style="color:#E85D2C;font-weight:900;font-size:7pt;vertical-align:middle;white-space:nowrap;overflow:hidden" contenteditable="true">${r.keyword||"-"}</td>
         <td style="font-size:7pt;vertical-align:middle;line-height:1.5" contenteditable="true">${r.description||"-"}</td>
-        <td style="font-size:6.5pt;vertical-align:middle;line-height:1.4;color:#374151" contenteditable="true">${r.personnel||"-"}</td>
+        <td style="font-size:6.5pt;vertical-align:middle;line-height:1.4;color:#374151;white-space:nowrap;overflow:hidden" contenteditable="true">${r.personnel||"-"}</td>
         <td style="font-size:6.5pt;color:#666;text-align:center;vertical-align:middle;word-break:keep-all" contenteditable="true">${r.notes||"-"}</td>
       </tr>
     `).join("");
