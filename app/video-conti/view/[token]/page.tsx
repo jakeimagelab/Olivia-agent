@@ -34,7 +34,7 @@ interface ContiData {
   status: string;
 }
 
-export default function VideoContiViewPage({ params }: { params: { token: string } }) {
+export default function VideoContiViewPage({ params }: { params: Promise<{ token: string }> }) {
   const [data, setData] = useState<ContiData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,8 @@ export default function VideoContiViewPage({ params }: { params: { token: string
   useEffect(() => {
     const load = async () => {
       try {
-        const r1 = await fetch(`/api/video-conti/share?token=${params.token}`);
+        const { token } = await params;
+        const r1 = await fetch(`/api/video-conti/share?token=${token}`);
         const d1 = await r1.json();
         if (!d1.ok) throw new Error(d1.error ?? "유효하지 않은 링크입니다");
 

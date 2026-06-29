@@ -4,13 +4,14 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const db = getSupabaseAdmin();
     const { data, error } = await db
       .from("video_conti")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 404 });
@@ -20,8 +21,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const body = await req.json();
     const allowed = ["scenes", "status", "title", "bgm_filename", "bgm_storage_path",
       "bgm_duration_seconds", "bgm_tempo_bpm", "bgm_key", "bgm_sections"];
@@ -32,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     const db = getSupabaseAdmin();
-    const { error } = await db.from("video_conti").update(update).eq("id", params.id);
+    const { error } = await db.from("video_conti").update(update).eq("id", id);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
@@ -40,10 +42,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const db = getSupabaseAdmin();
-    const { error } = await db.from("video_conti").delete().eq("id", params.id);
+    const { error } = await db.from("video_conti").delete().eq("id", id);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (e: any) {
