@@ -2182,7 +2182,7 @@ ${header("타임테이블")}
                             <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.location} onChange={v => updateConti(i, "location", v)} /></td>
                             <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.cameraAngle} onChange={v => updateConti(i, "cameraAngle", v)} /></td>
                             <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.keyword} onChange={v => updateConti(i, "keyword", v)} color="var(--orange)" bold /></td>
-                            <td style={{ ...TD, minWidth: 180 }}><EditableCell value={row.description} onChange={v => updateConti(i, "description", v)} multiline /></td>
+                            <td style={{ ...TD, minWidth: 300 }}><EditableCell value={row.description} onChange={v => updateConti(i, "description", v)} multiline /></td>
                             <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.personnel} onChange={v => updateConti(i, "personnel", v)} /></td>
                             <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.notes} onChange={v => updateConti(i, "notes", v)} placeholder="-" /></td>
                             <td style={{ ...TD, width: 76, padding: "6px 4px" }}>
