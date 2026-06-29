@@ -2155,21 +2155,6 @@ ${header("타임테이블")}
                             <td style={{ ...TD, width: 36, padding: "6px 4px", cursor: "grab" }}>
                               <DragHandle />
                             </td>
-                            <td style={{ ...TD, width: 80, padding: "4px" }}>
-                              {i < 10 && sceneImages[String(i)] ? (
-                                <img
-                                  src={sceneImages[String(i)]}
-                                  alt={`씬${i+1}`}
-                                  style={{ width: 72, height: 54, objectFit: "cover", borderRadius: 6, display: "block" }}
-                                />
-                              ) : i < 10 && generatingImages ? (
-                                <div style={{ width: 72, height: 54, borderRadius: 6, background: "rgba(21,88,85,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-                                  🎨
-                                </div>
-                              ) : (
-                                <div style={{ width: 72, height: 54, borderRadius: 6, background: "rgba(21,88,85,0.04)", border: "1px dashed rgba(21,88,85,0.15)" }} />
-                              )}
-                            </td>
                             <td style={{ ...TD, background: c.bg, minWidth: 80 }}>
                               <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
                                 <ColorPickerCell
