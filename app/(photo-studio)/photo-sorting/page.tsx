@@ -1811,7 +1811,7 @@ export default function PhotoSortingPage() {
             <Card>
               <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>RAW SELECT 처리 방식</div>
               <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{display:"flex",gap:10}}>
+                <div className="ps-btn-row">
                   {(["move","copy"] as const).map(m => (
                     <button key={m} onClick={()=>setRawSelectMode(m)} style={{flex:1,padding:"12px 0",borderRadius:8,border:`1.5px solid ${rawSelectMode===m?C.teal:C.border}`,background:rawSelectMode===m?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:rawSelectMode===m?900:600,color:rawSelectMode===m?C.teal:C.muted,fontFamily:"inherit"}}>
                       {m === "move" ? "이동 (권장)" : "복사"}
@@ -2125,7 +2125,7 @@ export default function PhotoSortingPage() {
           </div>
         </Card>
 
-        <div style={{display:"flex",gap:10}}>
+        <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
           <Btn onClick={handleConfirmScenes} disabled={!allLoaded}>
             {!allLoaded ? "AI 분석 중..." : fastAnalyzeMode ? "📁 폴더 정리 실행 →" : "✅ 확정 →"}
@@ -2321,7 +2321,7 @@ export default function PhotoSortingPage() {
             ))}
           </div>
         </Card>
-        <div style={{display:"flex",gap:10}}>
+        <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
           <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>✅ 승인 →</Btn>
         </div>
@@ -2397,7 +2397,7 @@ export default function PhotoSortingPage() {
             })}
           </div>
         </Card>
-        <div style={{display:"flex",gap:10}}>
+        <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
           <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>✅ 승인 →</Btn>
         </div>
@@ -2447,7 +2447,7 @@ export default function PhotoSortingPage() {
             </div>
           </Card>
         )}
-        <div style={{display:"flex",gap:10}}>
+        <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(3)}>← 그룹 수정</Btn>
           <Btn style={{background:C.purple}} onClick={runGroupOutput}>파일 정리 시작 →</Btn>
         </div>
@@ -2493,7 +2493,7 @@ export default function PhotoSortingPage() {
             </div>
           </Card>
         )}
-        <div style={{display:"flex",gap:10}}>
+        <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(3)}>← 그룹 수정</Btn>
           <Btn style={{background:C.purple}} onClick={runStudioOutput}>파일 정리 시작 →</Btn>
         </div>
