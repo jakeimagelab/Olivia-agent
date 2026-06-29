@@ -462,6 +462,9 @@ export default function PhotoSortingPage() {
   const [fieldStats,                 setFieldStats]                 = useState<FieldStats | null>(null);
   const [copyLog,                    setCopyLog]                    = useState<string[]>([]);
   const [savedSession,               setSavedSession]               = useState<SavedSortingSession | null>(null);
+  const [mergeCandidates,            setMergeCandidates]            = useState<SceneMergeCandidate[]>([]);
+  const [dismissedCandidates,        setDismissedCandidates]        = useState<Set<string>>(new Set());
+  const [mergeDecisions,             setMergeDecisions]             = useState<MergeDecision[]>([]);
 
   /* ── studio state ── */
   const [studioOpts,     setStudioOpts]     = useState<StudioOptions>({ lightingSensitivity:"medium" });
