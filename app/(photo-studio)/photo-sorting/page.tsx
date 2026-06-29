@@ -29,6 +29,7 @@ interface StudioPhotoFile {
   clothingLabel: string; poseType: StudioPoseType;
   isFamilyProfile: boolean; confidence: number;
   analyzed: boolean; groupKey: string;
+  personFeatures?: PersonFeatures;
 }
 
 interface StudioGroup {
