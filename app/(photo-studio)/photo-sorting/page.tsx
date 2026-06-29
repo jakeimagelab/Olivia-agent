@@ -1846,9 +1846,30 @@ export default function PhotoSortingPage() {
 
         {photoMode === "studio" && (
           <>
+            {/* 촬영 구성 탭 */}
+            <Card>
+              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.purple}}>촬영 구성</div>
+              <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+                {([
+                  ["concept","한 명 · 여러 컨셉","의상·포즈 기준 분류 (기존 모드)"],
+                  ["group",  "여러 명 · 같은 컨셉","얼굴 분석으로 인물별 분류 (신규)"],
+                ] as const).map(([m,title,desc])=>(
+                  <button key={m} onClick={()=>setStudioSubMode(m)}
+                    style={{padding:"16px 20px",textAlign:"left",border:"none",borderRight:m==="concept"?`1px solid ${C.border}`:"none",background:studioSubMode===m?"#F5F0FF":"transparent",cursor:"pointer",fontFamily:"inherit"}}>
+                    <div style={{fontSize:13,fontWeight:900,color:studioSubMode===m?C.purple:C.muted,marginBottom:4}}>{title}{studioSubMode===m&&" ✓"}</div>
+                    <div style={{fontSize:11,color:C.hint,lineHeight:1.6}}>{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </Card>
             <div style={{padding:14,background:"#F5F0FF",borderRadius:12,fontSize:11,color:"#4C1D95",border:"1px solid #DDD6FE",lineHeight:1.8}}>
-              <strong>스튜디오 프로필촬영 모드</strong>는 의상 변화와 포즈 변화를 기준으로 분류합니다.<br/>
-              포즈는 Standing / Sitting 두 가지로만 나눕니다. 조명 불량 컷은 <strong>00_ETC_조명불량</strong> 폴더로 분리합니다.
+              {studioSubMode === "group" ? (
+                <><strong>여러 명 · 같은 컨셉 모드</strong>: 각 사진의 얼굴 특징(성별·연령·헤어·안경)을 AI로 분석해 인물별로 자동 분류합니다.<br/>
+                분류 후 폴더명(예: 01_인물1)을 검토해 수정하세요. 조명 불량 컷은 <strong>00_ETC_조명불량</strong>으로 분리됩니다.</>
+              ) : (
+                <><strong>한 명 · 여러 컨셉 모드</strong>: 의상 변화와 포즈 변화를 기준으로 분류합니다.<br/>
+                포즈는 Standing / Sitting 두 가지로만 나눕니다. 조명 불량 컷은 <strong>00_ETC_조명불량</strong> 폴더로 분리합니다.</>
+              )}
             </div>
             <Card>
               <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.purple}}>폴더 선택</div>
