@@ -44,6 +44,25 @@ interface StudioStats {
   totalRawMatched: number; totalRawMissing: number;
 }
 
+/* ── Studio Group-mode types ── */
+type StudioSubMode = "concept" | "group";
+
+interface PersonFeatures {
+  gender: "male" | "female" | "unknown";
+  ageBand: "20s" | "30s" | "40s" | "50s" | "60s+" | "unknown";
+  hairColor: "black" | "brown" | "blonde" | "white_gray" | "other" | "unknown";
+  hairLength: "short" | "medium" | "long" | "bald" | "unknown";
+  hasGlasses: boolean;
+}
+
+interface PersonGroup {
+  id: string; label: string;
+  features: PersonFeatures; sampleThumb: string;
+  files: StudioPhotoFile[];
+  suggestedFolderName: string; editedFolderName: string;
+  index: number; isEtc: boolean;
+}
+
 /* ════════════════════════════════════════════════
    CONSTANTS
 ═══════════════════════════════════════════════ */
