@@ -1543,6 +1543,129 @@ export default function PhotoSortingPage() {
     setStep(6);
   }, [studioGroups, rootDir, studioFiles, studioRawCount]);
 
+  const runGroupAnalysis = async (files: StudioPhotoFile[]) => {
+    const total = files.length; let done = 0;
+    const CONCURRENCY = 8;
+    const result = files.map(f => ({...f}));
+    const indices = Array.from({length: total}, (_, i) => i);
+    let qi = 0;
+    const worker = async () => {
+      while (qi < indices.length) {
+        const idx = indices[qi++];
+        const file = result[idx];
+        setProgress({ cur:done, total, msg:`얼굴 분석: ${file.name}` });
+        try {
+          const f = await file.handle.getFile();
+          const thumb = await getStudioThumb(f);
+          const res = await fetch("/api/studio-face-analysis", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({ thumbnail:thumb, lightingSensitivity:studioOpts.lightingSensitivity }),
+          });
+          const data = await res.json();
+          if (data.ok && data.lightingStatus === "normal") {
+            const GENDERS = ["male","female"], AGES = ["20s","30s","40s","50s","60s+"];
+            const HCOLORS = ["black","brown","blonde","white_gray","other"], HLENS = ["short","medium","long","bald"];
+            const features: PersonFeatures = {
+              gender:     GENDERS.includes(data.gender)     ? data.gender     : "unknown",
+              ageBand:    AGES.includes(data.ageBand)        ? data.ageBand    : "unknown",
+              hairColor:  HCOLORS.includes(data.hairColor)  ? data.hairColor  : "unknown",
+              hairLength: HLENS.includes(data.hairLength)   ? data.hairLength : "unknown",
+              hasGlasses: data.hasGlasses === true,
+            };
+            result[idx] = { ...file, lightingStatus:"normal", personFeatures:features, analyzed:true, groupKey:"PENDING" };
+          } else {
+            result[idx] = { ...file, analyzed:true, lightingStatus:data.lightingStatus||"etc_test", groupKey:"__ETC__" };
+          }
+        } catch {
+          result[idx] = { ...file, analyzed:true, lightingStatus:"etc_test", groupKey:"__ETC__" };
+        }
+        done++;
+        setStudioFiles([...result]);
+      }
+    };
+    await Promise.all(Array.from({length: CONCURRENCY}, () => worker()));
+
+    // Client-side person matching (O(n*m), instant)
+    const knownPersons: Array<{id: string; features: PersonFeatures}> = [];
+    let personCount = 0;
+    const final = result.map(file => {
+      if (file.groupKey === "__ETC__") return file;
+      if (!file.personFeatures) return { ...file, groupKey:"__ETC__" };
+      const match = knownPersons.find(p => personSoftMatch(file.personFeatures!, p.features));
+      if (match) return { ...file, groupKey:match.id };
+      personCount++;
+      const id = `person_${personCount}`;
+      knownPersons.push({ id, features:file.personFeatures });
+      return { ...file, groupKey:id };
+    });
+
+    setStudioFiles(final);
+    setPersonGroups(buildPersonGroups(final));
+    setStep(3);
+  };
+
+  const runGroupOutput = useCallback(async () => {
+    if (!rootDir || personGroups.length === 0) return;
+    setStep(5); cancelRef.current = false;
+    const log: string[] = [];
+    const rootName = rootDir.name;
+    const selectedJpgDir = await (rootDir as any).getDirectoryHandle(`selected_${rootName}`, { create:true });
+    const selectedRawDir = await (rootDir as any).getDirectoryHandle("Selected_RAW", { create:true });
+    const reportDir      = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
+    const rawIndex = new Map<string, FileSystemFileHandle>();
+    for await (const [name, handle] of (rootDir as any).entries()) {
+      if (handle.kind !== "file") continue;
+      const ext = name.split(".").pop()?.toLowerCase() ?? "";
+      if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/,"").toLowerCase(), handle as FileSystemFileHandle);
+    }
+    const totalFiles = personGroups.reduce((s,g) => s+g.files.length, 0);
+    let processed = 0, rawCopied = 0, rawMissing = 0;
+    const classRows: string[][] = [], groupRows: string[][] = [], etcRows: string[][] = [], rawRows: string[][] = [];
+    for (const group of personGroups) {
+      const folderName = group.editedFolderName;
+      const groupDir = await (selectedJpgDir as any).getDirectoryHandle(folderName, { create:true });
+      for (const file of group.files) {
+        if (cancelRef.current) break;
+        setProgress({ cur:processed, total:totalFiles, msg:`${folderName}: ${file.name}` });
+        try { await copyFileHandle(file.handle, groupDir, file.name); log.push(`✅ ${file.name} → ${folderName}/`); }
+        catch { log.push(`❌ ${file.name} 실패`); }
+        if (!group.isEtc) {
+          const rawHandle = rawIndex.get(file.basename.toLowerCase());
+          if (rawHandle) {
+            try {
+              const rawFile = await rawHandle.getFile();
+              await copyFileHandle(rawHandle, selectedRawDir, rawFile.name);
+              rawCopied++;
+              rawRows.push([file.name, rawFile.name, folderName, "복사완료", `Selected_RAW/${rawFile.name}`]);
+            } catch { rawRows.push([file.name, "", folderName, "실패", ""]); }
+          } else {
+            rawMissing++; rawRows.push([file.name, "", folderName, "누락", ""]);
+          }
+        }
+        if (group.isEtc) etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), ""]);
+        const pf = group.features;
+        classRows.push([file.name, folderName, group.label, pf.gender, pf.ageBand, pf.hairColor, pf.hairLength, String(pf.hasGlasses), file.lightingStatus]);
+        processed++; setStudioCopyLog([...log]);
+      }
+      if (!group.isEtc) {
+        const f = group.files[0], l = group.files[group.files.length-1];
+        groupRows.push([String(group.index), folderName, group.label, String(group.files.length), f.name, l.name]);
+      }
+    }
+    const wr = async (name: string, content: string) => {
+      try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch {}
+    };
+    await wr("group_person_report.csv",    makeCSV(["group_id","folder_name","label","file_count","first_file","last_file"], groupRows));
+    await wr("classification_detail.csv", makeCSV(["file_name","assigned_folder","person_label","gender","age_band","hair_color","hair_length","has_glasses","lighting_status"], classRows));
+    await wr("etc_report.csv",             makeCSV(["file_name","reason","brightness","note"], etcRows));
+    await wr("raw_match_report.csv",       makeCSV(["jpg_file","raw_file","assigned_folder","status","destination_path"], rawRows));
+    const etcGroup = personGroups.find(g=>g.isEtc);
+    const summary = { mode:"studio_group", total_jpg:studioFiles.length, total_raw:studioRawCount, total_persons:personGroups.filter(g=>!g.isEtc).length, total_etc:etcGroup?.files.length??0, total_normal:personGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0), total_raw_matched:rawCopied, total_raw_missing:rawMissing, output_path:`selected_${rootName}/`, created_at:new Date().toISOString() };
+    await wr("summary.json", JSON.stringify(summary, null, 2));
+    setStudioStats({ totalJpg:studioFiles.length, totalRaw:studioRawCount, totalGroups:personGroups.filter(g=>!g.isEtc).length, totalEtc:etcGroup?.files.length??0, totalNormal:personGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0), totalRawMatched:rawCopied, totalRawMissing:rawMissing });
+    setStep(6);
+  }, [personGroups, rootDir, studioFiles, studioRawCount]);
+
   /* ════════════════════════════════════════════
      STEP INDICATOR
   ═══════════════════════════════════════════ */
