@@ -842,6 +842,14 @@ export default function PhotoSortingPage() {
     }
   }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir]);
 
+  // 프로필 제외 장면 타입 (이 타입이면 절대 프로필로 보내지 않음)
+  const PROFILE_EXCLUDE_TYPES = new Set([
+    "injection_treatment","laser_treatment","device_treatment","lifting_laser_treatment",
+    "doctor_treatment","surgery_scene","implant_surgery","dental_treatment",
+    "doctor_consultation","manager_consultation","skin_care","physical_therapy",
+    "c_arm_procedure","ultrasound_procedure","xray","shockwave_manual_therapy",
+  ]);
+
   const runSecondaryAnalysis = async (scenes: FieldScene[]) => {
     const total = scenes.reduce((s,sc)=>s+sc.fileCount,0);
     let done = 0, qualityRejectTotal = 0, profileTotal = 0;
@@ -850,13 +858,24 @@ export default function PhotoSortingPage() {
     let qualityExcDir: FileSystemDirectoryHandle | null = null;
     let profileDir: FileSystemDirectoryHandle | null = null;
     const updated = scenes.map(s => ({...s}));
+    let lastUpdate = Date.now();
 
     for (let si = 0; si < updated.length; si++) {
       if (cancelRef.current) break;
+      const sceneType = updated[si].sceneType ?? "";
+      // 시술/상담 장면은 프로필 검사 자체를 건너뜀
+      const skipProfile = PROFILE_EXCLUDE_TYPES.has(sceneType);
+
       for (let fi = 0; fi < updated[si].files.length; fi++) {
         if (cancelRef.current) break;
         const pf = updated[si].files[fi];
-        setProgress({ cur:done, total, msg:`분석: ${pf.name}` });
+
+        // 진행률 throttle: 20장 단위 또는 300ms마다
+        if (done % 20 === 0 || Date.now() - lastUpdate > 300) {
+          setProgress({ cur:done, total, msg:`분석: ${pf.name}` });
+          lastUpdate = Date.now();
+        }
+
         try {
           const file = await pf.handle.getFile();
 
@@ -878,16 +897,43 @@ export default function PhotoSortingPage() {
             }
           }
 
-          if (profileClassificationEnabled) {
+          if (profileClassificationEnabled && !skipProfile) {
             const score = await computePortraitScore(file);
-            if (score >= 0.58 && updated[si].sceneDir && rootDir) {
+            // 엄격한 임계값 0.80 — 애매한 사진은 기존 씬에 남김
+            const isProfileCandidate = score >= 0.80;
+            let movedTo = "";
+            let rejectReason = "";
+
+            if (isProfileCandidate && updated[si].sceneDir && rootDir) {
               if (!profileDir) profileDir = await (rootDir as any).getDirectoryHandle("PROFILE", { create:true }) as FileSystemDirectoryHandle;
               await copyFileHandle(pf.handle, profileDir, pf.name);
               try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch {}
-              profileRows.push([pf.name, updated[si].editedName, String(score.toFixed(2)), "PROFILE/"]);
+              movedTo = "PROFILE/";
               profileTotal++;
               updated[si].profileCount++;
+            } else if (!isProfileCandidate) {
+              rejectReason = score >= 0.65
+                ? `점수 미달(${score.toFixed(2)}) — 정지 포즈/정면 응시 불확실`
+                : `점수 미달(${score.toFixed(2)}) — 프로필 구도 아님`;
             }
+
+            profileRows.push([
+              pf.name,
+              updated[si].editedName,
+              score.toFixed(2),
+              isProfileCandidate ? "true" : "false",
+              "", "", "", "", "", "", "", "", "", "", "", "",
+              rejectReason || (isProfileCandidate ? "프로필 조건 충족" : ""),
+              movedTo,
+            ]);
+          } else if (profileClassificationEnabled && skipProfile) {
+            // 시술/상담 장면 — 프로필 제외 기록
+            profileRows.push([
+              pf.name, updated[si].editedName, "0.00", "false",
+              "", "", "", "", "", "", "", "", "", "", "", "",
+              `${sceneType} 장면이므로 프로필 제외`,
+              "",
+            ]);
           }
         } catch {}
         done++;
@@ -906,7 +952,39 @@ export default function PhotoSortingPage() {
       if (qualityRows.length > 0)
         await wr("quality_report.csv", makeCSV(["file_name","scene","reason","note"], qualityRows));
       if (profileRows.length > 0)
-        await wr("profile_report.csv", makeCSV(["file_name","original_scene","portrait_score","moved_to"], profileRows));
+        await wr("profile_report.csv", makeCSV([
+          "file_name","original_scene","profile_confidence","is_profile",
+          "main_person_count","has_patient","is_looking_at_camera","has_intentional_pose",
+          "has_tool","has_medical_device","has_handpiece","has_syringe",
+          "has_consultation_object","is_consultation","is_treatment","is_procedure",
+          "reason","moved_to",
+        ], profileRows));
+
+      // summary.json
+      const summary = {
+        mode: "field",
+        fastAnalyzeMode,
+        rawInitialMoveEnabled: !fastAnalyzeMode,
+        exifMode: fastAnalyzeMode ? "fast" : "precise",
+        thumbnailMode: "lazy",
+        profileStrictMode: true,
+        dermatologySecondPassEnhanced: department === "dermatology",
+        department,
+        departmentDisplayName: DEPARTMENT_DISPLAY[department],
+        gapMinutes,
+        departmentLogicEnabled,
+        aiNamingEnabled,
+        qualityAnalysisEnabled,
+        profileClassificationEnabled,
+        rawSelectMode,
+        totalJpg: total,
+        totalRaw: fieldRawCount,
+        totalScenes: updated.length,
+        totalProfile: profileTotal,
+        totalQualityReject: qualityRejectTotal,
+        createdAt: new Date().toISOString(),
+      };
+      await wr("summary.json", JSON.stringify(summary, null, 2));
     } catch {}
 
     setFieldStats({
