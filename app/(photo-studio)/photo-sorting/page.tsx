@@ -1396,6 +1396,33 @@ export default function PhotoSortingPage() {
     };
     return (
       <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:700}}>
+
+        {/* 이전 작업 복원 배너 */}
+        {savedSession && (
+          <div style={{background:"#EFF6FF",border:"1.5px solid #BFDBFE",borderRadius:12,padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:18}}>💾</span>
+              <div>
+                <div style={{fontSize:13,fontWeight:900,color:"#1D4ED8"}}>이전 작업이 저장되어 있습니다</div>
+                <div style={{fontSize:11,color:"#3B82F6",marginTop:2}}>
+                  {DEPARTMENT_DISPLAY[savedSession.department]} · {savedSession.rootDirName || "폴더"} · {savedSession.sceneSummary.length}개 씬 · {new Date(savedSession.savedAt).toLocaleDateString("ko-KR",{month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+                </div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>handleRestore(savedSession)} style={{flex:1,padding:"10px 0",background:"#1D4ED8",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}>
+                📂 폴더 선택 후 이어서 하기
+              </button>
+              <button onClick={clearSession} style={{padding:"10px 16px",background:"transparent",color:"#6B7280",border:"1px solid #D1D5DB",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                무시
+              </button>
+            </div>
+            <div style={{fontSize:10,color:"#93C5FD",lineHeight:1.6}}>
+              ※ 파일은 이미 폴더에 정리되어 있습니다. 같은 폴더를 다시 선택하면 {savedSession.step >= 4 ? "베스트컷 선택 단계" : savedSession.step >= 2 ? "씬 검토 단계" : ""}로 바로 이동합니다.
+            </div>
+          </div>
+        )}
+
         {/* 촬영 모드 선택 */}
         <Card>
           <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>촬영 모드</div>
