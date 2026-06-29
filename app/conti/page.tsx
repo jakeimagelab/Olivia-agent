@@ -2137,8 +2137,8 @@ ${header("타임테이블")}
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
-                        {["", "진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원 / 환자역할", "비고", ""].map((h, idx) => (
-                          <th key={idx} style={{ ...TH, ...(h === "" ? { width: 36, background: "#0e3f3c" } : {}) }}>{h}</th>
+                        {["", "진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원 / 환자역할", "비고", ""].map((h, idx, arr) => (
+                          <th key={idx} style={{ ...TH, ...(h === "" ? { width: idx === arr.length - 1 ? 72 : 36, background: "#0e3f3c" } : {}) }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
