@@ -1431,8 +1431,11 @@ export default function PhotoSortingPage() {
     const totalJpg = fieldScenes.reduce((s,sc)=>s+sc.fileCount,0);
     return (
       <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:860}}>
-        <div style={{padding:14,background:"#FEF3C7",borderRadius:10,fontSize:12,color:"#92400E",border:"1px solid #FCD34D"}}>
-          Scene 분류가 완료됐습니다. 이름을 확인·수정하고 <strong>확정</strong>을 눌러주세요.
+        <div style={{padding:14,background: fastAnalyzeMode ? "#EFF6FF" : "#FEF3C7",borderRadius:10,fontSize:12,color: fastAnalyzeMode ? "#1e40af" : "#92400E",border:`1px solid ${fastAnalyzeMode ? "#BFDBFE" : "#FCD34D"}`}}>
+          {fastAnalyzeMode
+            ? <><strong>⚡ 빠른 분석 완료</strong> — 파일이 이동되지 않았습니다. 씬 이름을 확인·수정하고 <strong>폴더 정리 실행</strong>을 눌러 실제로 파일을 이동하세요.</>
+            : <>Scene 분류가 완료됐습니다. 이름을 확인·수정하고 <strong>확정</strong>을 눌러주세요.</>
+          }
           {(aiNamingEnabled||departmentLogicEnabled)&&!allLoaded&&<span style={{marginLeft:8,color:C.teal}}>AI 분석 중...</span>}
         </div>
 
