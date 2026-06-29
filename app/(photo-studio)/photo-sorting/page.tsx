@@ -1504,11 +1504,14 @@ export default function PhotoSortingPage() {
 
   const FieldStep3 = () => (
     <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>분석 중...</div>
+      <div style={{fontSize:14,fontWeight:800,color:C.teal}}>
+        {fastAnalyzeMode ? "📁 폴더 정리 실행 중..." : "분석 중..."}
+      </div>
       <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
       <div style={{fontSize:11,color:C.hint,lineHeight:1.7}}>
+        {fastAnalyzeMode && "• RAW 이동 → JPG 씬 폴더 정리 중\n"}
         {qualityAnalysisEnabled && "• 흔들림·조명불량 분석 중\n"}
-        {profileClassificationEnabled && "• 프로필 자동 분류 중"}
+        {profileClassificationEnabled && "• 프로필 자동 분류 중 (엄격 모드)"}
       </div>
       <button onClick={()=>{cancelRef.current=true;}} style={{padding:"8px 16px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,fontSize:12,cursor:"pointer",color:C.muted,fontFamily:"inherit",alignSelf:"flex-start"}}>중단</button>
     </div>
