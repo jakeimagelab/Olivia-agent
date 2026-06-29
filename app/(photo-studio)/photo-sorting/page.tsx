@@ -2566,8 +2566,10 @@ export default function PhotoSortingPage() {
       </div>
 
       {step > 0 && (
-        <div style={{background:photoMode==="studio"?"#F5F0FF":C.light,padding:"6px 24px",fontSize:11,fontWeight:800,color:photoMode==="studio"?C.purple:C.teal,borderBottom:`1px solid ${photoMode==="studio"?"#DDD6FE":C.border}`}}>
-          {photoMode==="studio" ? "스튜디오 프로필촬영 모드" : `병원 현장촬영 — ${DEPARTMENT_DISPLAY[department]} — ${gapMinutes}분 간격`}
+        <div className="ps-mode-badge" style={{background:photoMode==="studio"?"#F5F0FF":C.light,color:photoMode==="studio"?C.purple:C.teal,borderBottom:`1px solid ${photoMode==="studio"?"#DDD6FE":C.border}`}}>
+          {photoMode==="studio"
+            ? (studioSubMode==="group" ? "스튜디오 · 여러명 모드" : "스튜디오 · 한명 모드")
+            : `현장촬영 — ${DEPARTMENT_DISPLAY[department]} — ${gapMinutes}분`}
         </div>
       )}
 
