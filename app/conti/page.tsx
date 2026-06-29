@@ -6,7 +6,7 @@ import OliviaChat from "@/components/OliviaChat";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import PageHeader from "@/components/PageHeader";
 import {
-  ArrowLeft, CheckSquare, ChevronDown, ClipboardList, Image as ImageIcon,
+  ArrowLeft, CheckSquare, ChevronDown, ClipboardList, Copy, Image as ImageIcon,
   Clock, Download, FileSpreadsheet, FileText, FileUp, GripVertical,
   Link2, Pencil, Plus, RotateCcw, Sparkles, Trash2, X, Zap
 } from "lucide-react";
