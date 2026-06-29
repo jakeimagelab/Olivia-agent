@@ -567,7 +567,9 @@ function BrandMailTab() {
                   </p>
                 </div>
                 {/* 푸터 */}
-                <div style={{ background: C.mint, padding: "10px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
+                <div style={{ background: C.mint, padding: "16px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
+                  <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 3 }}>사진으로 병원이야기를 전합니다, 포토클리닉</div>
                   <div style={{ fontSize: 9, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
                 </div>
               </div>
@@ -869,7 +871,9 @@ function CustomBrandMailTab() {
                     문의사항은 언제든지 연락 주세요. 감사합니다.<br/>포토클리닉 대표 정연호 드림.
                   </p>
                 </div>
-                <div style={{ background: C.mint, padding: "10px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
+                <div style={{ background: C.mint, padding: "16px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
+                  <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 3 }}>사진으로 병원이야기를 전합니다, 포토클리닉</div>
                   <div style={{ fontSize: 9, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
                 </div>
               </div>
