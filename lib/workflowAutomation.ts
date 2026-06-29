@@ -351,10 +351,10 @@ export async function maybeAdvanceWorkflow(db: SupabaseClient, workflowRunId: st
   const approvals = approvalsRes.data ?? [];
   const hasOpenTask = tasks.some((task) => ["pending", "running", "waiting_approval", "failed"].includes(task.status));
   const hasPendingApproval = approvals.some((approval) => approval.status === "pending" || approval.status === "revision_requested");
-  if (hasOpenTask || hasPendingApproval) return { advanced: false, reason: "open_items" };
+  if (hasOpenTask || hasPendingApproval) return { advanced: false as const, reason: "open_items" };
 
   const result = await advanceWorkflow(db, { workflow_run_id: workflowRunId, reason: "required tasks and approvals completed" });
-  return { advanced: true, result };
+  return { advanced: true as const, result };
 }
 
 export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
