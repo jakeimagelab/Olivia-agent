@@ -4,7 +4,7 @@ import Link from "next/link";
 import React, { FormEvent, useEffect, useRef, useState } from "react";
 import {
   Activity, BarChart2, ArrowRight, CalendarCheck, ClipboardList,
-  FileVideo, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
+  FileVideo, Film, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
   NotebookPen, ShieldCheck, Sparkles, Users, Wand2, Lightbulb,
   AlertCircle, CheckCircle2, Clock, RefreshCw, Calendar, Check,
   FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2, Bell,
@@ -510,6 +510,7 @@ const TOOLS_WORK: ToolDef[] = [
   {title:"통합 메일링",    desc:"견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.",                         href:"/mailing",         icon:Mail,          meta:"Unified Mailing",    orange:false},
   {title:"사진 작업실",    desc:"사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.",     href:"/photo-sorting",    icon:Wand2,        meta:"Photo Studio",       orange:false},
   {title:"업무 리포트",    desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",                             href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
+  {title:"영상 콘티 생성", desc:"홈페이지 분석과 BGM 분석으로 브랜드필름 씬 콘티를 자동 생성합니다.",                    href:"/video-conti",     icon:Film,          meta:"Video Conti",        orange:false},
 ];
 
 const TOOLS_CONTENT: ToolDef[] = [
@@ -538,6 +539,7 @@ const PIPELINE = [
   { n:9,  label:"최종전달",   href:"/mailing",          color:"#E85D2C" },
   { n:10, label:"후기",       href:"/review-studio",    color:"#059669" },
   { n:11, label:"콘텐츠",     href:"/sns-manager",      color:"#059669" },
+  { n:12, label:"영상콘티",   href:"/video-conti",      color:"#155855" },
 ];
 
 function WorkflowStrip() {
