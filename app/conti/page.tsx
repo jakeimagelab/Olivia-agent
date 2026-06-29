@@ -902,6 +902,14 @@ export default function ContiPage() {
       return { ...prev, conti: rows };
     });
 
+  const updateChecklistColor = (i: number, bg: string, text: string) =>
+    setResult(prev => {
+      if (!prev) return prev;
+      const rows = [...prev.checklist];
+      rows[i] = { ...rows[i], color: `${bg}|${text}` };
+      return { ...prev, checklist: rows };
+    });
+
   const updateChecklist = (i: number, field: keyof ChecklistRow, v: string) =>
     setResult(prev => {
       if (!prev) return prev;
