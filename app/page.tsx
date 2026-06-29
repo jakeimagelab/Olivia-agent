@@ -8,6 +8,7 @@ import {
   NotebookPen, ShieldCheck, Sparkles, Users, Wand2, Lightbulb,
   AlertCircle, CheckCircle2, Clock, RefreshCw, Calendar, Check,
   FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2, Bell,
+  ScanSearch,
 } from "lucide-react";
 
 /* ─── types ─────────────────────────────────────────────── */
