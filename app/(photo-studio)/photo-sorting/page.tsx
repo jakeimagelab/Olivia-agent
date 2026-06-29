@@ -635,7 +635,9 @@ export default function PhotoSortingPage() {
     catch (_) {}
   };
 
-  const stepLabels = photoMode === "studio" ? STUDIO_STEPS : FIELD_STEPS;
+  const stepLabels = photoMode === "studio"
+    ? (studioSubMode === "group" ? STUDIO_GROUP_STEPS : STUDIO_STEPS)
+    : FIELD_STEPS;
 
   /* ════════════════════════════════════════════
      FIELD-MODE HANDLERS
