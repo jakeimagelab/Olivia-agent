@@ -829,7 +829,6 @@ export default function PhotoSortingPage() {
           prev.hasTreatmentDevice, curr.hasTreatmentDevice,
         );
         if (isStrong && curr.confidence >= 0.72) {
-          // 2차 분리 후보 마킹 — needsReview 플래그로 UI에 표시
           const sceneIdx = keys[k];
           updated[sceneIdx] = {
             ...updated[sceneIdx],
@@ -838,6 +837,24 @@ export default function PhotoSortingPage() {
         }
       }
       setFieldScenes([...updated]);
+    }
+
+    // 병합/분리 후보 생성 (전 진료과 적용)
+    if (updated.length >= 2) {
+      const snapshots = updated.map(sc => ({
+        folderName: sc.folderName,
+        editedName: sc.editedName,
+        sceneType: sc.sceneType ?? "",
+        patientPosture: sc.aiPatientPosture,
+        hasHandpiece: sc.aiHasHandpiece,
+        hasTreatmentDevice: sc.aiHasTreatmentDevice,
+        hasTreatmentBed: sc.aiHasTreatmentBed,
+        hasConsultationDesk: sc.aiHasConsultationDesk,
+      }));
+      const candidates = buildMergeCandidates(snapshots, department);
+      setMergeCandidates(candidates);
+      setDismissedCandidates(new Set());
+      setMergeDecisions([]);
     }
   };
 
