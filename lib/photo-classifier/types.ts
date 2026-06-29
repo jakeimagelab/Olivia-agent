@@ -66,6 +66,33 @@ export type SceneType =
   | PlasticSurgerySceneType
   | "unknown";
 
+export type PatientPosture = "seated" | "lying_down" | "standing" | "unclear";
+
+export type RawIndexItem = {
+  basename: string;
+  fileName: string;
+  extension: string;
+  handle: FileSystemFileHandle;
+};
+
+export type ProfileDetectionResult = {
+  isProfile: boolean;
+  confidence: number;
+  mainPersonCount: number;
+  hasPatient: boolean;
+  isLookingAtCamera: boolean;
+  hasIntentionalPose: boolean;
+  hasTool: boolean;
+  hasMedicalDevice: boolean;
+  hasHandpiece: boolean;
+  hasSyringe: boolean;
+  hasConsultationObject: boolean;
+  isConsultation: boolean;
+  isTreatment: boolean;
+  isProcedure: boolean;
+  reason: string;
+};
+
 export type PhotoSceneAnalysisResult = {
   department: MedicalDepartment;
   sceneId: string;
@@ -77,6 +104,12 @@ export type PhotoSceneAnalysisResult = {
   negativeCues: string[];
   reason: string;
   needsReview: boolean;
+  // 피부과 2차 분리용 추가 필드
+  patientPosture?: PatientPosture;
+  hasTreatmentDevice?: boolean;
+  hasHandpiece?: boolean;
+  hasTreatmentBed?: boolean;
+  hasConsultationDesk?: boolean;
 };
 
 export interface DepartmentSceneRule {
