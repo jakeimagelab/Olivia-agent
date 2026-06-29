@@ -1492,7 +1492,7 @@ export default function PhotoSortingPage() {
         <div style={{display:"flex",gap:10}}>
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
           <Btn onClick={handleConfirmScenes} disabled={!allLoaded}>
-            {allLoaded ? "✅ 확정 →" : "AI 분석 중..."}
+            {!allLoaded ? "AI 분석 중..." : fastAnalyzeMode ? "📁 폴더 정리 실행 →" : "✅ 확정 →"}
           </Btn>
         </div>
       </div>
