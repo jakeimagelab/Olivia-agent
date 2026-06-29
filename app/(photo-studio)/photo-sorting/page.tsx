@@ -1430,8 +1430,12 @@ export default function PhotoSortingPage() {
     setStudioFiles(files);
     setProgress({ cur:total, total, msg:`파일 분류 완료 — JPG ${jpgFiles.length}장 / RAW ${rawFiles.length}개` });
     setStep(2);
-    await runStudioAnalysis(files);
-  }, [rootDir, studioOpts]);
+    if (studioSubMode === "group") {
+      await runGroupAnalysis(files);
+    } else {
+      await runStudioAnalysis(files);
+    }
+  }, [rootDir, studioOpts, studioSubMode]);
 
   const runStudioAnalysis = async (files: StudioPhotoFile[]) => {
     const total = files.length; let done = 0;
