@@ -707,11 +707,26 @@ export default function PhotoSortingPage() {
   };
 
   const mergeFieldScenes = useCallback(async (i: number, j: number) => {
-    if (!fieldJpgBaseDir) return;
     const si = fieldScenes[i];
     const sj = fieldScenes[j];
-    if (!si.sceneDir || !sj.sceneDir) return;
-    // 물리적으로 파일 이동
+
+    if (fastAnalyzeMode) {
+      // 빠른 분석 모드: 메모리상 파일 배열만 합침 (파일 이동 없음)
+      setFieldScenes(prev => {
+        const copy = [...prev];
+        copy[i] = {
+          ...si,
+          files: [...si.files, ...sj.files],
+          fileCount: si.fileCount + sj.fileCount,
+          endTime: sj.endTime,
+        };
+        return copy.filter((_, idx) => idx !== j);
+      });
+      return;
+    }
+
+    // 정밀 정리 모드: 실제 파일 이동
+    if (!fieldJpgBaseDir || !si.sceneDir || !sj.sceneDir) return;
     for (const f of sj.files) {
       try {
         await copyFileHandle(f.handle, si.sceneDir as FileSystemDirectoryHandle, f.name);
@@ -729,7 +744,7 @@ export default function PhotoSortingPage() {
       };
       return copy.filter((_, idx) => idx !== j);
     });
-  }, [fieldScenes, fieldJpgBaseDir]);
+  }, [fieldScenes, fieldJpgBaseDir, fastAnalyzeMode]);
 
   const handleConfirmScenes = useCallback(async () => {
     if (!rootDir) return;
