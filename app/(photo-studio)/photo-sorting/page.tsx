@@ -732,8 +732,86 @@ export default function PhotoSortingPage() {
   }, [fieldScenes, fieldJpgBaseDir]);
 
   const handleConfirmScenes = useCallback(async () => {
+    if (!rootDir) return;
+    setStep(3);
+    let lastUpdate = Date.now();
+
+    if (fastAnalyzeMode) {
+      // 빠른 분석 모드: 씬 검토 확정 후 실제 파일 이동 실행
+      setProgress({ cur:0, total:0, msg:"폴더 정리 중..." });
+      const totalFiles = fieldScenes.reduce((s,sc)=>s+sc.fileCount,0);
+      let done = 0;
+
+      // RAW → RAW/
+      const rawBase = await (rootDir as any).getDirectoryHandle("RAW", { create:true }) as FileSystemDirectoryHandle;
+      setFieldRawBaseDir(rawBase);
+      for (let i = 0; i < fieldRawHandles.length; i++) {
+        if (cancelRef.current) break;
+        if (i % 10 === 0 || Date.now() - lastUpdate > 300) {
+          setProgress({ cur:i, total:fieldRawHandles.length, msg:`RAW 이동: ${fieldRawHandles[i].name}` });
+          lastUpdate = Date.now();
+        }
+        try {
+          await copyFileHandle(fieldRawHandles[i].handle, rawBase, fieldRawHandles[i].name);
+          try { await (rootDir as any).removeEntry(fieldRawHandles[i].name); } catch {}
+        } catch {}
+      }
+
+      // JPG → 씬별 폴더로 이동
+      const jpgBase = await (rootDir as any).getDirectoryHandle("JPG", { create:true }) as FileSystemDirectoryHandle;
+      setFieldJpgBaseDir(jpgBase);
+      try {
+        const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create:true });
+        await (selectDir as any).getDirectoryHandle("JPG_SELECT", { create:true });
+      } catch {}
+
+      const updated = fieldScenes.map(sc => ({...sc}));
+      for (let si = 0; si < updated.length; si++) {
+        if (cancelRef.current) break;
+        const sc = updated[si];
+        const targetName = sc.editedName;
+        const sceneDir = await (jpgBase as any).getDirectoryHandle(targetName, { create:true }) as FileSystemDirectoryHandle;
+        const newFiles: SceneFile[] = [];
+
+        for (const entry of sc.files) {
+          if (cancelRef.current) break;
+          if (done % 20 === 0 || Date.now() - lastUpdate > 300) {
+            setProgress({ cur:done, total:totalFiles, msg:`${targetName}: ${entry.name}` });
+            lastUpdate = Date.now();
+          }
+          try {
+            await copyFileHandle(entry.handle, sceneDir, entry.name);
+            const destHandle = await (sceneDir as any).getFileHandle(entry.name) as FileSystemFileHandle;
+            try { await (rootDir as any).removeEntry(entry.name); } catch {}
+            // 썸네일 lazy: 앞 4장만
+            let thumbUrl: string | null = null;
+            if (newFiles.length < 4) thumbUrl = await loadThumb(await destHandle.getFile(), 120);
+            newFiles.push({ ...entry, handle: destHandle, thumbUrl });
+          } catch {
+            newFiles.push(entry);
+          }
+          done++;
+        }
+        updated[si] = { ...sc, folderName: targetName, sceneDir, files: newFiles };
+      }
+      setFieldScenes(updated);
+
+      if (qualityAnalysisEnabled || profileClassificationEnabled) {
+        await runSecondaryAnalysis(updated);
+      } else {
+        setFieldStats({
+          totalJpg: totalFiles, totalRaw: fieldRawCount,
+          totalScenes: updated.length, totalSubScenes: 0,
+          totalProfile: 0, totalQualityReject: 0,
+          selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
+        });
+        setStep(4);
+      }
+      return;
+    }
+
+    // 정밀 정리 모드: 폴더 이름 변경만 적용
     if (!fieldJpgBaseDir) return;
-    // 이름 변경 적용
     const updated = [...fieldScenes];
     for (let i = 0; i < updated.length; i++) {
       const sc = updated[i];
@@ -751,7 +829,6 @@ export default function PhotoSortingPage() {
     setFieldScenes(updated);
 
     if (qualityAnalysisEnabled || profileClassificationEnabled) {
-      setStep(3);
       await runSecondaryAnalysis(updated);
     } else {
       setStep(4);
@@ -763,7 +840,7 @@ export default function PhotoSortingPage() {
         selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
       });
     }
-  }, [fieldScenes, fieldJpgBaseDir, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount]);
+  }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir]);
 
   const runSecondaryAnalysis = async (scenes: FieldScene[]) => {
     const total = scenes.reduce((s,sc)=>s+sc.fileCount,0);
