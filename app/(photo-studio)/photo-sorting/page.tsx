@@ -1660,48 +1660,173 @@ export default function PhotoSortingPage() {
             씬 검토 — JPG {totalJpg}장 / RAW {fieldRawCount}개 / {DEPARTMENT_DISPLAY[department]}
           </div>
           <div style={{padding:"8px 0"}}>
-            {fieldScenes.map((sc,i)=>(
-              <div key={i} style={{borderBottom:i<fieldScenes.length-1?`1px solid ${C.border}`:"none",padding:"12px 20px"}}>
-                <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"100px auto 1fr auto",gap:12,alignItems:"start"}}>
-                  {/* 썸네일 */}
-                  <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-                    {sc.files.slice(0,3).map((f,fi)=>f.thumbUrl
-                      ?<img key={fi} src={f.thumbUrl} style={{width:30,height:22,objectFit:"cover",borderRadius:3}} alt=""/>
-                      :<div key={fi} style={{width:30,height:22,background:C.border,borderRadius:3}}/>
-                    )}
-                  </div>
-                  {/* 정보 */}
-                  <div style={{fontSize:10,color:C.hint,fontFamily:"monospace",whiteSpace:"nowrap"}}>
-                    {sc.fileCount}장<br/>
-                    {formatTime(sc.startTime)}<br/>
-                    {formatTime(sc.endTime)}
-                  </div>
-                  {/* 이름 편집 */}
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    {sc.nameLoading
-                      ? <div style={{height:34,display:"flex",alignItems:"center",fontSize:12,color:C.hint}}>AI 분석 중...</div>
-                      : <input value={sc.editedName} onChange={e=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:e.target.value}:s))} style={{width:"100%",height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
-                    }
-                    {sc.suggestedName && !sc.nameLoading && (
-                      <div style={{fontSize:10,color:C.muted}}>
-                        추천: <button onClick={()=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:sc.suggestedName!}:s))} style={{border:"none",background:"none",cursor:"pointer",color:C.teal,fontSize:10,fontFamily:"inherit",fontWeight:800}}>{sc.suggestedName}</button>
-                        {sc.aiConfidence&&<span style={{marginLeft:4,color:C.hint}}>{Math.round(sc.aiConfidence*100)}%</span>}
+            {fieldScenes.map((sc,i)=>{
+              const nextSc = fieldScenes[i+1];
+              // candidate between scene[i] and scene[i+1]
+              const candidate = nextSc
+                ? mergeCandidates.find(c =>
+                    c.fromFolderName === sc.folderName &&
+                    c.toFolderName === nextSc.folderName &&
+                    !dismissedCandidates.has(c.id)
+                  )
+                : undefined;
+
+              const dismissCandidate = (cid: string, action: "keep_split") => {
+                const cand = mergeCandidates.find(c => c.id === cid);
+                if (cand) {
+                  setMergeDecisions(prev => [...prev, {
+                    candidateId: cand.id, userAction: action,
+                    fromFolderName: cand.fromFolderName, toFolderName: cand.toFolderName,
+                    fromSceneType: cand.fromSceneType, toSceneType: cand.toSceneType,
+                    mergeScore: cand.mergeScore, matchedSignals: cand.matchedSignals,
+                    blockedSignals: cand.blockedSignals, recommendedAction: cand.recommendedAction,
+                  }]);
+                }
+                setDismissedCandidates(prev => new Set([...prev, cid]));
+              };
+
+              return (
+                <div key={i}>
+                  {/* Scene card */}
+                  <div style={{borderBottom:`1px solid ${C.border}`,padding:"12px 20px"}}>
+                    <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"100px auto 1fr auto",gap:12,alignItems:"start"}}>
+                      {/* 썸네일 */}
+                      <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                        {sc.files.slice(0,3).map((f,fi)=>f.thumbUrl
+                          ?<img key={fi} src={f.thumbUrl} style={{width:30,height:22,objectFit:"cover",borderRadius:3}} alt=""/>
+                          :<div key={fi} style={{width:30,height:22,background:C.border,borderRadius:3}}/>
+                        )}
                       </div>
-                    )}
-                    {sc.sceneType && !sc.nameLoading && (
-                      <div style={{fontSize:9,background:C.light,color:C.teal,display:"inline-block",padding:"1px 8px",borderRadius:4,width:"fit-content"}}>
-                        {sc.sceneType}{sc.aiReason&&<span style={{color:C.muted,marginLeft:4}}>{sc.aiReason}</span>}
+                      {/* 정보 */}
+                      <div style={{fontSize:10,color:C.hint,fontFamily:"monospace",whiteSpace:"nowrap"}}>
+                        {sc.fileCount}장<br/>
+                        {formatTime(sc.startTime)}<br/>
+                        {formatTime(sc.endTime)}
                       </div>
-                    )}
+                      {/* 이름 편집 */}
+                      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                        {sc.nameLoading
+                          ? <div style={{height:34,display:"flex",alignItems:"center",fontSize:12,color:C.hint}}>AI 분석 중...</div>
+                          : <input value={sc.editedName} onChange={e=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:e.target.value}:s))} style={{width:"100%",height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+                        }
+                        {sc.suggestedName && !sc.nameLoading && (
+                          <div style={{fontSize:10,color:C.muted}}>
+                            추천: <button onClick={()=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:sc.suggestedName!}:s))} style={{border:"none",background:"none",cursor:"pointer",color:C.teal,fontSize:10,fontFamily:"inherit",fontWeight:800}}>{sc.suggestedName}</button>
+                            {sc.aiConfidence&&<span style={{marginLeft:4,color:C.hint}}>{Math.round(sc.aiConfidence*100)}%</span>}
+                          </div>
+                        )}
+                        {sc.sceneType && !sc.nameLoading && (
+                          <div style={{fontSize:9,background:C.light,color:C.teal,display:"inline-block",padding:"1px 8px",borderRadius:4,width:"fit-content"}}>
+                            {sc.sceneType}{sc.aiReason&&<span style={{color:C.muted,marginLeft:4}}>{sc.aiReason}</span>}
+                          </div>
+                        )}
+                      </div>
+                      {/* 합치기 버튼 */}
+                      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                        {i > 0 && <button onClick={()=>mergeFieldScenes(i-1,i)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↑ 합치기</button>}
+                        {i < fieldScenes.length-1 && <button onClick={()=>mergeFieldScenes(i,i+1)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↓ 합치기</button>}
+                      </div>
+                    </div>
                   </div>
-                  {/* 합치기 버튼 */}
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    {i > 0 && <button onClick={()=>mergeFieldScenes(i-1,i)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↑ 합치기</button>}
-                    {i < fieldScenes.length-1 && <button onClick={()=>mergeFieldScenes(i,i+1)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↓ 합치기</button>}
-                  </div>
+
+                  {/* Candidate card between scene[i] and scene[i+1] */}
+                  {candidate && (
+                    <div style={{
+                      margin:"0 12px",
+                      padding:"10px 14px",
+                      borderRadius:8,
+                      border: candidate.recommendedAction === "merge"
+                        ? "1.5px solid #BFDBFE"
+                        : "1.5px solid #FED7AA",
+                      background: candidate.recommendedAction === "merge"
+                        ? "#EFF6FF"
+                        : "#FFF7ED",
+                      display:"flex",flexDirection:"column",gap:6,
+                    }}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"space-between"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontSize:13}}>
+                            {candidate.recommendedAction === "merge" ? "🔗" : "✂️"}
+                          </span>
+                          <span style={{fontSize:11,fontWeight:900,
+                            color: candidate.recommendedAction === "merge" ? "#1D4ED8" : "#C2410C",
+                          }}>
+                            {candidate.recommendedAction === "merge" ? "병합 후보" : "분리 유지 추천"}
+                          </span>
+                          {candidate.recommendedAction === "merge" && (
+                            <span style={{fontSize:10,color:"#3B82F6",background:"#DBEAFE",borderRadius:4,padding:"1px 6px"}}>
+                              유사도 {Math.round(candidate.mergeScore * 100)}%
+                            </span>
+                          )}
+                          {candidate.recommendedAction === "keep_split" && (
+                            <span style={{fontSize:10,color:"#C2410C",background:"#FFEDD5",borderRadius:4,padding:"1px 6px"}}>
+                              전환 강도 {Math.round(candidate.transitionStrength * 100)}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{fontSize:10,
+                        color: candidate.recommendedAction === "merge" ? "#1E40AF" : "#9A3412",
+                        lineHeight:1.6,
+                      }}>
+                        {candidate.reason}
+                      </div>
+
+                      {candidate.matchedSignals.length > 0 && candidate.recommendedAction === "merge" && (
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                          {candidate.matchedSignals.map((s,si)=>(
+                            <span key={si} style={{fontSize:9,background:"#DBEAFE",color:"#1E40AF",borderRadius:4,padding:"1px 6px"}}>{s}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {candidate.blockedSignals.length > 0 && candidate.recommendedAction === "keep_split" && (
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                          {candidate.blockedSignals.slice(0,3).map((s,si)=>(
+                            <span key={si} style={{fontSize:9,background:"#FFEDD5",color:"#9A3412",borderRadius:4,padding:"1px 6px"}}>{s}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{display:"flex",gap:6,marginTop:2}}>
+                        {candidate.recommendedAction === "merge" ? (
+                          <>
+                            <button
+                              onClick={()=>mergeFieldScenes(i,i+1,candidate.id)}
+                              style={{padding:"5px 12px",background:"#1D4ED8",color:"#fff",border:"none",borderRadius:6,fontSize:10,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}
+                            >
+                              병합하기
+                            </button>
+                            <button
+                              onClick={()=>dismissCandidate(candidate.id,"keep_split")}
+                              style={{padding:"5px 12px",background:"transparent",color:"#6B7280",border:"1px solid #D1D5DB",borderRadius:6,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+                            >
+                              분리 유지
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={()=>dismissCandidate(candidate.id,"keep_split")}
+                              style={{padding:"5px 12px",background:"#EA580C",color:"#fff",border:"none",borderRadius:6,fontSize:10,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}
+                            >
+                              분리 유지
+                            </button>
+                            <button
+                              onClick={()=>mergeFieldScenes(i,i+1,candidate.id)}
+                              style={{padding:"5px 12px",background:"transparent",color:"#6B7280",border:"1px solid #D1D5DB",borderRadius:6,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}
+                            >
+                              병합하기
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
 
