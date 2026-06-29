@@ -106,8 +106,10 @@ export async function POST(req: NextRequest) {
       </td></tr>
 
       <!-- 푸터 -->
-      <tr><td style="background:#EAF4F2;border-radius:0 0 16px 16px;padding:16px 32px;
+      <tr><td style="background:#EAF4F2;border-radius:0 0 16px 16px;padding:20px 32px;
                       border:1px solid #C8DDD9;border-top:none;text-align:center;">
+        <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style="height:30px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto;" />
+        <div style="font-size:12px;font-weight:700;color:#155855;margin-bottom:5px;">사진으로 병원이야기를 전합니다, 포토클리닉</div>
         <div style="font-size:10px;color:#7C9893;line-height:1.7;">PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
       </td></tr>
 
