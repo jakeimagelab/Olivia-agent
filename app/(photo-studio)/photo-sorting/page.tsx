@@ -2575,7 +2575,7 @@ export default function PhotoSortingPage() {
 
       <div style={{background:C.bg,minHeight:"100vh",color:C.txt}}>
         {renderStepIndicator()}
-        <div style={{maxWidth:960,margin:"0 auto",padding:"28px 20px 80px"}}>
+        <div className="ps-wrap" style={{maxWidth:960,margin:"0 auto"}}>
           {step===0 && <Step0/>}
 
           {photoMode==="field" && step===1 && <FieldStep1/>}
