@@ -2513,8 +2513,9 @@ export default function PhotoSortingPage() {
 
   const StudioStep6 = () => {
     if (!studioStats) return null;
+    const isGroup = studioSubMode === "group";
     const rows = [
-      {label:"의상·포즈 그룹",value:studioStats.totalGroups,color:C.purple},
+      {label: isGroup ? "인물 그룹" : "의상·포즈 그룹", value:studioStats.totalGroups, color:C.purple},
       {label:"정상 JPG",value:studioStats.totalNormal,color:C.teal},
       {label:"ETC 분리",value:studioStats.totalEtc,color:C.red},
       {label:"원본 RAW",value:studioStats.totalRaw,color:C.muted},
