@@ -1779,7 +1779,7 @@ export default function PhotoSortingPage() {
           </div>
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["scene","folder_name","file_count","start_time","end_time","scene_type"],fieldScenes.map(sc=>[String(sc.index),sc.editedName,String(sc.fileCount),new Date(sc.startTime).toISOString(),new Date(sc.endTime).toISOString(),sc.sceneType??""])),"scene_report.csv")}>↓ 씬 리포트 CSV</Btn>
-            <Btn onClick={()=>{setStep(0);setFieldScenes([]);setRootDir(null);setFieldRawCount(0);setCopyLog([]);setFieldStats(null);}}>처음으로</Btn>
+            <Btn onClick={()=>{clearSession();setStep(0);setFieldScenes([]);setRootDir(null);setFieldRawCount(0);setCopyLog([]);setFieldStats(null);}}>처음으로</Btn>
           </div>
         </div>
       </Card>
