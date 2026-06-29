@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 
@@ -697,7 +697,7 @@ function Step4({
 }
 
 /* ─── Main Page ──────────────────────────────────────────── */
-export default function VideoContiPage() {
+function VideoContiInner() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState(1);
   const [videoContiId, setVideoContiId] = useState<string | null>(null);
@@ -768,5 +768,13 @@ export default function VideoContiPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function VideoContiPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#9BB5B0" }}>로딩 중...</div>}>
+      <VideoContiInner />
+    </Suspense>
   );
 }
