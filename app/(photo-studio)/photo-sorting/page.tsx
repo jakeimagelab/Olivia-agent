@@ -1577,7 +1577,7 @@ export default function PhotoSortingPage() {
 
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
           <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
-          <Btn variant="secondary" onClick={()=>window.open("bridge://")}>Bridge 열기</Btn>
+          <Btn variant="secondary" onClick={()=>{ const a=document.createElement("a"); a.href="bridge://"; a.click(); }}>Bridge 열기</Btn>
           <Btn onClick={runRawSelect}>RAW SELECT 시작 →</Btn>
         </div>
       </div>
