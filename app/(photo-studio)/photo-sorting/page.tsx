@@ -2418,7 +2418,7 @@ export default function PhotoSortingPage() {
             </button>
           ))}
         </div>
-        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+        <div className="ps-stat4">
           {[{label:"인물 수",value:normalGroups.length,color:C.purple},{label:"전체 JPG",value:normalGroups.reduce((s,g)=>s+g.files.length,0),color:C.txt},{label:"ETC",value:etcGroup?.files.length??0,color:C.red},{label:"RAW 파일",value:studioRawCount,color:C.muted}].map(({label,value,color})=>(
             <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
               <div style={{fontSize:22,fontWeight:900,color}}>{value}</div>
@@ -2468,7 +2468,7 @@ export default function PhotoSortingPage() {
             </button>
           ))}
         </div>
-        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+        <div className="ps-stat4">
           {[{label:"전체 그룹",value:normalGroups.length,color:C.purple},{label:"전체 JPG",value:normalGroups.reduce((s,g)=>s+g.files.length,0),color:C.txt},{label:"ETC",value:etcGroup?.files.length??0,color:C.red},{label:"RAW 파일",value:studioRawCount,color:C.muted}].map(({label,value,color})=>(
             <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
               <div style={{fontSize:22,fontWeight:900,color}}>{value}</div>
