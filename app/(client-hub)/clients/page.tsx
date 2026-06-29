@@ -25,6 +25,7 @@ const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = 
   original_delivery: { icon: "📦", desc: "원본 파일 NAS 링크 생성 및 발송",          href: "/original-delivery" },
   retouching:        { icon: "🎨", desc: "색감 보정 및 보정 가이드 작성",             href: "/photo-retouching" },
   revision:          { icon: "🔄", desc: "수정 요청 접수 및 알람 발송",               href: "/mailing" },
+  seo_delivery:      { icon: "🔍", desc: "SEO 파일명·ALT·캡션·메타데이터 자동 생성", href: "/seo-delivery" },
   final_delivery:    { icon: "🚀", desc: "최종 파일 + 후기 요청 메일 발송",           href: "/delivery-mail" },
   review_content:    { icon: "⭐", desc: "후기 텍스트 → SNS 콘텐츠 자동 변환",       href: "/review-studio" },
   reward:            { icon: "🎁", desc: "PER 포인트 자동 산출 및 적립",              href: "/per" },

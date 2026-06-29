@@ -8,7 +8,7 @@ import {
   NotebookPen, ShieldCheck, Sparkles, Users, Wand2, Lightbulb,
   AlertCircle, CheckCircle2, Clock, RefreshCw, Calendar, Check,
   FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2, Bell,
-  ScanSearch,
+  ScanSearch, Search,
 } from "lucide-react";
 
 /* ─── types ─────────────────────────────────────────────── */
@@ -510,6 +510,7 @@ const TOOLS_WORK: ToolDef[] = [
   {title:"통합 메일링",    desc:"견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.",                         href:"/mailing",         icon:Mail,          meta:"Unified Mailing",    orange:false},
   {title:"사진 작업실",    desc:"사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.",     href:"/photo-sorting",    icon:Wand2,        meta:"Photo Studio",       orange:false},
   {title:"업무 리포트",    desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",                             href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
+  {title:"AI 검색 최적화", desc:"납품 사진의 SEO 파일명·ALT·캡션·메타데이터를 자동 생성합니다.",                        href:"/seo-delivery",    icon:Search,        meta:"SEO Delivery",       orange:true },
 ];
 
 const TOOLS_CONTENT: ToolDef[] = [
