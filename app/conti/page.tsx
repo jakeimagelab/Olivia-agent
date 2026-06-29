@@ -924,6 +924,12 @@ export default function ContiPage() {
   } : prev);
 
   const delContiRow = (i: number) => setResult(prev => prev ? { ...prev, conti: prev.conti.filter((_, idx) => idx !== i) } : prev);
+  const dupContiRow = (i: number) => setResult(prev => {
+    if (!prev) return prev;
+    const newConti = [...prev.conti];
+    newConti.splice(i + 1, 0, { ...prev.conti[i] });
+    return { ...prev, conti: newConti };
+  });
 
   const moveContiRow = (from: number, to: number) => setResult(prev => {
     if (!prev) return prev;
