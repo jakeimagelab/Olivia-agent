@@ -881,7 +881,7 @@ export default function SelectMatchPage() {
           <div style={{ pointerEvents: "all", background: C.teal, color: "white", borderRadius: 12, padding: "12px 28px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 20px rgba(21,88,85,.35)" }}>
             <span style={{ fontSize: 13, fontWeight: 700 }}>{selected.size}장 선택됨</span>
             <button
-              onClick={runPreflight}
+              onClick={() => runPreflight()}
               style={{ padding: "7px 18px", background: "rgba(255,255,255,.2)", border: "1px solid rgba(255,255,255,.4)", borderRadius: 8, color: "white", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
             >RAW 매칭 확인 →</button>
           </div>
