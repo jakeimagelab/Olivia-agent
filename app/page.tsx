@@ -904,63 +904,107 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
     return ()=>window.removeEventListener("resize",check);
   },[]);
 
-  /* ── MOBILE LAYOUT ── */
+  /* ── MOBILE LAYOUT — iOS 26 Liquid Glass ── */
   if(isMobile) return(
-    <main style={{minHeight:"100vh",background:"#f5f5f7",overflowX:"hidden",maxWidth:"100vw"}}>
+    <main style={{
+      minHeight:"100vh", overflowX:"hidden", maxWidth:"100vw",
+      /* Mesh gradient background — iOS 26 signature */
+      background:[
+        "radial-gradient(ellipse 130% 55% at 15% 0%, rgba(21,88,85,.13) 0%, transparent 55%)",
+        "radial-gradient(ellipse 90% 60% at 88% 95%, rgba(235,143,34,.1) 0%, transparent 50%)",
+        "radial-gradient(ellipse 110% 70% at 55% 48%, rgba(86,155,140,.07) 0%, transparent 55%)",
+        "#f0f4f2",
+      ].join(","),
+    }}>
 
-      {/* Mobile sticky header */}
+      {/* ── Liquid Glass sticky header ── */}
       <header style={{
-        position:"sticky",top:0,zIndex:200,height:52,
-        background:"rgba(250,247,242,.97)",backdropFilter:"blur(16px)",
-        borderBottom:"1px solid rgba(21,88,85,.08)",
+        position:"sticky",top:0,zIndex:200,height:54,
+        background:"rgba(240,244,242,.78)",
+        backdropFilter:"blur(24px) saturate(1.8)",
+        WebkitBackdropFilter:"blur(24px) saturate(1.8)" as any,
+        borderBottom:"1px solid rgba(255,255,255,.65)",
         display:"flex",alignItems:"center",justifyContent:"space-between",
-        padding:"0 16px",
-        boxShadow:"0 1px 8px rgba(21,88,85,.06)",
+        padding:"0 18px",
+        boxShadow:"0 1px 0 rgba(21,88,85,.07), 0 4px 20px rgba(0,0,0,.04)",
       }}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{height:24}}/>
-          <span style={{fontSize:11,fontWeight:700,color:"rgba(21,88,85,.5)",letterSpacing:".06em"}}>AI 관리자</span>
+          <div style={{width:1,height:14,background:"rgba(21,88,85,.18)"}}/>
+          <span style={{fontSize:11,fontWeight:700,color:"rgba(21,88,85,.52)",letterSpacing:".06em"}}>AI 관리자</span>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:6}}>
-          <button onClick={()=>load(true)} disabled={refreshing}
-            style={{width:32,height:32,border:"1px solid rgba(21,88,85,.14)",borderRadius:10,background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#155855",boxShadow:"0 1px 4px rgba(21,88,85,.06)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:7}}>
+          <button onClick={()=>load(true)} disabled={refreshing} style={{
+            width:34,height:34,
+            border:"1px solid rgba(255,255,255,.75)",borderRadius:10,
+            background:"rgba(255,255,255,.55)",backdropFilter:"blur(8px)",
+            cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+            color:"#155855",boxShadow:"0 2px 8px rgba(0,0,0,.07)",
+          }}>
             <RefreshCw size={13} style={{animation:refreshing?"spin 1s linear infinite":"none"}}/>
           </button>
-          <button onClick={onLogout} style={{height:32,padding:"0 12px",border:"1px solid rgba(21,88,85,.14)",borderRadius:10,background:"#fff",color:"#5A7470",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:4,boxShadow:"0 1px 4px rgba(21,88,85,.06)"}}>
+          <button onClick={onLogout} style={{
+            height:34,padding:"0 13px",
+            border:"1px solid rgba(255,255,255,.75)",borderRadius:10,
+            background:"rgba(255,255,255,.55)",backdropFilter:"blur(8px)",
+            color:"#4A6E6A",fontSize:12,fontWeight:700,
+            display:"flex",alignItems:"center",gap:4,cursor:"pointer",
+            boxShadow:"0 2px 8px rgba(0,0,0,.07)",
+          }}>
             <LogOut size={12}/>로그아웃
           </button>
         </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </header>
 
-      {/* Mobile tab switcher */}
-      <div style={{
-        display:"flex",background:"#fff",borderBottom:"1px solid rgba(21,88,85,.08)",
-        position:"sticky",top:50,zIndex:100,
-        boxShadow:"0 1px 6px rgba(21,88,85,.05)",
-      }}>
-        {([["home","대시보드"],["apps","도구 목록"]] as const).map(([id,label])=>(
-          <button key={id} onClick={()=>setMobileTab(id)} style={{
-            flex:1,height:42,border:"none",
-            background:mobileTab===id?"rgba(21,88,85,.04)":"none",
-            borderBottom:`2.5px solid ${mobileTab===id?"#155855":"transparent"}`,
-            color:mobileTab===id?"#155855":"#9BB5B0",
-            fontSize:13,fontWeight:mobileTab===id?900:600,
-            cursor:"pointer",fontFamily:"inherit",transition:"all .15s",
-          }}>{label}</button>
-        ))}
-      </div>
-
-      {/* Mobile content area */}
-      <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
+      {/* ── Scrollable content ── */}
+      <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch",paddingBottom:100}}>
         {mobileTab==="home" && (
-          <div style={{padding:"14px 14px 100px"}}>
+          <div style={{padding:"16px 14px"}}>
             <DashboardPanel data={data} loading={loading} onRefresh={()=>load(true)}/>
           </div>
         )}
         {mobileTab==="apps" && (
           <MobileToolGrid onAppOpen={t=>setActiveApp(t)}/>
         )}
+      </div>
+
+      {/* ── iOS 26 floating bottom tab pill ── */}
+      <div style={{
+        position:"fixed",bottom:20,left:"50%",transform:"translateX(-50%)",
+        display:"flex",alignItems:"center",
+        background:"rgba(255,255,255,.82)",
+        backdropFilter:"blur(28px) saturate(2)",
+        WebkitBackdropFilter:"blur(28px) saturate(2)" as any,
+        borderRadius:99,
+        border:"1px solid rgba(255,255,255,.9)",
+        boxShadow:"0 8px 36px rgba(0,0,0,.16), 0 1px 0 rgba(255,255,255,.85) inset",
+        padding:"5px 6px",zIndex:300,
+        gap:4,
+      }}>
+        {([
+          ["home","🏠","대시보드"],
+          ["apps","✦","도구"],
+        ] as const).map(([id,icon,label])=>(
+          <button key={id} onClick={()=>setMobileTab(id)} style={{
+            display:"flex",alignItems:"center",gap:6,
+            padding: mobileTab===id ? "10px 22px" : "10px 18px",
+            borderRadius:99,
+            background: mobileTab===id
+              ? "linear-gradient(135deg,#155855 0%,#1a8070 100%)"
+              : "transparent",
+            border:"none",cursor:"pointer",
+            color: mobileTab===id ? "#fff" : "#7A9490",
+            fontSize:13,fontWeight: mobileTab===id ? 800 : 600,
+            fontFamily:"inherit",
+            transition:"all .22s cubic-bezier(.34,1.3,.64,1)",
+            whiteSpace:"nowrap" as const,
+            boxShadow: mobileTab===id ? "0 3px 12px rgba(21,88,85,.35)" : "none",
+          }}>
+            <span style={{fontSize: mobileTab===id ? 14 : 13}}>{icon}</span>
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* App popup modal */}
