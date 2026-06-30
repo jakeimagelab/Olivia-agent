@@ -332,8 +332,9 @@ export default function SelectMatchPage() {
       return;
     }
 
-    // Selected_RAW/ 폴더 생성 (촬영 루트에)
-    const rawSelectDir = await (rootDir as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
+    // Selected_RAW/ 폴더 생성 — RAW 소스 폴더 안에 생성
+    const outputBase = rawRootDir ?? rootDir!;
+    const rawSelectDir = await (outputBase as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
     addLog("📁 Selected_RAW/ 폴더 생성 완료");
 
     let matched = 0, missing = 0, done = 0;
