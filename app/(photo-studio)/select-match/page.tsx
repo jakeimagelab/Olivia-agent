@@ -127,14 +127,25 @@ export default function SelectMatchPage() {
   const [scenes,     setScenes]     = useState<SceneFolder[]>([]);
   const [expanded,   setExpanded]   = useState<Set<number>>(new Set());
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
-  const [ratingLoaded, setRatingLoaded] = useState(false);
+  const [ratingLoaded,  setRatingLoaded]  = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
+  const [rawRootDir,    setRawRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
   const [log,        setLog]        = useState<string[]>([]);
   const [progress,   setProgress]   = useState({ cur: 0, total: 0, msg: "" });
   const [result,     setResult]     = useState({ matched: 0, missing: 0, selected: 0 });
   const cancelRef = useRef(false);
 
   const hasFS = typeof window !== "undefined" && "showDirectoryPicker" in window;
+
+  /* ── RAW 폴더 별도 선택 ── */
+  const pickRawFolder = useCallback(async () => {
+    try {
+      const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+      setRawRootDir(dir);
+    } catch (e: any) {
+      if (e?.name !== "AbortError") alert("폴더 선택 실패");
+    }
+  }, []);
 
   /* ── 폴더 로드: JPG/SceneXX/ 구조 스캔 ── */
   const loadFolder = useCallback(async () => {
@@ -280,28 +291,43 @@ export default function SelectMatchPage() {
     const logLines: string[] = [];
     const addLog = (l: string) => { logLines.push(l); setLog([...logLines]); };
 
-    // RAW/ 폴더 인덱스 생성
-    addLog("📂 RAW 폴더 스캔 중...");
+    // RAW 인덱스 생성 — rawRootDir(별도 선택) > rootDir/RAW/ > rootDir 루트 순서로 탐색
+    addLog("📂 RAW 파일 탐색 중...");
     const rawIndex = new Map<string, FileSystemFileHandle>();
-    try {
-      const rawDir = await (rootDir as any).getDirectoryHandle("RAW");
-      for await (const [name, handle] of (rawDir as any).entries()) {
+
+    const scanDirForRaw = async (dir: FileSystemDirectoryHandle) => {
+      for await (const [name, handle] of (dir as any).entries()) {
         if ((handle as FileSystemHandle).kind !== "file") continue;
         const ext = name.split(".").pop()?.toLowerCase() ?? "";
         if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
       }
-      addLog(`✅ RAW/ 폴더: ${rawIndex.size}개 발견`);
-    } catch {
-      addLog("⚠️ RAW/ 폴더 없음 — 루트에서 탐색");
-      for await (const [name, handle] of (rootDir as any).entries()) {
-        if ((handle as FileSystemHandle).kind !== "file") continue;
-        const ext = name.split(".").pop()?.toLowerCase() ?? "";
-        if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
+    };
+
+    if (rawRootDir) {
+      // 사용자가 RAW 폴더 별도 선택한 경우
+      await scanDirForRaw(rawRootDir);
+      addLog(`✅ 선택된 RAW 폴더: ${rawIndex.size}개 발견`);
+    } else {
+      // 자동 탐색: rootDir/RAW/ → rootDir 루트
+      try {
+        const rawSubDir = await (rootDir as any).getDirectoryHandle("RAW");
+        await scanDirForRaw(rawSubDir);
+        addLog(`✅ RAW/ 폴더: ${rawIndex.size}개 발견`);
+      } catch { /* RAW/ 없음 */ }
+
+      if (rawIndex.size === 0) {
+        await scanDirForRaw(rootDir!);
+        addLog(`✅ 루트 탐색: ${rawIndex.size}개 발견`);
       }
-      addLog(`✅ 루트: ${rawIndex.size}개 발견`);
     }
 
-    // Selected_RAW/ 폴더 생성 (루트에 직접)
+    if (rawIndex.size === 0) {
+      addLog("❌ RAW 파일을 찾을 수 없습니다. 상단 'RAW 폴더 선택' 버튼으로 RAW 파일이 있는 폴더를 직접 선택해주세요.");
+      setStep("ready");
+      return;
+    }
+
+    // Selected_RAW/ 폴더 생성 (촬영 루트에)
     const rawSelectDir = await (rootDir as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
     addLog("📁 Selected_RAW/ 폴더 생성 완료");
 
@@ -327,7 +353,7 @@ export default function SelectMatchPage() {
 
     setResult({ matched, missing, selected: selected.size });
     setStep("done");
-  }, [rootDir, scenes, selected]);
+  }, [rootDir, rawRootDir, scenes, selected]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
@@ -484,7 +510,17 @@ export default function SelectMatchPage() {
             {selected.size > 0 ? `${selected.size}장 → RAW 매칭 시작` : "사진을 선택하세요"}
           </Btn>
           <button
-            onClick={() => { setStep("idle"); setRootDir(null); setScenes([]); setSelected(new Set()); }}
+            onClick={pickRawFolder}
+            style={{
+              padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              background: rawRootDir ? "#DCFCE7" : "#FEF9C3",
+              border: `1px solid ${rawRootDir ? "#86EFAC" : "#FDE68A"}`,
+              borderRadius: 8, color: rawRootDir ? "#166534" : "#92400E",
+            }}
+            title={rawRootDir ? `RAW 폴더: ${rawRootDir.name}` : "RAW 파일이 있는 폴더를 별도로 선택"}
+          >{rawRootDir ? `📁 ${rawRootDir.name}` : "📂 RAW 폴더 선택"}</button>
+          <button
+            onClick={() => { setStep("idle"); setRootDir(null); setRawRootDir(null); setScenes([]); setSelected(new Set()); }}
             style={{ padding: "6px 10px", fontSize: 11, background: "transparent", border: `1px solid ${C.border}`, borderRadius: 8, cursor: "pointer", color: C.muted, fontFamily: "inherit" }}
           >폴더 변경</button>
         </div>
