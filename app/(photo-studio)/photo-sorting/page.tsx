@@ -2772,15 +2772,6 @@ export default function PhotoSortingPage() {
   ═══════════════════════════════════════════ */
   return (
     <div>
-      <PageHeader title="사진 분류" backHref="/" backLabel="관리자 홈" />
-      <div style={{background:"#FFFFFF",borderBottom:"1px solid rgba(21,88,85,.12)",display:"flex",padding:"0 8px",overflowX:"auto"}}>
-        <span style={{padding:"11px 20px",fontSize:13,fontWeight:800,color:"#155855",borderBottom:"2.5px solid #155855",cursor:"default",whiteSpace:"nowrap"}}>
-          사진 분류
-        </span>
-        <Link href="/raw-select" style={{padding:"11px 20px",fontSize:13,fontWeight:600,color:"#9BB5B0",textDecoration:"none",whiteSpace:"nowrap",display:"inline-block",borderBottom:"2.5px solid transparent"}}>
-          AI 컷 정리 & RAW 셀렉
-        </Link>
-      </div>
 
       {step > 0 && (
         <div className="ps-mode-badge" style={{background:photoMode==="studio"?"#F5F0FF":C.light,color:photoMode==="studio"?C.purple:C.teal,borderBottom:`1px solid ${photoMode==="studio"?"#DDD6FE":C.border}`}}>

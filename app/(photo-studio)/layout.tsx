@@ -5,14 +5,17 @@ import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 
 const PHOTO_TABS = [
-  { href: "/photo-sorting",    label: "📁 사진 분류",  matches: ["/photo-sorting", "/raw-select"] },
-  { href: "/photo-retouching", label: "🎨 색감·보정",  matches: ["/photo-retouching"] },
+  { href: "/photo-sorting",    label: "📁 사진 분류",         matches: ["/photo-sorting"] },
+  { href: "/raw-select",       label: "✂️ AI 컷 정리 & RAW",  matches: ["/raw-select"] },
+  { href: "/select-match",     label: "🎯 셀렉 & 매칭",       matches: ["/select-match"] },
+  { href: "/photo-retouching", label: "🎨 색감·보정",         matches: ["/photo-retouching"] },
 ];
 
 const TITLE: Record<string, string> = {
   "/photo-sorting":    "사진 분류",
   "/photo-retouching": "사진 보정",
   "/raw-select":       "AI 컷 정리 & RAW 셀렉",
+  "/select-match":     "셀렉 & 매칭",
 };
 
 export default function PhotoStudioLayout({ children }: { children: React.ReactNode }) {

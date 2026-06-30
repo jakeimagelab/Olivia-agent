@@ -968,16 +968,6 @@ export default function RawSelectPage() {
   /* ── Layout ─────────────────────────────────────────────── */
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.txt }}>
-      <PageHeader title="AI 컷 정리 & RAW 셀렉" backHref="/" backLabel="관리자 홈" />
-      {/* 서브탭 */}
-      <div style={{ background: "#FFFFFF", borderBottom: "1px solid rgba(21,88,85,.12)", display: "flex", padding: "0 8px" }}>
-        <Link href="/photo-sorting" style={{ padding: "11px 20px", fontSize: 13, fontWeight: 600, color: "#9BB5B0", textDecoration: "none", whiteSpace: "nowrap", display: "inline-block", borderBottom: "2.5px solid transparent" }}>
-          📁 사진 분류
-        </Link>
-        <span style={{ padding: "11px 20px", fontSize: 13, fontWeight: 800, color: "#155855", borderBottom: "2.5px solid #155855", cursor: "default", whiteSpace: "nowrap" }}>
-          🎯 AI 컷 정리 & RAW 셀렉
-        </span>
-      </div>
 
       {/* 기능 안내 배너 */}
       <div style={{ background: "linear-gradient(135deg, #1A4F4C 0%, #155855 100%)", color: "#fff", padding: "14px 24px" }}>

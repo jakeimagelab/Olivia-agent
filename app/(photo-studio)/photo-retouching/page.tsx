@@ -446,7 +446,6 @@ export default function PhotoRetouchingPage() {
       style={{ background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}
       onPaste={handleGlobalPaste}
     >
-      <PageHeader title="사진 보정" backHref="/" backLabel="관리자 홈" />
       <div style={{ background: "#FFFFFF", borderBottom: `1px solid ${C.border}`, display: "flex", padding: "0 8px", overflowX: "auto" }}>
         {([["check","색감 체크"],["sync","색감 동기화"],["recipe","보정 레시피"]] as const).map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)} style={{
