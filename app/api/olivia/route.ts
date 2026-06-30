@@ -285,9 +285,12 @@ const inferCategory = (text: string) => {
 };
 
 const parseLocation = (text: string): string => {
-  // "장소는 XXX", "위치는 XXX", "장소: XXX", "위치: XXX"
-  const m = text.match(/(?:장소|위치)\s*[는은:]\s*([^,，。\n]+)/);
-  if (m) return m[1].trim();
+  // "장소는 XXX", "위치는 XXX", "장소: XXX"
+  const m1 = text.match(/(?:장소|위치)\s*[는은:]\s*([^,，。\n]+)/);
+  if (m1) return m1[1].trim();
+  // "XXX에서" 패턴 — 2~6 글자 명사구
+  const m2 = text.match(/([가-힣a-zA-Z0-9\s]{2,12})\s*에서\b/);
+  if (m2) return m2[1].trim();
   return "";
 };
 
