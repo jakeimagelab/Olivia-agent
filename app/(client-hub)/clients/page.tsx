@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
+import PageHeader from "@/components/PageHeader";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { STEP_NAME, WORKFLOW_STEPS } from "@/lib/workflow";
@@ -115,13 +116,17 @@ function ListView() {
 
   return (
     <div style={{ color: C.txt }}>
-      <div style={{ background: `linear-gradient(135deg, ${C.teal}, #0d3e3b)`, color: "#fff", padding: "24px 24px 20px" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, opacity: 0.7, marginBottom: 4 }}>👥 Client Hub · 워크플로우</div>
-          <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800 }}>고객 · 워크플로우 관리</h1>
-          <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>고객 등록이 곧 워크플로우 1단계 시작입니다. 14단계 전 과정을 한 화면에서 관리합니다.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="고객 관리"
+        backHref="/"
+        backLabel="관리자 홈"
+        actions={
+          <button onClick={() => setShowModal(true)}
+            style={{ height: 40, padding: "0 20px", background: C.orange, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
+            + 신규 등록
+          </button>
+        }
+      />
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 20px 80px" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>

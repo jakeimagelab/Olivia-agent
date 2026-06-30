@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import PageHeader from "@/components/PageHeader";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 import { buildMergeCandidates } from "@/lib/photo-classifier/scene-merge-candidate";
@@ -2556,6 +2557,7 @@ export default function PhotoSortingPage() {
   ═══════════════════════════════════════════ */
   return (
     <div>
+      <PageHeader title="사진 분류" backHref="/" backLabel="관리자 홈" />
       <div style={{background:"#FFFFFF",borderBottom:"1px solid rgba(21,88,85,.12)",display:"flex",padding:"0 8px",overflowX:"auto"}}>
         <span style={{padding:"11px 20px",fontSize:13,fontWeight:800,color:"#155855",borderBottom:"2.5px solid #155855",cursor:"default",whiteSpace:"nowrap"}}>
           사진 분류

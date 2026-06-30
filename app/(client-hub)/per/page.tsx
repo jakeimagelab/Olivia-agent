@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import PageHeader from "@/components/PageHeader";
 import { Gift, Users, Heart, ShoppingBag, BarChart2, Settings, Award, Leaf, RefreshCw } from "lucide-react";
 
 const C = { teal:"#155855", orange:"#E85D2C", green:"#22876A", bg:"#F0F9F8", white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470", hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2" };
@@ -46,24 +47,20 @@ export default function PerDashboard() {
 
   return (
     <>
-      {/* 히어로 배너 */}
-      <div style={{ background:`linear-gradient(135deg, ${C.teal}, ${C.green})`, color:"#fff", padding:"28px 24px 24px" }}>
-        <div style={{ maxWidth:1280, margin:"0 auto" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-            <Award size={18} />
-            <span style={{ fontSize:12, fontWeight:700, letterSpacing:1, opacity:.8 }}>PER · Photoclinic ESG Reward</span>
-          </div>
-          <h1 style={{ margin:"0 0 4px", fontSize:22, fontWeight:800 }}>포토클리닉 이에스지 리워드</h1>
-          <p style={{ margin:"0 0 16px", fontSize:13, opacity:.8 }}>좋은 병원 이미지를 만드는 촬영이, 좋은 공간과 좋은 나눔으로 이어지도록.</p>
-          <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-            <Link href="/per/clients"  style={{ background:"rgba(255,255,255,.15)", color:"#fff", border:"1px solid rgba(255,255,255,.3)", borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>포인트 적립 +</Link>
-            <Link href="/per/products" style={{ background:"rgba(255,255,255,.1)",  color:"#fff", border:"1px solid rgba(255,255,255,.2)", borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>카탈로그 보기</Link>
-            <button onClick={load} style={{ display:"flex", alignItems:"center", gap:5, background:"rgba(255,255,255,.12)", color:"#fff", border:"1px solid rgba(255,255,255,.25)", borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+      <PageHeader
+        title="PER 리워드"
+        backHref="/"
+        backLabel="관리자 홈"
+        actions={
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <Link href="/per/clients"  style={{ background:"#f0f7f5", color:C.teal, border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>포인트 적립 +</Link>
+            <Link href="/per/products" style={{ background:"#f0f7f5", color:C.teal, border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>카탈로그 보기</Link>
+            <button onClick={load} style={{ display:"flex", alignItems:"center", gap:5, background:"#f0f7f5", color:C.teal, border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
               <RefreshCw size={12}/> 새로고침
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div style={{ maxWidth:1280, margin:"0 auto", padding:"24px 20px 80px", color:C.txt }}>
         {loading ? (

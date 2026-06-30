@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
+import PageHeader from "@/components/PageHeader";
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -967,6 +968,7 @@ export default function RawSelectPage() {
   /* ── Layout ─────────────────────────────────────────────── */
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.txt }}>
+      <PageHeader title="AI 컷 정리 & RAW 셀렉" backHref="/" backLabel="관리자 홈" />
       {/* 서브탭 */}
       <div style={{ background: "#FFFFFF", borderBottom: "1px solid rgba(21,88,85,.12)", display: "flex", padding: "0 8px" }}>
         <Link href="/photo-sorting" style={{ padding: "11px 20px", fontSize: 13, fontWeight: 600, color: "#9BB5B0", textDecoration: "none", whiteSpace: "nowrap", display: "inline-block", borderBottom: "2.5px solid transparent" }}>

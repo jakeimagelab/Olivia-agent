@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
 import {
   ArrowLeft, ArrowRight, Check, Globe2, Pencil, Download,
   RotateCcw, RotateCw, Save, Eye, Palette,
@@ -1564,14 +1565,12 @@ export default function WebsiteBuilderPage() {
 
   return (
     <main className="admin-shell">
-      <section className="admin-dashboard" style={{ maxWidth: 900 }}>
-        <header className="admin-dashboard-header">
-          <div className="brand-lockup">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" />
-            <span>Website Builder</span>
-          </div>
+      <PageHeader
+        title="홈페이지 제작"
+        backHref="/"
+        backLabel="관리자 홈"
+        actions={
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {/* 저장 버튼 */}
             <button onClick={handleSaveProject} style={{
               display: "flex", alignItems: "center", gap: 6,
               padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
@@ -1580,7 +1579,6 @@ export default function WebsiteBuilderPage() {
             }}>
               <Save size={13} /> {saveMsg || "작업 저장"}
             </button>
-            {/* 불러오기 버튼 */}
             <button onClick={() => setShowLoadPanel(!showLoadPanel)} style={{
               display: "flex", alignItems: "center", gap: 6,
               padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
@@ -1590,11 +1588,10 @@ export default function WebsiteBuilderPage() {
             }}>
               <FileText size={13} /> 작업 불러오기 {savedProjects.length > 0 && `(${savedProjects.length})`}
             </button>
-            <Link href="/" className="admin-secondary-link" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <ArrowLeft size={16} /> 관리자 홈
-            </Link>
           </div>
-        </header>
+        }
+      />
+      <section className="admin-dashboard" style={{ maxWidth: 900 }}>
 
         {/* ── 불러오기 패널 ── */}
         {showLoadPanel && (

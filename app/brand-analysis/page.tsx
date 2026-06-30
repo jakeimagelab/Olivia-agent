@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
 
 const C = {
   green:  "#155855",
@@ -726,24 +727,11 @@ export default function BrandAnalysisPage() {
   /* ── Layout ───────────────────────────────────────────────── */
   return (
     <div style={{ minHeight: "100vh", background: C.ivory, fontFamily: "'Noto Sans KR', sans-serif" }}>
-      {/* Header */}
-      <div style={{
-        position: "sticky", top: 0, zIndex: 50,
-        background: "rgba(250,247,242,.92)", backdropFilter: "blur(12px)",
-        borderBottom: `1px solid ${C.border}`,
-        padding: "0 24px", height: 52,
-        display: "flex", alignItems: "center", gap: 16,
-      }}>
-        <Link href="/" style={{ fontSize: 13, color: C.muted, textDecoration: "none", fontWeight: 700 }}>← 홈</Link>
-        <div style={{ width: 1, height: 16, background: C.border }} />
-        <div style={{ fontSize: 14, fontWeight: 900, color: C.green }}>홈페이지 브랜드 분석</div>
-        {result && (
-          <>
-            <div style={{ width: 1, height: 16, background: C.border }} />
-            <div style={{ fontSize: 12, color: C.muted }}>{result.brandName}</div>
-          </>
-        )}
-      </div>
+      <PageHeader
+        title={result ? `홈페이지 브랜드 분석 — ${result.brandName}` : "홈페이지 브랜드 분석"}
+        backHref="/"
+        backLabel="관리자 홈"
+      />
 
       {/* Main */}
       <div style={{ maxWidth: 940, margin: "0 auto", padding: "24px 20px 80px" }}>
