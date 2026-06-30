@@ -18,6 +18,7 @@ interface ScenePhoto {
   basename: string;
   handle: FileSystemFileHandle;
   thumbUrl: string | null;
+  rating: number | null;   // Bridge XMP 별점 (1-5, null=없음)
 }
 interface SceneFolder {
   name: string;
@@ -42,6 +43,54 @@ async function loadThumb(file: File, size = 120): Promise<string | null> {
     img.onerror = () => { URL.revokeObjectURL(url); res(null); };
     img.src = url;
   });
+}
+
+/* ── XMP 별점 읽기 ──
+   우선순위: 1) .xmp 사이드카  2) JPG 내 XMP 세그먼트
+   xmp:Rating 값 1-5 반환, 없으면 null
+── */
+async function readRatingFromXmpText(text: string): Promise<number | null> {
+  // <xmp:Rating>5</xmp:Rating>  또는  xmp:Rating="5"
+  const m = text.match(/xmp:Rating[^>]*>(\d)/i) ?? text.match(/xmp:Rating="(\d)"/i);
+  if (!m) return null;
+  const r = parseInt(m[1]);
+  return (r >= 1 && r <= 5) ? r : null;
+}
+
+async function readRatingSidecar(
+  dirHandle: FileSystemDirectoryHandle, basename: string
+): Promise<number | null> {
+  try {
+    const xmpHandle = await (dirHandle as any).getFileHandle(basename + ".xmp");
+    const file = await xmpHandle.getFile();
+    return readRatingFromXmpText(await file.text());
+  } catch { return null; }
+}
+
+async function readRatingEmbedded(file: File): Promise<number | null> {
+  try {
+    // JPG XMP 세그먼트는 보통 처음 128KB 안에 있음
+    const slice = file.slice(0, 131072);
+    const buf = await slice.arrayBuffer();
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(buf);
+    const start = text.indexOf("<x:xmpmeta");
+    if (start === -1) return null;
+    const end = text.indexOf("</x:xmpmeta>", start);
+    return readRatingFromXmpText(text.slice(start, end === -1 ? start + 4096 : end + 12));
+  } catch { return null; }
+}
+
+async function readPhotoRating(
+  dirHandle: FileSystemDirectoryHandle, photo: { basename: string; handle: FileSystemFileHandle }
+): Promise<number | null> {
+  // 사이드카 우선
+  const sc = await readRatingSidecar(dirHandle, photo.basename);
+  if (sc !== null) return sc;
+  // 내장 XMP
+  try {
+    const file = await photo.handle.getFile();
+    return readRatingEmbedded(file);
+  } catch { return null; }
 }
 
 async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
@@ -79,6 +128,8 @@ export default function SelectMatchPage() {
   const [expanded,   setExpanded]   = useState<Set<number>>(new Set());
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
   const [rawMode,    setRawMode]    = useState<"copy"|"move">("copy");
+  const [ratingLoaded, setRatingLoaded] = useState(false);
+  const [ratingLoading, setRatingLoading] = useState(false);
   const [log,        setLog]        = useState<string[]>([]);
   const [progress,   setProgress]   = useState({ cur: 0, total: 0, msg: "" });
   const [result,     setResult]     = useState({ matched: 0, missing: 0, selected: 0 });
@@ -117,6 +168,7 @@ export default function SelectMatchPage() {
             basename: fname.replace(/\.[^.]+$/, ""),
             handle: fhandle as FileSystemFileHandle,
             thumbUrl: null,
+            rating: null,
           });
         }
         photos.sort((a, b) => a.name.localeCompare(b.name));
@@ -127,12 +179,57 @@ export default function SelectMatchPage() {
       setScenes(sceneList);
       setSelected(new Set());
       setExpanded(new Set());
+      setRatingLoaded(false);
+
+      // XMP 사이드카 빠른 스캔 (백그라운드)
       setStep("ready");
+      setRatingLoading(true);
+      const updated = await Promise.all(sceneList.map(async (scene) => ({
+        ...scene,
+        photos: await Promise.all(scene.photos.map(async (p) => ({
+          ...p,
+          rating: await readRatingSidecar(scene.dirHandle, p.basename),
+        }))),
+      })));
+      setScenes(updated);
+      setRatingLoaded(true);
+      setRatingLoading(false);
     } catch (e: any) {
       if (e?.name !== "AbortError") alert("폴더를 읽는 중 오류가 발생했습니다.");
       setStep("idle");
     }
   }, []);
+
+  /* ── JPG 내장 XMP 딥스캔 (사이드카 없을 때) ── */
+  const loadEmbeddedRatings = useCallback(async () => {
+    setRatingLoading(true);
+    const updated = await Promise.all(scenes.map(async (scene) => ({
+      ...scene,
+      photos: await Promise.all(scene.photos.map(async (p) => {
+        if (p.rating !== null) return p;
+        try {
+          const file = await p.handle.getFile();
+          return { ...p, rating: await readRatingEmbedded(file) };
+        } catch { return p; }
+      })),
+    })));
+    setScenes(updated);
+    setRatingLoaded(true);
+    setRatingLoading(false);
+  }, [scenes]);
+
+  /* ── 별점 기준 자동 선택 ── */
+  const autoSelectByRating = useCallback((minRating: number) => {
+    const keys = new Set<string>();
+    for (const scene of scenes) {
+      for (const p of scene.photos) {
+        if (p.rating !== null && p.rating >= minRating) {
+          keys.add(p.basename.toLowerCase());
+        }
+      }
+    }
+    setSelected(keys);
+  }, [scenes]);
 
   /* ── 씬 썸네일 로드 ── */
   const loadSceneThumbs = useCallback(async (sceneIdx: number) => {
@@ -316,8 +413,52 @@ export default function SelectMatchPage() {
   );
 
   /* ── Ready: 썸네일 그리드 선택 UI ── */
+  const ratingCounts = [5,4,3,2,1].map(r => ({
+    r,
+    count: scenes.flatMap(s => s.photos).filter(p => p.rating !== null && p.rating >= r).length,
+  }));
+  const hasAnyRating = scenes.flatMap(s => s.photos).some(p => p.rating !== null);
+
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", padding: "20px 16px" }}>
+
+      {/* Bridge 별점 자동 선택 바 */}
+      <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: "12px 18px", marginBottom: 12, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#92400E" }}>
+          ⭐ Bridge 별점으로 자동 선택
+          {ratingLoading && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400, color: "#B45309" }}>읽는 중...</span>}
+        </div>
+        {hasAnyRating ? (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {ratingCounts.map(({ r, count }) => (
+              <button
+                key={r}
+                onClick={() => autoSelectByRating(r)}
+                disabled={count === 0}
+                style={{
+                  padding: "4px 12px", fontSize: 11, fontWeight: 700, borderRadius: 8,
+                  border: "1px solid #FDE68A", cursor: count === 0 ? "not-allowed" : "pointer",
+                  background: count > 0 ? "#FEF3C7" : "#F9FAFB", color: count > 0 ? "#92400E" : "#9CA3AF",
+                  fontFamily: "inherit",
+                }}
+              >{"★".repeat(r)}{"☆".repeat(5-r)} 이상 ({count}장)</button>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: "#B45309" }}>
+              {ratingLoading ? "XMP 사이드카 스캔 중..." : "사이드카(.xmp) 없음 — JPG 내 XMP 스캔"}
+            </span>
+            {!ratingLoading && (
+              <button
+                onClick={loadEmbeddedRatings}
+                style={{ padding: "4px 12px", fontSize: 11, fontWeight: 700, background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 8, cursor: "pointer", color: "#92400E", fontFamily: "inherit" }}
+              >JPG에서 별점 읽기</button>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* 상단 액션바 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: "12px 18px", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -436,6 +577,11 @@ export default function SelectMatchPage() {
                           }
                           {isSel && (
                             <div style={{ position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: "50%", background: C.teal, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "white", fontWeight: 900 }}>✓</div>
+                          )}
+                          {p.rating !== null && (
+                            <div style={{ position: "absolute", top: 4, left: 4, background: "rgba(0,0,0,.6)", borderRadius: 4, padding: "1px 4px", fontSize: 8, color: "#FBBF24", letterSpacing: -1 }}>
+                              {"★".repeat(p.rating)}{"☆".repeat(5 - p.rating)}
+                            </div>
                           )}
                           <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,.5)", padding: "2px 4px", fontSize: 7, color: "rgba(255,255,255,.9)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {p.name}
