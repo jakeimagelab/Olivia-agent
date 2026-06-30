@@ -759,31 +759,51 @@ function AppModal({tool, onClose}:{tool:ToolDef; onClose:()=>void}) {
   );
 }
 
-/* ─── mobile: card list ──────────────────────────────────── */
+/* ─── mobile: iOS 26 Liquid Glass card list ─────────────── */
 
 function MobileToolGrid({onAppOpen}:{onAppOpen:(t:ToolDef)=>void}) {
+  const total = TOOLS_WORK.length + TOOLS_CONTENT.length;
   const sections = [
     {emoji:"📅", label:"업무 서포트", tools:TOOLS_WORK},
     {emoji:"📢", label:"홍보 & 분석", tools:TOOLS_CONTENT},
   ] as const;
   return (
-    <div style={{padding:"8px 12px", paddingBottom:120}}>
+    <div style={{padding:"6px 14px", paddingBottom:110}}>
+      {/* Hero header */}
+      <div style={{padding:"18px 4px 20px"}}>
+        <div style={{fontSize:26, fontWeight:800, color:"#0d1f1e", letterSpacing:"-.5px", lineHeight:1.15}}>
+          도구 목록
+        </div>
+        <div style={{fontSize:13, color:"#6A8E8A", marginTop:4, fontWeight:500}}>
+          {total}개의 AI 도구 · 탭해서 바로 실행
+        </div>
+      </div>
+
       {sections.map(({emoji, label, tools})=>(
-        <div key={label} style={{marginBottom:28}}>
+        <div key={label} style={{marginBottom:30}}>
+          {/* Section label */}
           <div style={{
-            fontSize:11, fontWeight:900, color:"#9BB5B0",
-            letterSpacing:".08em", textTransform:"uppercase" as const,
-            padding:"0 4px 10px",
-          }}>{emoji} {label}</div>
+            fontSize:13, fontWeight:700, color:"#3a5c58",
+            letterSpacing:"-.1px", padding:"0 4px 10px",
+            display:"flex", alignItems:"center", gap:6,
+          }}>
+            <span style={{fontSize:15}}>{emoji}</span> {label}
+          </div>
+          {/* Glass card group */}
           <div style={{
-            background:"#fff", borderRadius:16,
-            border:"1px solid rgba(21,88,85,.09)",
-            boxShadow:"0 2px 16px rgba(21,88,85,.07)",
+            background:"rgba(255,255,255,.68)",
+            backdropFilter:"blur(22px) saturate(1.6)",
+            WebkitBackdropFilter:"blur(22px) saturate(1.6)" as any,
+            borderRadius:20,
+            border:"1px solid rgba(255,255,255,.82)",
+            boxShadow:"0 8px 32px rgba(21,88,85,.09), 0 1px 0 rgba(255,255,255,.9) inset",
             overflow:"hidden",
           }}>
             {(tools as readonly ToolDef[]).map((t,i)=>(
               <React.Fragment key={t.href}>
-                {i>0 && <div style={{height:1, background:"rgba(21,88,85,.07)", margin:"0 16px"}}/>}
+                {i>0 && (
+                  <div style={{height:0.5, background:"rgba(21,88,85,.1)", margin:"0 18px"}}/>
+                )}
                 <MobileToolCard tool={t} onTap={()=>onAppOpen(t)}/>
               </React.Fragment>
             ))}
