@@ -295,11 +295,16 @@ export default function SelectMatchPage() {
     addLog("📂 RAW 파일 탐색 중...");
     const rawIndex = new Map<string, FileSystemFileHandle>();
 
-    const scanDirForRaw = async (dir: FileSystemDirectoryHandle) => {
+    // 재귀 탐색 — 세부 폴더 안의 RAW도 모두 찾음
+    const scanDirForRaw = async (dir: FileSystemDirectoryHandle, depth = 0) => {
+      if (depth > 4) return; // 너무 깊은 뎁스 방지
       for await (const [name, handle] of (dir as any).entries()) {
-        if ((handle as FileSystemHandle).kind !== "file") continue;
-        const ext = name.split(".").pop()?.toLowerCase() ?? "";
-        if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
+        if ((handle as FileSystemHandle).kind === "directory") {
+          await scanDirForRaw(handle as FileSystemDirectoryHandle, depth + 1);
+        } else {
+          const ext = name.split(".").pop()?.toLowerCase() ?? "";
+          if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
+        }
       }
     };
 
