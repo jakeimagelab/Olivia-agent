@@ -47,22 +47,15 @@ export default function PerDashboard() {
 
   return (
     <>
-      <PageHeader
-        title="PER 리워드"
-        backHref="/"
-        backLabel="관리자 홈"
-        actions={
-          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            <Link href="/per/clients"  style={{ background:"#f0f7f5", color:C.teal, border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>포인트 적립 +</Link>
-            <Link href="/per/products" style={{ background:"#f0f7f5", color:C.teal, border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>카탈로그 보기</Link>
-            <button onClick={load} style={{ display:"flex", alignItems:"center", gap:5, background:"#f0f7f5", color:C.teal, border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-              <RefreshCw size={12}/> 새로고침
-            </button>
-          </div>
-        }
-      />
-
-      <div style={{ maxWidth:1280, margin:"0 auto", padding:"24px 20px 80px", color:C.txt }}>
+      <div style={{ maxWidth:1280, margin:"0 auto", padding:"20px 20px 80px", color:C.txt }}>
+        <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:20, flexWrap:"wrap" }}>
+          <div style={{ flex:1, fontSize:13, fontWeight:700, color:C.muted }}>PER 리워드 대시보드</div>
+          <Link href="/per/clients"  style={{ background:"rgba(255,255,255,.8)", color:C.teal, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>포인트 적립 +</Link>
+          <Link href="/per/products" style={{ background:"rgba(255,255,255,.8)", color:C.teal, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, textDecoration:"none" }}>카탈로그 보기</Link>
+          <button onClick={load} style={{ display:"flex", alignItems:"center", gap:5, background:"rgba(255,255,255,.8)", color:C.teal, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+            <RefreshCw size={12}/> 새로고침
+          </button>
+        </div>
         {loading ? (
           <div style={{ textAlign:"center", padding:60, color:C.hint }}>로딩 중...</div>
         ) : summary ? (
