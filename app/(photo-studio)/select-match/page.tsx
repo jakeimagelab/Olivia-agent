@@ -127,7 +127,6 @@ export default function SelectMatchPage() {
   const [scenes,     setScenes]     = useState<SceneFolder[]>([]);
   const [expanded,   setExpanded]   = useState<Set<number>>(new Set());
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
-  const [rawMode,    setRawMode]    = useState<"copy"|"move">("copy");
   const [ratingLoaded, setRatingLoaded] = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [log,        setLog]        = useState<string[]>([]);
@@ -181,17 +180,42 @@ export default function SelectMatchPage() {
       setExpanded(new Set());
       setRatingLoaded(false);
 
-      // XMP 사이드카 빠른 스캔 (백그라운드)
+      // XMP 사이드카 빠른 스캔 → 이후 JPG 내장 XMP 자동 딥스캔
       setStep("ready");
       setRatingLoading(true);
-      const updated = await Promise.all(sceneList.map(async (scene) => ({
+
+      // 1단계: .xmp 사이드카
+      const afterSidecar = await Promise.all(sceneList.map(async (scene) => ({
         ...scene,
         photos: await Promise.all(scene.photos.map(async (p) => ({
           ...p,
           rating: await readRatingSidecar(scene.dirHandle, p.basename),
         }))),
       })));
-      setScenes(updated);
+      setScenes(afterSidecar);
+
+      // 2단계: 사이드카 없는 JPG는 내장 XMP 스캔
+      const afterEmbedded = await Promise.all(afterSidecar.map(async (scene) => ({
+        ...scene,
+        photos: await Promise.all(scene.photos.map(async (p) => {
+          if (p.rating !== null) return p;
+          try {
+            const file = await p.handle.getFile();
+            return { ...p, rating: await readRatingEmbedded(file) };
+          } catch { return p; }
+        })),
+      })));
+      setScenes(afterEmbedded);
+
+      // 별점 있는 사진 자동 선택
+      const autoKeys = new Set<string>();
+      for (const scene of afterEmbedded) {
+        for (const p of scene.photos) {
+          if (p.rating !== null && p.rating >= 1) autoKeys.add(p.basename.toLowerCase());
+        }
+      }
+      if (autoKeys.size > 0) setSelected(autoKeys);
+
       setRatingLoaded(true);
       setRatingLoading(false);
     } catch (e: any) {
@@ -256,30 +280,8 @@ export default function SelectMatchPage() {
     const logLines: string[] = [];
     const addLog = (l: string) => { logLines.push(l); setLog([...logLines]); };
 
-    // 선택된 파일 핸들 수집
-    const selectedHandles = new Map<string, FileSystemFileHandle>();
-    for (const scene of scenes) {
-      for (const p of scene.photos) {
-        if (selected.has(p.basename.toLowerCase())) {
-          selectedHandles.set(p.basename.toLowerCase(), p.handle);
-        }
-      }
-    }
-
-    // SELECT/JPG_SELECT/ 에 선택 JPG 복사
-    const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create: true });
-    const jpgSelectDir = await (selectDir as any).getDirectoryHandle("JPG_SELECT", { create: true });
-    let done = 0;
-    for (const [, handle] of selectedHandles) {
-      if (cancelRef.current) break;
-      const file = await handle.getFile();
-      setProgress({ cur: done, total: selectedHandles.size, msg: `JPG 복사: ${file.name}` });
-      try { await copyFileHandle(handle, jpgSelectDir, file.name); addLog(`📋 ${file.name}`); }
-      catch { addLog(`❌ 복사 실패: ${file.name}`); }
-      done++;
-    }
-
-    // RAW/ 폴더 인덱스
+    // RAW/ 폴더 인덱스 생성
+    addLog("📂 RAW 폴더 스캔 중...");
     const rawIndex = new Map<string, FileSystemFileHandle>();
     try {
       const rawDir = await (rootDir as any).getDirectoryHandle("RAW");
@@ -288,19 +290,22 @@ export default function SelectMatchPage() {
         const ext = name.split(".").pop()?.toLowerCase() ?? "";
         if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
       }
-    } catch { addLog("⚠️ RAW/ 폴더 없음 — 루트에서 RAW 파일 탐색 시도"); }
-
-    if (rawIndex.size === 0) {
+      addLog(`✅ RAW/ 폴더: ${rawIndex.size}개 발견`);
+    } catch {
+      addLog("⚠️ RAW/ 폴더 없음 — 루트에서 탐색");
       for await (const [name, handle] of (rootDir as any).entries()) {
         if ((handle as FileSystemHandle).kind !== "file") continue;
         const ext = name.split(".").pop()?.toLowerCase() ?? "";
         if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
       }
+      addLog(`✅ 루트: ${rawIndex.size}개 발견`);
     }
 
-    // RAW_SELECT/ 생성 후 매칭
-    const rawSelectDir = await (selectDir as any).getDirectoryHandle("RAW_SELECT", { create: true }) as FileSystemDirectoryHandle;
-    let matched = 0, missing = 0; done = 0;
+    // Selected_RAW/ 폴더 생성 (루트에 직접)
+    const rawSelectDir = await (rootDir as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
+    addLog("📁 Selected_RAW/ 폴더 생성 완료");
+
+    let matched = 0, missing = 0, done = 0;
 
     for (const basename of selected) {
       if (cancelRef.current) break;
@@ -310,10 +315,7 @@ export default function SelectMatchPage() {
         const rawFile = await handle.getFile();
         try {
           await copyFileHandle(handle, rawSelectDir, rawFile.name);
-          if (rawMode === "move") {
-            try { await (handle as any).remove?.(); } catch {}
-          }
-          addLog(`✅ ${rawMode === "move" ? "이동" : "복사"}: ${rawFile.name}`);
+          addLog(`✅ 복사: ${rawFile.name}`);
           matched++;
         } catch { addLog(`❌ 실패: ${rawFile.name}`); }
       } else {
@@ -325,7 +327,7 @@ export default function SelectMatchPage() {
 
     setResult({ matched, missing, selected: selected.size });
     setStep("done");
-  }, [rootDir, scenes, selected, rawMode]);
+  }, [rootDir, scenes, selected]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
@@ -400,8 +402,8 @@ export default function SelectMatchPage() {
             ))}
           </div>
           <div style={{ background: C.light, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9, marginBottom: 16 }}>
-            📁 <strong style={{ color: C.teal }}>SELECT/JPG_SELECT/</strong> — 선택 JPG<br />
-            📁 <strong style={{ color: C.teal }}>SELECT/RAW_SELECT/</strong> — 매칭 RAW
+            📁 <strong style={{ color: C.teal }}>Selected_RAW/</strong> — 매칭 RAW 복사 완료<br />
+            <span style={{ color: C.hint }}>원본 RAW 파일은 삭제되지 않았습니다.</span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <Btn variant="secondary" onClick={() => { setStep("ready"); setLog([]); }}>← 다시 선택</Btn>
@@ -478,15 +480,6 @@ export default function SelectMatchPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", gap: 4, background: C.bg, borderRadius: 8, padding: 3 }}>
-            {(["copy", "move"] as const).map(m => (
-              <button key={m} onClick={() => setRawMode(m)} style={{
-                padding: "4px 10px", fontSize: 11, fontWeight: 700, borderRadius: 6, border: "none",
-                background: rawMode === m ? C.teal : "transparent", color: rawMode === m ? C.white : C.muted,
-                cursor: "pointer", fontFamily: "inherit",
-              }}>{m === "copy" ? "복사" : "이동"}</button>
-            ))}
-          </div>
           <Btn onClick={runMatch} disabled={selected.size === 0}>
             {selected.size > 0 ? `${selected.size}장 → RAW 매칭 시작` : "사진을 선택하세요"}
           </Btn>
