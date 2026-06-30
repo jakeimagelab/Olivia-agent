@@ -123,6 +123,6 @@ export default function PerDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
