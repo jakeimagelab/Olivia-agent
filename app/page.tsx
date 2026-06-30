@@ -1012,53 +1012,82 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
     </main>
   );
 
-  /* ── DESKTOP LAYOUT ── */
+  /* ── DESKTOP LAYOUT — iOS 26 / macOS Sequoia ── */
   return(
     <main className="admin-shell" style={{padding:0,minHeight:"100vh"}}>
 
-      {/* sticky header */}
+      {/* ── Liquid Glass sticky header ── */}
       <header style={{
-        position:"sticky",top:0,zIndex:200,height:56,
-        background:"rgba(250,247,242,.94)",backdropFilter:"blur(12px)",
-        borderBottom:"1px solid rgba(21,88,85,.12)",
+        position:"sticky",top:0,zIndex:200,height:58,
+        background:"rgba(240,244,242,.76)",
+        backdropFilter:"blur(28px) saturate(1.8)",
+        WebkitBackdropFilter:"blur(28px) saturate(1.8)" as any,
+        borderBottom:"1px solid rgba(255,255,255,.62)",
         display:"flex",alignItems:"center",justifyContent:"space-between",
         padding:"0 28px",
+        boxShadow:"0 1px 0 rgba(21,88,85,.06), 0 4px 24px rgba(0,0,0,.04)",
       }}>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
           <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{height:26}}/>
-          <div style={{width:1,height:18,background:"rgba(21,88,85,.2)"}}/>
-          <span style={{fontSize:11,fontWeight:900,color:"rgba(21,88,85,.65)",letterSpacing:".1em",textTransform:"uppercase"}}>포토클리닉 AI 관리자</span>
+          <div style={{width:1,height:18,background:"rgba(21,88,85,.18)"}}/>
+          <span style={{fontSize:11,fontWeight:700,color:"rgba(21,88,85,.52)",letterSpacing:".08em",textTransform:"uppercase" as const}}>포토클리닉 AI 관리자</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <button onClick={()=>load(true)} disabled={refreshing}
-            style={{width:32,height:32,border:"1px solid rgba(21,88,85,.2)",borderRadius:8,background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#155855"}}
-            title="새로고침">
+          <button onClick={()=>load(true)} disabled={refreshing} title="새로고침"
+            style={{
+              width:34,height:34,
+              border:"1px solid rgba(255,255,255,.75)",borderRadius:10,
+              background:"rgba(255,255,255,.55)",backdropFilter:"blur(8px)",
+              cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+              color:"#155855",boxShadow:"0 2px 8px rgba(0,0,0,.07)",
+            }}>
             <RefreshCw size={13} style={{animation:refreshing?"spin 1s linear infinite":"none"}}/>
           </button>
-          <button onClick={onLogout} className="admin-logout-button" style={{height:32,fontSize:12,padding:"0 12px"}}>
+          <button onClick={onLogout} style={{
+            height:34,padding:"0 14px",
+            border:"1px solid rgba(255,255,255,.75)",borderRadius:10,
+            background:"rgba(255,255,255,.55)",backdropFilter:"blur(8px)",
+            color:"#4a6e6a",fontSize:12,fontWeight:700,
+            display:"flex",alignItems:"center",gap:5,cursor:"pointer",
+            boxShadow:"0 2px 8px rgba(0,0,0,.07)",
+          }}>
             <LogOut size={13}/>로그아웃
           </button>
         </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </header>
 
-      {/* 30 / 70 layout */}
+      {/* ── Two-column layout ── */}
       <div style={{
         display:"grid",gridTemplateColumns:"320px 1fr",
-        minHeight:"calc(100vh - 56px)",maxWidth:1500,margin:"0 auto",
+        minHeight:"calc(100vh - 58px)",maxWidth:1500,margin:"0 auto",
       }}>
+        {/* ── Liquid Glass sidebar ── */}
         <aside style={{
-          position:"sticky",top:56,height:"calc(100vh - 56px)",
-          overflowY:"auto",borderRight:"1px solid rgba(21,88,85,.1)",
-          padding:"24px 20px 48px",background:"rgba(255,255,255,.55)",
+          position:"sticky",top:58,height:"calc(100vh - 58px)",
+          overflowY:"auto",
+          borderRight:"1px solid rgba(255,255,255,.52)",
+          padding:"24px 20px 48px",
+          background:"rgba(255,255,255,.42)",
+          backdropFilter:"blur(20px) saturate(1.5)",
+          WebkitBackdropFilter:"blur(20px) saturate(1.5)" as any,
         }}>
           <DashboardPanel data={data} loading={loading} onRefresh={()=>load(true)}/>
         </aside>
-        <section style={{padding:"32px 32px 60px 28px",minWidth:0}}>
-          <div style={{marginBottom:24}}>
-            <p className="admin-kicker" style={{marginBottom:6}}>병원 · 메디컬 성장 플랫폼</p>
-            <h1 style={{margin:0,color:"var(--deep-green)",fontSize:"clamp(28px,3vw,44px)",fontWeight:900,lineHeight:1.1}}>포토클리닉 AI 비서</h1>
-            <p style={{margin:"10px 0 0",color:"#4d5b56",fontSize:14,lineHeight:1.7}}>상담부터 진단·분석·디자인·분류·홈페이지·보정까지 한 화면에서 시작하세요.</p>
+
+        {/* ── Main content ── */}
+        <section style={{padding:"36px 36px 80px 32px",minWidth:0}}>
+          {/* Apple Large Title hero */}
+          <div style={{marginBottom:32}}>
+            <p className="admin-kicker" style={{marginBottom:8,letterSpacing:".06em"}}>병원 · 메디컬 성장 플랫폼</p>
+            <h1 style={{
+              margin:0, color:"#0d1f1e",
+              fontSize:"clamp(28px,2.6vw,40px)",
+              fontWeight:900, lineHeight:1.08, letterSpacing:"-.5px",
+            }}>포토클리닉 AI 비서</h1>
+            <p style={{margin:"12px 0 0",color:"#6a8e8a",fontSize:14,lineHeight:1.75}}>
+              상담부터 진단·분석·디자인·분류·홈페이지·보정까지 한 화면에서 시작하세요.
+            </p>
           </div>
           <ToolGrid/>
         </section>
