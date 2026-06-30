@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
-import PageHeader from "@/components/PageHeader";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { STEP_NAME, WORKFLOW_STEPS } from "@/lib/workflow";
