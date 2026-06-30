@@ -396,6 +396,110 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
   );
 }
 
+/* ── 촬영 갤러리 섹션 ── */
+function ClientGallerySection({ hospitalName, email }: { hospitalName: string; email?: string }) {
+  const [galleries, setGalleries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [form, setForm] = useState({ nasLink: "", shootDate: "", description: "" });
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/galleries?q=${encodeURIComponent(hospitalName)}`);
+      const d = await res.json();
+      if (d.ok) setGalleries(d.galleries || []);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, [hospitalName]);
+
+  const save = async () => {
+    if (!form.nasLink) { setMsg("NAS 링크를 입력해주세요."); return; }
+    setSaving(true); setMsg("");
+    try {
+      const res = await fetch("/api/galleries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hospitalName,
+          contactEmail: email || "",
+          nasLink: form.nasLink,
+          shootDate: form.shootDate,
+          description: form.description,
+        }),
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.error);
+      setForm({ nasLink: "", shootDate: "", description: "" });
+      setShowForm(false);
+      await load();
+    } catch (e) { setMsg(e instanceof Error ? e.message : "저장 실패"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+      <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📷 촬영 갤러리</div>
+        <button onClick={() => setShowForm(v => !v)} style={{ fontSize: 11, fontWeight: 700, color: C.teal, background: "rgba(21,88,85,.06)", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+          {showForm ? "닫기" : "+ 갤러리 추가"}
+        </button>
+      </div>
+
+      {showForm && (
+        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.02)", display: "grid", gap: 10 }}>
+          <input value={form.nasLink} onChange={e => setForm(f => ({ ...f, nasLink: e.target.value }))}
+            placeholder="NAS 갤러리 링크 *" style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.txt, background: C.white, boxSizing: "border-box" }} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <input type="date" value={form.shootDate} onChange={e => setForm(f => ({ ...f, shootDate: e.target.value }))}
+              style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.txt, background: C.white }} />
+            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="촬영 내용 메모" style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.txt, background: C.white }} />
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={save} disabled={saving} style={{ height: 34, padding: "0 18px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
+              {saving ? "저장 중..." : "저장"}
+            </button>
+            {msg && <span style={{ fontSize: 11, color: msg.includes("실패") || msg.includes("입력") ? C.orange : C.teal, fontWeight: 700 }}>{msg}</span>}
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ padding: "16px 18px", fontSize: 12, color: C.hint }}>불러오는 중...</div>
+      ) : galleries.length === 0 ? (
+        <div style={{ padding: "16px 18px", fontSize: 12, color: C.hint, textAlign: "center" }}>
+          등록된 갤러리가 없습니다. 위에서 NAS 링크를 추가해주세요.
+        </div>
+      ) : (
+        <div style={{ padding: "8px 0" }}>
+          {galleries.map((g: any) => (
+            <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 18px", borderBottom: `1px solid ${C.border}` }}>
+              {g.items?.[0]?.thumbnail_url ? (
+                <img src={g.items[0].thumbnail_url} alt="" style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 48, height: 36, background: C.light, borderRadius: 6, flexShrink: 0, display: "grid", placeItems: "center", fontSize: 18 }}>📷</div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.txt }}>
+                  {g.shoot_date ? new Date(g.shoot_date).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" }) : "날짜 미입력"}
+                </div>
+                {g.description && <div style={{ fontSize: 11, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.description}</div>}
+              </div>
+              <a href={g.nas_link} target="_blank" rel="noreferrer"
+                style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, color: C.teal, background: C.light, border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 10px", textDecoration: "none" }}>
+                🔗 열기
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── STEP PANEL (인라인 전환) ── */
 type SPProps = {
   selectedStepKey: string;
