@@ -923,5 +923,135 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     };
   }
 
+  if (name === "send_workflow_mail") {
+    const db = getSupabaseAdmin();
+
+    // 병원명으로 clients 테이블에서 이메일 조회
+    const { data: clients } = await db
+      .from("clients")
+      .select("id, hospital_name, contact_name, email")
+      .ilike("hospital_name", `%${input.hospitalName}%`)
+      .limit(1);
+
+    const client = clients?.[0];
+    const toEmail = client?.email;
+    const contactName = client?.contact_name || "";
+    const hospitalName = client?.hospital_name || input.hospitalName;
+
+    // 메일 타입별 기본 제목/본문
+    const MAIL_TEMPLATES: Record<string, { subject: string; body: string }> = {
+      review_form: {
+        subject: `[포토클리닉] ${hospitalName} 후기 작성 요청`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n포토클리닉 촬영 서비스를 이용해 주셔서 진심으로 감사드립니다.\n\n촬영 결과물이 마음에 드셨다면, 소중한 후기를 남겨주시면 큰 힘이 됩니다.\n후기는 저희 서비스 발전에 큰 도움이 됩니다.\n\n감사합니다.`,
+      },
+      original_files: {
+        subject: `[포토클리닉] ${hospitalName} 원본 파일 전달`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n촬영 원본 파일을 전달드립니다.\n파일 수령 후 이상 여부를 확인해주시고, 문의사항이 있으시면 언제든지 연락 주세요.\n\n감사합니다.`,
+      },
+      gallery: {
+        subject: `[포토클리닉] ${hospitalName} 갤러리 공유`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n촬영 결과물 갤러리 링크를 공유드립니다.\n확인하신 후 선택 또는 피드백을 주시면 감사하겠습니다.\n\n감사합니다.`,
+      },
+      quote: {
+        subject: `[포토클리닉] ${hospitalName} 견적서 안내`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n포토클리닉 촬영 견적서를 보내드립니다.\n검토하신 후 궁금하신 사항이 있으시면 언제든지 문의해 주세요.\n\n감사합니다.`,
+      },
+      contract: {
+        subject: `[포토클리닉] ${hospitalName} 계약서 안내`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n계약서를 첨부드립니다.\n내용 검토 후 서명하여 회신해 주시면 감사하겠습니다.\n\n감사합니다.`,
+      },
+      conti: {
+        subject: `[포토클리닉] ${hospitalName} 콘티/촬영 계획서 안내`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n촬영 계획서(콘티)를 공유드립니다.\n확인 후 수정사항이 있으시면 알려주세요.\n\n감사합니다.`,
+      },
+      proposal: {
+        subject: `[포토클리닉] ${hospitalName} 제안서 안내`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n포토클리닉 브랜드 촬영 제안서를 보내드립니다.\n검토하신 후 편하게 연락 주세요.\n\n감사합니다.`,
+      },
+    };
+
+    const template = MAIL_TEMPLATES[input.mailType] ?? {
+      subject: `[포토클리닉] ${hospitalName} 안내`,
+      body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n포토클리닉입니다. 확인 부탁드립니다.\n\n감사합니다.`,
+    };
+
+    const body = input.customBody
+      ? template.body + "\n\n" + input.customBody
+      : template.body;
+
+    if (!toEmail) {
+      // 이메일 없으면 draft로 저장
+      const { data: inserted } = await db
+        .from("mailing_queue")
+        .insert({
+          type:          input.mailType,
+          hospital_name: hospitalName,
+          contact_name:  contactName,
+          subject:       template.subject,
+          body,
+          status:        "draft",
+          links:         [],
+          attachments:   [],
+        })
+        .select("id")
+        .single();
+
+      return {
+        action: "done",
+        message: `⚠️ **${hospitalName}**의 이메일이 등록되어 있지 않아요.\n\n메일 초안을 저장했어요 (ID: ${inserted?.id ?? "?"}).\n고객 정보에서 이메일을 등록하면 메일링 페이지에서 발송할 수 있어요.`,
+      };
+    }
+
+    // mailing_queue에 INSERT
+    const { data: inserted, error: insertErr } = await db
+      .from("mailing_queue")
+      .insert({
+        type:          input.mailType,
+        hospital_name: hospitalName,
+        contact_name:  contactName,
+        to_email:      toEmail,
+        subject:       template.subject,
+        body,
+        status:        "pending",
+        links:         [],
+        attachments:   [],
+      })
+      .select("id")
+      .single();
+
+    if (insertErr || !inserted?.id) {
+      throw new Error(`메일 큐 생성 실패: ${insertErr?.message ?? "알 수 없는 오류"}`);
+    }
+
+    // 실제 발송
+    const origin =
+      req.headers.get("x-base-url") ||
+      req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+
+    const sendRes = await fetch(origin + "/api/mailing/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: inserted.id }),
+    });
+    const sendData = await sendRes.json();
+
+    if (!sendData.ok) {
+      return {
+        action: "done",
+        message: `⚠️ **${hospitalName}** 메일 발송 실패\n수신: ${toEmail}\n오류: ${sendData.error}`,
+      };
+    }
+
+    await logActivity("send_workflow_mail", hospitalName, { mailType: input.mailType, toEmail });
+
+    return {
+      action: "done",
+      message: `✅ **${hospitalName}** ${input.mailType === "review_form" ? "후기 요청" : input.mailType === "original_files" ? "원본 전달" : input.mailType === "gallery" ? "갤러리 공유" : input.mailType} 메일을 **${toEmail}**으로 발송했어요!`,
+    };
+  }
+
   return { action: "done", message: "완료됐어요!" };
 }
