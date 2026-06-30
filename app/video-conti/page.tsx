@@ -217,7 +217,7 @@ function Step1({
             placeholder="https://hospital.co.kr"
             style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13 }}
           />
-          <Btn onClick={analyze} loading={analyzing} disabled={!url}>분석하기</Btn>
+          <Btn onClick={analyze} loading={analyzing}>분석하기</Btn>
         </div>
       </Card>
 
