@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
-import PageHeader from "@/components/PageHeader";
 
 /* ── Types ──────────────────────────────────────────────── */
 
