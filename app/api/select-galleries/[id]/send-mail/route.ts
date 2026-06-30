@@ -5,7 +5,8 @@ import { Resend } from "resend";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const sb = getSupabaseAdmin();
     const { to_email, to_name } = await req.json();
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const { data: gallery } = await sb
       .from("select_galleries")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
     if (!gallery) return NextResponse.json({ ok: false, error: "갤러리 없음" }, { status: 404 });
 
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     await sb
       .from("select_galleries")
       .update({ status: "mail_sent", updated_at: new Date().toISOString() })
-      .eq("id", params.id);
+      .eq("id", id);
 
     return NextResponse.json({ ok: true, mail_id: mail?.id, selectUrl });
   } catch (e: any) {

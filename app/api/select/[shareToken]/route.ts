@@ -5,13 +5,14 @@ import { getGalleryImages, getLatestSelection } from "@/lib/selectGallery";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest, { params }: { params: { shareToken: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ shareToken: string }> }) {
+  const { shareToken } = await params;
   try {
     const sb = getSupabaseAdmin();
     const { data: gallery } = await sb
       .from("select_galleries")
       .select("*")
-      .eq("share_token", params.shareToken)
+      .eq("share_token", shareToken)
       .single();
 
     if (!gallery) return NextResponse.json({ ok: false, error: "링크를 찾을 수 없습니다" }, { status: 404 });
@@ -19,7 +20,6 @@ export async function GET(_req: NextRequest, { params }: { params: { shareToken:
     if (gallery.status === "expired")
       return NextResponse.json({ ok: false, error: "만료된 링크입니다", expired: true }, { status: 410 });
 
-    // 파일 만료 체크
     const now = new Date();
     const expiresAt = new Date(gallery.file_expires_at);
     const filesExpired = expiresAt < now;
@@ -29,7 +29,6 @@ export async function GET(_req: NextRequest, { params }: { params: { shareToken:
       getLatestSelection(sb, gallery.id),
     ]);
 
-    // 상태가 draft면 waiting_selection으로 자동 업데이트
     if (gallery.status === "draft" || gallery.status === "mail_sent") {
       await sb
         .from("select_galleries")

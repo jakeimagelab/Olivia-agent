@@ -6,7 +6,8 @@ export const dynamic = "force-dynamic";
 
 const ALLOWED_EXTS = new Set(["jpg", "jpeg", "heic", "heif", "tif", "tiff", "png"]);
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const sb = getSupabaseAdmin();
     const formData = await req.formData();
@@ -16,11 +17,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (!files.length) return NextResponse.json({ ok: false, error: "파일 없음" }, { status: 400 });
 
-    // 토큰 검증
     const { data: gallery } = await sb
       .from("select_galleries")
       .select("id, share_token, status, allow_resubmit, allow_download_upload, client_id, workflow_run_id")
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (!gallery) return NextResponse.json({ ok: false, error: "갤러리 없음" }, { status: 404 });
@@ -31,14 +31,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (gallery.status === "selection_submitted" && !gallery.allow_resubmit)
       return NextResponse.json({ ok: false, error: "이미 제출이 완료되었습니다" }, { status: 409 });
 
-    // 파일명만 추출 (이미지 데이터 불필요)
     const selectedFiles: string[] = [];
     const rejected: string[] = [];
 
     for (const file of files) {
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
       if (!ALLOWED_EXTS.has(ext)) { rejected.push(file.name); continue; }
-      // 중복 제거
       if (!selectedFiles.includes(file.name)) selectedFiles.push(file.name);
     }
 
@@ -48,13 +46,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const now = new Date().toISOString();
 
     if (gallery.allow_resubmit) {
-      await sb.from("client_photo_selections").delete().eq("gallery_id", params.id);
+      await sb.from("client_photo_selections").delete().eq("gallery_id", id);
     }
 
     const { data: selection, error: selErr } = await sb
       .from("client_photo_selections")
       .insert({
-        gallery_id: params.id,
+        gallery_id: id,
         client_id: gallery.client_id,
         workflow_run_id: gallery.workflow_run_id,
         method: "download_upload",
@@ -70,13 +68,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     await sb
       .from("select_galleries")
-      .update({
-        status: "selection_submitted",
-        selected_count: selectedFiles.length,
-        submitted_at: now,
-        updated_at: now,
-      })
-      .eq("id", params.id);
+      .update({ status: "selection_submitted", selected_count: selectedFiles.length, submitted_at: now, updated_at: now })
+      .eq("id", id);
 
     return NextResponse.json({ ok: true, selection, selected_files: selectedFiles, rejected });
   } catch (e: any) {

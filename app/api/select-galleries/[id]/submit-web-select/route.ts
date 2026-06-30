@@ -4,7 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const sb = getSupabaseAdmin();
     const { selected_files, customer_memo, share_token } = await req.json();
@@ -12,11 +13,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!Array.isArray(selected_files) || selected_files.length === 0)
       return NextResponse.json({ ok: false, error: "선택된 파일이 없습니다" }, { status: 400 });
 
-    // 토큰 검증
     const { data: gallery } = await sb
       .from("select_galleries")
       .select("id, share_token, status, allow_resubmit, client_id, workflow_run_id")
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (!gallery) return NextResponse.json({ ok: false, error: "갤러리 없음" }, { status: 404 });
@@ -27,15 +27,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const now = new Date().toISOString();
 
-    // 기존 선택 삭제 (재제출 허용 시)
     if (gallery.allow_resubmit) {
-      await sb.from("client_photo_selections").delete().eq("gallery_id", params.id);
+      await sb.from("client_photo_selections").delete().eq("gallery_id", id);
     }
 
     const { data: selection, error: selErr } = await sb
       .from("client_photo_selections")
       .insert({
-        gallery_id: params.id,
+        gallery_id: id,
         client_id: gallery.client_id,
         workflow_run_id: gallery.workflow_run_id,
         method: "web_select",
@@ -49,16 +48,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (selErr) throw selErr;
 
-    // 갤러리 상태 업데이트
     await sb
       .from("select_galleries")
-      .update({
-        status: "selection_submitted",
-        selected_count: selected_files.length,
-        submitted_at: now,
-        updated_at: now,
-      })
-      .eq("id", params.id);
+      .update({ status: "selection_submitted", selected_count: selected_files.length, submitted_at: now, updated_at: now })
+      .eq("id", id);
 
     return NextResponse.json({ ok: true, selection });
   } catch (e: any) {
