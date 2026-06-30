@@ -539,14 +539,23 @@ textarea:focus {
   }
 }
 
-.admin-shell {
-  min-height: 100vh;
-  /* Apple iOS 26 mesh gradient */
-  background:
+/* ── iOS 26 mesh gradient — 전체 페이지 공통 배경 ─── */
+:root {
+  --mesh-bg:
     radial-gradient(ellipse 130% 55% at 10% 0%,   rgba(21,88,85,.13)   0%, transparent 52%),
     radial-gradient(ellipse 90%  60% at 90% 100%,  rgba(235,143,34,.09) 0%, transparent 50%),
     radial-gradient(ellipse 80%  80% at 55% 50%,   rgba(86,155,140,.06) 0%, transparent 55%),
     #f0f4f2;
+}
+
+/* main 안에 .pc-header가 있는 모든 페이지에 자동 적용 */
+main:has(> .pc-header) {
+  background: var(--mesh-bg) !important;
+}
+
+.admin-shell {
+  min-height: 100vh;
+  background: var(--mesh-bg);
   color: var(--ink);
   padding: 28px;
 }
