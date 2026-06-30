@@ -116,18 +116,6 @@ function ListView() {
 
   return (
     <div style={{ color: C.txt }}>
-      <PageHeader
-        title="고객 관리"
-        backHref="/"
-        backLabel="관리자 홈"
-        actions={
-          <button onClick={() => setShowModal(true)}
-            style={{ height: 40, padding: "0 20px", background: C.orange, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
-            + 신규 등록
-          </button>
-        }
-      />
-
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 20px 80px" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="병원명 · 진료과 검색"
