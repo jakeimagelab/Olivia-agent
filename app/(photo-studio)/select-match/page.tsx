@@ -26,7 +26,15 @@ interface SceneFolder {
   photos: ScenePhoto[];
 }
 
-type Step = "idle" | "loading" | "ready" | "matching" | "done";
+type Step = "idle" | "loading" | "ready" | "preflight" | "matching" | "done";
+
+interface Preflight {
+  rawFound: number;
+  willMatch: number;
+  willMiss: number;
+  rawSamples: string[];
+  jpgSamples: string[];
+}
 
 /* ── Helpers ── */
 async function loadThumb(file: File, size = 120): Promise<string | null> {
@@ -130,6 +138,8 @@ export default function SelectMatchPage() {
   const [ratingLoaded,  setRatingLoaded]  = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [rawRootDir,    setRawRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
+  const [preflight,  setPreflight]  = useState<Preflight | null>(null);
+  const [rawIndexRef] = useState<{ map: Map<string, FileSystemFileHandle> }>(() => ({ map: new Map() }));
   const [log,        setLog]        = useState<string[]>([]);
   const [progress,   setProgress]   = useState({ cur: 0, total: 0, msg: "" });
   const [result,     setResult]     = useState({ matched: 0, missing: 0, selected: 0 });
@@ -283,7 +293,52 @@ export default function SelectMatchPage() {
     setScenes(prev => prev.map((s, i) => i === sceneIdx ? { ...s, photos: updated } : s));
   }, [scenes]);
 
-  /* ── RAW 매칭 실행 ── */
+  /* ── 재귀 RAW 스캔 공통 함수 ── */
+  const buildRawIndex = useCallback(async (): Promise<Map<string, FileSystemFileHandle>> => {
+    const rawIndex = new Map<string, FileSystemFileHandle>();
+    const scanDir = async (dir: FileSystemDirectoryHandle, depth = 0) => {
+      if (depth > 5) return;
+      for await (const [name, handle] of (dir as any).entries()) {
+        if (name === "Selected_RAW") continue; // 출력 폴더는 스킵
+        if ((handle as FileSystemHandle).kind === "directory") {
+          await scanDir(handle as FileSystemDirectoryHandle, depth + 1);
+        } else {
+          const ext = name.split(".").pop()?.toLowerCase() ?? "";
+          if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
+        }
+      }
+    };
+    if (rawRootDir) {
+      await scanDir(rawRootDir);
+    } else {
+      try { await scanDir(await (rootDir as any).getDirectoryHandle("RAW")); } catch {}
+      if (rawIndex.size === 0) await scanDir(rootDir!);
+    }
+    return rawIndex;
+  }, [rootDir, rawRootDir]);
+
+  /* ── 사전 확인 (preflight) ── */
+  const runPreflight = useCallback(async () => {
+    if (!rootDir || selected.size === 0) return;
+    setStep("preflight");
+    setPreflight(null);
+    const rawIndex = await buildRawIndex();
+    rawIndexRef.map.clear();
+    for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
+
+    const selArr = Array.from(selected);
+    const willMatch = selArr.filter(b => rawIndex.has(b)).length;
+    const pf: Preflight = {
+      rawFound: rawIndex.size,
+      willMatch,
+      willMiss: selArr.length - willMatch,
+      rawSamples: Array.from(rawIndex.keys()).slice(0, 4),
+      jpgSamples: selArr.slice(0, 4),
+    };
+    setPreflight(pf);
+  }, [rootDir, selected, buildRawIndex, rawIndexRef]);
+
+  /* ── 실제 복사 실행 ── */
   const runMatch = useCallback(async () => {
     if (!rootDir || selected.size === 0) return;
     setStep("matching");
@@ -291,75 +346,43 @@ export default function SelectMatchPage() {
     const logLines: string[] = [];
     const addLog = (l: string) => { logLines.push(l); setLog([...logLines]); };
 
-    // RAW 인덱스 생성 — rawRootDir(별도 선택) > rootDir/RAW/ > rootDir 루트 순서로 탐색
-    addLog("📂 RAW 파일 탐색 중...");
-    const rawIndex = new Map<string, FileSystemFileHandle>();
-
-    // 재귀 탐색 — 세부 폴더 안의 RAW도 모두 찾음
-    const scanDirForRaw = async (dir: FileSystemDirectoryHandle, depth = 0) => {
-      if (depth > 4) return; // 너무 깊은 뎁스 방지
-      for await (const [name, handle] of (dir as any).entries()) {
-        if ((handle as FileSystemHandle).kind === "directory") {
-          await scanDirForRaw(handle as FileSystemDirectoryHandle, depth + 1);
-        } else {
-          const ext = name.split(".").pop()?.toLowerCase() ?? "";
-          if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
-        }
-      }
-    };
-
-    if (rawRootDir) {
-      // 사용자가 RAW 폴더 별도 선택한 경우
-      await scanDirForRaw(rawRootDir);
-      addLog(`✅ 선택된 RAW 폴더: ${rawIndex.size}개 발견`);
-    } else {
-      // 자동 탐색: rootDir/RAW/ → rootDir 루트
-      try {
-        const rawSubDir = await (rootDir as any).getDirectoryHandle("RAW");
-        await scanDirForRaw(rawSubDir);
-        addLog(`✅ RAW/ 폴더: ${rawIndex.size}개 발견`);
-      } catch { /* RAW/ 없음 */ }
-
-      if (rawIndex.size === 0) {
-        await scanDirForRaw(rootDir!);
-        addLog(`✅ 루트 탐색: ${rawIndex.size}개 발견`);
-      }
+    // preflight에서 캐시된 인덱스 사용 (없으면 재스캔)
+    let rawIndex = rawIndexRef.map;
+    if (rawIndex.size === 0) {
+      addLog("📂 RAW 탐색 중...");
+      rawIndex = await buildRawIndex();
+      rawIndexRef.map.clear();
+      for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
     }
+    addLog(`✅ RAW ${rawIndex.size}개 / JPG 선택 ${selected.size}개`);
 
     if (rawIndex.size === 0) {
-      addLog("❌ RAW 파일을 찾을 수 없습니다. 상단 'RAW 폴더 선택' 버튼으로 RAW 파일이 있는 폴더를 직접 선택해주세요.");
-      setStep("ready");
-      return;
+      addLog("❌ RAW 파일을 찾을 수 없습니다.");
+      setStep("ready"); return;
     }
 
-    // Selected_RAW/ 폴더 생성 — RAW 소스 폴더 안에 생성
     const outputBase = rawRootDir ?? rootDir!;
     const rawSelectDir = await (outputBase as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
-    addLog("📁 Selected_RAW/ 폴더 생성 완료");
+    addLog("📁 Selected_RAW/ 생성 완료");
 
     let matched = 0, missing = 0, done = 0;
-
     for (const basename of selected) {
       if (cancelRef.current) break;
-      setProgress({ cur: done, total: selected.size, msg: `RAW 매칭: ${basename}` });
+      setProgress({ cur: done, total: selected.size, msg: `매칭: ${basename}` });
       const handle = rawIndex.get(basename);
       if (handle) {
         const rawFile = await handle.getFile();
-        try {
-          await copyFileHandle(handle, rawSelectDir, rawFile.name);
-          addLog(`✅ 복사: ${rawFile.name}`);
-          matched++;
-        } catch { addLog(`❌ 실패: ${rawFile.name}`); }
+        try { await copyFileHandle(handle, rawSelectDir, rawFile.name); addLog(`✅ ${rawFile.name}`); matched++; }
+        catch { addLog(`❌ 실패: ${rawFile.name}`); }
       } else {
         addLog(`⚠️ RAW 없음: ${basename}`);
         missing++;
       }
       done++;
     }
-
     setResult({ matched, missing, selected: selected.size });
     setStep("done");
-  }, [rootDir, rawRootDir, scenes, selected]);
+  }, [rootDir, rawRootDir, selected, buildRawIndex, rawIndexRef]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
@@ -395,6 +418,71 @@ export default function SelectMatchPage() {
     <div style={{ maxWidth: 500, margin: "60px auto", padding: "0 24px", textAlign: "center" }}>
       <div style={{ fontSize: 13, color: C.teal, fontWeight: 700, marginBottom: 12 }}>씬 폴더 스캔 중...</div>
       <div style={{ fontSize: 11, color: C.hint }}>{progress.msg}</div>
+    </div>
+  );
+
+  /* ── Preflight ── */
+  if (step === "preflight") return (
+    <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
+      <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 900, color: C.teal }}>
+          🔍 매칭 사전 확인
+        </div>
+        {!preflight ? (
+          <div style={{ padding: 32, textAlign: "center", fontSize: 12, color: C.hint }}>RAW 파일 탐색 중...</div>
+        ) : (
+          <div style={{ padding: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+              {[
+                { label: "RAW 파일 발견", value: preflight.rawFound, color: C.teal },
+                { label: "매칭 예상", value: preflight.willMatch, color: C.green },
+                { label: "누락 예상", value: preflight.willMiss, color: preflight.willMiss > 0 ? C.red : C.hint },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 24, fontWeight: 900, color }}>{value}</div>
+                  <div style={{ fontSize: 10, color: C.hint, marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+              <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: C.hint, marginBottom: 6 }}>선택 JPG 샘플</div>
+                {preflight.jpgSamples.map(s => (
+                  <div key={s} style={{ fontSize: 11, fontFamily: "monospace", color: C.txt, marginBottom: 2 }}>{s}</div>
+                ))}
+              </div>
+              <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: C.hint, marginBottom: 6 }}>발견된 RAW 샘플</div>
+                {preflight.rawFound === 0
+                  ? <div style={{ fontSize: 11, color: C.red }}>RAW 파일 없음</div>
+                  : preflight.rawSamples.map(s => (
+                    <div key={s} style={{ fontSize: 11, fontFamily: "monospace", color: C.txt, marginBottom: 2 }}>{s}</div>
+                  ))
+                }
+              </div>
+            </div>
+
+            {preflight.rawFound === 0 ? (
+              <div style={{ background: "#FEF2F2", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red, marginBottom: 16 }}>
+                RAW 파일을 찾지 못했습니다. 상단의 <strong>RAW 폴더 선택</strong> 버튼으로 올바른 폴더를 선택해주세요.
+              </div>
+            ) : preflight.willMatch === 0 ? (
+              <div style={{ background: "#FEF9C3", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "#92400E", marginBottom: 16 }}>
+                파일명이 맞지 않습니다. JPG와 RAW의 파일명이 같아야 매칭됩니다.<br />
+                위 샘플을 비교해서 확인해주세요.
+              </div>
+            ) : null}
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn variant="secondary" onClick={() => setStep("ready")}>← 취소</Btn>
+              {preflight.willMatch > 0 && (
+                <Btn onClick={runMatch}>복사 시작 ({preflight.willMatch}개) →</Btn>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -512,8 +600,8 @@ export default function SelectMatchPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Btn onClick={runMatch} disabled={selected.size === 0}>
-            {selected.size > 0 ? `${selected.size}장 → RAW 매칭 시작` : "사진을 선택하세요"}
+          <Btn onClick={runPreflight} disabled={selected.size === 0}>
+            {selected.size > 0 ? `${selected.size}장 → RAW 매칭 확인` : "사진을 선택하세요"}
           </Btn>
           <button
             onClick={pickRawFolder}
@@ -638,9 +726,9 @@ export default function SelectMatchPage() {
           <div style={{ pointerEvents: "all", background: C.teal, color: "white", borderRadius: 12, padding: "12px 28px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 20px rgba(21,88,85,.35)" }}>
             <span style={{ fontSize: 13, fontWeight: 700 }}>{selected.size}장 선택됨</span>
             <button
-              onClick={runMatch}
+              onClick={runPreflight}
               style={{ padding: "7px 18px", background: "rgba(255,255,255,.2)", border: "1px solid rgba(255,255,255,.4)", borderRadius: 8, color: "white", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
-            >RAW 매칭 시작 →</button>
+            >RAW 매칭 확인 →</button>
           </div>
         </div>
       )}
