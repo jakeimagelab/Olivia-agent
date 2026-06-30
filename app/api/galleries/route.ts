@@ -152,21 +152,27 @@ const mockGalleries = [
   }
 ];
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const q = new URL(req.url).searchParams.get("q") || "";
   try {
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let query = supabase
       .from("photo_galleries")
       .select("*, items:photo_gallery_items(*)")
       .order("created_at", { ascending: false });
+    if (q) query = query.ilike("hospital_name", `%${q}%`);
+    const { data, error } = await query;
 
     if (error) throw error;
     return NextResponse.json({ ok: true, galleries: data || [] });
   } catch (error) {
+    const filtered = q
+      ? mockGalleries.filter(g => g.hospital_name.includes(q))
+      : mockGalleries;
     return NextResponse.json({
       ok: true,
       mock: true,
-      galleries: mockGalleries,
+      galleries: filtered,
       note: error instanceof Error ? error.message : String(error)
     });
   }
