@@ -453,6 +453,18 @@ Available tools:
 - calendar_complete: 할일 완료/미완료 처리
 - calendar_delete: 할일 삭제
 - calendar_update: 할일 제목/날짜/시간/장소/메모 수정
+- send_workflow_mail: 병원 고객에게 워크플로우 메일 발송 (후기 요청, 원본 전달, 갤러리 공유 등)
+
+워크플로우 메일 사용 규칙:
+- "후기 메일", "후기 요청 메일", "리뷰 메일" → mailType: review_form
+- "원본 전달", "원본 파일 메일" → mailType: original_files
+- "갤러리 공유", "갤러리 메일" → mailType: gallery
+- "견적 메일" → mailType: quote
+- "계약 메일" → mailType: contract
+- "콘티 메일" → mailType: conti
+- "제안서 메일" → mailType: proposal
+- 병원명만 말해도 DB에서 이메일 자동 조회 — 따로 묻지 말 것
+- 메일이 성공하면 발송 완료 메시지, 이메일 없으면 등록 필요 안내
 
 캘린더 도구 사용 규칙:
 - 날짜 표현('오늘', '내일', '다음주 월요일' 등)은 반드시 위의 오늘 날짜 기준으로 YYYY-MM-DD로 변환할 것
