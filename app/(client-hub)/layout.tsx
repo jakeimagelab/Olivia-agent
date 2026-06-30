@@ -6,20 +6,22 @@ import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 
 const HUB_TABS = [
-  { href: "/clients",       label: "👥 고객 목록" },
-  { href: "/review-studio", label: "⭐ 후기 콘텐츠" },
-  { href: "/per",           label: "🏆 PER 리워드" },
+  { href: "/clients",          label: "👥 고객 목록" },
+  { href: "/select-galleries", label: "📸 셀렉 갤러리" },
+  { href: "/review-studio",    label: "⭐ 후기 콘텐츠" },
+  { href: "/per",              label: "🏆 PER 리워드" },
 ];
 
 const TITLE: Record<string, string> = {
-  "/clients":       "고객 관리",
-  "/review-studio": "Review Studio",
-  "/per":           "PER 리워드",
+  "/clients":          "고객 관리",
+  "/select-galleries": "셀렉 갤러리",
+  "/review-studio":    "Review Studio",
+  "/per":              "PER 리워드",
 };
 
 export default function ClientHubLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const title = TITLE[pathname] ?? "고객 허브";
+  const title = TITLE[pathname] ?? (pathname.startsWith("/select-galleries") ? "셀렉 갤러리" : "고객 허브");
   const [inIframe, setInIframe] = useState(false);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
           <Link
             key={t.href}
             href={t.href}
-            className={`pc-hub-tab${pathname === t.href ? " active" : ""}`}
+            className={`pc-hub-tab${pathname === t.href || pathname.startsWith(t.href + "/") ? " active" : ""}`}
             style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}
           >
             {t.label}

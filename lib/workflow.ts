@@ -41,6 +41,16 @@ export const WORKFLOW_STEPS = [
     visible_to_client: true,  creates_mailing_draft: false, related_feature: "mailing",
   },
   {
+    key: "client_selection",  name: "고객 사진 셀렉",
+    order_index: 75, requires_approval: false, automation_level: "full" as const,
+    visible_to_client: true,  creates_mailing_draft: true,  related_feature: "select-galleries",
+  },
+  {
+    key: "raw_matching",      name: "RAW 자동 매칭",
+    order_index: 76, requires_approval: true,  automation_level: "draft_then_approve" as const,
+    visible_to_client: false, creates_mailing_draft: false, related_feature: "select-galleries",
+  },
+  {
     key: "retouching",        name: "보정",
     order_index: 8,  requires_approval: false, automation_level: "manual" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "photo-retouching",
