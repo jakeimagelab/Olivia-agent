@@ -19,6 +19,7 @@ const TOOL_LABELS: Record<string, string> = {
   calendar_complete:  "완료 처리",
   calendar_delete:    "삭제",
   calendar_update:    "일정 수정",
+  send_workflow_mail: "워크플로우 메일 발송",
 };
 
 async function tgRequest(method: string, body: object): Promise<any> {
