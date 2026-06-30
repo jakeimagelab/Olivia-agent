@@ -40,11 +40,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (insErr) throw insErr;
 
     const matchedCount = rows.filter(r => r.status === "matched").length;
+    const now = new Date().toISOString();
 
     await sb
       .from("select_galleries")
-      .update({ status: "raw_matched", updated_at: new Date().toISOString() })
+      .update({ status: "raw_matched", updated_at: now })
       .eq("id", id);
+
+    // 워크플로우 자동 진행: raw_matching → retouching
+    if (gallery.workflow_run_id) {
+      await sb
+        .from("workflow_runs")
+        .update({ current_step_key: "retouching", updated_at: now })
+        .eq("id", gallery.workflow_run_id);
+    }
 
     return NextResponse.json({ ok: true, total: rows.length, matched: matchedCount, rawMatches: inserted });
   } catch (e: any) {

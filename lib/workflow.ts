@@ -42,52 +42,52 @@ export const WORKFLOW_STEPS = [
   },
   {
     key: "client_selection",  name: "고객 사진 셀렉",
-    order_index: 75, requires_approval: false, automation_level: "full" as const,
+    order_index: 8,  requires_approval: false, automation_level: "full" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "select-galleries",
   },
   {
     key: "raw_matching",      name: "RAW 자동 매칭",
-    order_index: 76, requires_approval: true,  automation_level: "draft_then_approve" as const,
+    order_index: 9,  requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "select-galleries",
   },
   {
     key: "retouching",        name: "보정",
-    order_index: 8,  requires_approval: false, automation_level: "manual" as const,
+    order_index: 10, requires_approval: false, automation_level: "manual" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "photo-retouching",
   },
   {
     key: "revision",          name: "보정 전달 후 수정 접수",
-    order_index: 9,  requires_approval: true,  automation_level: "draft_then_approve" as const,
+    order_index: 11, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "revision",
   },
   {
     key: "seo_delivery",      name: "AI 검색 최적화 납품 생성",
-    order_index: 10, requires_approval: true,  automation_level: "draft_then_approve" as const,
+    order_index: 12, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "seo-delivery",
   },
   {
     key: "final_delivery",    name: "최종파일 전달 + 후기 요청",
-    order_index: 11, requires_approval: true,  automation_level: "draft_then_approve" as const,
+    order_index: 13, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing",
   },
   {
     key: "review_content",    name: "후기 DB 저장 / 콘텐츠 제작",
-    order_index: 12, requires_approval: true,  automation_level: "draft_then_approve" as const,
+    order_index: 14, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "review-studio",
   },
   {
     key: "reward",            name: "고객 리워드 (1%)",
-    order_index: 13, requires_approval: false, automation_level: "full" as const,
+    order_index: 15, requires_approval: false, automation_level: "full" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "per",
   },
   {
     key: "customer_care",     name: "고객관리 (주기 알람/이벤트)",
-    order_index: 14, requires_approval: true,  automation_level: "draft_then_approve" as const,
+    order_index: 16, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing",
   },
   {
     key: "content_planning",  name: "스토리 콘텐츠 기획",
-    order_index: 15, requires_approval: false, automation_level: "manual" as const,
+    order_index: 17, requires_approval: false, automation_level: "manual" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "content",
   },
 ];

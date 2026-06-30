@@ -617,8 +617,18 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
               </div>
             )}
 
+            {/* 고객 셀렉 단계 */}
+            {selectedStepKey === "client_selection" && (
+              <SelectionStepPanel clientId={clientId} workflowRunId={workflowRun?.id} />
+            )}
+
+            {/* RAW 매칭 단계 */}
+            {selectedStepKey === "raw_matching" && (
+              <RawMatchingStepPanel clientId={clientId} workflowRunId={workflowRun?.id} />
+            )}
+
             {/* 기본 단계 — 설명 + 앱 링크 */}
-            {!["shooting", "original_delivery", "consult_meeting", "final_delivery"].includes(selectedStepKey) && (
+            {!["shooting", "original_delivery", "consult_meeting", "final_delivery", "client_selection", "raw_matching"].includes(selectedStepKey) && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18, padding: "14px 18px", background: C.light, borderRadius: 10 }}>
                 <div style={{ fontSize: 13, color: C.teal, lineHeight: 1.6 }}>
                   <strong>{client.name}</strong>의 <strong>{STEP_NAME[selectedStepKey]}</strong> 단계를 진행하세요.
@@ -740,6 +750,138 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ── 셀렉 단계 인라인 패널 ── */
+function SelectionStepPanel({ clientId, workflowRunId }: { clientId: string; workflowRunId?: string }) {
+  const [gallery, setGallery] = useState<any>(null);
+  const [selection, setSelection] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!clientId) return;
+    fetch(`/api/select-galleries?clientId=${clientId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok && d.galleries.length > 0) {
+          const g = d.galleries[0];
+          setGallery(g);
+          if (g.status === "selection_submitted" || g.status === "raw_matched") {
+            fetch(`/api/select-galleries/${g.id}`)
+              .then(r => r.json())
+              .then(d2 => { if (d2.ok) setSelection(d2.selection); });
+          }
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [clientId]);
+
+  const params = new URLSearchParams();
+  params.set("clientId", clientId);
+  if (workflowRunId) params.set("workflowRunId", workflowRunId);
+  params.set("stepKey", "client_selection");
+
+  if (loading) return <div style={{ fontSize: 13, color: C.muted, padding: "10px 0", marginBottom: 18 }}>셀렉 갤러리 확인 중...</div>;
+
+  return (
+    <div style={{ background: C.light, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
+      {gallery ? (
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: C.teal, marginBottom: 8 }}>📸 셀렉 갤러리 연결됨</div>
+          <div style={{ display: "flex", gap: 16, fontSize: 12, color: C.muted, flexWrap: "wrap", marginBottom: 10 }}>
+            <span>상태: <strong style={{ color: C.txt }}>{gallery.status}</strong></span>
+            <span>이미지: <strong>{gallery.total_jpg_count}장</strong></span>
+            {gallery.selected_count > 0 && <span style={{ color: C.green, fontWeight: 700 }}>선택 완료 {gallery.selected_count}장</span>}
+          </div>
+          {selection?.customer_memo && (
+            <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#92400E", marginBottom: 10 }}>
+              💬 {selection.customer_memo}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>
+          연결된 셀렉 갤러리가 없습니다. 사진 분류 완료 후 갤러리를 생성하세요.
+        </div>
+      )}
+      <Link href={`/select-galleries?${params.toString()}`}
+        style={{ display: "inline-block", padding: "9px 20px", background: C.teal, color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 800, textDecoration: "none" }}>
+        셀렉 갤러리 열기 →
+      </Link>
+    </div>
+  );
+}
+
+/* ── RAW 매칭 단계 인라인 패널 ── */
+function RawMatchingStepPanel({ clientId, workflowRunId }: { clientId: string; workflowRunId?: string }) {
+  const [gallery, setGallery] = useState<any>(null);
+  const [selection, setSelection] = useState<any>(null);
+  const [rawMatches, setRawMatches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!clientId) return;
+    fetch(`/api/select-galleries?clientId=${clientId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok && d.galleries.length > 0) {
+          const g = d.galleries[0];
+          setGallery(g);
+          fetch(`/api/select-galleries/${g.id}`)
+            .then(r => r.json())
+            .then(d2 => {
+              if (d2.ok) { setSelection(d2.selection); setRawMatches(d2.rawMatches ?? []); }
+            });
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [clientId]);
+
+  const params = new URLSearchParams();
+  params.set("clientId", clientId);
+  if (workflowRunId) params.set("workflowRunId", workflowRunId);
+  params.set("stepKey", "raw_matching");
+
+  if (loading) return <div style={{ fontSize: 13, color: C.muted, padding: "10px 0", marginBottom: 18 }}>데이터 로딩 중...</div>;
+
+  const matchedCount = rawMatches.filter(m => m.status === "matched").length;
+  const missingCount = rawMatches.filter(m => m.status === "raw_missing").length;
+  const isMatched = rawMatches.length > 0;
+
+  return (
+    <div style={{ background: C.light, borderRadius: 10, padding: "14px 18px", marginBottom: 18 }}>
+      {selection ? (
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: C.teal, marginBottom: 8 }}>
+            {isMatched ? "✅ RAW 매칭 완료" : "⏳ 고객 선택 완료 — RAW 매칭 대기 중"}
+          </div>
+          <div style={{ display: "flex", gap: 16, fontSize: 12, flexWrap: "wrap", marginBottom: 10 }}>
+            <span style={{ color: C.green, fontWeight: 700 }}>선택 {selection.selected_count}장</span>
+            {isMatched && <span style={{ color: C.green, fontWeight: 700 }}>RAW 매칭 {matchedCount}장</span>}
+            {isMatched && missingCount > 0 && <span style={{ color: "#DC2626", fontWeight: 700 }}>누락 {missingCount}장</span>}
+          </div>
+          {selection.customer_memo && (
+            <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#92400E", marginBottom: 10 }}>
+              💬 {selection.customer_memo}
+            </div>
+          )}
+          {!isMatched && (
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>
+              선택 파일명:&nbsp;
+              {selection.selected_files.slice(0, 5).join(", ")}
+              {selection.selected_files.length > 5 ? ` 외 ${selection.selected_files.length - 5}개` : ""}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ fontSize: 13, color: C.muted, marginBottom: 10 }}>고객이 아직 사진을 선택하지 않았습니다.</div>
+      )}
+      <Link href={gallery ? `/select-galleries/${gallery.id}?${params.toString()}` : `/select-galleries?${params.toString()}`}
+        style={{ display: "inline-block", padding: "9px 20px", background: C.teal, color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 800, textDecoration: "none" }}>
+        {isMatched ? "RAW 매칭 리포트 보기 →" : "RAW 자동 매칭 시작 →"}
+      </Link>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
@@ -549,6 +550,11 @@ interface SavedSortingSession {
    MAIN COMPONENT
 ═══════════════════════════════════════════════ */
 export default function PhotoSortingPage() {
+  const sp = useSearchParams();
+  const router = useRouter();
+  const clientId = sp.get("clientId") ?? sp.get("client_id") ?? "";
+  const workflowRunId = sp.get("workflowRunId") ?? "";
+
   /* ── shared state ── */
   const [photoMode,  setPhotoMode]  = useState<PhotoMode>("field");
   const [step,       setStep]       = useState(0);
@@ -582,6 +588,8 @@ export default function PhotoSortingPage() {
   const [selectTabView,          setSelectTabView]          = useState<"guide"|"select">("guide");
   const [inAppSelected,          setInAppSelected]          = useState<Set<string>>(new Set());
   const [selectExpandedScenes,   setSelectExpandedScenes]   = useState<Set<number>>(new Set());
+
+  const [creatingGallery, setCreatingGallery] = useState(false);
 
   /* ── studio state ── */
   const [studioOpts,          setStudioOpts]          = useState<StudioOptions>({ lightingSensitivity:"medium" });
@@ -2672,6 +2680,53 @@ export default function PhotoSortingPage() {
             <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["scene","folder_name","file_count","start_time","end_time","scene_type"],fieldScenes.map(sc=>[String(sc.index),sc.editedName,String(sc.fileCount),new Date(sc.startTime).toISOString(),new Date(sc.endTime).toISOString(),sc.sceneType??""])),"scene_report.csv")}>↓ 씬 리포트 CSV</Btn>
             <Btn onClick={()=>{clearSession();setStep(0);setFieldScenes([]);setRootDir(null);setFieldRawCount(0);setCopyLog([]);setFieldStats(null);setMergeCandidates([]);setDismissedCandidates(new Set());setMergeDecisions([]);}}>처음으로</Btn>
           </div>
+          {fieldScenes.length > 0 && (
+            <div style={{marginTop:16,padding:16,background:"#EAF4F2",borderRadius:10,border:"1.5px solid #B2D8D4"}}>
+              <div style={{fontSize:13,fontWeight:800,color:C.teal,marginBottom:6}}>📸 고객 셀렉 단계로 이동</div>
+              <div style={{fontSize:12,color:C.muted,marginBottom:12,lineHeight:1.7}}>
+                분류된 씬 정보로 고객 셀렉 갤러리를 생성합니다.<br/>
+                생성 후 JPG를 업로드하고 브랜드메일을 발송하세요.
+              </div>
+              <Btn disabled={creatingGallery} onClick={async () => {
+                setCreatingGallery(true);
+                try {
+                  const scenes = fieldScenes.map((sc, i) => ({
+                    sceneId: `scene-${i+1}`,
+                    sceneName: sc.editedName,
+                    folderName: sc.folderName ?? `Scene${String(i+1).padStart(2,"0")}`,
+                    images: sc.files.map((f, j) => ({
+                      originalFileName: f.name,
+                      basename: f.basename,
+                      sortOrder: j,
+                    })),
+                  }));
+                  const res = await fetch("/api/select-galleries/create-from-photo-sorting", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      clientId: clientId || undefined,
+                      workflowRunId: workflowRunId || undefined,
+                      title: `${rootDir?.name ?? "촬영"} 셀렉 갤러리`,
+                      shootingDate: new Date().toISOString().slice(0,10),
+                      scenes,
+                    }),
+                  });
+                  const d = await res.json();
+                  if (d.ok) {
+                    const params = new URLSearchParams();
+                    if (clientId) params.set("clientId", clientId);
+                    if (workflowRunId) params.set("workflowRunId", workflowRunId);
+                    params.set("stepKey", "client_selection");
+                    router.push(`/select-galleries/${d.gallery.id}?${params.toString()}`);
+                  } else {
+                    alert("갤러리 생성 실패: " + d.error);
+                  }
+                } catch(e:any) { alert("오류: " + e.message); }
+                setCreatingGallery(false);
+              }}>
+                {creatingGallery ? "생성 중..." : "📸 고객 셀렉 갤러리 만들기 →"}
+              </Btn>
+            </div>
+          )}
         </div>
       </Card>
     );

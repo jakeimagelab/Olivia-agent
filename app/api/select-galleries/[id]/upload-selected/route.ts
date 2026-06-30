@@ -71,6 +71,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .update({ status: "selection_submitted", selected_count: selectedFiles.length, submitted_at: now, updated_at: now })
       .eq("id", id);
 
+    // 워크플로우 자동 진행: client_selection → raw_matching
+    if (gallery.workflow_run_id) {
+      await sb
+        .from("workflow_runs")
+        .update({ current_step_key: "raw_matching", updated_at: now })
+        .eq("id", gallery.workflow_run_id);
+    }
+
     return NextResponse.json({ ok: true, selection, selected_files: selectedFiles, rejected });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });

@@ -60,7 +60,18 @@ export function buildWorkflowNextAction({
   let severity: WorkflowNextAction["severity"] = "default";
   let blockedReason: string | null = null;
 
-  if (run?.status === "completed" || currentIndex === WORKFLOW_STEPS.length - 1 && !openTasks.length && !pendingApprovals.length) {
+  // 셀렉 단계 전용 안내
+  if (stepKey === "client_selection") {
+    primaryAction = "open_app";
+    label = "분류된 JPG로 고객 셀렉 갤러리를 만들고 브랜드메일을 보내세요.";
+    primaryActionLabel = "셀렉 갤러리 열기";
+    severity = "info";
+  } else if (stepKey === "raw_matching") {
+    primaryAction = "open_app";
+    label = "고객이 선택을 완료했습니다. RAW 폴더를 선택해 RAW_SELECT를 생성하세요.";
+    primaryActionLabel = "RAW 자동 매칭 시작";
+    severity = "warning";
+  } else if (run?.status === "completed" || currentIndex === WORKFLOW_STEPS.length - 1 && !openTasks.length && !pendingApprovals.length) {
     primaryAction = "completed";
     label = "워크플로우가 완료되었습니다.";
     primaryActionLabel = "완료";

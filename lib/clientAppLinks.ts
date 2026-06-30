@@ -12,7 +12,8 @@ export type ClientAppKey =
   | "shooting"
   | "original-delivery"
   | "photo-retouching"
-  | "photo-sorting";
+  | "photo-sorting"
+  | "select-galleries";
 
 export const STEP_APP_LINKS: Record<string, ClientAppKey> = {
   consult_meeting: "consultation",
@@ -22,6 +23,8 @@ export const STEP_APP_LINKS: Record<string, ClientAppKey> = {
   shooting: "shooting",
   backup_sorting: "photo-sorting",
   original_delivery: "original-delivery",
+  client_selection: "select-galleries",
+  raw_matching: "select-galleries",
   retouching: "photo-retouching",
   revision: "mailing",
   final_delivery: "gallery",

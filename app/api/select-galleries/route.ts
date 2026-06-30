@@ -5,13 +5,13 @@ import { generateShareToken, getFileExpiresAt } from "@/lib/selectGallery";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const sb = getSupabaseAdmin();
-    const { data, error } = await sb
-      .from("select_galleries")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const clientId = new URL(req.url).searchParams.get("clientId");
+    let query = sb.from("select_galleries").select("*").order("created_at", { ascending: false });
+    if (clientId) query = query.eq("client_id", clientId);
+    const { data, error } = await query;
     if (error) throw error;
     return NextResponse.json({ ok: true, galleries: data ?? [] });
   } catch (e: any) {
