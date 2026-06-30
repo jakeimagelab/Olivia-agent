@@ -610,11 +610,23 @@ function ToolGrid() {
   return(
     <>
       <WorkflowStrip/>
-      <div style={{fontSize:10,fontWeight:900,color:"#9BB5B0",letterSpacing:".1em",textTransform:"uppercase",paddingBottom:12}}>📅 업무 서포트</div>
-      <div className="admin-menu-grid" style={{marginBottom:32}}>
+      <div style={{
+        fontSize:13,fontWeight:700,color:"#3a5c58",
+        letterSpacing:"-.1px",paddingBottom:14,
+        display:"flex",alignItems:"center",gap:6,
+      }}>
+        <span style={{fontSize:16}}>📅</span> 업무 서포트
+      </div>
+      <div className="admin-menu-grid" style={{marginBottom:36}}>
         {TOOLS_WORK.map(t=><ToolCard key={t.href} tool={t}/>)}
       </div>
-      <div style={{fontSize:10,fontWeight:900,color:"#9BB5B0",letterSpacing:".1em",textTransform:"uppercase",paddingBottom:12}}>📢 홍보 콘텐츠</div>
+      <div style={{
+        fontSize:13,fontWeight:700,color:"#3a5c58",
+        letterSpacing:"-.1px",paddingBottom:14,
+        display:"flex",alignItems:"center",gap:6,
+      }}>
+        <span style={{fontSize:16}}>📢</span> 홍보 & 분석
+      </div>
       <div className="admin-menu-grid">
         {TOOLS_CONTENT.map(t=><ToolCard key={t.href} tool={t}/>)}
       </div>
