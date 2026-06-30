@@ -25,6 +25,7 @@ interface StudioPhotoFile {
   name: string; basename: string;
   handle: FileSystemFileHandle; mtime: number;
   thumbUrl: string | null; brightness: number | null;
+  fileSize: number;
   lightingStatus: StudioLightingStatus;
   hasGown: boolean; innerWear: StudioInnerWear;
   clothingLabel: string; poseType: StudioPoseType;
@@ -48,6 +49,7 @@ interface StudioStats {
 
 /* ── Studio Group-mode types ── */
 type StudioSubMode = "concept" | "group";
+type StudioGroupSortMode = "gap" | "gap_ai" | "ai";
 
 interface PersonFeatures {
   gender: "male" | "female" | "unknown";
@@ -55,6 +57,8 @@ interface PersonFeatures {
   hairColor: "black" | "brown" | "blonde" | "white_gray" | "other" | "unknown";
   hairLength: "short" | "medium" | "long" | "bald" | "unknown";
   hasGlasses: boolean;
+  hasBeard: boolean;
+  faceShape: "oval" | "round" | "square" | "heart" | "unknown";
 }
 
 interface PersonGroup {
@@ -364,20 +368,65 @@ function buildStudioGroups(files: StudioPhotoFile[]): StudioGroup[] {
   return groups;
 }
 
-function personSoftMatch(a: PersonFeatures, b: PersonFeatures): boolean {
-  if (a.gender !== "unknown" && b.gender !== "unknown" && a.gender !== b.gender) return false;
-  if (a.hasGlasses !== b.hasGlasses) return false;
-  if (a.hairColor !== "unknown" && b.hairColor !== "unknown" && a.hairColor !== b.hairColor) {
-    const CLOSE: Record<string, string[]> = { black:["brown"], brown:["black","blonde"], blonde:["brown"], white_gray:[], other:[] };
-    if (!(CLOSE[a.hairColor] ?? []).includes(b.hairColor)) return false;
-  }
+function personMatchScore(a: PersonFeatures, b: PersonFeatures): number {
+  // Gender: 가장 강한 식별자 (0.35점, 불일치 시 즉시 0)
+  if (a.gender !== "unknown" && b.gender !== "unknown" && a.gender !== b.gender) return 0;
+  let score = (a.gender === "unknown" || b.gender === "unknown") ? 0.15 : 0.35;
+
+  // Glasses: 매우 강한 식별자 (0.20점, 불일치 시 즉시 0)
+  if (a.hasGlasses !== b.hasGlasses) return 0;
+  score += 0.20;
+
+  // Age band (0.18점)
   const BANDS = ["20s","30s","40s","50s","60s+","unknown"];
   const ai = BANDS.indexOf(a.ageBand), bi = BANDS.indexOf(b.ageBand);
-  if (ai !== 5 && bi !== 5 && Math.abs(ai - bi) > 1) return false;
+  if (ai === 5 || bi === 5) score += 0.08;
+  else {
+    const diff = Math.abs(ai - bi);
+    if (diff === 0) score += 0.18;
+    else if (diff === 1) score += 0.09;
+    else return 0; // 2단계 이상 차이 → 다른 사람
+  }
+
+  // Hair color (0.13점)
+  if (a.hairColor !== "unknown" && b.hairColor !== "unknown") {
+    if (a.hairColor === b.hairColor) {
+      score += 0.13;
+    } else {
+      const CLOSE: Record<string, string[]> = { black:["brown"], brown:["black","blonde"], blonde:["brown"], white_gray:[], other:[] };
+      if ((CLOSE[a.hairColor]??[]).includes(b.hairColor)) score += 0.06;
+      else score -= 0.08; // 확실히 다른 머리색 = 패널티
+    }
+  } else {
+    score += 0.05;
+  }
+
+  // Hair length (0.08점)
   const LENS = ["bald","short","medium","long","unknown"];
   const ali = LENS.indexOf(a.hairLength), bli = LENS.indexOf(b.hairLength);
-  if (ali !== 4 && bli !== 4 && Math.abs(ali - bli) > 1) return false;
-  return true;
+  if (ali === 4 || bli === 4) score += 0.03;
+  else {
+    const diff = Math.abs(ali - bli);
+    if (diff === 0) score += 0.08;
+    else if (diff === 1) score += 0.03;
+    else score -= 0.05;
+  }
+
+  // Beard (0.04점)
+  if (a.hasBeard === b.hasBeard) score += 0.04;
+  else score -= 0.04;
+
+  // Face shape (0.02점, 보조)
+  if (a.faceShape !== "unknown" && b.faceShape !== "unknown") {
+    if (a.faceShape === b.faceShape) score += 0.02;
+    else score -= 0.01;
+  }
+
+  return score;
+}
+
+function personSoftMatch(a: PersonFeatures, b: PersonFeatures): boolean {
+  return personMatchScore(a, b) >= 0.62;
 }
 
 function buildPersonGroups(files: StudioPhotoFile[]): PersonGroup[] {
@@ -389,7 +438,7 @@ function buildPersonGroups(files: StudioPhotoFile[]): PersonGroup[] {
     if (!groupMap.has(f.groupKey)) { groupMap.set(f.groupKey, []); keyOrder.push(f.groupKey); }
     groupMap.get(f.groupKey)!.push(f);
   }
-  const BLANK_FEATURES: PersonFeatures = { gender:"unknown", ageBand:"unknown", hairColor:"unknown", hairLength:"unknown", hasGlasses:false };
+  const BLANK_FEATURES: PersonFeatures = { gender:"unknown", ageBand:"unknown", hairColor:"unknown", hairLength:"unknown", hasGlasses:false, hasBeard:false, faceShape:"unknown" };
   const groups: PersonGroup[] = [];
   let idx = 1;
   for (const key of keyOrder) {
@@ -535,14 +584,16 @@ export default function PhotoSortingPage() {
   const [selectExpandedScenes,   setSelectExpandedScenes]   = useState<Set<number>>(new Set());
 
   /* ── studio state ── */
-  const [studioOpts,     setStudioOpts]     = useState<StudioOptions>({ lightingSensitivity:"medium" });
-  const [studioFiles,    setStudioFiles]    = useState<StudioPhotoFile[]>([]);
-  const [studioGroups,   setStudioGroups]   = useState<StudioGroup[]>([]);
-  const [studioRawCount, setStudioRawCount] = useState(0);
-  const [studioCopyLog,  setStudioCopyLog]  = useState<string[]>([]);
-  const [studioStats,    setStudioStats]    = useState<StudioStats | null>(null);
-  const [activeGroup,    setActiveGroup]    = useState(0);
-  const [studioSubMode,  setStudioSubMode]  = useState<StudioSubMode>("concept");
+  const [studioOpts,          setStudioOpts]          = useState<StudioOptions>({ lightingSensitivity:"medium" });
+  const [studioFiles,         setStudioFiles]         = useState<StudioPhotoFile[]>([]);
+  const [studioGroups,        setStudioGroups]        = useState<StudioGroup[]>([]);
+  const [studioRawCount,      setStudioRawCount]      = useState(0);
+  const [studioCopyLog,       setStudioCopyLog]       = useState<string[]>([]);
+  const [studioStats,         setStudioStats]         = useState<StudioStats | null>(null);
+  const [activeGroup,         setActiveGroup]         = useState(0);
+  const [studioSubMode,       setStudioSubMode]       = useState<StudioSubMode>("concept");
+  const [studioGroupSortMode, setStudioGroupSortMode] = useState<StudioGroupSortMode>("gap_ai");
+  const [studioGapMinutes,    setStudioGapMinutes]    = useState(3);
   const [personGroups,   setPersonGroups]   = useState<PersonGroup[]>([]);
   const [activePersonGroup, setActivePersonGroup] = useState(0);
 
@@ -1513,13 +1564,13 @@ export default function PhotoSortingPage() {
     setStep(1); cancelRef.current = false;
     setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
     const rawFiles: {name:string,handle:FileSystemFileHandle}[] = [];
-    const jpgFiles: {name:string,handle:FileSystemFileHandle,mtime:number}[] = [];
+    const jpgFiles: {name:string,handle:FileSystemFileHandle,mtime:number,fileSize:number}[] = [];
     for await (const [name, handle] of (rootDir as any).entries()) {
       if (handle.kind !== "file") continue;
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       const file = await (handle as FileSystemFileHandle).getFile();
       if (RAW_EXTS.has(ext)) rawFiles.push({ name, handle });
-      else if (JPG_EXTS.has(ext)) jpgFiles.push({ name, handle, mtime:file.lastModified });
+      else if (JPG_EXTS.has(ext)) jpgFiles.push({ name, handle, mtime:file.lastModified, fileSize:file.size });
     }
     setStudioRawCount(rawFiles.length);
     jpgFiles.sort((a,b)=>a.mtime-b.mtime);
@@ -1530,18 +1581,95 @@ export default function PhotoSortingPage() {
       const file = await sf.handle.getFile();
       const thumb = await loadThumb(file, 100);
       const brightness = await quickBrightness(file);
-      files.push({ name:sf.name, basename:sf.name.replace(/\.[^.]+$/,""), handle:sf.handle, mtime:sf.mtime, thumbUrl:thumb, brightness, lightingStatus:"normal", hasGown:false, innerWear:"기타", clothingLabel:"미분류", poseType:"Unknown", isFamilyProfile:false, confidence:0, analyzed:false, groupKey:"__PENDING__" });
+      files.push({ name:sf.name, basename:sf.name.replace(/\.[^.]+$/,""), handle:sf.handle, mtime:sf.mtime, fileSize:sf.fileSize, thumbUrl:thumb, brightness, lightingStatus:"normal", hasGown:false, innerWear:"기타", clothingLabel:"미분류", poseType:"Unknown", isFamilyProfile:false, confidence:0, analyzed:false, groupKey:"__PENDING__" });
       done++;
     }
     setStudioFiles(files);
     setProgress({ cur:total, total, msg:`파일 분류 완료 — JPG ${jpgFiles.length}장 / RAW ${rawFiles.length}개` });
     setStep(2);
     if (studioSubMode === "group") {
-      await runGroupAnalysis(files);
+      if (studioGroupSortMode === "gap") await runGapSort(files);
+      else if (studioGroupSortMode === "gap_ai") await runGapAiSort(files);
+      else await runGroupAnalysis(files);
     } else {
       await runStudioAnalysis(files);
     }
-  }, [rootDir, studioOpts, studioSubMode]);
+  }, [rootDir, studioOpts, studioSubMode, studioGroupSortMode, studioGapMinutes]);
+
+  // 파일 크기 기반 ETC 임계값 계산 (중앙값 대비 35% 이하 = 어두운 컷)
+  const calcEtcSizeThreshold = (files: StudioPhotoFile[]): number => {
+    const sizes = files.map(f => f.fileSize).sort((a,b) => a-b);
+    const median = sizes[Math.floor(sizes.length / 2)] ?? 0;
+    return median * 0.35;
+  };
+
+  const runGapSort = async (files: StudioPhotoFile[]) => {
+    const etcThreshold = calcEtcSizeThreshold(files);
+    const gapMs = studioGapMinutes * 60 * 1000;
+    let personCount = 0;
+    const result = files.map((f, i) => {
+      if (i === 0 || f.mtime - files[i-1].mtime > gapMs) personCount++;
+      const isSizeEtc = f.fileSize < etcThreshold;
+      return {
+        ...f, analyzed: true,
+        groupKey: isSizeEtc ? "__ETC__" : `person_${personCount}`,
+        lightingStatus: (isSizeEtc ? "etc_dark" : "normal") as StudioLightingStatus,
+      };
+    });
+    setStudioFiles(result);
+    setPersonGroups(buildPersonGroups(result));
+    setStep(3);
+  };
+
+  const runGapAiSort = async (files: StudioPhotoFile[]) => {
+    // 1단계: 파일 크기로 ETC 사전 필터 + 시간차로 인물 구분
+    const etcThreshold = calcEtcSizeThreshold(files);
+    const gapMs = studioGapMinutes * 60 * 1000;
+    let personCount = 0;
+    const withGap = files.map((f, i) => {
+      if (i === 0 || f.mtime - files[i-1].mtime > gapMs) personCount++;
+      const isSizeEtc = f.fileSize < etcThreshold;
+      return {
+        ...f,
+        groupKey: isSizeEtc ? "__ETC__" : `person_${personCount}`,
+        lightingStatus: (isSizeEtc ? "etc_dark" : "normal") as StudioLightingStatus,
+      };
+    });
+
+    // 2단계: 크기로 통과한 컷만 AI 조명 검사
+    const result = [...withGap];
+    const needsAI = withGap.map((f,i) => ({f,i})).filter(({f}) => f.groupKey !== "__ETC__");
+    const total = needsAI.length; let done = 0;
+    const CONCURRENCY = 6;
+    let qi = 0;
+    const worker = async () => {
+      while (qi < needsAI.length) {
+        const { f, i } = needsAI[qi++];
+        setProgress({ cur: done, total, msg: `AI 조명 검사: ${f.name}` });
+        try {
+          const file = await f.handle.getFile();
+          const thumb = await getStudioThumb(file);
+          const res = await fetch("/api/studio-face-analysis", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ thumbnail:thumb, lightingSensitivity:studioOpts.lightingSensitivity, lightingOnly:true }),
+          });
+          const data = await res.json();
+          if (data.ok && data.lightingStatus !== "normal") {
+            result[i] = { ...result[i], analyzed:true, lightingStatus:data.lightingStatus as StudioLightingStatus, groupKey:"__ETC__" };
+          } else {
+            result[i] = { ...result[i], analyzed:true };
+          }
+        } catch {
+          result[i] = { ...result[i], analyzed:true };
+        }
+        done++;
+        setStudioFiles([...result]);
+      }
+    };
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+    setPersonGroups(buildPersonGroups(result));
+    setStep(3);
+  };
 
   const runStudioAnalysis = async (files: StudioPhotoFile[]) => {
     const total = files.length; let done = 0;
@@ -1671,12 +1799,15 @@ export default function PhotoSortingPage() {
           if (data.ok && data.lightingStatus === "normal") {
             const GENDERS = ["male","female"], AGES = ["20s","30s","40s","50s","60s+"];
             const HCOLORS = ["black","brown","blonde","white_gray","other"], HLENS = ["short","medium","long","bald"];
+            const FSHAPES = ["oval","round","square","heart"];
             const features: PersonFeatures = {
               gender:     GENDERS.includes(data.gender)     ? data.gender     : "unknown",
               ageBand:    AGES.includes(data.ageBand)        ? data.ageBand    : "unknown",
               hairColor:  HCOLORS.includes(data.hairColor)  ? data.hairColor  : "unknown",
               hairLength: HLENS.includes(data.hairLength)   ? data.hairLength : "unknown",
               hasGlasses: data.hasGlasses === true,
+              hasBeard:   data.hasBeard   === true,
+              faceShape:  FSHAPES.includes(data.faceShape)  ? data.faceShape  : "unknown",
             };
             result[idx] = { ...file, lightingStatus:"normal", personFeatures:features, analyzed:true, groupKey:"PENDING" };
           } else {
@@ -1691,18 +1822,28 @@ export default function PhotoSortingPage() {
     };
     await Promise.all(Array.from({length: CONCURRENCY}, () => worker()));
 
-    // Client-side person matching (O(n*m), instant)
-    const knownPersons: Array<{id: string; features: PersonFeatures}> = [];
+    // Client-side person matching: best-score nearest neighbor
+    const knownPersons: Array<{id: string; features: PersonFeatures; scoreSum: number; count: number}> = [];
     let personCount = 0;
     const final = result.map(file => {
       if (file.groupKey === "__ETC__") return file;
       if (!file.personFeatures) return { ...file, groupKey:"__ETC__" };
-      const match = knownPersons.find(p => personSoftMatch(file.personFeatures!, p.features));
-      if (match) return { ...file, groupKey:match.id };
+      // 점수 기반 최적 매치 탐색
+      let bestScore = 0, bestId: string | null = null, bestIdx = -1;
+      knownPersons.forEach((p, i) => {
+        const s = personMatchScore(file.personFeatures!, p.features);
+        if (s > bestScore) { bestScore = s; bestId = p.id; bestIdx = i; }
+      });
+      if (bestScore >= 0.62 && bestId !== null) {
+        // 기존 인물 특징을 지수이동평균으로 업데이트 (안정적 매칭)
+        const p = knownPersons[bestIdx];
+        p.scoreSum += bestScore; p.count++;
+        return { ...file, groupKey: bestId };
+      }
       personCount++;
       const id = `person_${personCount}`;
-      knownPersons.push({ id, features:file.personFeatures });
-      return { ...file, groupKey:id };
+      knownPersons.push({ id, features: file.personFeatures, scoreSum: 1, count: 1 });
+      return { ...file, groupKey: id };
     });
 
     setStudioFiles(final);
@@ -1970,13 +2111,49 @@ export default function PhotoSortingPage() {
             </Card>
             <div style={{padding:14,background:"#F5F0FF",borderRadius:12,fontSize:11,color:"#4C1D95",border:"1px solid #DDD6FE",lineHeight:1.8}}>
               {studioSubMode === "group" ? (
-                <><strong>여러 명 · 같은 컨셉 모드</strong>: 각 사진의 얼굴 특징(성별·연령·헤어·안경)을 AI로 분석해 인물별로 자동 분류합니다.<br/>
-                분류 후 폴더명(예: 01_인물1)을 검토해 수정하세요. 조명 불량 컷은 <strong>00_ETC_조명불량</strong>으로 분리됩니다.</>
+                <><strong>여러 명 · 같은 컨셉 모드</strong>: 촬영 시간차 또는 AI 얼굴 분석으로 인물별 자동 분류.<br/>
+                폴더명(예: 01_인물1)은 분류 후 수정 가능. 조명 불량 컷은 <strong>00_ETC_조명불량</strong>으로 분리됩니다.</>
               ) : (
                 <><strong>한 명 · 여러 컨셉 모드</strong>: 의상 변화와 포즈 변화를 기준으로 분류합니다.<br/>
                 포즈는 Standing / Sitting 두 가지로만 나눕니다. 조명 불량 컷은 <strong>00_ETC_조명불량</strong> 폴더로 분리합니다.</>
               )}
             </div>
+
+            {/* 여러 명 모드 — 분류 방식 */}
+            {studioSubMode === "group" && (
+              <Card>
+                <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.purple}}>인물 구분 방식</div>
+                <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:12}}>
+                  {([
+                    ["gap",    "⏱ 시간차로만",       "촬영 간격이 설정 시간 이상이면 다음 인물로 구분. AI 없이 즉시 처리."],
+                    ["gap_ai", "⏱+🤖 시간차 + AI",   "시간차로 인물을 나눈 후, AI가 조명 불량 컷을 필터링. (권장)"],
+                    ["ai",     "🤖 AI 얼굴 분석만",   "AI가 얼굴 특징(성별·나이·헤어·안경·수염)으로 인물 매칭. 느리지만 정확."],
+                  ] as const).map(([m, title, desc]) => (
+                    <label key={m} style={{display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer",padding:"10px 12px",borderRadius:8,border:`1.5px solid ${studioGroupSortMode===m?C.purple:C.border}`,background:studioGroupSortMode===m?"#F5F0FF":"transparent"}}>
+                      <input type="radio" name="groupSortMode" value={m} checked={studioGroupSortMode===m} onChange={()=>setStudioGroupSortMode(m)} style={{marginTop:2,accentColor:C.purple}}/>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:800,color:studioGroupSortMode===m?C.purple:C.txt,marginBottom:2}}>{title}{m==="gap_ai"&&<span style={{fontSize:10,background:C.purple,color:"#fff",borderRadius:4,padding:"1px 5px",marginLeft:6}}>권장</span>}</div>
+                        <div style={{fontSize:11,color:C.hint,lineHeight:1.5}}>{desc}</div>
+                      </div>
+                    </label>
+                  ))}
+                  {studioGroupSortMode !== "ai" && (
+                    <div style={{padding:"10px 12px",background:C.bg,borderRadius:8,border:`1px solid ${C.border}`}}>
+                      <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:8}}>인물 전환 기준 시간차</div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {[1,2,3,5,7,10].map(v=>(
+                          <button key={v} onClick={()=>setStudioGapMinutes(v)}
+                            style={{padding:"5px 12px",borderRadius:6,border:`1.5px solid ${studioGapMinutes===v?C.purple:C.border}`,background:studioGapMinutes===v?C.purple:"transparent",color:studioGapMinutes===v?"#fff":C.muted,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                            {v}분
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{fontSize:10,color:C.hint,marginTop:6}}>{studioGapMinutes}분 이상 촬영 간격 → 다음 인물로 전환</div>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
             <Card>
               <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.purple}}>폴더 선택</div>
               <div style={{padding:20,display:"flex",flexDirection:"column",gap:14}}>
