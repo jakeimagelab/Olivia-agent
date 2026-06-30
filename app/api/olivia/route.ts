@@ -196,6 +196,23 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "send_workflow_mail",
+    description: "워크플로우 메일 발송 — 후기 요청, 원본 전달, 갤러리 공유 등 병원 고객에게 단계별 메일을 보냅니다. 병원명으로 DB에서 이메일을 자동 조회합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName: { type: "string", description: "병원명 (DB에서 이메일 자동 조회)" },
+        mailType: {
+          type: "string",
+          enum: ["review_form", "original_files", "gallery", "quote", "contract", "conti", "proposal"],
+          description: "메일 종류: review_form=후기요청, original_files=원본파일전달, gallery=갤러리공유, quote=견적, contract=계약, conti=콘티, proposal=제안",
+        },
+        customBody: { type: "string", description: "메일 본문 추가 메시지 (선택)" },
+      },
+      required: ["hospitalName", "mailType"],
+    },
+  },
+  {
     name: "calendar_add_bulk",
     description: "캘린더에 여러 할일/일정을 한번에 추가합니다. 2개 이상의 일정을 추가할 때는 반드시 이 도구를 사용하세요.",
     input_schema: {
