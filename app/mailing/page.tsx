@@ -18,10 +18,10 @@ const iS: React.CSSProperties = {
 
 // ── 타입 ───────────────────────────────────────────────────
 type MailStatus = "draft" | "ready" | "sent" | "failed";
-type MailType = "quote" | "contract" | "conti" | "proposal" | "original_files" | "gallery" | "review_form" | "monthly_report";
+type MailType = "quote" | "contract" | "conti" | "proposal" | "original_files" | "gallery" | "review_form" | "monthly_report" | "select_gallery";
 
 type MailItem = {
-  id: string; type: MailType; source_module: string;
+  id: string; type: MailType; source_module: string; source_id?: string;
   hospital_name: string; contact_name: string;
   to_email: string; subject: string; body: string;
   attachments: { filename: string; content_type: string; content: string }[];
@@ -34,6 +34,7 @@ const TYPE_LABELS: Record<MailType, string> = {
   quote: "견적서", contract: "계약서", conti: "촬영 콘티",
   proposal: "제안서", original_files: "원본 파일", gallery: "보정본 갤러리",
   review_form: "리뷰 Form", monthly_report: "월간 리포트",
+  select_gallery: "셀렉 갤러리",
 };
 const STATUS_LABELS: Record<MailStatus, string> = {
   draft: "임시저장", ready: "발송 대기", sent: "발송 완료", failed: "발송 실패",
@@ -886,9 +887,178 @@ function CustomBrandMailTab() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// 탭 4 — 셀렉 갤러리 메일 발송
+// ═══════════════════════════════════════════════════════════
+const SEL_STATUS_LABEL: Record<string, string> = {
+  draft: "초안", uploading_images: "업로드 중", ready: "발송 준비",
+  mail_draft_created: "초안 생성됨", mail_sent: "메일 발송됨",
+  waiting_selection: "셀렉 대기", selection_submitted: "셀렉 완료",
+  raw_matching: "RAW 매칭 중", raw_matched: "RAW 매칭 완료",
+  retouching: "보정 중", completed: "완료", files_expired: "파일 만료", expired: "만료",
+};
+const SEL_STATUS_COLOR: Record<string, string> = {
+  draft: "#9BB5B0", uploading_images: "#D97706", ready: "#2563EB",
+  mail_draft_created: "#D97706", mail_sent: "#D97706",
+  waiting_selection: "#2563EB", selection_submitted: "#7C3AED",
+  raw_matching: "#D97706", raw_matched: "#059669",
+  retouching: "#155855", completed: "#22876A", files_expired: "#9BB5B0", expired: "#DC2626",
+};
+
+function SelectGalleryMailTab() {
+  const [galleries, setGalleries]   = useState<any[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [selected, setSelected]     = useState<any | null>(null);
+  const [toEmail, setToEmail]       = useState("");
+  const [toName, setToName]         = useState("");
+  const [sending, setSending]       = useState(false);
+  const [result, setResult]         = useState<{ ok: boolean; msg: string } | null>(null);
+  const [search, setSearch]         = useState("");
+
+  useEffect(() => {
+    fetch("/api/select-galleries")
+      .then(r => r.json())
+      .then(d => { if (d.ok) setGalleries(d.galleries); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = galleries.filter(g =>
+    (g.hospital_name ?? g.title ?? "").toLowerCase().includes(search.toLowerCase()) ||
+    (g.shooting_name ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSend = async () => {
+    if (!selected || !toEmail) return;
+    setSending(true); setResult(null);
+    try {
+      const res = await fetch(`/api/select-galleries/${selected.id}/send-mail`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to_email: toEmail, to_name: toName }),
+      });
+      const d = await res.json();
+      setResult({ ok: d.ok, msg: d.ok ? (d.message ?? "메일 초안이 메일링 큐에 저장되었습니다") : (d.error ?? "오류") });
+      if (d.ok) {
+        // 갤러리 상태 갱신
+        setGalleries(prev => prev.map(g => g.id === selected.id ? { ...g, status: "mail_draft_created" } : g));
+        setSelected((prev: any) => prev ? { ...prev, status: "mail_draft_created" } : null);
+      }
+    } catch (e: any) { setResult({ ok: false, msg: e.message }); }
+    finally { setSending(false); }
+  };
+
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
+
+        {/* 갤러리 목록 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal, flex: 1 }}>📸 셀렉 갤러리 목록</div>
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="고객명·촬영명 검색" style={{ ...iS, width: 180, height: 34 }} />
+            </div>
+            {loading ? (
+              <div style={{ padding: "32px", textAlign: "center", color: C.muted, fontSize: 13 }}>불러오는 중...</div>
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: "32px", textAlign: "center", color: C.muted, fontSize: 13 }}>셀렉 갤러리가 없습니다</div>
+            ) : (
+              <div style={{ maxHeight: 520, overflowY: "auto" }}>
+                {filtered.map(g => {
+                  const isActive = selected?.id === g.id;
+                  const statusColor = SEL_STATUS_COLOR[g.status] ?? "#9BB5B0";
+                  const statusLabel = SEL_STATUS_LABEL[g.status] ?? g.status;
+                  const expiresAt = new Date(g.file_expires_at);
+                  const expired = expiresAt < new Date();
+                  return (
+                    <div key={g.id} onClick={() => { setSelected(g); setResult(null); if (g.to_email) setToEmail(g.to_email); }}
+                      style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, cursor: "pointer",
+                        background: isActive ? C.mint : "transparent", transition: "background .1s" }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#f5faf9"; }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.txt, flex: 1 }}>{g.hospital_name ?? g.title}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, background: statusColor, color: "#fff", borderRadius: 99, padding: "2px 8px" }}>{statusLabel}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 12, fontSize: 11, color: C.muted }}>
+                        <span>{g.shooting_name ?? "–"}</span>
+                        <span>{g.total_jpg_count ?? 0}장</span>
+                        <span style={{ color: expired ? "#DC2626" : C.muted }}>
+                          {expired ? "만료" : `${expiresAt.toLocaleDateString("ko-KR")}까지`}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 메일 발송 폼 */}
+        {selected && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+              <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.teal, flex: 1 }}>📧 셀렉 안내 메일 발송</div>
+                <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 18, lineHeight: 1 }}>✕</button>
+              </div>
+              <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* 갤러리 요약 */}
+                <div style={{ background: C.mint, borderRadius: 10, padding: "12px 16px", fontSize: 12 }}>
+                  <div style={{ fontWeight: 700, color: C.teal, marginBottom: 4 }}>{selected.hospital_name ?? selected.title}</div>
+                  <div style={{ color: C.muted }}>{selected.shooting_name} · {selected.total_jpg_count}장 · {new Date(selected.file_expires_at).toLocaleDateString("ko-KR")}까지</div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: C.hint, wordBreak: "break-all" }}>
+                    셀렉 링크: {baseUrl}/select/{selected.share_token}
+                  </div>
+                </div>
+
+                {/* 현재 상태 안내 */}
+                {["mail_draft_created","mail_sent","waiting_selection","selection_submitted"].includes(selected.status) && (
+                  <div style={{ background: "#FEF9C3", border: "1px solid #FDE047", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#854D0E" }}>
+                    현재 상태: <strong>{SEL_STATUS_LABEL[selected.status]}</strong> — 이미 메일이 발송된 갤러리입니다. 재발송 시 기존 초안이 덮어씌워집니다.
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
+                  <input value={toName} onChange={e => setToName(e.target.value)} placeholder="원장님 / 담당자" style={iS} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
+                  <input type="email" value={toEmail} onChange={e => setToEmail(e.target.value)} placeholder="example@hospital.com" style={iS} />
+                </div>
+
+                {result && (
+                  <div style={{ background: result.ok ? "#ECFDF5" : "#FEF2F2", border: `1px solid ${result.ok ? "#6EE7B7" : "#FCA5A5"}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: result.ok ? "#065F46" : "#7F1D1D" }}>
+                    {result.ok ? "✅ " : "❌ "}{result.msg}
+                    {result.ok && (
+                      <><br /><span style={{ fontSize: 11, color: C.muted }}>임시저장 메일링 탭에서 검토 후 발송하세요.</span></>
+                    )}
+                  </div>
+                )}
+
+                <button onClick={handleSend} disabled={!toEmail || sending}
+                  style={{ height: 44, background: toEmail ? C.teal : C.border, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: toEmail ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
+                  {sending ? "저장 중..." : "📬 메일 초안 메일링 큐에 저장"}
+                </button>
+                <div style={{ fontSize: 11, color: C.hint, textAlign: "center" }}>
+                  직접 발송하지 않고 임시저장 탭에서 검토 후 발송합니다
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // 메인 페이지 — 탭 전환
 // ═══════════════════════════════════════════════════════════
-type Tab = "queue" | "brand" | "custom";
+type Tab = "queue" | "brand" | "custom" | "select";
 
 export default function MailingPage() {
   const [tab, setTab] = useState<Tab>("queue");
@@ -909,11 +1079,13 @@ export default function MailingPage() {
         <button className={`pc-tab${tab === "queue"  ? " pc-tab--active" : ""}`} onClick={() => setTab("queue")}>📥 임시저장 메일링</button>
         <button className={`pc-tab${tab === "brand"  ? " pc-tab--active" : ""}`} onClick={() => setTab("brand")}>📷 파일 전달(리뷰)</button>
         <button className={`pc-tab${tab === "custom" ? " pc-tab--active" : ""}`} onClick={() => setTab("custom")}>✉️ 브랜드 메일</button>
+        <button className={`pc-tab${tab === "select" ? " pc-tab--active" : ""}`} onClick={() => setTab("select")}>📸 셀렉 갤러리</button>
       </div>
 
       {tab === "queue"  && <QueueTab />}
       {tab === "brand"  && <BrandMailTab />}
       {tab === "custom" && <CustomBrandMailTab />}
+      {tab === "select" && <SelectGalleryMailTab />}
     </main>
   );
 }

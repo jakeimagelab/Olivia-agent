@@ -66,10 +66,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .select("id", { count: "exact", head: true })
       .eq("gallery_id", id);
 
+    // 업로드 후 상태를 ready로 변경 (draft/uploading_images → ready)
+    const now = new Date().toISOString();
     await sb
       .from("select_galleries")
-      .update({ total_jpg_count: count ?? 0, updated_at: new Date().toISOString() })
-      .eq("id", id);
+      .update({ total_jpg_count: count ?? 0, status: "ready", updated_at: now })
+      .eq("id", id)
+      .in("status", ["draft", "uploading_images"]);
 
     return NextResponse.json({ ok: true, uploaded: inserted.length, images: inserted });
   } catch (e: any) {

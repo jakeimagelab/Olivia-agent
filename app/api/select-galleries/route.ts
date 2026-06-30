@@ -8,9 +8,17 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const sb = getSupabaseAdmin();
-    const clientId = new URL(req.url).searchParams.get("clientId");
+    const params = new URL(req.url).searchParams;
+    const workflowRunId = params.get("workflowRunId");
+    const clientId = params.get("clientId");
+
     let query = sb.from("select_galleries").select("*").order("created_at", { ascending: false });
-    if (clientId) query = query.eq("client_id", clientId);
+    // workflowRunId 우선, 없으면 clientId
+    if (workflowRunId) {
+      query = query.eq("workflow_run_id", workflowRunId);
+    } else if (clientId) {
+      query = query.eq("client_id", clientId);
+    }
     const { data, error } = await query;
     if (error) throw error;
     return NextResponse.json({ ok: true, galleries: data ?? [] });

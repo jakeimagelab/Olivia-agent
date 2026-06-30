@@ -25,6 +25,8 @@ interface GalleryImage {
 /* ══════════════════════════
    THEME
 ══════════════════════════ */
+const FONT = "'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif";
+
 const C = {
   teal: "#155855", bg: "#0d1117", card: "#161b22",
   border: "rgba(255,255,255,.08)", white: "#fff",
@@ -102,7 +104,7 @@ function HomeScreen({ gallery, onWebSelect, onUpload }: {
   });
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR',sans-serif", color: C.white }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white }}>
       <header style={{ background: C.teal, padding: "20px 24px", textAlign: "center" }}>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", marginBottom: 4 }}>포토클리닉</div>
         <div style={{ fontSize: 20, fontWeight: 900 }}>📸 {gallery.shooting_name ?? gallery.title}</div>
@@ -240,7 +242,7 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR',sans-serif", color: C.white }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white }}>
       {/* 상단 툴바 */}
       <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(13,17,23,.95)", backdropFilter: "blur(8px)", borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 22, lineHeight: 1, padding: "0 4px" }}>←</button>
@@ -424,7 +426,7 @@ function UploadPage({ gallery, onBack, onDone }: {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR',sans-serif", color: C.white }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white }}>
       <div style={{ background: C.teal, padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: C.white, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>←</button>
         <span style={{ fontSize: 16, fontWeight: 800 }}>선택한 JPG 업로드</span>
@@ -487,7 +489,7 @@ function UploadPage({ gallery, onBack, onDone }: {
 ══════════════════════════ */
 function DoneScreen({ gallery, selection, onResubmit }: { gallery: GalleryInfo; selection: any; onResubmit?: () => void }) {
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR',sans-serif", color: C.white, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
         <div style={{ fontSize: 60, marginBottom: 20 }}>✅</div>
         <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 8 }}>선택이 완료되었습니다!</div>
@@ -515,7 +517,7 @@ function DoneScreen({ gallery, selection, onResubmit }: { gallery: GalleryInfo; 
 
 function AlreadyDoneScreen({ gallery, selection }: { gallery: GalleryInfo; selection: any }) {
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR',sans-serif", color: C.white, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 420, textAlign: "center" }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
         <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>이미 선택이 완료되었습니다</div>
@@ -533,7 +535,7 @@ function AlreadyDoneScreen({ gallery, selection }: { gallery: GalleryInfo; selec
 ══════════════════════════ */
 function LoadingScreen() {
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Noto Sans KR',sans-serif", color: C.muted, fontSize: 14 }}>
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT, color: C.muted, fontSize: 14 }}>
       사진을 불러오는 중...
     </div>
   );
@@ -541,7 +543,7 @@ function LoadingScreen() {
 
 function ErrorScreen({ message }: { message: string }) {
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, fontFamily: "'Noto Sans KR',sans-serif", color: C.white, padding: 24, textAlign: "center" }}>
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, fontFamily: FONT, color: C.white, padding: 24, textAlign: "center" }}>
       <div style={{ fontSize: 40 }}>🔗</div>
       <div style={{ fontSize: 16, fontWeight: 700 }}>링크를 찾을 수 없습니다</div>
       <div style={{ fontSize: 13, color: C.muted }}>{message}</div>
@@ -555,7 +557,7 @@ function Btn({ children, onClick, disabled, style }: {
 }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ display: "block", width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", cursor: disabled ? "not-allowed" : "pointer", fontFamily: "'Noto Sans KR',sans-serif", fontSize: 14, fontWeight: 700, transition: "opacity .15s", opacity: disabled ? 0.4 : 1, ...style }}>
+      style={{ display: "block", width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", cursor: disabled ? "not-allowed" : "pointer", fontFamily: FONT, fontSize: 14, fontWeight: 700, transition: "opacity .15s", opacity: disabled ? 0.4 : 1, ...style }}>
       {children}
     </button>
   );

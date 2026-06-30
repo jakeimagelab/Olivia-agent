@@ -762,21 +762,28 @@ function SelectionStepPanel({ clientId, workflowRunId }: { clientId: string; wor
 
   useEffect(() => {
     if (!clientId) return;
-    fetch(`/api/select-galleries?clientId=${clientId}`)
+    // workflowRunId 우선, 없으면 clientId 기준 최신
+    const qs = workflowRunId ? `workflowRunId=${workflowRunId}` : `clientId=${clientId}`;
+    fetch(`/api/select-galleries?${qs}`)
       .then(r => r.json())
-      .then(d => {
-        if (d.ok && d.galleries.length > 0) {
-          const g = d.galleries[0];
+      .then(async d => {
+        let g = d.ok && d.galleries.length > 0 ? d.galleries[0] : null;
+        // workflowRunId로 못 찾았으면 clientId로 재조회
+        if (!g && workflowRunId) {
+          const d2 = await fetch(`/api/select-galleries?clientId=${clientId}`).then(r => r.json());
+          g = d2.ok && d2.galleries.length > 0 ? d2.galleries[0] : null;
+        }
+        if (g) {
           setGallery(g);
-          if (g.status === "selection_submitted" || g.status === "raw_matched") {
+          if (["selection_submitted", "raw_matched", "raw_matching"].includes(g.status)) {
             fetch(`/api/select-galleries/${g.id}`)
               .then(r => r.json())
-              .then(d2 => { if (d2.ok) setSelection(d2.selection); });
+              .then(d3 => { if (d3.ok) setSelection(d3.selection); });
           }
         }
       })
       .finally(() => setLoading(false));
-  }, [clientId]);
+  }, [clientId, workflowRunId]);
 
   const params = new URLSearchParams();
   params.set("clientId", clientId);
@@ -823,16 +830,21 @@ function RawMatchingStepPanel({ clientId, workflowRunId }: { clientId: string; w
 
   useEffect(() => {
     if (!clientId) return;
-    fetch(`/api/select-galleries?clientId=${clientId}`)
+    const qs = workflowRunId ? `workflowRunId=${workflowRunId}` : `clientId=${clientId}`;
+    fetch(`/api/select-galleries?${qs}`)
       .then(r => r.json())
-      .then(d => {
-        if (d.ok && d.galleries.length > 0) {
-          const g = d.galleries[0];
+      .then(async d => {
+        let g = d.ok && d.galleries.length > 0 ? d.galleries[0] : null;
+        if (!g && workflowRunId) {
+          const d2 = await fetch(`/api/select-galleries?clientId=${clientId}`).then(r => r.json());
+          g = d2.ok && d2.galleries.length > 0 ? d2.galleries[0] : null;
+        }
+        if (g) {
           setGallery(g);
           fetch(`/api/select-galleries/${g.id}`)
             .then(r => r.json())
-            .then(d2 => {
-              if (d2.ok) { setSelection(d2.selection); setRawMatches(d2.rawMatches ?? []); }
+            .then(d3 => {
+              if (d3.ok) { setSelection(d3.selection); setRawMatches(d3.rawMatches ?? []); }
             });
         }
       })

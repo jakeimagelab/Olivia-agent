@@ -6,12 +6,17 @@ import { nanoid } from "nanoid";
 ═══════════════════════════════════════════════ */
 export type GalleryStatus =
   | "draft"
+  | "uploading_images"
+  | "ready"
+  | "mail_draft_created"
   | "mail_sent"
   | "waiting_selection"
   | "selection_submitted"
+  | "raw_matching"
   | "raw_matched"
   | "retouching"
   | "completed"
+  | "files_expired"
   | "expired";
 
 export interface SelectGallery {
@@ -153,22 +158,32 @@ export async function getRawMatches(
 ═══════════════════════════════════════════════ */
 export const GALLERY_STATUS_LABEL: Record<GalleryStatus, string> = {
   draft:               "초안",
+  uploading_images:    "이미지 업로드 중",
+  ready:               "발송 준비 완료",
+  mail_draft_created:  "메일 초안 생성됨",
   mail_sent:           "메일 발송됨",
   waiting_selection:   "셀렉 대기중",
   selection_submitted: "셀렉 완료",
+  raw_matching:        "RAW 매칭 중",
   raw_matched:         "RAW 매칭 완료",
   retouching:          "보정 중",
   completed:           "완료",
+  files_expired:       "파일 만료",
   expired:             "만료",
 };
 
 export const GALLERY_STATUS_COLOR: Record<GalleryStatus, string> = {
   draft:               "#9BB5B0",
+  uploading_images:    "#D97706",
+  ready:               "#2563EB",
+  mail_draft_created:  "#D97706",
   mail_sent:           "#D97706",
   waiting_selection:   "#2563EB",
   selection_submitted: "#7C3AED",
+  raw_matching:        "#D97706",
   raw_matched:         "#059669",
   retouching:          "#155855",
   completed:           "#22876A",
+  files_expired:       "#9BB5B0",
   expired:             "#DC2626",
 };

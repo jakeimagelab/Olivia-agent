@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { Resend } from "resend";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +9,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const sb = getSupabaseAdmin();
     const { to_email, to_name } = await req.json();
-    if (!to_email) return NextResponse.json({ ok: false, error: "이메일 주소 필수" }, { status: 400 });
 
     const { data: gallery } = await sb
       .from("select_galleries")
@@ -80,27 +78,40 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 </body>
 </html>`;
 
-    const resendKey = process.env.RESEND_API_KEY;
-    if (!resendKey) {
-      // 키 없으면 메일 내용만 반환
-      return NextResponse.json({ ok: true, preview: true, html, selectUrl });
-    }
+    // mailing_queue에 초안 저장 (직접 발송 대신 승인 후 발송)
+    const { data: mailItem, error: mailErr } = await sb
+      .from("mailing_queue")
+      .insert({
+        type: "select_gallery",
+        source_module: "select-galleries",
+        source_id: gallery.id,
+        hospital_name: gallery.hospital_name ?? gallery.title ?? "",
+        contact_name: to_name ?? "",
+        to_email: to_email ?? "",
+        subject: "[포토클리닉] 촬영 원본 확인 및 보정 사진 선택 안내드립니다",
+        body: html,
+        attachments: [],
+        links: [{ label: "셀렉 갤러리", url: selectUrl }],
+        status: to_email ? "ready" : "draft",
+      })
+      .select("id")
+      .single();
 
-    const resend = new Resend(resendKey);
-    const { data: mail, error: mailErr } = await resend.emails.send({
-      from: "포토클리닉 <photoclinic@photoclinic.co.kr>",
-      to: [to_email],
-      subject: `[포토클리닉] 촬영 원본 확인 및 보정 사진 선택 안내드립니다`,
-      html,
-    });
     if (mailErr) throw new Error(mailErr.message);
 
+    // 갤러리 상태 → mail_draft_created
+    const now = new Date().toISOString();
     await sb
       .from("select_galleries")
-      .update({ status: "mail_sent", updated_at: new Date().toISOString() })
+      .update({ status: "mail_draft_created", updated_at: now })
       .eq("id", id);
 
-    return NextResponse.json({ ok: true, mail_id: mail?.id, selectUrl });
+    return NextResponse.json({
+      ok: true,
+      mail_queue_id: mailItem?.id,
+      selectUrl,
+      message: "브랜드메일 초안이 메일링 큐에 저장되었습니다. 메일 관리에서 검토 후 발송하세요.",
+    });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }

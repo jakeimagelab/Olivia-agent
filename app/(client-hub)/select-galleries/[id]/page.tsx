@@ -135,7 +135,7 @@ function SelectGalleryDetailInner() {
     });
     const d = await res.json();
     setSendingMail(false);
-    setMailResult({ ok: d.ok, msg: d.ok ? (d.preview ? "메일 초안 생성됨 (RESEND_API_KEY 미설정 시 미리보기)" : "메일 발송 완료!") : (d.error ?? "오류") });
+    setMailResult({ ok: d.ok, msg: d.ok ? (d.message ?? "메일 초안이 메일링 큐에 저장되었습니다. 메일 관리에서 검토 후 발송하세요.") : (d.error ?? "오류") });
     if (d.ok) load();
   };
 
@@ -291,12 +291,18 @@ function SelectGalleryDetailInner() {
 
   // 현재 해야 할 일
   const todoMap: Record<string, { text: string; color: string; sub?: string }> = {
-    draft: { text: "JPG 업로드 후 브랜드메일을 보내세요", color: C.orange, sub: `${images.length}장 등록됨` },
-    mail_sent: { text: "고객이 사진을 선택하기를 기다리세요", color: C.teal, sub: "셀렉 링크를 고객에게 공유하세요" },
-    waiting_selection: { text: "고객이 사진을 선택하기를 기다리세요", color: C.teal, sub: "셀렉 링크를 고객에게 공유하세요" },
+    draft:               { text: "JPG 업로드 후 브랜드메일 초안을 생성하세요", color: C.orange, sub: `${images.length}장 등록됨` },
+    uploading_images:    { text: "JPG 업로드 중입니다...", color: C.orange },
+    ready:               { text: "브랜드메일 초안을 생성하세요", color: C.orange, sub: `${images.length}장 등록됨` },
+    mail_draft_created:  { text: "메일링 큐에서 브랜드메일을 검토·발송하세요", color: "#2563EB", sub: "메일 관리 → 검토 후 발송" },
+    mail_sent:           { text: "고객이 사진을 선택하기를 기다리세요", color: C.teal, sub: "셀렉 링크를 고객에게 공유하세요" },
+    waiting_selection:   { text: "고객이 사진을 선택하기를 기다리세요", color: C.teal, sub: "셀렉 링크를 고객에게 공유하세요" },
     selection_submitted: { text: "고객이 선택을 완료했습니다. RAW 폴더를 선택해 주세요", color: C.orange, sub: `${gallery.selected_count}장 선택됨` },
-    raw_matched: { text: "RAW 매칭이 완료되었습니다. 보정 작업으로 이동하세요", color: C.green, sub: `매칭 ${matchedCount}장 / 누락 ${missingCount}장` },
-    expired: { text: "파일이 만료되었습니다", color: C.muted },
+    raw_matching:        { text: "RAW 매칭 진행 중입니다...", color: C.orange },
+    raw_matched:         { text: "RAW 매칭이 완료되었습니다. 보정 작업으로 이동하세요", color: C.green, sub: `매칭 ${matchedCount}장 / 누락 ${missingCount}장` },
+    retouching:          { text: "보정 진행 중입니다", color: C.teal },
+    files_expired:       { text: "파일 보관 기간이 만료되어 Storage에서 삭제되었습니다", color: C.muted, sub: "선택 정보는 유지됩니다" },
+    expired:             { text: "파일이 만료되었습니다", color: C.muted },
   };
   const todo = todoMap[gallery.status] ?? { text: "갤러리 상태를 확인하세요", color: C.muted };
 

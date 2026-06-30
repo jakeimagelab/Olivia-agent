@@ -26,7 +26,7 @@ interface SceneFolder {
   photos: ScenePhoto[];
 }
 
-type Step = "idle" | "loading" | "ready" | "preflight" | "matching" | "done";
+type Step = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick";
 
 interface Preflight {
   rawFound: number;
@@ -146,6 +146,40 @@ export default function SelectMatchPage() {
   const cancelRef = useRef(false);
 
   const hasFS = typeof window !== "undefined" && "showDirectoryPicker" in window;
+
+  /* ── 클라이언트 입력 모드 상태 ── */
+  const [inputMode,     setInputMode]     = useState<"folder" | "text" | "upload">("folder");
+  const [clientText,    setClientText]    = useState("");
+  const [clientDragging,setClientDragging]= useState(false);
+  const clientFileRef = useRef<HTMLInputElement>(null);
+
+  /* ── 텍스트에서 파일명 파싱 ── */
+  const parseNamesFromText = (text: string): Set<string> => {
+    const re = /[\w\-가-힣]+\.(jpg|jpeg|heic|heif|tif|tiff|png|arw|cr2|cr3|nef|orf|raf|rw2|dng)/gi;
+    const found = new Set<string>();
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) found.add(m[0].replace(/\.[^.]+$/, "").toLowerCase());
+    return found;
+  };
+
+  /* ── 파일 업로드에서 파일명 추출 ── */
+  const parseNamesFromFiles = (files: FileList | File[]): Set<string> => {
+    const found = new Set<string>();
+    Array.from(files).forEach(f => {
+      const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+      if (JPG_EXTS.has(ext) || RAW_EXTS.has(ext)) {
+        found.add(f.name.replace(/\.[^.]+$/, "").toLowerCase());
+      }
+    });
+    return found;
+  };
+
+  /* ── 클라이언트 선택 확정 → raw_pick 단계로 ── */
+  const confirmClientInput = (names: Set<string>) => {
+    if (names.size === 0) { alert("파일명을 찾지 못했습니다. 파일명(DSC_0142.jpg 형태)이 포함된 텍스트를 붙여넣어 주세요."); return; }
+    setSelected(names);
+    setStep("raw_pick");
+  };
 
   /* ── RAW 폴더 별도 선택 ── */
   const pickRawFolder = useCallback(async () => {
@@ -294,7 +328,8 @@ export default function SelectMatchPage() {
   }, [scenes]);
 
   /* ── 재귀 RAW 스캔 공통 함수 ── */
-  const buildRawIndex = useCallback(async (): Promise<Map<string, FileSystemFileHandle>> => {
+  const buildRawIndex = useCallback(async (overrideRawDir?: FileSystemDirectoryHandle): Promise<Map<string, FileSystemFileHandle>> => {
+    const effectiveRawDir = overrideRawDir ?? rawRootDir;
     const rawIndex = new Map<string, FileSystemFileHandle>();
     const scanDir = async (dir: FileSystemDirectoryHandle, depth = 0) => {
       if (depth > 5) return;
@@ -308,9 +343,9 @@ export default function SelectMatchPage() {
         }
       }
     };
-    if (rawRootDir) {
-      await scanDir(rawRootDir);
-    } else {
+    if (effectiveRawDir) {
+      await scanDir(effectiveRawDir);
+    } else if (rootDir) {
       try { await scanDir(await (rootDir as any).getDirectoryHandle("RAW")); } catch {}
       if (rawIndex.size === 0) await scanDir(rootDir!);
     }
@@ -318,11 +353,13 @@ export default function SelectMatchPage() {
   }, [rootDir, rawRootDir]);
 
   /* ── 사전 확인 (preflight) ── */
-  const runPreflight = useCallback(async () => {
-    if (!rootDir || selected.size === 0) return;
+  const runPreflight = useCallback(async (overrideRawDir?: FileSystemDirectoryHandle) => {
+    if (selected.size === 0) return;
+    if (!rootDir && !rawRootDir && !overrideRawDir) return;
+    if (overrideRawDir) setRawRootDir(overrideRawDir);
     setStep("preflight");
     setPreflight(null);
-    const rawIndex = await buildRawIndex();
+    const rawIndex = await buildRawIndex(overrideRawDir);
     rawIndexRef.map.clear();
     for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
 
@@ -388,27 +425,145 @@ export default function SelectMatchPage() {
 
   /* ── Idle ── */
   if (step === "idle") return (
-    <div style={{ maxWidth: 600, margin: "40px auto", padding: "0 24px" }}>
-      <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, padding: 32, textAlign: "center" }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.teal, marginBottom: 8 }}>셀렉 & RAW 매칭</div>
-        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.8, marginBottom: 24 }}>
-          이미 분류된 폴더(JPG/SceneXX/ 구조)를 선택하면<br />
-          씬별 사진을 보면서 베스트컷을 클릭으로 선택하고<br />
-          RAW 파일을 자동으로 매칭해 SELECT 폴더에 모아줍니다.
-        </div>
-        {!hasFS ? (
-          <div style={{ fontSize: 12, color: C.red }}>이 브라우저는 파일 시스템 접근을 지원하지 않습니다. Chrome 또는 Edge를 사용해주세요.</div>
-        ) : (
-          <Btn onClick={loadFolder}>📂 폴더 선택</Btn>
-        )}
+    <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <div style={{ fontSize: 30, marginBottom: 8 }}>🎯</div>
+        <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>셀렉 & RAW 매칭</div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>고객 선택 정보를 어떻게 받으셨나요?</div>
       </div>
-      <div style={{ marginTop: 16, background: C.light, borderRadius: 10, padding: "14px 18px", fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
-        <strong>예상 폴더 구조:</strong><br />
-        촬영폴더/<br />
-        &nbsp;&nbsp;├ <strong>JPG/Scene01/, Scene02/, ...</strong> ← 여기 선택<br />
-        &nbsp;&nbsp;├ <strong>RAW/</strong> — 전체 RAW<br />
-        &nbsp;&nbsp;└ <strong>SELECT/</strong> — 결과물 저장 위치 (자동 생성)
+
+      {/* 3가지 진입 모드 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+        {([
+          { key: "folder", icon: "📂", title: "폴더 직접 선택", desc: "JPG 폴더를 열어서\n시각적으로 베스트컷 선택" },
+          { key: "text",   icon: "💬", title: "텍스트 붙여넣기", desc: "카카오톡·메모 등\n파일명 목록을 붙여넣기" },
+          { key: "upload", icon: "⬆",  title: "파일 업로드",    desc: "고객이 보낸 JPG 파일을\n직접 드래그 & 드롭" },
+        ] as const).map(m => (
+          <div key={m.key} onClick={() => setInputMode(m.key)}
+            style={{
+              background: inputMode === m.key ? C.light : C.white,
+              border: `1.5px solid ${inputMode === m.key ? C.teal : C.border}`,
+              borderRadius: 12, padding: "18px 14px", textAlign: "center", cursor: "pointer",
+              transition: "all .15s",
+            }}>
+            <div style={{ fontSize: 26, marginBottom: 8 }}>{m.icon}</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: inputMode === m.key ? C.teal : C.txt, marginBottom: 4 }}>{m.title}</div>
+            <div style={{ fontSize: 10, color: C.hint, lineHeight: 1.6, whiteSpace: "pre-line" }}>{m.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 폴더 선택 모드 */}
+      {inputMode === "folder" && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
+          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.8, marginBottom: 18, textAlign: "center" }}>
+            분류된 폴더(JPG/SceneXX/ 구조)를 선택하면<br />
+            씬별 사진을 보면서 베스트컷을 클릭으로 선택할 수 있습니다.
+          </div>
+          {!hasFS ? (
+            <div style={{ fontSize: 12, color: C.red, textAlign: "center" }}>Chrome 또는 Edge를 사용해주세요.</div>
+          ) : (
+            <div style={{ textAlign: "center" }}><Btn onClick={loadFolder}>📂 폴더 선택</Btn></div>
+          )}
+          <div style={{ marginTop: 16, background: C.light, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
+            촬영폴더/<br />
+            &nbsp;&nbsp;├ <strong>JPG/Scene01/, Scene02/, ...</strong> ← 여기 선택<br />
+            &nbsp;&nbsp;├ <strong>RAW/</strong> — 전체 RAW<br />
+            &nbsp;&nbsp;└ <strong>Selected_RAW/</strong> — 결과물 자동 생성
+          </div>
+        </div>
+      )}
+
+      {/* 텍스트 붙여넣기 모드 */}
+      {inputMode === "text" && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
+          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 14 }}>
+            카카오톡 대화, 이메일, 메모 등에서 파일명이 담긴 텍스트를 그대로 붙여넣으세요.<br />
+            <span style={{ color: C.hint }}>DSC_0142.jpg 형태의 파일명을 자동 추출합니다.</span>
+          </div>
+          <textarea
+            value={clientText}
+            onChange={e => setClientText(e.target.value)}
+            placeholder={"예시:\nDSC_0142.jpg, DSC_0145.jpg\nDSC_0148.jpg\nDSC_0151.jpg ..."}
+            rows={7}
+            style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12, fontFamily: "monospace", resize: "vertical", background: C.bg, color: C.txt, boxSizing: "border-box" }}
+          />
+          {clientText.trim() && (() => {
+            const names = parseNamesFromText(clientText);
+            return (
+              <div style={{ marginTop: 10, background: C.light, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: C.muted }}>
+                파일명 <strong style={{ color: C.teal }}>{names.size}개</strong> 추출됨
+                {names.size > 0 && (
+                  <span style={{ marginLeft: 8, color: C.hint }}>
+                    {Array.from(names).slice(0, 3).join(", ")}{names.size > 3 ? ` 외 ${names.size - 3}개` : ""}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+          <div style={{ marginTop: 14, textAlign: "center" }}>
+            <Btn onClick={() => confirmClientInput(parseNamesFromText(clientText))} disabled={!clientText.trim()}>
+              다음 — RAW 폴더 선택 →
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {/* 파일 업로드 모드 */}
+      {inputMode === "upload" && (
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
+          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 14 }}>
+            고객이 선택해서 보낸 JPG 파일들을 아래 영역에 드래그하거나 클릭해서 선택하세요.<br />
+            <span style={{ color: C.hint }}>파일 내용은 읽지 않고 파일명만 추출합니다.</span>
+          </div>
+          <input ref={clientFileRef} type="file" multiple accept="image/*,.jpg,.jpeg,.heic,.png,.tif"
+            style={{ display: "none" }}
+            onChange={e => { if (e.target.files) confirmClientInput(parseNamesFromFiles(e.target.files)); }} />
+          <div
+            onDragOver={e => { e.preventDefault(); setClientDragging(true); }}
+            onDragLeave={() => setClientDragging(false)}
+            onDrop={e => { e.preventDefault(); setClientDragging(false); confirmClientInput(parseNamesFromFiles(e.dataTransfer.files)); }}
+            onClick={() => clientFileRef.current?.click()}
+            style={{
+              border: `2px dashed ${clientDragging ? C.teal : C.border}`,
+              borderRadius: 12, padding: "48px 24px", textAlign: "center", cursor: "pointer",
+              background: clientDragging ? C.light : C.bg, transition: "all .2s",
+            }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>📁</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.teal, marginBottom: 4 }}>파일을 드래그하거나 클릭</div>
+            <div style={{ fontSize: 11, color: C.hint }}>파일 내용은 업로드되지 않습니다 — 파일명만 사용</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ── RAW 폴더 선택 (client_input 이후) ── */
+  if (step === "raw_pick") return (
+    <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
+      <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, padding: 28 }}>
+        <div style={{ fontSize: 15, fontWeight: 900, color: C.teal, marginBottom: 6 }}>📂 RAW 폴더를 선택하세요</div>
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 20 }}>
+          고객 선택 파일명 <strong style={{ color: C.teal }}>{selected.size}개</strong>를 확인했습니다.<br />
+          이제 RAW 파일이 들어있는 폴더를 선택하세요.<br />
+          매칭된 RAW 파일은 <strong>Selected_RAW/</strong> 폴더에 복사됩니다.
+        </div>
+        <div style={{ background: C.light, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: C.muted, marginBottom: 18 }}>
+          <div style={{ fontWeight: 700, color: C.teal, marginBottom: 4 }}>추출된 파일명 샘플</div>
+          {Array.from(selected).slice(0, 5).map(n => (
+            <div key={n} style={{ fontFamily: "monospace", fontSize: 11 }}>{n}</div>
+          ))}
+          {selected.size > 5 && <div style={{ color: C.hint }}>... 외 {selected.size - 5}개</div>}
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</Btn>
+          <Btn onClick={async () => {
+            try {
+              const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+              await runPreflight(dir);
+            } catch (e: any) { if (e?.name !== "AbortError") alert("폴더 선택 실패"); }
+          }}>RAW 폴더 선택 →</Btn>
+        </div>
       </div>
     </div>
   );

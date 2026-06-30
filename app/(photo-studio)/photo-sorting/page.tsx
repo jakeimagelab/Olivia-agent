@@ -598,6 +598,7 @@ function PhotoSortingInner() {
   const [selectExpandedScenes,   setSelectExpandedScenes]   = useState<Set<number>>(new Set());
 
   const [creatingGallery, setCreatingGallery] = useState(false);
+  const [galleryProgress, setGalleryProgress] = useState<{ step: string; cur: number; total: number } | null>(null);
 
   /* ── studio state ── */
   const [studioOpts,          setStudioOpts]          = useState<StudioOptions>({ lightingSensitivity:"medium" });
@@ -2690,14 +2691,31 @@ function PhotoSortingInner() {
           </div>
           {fieldScenes.length > 0 && (
             <div style={{marginTop:16,padding:16,background:"#EAF4F2",borderRadius:10,border:"1.5px solid #B2D8D4"}}>
-              <div style={{fontSize:13,fontWeight:800,color:C.teal,marginBottom:6}}>📸 고객 셀렉 단계로 이동</div>
+              <div style={{fontSize:13,fontWeight:800,color:C.teal,marginBottom:4}}>📸 고객 셀렉 갤러리 자동 생성</div>
               <div style={{fontSize:12,color:C.muted,marginBottom:12,lineHeight:1.7}}>
-                분류된 씬 정보로 고객 셀렉 갤러리를 생성합니다.<br/>
-                생성 후 JPG를 업로드하고 브랜드메일을 발송하세요.
+                분류된 씬의 실제 JPG를 Supabase Storage에 업로드하고 셀렉 갤러리를 만듭니다.<br/>
+                업로드 후 브랜드메일 초안을 자동 생성합니다.
               </div>
+
+              {galleryProgress && (
+                <div style={{marginBottom:12,background:C.white,borderRadius:8,padding:"12px 14px",fontSize:12}}>
+                  <div style={{fontWeight:700,color:C.teal,marginBottom:6}}>{galleryProgress.step}</div>
+                  {galleryProgress.total > 0 && (
+                    <>
+                      <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden",marginBottom:4}}>
+                        <div style={{height:"100%",width:`${Math.round(galleryProgress.cur/galleryProgress.total*100)}%`,background:C.teal,borderRadius:3,transition:"width .2s"}}/>
+                      </div>
+                      <div style={{color:C.muted}}>{galleryProgress.cur} / {galleryProgress.total}장</div>
+                    </>
+                  )}
+                </div>
+              )}
+
               <Btn disabled={creatingGallery} onClick={async () => {
                 setCreatingGallery(true);
+                setGalleryProgress({ step: "1. 갤러리 레코드 생성 중...", cur: 0, total: 0 });
                 try {
+                  // 1) 갤러리 생성 (파일명 메타데이터만)
                   const scenes = fieldScenes.map((sc, i) => ({
                     sceneId: `scene-${i+1}`,
                     sceneName: sc.editedName,
@@ -2708,7 +2726,7 @@ function PhotoSortingInner() {
                       sortOrder: j,
                     })),
                   }));
-                  const res = await fetch("/api/select-galleries/create-from-photo-sorting", {
+                  const createRes = await fetch("/api/select-galleries/create-from-photo-sorting", {
                     method: "POST", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       clientId: clientId || undefined,
@@ -2718,20 +2736,57 @@ function PhotoSortingInner() {
                       scenes,
                     }),
                   });
-                  const d = await res.json();
-                  if (d.ok) {
-                    const params = new URLSearchParams();
-                    if (clientId) params.set("clientId", clientId);
-                    if (workflowRunId) params.set("workflowRunId", workflowRunId);
-                    params.set("stepKey", "client_selection");
-                    router.push(`/select-galleries/${d.gallery.id}?${params.toString()}`);
-                  } else {
-                    alert("갤러리 생성 실패: " + d.error);
+                  const createData = await createRes.json();
+                  if (!createData.ok) throw new Error(createData.error ?? "갤러리 생성 실패");
+                  const galleryId = createData.gallery.id;
+
+                  // 2) 실제 JPG 파일 업로드 (씬별, 배치 5장)
+                  const allFiles: { handle: FileSystemFileHandle; name: string; sceneName: string; folderName: string; sortOrder: number }[] = [];
+                  fieldScenes.forEach((sc, si) => {
+                    sc.files.forEach((f, fi) => {
+                      allFiles.push({ handle: f.handle, name: f.name, sceneName: sc.editedName, folderName: sc.folderName ?? `Scene${String(si+1).padStart(2,"0")}`, sortOrder: si * 10000 + fi });
+                    });
+                  });
+
+                  const BATCH = 5;
+                  let uploaded = 0;
+                  const failed: string[] = [];
+
+                  for (let i = 0; i < allFiles.length; i += BATCH) {
+                    const batch = allFiles.slice(i, i + BATCH);
+                    setGalleryProgress({ step: `2. JPG 업로드 중... (${uploaded}/${allFiles.length}장)`, cur: uploaded, total: allFiles.length });
+                    const fd = new FormData();
+                    for (const item of batch) {
+                      try {
+                        const file = await item.handle.getFile();
+                        fd.append("files", file, item.name);
+                      } catch { failed.push(item.name); }
+                    }
+                    fd.set("scene_name", batch[0]?.sceneName ?? "");
+                    fd.set("folder_name", batch[0]?.folderName ?? "");
+                    try {
+                      const upRes = await fetch(`/api/select-galleries/${galleryId}/upload-images`, { method: "POST", body: fd });
+                      const upData = await upRes.json();
+                      uploaded += upData.uploaded ?? 0;
+                    } catch { batch.forEach(b => failed.push(b.name)); }
                   }
-                } catch(e:any) { alert("오류: " + e.message); }
+
+                  setGalleryProgress({ step: `3. 완료! ${uploaded}장 업로드${failed.length ? ` (실패 ${failed.length}장)` : ""}`, cur: uploaded, total: allFiles.length });
+
+                  // 3) 페이지 이동
+                  await new Promise(r => setTimeout(r, 800));
+                  const navParams = new URLSearchParams();
+                  if (clientId) navParams.set("clientId", clientId);
+                  if (workflowRunId) navParams.set("workflowRunId", workflowRunId);
+                  navParams.set("stepKey", "client_selection");
+                  router.push(`/select-galleries/${galleryId}?${navParams.toString()}`);
+                } catch(e:any) {
+                  alert("오류: " + e.message);
+                  setGalleryProgress(null);
+                }
                 setCreatingGallery(false);
               }}>
-                {creatingGallery ? "생성 중..." : "📸 고객 셀렉 갤러리 만들기 →"}
+                {creatingGallery ? "업로드 중..." : "📸 고객 셀렉 갤러리 자동 생성 →"}
               </Btn>
             </div>
           )}

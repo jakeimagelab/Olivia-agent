@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/shoot-reminder",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/select-galleries/cleanup-expired-files",
+      "schedule": "0 3 * * *"
     }
   ]
 }
