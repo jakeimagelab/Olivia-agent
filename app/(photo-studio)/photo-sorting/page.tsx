@@ -587,7 +587,6 @@ export default function PhotoSortingPage() {
       const h = await (window as any).showDirectoryPicker({ mode: "readwrite" });
       const jpgBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("JPG").catch(() => null);
       const rawBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("RAW").catch(() => null);
-      if (!jpgBase) { alert("선택한 폴더에 JPG/ 폴더가 없습니다.\n올바른 폴더를 선택하세요."); return; }
 
       setRootDir(h);
       setDepartment(saved.department);
@@ -599,40 +598,48 @@ export default function PhotoSortingPage() {
       setProfileClassificationEnabled(saved.profileClassificationEnabled);
       setRawSelectMode(saved.rawSelectMode);
       setFieldRawCount(saved.fieldRawCount);
-      setFieldJpgBaseDir(jpgBase);
       if (rawBase) setFieldRawBaseDir(rawBase);
       setFieldStats(saved.fieldStats);
 
-      // Reconstruct scenes by re-scanning JPG/SceneXX/ directories
-      if (saved.sceneSummary.length > 0) {
-        const scenes: FieldScene[] = [];
-        for (const s of saved.sceneSummary) {
-          const sceneDir = await jpgBase.getDirectoryHandle(s.folderName).catch(() => null);
-          const files: SceneFile[] = [];
-          if (sceneDir) {
-            for await (const [fname, fh] of (sceneDir as any).entries()) {
-              const ext = (fname as string).split(".").pop()?.toLowerCase() ?? "";
-              if ((fh as FileSystemHandle).kind === "file" && ["jpg","jpeg"].includes(ext)) {
-                files.push({ name: fname as string, basename: (fname as string).replace(/\.[^.]+$/, ""), handle: fh as FileSystemFileHandle, mtime: s.startTime });
-              }
-            }
-            files.sort((a,b) => a.name.localeCompare(b.name));
-          }
-          scenes.push({
-            index: s.index, folderName: s.folderName, editedName: s.editedName,
-            startTime: s.startTime, endTime: s.endTime,
-            fileCount: files.length || s.fileCount, files, sceneDir,
-            sceneType: (s.sceneType as any) ?? null, suggestedName: s.suggestedName,
-            aiConfidence: s.aiConfidence, aiReason: s.aiReason,
-            subScenes: [], profileCount: 0, qualityRejectCount: 0, nameLoading: false,
-          });
-        }
-        setFieldScenes(scenes);
-      }
+      // JPG/ 폴더가 있으면 씬까지 복원, 없으면 설정(step 0)으로만 복원
+      if (jpgBase) {
+        setFieldJpgBaseDir(jpgBase);
 
-      setSavedSession(null);
-      const targetStep = saved.step === 3 ? 2 : saved.step;
-      setStep(targetStep);
+        // Reconstruct scenes by re-scanning JPG/SceneXX/ directories
+        if (saved.sceneSummary.length > 0) {
+          const scenes: FieldScene[] = [];
+          for (const s of saved.sceneSummary) {
+            const sceneDir = await jpgBase.getDirectoryHandle(s.folderName).catch(() => null);
+            const files: SceneFile[] = [];
+            if (sceneDir) {
+              for await (const [fname, fh] of (sceneDir as any).entries()) {
+                const ext = (fname as string).split(".").pop()?.toLowerCase() ?? "";
+                if ((fh as FileSystemHandle).kind === "file" && ["jpg","jpeg"].includes(ext)) {
+                  files.push({ name: fname as string, basename: (fname as string).replace(/\.[^.]+$/, ""), handle: fh as FileSystemFileHandle, mtime: s.startTime });
+                }
+              }
+              files.sort((a,b) => a.name.localeCompare(b.name));
+            }
+            scenes.push({
+              index: s.index, folderName: s.folderName, editedName: s.editedName,
+              startTime: s.startTime, endTime: s.endTime,
+              fileCount: files.length || s.fileCount, files, sceneDir,
+              sceneType: (s.sceneType as any) ?? null, suggestedName: s.suggestedName,
+              aiConfidence: s.aiConfidence, aiReason: s.aiReason,
+              subScenes: [], profileCount: 0, qualityRejectCount: 0, nameLoading: false,
+            });
+          }
+          setFieldScenes(scenes);
+        }
+
+        setSavedSession(null);
+        const targetStep = saved.step === 3 ? 2 : saved.step;
+        setStep(targetStep);
+      } else {
+        // JPG/ 폴더 없음 → 아직 파일 분류 전이므로 설정 단계(step 0)로 복원
+        setSavedSession(null);
+        setStep(0);
+      }
     } catch {}
   };
 
