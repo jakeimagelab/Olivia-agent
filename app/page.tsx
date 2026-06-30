@@ -624,8 +624,8 @@ function MobileToolCard({tool, onTap}:{tool:ToolDef; onTap:()=>void}) {
   const Icon = tool.icon;
   const [pressed, setPressed] = React.useState(false);
   const bg = tool.orange
-    ? "linear-gradient(145deg,#E85D2C,#EB8F22)"
-    : "linear-gradient(145deg,#155855,#1e7870)";
+    ? "linear-gradient(150deg,#E85D2C 0%,#EB8F22 100%)"
+    : "linear-gradient(150deg,#155855 0%,#1a8070 100%)";
   return (
     <button
       onClick={onTap}
@@ -634,37 +634,44 @@ function MobileToolCard({tool, onTap}:{tool:ToolDef; onTap:()=>void}) {
       onTouchCancel={()=>setPressed(false)}
       style={{
         display:"flex", alignItems:"center", gap:14,
-        width:"100%", padding:"13px 16px",
-        background: pressed ? "rgba(21,88,85,.06)" : "transparent",
-        border:"none", cursor:"pointer", textAlign:"left",
-        WebkitTapHighlightColor:"transparent", transition:"background .1s",
+        width:"100%", padding:"14px 18px",
+        background: pressed ? "rgba(21,88,85,.08)" : "transparent",
+        border:"none", cursor:"pointer", textAlign:"left" as const,
+        WebkitTapHighlightColor:"transparent", transition:"background .08s ease",
       }}
     >
+      {/* Icon: dimensional gradient with inner highlight */}
       <div style={{
-        width:44, height:44, borderRadius:12, flexShrink:0,
+        width:48, height:48, borderRadius:14, flexShrink:0,
         background:bg, color:"#fff",
         display:"flex", alignItems:"center", justifyContent:"center",
-        boxShadow:"0 3px 10px rgba(0,0,0,.14)",
+        boxShadow:"0 4px 16px rgba(0,0,0,.2), 0 1px 0 rgba(255,255,255,.28) inset",
       }}>
-        <Icon size={20}/>
+        <Icon size={22}/>
       </div>
+      {/* Text */}
       <div style={{flex:1, minWidth:0}}>
-        <div style={{fontSize:14, fontWeight:800, color:"#1a2b29", marginBottom:2}}>
+        <div style={{fontSize:15, fontWeight:700, color:"#0d1f1e", letterSpacing:"-.15px", marginBottom:2}}>
           {tool.title}
         </div>
         <div style={{
-          fontSize:11, color:"#7A9490", lineHeight:1.4,
+          fontSize:12, color:"#6A8E8A", lineHeight:1.4,
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
         }}>{tool.desc}</div>
       </div>
+      {/* AI badge */}
       {tool.orange && (
         <div style={{
-          fontSize:9, fontWeight:900, color:"#E85D2C",
-          background:"rgba(232,93,44,.1)", borderRadius:99,
-          padding:"2px 7px", letterSpacing:".04em", flexShrink:0,
+          fontSize:9, fontWeight:800, color:"#E85D2C",
+          background:"rgba(232,93,44,.11)",
+          border:"0.5px solid rgba(232,93,44,.25)",
+          borderRadius:99, padding:"2px 8px", letterSpacing:".06em", flexShrink:0,
         }}>AI</div>
       )}
-      <div style={{fontSize:20, color:"#D1E0DE", flexShrink:0, lineHeight:1}}>›</div>
+      {/* Chevron */}
+      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" style={{flexShrink:0, opacity:.35}}>
+        <path d="M1 1l5 5-5 5" stroke="#155855" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
     </button>
   );
 }
