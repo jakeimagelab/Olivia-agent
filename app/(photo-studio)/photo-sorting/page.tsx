@@ -529,6 +529,11 @@ export default function PhotoSortingPage() {
   const [dismissedCandidates,        setDismissedCandidates]        = useState<Set<string>>(new Set());
   const [mergeDecisions,             setMergeDecisions]             = useState<MergeDecision[]>([]);
 
+  /* ── 셀렉 & 매칭 탭 state ── */
+  const [selectTabView,          setSelectTabView]          = useState<"guide"|"select">("guide");
+  const [inAppSelected,          setInAppSelected]          = useState<Set<string>>(new Set());
+  const [selectExpandedScenes,   setSelectExpandedScenes]   = useState<Set<number>>(new Set());
+
   /* ── studio state ── */
   const [studioOpts,     setStudioOpts]     = useState<StudioOptions>({ lightingSensitivity:"medium" });
   const [studioFiles,    setStudioFiles]    = useState<StudioPhotoFile[]>([]);
@@ -1400,6 +1405,99 @@ export default function PhotoSortingPage() {
     setStep(6);
   }, [rootDir, fieldRawBaseDir, rawSelectMode, fieldStats, fieldRawCount, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled]);
 
+  /* ── 앱 내 셀렉 탭: 씬 썸네일 로딩 ── */
+  const loadSceneThumbs = useCallback(async (sceneIdx: number) => {
+    const scene = fieldScenes[sceneIdx];
+    if (!scene) return;
+    const updates = await Promise.all(
+      scene.files.map(async (f) => {
+        if (f.thumbUrl) return { basename: f.basename, thumbUrl: f.thumbUrl };
+        try {
+          const file = await f.handle.getFile();
+          const url = await loadThumb(file, 120);
+          return { basename: f.basename, thumbUrl: url };
+        } catch { return { basename: f.basename, thumbUrl: null }; }
+      })
+    );
+    setFieldScenes(prev => prev.map((sc, i) => {
+      if (i !== sceneIdx) return sc;
+      return { ...sc, files: sc.files.map(f => {
+        const u = updates.find(x => x.basename === f.basename);
+        return u ? { ...f, thumbUrl: u.thumbUrl } : f;
+      })};
+    }));
+  }, [fieldScenes]);
+
+  /* ── 앱 내 셀렉 탭: RAW 매칭 실행 ── */
+  const runInAppRawMatch = useCallback(async () => {
+    if (!rootDir || !fieldRawBaseDir || inAppSelected.size === 0) return;
+    setStep(5); cancelRef.current = false;
+    const log: string[] = [];
+
+    // 선택된 JPG 파일 핸들 수집
+    const selectedHandles = new Map<string, FileSystemFileHandle>();
+    for (const scene of fieldScenes) {
+      for (const f of scene.files) {
+        if (inAppSelected.has(f.basename.toLowerCase())) {
+          selectedHandles.set(f.basename.toLowerCase(), f.handle);
+        }
+      }
+    }
+
+    // SELECT/JPG_SELECT/ 에 선택 JPG 복사
+    const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create: true });
+    const jpgSelectDir = await (selectDir as any).getDirectoryHandle("JPG_SELECT", { create: true });
+    let done = 0;
+    for (const [, handle] of selectedHandles) {
+      if (cancelRef.current) break;
+      const file = await handle.getFile();
+      setProgress({ cur: done, total: selectedHandles.size, msg: `JPG 복사: ${file.name}` });
+      try { await copyFileHandle(handle, jpgSelectDir, file.name); log.push(`📋 ${file.name}`); }
+      catch { log.push(`❌ 복사 실패: ${file.name}`); }
+      done++; setCopyLog([...log]);
+    }
+
+    // RAW 인덱스 생성
+    const rawIndex = new Map<string, FileSystemFileHandle>();
+    for await (const [name, handle] of (fieldRawBaseDir as any).entries()) {
+      if ((handle as FileSystemHandle).kind !== "file") continue;
+      const ext = name.split(".").pop()?.toLowerCase() ?? "";
+      if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
+    }
+
+    // SELECT/RAW_SELECT/ 생성 후 매칭
+    const rawSelectDir = await (selectDir as any).getDirectoryHandle("RAW_SELECT", { create: true }) as FileSystemDirectoryHandle;
+    let rawMoved = 0, rawMissing = 0; done = 0;
+    const rawRows: string[][] = [];
+
+    for (const basename of inAppSelected) {
+      if (cancelRef.current) break;
+      setProgress({ cur: done, total: inAppSelected.size, msg: `RAW 매칭: ${basename}` });
+      const handle = rawIndex.get(basename);
+      if (handle) {
+        const rawFile = await handle.getFile();
+        try {
+          await copyFileHandle(handle, rawSelectDir, rawFile.name);
+          if (rawSelectMode === "move") {
+            try { await (fieldRawBaseDir as any).removeEntry(rawFile.name); } catch {}
+            log.push(`✅ 이동: ${rawFile.name}`);
+          } else {
+            log.push(`✅ 복사: ${rawFile.name}`);
+          }
+          rawRows.push([`${basename}.jpg`, rawFile.name, "완료", `RAW/${rawFile.name}`, `SELECT/RAW_SELECT/${rawFile.name}`, "basename"]);
+          rawMoved++;
+        } catch { log.push(`❌ 실패: ${rawFile.name}`); }
+      } else {
+        log.push(`⚠️ RAW 없음: ${basename}`);
+        rawMissing++;
+      }
+      done++; setCopyLog([...log]);
+    }
+
+    setFieldStats(prev => prev ? { ...prev, selectedJpg: inAppSelected.size, selectedRawMoved: rawMoved, rawMissing } : prev);
+    setStep(6);
+  }, [rootDir, fieldRawBaseDir, inAppSelected, fieldScenes, rawSelectMode]);
+
   /* ════════════════════════════════════════════
      STUDIO-MODE HANDLERS
   ═══════════════════════════════════════════ */
@@ -2153,32 +2251,109 @@ export default function PhotoSortingPage() {
 
   const FieldStep4 = () => {
     if (!fieldStats) return null;
-    return (
-      <div style={{maxWidth:580,display:"flex",flexDirection:"column",gap:16}}>
-        <div style={{fontSize:14,fontWeight:800,color:C.green}}>분류 완료 — 베스트컷을 선택해주세요</div>
-        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-          {[
-            {label:"씬",       value:fieldStats.totalScenes,       color:C.teal},
-            {label:"전체 JPG", value:fieldStats.totalJpg,          color:C.txt},
-            {label:"프로필",   value:fieldStats.totalProfile,      color:C.purple},
-          ].concat(fieldStats.totalQualityReject > 0 ? [{label:"품질제외",value:fieldStats.totalQualityReject,color:C.red}] : []).map(({label,value,color})=>(
-            <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
-              <div style={{fontSize:22,fontWeight:900,color}}>{value}</div>
-              <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
-            </div>
-          ))}
-        </div>
 
+    /* ── 셀렉 탭: 썸네일 그리드 + 선택 UI ── */
+    const SelectTab = () => {
+      const totalPhotos = fieldScenes.reduce((a, s) => a + s.files.length, 0);
+      const totalSelected = inAppSelected.size;
+      const smallBtn: React.CSSProperties = {
+        padding:"4px 10px", fontSize:11, fontWeight:700, background:C.white,
+        border:`1px solid ${C.border}`, borderRadius:6, cursor:"pointer", color:C.muted, fontFamily:"inherit",
+      };
+      return (
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {/* 선택 현황 헤더 */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",background:C.white,borderRadius:10,border:`1px solid ${C.border}`}}>
+            <div>
+              <span style={{fontSize:14,fontWeight:900,color:C.teal}}>{totalSelected}장 선택됨</span>
+              <span style={{fontSize:11,color:C.hint,marginLeft:8}}>/ 전체 {totalPhotos}장</span>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <button style={smallBtn} onClick={()=>setInAppSelected(new Set(fieldScenes.flatMap(s=>s.files.map(f=>f.basename.toLowerCase()))))}>전체 선택</button>
+              <button style={smallBtn} onClick={()=>setInAppSelected(new Set())}>전체 해제</button>
+            </div>
+          </div>
+
+          {/* 씬별 썸네일 그리드 */}
+          {fieldScenes.map((scene, si)=>{
+            const sceneSelected = scene.files.filter(f=>inAppSelected.has(f.basename.toLowerCase())).length;
+            const isExpanded = selectExpandedScenes.has(si);
+            return (
+              <div key={si} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+                <div
+                  onClick={()=>{
+                    setSelectExpandedScenes(prev=>{
+                      const next = new Set(prev);
+                      if (next.has(si)) { next.delete(si); }
+                      else { next.add(si); loadSceneThumbs(si); }
+                      return next;
+                    });
+                  }}
+                  style={{padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",userSelect:"none"}}
+                >
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{width:28,height:28,borderRadius:6,background:sceneSelected>0?C.teal:C.border,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:11,fontWeight:800,transition:"background .2s"}}>{si+1}</div>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700,color:C.txt}}>{scene.editedName}</div>
+                      <div style={{fontSize:10,color:C.hint}}>{scene.fileCount}장</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    {sceneSelected>0&&<span style={{fontSize:11,fontWeight:700,color:C.teal,background:C.light,padding:"2px 8px",borderRadius:10}}>✓ {sceneSelected}</span>}
+                    <span style={{fontSize:10,color:C.hint}}>{isExpanded?"▲":"▼"}</span>
+                  </div>
+                </div>
+                {isExpanded&&(
+                  <div style={{borderTop:`1px solid ${C.border}`,padding:12}}>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))",gap:6}}>
+                      {scene.files.map(f=>{
+                        const k = f.basename.toLowerCase();
+                        const isSel = inAppSelected.has(k);
+                        return (
+                          <div
+                            key={f.name}
+                            onClick={()=>setInAppSelected(prev=>{ const n=new Set(prev); n.has(k)?n.delete(k):n.add(k); return n; })}
+                            style={{position:"relative",cursor:"pointer",borderRadius:6,overflow:"hidden",border:isSel?`2.5px solid ${C.teal}`:`1.5px solid ${C.border}`,aspectRatio:"3/2",background:C.border}}
+                          >
+                            {f.thumbUrl
+                              ?<img src={f.thumbUrl} alt={f.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                              :<div style={{width:"100%",height:"100%",background:"#e5eeec"}}/>
+                            }
+                            {isSel&&<div style={{position:"absolute",top:3,right:3,width:16,height:16,borderRadius:"50%",background:C.teal,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"white",fontWeight:900}}>✓</div>}
+                            <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,.55)",padding:"2px 4px",fontSize:7,color:"rgba(255,255,255,.85)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* 액션 버튼 */}
+          <div className="ps-btn-row" style={{position:"sticky",bottom:0,background:C.bg,paddingTop:4}}>
+            <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
+            <Btn onClick={runInAppRawMatch} style={{opacity:totalSelected===0?0.4:1}} disabled={totalSelected===0}>
+              {totalSelected>0?`${totalSelected}장 선택 → RAW 매칭`:"사진을 선택하세요"}
+            </Btn>
+          </div>
+        </div>
+      );
+    };
+
+    /* ── Bridge 가이드 탭 (기존 내용) ── */
+    const GuideTab = () => (
+      <div style={{display:"flex",flexDirection:"column",gap:16}}>
         <div style={{background:"#F0FDF4",borderRadius:12,border:"1px solid #86EFAC",padding:20}}>
-          <div style={{fontSize:13,fontWeight:800,color:"#166534",marginBottom:10}}>베스트컷 선택 방법</div>
+          <div style={{fontSize:13,fontWeight:800,color:"#166534",marginBottom:10}}>베스트컷 선택 방법 (Bridge/Finder)</div>
           <div style={{fontSize:12,color:"#166534",lineHeight:2}}>
             1. Finder에서 <strong>JPG/</strong> 폴더 열기<br/>
             2. 각 씬 폴더 안에서 베스트컷 선택<br/>
             3. 선택한 JPG를 <strong>SELECT/JPG_SELECT/</strong> 폴더로 복사<br/>
-            4. 완료되면 아래 버튼 클릭
+            4. 완료되면 아래 [RAW SELECT 시작] 클릭
           </div>
         </div>
-
         <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"14px 16px"}}>
           <div style={{fontSize:10,color:C.hint,marginBottom:6,fontWeight:700}}>폴더 구조</div>
           <div style={{fontSize:11,fontFamily:"monospace",color:C.txt,lineHeight:2}}>
@@ -2193,12 +2368,52 @@ export default function PhotoSortingPage() {
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ RAW_SELECT/ (자동 생성됨)
           </div>
         </div>
-
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
           <Btn variant="secondary" onClick={()=>{ const a=document.createElement("a"); a.href="bridge://"; a.click(); }}>Bridge 열기</Btn>
           <Btn onClick={runRawSelect}>RAW SELECT 시작 →</Btn>
         </div>
+      </div>
+    );
+
+    return (
+      <div style={{maxWidth:640,display:"flex",flexDirection:"column",gap:16}}>
+        {/* 통계 요약 */}
+        <div style={{fontSize:14,fontWeight:800,color:C.green}}>분류 완료 — 베스트컷을 선택해주세요</div>
+        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+          {[
+            {label:"씬",       value:fieldStats.totalScenes,       color:C.teal},
+            {label:"전체 JPG", value:fieldStats.totalJpg,          color:C.txt},
+            {label:"프로필",   value:fieldStats.totalProfile,      color:C.purple},
+          ].concat(fieldStats.totalQualityReject>0?[{label:"품질제외",value:fieldStats.totalQualityReject,color:C.red}]:[]).map(({label,value,color})=>(
+            <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
+              <div style={{fontSize:22,fontWeight:900,color}}>{value}</div>
+              <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* 내부 탭 */}
+        <div style={{display:"flex",gap:0,borderBottom:`2px solid ${C.border}`,marginBottom:4}}>
+          {(["guide","select"] as const).map(t=>{
+            const label = t==="guide" ? "Bridge 가이드" : "앱에서 셀렉 & 매칭";
+            const active = selectTabView===t;
+            return (
+              <button
+                key={t}
+                onClick={()=>setSelectTabView(t)}
+                style={{
+                  padding:"9px 18px", fontSize:12, fontWeight:active?800:600,
+                  color:active?C.teal:C.hint, background:"none", border:"none",
+                  borderBottom:active?`2.5px solid ${C.teal}`:"2.5px solid transparent",
+                  cursor:"pointer", fontFamily:"inherit", marginBottom:-2, whiteSpace:"nowrap",
+                }}
+              >{label}</button>
+            );
+          })}
+        </div>
+
+        {selectTabView==="guide" ? <GuideTab/> : <SelectTab/>}
       </div>
     );
   };
