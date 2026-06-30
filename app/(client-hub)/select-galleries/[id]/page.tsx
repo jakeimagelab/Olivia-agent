@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { GALLERY_STATUS_COLOR, GALLERY_STATUS_LABEL } from "@/lib/selectGallery";
@@ -25,6 +25,14 @@ interface RawMatchRow {
 
 /* ════════════════════════════════════════════ */
 export default function SelectGalleryDetailPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#5A7470", fontFamily: "'Noto Sans KR',sans-serif" }}>불러오는 중...</div>}>
+      <SelectGalleryDetailInner />
+    </Suspense>
+  );
+}
+
+function SelectGalleryDetailInner() {
   const { id } = useParams<{ id: string }>();
   const sp = useSearchParams();
   const router = useRouter();

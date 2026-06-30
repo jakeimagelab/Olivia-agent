@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { GALLERY_STATUS_COLOR, GALLERY_STATUS_LABEL, type SelectGallery } from "@/lib/selectGallery";
@@ -22,6 +22,14 @@ function nextActionLabel(g: SelectGallery) {
 }
 
 export default function SelectGalleriesPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#5A7470", fontFamily: "'Noto Sans KR',sans-serif" }}>불러오는 중...</div>}>
+      <SelectGalleriesInner />
+    </Suspense>
+  );
+}
+
+function SelectGalleriesInner() {
   const sp = useSearchParams();
   const router = useRouter();
   const clientId = sp.get("clientId") ?? sp.get("client_id") ?? "";

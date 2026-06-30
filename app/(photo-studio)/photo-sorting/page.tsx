@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
@@ -550,6 +550,14 @@ interface SavedSortingSession {
    MAIN COMPONENT
 ═══════════════════════════════════════════════ */
 export default function PhotoSortingPage() {
+  return (
+    <Suspense fallback={null}>
+      <PhotoSortingInner />
+    </Suspense>
+  );
+}
+
+function PhotoSortingInner() {
   const sp = useSearchParams();
   const router = useRouter();
   const clientId = sp.get("clientId") ?? sp.get("client_id") ?? "";
