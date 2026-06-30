@@ -544,14 +544,18 @@ const PIPELINE = [
 
 function WorkflowStrip() {
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize:10, fontWeight:900, color:"#9BB5B0", letterSpacing:".08em", textTransform:"uppercase", marginBottom:8 }}>
-        업무 파이프라인
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ fontSize:11, fontWeight:700, color:"#5a8480", letterSpacing:".05em", textTransform:"uppercase" as const, marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+        <span style={{fontSize:13}}>⚙️</span> 업무 파이프라인
       </div>
       <div style={{
-        background:"#fff", borderRadius:12, border:"1px solid rgba(21,88,85,.1)",
-        padding:"10px 14px", overflowX:"auto",
-        boxShadow:"0 1px 6px rgba(21,88,85,.04)",
+        background:"rgba(255,255,255,.65)",
+        backdropFilter:"blur(16px) saturate(1.4)",
+        WebkitBackdropFilter:"blur(16px) saturate(1.4)" as any,
+        borderRadius:14,
+        border:"1px solid rgba(255,255,255,.85)",
+        padding:"11px 16px", overflowX:"auto",
+        boxShadow:"0 4px 20px rgba(21,88,85,.07), 0 1px 0 rgba(255,255,255,.9) inset",
       }}>
         <div style={{ display:"flex", alignItems:"center", gap:2, minWidth:"max-content" }}>
           {PIPELINE.map((step, i) => (
