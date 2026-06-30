@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import PageHeader from "@/components/PageHeader";
 import { Gift, Users, Heart, ShoppingBag, BarChart2, Settings, Award, Leaf, RefreshCw } from "lucide-react";
 
 const C = { teal:"#155855", orange:"#E85D2C", green:"#22876A", bg:"#F0F9F8", white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470", hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2" };
