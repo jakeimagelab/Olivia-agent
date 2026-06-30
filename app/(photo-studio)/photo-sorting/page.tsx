@@ -2160,6 +2160,31 @@ export default function PhotoSortingPage() {
                         </div>
                       </div>
 
+                      {/* 양쪽 씬 썸네일 미리보기 */}
+                      {nextSc && (
+                        <div style={{display:"flex",gap:6,alignItems:"stretch",background:"rgba(0,0,0,.04)",borderRadius:6,padding:"6px 8px"}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:8,color:"#6B7280",marginBottom:3,fontWeight:700}}>{sc.editedName}</div>
+                            <div style={{display:"flex",gap:2,flexWrap:"wrap"}}>
+                              {sc.files.slice(0,5).map((f,fi)=>f.thumbUrl
+                                ?<img key={fi} src={f.thumbUrl} style={{width:44,height:32,objectFit:"cover",borderRadius:3,flexShrink:0}} alt=""/>
+                                :<div key={fi} style={{width:44,height:32,background:"#D1D5DB",borderRadius:3,flexShrink:0}}/>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{width:1,background:"#D1D5DB",margin:"0 2px"}}/>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:8,color:"#6B7280",marginBottom:3,fontWeight:700}}>{nextSc.editedName}</div>
+                            <div style={{display:"flex",gap:2,flexWrap:"wrap"}}>
+                              {nextSc.files.slice(0,5).map((f,fi)=>f.thumbUrl
+                                ?<img key={fi} src={f.thumbUrl} style={{width:44,height:32,objectFit:"cover",borderRadius:3,flexShrink:0}} alt=""/>
+                                :<div key={fi} style={{width:44,height:32,background:"#D1D5DB",borderRadius:3,flexShrink:0}}/>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div style={{fontSize:10,
                         color: candidate.recommendedAction === "merge" ? "#1E40AF" : "#9A3412",
                         lineHeight:1.6,
