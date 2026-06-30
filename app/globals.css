@@ -541,9 +541,12 @@ textarea:focus {
 
 .admin-shell {
   min-height: 100vh;
+  /* Apple iOS 26 mesh gradient */
   background:
-    linear-gradient(135deg, rgba(229, 240, 238, 0.96), rgba(250, 247, 242, 0.98)),
-    #e5f0ee;
+    radial-gradient(ellipse 130% 55% at 10% 0%,   rgba(21,88,85,.13)   0%, transparent 52%),
+    radial-gradient(ellipse 90%  60% at 90% 100%,  rgba(235,143,34,.09) 0%, transparent 50%),
+    radial-gradient(ellipse 80%  80% at 55% 50%,   rgba(86,155,140,.06) 0%, transparent 55%),
+    #f0f4f2;
   color: var(--ink);
   padding: 28px;
 }
