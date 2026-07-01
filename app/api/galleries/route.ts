@@ -296,11 +296,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 자동 후처리 (client_id가 있을 때만) ───────────────────
-    const siteUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-
     if (gallery && client_id) {
       // ① mailing_queue에 "gallery" 타입 draft 자동 생성
       // 실패해도 갤러리 저장은 성공으로 처리
