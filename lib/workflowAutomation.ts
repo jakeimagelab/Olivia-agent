@@ -297,9 +297,15 @@ export async function createStepTasks(db: SupabaseClient, workflowRunId: string,
   return { created, skipped: false };
 }
 
-export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_id: string; to_step_key?: string | null; reason?: string }) {
+export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_id: string; to_step_key?: string | null; from_step_key?: string | null; reason?: string }) {
   const run = await getWorkflowRun(db, input.workflow_run_id);
   const fromStep = run.current_step_key;
+
+  // from_step_key 가드: 현재 단계가 지정한 단계와 다르면 건너뜀 (중복 전진 방지)
+  if (input.from_step_key && fromStep !== input.from_step_key) {
+    return { skipped: true, reason: `current step is ${fromStep}, expected ${input.from_step_key}`, from_step_key: fromStep, to_step_key: null, created: [] };
+  }
+
   const toStep = input.to_step_key || getNextWorkflowStep(fromStep);
   const now = new Date().toISOString();
   if (!toStep) {
