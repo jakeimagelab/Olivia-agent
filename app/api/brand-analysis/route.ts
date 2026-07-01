@@ -95,7 +95,7 @@ function extractLinks(html: string, baseUrl: string): string[] {
   } catch { return []; }
 }
 
-async function fetchPage(url: string, timeoutMs = 8000): Promise<string> {
+async function fetchPage(url: string, timeoutMs = 4000): Promise<string> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
