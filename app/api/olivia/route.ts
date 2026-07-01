@@ -529,7 +529,8 @@ Available tools:
 - advance_workflow_step: 워크플로우 단계 진행 (예: quote → contract, contract → conti)
 - list_mailing_queue: 메일 대기 목록 조회 (draft/ready 상태)
 - send_mailing: 대기 중인 특정 메일 즉시 발송
-- create_gallery: 촬영 갤러리 등록 (NAS 링크 포함)
+- get_gallery: 병원의 납품 갤러리·NAS 링크 조회
+- create_gallery: 보정 완료 후 갤러리 등록 (client_id 연동 시 메일 draft 자동 생성 + 워크플로우 자동 전진)
 
 워크플로우 규칙 (매우 중요):
 - "~병원 현황 알려줘", "~병원 지금 어디까지?" → get_workflow_status 호출
