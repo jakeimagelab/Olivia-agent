@@ -56,7 +56,11 @@ function QueueTab() {
   const [selected, setSelected]       = useState<MailItem | null>(null);
   const [filterType, setFilterType]   = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [filterHosp, setFilterHosp]   = useState("");
+  const [filterHosp, setFilterHosp]   = useState(() => {
+    if (typeof window === "undefined") return "";
+    const p = new URLSearchParams(window.location.search);
+    return p.get("hospital_name") || p.get("hospitalName") || "";
+  });
   const [editing, setEditing]         = useState({ subject: "", body: "", to_email: "" });
   const [sending, setSending]         = useState(false);
   const [saveMsg, setSaveMsg]         = useState("");
