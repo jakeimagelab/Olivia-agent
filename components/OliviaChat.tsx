@@ -632,7 +632,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
           </div>
 
           {/* 메시지 목록 */}
-          <div style={{
+          <div ref={messagesRef} style={{
             flex: 1, overflowY: "auto", padding: "14px 14px 0",
             display: "flex", flexDirection: "column", gap: 10,
           }}>
