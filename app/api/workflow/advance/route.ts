@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
     const result = await advanceWorkflow(getSupabaseAdmin(), {
       workflow_run_id: body.workflow_run_id,
       to_step_key: body.to_step_key ?? null,
+      from_step_key: body.from_step_key ?? null,
       reason: body.reason ?? "",
     });
     return NextResponse.json({ ok: true, ...result });
