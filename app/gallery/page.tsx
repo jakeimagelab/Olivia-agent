@@ -249,7 +249,13 @@ function GalleryPageInner() {
       const res = await fetch("/api/galleries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, id: editingId, thumbnailUrl: uploadedThumbnailUrl })
+        body: JSON.stringify({
+          ...form,
+          id: editingId,
+          thumbnailUrl: uploadedThumbnailUrl,
+          client_id: clientId || null,
+          workflow_run_id: workflowRunId || null,
+        }),
       });
       const text = await res.text();
       const data = text.startsWith("<")
@@ -260,7 +266,8 @@ function GalleryPageInner() {
       if (!data.ok) throw new Error(data.error);
       const savedMsg = editingId ? "갤러리 카드를 수정했습니다." : "갤러리를 저장했습니다.";
       setMessage(savedMsg);
-      if (!editingId) {
+      // client_id 없을 때만 클라이언트에서 직접 메일 draft 생성 (서버에서 자동 처리되지 않는 경우)
+      if (!editingId && !clientId) {
         createMailingDraft({
           type: "gallery",
           source_module: "gallery",
@@ -271,6 +278,8 @@ function GalleryPageInner() {
           body: `${form.hospitalName} 촬영 갤러리를 공유드립니다.\n아래 NAS 링크에서 보정본을 확인하실 수 있습니다.${form.description ? "\n\n" + form.description : ""}`,
           links: form.nasLink ? [{ label: "갤러리 확인하기", url: form.nasLink }] : [],
         }).then(() => setMessage(prev => prev + " · 올리비아 메일링함에 자동 저장되었습니다."));
+      } else if (!editingId && clientId) {
+        setMessage(prev => prev + " · 메일링함에 draft 저장 + 워크플로우 자동 전진됩니다.");
       }
       resetForm();
       await loadGalleries();
