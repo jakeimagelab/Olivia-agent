@@ -721,8 +721,33 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
               <RawMatchingStepPanel clientId={clientId} workflowRunId={workflowRun?.id} />
             )}
 
+            {/* 보정 단계 — 갤러리 등록 버튼 추가 */}
+            {selectedStepKey === "retouching" && (
+              <div style={{ marginBottom: 18, display: "grid", gap: 10 }}>
+                <div style={{ padding: "14px 18px", background: C.light, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                  <div style={{ fontSize: 13, color: C.teal, lineHeight: 1.6 }}>
+                    <strong>{client.name}</strong>의 <strong>색감 보정</strong> 단계를 진행하세요.
+                  </div>
+                  <Link href={buildStepAppLink({ stepKey: selectedStepKey, clientId, workflowRunId: workflowRun?.id })}
+                    style={{ padding: "10px 22px", background: C.white, color: C.teal, borderRadius: 8, fontSize: 13, fontWeight: 800, textDecoration: "none", border: `1.5px solid ${C.teal}`, whiteSpace: "nowrap" }}>
+                    보정 앱 열기 →
+                  </Link>
+                </div>
+                <div style={{ padding: "14px 18px", background: "#FFF8F5", borderRadius: 10, border: `1px solid ${C.orange}30`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 900, color: C.orange, marginBottom: 4 }}>🎉 보정 완료 후 갤러리 등록</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>저장 시 메일 draft 자동 생성 + 다음 단계로 자동 전진</div>
+                  </div>
+                  <Link href={`/gallery?client_id=${clientId}${workflowRun?.id ? `&workflow_run_id=${workflowRun.id}` : ""}`}
+                    style={{ padding: "10px 22px", background: C.orange, color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 900, textDecoration: "none", whiteSpace: "nowrap" }}>
+                    📷 갤러리 등록 (보정 완료) →
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* 기본 단계 — 설명 + 앱 링크 */}
-            {!["shooting", "original_delivery", "consult_meeting", "final_delivery", "client_selection", "raw_matching"].includes(selectedStepKey) && (
+            {!["shooting", "original_delivery", "consult_meeting", "final_delivery", "client_selection", "raw_matching", "retouching"].includes(selectedStepKey) && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 18, padding: "14px 18px", background: C.light, borderRadius: 10 }}>
                 <div style={{ fontSize: 13, color: C.teal, lineHeight: 1.6 }}>
                   <strong>{client.name}</strong>의 <strong>{STEP_NAME[selectedStepKey]}</strong> 단계를 진행하세요.
