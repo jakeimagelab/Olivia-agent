@@ -213,6 +213,65 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "get_workflow_status",
+    description: "고객의 워크플로우 현재 단계와 다음 액션을 확인합니다. '~병원 현황 알려줘', '~병원 지금 어디까지 했어?' 등의 요청에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명 (일부만 입력해도 됩니다)" },
+      },
+      required: ["clientName"],
+    },
+  },
+  {
+    name: "advance_workflow_step",
+    description: "고객 워크플로우의 현재 단계를 완료하고 다음 단계로 진행합니다. '다음 단계로 넘겨줘', '콘티 단계로 이동해줘' 등의 요청에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명" },
+        toStepKey:  { type: "string", description: "이동할 단계 key (예: contract, conti, shooting, original_delivery, final_delivery, review_content)" },
+      },
+      required: ["clientName", "toStepKey"],
+    },
+  },
+  {
+    name: "list_mailing_queue",
+    description: "메일링 큐의 대기 중인 메일 목록을 확인합니다. '보낼 메일 있어?', '메일 대기 목록 알려줘' 등에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "특정 병원 필터 (선택)" },
+        status:     { type: "string", enum: ["draft", "ready", "sent", "failed"], description: "상태 필터 (선택, 기본: draft+ready)" },
+      },
+    },
+  },
+  {
+    name: "send_mailing",
+    description: "메일링 큐의 특정 메일을 발송합니다. list_mailing_queue로 ID를 확인한 후 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        mailingId: { type: "string", description: "mailing_queue 테이블의 메일 ID" },
+      },
+      required: ["mailingId"],
+    },
+  },
+  {
+    name: "create_gallery",
+    description: "고객의 촬영 갤러리를 등록합니다. NAS 링크와 함께 갤러리를 생성합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명" },
+        nasLink:    { type: "string", description: "NAS 공유 링크" },
+        description:{ type: "string", description: "촬영 내용 메모 (선택)" },
+        shootDate:  { type: "string", description: "촬영 날짜 YYYY-MM-DD (선택)" },
+      },
+      required: ["clientName", "nasLink"],
+    },
+  },
+  {
     name: "calendar_add_bulk",
     description: "캘린더에 여러 할일/일정을 한번에 추가합니다. 2개 이상의 일정을 추가할 때는 반드시 이 도구를 사용하세요.",
     input_schema: {
