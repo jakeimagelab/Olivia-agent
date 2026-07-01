@@ -303,40 +303,45 @@ export async function POST(req: NextRequest) {
 
     if (gallery && client_id) {
       // ① mailing_queue에 "gallery" 타입 draft 자동 생성
-      await supabase.from("mailing_queue").insert({
-        type: "gallery",
-        source_module: "gallery",
-        source_id: gallery.id,
-        workflow_run_id: workflow_run_id || null,
-        mailing_type: "gallery",
-        approval_status: "pending",
-        status: "draft",
-        hospital_name: hospitalName,
-        contact_name: contactName || "",
-        to_email: contactEmail || "",
-        subject: `[포토클리닉] ${hospitalName} 촬영 사진 전달드립니다`,
-        body: [
-          `안녕하세요. 병원이야기를 전하는 포토클리닉입니다.`,
-          `${contactName || "담당자"}님,`,
-          ``,
-          `${hospitalName} 촬영 보정본이 완성되었습니다.`,
-          `아래 링크에서 확인하실 수 있습니다.`,
-          ``,
-          nasLink,
-          ``,
-          `감사합니다. 포토클리닉 드림`,
-        ].join("\n"),
-        links: nasLink ? [{ label: "갤러리 확인하기", url: nasLink }] : [],
-      }).catch(() => {}); // 실패해도 갤러리 저장은 성공으로 처리
+      // 실패해도 갤러리 저장은 성공으로 처리
+      try {
+        await supabase.from("mailing_queue").insert({
+          type: "gallery",
+          source_module: "gallery",
+          source_id: gallery.id,
+          workflow_run_id: workflow_run_id || null,
+          mailing_type: "gallery",
+          approval_status: "pending",
+          status: "draft",
+          hospital_name: hospitalName,
+          contact_name: contactName || "",
+          to_email: contactEmail || "",
+          subject: `[포토클리닉] ${hospitalName} 촬영 사진 전달드립니다`,
+          body: [
+            `안녕하세요. 병원이야기를 전하는 포토클리닉입니다.`,
+            `${contactName || "담당자"}님,`,
+            ``,
+            `${hospitalName} 촬영 보정본이 완성되었습니다.`,
+            `아래 링크에서 확인하실 수 있습니다.`,
+            ``,
+            nasLink,
+            ``,
+            `감사합니다. 포토클리닉 드림`,
+          ].join("\n"),
+          links: nasLink ? [{ label: "갤러리 확인하기", url: nasLink }] : [],
+        });
+      } catch {}
 
       // ② 워크플로우 retouching 단계이면 final_delivery로 자동 전진
       if (workflow_run_id) {
-        await advanceWorkflow(supabase, {
-          workflow_run_id,
-          from_step_key: "retouching",
-          to_step_key: "final_delivery",
-          reason: "갤러리 등록으로 보정 완료 처리",
-        }).catch(() => {});
+        try {
+          await advanceWorkflow(supabase, {
+            workflow_run_id,
+            from_step_key: "retouching",
+            to_step_key: "final_delivery",
+            reason: "갤러리 등록으로 보정 완료 처리",
+          });
+        } catch {}
       }
     }
 
