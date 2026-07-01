@@ -11,7 +11,8 @@ export type ActionType =
   | "calendar_add"
   | "calendar_complete"
   | "calendar_delete"
-  | "send_workflow_mail";
+  | "send_workflow_mail"
+  | "advance_workflow_step";
 
 export async function logActivity(
   actionType: ActionType,
