@@ -364,7 +364,10 @@ export default function BrandAnalysisPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: trimmed, purpose, depth }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any;
+      try { data = JSON.parse(text); }
+      catch { throw new Error(`서버 응답 오류 (${res.status}): ${text.slice(0, 120)}`); }
       if (!data.ok) throw new Error(data.error ?? "분석에 실패했습니다");
       setProgress(100);
       setProgressMsg("완료!");
