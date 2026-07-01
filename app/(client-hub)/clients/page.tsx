@@ -397,7 +397,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
 }
 
 /* ── 촬영 갤러리 섹션 ── */
-function ClientGallerySection({ hospitalName, email }: { hospitalName: string; email?: string }) {
+function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: { clientId: string; hospitalName: string; email?: string; workflowRunId?: string }) {
   const [galleries, setGalleries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -408,12 +408,16 @@ function ClientGallerySection({ hospitalName, email }: { hospitalName: string; e
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/galleries?q=${encodeURIComponent(hospitalName)}`);
+      // client_id로 조회 우선, 없으면 병원명 ilike 검색 폴백
+      const query = clientId
+        ? `/api/galleries?client_id=${encodeURIComponent(clientId)}`
+        : `/api/galleries?q=${encodeURIComponent(hospitalName)}`;
+      const res = await fetch(query);
       const d = await res.json();
       if (d.ok) setGalleries(d.galleries || []);
     } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [hospitalName]);
+  useEffect(() => { load(); }, [clientId, hospitalName]);
 
   const save = async () => {
     if (!form.nasLink) { setMsg("NAS 링크를 입력해주세요."); return; }
