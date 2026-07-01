@@ -310,9 +310,15 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       .catch(fallback);
   }, [isAuthReady, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── 스크롤 자동 이동 ────────────────────────────────────
+  // ── 스크롤 자동 이동 (컨테이너 직접 제어) ──────────────
+  const scrollToBottom = (smooth = true) => {
+    const el = messagesRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "instant" });
+  };
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollToBottom(true);
   }, [messages, loading]);
 
   // ── 열릴 때 포커스 + 대기 중 텔레그램 메시지 플러시 ────
