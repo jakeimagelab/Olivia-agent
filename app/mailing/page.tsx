@@ -938,7 +938,312 @@ function CustomBrandMailTab() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 탭 4 — 셀렉 갤러리 메일 발송
+// 탭 4 — 후기 요청 메일 (후기만 발송)
+// ═══════════════════════════════════════════════════════════
+const DEFAULT_REVIEW_BODY = `촬영에 함께해주셔서 진심으로 감사드립니다.
+
+포토클리닉과 함께한 경험이 어떠셨는지 짧게 남겨주시면 큰 도움이 됩니다.
+남겨주신 후기는 더 좋은 촬영 경험을 준비하는 데 소중하게 참고하겠습니다.`;
+
+function ReviewOnlyMailTab() {
+  const [hospitalName, setHospitalName] = useState("");
+  const [toName,       setToName]       = useState("");
+  const [toEmail,      setToEmail]      = useState("");
+  const [shootDate,    setShootDate]    = useState("");
+  const [subject,      setSubject]      = useState("[포토클리닉] 촬영 후기 부탁드립니다");
+  const [message,      setMessage]      = useState(DEFAULT_REVIEW_BODY);
+  const [preview,      setPreview]      = useState(true);
+  const [sending,      setSending]      = useState(false);
+  const [drafting,     setDrafting]     = useState(false);
+  const [draftSaved,   setDraftSaved]   = useState(false);
+  const [result,       setResult]       = useState<"success" | "error" | null>(null);
+  const [errMsg,       setErrMsg]       = useState("");
+  const [origin,       setOrigin]       = useState("");
+
+  const [session,        setSession]        = useState<{ name: string; email: string; accessToken: string } | null>(null);
+  const [contacts,       setContacts]       = useState<{ name: string; email: string; phone: string; org: string }[]>([]);
+  const [contactsLoaded, setContactsLoaded] = useState(false);
+  const [contactSearch,  setContactSearch]  = useState("");
+  const [showDropdown,   setShowDropdown]   = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const reviewUrl = `${origin}/review?hospital=${encodeURIComponent(hospitalName)}&name=${encodeURIComponent(toName)}`;
+
+  useEffect(() => {
+    fetch("/api/auth/session").then(r => r.json()).then(d => { if (d.ok) setSession(d.session); }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowDropdown(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const loadContacts = async () => {
+    if (contactsLoaded) return;
+    try {
+      const res  = await fetch("/api/contacts");
+      const data = await res.json();
+      if (data.ok) { setContacts(data.contacts); setContactsLoaded(true); }
+    } catch {}
+  };
+
+  const filteredContacts = contacts.filter(c =>
+    c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+    c.email.toLowerCase().includes(contactSearch.toLowerCase()) ||
+    c.org.toLowerCase().includes(contactSearch.toLowerCase())
+  ).slice(0, 8);
+
+  const resetForm = () => {
+    setHospitalName(""); setToName(""); setToEmail(""); setShootDate("");
+    setSubject("[포토클리닉] 촬영 후기 부탁드립니다");
+    setMessage(DEFAULT_REVIEW_BODY);
+    setResult(null); setErrMsg(""); setDraftSaved(false);
+  };
+
+  const saveDraft = async () => {
+    if (!hospitalName || !subject) { setErrMsg("고객과 제목은 필수입니다."); return; }
+    setDrafting(true); setErrMsg(""); setDraftSaved(false);
+    try {
+      const res = await fetch("/api/mailing", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "review_form",
+          source_module: "review-mail",
+          hospital_name: hospitalName,
+          contact_name: toName,
+          to_email: toEmail,
+          subject,
+          body: message,
+          links: [{ label: "리뷰 작성하기", url: reviewUrl, color: C.teal }],
+          attachments: [],
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      setDraftSaved(true);
+      setTimeout(() => setDraftSaved(false), 3000);
+    } catch (e: any) { setErrMsg(e.message); }
+    finally { setDrafting(false); }
+  };
+
+  const handleSend = async () => {
+    if (!toEmail || !hospitalName || !subject || !message) {
+      setErrMsg("고객, 이메일, 제목, 본문은 필수입니다.");
+      return;
+    }
+    setSending(true); setErrMsg(""); setResult(null);
+    try {
+      const res = await fetch("/api/send-brand-mail", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: toEmail,
+          toName: toName || hospitalName,
+          subject,
+          body: message,
+          links: [{ label: "리뷰 작성하기", url: reviewUrl, color: C.teal }],
+          attachments: [],
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      setResult("success");
+    } catch (e: any) { setErrMsg(e.message); setResult("error"); }
+    finally { setSending(false); }
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+      <div className="pc-mobile-stack" style={{ maxWidth: preview ? 1120 : 580, margin: "0 auto", display: "grid", gridTemplateColumns: preview ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={() => setPreview(p => !p)} style={{ ...btnSm, border: `1px solid ${C.border}`, background: preview ? C.teal : C.surface, color: preview ? "#fff" : C.muted }}>
+              {preview ? "미리보기 숨기기" : "📧 미리보기"}
+            </button>
+          </div>
+
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>⭐ 후기 요청 정보</div>
+            </div>
+            <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>고객 *</label>
+                  <input value={hospitalName} onChange={e => setHospitalName(e.target.value)} placeholder="고객사명" style={iS} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>촬영일</label>
+                  <input type="date" value={shootDate} onChange={e => setShootDate(e.target.value)} style={iS} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>메일 제목 *</label>
+                <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="[포토클리닉] 촬영 후기 부탁드립니다" style={iS} />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>👤 받는 분</div>
+            </div>
+            <div style={{ padding: "18px 20px" }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
+                  <input value={toName} onChange={e => setToName(e.target.value)} placeholder="정연호 실장님" style={iS} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
+                  <div style={{ position: "relative" }} ref={dropdownRef}>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input type="email" value={toEmail}
+                        onChange={e => { setToEmail(e.target.value); setContactSearch(e.target.value); setShowDropdown(true); }}
+                        onFocus={() => { setShowDropdown(true); if (!contactsLoaded && session) loadContacts(); }}
+                        placeholder="photoclinic@gmail.com" style={{ ...iS, flex: 1 }} />
+                      {session ? (
+                        <button onClick={() => { setShowDropdown(!showDropdown); loadContacts(); }}
+                          style={{ height: 38, padding: "0 10px", background: C.mint, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
+                          title="연락처 검색">👥</button>
+                      ) : (
+                        <button onClick={() => window.location.href = "/api/auth/google"}
+                          style={{ height: 38, padding: "0 10px", background: "#fff", border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 10, cursor: "pointer", fontFamily: "inherit", color: C.muted, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>
+                          G 연락처
+                        </button>
+                      )}
+                    </div>
+                    {showDropdown && filteredContacts.length > 0 && (
+                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,.1)", marginTop: 4, maxHeight: 360, overflowY: "auto" }}>
+                        <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
+                          <input value={contactSearch} onChange={e => setContactSearch(e.target.value)} placeholder="이름·이메일·회사 검색..." style={{ ...iS, height: 38, padding: "8px 12px" }} />
+                        </div>
+                        {filteredContacts.map((c, i) => (
+                          <div key={i}
+                            onClick={() => { setToEmail(c.email); setToName(c.name); setHospitalName(prev => prev || c.org); setShowDropdown(false); setContactSearch(""); }}
+                            style={{ padding: "12px 16px", cursor: "pointer", borderBottom: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 4 }}
+                            onMouseEnter={e => (e.currentTarget.style.background = C.mint)}
+                            onMouseLeave={e => (e.currentTarget.style.background = "")}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: C.txt }}>{c.name}</span>
+                            <span style={{ fontSize: 13, color: C.muted }}>{c.email}</span>
+                            {c.org && <span style={{ fontSize: 12, color: C.hint }}>{c.org}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>🔗 후기 작성 링크</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>고객과 담당자명이 링크에 자동 반영됩니다</div>
+            </div>
+            <div style={{ padding: "18px 20px" }}>
+              <input value={reviewUrl} readOnly style={{ ...iS, fontSize: 12, color: C.muted, background: "#FAFFFE" }} />
+            </div>
+          </div>
+
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>✉️ 본문 편집</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>후기 버튼 위에 표시되는 내용을 수정하세요</div>
+            </div>
+            <div style={{ padding: "18px 20px" }}>
+              <textarea value={message} onChange={e => setMessage(e.target.value)} rows={6}
+                style={{ ...iS, resize: "vertical", lineHeight: 1.8 }} />
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+                <div style={{ fontSize: 10, color: C.hint }}>{message.length}자</div>
+                <button onClick={() => setMessage(DEFAULT_REVIEW_BODY)}
+                  style={{ fontSize: 10, color: C.hint, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
+                  기본 문구로 초기화
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {errMsg && <div style={{ padding: "11px 14px", background: "#FFF0EB", border: `1px solid #FACCB8`, borderRadius: 9, fontSize: 12, color: C.orange }}>⚠ {errMsg}</div>}
+          {draftSaved && <div style={{ padding: "11px 14px", background: C.mint, border: `1px solid ${C.teal}`, borderRadius: 9, fontSize: 12, color: C.teal, fontWeight: 700 }}>✅ 임시저장 완료 — 임시저장 메일링 탭에서 확인하세요</div>}
+
+          {result === "success" ? (
+            <div style={{ padding: "16px 20px", background: C.mint, border: `1px solid ${C.teal}`, borderRadius: 12, textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.teal, marginBottom: 4 }}>후기 요청 메일 발송 완료!</div>
+              <div style={{ fontSize: 12, color: C.muted }}>{toEmail} 로 후기 요청 메일이 발송됐어요</div>
+              <button onClick={resetForm} style={{ marginTop: 12, height: 36, padding: "0 20px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>새 메일 작성</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={saveDraft} disabled={drafting || !hospitalName || !subject}
+                style={{ flex: "0 0 auto", height: 50, padding: "0 20px", background: C.surface, color: drafting ? C.hint : C.teal, border: `1.5px solid ${C.teal}`, borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: drafting || !hospitalName || !subject ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                {drafting ? "저장 중..." : "💾 임시 저장"}
+              </button>
+              <button onClick={handleSend} disabled={sending || !toEmail || !hospitalName || !subject || !message}
+                style={{ flex: 1, height: 50, background: sending ? C.hint : C.orange, color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sending || !toEmail || !hospitalName || !subject || !message ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {sending ? "발송 중..." : `📨 ${hospitalName || "고객"}에 후기 요청 메일 발송`}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {preview && (
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", position: "sticky", top: 0 }}>
+            <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📧 메일 미리보기</div>
+              <div style={{ fontSize: 11, color: C.muted }}>실제 발송될 메일 디자인</div>
+            </div>
+            <div style={{ padding: 16, background: "#EDF5F3" }}>
+              <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden" }}>
+                <div style={{ background: C.teal, padding: "20px 24px", textAlign: "center" }}>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>PHOTO CLINIC · 포토클리닉</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 3 }}>{subject || "촬영 후기 부탁드립니다"}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)" }}>{new Date().toLocaleDateString("ko-KR")}</div>
+                </div>
+                <div style={{ padding: "20px 24px" }}>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: C.txt, margin: "0 0 4px" }}>안녕하세요. 병원이야기를 전하는 포토클리닉입니다.</p>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: C.txt, margin: "0 0 12px" }}>
+                    {toName || hospitalName || "원장"}님.
+                  </p>
+                  <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.9, margin: "0 0 16px", whiteSpace: "pre-line" }}>
+                    {message}
+                  </div>
+                  {shootDate && (
+                    <div style={{ background: C.mint, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}>
+                      <div style={{ fontSize: 10 }}><span style={{ color: C.hint, marginRight: 8, fontWeight: 700 }}>촬영일</span><span style={{ fontWeight: 700, color: C.txt }}>{shootDate}</span></div>
+                    </div>
+                  )}
+                  <div style={{ textAlign: "center", margin: "18px 0 20px" }}>
+                    <div style={{ background: C.teal, color: "#fff", display: "inline-block", padding: "10px 24px", borderRadius: 8, fontSize: 12, fontWeight: 800 }}>리뷰 작성하기</div>
+                  </div>
+                  <p style={{ fontSize: 10, color: C.hint, borderTop: `1px solid #EEF4F3`, paddingTop: 10, margin: "14px 0 0", lineHeight: 1.8 }}>
+                    문의사항은 언제든지 연락 주세요. 감사합니다.<br/>포토클리닉 대표 정연호 드림.
+                  </p>
+                </div>
+                <div style={{ background: C.mint, padding: "16px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
+                  <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 3 }}>사진으로 병원이야기를 전합니다, 포토클리닉</div>
+                  <div style={{ fontSize: 9, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// 탭 5 — 셀렉 갤러리 메일 발송
 // ═══════════════════════════════════════════════════════════
 const SEL_STATUS_LABEL: Record<string, string> = {
   draft: "초안", uploading_images: "업로드 중", ready: "발송 준비",
@@ -1109,7 +1414,7 @@ function SelectGalleryMailTab() {
 // ═══════════════════════════════════════════════════════════
 // 메인 페이지 — 탭 전환
 // ═══════════════════════════════════════════════════════════
-type Tab = "queue" | "brand" | "custom" | "select";
+type Tab = "queue" | "brand" | "review" | "custom" | "select";
 
 export default function MailingPage() {
   const [tab, setTab] = useState<Tab>("queue");
@@ -1129,12 +1434,14 @@ export default function MailingPage() {
       <div className="pc-tabs">
         <button className={`pc-tab${tab === "queue"  ? " pc-tab--active" : ""}`} onClick={() => setTab("queue")}>📥 임시저장 메일링</button>
         <button className={`pc-tab${tab === "brand"  ? " pc-tab--active" : ""}`} onClick={() => setTab("brand")}>📷 파일 전달(리뷰)</button>
+        <button className={`pc-tab${tab === "review" ? " pc-tab--active" : ""}`} onClick={() => setTab("review")}>⭐ 후기 요청 메일</button>
         <button className={`pc-tab${tab === "custom" ? " pc-tab--active" : ""}`} onClick={() => setTab("custom")}>✉️ 브랜드 메일</button>
         <button className={`pc-tab${tab === "select" ? " pc-tab--active" : ""}`} onClick={() => setTab("select")}>📸 셀렉 갤러리</button>
       </div>
 
       {tab === "queue"  && <QueueTab />}
       {tab === "brand"  && <BrandMailTab />}
+      {tab === "review" && <ReviewOnlyMailTab />}
       {tab === "custom" && <CustomBrandMailTab />}
       {tab === "select" && <SelectGalleryMailTab />}
     </main>
