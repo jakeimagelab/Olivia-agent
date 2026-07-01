@@ -117,8 +117,14 @@ async function fetchPage(url: string, timeoutMs = 8000): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
-  const { url, purpose = "all", depth = "standard" } = await req.json();
-  if (!url) return NextResponse.json({ error: "URL이 필요합니다" }, { status: 400 });
+  let url: string, purpose: string, depth: string;
+  try {
+    const body = await req.json();
+    url = body.url; purpose = body.purpose ?? "all"; depth = body.depth ?? "standard";
+  } catch {
+    return NextResponse.json({ ok: false, error: "요청 본문을 파싱할 수 없습니다" }, { status: 400 });
+  }
+  if (!url) return NextResponse.json({ ok: false, error: "URL이 필요합니다" }, { status: 400 });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "API 키가 설정되지 않았습니다" }, { status: 500 });
