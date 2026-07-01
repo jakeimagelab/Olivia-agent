@@ -24,6 +24,7 @@ const TOOL_LABELS: Record<string, string> = {
   advance_workflow_step: "워크플로우 단계 이동",
   list_mailing_queue:    "메일 대기 목록 조회",
   send_mailing:          "메일 발송",
+  get_gallery:           "갤러리 조회",
   create_gallery:        "갤러리 등록",
 };
 
