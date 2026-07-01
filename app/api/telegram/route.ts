@@ -19,7 +19,12 @@ const TOOL_LABELS: Record<string, string> = {
   calendar_complete:  "완료 처리",
   calendar_delete:    "삭제",
   calendar_update:    "일정 수정",
-  send_workflow_mail: "워크플로우 메일 발송",
+  send_workflow_mail:    "워크플로우 메일 발송",
+  get_workflow_status:   "워크플로우 현황 조회",
+  advance_workflow_step: "워크플로우 단계 이동",
+  list_mailing_queue:    "메일 대기 목록 조회",
+  send_mailing:          "메일 발송",
+  create_gallery:        "갤러리 등록",
 };
 
 async function tgRequest(method: string, body: object): Promise<any> {
