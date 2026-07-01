@@ -1126,7 +1126,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     });
     const d = await res.json();
     if (!d.ok) return { action: "done", message: `❌ 갤러리 생성 실패: ${d.error}` };
-    await logActivity("send_workflow_mail", input.clientName, { action: "create_gallery", nasLink: input.nasLink });
+    await logActivity("send_workflow_mail", input.clientName, { gallery: true, nasLink: input.nasLink });
     return {
       action: "done",
       message: `📷 **${input.clientName}** 갤러리 등록 완료!\nNAS: ${input.nasLink}\n\n/clients 고객 상세에서 확인하실 수 있어요.`,
