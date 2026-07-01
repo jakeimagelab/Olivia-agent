@@ -10,7 +10,8 @@ export type ActionType =
   | "olivia_chat"
   | "calendar_add"
   | "calendar_complete"
-  | "calendar_delete";
+  | "calendar_delete"
+  | "send_workflow_mail";
 
 export async function logActivity(
   actionType: ActionType,
