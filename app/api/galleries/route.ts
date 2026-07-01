@@ -193,7 +193,9 @@ export async function POST(req: NextRequest) {
     nasLink,
     description,
     thumbnailUrl,
-    items = []
+    items = [],
+    client_id,
+    workflow_run_id,
   } = body as {
     id?: string;
     hospitalName?: string;
@@ -204,6 +206,8 @@ export async function POST(req: NextRequest) {
     description?: string;
     thumbnailUrl?: string;
     items?: GalleryItemInput[];
+    client_id?: string | null;
+    workflow_run_id?: string | null;
   };
 
   if (!hospitalName || !nasLink) {
