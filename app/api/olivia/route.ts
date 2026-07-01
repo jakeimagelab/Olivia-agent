@@ -513,6 +513,19 @@ Available tools:
 - calendar_delete: 할일 삭제
 - calendar_update: 할일 제목/날짜/시간/장소/메모 수정
 - send_workflow_mail: 병원 고객에게 워크플로우 메일 발송 (후기 요청, 원본 전달, 갤러리 공유 등)
+- get_workflow_status: 고객 워크플로우 현재 단계 및 다음 액션 확인
+- advance_workflow_step: 워크플로우 단계 진행 (예: quote → contract, contract → conti)
+- list_mailing_queue: 메일 대기 목록 조회 (draft/ready 상태)
+- send_mailing: 대기 중인 특정 메일 즉시 발송
+- create_gallery: 촬영 갤러리 등록 (NAS 링크 포함)
+
+워크플로우 규칙 (매우 중요):
+- "~병원 현황 알려줘", "~병원 지금 어디까지?" → get_workflow_status 호출
+- "다음 단계로", "~단계로 넘겨줘" → 먼저 get_workflow_status로 현재 단계 확인 후 advance_workflow_step 호출
+- "메일 있어?", "대기 메일 알려줘" → list_mailing_queue 호출 → 사용자 확인 → send_mailing
+- "갤러리 등록", "NAS 링크 올려줘" → create_gallery 호출
+- 워크플로우 단계 key: consult_meeting → quote → contract → conti → shooting → backup_sorting → original_delivery → client_selection → raw_matching → retouching → revision → seo_delivery → final_delivery → review_content → reward → customer_care → content_planning
+- advance_workflow_step 호출 전 반드시 사용자에게 "X단계에서 Y단계로 이동합니다. 맞나요?" 확인할 것
 
 워크플로우 메일 사용 규칙:
 - "후기 메일", "후기 요청 메일", "리뷰 메일" → mailType: review_form
