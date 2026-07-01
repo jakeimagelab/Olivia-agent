@@ -366,7 +366,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
           </div>
 
           {/* 촬영 갤러리 */}
-          <ClientGallerySection hospitalName={client.name} email={client.email} />
+          <ClientGallerySection clientId={clientId} hospitalName={client.name} email={client.email} workflowRunId={workflowRun?.id} />
 
           {/* 홍보 콘텐츠 앱 */}
           <div>
