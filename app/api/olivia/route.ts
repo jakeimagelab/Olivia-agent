@@ -995,6 +995,144 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     };
   }
 
+  if (name === "get_workflow_status") {
+    const db = getSupabaseAdmin();
+    const { data: runs } = await db
+      .from("workflow_runs")
+      .select("id, client_name, current_step_key, status, updated_at, next_action")
+      .eq("status", "active")
+      .ilike("client_name", `%${input.clientName}%`)
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    const run = runs?.[0];
+    if (!run) {
+      return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.\n/clients 에서 워크플로우를 시작해주세요.` };
+    }
+    const STEP_LABELS: Record<string, string> = {
+      consult_meeting: "1. 상담/미팅", quote: "2. 견적서", contract: "3. 계약서", conti: "4. 콘티",
+      shooting: "5. 촬영", backup_sorting: "6. 백업/분류", original_delivery: "7. 원본 전달",
+      client_selection: "8. 고객 셀렉", raw_matching: "9. RAW 매칭", retouching: "10. 보정",
+      revision: "11. 수정 접수", seo_delivery: "12. SEO 납품", final_delivery: "13. 최종 전달",
+      review_content: "14. 후기 콘텐츠", reward: "15. 리워드", customer_care: "16. 고객 케어", content_planning: "17. 콘텐츠 기획",
+    };
+    const step = STEP_LABELS[run.current_step_key] ?? run.current_step_key;
+    const updated = new Date(run.updated_at).toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
+    return {
+      action: "done",
+      message: `📋 **${run.client_name}** 워크플로우 현황\n\n**현재 단계:** ${step}\n**마지막 업데이트:** ${updated}\n\n다음 단계로 진행하려면 "다음 단계로 넘겨줘" 또는 "XX단계로 이동해줘"라고 말씀해주세요.`,
+    };
+  }
+
+  if (name === "advance_workflow_step") {
+    const db = getSupabaseAdmin();
+    const { data: runs } = await db
+      .from("workflow_runs")
+      .select("id, client_name, current_step_key")
+      .eq("status", "active")
+      .ilike("client_name", `%${input.clientName}%`)
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    const run = runs?.[0];
+    if (!run) {
+      return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
+    }
+    const origin =
+      req.headers.get("x-base-url") || req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+    const res = await fetch(`${origin}/api/workflow/advance`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workflow_run_id: run.id, to_step_key: input.toStepKey, reason: "올리비아 요청" }),
+    });
+    const d = await res.json();
+    if (!d.ok) return { action: "done", message: `❌ 단계 이동 실패: ${d.error}` };
+    await logActivity("calendar_add", run.client_name, { from: run.current_step_key, to: input.toStepKey });
+    return {
+      action: "done",
+      message: `✅ **${run.client_name}** 워크플로우를 **${input.toStepKey}** 단계로 이동했어요!\n\n/clients 에서 다음 할 일을 확인해주세요.`,
+    };
+  }
+
+  if (name === "list_mailing_queue") {
+    const db = getSupabaseAdmin();
+    let query = db.from("mailing_queue")
+      .select("id, type, hospital_name, subject, status, to_email, created_at")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (input.status) {
+      query = query.eq("status", input.status);
+    } else {
+      query = query.in("status", ["draft", "ready"]);
+    }
+    if (input.clientName) query = query.ilike("hospital_name", `%${input.clientName}%`);
+    const { data: items } = await query;
+    if (!items || items.length === 0) {
+      return { action: "done", message: "📭 대기 중인 메일이 없습니다." };
+    }
+    const TYPE_KR: Record<string, string> = {
+      quote: "견적서", contract: "계약서", conti: "콘티", original_files: "원본파일",
+      gallery: "갤러리", review_form: "후기 요청", monthly_report: "리포트", proposal: "제안서",
+    };
+    const list = items.map((m: any, i: number) =>
+      `${i + 1}. **${m.hospital_name}** — ${TYPE_KR[m.type] ?? m.type} (${m.status})\n   ID: \`${m.id}\`\n   수신: ${m.to_email || "미입력"}`
+    ).join("\n\n");
+    return {
+      action: "done",
+      message: `📬 **대기 중인 메일 ${items.length}건**\n\n${list}\n\n특정 메일을 발송하려면 ID를 알려주세요.`,
+    };
+  }
+
+  if (name === "send_mailing") {
+    const origin =
+      req.headers.get("x-base-url") || req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+    const res = await fetch(`${origin}/api/mailing/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: input.mailingId }),
+    });
+    const d = await res.json();
+    if (!d.ok) return { action: "done", message: `❌ 발송 실패: ${d.error}` };
+    return { action: "done", message: `✅ 메일 발송 완료!\nID: \`${input.mailingId}\`` };
+  }
+
+  if (name === "create_gallery") {
+    const db = getSupabaseAdmin();
+    const { data: clients } = await db
+      .from("clients")
+      .select("id, hospital_name, email")
+      .ilike("hospital_name", `%${input.clientName}%`)
+      .limit(1);
+    const client = clients?.[0];
+    const origin =
+      req.headers.get("x-base-url") || req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+    const res = await fetch(`${origin}/api/galleries`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        hospitalName: client?.hospital_name || input.clientName,
+        contactEmail: client?.email || "",
+        nasLink: input.nasLink,
+        description: input.description || "",
+        shootDate: input.shootDate || null,
+      }),
+    });
+    const d = await res.json();
+    if (!d.ok) return { action: "done", message: `❌ 갤러리 생성 실패: ${d.error}` };
+    await logActivity("send_workflow_mail", input.clientName, { action: "create_gallery", nasLink: input.nasLink });
+    return {
+      action: "done",
+      message: `📷 **${input.clientName}** 갤러리 등록 완료!\nNAS: ${input.nasLink}\n\n/clients 고객 상세에서 확인하실 수 있어요.`,
+    };
+  }
+
   if (name === "send_workflow_mail") {
     const db = getSupabaseAdmin();
 
