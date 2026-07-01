@@ -44,8 +44,37 @@ export default function ContractPage() {
   const [mailingNotice, setMailingNotice] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const raw    = params.get("data");
+    const params   = new URLSearchParams(window.location.search);
+    const clientId = params.get("client_id") || params.get("clientId");
+    const raw      = params.get("data");
+
+    // client_id로 고객 정보를 불러와 최소 견적 데이터 생성
+    if (clientId && !raw) {
+      fetch(`/api/clients/${clientId}`)
+        .then(r => r.json())
+        .then(d => {
+          if (!d.ok || !d.client) return;
+          const c = d.client;
+          const today = new Date().toISOString().slice(0, 10);
+          setQuote({
+            hospitalName: c.name || c.hospital_name || "",
+            contactName: c.manager_name || c.contact_name || "",
+            phone: c.phone || "",
+            email: c.email || "",
+            quoteNumber: "",
+            quoteDate: today,
+            shootDate: null,
+            validUntil: today,
+            items: [],
+            supplyAmount: 0, discountAmount: 0, vat: 0,
+            totalAmount: 0, depositAmount: 0, balanceAmount: 0,
+            memos: null,
+          });
+        })
+        .catch(() => {});
+      return;
+    }
+
     if (!raw) return;
     try {
       const data: QuoteData = JSON.parse(decodeURIComponent(raw));
