@@ -548,8 +548,9 @@ textarea:focus {
     #f0f4f2;
 }
 
-/* main 안에 .pc-header가 있는 모든 페이지에 자동 적용 */
-main:has(> .pc-header) {
+/* pc-header를 직접 자식으로 가진 모든 페이지 래퍼에 자동 적용 (main/div 모두) */
+main:has(> .pc-header),
+div:has(> .pc-header) {
   background: var(--mesh-bg) !important;
 }
 
