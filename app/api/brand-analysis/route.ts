@@ -132,22 +132,24 @@ export async function POST(req: NextRequest) {
   let targetUrl = url.trim();
   if (!targetUrl.startsWith("http")) targetUrl = "https://" + targetUrl;
 
-  // Fetch main page
-  const mainHtml = await fetchPage(targetUrl);
+  const startTime = Date.now();
+
+  // Fetch main page (4s timeout)
+  const mainHtml = await fetchPage(targetUrl, 4000);
   if (!mainHtml) {
-    return NextResponse.json({ error: "해당 페이지에 접근할 수 없습니다. URL을 확인해주세요." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "해당 페이지에 접근할 수 없습니다. URL을 확인해주세요." }, { status: 400 });
   }
 
   let allText = extractImportantText(mainHtml, targetUrl);
 
-  // Fetch sub-pages (1-level deep)
-  if (depth !== "simple") {
-    const subLinks = extractLinks(mainHtml, targetUrl).slice(0, 4);
+  // Fetch sub-pages — only if we still have time budget (≤6s elapsed), max 2 pages
+  if (depth !== "simple" && Date.now() - startTime < 6000) {
+    const subLinks = extractLinks(mainHtml, targetUrl).slice(0, 2);
     const subResults = await Promise.all(
       subLinks.map(async (link) => {
-        const html = await fetchPage(link, 5000);
+        const html = await fetchPage(link, 2500);
         if (!html || html.length < 500) return "";
-        return extractImportantText(html, link).slice(0, 3000);
+        return extractImportantText(html, link).slice(0, 2500);
       })
     );
     for (const sub of subResults) {
@@ -156,7 +158,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Hard limit for Claude input
-  allText = allText.slice(0, 22000);
+  allText = allText.slice(0, 15000);
 
   const purposeKo: Record<string, string> = {
     brand_film: "브랜드필름 제작",
