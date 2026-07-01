@@ -1112,14 +1112,58 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     return { action: "done", message: `✅ 메일 발송 완료!\nID: \`${input.mailingId}\`` };
   }
 
+  if (name === "get_gallery") {
+    const db = getSupabaseAdmin();
+    // 병원명으로 client_id 조회
+    const { data: clients } = await db
+      .from("clients")
+      .select("id, hospital_name")
+      .ilike("hospital_name", `%${input.clientName}%`)
+      .limit(1);
+    const client = clients?.[0];
+
+    let query = db
+      .from("photo_galleries")
+      .select("id, hospital_name, nas_link, shoot_date, description, created_at, items:photo_gallery_items(thumbnail_url)")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (client?.id) query = query.eq("client_id", client.id);
+    else query = query.ilike("hospital_name", `%${input.clientName}%`);
+
+    const { data: galleries } = await query;
+
+    if (!galleries || galleries.length === 0) {
+      return { action: "done", message: `📷 **${input.clientName}** 갤러리가 아직 없습니다.\n\n갤러리를 등록하려면 create_gallery 도구를 사용해주세요.` };
+    }
+
+    const lines = galleries.map((g: any) => {
+      const date = g.shoot_date ? new Date(g.shoot_date).toLocaleDateString("ko-KR") : "날짜 미입력";
+      const desc = g.description ? ` — ${g.description}` : "";
+      return `• [${date}${desc}]\n  NAS: ${g.nas_link}`;
+    });
+
+    return {
+      action: "done",
+      message: `📷 **${client?.hospital_name || input.clientName}** 갤러리 ${galleries.length}건\n\n${lines.join("\n\n")}`,
+    };
+  }
+
   if (name === "create_gallery") {
     const db = getSupabaseAdmin();
     const { data: clients } = await db
       .from("clients")
-      .select("id, hospital_name, email")
+      .select("id, hospital_name, contact_name, email")
       .ilike("hospital_name", `%${input.clientName}%`)
       .limit(1);
     const client = clients?.[0];
+
+    // 활성 워크플로우 조회 (자동 전진용)
+    const { data: runs } = client?.id
+      ? await db.from("workflow_runs").select("id, current_step_key").eq("client_id", client.id).eq("status", "active").limit(1)
+      : { data: null };
+    const run = runs?.[0];
+
     const origin =
       req.headers.get("x-base-url") || req.headers.get("origin") ||
       process.env.NEXT_PUBLIC_BASE_URL ||
@@ -1129,19 +1173,28 @@ async function executeTool(name: string, input: any, req: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        hospitalName: client?.hospital_name || input.clientName,
-        contactEmail: client?.email || "",
-        nasLink: input.nasLink,
-        description: input.description || "",
-        shootDate: input.shootDate || null,
+        hospitalName:  client?.hospital_name || input.clientName,
+        contactName:   client?.contact_name  || "",
+        contactEmail:  client?.email         || "",
+        nasLink:       input.nasLink,
+        description:   input.description     || "",
+        shootDate:     input.shootDate        || null,
+        thumbnailUrl:  input.thumbnailUrl     || "",
+        client_id:       client?.id          || null,
+        workflow_run_id: run?.id             || null,
       }),
     });
     const d = await res.json();
     if (!d.ok) return { action: "done", message: `❌ 갤러리 생성 실패: ${d.error}` };
     await logActivity("send_workflow_mail", input.clientName, { gallery: true, nasLink: input.nasLink });
+
+    const autoMsg = run?.current_step_key === "retouching"
+      ? "\n\n✅ 보정완료 처리 + 메일 draft 자동 생성 + **final_delivery** 단계로 자동 전진됐어요."
+      : "\n\n메일링함에 draft가 저장됐습니다.";
+
     return {
       action: "done",
-      message: `📷 **${input.clientName}** 갤러리 등록 완료!\nNAS: ${input.nasLink}\n\n/clients 고객 상세에서 확인하실 수 있어요.`,
+      message: `📷 **${client?.hospital_name || input.clientName}** 갤러리 등록 완료!\nNAS: ${input.nasLink}${autoMsg}`,
     };
   }
 
