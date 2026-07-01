@@ -418,3 +418,11 @@ function GalleryPageInner() {
     </main>
   );
 }
+
+export default function GalleryPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#5A7470" }}>불러오는 중...</div>}>
+      <GalleryPageInner />
+    </Suspense>
+  );
+}
