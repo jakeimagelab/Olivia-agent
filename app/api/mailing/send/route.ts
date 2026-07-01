@@ -97,12 +97,13 @@ async function sendGmail(opts: {
 
 function buildEmailHtml(item: {
   type: string; hospital_name: string; contact_name: string;
-  subject: string; body: string; links: { label: string; url: string }[];
+  subject: string; body: string; links: { label: string; url: string; color?: string }[];
 }) {
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+  const defaultButtonColor = item.type === "review_form" ? "#155855" : "#E85D2C";
   const linksHtml = item.links?.length
     ? item.links.map(l =>
-        `<a href="${l.url}" target="_blank" style="display:inline-block;background:#E85D2C;color:#fff;text-decoration:none;padding:12px 28px;border-radius:9px;font-size:13px;font-weight:800;margin:4px 0;">${l.label}</a>`
+        `<a href="${l.url}" target="_blank" style="display:inline-block;background:${l.color || defaultButtonColor};color:#fff;text-decoration:none;padding:12px 28px;border-radius:9px;font-size:13px;font-weight:800;margin:4px 0;">${l.label}</a>`
       ).join("<br>")
     : "";
 
