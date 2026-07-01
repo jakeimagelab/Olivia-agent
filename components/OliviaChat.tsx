@@ -238,10 +238,11 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
   const [unreadCount,     setUnreadCount]    = useState(0);
   const [isMobile,        setIsMobile]       = useState(false);
 
-  const bottomRef   = useRef<HTMLDivElement>(null);
-  const inputRef    = useRef<HTMLTextAreaElement>(null);
-  const lastPollRef = useRef<string>(new Date().toISOString());
-  const pendingRef  = useRef<Message[]>([]);
+  const bottomRef      = useRef<HTMLDivElement>(null);
+  const messagesRef    = useRef<HTMLDivElement>(null);
+  const inputRef       = useRef<HTMLTextAreaElement>(null);
+  const lastPollRef    = useRef<string>(new Date().toISOString());
+  const pendingRef     = useRef<Message[]>([]);
 
   useEffect(()=>{
     const check=()=>setIsMobile(window.innerWidth<768);
