@@ -536,7 +536,8 @@ Available tools:
 - "~병원 현황 알려줘", "~병원 지금 어디까지?" → get_workflow_status 호출
 - "다음 단계로", "~단계로 넘겨줘" → 먼저 get_workflow_status로 현재 단계 확인 후 advance_workflow_step 호출
 - "메일 있어?", "대기 메일 알려줘" → list_mailing_queue 호출 → 사용자 확인 → send_mailing
-- "갤러리 등록", "NAS 링크 올려줘" → create_gallery 호출
+- "갤러리 링크 알려줘", "~병원 NAS 링크", "갤러리 어디야?" → get_gallery 호출
+- "갤러리 등록", "NAS 링크 올려줘", "보정 완료" → create_gallery 호출 (client_id 있으면 워크플로우 자동 전진)
 - 워크플로우 단계 key: consult_meeting → quote → contract → conti → shooting → backup_sorting → original_delivery → client_selection → raw_matching → retouching → revision → seo_delivery → final_delivery → review_content → reward → customer_care → content_planning
 - advance_workflow_step 호출 전 반드시 사용자에게 "X단계에서 Y단계로 이동합니다. 맞나요?" 확인할 것
 
