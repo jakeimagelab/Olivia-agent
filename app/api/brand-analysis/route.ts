@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 25;
 
 function extractImportantText(html: string, url: string): string {
   // Strip script/style/comment blocks
