@@ -292,6 +292,11 @@ function GalleryPageInner() {
 
   return (
     <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}>
+      {clientId && (
+        <div style={{ background: "#FFF8F5", borderBottom: `1px solid ${C.orange}30`, padding: "8px 20px", fontSize: 12, color: C.orange, fontWeight: 700 }}>
+          📎 워크플로우 연결됨 — 저장 시 메일 draft 자동 생성 + 보정완료 단계 전진
+        </div>
+      )}
       <header className="pc-header">
         <div className="pc-header-left">
           <Link href="/" className="pc-header-back">← 관리자 홈</Link>
