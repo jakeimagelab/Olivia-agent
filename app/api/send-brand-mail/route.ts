@@ -95,13 +95,13 @@ async function sendGmail(opts: {
 
 function buildHtml(opts: {
   toName: string; subject: string; body: string;
-  links: { label: string; url: string }[];
+  links: { label: string; url: string; color?: string }[];
   attachments: { filename: string; size?: number }[];
 }) {
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
   const linksHtml = opts.links.map(l =>
-    `<a href="${l.url}" target="_blank" style="display:inline-block;background:#E85D2C;color:#fff;text-decoration:none;padding:12px 28px;border-radius:9px;font-size:13px;font-weight:800;margin:4px 0;">${l.label}</a>`
+    `<a href="${l.url}" target="_blank" style="display:inline-block;background:${l.color || "#E85D2C"};color:#fff;text-decoration:none;padding:12px 28px;border-radius:9px;font-size:13px;font-weight:800;margin:4px 0;">${l.label}</a>`
   ).join("<br>");
 
   const attachHtml = opts.attachments.length > 0
