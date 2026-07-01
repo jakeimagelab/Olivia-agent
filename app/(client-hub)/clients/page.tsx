@@ -432,6 +432,8 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
           nasLink: form.nasLink,
           shootDate: form.shootDate,
           description: form.description,
+          client_id: clientId || null,
+          workflow_run_id: workflowRunId || null,
         }),
       });
       const d = await res.json();
