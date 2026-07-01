@@ -258,15 +258,27 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
-    name: "create_gallery",
-    description: "고객의 촬영 갤러리를 등록합니다. NAS 링크와 함께 갤러리를 생성합니다.",
+    name: "get_gallery",
+    description: "병원의 납품 갤러리와 NAS 링크를 조회합니다. '~병원 갤러리 링크 알려줘', '~병원 사진 전달 링크' 요청에 사용합니다.",
     input_schema: {
       type: "object",
       properties: {
         clientName: { type: "string", description: "병원명" },
-        nasLink:    { type: "string", description: "NAS 공유 링크" },
-        description:{ type: "string", description: "촬영 내용 메모 (선택)" },
-        shootDate:  { type: "string", description: "촬영 날짜 YYYY-MM-DD (선택)" },
+      },
+      required: ["clientName"],
+    },
+  },
+  {
+    name: "create_gallery",
+    description: "보정 완료 후 갤러리를 등록하고 메일 초안을 자동 생성합니다. NAS 링크를 포함해 갤러리를 생성하며, client_id가 있으면 mailing_queue draft 자동 생성 + 워크플로우 final_delivery 단계로 자동 전진합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName:   { type: "string", description: "병원명" },
+        nasLink:      { type: "string", description: "NAS 공유 링크" },
+        thumbnailUrl: { type: "string", description: "대표 이미지 URL (선택)" },
+        description:  { type: "string", description: "촬영 내용 메모 (선택)" },
+        shootDate:    { type: "string", description: "촬영 날짜 YYYY-MM-DD (선택)" },
       },
       required: ["clientName", "nasLink"],
     },
