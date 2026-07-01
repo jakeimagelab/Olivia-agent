@@ -1048,7 +1048,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     });
     const d = await res.json();
     if (!d.ok) return { action: "done", message: `❌ 단계 이동 실패: ${d.error}` };
-    await logActivity("calendar_add", run.client_name, { from: run.current_step_key, to: input.toStepKey });
+    await logActivity("advance_workflow_step", run.client_name, { from: run.current_step_key, to: input.toStepKey });
     return {
       action: "done",
       message: `✅ **${run.client_name}** 워크플로우를 **${input.toStepKey}** 단계로 이동했어요!\n\n/clients 에서 다음 할 일을 확인해주세요.`,
