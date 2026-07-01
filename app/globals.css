@@ -12,6 +12,14 @@
   --ivory: #faf7f2;
   --paper: #ffffff;
   --ink: #222222;
+  --liquid-bg: rgba(240, 244, 242, .76);
+  --liquid-panel: rgba(255, 255, 255, .64);
+  --liquid-panel-strong: rgba(255, 255, 255, .82);
+  --liquid-border: rgba(255, 255, 255, .72);
+  --liquid-shadow: 0 4px 24px rgba(21, 88, 85, .07), 0 1px 0 rgba(255, 255, 255, .86) inset;
+  --liquid-shadow-strong: 0 14px 40px rgba(21, 88, 85, .13), 0 1px 0 rgba(255, 255, 255, .94) inset;
+  --muted-green: #5A7470;
+  --soft-mint: #EAF4F2;
 }
 
 * {
@@ -45,11 +53,12 @@ button {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
-  border: 1px solid #d8d0c4;
+  border: 1px solid rgba(21, 88, 85, .16);
   border-radius: 8px;
-  background: #fffdfa;
+  background: rgba(255, 255, 255, .78);
   color: var(--ink);
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
@@ -60,6 +69,11 @@ input {
   padding: 0 12px;
 }
 
+select {
+  min-height: 42px;
+  padding: 0 34px 0 12px;
+}
+
 textarea {
   min-height: 104px;
   resize: vertical;
@@ -67,7 +81,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   border-color: var(--deep-green);
   background: #ffffff;
   box-shadow: 0 0 0 3px rgba(21, 88, 85, 0.12);
@@ -554,6 +569,10 @@ div:has(> .pc-header) {
   background: var(--mesh-bg) !important;
 }
 
+main:has(> .pc-header) {
+  color: var(--ink);
+}
+
 .admin-shell {
   min-height: 100vh;
   background: var(--mesh-bg);
@@ -835,9 +854,7 @@ div:has(> .pc-header) {
 
 .ops-shell {
   min-height: 100vh;
-  background:
-    linear-gradient(135deg, rgba(229, 240, 238, 0.96), rgba(250, 247, 242, 0.98)),
-    #e5f0ee;
+  background: var(--mesh-bg);
   color: var(--ink);
   padding: 28px;
 }
@@ -883,10 +900,12 @@ div:has(> .pc-header) {
 .ops-table-card,
 .ops-panel,
 .report-preview {
-  border: 1px solid rgba(21, 88, 85, 0.14);
+  border: 1px solid var(--liquid-border);
   border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 2px 18px rgba(21, 88, 85, 0.07);
+  background: var(--liquid-panel-strong);
+  backdrop-filter: blur(20px) saturate(1.45);
+  -webkit-backdrop-filter: blur(20px) saturate(1.45);
+  box-shadow: var(--liquid-shadow);
 }
 
 .ops-table-head,
@@ -899,8 +918,8 @@ div:has(> .pc-header) {
 }
 
 .ops-table-head {
-  border-bottom: 1px solid rgba(21, 88, 85, 0.12);
-  background: #eaf4f2;
+  border-bottom: 1px solid rgba(21, 88, 85, 0.1);
+  background: rgba(234, 244, 242, .72);
   color: var(--deep-green);
   font-size: 12px;
   font-weight: 900;
@@ -1377,6 +1396,19 @@ div:has(> .pc-header) {
     padding: 24px 0 20px;
   }
 
+  .pc-liquid-hero {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+    border-radius: 14px;
+    padding: 20px;
+  }
+
+  .pc-liquid-hero-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
   .pc-hero h1,
   .subscription-hero h1,
   .login-panel h1,
@@ -1657,6 +1689,14 @@ div:has(> .pc-header) {
   font-size: 12px;
   font-weight: 800;
   color: #155855;
+}
+
+.field input,
+.field textarea,
+.field select {
+  border-color: rgba(21, 88, 85, .14);
+  background: rgba(255, 255, 255, .78);
+  box-shadow: 0 1px 0 rgba(255,255,255,.65) inset;
 }
 
 .package-button {
@@ -3395,18 +3435,18 @@ div:has(> .pc-header) {
 .pc-header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  height: 56px;
-  padding: 0 24px;
-  background: rgba(255,255,255,.82);
+  min-height: 58px;
+  padding: 0 28px;
+  background: var(--liquid-bg);
   backdrop-filter: blur(28px) saturate(1.8);
   -webkit-backdrop-filter: blur(28px) saturate(1.8);
-  border-bottom: 1px solid rgba(255,255,255,.75);
-  box-shadow: 0 4px 24px rgba(0,0,0,.07), 0 1px 0 rgba(255,255,255,.9) inset;
+  border-bottom: 1px solid rgba(255,255,255,.62);
+  box-shadow: 0 1px 0 rgba(21,88,85,.06), 0 4px 24px rgba(0,0,0,.04);
 }
 
 .pc-header-left {
@@ -3422,26 +3462,31 @@ div:has(> .pc-header) {
   gap: 5px;
   font-size: 12px;
   font-weight: 700;
-  color: #5A7470;
+  color: #4a6e6a;
   text-decoration: none;
-  padding: 5px 10px;
-  border-radius: 7px;
-  border: 1px solid #dce8e5;
-  background: #fafaf9;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.75);
+  background: rgba(255,255,255,.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
   white-space: nowrap;
   transition: all 140ms ease;
   flex-shrink: 0;
 }
 .pc-header-back:hover {
   color: #155855;
-  border-color: #155855;
-  background: #EAF4F2;
+  border-color: rgba(21,88,85,.28);
+  background: rgba(255,255,255,.72);
+  box-shadow: 0 4px 14px rgba(21,88,85,.1);
 }
 
 .pc-header-divider {
   width: 1px;
-  height: 20px;
-  background: #dce8e5;
+  height: 18px;
+  background: rgba(21,88,85,.18);
   flex-shrink: 0;
 }
 
@@ -3454,7 +3499,7 @@ div:has(> .pc-header) {
 
 .pc-header-logo {
   display: block;
-  height: 28px;
+  height: 26px;
   width: auto;
   flex-shrink: 0;
 }
@@ -3478,15 +3523,18 @@ div:has(> .pc-header) {
 /* ── 공통 탭 바 (underline 스타일) ─────────────────────── */
 .pc-tabs {
   display: flex;
-  gap: 0;
-  background: #ffffff;
-  border-bottom: 1px solid rgba(21,88,85,.12);
-  padding: 0 24px;
+  gap: 4px;
+  background: rgba(240,244,242,.68);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  border-bottom: 1px solid rgba(255,255,255,.65);
+  padding: 8px 28px;
   position: sticky;
-  top: 56px;
-  z-index: 99;
+  top: 58px;
+  z-index: 190;
   overflow-x: auto;
   scrollbar-width: none;
+  box-shadow: 0 1px 0 rgba(21,88,85,.04);
 }
 .pc-tabs::-webkit-scrollbar { display: none; }
 
@@ -3494,23 +3542,30 @@ div:has(> .pc-header) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 13px 14px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
+  min-height: 34px;
+  padding: 0 13px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
   color: #5A7470;
   font-weight: 700;
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 140ms, border-color 140ms;
+  transition: color 140ms, border-color 140ms, background 140ms, box-shadow 140ms;
   flex-shrink: 0;
 }
-.pc-tab:hover { color: #155855; }
+.pc-tab:hover {
+  color: #155855;
+  background: rgba(255,255,255,.48);
+  border-color: rgba(255,255,255,.68);
+}
 .pc-tab--active {
   color: #155855;
-  border-bottom-color: #155855;
+  background: rgba(255,255,255,.78);
+  border-color: rgba(255,255,255,.86);
+  box-shadow: 0 3px 12px rgba(21,88,85,.08), 0 1px 0 rgba(255,255,255,.8) inset;
 }
 .pc-tab-icon {
   display: inline-flex;
@@ -3522,7 +3577,7 @@ div:has(> .pc-header) {
 /* ── 공통 페이지 래퍼 ────────────────────────────────── */
 .pc-page {
   min-height: 100vh;
-  background: var(--ivory);
+  background: var(--mesh-bg);
 }
 
 .pc-content {
@@ -3542,6 +3597,29 @@ div:has(> .pc-header) {
 /* ── 페이지 히어로 ────────────────────────────────────── */
 .pc-hero {
   margin-bottom: 32px;
+}
+
+.pc-liquid-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid var(--liquid-border);
+  border-radius: 18px;
+  background: var(--liquid-panel);
+  backdrop-filter: blur(24px) saturate(1.55);
+  -webkit-backdrop-filter: blur(24px) saturate(1.55);
+  box-shadow: var(--liquid-shadow);
+  padding: 26px;
+}
+
+.pc-liquid-hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .pc-hero-kicker {
@@ -3570,9 +3648,12 @@ div:has(> .pc-header) {
 
 /* ── 카드 ──────────────────────────────────────────────── */
 .pc-card {
-  background: #ffffff;
-  border: 1px solid rgba(21,88,85,.1);
+  background: var(--liquid-panel-strong);
+  border: 1px solid var(--liquid-border);
   border-radius: 14px;
+  backdrop-filter: blur(20px) saturate(1.45);
+  -webkit-backdrop-filter: blur(20px) saturate(1.45);
+  box-shadow: var(--liquid-shadow);
   overflow: hidden;
 }
 
@@ -3587,7 +3668,7 @@ div:has(> .pc-header) {
   gap: 12px;
   padding: 16px 20px;
   border-bottom: 1px solid rgba(21,88,85,.08);
-  background: rgba(21,88,85,.02);
+  background: rgba(255,255,255,.34);
 }
 
 .pc-card-title {
@@ -3621,6 +3702,7 @@ div:has(> .pc-header) {
 .pc-btn--primary {
   background: var(--deep-green);
   color: #ffffff;
+  box-shadow: 0 4px 14px rgba(21,88,85,.25);
 }
 .pc-btn--primary:hover { filter: brightness(.9); }
 
@@ -3631,24 +3713,25 @@ div:has(> .pc-header) {
 .pc-btn--orange:hover { filter: brightness(.9); }
 
 .pc-btn--secondary {
-  background: #ffffff;
+  background: rgba(255,255,255,.72);
   color: var(--deep-green);
-  border: 1.5px solid rgba(21,88,85,.25);
+  border: 1px solid rgba(255,255,255,.78);
+  box-shadow: 0 2px 8px rgba(21,88,85,.07), 0 1px 0 rgba(255,255,255,.7) inset;
 }
 .pc-btn--secondary:hover {
-  border-color: var(--deep-green);
-  background: #EAF4F2;
+  border-color: rgba(21,88,85,.24);
+  background: rgba(255,255,255,.88);
 }
 
 .pc-btn--ghost {
-  background: transparent;
+  background: rgba(255,255,255,.42);
   color: #5A7470;
-  border: 1px solid #dce8e5;
+  border: 1px solid rgba(255,255,255,.66);
 }
 .pc-btn--ghost:hover {
   color: var(--deep-green);
-  border-color: var(--deep-green);
-  background: #EAF4F2;
+  border-color: rgba(21,88,85,.24);
+  background: rgba(255,255,255,.78);
 }
 
 .pc-btn--danger {
@@ -3681,9 +3764,12 @@ div:has(> .pc-header) {
 
 /* ── 섹션 박스 ────────────────────────────────────────── */
 .pc-section {
-  background: #ffffff;
-  border: 1px solid rgba(21,88,85,.1);
+  background: var(--liquid-panel-strong);
+  border: 1px solid var(--liquid-border);
   border-radius: 12px;
+  backdrop-filter: blur(20px) saturate(1.45);
+  -webkit-backdrop-filter: blur(20px) saturate(1.45);
+  box-shadow: var(--liquid-shadow);
   padding: 22px;
 }
 
@@ -4487,7 +4573,8 @@ a.pc-nav-link, a.pc-header-back {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     flex-wrap: nowrap;
-    gap: 0;
+    gap: 4px;
+    padding: 8px 12px;
   }
   .pc-tab {
     white-space: nowrap;

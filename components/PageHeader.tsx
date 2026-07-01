@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export type TabDef = {
   key: string;
@@ -32,7 +33,8 @@ export default function PageHeader({
       <header className="pc-header">
         <div className="pc-header-left">
           <Link href={backHref} className="pc-header-back">
-            ← <span>{backLabel}</span>
+            <ArrowLeft size={13} aria-hidden="true" />
+            <span>{backLabel}</span>
           </Link>
           <div className="pc-header-divider" aria-hidden="true" />
           <div className="pc-header-brand">
