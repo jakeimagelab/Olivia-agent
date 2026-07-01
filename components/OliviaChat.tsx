@@ -321,10 +321,12 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     scrollToBottom(true);
   }, [messages, loading]);
 
-  // ── 열릴 때 포커스 + 대기 중 텔레그램 메시지 플러시 ────
+  // ── 열릴 때 포커스 + 대기 중 텔레그램 메시지 플러시 + 맨 아래 이동 ────
   useEffect(() => {
     if (!open) return;
     setTimeout(() => inputRef.current?.focus(), 300);
+    // 패널이 DOM에 마운트된 직후 즉시 맨 아래로 이동
+    setTimeout(() => scrollToBottom(false), 50);
     if (pendingRef.current.length > 0) {
       setMessages(prev => [...prev, ...pendingRef.current]);
       pendingRef.current = [];
