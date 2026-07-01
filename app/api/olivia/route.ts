@@ -1161,10 +1161,16 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     const client = clients?.[0];
 
     // 활성 워크플로우 조회 (자동 전진용)
-    const { data: runs } = client?.id
-      ? await db.from("workflow_runs").select("id, current_step_key").eq("client_id", client.id).eq("status", "active").limit(1)
-      : { data: null };
-    const run = runs?.[0];
+    let run: { id: string; current_step_key: string } | undefined;
+    if (client?.id) {
+      const { data: runs } = await db
+        .from("workflow_runs")
+        .select("id, current_step_key")
+        .eq("client_id", client.id)
+        .eq("status", "active")
+        .limit(1);
+      run = (runs as { id: string; current_step_key: string }[] | null)?.[0];
+    }
 
     const origin =
       req.headers.get("x-base-url") || req.headers.get("origin") ||
