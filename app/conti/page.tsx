@@ -590,7 +590,7 @@ export default function ContiPage() {
 
   const [loading,          setLoading]          = useState(false);
 
-  // URL 파라미터로 자동 입력 (올리비아 에이전트 연동)
+  // URL 파라미터로 자동 입력 (올리비아·고객관리 연동)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params       = new URLSearchParams(window.location.search);
@@ -599,8 +599,22 @@ export default function ContiPage() {
     const spaces       = params.get("spaces");
     const doctors      = params.get("doctors");
     const extras       = params.get("extras");
+    const clientId     = params.get("client_id") || params.get("clientId");
 
-    if (hospitalName || dept) {
+    if (clientId) {
+      fetch(`/api/clients/${clientId}`)
+        .then(r => r.json())
+        .then(d => {
+          if (!d.ok || !d.client) return;
+          const c = d.client;
+          setForm(prev => ({
+            ...prev,
+            hospitalName: c.name || c.hospital_name || prev.hospitalName,
+            specialties:  c.department ? [c.department] : prev.specialties,
+          }));
+        })
+        .catch(() => {});
+    } else if (hospitalName || dept) {
       setForm(prev => ({
         ...prev,
         hospitalName: hospitalName || prev.hospitalName,
