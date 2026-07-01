@@ -85,7 +85,11 @@ const compressImage = (file: File) =>
     img.src = objectUrl;
   });
 
-export default function GalleryPage() {
+function GalleryPageInner() {
+  const searchParams = useSearchParams();
+  const clientId = searchParams.get("client_id") || searchParams.get("clientId") || "";
+  const workflowRunId = searchParams.get("workflow_run_id") || searchParams.get("workflowRunId") || "";
+
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
