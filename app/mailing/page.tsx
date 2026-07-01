@@ -100,6 +100,18 @@ function QueueTab() {
     finally { setLoading(false); }
   };
 
+  // client_id 파라미터가 있으면 해당 고객의 병원명으로 자동 필터
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
+    const clientId = p.get("client_id") || p.get("clientId");
+    if (!clientId || filterHosp) return;
+    fetch(`/api/clients/${clientId}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok && d.client) setFilterHosp(d.client.name || d.client.hospital_name || ""); })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => { load(); }, [filterType, filterStatus, filterHosp]);
 
   const openItem = (item: MailItem) => {
