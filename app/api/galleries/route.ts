@@ -154,14 +154,17 @@ const mockGalleries = [
 ];
 
 export async function GET(req: NextRequest) {
-  const q = new URL(req.url).searchParams.get("q") || "";
+  const params = new URL(req.url).searchParams;
+  const q = params.get("q") || "";
+  const clientId = params.get("client_id") || "";
   try {
     const supabase = getSupabaseAdmin();
     let query = supabase
       .from("photo_galleries")
       .select("*, items:photo_gallery_items(*)")
       .order("created_at", { ascending: false });
-    if (q) query = query.ilike("hospital_name", `%${q}%`);
+    if (clientId) query = query.eq("client_id", clientId);
+    else if (q) query = query.ilike("hospital_name", `%${q}%`);
     const { data, error } = await query;
 
     if (error) throw error;
