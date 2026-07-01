@@ -134,6 +134,24 @@ function GalleryPageInner() {
     loadGalleries();
   }, []);
 
+  // client_id URL 파라미터로 고객 정보 자동 채움
+  useEffect(() => {
+    if (!clientId) return;
+    fetch(`/api/clients/${clientId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok || !d.client) return;
+        const c = d.client;
+        setForm(prev => ({
+          ...prev,
+          hospitalName: prev.hospitalName || c.name || c.hospital_name || "",
+          contactName:  prev.contactName  || c.manager_name || c.contact_name || c.director_name || "",
+          contactEmail: prev.contactEmail  || c.email || "",
+        }));
+      })
+      .catch(() => {});
+  }, [clientId]);
+
   useEffect(() => {
     const applyContext = (event: Event) => {
       const context = (event as CustomEvent<any>).detail;
