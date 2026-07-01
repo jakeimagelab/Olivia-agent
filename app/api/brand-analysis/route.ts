@@ -223,23 +223,19 @@ photoConti는 최소 5개, 최대 8개 장면을 제안하세요.
 serviceCategories는 홈페이지에서 실제로 발견된 서비스/시술 카테고리만 포함하세요.`;
 
   try {
-    const claudeCtrl = new AbortController();
-    const claudeTimer = setTimeout(() => claudeCtrl.abort(), 18000);
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      signal: claudeCtrl.signal,
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 2500,
         messages: [{ role: "user", content: prompt }],
       }),
     });
-    clearTimeout(claudeTimer);
 
     const data = await res.json();
     if (data.error) throw new Error(data.error.message ?? "API 오류");
