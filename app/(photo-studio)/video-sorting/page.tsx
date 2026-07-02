@@ -281,17 +281,45 @@ export default function VideoSortingPage() {
   };
 
   const runSceneAnalysis = useCallback(async (list: VideoScene[]) => {
-    const updated = list.map((s) => ({ ...s }));
+    const updated = list.map((s) => ({ ...s, nameLoading: true }));
+    setScenes([...updated]);
     for (let i = 0; i < updated.length; i++) {
       setProgress({ cur: i, total: updated.length, msg: `씬 분석 중: ${updated[i].folderName}` });
       await analyzeOneScene(updated, i);
       setScenes([...updated]);
     }
-    setStep(3);
+    setStep(4);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [department]);
 
-  const handleStart = useCallback(async () => {
+  const groupEntries = (
+    entries: { name: string; handle: FileSystemFileHandle; mtime: number }[],
+    gapMs: number,
+  ): VideoScene[] => {
+    const sorted = [...entries].sort((a, b) => a.mtime - b.mtime);
+    const groups: typeof sorted[] = sorted.length > 0 ? [[sorted[0]]] : [];
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].mtime - sorted[i - 1].mtime > gapMs) groups.push([sorted[i]]);
+      else groups[groups.length - 1].push(sorted[i]);
+    }
+
+    return groups.map((g, si) => {
+      const num = String(si + 1).padStart(2, "0");
+      const folderName = `Scene${num}`;
+      const clips: VideoClipFile[] = g.map((e) => ({
+        name: e.name, basename: e.name.replace(/\.[^.]+$/, ""), handle: e.handle, mtime: e.mtime,
+      }));
+      return {
+        index: si + 1, folderName, editedName: folderName,
+        startTime: g[0].mtime, endTime: g[g.length - 1].mtime,
+        clips, sceneDir: null,
+        sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
+        needsReview: false, nameLoading: false,
+      };
+    });
+  };
+
+  const handleScan = useCallback(async () => {
     if (!rootDir) return;
     setStep(1);
     const entries: { name: string; handle: FileSystemFileHandle; mtime: number }[] = [];
@@ -305,7 +333,8 @@ export default function VideoSortingPage() {
       if (!VIDEO_EXTS.has(ext)) continue;
       try {
         const file = await (handle as FileSystemFileHandle).getFile();
-        entries.push({ name, handle: handle as FileSystemFileHandle, mtime: file.lastModified });
+        const creationTime = await readVideoCreationTime(file);
+        entries.push({ name, handle: handle as FileSystemFileHandle, mtime: creationTime ?? file.lastModified });
       } catch {
         failed.push({ name, handle: handle as FileSystemFileHandle, reason: "파일을 읽을 수 없음" });
       }
@@ -315,34 +344,20 @@ export default function VideoSortingPage() {
       }
     }
 
-    entries.sort((a, b) => a.mtime - b.mtime);
-    const gapMs = gapMinutes * 60 * 1000;
-    const groups: typeof entries[] = entries.length > 0 ? [[entries[0]]] : [];
-    for (let i = 1; i < entries.length; i++) {
-      if (entries[i].mtime - entries[i - 1].mtime > gapMs) groups.push([entries[i]]);
-      else groups[groups.length - 1].push(entries[i]);
-    }
-
-    const newScenes: VideoScene[] = groups.map((g, si) => {
-      const num = String(si + 1).padStart(2, "0");
-      const folderName = `Scene${num}`;
-      const clips: VideoClipFile[] = g.map((e) => ({
-        name: e.name, basename: e.name.replace(/\.[^.]+$/, ""), handle: e.handle, mtime: e.mtime,
-      }));
-      return {
-        index: si + 1, folderName, editedName: folderName,
-        startTime: g[0].mtime, endTime: g[g.length - 1].mtime,
-        clips, sceneDir: null,
-        sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
-        needsReview: false, nameLoading: true,
-      };
-    });
-
+    setScannedEntries(entries);
     setFailedClips(failed);
-    setScenes(newScenes);
+    setScenes(groupEntries(entries, gapMinutes * 60 * 1000));
     setStep(2);
-    runSceneAnalysis(newScenes);
-  }, [rootDir, gapMinutes, runSceneAnalysis]);
+  }, [rootDir, gapMinutes]);
+
+  const handleRegroup = useCallback(() => {
+    setScenes(groupEntries(scannedEntries, gapMinutes * 60 * 1000));
+  }, [scannedEntries, gapMinutes]);
+
+  const handleStartAnalysis = useCallback(() => {
+    setStep(3);
+    runSceneAnalysis(scenes);
+  }, [scenes, runSceneAnalysis]);
 
   const retryScene = useCallback(async (i: number) => {
     const updated = scenes.map((s) => ({ ...s }));
@@ -358,28 +373,47 @@ export default function VideoSortingPage() {
     if (!entry) return;
     try {
       const file = await entry.handle.getFile();
+      const creationTime = await readVideoCreationTime(file);
+      const mtime = creationTime ?? file.lastModified;
       const num = String(scenes.length + 1).padStart(2, "0");
       const folderName = `Scene${num}`;
       const newScene: VideoScene = {
         index: scenes.length + 1, folderName, editedName: folderName,
-        startTime: file.lastModified, endTime: file.lastModified,
-        clips: [{ name: entry.name, basename: entry.name.replace(/\.[^.]+$/, ""), handle: entry.handle, mtime: file.lastModified }],
+        startTime: mtime, endTime: mtime,
+        clips: [{ name: entry.name, basename: entry.name.replace(/\.[^.]+$/, ""), handle: entry.handle, mtime }],
         sceneDir: null, sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
-        needsReview: false, nameLoading: true,
+        needsReview: false, nameLoading: false,
       };
+      setScannedEntries((prev) => [...prev, { name: entry.name, handle: entry.handle, mtime }]);
       setFailedClips((prev) => prev.filter((f) => f.name !== name));
       const updatedScenes = [...scenes, newScene];
-      setScenes(updatedScenes);
-      await analyzeOneScene(updatedScenes, updatedScenes.length - 1);
-      setScenes([...updatedScenes]);
+
+      if (step >= 4) {
+        // AI 분석이 이미 끝난 시점의 재시도는 즉시 개별 분석
+        updatedScenes[updatedScenes.length - 1] = { ...newScene, nameLoading: true };
+        setScenes(updatedScenes);
+        await analyzeOneScene(updatedScenes, updatedScenes.length - 1);
+        setScenes([...updatedScenes]);
+      } else {
+        // 그룹 검토 단계에서는 목록에만 추가 — "AI 분석 시작" 시 함께 분석됨
+        setScenes(updatedScenes);
+      }
     } catch {
       setFailedClips((prev) => prev.map((f) => (f.name === name ? { ...f, reason: "재시도 실패" } : f)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [failedClips, scenes, department]);
+  }, [failedClips, scenes, department, step]);
 
   const updateSceneName = (i: number, name: string) => {
     setScenes((prev) => prev.map((s, idx) => (idx === i ? { ...s, editedName: name } : s)));
+  };
+
+  const applySuggestedName = (i: number) => {
+    setScenes((prev) => prev.map((s, idx) => (idx === i && s.suggestedName ? { ...s, editedName: s.suggestedName } : s)));
+  };
+
+  const applyAllSuggestedNames = () => {
+    setScenes((prev) => prev.map((s) => (s.suggestedName ? { ...s, editedName: s.suggestedName } : s)));
   };
 
   const handleExport = useCallback(async () => {
