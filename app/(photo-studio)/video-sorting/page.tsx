@@ -238,17 +238,20 @@ export default function VideoSortingPage() {
   const analyzeOneScene = async (list: VideoScene[], i: number) => {
     const scene = list[i];
     const perClip = framesPerClip(scene.clips.length);
+    // 클립이 예산보다 많으면 앞쪽에만 쏠리지 않도록 전체 구간에서 고르게 클립을 선택
+    const targetIndices = pickEvenIndices(scene.clips.length, FRAME_BUDGET);
     const collected: { fileName: string; base64: string }[] = [];
     const previewThumbs: string[] = [];
 
-    for (const clip of scene.clips) {
-      if (collected.length >= 6) break;
-      const want = Math.min(perClip, 6 - collected.length);
+    for (const idx of targetIndices) {
+      if (collected.length >= FRAME_BUDGET) break;
+      const clip = scene.clips[idx];
+      const want = Math.min(perClip, FRAME_BUDGET - collected.length);
       try {
         const file = await clip.handle.getFile();
         const frames = await extractVideoFrames(file, frameFractionsForCount(want));
-        frames.forEach((base64, idx) => {
-          collected.push({ fileName: `${clip.name}#${idx}`, base64 });
+        frames.forEach((base64, fi) => {
+          collected.push({ fileName: `${clip.name}#${fi}`, base64 });
           previewThumbs.push(base64);
         });
       } catch {}
