@@ -394,21 +394,19 @@ export default function VideoSortingPage() {
         ))}
       </div>
 
-      {!hasFS && (
-        <Card>
-          <div style={{ color: C.red, fontWeight: 700 }}>
-            이 브라우저는 File System Access API를 지원하지 않습니다. Chrome/Edge 최신 버전을 사용해주세요.
-          </div>
-        </Card>
-      )}
-
-      {hasFS && step === 0 && (
+      {step === 0 && (
         <Card>
           <h2 style={{ fontSize: 18, fontWeight: 900, color: C.txt, marginBottom: 16 }}>🎥 영상 분류 설정</h2>
 
+          {!hasFS && (
+            <div style={{ padding: 14, background: "#FFF3CD", borderRadius: 10, fontSize: 12, color: "#856404", border: "1px solid #FFD980", marginBottom: 16 }}>
+              ⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.
+            </div>
+          )}
+
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>1. 영상 폴더 선택</div>
-            <Btn onClick={pickDir}>{rootDir ? "✅ 폴더 선택됨 — 다시 선택" : "📁 폴더 선택"}</Btn>
+            <Btn onClick={pickDir} disabled={!hasFS}>{rootDir ? "✅ 폴더 선택됨 — 다시 선택" : "📁 폴더 선택"}</Btn>
           </div>
 
           <div style={{ marginBottom: 20 }}>
