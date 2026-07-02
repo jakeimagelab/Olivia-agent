@@ -456,7 +456,7 @@ export default function VideoSortingPage() {
       totalClips, totalScenes: updated.length,
       failedClips: failedClips.length, movedClips: moved,
     });
-    setStep(5);
+    setStep(6);
   }, [rootDir, scenes, failedClips]);
 
   const allAnalyzed = scenes.every((s) => !s.nameLoading);
