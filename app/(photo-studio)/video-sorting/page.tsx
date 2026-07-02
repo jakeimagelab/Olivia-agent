@@ -12,6 +12,11 @@ import type { VideoClipFile, VideoScene, VideoStats } from "@/lib/video-classifi
 const VIDEO_EXTS = new Set(["mp4", "mov", "m4v", "webm", "avi", "mkv"]);
 const GAP_OPTIONS = [3, 5, 7, 10];
 const STEPS = ["설정", "파일 스캔", "그룹 검토", "AI 분석", "최종 검토", "폴더 정리", "완료"];
+const FRAME_BUDGET = 6;
+// 시간 간격으로 묶인 씬이 이 개수를 넘으면 소그룹(A/B/...)으로 나눠 각각 별도로 분류한다.
+// 한 씬 안에 서로 다른 장면(예: 인테리어 + 인물 시술)이 섞여 있을 때 하나의 라벨로 뭉개지는 것을 방지.
+const LARGE_GROUP_THRESHOLD = 10;
+const SUB_GROUP_CHUNK_SIZE = 8;
 
 const DEPARTMENTS = Object.entries(DEPARTMENT_DISPLAY) as [MedicalDepartment, string][];
 
