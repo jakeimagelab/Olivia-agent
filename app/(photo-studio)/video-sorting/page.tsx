@@ -418,7 +418,7 @@ export default function VideoSortingPage() {
 
   const handleExport = useCallback(async () => {
     if (!rootDir) return;
-    setStep(4);
+    setStep(5);
     const videoBase = await (rootDir as any).getDirectoryHandle("VIDEO", { create: true }) as FileSystemDirectoryHandle;
     const totalClips = scenes.reduce((s, sc) => s + sc.clips.length, 0);
     let done = 0;
