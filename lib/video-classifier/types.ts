@@ -36,6 +36,7 @@ export interface VideoScene {
   aiReason: string | null;
   needsReview: boolean;
   nameLoading: boolean;
+  previewThumbs?: string[];
 }
 
 export interface VideoSortOptions {
