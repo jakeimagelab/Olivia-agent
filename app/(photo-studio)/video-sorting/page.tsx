@@ -522,24 +522,88 @@ export default function VideoSortingPage() {
             </div>
           </div>
 
-          <Btn onClick={handleStart} disabled={!rootDir}>시작하기 →</Btn>
+          <Btn onClick={handleScan} disabled={!rootDir}>시작하기 →</Btn>
         </Card>
       )}
 
-      {(step === 1 || step === 2) && (
+      {step === 1 && (
         <Card>
           <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
         </Card>
       )}
 
+      {step === 2 && (
+        <div>
+          <Card>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.txt, marginBottom: 4 }}>1차 시간대별 그룹핑 결과</h2>
+            <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+              씬 {scenes.length}개 · 영상 {scenes.reduce((s, sc) => s + sc.clips.length, 0)}개
+              {failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
+              {" — "}그룹핑이 의도와 다르면 시간 간격을 조정하고 다시 그룹핑하세요.
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              {GAP_OPTIONS.map((g) => (
+                <button key={g} onClick={() => setGapMinutes(g)} style={{
+                  flex: 1, padding: "10px 0", borderRadius: 8,
+                  border: `1.5px solid ${gapMinutes === g ? C.teal : C.border}`,
+                  background: gapMinutes === g ? C.light : C.white,
+                  cursor: "pointer", fontSize: 13, fontWeight: gapMinutes === g ? 900 : 600,
+                  color: gapMinutes === g ? C.teal : C.muted, fontFamily: "inherit",
+                }}>
+                  {g}분
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn variant="ghost" onClick={handleRegroup}>🔄 다시 그룹핑</Btn>
+              <Btn onClick={handleStartAnalysis} disabled={scenes.length === 0}>AI 분석 시작 →</Btn>
+            </div>
+          </Card>
+
+          {failedClips.length > 0 && (
+            <Card>
+              <div style={{ fontWeight: 800, color: C.red, marginBottom: 8 }}>⚠️ 읽기 실패한 파일</div>
+              {failedClips.map((f) => (
+                <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
+                  <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
+                  <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
+                </div>
+              ))}
+            </Card>
+          )}
+
+          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+            {scenes.map((scene) => (
+              <Card key={scene.folderName}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: C.txt }}>{scene.folderName}</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>영상 {scene.clips.length}개</span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {step === 3 && (
+        <Card>
+          <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
+        </Card>
+      )}
+
+      {step === 4 && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.muted }}>
               씬 {scenes.length}개 · 영상 {scenes.reduce((s, sc) => s + sc.clips.length, 0)}개
               {failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
             </div>
-            <Btn onClick={handleExport} disabled={!allAnalyzed || scenes.length === 0}>폴더 정리 실행 →</Btn>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn variant="ghost" onClick={applyAllSuggestedNames} disabled={!allAnalyzed}>✨ AI 제안명 전체 적용</Btn>
+              <Btn onClick={handleExport} disabled={!allAnalyzed || scenes.length === 0}>폴더 정리 실행 →</Btn>
+            </div>
           </div>
 
           {failedClips.length > 0 && (
@@ -573,6 +637,7 @@ export default function VideoSortingPage() {
                     ) : (
                       <>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, color: C.hint, minWidth: 60 }}>{scene.folderName}</span>
                           <input
                             value={scene.editedName}
                             onChange={(e) => updateSceneName(i, e.target.value)}
@@ -584,7 +649,14 @@ export default function VideoSortingPage() {
                           <button onClick={() => retryScene(i)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재분석</button>
                         </div>
                         <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>
-                          신뢰도 {scene.aiConfidence != null ? `${Math.round(scene.aiConfidence * 100)}%` : "-"} · 영상 {scene.clips.length}개
+                          AI 분류: {scene.sceneType ?? "-"} · 신뢰도 {scene.aiConfidence != null ? `${Math.round(scene.aiConfidence * 100)}%` : "-"} · 영상 {scene.clips.length}개
+                          {scene.suggestedName && scene.suggestedName !== scene.editedName && (
+                            <>
+                              {" · 제안명: "}
+                              <span style={{ color: C.teal, fontWeight: 700 }}>{scene.suggestedName}</span>
+                              <button onClick={() => applySuggestedName(i)} style={{ marginLeft: 6, fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>적용</button>
+                            </>
+                          )}
                         </div>
                         {scene.aiReason && <div style={{ fontSize: 12, color: C.hint }}>{scene.aiReason}</div>}
                       </>
@@ -597,13 +669,13 @@ export default function VideoSortingPage() {
         </div>
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <Card>
           <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
         </Card>
       )}
 
-      {step === 5 && stats && (
+      {step === 6 && stats && (
         <Card>
           <h2 style={{ fontSize: 18, fontWeight: 900, color: C.green, marginBottom: 16 }}>✅ 완료</h2>
           <div style={{ fontSize: 14, color: C.txt, lineHeight: 1.8 }}>
