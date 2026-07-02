@@ -571,6 +571,7 @@ export default function VideoSortingPage() {
               씬 {scenes.length}개 · 영상 {scenes.reduce((s, sc) => s + sc.clips.length, 0)}개
               {failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
               {" — "}그룹핑이 의도와 다르면 시간 간격을 조정하고 다시 그룹핑하세요.
+              씬 하나가 {LARGE_GROUP_THRESHOLD}개를 넘으면 자동으로 -A, -B 소그룹으로 나눠 각각 분석합니다.
             </div>
 
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
