@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 import type { VideoClipFile, VideoScene, VideoStats } from "@/lib/video-classifier/types";
@@ -443,13 +443,13 @@ export default function VideoSortingPage() {
         </Card>
       )}
 
-      {hasFS && (step === 1 || step === 2) && (
+      {(step === 1 || step === 2) && (
         <Card>
           <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
         </Card>
       )}
 
-      {hasFS && step === 3 && (
+      {step === 3 && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.muted }}>
@@ -514,13 +514,13 @@ export default function VideoSortingPage() {
         </div>
       )}
 
-      {hasFS && step === 4 && (
+      {step === 4 && (
         <Card>
           <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
         </Card>
       )}
 
-      {hasFS && step === 5 && stats && (
+      {step === 5 && stats && (
         <Card>
           <h2 style={{ fontSize: 18, fontWeight: 900, color: C.green, marginBottom: 16 }}>✅ 완료</h2>
           <div style={{ fontSize: 14, color: C.txt, lineHeight: 1.8 }}>
