@@ -11,7 +11,7 @@ import type { VideoClipFile, VideoScene, VideoStats } from "@/lib/video-classifi
 ═══════════════════════════════════════════════ */
 const VIDEO_EXTS = new Set(["mp4", "mov", "m4v", "webm", "avi", "mkv"]);
 const GAP_OPTIONS = [3, 5, 7, 10];
-const STEPS = ["설정", "파일 스캔", "AI 분석", "씬 검토", "폴더 정리", "완료"];
+const STEPS = ["설정", "파일 스캔", "그룹 검토", "AI 분석", "최종 검토", "폴더 정리", "완료"];
 
 const DEPARTMENTS = Object.entries(DEPARTMENT_DISPLAY) as [MedicalDepartment, string][];
 
