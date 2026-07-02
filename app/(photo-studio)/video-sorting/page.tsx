@@ -103,6 +103,53 @@ function framesPerClip(clipCount: number): number {
   return 1;
 }
 
+const MP4_EXTS = new Set(["mp4", "mov", "m4v"]);
+const MAC_EPOCH_OFFSET_SEC = 2082844800; // seconds between 1904-01-01 and 1970-01-01
+
+// MP4/MOV(ISO base media) 컨테이너의 moov/mvhd 박스에서 실제 촬영 시각을 읽는다.
+// 파일 복사/전송 시각인 lastModified보다 정확한 씬 그룹핑 기준을 제공한다.
+async function readVideoCreationTime(file: File): Promise<number | null> {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (!MP4_EXTS.has(ext)) return null;
+
+  async function findAtom(start: number, end: number, path: string[]): Promise<number | null> {
+    let pos = start;
+    while (pos < end - 8) {
+      const header = new DataView(await file.slice(pos, pos + 8).arrayBuffer());
+      let size = header.getUint32(0);
+      const type = String.fromCharCode(header.getUint8(4), header.getUint8(5), header.getUint8(6), header.getUint8(7));
+      let headerSize = 8;
+      if (size === 1) {
+        const ext64 = new DataView(await file.slice(pos + 8, pos + 16).arrayBuffer());
+        size = Number(ext64.getBigUint64(0));
+        headerSize = 16;
+      }
+      if (size < headerSize) break;
+      if (type === path[0]) {
+        if (path.length === 1) return pos;
+        const inner = await findAtom(pos + headerSize, pos + size, path.slice(1));
+        if (inner !== null) return inner;
+      }
+      pos += size;
+    }
+    return null;
+  }
+
+  try {
+    const mvhdPos = await findAtom(0, file.size, ["moov", "mvhd"]);
+    if (mvhdPos === null) return null;
+    const head = new DataView(await file.slice(mvhdPos, mvhdPos + 32).arrayBuffer());
+    const version = head.getUint8(8);
+    const creationTimeSec = version === 1 ? Number(head.getBigUint64(12)) : head.getUint32(12);
+    if (!creationTimeSec) return null;
+    const unixMs = (creationTimeSec - MAC_EPOCH_OFFSET_SEC) * 1000;
+    if (unixMs <= 0 || unixMs > Date.now() + 24 * 3600 * 1000) return null;
+    return unixMs;
+  } catch {
+    return null;
+  }
+}
+
 /* ════════════════════════════════════════════════
    PRESENTATIONAL HELPERS
 ═══════════════════════════════════════════════ */
