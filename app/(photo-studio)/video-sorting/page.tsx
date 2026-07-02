@@ -146,7 +146,8 @@ function ProgressBar({ cur, total, msg }: { cur: number; total: number; msg: str
    MAIN COMPONENT
 ═══════════════════════════════════════════════ */
 export default function VideoSortingPage() {
-  const hasFS = typeof window !== "undefined" && "showDirectoryPicker" in window;
+  const [hasFS, setHasFS] = useState(false);
+  useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
 
   const [step, setStep] = useState(0);
   const [rootDir, setRootDir] = useState<FileSystemDirectoryHandle | null>(null);
