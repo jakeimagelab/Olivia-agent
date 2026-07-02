@@ -2670,12 +2670,8 @@ ${header("타임테이블")}
               WebkitOverflowScrolling: "touch",
             }}>
 
-              {/* 🎬 콘티 탭 — 시간순(duration 누적) 정렬 + 완료 체크 */}
+              {/* 🎬 콘티 탭 — 편집 순서 그대로 표시 + 완료 체크 */}
               {fieldViewTab === "conti" && (() => {
-                const parseMins = (d: string) => parseInt(d?.replace(/[^0-9]/g, "") || "0", 10) || 0;
-                const sorted = result.conti
-                  .map((row, origIdx) => ({ row, origIdx }))
-                  .sort((a, b) => parseMins(a.row.duration) - parseMins(b.row.duration) || a.origIdx - b.origIdx);
                 const doneCount = doneConti.size;
                 return (
                   <div>
@@ -2693,23 +2689,23 @@ ${header("타임테이블")}
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-                      {sorted.map(({ row, origIdx }, sortedIdx) => {
+                      {result.conti.map((row, i) => {
                         const rawColor = row.color ? row.color.split("|") : null;
                         const c = rawColor ? { bg: rawColor[0], text: rawColor[1] } : getColor(row.category);
-                        const isDraggingOver = dragOver?.type === "conti" && dragOver.index === origIdx;
-                        const isDone = doneConti.has(origIdx);
+                        const isDraggingOver = dragOver?.type === "conti" && dragOver.index === i;
+                        const isDone = doneConti.has(i);
                         return (
-                          <div key={origIdx}
+                          <div key={i}
                             draggable
-                            data-conti-index={origIdx}
-                            onDragStart={() => handleDragStart("conti", origIdx)}
-                            onDragOver={e => handleDragOver(e, "conti", origIdx)}
-                            onDrop={() => handleDrop("conti", origIdx)}
+                            data-conti-index={i}
+                            onDragStart={() => handleDragStart("conti", i)}
+                            onDragOver={e => handleDragOver(e, "conti", i)}
+                            onDrop={() => handleDrop("conti", i)}
                             onDragEnd={handleDragEnd}
                             onTouchStart={(e) => {
                               e.stopPropagation();
-                              touchDragRef.current = origIdx;
-                              handleDragStart("conti", origIdx);
+                              touchDragRef.current = i;
+                              handleDragStart("conti", i);
                             }}
                             onTouchMove={(e) => {
                               e.preventDefault();
@@ -2747,7 +2743,7 @@ ${header("타임테이블")}
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                 <span style={{ color: isDone ? "#166534" : c.text, fontSize: 14, opacity: 0.5, marginRight: 2, cursor: "grab" }}>⠿</span>
                                 <span style={{ background: "rgba(0,0,0,0.12)", color: isDone ? "#166534" : c.text, fontSize: 11, fontWeight: 900, padding: "2px 9px", borderRadius: 99 }}>
-                                  {sortedIdx + 1}순위
+                                  {i + 1}순위
                                 </span>
                                 <span style={{ color: isDone ? "#166534" : c.text, fontWeight: 900, fontSize: 14 }}>{row.category}</span>
                               </div>
@@ -2758,7 +2754,7 @@ ${header("타임테이블")}
                                   <input
                                     type="checkbox"
                                     checked={isDone}
-                                    onChange={() => toggleDone(origIdx)}
+                                    onChange={() => toggleDone(i)}
                                     style={{ width: 18, height: 18, accentColor: "#155855", cursor: "pointer" }}
                                   />
                                   <span style={{ fontSize: 11, fontWeight: 800, color: isDone ? "#166534" : "rgba(0,0,0,0.35)" }}>
