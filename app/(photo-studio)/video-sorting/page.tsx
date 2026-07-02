@@ -284,8 +284,7 @@ export default function VideoSortingPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        const num = String(scene.index).padStart(2, "0");
-        const suggested = data.suggestedFolderName ? `Scene${num}_${data.suggestedFolderName}` : scene.folderName;
+        const suggested = data.suggestedFolderName ? `${scene.folderName}_${data.suggestedFolderName}` : scene.folderName;
         list[i] = {
           ...scene,
           sceneType: data.sceneType ?? null,
