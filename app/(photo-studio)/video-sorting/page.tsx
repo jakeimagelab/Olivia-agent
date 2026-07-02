@@ -265,7 +265,7 @@ export default function VideoSortingPage() {
           ...scene,
           sceneType: data.sceneType ?? null,
           suggestedName: suggested,
-          editedName: suggested,
+          // editedName은 그대로 두고, 사용자가 "AI 제안명 적용"을 눌러야 폴더명이 바뀐다
           aiConfidence: data.confidence ?? null,
           aiReason: data.reason ?? null,
           needsReview: data.needsReview ?? false,
