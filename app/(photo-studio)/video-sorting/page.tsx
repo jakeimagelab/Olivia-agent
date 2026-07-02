@@ -200,6 +200,7 @@ export default function VideoSortingPage() {
   const [rootDir, setRootDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [department, setDepartment] = useState<MedicalDepartment>("dermatology");
   const [gapMinutes, setGapMinutes] = useState(5);
+  const [scannedEntries, setScannedEntries] = useState<{ name: string; handle: FileSystemFileHandle; mtime: number }[]>([]);
   const [scenes, setScenes] = useState<VideoScene[]>([]);
   const [failedClips, setFailedClips] = useState<{ name: string; handle: FileSystemFileHandle; reason: string }[]>([]);
   const [progress, setProgress] = useState({ cur: 0, total: 0, msg: "" });
