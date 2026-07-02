@@ -327,20 +327,27 @@ export default function VideoSortingPage() {
       else groups[groups.length - 1].push(sorted[i]);
     }
 
-    return groups.map((g, si) => {
+    const scenes: VideoScene[] = [];
+    let sceneIndex = 0;
+    groups.forEach((g, si) => {
       const num = String(si + 1).padStart(2, "0");
-      const folderName = `Scene${num}`;
-      const clips: VideoClipFile[] = g.map((e) => ({
-        name: e.name, basename: e.name.replace(/\.[^.]+$/, ""), handle: e.handle, mtime: e.mtime,
-      }));
-      return {
-        index: si + 1, folderName, editedName: folderName,
-        startTime: g[0].mtime, endTime: g[g.length - 1].mtime,
-        clips, sceneDir: null,
-        sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
-        needsReview: false, nameLoading: false,
-      };
+      const chunks = chunkGroup(g);
+      chunks.forEach((chunk, ci) => {
+        sceneIndex++;
+        const folderName = chunks.length > 1 ? `Scene${num}-${String.fromCharCode(65 + ci)}` : `Scene${num}`;
+        const clips: VideoClipFile[] = chunk.map((e) => ({
+          name: e.name, basename: e.name.replace(/\.[^.]+$/, ""), handle: e.handle, mtime: e.mtime,
+        }));
+        scenes.push({
+          index: sceneIndex, folderName, editedName: folderName,
+          startTime: chunk[0].mtime, endTime: chunk[chunk.length - 1].mtime,
+          clips, sceneDir: null,
+          sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
+          needsReview: false, nameLoading: false,
+        });
+      });
     });
+    return scenes;
   };
 
   const handleScan = useCallback(async () => {
