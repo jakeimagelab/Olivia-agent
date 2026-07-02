@@ -17,10 +17,6 @@ const protectedApiPrefixes = [
   "/api/projects",
 ];
 
-function isUiTestMode() {
-  return process.env.NODE_ENV !== "production" && process.env.UI_TEST_MODE === "1";
-}
-
 export function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const shouldProtect = protectedApiPrefixes.some((prefix) => pathname.startsWith(prefix));
@@ -33,7 +29,7 @@ export function middleware(req: NextRequest) {
   }
 
   const isAuthenticated = req.cookies.get("pc_admin_session")?.value === "active";
-  if (isAuthenticated || isUiTestMode()) return NextResponse.next();
+  if (isAuthenticated) return NextResponse.next();
 
   return NextResponse.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
 }
