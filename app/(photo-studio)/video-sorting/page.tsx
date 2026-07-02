@@ -108,6 +108,23 @@ function framesPerClip(clipCount: number): number {
   return 1;
 }
 
+// count가 total보다 작을 때, 앞쪽에만 쏠리지 않도록 전체 구간에서 고르게 인덱스를 뽑는다.
+function pickEvenIndices(total: number, count: number): number[] {
+  if (total <= count) return Array.from({ length: total }, (_, i) => i);
+  const idx = new Set<number>();
+  for (let i = 0; i < count; i++) {
+    idx.add(Math.min(total - 1, Math.round((i * (total - 1)) / (count - 1))));
+  }
+  return Array.from(idx).sort((a, b) => a - b);
+}
+
+function chunkGroup<T>(group: T[]): T[][] {
+  if (group.length <= LARGE_GROUP_THRESHOLD) return [group];
+  const chunks: T[][] = [];
+  for (let i = 0; i < group.length; i += SUB_GROUP_CHUNK_SIZE) chunks.push(group.slice(i, i + SUB_GROUP_CHUNK_SIZE));
+  return chunks;
+}
+
 const MP4_EXTS = new Set(["mp4", "mov", "m4v"]);
 const MAC_EPOCH_OFFSET_SEC = 2082844800; // seconds between 1904-01-01 and 1970-01-01
 
