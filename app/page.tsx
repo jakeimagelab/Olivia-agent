@@ -225,11 +225,14 @@ function TodayAlertBanner({tasks, totalPending}:{tasks:CalTask[]; totalPending:n
             <div style={{fontSize:10,color:"rgba(255,255,255,.5)"}}>{today}</div>
           </div>
         </div>
-        {totalPending>0&&(
-          <div style={{background:"#E85D2C",borderRadius:99,padding:"2px 10px",fontSize:11,fontWeight:900,color:"#fff"}}>
-            대기 {totalPending}건
-          </div>
-        )}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{fontSize:14,fontWeight:800,color:"#6EE7B7",fontVariantNumeric:"tabular-nums",letterSpacing:".04em",fontFamily:"'SF Mono','Menlo','Consolas',monospace"}}>{clock}</div>
+          {totalPending>0&&(
+            <div style={{background:"#E85D2C",borderRadius:99,padding:"2px 10px",fontSize:11,fontWeight:900,color:"#fff"}}>
+              대기 {totalPending}건
+            </div>
+          )}
+        </div>
       </div>
 
       <p style={{fontSize:13,fontWeight:700,color:"#fff",margin:"0 0 10px",lineHeight:1.5}}>
