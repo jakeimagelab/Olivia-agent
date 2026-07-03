@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai, SCENE_MODEL } from "@/lib/ai/openai";
+import { VIDEO_CATEGORY_ORDER, type VideoCategory } from "@/lib/video-classifier/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 type FrameInput = { fileName: string; base64: string };
 type RequestBody = { frames: FrameInput[] };
-
-const CATEGORY_VALUES = [
-  "SPACE_ONLY",
-  "PEOPLE_CONSULTING",
-  "TREATMENT_SCENE",
-  "CLOSEUP_DETAIL",
-  "NEED_CHECK",
-] as const;
 
 const SYSTEM_PROMPT =
   "너는 병원, 피부과, 웰니스 촬영 영상의 대표 프레임을 보고 영상을 분류하는 전문가다. " +
