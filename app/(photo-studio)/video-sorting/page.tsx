@@ -399,7 +399,7 @@ export default function VideoSortingPage() {
       setFailedClips((prev) => prev.map((f) => (f.name === name ? { ...f, reason: "재시도 실패" } : f)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [failedClips, scannedClips, classified, mode, step, gapMinutes]);
+  }, [failedClips, scannedClips, mode, step, gapMinutes]);
 
   const handleExportAi = useCallback(async () => {
     if (!rootDir) return;
