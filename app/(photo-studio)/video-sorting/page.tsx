@@ -163,6 +163,14 @@ async function readVideoCreationTime(file: File): Promise<number | null> {
   }
 }
 
+function formatEta(ms: number): string {
+  const totalSec = Math.max(0, Math.round(ms / 1000));
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (min > 0) return `${min}분 ${sec}초`;
+  return `${sec}초`;
+}
+
 function groupClipsByGap(clips: VideoClipFile[], gapMs: number): TimeScene[] {
   const sorted = [...clips].sort((a, b) => a.mtime - b.mtime);
   const groups: VideoClipFile[][] = sorted.length > 0 ? [[sorted[0]]] : [];
