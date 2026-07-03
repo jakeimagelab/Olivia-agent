@@ -43,13 +43,12 @@ const C = {
 /* ════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════ */
+// 영상 파일은 수백 MB~수 GB일 수 있어 arrayBuffer()로 전체를 메모리에 올리지 않고 스트리밍으로 복사한다.
 async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
   const file = await src.getFile();
-  const buf = await file.arrayBuffer();
   const fh = await (dest as any).getFileHandle(name, { create: true });
   const wr = await fh.createWritable();
-  await wr.write(buf);
-  await wr.close();
+  await file.stream().pipeTo(wr);
 }
 
 function waitForEvent(el: HTMLVideoElement, event: string, timeoutMs: number): Promise<boolean> {
