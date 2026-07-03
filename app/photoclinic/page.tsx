@@ -1509,7 +1509,7 @@ export default function QuoteBuilder() {
             </div>
           </Panel>
 
-          <Panel title="최근 생성 견적 5개">
+          <Panel title={`최근 생성 견적 (최근 ${RECENT_QUOTES_DISPLAY_LIMIT}개 표시 · 전체 이력은 Supabase에 보관)`}>
             {recentQuoteMessage ? (
               <div className="mb-3 rounded-lg border border-[#c8ddd9] bg-[#eaf4f2] px-4 py-3 text-sm font-bold text-[#155855]">
                 {recentQuoteMessage}
