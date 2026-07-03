@@ -341,8 +341,10 @@ export default function VideoSortingPage() {
     setStep("analyzing");
     const list = classified.map((c) => ({ ...c, status: "analyzing" as const }));
     setClassified([...list]);
+    const startTime = Date.now();
     for (let i = 0; i < list.length; i++) {
-      setProgress({ cur: i, total: list.length, msg: `분석 중: ${list[i].clip.name}` });
+      const etaLabel = i > 0 ? formatEta(((Date.now() - startTime) / i) * (list.length - i)) : "";
+      setProgress({ cur: i, total: list.length, msg: `분석 중: ${list[i].clip.name}${etaLabel ? ` · 예상 남은 시간 약 ${etaLabel}` : ""}` });
       await classifyOne(list, i);
       setClassified([...list]);
     }
