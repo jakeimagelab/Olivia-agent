@@ -387,8 +387,7 @@ export default function QuoteBuilder() {
   const createNextQuoteNumber = () => {
     const date = todayValue().replaceAll("-", "");
     const todayPrefix = `PC-${date}-`;
-    const usedNumbers = recentQuotes
-      .map((item) => item.quoteNumber)
+    const usedNumbers = todayQuoteNumbers
       .filter((quoteNumber) => quoteNumber.startsWith(todayPrefix))
       .map((quoteNumber) => Number(quoteNumber.replace(todayPrefix, "")))
       .filter((value) => Number.isFinite(value));
