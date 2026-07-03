@@ -3032,9 +3032,8 @@ function PhotoSortingInner() {
             ))}
           </div>
           <div style={{background:C.light,borderRadius:10,padding:14,fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.9}}>
-            📁 <strong style={{color:C.teal}}>selected_{rootDir?.name}/</strong> — {isGroup ? "인물별" : "의상·포즈별"} 하위 폴더에 JPG 정리<br/>
-            📁 <strong style={{color:C.teal}}>Selected_RAW/</strong> — 매칭 RAW<br/>
-            📊 <strong style={{color:C.teal}}>AI_SELECT_REPORT/</strong> — 4종 CSV + summary.json
+            📁 <strong style={{color:C.teal}}>분류_{rootDir?.name}/</strong> — {isGroup ? "인물별" : "의상·포즈별"} 하위 폴더에 JPG 정리<br/>
+            📊 <strong style={{color:C.teal}}>AI_SELECT_REPORT/</strong> — 3종 CSV + summary.json
           </div>
           <div className="ps-btn-row">
             {isGroup
