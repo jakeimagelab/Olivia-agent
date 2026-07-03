@@ -1735,18 +1735,11 @@ function PhotoSortingInner() {
     setStep(5); cancelRef.current = false;
     const log: string[] = [];
     const rootName = rootDir.name;
-    const selectedJpgDir = await (rootDir as any).getDirectoryHandle(`selected_${rootName}`, { create:true });
-    const selectedRawDir = await (rootDir as any).getDirectoryHandle("Selected_RAW", { create:true });
+    const selectedJpgDir = await (rootDir as any).getDirectoryHandle(`분류_${rootName}`, { create:true });
     const reportDir      = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
-    const rawIndex = new Map<string, FileSystemFileHandle>();
-    for await (const [name, handle] of (rootDir as any).entries()) {
-      if (handle.kind !== "file") continue;
-      const ext = name.split(".").pop()?.toLowerCase() ?? "";
-      if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/,"").toLowerCase(), handle as FileSystemFileHandle);
-    }
     const totalFiles = studioGroups.reduce((s,g)=>s+g.files.length,0);
-    let processed = 0, rawCopied = 0, rawMissing = 0;
-    const classRows: string[][] = [], groupRows: string[][] = [], etcRows: string[][] = [], rawRows: string[][] = [];
+    let processed = 0;
+    const classRows: string[][] = [], groupRows: string[][] = [], etcRows: string[][] = [];
     for (const group of studioGroups) {
       const folderName = group.editedFolderName || group.suggestedFolderName;
       const groupDir = await (selectedJpgDir as any).getDirectoryHandle(folderName, { create:true });
@@ -1755,19 +1748,6 @@ function PhotoSortingInner() {
         setProgress({ cur:processed, total:totalFiles, msg:`${folderName}: ${file.name}` });
         try { await copyFileHandle(file.handle, groupDir, file.name); log.push(`✅ ${file.name} → ${folderName}/`); }
         catch { log.push(`❌ ${file.name} 실패`); }
-        if (!group.isEtc) {
-          const rawHandle = rawIndex.get(file.basename.toLowerCase());
-          if (rawHandle) {
-            try {
-              const rawFile = await rawHandle.getFile();
-              await copyFileHandle(rawHandle, selectedRawDir, rawFile.name);
-              rawCopied++;
-              rawRows.push([file.name, rawFile.name, folderName, "복사완료", `Selected_RAW/${rawFile.name}`]);
-            } catch { rawRows.push([file.name, "", folderName, "실패", ""]); }
-          } else {
-            rawMissing++; rawRows.push([file.name, "", folderName, "누락", ""]);
-          }
-        }
         if (group.isEtc) etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), "", "", ""]);
         classRows.push([file.name, "", folderName, file.clothingLabel, file.poseType, file.lightingStatus, String(Math.round(file.confidence*100)/100), ""]);
         processed++; setStudioCopyLog([...log]);
@@ -1784,11 +1764,10 @@ function PhotoSortingInner() {
     await wr("studio_classification_report.csv", makeCSV(["file_name","original_path","assigned_folder","clothing_label","pose_type","lighting_status","confidence","note"], classRows));
     await wr("studio_group_report.csv",           makeCSV(["group_id","folder_name","clothing_label","pose_type","file_count","first_file","last_file","confidence"], groupRows));
     await wr("studio_etc_report.csv",             makeCSV(["file_name","reason","brightness_score","face_brightness_score","previous_frame_delta","ai_comment"], etcRows));
-    await wr("raw_match_report.csv",              makeCSV(["jpg_file","raw_file","assigned_folder","status","destination_path"], rawRows));
     const etcGroup = studioGroups.find(g=>g.isEtc);
-    const summary = { mode:"studio", total_jpg:studioFiles.length, total_raw:studioRawCount, total_groups:studioGroups.filter(g=>!g.isEtc).length, total_etc:etcGroup?.files.length??0, total_normal:studioGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0), total_raw_matched:rawCopied, total_raw_missing:rawMissing, output_path:`selected_${rootName}/`, created_at:new Date().toISOString() };
+    const summary = { mode:"studio", total_jpg:studioFiles.length, total_raw:studioRawCount, total_groups:studioGroups.filter(g=>!g.isEtc).length, total_etc:etcGroup?.files.length??0, total_normal:studioGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0), output_path:`분류_${rootName}/`, created_at:new Date().toISOString() };
     await wr("summary.json", JSON.stringify(summary, null, 2));
-    setStudioStats({ totalJpg:studioFiles.length, totalRaw:studioRawCount, totalGroups:studioGroups.filter(g=>!g.isEtc).length, totalEtc:etcGroup?.files.length??0, totalNormal:studioGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0), totalRawMatched:rawCopied, totalRawMissing:rawMissing });
+    setStudioStats({ totalJpg:studioFiles.length, totalRaw:studioRawCount, totalGroups:studioGroups.filter(g=>!g.isEtc).length, totalEtc:etcGroup?.files.length??0, totalNormal:studioGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0) });
     setStep(6);
   }, [studioGroups, rootDir, studioFiles, studioRawCount]);
 
