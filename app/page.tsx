@@ -194,10 +194,16 @@ function TodayTasks({ tasks, onRefresh }:{ tasks:CalTask[]; onRefresh:()=>void }
 /* ─── olivia greeting (compact) ─────────────────────────── */
 
 function TodayAlertBanner({tasks, totalPending}:{tasks:CalTask[]; totalPending:number}) {
-  const now = new Date();
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const hour = now.getHours();
   const greeting = hour < 12 ? "좋은 아침이에요" : hour < 18 ? "수고하고 계세요" : "오늘도 고생많으셨어요";
   const today = now.toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"});
+  const clock = now.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
 
   const remaining = tasks.filter(t=>!t.completed);
   const done = tasks.filter(t=>t.completed).length;
