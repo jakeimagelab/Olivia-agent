@@ -1775,7 +1775,7 @@ function PhotoSortingInner() {
     await wr("summary.json", JSON.stringify(summary, null, 2));
     setStudioStats({ totalJpg:studioFiles.length, totalRaw:studioRawCount, totalGroups:studioGroups.filter(g=>!g.isEtc).length, totalEtc:etcGroup?.files.length??0, totalNormal:studioGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0) });
     setStep(6);
-  }, [studioGroups, rootDir, studioFiles, studioRawCount]);
+  }, [studioGroups, rootDir, studioFiles, studioRawCount, studioFileMode]);
 
   const runGroupAnalysis = async (files: StudioPhotoFile[]) => {
     const total = files.length; let done = 0;
