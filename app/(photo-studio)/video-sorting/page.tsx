@@ -271,14 +271,14 @@ export default function VideoSortingPage() {
     } catch {}
   };
 
-  const classifyOne = async (list: ClassifiedVideo[], i: number) => {
-    const item = list[i];
+  // 항목을 직접 변형하지 않고 결과를 반환한다 — 호출부가 clip.name을 키로 functional
+  // setState를 적용하므로, 동시에 여러 항목을 재분석해도 서로의 갱신을 덮어쓰지 않는다.
+  const classifyOne = async (item: ClassifiedVideo): Promise<ClassifiedVideo> => {
     try {
       const file = await item.clip.handle.getFile();
       const frames = await extractVideoFrames(file, frameFractionsForCount(maxFrames));
       if (frames.length === 0) {
-        list[i] = { ...item, status: "error", category: "NEED_CHECK", categoryKo: "확인필요", confidence: 0, reason: "프레임 추출 실패", previewThumbs: [] };
-        return;
+        return { ...item, status: "error", category: "NEED_CHECK", categoryKo: "확인필요", confidence: 0, reason: "프레임 추출 실패", previewThumbs: [] };
       }
       const res = await fetch("/api/video-classify", {
         method: "POST",
@@ -287,17 +287,16 @@ export default function VideoSortingPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        list[i] = {
+        return {
           ...item,
           category: data.category, categoryKo: data.categoryKo,
           confidence: data.confidence, sceneDescription: data.sceneDescription,
           reason: data.reason, previewThumbs: frames, status: "done",
         };
-      } else {
-        list[i] = { ...item, status: "error", category: "NEED_CHECK", categoryKo: "확인필요", confidence: 0, reason: data.error ?? "분석 실패", previewThumbs: frames };
       }
+      return { ...item, status: "error", category: "NEED_CHECK", categoryKo: "확인필요", confidence: 0, reason: data.error ?? "분석 실패", previewThumbs: frames };
     } catch {
-      list[i] = { ...item, status: "error", category: "NEED_CHECK", categoryKo: "확인필요", confidence: 0, reason: "네트워크 오류", previewThumbs: [] };
+      return { ...item, status: "error", category: "NEED_CHECK", categoryKo: "확인필요", confidence: 0, reason: "네트워크 오류", previewThumbs: [] };
     }
   };
 
