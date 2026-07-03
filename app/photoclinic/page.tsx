@@ -612,9 +612,19 @@ export default function QuoteBuilder() {
   };
 
   const saveRecentQuote = (data: ContractQuoteData) => {
-    const next = [data, ...recentQuotes].slice(0, RECENT_QUOTES_LIMIT);
+    const next = [data, ...recentQuotes].slice(0, RECENT_QUOTES_DISPLAY_LIMIT);
     setRecentQuotes(next);
-    window.localStorage.setItem(RECENT_QUOTES_KEY, JSON.stringify(next));
+
+    const todayPrefix = `PC-${todayValue().replaceAll("-", "")}-`;
+    if (data.quoteNumber.startsWith(todayPrefix)) {
+      setTodayQuoteNumbers((prev) => Array.from(new Set([...prev, data.quoteNumber])));
+    }
+
+    fetch("/api/quotes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).catch(() => {});
   };
 
   const loadRecentQuote = (data: ContractQuoteData) => {
