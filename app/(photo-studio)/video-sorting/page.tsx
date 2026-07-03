@@ -346,25 +346,25 @@ export default function VideoSortingPage() {
 
   const handleStartAiAnalysis = useCallback(async () => {
     setStep("analyzing");
-    const list = classified.map((c) => ({ ...c, status: "analyzing" as const }));
-    setClassified([...list]);
+    const initial = classified;
+    setClassified((prev) => prev.map((c) => ({ ...c, status: "analyzing" as const })));
     const startTime = Date.now();
-    for (let i = 0; i < list.length; i++) {
-      const etaLabel = i > 0 ? formatEta(((Date.now() - startTime) / i) * (list.length - i)) : "";
-      setProgress({ cur: i, total: list.length, msg: `분석 중: ${list[i].clip.name}${etaLabel ? ` · 예상 남은 시간 약 ${etaLabel}` : ""}` });
-      await classifyOne(list, i);
-      setClassified([...list]);
+    for (let i = 0; i < initial.length; i++) {
+      const etaLabel = i > 0 ? formatEta(((Date.now() - startTime) / i) * (initial.length - i)) : "";
+      setProgress({ cur: i, total: initial.length, msg: `분석 중: ${initial[i].clip.name}${etaLabel ? ` · 예상 남은 시간 약 ${etaLabel}` : ""}` });
+      const updated = await classifyOne({ ...initial[i], status: "analyzing" });
+      setClassified((prev) => prev.map((c) => (c.clip.name === updated.clip.name ? updated : c)));
     }
     setStep("final_review");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classified, maxFrames]);
 
   const retryOne = useCallback(async (i: number) => {
-    const list = classified.map((c) => ({ ...c }));
-    list[i] = { ...list[i], status: "analyzing" };
-    setClassified([...list]);
-    await classifyOne(list, i);
-    setClassified([...list]);
+    const item = classified[i];
+    if (!item) return;
+    setClassified((prev) => prev.map((c, idx) => (idx === i ? { ...c, status: "analyzing" } : c)));
+    const updated = await classifyOne({ ...item, status: "analyzing" });
+    setClassified((prev) => prev.map((c, idx) => (idx === i ? updated : c)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classified, maxFrames]);
 
