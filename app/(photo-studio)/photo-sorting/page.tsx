@@ -602,6 +602,7 @@ function PhotoSortingInner() {
 
   /* ── studio state ── */
   const [studioOpts,          setStudioOpts]          = useState<StudioOptions>({ lightingSensitivity:"medium" });
+  const [studioFileMode,      setStudioFileMode]      = useState<"copy"|"move">("copy");
   const [studioFiles,         setStudioFiles]         = useState<StudioPhotoFile[]>([]);
   const [studioGroups,        setStudioGroups]        = useState<StudioGroup[]>([]);
   const [studioRawCount,      setStudioRawCount]      = useState(0);
