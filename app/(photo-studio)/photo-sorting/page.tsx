@@ -2147,6 +2147,17 @@ function PhotoSortingInner() {
                     ))}
                   </div>
                 </div>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>파일 처리 방식</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {([["copy","복사 — 원본을 남기고 분류 폴더에 복사"],["move","이동 — 원본을 분류 폴더로 이동"]] as const).map(([v,label])=>(
+                      <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
+                        <input type="radio" name="studioFileMode" value={v} checked={studioFileMode===v} onChange={()=>setStudioFileMode(v)} style={{marginTop:1}}/>
+                        <span style={{color:studioFileMode===v?C.purple:C.muted,fontWeight:studioFileMode===v?800:500}}>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
             </Card>
             {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
