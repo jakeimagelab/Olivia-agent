@@ -15,6 +15,7 @@ const protectedApiPrefixes = [
   "/api/agent",
   "/api/clients",
   "/api/projects",
+  "/api/quotes",
 ];
 
 export function middleware(req: NextRequest) {
