@@ -194,16 +194,18 @@ function TodayTasks({ tasks, onRefresh }:{ tasks:CalTask[]; onRefresh:()=>void }
 /* ─── olivia greeting (compact) ─────────────────────────── */
 
 function TodayAlertBanner({tasks, totalPending}:{tasks:CalTask[]; totalPending:number}) {
-  const [now, setNow] = useState(() => new Date());
+  // now는 마운트 전까지 null — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
+    setNow(new Date());
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const hour = now.getHours();
-  const greeting = hour < 12 ? "좋은 아침이에요" : hour < 18 ? "수고하고 계세요" : "오늘도 고생많으셨어요";
-  const today = now.toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"});
-  const clock = now.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+  const hour = now ? now.getHours() : null;
+  const greeting = hour === null ? "안녕하세요" : hour < 12 ? "좋은 아침이에요" : hour < 18 ? "수고하고 계세요" : "오늘도 고생많으셨어요";
+  const today = now ? now.toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"}) : "";
+  const clock = now ? now.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}) : "--:--:--";
 
   const remaining = tasks.filter(t=>!t.completed);
   const done = tasks.filter(t=>t.completed).length;
