@@ -624,7 +624,15 @@ export default function QuoteBuilder() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
-    }).catch(() => {});
+    })
+      .then(async (res) => {
+        if (res.ok) return;
+        const body = await res.json().catch(() => null);
+        setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${body?.error ?? "서버 오류"} (화면에는 표시되지만 DB에 저장되지 않았습니다)`);
+      })
+      .catch(() => {
+        setRecentQuoteMessage("⚠️ 견적 저장 실패 — 네트워크 오류 (화면에는 표시되지만 DB에 저장되지 않았습니다)");
+      });
   };
 
   const loadRecentQuote = (data: ContractQuoteData) => {
