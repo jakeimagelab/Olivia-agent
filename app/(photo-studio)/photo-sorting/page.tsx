@@ -1749,8 +1749,11 @@ function PhotoSortingInner() {
       for (const file of group.files) {
         if (cancelRef.current) break;
         setProgress({ cur:processed, total:totalFiles, msg:`${folderName}: ${file.name}` });
-        try { await copyFileHandle(file.handle, groupDir, file.name); log.push(`✅ ${file.name} → ${folderName}/`); }
-        catch { log.push(`❌ ${file.name} 실패`); }
+        try {
+          await copyFileHandle(file.handle, groupDir, file.name);
+          if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch(() => {});
+          log.push(`✅ ${file.name} → ${folderName}/`);
+        } catch { log.push(`❌ ${file.name} 실패`); }
         if (group.isEtc) etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), "", "", ""]);
         classRows.push([file.name, "", folderName, file.clothingLabel, file.poseType, file.lightingStatus, String(Math.round(file.confidence*100)/100), ""]);
         processed++; setStudioCopyLog([...log]);
@@ -1864,8 +1867,11 @@ function PhotoSortingInner() {
       for (const file of group.files) {
         if (cancelRef.current) break;
         setProgress({ cur:processed, total:totalFiles, msg:`${folderName}: ${file.name}` });
-        try { await copyFileHandle(file.handle, groupDir, file.name); log.push(`✅ ${file.name} → ${folderName}/`); }
-        catch { log.push(`❌ ${file.name} 실패`); }
+        try {
+          await copyFileHandle(file.handle, groupDir, file.name);
+          if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch(() => {});
+          log.push(`✅ ${file.name} → ${folderName}/`);
+        } catch { log.push(`❌ ${file.name} 실패`); }
         if (group.isEtc) etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), ""]);
         const pf = group.features;
         classRows.push([file.name, folderName, group.label, pf.gender, pf.ageBand, pf.hairColor, pf.hairLength, String(pf.hasGlasses), file.lightingStatus]);
