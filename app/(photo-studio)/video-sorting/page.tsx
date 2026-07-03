@@ -2,23 +2,37 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { MedicalDepartment } from "@/lib/photo-classifier/types";
-import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
-import type { VideoClipFile, VideoScene, VideoStats } from "@/lib/video-classifier/types";
+import type {
+  ClassifiedVideo,
+  TimeScene,
+  VideoCategory,
+  VideoClipFile,
+  VideoStats,
+} from "@/lib/video-classifier/types";
+import { VIDEO_CATEGORY_FOLDER, VIDEO_CATEGORY_ORDER } from "@/lib/video-classifier/types";
 
 /* ════════════════════════════════════════════════
    CONSTANTS
 ═══════════════════════════════════════════════ */
-const VIDEO_EXTS = new Set(["mp4", "mov", "m4v", "webm", "avi", "mkv"]);
-const GAP_OPTIONS = [3, 5, 7, 10];
-const STEPS = ["설정", "파일 스캔", "그룹 검토", "AI 분석", "최종 검토", "폴더 정리", "완료"];
-const FRAME_BUDGET = 6;
-// 시간 간격으로 묶인 씬이 이 개수를 넘으면 소그룹(A/B/...)으로 나눠 각각 별도로 분류한다.
-// 한 씬 안에 서로 다른 장면(예: 인테리어 + 인물 시술)이 섞여 있을 때 하나의 라벨로 뭉개지는 것을 방지.
-const LARGE_GROUP_THRESHOLD = 10;
-const SUB_GROUP_CHUNK_SIZE = 8;
+const VIDEO_EXTS = new Set(["mp4", "mov", "m4v", "webm", "avi", "mkv", "mxf"]);
+const GAP_OPTIONS = [3, 5, 7, 10, 15];
+const FRAME_OPTIONS = [3, 5] as const;
 
-const DEPARTMENTS = Object.entries(DEPARTMENT_DISPLAY) as [MedicalDepartment, string][];
+type Mode = "ai" | "time";
+type Step = "setup" | "scanning" | "ai_ready" | "analyzing" | "final_review" | "scan_review" | "exporting" | "done";
+
+const AI_STEP_ORDER: Step[] = ["setup", "scanning", "ai_ready", "analyzing", "final_review", "exporting", "done"];
+const AI_STEP_LABELS = ["설정", "파일 스캔", "AI 분류 대기", "AI 분석", "최종 검토", "폴더 정리", "완료"];
+const TIME_STEP_ORDER: Step[] = ["setup", "scanning", "scan_review", "exporting", "done"];
+const TIME_STEP_LABELS = ["설정", "파일 스캔", "그룹 검토", "폴더 정리", "완료"];
+
+const CATEGORY_LABELS: Record<VideoCategory, string> = {
+  SPACE_ONLY: "공간만 있는 영상",
+  PEOPLE_CONSULTING: "사람있음·상담대화",
+  TREATMENT_SCENE: "진료시술·연출영상",
+  CLOSEUP_DETAIL: "얼굴손장비·클로즈업",
+  NEED_CHECK: "확인필요",
+};
 
 const C = {
   teal: "#155855", orange: "#E85D2C", green: "#22876A", red: "#DC2626",
@@ -102,29 +116,6 @@ async function extractVideoFrames(file: File, fractions: number[]): Promise<stri
   return frames;
 }
 
-function framesPerClip(clipCount: number): number {
-  if (clipCount <= 2) return 3;
-  if (clipCount === 3) return 2;
-  return 1;
-}
-
-// count가 total보다 작을 때, 앞쪽에만 쏠리지 않도록 전체 구간에서 고르게 인덱스를 뽑는다.
-function pickEvenIndices(total: number, count: number): number[] {
-  if (total <= count) return Array.from({ length: total }, (_, i) => i);
-  const idx = new Set<number>();
-  for (let i = 0; i < count; i++) {
-    idx.add(Math.min(total - 1, Math.round((i * (total - 1)) / (count - 1))));
-  }
-  return Array.from(idx).sort((a, b) => a - b);
-}
-
-function chunkGroup<T>(group: T[]): T[][] {
-  if (group.length <= LARGE_GROUP_THRESHOLD) return [group];
-  const chunks: T[][] = [];
-  for (let i = 0; i < group.length; i += SUB_GROUP_CHUNK_SIZE) chunks.push(group.slice(i, i + SUB_GROUP_CHUNK_SIZE));
-  return chunks;
-}
-
 const MP4_EXTS = new Set(["mp4", "mov", "m4v"]);
 const MAC_EPOCH_OFFSET_SEC = 2082844800; // seconds between 1904-01-01 and 1970-01-01
 
@@ -172,6 +163,22 @@ async function readVideoCreationTime(file: File): Promise<number | null> {
   }
 }
 
+function groupClipsByGap(clips: VideoClipFile[], gapMs: number): TimeScene[] {
+  const sorted = [...clips].sort((a, b) => a.mtime - b.mtime);
+  const groups: VideoClipFile[][] = sorted.length > 0 ? [[sorted[0]]] : [];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].mtime - sorted[i - 1].mtime > gapMs) groups.push([sorted[i]]);
+    else groups[groups.length - 1].push(sorted[i]);
+  }
+  return groups.map((g, si) => ({
+    index: si + 1,
+    folderName: `Scene_${String(si + 1).padStart(3, "0")}`,
+    startTime: g[0].mtime,
+    endTime: g[g.length - 1].mtime,
+    clips: g,
+  }));
+}
+
 /* ════════════════════════════════════════════════
    PRESENTATIONAL HELPERS
 ═══════════════════════════════════════════════ */
@@ -193,7 +200,7 @@ function Btn({ onClick, disabled, children, variant = "primary" }: {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, marginBottom: 14 }}>
       {children}
     </div>
   );
@@ -211,6 +218,19 @@ function ProgressBar({ cur, total, msg }: { cur: number; total: number; msg: str
   );
 }
 
+function SegButton({ selected, onClick, title, desc }: { selected: boolean; onClick: () => void; title: string; desc: string }) {
+  return (
+    <button onClick={onClick} style={{
+      flex: 1, textAlign: "left", padding: "14px 16px", borderRadius: 10,
+      border: `1.5px solid ${selected ? C.teal : C.border}`,
+      background: selected ? C.light : C.white, cursor: "pointer", fontFamily: "inherit",
+    }}>
+      <div style={{ fontWeight: 900, fontSize: 14, color: C.txt, marginBottom: 4 }}>{title}{selected ? " ✓" : ""}</div>
+      <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{desc}</div>
+    </button>
+  );
+}
+
 /* ════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════ */
@@ -218,15 +238,23 @@ export default function VideoSortingPage() {
   const [hasFS, setHasFS] = useState(false);
   useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
 
-  const [step, setStep] = useState(0);
+  const [mode, setMode] = useState<Mode>("ai");
+  const [step, setStep] = useState<Step>("setup");
   const [rootDir, setRootDir] = useState<FileSystemDirectoryHandle | null>(null);
-  const [department, setDepartment] = useState<MedicalDepartment>("dermatology");
+  const [maxFrames, setMaxFrames] = useState<number>(3);
   const [gapMinutes, setGapMinutes] = useState(5);
-  const [scannedEntries, setScannedEntries] = useState<{ name: string; handle: FileSystemFileHandle; mtime: number }[]>([]);
-  const [scenes, setScenes] = useState<VideoScene[]>([]);
+  const [fileMode, setFileMode] = useState<"copy" | "move">("move");
+
+  const [scannedClips, setScannedClips] = useState<VideoClipFile[]>([]);
+  const [classified, setClassified] = useState<ClassifiedVideo[]>([]);
+  const [timeScenes, setTimeScenes] = useState<TimeScene[]>([]);
   const [failedClips, setFailedClips] = useState<{ name: string; handle: FileSystemFileHandle; reason: string }[]>([]);
   const [progress, setProgress] = useState({ cur: 0, total: 0, msg: "" });
   const [stats, setStats] = useState<VideoStats | null>(null);
+
+  const stepOrder = mode === "ai" ? AI_STEP_ORDER : TIME_STEP_ORDER;
+  const stepLabels = mode === "ai" ? AI_STEP_LABELS : TIME_STEP_LABELS;
+  const stepPos = stepOrder.indexOf(step);
 
   const pickDir = async () => {
     try {
@@ -235,125 +263,40 @@ export default function VideoSortingPage() {
     } catch {}
   };
 
-  const analyzeOneScene = async (list: VideoScene[], i: number) => {
-    const scene = list[i];
-    const perClip = framesPerClip(scene.clips.length);
-    // 클립이 예산보다 많으면 앞쪽에만 쏠리지 않도록 전체 구간에서 고르게 클립을 선택
-    const targetIndices = pickEvenIndices(scene.clips.length, FRAME_BUDGET);
-    const collected: { fileName: string; base64: string }[] = [];
-    const previewThumbs: string[] = [];
-
-    for (const idx of targetIndices) {
-      if (collected.length >= FRAME_BUDGET) break;
-      const clip = scene.clips[idx];
-      const want = Math.min(perClip, FRAME_BUDGET - collected.length);
-      try {
-        const file = await clip.handle.getFile();
-        const frames = await extractVideoFrames(file, frameFractionsForCount(want));
-        frames.forEach((base64, fi) => {
-          collected.push({ fileName: `${clip.name}#${fi}`, base64 });
-          previewThumbs.push(base64);
-        });
-      } catch {}
-    }
-
-    if (collected.length === 0) {
-      list[i] = {
-        ...scene,
-        sceneType: "etc",
-        suggestedName: scene.folderName,
-        aiConfidence: 0,
-        aiReason: "프레임 추출 실패 — 수동 확인이 필요합니다",
-        needsReview: true,
-        nameLoading: false,
-        previewThumbs: [],
-      };
-      return;
-    }
-
+  const classifyOne = async (list: ClassifiedVideo[], i: number) => {
+    const item = list[i];
     try {
-      const res = await fetch("/api/video-scene-analyze", {
+      const file = await item.clip.handle.getFile();
+      const frames = await extractVideoFrames(file, frameFractionsForCount(maxFrames));
+      if (frames.length === 0) {
+        list[i] = { ...item, status: "error", category: "NEED_CHECK", categoryKo: "확인필요", confidence: 0, reason: "프레임 추출 실패", previewThumbs: [] };
+        return;
+      }
+      const res = await fetch("/api/video-classify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          department,
-          sceneId: scene.folderName,
-          frames: collected,
-          options: { useHighModel: false },
-        }),
+        body: JSON.stringify({ frames: frames.map((base64, idx) => ({ fileName: `${item.clip.name}#${idx}`, base64 })) }),
       });
       const data = await res.json();
       if (data.ok) {
-        const suggested = data.suggestedFolderName ? `${scene.folderName}_${data.suggestedFolderName}` : scene.folderName;
         list[i] = {
-          ...scene,
-          sceneType: data.sceneType ?? null,
-          suggestedName: suggested,
-          // editedName은 그대로 두고, 사용자가 "AI 제안명 적용"을 눌러야 폴더명이 바뀐다
-          aiConfidence: data.confidence ?? null,
-          aiReason: data.reason ?? null,
-          needsReview: data.needsReview ?? false,
-          nameLoading: false,
-          previewThumbs,
+          ...item,
+          category: data.category, categoryKo: data.categoryKo,
+          confidence: data.confidence, sceneDescription: data.sceneDescription,
+          reason: data.reason, previewThumbs: frames, status: "done",
         };
       } else {
-        list[i] = { ...scene, nameLoading: false, aiReason: data.error ?? "분석 실패", needsReview: true, previewThumbs };
+        list[i] = { ...item, status: "error", category: "NEED_CHECK", categoryKo: "확인필요", confidence: 0, reason: data.error ?? "분석 실패", previewThumbs: frames };
       }
     } catch {
-      list[i] = { ...scene, nameLoading: false, aiReason: "네트워크 오류", needsReview: true, previewThumbs };
+      list[i] = { ...item, status: "error", category: "NEED_CHECK", categoryKo: "확인필요", confidence: 0, reason: "네트워크 오류", previewThumbs: [] };
     }
-  };
-
-  const runSceneAnalysis = useCallback(async (list: VideoScene[]) => {
-    const updated = list.map((s) => ({ ...s, nameLoading: true }));
-    setScenes([...updated]);
-    for (let i = 0; i < updated.length; i++) {
-      setProgress({ cur: i, total: updated.length, msg: `씬 분석 중: ${updated[i].folderName}` });
-      await analyzeOneScene(updated, i);
-      setScenes([...updated]);
-    }
-    setStep(4);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [department]);
-
-  const groupEntries = (
-    entries: { name: string; handle: FileSystemFileHandle; mtime: number }[],
-    gapMs: number,
-  ): VideoScene[] => {
-    const sorted = [...entries].sort((a, b) => a.mtime - b.mtime);
-    const groups: typeof sorted[] = sorted.length > 0 ? [[sorted[0]]] : [];
-    for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i].mtime - sorted[i - 1].mtime > gapMs) groups.push([sorted[i]]);
-      else groups[groups.length - 1].push(sorted[i]);
-    }
-
-    const scenes: VideoScene[] = [];
-    let sceneIndex = 0;
-    groups.forEach((g, si) => {
-      const num = String(si + 1).padStart(2, "0");
-      const chunks = chunkGroup(g);
-      chunks.forEach((chunk, ci) => {
-        sceneIndex++;
-        const folderName = chunks.length > 1 ? `Scene${num}-${String.fromCharCode(65 + ci)}` : `Scene${num}`;
-        const clips: VideoClipFile[] = chunk.map((e) => ({
-          name: e.name, basename: e.name.replace(/\.[^.]+$/, ""), handle: e.handle, mtime: e.mtime,
-        }));
-        scenes.push({
-          index: sceneIndex, folderName, editedName: folderName,
-          startTime: chunk[0].mtime, endTime: chunk[chunk.length - 1].mtime,
-          clips, sceneDir: null,
-          sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
-          needsReview: false, nameLoading: false,
-        });
-      });
-    });
-    return scenes;
   };
 
   const handleScan = useCallback(async () => {
     if (!rootDir) return;
-    setStep(1);
-    const entries: { name: string; handle: FileSystemFileHandle; mtime: number }[] = [];
+    setStep("scanning");
+    const entries: VideoClipFile[] = [];
     const failed: { name: string; handle: FileSystemFileHandle; reason: string }[] = [];
     setProgress({ cur: 0, total: 0, msg: "폴더 스캔 중..." });
     let lastUpdate = Date.now();
@@ -365,7 +308,7 @@ export default function VideoSortingPage() {
       try {
         const file = await (handle as FileSystemFileHandle).getFile();
         const creationTime = await readVideoCreationTime(file);
-        entries.push({ name, handle: handle as FileSystemFileHandle, mtime: creationTime ?? file.lastModified });
+        entries.push({ name, basename: name.replace(/\.[^.]+$/, ""), handle: handle as FileSystemFileHandle, mtime: creationTime ?? file.lastModified });
       } catch {
         failed.push({ name, handle: handle as FileSystemFileHandle, reason: "파일을 읽을 수 없음" });
       }
@@ -375,29 +318,50 @@ export default function VideoSortingPage() {
       }
     }
 
-    setScannedEntries(entries);
+    setScannedClips(entries);
     setFailedClips(failed);
-    setScenes(groupEntries(entries, gapMinutes * 60 * 1000));
-    setStep(2);
-  }, [rootDir, gapMinutes]);
 
-  const handleRegroup = useCallback(() => {
-    setScenes(groupEntries(scannedEntries, gapMinutes * 60 * 1000));
-  }, [scannedEntries, gapMinutes]);
+    if (mode === "ai") {
+      setClassified(entries.map((clip) => ({
+        clip, category: null, categoryKo: null, confidence: null,
+        sceneDescription: null, reason: null, previewThumbs: [], status: "pending",
+      })));
+      setStep("ai_ready");
+    } else {
+      setTimeScenes(groupClipsByGap(entries, gapMinutes * 60 * 1000));
+      setStep("scan_review");
+    }
+  }, [rootDir, mode, gapMinutes]);
 
-  const handleStartAnalysis = useCallback(() => {
-    setStep(3);
-    runSceneAnalysis(scenes);
-  }, [scenes, runSceneAnalysis]);
+  const handleRegroupTime = useCallback(() => {
+    setTimeScenes(groupClipsByGap(scannedClips, gapMinutes * 60 * 1000));
+  }, [scannedClips, gapMinutes]);
 
-  const retryScene = useCallback(async (i: number) => {
-    const updated = scenes.map((s) => ({ ...s }));
-    updated[i] = { ...updated[i], nameLoading: true };
-    setScenes([...updated]);
-    await analyzeOneScene(updated, i);
-    setScenes([...updated]);
+  const handleStartAiAnalysis = useCallback(async () => {
+    setStep("analyzing");
+    const list = classified.map((c) => ({ ...c, status: "analyzing" as const }));
+    setClassified([...list]);
+    for (let i = 0; i < list.length; i++) {
+      setProgress({ cur: i, total: list.length, msg: `분석 중: ${list[i].clip.name}` });
+      await classifyOne(list, i);
+      setClassified([...list]);
+    }
+    setStep("final_review");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenes, department]);
+  }, [classified, maxFrames]);
+
+  const retryOne = useCallback(async (i: number) => {
+    const list = classified.map((c) => ({ ...c }));
+    list[i] = { ...list[i], status: "analyzing" };
+    setClassified([...list]);
+    await classifyOne(list, i);
+    setClassified([...list]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classified, maxFrames]);
+
+  const overrideCategory = (i: number, category: VideoCategory) => {
+    setClassified((prev) => prev.map((c, idx) => (idx === i ? { ...c, category, categoryKo: CATEGORY_LABELS[category] } : c)));
+  };
 
   const retryFailedClip = useCallback(async (name: string) => {
     const entry = failedClips.find((f) => f.name === name);
@@ -405,92 +369,92 @@ export default function VideoSortingPage() {
     try {
       const file = await entry.handle.getFile();
       const creationTime = await readVideoCreationTime(file);
-      const mtime = creationTime ?? file.lastModified;
-      const num = String(scenes.length + 1).padStart(2, "0");
-      const folderName = `Scene${num}`;
-      const newScene: VideoScene = {
-        index: scenes.length + 1, folderName, editedName: folderName,
-        startTime: mtime, endTime: mtime,
-        clips: [{ name: entry.name, basename: entry.name.replace(/\.[^.]+$/, ""), handle: entry.handle, mtime }],
-        sceneDir: null, sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
-        needsReview: false, nameLoading: false,
-      };
-      setScannedEntries((prev) => [...prev, { name: entry.name, handle: entry.handle, mtime }]);
+      const clip: VideoClipFile = { name: entry.name, basename: entry.name.replace(/\.[^.]+$/, ""), handle: entry.handle, mtime: creationTime ?? file.lastModified };
       setFailedClips((prev) => prev.filter((f) => f.name !== name));
-      const updatedScenes = [...scenes, newScene];
+      setScannedClips((prev) => [...prev, clip]);
 
-      if (step >= 4) {
-        // AI 분석이 이미 끝난 시점의 재시도는 즉시 개별 분석
-        updatedScenes[updatedScenes.length - 1] = { ...newScene, nameLoading: true };
-        setScenes(updatedScenes);
-        await analyzeOneScene(updatedScenes, updatedScenes.length - 1);
-        setScenes([...updatedScenes]);
+      if (mode === "ai") {
+        const newItem: ClassifiedVideo = { clip, category: null, categoryKo: null, confidence: null, sceneDescription: null, reason: null, previewThumbs: [], status: "pending" };
+        if (step === "final_review" || step === "analyzing") {
+          const list = [...classified, { ...newItem, status: "analyzing" as const }];
+          setClassified(list);
+          await classifyOne(list, list.length - 1);
+          setClassified([...list]);
+        } else {
+          setClassified((prev) => [...prev, newItem]);
+        }
       } else {
-        // 그룹 검토 단계에서는 목록에만 추가 — "AI 분석 시작" 시 함께 분석됨
-        setScenes(updatedScenes);
+        setTimeScenes(groupClipsByGap([...scannedClips, clip], gapMinutes * 60 * 1000));
       }
     } catch {
       setFailedClips((prev) => prev.map((f) => (f.name === name ? { ...f, reason: "재시도 실패" } : f)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [failedClips, scenes, department, step]);
+  }, [failedClips, scannedClips, classified, mode, step, gapMinutes]);
 
-  const updateSceneName = (i: number, name: string) => {
-    setScenes((prev) => prev.map((s, idx) => (idx === i ? { ...s, editedName: name } : s)));
-  };
-
-  const applySuggestedName = (i: number) => {
-    setScenes((prev) => prev.map((s, idx) => (idx === i && s.suggestedName ? { ...s, editedName: s.suggestedName } : s)));
-  };
-
-  const applyAllSuggestedNames = () => {
-    setScenes((prev) => prev.map((s) => (s.suggestedName ? { ...s, editedName: s.suggestedName } : s)));
-  };
-
-  const handleExport = useCallback(async () => {
+  const handleExportAi = useCallback(async () => {
     if (!rootDir) return;
-    setStep(5);
-    const videoBase = await (rootDir as any).getDirectoryHandle("VIDEO", { create: true }) as FileSystemDirectoryHandle;
-    const totalClips = scenes.reduce((s, sc) => s + sc.clips.length, 0);
+    setStep("exporting");
+    const outputRoot = await (rootDir as any).getDirectoryHandle("분류완료", { create: true }) as FileSystemDirectoryHandle;
+    const total = classified.length;
     let done = 0;
     let moved = 0;
     let lastUpdate = Date.now();
-    const updated = scenes.map((s) => ({ ...s }));
+    const categoryCounts: Record<string, number> = {};
 
-    for (let si = 0; si < updated.length; si++) {
-      const sc = updated[si];
-      const targetName = sc.editedName || sc.folderName;
-      const sceneDir = await (videoBase as any).getDirectoryHandle(targetName, { create: true }) as FileSystemDirectoryHandle;
-      const newClips: VideoClipFile[] = [];
+    for (const item of classified) {
+      const category: VideoCategory = item.category ?? "NEED_CHECK";
+      const folderName = VIDEO_CATEGORY_FOLDER[category];
+      categoryCounts[folderName] = (categoryCounts[folderName] ?? 0) + 1;
+      if (Date.now() - lastUpdate > 300) {
+        setProgress({ cur: done, total, msg: `${folderName}: ${item.clip.name}` });
+        lastUpdate = Date.now();
+      }
+      try {
+        const dir = await (outputRoot as any).getDirectoryHandle(folderName, { create: true }) as FileSystemDirectoryHandle;
+        await copyFileHandle(item.clip.handle, dir, item.clip.name);
+        if (fileMode === "move") await (rootDir as any).removeEntry(item.clip.name).catch(() => {});
+        moved++;
+      } catch {}
+      done++;
+    }
 
-      for (const clip of sc.clips) {
+    setStats({ totalClips: total, movedClips: moved, failedClips: failedClips.length, categoryCounts });
+    setStep("done");
+  }, [rootDir, classified, fileMode, failedClips]);
+
+  const handleExportTime = useCallback(async () => {
+    if (!rootDir) return;
+    setStep("exporting");
+    const outputRoot = await (rootDir as any).getDirectoryHandle("분류완료_시간차", { create: true }) as FileSystemDirectoryHandle;
+    const total = timeScenes.reduce((s, sc) => s + sc.clips.length, 0);
+    let done = 0;
+    let moved = 0;
+    let lastUpdate = Date.now();
+    const categoryCounts: Record<string, number> = {};
+
+    for (const scene of timeScenes) {
+      categoryCounts[scene.folderName] = scene.clips.length;
+      const dir = await (outputRoot as any).getDirectoryHandle(scene.folderName, { create: true }) as FileSystemDirectoryHandle;
+      for (const clip of scene.clips) {
         if (Date.now() - lastUpdate > 300) {
-          setProgress({ cur: done, total: totalClips, msg: `${targetName}: ${clip.name}` });
+          setProgress({ cur: done, total, msg: `${scene.folderName}: ${clip.name}` });
           lastUpdate = Date.now();
         }
         try {
-          await copyFileHandle(clip.handle, sceneDir, clip.name);
-          const destHandle = await (sceneDir as any).getFileHandle(clip.name) as FileSystemFileHandle;
-          await (rootDir as any).removeEntry(clip.name).catch(() => {});
-          newClips.push({ ...clip, handle: destHandle });
+          await copyFileHandle(clip.handle, dir, clip.name);
+          if (fileMode === "move") await (rootDir as any).removeEntry(clip.name).catch(() => {});
           moved++;
-        } catch {
-          newClips.push(clip);
-        }
+        } catch {}
         done++;
       }
-      updated[si] = { ...sc, folderName: targetName, sceneDir, clips: newClips };
     }
 
-    setScenes(updated);
-    setStats({
-      totalClips, totalScenes: updated.length,
-      failedClips: failedClips.length, movedClips: moved,
-    });
-    setStep(6);
-  }, [rootDir, scenes, failedClips]);
+    setStats({ totalClips: total, movedClips: moved, failedClips: failedClips.length, categoryCounts });
+    setStep("done");
+  }, [rootDir, timeScenes, fileMode, failedClips]);
 
-  const allAnalyzed = scenes.every((s) => !s.nameLoading);
+  const allAnalyzed = classified.every((c) => c.status === "done" || c.status === "error");
 
   /* ════════════════════════════════════════════════
      RENDER
@@ -498,17 +462,17 @@ export default function VideoSortingPage() {
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 20px 80px", fontFamily: "'Noto Sans KR', sans-serif" }}>
       <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap" }}>
-        {STEPS.map((label, i) => (
+        {stepLabels.map((label, i) => (
           <div key={label} style={{
             padding: "6px 12px", borderRadius: 99, fontSize: 12, fontWeight: 800,
-            background: i === step ? C.teal : C.light, color: i === step ? C.white : C.muted,
+            background: i === stepPos ? C.teal : C.light, color: i === stepPos ? C.white : C.muted,
           }}>
             {i + 1}. {label}
           </div>
         ))}
       </div>
 
-      {step === 0 && (
+      {step === "setup" && (
         <Card>
           <h2 style={{ fontSize: 18, fontWeight: 900, color: C.txt, marginBottom: 16 }}>🎥 영상 분류 설정</h2>
 
@@ -519,37 +483,52 @@ export default function VideoSortingPage() {
           )}
 
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>1. 영상 폴더 선택</div>
-            <Btn onClick={pickDir} disabled={!hasFS}>{rootDir ? "✅ 폴더 선택됨 — 다시 선택" : "📁 폴더 선택"}</Btn>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>1. 분류 방식</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <SegButton selected={mode === "ai"} onClick={() => setMode("ai")} title="AI 장면 분류" desc="대표 프레임 기준으로 4개 카테고리 + 확인필요로 판단합니다." />
+              <SegButton selected={mode === "time"} onClick={() => setMode("time")} title="시간차 순 분류" desc="촬영 시간 간격으로 Scene 폴더를 나눕니다 (AI 미사용)." />
+            </div>
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>2. 진료과 선택</div>
-            <select
-              value={department}
-              onChange={(e) => setDepartment(e.target.value as MedicalDepartment)}
-              style={{ padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, fontSize: 13, fontWeight: 700, color: C.txt, fontFamily: "inherit" }}
-            >
-              {DEPARTMENTS.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>2. 영상 폴더 선택</div>
+            <Btn onClick={pickDir} disabled={!hasFS}>{rootDir ? "✅ 폴더 선택됨 — 다시 선택" : "📁 폴더 선택"}</Btn>
           </div>
 
+          {mode === "ai" && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>3. AI 대표 프레임 수</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <SegButton selected={maxFrames === 3} onClick={() => setMaxFrames(3)} title="3장" desc="단일 장면 클립에 권장. 빠르고 비용이 낮습니다." />
+                <SegButton selected={maxFrames === 5} onClick={() => setMaxFrames(5)} title="5장" desc="장면 전환이나 카메라 이동이 큰 영상에 권장." />
+              </div>
+            </div>
+          )}
+
+          {mode === "time" && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>3. Scene 구분 시간 간격</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {GAP_OPTIONS.map((g) => (
+                  <button key={g} onClick={() => setGapMinutes(g)} style={{
+                    flex: 1, padding: "10px 0", borderRadius: 8,
+                    border: `1.5px solid ${gapMinutes === g ? C.teal : C.border}`,
+                    background: gapMinutes === g ? C.light : C.white,
+                    cursor: "pointer", fontSize: 13, fontWeight: gapMinutes === g ? 900 : 600,
+                    color: gapMinutes === g ? C.teal : C.muted, fontFamily: "inherit",
+                  }}>
+                    {g}분
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>3. 씬 그룹핑 시간 간격</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>4. 파일 처리 방식</div>
             <div style={{ display: "flex", gap: 8 }}>
-              {GAP_OPTIONS.map((g) => (
-                <button key={g} onClick={() => setGapMinutes(g)} style={{
-                  flex: 1, padding: "10px 0", borderRadius: 8,
-                  border: `1.5px solid ${gapMinutes === g ? C.teal : C.border}`,
-                  background: gapMinutes === g ? C.light : C.white,
-                  cursor: "pointer", fontSize: 13, fontWeight: gapMinutes === g ? 900 : 600,
-                  color: gapMinutes === g ? C.teal : C.muted, fontFamily: "inherit",
-                }}>
-                  {g}분
-                </button>
-              ))}
+              <SegButton selected={fileMode === "copy"} onClick={() => setFileMode("copy")} title="복사" desc="원본을 남기고 분류 폴더에 복사합니다." />
+              <SegButton selected={fileMode === "move"} onClick={() => setFileMode("move")} title="이동" desc="원본을 분류 폴더로 이동합니다." />
             </div>
           </div>
 
@@ -557,23 +536,42 @@ export default function VideoSortingPage() {
         </Card>
       )}
 
-      {step === 1 && (
+      {step === "scanning" && (
         <Card>
           <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
         </Card>
       )}
 
-      {step === 2 && (
+      {step === "ai_ready" && (
+        <Card>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+            스캔 완료 — 영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
+          </div>
+          <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+            각 영상을 개별적으로 분석해 4개 카테고리 + 확인필요로 분류합니다.
+          </div>
+          {failedClips.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              {failedClips.map((f) => (
+                <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
+                  <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
+                  <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Btn onClick={handleStartAiAnalysis} disabled={classified.length === 0}>AI 분류 시작 →</Btn>
+        </Card>
+      )}
+
+      {step === "scan_review" && (
         <div>
           <Card>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.txt, marginBottom: 4 }}>1차 시간대별 그룹핑 결과</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.txt, marginBottom: 4 }}>시간대별 그룹핑 결과</h2>
             <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
-              씬 {scenes.length}개 · 영상 {scenes.reduce((s, sc) => s + sc.clips.length, 0)}개
+              씬 {timeScenes.length}개 · 영상 {timeScenes.reduce((s, sc) => s + sc.clips.length, 0)}개
               {failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
-              {" — "}그룹핑이 의도와 다르면 시간 간격을 조정하고 다시 그룹핑하세요.
-              씬 하나가 {LARGE_GROUP_THRESHOLD}개를 넘으면 자동으로 -A, -B 소그룹으로 나눠 각각 분석합니다.
             </div>
-
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               {GAP_OPTIONS.map((g) => (
                 <button key={g} onClick={() => setGapMinutes(g)} style={{
@@ -587,10 +585,9 @@ export default function VideoSortingPage() {
                 </button>
               ))}
             </div>
-
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn variant="ghost" onClick={handleRegroup}>🔄 다시 그룹핑</Btn>
-              <Btn onClick={handleStartAnalysis} disabled={scenes.length === 0}>AI 분석 시작 →</Btn>
+              <Btn variant="ghost" onClick={handleRegroupTime}>🔄 다시 그룹핑</Btn>
+              <Btn onClick={handleExportTime} disabled={timeScenes.length === 0}>폴더 정리 실행 →</Btn>
             </div>
           </Card>
 
@@ -606,8 +603,8 @@ export default function VideoSortingPage() {
             </Card>
           )}
 
-          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-            {scenes.map((scene) => (
+          <div style={{ display: "grid", gap: 10 }}>
+            {timeScenes.map((scene) => (
               <Card key={scene.folderName}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontWeight: 800, fontSize: 13, color: C.txt }}>{scene.folderName}</span>
@@ -619,24 +616,34 @@ export default function VideoSortingPage() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === "analyzing" && (
         <Card>
           <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
         </Card>
       )}
 
-      {step === 4 && (
+      {step === "final_review" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.muted }}>
-              씬 {scenes.length}개 · 영상 {scenes.reduce((s, sc) => s + sc.clips.length, 0)}개
-              {failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
+              영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Btn variant="ghost" onClick={applyAllSuggestedNames} disabled={!allAnalyzed}>✨ AI 제안명 전체 적용</Btn>
-              <Btn onClick={handleExport} disabled={!allAnalyzed || scenes.length === 0}>폴더 정리 실행 →</Btn>
-            </div>
+            <Btn onClick={handleExportAi} disabled={!allAnalyzed || classified.length === 0}>폴더 정리 실행 →</Btn>
           </div>
+
+          <Card>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {VIDEO_CATEGORY_ORDER.map((cat) => {
+                const count = classified.filter((c) => (c.category ?? "NEED_CHECK") === cat).length;
+                return (
+                  <div key={cat} style={{ flex: "1 1 140px", padding: 10, borderRadius: 8, background: C.light, textAlign: "center" }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{count}</div>
+                    <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{CATEGORY_LABELS[cat]}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
 
           {failedClips.length > 0 && (
             <Card>
@@ -650,47 +657,45 @@ export default function VideoSortingPage() {
             </Card>
           )}
 
-          <div style={{ display: "grid", gap: 14, marginTop: failedClips.length > 0 ? 14 : 0 }}>
-            {scenes.map((scene, i) => (
-              <Card key={scene.folderName}>
+          <div style={{ display: "grid", gap: 14 }}>
+            {classified.map((item, i) => (
+              <Card key={item.clip.name}>
                 <div style={{ display: "flex", gap: 12 }}>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", width: 160 }}>
-                    {(scene.previewThumbs ?? []).slice(0, 4).map((url, idx) => (
+                    {item.previewThumbs.slice(0, 4).map((url, idx) => (
                       <img key={idx} src={url} alt="" style={{ width: 74, height: 42, objectFit: "cover", borderRadius: 6 }} />
                     ))}
-                    {(!scene.previewThumbs || scene.previewThumbs.length === 0) && (
+                    {item.previewThumbs.length === 0 && (
                       <div style={{ width: "100%", fontSize: 12, color: C.hint }}>미리보기 없음</div>
                     )}
                   </div>
 
                   <div style={{ flex: 1 }}>
-                    {scene.nameLoading ? (
+                    {item.status === "analyzing" ? (
                       <div style={{ fontSize: 13, color: C.muted }}>분석 중...</div>
                     ) : (
                       <>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                          <span style={{ fontSize: 12, color: C.hint, minWidth: 60 }}>{scene.folderName}</span>
-                          <input
-                            value={scene.editedName}
-                            onChange={(e) => updateSceneName(i, e.target.value)}
+                          <span style={{ fontSize: 12, color: C.hint, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.clip.name}</span>
+                          <select
+                            value={item.category ?? "NEED_CHECK"}
+                            onChange={(e) => overrideCategory(i, e.target.value as VideoCategory)}
                             style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}
-                          />
-                          {scene.needsReview && (
+                          >
+                            {VIDEO_CATEGORY_ORDER.map((cat) => (
+                              <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                            ))}
+                          </select>
+                          {item.status === "error" && (
                             <span style={{ fontSize: 11, fontWeight: 800, color: C.orange, background: "#FFF3E8", padding: "2px 8px", borderRadius: 99 }}>확인 필요</span>
                           )}
-                          <button onClick={() => retryScene(i)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재분석</button>
+                          <button onClick={() => retryOne(i)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재분석</button>
                         </div>
                         <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>
-                          AI 분류: {scene.sceneType ?? "-"} · 신뢰도 {scene.aiConfidence != null ? `${Math.round(scene.aiConfidence * 100)}%` : "-"} · 영상 {scene.clips.length}개
-                          {scene.suggestedName && scene.suggestedName !== scene.editedName && (
-                            <>
-                              {" · 제안명: "}
-                              <span style={{ color: C.teal, fontWeight: 700 }}>{scene.suggestedName}</span>
-                              <button onClick={() => applySuggestedName(i)} style={{ marginLeft: 6, fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>적용</button>
-                            </>
-                          )}
+                          신뢰도 {item.confidence != null ? `${Math.round(item.confidence * 100)}%` : "-"}
+                          {item.sceneDescription && ` · ${item.sceneDescription}`}
                         </div>
-                        {scene.aiReason && <div style={{ fontSize: 12, color: C.hint }}>{scene.aiReason}</div>}
+                        {item.reason && <div style={{ fontSize: 12, color: C.hint }}>{item.reason}</div>}
                       </>
                     )}
                   </div>
@@ -701,22 +706,28 @@ export default function VideoSortingPage() {
         </div>
       )}
 
-      {step === 5 && (
+      {step === "exporting" && (
         <Card>
           <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
         </Card>
       )}
 
-      {step === 6 && stats && (
+      {step === "done" && stats && (
         <Card>
           <h2 style={{ fontSize: 18, fontWeight: 900, color: C.green, marginBottom: 16 }}>✅ 완료</h2>
-          <div style={{ fontSize: 14, color: C.txt, lineHeight: 1.8 }}>
-            총 영상 {stats.totalClips}개 · 씬 {stats.totalScenes}개 · 이동 {stats.movedClips}개
+          <div style={{ fontSize: 14, color: C.txt, lineHeight: 1.8, marginBottom: 12 }}>
+            총 영상 {stats.totalClips}개 · 처리 {stats.movedClips}개
             {stats.failedClips > 0 && ` · 실패 ${stats.failedClips}개`}
           </div>
-          <div style={{ marginTop: 16 }}>
-            <Link href="/photo-sorting" style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>사진작업실로 돌아가기 →</Link>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+            {Object.entries(stats.categoryCounts).map(([label, count]) => (
+              <div key={label} style={{ flex: "1 1 140px", padding: 10, borderRadius: 8, background: C.light, textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{count}</div>
+                <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{label}</div>
+              </div>
+            ))}
           </div>
+          <Link href="/photo-sorting" style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>사진작업실로 돌아가기 →</Link>
         </Card>
       )}
     </div>
