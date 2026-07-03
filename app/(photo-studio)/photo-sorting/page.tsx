@@ -567,7 +567,9 @@ function PhotoSortingInner() {
   const [rootDir,    setRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
   const [progress,   setProgress]   = useState({ cur:0, total:0, msg:"" });
   const cancelRef = useRef(false);
-  const hasFS = typeof window !== "undefined" && "showDirectoryPicker" in window;
+  // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
+  const [hasFS, setHasFS] = useState(false);
+  useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
 
   /* ── field state ── */
   const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
