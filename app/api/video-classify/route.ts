@@ -122,7 +122,9 @@ export async function POST(req: NextRequest) {
       parsed = {};
     }
 
-    const category = CATEGORY_VALUES.includes(parsed.category as any) ? (parsed.category as string) : "NEED_CHECK";
+    const category: VideoCategory = VIDEO_CATEGORY_ORDER.includes(parsed.category as VideoCategory)
+      ? (parsed.category as VideoCategory)
+      : "NEED_CHECK";
     const confidence = typeof parsed.confidence === "number" ? parsed.confidence : 0;
 
     return NextResponse.json({
