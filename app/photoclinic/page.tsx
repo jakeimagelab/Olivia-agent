@@ -306,20 +306,21 @@ export default function QuoteBuilder() {
   const [basePreviewScale, setBasePreviewScale] = useState(0.48);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
+  const [todayQuoteNumbers, setTodayQuoteNumbers] = useState<string[]>([]);
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
   const previewPercent = Math.round(previewZoom * 100);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(RECENT_QUOTES_KEY);
-      if (!saved) return;
-      const parsed = JSON.parse(saved) as ContractQuoteData[];
-      if (Array.isArray(parsed)) {
-        setRecentQuotes(parsed.slice(0, RECENT_QUOTES_LIMIT));
-      }
-    } catch {
-      setRecentQuotes([]);
-    }
+    const todayPrefix = `PC-${todayValue().replaceAll("-", "")}-`;
+    Promise.all([
+      fetch(`/api/quotes?limit=${RECENT_QUOTES_DISPLAY_LIMIT}`).then((res) => res.json()),
+      fetch(`/api/quotes?prefix=${encodeURIComponent(todayPrefix)}`).then((res) => res.json()),
+    ])
+      .then(([recentRes, todayRes]) => {
+        if (recentRes?.ok) setRecentQuotes((recentRes.quotes ?? []).map(rowToContractQuoteData));
+        if (todayRes?.ok) setTodayQuoteNumbers(todayRes.quoteNumbers ?? []);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
