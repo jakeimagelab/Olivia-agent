@@ -219,8 +219,31 @@ const numberValue = (value: string) => {
 
 const displayDate = (date: string) => date || "-";
 
-const RECENT_QUOTES_KEY = "photoclinic_recent_quotes_v1";
-const RECENT_QUOTES_LIMIT = 5;
+const RECENT_QUOTES_DISPLAY_LIMIT = 8;
+
+const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => ({
+  id: row.id,
+  savedAt: row.created_at ?? new Date().toISOString(),
+  title: row.title ?? "",
+  hospitalName: row.hospital_name ?? "",
+  contactName: row.contact_name ?? "",
+  phone: row.phone ?? "",
+  email: row.email ?? "",
+  quoteNumber: row.quote_number ?? "",
+  quoteDate: row.quote_date ?? "",
+  shootDate: row.shoot_date ?? null,
+  validUntil: row.valid_until ?? "",
+  items: row.items ?? [],
+  supplyAmount: row.supply_amount ?? 0,
+  discountAmount: row.discount_amount ?? 0,
+  vat: row.vat ?? 0,
+  totalAmount: row.total_amount ?? 0,
+  depositAmount: row.deposit_amount ?? 0,
+  balanceAmount: row.balance_amount ?? 0,
+  depositRate: row.deposit_rate ?? 50,
+  memos: row.memos ?? null,
+  formState: row.form_state ?? undefined,
+});
 
 const uniqueQuoteItems = (items: string[]) => Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
 
