@@ -385,10 +385,10 @@ export default function VideoSortingPage() {
       if (mode === "ai") {
         const newItem: ClassifiedVideo = { clip, category: null, categoryKo: null, confidence: null, sceneDescription: null, reason: null, previewThumbs: [], status: "pending" };
         if (step === "final_review" || step === "analyzing") {
-          const list = [...classified, { ...newItem, status: "analyzing" as const }];
-          setClassified(list);
-          await classifyOne(list, list.length - 1);
-          setClassified([...list]);
+          const analyzingItem = { ...newItem, status: "analyzing" as const };
+          setClassified((prev) => [...prev, analyzingItem]);
+          const updated = await classifyOne(analyzingItem);
+          setClassified((prev) => prev.map((c) => (c.clip.name === updated.clip.name ? updated : c)));
         } else {
           setClassified((prev) => [...prev, newItem]);
         }
