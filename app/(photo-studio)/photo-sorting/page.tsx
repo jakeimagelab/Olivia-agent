@@ -3018,8 +3018,6 @@ function PhotoSortingInner() {
       {label:"정상 JPG",value:studioStats.totalNormal,color:C.teal},
       {label:"ETC 분리",value:studioStats.totalEtc,color:C.red},
       {label:"원본 RAW",value:studioStats.totalRaw,color:C.muted},
-      {label:"RAW 복사 완료",value:studioStats.totalRawMatched,color:C.green},
-      {label:"RAW 누락",value:studioStats.totalRawMissing,color:studioStats.totalRawMissing>0?C.red:C.hint},
     ];
     return (
       <Card style={{maxWidth:600}}>
