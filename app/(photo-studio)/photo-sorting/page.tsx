@@ -44,7 +44,6 @@ interface StudioGroup {
 interface StudioStats {
   totalJpg: number; totalRaw: number; totalGroups: number;
   totalEtc: number; totalNormal: number;
-  totalRawMatched: number; totalRawMissing: number;
 }
 
 /* ── Studio Group-mode types ── */
