@@ -423,7 +423,7 @@ export default function VideoSortingPage() {
       try {
         const dir = await (outputRoot as any).getDirectoryHandle(folderName, { create: true }) as FileSystemDirectoryHandle;
         await copyFileHandle(item.clip.handle, dir, item.clip.name);
-        if (fileMode === "move") await (rootDir as any).removeEntry(item.clip.name).catch(() => {});
+        if (fileMode === "move") await (rootDir as any).removeEntry(item.clip.name);
         moved++;
       } catch {}
       done++;
