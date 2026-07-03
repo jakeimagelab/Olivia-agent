@@ -1893,7 +1893,7 @@ function PhotoSortingInner() {
     await wr("summary.json", JSON.stringify(summary, null, 2));
     setStudioStats({ totalJpg:studioFiles.length, totalRaw:studioRawCount, totalGroups:personGroups.filter(g=>!g.isEtc).length, totalEtc:etcGroup?.files.length??0, totalNormal:personGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0) });
     setStep(6);
-  }, [personGroups, rootDir, studioFiles, studioRawCount]);
+  }, [personGroups, rootDir, studioFiles, studioRawCount, studioFileMode]);
 
   /* ════════════════════════════════════════════
      STEP INDICATOR
