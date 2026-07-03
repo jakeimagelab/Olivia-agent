@@ -1,52 +1,56 @@
-import type { MedicalDepartment, SceneType } from "../photo-classifier/types";
+export type VideoCategory =
+  | "SPACE_ONLY"
+  | "PEOPLE_CONSULTING"
+  | "TREATMENT_SCENE"
+  | "CLOSEUP_DETAIL"
+  | "NEED_CHECK";
+
+export const VIDEO_CATEGORY_FOLDER: Record<VideoCategory, string> = {
+  SPACE_ONLY: "01_공간만_있는_영상",
+  PEOPLE_CONSULTING: "02_사람있음_상담대화중심",
+  TREATMENT_SCENE: "03_진료시술_연출영상",
+  CLOSEUP_DETAIL: "04_얼굴손장비_클로즈업",
+  NEED_CHECK: "99_확인필요",
+};
+
+export const VIDEO_CATEGORY_ORDER: VideoCategory[] = [
+  "SPACE_ONLY",
+  "PEOPLE_CONSULTING",
+  "TREATMENT_SCENE",
+  "CLOSEUP_DETAIL",
+  "NEED_CHECK",
+];
 
 export interface VideoClipFile {
   name: string;
   basename: string;
   handle: FileSystemFileHandle;
-  mtime: number;          // lastModified
-  duration?: number;
-  frameThumbUrls?: string[];
+  mtime: number;
 }
 
-export interface VideoSceneAnalysisResult {
-  department: MedicalDepartment;
-  sceneId: string;
-  sceneType: string;
-  displayName: string;
-  suggestedFolderName: string;
-  confidence: number;
-  detectedCues: string[];
-  negativeCues: string[];
-  reason: string;
-  needsReview: boolean;
+export interface ClassifiedVideo {
+  clip: VideoClipFile;
+  category: VideoCategory | null;
+  categoryKo: string | null;
+  confidence: number | null;
+  sceneDescription: string | null;
+  reason: string | null;
+  previewThumbs: string[];
+  status: "pending" | "analyzing" | "done" | "error";
+  errorMessage?: string;
 }
 
-export interface VideoScene {
+export interface TimeScene {
   index: number;
-  folderName: string;       // "Scene01" initially
-  editedName: string;
+  folderName: string;
   startTime: number;
   endTime: number;
   clips: VideoClipFile[];
-  sceneDir: FileSystemDirectoryHandle | null;
-  sceneType: SceneType | null;
-  suggestedName: string | null;
-  aiConfidence: number | null;
-  aiReason: string | null;
-  needsReview: boolean;
-  nameLoading: boolean;
-  previewThumbs?: string[];
-}
-
-export interface VideoSortOptions {
-  department: MedicalDepartment;
-  gapMinutes: number;
 }
 
 export interface VideoStats {
   totalClips: number;
-  totalScenes: number;
-  failedClips: number;
   movedClips: number;
+  failedClips: number;
+  categoryCounts: Record<string, number>;
 }
