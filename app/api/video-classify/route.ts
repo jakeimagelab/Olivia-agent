@@ -66,7 +66,7 @@ const videoClassificationSchema = {
     additionalProperties: false,
     required: ["category", "category_ko", "confidence", "scene_description", "reason"],
     properties: {
-      category: { type: "string", enum: CATEGORY_VALUES as unknown as string[] },
+      category: { type: "string", enum: VIDEO_CATEGORY_ORDER as string[] },
       category_ko: { type: "string" },
       confidence: { type: "number", minimum: 0, maximum: 1 },
       scene_description: { type: "string" },
