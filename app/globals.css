@@ -4633,12 +4633,17 @@ a.pc-nav-link, a.pc-header-back {
 html { scroll-behavior: smooth; }
 
 /* 페이지 진입 페이드업 — main 또는 .pc-page 루트에 적용 */
+/* fill-mode는 반드시 backwards여야 함 — both로 두면 애니메이션이 끝난 뒤에도 브라우저가
+   transform을 "적용 중"으로 취급해 새 containing block이 생기고, 그 안의 position:sticky가
+   전부 깨진다(예: 견적서 미리보기 패널). backwards는 재생은 동일하되 종료 후 transform이
+   원래대로(none) 풀린다. */
 @keyframes pc-fade-up {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: none; }
 }
-main, .pc-page, .pc-page-content {
-  animation: pc-fade-up 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+main, .pc-console, .pc-page, .pc-page-content {
+  opacity: 1;
+  animation: pc-fade-up 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) backwards;
 }
 /* 공유 레이아웃 내 헤더·탭은 애니메이션 없이 즉시 표시 */
 .pc-header, nav.pc-hub-nav, nav.pc-photo-nav {
