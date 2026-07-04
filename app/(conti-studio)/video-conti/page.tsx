@@ -733,12 +733,13 @@ const GRID_PRESETS: [number, number][] = [[2, 2], [2, 3], [3, 3], [3, 4]];
 
 function StoryboardPanel({
   index, initialImage, caption, isActive, hasError,
-  penType, penSize, penColor, isEraser,
-  onActivate, onStrokeEnd, onCaptionChange,
+  penType, penSize, penColor, isEraser, eraserSize,
+  onActivate, onStrokeEnd, onCaptionChange, canvasRef,
 }: {
   index: number; initialImage: string | null; caption: string; isActive: boolean; hasError: boolean;
-  penType: PenType; penSize: number; penColor: string; isEraser: boolean;
+  penType: PenType; penSize: number; penColor: string; isEraser: boolean; eraserSize: number;
   onActivate: () => void; onStrokeEnd: (dataUrl: string) => void; onCaptionChange: (value: string) => void;
+  canvasRef: (handle: DrawingCanvasHandle | null) => void;
 }) {
   return (
     <div onPointerDown={onActivate} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -747,7 +748,8 @@ function StoryboardPanel({
         background: C.white, border: `2px solid ${isActive ? C.teal : C.border}`,
       }}>
         <DrawingCanvas
-          penType={penType} penSize={penSize} penColor={penColor} isEraser={isEraser}
+          ref={canvasRef}
+          penType={penType} penSize={penSize} penColor={penColor} isEraser={isEraser} eraserSize={eraserSize}
           initialImage={initialImage} onStrokeEnd={onStrokeEnd}
           style={{ width: "100%", height: "100%" }}
         />
