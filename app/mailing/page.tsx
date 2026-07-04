@@ -929,9 +929,11 @@ function CustomBrandMailTab() {
                   <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.9, margin: "0 0 16px", whiteSpace: "pre-line" }}>
                     {body || "본문 내용이 여기에 표시됩니다."}
                   </div>
-                  {linkLabel && linkUrl && (
-                    <div style={{ textAlign: "center", margin: "16px 0" }}>
-                      <div style={{ background: C.orange, color: "#fff", display: "inline-block", padding: "9px 22px", borderRadius: 8, fontSize: 11, fontWeight: 800 }}>{linkLabel}</div>
+                  {filledLinks.length > 0 && (
+                    <div style={{ textAlign: "center", margin: "16px 0", display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+                      {filledLinks.map((link, i) => (
+                        <div key={i} style={{ background: C.orange, color: "#fff", display: "inline-block", padding: "9px 22px", borderRadius: 8, fontSize: 11, fontWeight: 800 }}>{link.label}</div>
+                      ))}
                     </div>
                   )}
                   {attachments.length > 0 && (
