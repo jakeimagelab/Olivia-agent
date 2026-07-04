@@ -145,13 +145,28 @@ export default function SelectMatchPage() {
   const [result,     setResult]     = useState({ matched: 0, missing: 0, selected: 0 });
   const cancelRef = useRef(false);
 
-  const hasFS = typeof window !== "undefined" && "showDirectoryPicker" in window;
+  // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
+  const [hasFS, setHasFS] = useState(false);
+  useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
 
   /* ── 클라이언트 입력 모드 상태 ── */
   const [inputMode,     setInputMode]     = useState<"folder" | "text" | "upload">("folder");
   const [clientText,    setClientText]    = useState("");
   const [clientDragging,setClientDragging]= useState(false);
   const clientFileRef = useRef<HTMLInputElement>(null);
+
+  /* ── 기능 선택: 기존 RAW 매칭 vs 파일명으로 찾아 이동 ── */
+  const [feature, setFeature] = useState<"raw_match" | "find_move">("raw_match");
+
+  /* ── 파일명으로 찾아 이동 — 상태 ── */
+  const [fmRootDir,   setFmRootDir]   = useState<FileSystemDirectoryHandle | null>(null);
+  const [fmText,      setFmText]      = useState("");
+  const [fmFolderName, setFmFolderName] = useState("선택");
+  const [fmStep,      setFmStep]      = useState<"idle" | "scanning" | "result" | "moving" | "done">("idle");
+  const [fmMatches,   setFmMatches]   = useState<{ query: string; name: string; handle: FileSystemFileHandle; parentDir: FileSystemDirectoryHandle }[]>([]);
+  const [fmMissing,   setFmMissing]   = useState<string[]>([]);
+  const [fmProgress,  setFmProgress]  = useState({ cur: 0, total: 0 });
+  const [fmMovedCount, setFmMovedCount] = useState(0);
 
   /* ── 텍스트에서 파일명 파싱 ── */
   const parseNamesFromText = (text: string): Set<string> => {
