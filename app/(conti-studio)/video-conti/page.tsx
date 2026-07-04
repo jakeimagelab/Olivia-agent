@@ -914,18 +914,21 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
         </div>
         <div style={{ width: 1, height: 24, background: C.border }} />
         <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-          {(isEraser ? ERASER_SIZES : [2, 4, 8]).map(size => (
-            <button
-              key={size}
-              title={`굵기 ${size}`}
-              onClick={() => isEraser ? setEraserSize(size) : setPenSize(size)}
-              style={{
-                width: Math.min(size, 8) + 16, height: Math.min(size, 8) + 16, borderRadius: "50%",
-                background: (isEraser ? eraserSize : penSize) === size ? C.teal : C.light,
-                border: (isEraser ? eraserSize : penSize) === size ? `2px solid ${C.orange}` : `2px solid ${C.border}`,
-                cursor: "pointer", flexShrink: 0,
-              }} />
-          ))}
+          {(isEraser ? ERASER_SIZES : [2, 4, 8]).map(size => {
+            const dot = isEraser ? Math.min(34, 12 + size / 3) : size + 16;
+            return (
+              <button
+                key={size}
+                title={`굵기 ${size}`}
+                onClick={() => isEraser ? setEraserSize(size) : setPenSize(size)}
+                style={{
+                  width: dot, height: dot, borderRadius: "50%",
+                  background: (isEraser ? eraserSize : penSize) === size ? C.teal : C.light,
+                  border: (isEraser ? eraserSize : penSize) === size ? `2px solid ${C.orange}` : `2px solid ${C.border}`,
+                  cursor: "pointer", flexShrink: 0,
+                }} />
+            );
+          })}
         </div>
         <div style={{ width: 1, height: 24, background: C.border }} />
         <button onClick={() => setIsEraser(e => !e)} title="지우개" style={{
