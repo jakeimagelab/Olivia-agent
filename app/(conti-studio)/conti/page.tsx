@@ -2384,8 +2384,8 @@ ${header("타임테이블")}
                 }}>📄 PDF</button>
                 <button onClick={() => {
                   if (drawMode) {
-                    const c = drawCanvasRef.current;
-                    if (c) tempDrawingRef.current = c.toDataURL();
+                    const url = drawCanvasRef.current?.getDataUrl();
+                    if (url) tempDrawingRef.current = url;
                   }
                   setDrawMode(d => !d); setIsEraser(false);
                 }} style={{
