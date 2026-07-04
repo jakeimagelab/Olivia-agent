@@ -563,6 +563,8 @@ function Step4({
     }
   };
 
+  useSaveShortcut(save);
+
   const finalize = async () => {
     setFinalizing(true); setMsg(null);
     try {
