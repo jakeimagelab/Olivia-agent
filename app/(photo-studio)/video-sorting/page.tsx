@@ -178,10 +178,7 @@ function groupClipsByGap(clips: VideoClipFile[], gapMs: number): TimeScene[] {
     else groups[groups.length - 1].push(sorted[i]);
   }
   return groups.map((g, si) => ({
-    index: si + 1,
     folderName: `Scene_${String(si + 1).padStart(3, "0")}`,
-    startTime: g[0].mtime,
-    endTime: g[g.length - 1].mtime,
     clips: g,
   }));
 }
