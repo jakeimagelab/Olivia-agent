@@ -723,7 +723,7 @@ function CustomBrandMailTab() {
 
   const resetForm = () => {
     setToName(""); setToEmail(""); setSubject(""); setBody("");
-    setLinkLabel(""); setLinkUrl(""); setAttachments([]);
+    setLinks([{ label: "", url: "" }]); setAttachments([]);
     setResult(null); setErrMsg("");
   };
 
