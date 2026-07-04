@@ -1,6 +1,11 @@
 "use client";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
+
+function hasShareScope(): boolean {
+  return document.cookie.split("; ").some((c) => c.startsWith("pc_share_scope="));
+}
 
 export type TabDef = {
   key: string;
