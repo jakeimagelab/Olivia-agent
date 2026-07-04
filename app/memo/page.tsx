@@ -141,10 +141,12 @@ function MemoPage() {
       if (!data.ok) throw new Error(data.error ?? "텍스트 변환 실패");
       const text = data.text?.trim();
       if (!text) throw new Error("인식된 음성이 없습니다.");
-      setRawMemo(prev => prev ? `${prev}\n${text}` : text);
+      const merged = rawMemo ? `${rawMemo}\n${text}` : text;
+      setRawMemo(merged);
       setRecordedUrl(null);
       recordedChunksRef.current = [];
       setRecordSeconds(0);
+      await analyze(merged);
     } catch (e: any) {
       setRecordError(e.message || "텍스트 변환에 실패했습니다.");
     } finally {
