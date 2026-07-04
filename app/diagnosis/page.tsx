@@ -3,15 +3,16 @@
 import { useState, useCallback } from "react";
 import PageHeader from "@/components/PageHeader";
 import {
-  Q1_OPTIONS, Q2_OPTIONS, Q3_OPTIONS, Q4_OPTIONS,
+  Q1_OPTIONS, Q2_OPTIONS, Q3_OPTIONS, Q4_OPTIONS, Q7_OPTIONS,
 } from "@/lib/diagnosis/questions";
-// Q5~Q8(원하는 이미지 톤 / 필요 콘텐츠 / 예산 / 촬영 시기)은 이탈률을 낮추기 위해
-// 질문 단계에서 잠시 제외했다. lib/diagnosis/questions.ts와 types.ts의 데이터·타입은
-// 그대로 남겨뒀으니, 필요해지면 다시 붙이면 된다 (recommend()도 해당 필드 없이 동작함).
+// 원하는 이미지 톤 / 필요 콘텐츠 / 촬영 시기는 이탈률을 낮추기 위해 질문 단계에서 잠시
+// 제외했다. 예산은 추천 엔진(recommend())에서 패키지 결정에 크게 쓰여서 다시 넣었다.
+// lib/diagnosis/questions.ts와 types.ts의 나머지 데이터·타입은 그대로 남겨뒀으니,
+// 필요해지면 다시 붙이면 된다.
 
-const TOTAL_STEPS = 5; // 4개 질문 + 사진 업로드(선택)·연락처 통합 마지막 단계
+const TOTAL_STEPS = 6; // 4개 질문 + 예산 + 사진 업로드(선택)·연락처 통합 마지막 단계
 import { recommend } from "@/lib/diagnosis/recommendation";
-import type { Answers, Concern, Department, Usage, Stage } from "@/lib/diagnosis/types";
+import type { Answers, Concern, Department, Usage, Stage, Budget } from "@/lib/diagnosis/types";
 
 // ── 색상 ──────────────────────────────────────────────────────
 const C = {
