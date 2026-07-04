@@ -181,6 +181,8 @@ function MemoPage() {
     }
   };
 
+  useSaveShortcut(() => analyze());
+
   const upd = (key: keyof Extracted, val: any) =>
     setEdited(prev => ({ ...prev, [key]: val }));
 
