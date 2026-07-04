@@ -2,7 +2,7 @@
 
 import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import PageHeader from "@/components/PageHeader";
+import DrawingCanvas, { DrawingCanvasHandle, PenType, PEN_TYPES, DRAW_COLORS } from "@/components/DrawingCanvas";
 
 /* ─── types ──────────────────────────────────────────────── */
 interface BgmSection {
