@@ -1696,7 +1696,7 @@ ${header("타임테이블")}
                   Quick Start
                 </span>
               </div>
-              <h2 style={{ margin: "0 0 6px", color: "#155855", fontSize: "clamp(17px,2.5vw,22px)", fontWeight: 800 }}>
+              <h2 style={{ margin: "0 0 6px", color: "#155855", fontSize: 16, fontWeight: 800 }}>
                 진료과만 선택하면 기본 콘티 바로 생성
               </h2>
               <p style={{ margin: "0 0 20px", color: "#5A7470", fontSize: 13, lineHeight: 1.65 }}>
