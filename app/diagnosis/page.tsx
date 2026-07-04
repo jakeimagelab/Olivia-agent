@@ -309,111 +309,73 @@ export default function DiagnosisPage() {
             </div>
           )}
 
-          {/* Q5 인상 다중 */}
+          {/* Q5: 연락처(필수) + 사진 업로드(선택) 통합 마지막 단계 */}
           {step === 5 && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {Q5_OPTIONS.map(o => (
-                <Opt key={o} label={o} selected={(answers.impressions ?? []).includes(o as Impression)}
-                  onClick={() => set("impressions", toggle(answers.impressions ?? [], o as Impression))} />
-              ))}
-            </div>
-          )}
-
-          {/* Q6 콘텐츠 다중 */}
-          {step === 6 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {Q6_OPTIONS.map(o => (
-                <Opt key={o} label={o} selected={(answers.contents ?? []).includes(o as Content)}
-                  onClick={() => set("contents", toggle(answers.contents ?? [], o as Content))} />
-              ))}
-            </div>
-          )}
-
-          {/* Q7 예산 */}
-          {step === 7 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {Q7_OPTIONS.map(o => (
-                <Opt key={o.value} label={o.label} selected={answers.budget === o.value}
-                  onClick={() => set("budget", o.value as Budget)} />
-              ))}
-            </div>
-          )}
-
-          {/* Q8 일정 */}
-          {step === 8 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {Q8_OPTIONS.map(o => (
-                <Opt key={o.value} label={o.label} selected={answers.timeline === o.value}
-                  onClick={() => set("timeline", o.value as Timeline)} />
-              ))}
-            </div>
-          )}
-
-          {/* Q9 사진 업로드 (선택) */}
-          {step === 9 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, background: C.light, borderRadius: 9, padding: "10px 14px" }}>
-                현재 사용 중인 사진을 올려주시면 더 정확한 진단이 가능합니다. <strong>선택사항</strong>이므로 없으시면 바로 다음으로 이동하세요.
-              </div>
-              {PHOTO_CATEGORIES.map(({ category, desc }) => {
-                const uploaded = uploadedPhotos.filter(p => p.category === category);
-                const status   = uploadProgress[category];
-                return (
-                  <div key={category} style={{ border: `1.5px solid ${C.border}`, borderRadius: 11, padding: "14px 16px", background: uploaded.length ? C.light : C.white }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: C.teal }}>{category}</div>
-                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{desc}</div>
-                      </div>
-                      {status === "uploading" && <span style={{ fontSize: 11, color: C.yellow }}>업로드 중...</span>}
-                      {status === "done"      && <span style={{ fontSize: 11, color: "#22876A" }}>✓ 완료</span>}
-                      {status === "error"     && <span style={{ fontSize: 11, color: C.orange }}>오류</span>}
-                    </div>
-                    {uploaded.length > 0 && (
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                        {uploaded.map((p, i) => (
-                          p.preview
-                            ? <img key={i} src={p.preview} alt={p.name} style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 7, border: `1px solid ${C.border}` }} />
-                            : <div key={i} style={{ padding: "4px 10px", background: "#fff", borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 11, color: C.muted }}>{p.name}</div>
-                        ))}
-                      </div>
-                    )}
-                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1.5px solid ${C.teal}`, color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer", background: C.white }}>
-                      + 파일 선택
-                      <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={e => handlePhotoChange(category, e.target.files)} />
-                    </label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {[
+                  { key: "hospitalName", label: "병원명 *", placeholder: "예: 참이지치과" },
+                  { key: "location",    label: "병원 위치", placeholder: "예: 서울 강남구" },
+                  { key: "phone",       label: "연락처 *", placeholder: "010-0000-0000" },
+                  { key: "email",       label: "이메일 *", placeholder: "example@hospital.com" },
+                ].map(({ key, label, placeholder }) => (
+                  <div key={key}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, marginBottom: 5 }}>{label}</div>
+                    <input value={(answers as any)[key] ?? ""} onChange={e => set(key as keyof Answers, e.target.value)}
+                      placeholder={placeholder}
+                      style={{ width: "100%", height: 46, border: `1.5px solid ${C.border}`, borderRadius: 10, padding: "0 14px", fontSize: 14, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }} />
                   </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Q10 연락처 */}
-          {step === 10 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {[
-                { key: "hospitalName", label: "병원명 *", placeholder: "예: 참이지치과" },
-                { key: "location",    label: "병원 위치", placeholder: "예: 서울 강남구" },
-                { key: "phone",       label: "연락처 *", placeholder: "010-0000-0000" },
-                { key: "email",       label: "이메일 *", placeholder: "example@hospital.com" },
-              ].map(({ key, label, placeholder }) => (
-                <div key={key}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, marginBottom: 5 }}>{label}</div>
-                  <input value={(answers as any)[key] ?? ""} onChange={e => set(key as keyof Answers, e.target.value)}
-                    placeholder={placeholder}
-                    style={{ width: "100%", height: 46, border: `1.5px solid ${C.border}`, borderRadius: 10, padding: "0 14px", fontSize: 14, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }} />
+                ))}
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, marginBottom: 5 }}>문의자 유형</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {CONTACT_ROLES.map(r => (
+                      <button key={r} onClick={() => set("contactRole", r)} style={{
+                        padding: "6px 14px", borderRadius: 99, border: `1.5px solid ${answers.contactRole === r ? C.teal : C.border}`,
+                        background: answers.contactRole === r ? C.light : C.white, color: answers.contactRole === r ? C.teal : "#6b7280",
+                        fontWeight: answers.contactRole === r ? 800 : 400, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+                      }}>{r}</button>
+                    ))}
+                  </div>
                 </div>
-              ))}
-              <div style={{ marginTop: 4 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, marginBottom: 5 }}>문의자 유형</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {CONTACT_ROLES.map(r => (
-                    <button key={r} onClick={() => set("contactRole", r)} style={{
-                      padding: "6px 14px", borderRadius: 99, border: `1.5px solid ${answers.contactRole === r ? C.teal : C.border}`,
-                      background: answers.contactRole === r ? C.light : C.white, color: answers.contactRole === r ? C.teal : "#6b7280",
-                      fontWeight: answers.contactRole === r ? 800 : 400, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
-                    }}>{r}</button>
-                  ))}
+              </div>
+
+              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 18 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.teal, marginBottom: 6 }}>📷 현재 사용 중인 병원 사진 (선택)</div>
+                <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, background: C.light, borderRadius: 9, padding: "10px 14px", marginBottom: 14 }}>
+                  올려주시면 더 정확한 진단이 가능합니다. <strong>선택사항</strong>이므로 없으시면 그냥 제출하셔도 됩니다.
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {PHOTO_CATEGORIES.map(({ category, desc }) => {
+                    const uploaded = uploadedPhotos.filter(p => p.category === category);
+                    const status   = uploadProgress[category];
+                    return (
+                      <div key={category} style={{ border: `1.5px solid ${C.border}`, borderRadius: 11, padding: "14px 16px", background: uploaded.length ? C.light : C.white }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: C.teal }}>{category}</div>
+                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{desc}</div>
+                          </div>
+                          {status === "uploading" && <span style={{ fontSize: 11, color: C.yellow }}>업로드 중...</span>}
+                          {status === "done"      && <span style={{ fontSize: 11, color: "#22876A" }}>✓ 완료</span>}
+                          {status === "error"     && <span style={{ fontSize: 11, color: C.orange }}>오류</span>}
+                        </div>
+                        {uploaded.length > 0 && (
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                            {uploaded.map((p, i) => (
+                              p.preview
+                                ? <img key={i} src={p.preview} alt={p.name} style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 7, border: `1px solid ${C.border}` }} />
+                                : <div key={i} style={{ padding: "4px 10px", background: "#fff", borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 11, color: C.muted }}>{p.name}</div>
+                            ))}
+                          </div>
+                        )}
+                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1.5px solid ${C.teal}`, color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer", background: C.white }}>
+                          + 파일 선택
+                          <input type="file" accept="image/*" multiple style={{ display: "none" }} onChange={e => handlePhotoChange(category, e.target.files)} />
+                        </label>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
