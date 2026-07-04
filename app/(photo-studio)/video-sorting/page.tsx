@@ -191,51 +191,65 @@ function groupClipsByGap(clips: VideoClipFile[], gapMs: number): TimeScene[] {
    PRESENTATIONAL HELPERS
 ═══════════════════════════════════════════════ */
 function Btn({ onClick, disabled, children, variant = "primary" }: {
-  onClick?: () => void; disabled?: boolean; children: React.ReactNode; variant?: "primary" | "ghost";
+  onClick?: () => void; disabled?: boolean; children: React.ReactNode; variant?: "primary" | "secondary" | "ghost";
 }) {
-  const primary = variant === "primary";
-  return (
-    <button onClick={onClick} disabled={disabled} style={{
-      padding: "10px 18px", borderRadius: 10, border: primary ? "none" : `1.5px solid ${C.border}`,
-      background: disabled ? C.hint : primary ? C.teal : C.white,
-      color: primary ? C.white : C.txt, fontWeight: 800, fontSize: 13,
-      cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit",
-    }}>
-      {children}
-    </button>
-  );
+  const base: React.CSSProperties = { height: 42, padding: "0 22px", border: "none", borderRadius: 10, fontFamily: "inherit", fontSize: 13, fontWeight: 800, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, transition: "opacity .15s" };
+  const variants: Record<string, React.CSSProperties> = {
+    primary: { background: C.teal, color: "#fff" },
+    secondary: { background: C.white, color: C.teal, border: `1.5px solid ${C.border}` },
+    ghost: { background: C.white, color: C.teal, border: `1.5px solid ${C.border}` },
+  };
+  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant] }}>{children}</button>;
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+// photo-sorting의 Card와 동일 — padding은 안에 두지 않고, 섹션 헤더 바가 카드 모서리까지 꽉 차게 한다
+function Card({ children, style: s }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden", ...s }}>{children}</div>;
+}
+
+// 헤더 바 + 본문 패딩이 있는 섹션 카드 — photo-sorting의 "촬영 모드"/"폴더 선택" 카드와 동일한 구조
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, marginBottom: 14 }}>
-      {children}
-    </div>
+    <Card>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 900, color: C.teal }}>{title}</div>
+      <div style={{ padding: "14px 20px" }}>{children}</div>
+    </Card>
   );
 }
 
 function ProgressBar({ cur, total, msg }: { cur: number; total: number; msg: string }) {
   const pct = total > 0 ? Math.round((cur / total) * 100) : 0;
   return (
-    <div>
-      <div style={{ fontSize: 13, color: C.muted, marginBottom: 8 }}>{msg}</div>
-      <div style={{ height: 8, borderRadius: 99, background: C.light, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${pct}%`, background: C.teal, transition: "width .2s" }} />
+    <Card>
+      <div style={{ padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>{cur} / {total}</span>
+          <span style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>{pct}%</span>
+        </div>
+        <div style={{ height: 8, background: C.border, borderRadius: 4, overflow: "hidden", marginBottom: 12 }}>
+          <div style={{ height: "100%", width: `${pct}%`, background: C.teal, borderRadius: 4, transition: "width .2s" }} />
+        </div>
+        <div style={{ fontSize: 11, color: C.hint, wordBreak: "break-all" }}>{msg}</div>
       </div>
-    </div>
+    </Card>
   );
 }
 
-function SegButton({ selected, onClick, title, desc }: { selected: boolean; onClick: () => void; title: string; desc: string }) {
+// 서로 다른 두 선택지를 나란히 붙여 보여주는 세그먼트 컨트롤 — photo-sorting의 "촬영 모드"/"분류 모드" 카드와 동일한 패턴
+function ModeGrid<T extends string>({ options, value, onChange }: { options: readonly { value: T; title: string; desc: string }[]; value: T; onChange: (v: T) => void }) {
   return (
-    <button onClick={onClick} style={{
-      flex: 1, textAlign: "left", padding: "14px 16px", borderRadius: 10,
-      border: `1.5px solid ${selected ? C.teal : C.border}`,
-      background: selected ? C.light : C.white, cursor: "pointer", fontFamily: "inherit",
-    }}>
-      <div style={{ fontWeight: 900, fontSize: 14, color: C.txt, marginBottom: 4 }}>{title}{selected ? " ✓" : ""}</div>
-      <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{desc}</div>
-    </button>
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 0 }}>
+      {options.map((opt, i) => (
+        <button key={opt.value} onClick={() => onChange(opt.value)} style={{
+          padding: "16px 20px", textAlign: "left", border: "none",
+          borderRight: i < options.length - 1 ? `1px solid ${C.border}` : "none",
+          background: value === opt.value ? C.light : "transparent", cursor: "pointer", fontFamily: "inherit",
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 900, color: value === opt.value ? C.teal : C.muted, marginBottom: 4 }}>{opt.title}{value === opt.value && " ✓"}</div>
+          <div style={{ fontSize: 11, color: C.hint, lineHeight: 1.6 }}>{opt.desc}</div>
+        </button>
+      ))}
+    </div>
   );
 }
 
