@@ -34,4 +34,21 @@ const info = await page.evaluate(() => {
 });
 console.log(JSON.stringify(info, null, 2));
 
+const diag = await page.evaluate(() => {
+  const main = document.querySelector("main");
+  const cs = getComputedStyle(main);
+  const before = cs.transform;
+  main.style.animation = "none";
+  const afterKillAnim = getComputedStyle(main).transform;
+  main.style.animation = "";
+  return {
+    animationName: cs.animationName,
+    animationPlayState: cs.animationPlayState,
+    animationFillMode: cs.animationFillMode,
+    transformBefore: before,
+    transformAfterKillingAnimation: afterKillAnim,
+  };
+});
+console.log("diag:", JSON.stringify(diag, null, 2));
+
 await browser.close();
