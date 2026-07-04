@@ -37,6 +37,12 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
   const pathname = usePathname();
   const title = TITLE[pathname] ?? "사진 작업실";
 
+  // 공유 링크로 들어온 외부 세션이면 자신에게 허용된 탭 하나만 보여준다.
+  // (실제 접근 제한은 middleware에서 처리 — 여기서는 혼란을 줄이기 위한 화면 정리일 뿐)
+  const [shareScope, setShareScope] = useState<string | null>(null);
+  useEffect(() => { setShareScope(readCookie("pc_share_scope")); }, []);
+  const visibleTabs = shareScope ? PHOTO_TABS.filter((t) => t.matches.includes(shareScope)) : PHOTO_TABS;
+
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'Noto Sans KR', sans-serif" }}>
       <PageHeader title={title} />
