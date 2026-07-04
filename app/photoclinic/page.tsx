@@ -714,6 +714,15 @@ export default function QuoteBuilder() {
     return data;
   };
 
+  const [manualSaving, setManualSaving] = useState(false);
+  const handleManualSave = () => {
+    setManualSaving(true);
+    saveCurrentQuoteSnapshot();
+    setRecentQuoteMessage("현재 입력 내용을 최근 견적 목록에 저장했습니다.");
+    setTimeout(() => setManualSaving(false), 600);
+  };
+  useSaveShortcut(handleManualSave);
+
   const createContractQuoteFromImportedPdf = (parsed: ImportedPdfQuote): ContractQuoteData => {
     const supply = Math.round(parsed.totalAmount / 1.1);
     const vatAmount = Math.max(parsed.totalAmount - supply, 0);
