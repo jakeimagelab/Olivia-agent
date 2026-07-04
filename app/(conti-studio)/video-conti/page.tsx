@@ -831,17 +831,41 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
     saveTimersRef.current[panelIndex] = setTimeout(() => saveImage(panelIndex, dataUrl), 2500);
   };
 
+  const saveCaption = useCallback(async (panelIndex: number, value: string) => {
+    await fetch(`/api/video-conti/${videoContiId}/drawing`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ panelIndex, caption: value }),
+    });
+  }, [videoContiId]);
+
   const handleCaptionChange = (panelIndex: number, value: string) => {
     setCaptions(prev => { const next = [...prev]; next[panelIndex] = value; return next; });
     clearTimeout(captionTimersRef.current[panelIndex]);
-    captionTimersRef.current[panelIndex] = setTimeout(() => {
-      fetch(`/api/video-conti/${videoContiId}/drawing`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ panelIndex, caption: value }),
-      });
-    }, 2500);
+    captionTimersRef.current[panelIndex] = setTimeout(() => saveCaption(panelIndex, value), 2500);
   };
+
+  // 자동저장(디바운스)과 별개로, 버튼/Cmd+S로 모든 칸의 현재 상태를 즉시 저장한다.
+  const saveAllNow = useCallback(async () => {
+    setSaveState("saving");
+    try {
+      const panelCount = rows * cols;
+      await Promise.all(Array.from({ length: panelCount }, async (_, i) => {
+        clearTimeout(saveTimersRef.current[i]);
+        clearTimeout(captionTimersRef.current[i]);
+        const url = panelHandlesRef.current[i]?.getDataUrl();
+        if (url) await saveImage(i, url);
+        if (captions[i] !== undefined) await saveCaption(i, captions[i]);
+      }));
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
+    } catch {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
+  }, [rows, cols, captions, saveImage, saveCaption]);
+
+  useSaveShortcut(saveAllNow);
 
   const applyGridSize = async (r: number, c: number) => {
     if (r === rows && c === cols) return;
