@@ -24,7 +24,6 @@ const MESH_BG = [
 
 export default function ContiStudioLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const title = TITLE[pathname] ?? "콘티생성";
 
   // 공유 링크로 들어온 외부 세션이면 자신에게 허용된 탭 하나만 보여준다.
   // (실제 접근 제한은 middleware에서 처리 — 여기서는 혼란을 줄이기 위한 화면 정리일 뿐)
