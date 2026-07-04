@@ -215,6 +215,8 @@ function PatternBlogWriter() {
     finally { setSaving(false); }
   };
 
+  useSaveShortcut(savePost);
+
   const sI: React.CSSProperties = { ...iS };
   const sTA: React.CSSProperties = { ...taS };
 
