@@ -982,6 +982,22 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
             }} />
           ))}
         </div>
+        <div style={{ width: 1, height: 24, background: C.border }} />
+        <button
+          onClick={saveAllNow}
+          disabled={saveState === "saving"}
+          title="전체 저장 (⌘S)"
+          style={{
+            marginLeft: "auto", display: "flex", alignItems: "center", gap: 6,
+            padding: "0 14px", height: 32, borderRadius: 8, fontSize: 12, fontWeight: 800,
+            cursor: saveState === "saving" ? "not-allowed" : "pointer",
+            border: `2px solid ${saveState === "saved" ? "#22C55E" : saveState === "error" ? C.orange : C.teal}`,
+            background: saveState === "saved" ? "rgba(34,197,94,.12)" : saveState === "error" ? "rgba(232,93,44,.12)" : C.teal,
+            color: saveState === "saved" ? "#16a34a" : saveState === "error" ? C.orange : C.white,
+          }}
+        >
+          {saveState === "saving" ? "저장 중…" : saveState === "saved" ? "✓ 저장됨" : saveState === "error" ? "✕ 실패" : "💾 저장"}
+        </button>
       </div>
 
       {/* 그리드 캔버스 */}
