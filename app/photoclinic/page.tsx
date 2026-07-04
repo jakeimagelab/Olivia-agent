@@ -219,7 +219,7 @@ const numberValue = (value: string) => {
 
 const displayDate = (date: string) => date || "-";
 
-const RECENT_QUOTES_DISPLAY_LIMIT = 8;
+const RECENT_QUOTES_DISPLAY_LIMIT = 10;
 
 const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => ({
   id: row.id,
