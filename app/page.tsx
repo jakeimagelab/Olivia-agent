@@ -522,6 +522,7 @@ const TOOLS_WORK: ToolDef[] = [
   {title:"사진 작업실",    desc:"사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.",     href:"/photo-sorting",    icon:Wand2,        meta:"Photo Studio",       orange:false},
   {title:"업무 리포트",    desc:"AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.",                             href:"/report",          icon:BarChart2,     meta:"Weekly Report",      orange:false},
   {title:"영상 콘티 생성", desc:"홈페이지 분석과 BGM 분석으로 브랜드필름 씬 콘티를 자동 생성합니다.",                    href:"/video-conti",     icon:Film,          meta:"Video Conti",        orange:false},
+  {title:"외부 공유 링크", desc:"비밀번호 없는 외부인에게 특정 기능 하나만 열어주는 링크를 생성·관리합니다.",              href:"/link-generator",  icon:Share2,        meta:"Share Links",        orange:false},
 ];
 
 const TOOLS_CONTENT: ToolDef[] = [
