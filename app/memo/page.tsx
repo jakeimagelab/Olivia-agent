@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 
 const C = {
   teal: "#155855", orange: "#E85D2C", bg: "#EDF5F3",
