@@ -728,6 +728,235 @@ function Step4({
   );
 }
 
+/* ─── 손그림 콘티: 그리드 스토리보드 ──────────────────────── */
+const GRID_PRESETS: [number, number][] = [[2, 2], [2, 3], [3, 3], [3, 4]];
+
+function StoryboardPanel({
+  index, initialImage, caption, isActive, hasError,
+  penType, penSize, penColor, isEraser,
+  onActivate, onStrokeEnd, onCaptionChange,
+}: {
+  index: number; initialImage: string | null; caption: string; isActive: boolean; hasError: boolean;
+  penType: PenType; penSize: number; penColor: string; isEraser: boolean;
+  onActivate: () => void; onStrokeEnd: (dataUrl: string) => void; onCaptionChange: (value: string) => void;
+}) {
+  return (
+    <div onPointerDown={onActivate} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{
+        position: "relative", aspectRatio: "4 / 3", borderRadius: 8, overflow: "hidden",
+        background: C.white, border: `2px solid ${isActive ? C.teal : C.border}`,
+      }}>
+        <DrawingCanvas
+          penType={penType} penSize={penSize} penColor={penColor} isEraser={isEraser}
+          initialImage={initialImage} onStrokeEnd={onStrokeEnd}
+          style={{ width: "100%", height: "100%" }}
+        />
+        <div style={{
+          position: "absolute", top: 4, left: 6, fontSize: 11, fontWeight: 800,
+          color: C.hint, background: "rgba(255,255,255,.8)", padding: "1px 6px", borderRadius: 4,
+          pointerEvents: "none",
+        }}>{index + 1}</div>
+        {hasError && (
+          <div title="저장 실패 — 다시 그리면 재시도합니다" style={{
+            position: "absolute", top: 4, right: 6, fontSize: 13,
+          }}>⚠️</div>
+        )}
+      </div>
+      <input
+        value={caption}
+        onChange={e => onCaptionChange(e.target.value.slice(0, 60))}
+        placeholder="컷 메모 (예: 오프닝 로고 등장)"
+        maxLength={60}
+        style={{ padding: "5px 8px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12, boxSizing: "border-box" }}
+      />
+    </div>
+  );
+}
+
+function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState(2);
+  const [cols, setCols] = useState(2);
+  const [captions, setCaptions] = useState<string[]>([]);
+  const [panelUrls, setPanelUrls] = useState<(string | null)[]>([]);
+  const [activePanel, setActivePanel] = useState(0);
+  const [panelError, setPanelError] = useState<Record<number, boolean>>({});
+  const [customRows, setCustomRows] = useState(2);
+  const [customCols, setCustomCols] = useState(2);
+
+  const [penType, setPenType] = useState<PenType>("pen");
+  const [penSize, setPenSize] = useState(4);
+  const [penColor, setPenColor] = useState("#E85D2C");
+  const [isEraser, setIsEraser] = useState(false);
+
+  const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const captionTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+  const loadBoard = useCallback(async () => {
+    const r = await fetch(`/api/video-conti/${videoContiId}/drawing`);
+    const d = await r.json();
+    if (!d.ok) return;
+    setRows(d.rows); setCols(d.cols); setCustomRows(d.rows); setCustomCols(d.cols);
+    setCaptions(d.captions.length ? d.captions : Array(d.rows * d.cols).fill(""));
+    setPanelUrls(d.panelUrls);
+    setPanelError({});
+    setLoading(false);
+  }, [videoContiId]);
+
+  useEffect(() => { loadBoard(); }, [loadBoard]);
+
+  const saveImage = useCallback(async (panelIndex: number, dataUrl: string, isRetry = false) => {
+    try {
+      const r = await fetch(`/api/video-conti/${videoContiId}/drawing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ panelIndex, imageBase64: dataUrl }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error ?? "저장 실패");
+      setPanelError(prev => ({ ...prev, [panelIndex]: false }));
+    } catch {
+      if (!isRetry) { saveImage(panelIndex, dataUrl, true); return; }
+      setPanelError(prev => ({ ...prev, [panelIndex]: true }));
+    }
+  }, [videoContiId]);
+
+  const handleStrokeEnd = (panelIndex: number, dataUrl: string) => {
+    clearTimeout(saveTimersRef.current[panelIndex]);
+    saveTimersRef.current[panelIndex] = setTimeout(() => saveImage(panelIndex, dataUrl), 2500);
+  };
+
+  const handleCaptionChange = (panelIndex: number, value: string) => {
+    setCaptions(prev => { const next = [...prev]; next[panelIndex] = value; return next; });
+    clearTimeout(captionTimersRef.current[panelIndex]);
+    captionTimersRef.current[panelIndex] = setTimeout(() => {
+      fetch(`/api/video-conti/${videoContiId}/drawing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ panelIndex, caption: value }),
+      });
+    }, 2500);
+  };
+
+  const applyGridSize = async (r: number, c: number) => {
+    if (r === rows && c === cols) return;
+    const hasContent = captions.some(cap => cap && cap.trim()) || panelUrls.some(u => !!u);
+    if (hasContent) {
+      const ok = window.confirm("그리드 크기를 바꾸면 범위를 벗어난 칸의 그림·메모가 사라집니다. 계속할까요?");
+      if (!ok) return;
+    }
+    const res = await fetch(`/api/video-conti/${videoContiId}/drawing`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rows: r, cols: c }),
+    });
+    const d = await res.json();
+    if (!d.ok) { window.alert(d.error ?? "그리드 크기 변경 실패"); return; }
+    setLoading(true);
+    await loadBoard();
+  };
+
+  if (loading) {
+    return <Card style={{ textAlign: "center", padding: 32, color: C.hint }}>스토리보드 불러오는 중…</Card>;
+  }
+
+  return (
+    <div>
+      {/* 그리드 크기 선택 */}
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.teal, marginBottom: 10 }}>그리드 크기</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          {GRID_PRESETS.map(([r, c]) => (
+            <button key={`${r}x${c}`} onClick={() => applyGridSize(r, c)} style={{
+              padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700,
+              background: rows === r && cols === c ? C.teal : C.light,
+              color: rows === r && cols === c ? C.white : C.txt,
+              border: `1px solid ${rows === r && cols === c ? C.teal : C.border}`,
+            }}>{r}×{c}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: C.muted }}>직접 입력</span>
+          <input type="number" min={1} max={6} value={customRows}
+            onChange={e => setCustomRows(Math.min(6, Math.max(1, Number(e.target.value) || 1)))}
+            style={{ width: 48, padding: "5px 6px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12 }} />
+          <span style={{ fontSize: 12, color: C.hint }}>행 ×</span>
+          <input type="number" min={1} max={6} value={customCols}
+            onChange={e => setCustomCols(Math.min(6, Math.max(1, Number(e.target.value) || 1)))}
+            style={{ width: 48, padding: "5px 6px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12 }} />
+          <span style={{ fontSize: 12, color: C.hint }}>열</span>
+          <Btn onClick={() => applyGridSize(customRows, customCols)} variant="secondary" style={{ fontSize: 12 }}>적용</Btn>
+        </div>
+      </Card>
+
+      {/* 펜 툴바 */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 40, marginBottom: 16,
+        background: C.white, borderRadius: 12, border: `1px solid ${C.border}`,
+        padding: "12px 16px", boxShadow: "0 2px 10px rgba(21,88,85,.06)",
+        display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10,
+      }}>
+        <div style={{ display: "flex", gap: 5 }}>
+          {PEN_TYPES.map(({ key, label, icon }) => (
+            <button key={key} title={label} onClick={() => { setPenType(key); setIsEraser(false); }} style={{
+              height: 32, padding: "0 10px", borderRadius: 8,
+              background: !isEraser && penType === key ? C.teal : C.light,
+              border: `2px solid ${!isEraser && penType === key ? C.orange : C.border}`,
+              color: !isEraser && penType === key ? C.white : C.txt, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap",
+            }}>{icon} {label}</button>
+          ))}
+        </div>
+        <div style={{ width: 1, height: 24, background: C.border }} />
+        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+          {[2, 4, 8].map(size => (
+            <button key={size} title={`굵기 ${size}`} onClick={() => setPenSize(size)} style={{
+              width: size + 16, height: size + 16, borderRadius: "50%",
+              background: penSize === size ? C.teal : C.light,
+              border: penSize === size ? `2px solid ${C.orange}` : `2px solid ${C.border}`,
+              cursor: "pointer", flexShrink: 0,
+            }} />
+          ))}
+        </div>
+        <div style={{ width: 1, height: 24, background: C.border }} />
+        <button onClick={() => setIsEraser(e => !e)} title="지우개" style={{
+          width: 32, height: 32, borderRadius: 8,
+          background: isEraser ? C.orange : C.light,
+          border: `2px solid ${isEraser ? C.orange : C.border}`,
+          fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+        }}>🧹</button>
+        <div style={{ width: 1, height: 24, background: C.border }} />
+        <div style={{ display: "flex", gap: 4 }}>
+          {DRAW_COLORS.map(({ color, label }) => (
+            <button key={color} title={label} onClick={() => { setPenColor(color); setIsEraser(false); }} style={{
+              width: 20, height: 20, borderRadius: "50%", background: color, cursor: "pointer",
+              border: `2px solid ${!isEraser && penColor === color ? C.orange : "rgba(0,0,0,.1)"}`,
+            }} />
+          ))}
+        </div>
+      </div>
+
+      {/* 그리드 캔버스 */}
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 12 }}>
+        {Array.from({ length: rows * cols }, (_, i) => (
+          <StoryboardPanel
+            key={i}
+            index={i}
+            initialImage={panelUrls[i] ?? null}
+            caption={captions[i] ?? ""}
+            isActive={activePanel === i}
+            hasError={!!panelError[i]}
+            penType={penType} penSize={penSize} penColor={penColor} isEraser={isEraser}
+            onActivate={() => setActivePanel(i)}
+            onStrokeEnd={(url) => handleStrokeEnd(i, url)}
+            onCaptionChange={(v) => handleCaptionChange(i, v)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Page ──────────────────────────────────────────── */
 function VideoContiInner() {
   const searchParams = useSearchParams();
