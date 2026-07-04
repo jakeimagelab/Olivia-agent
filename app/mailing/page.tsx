@@ -670,6 +670,12 @@ function CustomBrandMailTab() {
   const fmtSize = (bytes: number) =>
     bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)}KB` : `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 
+  const updateLink = (index: number, field: "label" | "url", value: string) =>
+    setLinks(prev => prev.map((l, i) => i === index ? { ...l, [field]: value } : l));
+  const addLink = () => setLinks(prev => [...prev, { label: "", url: "" }]);
+  const removeLink = (index: number) => setLinks(prev => prev.filter((_, i) => i !== index));
+  const filledLinks = links.filter(l => l.label.trim() && l.url.trim());
+
   const handleSaveDraft = async () => {
     if (!subject) { setErrMsg("제목은 필수입니다."); return; }
     setDrafting(true); setErrMsg(""); setDraftSaved(false);
