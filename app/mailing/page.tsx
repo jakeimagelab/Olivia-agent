@@ -1432,17 +1432,17 @@ export default function MailingPage() {
         </div>
       </header>
       <div className="pc-tabs">
+        <button className={`pc-tab${tab === "custom" ? " pc-tab--active" : ""}`} onClick={() => setTab("custom")}>✉️ 브랜드 메일</button>
         <button className={`pc-tab${tab === "queue"  ? " pc-tab--active" : ""}`} onClick={() => setTab("queue")}>📥 임시저장 메일링</button>
         <button className={`pc-tab${tab === "brand"  ? " pc-tab--active" : ""}`} onClick={() => setTab("brand")}>📷 파일 전달(리뷰)</button>
         <button className={`pc-tab${tab === "review" ? " pc-tab--active" : ""}`} onClick={() => setTab("review")}>⭐ 후기 요청 메일</button>
-        <button className={`pc-tab${tab === "custom" ? " pc-tab--active" : ""}`} onClick={() => setTab("custom")}>✉️ 브랜드 메일</button>
         <button className={`pc-tab${tab === "select" ? " pc-tab--active" : ""}`} onClick={() => setTab("select")}>📸 셀렉 갤러리</button>
       </div>
 
+      {tab === "custom" && <CustomBrandMailTab />}
       {tab === "queue"  && <QueueTab />}
       {tab === "brand"  && <BrandMailTab />}
       {tab === "review" && <ReviewOnlyMailTab />}
-      {tab === "custom" && <CustomBrandMailTab />}
       {tab === "select" && <SelectGalleryMailTab />}
     </main>
   );
