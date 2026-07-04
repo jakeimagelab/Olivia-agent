@@ -960,11 +960,13 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
 /* ─── Main Page ──────────────────────────────────────────── */
 function VideoContiInner() {
   const searchParams = useSearchParams();
+  const [mode, setMode] = useState<ContiMode>("ai");
   const [step, setStep] = useState(1);
   const [videoContiId, setVideoContiId] = useState<string | null>(null);
   const [brandAnalysis, setBrandAnalysis] = useState<any>(null);
   const [bgmSections, setBgmSections] = useState<BgmSection[] | null>(null);
   const [scenes, setScenes] = useState<Scene[]>([]);
+  const ensuringDraftRef = useRef(false);
 
   // Load existing record if ?id= param present
   useEffect(() => {
@@ -982,51 +984,75 @@ function VideoContiInner() {
     });
   }, [searchParams]);
 
+  // 손그림 콘티는 AI 마법사와 무관하게 독립적으로 쓸 수 있어야 하므로,
+  // 아직 저장된 video_conti 레코드가 없으면 최소 정보로 하나 만들어둔다.
+  useEffect(() => {
+    if (mode !== "storyboard" || videoContiId || ensuringDraftRef.current) return;
+    ensuringDraftRef.current = true;
+    fetch("/api/video-conti", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "손그림 콘티" }),
+    }).then(r => r.json()).then(d => {
+      if (d.ok) setVideoContiId(d.id);
+    }).finally(() => { ensuringDraftRef.current = false; });
+  }, [mode, videoContiId]);
+
   return (
     <div style={{ minHeight: "100vh", background: "#f8fbfa" }}>
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
         <ModeToggle mode={mode} onChange={setMode} />
 
-        {mode === "ai" && <StepHeader step={step} />}
-
-        {step === 1 && (
-          <Step1
-            onSaved={(id, ba) => {
-              setVideoContiId(id);
-              setBrandAnalysis(ba);
-              setStep(2);
-            }}
-          />
+        {mode === "storyboard" && (
+          videoContiId
+            ? <StoryboardBoard videoContiId={videoContiId} />
+            : <Card style={{ textAlign: "center", padding: 32, color: C.hint }}>손그림 콘티를 준비하는 중…</Card>
         )}
 
-        {step === 2 && videoContiId && (
-          <Step2
-            videoContiId={videoContiId}
-            onDone={(secs) => {
-              setBgmSections(secs);
-              setStep(3);
-            }}
-          />
-        )}
+        {mode === "ai" && (
+          <>
+            <StepHeader step={step} />
 
-        {step === 3 && videoContiId && (
-          <Step3
-            videoContiId={videoContiId}
-            ba={brandAnalysis}
-            bgmSections={bgmSections}
-            onDone={(s) => {
-              setScenes(s);
-              setStep(4);
-            }}
-          />
-        )}
+            {step === 1 && (
+              <Step1
+                onSaved={(id, ba) => {
+                  setVideoContiId(id);
+                  setBrandAnalysis(ba);
+                  setStep(2);
+                }}
+              />
+            )}
 
-        {step === 4 && videoContiId && (
-          <Step4
-            videoContiId={videoContiId}
-            initialScenes={scenes}
-            onBack={() => setStep(3)}
-          />
+            {step === 2 && videoContiId && (
+              <Step2
+                videoContiId={videoContiId}
+                onDone={(secs) => {
+                  setBgmSections(secs);
+                  setStep(3);
+                }}
+              />
+            )}
+
+            {step === 3 && videoContiId && (
+              <Step3
+                videoContiId={videoContiId}
+                ba={brandAnalysis}
+                bgmSections={bgmSections}
+                onDone={(s) => {
+                  setScenes(s);
+                  setStep(4);
+                }}
+              />
+            )}
+
+            {step === 4 && videoContiId && (
+              <Step4
+                videoContiId={videoContiId}
+                initialScenes={scenes}
+                onBack={() => setStep(3)}
+              />
+            )}
+          </>
         )}
       </div>
     </div>
