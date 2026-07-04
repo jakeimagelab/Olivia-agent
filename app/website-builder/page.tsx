@@ -1521,6 +1521,8 @@ export default function WebsiteBuilderPage() {
     setTimeout(() => setSaveMsg(""), 2000);
   };
 
+  useSaveShortcut(handleSaveProject);
+
   const handleLoadProject = (project: SavedProject) => {
     setIntake(project.intake);
     setDesignPrefs(project.designPrefs);
