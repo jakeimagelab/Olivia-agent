@@ -109,6 +109,31 @@ async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirecto
   await wr.write(buf); await wr.close();
 }
 
+// 영상 파일처럼 큰 파일도 다룰 수 있도록 스트리밍으로 복사 (파일명으로 찾아 이동 기능 전용)
+async function copyFileStreamed(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
+  const file = await src.getFile();
+  const fh = await (dest as any).getFileHandle(name, { create: true });
+  const wr = await fh.createWritable();
+  await file.stream().pipeTo(wr);
+}
+
+/* ── 파일명 목록 파싱: 확장자가 있으면 정확히, 없으면 베이스네임만 일치 ── */
+interface NameQuery { raw: string; basenameLower: string; extLower: string | null }
+function parseFileNameQueries(text: string): NameQuery[] {
+  const tokens = text.split(/[\r\n,]+/).map(t => t.trim()).filter(Boolean);
+  const seen = new Set<string>();
+  const out: NameQuery[] = [];
+  for (const token of tokens) {
+    const key = token.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const m = token.match(/^(.+)\.([A-Za-z0-9]{2,5})$/);
+    if (m) out.push({ raw: token, basenameLower: m[1].toLowerCase(), extLower: m[2].toLowerCase() });
+    else out.push({ raw: token, basenameLower: token.toLowerCase(), extLower: null });
+  }
+  return out;
+}
+
 /* ── Component ── */
 function Btn({ children, onClick, disabled, variant, style: s }: {
   children: React.ReactNode; onClick?: () => void;
