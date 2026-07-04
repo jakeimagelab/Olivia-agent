@@ -1620,8 +1620,6 @@ ${header("타임테이블")}
   return (
     <>
     <div style={{ minHeight: "100vh", background: "var(--ivory)" }}>
-      <PageHeader title="Conti Generator" />
-
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 24px" }}>
 
         {/* ══ 입력 폼 ══ */}
