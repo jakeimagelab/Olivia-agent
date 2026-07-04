@@ -236,6 +236,45 @@ export default function ContractPage() {
     }
   };
 
+  const handleSave = async () => {
+    if (!quote) return;
+    setSaveState("saving");
+    try {
+      if (contractId) {
+        const r = await fetch(`/api/contracts/${contractId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            quoteData: quote, signatureDataUrl: signatureDataUrl || null,
+            hospitalName: quote.hospitalName, contactName: quote.contactName, email: quote.email,
+          }),
+        });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error);
+      } else {
+        const r = await fetch("/api/contracts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            quoteNumber: quote.quoteNumber, hospitalName: quote.hospitalName,
+            contactName: quote.contactName, email: quote.email,
+            quoteData: quote, signatureDataUrl: signatureDataUrl || null,
+          }),
+        });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error);
+        setContractId(d.id);
+      }
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
+    } catch {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
+  };
+
+  useSaveShortcut(handleSave);
+
   const iS: React.CSSProperties = {
     width: "100%", border: `1px solid ${C.border}`, borderRadius: 8,
     padding: "9px 12px", fontSize: 13, fontFamily: "inherit",
