@@ -312,8 +312,18 @@ export default function DiagnosisPage() {
             </div>
           )}
 
-          {/* Q5: 연락처(필수) + 사진 업로드(선택) 통합 마지막 단계 */}
+          {/* Q5 예산 */}
           {step === 5 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {Q7_OPTIONS.map(o => (
+                <Opt key={o.value} label={o.label} selected={answers.budget === o.value}
+                  onClick={() => set("budget", o.value as Budget)} />
+              ))}
+            </div>
+          )}
+
+          {/* Q6: 연락처(필수) + 사진 업로드(선택) 통합 마지막 단계 */}
+          {step === 6 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {[
