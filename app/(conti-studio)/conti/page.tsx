@@ -2495,8 +2495,8 @@ ${header("타임테이블")}
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>🗑️</button>
                     <button onClick={() => {
-                      const c = drawCanvasRef.current;
-                      if (c) tempDrawingRef.current = c.toDataURL();
+                      const url = drawCanvasRef.current?.getDataUrl();
+                      if (url) tempDrawingRef.current = url;
                       setDrawMode(false);
                     }} title="펜 도구 닫기" style={{
                       width: 34, height: 34, borderRadius: 10,
