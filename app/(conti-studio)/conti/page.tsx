@@ -1878,7 +1878,7 @@ ${header("타임테이블")}
                     onChange={e => setResultTitle(e.target.value)}
                     placeholder="제목 입력 (예: 포토클리닉 촬영 콘티)"
                     style={{
-                      fontSize: 28, fontWeight: 800, color: "var(--deep-green)",
+                      fontSize: 19, fontWeight: 800, color: "var(--deep-green)",
                       fontFamily: "inherit",
                       border: "none", borderBottom: "2px solid transparent", background: "transparent",
                       outline: "none", padding: "0 4px",
