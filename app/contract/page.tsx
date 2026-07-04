@@ -43,6 +43,8 @@ export default function ContractPage() {
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const [mailingQueued, setMailingQueued] = useState(false);
   const [mailingNotice, setMailingNotice] = useState("");
+  const [contractId, setContractId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   useEffect(() => {
     const params   = new URLSearchParams(window.location.search);
