@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+
+function readCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 const PHOTO_TABS = [
   { href: "/photo-sorting",    label: "📁 사진 분류",         matches: ["/photo-sorting"] },
