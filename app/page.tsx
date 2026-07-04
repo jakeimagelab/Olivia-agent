@@ -4,7 +4,7 @@ import Link from "next/link";
 import React, { FormEvent, useEffect, useRef, useState } from "react";
 import {
   Activity, BarChart2, ArrowRight, CalendarCheck, ClipboardList,
-  FileVideo, Film, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
+  FileVideo, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
   NotebookPen, ShieldCheck, Sparkles, Users, Wand2, Lightbulb,
   AlertCircle, CheckCircle2, Clock, RefreshCw, Calendar, Check,
   FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2, Bell,
