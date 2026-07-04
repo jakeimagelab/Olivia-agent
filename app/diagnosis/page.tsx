@@ -244,7 +244,8 @@ export default function DiagnosisPage() {
     if (step === 2) return (answers.concerns?.length ?? 0) > 0;
     if (step === 3) return !!answers.department;
     if (step === 4) return (answers.usages?.length ?? 0) > 0;
-    if (step === 5) return !!(answers.hospitalName && answers.phone && answers.email);
+    if (step === 5) return !!answers.budget;
+    if (step === 6) return !!(answers.hospitalName && answers.phone && answers.email);
     return true;
   })();
 
@@ -253,7 +254,8 @@ export default function DiagnosisPage() {
     2: "가장 큰 고민이 무엇인가요? (복수 선택)",
     3: "진료과가 어떻게 되시나요?",
     4: "사진이 주로 어디에 쓰이나요? (복수 선택)",
-    5: "마지막으로 연락처를 남겨주세요",
+    5: "예산 범위가 어떻게 되시나요?",
+    6: "마지막으로 연락처를 남겨주세요",
   };
 
   return (
