@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import {
   ArrowLeft, ArrowRight, Check, Globe2, Pencil, Download,
   RotateCcw, RotateCw, Save, Eye, Palette,
