@@ -791,6 +791,7 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
   const [penColor, setPenColor] = useState("#E85D2C");
   const [isEraser, setIsEraser] = useState(false);
   const [eraserSize, setEraserSize] = useState(ERASER_SIZES[1]);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const captionTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
