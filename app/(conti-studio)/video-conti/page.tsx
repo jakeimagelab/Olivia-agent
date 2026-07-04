@@ -725,9 +725,10 @@ function VideoContiInner() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fbfa" }}>
-      <PageHeader title="영상 콘티 생성" backHref="/" backLabel="관리자 홈" />
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
-        <StepHeader step={step} />
+        <ModeToggle mode={mode} onChange={setMode} />
+
+        {mode === "ai" && <StepHeader step={step} />}
 
         {step === 1 && (
           <Step1
