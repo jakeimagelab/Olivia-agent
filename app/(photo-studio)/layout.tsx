@@ -55,7 +55,7 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
         boxShadow: "0 1px 0 rgba(21,88,85,.07)",
         display: "flex", overflowX: "auto", position: "sticky", top: 56, zIndex: 90,
       }}>
-        {PHOTO_TABS.map(t => (
+        {visibleTabs.map(t => (
           <Link
             key={t.href}
             href={t.href}
