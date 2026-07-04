@@ -702,6 +702,8 @@ function CustomBrandMailTab() {
     finally { setDrafting(false); }
   };
 
+  useSaveShortcut(handleSaveDraft);
+
   const handleSend = async () => {
     if (!toEmail || !subject || !body) { setErrMsg("이메일, 제목, 본문은 필수입니다."); return; }
     setSending(true); setErrMsg(""); setResult(null);
