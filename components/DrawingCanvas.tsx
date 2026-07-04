@@ -78,10 +78,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
     if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
   };
 
-  const drawImageToFit = (canvas: HTMLCanvasElement, src: string) => {
+  const drawImageToFit = (canvas: HTMLCanvasElement, src: string, onDone?: () => void) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+    img.onload = () => {
+      canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      onDone?.();
+    };
     img.src = src;
   };
 
@@ -91,6 +94,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
       if (!canvas) return;
       pushHistory();
       canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+      onStrokeEnd?.(canvas.toDataURL("image/png"));
     },
     getDataUrl: () => canvasRef.current?.toDataURL("image/png") ?? null,
     loadImage: (src: string) => {
@@ -104,7 +108,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
       if (!canvas || !ctx) return;
       const prev = historyRef.current.pop();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (prev) drawImageToFit(canvas, prev);
+      const notify = () => onStrokeEnd?.(canvas.toDataURL("image/png"));
+      if (prev) drawImageToFit(canvas, prev, notify);
+      else notify();
     },
     canUndo: () => historyRef.current.length > 0,
   }));
