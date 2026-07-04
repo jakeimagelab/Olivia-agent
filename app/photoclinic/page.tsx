@@ -6,11 +6,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import OliviaChat from "@/components/OliviaChat";
 import PageHeader from "@/components/PageHeader";
 import { createMailingDraft } from "@/lib/mailingQueue";
+import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import {
   ArrowLeft,
   Download,
   Plus,
   RefreshCcw,
+  Save,
   Trash2,
   Upload,
   UserRound,
