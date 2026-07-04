@@ -2431,21 +2431,17 @@ ${header("타임테이블")}
             {/* ── 드로잉 캔버스 오버레이 ── */}
             {drawMode && (
               <>
-                <canvas
+                <DrawingCanvas
                   ref={drawCanvasRef}
+                  penType={penType}
+                  penSize={penSize}
+                  penColor={penColor}
+                  isEraser={isEraser}
                   style={{
                     position: "fixed", top: 72, left: 0, right: 0, bottom: 0,
                     width: "100%", height: "calc(100% - 72px)",
-                    zIndex: 305, cursor: isEraser ? "cell" : "crosshair",
-                    touchAction: "none",
+                    zIndex: 305,
                   }}
-                  onMouseDown={startDraw}
-                  onMouseMove={continueDraw}
-                  onMouseUp={stopDraw}
-                  onMouseLeave={stopDraw}
-                  onTouchStart={startDraw}
-                  onTouchMove={continueDraw}
-                  onTouchEnd={stopDraw}
                 />
                 {/* 드로잉 툴바 */}
                 <div style={{
