@@ -913,13 +913,17 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
         </div>
         <div style={{ width: 1, height: 24, background: C.border }} />
         <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-          {[2, 4, 8].map(size => (
-            <button key={size} title={`굵기 ${size}`} onClick={() => setPenSize(size)} style={{
-              width: size + 16, height: size + 16, borderRadius: "50%",
-              background: penSize === size ? C.teal : C.light,
-              border: penSize === size ? `2px solid ${C.orange}` : `2px solid ${C.border}`,
-              cursor: "pointer", flexShrink: 0,
-            }} />
+          {(isEraser ? ERASER_SIZES : [2, 4, 8]).map(size => (
+            <button
+              key={size}
+              title={`굵기 ${size}`}
+              onClick={() => isEraser ? setEraserSize(size) : setPenSize(size)}
+              style={{
+                width: Math.min(size, 8) + 16, height: Math.min(size, 8) + 16, borderRadius: "50%",
+                background: (isEraser ? eraserSize : penSize) === size ? C.teal : C.light,
+                border: (isEraser ? eraserSize : penSize) === size ? `2px solid ${C.orange}` : `2px solid ${C.border}`,
+                cursor: "pointer", flexShrink: 0,
+              }} />
           ))}
         </div>
         <div style={{ width: 1, height: 24, background: C.border }} />
@@ -929,6 +933,16 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
           border: `2px solid ${isEraser ? C.orange : C.border}`,
           fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
         }}>🧹</button>
+        <button onClick={() => panelHandlesRef.current[activePanel]?.undo()} title={`${activePanel + 1}번 칸 복원`} style={{
+          width: 32, height: 32, borderRadius: 8,
+          background: C.light, border: `2px solid ${C.border}`,
+          fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+        }}>↩️</button>
+        <button onClick={() => panelHandlesRef.current[activePanel]?.clear()} title={`${activePanel + 1}번 칸 지우기`} style={{
+          width: 32, height: 32, borderRadius: 8,
+          background: C.light, border: `2px solid ${C.border}`,
+          fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+        }}>🗑️</button>
         <div style={{ width: 1, height: 24, background: C.border }} />
         <div style={{ display: "flex", gap: 4 }}>
           {DRAW_COLORS.map(({ color, label }) => (
