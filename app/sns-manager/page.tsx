@@ -726,6 +726,8 @@ function InstagramContentTab() {
     persist([draft, ...saved.filter((item) => item.id !== draft.id)].slice(0, 20));
   };
 
+  useSaveShortcut(saveDraft);
+
   const loadDraft = (item: InstaDraft) => setDraft(item);
   const deleteDraft = (id: string) => persist(saved.filter((item) => item.id !== id));
 
