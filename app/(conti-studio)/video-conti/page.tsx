@@ -964,7 +964,8 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
             caption={captions[i] ?? ""}
             isActive={activePanel === i}
             hasError={!!panelError[i]}
-            penType={penType} penSize={penSize} penColor={penColor} isEraser={isEraser}
+            penType={penType} penSize={penSize} penColor={penColor} isEraser={isEraser} eraserSize={eraserSize}
+            canvasRef={(handle) => { panelHandlesRef.current[i] = handle; }}
             onActivate={() => setActivePanel(i)}
             onStrokeEnd={(url) => handleStrokeEnd(i, url)}
             onCaptionChange={(v) => handleCaptionChange(i, v)}
