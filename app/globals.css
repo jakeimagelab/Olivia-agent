@@ -29,7 +29,10 @@
 html {
   scroll-behavior: smooth;
   max-width: 100vw;
-  overflow-x: hidden;
+  /* hidden 대신 clip: hidden/auto/scroll는 overflow-y도 강제로 auto가 되게 만들어
+     html/body가 "스크롤 컨테이너"가 되고, 그 안의 position:sticky가 전부 깨진다.
+     clip은 스크롤 컨테이너를 만들지 않으면서 가로 넘침만 잘라낸다. */
+  overflow-x: clip;
 }
 
 body {
@@ -38,7 +41,7 @@ body {
   color: var(--ink);
   word-break: keep-all;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 button,
