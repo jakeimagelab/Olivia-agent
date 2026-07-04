@@ -29,8 +29,16 @@
 
 `app/(photo-studio)/layout.tsx`와 동일한 구조로 작성한다: 상단에 유리질감 탭 바
 ("📋 사진콘티" → `/conti`, "🎬 영상콘티" → `/video-conti`), `PageHeader` 재사용, 현재 경로에 따라
-활성 탭 표시. `app/conti/page.tsx`와 `app/video-conti/page.tsx`는 이 레이아웃 아래로 이동하되
-파일 내용/로직은 건드리지 않는다.
+활성 탭 표시.
+
+**파일 이동이 필요하다** (Next.js 라우트 그룹은 URL에 영향을 주지 않으므로, 레이아웃을 적용하려면
+페이지 파일을 실제로 그룹 폴더 안으로 옮겨야 한다):
+- `app/conti/page.tsx` → `app/(conti-studio)/conti/page.tsx`
+- `app/video-conti/page.tsx` → `app/(conti-studio)/video-conti/page.tsx`
+- `app/conti/view/[token]/page.tsx`, `app/video-conti/view/[token]/page.tsx` 등 공개 공유 뷰
+  라우트는 **옮기지 않고 지금 위치 그대로 둔다** (관리자용 탭 헤더가 씌워지면 안 되기 때문).
+- 파일 내용/로직 자체는 건드리지 않는다. `@/` 절대경로 import를 쓰고 있으므로 파일 이동으로
+  깨지는 import는 없어야 하지만, 이동 후 타입체크로 확인한다.
 
 `app/page.tsx`의 `TOOLS_WORK`에서 "촬영 콘티 생성"(`/conti`)과 "영상 콘티 생성"(`/video-conti`)
 카드 2개를 제거하고, "콘티생성" 카드 1개(`href: "/conti"`)로 교체한다.
