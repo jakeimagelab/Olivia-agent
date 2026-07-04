@@ -154,14 +154,15 @@ function MemoPage() {
 
   const fmtRecordTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  const analyze = async () => {
-    if (!rawMemo.trim()) { setError("상담 메모를 입력해주세요."); return; }
+  const analyze = async (textOverride?: string) => {
+    const text = textOverride ?? rawMemo;
+    if (!text.trim()) { setError("상담 메모를 입력해주세요."); return; }
     setAnalyzing(true); setError(""); setResult(null);
     try {
       const res = await fetch("/api/memo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ raw_memo: rawMemo }),
+        body: JSON.stringify({ raw_memo: text }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
