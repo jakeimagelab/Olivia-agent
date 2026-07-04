@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
+import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import {
   FileText, Instagram, MapPin, Sparkles, ShieldAlert, Calendar,
   Copy, Check, RefreshCw, ChevronDown, ChevronUp, AlertTriangle,
