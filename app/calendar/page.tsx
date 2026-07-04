@@ -430,10 +430,10 @@ function EditTaskForm({ task, onSave, onCancel }: {
 }
 
 /* ─── ConsultMemoPanel ─────────────────────────────────── */
-function ConsultMemoPanel({ dateStr, consultations, onNewEntry }: {
+function ConsultMemoPanel({ dateStr, consultations, onAdd }: {
   dateStr: string;
   consultations: ConsultEntry[];
-  onNewEntry: (entry: ConsultEntry) => void;
+  onAdd: (t: CalTask) => void;
 }) {
   const [rawMemo, setRawMemo] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
