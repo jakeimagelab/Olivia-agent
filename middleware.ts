@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+export const runtime = "nodejs";
 
 const protectedApiPrefixes = [
   "/api/olivia",
@@ -18,12 +21,22 @@ const protectedApiPrefixes = [
   "/api/quotes",
 ];
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
+
+  if (pathname === "/__mw_probe") {
+    try {
+      const supabase = getSupabaseAdmin();
+      const { error } = await supabase.from("quotes").select("id").limit(1);
+      return NextResponse.json({ ok: true, supabaseReachable: true, error: error?.message ?? null });
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, error: String(e?.message ?? e) }, { status: 500 });
+    }
+  }
+
   const shouldProtect = protectedApiPrefixes.some((prefix) => pathname.startsWith(prefix));
   if (!shouldProtect) return NextResponse.next();
 
-  // 내부 서버→서버 호출 허용 (Telegram webhook 등)
   const internalKey = req.headers.get("x-internal-key");
   if (internalKey && internalKey === process.env.INTERNAL_API_KEY) {
     return NextResponse.next();
@@ -36,5 +49,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*"]
+  matcher: ["/api/:path*", "/__mw_probe"]
 };
