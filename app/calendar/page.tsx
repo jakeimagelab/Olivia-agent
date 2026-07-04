@@ -694,7 +694,7 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
         <ConsultMemoPanel
           dateStr={dateStr}
           consultations={consultations}
-          onNewEntry={(entry) => setConsultations(prev => [...prev, entry])}
+          onAdd={onAdd}
         />
       </div>
     </div>
