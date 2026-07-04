@@ -539,9 +539,143 @@ export default function SelectMatchPage() {
     setFmStep("idle"); setFmMatches([]); setFmMissing([]); setFmMovedCount(0); setFmText("");
   };
 
+  /* ── 상단 기능 전환 탭 (두 기능 진입점에서만 노출) ── */
+  const FeatureTabs = () => (
+    <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+      <button onClick={() => setFeature("raw_match")} style={{
+        flex: 1, padding: "10px 14px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+        border: `1.5px solid ${feature === "raw_match" ? C.teal : C.border}`,
+        background: feature === "raw_match" ? C.light : C.white,
+        color: feature === "raw_match" ? C.teal : C.muted, fontSize: 12, fontWeight: 800,
+      }}>🎯 셀렉 &amp; RAW 매칭</button>
+      <button onClick={() => setFeature("find_move")} style={{
+        flex: 1, padding: "10px 14px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+        border: `1.5px solid ${feature === "find_move" ? C.teal : C.border}`,
+        background: feature === "find_move" ? C.light : C.white,
+        color: feature === "find_move" ? C.teal : C.muted, fontSize: 12, fontWeight: 800,
+      }}>📋 파일명으로 찾아 이동</button>
+    </div>
+  );
+
+  /* ── 파일명으로 찾아 이동 ── */
+  if (feature === "find_move") {
+    if (fmStep === "idle") return (
+      <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
+        <FeatureTabs />
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 30, marginBottom: 8 }}>📋</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>파일명으로 찾아 이동</div>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>파일명 목록을 붙여넣으면 폴더에서 찾아 선택 폴더로 이동합니다.</div>
+        </div>
+
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.txt, marginBottom: 8 }}>1. 검색할 폴더 선택 (하위 폴더까지 검색)</div>
+            {!hasFS ? (
+              <div style={{ fontSize: 12, color: C.red }}>Chrome 또는 Edge를 사용해주세요.</div>
+            ) : (
+              <Btn onClick={pickFmFolder}>{fmRootDir ? `✅ ${fmRootDir.name}` : "📂 폴더 선택"}</Btn>
+            )}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.txt, marginBottom: 8 }}>2. 파일명 목록 (한 줄에 하나씩, 또는 쉼표로 구분)</div>
+            <textarea
+              value={fmText}
+              onChange={(e) => setFmText(e.target.value)}
+              placeholder={"예시:\nDSC_0142.jpg\nDSC_0145.mp4\nDSC_0148  ← 확장자 생략 시 모든 확장자 파일을 찾습니다"}
+              rows={7}
+              style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12, fontFamily: "monospace", resize: "vertical", background: C.bg, color: C.txt, boxSizing: "border-box" }}
+            />
+            {fmText.trim() && (
+              <div style={{ marginTop: 10, background: C.light, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: C.muted }}>
+                파일명 <strong style={{ color: C.teal }}>{parseFileNameQueries(fmText).length}개</strong> 입력됨
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.txt, marginBottom: 8 }}>3. 이동할 선택 폴더 이름</div>
+            <input
+              value={fmFolderName}
+              onChange={(e) => setFmFolderName(e.target.value || "선택")}
+              style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }}
+            />
+            <div style={{ fontSize: 11, color: C.hint, marginTop: 6 }}>선택한 폴더 안에 이 이름으로 폴더가 생성되고, 찾은 파일이 그 안으로 이동합니다.</div>
+          </div>
+
+          <div style={{ textAlign: "center" }}>
+            <Btn onClick={runFindByName} disabled={!fmRootDir || !fmText.trim()}>🔍 폴더에서 찾기 →</Btn>
+          </div>
+        </div>
+      </div>
+    );
+
+    if (fmStep === "scanning") return (
+      <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
+        <div style={{ fontSize: 30, marginBottom: 12 }}>🔍</div>
+        <div style={{ fontSize: 13, color: C.muted }}>폴더를 검색하는 중입니다...</div>
+      </div>
+    );
+
+    if (fmStep === "result") return (
+      <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
+          <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 900, color: C.teal }}>
+            검색 결과 — 찾음 {fmMatches.length}개 · 못 찾음 {fmMissing.length}개
+          </div>
+          <div style={{ padding: 20 }}>
+            {fmMatches.length > 0 && (
+              <div style={{ maxHeight: 220, overflowY: "auto", marginBottom: fmMissing.length > 0 ? 14 : 0 }}>
+                {fmMatches.map((m) => (
+                  <div key={m.name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12, color: C.txt, borderBottom: `1px solid ${C.border}` }}>
+                    <span>{m.name}</span>
+                    <span style={{ color: C.hint }}>{m.query}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {fmMissing.length > 0 && (
+              <div style={{ background: "#FEF2F2", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red }}>
+                ⚠️ 못 찾은 파일명 {fmMissing.length}개: {fmMissing.join(", ")}
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <Btn variant="secondary" onClick={resetFindByName}>← 다시 검색</Btn>
+          <Btn onClick={runMoveMatched} disabled={fmMatches.length === 0}>📁 {fmFolderName}/ 폴더로 이동 →</Btn>
+        </div>
+      </div>
+    );
+
+    if (fmStep === "moving") {
+      const pct = fmProgress.total > 0 ? Math.round((fmProgress.cur / fmProgress.total) * 100) : 0;
+      return (
+        <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px" }}>
+          <div style={{ fontSize: 13, color: C.muted, marginBottom: 8, textAlign: "center" }}>{fmProgress.cur} / {fmProgress.total} 이동 중...</div>
+          <div style={{ height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: C.teal, transition: "width .2s" }} />
+          </div>
+        </div>
+      );
+    }
+
+    if (fmStep === "done") return (
+      <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
+        <div style={{ fontSize: 30, marginBottom: 12 }}>✅</div>
+        <div style={{ fontSize: 14, fontWeight: 800, color: C.txt, marginBottom: 20 }}>
+          {fmMovedCount}개 파일을 <strong style={{ color: C.teal }}>{fmFolderName}/</strong> 폴더로 이동했습니다.
+        </div>
+        <Btn onClick={resetFindByName}>새로 검색하기</Btn>
+      </div>
+    );
+  }
+
   /* ── Idle ── */
   if (step === "idle") return (
     <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
+      <FeatureTabs />
       <div style={{ textAlign: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 30, marginBottom: 8 }}>🎯</div>
         <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>셀렉 & RAW 매칭</div>
