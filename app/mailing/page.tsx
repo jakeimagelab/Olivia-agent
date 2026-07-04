@@ -819,18 +819,34 @@ function CustomBrandMailTab() {
           {/* 링크 버튼 */}
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>🔗 링크 버튼 <span style={{ fontWeight: 400, color: C.hint }}>(선택)</span></div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>🔗 링크 버튼 <span style={{ fontWeight: 400, color: C.hint }}>(선택, 여러 개 추가 가능)</span></div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>메일 본문에 클릭 가능한 버튼을 추가합니다</div>
             </div>
-            <div style={{ padding: "18px 20px", display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
-              <div>
-                <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>버튼 텍스트</label>
-                <input value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="자료 확인하기" style={iS} />
-              </div>
-              <div>
-                <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>링크 URL</label>
-                <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://..." style={{ ...iS, fontSize: 12 }} />
-              </div>
+            <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {links.map((link, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: 10, alignItems: "end" }}>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>버튼 텍스트</label>
+                    <input value={link.label} onChange={e => updateLink(i, "label", e.target.value)} placeholder="자료 확인하기" style={iS} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>링크 URL</label>
+                    <input value={link.url} onChange={e => updateLink(i, "url", e.target.value)} placeholder="https://..." style={{ ...iS, fontSize: 12 }} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeLink(i)}
+                    disabled={links.length === 1}
+                    title="이 링크 삭제"
+                    style={{ height: 42, width: 36, border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, color: links.length === 1 ? C.hint : C.orange, cursor: links.length === 1 ? "not-allowed" : "pointer", fontSize: 14 }}
+                  >✕</button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addLink}
+                style={{ alignSelf: "flex-start", padding: "7px 14px", border: `1px dashed ${C.teal}`, borderRadius: 8, background: "transparent", color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+              >+ 링크 추가</button>
             </div>
           </div>
 
