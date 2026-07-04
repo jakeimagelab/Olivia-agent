@@ -308,6 +308,13 @@ export default function ContractPage() {
           </div>
         </div>
         <div className="pc-header-actions">
+          <button onClick={handleSave} disabled={saveState === "saving"} className="pc-btn pc-btn--sm"
+            style={{
+              borderColor: saveState === "saved" ? "#22C55E" : saveState === "error" ? C.orange : undefined,
+              color: saveState === "saved" ? "#16a34a" : saveState === "error" ? C.orange : undefined,
+            }}>
+            {saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : saveState === "error" ? "✕ 저장 실패" : "저장 (⌘S)"}
+          </button>
           <button onClick={downloadPdf} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
             {pdfGenerating ? "PDF 생성 중..." : "PDF 저장"}
           </button>
