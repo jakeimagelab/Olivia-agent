@@ -710,7 +710,7 @@ function CustomBrandMailTab() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: toEmail, toName, subject, body,
-          links: linkLabel && linkUrl ? [{ label: linkLabel, url: linkUrl }] : [],
+          links: filledLinks,
           attachments: attachments.map(({ filename, content_type, content }) => ({ filename, content_type, content })),
         }),
       });
