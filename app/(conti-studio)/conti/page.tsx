@@ -694,28 +694,26 @@ export default function ContiPage() {
   const toggleDone = (i: number) =>
     setDoneConti(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s; });
 
-  // ── 현장 뷰 드로잉 ──
+  // ── 현장 뷰 드로잉 (엔진은 components/DrawingCanvas 공유 컴포넌트) ──
   const [drawMode,      setDrawMode]      = useState(false);
   const [penColor,      setPenColor]      = useState("#E85D2C");
   const [penSize,       setPenSize]       = useState(4);
   const [penType,       setPenType]       = useState<"pen" | "marker" | "highlighter" | "brush">("pen");
   const [isEraser,      setIsEraser]      = useState(false);
   const [drawSaveState, setDrawSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const drawCanvasRef  = useRef<HTMLCanvasElement>(null);
-  const isDrawingRef   = useRef(false);
-  const lastPointRef   = useRef<{ x: number; y: number } | null>(null);
-  const lastTimeRef    = useRef(Date.now());
+  const drawCanvasRef  = useRef<DrawingCanvasHandle>(null);
   const tempDrawingRef = useRef<string | null>(null);
+
+  const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => (await fetch(dataUrl)).blob();
 
   /* 캔버스 → Supabase Storage 저장 */
   const saveDrawing = async () => {
-    const canvas = drawCanvasRef.current;
+    const dataUrl = drawCanvasRef.current?.getDataUrl();
     const hospital = form.hospitalName || resultTitle;
-    if (!canvas || !hospital) return;
+    if (!dataUrl || !hospital) return;
     setDrawSaveState("saving");
     try {
-      const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, "image/png"));
-      if (!blob) throw new Error("canvas 변환 실패");
+      const blob = await dataUrlToBlob(dataUrl);
       const fd = new FormData();
       fd.append("file", blob, "drawing.png");
       fd.append("hospital", hospital);
@@ -732,170 +730,30 @@ export default function ContiPage() {
 
   /* Supabase Storage → 캔버스 복원 */
   const loadDrawing = async () => {
-    const canvas = drawCanvasRef.current;
     const hospital = form.hospitalName || resultTitle;
-    if (!canvas || !hospital) return;
+    if (!hospital) return;
     try {
       const res  = await fetch(`/api/conti-drawing?hospital=${encodeURIComponent(hospital)}`);
       const data = await res.json();
       if (!data.ok || !data.url) return;
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const ctx = canvas.getContext("2d");
-        if (ctx) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      };
-      img.src = data.url;
+      drawCanvasRef.current?.loadImage(data.url);
     } catch { /* 드로잉 없음 — 무시 */ }
   };
 
   useEffect(() => {
     if (!drawMode) return;
-    const canvas = drawCanvasRef.current;
-    if (!canvas) return;
-    const resize = () => {
-      const imgData = canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height);
-      canvas.width  = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-      if (imgData) canvas.getContext("2d")?.putImageData(imgData, 0, 0);
-    };
-    resize();
     // 메모리 스냅샷이 있으면 우선 복원, 없으면 Supabase에서 불러오기
     if (tempDrawingRef.current) {
       const snap = tempDrawingRef.current;
       tempDrawingRef.current = null;
-      const img = new Image();
-      img.onload = () => canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
-      img.src = snap;
+      drawCanvasRef.current?.loadImage(snap);
     } else {
       loadDrawing();
     }
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawMode]);
 
-  const getDrawPos = (e: React.MouseEvent | React.TouchEvent): { x: number; y: number } | null => {
-    const canvas = drawCanvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    if ("touches" in e) {
-      const t = e.touches[0];
-      if (!t) return null;
-      return { x: t.clientX - rect.left, y: t.clientY - rect.top };
-    }
-    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
-  };
-
-  const applyPenStyle = (ctx: CanvasRenderingContext2D, speed = 0) => {
-    if (isEraser) {
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.lineWidth   = penSize * 6;
-      ctx.globalAlpha = 1;
-      ctx.lineCap     = "round";
-      ctx.lineJoin    = "round";
-      return;
-    }
-    ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = penColor;
-    ctx.fillStyle   = penColor;
-    if (penType === "pen") {
-      ctx.lineWidth   = penSize;
-      ctx.globalAlpha = 1;
-      ctx.lineCap     = "round";
-      ctx.lineJoin    = "round";
-    } else if (penType === "marker") {
-      ctx.lineWidth   = penSize * 2.5;
-      ctx.globalAlpha = 0.92;
-      ctx.lineCap     = "square";
-      ctx.lineJoin    = "miter";
-    } else if (penType === "highlighter") {
-      ctx.lineWidth   = penSize * 7;
-      ctx.globalAlpha = 0.38;
-      ctx.lineCap     = "square";
-      ctx.lineJoin    = "miter";
-    } else if (penType === "brush") {
-      const dynamicW  = Math.max(penSize * 0.5, penSize * 2.8 * (1 - Math.min(speed * 3, 0.85)));
-      ctx.lineWidth   = dynamicW;
-      ctx.globalAlpha = 0.82;
-      ctx.lineCap     = "round";
-      ctx.lineJoin    = "round";
-    }
-  };
-
-  const startDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const pos = getDrawPos(e);
-    if (!pos) return;
-    isDrawingRef.current = true;
-    lastPointRef.current = pos;
-    lastTimeRef.current  = Date.now();
-    const ctx = drawCanvasRef.current?.getContext("2d");
-    if (!ctx) return;
-    ctx.save();
-    applyPenStyle(ctx);
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, ctx.lineWidth / 2, 0, Math.PI * 2);
-    if (isEraser) ctx.fillStyle = "rgba(0,0,0,1)";
-    ctx.fill();
-    ctx.restore();
-  };
-
-  const continueDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    if (!isDrawingRef.current) return;
-    const pos  = getDrawPos(e);
-    const last = lastPointRef.current;
-    if (!pos || !last) return;
-    const ctx = drawCanvasRef.current?.getContext("2d");
-    if (!ctx) return;
-
-    const now  = Date.now();
-    const dt   = Math.max(now - lastTimeRef.current, 1);
-    const dx   = pos.x - last.x;
-    const dy   = pos.y - last.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const speed = dist / dt;
-    lastTimeRef.current = now;
-
-    ctx.save();
-    applyPenStyle(ctx, speed);
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(pos.x, pos.y);
-    if (isEraser) ctx.strokeStyle = "rgba(0,0,0,1)";
-    ctx.stroke();
-    ctx.restore();
-    lastPointRef.current = pos;
-  };
-
-  const stopDraw = () => { isDrawingRef.current = false; lastPointRef.current = null; };
-
-  const clearCanvas = () => {
-    const canvas = drawCanvasRef.current;
-    if (canvas) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const DRAW_COLORS = [
-    { color: "#E85D2C", label: "주황" },
-    { color: "#FF0000", label: "빨강" },
-    { color: "#FFCC00", label: "노랑" },
-    { color: "#22C55E", label: "초록" },
-    { color: "#155855", label: "딥그린" },
-    { color: "#3B82F6", label: "파랑" },
-    { color: "#8B5CF6", label: "보라" },
-    { color: "#EC4899", label: "핑크" },
-    { color: "#FFFFFF", label: "흰색" },
-    { color: "#D1D5DB", label: "연회색" },
-    { color: "#6B7280", label: "회색" },
-    { color: "#000000", label: "검정" },
-  ];
-
-  const PEN_TYPES: { key: "pen" | "marker" | "highlighter" | "brush"; label: string; icon: string }[] = [
-    { key: "pen",         label: "펜",    icon: "✒️" },
-    { key: "marker",      label: "마커",  icon: "🖊️" },
-    { key: "highlighter", label: "형광펜", icon: "🖍️" },
-    { key: "brush",       label: "브러시", icon: "🖌️" },
-  ];
+  const clearCanvas = () => drawCanvasRef.current?.clear();
 
   const set = (field: string, value: unknown) =>
     setForm(prev => ({ ...prev, [field]: value }));
