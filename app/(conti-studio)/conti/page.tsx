@@ -2435,6 +2435,7 @@ ${header("타임테이블")}
                   penSize={penSize}
                   penColor={penColor}
                   isEraser={isEraser}
+                  eraserSize={eraserSize}
                   style={{
                     position: "fixed", top: 72, left: 0, right: 0, bottom: 0,
                     width: "100%", height: "calc(100% - 72px)",
