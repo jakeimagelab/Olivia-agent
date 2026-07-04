@@ -606,8 +606,7 @@ function CustomBrandMailTab() {
   const [toEmail,     setToEmail]     = useState("");
   const [subject,     setSubject]     = useState("");
   const [body,        setBody]        = useState("");
-  const [linkLabel,   setLinkLabel]   = useState("");
-  const [linkUrl,     setLinkUrl]     = useState("");
+  const [links,       setLinks]       = useState<{ label: string; url: string }[]>([{ label: "", url: "" }]);
   const [attachments, setAttachments] = useState<{ filename: string; content_type: string; content: string; size: number }[]>([]);
   const [preview,     setPreview]     = useState(true);
   const [sending,     setSending]     = useState(false);
