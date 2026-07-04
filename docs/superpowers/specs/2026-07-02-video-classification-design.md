@@ -1,5 +1,11 @@
 # 영상 분류 (Video Classification) 기능 설계
 
+> **⚠️ 이 문서는 폐기된 설계입니다.** 아래 내용(진료과별 시간 그룹핑 + `app/api/video-scene-analyze`)은
+> 실제 사용 중 대량 클립이 한 씬으로 뭉쳐 분류 정확도가 떨어지는 문제가 발견되어, 진료과 구분 없이
+> 영상 파일 하나하나를 개별적으로 4개 고정 카테고리로 분류하는 방식(`app/api/video-classify`,
+> `lib/video-classifier/types.ts`)으로 전면 교체되었습니다. 현재 구현은 `app/(photo-studio)/video-sorting/page.tsx`를
+> 참고하세요. 이 문서는 설계 변경 과정의 기록으로만 남겨둡니다.
+
 ## 배경
 
 사진작업실(`app/(photo-studio)/`)에는 이미 "사진 분류" 기능이 있으며, 두 모드로 구성된다:
