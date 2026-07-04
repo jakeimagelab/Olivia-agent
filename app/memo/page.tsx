@@ -202,19 +202,9 @@ function MemoPage() {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
+      // calendar_tasks에 저장된 이 항목이 캘린더 페이지의 "상담 메모" 카드로 그대로
+      // 표시된다 (Supabase 기반이라 다른 컴퓨터에서도 동일하게 보임).
       setCalSaved(true);
-      try {
-        const consultKey = `cal_consult_${date}`;
-        const existing: object[] = JSON.parse(localStorage.getItem(consultKey) || "[]");
-        existing.push({
-          hospital: edited.hospital_name || "미입력",
-          summary: edited.summary || "",
-          items: edited.shooting_items || [],
-          budget: edited.budget || "",
-          savedAt: new Date().toLocaleDateString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-        });
-        localStorage.setItem(consultKey, JSON.stringify(existing));
-      } catch {}
     } catch (e: any) {
       setCalError(e.message || "캘린더 저장 실패");
     } finally {
