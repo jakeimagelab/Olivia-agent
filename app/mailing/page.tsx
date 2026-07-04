@@ -1058,6 +1058,8 @@ function ReviewOnlyMailTab() {
     finally { setDrafting(false); }
   };
 
+  useSaveShortcut(saveDraft);
+
   const handleSend = async () => {
     if (!toEmail || !hospitalName || !subject || !message) {
       setErrMsg("고객, 이메일, 제목, 본문은 필수입니다.");
