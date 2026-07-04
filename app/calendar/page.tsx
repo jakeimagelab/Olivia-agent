@@ -597,17 +597,23 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
   const dow = d.getDay();
   const dateLabel = `${d.getMonth()+1}월 ${d.getDate()}일 ${WEEKDAYS[dow]}`;
   const done = tasks.filter(t => t.completed).length;
-  const [consultations, setConsultations] = useState<ConsultEntry[]>([]);
+
+  // 상담 메모는 별도 저장소 없이, 이미 Supabase에 저장된 category:"shooting" 태스크에서
+  // 그대로 파생한다 — 그래야 다른 컴퓨터에서 접속해도 동일하게 보인다.
+  const consultations = useMemo<ConsultEntry[]>(() => tasks
+    .filter(t => t.category === "shooting" && t.memo)
+    .map(t => ({
+      hospital: t.location || t.title.replace(/\s*촬영\s*일정\s*$/, "").trim() || "미입력",
+      summary: t.memo,
+      items: [],
+      budget: "",
+      savedAt: new Date(t.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+    })), [tasks]);
 
   const sorted = useMemo(() => [...tasks].sort((a, b) => {
     if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
     return (a.time ?? "99:99").localeCompare(b.time ?? "99:99");
   }), [tasks]);
-
-  useEffect(() => {
-    try { setConsultations(JSON.parse(localStorage.getItem(`cal_consult_${dateStr}`) || "[]")); }
-    catch { setConsultations([]); }
-  }, [dateStr]);
 
   const SectionLabel = ({ children, badge }: { children: string; badge?: number }) => (
     <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
