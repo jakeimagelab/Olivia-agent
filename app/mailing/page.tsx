@@ -690,7 +690,7 @@ function CustomBrandMailTab() {
           to_email: toEmail,
           subject,
           body,
-          links: linkLabel && linkUrl ? [{ label: linkLabel, url: linkUrl }] : [],
+          links: filledLinks,
           attachments: attachments.map(({ filename, content_type, content }) => ({ filename, content_type, content })),
         }),
       });
