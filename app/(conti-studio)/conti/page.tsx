@@ -2466,18 +2466,21 @@ ${header("타임테이블")}
                     </div>
                     <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
                     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                      {(isEraser ? ERASER_SIZES : [2, 4, 8]).map(size => (
-                        <button
-                          key={size}
-                          title={`굵기 ${size}`}
-                          onClick={() => isEraser ? setEraserSize(size) : setPenSize(size)}
-                          style={{
-                            width: Math.min(size, 8) + 16, height: Math.min(size, 8) + 16, borderRadius: "50%",
-                            background: (isEraser ? eraserSize : penSize) === size ? "#fff" : "rgba(255,255,255,0.25)",
-                            border: (isEraser ? eraserSize : penSize) === size ? "2px solid #E85D2C" : "2px solid transparent",
-                            cursor: "pointer", flexShrink: 0, transition: "all 120ms",
-                          }} />
-                      ))}
+                      {(isEraser ? ERASER_SIZES : [2, 4, 8]).map(size => {
+                        const dot = isEraser ? Math.min(34, 12 + size / 3) : size + 16;
+                        return (
+                          <button
+                            key={size}
+                            title={`굵기 ${size}`}
+                            onClick={() => isEraser ? setEraserSize(size) : setPenSize(size)}
+                            style={{
+                              width: dot, height: dot, borderRadius: "50%",
+                              background: (isEraser ? eraserSize : penSize) === size ? "#fff" : "rgba(255,255,255,0.25)",
+                              border: (isEraser ? eraserSize : penSize) === size ? "2px solid #E85D2C" : "2px solid transparent",
+                              cursor: "pointer", flexShrink: 0, transition: "all 120ms",
+                            }} />
+                        );
+                      })}
                     </div>
                     <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
                     <button onClick={() => setIsEraser(e => !e)} title="지우개" style={{
