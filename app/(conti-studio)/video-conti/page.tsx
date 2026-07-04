@@ -3,6 +3,7 @@
 import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import DrawingCanvas, { DrawingCanvasHandle, PenType, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
+import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 
 /* ─── types ──────────────────────────────────────────────── */
 interface BgmSection {
