@@ -348,12 +348,22 @@ export default function VideoSortingPage() {
     const initial = classified;
     setClassified((prev) => prev.map((c) => ({ ...c, status: "analyzing" as const })));
     const startTime = Date.now();
-    for (let i = 0; i < initial.length; i++) {
-      const etaLabel = i > 0 ? formatEta(((Date.now() - startTime) / i) * (initial.length - i)) : "";
-      setProgress({ cur: i, total: initial.length, msg: `분석 중: ${initial[i].clip.name}${etaLabel ? ` · 예상 남은 시간 약 ${etaLabel}` : ""}` });
-      const updated = await classifyOne({ ...initial[i], status: "analyzing" });
-      setClassified((prev) => prev.map((c) => (c.clip.name === updated.clip.name ? updated : c)));
-    }
+    const total = initial.length;
+    let done = 0;
+    let qi = 0;
+    // 여러 영상을 동시에 분석 — photo-sorting의 runGroupAnalysis와 동일한 워커 풀 패턴.
+    // 순차 처리 시 84개 영상 폴더는 프레임 추출 + AI 호출을 하나씩 기다려 매우 오래 걸린다.
+    const worker = async () => {
+      while (qi < total) {
+        const idx = qi++;
+        const updated = await classifyOne({ ...initial[idx], status: "analyzing" });
+        setClassified((prev) => prev.map((c) => (c.clip.name === updated.clip.name ? updated : c)));
+        done++;
+        const etaLabel = done > 0 ? formatEta(((Date.now() - startTime) / done) * (total - done)) : "";
+        setProgress({ cur: done, total, msg: `분석 완료 ${done}/${total}${etaLabel ? ` · 예상 남은 시간 약 ${etaLabel}` : ""}` });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(CLASSIFY_CONCURRENCY, total) }, () => worker()));
     setStep("final_review");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classified, maxFrames]);
