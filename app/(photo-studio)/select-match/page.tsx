@@ -463,6 +463,82 @@ export default function SelectMatchPage() {
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
+  /* ── 파일명으로 찾아 이동: 폴더 선택 ── */
+  const pickFmFolder = useCallback(async () => {
+    try {
+      const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+      setFmRootDir(dir);
+    } catch (e: any) {
+      if (e?.name !== "AbortError") alert("폴더 선택 실패");
+    }
+  }, []);
+
+  /* ── 파일명으로 찾아 이동: 폴더 재귀 검색 + 매칭 ── */
+  const runFindByName = useCallback(async () => {
+    if (!fmRootDir) return;
+    const queries = parseFileNameQueries(fmText);
+    if (queries.length === 0) { alert("파일명을 입력해주세요."); return; }
+    setFmStep("scanning");
+
+    const index = new Map<string, { name: string; handle: FileSystemFileHandle; extLower: string; parentDir: FileSystemDirectoryHandle }[]>();
+    const scanDir = async (dir: FileSystemDirectoryHandle, depth = 0) => {
+      if (depth > 5) return;
+      for await (const [name, handle] of (dir as any).entries()) {
+        if (name === fmFolderName) continue; // 출력 폴더는 스킵
+        if ((handle as FileSystemHandle).kind === "directory") {
+          await scanDir(handle as FileSystemDirectoryHandle, depth + 1);
+        } else {
+          const m = (name as string).match(/^(.+)\.([A-Za-z0-9]{2,5})$/);
+          if (!m) continue;
+          const basenameLower = m[1].toLowerCase();
+          const extLower = m[2].toLowerCase();
+          const list = index.get(basenameLower) ?? [];
+          list.push({ name: name as string, handle: handle as FileSystemFileHandle, extLower, parentDir: dir });
+          index.set(basenameLower, list);
+        }
+      }
+    };
+    await scanDir(fmRootDir);
+
+    const matches: { query: string; name: string; handle: FileSystemFileHandle; parentDir: FileSystemDirectoryHandle }[] = [];
+    const missing: string[] = [];
+    for (const q of queries) {
+      const candidates = index.get(q.basenameLower) ?? [];
+      const picked = q.extLower ? candidates.filter((c) => c.extLower === q.extLower) : candidates;
+      if (picked.length === 0) { missing.push(q.raw); continue; }
+      for (const c of picked) matches.push({ query: q.raw, name: c.name, handle: c.handle, parentDir: c.parentDir });
+    }
+    // 같은 파일이 여러 질의에 중복 매치되면 하나로 합친다
+    const uniqueMatches = Array.from(new Map(matches.map((m) => [m.name, m])).values());
+
+    setFmMatches(uniqueMatches);
+    setFmMissing(missing);
+    setFmStep("result");
+  }, [fmRootDir, fmText, fmFolderName]);
+
+  /* ── 파일명으로 찾아 이동: 매칭된 파일을 선택 폴더로 이동 ── */
+  const runMoveMatched = useCallback(async () => {
+    if (!fmRootDir || fmMatches.length === 0) return;
+    setFmStep("moving");
+    const destDir = await (fmRootDir as any).getDirectoryHandle(fmFolderName, { create: true }) as FileSystemDirectoryHandle;
+    let moved = 0;
+    for (let i = 0; i < fmMatches.length; i++) {
+      const m = fmMatches[i];
+      setFmProgress({ cur: i, total: fmMatches.length });
+      try {
+        await copyFileStreamed(m.handle, destDir, m.name);
+        await (m.parentDir as any).removeEntry(m.name);
+        moved++;
+      } catch {}
+    }
+    setFmMovedCount(moved);
+    setFmStep("done");
+  }, [fmRootDir, fmMatches, fmFolderName]);
+
+  const resetFindByName = () => {
+    setFmStep("idle"); setFmMatches([]); setFmMissing([]); setFmMovedCount(0); setFmText("");
+  };
+
   /* ── Idle ── */
   if (step === "idle") return (
     <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
