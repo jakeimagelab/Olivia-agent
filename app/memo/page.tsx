@@ -384,7 +384,7 @@ function MemoPage() {
                 </div>
               )}
               <button
-                onClick={analyze}
+                onClick={() => analyze()}
                 disabled={analyzing}
                 style={{ width: "100%", marginTop: 14, height: 50, border: "none", borderRadius: 10, background: analyzing ? C.hint : C.teal, color: "#fff", fontSize: 15, fontWeight: 800, cursor: analyzing ? "not-allowed" : "pointer", fontFamily: "inherit" }}
               >
