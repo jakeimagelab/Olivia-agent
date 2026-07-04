@@ -2466,13 +2466,17 @@ ${header("타임테이블")}
                     </div>
                     <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
                     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                      {[2, 4, 8].map(size => (
-                        <button key={size} title={`굵기 ${size}`} onClick={() => setPenSize(size)} style={{
-                          width: size + 16, height: size + 16, borderRadius: "50%",
-                          background: penSize === size ? "#fff" : "rgba(255,255,255,0.25)",
-                          border: penSize === size ? "2px solid #E85D2C" : "2px solid transparent",
-                          cursor: "pointer", flexShrink: 0, transition: "all 120ms",
-                        }} />
+                      {(isEraser ? ERASER_SIZES : [2, 4, 8]).map(size => (
+                        <button
+                          key={size}
+                          title={`굵기 ${size}`}
+                          onClick={() => isEraser ? setEraserSize(size) : setPenSize(size)}
+                          style={{
+                            width: Math.min(size, 8) + 16, height: Math.min(size, 8) + 16, borderRadius: "50%",
+                            background: (isEraser ? eraserSize : penSize) === size ? "#fff" : "rgba(255,255,255,0.25)",
+                            border: (isEraser ? eraserSize : penSize) === size ? "2px solid #E85D2C" : "2px solid transparent",
+                            cursor: "pointer", flexShrink: 0, transition: "all 120ms",
+                          }} />
                       ))}
                     </div>
                     <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
@@ -2483,6 +2487,12 @@ ${header("타임테이블")}
                       color: "#fff", fontSize: 15, cursor: "pointer",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>🧹</button>
+                    <button onClick={() => drawCanvasRef.current?.undo()} title="복원 (마지막 획 취소)" style={{
+                      width: 34, height: 34, borderRadius: 10,
+                      background: "rgba(255,255,255,0.08)", border: "2px solid rgba(255,255,255,0.2)",
+                      color: "#fff", fontSize: 15, cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>↩️</button>
                     <button onClick={async () => {
                       clearCanvas();
                       const hospital = form.hospitalName || resultTitle;
