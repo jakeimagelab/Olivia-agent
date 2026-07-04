@@ -1606,6 +1606,10 @@ export default function QuoteBuilder() {
           </Panel>
 
           <div className="action-button-bar">
+            <button className="secondary-button" type="button" onClick={handleManualSave} disabled={manualSaving}>
+              <Save size={18} />
+              {manualSaving ? "저장 중…" : "임시저장 (⌘S)"}
+            </button>
             <button className="primary-button" type="button" onClick={downloadPdf}>
               <Download size={18} />
               {isGenerating ? "PDF 생성 중" : "PDF 다운로드"}
