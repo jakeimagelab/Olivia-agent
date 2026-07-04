@@ -4409,10 +4409,12 @@ button .pc-ripple {
 }
 
 /* 페이지 진입 fade-in */
-/* to의 transform은 반드시 none이어야 함 — translateY(0)으로 두면 애니메이션이 끝난 뒤에도
-   main에 transform이 남아 새 containing block이 생기고, 그 안의 position:sticky가 전부 깨진다. */
+/* fill-mode를 both로 두면 애니메이션이 끝난 뒤에도 브라우저가 transform을 계속
+   "적용 중"으로 취급해 main에 새 containing block이 생기고, 그 안의 position:sticky가
+   전부 깨진다. backwards로 바꾸면 재생은 동일하되 끝난 뒤엔 transform이 원래대로(none) 풀린다. */
 main, .pc-console {
-  animation: pc-fadein 320ms ease both;
+  opacity: 1;
+  animation: pc-fadein 320ms ease backwards;
 }
 @keyframes pc-fadein {
   from { opacity: 0; transform: translateY(6px); }
