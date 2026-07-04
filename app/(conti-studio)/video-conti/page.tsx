@@ -858,6 +858,7 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
     if (!d.ok) { window.alert(d.error ?? "그리드 크기 변경 실패"); return; }
     setLoading(true);
     await loadBoard();
+    setActivePanel(prev => Math.min(prev, r * c - 1));
   };
 
   if (loading) {
