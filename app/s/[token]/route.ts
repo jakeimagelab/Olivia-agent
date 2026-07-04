@@ -24,6 +24,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     .update({ last_used_at: new Date().toISOString(), use_count: (data.use_count ?? 0) + 1 })
     .eq("id", data.id);
 
+  // 이미 정식 관리자로 로그인된 사람이 자기가 만든 공유 링크를 직접 열어보는 경우 —
+  // 공유 세션 쿠키를 얹지 않고 그냥 기능 페이지로 보낸다 (탭이 부분적으로 숨겨지는 등
+  // 혼란을 막기 위함. 어차피 관리자는 미들웨어에서 항상 전체 접근 권한을 갖는다).
+  if (req.cookies.get("pc_admin_session")?.value === "active") {
+    return NextResponse.redirect(new URL(data.feature_path, req.url));
+  }
+
   const res = NextResponse.redirect(new URL(data.feature_path, req.url));
   res.cookies.set("pc_share_token", token, {
     httpOnly: true,
