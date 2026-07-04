@@ -20,6 +20,7 @@ const FRAME_OPTIONS = [
   { count: 3, desc: "단일 장면 클립에 권장. 빠르고 비용이 낮습니다." },
   { count: 5, desc: "장면 전환이나 카메라 이동이 큰 영상에 권장." },
 ] as const;
+const CLASSIFY_CONCURRENCY = 3;
 
 type Mode = "ai" | "time";
 type Step = "setup" | "scanning" | "ai_ready" | "analyzing" | "final_review" | "scan_review" | "exporting" | "done";
