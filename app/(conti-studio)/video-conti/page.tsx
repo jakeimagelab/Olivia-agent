@@ -126,6 +126,36 @@ function Btn({
   );
 }
 
+/* ─── AI 생성 / 손그림 콘티 모드 토글 ─────────────────────── */
+type ContiMode = "ai" | "storyboard";
+
+function ModeToggle({ mode, onChange }: { mode: ContiMode; onChange: (m: ContiMode) => void }) {
+  const opts: { key: ContiMode; label: string }[] = [
+    { key: "ai", label: "🤖 AI 콘티 생성" },
+    { key: "storyboard", label: "✏️ 손그림 콘티" },
+  ];
+  return (
+    <div style={{
+      display: "inline-flex", gap: 4, padding: 4, borderRadius: 10,
+      background: C.light, border: `1px solid ${C.border}`, marginBottom: 20,
+    }}>
+      {opts.map(o => (
+        <button
+          key={o.key}
+          onClick={() => onChange(o.key)}
+          style={{
+            padding: "8px 16px", borderRadius: 7, border: "none", cursor: "pointer",
+            fontSize: 13, fontWeight: 700,
+            background: mode === o.key ? C.teal : "transparent",
+            color: mode === o.key ? C.white : C.muted,
+            transition: "all .15s",
+          }}
+        >{o.label}</button>
+      ))}
+    </div>
+  );
+}
+
 /* ─── Step 1: Brand Analysis ─────────────────────────────── */
 function Step1({
   onSaved,
