@@ -371,6 +371,38 @@ function MemoPage() {
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>자유롭게 메모하세요. AI가 자동으로 분석하고 견적서에 필요한 정보를 추출합니다.</div>
             </div>
             <div style={{ padding: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, padding: "10px 14px", background: C.mint, borderRadius: 10 }}>
+                {!isRecording ? (
+                  <button
+                    onClick={startRecording}
+                    disabled={transcribing}
+                    style={{ display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 9, padding: "9px 16px", background: C.teal, color: "#fff", fontSize: 12, fontWeight: 800, cursor: transcribing ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: transcribing ? 0.6 : 1 }}
+                  >🎙️ 상담 녹음 시작</button>
+                ) : (
+                  <button
+                    onClick={stopRecording}
+                    style={{ display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 9, padding: "9px 16px", background: C.orange, color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
+                  >⏹ 녹음 중지 · {fmtRecordTime(recordSeconds)}</button>
+                )}
+                {recordedUrl && !isRecording && (
+                  <>
+                    <audio controls src={recordedUrl} style={{ height: 32, flex: 1, minWidth: 160 }} />
+                    <button
+                      onClick={transcribeAndAnalyze}
+                      disabled={transcribing}
+                      style={{ display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 9, padding: "9px 16px", background: transcribing ? C.hint : "#0F4440", color: "#fff", fontSize: 12, fontWeight: 800, cursor: transcribing ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                    >{transcribing ? "변환 중…" : "✨ 텍스트 변환 + AI 분석"}</button>
+                  </>
+                )}
+                {!recordedUrl && !isRecording && (
+                  <span style={{ fontSize: 11, color: C.muted }}>상담 내용을 녹음하면 텍스트로 변환해 자동 분석합니다.</span>
+                )}
+              </div>
+              {recordError && (
+                <div style={{ marginBottom: 10, padding: "8px 12px", background: "#FFF0EB", border: `1px solid #FACCB8`, borderRadius: 8, fontSize: 12, color: C.orange }}>
+                  ⚠ {recordError}
+                </div>
+              )}
               <textarea
                 value={rawMemo}
                 onChange={e => setRawMemo(e.target.value)}
