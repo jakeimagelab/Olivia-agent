@@ -37,14 +37,10 @@ export interface ClassifiedVideo {
   reason: string | null;
   previewThumbs: string[];
   status: "pending" | "analyzing" | "done" | "error";
-  errorMessage?: string;
 }
 
 export interface TimeScene {
-  index: number;
   folderName: string;
-  startTime: number;
-  endTime: number;
   clips: VideoClipFile[];
 }
 
