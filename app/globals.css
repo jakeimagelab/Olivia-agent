@@ -4409,12 +4409,14 @@ button .pc-ripple {
 }
 
 /* 페이지 진입 fade-in */
+/* to의 transform은 반드시 none이어야 함 — translateY(0)으로 두면 애니메이션이 끝난 뒤에도
+   main에 transform이 남아 새 containing block이 생기고, 그 안의 position:sticky가 전부 깨진다. */
 main, .pc-console {
   animation: pc-fadein 320ms ease both;
 }
 @keyframes pc-fadein {
   from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* 입력 포커스 glow */
