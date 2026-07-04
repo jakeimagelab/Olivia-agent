@@ -790,9 +790,11 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
   const [penSize, setPenSize] = useState(4);
   const [penColor, setPenColor] = useState("#E85D2C");
   const [isEraser, setIsEraser] = useState(false);
+  const [eraserSize, setEraserSize] = useState(ERASER_SIZES[1]);
 
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const captionTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const panelHandlesRef = useRef<Record<number, DrawingCanvasHandle | null>>({});
 
   const loadBoard = useCallback(async () => {
     const r = await fetch(`/api/video-conti/${videoContiId}/drawing`);
