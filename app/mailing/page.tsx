@@ -1417,7 +1417,7 @@ function SelectGalleryMailTab() {
 type Tab = "queue" | "brand" | "review" | "custom" | "select";
 
 export default function MailingPage() {
-  const [tab, setTab] = useState<Tab>("queue");
+  const [tab, setTab] = useState<Tab>("custom");
 
   return (
     <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}>
