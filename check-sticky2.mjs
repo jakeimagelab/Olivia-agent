@@ -6,7 +6,7 @@ await page.goto("http://localhost:3000/quote", { waitUntil: "networkidle" });
 await page.waitForTimeout(600);
 
 // Force overflow-y back to visible on html/body only, keep overflow-x hidden, see if sticky recovers
-await page.addStyleTag({ content: `html, body { overflow: visible !important; }` });
+await page.addStyleTag({ content: `html, body { overflow-x: clip !important; overflow-y: visible !important; }` });
 await page.waitForTimeout(100);
 
 const aside = await page.$("aside");
