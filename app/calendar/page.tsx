@@ -475,23 +475,17 @@ function ConsultMemoPanel({ dateStr, consultations, onAdd }: {
         edited.budget ? "예산: " + edited.budget : "",
         edited.special_notes,
       ].filter(Boolean).join("\n");
+      const location = edited.hospital_name || null;
       const r = await fetch("/api/calendar", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, title, memo, category: "shooting", location: edited.hospital_name || null }),
+        body: JSON.stringify({ date, title, memo, category: "shooting", location }),
       });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error);
-      const entry: ConsultEntry = {
-        hospital: edited.hospital_name || "미입력",
-        summary: edited.summary || "",
-        items: edited.shooting_items || [],
-        budget: edited.budget || "",
-        savedAt: new Date().toLocaleDateString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-      };
-      const existing: ConsultEntry[] = JSON.parse(localStorage.getItem(`cal_consult_${date}`) || "[]");
-      existing.push(entry);
-      localStorage.setItem(`cal_consult_${date}`, JSON.stringify(existing));
-      onNewEntry(entry);
+      // Supabase의 calendar_tasks에 그대로 저장 — 상담 메모 카드는 이 목록에서 파생되므로
+      // 다른 컴퓨터에서도 동일하게 보인다 (localStorage 별도 저장 불필요).
+      onAdd({ id: d.id, date, title, memo, category: "shooting", completed: false,
+        created_at: new Date().toISOString(), time: null, end_time: null, location });
       setSaved(true);
     } catch (e: any) { setCalError(e.message || "저장 실패"); }
     finally { setSaving(false); }
