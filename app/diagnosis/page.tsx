@@ -243,12 +243,7 @@ export default function DiagnosisPage() {
     if (step === 2) return (answers.concerns?.length ?? 0) > 0;
     if (step === 3) return !!answers.department;
     if (step === 4) return (answers.usages?.length ?? 0) > 0;
-    if (step === 5) return (answers.impressions?.length ?? 0) > 0;
-    if (step === 6) return (answers.contents?.length ?? 0) > 0;
-    if (step === 7) return !!answers.budget;
-    if (step === 8) return !!answers.timeline;
-    if (step === 9) return true; // 사진 업로드는 선택사항
-    if (step === 10) return !!(answers.hospitalName && answers.phone && answers.email);
+    if (step === 5) return !!(answers.hospitalName && answers.phone && answers.email);
     return true;
   })();
 
@@ -257,12 +252,7 @@ export default function DiagnosisPage() {
     2: "가장 큰 고민이 무엇인가요? (복수 선택)",
     3: "진료과가 어떻게 되시나요?",
     4: "사진이 주로 어디에 쓰이나요? (복수 선택)",
-    5: "원하는 병원 이미지는? (복수 선택)",
-    6: "필요한 콘텐츠는? (복수 선택)",
-    7: "예산 범위가 어떻게 되시나요?",
-    8: "촬영 시기가 언제인가요?",
-    9: "현재 사용 중인 병원 사진을 올려주세요 (선택)",
-    10: "마지막으로 연락처를 입력해주세요",
+    5: "마지막으로 연락처를 남겨주세요",
   };
 
   return (
