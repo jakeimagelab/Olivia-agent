@@ -77,9 +77,82 @@ function MemoPage() {
   const [historyOpen, setHistoryOpen]   = useState(true);
   const [expandedId, setExpandedId]     = useState<string | null>(null);
 
+  // 녹음 → 텍스트 변환 → AI 분석
+  const [isRecording, setIsRecording]   = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [recordedUrl, setRecordedUrl]   = useState<string | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const [recordError, setRecordError]   = useState("");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   useEffect(() => {
     fetch("/api/memo").then(r => r.json()).then(d => { if (d.ok) setHistory(d.memos); }).catch(() => {});
   }, []);
+
+  useEffect(() => () => {
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+    streamRef.current?.getTracks().forEach(t => t.stop());
+  }, []);
+
+  const startRecording = async () => {
+    setRecordError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      recordedChunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        setRecordedUrl(URL.createObjectURL(blob));
+        streamRef.current?.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setRecordedUrl(null);
+      setRecordSeconds(0);
+      setIsRecording(true);
+      recordTimerRef.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
+    } catch {
+      setRecordError("마이크 접근 권한이 필요합니다. 브라우저 권한을 확인해주세요.");
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+    if (recordTimerRef.current) { clearInterval(recordTimerRef.current); recordTimerRef.current = null; }
+  };
+
+  const transcribeAndAnalyze = async () => {
+    if (!recordedChunksRef.current.length) return;
+    setTranscribing(true); setRecordError("");
+    try {
+      const blob = new Blob(recordedChunksRef.current, { type: mediaRecorderRef.current?.mimeType || "audio/webm" });
+      const form = new FormData();
+      form.append("audio", blob, "memo.webm");
+      const res = await fetch("/api/memo/transcribe", { method: "POST", body: form });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error ?? "텍스트 변환 실패");
+      const text = data.text?.trim();
+      if (!text) throw new Error("인식된 음성이 없습니다.");
+      setRawMemo(prev => prev ? `${prev}\n${text}` : text);
+      setRecordedUrl(null);
+      recordedChunksRef.current = [];
+      setRecordSeconds(0);
+    } catch (e: any) {
+      setRecordError(e.message || "텍스트 변환에 실패했습니다.");
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
+  const fmtRecordTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   const analyze = async () => {
     if (!rawMemo.trim()) { setError("상담 메모를 입력해주세요."); return; }
