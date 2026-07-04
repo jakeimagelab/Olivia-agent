@@ -5,6 +5,7 @@ import Link from "next/link";
 import OliviaChat from "@/components/OliviaChat";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import PageHeader from "@/components/PageHeader";
+import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS } from "@/components/DrawingCanvas";
 import {
   ArrowLeft, CheckSquare, ChevronDown, ClipboardList, Copy, Image as ImageIcon,
   Clock, Download, FileSpreadsheet, FileText, FileUp, GripVertical,
