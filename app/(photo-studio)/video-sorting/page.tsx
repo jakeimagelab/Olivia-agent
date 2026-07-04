@@ -236,7 +236,7 @@ function ProgressBar({ cur, total, msg }: { cur: number; total: number; msg: str
 }
 
 // 서로 다른 두 선택지를 나란히 붙여 보여주는 세그먼트 컨트롤 — photo-sorting의 "촬영 모드"/"분류 모드" 카드와 동일한 패턴
-function ModeGrid<T extends string>({ options, value, onChange }: { options: readonly { value: T; title: string; desc: string }[]; value: T; onChange: (v: T) => void }) {
+function ModeGrid<T extends string | number>({ options, value, onChange }: { options: readonly { value: T; title: string; desc: string }[]; value: T; onChange: (v: T) => void }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 0 }}>
       {options.map((opt, i) => (
