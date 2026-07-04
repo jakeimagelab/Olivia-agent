@@ -490,280 +490,312 @@ export default function VideoSortingPage() {
   const allAnalyzed = classified.every((c) => c.status === "done" || c.status === "error");
 
   /* ════════════════════════════════════════════════
-     RENDER
+     STEP INDICATOR — photo-sorting의 renderStepIndicator와 동일한 구조
   ═══════════════════════════════════════════════ */
-  return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px 20px 80px", fontFamily: "'Noto Sans KR', sans-serif" }}>
-      <div style={{ display: "flex", gap: 6, marginBottom: 24, flexWrap: "wrap" }}>
-        {stepLabels.map((label, i) => (
-          <div key={label} style={{
-            padding: "6px 12px", borderRadius: 99, fontSize: 12, fontWeight: 800,
-            background: i === stepPos ? C.teal : C.light, color: i === stepPos ? C.white : C.muted,
-          }}>
-            {i + 1}. {label}
+  const renderStepIndicator = () => (
+    <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 24px", overflowX: "auto" }}>
+      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        {stepLabels.map((lbl, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <div style={{
+              width: 22, height: 22, borderRadius: "50%", fontSize: 9, fontWeight: 900,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: i < stepPos ? C.green : i === stepPos ? C.teal : C.border,
+              color: i <= stepPos ? "#fff" : C.muted,
+            }}>{i < stepPos ? "✓" : i + 1}</div>
+            <span className="ps-step-lbl" style={{ fontWeight: i === stepPos ? 800 : 500, color: i === stepPos ? C.teal : C.hint }}>{lbl}</span>
+            {i < stepLabels.length - 1 && <span style={{ color: C.border, fontSize: 10 }}>›</span>}
           </div>
         ))}
       </div>
+    </div>
+  );
 
-      {step === "setup" && (
-        <Card>
-          <h2 style={{ fontSize: 18, fontWeight: 900, color: C.txt, marginBottom: 16 }}>🎥 영상 분류 설정</h2>
-
-          {!hasFS && (
-            <div style={{ padding: 14, background: "#FFF3CD", borderRadius: 10, fontSize: 12, color: "#856404", border: "1px solid #FFD980", marginBottom: 16 }}>
-              ⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.
-            </div>
-          )}
-
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>1. 분류 방식</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <SegButton selected={mode === "ai"} onClick={() => setMode("ai")} title="AI 장면 분류" desc="대표 프레임 기준으로 4개 카테고리 + 확인필요로 판단합니다." />
-              <SegButton selected={mode === "time"} onClick={() => setMode("time")} title="시간차 순 분류" desc="촬영 시간 간격으로 Scene 폴더를 나눕니다 (AI 미사용)." />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>2. 영상 폴더 선택</div>
-            <Btn onClick={pickDir} disabled={!hasFS}>{rootDir ? "✅ 폴더 선택됨 — 다시 선택" : "📁 폴더 선택"}</Btn>
-          </div>
-
-          {mode === "ai" && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>3. AI 대표 프레임 수</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {FRAME_OPTIONS.map(({ count, desc }) => (
-                  <SegButton key={count} selected={maxFrames === count} onClick={() => setMaxFrames(count)} title={`${count}장`} desc={desc} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {mode === "time" && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>3. Scene 구분 시간 간격</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {GAP_OPTIONS.map((g) => (
-                  <button key={g} onClick={() => setGapMinutes(g)} style={{
-                    flex: 1, padding: "10px 0", borderRadius: 8,
-                    border: `1.5px solid ${gapMinutes === g ? C.teal : C.border}`,
-                    background: gapMinutes === g ? C.light : C.white,
-                    cursor: "pointer", fontSize: 13, fontWeight: gapMinutes === g ? 900 : 600,
-                    color: gapMinutes === g ? C.teal : C.muted, fontFamily: "inherit",
-                  }}>
-                    {g}분
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>4. 파일 처리 방식</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <SegButton selected={fileMode === "copy"} onClick={() => setFileMode("copy")} title="복사" desc="원본을 남기고 분류 폴더에 복사합니다." />
-              <SegButton selected={fileMode === "move"} onClick={() => setFileMode("move")} title="이동" desc="원본을 분류 폴더로 이동합니다." />
-            </div>
-          </div>
-
-          <Btn onClick={handleScan} disabled={!rootDir}>시작하기 →</Btn>
-        </Card>
+  /* ════════════════════════════════════════════════
+     RENDER
+  ═══════════════════════════════════════════════ */
+  return (
+    <div>
+      {step !== "setup" && (
+        <div className="ps-mode-badge" style={{ background: C.light, color: C.teal, borderBottom: `1px solid ${C.border}` }}>
+          {mode === "ai" ? `AI 장면 분류 — 대표 프레임 ${maxFrames}장` : `시간차 순 분류 — ${gapMinutes}분`} · {fileMode === "move" ? "이동" : "복사"}
+        </div>
       )}
 
-      {step === "scanning" && (
-        <Card>
-          <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
-        </Card>
-      )}
+      <div style={{ background: C.bg, minHeight: "100vh", color: C.txt, fontFamily: "'Noto Sans KR', sans-serif" }}>
+        {renderStepIndicator()}
+        <div className="ps-wrap" style={{ maxWidth: 960, margin: "0 auto" }}>
 
-      {step === "ai_ready" && (
-        <Card>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
-            스캔 완료 — 영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
-          </div>
-          <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
-            각 영상을 개별적으로 분석해 4개 카테고리 + 확인필요로 분류합니다.
-          </div>
-          {failedClips.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              {failedClips.map((f) => (
-                <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
-                  <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
-                  <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
+          {step === "setup" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 700 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: C.txt }}>🎥 영상 분류 설정</h2>
+
+              {!hasFS && (
+                <div style={{ padding: 14, background: "#FFF3CD", borderRadius: 10, fontSize: 12, color: "#856404", border: "1px solid #FFD980" }}>
+                  ⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.
                 </div>
-              ))}
-            </div>
-          )}
-          <Btn onClick={handleStartAiAnalysis} disabled={classified.length === 0}>AI 분류 시작 →</Btn>
-        </Card>
-      )}
+              )}
 
-      {step === "scan_review" && (
-        <div>
-          <Card>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.txt, marginBottom: 4 }}>시간대별 그룹핑 결과</h2>
-            <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
-              씬 {timeScenes.length}개 · 영상 {timeScenes.reduce((s, sc) => s + sc.clips.length, 0)}개
-              {failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
-            </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              {GAP_OPTIONS.map((g) => (
-                <button key={g} onClick={() => setGapMinutes(g)} style={{
-                  flex: 1, padding: "10px 0", borderRadius: 8,
-                  border: `1.5px solid ${gapMinutes === g ? C.teal : C.border}`,
-                  background: gapMinutes === g ? C.light : C.white,
-                  cursor: "pointer", fontSize: 13, fontWeight: gapMinutes === g ? 900 : 600,
-                  color: gapMinutes === g ? C.teal : C.muted, fontFamily: "inherit",
-                }}>
-                  {g}분
+              <SectionCard title="분류 방식">
+                <ModeGrid
+                  value={mode}
+                  onChange={setMode}
+                  options={[
+                    { value: "ai", title: "AI 장면 분류", desc: "대표 프레임 기준으로 4개 카테고리 + 확인필요로 판단합니다." },
+                    { value: "time", title: "시간차 순 분류", desc: "촬영 시간 간격으로 Scene 폴더를 나눕니다 (AI 미사용)." },
+                  ]}
+                />
+              </SectionCard>
+
+              <SectionCard title="영상 폴더 선택">
+                <button onClick={pickDir} disabled={!hasFS} style={{ width: "100%", height: 52, border: `1.5px dashed ${C.border}`, borderRadius: 10, background: C.white, cursor: "pointer", fontSize: 13, fontWeight: 700, color: rootDir ? C.green : C.teal, display: "flex", alignItems: "center", gap: 10, padding: "0 18px", fontFamily: "inherit" }}>
+                  {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>폴더 선택</>}
                 </button>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Btn variant="ghost" onClick={handleRegroupTime}>🔄 다시 그룹핑</Btn>
-              <Btn onClick={handleExportTime} disabled={timeScenes.length === 0}>폴더 정리 실행 →</Btn>
-            </div>
-          </Card>
+              </SectionCard>
 
-          {failedClips.length > 0 && (
-            <Card>
-              <div style={{ fontWeight: 800, color: C.red, marginBottom: 8 }}>⚠️ 읽기 실패한 파일</div>
-              {failedClips.map((f) => (
-                <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
-                  <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
-                  <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
-                </div>
-              ))}
-            </Card>
-          )}
+              {mode === "ai" && (
+                <SectionCard title="AI 대표 프레임 수">
+                  <ModeGrid
+                    value={maxFrames}
+                    onChange={setMaxFrames}
+                    options={FRAME_OPTIONS.map(({ count, desc }) => ({ value: count, title: `${count}장`, desc }))}
+                  />
+                </SectionCard>
+              )}
 
-          <div style={{ display: "grid", gap: 10 }}>
-            {timeScenes.map((scene) => (
-              <Card key={scene.folderName}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 800, fontSize: 13, color: C.txt }}>{scene.folderName}</span>
-                  <span style={{ fontSize: 12, color: C.muted }}>영상 {scene.clips.length}개</span>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {step === "analyzing" && (
-        <Card>
-          <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
-        </Card>
-      )}
-
-      {step === "final_review" && (
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.muted }}>
-              영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
-            </div>
-            <Btn onClick={handleExportAi} disabled={!allAnalyzed || classified.length === 0}>폴더 정리 실행 →</Btn>
-          </div>
-
-          <Card>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {VIDEO_CATEGORY_ORDER.map((cat) => {
-                const count = classified.filter((c) => (c.category ?? "NEED_CHECK") === cat).length;
-                return (
-                  <div key={cat} style={{ flex: "1 1 140px", padding: 10, borderRadius: 8, background: C.light, textAlign: "center" }}>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{count}</div>
-                    <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{CATEGORY_LABELS[cat]}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-
-          {failedClips.length > 0 && (
-            <Card>
-              <div style={{ fontWeight: 800, color: C.red, marginBottom: 8 }}>⚠️ 읽기 실패한 파일</div>
-              {failedClips.map((f) => (
-                <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
-                  <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
-                  <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
-                </div>
-              ))}
-            </Card>
-          )}
-
-          <div style={{ display: "grid", gap: 14 }}>
-            {classified.map((item, i) => (
-              <Card key={item.clip.name}>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", width: 160 }}>
-                    {item.previewThumbs.slice(0, 4).map((url, idx) => (
-                      <img key={idx} src={url} alt="" style={{ width: 74, height: 42, objectFit: "cover", borderRadius: 6 }} />
+              {mode === "time" && (
+                <SectionCard title="Scene 구분 시간 간격">
+                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                    {GAP_OPTIONS.map((g) => (
+                      <button key={g} onClick={() => setGapMinutes(g)} style={{
+                        flex: 1, padding: "10px 0", borderRadius: 8,
+                        border: `1.5px solid ${gapMinutes === g ? C.teal : C.border}`,
+                        background: gapMinutes === g ? C.light : C.white,
+                        cursor: "pointer", fontSize: 13, fontWeight: gapMinutes === g ? 900 : 600,
+                        color: gapMinutes === g ? C.teal : C.muted, fontFamily: "inherit",
+                      }}>
+                        {g}분
+                      </button>
                     ))}
-                    {item.previewThumbs.length === 0 && (
-                      <div style={{ width: "100%", fontSize: 12, color: C.hint }}>미리보기 없음</div>
-                    )}
                   </div>
+                  <div style={{ fontSize: 11, color: C.hint }}>이전 영상과 다음 영상의 촬영 시간 차이가 설정 시간 이상이면 새 Scene으로 분리합니다.</div>
+                </SectionCard>
+              )}
 
-                  <div style={{ flex: 1 }}>
-                    {item.status === "analyzing" ? (
-                      <div style={{ fontSize: 13, color: C.muted }}>분석 중...</div>
-                    ) : (
-                      <>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                          <span style={{ fontSize: 12, color: C.hint, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.clip.name}</span>
-                          <select
-                            value={item.category ?? "NEED_CHECK"}
-                            onChange={(e) => overrideCategory(i, e.target.value as VideoCategory)}
-                            style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}
-                          >
-                            {VIDEO_CATEGORY_ORDER.map((cat) => (
-                              <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
-                            ))}
-                          </select>
-                          {item.status === "error" && (
-                            <span style={{ fontSize: 11, fontWeight: 800, color: C.orange, background: "#FFF3E8", padding: "2px 8px", borderRadius: 99 }}>확인 필요</span>
-                          )}
-                          <button onClick={() => retryOne(i)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재분석</button>
-                        </div>
-                        <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>
-                          신뢰도 {item.confidence != null ? `${Math.round(item.confidence * 100)}%` : "-"}
-                          {item.sceneDescription && ` · ${item.sceneDescription}`}
-                        </div>
-                        {item.reason && <div style={{ fontSize: 12, color: C.hint }}>{item.reason}</div>}
-                      </>
-                    )}
+              <SectionCard title="파일 처리 방식">
+                <ModeGrid
+                  value={fileMode}
+                  onChange={setFileMode}
+                  options={[
+                    { value: "copy", title: "복사", desc: "원본을 남기고 분류 폴더에 복사합니다." },
+                    { value: "move", title: "이동", desc: "원본을 분류 폴더로 이동합니다." },
+                  ]}
+                />
+              </SectionCard>
+
+              <Btn onClick={handleScan} disabled={!rootDir}>시작하기 →</Btn>
+            </div>
+          )}
+
+          {step === "scanning" && (
+            <div style={{ maxWidth: 600 }}>
+              <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
+            </div>
+          )}
+
+          {step === "ai_ready" && (
+            <div style={{ maxWidth: 600 }}>
+              <SectionCard title="스캔 완료">
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                  영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
+                </div>
+                <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+                  각 영상을 개별적으로 분석해 4개 카테고리 + 확인필요로 분류합니다.
+                </div>
+                {failedClips.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    {failedClips.map((f) => (
+                      <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
+                        <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
+                        <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
+                      </div>
+                    ))}
                   </div>
+                )}
+                <Btn onClick={handleStartAiAnalysis} disabled={classified.length === 0}>AI 분류 시작 →</Btn>
+              </SectionCard>
+            </div>
+          )}
+
+          {step === "scan_review" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 820 }}>
+              <SectionCard title="시간대별 그룹핑 결과">
+                <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
+                  씬 {timeScenes.length}개 · 영상 {timeScenes.reduce((s, sc) => s + sc.clips.length, 0)}개
+                  {failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
+                </div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  {GAP_OPTIONS.map((g) => (
+                    <button key={g} onClick={() => setGapMinutes(g)} style={{
+                      flex: 1, padding: "10px 0", borderRadius: 8,
+                      border: `1.5px solid ${gapMinutes === g ? C.teal : C.border}`,
+                      background: gapMinutes === g ? C.light : C.white,
+                      cursor: "pointer", fontSize: 13, fontWeight: gapMinutes === g ? 900 : 600,
+                      color: gapMinutes === g ? C.teal : C.muted, fontFamily: "inherit",
+                    }}>
+                      {g}분
+                    </button>
+                  ))}
+                </div>
+                <div className="ps-btn-row">
+                  <Btn variant="secondary" onClick={handleRegroupTime}>🔄 다시 그룹핑</Btn>
+                  <Btn onClick={handleExportTime} disabled={timeScenes.length === 0}>폴더 정리 실행 →</Btn>
+                </div>
+              </SectionCard>
+
+              {failedClips.length > 0 && (
+                <Card style={{ padding: 18 }}>
+                  <div style={{ fontWeight: 800, color: C.red, marginBottom: 8 }}>⚠️ 읽기 실패한 파일</div>
+                  {failedClips.map((f) => (
+                    <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
+                      <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
+                      <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
+                    </div>
+                  ))}
+                </Card>
+              )}
+
+              <div style={{ display: "grid", gap: 10 }}>
+                {timeScenes.map((scene) => (
+                  <Card key={scene.folderName} style={{ padding: 18 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontWeight: 800, fontSize: 13, color: C.txt }}>{scene.folderName}</span>
+                      <span style={{ fontSize: 12, color: C.muted }}>영상 {scene.clips.length}개</span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === "analyzing" && (
+            <div style={{ maxWidth: 600 }}>
+              <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
+            </div>
+          )}
+
+          {step === "final_review" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 820 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.muted }}>
+                  영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
+                </div>
+                <Btn onClick={handleExportAi} disabled={!allAnalyzed || classified.length === 0}>폴더 정리 실행 →</Btn>
+              </div>
+
+              <Card style={{ padding: 18 }}>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {VIDEO_CATEGORY_ORDER.map((cat) => {
+                    const count = classified.filter((c) => (c.category ?? "NEED_CHECK") === cat).length;
+                    return (
+                      <div key={cat} style={{ flex: "1 1 140px", padding: 10, borderRadius: 8, background: C.light, textAlign: "center" }}>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{count}</div>
+                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{CATEGORY_LABELS[cat]}</div>
+                      </div>
+                    );
+                  })}
                 </div>
               </Card>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {step === "exporting" && (
-        <Card>
-          <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
-        </Card>
-      )}
+              {failedClips.length > 0 && (
+                <Card style={{ padding: 18 }}>
+                  <div style={{ fontWeight: 800, color: C.red, marginBottom: 8 }}>⚠️ 읽기 실패한 파일</div>
+                  {failedClips.map((f) => (
+                    <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
+                      <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
+                      <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
+                    </div>
+                  ))}
+                </Card>
+              )}
 
-      {step === "done" && stats && (
-        <Card>
-          <h2 style={{ fontSize: 18, fontWeight: 900, color: C.green, marginBottom: 16 }}>✅ 완료</h2>
-          <div style={{ fontSize: 14, color: C.txt, lineHeight: 1.8, marginBottom: 12 }}>
-            총 영상 {stats.totalClips}개 · 처리 {stats.movedClips}개
-            {stats.failedClips > 0 && ` · 실패 ${stats.failedClips}개`}
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-            {Object.entries(stats.categoryCounts).map(([label, count]) => (
-              <div key={label} style={{ flex: "1 1 140px", padding: 10, borderRadius: 8, background: C.light, textAlign: "center" }}>
-                <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{count}</div>
-                <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{label}</div>
+              <div style={{ display: "grid", gap: 14 }}>
+                {classified.map((item, i) => (
+                  <Card key={item.clip.name} style={{ padding: 18 }}>
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", width: 160 }}>
+                        {item.previewThumbs.slice(0, 4).map((url, idx) => (
+                          <img key={idx} src={url} alt="" style={{ width: 74, height: 42, objectFit: "cover", borderRadius: 6 }} />
+                        ))}
+                        {item.previewThumbs.length === 0 && (
+                          <div style={{ width: "100%", fontSize: 12, color: C.hint }}>미리보기 없음</div>
+                        )}
+                      </div>
+
+                      <div style={{ flex: 1 }}>
+                        {item.status === "analyzing" ? (
+                          <div style={{ fontSize: 13, color: C.muted }}>분석 중...</div>
+                        ) : (
+                          <>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 12, color: C.hint, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.clip.name}</span>
+                              <select
+                                value={item.category ?? "NEED_CHECK"}
+                                onChange={(e) => overrideCategory(i, e.target.value as VideoCategory)}
+                                style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}
+                              >
+                                {VIDEO_CATEGORY_ORDER.map((cat) => (
+                                  <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                                ))}
+                              </select>
+                              {item.status === "error" && (
+                                <span style={{ fontSize: 11, fontWeight: 800, color: C.orange, background: "#FFF3E8", padding: "2px 8px", borderRadius: 99 }}>확인 필요</span>
+                              )}
+                              <button onClick={() => retryOne(i)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재분석</button>
+                            </div>
+                            <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>
+                              신뢰도 {item.confidence != null ? `${Math.round(item.confidence * 100)}%` : "-"}
+                              {item.sceneDescription && ` · ${item.sceneDescription}`}
+                            </div>
+                            {item.reason && <div style={{ fontSize: 12, color: C.hint }}>{item.reason}</div>}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
-            ))}
-          </div>
-          <Link href="/photo-sorting" style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>사진작업실로 돌아가기 →</Link>
-        </Card>
-      )}
+            </div>
+          )}
+
+          {step === "exporting" && (
+            <div style={{ maxWidth: 600 }}>
+              <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg} />
+            </div>
+          )}
+
+          {step === "done" && stats && (
+            <div style={{ maxWidth: 600 }}>
+              <SectionCard title="✅ 완료">
+                <div style={{ fontSize: 14, color: C.txt, lineHeight: 1.8, marginBottom: 12 }}>
+                  총 영상 {stats.totalClips}개 · 처리 {stats.movedClips}개
+                  {stats.failedClips > 0 && ` · 실패 ${stats.failedClips}개`}
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+                  {Object.entries(stats.categoryCounts).map(([label, count]) => (
+                    <div key={label} style={{ flex: "1 1 140px", padding: 10, borderRadius: 8, background: C.light, textAlign: "center" }}>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{count}</div>
+                      <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+                <Link href="/photo-sorting" style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>사진작업실로 돌아가기 →</Link>
+              </SectionCard>
+            </div>
+          )}
+
+        </div>
+      </div>
     </div>
   );
 }
