@@ -33,7 +33,7 @@ export default function ContiStudioLayout({ children }: { children: React.ReactN
 
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'Noto Sans KR', sans-serif" }}>
-      <PageHeader title={title} />
+      <PageHeader title="콘티생성" />
 
       <nav style={{
         background: "rgba(255,255,255,.72)",
