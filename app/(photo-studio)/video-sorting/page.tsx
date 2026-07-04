@@ -507,8 +507,9 @@ export default function VideoSortingPage() {
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.muted, marginBottom: 8 }}>3. AI 대표 프레임 수</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <SegButton selected={maxFrames === 3} onClick={() => setMaxFrames(3)} title="3장" desc="단일 장면 클립에 권장. 빠르고 비용이 낮습니다." />
-                <SegButton selected={maxFrames === 5} onClick={() => setMaxFrames(5)} title="5장" desc="장면 전환이나 카메라 이동이 큰 영상에 권장." />
+                {FRAME_OPTIONS.map(({ count, desc }) => (
+                  <SegButton key={count} selected={maxFrames === count} onClick={() => setMaxFrames(count)} title={`${count}장`} desc={desc} />
+                ))}
               </div>
             </div>
           )}
