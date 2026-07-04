@@ -699,6 +699,7 @@ export default function ContiPage() {
   const [penSize,       setPenSize]       = useState(4);
   const [penType,       setPenType]       = useState<"pen" | "marker" | "highlighter" | "brush">("pen");
   const [isEraser,      setIsEraser]      = useState(false);
+  const [eraserSize,    setEraserSize]    = useState(ERASER_SIZES[1]);
   const [drawSaveState, setDrawSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const drawCanvasRef  = useRef<DrawingCanvasHandle>(null);
   const tempDrawingRef = useRef<string | null>(null);
