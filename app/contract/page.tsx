@@ -2,6 +2,7 @@
 import type { PointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createMailingDraft } from "@/lib/mailingQueue";
+import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 
 interface QuoteData {
   hospitalName: string;
