@@ -321,47 +321,7 @@ function BrandMailTab() {
   const [result,       setResult]       = useState<"success" | "error" | null>(null);
   const [errMsg,       setErrMsg]       = useState("");
 
-  const [session,        setSession]        = useState<{ name: string; email: string; accessToken: string } | null>(null);
-  const [contacts,       setContacts]       = useState<{ name: string; email: string; phone: string; org: string }[]>([]);
-  const [contactsLoaded, setContactsLoaded] = useState(false);
-  const [contactSearch,  setContactSearch]  = useState("");
-  const [showDropdown,   setShowDropdown]   = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetch("/api/auth/session").then(r => r.json()).then(d => { if (d.ok) setSession(d.session); }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
-    if (p.get("auth") === "success") {
-      fetch("/api/auth/session").then(r => r.json()).then(d => { if (d.ok) setSession(d.session); });
-      window.history.replaceState({}, "", "/mailing");
-    }
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowDropdown(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const loadContacts = async () => {
-    if (contactsLoaded) return;
-    try {
-      const res  = await fetch("/api/contacts");
-      const data = await res.json();
-      if (data.ok) { setContacts(data.contacts); setContactsLoaded(true); }
-    } catch {}
-  };
-
-  const filteredContacts = contacts.filter(c =>
-    c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
-    c.email.toLowerCase().includes(contactSearch.toLowerCase()) ||
-    c.org.toLowerCase().includes(contactSearch.toLowerCase())
-  ).slice(0, 8);
+  const dir = useContactDirectory();
 
   const handleSend = async () => {
     if (!toEmail || !hospitalName || !nasLink) { setErrMsg("수신 이메일, 고객, NAS 링크는 필수입니다"); return; }
