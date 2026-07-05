@@ -171,6 +171,7 @@ export const config = {
     "/seo-delivery", "/seo-delivery/:path*",
     "/photo-sorting", "/photo-sorting/:path*",
     "/video-sorting", "/video-sorting/:path*",
+    "/video-convert", "/video-convert/:path*",
     "/raw-select", "/raw-select/:path*",
     "/select-match", "/select-match/:path*",
     "/photo-retouching", "/photo-retouching/:path*",
