@@ -27,6 +27,15 @@ export function useContactDirectory() {
     fetch("/api/auth/session").then(r => r.json()).then(d => { if (d.ok) setSession(d.session); }).catch(() => {});
   }, []);
 
+  // Google 연락처 연동(OAuth) 후 돌아왔을 때 — 어느 탭이 열려 있든 세션을 갱신한다.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("auth") === "success") {
+      fetch("/api/auth/session").then(r => r.json()).then(d => { if (d.ok) setSession(d.session); });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowDropdown(false);
