@@ -174,8 +174,6 @@ export default function VideoConvertPage() {
     if (step === "review" && engineState === "idle") loadEngine().catch(() => {});
   }, [step, engineState, loadEngine]);
 
-  useEffect(() => { (window as any).__testLoadEngine = loadEngine; }, [loadEngine]);
-
   const handleConvert = useCallback(async () => {
     if (!rootDir) return;
     const targets = videoFiles.filter((f) => selected.has(f.name));
