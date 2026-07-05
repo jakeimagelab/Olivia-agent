@@ -1032,40 +1032,42 @@ function ReviewOnlyMailTab() {
                 </div>
                 <div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
-                  <div style={{ position: "relative" }} ref={dropdownRef}>
+                  <div style={{ position: "relative" }} ref={dir.dropdownRef}>
                     <div style={{ display: "flex", gap: 6 }}>
                       <input type="email" value={toEmail}
-                        onChange={e => { setToEmail(e.target.value); setContactSearch(e.target.value); setShowDropdown(true); }}
-                        onFocus={() => { setShowDropdown(true); if (!contactsLoaded && session) loadContacts(); }}
+                        onChange={e => { setToEmail(e.target.value); dir.setSearch(e.target.value); dir.setShowDropdown(true); }}
+                        onFocus={() => { dir.setShowDropdown(true); dir.load(); }}
                         placeholder="photoclinic@gmail.com" style={{ ...iS, flex: 1 }} />
-                      {session ? (
-                        <button onClick={() => { setShowDropdown(!showDropdown); loadContacts(); }}
-                          style={{ height: 38, padding: "0 10px", background: C.mint, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
-                          title="연락처 검색">👥</button>
-                      ) : (
-                        <button onClick={() => window.location.href = "/api/auth/google"}
-                          style={{ height: 38, padding: "0 10px", background: "#fff", border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 10, cursor: "pointer", fontFamily: "inherit", color: C.muted, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>
-                          G 연락처
-                        </button>
-                      )}
+                      <button onClick={() => { dir.setShowDropdown(!dir.showDropdown); dir.load(); }}
+                        style={{ height: 38, padding: "0 10px", background: C.mint, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
+                        title="고객·연락처 검색">👥</button>
                     </div>
-                    {showDropdown && filteredContacts.length > 0 && (
+                    {dir.showDropdown && dir.filtered.length > 0 && (
                       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,.1)", marginTop: 4, maxHeight: 360, overflowY: "auto" }}>
                         <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
-                          <input value={contactSearch} onChange={e => setContactSearch(e.target.value)} placeholder="이름·이메일·회사 검색..." style={{ ...iS, height: 38, padding: "8px 12px" }} />
+                          <input value={dir.search} onChange={e => dir.setSearch(e.target.value)} placeholder="이름·이메일·회사 검색..." style={{ ...iS, height: 38, padding: "8px 12px" }} />
                         </div>
-                        {filteredContacts.map((c, i) => (
+                        {dir.filtered.map((c, i) => (
                           <div key={i}
-                            onClick={() => { setToEmail(c.email); setToName(c.name); setHospitalName(prev => prev || c.org); setShowDropdown(false); setContactSearch(""); }}
+                            onClick={() => { setToEmail(c.email); setToName(c.name); setHospitalName(prev => prev || c.org); dir.setShowDropdown(false); dir.setSearch(""); }}
                             style={{ padding: "12px 16px", cursor: "pointer", borderBottom: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 4 }}
                             onMouseEnter={e => (e.currentTarget.style.background = C.mint)}
                             onMouseLeave={e => (e.currentTarget.style.background = "")}>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: C.txt }}>{c.name}</span>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
+                              <span title={c.source === "client" ? "등록된 고객" : "Google 연락처"} style={{ fontSize: 11 }}>{c.source === "client" ? "🏥" : "G"}</span>
+                              {c.name}
+                            </span>
                             <span style={{ fontSize: 13, color: C.muted }}>{c.email}</span>
                             {c.org && <span style={{ fontSize: 12, color: C.hint }}>{c.org}</span>}
                           </div>
                         ))}
                       </div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 10, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
+                    <span>🏥 등록된 고객 자동 연동{dir.session ? " · ✓ Google 연락처 연동됨" : ""}</span>
+                    {!dir.session && (
+                      <button onClick={() => window.location.href = "/api/auth/google"} style={{ background: "none", border: "none", fontSize: 10, color: C.teal, fontWeight: 700, cursor: "pointer", padding: 0 }}>+ Google 연락처 연동</button>
                     )}
                   </div>
                 </div>
