@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     client_id:     clientId,
     redirect_uri:  redirectUri,
     response_type: "code",
-    scope:         "openid email profile https://www.googleapis.com/auth/contacts.readonly",
+    scope:         "openid email profile https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/contacts.other.readonly",
     access_type:   "offline",
     prompt:        "consent",
   });
