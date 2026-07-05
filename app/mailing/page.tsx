@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
+import { useContactDirectory } from "@/lib/hooks/useContactDirectory";
 
 // ── 공통 색상 ──────────────────────────────────────────────
 const C = {
