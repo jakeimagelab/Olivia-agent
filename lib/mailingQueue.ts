@@ -5,6 +5,7 @@ export type MailType =
   | 'proposal'
   | 'original_files'
   | 'gallery'
+  | 'select_gallery'
   | 'review_form'
   | 'monthly_report';
 
