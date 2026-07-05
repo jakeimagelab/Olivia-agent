@@ -13,6 +13,7 @@ function readCookie(name: string): string | null {
 const PHOTO_TABS = [
   { href: "/photo-sorting",    label: "📁 사진 분류",         matches: ["/photo-sorting"] },
   { href: "/video-sorting",    label: "🎥 영상 분류",         matches: ["/video-sorting"] },
+  { href: "/video-convert",    label: "🔄 4K→FHD 변환",       matches: ["/video-convert"] },
   { href: "/raw-select",       label: "✂️ AI 컷 정리 & RAW",  matches: ["/raw-select"] },
   { href: "/select-match",     label: "🎯 셀렉 & 매칭",       matches: ["/select-match"] },
   { href: "/photo-retouching", label: "🎨 색감·보정",         matches: ["/photo-retouching"] },
@@ -21,6 +22,7 @@ const PHOTO_TABS = [
 const TITLE: Record<string, string> = {
   "/photo-sorting":    "사진 분류",
   "/video-sorting":    "영상 분류",
+  "/video-convert":    "4K→FHD 변환",
   "/photo-retouching": "사진 보정",
   "/raw-select":       "AI 컷 정리 & RAW 셀렉",
   "/select-match":     "셀렉 & 매칭",
