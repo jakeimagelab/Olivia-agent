@@ -47,8 +47,9 @@ const convertResult = await page.evaluate(async () => {
     recorder.stop();
     await stopped;
     const blob = new Blob(chunks, { type: "video/webm" });
+    const inputBytes = new Uint8Array(await blob.arrayBuffer());
 
-    await ffmpeg.writeFile("in_test.webm", await fetchFile(blob));
+    await ffmpeg.writeFile("in_test.webm", inputBytes);
     await ffmpeg.exec([
       "-i", "in_test.webm",
       "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black",
