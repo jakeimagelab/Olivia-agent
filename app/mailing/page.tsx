@@ -577,37 +577,8 @@ function CustomBrandMailTab() {
   const [result,      setResult]      = useState<"success" | "error" | null>(null);
   const [errMsg,      setErrMsg]      = useState("");
 
-  const fileRef    = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const [session,        setSession]        = useState<{ name: string; email: string; accessToken: string } | null>(null);
-  const [contacts,       setContacts]       = useState<{ name: string; email: string; phone: string; org: string }[]>([]);
-  const [contactsLoaded, setContactsLoaded] = useState(false);
-  const [contactSearch,  setContactSearch]  = useState("");
-  const [showDropdown,   setShowDropdown]   = useState(false);
-
-  useEffect(() => {
-    fetch("/api/auth/session").then(r => r.json()).then(d => { if (d.ok) setSession(d.session); }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowDropdown(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const loadContacts = async () => {
-    if (contactsLoaded) return;
-    try { const res = await fetch("/api/contacts"); const data = await res.json(); if (data.ok) { setContacts(data.contacts); setContactsLoaded(true); } } catch {}
-  };
-
-  const filteredContacts = contacts.filter(c =>
-    c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
-    c.email.toLowerCase().includes(contactSearch.toLowerCase()) ||
-    c.org.toLowerCase().includes(contactSearch.toLowerCase())
-  ).slice(0, 8);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const dir = useContactDirectory();
 
   const handleFiles = async (files: FileList | File[]) => {
     const arr = Array.from(files);
