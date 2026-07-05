@@ -25,7 +25,6 @@ console.log("loadEngine result:", JSON.stringify(result, null, 2));
 const convertResult = await page.evaluate(async () => {
   try {
     const ffmpeg = await (window).__testLoadEngine();
-    const { fetchFile } = await import("@ffmpeg/util");
 
     // Build a minimal 1-second webm video via canvas capture stream.
     const canvas = document.createElement("canvas");
