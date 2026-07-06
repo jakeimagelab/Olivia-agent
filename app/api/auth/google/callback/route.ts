@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       expiresAt:   Date.now() + (tokenData.expires_in || 3600) * 1000,
     });
 
-    const res = NextResponse.redirect(baseUrl + "/delivery-mail?auth=success");
+    const res = NextResponse.redirect(baseUrl + "/mailing?auth=success");
     res.cookies.set("pc_session", Buffer.from(sessionData).toString("base64"), {
       httpOnly: true,
       secure:   true,
