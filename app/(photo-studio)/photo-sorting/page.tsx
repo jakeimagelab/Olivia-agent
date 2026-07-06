@@ -1805,13 +1805,15 @@ function PhotoSortingInner() {
         const file = result[idx];
         setProgress({ cur:done, total, msg:`얼굴 분석: ${file.name}` });
         try {
-          const f = await file.handle.getFile();
-          const thumb = await getStudioThumb(f);
-          const res = await fetch("/api/studio-face-analysis", {
-            method:"POST", headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({ thumbnail:thumb, lightingSensitivity:studioOpts.lightingSensitivity }),
-          });
-          const data = await res.json();
+          const data = await withTimeout((async () => {
+            const f = await file.handle.getFile();
+            const thumb = await getStudioThumb(f);
+            const res = await fetch("/api/studio-face-analysis", {
+              method:"POST", headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({ thumbnail:thumb, lightingSensitivity:studioOpts.lightingSensitivity }),
+            });
+            return res.json();
+          })(), 45000, "얼굴 분석");
           if (data.ok && data.lightingStatus === "normal") {
             const GENDERS = ["male","female"], AGES = ["20s","30s","40s","50s","60s+"];
             const HCOLORS = ["black","brown","blonde","white_gray","other"], HLENS = ["short","medium","long","bald"];
