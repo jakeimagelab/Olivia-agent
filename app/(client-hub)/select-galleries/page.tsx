@@ -171,7 +171,7 @@ function SelectGalleriesInner() {
           <div style={{ fontSize: 14, fontWeight: 800, color: C.teal, marginBottom: 16 }}>새 셀렉 갤러리 만들기</div>
 
           {!clientId && (
-            <div style={{ marginBottom: 16, position: "relative" }}>
+            <div ref={clientPickerRef} style={{ marginBottom: 16, position: "relative" }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>등록된 고객에서 불러오기</label>
               {pickedClientId ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#EAF4F2", border: `1.5px solid #B2D8D4`, borderRadius: 8 }}>
