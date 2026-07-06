@@ -428,7 +428,7 @@ function BrandMailTab() {
                             onMouseEnter={e => (e.currentTarget.style.background = C.mint)}
                             onMouseLeave={e => (e.currentTarget.style.background = "")}>
                             <span style={{ fontSize: 14, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
-                              <span title={c.source === "client" ? "등록된 고객" : "Google 연락처"} style={{ fontSize: 11 }}>{c.source === "client" ? "🏥" : "G"}</span>
+                              <span title={CONTACT_SOURCE_BADGE[c.source]?.title} style={{ fontSize: 11 }}>{CONTACT_SOURCE_BADGE[c.source]?.icon}</span>
                               {c.name}
                             </span>
                             <span style={{ fontSize: 13, color: C.muted }}>{c.email}</span>
@@ -1060,7 +1060,7 @@ function ReviewOnlyMailTab() {
                             onMouseEnter={e => (e.currentTarget.style.background = C.mint)}
                             onMouseLeave={e => (e.currentTarget.style.background = "")}>
                             <span style={{ fontSize: 14, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
-                              <span title={c.source === "client" ? "등록된 고객" : "Google 연락처"} style={{ fontSize: 11 }}>{c.source === "client" ? "🏥" : "G"}</span>
+                              <span title={CONTACT_SOURCE_BADGE[c.source]?.title} style={{ fontSize: 11 }}>{CONTACT_SOURCE_BADGE[c.source]?.icon}</span>
                               {c.name}
                             </span>
                             <span style={{ fontSize: 13, color: C.muted }}>{c.email}</span>
