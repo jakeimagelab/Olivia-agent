@@ -42,6 +42,30 @@ function SelectGalleriesInner() {
   const [form, setForm] = useState({ title: "", hospital_name: "", shooting_name: "", shooting_date: "", expire_days: 3 });
   const [showForm, setShowForm] = useState(false);
 
+  // clientId 없이(고객 워크플로우를 거치지 않고) 이 페이지에 바로 들어온 경우에도
+  // 등록된 고객 목록에서 골라서 자동 연동할 수 있도록 한다.
+  const [allClients, setAllClients] = useState<{ id: string; hospital_name: string; contact_name: string }[]>([]);
+  const [pickedClientId, setPickedClientId] = useState("");
+  const [clientQuery, setClientQuery] = useState("");
+  const [showClientPicker, setShowClientPicker] = useState(false);
+
+  useEffect(() => {
+    if (clientId) return; // 이미 특정 고객 컨텍스트로 들어온 경우엔 고를 필요 없음
+    fetch("/api/clients/directory").then(r => r.json()).then(d => { if (d.ok) setAllClients(d.clients); }).catch(() => {});
+  }, [clientId]);
+
+  const filteredClients = allClients.filter(c =>
+    (c.hospital_name ?? "").toLowerCase().includes(clientQuery.toLowerCase()) ||
+    (c.contact_name ?? "").toLowerCase().includes(clientQuery.toLowerCase())
+  ).slice(0, 8);
+
+  const pickClient = (c: { id: string; hospital_name: string; contact_name: string }) => {
+    setPickedClientId(c.id);
+    setForm(p => ({ ...p, hospital_name: c.hospital_name ?? "", title: `${c.hospital_name ?? ""} 셀렉 갤러리` }));
+    setShowClientPicker(false);
+    setClientQuery("");
+  };
+
   const load = () => {
     setLoading(true);
     const qs = clientId ? `?clientId=${clientId}` : "";
