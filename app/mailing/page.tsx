@@ -834,6 +834,37 @@ function CustomBrandMailTab() {
                 onClick={addLink}
                 style={{ alignSelf: "flex-start", padding: "7px 14px", border: `1px dashed ${C.teal}`, borderRadius: 8, background: "transparent", color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
               >+ 링크 추가</button>
+
+              {/* 사진 셀렉 링크 삽입 */}
+              <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 4, paddingTop: 12, position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowGalleryPicker(v => !v); loadGalleries(); }}
+                  style={{ padding: "7px 14px", border: `1px solid ${C.teal}`, borderRadius: 8, background: C.light, color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                >📸 사진 셀렉 링크 추가</button>
+                <div style={{ fontSize: 10, color: C.hint, marginTop: 4 }}>
+                  기존 셀렉 갤러리를 골라 링크 버튼으로 바로 추가합니다 — 고객이 웹에서 선택하거나, 선택한 파일을 업로드하는 방식 둘 다 지원됩니다.
+                </div>
+                {showGalleryPicker && (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,.1)", marginTop: 6, maxHeight: 300, overflowY: "auto" }}>
+                    <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
+                      <input value={gallerySearch} onChange={e => setGallerySearch(e.target.value)} placeholder="고객명·촬영명 검색..." style={{ ...iS, height: 34, padding: "6px 10px" }} />
+                    </div>
+                    {filteredGalleries.length === 0 ? (
+                      <div style={{ padding: "16px", textAlign: "center", fontSize: 12, color: C.hint }}>셀렉 갤러리가 없습니다</div>
+                    ) : filteredGalleries.map((g) => (
+                      <div key={g.id}
+                        onClick={() => addGalleryLink(g)}
+                        style={{ padding: "10px 14px", cursor: "pointer", borderBottom: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 2 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = C.mint)}
+                        onMouseLeave={e => (e.currentTarget.style.background = "")}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.txt }}>{g.hospital_name ?? g.title}</span>
+                        {g.shooting_name && <span style={{ fontSize: 11, color: C.muted }}>{g.shooting_name}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
