@@ -21,6 +21,7 @@ export function useContactDirectory() {
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [gmailHistoryState, setGmailHistoryState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
