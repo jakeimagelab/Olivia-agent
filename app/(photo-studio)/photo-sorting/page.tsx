@@ -128,10 +128,14 @@ async function loadThumb(file: File, size = 120): Promise<string | null> {
 // 영상 파일과 마찬가지로 RAW도 수십~수백 MB일 수 있어 arrayBuffer()로 전체를 메모리에
 // 올리지 않고 스트리밍으로 복사한다.
 async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
-  const file = await src.getFile();
-  const fh   = await (dest as any).getFileHandle(name, { create: true });
-  const wr   = await fh.createWritable();
-  await file.stream().pipeTo(wr);
+  // iCloud/OneDrive 온라인 전용 파일은 getFile()이 실제 다운로드가 끝날 때까지 멈출 수 있어
+  // 제한 시간을 둔다 — 그래야 한 파일 때문에 전체 배치가 영영 멈추지 않는다.
+  await withTimeout((async () => {
+    const file = await src.getFile();
+    const fh   = await (dest as any).getFileHandle(name, { create: true });
+    const wr   = await fh.createWritable();
+    await file.stream().pipeTo(wr);
+  })(), 120000, `${name} 복사`);
 }
 
 // 클라우드 동기화 폴더(iCloud/OneDrive 등)의 온라인 전용 파일이나 네트워크 문제로 파일 읽기·API
