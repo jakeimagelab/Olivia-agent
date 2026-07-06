@@ -125,12 +125,26 @@ async function loadThumb(file: File, size = 120): Promise<string | null> {
   });
 }
 
+// 영상 파일과 마찬가지로 RAW도 수십~수백 MB일 수 있어 arrayBuffer()로 전체를 메모리에
+// 올리지 않고 스트리밍으로 복사한다.
 async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
   const file = await src.getFile();
-  const buf  = await file.arrayBuffer();
   const fh   = await (dest as any).getFileHandle(name, { create: true });
   const wr   = await fh.createWritable();
-  await wr.write(buf); await wr.close();
+  await file.stream().pipeTo(wr);
+}
+
+// 클라우드 동기화 폴더(iCloud/OneDrive 등)의 온라인 전용 파일이나 네트워크 문제로 파일 읽기·API
+// 호출이 무한정 멈추면 CONCURRENCY 워커 하나가 영영 안 끝나 Promise.all 전체가 멈춘다.
+// 개별 작업에 제한 시간을 둬서 그 한 파일만 실패 처리하고 나머지는 계속 진행되게 한다.
+function withTimeout<T>(promise: Promise<T>, ms: number, label = "작업"): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} 시간 초과 (${Math.round(ms / 1000)}초)`)), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
 }
 
 async function renameDirHandle(parentDir: any, oldName: string, newName: string, srcDir: any): Promise<FileSystemDirectoryHandle> {
