@@ -160,6 +160,43 @@ function SelectGalleriesInner() {
       {showForm && (
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 24 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: C.teal, marginBottom: 16 }}>새 셀렉 갤러리 만들기</div>
+
+          {!clientId && (
+            <div style={{ marginBottom: 16, position: "relative" }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>등록된 고객에서 불러오기</label>
+              {pickedClientId ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#EAF4F2", border: `1.5px solid #B2D8D4`, borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.teal, flex: 1 }}>🏥 {form.hospital_name}</span>
+                  <button onClick={() => { setPickedClientId(""); }} style={{ fontSize: 11, color: C.muted, background: "none", border: "none", cursor: "pointer" }}>변경</button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    value={clientQuery}
+                    onChange={e => { setClientQuery(e.target.value); setShowClientPicker(true); }}
+                    onFocus={() => setShowClientPicker(true)}
+                    placeholder="고객명 검색 (선택하면 병원명·제목이 자동 입력됩니다)"
+                    style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 13, fontFamily: "inherit" }}
+                  />
+                  {showClientPicker && filteredClients.length > 0 && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,.1)", marginTop: 4, maxHeight: 220, overflowY: "auto" }}>
+                      {filteredClients.map(c => (
+                        <div key={c.id} onClick={() => pickClient(c)}
+                          style={{ padding: "9px 14px", cursor: "pointer", borderBottom: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 2 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#EAF4F2")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "")}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: C.txt }}>{c.hospital_name}</span>
+                          {c.contact_name && <span style={{ fontSize: 11, color: C.muted }}>{c.contact_name}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+              <div style={{ fontSize: 10, color: C.hint, marginTop: 4 }}>직접 입력하고 싶으면 비워두고 아래 병원명을 바로 입력해도 됩니다.</div>
+            </div>
+          )}
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
             {([
               ["title", "갤러리 제목 *", "예: 정연호 원장 2026년 6월 촬영"],
