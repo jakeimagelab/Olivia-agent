@@ -96,9 +96,10 @@ function SelectGalleriesInner() {
   const create = async () => {
     if (!form.title) return;
     setCreating(true);
+    const linkedClientId = clientId || pickedClientId || undefined;
     const res = await fetch("/api/select-galleries", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, client_id: clientId || undefined, workflow_run_id: workflowRunId || undefined }),
+      body: JSON.stringify({ ...form, client_id: linkedClientId, workflow_run_id: workflowRunId || undefined }),
     });
     const d = await res.json();
     setCreating(false);
