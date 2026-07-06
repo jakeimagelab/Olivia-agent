@@ -1265,9 +1265,27 @@ function PhotoSortingInner() {
           }
 
           if (profileClassificationEnabled && !skipProfile) {
-            const score = await computePortraitScore(file);
-            // 엄격한 임계값 0.80 — 애매한 사진은 기존 씬에 남김
-            const isProfileCandidate = score >= 0.80;
+            // 절대 기준: (1) 사람이 정확히 1명 AND (2) 정면 응시 또는 팔짱/손깍지 등 의도된 정지 포즈.
+            // 픽셀 대칭성/중앙정렬만 보던 예전 휴리스틱은 인원수·시선·포즈를 전혀 판단하지 못해
+            // AI 비전 판정(/api/portrait-check)으로 교체했다.
+            let personCount = 0, facingForward = false, intentionalPose = false, isProfileCandidate = false;
+            try {
+              const data = await withTimeout((async () => {
+                const thumb = await getApiThumb(file);
+                const res = await fetch("/api/portrait-check", {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ thumbnail: thumb }),
+                });
+                return res.json();
+              })(), 45000, "프로필 판정");
+              if (data.ok) {
+                personCount = data.personCount ?? 0;
+                facingForward = data.facingForward === true;
+                intentionalPose = data.intentionalPose === true;
+                isProfileCandidate = data.isProfile === true;
+              }
+            } catch { /* 판정 실패 시 프로필로 보내지 않고 기존 씬에 남김 */ }
+
             let movedTo = "";
             let rejectReason = "";
 
@@ -1279,15 +1297,15 @@ function PhotoSortingInner() {
               profileTotal++;
               updated[si].profileCount++;
             } else if (!isProfileCandidate) {
-              rejectReason = score >= 0.65
-                ? `점수 미달(${score.toFixed(2)}) — 정지 포즈/정면 응시 불확실`
-                : `점수 미달(${score.toFixed(2)}) — 프로필 구도 아님`;
+              rejectReason = personCount !== 1
+                ? `인원수 불일치(${personCount}명) — 1인이 아님`
+                : `정면 응시·의도된 포즈 아님 (facingForward:${facingForward}, intentionalPose:${intentionalPose})`;
             }
 
             profileRows.push([
               pf.name,
               updated[si].editedName,
-              score.toFixed(2),
+              String(personCount),
               isProfileCandidate ? "true" : "false",
               "", "", "", "", "", "", "", "", "", "", "", "",
               rejectReason || (isProfileCandidate ? "프로필 조건 충족" : ""),
