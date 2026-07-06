@@ -48,11 +48,20 @@ function SelectGalleriesInner() {
   const [pickedClientId, setPickedClientId] = useState("");
   const [clientQuery, setClientQuery] = useState("");
   const [showClientPicker, setShowClientPicker] = useState(false);
+  const clientPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (clientId) return; // 이미 특정 고객 컨텍스트로 들어온 경우엔 고를 필요 없음
     fetch("/api/clients/directory").then(r => r.json()).then(d => { if (d.ok) setAllClients(d.clients); }).catch(() => {});
   }, [clientId]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (clientPickerRef.current && !clientPickerRef.current.contains(e.target as Node)) setShowClientPicker(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const filteredClients = allClients.filter(c =>
     (c.hospital_name ?? "").toLowerCase().includes(clientQuery.toLowerCase()) ||
