@@ -840,7 +840,7 @@ function CustomBrandMailTab() {
                 <button
                   type="button"
                   onClick={() => { setShowGalleryPicker(v => !v); loadGalleries(); }}
-                  style={{ padding: "7px 14px", border: `1px solid ${C.teal}`, borderRadius: 8, background: C.light, color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                  style={{ padding: "7px 14px", border: `1px solid ${C.teal}`, borderRadius: 8, background: C.mint, color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
                 >📸 사진 셀렉 링크 추가</button>
                 <div style={{ fontSize: 10, color: C.hint, marginTop: 4 }}>
                   기존 셀렉 갤러리를 골라 링크 버튼으로 바로 추가합니다 — 고객이 웹에서 선택하거나, 선택한 파일을 업로드하는 방식 둘 다 지원됩니다.
