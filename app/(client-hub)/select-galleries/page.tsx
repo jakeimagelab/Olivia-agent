@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { GALLERY_STATUS_COLOR, GALLERY_STATUS_LABEL, type SelectGallery } from "@/lib/selectGallery";
