@@ -140,6 +140,13 @@ async function analyzeWithModel(
     negativeCues: Array.isArray(parsed.negativeCues) ? (parsed.negativeCues as string[]) : [],
     reason: (parsed.reason as string) || "",
     needsReview: typeof parsed.needsReview === "boolean" ? parsed.needsReview : false,
+    patientPosture: (["seated", "standing", "lying_down"] as const).includes(parsed.patientPosture as any)
+      ? (parsed.patientPosture as "seated" | "standing" | "lying_down")
+      : "unclear",
+    hasHandpiece: parsed.hasHandpiece === true,
+    hasTreatmentDevice: parsed.hasTreatmentDevice === true,
+    hasTreatmentBed: parsed.hasTreatmentBed === true,
+    hasConsultationDesk: parsed.hasConsultationDesk === true,
   };
 }
 
