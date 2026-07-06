@@ -1273,9 +1273,12 @@ function PhotoSortingInner() {
             profileRows.push([
               pf.name,
               updated[si].editedName,
-              String(personCount),
+              confidence.toFixed(2),
               isProfileCandidate ? "true" : "false",
-              "", "", "", "", "", "", "", "", "", "", "", "",
+              String(personCount), "",
+              facingForward ? "true" : "false",
+              intentionalPose ? "true" : "false",
+              "", "", "", "", "", "", "", "",
               rejectReason || (isProfileCandidate ? "프로필 조건 충족" : ""),
               movedTo,
             ]);
