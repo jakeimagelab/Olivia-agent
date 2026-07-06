@@ -40,6 +40,7 @@ const protectedApiPrefixes = [
   "/api/photo-scene-analyze",
   "/api/studio-face-analysis",
   "/api/studio-analysis",
+  "/api/portrait-check",
   "/api/video-classify",
   "/api/scene-naming",
   "/api/color-sync",
