@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const error = req.nextUrl.searchParams.get("error");
 
   if (error || !code) {
-    return NextResponse.redirect(baseUrl + "/delivery-mail?auth=error");
+    return NextResponse.redirect(baseUrl + "/mailing?auth=error");
   }
 
   try {
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     const tokenData = await tokenRes.json();
     if (!tokenData.access_token) {
-      return NextResponse.redirect(baseUrl + "/delivery-mail?auth=error");
+      return NextResponse.redirect(baseUrl + "/mailing?auth=error");
     }
 
     // 2. 사용자 정보 가져오기
@@ -59,6 +59,6 @@ export async function GET(req: NextRequest) {
 
     return res;
   } catch (e: any) {
-    return NextResponse.redirect(baseUrl + "/delivery-mail?auth=error");
+    return NextResponse.redirect(baseUrl + "/mailing?auth=error");
   }
 }
