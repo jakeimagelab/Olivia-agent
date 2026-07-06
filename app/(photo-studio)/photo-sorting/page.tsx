@@ -1715,13 +1715,15 @@ function PhotoSortingInner() {
         const file = result[idx];
         setProgress({ cur:done, total, msg:`AI 분석: ${file.name}` });
         try {
-          const f = await file.handle.getFile();
-          const thumb = await getStudioThumb(f);
-          const res = await fetch("/api/studio-analysis", {
-            method:"POST", headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({ thumbnail:thumb, lightingSensitivity:studioOpts.lightingSensitivity }),
-          });
-          const data = await res.json();
+          const data = await withTimeout((async () => {
+            const f = await file.handle.getFile();
+            const thumb = await getStudioThumb(f);
+            const res = await fetch("/api/studio-analysis", {
+              method:"POST", headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({ thumbnail:thumb, lightingSensitivity:studioOpts.lightingSensitivity }),
+            });
+            return res.json();
+          })(), 45000, "AI 분석");
           if (data.ok) {
             const isEtc = data.lightingStatus !== "normal";
             const hasGown: boolean = data.hasGown ?? false;
