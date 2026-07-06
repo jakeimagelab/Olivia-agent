@@ -592,6 +592,38 @@ function CustomBrandMailTab() {
   const fileRef = useRef<HTMLInputElement>(null);
   const dir = useContactDirectory();
 
+  const [galleries, setGalleries] = useState<any[]>([]);
+  const [galleriesLoaded, setGalleriesLoaded] = useState(false);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
+  const [gallerySearch, setGallerySearch] = useState("");
+
+  const loadGalleries = async () => {
+    if (galleriesLoaded) return;
+    setGalleriesLoaded(true);
+    try {
+      const res = await fetch("/api/select-galleries");
+      const data = await res.json();
+      if (data.ok) setGalleries(data.galleries);
+    } catch {}
+  };
+
+  const filteredGalleries = galleries.filter(g =>
+    (g.hospital_name ?? g.title ?? "").toLowerCase().includes(gallerySearch.toLowerCase()) ||
+    (g.shooting_name ?? "").toLowerCase().includes(gallerySearch.toLowerCase())
+  ).slice(0, 8);
+
+  const addGalleryLink = (gallery: any) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/select/${gallery.share_token}`;
+    setLinks(prev => {
+      const empties = prev.filter(l => !l.label.trim() && !l.url.trim());
+      const filled = prev.filter(l => l.label.trim() || l.url.trim());
+      return [...filled, { label: "사진 셀렉하기", url }, ...(empties.length ? [] : [{ label: "", url: "" }])];
+    });
+    setShowGalleryPicker(false);
+    setGallerySearch("");
+  };
+
   const handleFiles = async (files: FileList | File[]) => {
     const arr = Array.from(files);
     const loaded: typeof attachments = [];
