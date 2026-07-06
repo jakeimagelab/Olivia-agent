@@ -420,6 +420,12 @@ function BrandMailTab() {
                       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,.1)", marginTop: 4, maxHeight: 360, overflowY: "auto" }}>
                         <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
                           <input value={dir.search} onChange={e => dir.setSearch(e.target.value)} placeholder="이름·이메일·회사 검색..." style={{ ...iS, height: 38, padding: "8px 12px" }} />
+                          {dir.session && (
+                            <button type="button" onClick={dir.loadGmailHistory} disabled={dir.gmailHistoryState === "loading"}
+                              style={{ marginTop: 6, width: "100%", padding: "5px 8px", borderRadius: 6, border: `1px solid ${C.border}`, background: C.mint, color: C.teal, fontSize: 11, fontWeight: 700, cursor: dir.gmailHistoryState === "loading" ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                              {dir.gmailHistoryState === "loading" ? "📤 지메일 기록 검색 중..." : dir.gmailHistoryState === "done" ? "✓ 지메일 기록 반영됨" : "📤 지메일 보낸기록에서 더 찾기"}
+                            </button>
+                          )}
                         </div>
                         {dir.filtered.map((c, i) => (
                           <div key={i}
@@ -1052,6 +1058,12 @@ function ReviewOnlyMailTab() {
                       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,.1)", marginTop: 4, maxHeight: 360, overflowY: "auto" }}>
                         <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
                           <input value={dir.search} onChange={e => dir.setSearch(e.target.value)} placeholder="이름·이메일·회사 검색..." style={{ ...iS, height: 38, padding: "8px 12px" }} />
+                          {dir.session && (
+                            <button type="button" onClick={dir.loadGmailHistory} disabled={dir.gmailHistoryState === "loading"}
+                              style={{ marginTop: 6, width: "100%", padding: "5px 8px", borderRadius: 6, border: `1px solid ${C.border}`, background: C.mint, color: C.teal, fontSize: 11, fontWeight: 700, cursor: dir.gmailHistoryState === "loading" ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                              {dir.gmailHistoryState === "loading" ? "📤 지메일 기록 검색 중..." : dir.gmailHistoryState === "done" ? "✓ 지메일 기록 반영됨" : "📤 지메일 보낸기록에서 더 찾기"}
+                            </button>
+                          )}
                         </div>
                         {dir.filtered.map((c, i) => (
                           <div key={i}
