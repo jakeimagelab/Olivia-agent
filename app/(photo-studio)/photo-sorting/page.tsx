@@ -1235,7 +1235,7 @@ function PhotoSortingInner() {
             // 절대 기준: (1) 사람이 정확히 1명 AND (2) 정면 응시 또는 팔짱/손깍지 등 의도된 정지 포즈.
             // 픽셀 대칭성/중앙정렬만 보던 예전 휴리스틱은 인원수·시선·포즈를 전혀 판단하지 못해
             // AI 비전 판정(/api/portrait-check)으로 교체했다.
-            let personCount = 0, facingForward = false, intentionalPose = false, isProfileCandidate = false;
+            let personCount = 0, facingForward = false, intentionalPose = false, isProfileCandidate = false, confidence = 0;
             try {
               const data = await withTimeout((async () => {
                 const thumb = await getApiThumb(file);
@@ -1250,6 +1250,7 @@ function PhotoSortingInner() {
                 facingForward = data.facingForward === true;
                 intentionalPose = data.intentionalPose === true;
                 isProfileCandidate = data.isProfile === true;
+                confidence = data.confidence ?? 0;
               }
             } catch { /* 판정 실패 시 프로필로 보내지 않고 기존 씬에 남김 */ }
 
