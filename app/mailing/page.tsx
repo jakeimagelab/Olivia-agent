@@ -18,6 +18,12 @@ const iS: React.CSSProperties = {
   background: C.surface, color: C.txt, outline: "none",
 };
 
+const CONTACT_SOURCE_BADGE: Record<string, { icon: string; title: string }> = {
+  client: { icon: "🏥", title: "등록된 고객" },
+  google: { icon: "G", title: "Google 연락처" },
+  gmail_history: { icon: "📤", title: "지메일 보낸 기록" },
+};
+
 // ── 타입 ───────────────────────────────────────────────────
 type MailStatus = "draft" | "ready" | "sent" | "failed";
 type MailType = "quote" | "contract" | "conti" | "proposal" | "original_files" | "gallery" | "review_form" | "monthly_report" | "select_gallery";
