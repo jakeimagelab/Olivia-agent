@@ -834,23 +834,31 @@ function CustomBrandMailTab() {
                 onClick={addLink}
                 style={{ alignSelf: "flex-start", padding: "7px 14px", border: `1px dashed ${C.teal}`, borderRadius: 8, background: "transparent", color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
               >+ 링크 추가</button>
+            </div>
+          </div>
 
-              {/* 사진 셀렉 링크 삽입 */}
-              <div style={{ borderTop: `1px solid ${C.border}`, marginTop: 4, paddingTop: 12, position: "relative" }}>
-                <button
-                  type="button"
-                  onClick={() => { setShowGalleryPicker(v => !v); loadGalleries(); }}
-                  style={{ padding: "7px 14px", border: `1px solid ${C.teal}`, borderRadius: 8, background: C.mint, color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
-                >📸 사진 셀렉 링크 추가</button>
-                <div style={{ fontSize: 10, color: C.hint, marginTop: 4 }}>
-                  기존 셀렉 갤러리를 골라 링크 버튼으로 바로 추가합니다 — 고객이 웹에서 선택하거나, 선택한 파일을 업로드하는 방식 둘 다 지원됩니다.
-                </div>
-                {showGalleryPicker && (
-                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,.1)", marginTop: 6, maxHeight: 300, overflowY: "auto" }}>
-                    <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.border}` }}>
-                      <input value={gallerySearch} onChange={e => setGallerySearch(e.target.value)} placeholder="고객명·촬영명 검색..." style={{ ...iS, height: 34, padding: "6px 10px" }} />
-                    </div>
-                    {filteredGalleries.length === 0 ? (
+          {/* 사진 셀렉 링크 — 별도 박스 */}
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📸 사진 셀렉 링크 <span style={{ fontWeight: 400, color: C.hint }}>(선택)</span></div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>기존 셀렉 갤러리를 골라 위 링크 버튼 목록에 바로 추가합니다 — 고객이 웹에서 선택하거나, 선택한 파일을 업로드하는 방식 둘 다 지원됩니다.</div>
+            </div>
+            <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => { setShowGalleryPicker(v => !v); loadGalleries(); }}
+                style={{ alignSelf: "flex-start", padding: "8px 16px", border: `1px solid ${C.teal}`, borderRadius: 8, background: showGalleryPicker ? C.teal : C.mint, color: showGalleryPicker ? "#fff" : C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+              >{showGalleryPicker ? "갤러리 목록 닫기 ▲" : "갤러리 목록에서 고르기 ▼"}</button>
+
+              {showGalleryPicker && (
+                <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.border}`, background: C.bg }}>
+                    <input value={gallerySearch} onChange={e => setGallerySearch(e.target.value)} placeholder="고객명·촬영명 검색..." style={{ ...iS, height: 36, padding: "6px 10px" }} />
+                  </div>
+                  <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                    {!galleriesLoaded ? (
+                      <div style={{ padding: "16px", textAlign: "center", fontSize: 12, color: C.hint }}>불러오는 중...</div>
+                    ) : filteredGalleries.length === 0 ? (
                       <div style={{ padding: "16px", textAlign: "center", fontSize: 12, color: C.hint }}>셀렉 갤러리가 없습니다</div>
                     ) : filteredGalleries.map((g) => (
                       <div key={g.id}
@@ -863,8 +871,8 @@ function CustomBrandMailTab() {
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
