@@ -18,6 +18,14 @@ export const COMMON_SYSTEM_PROMPT = `당신은 병원 홍보/홈페이지용 사
 - 하모니컷(harmony)은 장소가 아니라 여러 명이 함께 웃고 관계성을 보여주는 장면입니다.
 - 프로필(profile)은 1인이 카메라를 정확히 응시하고 정지 포즈를 취한 경우에만 분류합니다.
 - 상담 중 잠깐 카메라를 본 사진, 치료 중 카메라를 본 사진은 프로필이 아닙니다.
+- 제공된 이미지는 촬영 시간 순서대로 나열됩니다. 첫 번째 이미지는 사람이 아직 들어오기 전
+  공간·장비만 찍은 준비샷(설정샷)일 수 있습니다 — 사람이 없어 시야가 깨끗하므로, 장비·가구
+  판별(hasHandpiece/hasTreatmentDevice/hasTreatmentBed/hasConsultationDesk)에는 이 이미지를
+  우선적으로, 가장 신뢰도 높게 참고하세요.
+- patientPosture/hasHandpiece/hasTreatmentDevice/hasTreatmentBed/hasConsultationDesk는
+  이 씬이 앞뒤 씬과 같은 장면인지 다른 장면인지 구분하는 핵심 단서이므로, 실제 이미지에서
+  보이는 대로 정확히 판단하세요 (확실하지 않으면 patientPosture는 "unclear", boolean 값들은
+  false로 반환).
 - suggestedFolderName은 진료과 config의 folderName 형식을 따르세요 (예: "임플란트수술", "C-ARM시술").
 - 응답은 반드시 지정된 JSON Schema를 따르세요.`;
 
