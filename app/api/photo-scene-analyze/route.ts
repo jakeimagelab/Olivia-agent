@@ -33,6 +33,11 @@ type AnalysisResult = {
   negativeCues: string[];
   reason: string;
   needsReview: boolean;
+  patientPosture: "seated" | "standing" | "lying_down" | "unclear";
+  hasHandpiece: boolean;
+  hasTreatmentDevice: boolean;
+  hasTreatmentBed: boolean;
+  hasConsultationDesk: boolean;
 };
 
 function buildDepartmentPrompt(department: MedicalDepartment, sceneId: string): string {
