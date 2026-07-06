@@ -939,11 +939,13 @@ function PhotoSortingInner() {
           if (images.length >= 6) break;
         }
         const sceneId = updated[i].folderName;
-        const res = await fetch("/api/photo-scene-analyze", {
-          method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ department, sceneId, images, options: { useHighModel: false } }),
-        });
-        const data = await res.json();
+        const data = await withTimeout((async () => {
+          const res = await fetch("/api/photo-scene-analyze", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ department, sceneId, images, options: { useHighModel: false } }),
+          });
+          return res.json();
+        })(), 45000, "AI 씬 분석");
         if (data.ok) {
           const num = String(updated[i].index).padStart(2,"0");
           const suggested = aiNamingEnabled && data.suggestedFolderName
