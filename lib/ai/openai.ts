@@ -97,6 +97,11 @@ export type PhotoSceneAnalysisOutput = {
   negativeCues: string[];
   reason: string;
   needsReview: boolean;
+  patientPosture: "seated" | "standing" | "lying_down" | "unclear";
+  hasHandpiece: boolean;
+  hasTreatmentDevice: boolean;
+  hasTreatmentBed: boolean;
+  hasConsultationDesk: boolean;
 };
 
 const NEEDS_HIGH_MODEL_TYPES = new Set([
