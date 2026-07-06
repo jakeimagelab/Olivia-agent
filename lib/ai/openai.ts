@@ -35,6 +35,11 @@ const SCHEMA_BODY: Record<string, unknown> = {
     "negativeCues",
     "reason",
     "needsReview",
+    "patientPosture",
+    "hasHandpiece",
+    "hasTreatmentDevice",
+    "hasTreatmentBed",
+    "hasConsultationDesk",
   ],
   properties: {
     department: {
@@ -61,6 +66,13 @@ const SCHEMA_BODY: Record<string, unknown> = {
     negativeCues:        { type: "array", items: { type: "string" } },
     reason:              { type: "string" },
     needsReview:         { type: "boolean" },
+    // 씬 경계(병합/분리) 판단에 쓰이는 물리적 단서 — scene-transition-detector.ts가
+    // 이 필드들로 씬 전환 강도를 계산하는데, 지금까지 스키마에 없어서 항상 비어 있었다.
+    patientPosture:      { type: "string", enum: ["seated", "standing", "lying_down", "unclear"] },
+    hasHandpiece:        { type: "boolean" },
+    hasTreatmentDevice:  { type: "boolean" },
+    hasTreatmentBed:     { type: "boolean" },
+    hasConsultationDesk: { type: "boolean" },
   },
 };
 
