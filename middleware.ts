@@ -70,7 +70,7 @@ const FEATURE_API_SCOPE: Record<string, string[]> = {
   "/image-generator": ["/api/image-director"],
   "/website-builder": ["/api/website-design"],
   "/seo-delivery": ["/api/seo-delivery", "/api/workflow"],
-  "/photo-sorting": ["/api/photo-scene-analyze", "/api/studio-face-analysis", "/api/studio-analysis"],
+  "/photo-sorting": ["/api/photo-scene-analyze", "/api/studio-face-analysis", "/api/studio-analysis", "/api/portrait-check"],
   "/video-sorting": ["/api/video-classify"],
   "/raw-select": ["/api/scene-naming"],
   "/select-match": [],
