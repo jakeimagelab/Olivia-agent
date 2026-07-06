@@ -7,7 +7,7 @@ export interface DirectoryContact {
   email: string;
   phone: string;
   org: string;
-  source: "client" | "google";
+  source: "client" | "google" | "gmail_history";
 }
 
 /**
