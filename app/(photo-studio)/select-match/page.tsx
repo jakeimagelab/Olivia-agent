@@ -134,6 +134,47 @@ function parseFileNameQueries(text: string): NameQuery[] {
   return out;
 }
 
+/* ── 파일 순서 검토: 파일명 끝자리 숫자로 넘버링 누락 검사 ── */
+interface SequenceCheckResult {
+  totalFiles: number;
+  recognizedNumbers: number[];      // 중복 제거 + 정렬됨
+  unrecognizedFiles: string[];      // 번호를 못 찾은 파일명
+  missingRanges: { start: number; end: number }[];
+  min: number | null;
+  max: number | null;
+}
+
+function checkFileSequence(fileNames: string[]): SequenceCheckResult {
+  const numberSet = new Set<number>();
+  const unrecognizedFiles: string[] = [];
+
+  for (const name of fileNames) {
+    const basename = name.replace(/\.[^.]+$/, "");
+    const m = basename.match(/(\d+)$/);
+    if (!m) { unrecognizedFiles.push(name); continue; }
+    numberSet.add(Number(m[1]));
+  }
+
+  const recognizedNumbers = Array.from(numberSet).sort((a, b) => a - b);
+  const min = recognizedNumbers.length > 0 ? recognizedNumbers[0] : null;
+  const max = recognizedNumbers.length > 0 ? recognizedNumbers[recognizedNumbers.length - 1] : null;
+
+  const missingRanges: { start: number; end: number }[] = [];
+  if (min !== null && max !== null) {
+    let gapStart: number | null = null;
+    for (let n = min; n <= max; n++) {
+      if (numberSet.has(n)) {
+        if (gapStart !== null) { missingRanges.push({ start: gapStart, end: n - 1 }); gapStart = null; }
+      } else if (gapStart === null) {
+        gapStart = n;
+      }
+    }
+    if (gapStart !== null) missingRanges.push({ start: gapStart, end: max });
+  }
+
+  return { totalFiles: fileNames.length, recognizedNumbers, unrecognizedFiles, missingRanges, min, max };
+}
+
 /* ── Component ── */
 function Btn({ children, onClick, disabled, variant, style: s }: {
   children: React.ReactNode; onClick?: () => void;
