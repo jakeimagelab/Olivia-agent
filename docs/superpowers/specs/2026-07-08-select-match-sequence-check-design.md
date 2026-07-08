@@ -54,7 +54,8 @@ function checkFileSequence(fileNames: string[]): SequenceCheckResult
 
 - 정규식으로 각 파일명에서 숫자 추출 → `Set<number>`로 중복 제거 → 정렬.
 - 최소~최대 사이를 순회하며 `Set`에 없는 연속 구간을 `missingRanges`로 묶는다.
-- 파일이 1개 이하이거나 인식된 번호가 없으면 "검사 불가" 상태로 별도 안내.
+- 인식된 번호가 정확히 1개면 `missingRanges`는 항상 빈 배열(누락이 있을 수 없으므로) — "✅ 누락
+  없음"으로 정상 처리한다. 인식된 번호가 **0개**일 때만 "검사 불가" 상태로 별도 안내한다.
 
 ### 4. 화면 흐름 (기존 페이지의 `Step`과 별개의 로컬 상태로 관리)
 
