@@ -639,6 +639,12 @@ export default function SelectMatchPage() {
         background: feature === "find_move" ? C.light : C.white,
         color: feature === "find_move" ? C.teal : C.muted, fontSize: 12, fontWeight: 800,
       }}>📋 파일명으로 찾아 이동</button>
+      <button onClick={() => setFeature("seq_check")} style={{
+        flex: 1, padding: "10px 14px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+        border: `1.5px solid ${feature === "seq_check" ? C.teal : C.border}`,
+        background: feature === "seq_check" ? C.light : C.white,
+        color: feature === "seq_check" ? C.teal : C.muted, fontSize: 12, fontWeight: 800,
+      }}>🔢 파일 순서 검토</button>
     </div>
   );
 
