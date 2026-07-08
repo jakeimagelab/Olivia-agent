@@ -142,7 +142,12 @@ interface SequenceCheckResult {
   missingRanges: { start: number; end: number }[];
   min: number | null;
   max: number | null;
+  rangeTooLarge: boolean;           // 인식 오류로 비정상적으로 큰 숫자가 섞였을 가능성
 }
+
+// 파일명 끝자리에 우연히 타임스탬프 같은 거대한 숫자가 붙어 있으면 min~max 범위가
+// 수백만 단위로 벌어질 수 있다 — 그 구간을 전부 순회하면 브라우저가 멈추므로 상한을 둔다.
+const SEQUENCE_RANGE_LIMIT = 200_000;
 
 function checkFileSequence(fileNames: string[]): SequenceCheckResult {
   const numberSet = new Set<number>();
@@ -160,7 +165,9 @@ function checkFileSequence(fileNames: string[]): SequenceCheckResult {
   const max = recognizedNumbers.length > 0 ? recognizedNumbers[recognizedNumbers.length - 1] : null;
 
   const missingRanges: { start: number; end: number }[] = [];
-  if (min !== null && max !== null) {
+  const rangeTooLarge = min !== null && max !== null && (max - min) > SEQUENCE_RANGE_LIMIT;
+
+  if (min !== null && max !== null && !rangeTooLarge) {
     let gapStart: number | null = null;
     for (let n = min; n <= max; n++) {
       if (numberSet.has(n)) {
@@ -172,7 +179,7 @@ function checkFileSequence(fileNames: string[]): SequenceCheckResult {
     if (gapStart !== null) missingRanges.push({ start: gapStart, end: max });
   }
 
-  return { totalFiles: fileNames.length, recognizedNumbers, unrecognizedFiles, missingRanges, min, max };
+  return { totalFiles: fileNames.length, recognizedNumbers, unrecognizedFiles, missingRanges, min, max, rangeTooLarge };
 }
 
 /* ── Component ── */
