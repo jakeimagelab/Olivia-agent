@@ -592,6 +592,38 @@ export default function SelectMatchPage() {
     setFmStep("idle"); setFmMatches([]); setFmMissing([]); setFmMovedCount(0); setFmText("");
   };
 
+  /* ── 파일 순서 검토: 폴더 선택 ── */
+  const pickScFolder = useCallback(async () => {
+    try {
+      const dir = await (window as any).showDirectoryPicker({ mode: "read" });
+      setScRootDir(dir);
+    } catch (e: any) {
+      if (e?.name !== "AbortError") alert("폴더 선택 실패");
+    }
+  }, []);
+
+  /* ── 파일 순서 검토: 폴더 직속 파일만 스캔 후 넘버링 검사 ── */
+  const runSequenceCheck = useCallback(async () => {
+    if (!scRootDir) return;
+    setScStep("scanning");
+    const names: string[] = [];
+    for await (const [name, handle] of (scRootDir as any).entries()) {
+      if ((handle as FileSystemHandle).kind !== "file") continue;
+      const ext = (name as string).split(".").pop()?.toLowerCase() ?? "";
+      if (!RAW_EXTS.has(ext) && !JPG_EXTS.has(ext)) continue;
+      names.push(name as string);
+    }
+    setScResult(checkFileSequence(names));
+    setScStep("result");
+  }, [scRootDir]);
+
+  const resetSequenceCheck = () => {
+    setScStep("idle"); setScResult(null); setScRootDir(null);
+  };
+
+  const formatMissingRange = (r: { start: number; end: number }) =>
+    r.start === r.end ? `${r.start}` : `${r.start}~${r.end} (${r.end - r.start + 1}개)`;
+
   /* ── 상단 기능 전환 탭 (두 기능 진입점에서만 노출) ── */
   const FeatureTabs = () => (
     <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
