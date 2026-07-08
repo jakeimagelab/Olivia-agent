@@ -763,6 +763,88 @@ export default function SelectMatchPage() {
     );
   }
 
+  /* ── 파일 순서 검토 ── */
+  if (feature === "seq_check") {
+    if (scStep === "idle") return (
+      <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
+        <FeatureTabs />
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 30, marginBottom: 8 }}>🔢</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>파일 순서 검토</div>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>폴더를 지정하면 파일명 끝자리 번호(예: DSC03532 → 3532)로 넘버링이 끊긴 곳(누락 파일)이 있는지 검사합니다.</div>
+        </div>
+
+        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24, textAlign: "center" }}>
+          {!hasFS ? (
+            <div style={{ fontSize: 12, color: C.red }}>Chrome 또는 Edge를 사용해주세요.</div>
+          ) : (
+            <>
+              <Btn onClick={pickScFolder}>{scRootDir ? `✅ ${scRootDir.name}` : "📂 폴더 선택"}</Btn>
+              <div style={{ fontSize: 11, color: C.hint, marginTop: 10 }}>선택한 폴더 직속 사진·RAW 파일만 검사합니다 (하위 폴더는 검사하지 않습니다).</div>
+              {scRootDir && (
+                <div style={{ marginTop: 16 }}>
+                  <Btn onClick={runSequenceCheck}>🔍 순서 검토 시작 →</Btn>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+
+    if (scStep === "scanning") return (
+      <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
+        <div style={{ fontSize: 13, color: C.muted }}>폴더를 스캔하는 중...</div>
+      </div>
+    );
+
+    if (scStep === "result" && scResult) {
+      const hasMissing = scResult.missingRanges.length > 0;
+      return (
+        <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
+          <FeatureTabs />
+          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.txt, marginBottom: 4 }}>
+              총 {scResult.totalFiles}개 파일
+              {scResult.min !== null && scResult.max !== null && ` · 번호 범위 ${scResult.min}~${scResult.max}`}
+            </div>
+
+            {scResult.recognizedNumbers.length === 0 ? (
+              <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.muted, marginTop: 12 }}>
+                번호를 인식할 수 있는 파일이 없습니다.
+              </div>
+            ) : scResult.rangeTooLarge ? (
+              <div style={{ background: "#FEF2F2", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red, marginTop: 12 }}>
+                ⚠️ 번호 범위가 비정상적으로 커서({scResult.min}~{scResult.max}) 검사할 수 없습니다. 파일명에 날짜·시간 등 다른 숫자가 섞여 잘못 인식됐을 가능성이 있습니다.
+              </div>
+            ) : hasMissing ? (
+              <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#C2410C", marginBottom: 6 }}>⚠️ 누락 {scResult.missingRanges.length}건</div>
+                <div style={{ fontSize: 12, color: C.txt, lineHeight: 1.8 }}>
+                  {scResult.missingRanges.map(formatMissingRange).join(", ")}
+                </div>
+              </div>
+            ) : (
+              <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, padding: "12px 14px", marginTop: 12, fontSize: 13, fontWeight: 700, color: C.green }}>
+                ✅ 번호가 모두 연속되어 있습니다. 누락된 파일이 없습니다.
+              </div>
+            )}
+
+            {scResult.unrecognizedFiles.length > 0 && (
+              <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, marginBottom: 6 }}>번호 인식 불가 (검사에서 제외됨) {scResult.unrecognizedFiles.length}개</div>
+                <div style={{ fontSize: 11, color: C.hint, maxHeight: 120, overflowY: "auto" }}>{scResult.unrecognizedFiles.join(", ")}</div>
+              </div>
+            )}
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <Btn variant="secondary" onClick={resetSequenceCheck}>← 다시 선택</Btn>
+          </div>
+        </div>
+      );
+    }
+  }
+
   /* ── Idle ── */
   if (step === "idle") return (
     <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
