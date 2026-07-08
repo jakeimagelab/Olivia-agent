@@ -789,7 +789,7 @@ export default function SelectMatchPage() {
           ) : (
             <>
               <Btn onClick={pickScFolder}>{scRootDir ? `✅ ${scRootDir.name}` : "📂 폴더 선택"}</Btn>
-              <div style={{ fontSize: 11, color: C.hint, marginTop: 10 }}>선택한 폴더 직속 사진·RAW 파일만 검사합니다 (하위 폴더는 검사하지 않습니다).</div>
+              <div style={{ fontSize: 11, color: C.hint, marginTop: 10 }}>선택한 폴더의 하위 폴더까지 전부 검사합니다 — 파일이 여러 폴더에 나뉘어 있어도 파일명 기준으로 하나의 순서로 검사합니다.</div>
               {scRootDir && (
                 <div style={{ marginTop: 16 }}>
                   <Btn onClick={runSequenceCheck}>🔍 순서 검토 시작 →</Btn>
