@@ -603,16 +603,25 @@ export default function SelectMatchPage() {
   }, []);
 
   /* ── 파일 순서 검토: 폴더 직속 파일만 스캔 후 넘버링 검사 ── */
+  // 분류 후에는 파일이 여러 하위 폴더(Scene01/, PROFILE/ 등)에 흩어지지만 파일명은 그대로
+  // 유지되므로, 폴더 구조·순서와 무관하게 하위 폴더까지 전부 훑어 파일명만 모은다.
   const runSequenceCheck = useCallback(async () => {
     if (!scRootDir) return;
     setScStep("scanning");
     const names: string[] = [];
-    for await (const [name, handle] of (scRootDir as any).entries()) {
-      if ((handle as FileSystemHandle).kind !== "file") continue;
-      const ext = (name as string).split(".").pop()?.toLowerCase() ?? "";
-      if (!RAW_EXTS.has(ext) && !JPG_EXTS.has(ext)) continue;
-      names.push(name as string);
-    }
+    const scanDir = async (dir: FileSystemDirectoryHandle, depth = 0) => {
+      if (depth > 8) return;
+      for await (const [name, handle] of (dir as any).entries()) {
+        if ((handle as FileSystemHandle).kind === "directory") {
+          await scanDir(handle as FileSystemDirectoryHandle, depth + 1);
+        } else {
+          const ext = (name as string).split(".").pop()?.toLowerCase() ?? "";
+          if (!RAW_EXTS.has(ext) && !JPG_EXTS.has(ext)) continue;
+          names.push(name as string);
+        }
+      }
+    };
+    await scanDir(scRootDir);
     setScResult(checkFileSequence(names));
     setScStep("result");
   }, [scRootDir]);
