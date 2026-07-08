@@ -228,8 +228,13 @@ export default function SelectMatchPage() {
   const [clientDragging,setClientDragging]= useState(false);
   const clientFileRef = useRef<HTMLInputElement>(null);
 
-  /* ── 기능 선택: 기존 RAW 매칭 vs 파일명으로 찾아 이동 ── */
-  const [feature, setFeature] = useState<"raw_match" | "find_move">("raw_match");
+  /* ── 기능 선택: 기존 RAW 매칭 vs 파일명으로 찾아 이동 vs 파일 순서 검토 ── */
+  const [feature, setFeature] = useState<"raw_match" | "find_move" | "seq_check">("raw_match");
+
+  /* ── 파일 순서 검토 — 상태 ── */
+  const [scRootDir, setScRootDir] = useState<FileSystemDirectoryHandle | null>(null);
+  const [scStep,    setScStep]    = useState<"idle" | "scanning" | "result">("idle");
+  const [scResult,  setScResult]  = useState<SequenceCheckResult | null>(null);
 
   /* ── 파일명으로 찾아 이동 — 상태 ── */
   const [fmRootDir,   setFmRootDir]   = useState<FileSystemDirectoryHandle | null>(null);
