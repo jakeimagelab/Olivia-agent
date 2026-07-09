@@ -12,6 +12,14 @@ const C = {
 const RAW_EXTS = new Set(["arw","cr2","cr3","nef","orf","raf","rw2","dng","pef","srw","x3f","3fr","mef","mrw"]);
 const JPG_EXTS = new Set(["jpg","jpeg","heic","heif","tif","tiff","webp","png"]);
 const MOBILE_CONVERT_DOWNLOAD = "/assets/tools/mobile-convert/PhotoClinicMobile1500_fixed.zip";
+const PROGRAM_ARCHIVE_ITEMS = [
+  {
+    title: "PhotoClinic Mobile 1500px",
+    meta: "Mac 전용 · 사진 변환",
+    desc: "원본 사진 폴더를 선택하면 긴 변 1500px JPG로 변환하고 같은 위치의 Mobile_폴더명 폴더에 저장합니다.",
+    href: MOBILE_CONVERT_DOWNLOAD,
+  },
+];
 
 /* ── Types ── */
 interface ScenePhoto {
@@ -229,8 +237,8 @@ export default function SelectMatchPage() {
   const [clientDragging,setClientDragging]= useState(false);
   const clientFileRef = useRef<HTMLInputElement>(null);
 
-  /* ── 기능 선택: RAW 매칭 vs 파일명 이동 vs 순서 검토 ── */
-  const [feature, setFeature] = useState<"raw_match" | "find_move" | "seq_check">("raw_match");
+  /* ── 기능 선택: RAW 매칭 vs 파일명 이동 vs 순서 검토 vs 프로그램 아카이브 ── */
+  const [feature, setFeature] = useState<"raw_match" | "find_move" | "seq_check" | "program_archive">("raw_match");
 
   /* ── 파일 순서 검토 — 상태 ── */
   const [scRootDir, setScRootDir] = useState<FileSystemDirectoryHandle | null>(null);
@@ -655,12 +663,45 @@ export default function SelectMatchPage() {
         background: feature === "seq_check" ? C.light : C.white,
         color: feature === "seq_check" ? C.teal : C.muted, fontSize: 12, fontWeight: 800,
       }}>🔢 파일 순서 검토</button>
-      <a href={MOBILE_CONVERT_DOWNLOAD} download style={{
+      <button onClick={() => setFeature("program_archive")} style={{
         padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-        border: `1.5px solid ${C.border}`, background: C.white, color: C.muted,
-        fontSize: 12, fontWeight: 800, textDecoration: "none", textAlign: "center",
-        boxSizing: "border-box",
-      }}>📱 모바일변환</a>
+        border: `1.5px solid ${feature === "program_archive" ? C.teal : C.border}`,
+        background: feature === "program_archive" ? C.light : C.white,
+        color: feature === "program_archive" ? C.teal : C.muted, fontSize: 11, fontWeight: 800,
+      }}>📱 모바일 자동화 &gt; 프로그램 아카이브</button>
+    </div>
+  );
+
+  /* ── 모바일 자동화 > 프로그램 아카이브 ── */
+  if (feature === "program_archive") return (
+    <div style={{ maxWidth: 760, margin: "32px auto", padding: "0 20px" }}>
+      <FeatureTabs />
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <div style={{ fontSize: 30, marginBottom: 8 }}>📱</div>
+        <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>모바일 자동화 &gt; 프로그램 아카이브</div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>사진 작업실에서 사용하는 자동화 프로그램을 모아둔 자료실입니다.</div>
+      </div>
+
+      <div style={{ display: "grid", gap: 10 }}>
+        {PROGRAM_ARCHIVE_ITEMS.map((item) => (
+          <div key={item.href} style={{
+            background: C.white, border: `1px solid ${C.border}`, borderRadius: 14,
+            padding: 18, display: "grid", gridTemplateColumns: "1fr auto", gap: 16,
+            alignItems: "center",
+          }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: C.hint, marginBottom: 5 }}>{item.meta}</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: C.txt, marginBottom: 6 }}>{item.title}</div>
+              <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>{item.desc}</div>
+            </div>
+            <a href={item.href} download style={{
+              display: "inline-block", padding: "9px 16px", borderRadius: 10,
+              background: C.teal, color: C.white, fontSize: 12, fontWeight: 800,
+              textDecoration: "none", whiteSpace: "nowrap",
+            }}>다운로드</a>
+          </div>
+        ))}
+      </div>
     </div>
   );
 
