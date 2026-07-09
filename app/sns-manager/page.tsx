@@ -6,6 +6,7 @@ import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import {
   FileText, Instagram, MapPin, Sparkles, ShieldAlert, Calendar,
   Copy, Check, RefreshCw, ChevronDown, ChevronUp, AlertTriangle,
+  Youtube, Image as ImageIcon,
 } from "lucide-react";
 
 const C = {
@@ -18,6 +19,7 @@ const TABS = [
   { id: "insta",    label: "인스타그램",          icon: Instagram,    status: "active" },
   { id: "place",    label: "네이버 플레이스",      icon: MapPin,       status: "active" },
   { id: "blog",     label: "블로그",               icon: FileText,     status: "active" },
+  { id: "youtube",  label: "유튜브 콘텐츠 기획",   icon: Youtube,      status: "active" },
   { id: "adcheck",  label: "의료광고 리스크 체크", icon: ShieldAlert,  status: "active" },
   { id: "calendar", label: "콘텐츠 캘린더",        icon: Calendar,     status: "coming" },
 ] as const;
@@ -1116,6 +1118,344 @@ function AdCheckTab() {
   );
 }
 
+// ── 유튜브 콘텐츠 기획 탭 ───────────────────────────────────
+type YoutubeBenchmark = {
+  thumbnailCheck: string[];
+  firstMinuteSummary: { hook: string; problem: string; core: string; transition: string; summary: string };
+  structure: string[];
+  features: string[];
+  takeaways: string[];
+  riskNotes: string[];
+};
+type YoutubeStory = {
+  concept: string;
+  hook: string;
+  storyStructure: string[];
+  storyboard: { time: string; scene: string; caption: string; narration: string }[];
+  cta: string;
+  thumbnailTexts: string[];
+  medicalReview: { risk: string; issues: { original: string; reason: string; safeAlternative: string }[]; checklist: string[] };
+};
+type ThumbnailGuide = { headlineOptions: string[]; layoutGuide: string[]; colorGuide: string; riskNotes: string[] };
+
+const YOUTUBE_TEMPLATES = [
+  { id: "doctor-left", label: "원장 좌측 + 큰 제목", desc: "인물 신뢰감과 강한 문구 중심" },
+  { id: "center-bold", label: "중앙 제목 강조", desc: "배경사진 위에 제목을 크게 배치" },
+  { id: "split-card", label: "상하 분할 카드", desc: "상단 인물, 하단 핵심 문구" },
+];
+
+function readImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = String(reader.result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function YoutubePlannerTab() {
+  const [section, setSection] = useState<"benchmark" | "story" | "thumbnail">("benchmark");
+  const [loading, setLoading] = useState("");
+  const [error, setError] = useState("");
+  const [benchmarkForm, setBenchmarkForm] = useState({ url: "", firstMinuteMemo: "", notes: "" });
+  const [benchmark, setBenchmark] = useState<YoutubeBenchmark | null>(null);
+  const [storyForm, setStoryForm] = useState({ hospitalName: "", department: "", topic: "", targetAudience: "", tone: "전문적이고 담백한", keyMessage: "" });
+  const [story, setStory] = useState<YoutubeStory | null>(null);
+  const [thumbForm, setThumbForm] = useState({ hospitalName: "", topic: "", thumbnailText: "", template: "doctor-left", notes: "" });
+  const [thumbGuide, setThumbGuide] = useState<ThumbnailGuide | null>(null);
+  const [doctorFile, setDoctorFile] = useState<File | null>(null);
+  const [bgFile, setBgFile] = useState<File | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const callYoutubeApi = async (payload: Record<string, any>) => {
+    setLoading(payload.mode); setError("");
+    try {
+      const res = await fetch("/api/youtube-content", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "생성 실패");
+      return data;
+    } catch (e: any) {
+      setError(e.message);
+      return null;
+    } finally {
+      setLoading("");
+    }
+  };
+
+  const runBenchmark = async () => {
+    if (!benchmarkForm.url.trim()) { setError("유튜브 URL을 입력해주세요."); return; }
+    const data = await callYoutubeApi({ mode: "benchmark", ...benchmarkForm });
+    if (data) { setBenchmark(data); setSection("story"); }
+  };
+
+  const runStory = async () => {
+    if (!storyForm.hospitalName.trim() || !storyForm.topic.trim()) { setError("병원명과 주제를 입력해주세요."); return; }
+    const benchmarkSummary = benchmark ? [
+      ...benchmark.takeaways,
+      benchmark.firstMinuteSummary?.summary,
+      ...benchmark.structure,
+    ].filter(Boolean).join("\n") : "";
+    const data = await callYoutubeApi({ mode: "story", ...storyForm, benchmarkSummary });
+    if (data) {
+      setStory(data);
+      setThumbForm((prev) => ({ ...prev, hospitalName: storyForm.hospitalName, topic: storyForm.topic, thumbnailText: data.thumbnailTexts?.[0] || prev.thumbnailText }));
+      setSection("thumbnail");
+    }
+  };
+
+  const runThumbGuide = async () => {
+    const data = await callYoutubeApi({ mode: "thumbnail", ...thumbForm });
+    if (data) {
+      setThumbGuide(data);
+      if (!thumbForm.thumbnailText && data.headlineOptions?.[0]) setThumbForm((prev) => ({ ...prev, thumbnailText: data.headlineOptions[0] }));
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function draw() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const w = 1280, h = 720;
+      canvas.width = w; canvas.height = h;
+      ctx.fillStyle = "#EAF4F2"; ctx.fillRect(0, 0, w, h);
+
+      if (bgFile) {
+        try {
+          const bg = await readImage(bgFile);
+          if (cancelled) return;
+          const scale = Math.max(w / bg.width, h / bg.height);
+          const bw = bg.width * scale, bh = bg.height * scale;
+          ctx.drawImage(bg, (w - bw) / 2, (h - bh) / 2, bw, bh);
+          ctx.fillStyle = "rgba(8,36,34,.42)"; ctx.fillRect(0, 0, w, h);
+        } catch {}
+      } else {
+        ctx.fillStyle = "#155855"; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "#EAF4F2"; ctx.fillRect(0, h - 170, w, 170);
+      }
+
+      if (doctorFile) {
+        try {
+          const doctor = await readImage(doctorFile);
+          if (cancelled) return;
+          const targetH = thumbForm.template === "split-card" ? 430 : 640;
+          const scale = targetH / doctor.height;
+          const dw = doctor.width * scale;
+          const x = thumbForm.template === "center-bold" ? 70 : 40;
+          const y = thumbForm.template === "split-card" ? 40 : h - targetH;
+          ctx.drawImage(doctor, x, y, dw, targetH);
+        } catch {}
+      }
+
+      const text = thumbForm.thumbnailText || story?.thumbnailTexts?.[0] || "상담 전 꼭 확인할 것";
+      ctx.fillStyle = thumbForm.template === "split-card" ? "#155855" : "#FFFFFF";
+      ctx.font = "900 74px sans-serif";
+      ctx.textAlign = thumbForm.template === "center-bold" ? "center" : "left";
+      const maxWidth = thumbForm.template === "center-bold" ? 980 : 680;
+      const x = thumbForm.template === "center-bold" ? w / 2 : thumbForm.template === "split-card" ? 70 : 540;
+      const y = thumbForm.template === "split-card" ? 565 : 230;
+      wrapCanvasText(ctx, text, x, y, maxWidth, 88);
+      ctx.fillStyle = "#EB8F22";
+      ctx.font = "800 34px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(storyForm.hospitalName || thumbForm.hospitalName || "PHOTO CLINIC", 70, 80);
+    }
+    draw();
+    return () => { cancelled = true; };
+  }, [bgFile, doctorFile, thumbForm.thumbnailText, thumbForm.template, thumbForm.hospitalName, storyForm.hospitalName, story]);
+
+  const downloadThumbnail = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/jpeg", 0.92);
+    a.download = `youtube_thumbnail_${Date.now()}.jpg`;
+    a.click();
+  };
+
+  const segmentStyle = (active: boolean): React.CSSProperties => ({
+    flex: 1, height: 42, border: `1.5px solid ${active ? C.teal : C.border}`,
+    background: active ? C.light : C.white, color: active ? C.teal : C.muted,
+    borderRadius: 10, fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit",
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ display: "flex", gap: 8, background: "rgba(255,255,255,.55)", borderRadius: 12 }}>
+        <button onClick={() => setSection("benchmark")} style={segmentStyle(section === "benchmark")}>1. 벤치마킹(URL 분석)</button>
+        <button onClick={() => setSection("story")} style={segmentStyle(section === "story")}>2. 스토리 생성</button>
+        <button onClick={() => setSection("thumbnail")} style={segmentStyle(section === "thumbnail")}>3. 썸네일 생성</button>
+      </div>
+
+      {error && <div style={{ padding: "10px 14px", background: "#FFF0F0", border: "1px solid #FECACA", borderRadius: 10, fontSize: 13, color: "#DC2626" }}>⚠ {error}</div>}
+
+      {section === "benchmark" && (
+        <div style={{ display: "grid", gridTemplateColumns: benchmark ? "390px 1fr" : "minmax(420px, 680px)", gap: 20, justifyContent: "center", alignItems: "start" }}>
+          <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 12 }}>유튜브 벤치마킹 입력</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input value={benchmarkForm.url} onChange={(e) => setBenchmarkForm((p) => ({ ...p, url: e.target.value }))} placeholder="유튜브 링크를 붙여넣으세요" style={iS} />
+              <textarea value={benchmarkForm.firstMinuteMemo} onChange={(e) => setBenchmarkForm((p) => ({ ...p, firstMinuteMemo: e.target.value }))} rows={6} placeholder={"00초-60초 구간 메모/자막을 붙여넣으면 분석 정확도가 올라갑니다.\n예: 0-5초 원장 질문, 5-15초 환자 고민 설명..."} style={taS} />
+              <textarea value={benchmarkForm.notes} onChange={(e) => setBenchmarkForm((p) => ({ ...p, notes: e.target.value }))} rows={3} placeholder="추가로 보고 싶은 포인트: 썸네일, 제목, 편집 리듬 등" style={taS} />
+            </div>
+            <button onClick={runBenchmark} disabled={loading === "benchmark"} style={{ width: "100%", height: 48, marginTop: 14, border: "none", borderRadius: 12, background: C.teal, color: "#fff", fontSize: 14, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
+              {loading === "benchmark" ? "분석 중..." : "벤치마킹 분석"}
+            </button>
+          </div>
+
+          {benchmark && (
+            <div style={{ display: "grid", gap: 12 }}>
+              <ResultCard title="썸네일 체크" items={benchmark.thumbnailCheck} />
+              <div style={{ background: C.white, borderRadius: 14, padding: 18, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 10 }}>00초-60초 구간 내용 체크 / 요약</div>
+                {[
+                  ["0-5초 훅", benchmark.firstMinuteSummary.hook],
+                  ["5-15초 문제 제기", benchmark.firstMinuteSummary.problem],
+                  ["15-40초 핵심 전개", benchmark.firstMinuteSummary.core],
+                  ["40-60초 전환/CTA", benchmark.firstMinuteSummary.transition],
+                  ["요약", benchmark.firstMinuteSummary.summary],
+                ].map(([label, value]) => <InfoLine key={label} label={label} value={value} />)}
+              </div>
+              <ResultCard title="영상 구조 분석" items={benchmark.structure} />
+              <ResultCard title="특징 분석" items={benchmark.features} />
+              <ResultCard title="적용 포인트" items={benchmark.takeaways} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {section === "story" && (
+        <div style={{ display: "grid", gridTemplateColumns: story ? "390px 1fr" : "minmax(420px, 680px)", gap: 20, justifyContent: "center", alignItems: "start" }}>
+          <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 12 }}>스토리 생성</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <input value={storyForm.hospitalName} onChange={(e) => setStoryForm((p) => ({ ...p, hospitalName: e.target.value }))} placeholder="병원명 *" style={iS} />
+              <select value={storyForm.department} onChange={(e) => setStoryForm((p) => ({ ...p, department: e.target.value }))} style={iS}><option value="">진료과 선택</option>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+              <input value={storyForm.topic} onChange={(e) => setStoryForm((p) => ({ ...p, topic: e.target.value }))} placeholder="영상 주제 *" style={iS} />
+              <input value={storyForm.targetAudience} onChange={(e) => setStoryForm((p) => ({ ...p, targetAudience: e.target.value }))} placeholder="타깃 시청자" style={iS} />
+              <input value={storyForm.tone} onChange={(e) => setStoryForm((p) => ({ ...p, tone: e.target.value }))} placeholder="톤" style={iS} />
+              <textarea value={storyForm.keyMessage} onChange={(e) => setStoryForm((p) => ({ ...p, keyMessage: e.target.value }))} rows={4} placeholder="반드시 담아야 할 핵심 메시지" style={taS} />
+            </div>
+            {benchmark && <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 10, background: C.light, color: C.teal, fontSize: 12, fontWeight: 800 }}>벤치마킹 결과가 스토리에 참고됩니다.</div>}
+            <button onClick={runStory} disabled={loading === "story"} style={{ width: "100%", height: 48, marginTop: 14, border: "none", borderRadius: 12, background: C.teal, color: "#fff", fontSize: 14, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
+              {loading === "story" ? "생성 중..." : "스토리 생성 + 의료심의 체크"}
+            </button>
+          </div>
+
+          {story && (
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ background: C.white, borderRadius: 14, padding: 18, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 8 }}>콘셉트</div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "#374141", marginBottom: 8 }}>{story.concept}</div>
+                <div style={{ fontSize: 13, color: C.orange, fontWeight: 800 }}>훅: {story.hook}</div>
+              </div>
+              <ResultCard title="영상 구조" items={story.storyStructure} />
+              <div style={{ background: C.white, borderRadius: 14, padding: 18, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 10 }}>장면별 스토리보드</div>
+                {story.storyboard.map((row) => (
+                  <div key={row.time} style={{ borderTop: `1px solid ${C.border}`, padding: "10px 0" }}>
+                    <div style={{ fontSize: 12, fontWeight: 900, color: C.orange }}>{row.time}</div>
+                    <div style={{ fontSize: 13, color: "#374141", fontWeight: 800 }}>{row.scene}</div>
+                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>자막: {row.caption}<br />내레이션: {row.narration}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background: story.medicalReview.risk === "위험" ? "#FFF5F5" : story.medicalReview.risk === "주의" ? "#FFFBEB" : "#F0FDF4", borderRadius: 14, padding: 18, border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 8 }}>의료심의 체크 — {story.medicalReview.risk}</div>
+                {story.medicalReview.issues?.length > 0 ? story.medicalReview.issues.map((issue, i) => (
+                  <div key={i} style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 8 }}>
+                    <strong>{issue.original}</strong>: {issue.reason}<br />대체: {issue.safeAlternative}
+                  </div>
+                )) : <div style={{ fontSize: 12, color: "#22876A", fontWeight: 800 }}>주요 위험 표현이 발견되지 않았습니다.</div>}
+                <div style={{ marginTop: 10 }}>{story.medicalReview.checklist.map((item) => <div key={item} style={{ fontSize: 12, color: C.muted }}>□ {item}</div>)}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {section === "thumbnail" && (
+        <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 20, alignItems: "start" }}>
+          <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 12 }}>썸네일 생성기</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <input value={thumbForm.hospitalName} onChange={(e) => setThumbForm((p) => ({ ...p, hospitalName: e.target.value }))} placeholder="병원명" style={iS} />
+              <input value={thumbForm.topic} onChange={(e) => setThumbForm((p) => ({ ...p, topic: e.target.value }))} placeholder="영상 주제" style={iS} />
+              <input value={thumbForm.thumbnailText} onChange={(e) => setThumbForm((p) => ({ ...p, thumbnailText: e.target.value }))} placeholder="썸네일 메인 텍스트" style={iS} />
+              <select value={thumbForm.template} onChange={(e) => setThumbForm((p) => ({ ...p, template: e.target.value }))} style={iS}>{YOUTUBE_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
+              <label style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>원장사진<input type="file" accept="image/*" onChange={(e) => setDoctorFile(e.target.files?.[0] || null)} style={{ display: "block", marginTop: 6 }} /></label>
+              <label style={{ fontSize: 12, color: C.muted, fontWeight: 800 }}>배경사진<input type="file" accept="image/*" onChange={(e) => setBgFile(e.target.files?.[0] || null)} style={{ display: "block", marginTop: 6 }} /></label>
+              <textarea value={thumbForm.notes} onChange={(e) => setThumbForm((p) => ({ ...p, notes: e.target.value }))} rows={3} placeholder="원하는 디자인 방향" style={taS} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+              <button onClick={runThumbGuide} disabled={loading === "thumbnail"} style={{ height: 42, border: `1.5px solid ${C.teal}`, borderRadius: 10, background: C.light, color: C.teal, fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>{loading === "thumbnail" ? "추천 중..." : "문구/레이아웃 추천"}</button>
+              <button onClick={downloadThumbnail} style={{ height: 42, border: "none", borderRadius: 10, background: C.teal, color: "#fff", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>JPG 다운로드</button>
+            </div>
+            {thumbGuide && (
+              <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+                <ResultCard title="문구 후보" items={thumbGuide.headlineOptions} onPick={(text) => setThumbForm((p) => ({ ...p, thumbnailText: text }))} />
+                <ResultCard title="레이아웃 가이드" items={thumbGuide.layoutGuide} />
+              </div>
+            )}
+          </div>
+          <div style={{ background: C.white, borderRadius: 14, padding: 18, border: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, color: C.teal, fontSize: 13, fontWeight: 900 }}><ImageIcon size={16} />썸네일 미리보기</div>
+            <canvas ref={canvasRef} style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: 12, background: C.light, display: "block" }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultCard({ title, items, onPick }: { title: string; items?: string[]; onPick?: (item: string) => void }) {
+  return (
+    <div style={{ background: C.white, borderRadius: 14, padding: 18, border: `1px solid ${C.border}` }}>
+      <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 10 }}>{title}</div>
+      {(items || []).map((item, i) => (
+        <button key={`${item}-${i}`} onClick={() => onPick?.(item)} style={{ display: "block", width: "100%", textAlign: "left", border: "none", background: onPick ? "#FAFAFA" : "transparent", borderRadius: 8, padding: "5px 6px", fontSize: 12, color: C.muted, lineHeight: 1.6, cursor: onPick ? "pointer" : "default", fontFamily: "inherit" }}>
+          • {item}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function InfoLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", gap: 10, borderTop: `1px solid ${C.border}`, padding: "8px 0", fontSize: 12 }}>
+      <div style={{ fontWeight: 900, color: C.teal }}>{label}</div>
+      <div style={{ color: C.muted, lineHeight: 1.6 }}>{value}</div>
+    </div>
+  );
+}
+
+function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
+  const words = text.split(/\s+/);
+  let line = "";
+  let currentY = y;
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, currentY);
+      line = word;
+      currentY += lineHeight;
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, x, currentY);
+}
+
 // ── 콘텐츠 캘린더 탭 (준비중) ───────────────────────────────
 function CalendarTab() {
   return (
@@ -1135,13 +1475,27 @@ function CalendarTab() {
 export default function SnsManagerPage() {
   const [tab, setTab] = useState<TabId>("insta");
 
+  useEffect(() => {
+    const initialTab = new URLSearchParams(window.location.search).get("tab") as TabId | null;
+    if (initialTab && TABS.some((item) => item.id === initialTab && item.status === "active")) {
+      setTab(initialTab);
+    }
+  }, []);
+
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
       <PageHeader title="홍보 콘텐츠 제작" />
 
       {/* 탭 헤더 */}
       <div className="pc-tabs">
-        {TABS.map(({ id, label, icon: Icon, status }) => (
+        {TABS.map(({ id, label, icon: Icon, status }) => id === "youtube" ? (
+          <a key={id} href="/sns-manager?tab=youtube"
+            className={`pc-tab${tab === id ? " pc-tab--active" : ""}`}
+            style={{ textDecoration: "none" }}>
+            <Icon size={13} />
+            {label}
+          </a>
+        ) : (
           <button key={id} onClick={() => status === "active" && setTab(id as TabId)}
             className={`pc-tab${tab === id ? " pc-tab--active" : ""}`}
             style={{ cursor: status === "active" ? "pointer" : "default", color: status === "coming" ? "#C4C4C4" : undefined }}>
@@ -1157,6 +1511,7 @@ export default function SnsManagerPage() {
         {tab === "insta" && <InstagramContentTab />}
         {tab === "place"    && <NaverPlaceTab />}
         {tab === "blog"     && <PatternBlogWriter />}
+        {tab === "youtube"  && <YoutubePlannerTab />}
         {tab === "adcheck"  && <AdCheckTab />}
         {tab === "calendar" && <CalendarTab />}
       </div>
