@@ -36,11 +36,22 @@ const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = 
 const PROMO_APPS = [
   { title: "아이디어 제안",    desc: "오늘의 홍보 콘텐츠 아이디어 AI 제안",   href: "/daily-ideas",      icon: "💡" },
   { title: "홍보 콘텐츠 제작", desc: "블로그·인스타 콘텐츠 클라이언트별 제작", href: "/sns-manager",      icon: "📢" },
+  { title: "유튜브 콘텐츠 기획", desc: "URL 벤치마킹·스토리·썸네일 제작",      href: "/sns-manager?tab=youtube", icon: "▶️" },
   { title: "병원이미지 진단",  desc: "병원 현황 맞춤 사진 방향 AI 진단",      href: "/diagnosis",        icon: "🔬" },
   { title: "채널 분석",        desc: "인스타·홈페이지·블로그 함께 분析",      href: "/channel-analyzer", icon: "📊" },
   { title: "AI 이미지 제작",   desc: "실사 병원 이미지 AI 생성·디렉팅",      href: "/image-generator",  icon: "🎨" },
   { title: "홈페이지 제작",    desc: "병원 홈페이지 제작 기획 정리",          href: "/website-builder",  icon: "🌐" },
 ];
+
+function buildPromoAppHref(appHref: string, clientId: string, workflowRunId: string | undefined, stepKey: string) {
+  const [path, query = ""] = appHref.split("?");
+  const params = new URLSearchParams(query);
+  params.set("clientId", clientId);
+  params.set("client_id", clientId);
+  if (workflowRunId) params.set("workflowRunId", workflowRunId);
+  params.set("stepKey", stepKey);
+  return `${path}?${params.toString()}`;
+}
 
 const MAIL_LABELS: Record<string, string> = {
   quote: "견적서", contract: "계약서", conti: "콘티", gallery: "갤러리",
@@ -375,7 +386,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
             {PROMO_APPS.map((app) => (
-              <Link key={app.href} href={`${app.href}?clientId=${clientId}&client_id=${clientId}${workflowRun?.id ? `&workflowRunId=${workflowRun.id}` : ""}&stepKey=${currentStepKey}`}
+              <Link key={app.href} href={buildPromoAppHref(app.href, clientId, workflowRun?.id, currentStepKey)}
                 style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 16px", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, textDecoration: "none", transition: "all .15s" }}
                 onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = C.teal; el.style.boxShadow = "0 4px 12px rgba(21,88,85,.1)"; }}
                 onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = C.border; el.style.boxShadow = "none"; }}>

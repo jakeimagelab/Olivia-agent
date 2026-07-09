@@ -113,7 +113,7 @@ const TOOLS: Anthropic.Tool[] = [
           enum: ["calendar", "quote", "conti", "contract", "delivery-mail", "diagnosis", "channel-analyzer",
                  "instagram-promo-design", "photo-sorting", "website-builder",
                  "photo-retouching", "image-generator", "clients", "mailing", "gallery",
-                 "review-studio", "daily-ideas", "sns-manager", "assets", "report",
+                 "review-studio", "daily-ideas", "sns-manager", "youtube-planner", "assets", "report",
                  "monthly-report", "subscription", "workflow", "workflow-tasks",
                  "workflow-approvals", "workflow-templates", "workflow-logs", "memo"],
         },
@@ -477,6 +477,7 @@ function pageShortcutFromText(text: string) {
     [/갤러리|사진\s*전달/, "gallery"],
     [/리뷰|후기/, "review-studio"],
     [/아이디어|오늘\s*콘텐츠/, "daily-ideas"],
+    [/유튜브|youtube|쇼츠|영상\s*기획|콘텐츠\s*기획/, "youtube-planner"],
     [/SNS|인스타|콘텐츠\s*제작/, "sns-manager"],
     [/자산|보관함|콘텐츠\s*자산/, "assets"],
     [/리포트|보고서|통계/, "report"],
@@ -896,6 +897,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
       "workflow-approvals": "/workflow/approvals",
       "workflow-templates": "/workflow/templates",
       "workflow-logs": "/workflow/logs",
+      "youtube-planner": "/sns-manager?tab=youtube",
     };
 
     return {
