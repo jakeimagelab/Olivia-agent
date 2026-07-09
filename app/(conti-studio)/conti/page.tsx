@@ -693,6 +693,21 @@ export default function ContiPage() {
   const toggleDone = (i: number) =>
     setDoneConti(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s; });
 
+  // ── 현장 뷰 카드 크기 조절 (바 슬라이더, 아이패드 터치 대응) ──
+  const FIELD_CARD_MIN = 220;
+  const FIELD_CARD_MAX = 480;
+  const [fieldCardSize, setFieldCardSize] = useState(300);
+  useEffect(() => {
+    const saved = localStorage.getItem("olivia_field_card_size");
+    if (saved) {
+      const n = parseInt(saved, 10);
+      if (!isNaN(n)) setFieldCardSize(Math.min(FIELD_CARD_MAX, Math.max(FIELD_CARD_MIN, n)));
+    }
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("olivia_field_card_size", String(fieldCardSize));
+  }, [fieldCardSize]);
+
   // ── 현장 뷰 드로잉 (엔진은 components/DrawingCanvas 공유 컴포넌트) ──
   const [drawMode,      setDrawMode]      = useState(false);
   const [penColor,      setPenColor]      = useState("#E85D2C");
