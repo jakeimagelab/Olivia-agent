@@ -2558,7 +2558,7 @@ ${header("타임테이블")}
                 return (
                   <div>
                     {/* 진행률 바 */}
-                    <div style={{ marginBottom: 16, background: "#fff", borderRadius: 12, padding: "12px 16px", border: "1px solid #C8DDD9", display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ marginBottom: 12, background: "#fff", borderRadius: 12, padding: "12px 16px", border: "1px solid #C8DDD9", display: "flex", alignItems: "center", gap: 14 }}>
                       <div style={{ flex: 1, background: "#EDF5F3", borderRadius: 99, height: 8, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${result.conti.length ? (doneCount / result.conti.length) * 100 : 0}%`, background: "#155855", borderRadius: 99, transition: "width 300ms" }} />
                       </div>
@@ -2570,7 +2570,45 @@ ${header("타임테이블")}
                       )}
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+                    {/* 카드 크기 조절 바 */}
+                    <div style={{ marginBottom: 16, background: "#fff", borderRadius: 12, padding: "10px 16px", border: "1px solid #C8DDD9", display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: "#155855", whiteSpace: "nowrap", flexShrink: 0 }}>🔳 카드 크기</span>
+                      <button
+                        onClick={() => setFieldCardSize(s => Math.max(FIELD_CARD_MIN, s - 20))}
+                        style={{
+                          width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                          background: "#EDF5F3", border: "1px solid #C8DDD9", color: "#155855",
+                          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                        }}
+                        aria-label="카드 작게"
+                      ><Minus size={14} /></button>
+                      <input
+                        type="range"
+                        min={FIELD_CARD_MIN}
+                        max={FIELD_CARD_MAX}
+                        step={10}
+                        value={fieldCardSize}
+                        onChange={e => setFieldCardSize(parseInt(e.target.value, 10))}
+                        style={{
+                          flex: 1, accentColor: "#155855", height: 28, cursor: "pointer", touchAction: "pan-x",
+                        }}
+                        aria-label="카드 크기 조절"
+                      />
+                      <button
+                        onClick={() => setFieldCardSize(s => Math.min(FIELD_CARD_MAX, s + 20))}
+                        style={{
+                          width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                          background: "#EDF5F3", border: "1px solid #C8DDD9", color: "#155855",
+                          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                        }}
+                        aria-label="카드 크게"
+                      ><Plus size={14} /></button>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#9BB5B0", width: 44, textAlign: "right", flexShrink: 0 }}>
+                        {fieldCardSize}px
+                      </span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${fieldCardSize}px, 1fr))`, gap: 16 }}>
                       {result.conti.map((row, i) => {
                         const rawColor = row.color ? row.color.split("|") : null;
                         const c = rawColor ? { bg: rawColor[0], text: rawColor[1] } : getColor(row.category);
