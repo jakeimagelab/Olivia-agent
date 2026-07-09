@@ -11,6 +11,7 @@ const C = {
 
 const RAW_EXTS = new Set(["arw","cr2","cr3","nef","orf","raf","rw2","dng","pef","srw","x3f","3fr","mef","mrw"]);
 const JPG_EXTS = new Set(["jpg","jpeg","heic","heif","tif","tiff","webp","png"]);
+const MOBILE_CONVERT_DOWNLOAD = "/assets/tools/mobile-convert/PhotoClinicMobile1500_fixed.zip";
 
 /* ── Types ── */
 interface ScenePhoto {
@@ -228,7 +229,7 @@ export default function SelectMatchPage() {
   const [clientDragging,setClientDragging]= useState(false);
   const clientFileRef = useRef<HTMLInputElement>(null);
 
-  /* ── 기능 선택: 기존 RAW 매칭 vs 파일명으로 찾아 이동 vs 파일 순서 검토 ── */
+  /* ── 기능 선택: RAW 매칭 vs 파일명 이동 vs 순서 검토 ── */
   const [feature, setFeature] = useState<"raw_match" | "find_move" | "seq_check">("raw_match");
 
   /* ── 파일 순서 검토 — 상태 ── */
@@ -635,25 +636,31 @@ export default function SelectMatchPage() {
 
   /* ── 상단 기능 전환 탭 (두 기능 진입점에서만 노출) ── */
   const FeatureTabs = () => (
-    <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginBottom: 20 }}>
       <button onClick={() => setFeature("raw_match")} style={{
-        flex: 1, padding: "10px 14px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+        padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
         border: `1.5px solid ${feature === "raw_match" ? C.teal : C.border}`,
         background: feature === "raw_match" ? C.light : C.white,
         color: feature === "raw_match" ? C.teal : C.muted, fontSize: 12, fontWeight: 800,
       }}>🎯 셀렉 &amp; RAW 매칭</button>
       <button onClick={() => setFeature("find_move")} style={{
-        flex: 1, padding: "10px 14px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+        padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
         border: `1.5px solid ${feature === "find_move" ? C.teal : C.border}`,
         background: feature === "find_move" ? C.light : C.white,
         color: feature === "find_move" ? C.teal : C.muted, fontSize: 12, fontWeight: 800,
       }}>📋 파일명으로 찾아 이동</button>
       <button onClick={() => setFeature("seq_check")} style={{
-        flex: 1, padding: "10px 14px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+        padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
         border: `1.5px solid ${feature === "seq_check" ? C.teal : C.border}`,
         background: feature === "seq_check" ? C.light : C.white,
         color: feature === "seq_check" ? C.teal : C.muted, fontSize: 12, fontWeight: 800,
       }}>🔢 파일 순서 검토</button>
+      <a href={MOBILE_CONVERT_DOWNLOAD} download style={{
+        padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+        border: `1.5px solid ${C.border}`, background: C.white, color: C.muted,
+        fontSize: 12, fontWeight: 800, textDecoration: "none", textAlign: "center",
+        boxSizing: "border-box",
+      }}>📱 모바일변환</a>
     </div>
   );
 
