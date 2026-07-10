@@ -600,8 +600,12 @@ export default function PhotoRetouchingPage() {
                 {!result.detected ? (
                   <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "48px", textAlign: "center" }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>🤔</div>
-                    <div style={{ fontSize: 15, fontWeight: 900, color: C.teal }}>피부를 찾지 못했어요</div>
-                    <div style={{ fontSize: 13, color: C.muted, marginTop: 6 }}>인물이 잘 보이는 사진을 올려주세요</div>
+                    <div style={{ fontSize: 15, fontWeight: 900, color: C.teal }}>
+                      {checkType === "gown" ? "가운을 찾지 못했어요" : "피부를 찾지 못했어요"}
+                    </div>
+                    <div style={{ fontSize: 13, color: C.muted, marginTop: 6 }}>
+                      {checkType === "gown" ? "흰색 가운이 잘 보이는 사진을 올려주세요" : "인물이 잘 보이는 사진을 올려주세요"}
+                    </div>
                   </div>
                 ) : (
                   <>
