@@ -9,22 +9,28 @@ type RunSource = "naver" | "youtube" | "google_trends" | "instagram";
 
 async function withRunLog<T>(source: RunSource, fn: () => Promise<{ items: T[] }>) {
   const db = getSupabaseAdmin();
-  const { data: run } = await db
+  const { data: run, error: insertErr } = await db
     .from("trend_collection_runs")
     .insert({ source, status: "running" })
     .select()
     .single();
+  if (insertErr) {
+    console.error(`[trend:${source}] trend_collection_runs insert 실패 (스키마 미적용 가능성):`, insertErr.message);
+  }
 
   try {
     const { items } = await fn();
+    console.log(`[trend:${source}] 수집 완료: ${items.length}건`);
     if (run) {
-      await db
+      const { error: updateErr } = await db
         .from("trend_collection_runs")
         .update({ status: "success", items_collected: items.length, finished_at: new Date().toISOString() })
         .eq("id", run.id);
+      if (updateErr) console.error(`[trend:${source}] trend_collection_runs update 실패:`, updateErr.message);
     }
     return items;
   } catch (err: any) {
+    console.error(`[trend:${source}] 수집 실패:`, err?.message || err);
     if (run) {
       await db
         .from("trend_collection_runs")
