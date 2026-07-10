@@ -485,7 +485,9 @@ export default function PhotoRetouchingPage() {
           </div>
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
             {tab === "check"
-              ? "사진 한 장을 업로드하면 포토클리닉 컬러 DNA와 비교해 보정 방향을 정리합니다."
+              ? checkType === "gown"
+                ? "가운은 순백색이 아니라 살짝 미색(웜톤 화이트)에 가까워야 합니다. 사진을 올리면 AI가 가운 색을 분석해 Photoshop 색상균형 보정 가이드를 드려요."
+                : "사진 한 장을 업로드하면 포토클리닉 컬러 DNA와 비교해 보정 방향을 정리합니다."
               : tab === "sync"
                 ? "기준 사진과 대상 사진을 비교해 같은 톤으로 맞추는 보정값을 안내합니다."
                 : "Camera Raw와 Photoshop에서 바로 참고할 수 있는 기본 보정 기준입니다."}
