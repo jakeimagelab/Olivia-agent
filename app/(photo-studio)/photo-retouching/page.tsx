@@ -572,10 +572,14 @@ export default function PhotoRetouchingPage() {
               {/* DNA 미니카드 */}
               <div style={{ background: C.white, borderRadius: 14, padding: "18px", border: `1px solid ${C.border}`, boxShadow: "0 8px 24px rgba(21,88,85,.04)" }}>
                 <div style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>포토클리닉</div>
-                <div style={{ fontSize: 14, fontWeight: 900, color: C.teal, marginBottom: 2 }}>컬러 DNA v1</div>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>3장 평균 확정값</div>
+                <div style={{ fontSize: 14, fontWeight: 900, color: C.teal, marginBottom: 2 }}>
+                  {checkType === "gown" ? "가운 컬러 목표 · 웜 아이보리" : "컬러 DNA v1"}
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>
+                  {checkType === "gown" ? "순백색 아님 · 살짝 미색(웜톤)" : "3장 평균 확정값"}
+                </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                  {Object.values(DNA_TARGETS).map(t => (
+                  {Object.values(checkType === "gown" ? GOWN_TARGETS : DNA_TARGETS).map(t => (
                     <div key={t.hex} style={{ flex: 1, textAlign: "center" }}>
                       <div style={{ height: 28, borderRadius: 6, background: t.hex, marginBottom: 4, border: `1px solid ${C.border}` }}/>
                       <div style={{ fontSize: 9, color: C.hint }}>{t.hex}</div>
@@ -583,8 +587,9 @@ export default function PhotoRetouchingPage() {
                   ))}
                 </div>
                 <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.9 }}>
-                  5900K · Tint+3 · Expo+0.2<br/>
-                  Highlights-30 · Shadows+20
+                  {checkType === "gown"
+                    ? "R이 G·B보다 살짝 높은 웜톤 화이트\nPhotoshop 색상균형으로 미세 조정"
+                    : "5900K · Tint+3 · Expo+0.2\nHighlights-30 · Shadows+20"}
                 </div>
               </div>
             </div>
