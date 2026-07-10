@@ -76,6 +76,36 @@ function diffRgb(a: {r:number;g:number;b:number}, b: {r:number;g:number;b:number
   };
 }
 
+// Claude 응답에서 JSON만 안전하게 추출한다. 코드펜스·앞뒤 설명 텍스트·중첩 중괄호가 섞여 있어도
+// 첫 "{"부터 짝이 맞는 "}"까지만 정확히 잘라내므로, 단순 정규식(/\{[\s\S]*\}/)보다 훨씬 안전하다.
+function extractJson(raw: string): any {
+  let text = raw.trim();
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) text = fenceMatch[1].trim();
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    const start = text.indexOf("{");
+    if (start === -1) throw new Error("AI 응답에서 JSON을 찾지 못했습니다. 다시 시도해주세요.");
+    let depth = 0;
+    for (let i = start; i < text.length; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          try {
+            return JSON.parse(text.slice(start, i + 1));
+          } catch {
+            throw new Error("AI 응답 해석에 실패했습니다. 다시 시도해주세요.");
+          }
+        }
+      }
+    }
+    throw new Error("AI 응답 해석에 실패했습니다. 다시 시도해주세요.");
+  }
+}
+
 async function handleGownCheck(imageBase64: string, imageMime: string) {
   const response = await client.messages.create({
     model: "claude-sonnet-5",
