@@ -211,16 +211,16 @@ function SyncTab() {
   const [copied,      setCopied]      = useState(false);
   const [resTab,      setResTab]      = useState<"swatch"|"ps"|"cameraraw">("swatch");
 
-  const loadImg = (file: File, setPreview: (s:string)=>void, setB64: (s:string)=>void, setMime: (s:string)=>void) => {
+  const loadImg = async (file: File, setPreview: (s:string)=>void, setB64: (s:string)=>void, setMime: (s:string)=>void) => {
     if (!file.type.startsWith("image/")) return;
-    setMime(file.type);
-    const r = new FileReader();
-    r.onload = e => {
-      const url = e.target?.result as string;
-      setPreview(url);
-      setB64(url.split(",")[1]);
-    };
-    r.readAsDataURL(file);
+    try {
+      const { dataUrl, base64, mime } = await resizeImageFile(file);
+      setMime(mime);
+      setPreview(dataUrl);
+      setB64(base64);
+    } catch (e: any) {
+      setError(e.message || "이미지 처리에 실패했습니다.");
+    }
   };
 
   const analyze = async () => {
