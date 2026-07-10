@@ -231,7 +231,7 @@ function SyncTab() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ referenceBase64: refB64, referenceMime: refMime, targetBase64: tgtB64, targetMime: tgtMime }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!data.ok) throw new Error(data.error);
       setResult(data); setResTab("swatch");
     } catch (e: any) {
