@@ -134,10 +134,7 @@ async function handleGownCheck(imageBase64: string, imageMime: string) {
   });
 
   const raw = response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "";
-  const m = raw.match(/\{[\s\S]*\}/);
-  if (!m) return NextResponse.json({ ok: false, error: "분석 실패" }, { status: 500 });
-
-  const v = JSON.parse(m[0]);
+  const v = extractJson(raw);
   if (!v.detected) return NextResponse.json({ ok: true, detected: false, checkType: "gown" });
 
   const hlDiff  = diffRgb(v.gownHighlight, DNA.gown.highlight);
