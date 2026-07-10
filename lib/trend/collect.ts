@@ -98,12 +98,14 @@ async function collectGoogleTrends() {
             value: p.value,
           });
         }
-      } catch {
-        // 개별 키워드 실패는 전체 수집을 막지 않음
+      } catch (err: any) {
+        // 개별 키워드 실패는 전체 수집을 막지 않지만 원인은 남긴다
+        console.error(`[trend:google_trends] "${keyword}" 조회 실패:`, err?.message || err);
       }
     }
     if (rows.length > 0) {
-      await db.from("trend_keywords").upsert(rows, { onConflict: "keyword,source,period,date" });
+      const { error } = await db.from("trend_keywords").upsert(rows, { onConflict: "keyword,source,period,date" });
+      if (error) console.error("[trend:google_trends] trend_keywords upsert 실패:", error.message);
     }
     return { items: rows };
   });
