@@ -71,7 +71,8 @@ async function collectNaver() {
       }
     }
     if (rows.length > 0) {
-      await db.from("trend_keywords").upsert(rows, { onConflict: "keyword,source,period,date" });
+      const { error } = await db.from("trend_keywords").upsert(rows, { onConflict: "keyword,source,period,date" });
+      if (error) console.error("[trend:naver] trend_keywords upsert 실패:", error.message);
     }
     return { items: rows };
   });
