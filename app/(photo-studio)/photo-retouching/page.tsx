@@ -623,9 +623,13 @@ export default function PhotoRetouchingPage() {
                         </div>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: C.txt, lineHeight: 1.5, marginBottom: 4 }}>{result.skinNote}</div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: C.txt, lineHeight: 1.5, marginBottom: 4 }}>
+                          {checkType === "gown" ? result.gownNote : result.skinNote}
+                        </div>
                         <div style={{ fontSize: 11, color: C.hint }}>
-                          {result.colorTemp} · 채도 {result.saturation} · 신뢰도 {result.confidence}%
+                          {checkType === "gown"
+                            ? <>{result.colorCast} · 신뢰도 {result.confidence}%</>
+                            : <>{result.colorTemp} · 채도 {result.saturation} · 신뢰도 {result.confidence}%</>}
                         </div>
                         {result.photoshop?.hasAdjustment && (
                           <div style={{ marginTop: 6, display: "inline-block", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 99, background: "#FFF0EB", color: C.orange }}>
@@ -634,7 +638,7 @@ export default function PhotoRetouchingPage() {
                         )}
                         {!result.photoshop?.hasAdjustment && sc >= 80 && (
                           <div style={{ marginTop: 6, display: "inline-block", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 99, background: "#E6F4EA", color: "#059669" }}>
-                            ✓ 포토클리닉 DNA 일치
+                            {checkType === "gown" ? "✓ 웜 아이보리 화이트 일치" : "✓ 포토클리닉 DNA 일치"}
                           </div>
                         )}
                       </div>
@@ -642,8 +646,11 @@ export default function PhotoRetouchingPage() {
 
                     {/* 결과 탭 */}
                     <div style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
-                      {([["compare","📊 피부톤 비교"],["ps","🖥 Photoshop 보정"],["cameraraw","🎛 Camera Raw"]] as const).map(([id, lbl]) => (
-                        <button key={id} onClick={() => setResTab(id)} style={{
+                      {((checkType === "gown"
+                        ? [["compare","📊 컬러 비교"],["ps","🖥 Photoshop 보정"]]
+                        : [["compare","📊 피부톤 비교"],["ps","🖥 Photoshop 보정"],["cameraraw","🎛 Camera Raw"]]
+                      ) as [string, string][]).map(([id, lbl]) => (
+                        <button key={id} onClick={() => setResTab(id as "compare" | "ps" | "cameraraw")} style={{
                           flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
                           fontFamily: "inherit", fontSize: 12, fontWeight: resTab === id ? 900 : 500,
                           background: resTab === id ? C.teal : "transparent",
@@ -652,16 +659,18 @@ export default function PhotoRetouchingPage() {
                       ))}
                     </div>
 
-                    {/* 피부톤 비교 */}
+                    {/* 피부톤/가운 비교 */}
                     {resTab === "compare" && (
                       <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.hint, marginBottom: 12 }}>
-                          <span style={{ fontWeight: 700, color: C.muted }}>현재 사진 vs DNA 타겟</span>
-                          <span>← 현재 &nbsp;&nbsp; DNA →</span>
+                          <span style={{ fontWeight: 700, color: C.muted }}>
+                            현재 사진 vs {checkType === "gown" ? "가운 목표색" : "DNA 타겟"}
+                          </span>
+                          <span>← 현재 &nbsp;&nbsp; {checkType === "gown" ? "목표" : "DNA"} →</span>
                         </div>
                         {(["highlight","mid","shadow"] as const).map(k => (
                           <SwatchRow key={k}
-                            label={{ highlight:"하이라이트 (이마·코)", mid:"미드톤 (볼·광대)", shadow:"쉐도우 (턱선·목)" }[k]}
+                            label={CHECK_LABELS[checkType][k]}
                             current={result.current![k]} target={result.target![k]} diff={result.diff![k]}/>
                         ))}
                       </div>
