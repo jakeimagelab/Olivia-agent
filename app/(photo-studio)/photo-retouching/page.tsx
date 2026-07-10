@@ -511,6 +511,18 @@ export default function PhotoRetouchingPage() {
 
             {/* 왼쪽 */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* 체크 대상 선택 */}
+              <div style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
+                {([["skin","🧑 피부톤"],["gown","🥼 가운 컬러"]] as const).map(([id, lbl]) => (
+                  <button key={id} onClick={() => { setCheckType(id); setPreview(""); setImgB64(""); setResult(null); setError(""); }} style={{
+                    flex: 1, padding: "9px 0", border: "none", borderRadius: 9, cursor: "pointer",
+                    fontFamily: "inherit", fontSize: 13, fontWeight: checkType === id ? 900 : 500,
+                    background: checkType === id ? C.teal : "transparent",
+                    color: checkType === id ? "#fff" : C.muted,
+                  }}>{lbl}</button>
+                ))}
+              </div>
+
               {!preview ? (
                 <div
                   onClick={() => inputRef.current?.click()}
