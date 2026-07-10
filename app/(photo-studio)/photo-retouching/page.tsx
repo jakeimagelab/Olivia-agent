@@ -435,7 +435,7 @@ export default function PhotoRetouchingPage() {
     try {
       const res = await fetch("/api/color-check", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: imgB64, imageMime: imgMime }),
+        body: JSON.stringify({ imageBase64: imgB64, imageMime: imgMime, checkType }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
@@ -447,7 +447,8 @@ export default function PhotoRetouchingPage() {
 
   const copyGuide = () => {
     if (!result?.photoshop?.guide) return;
-    const txt = ["[포토클리닉 색상균형 가이드]", "이미지 → 조정 → 색상 균형 (Shift+Ctrl+B)", "톤: 중간 영역 / 광도 유지 체크", ...result.photoshop.guide].join("\n");
+    const title = checkType === "gown" ? "[포토클리닉 가운 컬러 보정 가이드]" : "[포토클리닉 색상균형 가이드]";
+    const txt = [title, "이미지 → 조정 → 색상 균형 (Shift+Ctrl+B)", "톤: 중간 영역 / 광도 유지 체크", ...result.photoshop.guide].join("\n");
     navigator.clipboard.writeText(txt).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
 
