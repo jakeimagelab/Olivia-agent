@@ -450,16 +450,17 @@ export default function PhotoRetouchingPage() {
   const [dragging, setDragging] = useState(false);
   const [checkType, setCheckType] = useState<"skin" | "gown">("skin");
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
     if (!file.type.startsWith("image/")) return;
-    setResult(null); setError(""); setImgMime(file.type);
-    const reader = new FileReader();
-    reader.onload = e => {
-      const url = e.target?.result as string;
-      setPreview(url);
-      setImgB64(url.split(",")[1]);
-    };
-    reader.readAsDataURL(file);
+    setResult(null); setError("");
+    try {
+      const { dataUrl, base64, mime } = await resizeImageFile(file);
+      setImgMime(mime);
+      setPreview(dataUrl);
+      setImgB64(base64);
+    } catch (e: any) {
+      setError(e.message || "이미지 처리에 실패했습니다.");
+    }
   };
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
