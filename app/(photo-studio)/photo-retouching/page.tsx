@@ -719,9 +719,20 @@ export default function PhotoRetouchingPage() {
                         <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: "14px 16px" }}>
                           <div style={{ fontSize: 11, fontWeight: 900, color: C.muted, marginBottom: 8 }}>핵심 원칙</div>
                           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.9 }}>
-                            · 절대값보다 <strong style={{ color: C.txt }}>R:G:B 비율</strong>이 더 중요<br/>
-                            · 미드톤 기준 G는 R보다 약 <strong style={{ color: C.txt }}>-30</strong>, B는 약 <strong style={{ color: C.txt }}>-48</strong> 낮아야 포토클리닉 색감<br/>
-                            · 적용 후 Ctrl+Z로 전후 비교 필수
+                            {checkType === "gown" ? (
+                              <>
+                                · 가운은 <strong style={{ color: C.txt }}>순백색이 아니라 살짝 미색(웜톤)</strong>이 목표<br/>
+                                · R이 G·B보다 살짝 높게, 너무 차이 나면 <strong style={{ color: C.txt }}>노란기 과다</strong>로 판단<br/>
+                                · 가운만 선택 영역(Lasso/색상 범위) 후 적용하면 다른 부분에 영향 없음<br/>
+                                · 적용 후 Ctrl+Z로 전후 비교 필수
+                              </>
+                            ) : (
+                              <>
+                                · 절대값보다 <strong style={{ color: C.txt }}>R:G:B 비율</strong>이 더 중요<br/>
+                                · 미드톤 기준 G는 R보다 약 <strong style={{ color: C.txt }}>-30</strong>, B는 약 <strong style={{ color: C.txt }}>-48</strong> 낮아야 포토클리닉 색감<br/>
+                                · 적용 후 Ctrl+Z로 전후 비교 필수
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
