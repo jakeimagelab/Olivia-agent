@@ -10,6 +10,50 @@ const C = {
   mint: "#EAF4F2", dark: "#1C2B28",
 };
 
+// 원본 카메라/폰 사진은 수 MB~수십 MB에 달해 base64로 변환하면
+// Vercel 서버리스 함수의 요청 본문 한도(약 4.5MB)를 넘어 "Request Entity Too Large"로
+// 거부될 수 있다. 분석에는 고해상도가 필요 없으므로 업로드 전에 축소·재압축한다.
+function resizeImageFile(file: File, maxDim = 1600, quality = 0.85): Promise<{ dataUrl: string; base64: string; mime: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new window.Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("이미지를 처리하지 못했습니다.")); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve({ dataUrl, base64: dataUrl.split(",")[1], mime: "image/jpeg" });
+      };
+      img.onerror = () => reject(new Error("이미지를 불러오지 못했습니다."));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("파일을 읽지 못했습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
+// fetch 응답이 JSON이 아닐 수 있는 경우(예: 요청 본문 초과로 플랫폼이 반환하는 일반 텍스트 에러)를
+// 안전하게 처리한다. res.json()을 바로 호출하면 "Unexpected token ... is not valid JSON" 같은
+// 원시 파싱 에러가 그대로 사용자에게 노출된다.
+async function safeJson(res: Response): Promise<any> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (res.status === 413) throw new Error("이미지 파일이 너무 큽니다. 더 작은 사진으로 다시 시도해주세요.");
+    throw new Error(`서버 오류 (${res.status})`);
+  }
+}
+
 const DNA_TARGETS = {
   highlight: { r: 244, g: 224, b: 210, hex: "#F4E0D2", label: "하이라이트 (이마·코)" },
   mid:       { r: 217, g: 186, b: 169, hex: "#D9BAA9", label: "미드톤 (볼·광대)" },
