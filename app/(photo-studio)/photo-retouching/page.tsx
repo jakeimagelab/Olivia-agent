@@ -16,10 +16,23 @@ const DNA_TARGETS = {
   shadow:    { r: 182, g: 146, b: 130, hex: "#B69282", label: "쉐도우 (턱선·목)" },
 };
 
+// 가운은 순백색이 아니라 살짝 미색(웜톤 화이트 · 아이보리)에 가까워야 한다
+const GOWN_TARGETS = {
+  highlight: { r: 252, g: 249, b: 242, hex: "#FCF9F2", label: "하이라이트 (어깨·팔)" },
+  mid:       { r: 245, g: 240, b: 228, hex: "#F5F0E4", label: "미드톤 (몸통)" },
+  shadow:    { r: 225, g: 218, b: 202, hex: "#E1DACA", label: "쉐도우 (주름·접힘)" },
+};
+
+const CHECK_LABELS = {
+  skin: { highlight: "하이라이트 (이마·코)", mid: "미드톤 (볼·광대)", shadow: "쉐도우 (턱선·목)" },
+  gown: { highlight: "하이라이트 (어깨·팔)", mid: "미드톤 (몸통)", shadow: "쉐도우 (주름·접힘)" },
+};
+
 type AnalysisResult = {
-  ok: boolean; detected?: boolean; matchScore?: number;
+  ok: boolean; detected?: boolean; matchScore?: number; checkType?: "skin" | "gown";
   current?: any; target?: any; diff?: any;
   colorTemp?: string; saturation?: string; skinNote?: string; confidence?: number;
+  colorCast?: string; gownNote?: string;
   adjustments?: any; photoshop?: any;
 };
 
