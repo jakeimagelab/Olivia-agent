@@ -404,6 +404,7 @@ export default function PhotoRetouchingPage() {
   const [resTab,   setResTab]   = useState<"compare" | "ps" | "cameraraw">("compare");
   const [copied,   setCopied]   = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [checkType, setCheckType] = useState<"skin" | "gown">("skin");
 
   const processFile = (file: File) => {
     if (!file.type.startsWith("image/")) return;
