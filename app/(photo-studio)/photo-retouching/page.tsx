@@ -482,7 +482,7 @@ export default function PhotoRetouchingPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: imgB64, imageMime: imgMime, checkType }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!data.ok) throw new Error(data.error);
       setResult(data); setResTab("compare");
     } catch (e: any) {
