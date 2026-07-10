@@ -588,8 +588,8 @@ export default function PhotoRetouchingPage() {
                 </div>
                 <div style={{ fontSize: 10, color: C.muted, lineHeight: 1.9 }}>
                   {checkType === "gown"
-                    ? "R이 G·B보다 살짝 높은 웜톤 화이트\nPhotoshop 색상균형으로 미세 조정"
-                    : "5900K · Tint+3 · Expo+0.2\nHighlights-30 · Shadows+20"}
+                    ? <>R이 G·B보다 살짝 높은 웜톤 화이트<br/>Photoshop 색상균형으로 미세 조정</>
+                    : <>5900K · Tint+3 · Expo+0.2<br/>Highlights-30 · Shadows+20</>}
                 </div>
               </div>
             </div>
