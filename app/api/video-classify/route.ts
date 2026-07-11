@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { openai, SCENE_MODEL } from "@/lib/ai/openai";
+import { getOpenAIClient, SCENE_MODEL } from "@/lib/ai/openai";
 import { VIDEO_CATEGORY_ORDER, type VideoCategory } from "@/lib/video-classifier/types";
 
 export const dynamic = "force-dynamic";
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
   }));
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: SCENE_MODEL,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },

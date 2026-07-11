@@ -37,6 +37,7 @@ const PROMO_APPS = [
   { title: "아이디어 제안",    desc: "오늘의 홍보 콘텐츠 아이디어 AI 제안",   href: "/daily-ideas",      icon: "💡" },
   { title: "홍보 콘텐츠 제작", desc: "블로그·인스타 콘텐츠 클라이언트별 제작", href: "/sns-manager",      icon: "📢" },
   { title: "유튜브 콘텐츠 기획", desc: "URL 벤치마킹·스토리·썸네일 제작",      href: "/sns-manager?tab=youtube", icon: "▶️" },
+  { title: "AI 추천 병원 역분석", desc: "반복 추천 병원군과 클라이언트 신뢰 격차 분석", href: "/ai-trust-gap", icon: "🛡️" },
   { title: "병원이미지 진단",  desc: "병원 현황 맞춤 사진 방향 AI 진단",      href: "/diagnosis",        icon: "🔬" },
   { title: "채널 분석",        desc: "인스타·홈페이지·블로그 함께 분析",      href: "/channel-analyzer", icon: "📊" },
   { title: "AI 이미지 제작",   desc: "실사 병원 이미지 AI 생성·디렉팅",      href: "/image-generator",  icon: "🎨" },

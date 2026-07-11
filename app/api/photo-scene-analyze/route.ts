@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  openai,
+  getOpenAIClient,
   SCENE_MODEL,
   SCENE_MODEL_HIGH,
   COMMON_SYSTEM_PROMPT,
@@ -97,7 +97,7 @@ async function analyzeWithModel(
     text: buildDepartmentPrompt(department, sceneId),
   };
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAIClient().chat.completions.create({
     model,
     messages: [
       {

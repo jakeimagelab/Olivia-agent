@@ -1,8 +1,18 @@
 import OpenAI from "openai";
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+
+export function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY not set");
+  }
+  if (!openaiClient) {
+    openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openaiClient;
+}
 
 export const SCENE_MODEL      = process.env.OPENAI_SCENE_MODEL      ?? "gpt-4.1-mini";
 export const SCENE_MODEL_HIGH = process.env.OPENAI_SCENE_MODEL_HIGH ?? "gpt-4.1";

@@ -113,7 +113,7 @@ const TOOLS: Anthropic.Tool[] = [
           enum: ["calendar", "quote", "conti", "contract", "delivery-mail", "diagnosis", "channel-analyzer",
                  "instagram-promo-design", "photo-sorting", "website-builder",
                  "photo-retouching", "image-generator", "clients", "mailing", "gallery",
-                 "review-studio", "daily-ideas", "sns-manager", "youtube-planner", "assets", "report",
+                 "review-studio", "daily-ideas", "sns-manager", "youtube-planner", "ai-trust-gap", "assets", "report",
                  "monthly-report", "subscription", "workflow", "workflow-tasks",
                  "workflow-approvals", "workflow-templates", "workflow-logs", "memo"],
         },
@@ -500,6 +500,7 @@ function pageShortcutFromText(text: string) {
     [/갤러리|사진\s*전달/, "gallery"],
     [/리뷰|후기/, "review-studio"],
     [/아이디어|오늘\s*콘텐츠/, "daily-ideas"],
+    [/AI\s*추천|트러스트\s*갭|trust\s*gap|역분석|추천\s*병원/, "ai-trust-gap"],
     [/유튜브|youtube|쇼츠|영상\s*기획|콘텐츠\s*기획/, "youtube-planner"],
     [/SNS|인스타|콘텐츠\s*제작/, "sns-manager"],
     [/자산|보관함|콘텐츠\s*자산/, "assets"],
@@ -925,6 +926,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
       "workflow-templates": "/workflow/templates",
       "workflow-logs": "/workflow/logs",
       "youtube-planner": "/sns-manager?tab=youtube",
+      "ai-trust-gap": "/ai-trust-gap",
     };
 
     return {
