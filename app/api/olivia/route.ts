@@ -548,6 +548,7 @@ Available tools:
 - calendar_complete: 할일 완료/미완료 처리
 - calendar_delete: 할일 삭제
 - calendar_update: 할일 제목/날짜/시간/장소/메모 수정
+- memo_add: 날짜/시간이 없는 일반 메모·상담 내용 저장 (캘린더 아님)
 - send_workflow_mail: 병원 고객에게 워크플로우 메일 발송 (후기 요청, 원본 전달, 갤러리 공유 등)
 - get_workflow_status: 고객 워크플로우 현재 단계 및 다음 액션 확인
 - advance_workflow_step: 워크플로우 단계 진행 (예: quote → contract, contract → conti)
