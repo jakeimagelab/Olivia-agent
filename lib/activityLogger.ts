@@ -11,6 +11,7 @@ export type ActionType =
   | "calendar_add"
   | "calendar_complete"
   | "calendar_delete"
+  | "create_memo"
   | "send_workflow_mail"
   | "advance_workflow_step";
 
