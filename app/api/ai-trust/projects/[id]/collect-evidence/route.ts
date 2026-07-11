@@ -12,6 +12,12 @@ export async function POST(_: Request, { params }: Params) {
   const { id } = await params;
   const supabase = getSupabaseAdmin();
 
+  const { data: project } = await supabase
+    .from("ai_trust_projects")
+    .select("client_id")
+    .eq("id", id)
+    .single();
+
   const { data: responses, error } = await supabase
     .from("ai_trust_ai_responses")
     .select("source_urls")
@@ -22,10 +28,30 @@ export async function POST(_: Request, { params }: Params) {
 
   const { data: hospitals } = await supabase
     .from("ai_trust_hospitals")
-    .select("id, canonical_name, aliases")
+    .select("id, canonical_name, aliases, website")
     .eq("project_id", id);
 
-  const urls = Array.from(new Set((responses || []).flatMap((row) => row.source_urls || []))).slice(0, 25);
+  let clientUrls: string[] = [];
+  if (project?.client_id) {
+    const { data: client } = await supabase.from("clients").select("*").eq("id", project.client_id).single();
+    clientUrls = [
+      client?.website_url,
+      client?.homepage_url,
+      client?.naver_place_url,
+      client?.blog_url,
+      client?.instagram_url,
+    ].filter((url): url is string => typeof url === "string" && /^https?:\/\//.test(url));
+  }
+
+  const hospitalUrls = (hospitals || [])
+    .map((hospital) => hospital.website)
+    .filter((url): url is string => typeof url === "string" && /^https?:\/\//.test(url));
+
+  const urls = Array.from(new Set([
+    ...(responses || []).flatMap((row) => row.source_urls || []),
+    ...clientUrls,
+    ...hospitalUrls,
+  ])).slice(0, 35);
   let collected = 0;
   let facts = 0;
 
@@ -34,7 +60,7 @@ export async function POST(_: Request, { params }: Params) {
     if (!doc) continue;
     const hospital = (hospitals || []).find((item) => {
       const names = [item.canonical_name, ...(item.aliases || [])].filter(Boolean);
-      return names.some((name) => doc.text.includes(name) || doc.url.includes(encodeURIComponent(name)));
+      return item.website === url || names.some((name) => doc.text.includes(name) || doc.url.includes(encodeURIComponent(name)));
     });
     const { data: savedDoc, error: docError } = await supabase
       .from("ai_trust_evidence_documents")
