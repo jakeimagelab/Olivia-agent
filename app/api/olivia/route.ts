@@ -123,7 +123,7 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "calendar_add",
-    description: "캘린더에 새 할일/일정을 추가합니다. '오늘', '내일' 등은 오늘 날짜 기준으로 YYYY-MM-DD로 변환하세요.",
+    description: "캘린더에 새 할일/일정을 추가합니다. '오늘', '내일' 등은 오늘 날짜 기준으로 YYYY-MM-DD로 변환하세요. 구체적인 날짜/시간이 없는 일반 메모는 이 도구 대신 memo_add를 사용하세요.",
     input_schema: {
       type: "object",
       properties: {
@@ -135,6 +135,21 @@ const TOOLS: Anthropic.Tool[] = [
         memo:     { type: "string",  description: "메모 (선택)" },
       },
       required: ["date", "title"],
+    },
+  },
+  {
+    name: "memo_add",
+    description: "구체적인 날짜/시간이 없는 일반 메모나 상담 내용을 저장합니다. 사용자가 '메모해줘', '기록해줘', '저장해줘'라고 했지만 특정 일정(날짜/시간)이 없으면 calendar_add 대신 이 도구를 사용하세요. 오늘 날짜로 지레짐작해서 캘린더에 넣지 마세요.",
+    input_schema: {
+      type: "object",
+      properties: {
+        rawMemo:            { type: "string", description: "메모 원문 또는 정리된 내용" },
+        hospitalName:       { type: "string", description: "관련 병원명 (선택, 알고 있으면 채울 것)" },
+        summary:            { type: "string", description: "1~2문장 요약 (선택)" },
+        nextAction:         { type: "string", description: "다음 액션 (선택, 예: 견적서 전달)" },
+        recommendedPackage: { type: "string", description: "추천 패키지 (선택)" },
+      },
+      required: ["rawMemo"],
     },
   },
   {
