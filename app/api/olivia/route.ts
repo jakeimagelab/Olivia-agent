@@ -449,6 +449,14 @@ function calendarShortcutFromText(text: string) {
 
   // "추가/등록"을 먼저 체크 — "취소 일정 등록해줘" 같이 두 키워드가 동시에 있을 때 추가 의도 우선
   if (/(추가|등록|넣어|잡아|예약|메모|기록|저장)/.test(text)) {
+    // 날짜/시간이나 일정성 키워드(미팅/상담/회의 등)가 전혀 없는 순수 "메모해줘" 류 요청은
+    // 오늘 날짜로 지레짐작해 캘린더에 넣지 않는다. Claude가 memo_add 도구로 직접 판단하도록
+    // shortcut을 건너뛰고 전체 tool-use 턴으로 넘긴다.
+    const hasScheduleSignal = !!date || !!time || /(미팅|상담|회의|모임|약속|촬영|일정|캘린더|할일)/.test(text);
+    if (!hasScheduleSignal && /(메모|기록|저장)/.test(text)) {
+      return null;
+    }
+
     const resolvedDate = date || formatDate(new Date(`${TODAY}T00:00:00+09:00`));
     if (!title) {
       return { ok: true, type: "message", text: "어떤 일정 제목으로 추가할까요? 예: 내일 오후 3시 포토클리닉 미팅 추가해줘" };
