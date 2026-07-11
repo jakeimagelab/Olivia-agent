@@ -583,7 +583,7 @@ Available tools:
 - 카테고리: shooting=촬영, client=고객/미팅, admin=행정, general=기타
 - 2개 이상 일정 추가 시 calendar_add를 여러 번 호출하지 말고 calendar_add_bulk 하나로 처리할 것
 - calendar_delete/complete/update는 ID를 알고 있으면 ID를 사용하고, ID를 모르면 date와 matchTitle을 넣어 도구가 일정을 찾게 할 것
-- "추가해줘", "등록해줘", "캘린더에 넣어줘", "일정 잡아줘", "메모해줘", "기록해줘"는 calendar_add 또는 calendar_add_bulk를 사용
+- "추가해줘", "등록해줘", "캘린더에 넣어줘", "일정 잡아줘"는 calendar_add 또는 calendar_add_bulk를 사용 (날짜/시간이 없는 순수 메모는 아래 규칙 참고)
 - "수정해줘", "바꿔줘", "변경해줘", "옮겨줘", "시간 바꿔줘"는 calendar_update를 사용
 - "삭제해줘", "지워줘", "취소해줘"는 calendar_delete를 사용
 - "완료했어", "완료 처리해줘"는 calendar_complete를 사용
