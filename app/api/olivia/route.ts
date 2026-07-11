@@ -952,6 +952,35 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     };
   }
 
+  if (name === "memo_add") {
+    const db = getSupabaseAdmin();
+    let hospitalId: string | null = null;
+    let hospitalLabel = input.hospitalName || "";
+    if (input.hospitalName) {
+      const { data: clients } = await db
+        .from("clients")
+        .select("id, hospital_name")
+        .ilike("hospital_name", `%${input.hospitalName}%`)
+        .limit(1);
+      if (clients?.[0]) { hospitalId = clients[0].id; hospitalLabel = clients[0].hospital_name; }
+    }
+
+    await logActivity("create_memo", hospitalLabel || undefined, { summary: input.summary });
+    await db.from("consultation_memos").insert({
+      hospital_id: hospitalId,
+      raw_memo: input.rawMemo,
+      summary: input.summary || "",
+      extracted_data: {},
+      recommended_package: input.recommendedPackage || "",
+      next_action: input.nextAction || "",
+    });
+
+    return {
+      action: "done",
+      message: `📝 메모를 저장했어요${hospitalLabel ? ` (${hospitalLabel})` : ""}.${input.nextAction ? `\n다음 액션: ${input.nextAction}` : ""}`,
+    };
+  }
+
   if (name === "calendar_list") {
     const tasks: any[] = await listCalendarTasks(input.date);
     if (tasks.length === 0) {
