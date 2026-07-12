@@ -2094,7 +2094,7 @@ export default function CalendarPage() {
               }}>취소</button>
               <button onClick={confirmDelete} style={{
                 padding: "8px 16px", borderRadius: 8, border: "none",
-                background: "#8E3B46", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+                background: "#EB8F22", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
               }}>삭제</button>
             </div>
           </div>
