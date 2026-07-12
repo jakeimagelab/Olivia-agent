@@ -425,19 +425,42 @@ export default function AiTrustGapPage() {
 }
 
 function Hero() {
+  const signals = [
+    { label: "Demand", value: "Seed 기반", desc: "가짜 검색량 없음" },
+    { label: "Audit", value: "반복 질의", desc: "Provider별 원문 저장" },
+    { label: "Shoot", value: "촬영 기획", desc: "Trust Gap 연결" },
+  ];
   return (
-    <section style={{ background: `linear-gradient(135deg, ${C.white} 0%, #FBF4EC 100%)`, border: `1px solid ${C.border}`, borderRadius: 16, padding: 26, boxShadow: C.shadow }}>
-      <div style={{ display: "flex", gap: 18, alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap" }}>
+    <section style={{ position: "relative", overflow: "hidden", background: `linear-gradient(135deg, ${C.teal} 0%, #1F5146 52%, #5B3A25 100%)`, border: "1px solid rgba(255,253,249,.18)", borderRadius: 22, padding: 30, boxShadow: "0 24px 60px rgba(36,31,26,.18)" }}>
+      <div style={{ position: "absolute", right: -120, top: -140, width: 320, height: 320, borderRadius: "50%", background: "rgba(232,93,44,.2)" }} />
+      <div style={{ position: "absolute", left: -100, bottom: -160, width: 260, height: 260, borderRadius: "50%", background: "rgba(255,253,249,.08)" }} />
+      <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(300px, .85fr)", gap: 24, alignItems: "stretch" }}>
         <div>
-          <div style={{ display: "inline-flex", alignItems: "center", height: 26, padding: "0 10px", borderRadius: 999, background: "rgba(232,93,44,.1)", color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 10 }}>AI TRUST GAP</div>
-          <h1 style={{ margin: 0, fontSize: 28, letterSpacing: "-.02em", lineHeight: 1.22, color: C.teal }}>AI가 반복 추천하는 병원의 신뢰 증거를 역분석합니다.</h1>
-          <p style={{ margin: "12px 0 0", maxWidth: 820, fontSize: 13.5, lineHeight: 1.82, color: C.muted }}>
+          <div style={{ display: "inline-flex", alignItems: "center", height: 28, padding: "0 12px", borderRadius: 999, background: "rgba(255,253,249,.12)", color: "#F8D5C6", fontSize: 10, fontWeight: 900, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 14, border: "1px solid rgba(255,253,249,.18)" }}>AI TRUST GAP</div>
+          <h1 style={{ margin: 0, maxWidth: 720, fontSize: 36, letterSpacing: "-.035em", lineHeight: 1.12, color: "#FFFDF9", fontWeight: 950 }}>반복 추천 병원의 신뢰 증거를 찾아 촬영 전략으로 연결합니다.</h1>
+          <p style={{ margin: "16px 0 0", maxWidth: 760, fontSize: 14, lineHeight: 1.86, color: "rgba(255,253,249,.76)" }}>
             DEMAND DATA → PROMPT MODEL → AI AUDIT → CONSENSUS → EVIDENCE → TRUST GAP → STRATEGY → SHOOT PLAN 흐름으로 분석합니다.
           </p>
+          <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 22 }}>
+            {["결과", "근거", "해석", "실행"].map((item) => (
+              <span key={item} style={{ height: 30, display: "inline-flex", alignItems: "center", padding: "0 12px", borderRadius: 999, background: "rgba(255,253,249,.1)", color: "#FFFDF9", border: "1px solid rgba(255,253,249,.16)", fontSize: 11, fontWeight: 900 }}>{item}</span>
+            ))}
+          </div>
         </div>
-        <Link href="/clients" style={{ height: 40, padding: "0 14px", borderRadius: 10, border: `1px solid ${C.borderStrong}`, background: "rgba(255,255,255,.72)", color: C.teal, display: "inline-flex", gap: 7, alignItems: "center", fontSize: 12, fontWeight: 900, textDecoration: "none", boxShadow: "0 1px 0 rgba(255,255,255,.85) inset" }}>
-          고객 관리 <ArrowRight size={15} />
-        </Link>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12, padding: 16, borderRadius: 18, background: "rgba(255,253,249,.1)", border: "1px solid rgba(255,253,249,.18)", boxShadow: "0 1px 0 rgba(255,255,255,.12) inset" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+            {signals.map((signal) => (
+              <div key={signal.label} style={{ minHeight: 108, padding: 13, borderRadius: 14, background: "rgba(255,253,249,.88)", boxShadow: "0 10px 28px rgba(0,0,0,.08)" }}>
+                <div style={{ fontSize: 10, color: C.orange, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".1em" }}>{signal.label}</div>
+                <div style={{ marginTop: 10, fontSize: 15, color: C.teal, fontWeight: 950, lineHeight: 1.25 }}>{signal.value}</div>
+                <div style={{ marginTop: 6, fontSize: 10.5, color: C.muted, lineHeight: 1.5 }}>{signal.desc}</div>
+              </div>
+            ))}
+          </div>
+          <Link href="/clients" style={{ height: 42, padding: "0 14px", borderRadius: 12, border: "1px solid rgba(255,253,249,.4)", background: "#FFFDF9", color: C.teal, display: "inline-flex", gap: 8, alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 950, textDecoration: "none", boxShadow: "0 12px 24px rgba(0,0,0,.12)" }}>
+            고객 관리에서 병원 선택 <ArrowRight size={15} />
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -445,20 +468,23 @@ function Hero() {
 
 function StepNav() {
   return (
-    <section style={{ background: "rgba(255,253,249,.82)", border: `1px solid ${C.border}`, borderRadius: 16, padding: 12, overflowX: "auto", boxShadow: "0 8px 24px rgba(65,45,30,.05)" }}>
-      <div style={{ display: "flex", minWidth: "max-content", gap: 7 }}>
+    <section style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 14, overflowX: "auto", boxShadow: C.shadow }}>
+      <div style={{ display: "flex", minWidth: "max-content", gap: 8 }}>
         {steps.map((step, index) => {
           const Icon = step.icon;
+          const active = index < 4;
           return (
             <div key={step.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ minWidth: 118, padding: "10px 11px", borderRadius: 12, background: index < 3 ? C.white : C.paper, border: `1px solid ${index < 3 ? C.borderStrong : "transparent"}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, color: index < 3 ? C.teal : C.hint }}>
-                  <Icon size={14} />
-                  <span style={{ fontSize: 11, fontWeight: 900 }}>{step.label}</span>
+              <div style={{ minWidth: 124, padding: 10, borderRadius: 14, background: active ? "#FFF7EF" : C.paper, border: `1px solid ${active ? "rgba(232,93,44,.25)" : C.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: active ? C.teal : C.hint }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", background: active ? C.orange : "#E4D9CD", color: active ? "#fff" : C.muted }}>
+                    <Icon size={13} />
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 950 }}>{step.label}</span>
                 </div>
-                <div style={{ marginTop: 3, fontSize: 10, color: C.muted }}>{step.desc}</div>
+                <div style={{ marginTop: 6, fontSize: 10, color: C.muted, lineHeight: 1.35 }}>{step.desc}</div>
               </div>
-              {index < steps.length - 1 && <ArrowRight size={14} color={C.hint} />}
+              {index < steps.length - 1 && <ArrowRight size={14} color={active ? C.orange : C.hint} />}
             </div>
           );
         })}
@@ -718,9 +744,9 @@ function ExecutionPanel({
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div style={{ padding: 13, borderRadius: 13, background: C.light, border: `1px solid ${C.border}` }}>
-      <div style={{ fontSize: 10, fontWeight: 900, color: C.muted, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 900, color: C.teal }}>{value.toLocaleString("ko-KR")}</div>
+    <div style={{ padding: 14, borderRadius: 15, background: "linear-gradient(180deg, #FFFDF9 0%, #F7EFE7 100%)", border: `1px solid ${C.borderStrong}`, boxShadow: "0 1px 0 rgba(255,255,255,.9) inset" }}>
+      <div style={{ fontSize: 10, fontWeight: 950, color: C.muted, marginBottom: 5, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</div>
+      <div style={{ fontSize: 25, fontWeight: 950, color: C.teal, letterSpacing: "-.03em" }}>{value.toLocaleString("ko-KR")}</div>
     </div>
   );
 }
@@ -794,9 +820,12 @@ function ReportSkeleton({ summary }: { summary: SummaryData | null }) {
 
 function SectionTitle({ icon, title, right }: { icon: React.ReactNode; title: string; right?: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 13 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, color: C.teal, fontSize: 13, fontWeight: 900 }}>{icon}{title}</div>
-      {right && <div style={{ fontSize: 11, color: C.muted, fontWeight: 800 }}>{right}</div>}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 15 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, color: C.teal, fontSize: 13, fontWeight: 950 }}>
+        <span style={{ width: 30, height: 30, borderRadius: 10, background: "#FFF2E8", color: C.orange, display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(232,93,44,.18)" }}>{icon}</span>
+        <span>{title}</span>
+      </div>
+      {right && <div style={{ minHeight: 26, display: "inline-flex", alignItems: "center", padding: "0 10px", borderRadius: 999, background: C.light, fontSize: 11, color: C.muted, fontWeight: 900, border: `1px solid ${C.border}` }}>{right}</div>}
     </div>
   );
 }
@@ -839,9 +868,9 @@ const textareaS: React.CSSProperties = {
 };
 
 const primaryBtn: React.CSSProperties = {
-  minHeight: 40,
-  padding: "0 16px",
-  borderRadius: 10,
+  minHeight: 42,
+  padding: "0 18px",
+  borderRadius: 999,
   border: "none",
   background: `linear-gradient(135deg, ${C.orange}, ${C.gold})`,
   color: "#fff",
@@ -850,10 +879,10 @@ const primaryBtn: React.CSSProperties = {
   justifyContent: "center",
   gap: 7,
   fontSize: 12,
-  fontWeight: 900,
+  fontWeight: 950,
   cursor: "pointer",
   fontFamily: "inherit",
-  boxShadow: "0 10px 20px rgba(232,93,44,.16)",
+  boxShadow: "0 12px 24px rgba(232,93,44,.2), 0 1px 0 rgba(255,255,255,.22) inset",
 };
 
 const secondaryBtn: React.CSSProperties = {
@@ -865,30 +894,36 @@ const secondaryBtn: React.CSSProperties = {
 };
 
 const miniBtn: React.CSSProperties = {
-  height: 30,
-  padding: "0 11px",
+  height: 32,
+  padding: "0 12px",
   borderRadius: 999,
   border: `1px solid ${C.border}`,
   background: C.white,
   color: C.teal,
   fontSize: 11,
-  fontWeight: 800,
+  fontWeight: 900,
   cursor: "pointer",
   fontFamily: "inherit",
 };
 
 const sideCard: React.CSSProperties = {
+  position: "relative",
+  overflow: "hidden",
   background: C.white,
   border: `1px solid ${C.border}`,
-  borderRadius: 16,
-  padding: 16,
+  borderRadius: 18,
+  padding: "20px 16px 16px",
   boxShadow: C.shadow,
+  borderTop: `4px solid ${C.orange}`,
 };
 
 const panelStyle: React.CSSProperties = {
+  position: "relative",
+  overflow: "hidden",
   background: C.white,
   border: `1px solid ${C.border}`,
-  borderRadius: 16,
-  padding: 20,
+  borderRadius: 18,
+  padding: "24px 22px 22px",
   boxShadow: C.shadow,
+  borderTop: `4px solid ${C.orange}`,
 };
