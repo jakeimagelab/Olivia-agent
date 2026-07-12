@@ -1688,6 +1688,7 @@ export default function CalendarPage() {
   const [isMobile,    setIsMobile]    = useState(false);
   const [showDayPanel,setShowDayPanel]= useState(false); // 모바일에서 날짜 탭 시 패널 표시
   const [showIcsModal,setShowIcsModal]= useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null); // 삭제 확인 팝업 대상 태스크 id
   const webcalUrl = typeof window !== "undefined" ? `webcal://${window.location.host}/api/calendar/ics` : "";
   const loadedKeys = useRef<Set<string>>(new Set());
 
