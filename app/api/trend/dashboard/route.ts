@@ -158,13 +158,15 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     industry: industry || "전체",
     summary: {
-      topKeyword: topKeyword?.keyword || null,
+      topKeyword: topKeywords[0]?.keyword || null,
       risingHashtag: hashtagRanking[0]?.hashtag || null,
       hospitalToWatch: hospitalToWatch?.name || null,
     },
     keywordSeries,
+    topKeywords,
+    risingKeywords,
     hashtagRanking,
-    postTypeBreakdown,
+    postBreakdownByPlatform,
     competitorTable,
     latestInsight: insightRows?.[0] || null,
     dataAvailable: (keywordRows?.length || 0) + (postRows?.length || 0) + snapshots.length > 0,
