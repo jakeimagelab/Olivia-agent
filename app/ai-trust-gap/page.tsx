@@ -21,22 +21,24 @@ import PageHeader from "@/components/PageHeader";
 import { AI_TRUST_DEMAND_SOURCES, AI_TRUST_EVIDENCE_SCHEMAS, AI_TRUST_INTENTS } from "@/lib/ai-trust/constants";
 import type { AiTrustGeneratedPrompt, AiTrustProviderStatus } from "@/lib/ai-trust/types";
 
+// 다른 기능 페이지(색감 체크, 사진 보정, 트렌드 대시보드 등)와 동일한 팔레트로 통일
 const C = {
-  teal: "#123F39",
+  teal: "#155855",
   orange: "#E85D2C",
-  gold: "#C9822B",
-  bg: "#FAF7F2",
-  white: "#FFFDF9",
-  paper: "#F6EFE7",
-  border: "rgba(63,49,38,.12)",
-  borderStrong: "rgba(63,49,38,.2)",
-  muted: "#6D6258",
-  hint: "#A79B90",
-  txt: "#241F1A",
-  light: "#F3ECE3",
-  green: "#2F6F5F",
-  red: "#B43D2F",
-  shadow: "0 14px 38px rgba(65,45,30,.08), 0 1px 0 rgba(255,255,255,.82) inset",
+  gold: "#EB8F22",
+  bg: "#EDF5F3",
+  white: "#FFFFFF",
+  paper: "#F7FAF9",
+  border: "rgba(21,88,85,.12)",
+  borderStrong: "rgba(21,88,85,.2)",
+  muted: "#5A7470",
+  hint: "#9BB5B0",
+  txt: "#1C2B28",
+  light: "#EAF4F2",
+  green: "#059669",
+  amber: "#D97706",
+  red: "#DC2626",
+  shadow: "0 2px 12px rgba(21,88,85,.06)",
 };
 
 type ClientRow = {
