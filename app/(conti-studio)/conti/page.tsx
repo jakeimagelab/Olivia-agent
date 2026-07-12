@@ -370,6 +370,21 @@ const ROW_PALETTE = [
   { bg: "#ffffff", text: "#374151", label: "흰색" },
 ];
 
+// 체크리스트 기본 분류(app/api/conti/route.ts 프롬프트의 [가운 및 유니폼]/[내부청소]/[공유/섭외])에
+// 포토클리닉 브랜드 컬러(오렌지/골드/딥그린)를 기본값으로 미리 지정 — 색을 직접 고르지 않은 행에 한해 적용됨.
+const DEFAULT_CATEGORY_COLORS: Record<string, string> = {
+  "가운 및 유니폼": "#FFF1E8|#E85D2C",   // 브랜드 오렌지
+  "내부청소":        "#FFF3E0|#EB8F22",   // 브랜드 골드(옐로우 계열)
+  "공유/섭외":       "#E6F4F1|#155855",   // 브랜드 딥그린
+};
+
+/** 행에 지정된 색이 있으면 그대로, 없으면 분류 기본 색(있을 때만) 적용 */
+function resolveChecklistColor(row: ChecklistRow): [string, string] | null {
+  if (row.color) return row.color.split("|") as [string, string];
+  const fallback = DEFAULT_CATEGORY_COLORS[row.category];
+  return fallback ? (fallback.split("|") as [string, string]) : null;
+}
+
 function ColorPickerCell({ bg, text, onChange }: {
   bg: string; text: string; onChange: (bg: string, text: string) => void;
 }) {
