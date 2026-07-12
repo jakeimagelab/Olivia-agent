@@ -363,7 +363,7 @@ export default function AiTrustGapPage() {
   };
 
   return (
-    <div style={{ color: C.txt, minHeight: "100vh", background: `radial-gradient(circle at 14% 4%, rgba(232,93,44,.08), transparent 28%), linear-gradient(180deg, ${C.bg} 0%, #F7F1E9 100%)`, fontFamily: "var(--font-sans)" }}>
+    <div style={{ color: C.txt, minHeight: "100vh", background: C.bg, fontFamily: "var(--font-sans)" }}>
       <PageHeader title="AI 추천 병원 역분석" />
       <main style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 22px 88px" }}>
         <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(360px, .65fr)", gap: 20, alignItems: "start" }}>
