@@ -28,6 +28,16 @@ async function processInChunks<T, R>(
   }
 }
 
+// platform+external_id 유니크 인덱스가 있으면 같은 게시물을 갱신(중복 방지)하고,
+// 아직 마이그레이션 전이라 인덱스가 없으면 기존처럼 insert로 폴백한다.
+async function upsertSnsPosts(db: ReturnType<typeof getSupabaseAdmin>, rows: any[]) {
+  if (rows.length === 0) return;
+  const { error } = await db.from("trend_sns_posts").upsert(rows, { onConflict: "platform,external_id" });
+  if (error) {
+    await db.from("trend_sns_posts").insert(rows);
+  }
+}
+
 async function withRunLog<T>(source: RunSource, fn: () => Promise<{ items: T[] }>) {
   const db = getSupabaseAdmin();
   const { data: run, error: insertErr } = await db
