@@ -34,6 +34,7 @@ async function upsertSnsPosts(db: ReturnType<typeof getSupabaseAdmin>, rows: any
   if (rows.length === 0) return;
   const { error } = await db.from("trend_sns_posts").upsert(rows, { onConflict: "platform,external_id" });
   if (error) {
+    // 유니크 인덱스(platform, external_id)가 아직 없으면 upsert가 실패하므로 기존 insert로 폴백
     await db.from("trend_sns_posts").insert(rows);
   }
 }
@@ -194,7 +195,7 @@ async function collectInstagram() {
       },
       async (rows) => {
         allRows.push(...rows);
-        await db.from("trend_sns_posts").insert(rows);
+        await upsertSnsPosts(db, rows);
       }
     );
 
@@ -279,7 +280,7 @@ async function collectYoutube() {
       },
       async (rows) => {
         allRows.push(...rows);
-        await db.from("trend_sns_posts").insert(rows);
+        await upsertSnsPosts(db, rows);
       }
     );
 
