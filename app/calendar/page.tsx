@@ -2134,6 +2134,12 @@ export default function CalendarPage() {
             borderRadius: 8, fontSize: isMobile ? 11 : 12, fontWeight: 800,
             border: `1px solid ${C.border}`, background: C.surface, color: C.teal, cursor: "pointer",
           }}>오늘</button>
+          <button onClick={() => setShowConsultModal(v => !v)}
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: isMobile ? 11 : 12, fontWeight: 700,
+              color: C.orange, background: "#FFF0EB", border: `1px solid ${C.border}`,
+              borderRadius: 8, padding: isMobile ? "5px 10px" : "6px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+            📝{!isMobile && " 상담 메모"}
+          </button>
           <div style={{ position: "relative" }} data-ics-modal>
             <button onClick={() => setShowIcsModal(v => !v)}
               style={{ display: "flex", alignItems: "center", gap: 5, fontSize: isMobile ? 11 : 12, fontWeight: 700,
