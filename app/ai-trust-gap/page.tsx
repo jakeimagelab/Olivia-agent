@@ -565,8 +565,13 @@ function PromptReview({
                 <span style={{ fontSize: 11, color: C.muted }}>{group.prompts.length}개</span>
               </div>
               {group.prompts.map(({ prompt, index }) => (
-                <label key={`${prompt.source_keyword}-${index}`} style={{ display: "grid", gridTemplateColumns: "20px 1fr", gap: 8, padding: "11px 13px", borderTop: `1px solid ${C.border}`, cursor: "pointer" }}>
-                  <input type="checkbox" checked={selectedPromptIds.has(index)} onChange={() => onTogglePrompt(index)} />
+                <label key={`${prompt.source_keyword}-${index}`} style={{ display: "grid", gridTemplateColumns: "16px 1fr", gap: 8, padding: "11px 13px", borderTop: `1px solid ${C.border}`, cursor: "pointer", alignItems: "start" }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedPromptIds.has(index)}
+                    onChange={() => onTogglePrompt(index)}
+                    style={{ width: 16, height: 16, marginTop: 2, flexShrink: 0, accentColor: C.teal, cursor: "pointer" }}
+                  />
                   <span>
                     <span style={{ display: "block", fontSize: 12, fontWeight: 800, color: C.txt, lineHeight: 1.5 }}>{prompt.question}</span>
                     <span style={{ display: "block", marginTop: 3, fontSize: 10, color: C.hint }}>source: {prompt.source} · keyword: {prompt.source_keyword} · volume: null</span>
