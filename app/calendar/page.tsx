@@ -41,6 +41,7 @@ const CATS: Record<string, { label: string; color: string; bg: string }> = {
   shooting: { label: "촬영",    color: "#E85D2C", bg: "#FFF0EB" },
   client:   { label: "고객",    color: "#155855", bg: "#EAF4F2" },
   admin:    { label: "행정",    color: "#EB8F22", bg: "#FFF3E0" },
+  personal: { label: "개인",    color: "#000000", bg: "#ECECEC" },
   general:  { label: "기타",    color: "#5A7470", bg: "#F3F4F6" },
 };
 
