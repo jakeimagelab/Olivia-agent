@@ -91,6 +91,31 @@ export default function TrendDashboardPage() {
     }
   };
 
+  const submitCompetitor = async () => {
+    if (!newCompetitor.hospitalName.trim()) return;
+    setAddingCompetitor(true);
+    try {
+      const res = await fetch("/api/trend/competitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCompetitor),
+      });
+      if (res.ok) {
+        setNewCompetitor({ hospitalName: "", industry: "기타", instagramHandle: "", youtubeChannelId: "" });
+        setShowAddCompetitor(false);
+        await load(industry);
+      }
+    } finally {
+      setAddingCompetitor(false);
+    }
+  };
+
+  const deleteCompetitor = async (id: string) => {
+    if (!confirm("이 경쟁 병원을 삭제할까요?")) return;
+    await fetch(`/api/trend/competitor?id=${id}`, { method: "DELETE" });
+    await load(industry);
+  };
+
   const chartRows = data ? mergeKeywordSeries(data.keywordSeries) : [];
   const keywordNames = data ? Object.keys(data.keywordSeries).slice(0, 6) : [];
 
