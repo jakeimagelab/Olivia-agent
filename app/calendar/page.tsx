@@ -857,7 +857,8 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                       draggable
                       onDragStart={e => { e.stopPropagation(); setDragTask(t); e.dataTransfer.effectAllowed = "move"; }}
                       onDragEnd={() => { setDragTask(null); setDragOverDate(null); }}
-                      onClick={e => { e.stopPropagation(); onSelectDate(dateStr); }}
+                      // pill 더블클릭 시 native dblclick이 셀까지 버블링돼 추가폼도 같이 열릴 수 있음 — 의도적으로 허용 (무해함)
+                      onClick={e => { e.stopPropagation(); onSelectDate(dateStr); setSelectedTaskId(t.id); }}
                       style={{
                         fontSize: 10.5, fontWeight: 700, color: "#fff",
                         background: dragTask?.id === t.id ? "#A0AEC0" : t.completed ? "#A0AEC0" : cat.color,
@@ -865,7 +866,8 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                         opacity: dragTask?.id === t.id ? 0.4 : dimmed ? 0.45 : t.completed ? 0.6 : 1,
                         lineHeight: 1.3, cursor: "grab",
-                        transition: "opacity .15s",
+                        transition: "opacity .15s, box-shadow .15s",
+                        boxShadow: selectedTaskId === t.id ? "0 0 0 2px #0F4440" : "none",
                       }}>
                       {t.time ? `${t.time.slice(0,5)} ` : ""}{t.title}
                     </div>
