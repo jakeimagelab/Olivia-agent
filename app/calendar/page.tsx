@@ -1,4 +1,5 @@
 "use client";
+// 캘린더 UI/UX 개편 (팝업 추가/수정, 전체화면 그리드, 모바일 드릴다운 내비게이션)
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
