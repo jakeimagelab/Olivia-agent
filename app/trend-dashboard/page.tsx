@@ -7,18 +7,29 @@ import {
   ResponsiveContainer, BarChart, Bar,
 } from "recharts";
 import {
-  TrendingUp, RefreshCw, Sparkles, Hash, Users, Youtube, Instagram, Plus, X, Trash2,
+  TrendingUp, RefreshCw, Sparkles, Hash, Users, Youtube, Instagram, Plus, X, Trash2, Search,
 } from "lucide-react";
 import { TREND_INDUSTRIES } from "@/lib/trend/constants";
 
 const SERIES_COLORS = ["#155855", "#E85D2C", "#0891B2", "#9333EA", "#D97706", "#059669"];
 
+type PlatformBreakdown = {
+  postCount: number;
+  typeBreakdown: { type: string; count: number }[];
+  avgLikes: number;
+  avgComments: number;
+  avgViews: number;
+  topPosts: { id: string; url: string; caption: string; likes: number; comments: number; views: number; postType: string; hospitalName: string }[];
+};
+
 type DashboardData = {
   industry: string;
   summary: { topKeyword: string | null; risingHashtag: string | null; hospitalToWatch: string | null };
   keywordSeries: Record<string, { date: string; value: number }[]>;
+  topKeywords: { keyword: string; value: number }[];
+  risingKeywords: { keyword: string; value: number; growthPct: number }[];
   hashtagRanking: { hashtag: string; count: number }[];
-  postTypeBreakdown: { type: string; count: number }[];
+  postBreakdownByPlatform: { instagram: PlatformBreakdown; youtube: PlatformBreakdown };
   competitorTable: {
     id: string; hospitalName: string; industry: string;
     instagram: { followers: number; postsCount: number; avgEngagement: number; growthPct: number; snapshotDate: string } | null;
@@ -26,6 +37,16 @@ type DashboardData = {
   }[];
   latestInsight: { id: string; summary: string; highlights: string[]; created_at: string; period_start: string; period_end: string } | null;
   dataAvailable: boolean;
+};
+
+type KeywordAnalysis = {
+  keyword: string;
+  searchVolumeTrend: { date: string; value: number }[];
+  postCount: number;
+  platformCounts: { instagram: number; youtube: number };
+  topPosts: { id: string; url: string; platform: string; caption: string; likes: number; comments: number; views: number; postType: string; hospitalName: string }[];
+  aiSummary: string;
+  aiError: string | null;
 };
 
 function mergeKeywordSeries(series: Record<string, { date: string; value: number }[]>) {
