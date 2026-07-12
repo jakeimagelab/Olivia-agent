@@ -72,26 +72,29 @@ async function collectNaver() {
   const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   await withRunLog<any>("naver", async () => {
-    const rows: any[] = [];
-    for (const industry of TREND_INDUSTRIES) {
-      const keywords = DEFAULT_KEYWORDS_BY_INDUSTRY[industry];
-      const points = await fetchNaverKeywordTrend(keywords, { startDate, endDate, timeUnit: "week" });
-      for (const p of points) {
-        rows.push({
+    const allRows: any[] = [];
+    await processInChunks(
+      TREND_INDUSTRIES,
+      4,
+      async (industry) => {
+        const keywords = DEFAULT_KEYWORDS_BY_INDUSTRY[industry];
+        const points = await fetchNaverKeywordTrend(keywords, { startDate, endDate, timeUnit: "week" });
+        return points.map((p) => ({
           keyword: p.keyword,
           industry,
           source: "naver",
           period: "week",
           date: p.date,
           value: p.value,
-        });
+        }));
+      },
+      async (rows) => {
+        allRows.push(...rows);
+        const { error } = await db.from("trend_keywords").upsert(rows, { onConflict: "keyword,source,period,date" });
+        if (error) console.error("[trend:naver] trend_keywords upsert 실패:", error.message);
       }
-    }
-    if (rows.length > 0) {
-      const { error } = await db.from("trend_keywords").upsert(rows, { onConflict: "keyword,source,period,date" });
-      if (error) console.error("[trend:naver] trend_keywords upsert 실패:", error.message);
-    }
-    return { items: rows };
+    );
+    return { items: allRows };
   });
 }
 
