@@ -1290,7 +1290,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                     style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}20`,
                       background: isToday ? "#FFFAF9" : h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
                       cursor: dragging ? "grabbing" : "pointer" }}
-                    onClick={() => { if (!dragging) onSelectDateAndAdd(ds, `${String(h).padStart(2,"0")}:00`); }}
+                    onClick={e => { if (!dragging) onOpenAdd(ds, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
                   />
                 ))}
 
