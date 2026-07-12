@@ -1995,7 +1995,7 @@ export default function CalendarPage() {
               <div style={{ width: 440, overflowY: "auto", height: "100%", flexShrink: 0,
                 background: C.surface, boxShadow: "-2px 0 14px rgba(15,68,64,.07)" }}>
                 <DayPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
-                  onToggle={toggleTask} onDelete={deleteTask} onAdd={addTask} onEdit={editTask}
+                  onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}
                   autoOpenTrigger={quickAddTrigger} autoSlotTime={quickAddTime}/>
               </div>
             )}
@@ -2018,7 +2018,7 @@ export default function CalendarPage() {
               <div style={{ width: 440, overflowY: "auto", height: "100%", flexShrink: 0,
                 background: C.surface, boxShadow: "-2px 0 14px rgba(15,68,64,.07)" }}>
                 <DayPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
-                  onToggle={toggleTask} onDelete={deleteTask} onAdd={addTask} onEdit={editTask}
+                  onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}
                   autoOpenTrigger={quickAddTrigger} autoSlotTime={quickAddTime}/>
               </div>
             )}
@@ -2029,7 +2029,7 @@ export default function CalendarPage() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
             minHeight: "calc(100vh - 56px)" }}>
             <DayView dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
-              onToggle={toggleTask} onDelete={deleteTask} onAdd={addTask} onEdit={editTask}
+              onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}
               onUpdateTask={updateTaskFields} isMobile={isMobile}
               onPrev={prevPeriod} onNext={nextPeriod}/>
           </div>
@@ -2068,7 +2068,7 @@ export default function CalendarPage() {
             </div>
             <div style={{ overflowY: "auto", flex: 1 }}>
               <DayPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
-                onToggle={toggleTask} onDelete={deleteTask} onAdd={addTask} onEdit={editTask}/>
+                onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}/>
             </div>
           </div>
         </>
