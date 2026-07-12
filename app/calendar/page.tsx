@@ -1119,6 +1119,13 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
       const d = draggingRef.current;
       if (d) {
+        const moved = Math.hypot(clientX - dragStartRef.current.x, clientY - dragStartRef.current.y);
+        if (moved < 6) {
+          // 거의 움직이지 않았으면 드래그가 아니라 클릭으로 간주 — 편집 팝업을 연다
+          setDragging(null);
+          onOpenEdit(d.task, clientX, clientY);
+          return;
+        }
         const target = getPosTarget(clientX, clientY);
         if (target && (target.date !== d.task.date || target.time !== d.task.time)) {
           onUpdateTask(d.task.id, { date: target.date, time: target.time });
