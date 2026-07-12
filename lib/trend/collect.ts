@@ -233,14 +233,16 @@ async function collectYoutube() {
   const today = new Date().toISOString().slice(0, 10);
 
   await withRunLog<any>("youtube", async () => {
-    const rows: any[] = [];
+    const allRows: any[] = [];
 
-    for (const industry of TREND_INDUSTRIES) {
-      const keyword = DEFAULT_KEYWORDS_BY_INDUSTRY[industry][0];
-      try {
-        const videos = await searchYoutubeTrending(keyword, { maxResults: 10 });
-        for (const v of videos) {
-          rows.push({
+    await processInChunks(
+      TREND_INDUSTRIES,
+      4,
+      async (industry) => {
+        const keyword = DEFAULT_KEYWORDS_BY_INDUSTRY[industry][0];
+        try {
+          const videos = await searchYoutubeTrending(keyword, { maxResults: 10 });
+          return videos.map((v) => ({
             platform: "youtube",
             industry,
             hospital_name: v.channelTitle,
@@ -251,15 +253,19 @@ async function collectYoutube() {
             likes: v.likeCount,
             views: v.viewCount,
             posted_at: v.publishedAt || null,
-          });
+          }));
+        } catch {
+          // 개별 키워드 실패는 전체 수집을 막지 않음
+          return [];
         }
-      } catch {
-        // 개별 키워드 실패는 전체 수집을 막지 않음
+      },
+      async (rows) => {
+        allRows.push(...rows);
+        await db.from("trend_sns_posts").insert(rows);
       }
-    }
-    if (rows.length > 0) {
-      await db.from("trend_sns_posts").insert(rows);
-    }
+    );
+
+    const rows = allRows;
 
     const { data: competitors } = await db
       .from("trend_competitors")
