@@ -2284,7 +2284,7 @@ ${header("타임테이블")}
                         <span style={{ fontSize: 12, fontWeight: 800, color: "#6b7280" }}>분류별 색상</span>
                         {categories.map(cat => {
                           const firstRow = result.checklist.find(r => r.category === cat);
-                          const rawColor = firstRow?.color ? firstRow.color.split("|") : null;
+                          const rawColor = firstRow ? resolveChecklistColor(firstRow) : null;
                           return (
                             <div key={cat} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <ColorPickerCell
