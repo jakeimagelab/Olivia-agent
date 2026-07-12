@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, BarChart, Bar,
 } from "recharts";
 import {
-  TrendingUp, RefreshCw, Sparkles, Hash, Users, Youtube, Instagram,
+  TrendingUp, RefreshCw, Sparkles, Hash, Users, Youtube, Instagram, Plus, X, Trash2,
 } from "lucide-react";
 import { TREND_INDUSTRIES } from "@/lib/trend/constants";
 
