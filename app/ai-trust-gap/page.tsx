@@ -134,7 +134,7 @@ function splitText(value: string) {
 
 function statusColor(status: string) {
   if (status === "CONNECTED" || status === "MANUAL_DATA") return C.green;
-  if (status === "API_REQUIRED") return C.orange;
+  if (status === "API_REQUIRED") return C.amber;
   if (status === "NOT_CONNECTED") return C.hint;
   if (status === "FAILED") return C.red;
   return C.teal;
