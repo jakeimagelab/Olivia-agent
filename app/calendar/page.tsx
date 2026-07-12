@@ -1628,12 +1628,14 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                     onMouseDown={e => {
                       e.preventDefault();
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      dragStartRef.current = { x: e.clientX, y: e.clientY };
                       setDragging({ task: t, currentX: e.clientX, currentY: e.clientY,
                         offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top });
                     }}
                     onTouchStart={e => {
                       const touch = e.touches[0];
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      dragStartRef.current = { x: touch.clientX, y: touch.clientY };
                       setDragging({ task: t, currentX: touch.clientX, currentY: touch.clientY,
                         offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
                     }}
