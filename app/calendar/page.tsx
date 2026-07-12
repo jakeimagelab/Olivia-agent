@@ -2142,56 +2142,34 @@ export default function CalendarPage() {
       </header>
 
       <div style={{
-        maxWidth: 1440, margin: "0 auto", width: "100%",
+        maxWidth: isMobile ? undefined : 1440, margin: "0 auto", width: "100%",
         height: "calc(100vh - 56px)", display: "flex", overflow: "hidden",
       }}>
+        {/* 전체화면 캘린더 — 사이드 패널 없이 그리드가 화면 전체를 씀. 셀/일정 클릭은 팝업으로 처리 */}
         {viewMode === "month" && (
-          <>
-            <div style={{ flex: 1, borderRight: isMobile ? "none" : `1px solid ${C.border}`,
-              display: "flex", flexDirection: "column", background: C.bg,
-              overflow: "hidden" }}>
-              <MonthView year={year} month={month} todayStr={todayStr}
-                selectedDate={selectedDate} tasksByDate={tasksByDate}
-                onSelectDate={handleSelectDate}
-                onSelectDateAndAdd={handleSelectDateAndAdd}
-                onUpdateTask={updateTaskFields}
-                onCreateTask={createTask}
-                onRequestDelete={requestDeleteTask}
-                onPrev={prevPeriod} onNext={nextPeriod}/>
-            </div>
-            {/* 데스크탑: 우측 사이드 패널 */}
-            {!isMobile && (
-              <div style={{ width: 440, overflowY: "auto", height: "100%", flexShrink: 0,
-                background: C.surface, boxShadow: "-2px 0 14px rgba(15,68,64,.07)" }}>
-                <DayPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
-                  onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}
-                  autoOpenTrigger={quickAddTrigger} autoSlotTime={quickAddTime}/>
-              </div>
-            )}
-          </>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, overflow: "hidden" }}>
+            <MonthView year={year} month={month} todayStr={todayStr}
+              selectedDate={selectedDate} tasksByDate={tasksByDate}
+              onSelectDate={handleSelectDate}
+              onUpdateTask={updateTaskFields}
+              onCreateTask={createTask}
+              onRequestDelete={requestDeleteTask}
+              onPrev={prevPeriod} onNext={nextPeriod}
+              onOpenAdd={openAddPopover} onOpenEdit={openEditPopover}
+              isMobile={isMobile} onNavigateDay={navigateToDay} onNavigateYear={navigateToYear}/>
+          </div>
         )}
 
-        {viewMode === "week" && (
-          <>
-            <div style={{ flex: 1, borderRight: isMobile ? "none" : `1px solid ${C.border}`,
-              display: "flex", flexDirection: "column", overflow: "hidden", background: "#F4F9F8" }}>
-              <WeekView weekDates={weekDates} todayStr={todayStr}
-                selectedDate={selectedDate} tasksByDate={tasksByDate}
-                onSelectDate={handleSelectDate}
-                onSelectDateAndAdd={handleSelectDateAndAdd}
-                onUpdateTask={updateTaskFields}
-                isMobile={isMobile}
-                onPrev={prevPeriod} onNext={nextPeriod}/>
-            </div>
-            {!isMobile && (
-              <div style={{ width: 440, overflowY: "auto", height: "100%", flexShrink: 0,
-                background: C.surface, boxShadow: "-2px 0 14px rgba(15,68,64,.07)" }}>
-                <DayPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
-                  onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}
-                  autoOpenTrigger={quickAddTrigger} autoSlotTime={quickAddTime}/>
-              </div>
-            )}
-          </>
+        {viewMode === "week" && !isMobile && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#F4F9F8" }}>
+            <WeekView weekDates={weekDates} todayStr={todayStr}
+              selectedDate={selectedDate} tasksByDate={tasksByDate}
+              onSelectDate={handleSelectDate}
+              onUpdateTask={updateTaskFields}
+              isMobile={isMobile}
+              onPrev={prevPeriod} onNext={nextPeriod}
+              onOpenAdd={openAddPopover} onOpenEdit={openEditPopover}/>
+          </div>
         )}
 
         {viewMode === "day" && (
@@ -2200,7 +2178,9 @@ export default function CalendarPage() {
             <DayView dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
               onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}
               onUpdateTask={updateTaskFields} isMobile={isMobile}
-              onPrev={prevPeriod} onNext={nextPeriod}/>
+              onPrev={prevPeriod} onNext={nextPeriod}
+              onOpenAdd={openAddPopover}
+              onNavigateMonth={isMobile ? navigateToMonth : undefined}/>
           </div>
         )}
 
@@ -2215,32 +2195,15 @@ export default function CalendarPage() {
         )}
       </div>
 
-      {/* 모바일 DayPanel 바텀시트 */}
-      {isMobile && showDayPanel && (
-        <>
-          {/* 딤 */}
-          <div onClick={() => setShowDayPanel(false)}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", zIndex: 200 }}/>
-          {/* 패널 */}
-          <div style={{
-            position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 201,
-            height: "85dvh", maxHeight: "85vh",
-            background: C.surface, borderRadius: "18px 18px 0 0",
-            display: "flex", flexDirection: "column", overflow: "hidden",
-            animation: "mobileSlideUp .25s ease",
-            paddingBottom: "env(safe-area-inset-bottom, 0px)",
-          }}>
-            {/* 핸들 + 닫기 */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
-              padding: "10px 16px 6px", flexShrink: 0 }}>
-              <div style={{ width: 36, height: 4, borderRadius: 99, background: C.border }}/>
-            </div>
-            <div style={{ overflowY: "auto", flex: 1 }}>
-              <DayPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
-                onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}/>
-            </div>
-          </div>
-        </>
+      {/* 일정 추가/수정 팝업 — 데스크탑은 클릭 위치 근처 카드, 모바일은 전체화면 시트 */}
+      {popover && (
+        <EventPopover
+          key={`${popover.mode}-${popover.task?.id ?? popover.date}-${popover.x}-${popover.y}`}
+          mode={popover.mode} date={popover.date} task={popover.task}
+          anchor={{ x: popover.x, y: popover.y }} isMobile={isMobile} defaultTime={popover.time}
+          onClose={() => setPopover(null)}
+          onAdd={addTask} onSave={editTask}
+          onDelete={id => { setPopover(null); requestDeleteTask(id); }}/>
       )}
 
       {/* 삭제 확인 팝업 — 트래시 아이콘·키보드 Delete 공통 경로 */}
