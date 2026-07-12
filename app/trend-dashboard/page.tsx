@@ -606,7 +606,7 @@ function PlatformCard({
           <div style={{ display: "grid", gap: 6, marginTop: 14 }}>
             {data.topPosts.slice(0, 3).map((p) => (
               <a key={p.id} href={p.url} target="_blank" rel="noreferrer" style={{
-                display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
+                display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", minWidth: 0,
                 borderRadius: 8, background: "#F7FAFA", textDecoration: "none", fontSize: 12,
               }}>
                 {icon}
