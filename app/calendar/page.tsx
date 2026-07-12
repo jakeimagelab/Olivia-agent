@@ -953,7 +953,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       colIdx = Math.max(0, Math.min(6, Math.floor(relX / ((rect.width - TL_W) / 7))));
     }
     const relY = clientY - rect.top + scrollTop;
-    const totalMins = Math.round((relY / HOUR_HEIGHT * 60) / 30) * 30;
+    const totalMins = Math.round((relY / HOUR_HEIGHT * 60) / 15) * 15;
     const rawH = Math.floor(totalMins / 60) + 7;
     const h = Math.max(7, Math.min(21, rawH));
     const m = rawH > 21 ? 0 : totalMins % 60;
@@ -1026,7 +1026,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
     if (!resizeInfo) return;
     const onMove = (e: MouseEvent) => {
       const dy = e.clientY - resizeInfo.startY;
-      const deltaMins = Math.round(dy / HOUR_HEIGHT * 60 / 30) * 30;
+      const deltaMins = Math.round(dy / HOUR_HEIGHT * 60 / 15) * 15;
       const [oh, om] = resizeInfo.origEndTime.split(":").map(Number);
       const origTotal = oh * 60 + om;
       const newTotal = Math.max(origTotal + 30, origTotal + deltaMins);
@@ -1326,7 +1326,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
     if (!el) return null;
     const rect = el.getBoundingClientRect();
     const relY = clientY - rect.top + el.scrollTop;
-    const totalMins = Math.round((relY / HOUR_HEIGHT * 60) / 30) * 30;
+    const totalMins = Math.round((relY / HOUR_HEIGHT * 60) / 15) * 15;
     const h = Math.max(7, Math.min(21, Math.floor(totalMins / 60) + 7));
     const m = totalMins % 60;
     return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
