@@ -2081,19 +2081,21 @@ export default function CalendarPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", paddingRight: isMobile ? 8 : 16, flexWrap: "nowrap" }}>
-          {/* view mode tabs — 모바일에서 일/월만 */}
-          <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,
-            borderRadius: 10, padding: 2, gap: 1 }}>
-            {(["day","week","month","year"] as ViewMode[]).map(v => (
-              <button key={v} onClick={() => setViewMode(v)} style={{
-                padding: isMobile ? "5px 8px" : "5px 13px",
-                borderRadius: 8, fontSize: isMobile ? 11 : 12, fontWeight: 800,
-                border: "none", cursor: "pointer", transition: "all .15s",
-                background: viewMode === v ? C.teal : "transparent",
-                color: viewMode === v ? "#fff" : C.muted,
-              }}>{VIEW_LABELS[v]}</button>
-            ))}
-          </div>
+          {/* view mode tabs — 모바일에서는 숨기고 연/월/일 드릴다운 내비게이션으로 대체 */}
+          {!isMobile && (
+            <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,
+              borderRadius: 10, padding: 2, gap: 1 }}>
+              {(["day","week","month","year"] as ViewMode[]).map(v => (
+                <button key={v} onClick={() => setViewMode(v)} style={{
+                  padding: "5px 13px",
+                  borderRadius: 8, fontSize: 12, fontWeight: 800,
+                  border: "none", cursor: "pointer", transition: "all .15s",
+                  background: viewMode === v ? C.teal : "transparent",
+                  color: viewMode === v ? "#fff" : C.muted,
+                }}>{VIEW_LABELS[v]}</button>
+              ))}
+            </div>
+          )}
           <button onClick={goToday} style={{
             padding: isMobile ? "5px 10px" : "6px 12px",
             borderRadius: 8, fontSize: isMobile ? 11 : 12, fontWeight: 800,
