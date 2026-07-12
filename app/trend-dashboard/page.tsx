@@ -48,6 +48,11 @@ export default function TrendDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [collecting, setCollecting] = useState(false);
   const [generatingInsight, setGeneratingInsight] = useState(false);
+  const [showAddCompetitor, setShowAddCompetitor] = useState(false);
+  const [addingCompetitor, setAddingCompetitor] = useState(false);
+  const [newCompetitor, setNewCompetitor] = useState({
+    hospitalName: "", industry: "기타", instagramHandle: "", youtubeChannelId: "",
+  });
 
   const load = useCallback(async (ind: string) => {
     setLoading(true);
