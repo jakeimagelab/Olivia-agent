@@ -1507,7 +1507,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                       zIndex: isDraggingThis ? 2 : 10,
                       opacity: isDraggingThis ? 0.2 : t.completed ? 0.7 : 1,
                       boxShadow: "0 1px 4px rgba(0,0,0,.15)",
-                      transition: isDraggingThis ? "none" : "opacity .15s",
+                      transition: "opacity .15s",
                       touchAction: "none",
                     }}>
                     <div style={{ fontSize: isMobile ? 10 : 9, fontWeight: 700,
