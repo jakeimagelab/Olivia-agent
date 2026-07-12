@@ -654,7 +654,7 @@ function ProjectList({ projects, activeProjectId, onSelect }: { projects: Projec
       {projects.length === 0 ? <EmptyBox text="생성된 분석 프로젝트가 없습니다." /> : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {projects.slice(0, 6).map((project) => (
-            <button key={project.id} type="button" onClick={() => onSelect(project.id)} style={{ padding: 11, borderRadius: 12, border: `1px solid ${activeProjectId === project.id ? C.teal : C.border}`, background: activeProjectId === project.id ? "#FFF8F0" : C.white, textAlign: "left", cursor: "pointer", fontFamily: "inherit", boxShadow: activeProjectId === project.id ? "0 8px 18px rgba(232,93,44,.08)" : "none" }}>
+            <button key={project.id} type="button" onClick={() => onSelect(project.id)} style={{ padding: 11, borderRadius: 10, border: `1px solid ${activeProjectId === project.id ? C.teal : C.border}`, background: activeProjectId === project.id ? C.light : C.white, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
               <div style={{ fontSize: 12, fontWeight: 900, color: C.teal, marginBottom: 4 }}>{project.project_name}</div>
               <div style={{ fontSize: 10, color: C.muted }}>{project.client_hospital_name} · {project.region} · {project.department}</div>
               <div style={{ marginTop: 6, fontSize: 10, fontWeight: 900, color: statusColor(project.status) }}>{project.status}</div>
