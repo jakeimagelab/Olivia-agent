@@ -834,85 +834,76 @@ function EmptyBox({ text }: { text: string }) {
 
 const inputS: React.CSSProperties = {
   width: "100%",
-  height: 42,
-  border: `1px solid ${C.borderStrong}`,
-  borderRadius: 10,
+  height: 40,
+  border: `1px solid ${C.border}`,
+  borderRadius: 8,
   padding: "0 12px",
-  fontSize: 12,
+  fontSize: 13,
   fontFamily: "inherit",
   outline: "none",
-  background: "rgba(255,255,255,.76)",
+  background: C.white,
   color: C.txt,
   boxSizing: "border-box",
-  boxShadow: "0 1px 0 rgba(255,255,255,.88) inset",
 };
 
 const textareaS: React.CSSProperties = {
   ...inputS,
   height: "auto",
-  minHeight: 112,
-  padding: "11px 12px",
-  lineHeight: 1.62,
+  minHeight: 110,
+  padding: "10px 12px",
+  lineHeight: 1.6,
   resize: "vertical",
 };
 
 const primaryBtn: React.CSSProperties = {
-  minHeight: 42,
-  padding: "0 18px",
-  borderRadius: 999,
+  minHeight: 40,
+  padding: "0 16px",
+  borderRadius: 9,
   border: "none",
-  background: `linear-gradient(135deg, ${C.orange}, ${C.gold})`,
+  background: C.teal,
   color: "#fff",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
   gap: 7,
-  fontSize: 12,
-  fontWeight: 950,
+  fontSize: 13,
+  fontWeight: 800,
   cursor: "pointer",
   fontFamily: "inherit",
-  boxShadow: "0 12px 24px rgba(232,93,44,.2), 0 1px 0 rgba(255,255,255,.22) inset",
 };
 
 const secondaryBtn: React.CSSProperties = {
   ...primaryBtn,
   background: C.light,
   color: C.teal,
-  border: `1px solid ${C.borderStrong}`,
-  boxShadow: "0 1px 0 rgba(255,255,255,.86) inset",
+  border: `1px solid ${C.border}`,
 };
 
 const miniBtn: React.CSSProperties = {
-  height: 32,
+  height: 30,
   padding: "0 12px",
   borderRadius: 999,
   border: `1px solid ${C.border}`,
   background: C.white,
   color: C.teal,
   fontSize: 11,
-  fontWeight: 900,
+  fontWeight: 700,
   cursor: "pointer",
   fontFamily: "inherit",
 };
 
 const sideCard: React.CSSProperties = {
-  position: "relative",
-  overflow: "hidden",
   background: C.white,
   border: `1px solid ${C.border}`,
-  borderRadius: 18,
-  padding: "20px 16px 16px",
+  borderRadius: 14,
+  padding: "18px 16px 16px",
   boxShadow: C.shadow,
-  borderTop: `4px solid ${C.orange}`,
 };
 
 const panelStyle: React.CSSProperties = {
-  position: "relative",
-  overflow: "hidden",
   background: C.white,
   border: `1px solid ${C.border}`,
-  borderRadius: 18,
-  padding: "24px 22px 22px",
+  borderRadius: 14,
+  padding: "20px 20px 20px",
   boxShadow: C.shadow,
-  borderTop: `4px solid ${C.orange}`,
 };
