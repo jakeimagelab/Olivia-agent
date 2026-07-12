@@ -810,11 +810,11 @@ function ReportSkeleton({ summary }: { summary: SummaryData | null }) {
 function SectionTitle({ icon, title, right }: { icon: React.ReactNode; title: string; right?: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 15 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 9, color: C.teal, fontSize: 13, fontWeight: 950 }}>
-        <span style={{ width: 30, height: 30, borderRadius: 10, background: "#FFF2E8", color: C.orange, display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(232,93,44,.18)" }}>{icon}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, color: C.teal, fontSize: 13, fontWeight: 900 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: C.light, color: C.teal, display: "inline-flex", alignItems: "center", justifyContent: "center", border: `1px solid ${C.border}` }}>{icon}</span>
         <span>{title}</span>
       </div>
-      {right && <div style={{ minHeight: 26, display: "inline-flex", alignItems: "center", padding: "0 10px", borderRadius: 999, background: C.light, fontSize: 11, color: C.muted, fontWeight: 900, border: `1px solid ${C.border}` }}>{right}</div>}
+      {right && <div style={{ minHeight: 24, display: "inline-flex", alignItems: "center", padding: "0 10px", borderRadius: 999, background: C.light, fontSize: 11, color: C.muted, fontWeight: 800, border: `1px solid ${C.border}` }}>{right}</div>}
     </div>
   );
 }
