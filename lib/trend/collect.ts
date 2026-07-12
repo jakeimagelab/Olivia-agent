@@ -244,18 +244,20 @@ async function collectYoutube() {
         const keyword = DEFAULT_KEYWORDS_BY_INDUSTRY[industry][0];
         try {
           const videos = await searchYoutubeTrending(keyword, { maxResults: 10 });
-          return videos.map((v) => ({
-            platform: "youtube",
-            industry,
-            hospital_name: v.channelTitle,
-            post_type: v.isShort ? "쇼츠" : "롱폼",
-            external_id: v.videoId,
-            url: `https://www.youtube.com/watch?v=${v.videoId}`,
-            caption: v.title,
-            likes: v.likeCount,
-            views: v.viewCount,
-            posted_at: v.publishedAt || null,
-          }));
+          return videos
+            .filter((v) => isHospitalRelevantContent(v.title))
+            .map((v) => ({
+              platform: "youtube",
+              industry,
+              hospital_name: v.channelTitle,
+              post_type: v.isShort ? "쇼츠" : "롱폼",
+              external_id: v.videoId,
+              url: `https://www.youtube.com/watch?v=${v.videoId}`,
+              caption: v.title,
+              likes: v.likeCount,
+              views: v.viewCount,
+              posted_at: v.publishedAt || null,
+            }));
         } catch {
           // 개별 키워드 실패는 전체 수집을 막지 않음
           return [];
