@@ -240,47 +240,138 @@ export default function TrendDashboardPage() {
         </div>
 
         {/* ── 경쟁사 비교 테이블 ── */}
-        <SectionCard title="경쟁 병원 SNS 비교" desc="팔로워 · 게시물 수 · 증감률" style={{ marginTop: 16 }}>
+        <SectionCard
+          title="경쟁 병원 SNS 비교"
+          desc="팔로워 · 게시물 수 · 증감률"
+          style={{ marginTop: 16 }}
+          action={
+            <button
+              onClick={() => setShowAddCompetitor((v) => !v)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "7px 14px", borderRadius: 8, border: "1.5px solid #155855",
+                background: showAddCompetitor ? "#EDF5F3" : "rgba(21,88,85,0.08)", color: "#155855",
+                fontWeight: 800, fontSize: 12, cursor: "pointer",
+              }}
+            >
+              {showAddCompetitor ? <X size={13} /> : <Plus size={13} />}
+              {showAddCompetitor ? "닫기" : "병원 추가"}
+            </button>
+          }
+        >
+          {showAddCompetitor && (
+            <div style={{
+              display: "grid", gridTemplateColumns: "1.2fr 0.9fr 1fr 1fr auto", gap: 8, alignItems: "end",
+              background: "#EDF5F3", borderRadius: 10, padding: 14, marginBottom: 16,
+            }}>
+              <Field label="병원명 *">
+                <input
+                  value={newCompetitor.hospitalName}
+                  onChange={(e) => setNewCompetitor((v) => ({ ...v, hospitalName: e.target.value }))}
+                  placeholder="예: OO성형외과"
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="업종">
+                <select
+                  value={newCompetitor.industry}
+                  onChange={(e) => setNewCompetitor((v) => ({ ...v, industry: e.target.value }))}
+                  style={inputStyle}
+                >
+                  {TREND_INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
+                </select>
+              </Field>
+              <Field label="인스타그램 아이디 (@ 제외)">
+                <input
+                  value={newCompetitor.instagramHandle}
+                  onChange={(e) => setNewCompetitor((v) => ({ ...v, instagramHandle: e.target.value }))}
+                  placeholder="username"
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="유튜브 채널 ID (UC로 시작)">
+                <input
+                  value={newCompetitor.youtubeChannelId}
+                  onChange={(e) => setNewCompetitor((v) => ({ ...v, youtubeChannelId: e.target.value }))}
+                  placeholder="UCxxxxxxxx"
+                  style={inputStyle}
+                />
+              </Field>
+              <button
+                onClick={submitCompetitor}
+                disabled={addingCompetitor || !newCompetitor.hospitalName.trim()}
+                style={{
+                  padding: "9px 16px", borderRadius: 8, border: "none", height: 38,
+                  background: !newCompetitor.hospitalName.trim() ? "#C8DDD9" : "#155855", color: "#fff",
+                  fontWeight: 800, fontSize: 12, cursor: !newCompetitor.hospitalName.trim() ? "not-allowed" : "pointer",
+                }}
+              >
+                {addingCompetitor ? "등록 중..." : "등록"}
+              </button>
+              <div style={{ gridColumn: "1 / -1", fontSize: 11, color: "#7A9E9B" }}>
+                등록 후 SNS 팔로워/게시물 데이터는 다음 &quot;지금 수집&quot; 실행 시 채워집니다. 인스타/유튜브는 둘 다 선택 입력(비워두면 해당 플랫폼은 수집 안 함).
+              </div>
+            </div>
+          )}
+
           {!data || data.competitorTable.length === 0 ? (
-            <EmptyState text="등록된 경쟁 병원이 없습니다. trend_competitors 테이블에 병원을 등록해주세요." />
+            <EmptyState text="등록된 경쟁 병원이 없습니다. 위 &quot;병원 추가&quot; 버튼으로 등록해주세요." />
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "#EDF5F3" }}>
-                    {["병원", "플랫폼", "팔로워", "게시물수", "증감률"].map((h) => (
+                    {["병원", "플랫폼", "팔로워", "게시물수", "증감률", ""].map((h) => (
                       <th key={h} style={{ textAlign: "left", padding: "9px 12px", color: "#155855", fontWeight: 800, fontSize: 12 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {data.competitorTable.flatMap((c) =>
-                    [
+                  {data.competitorTable.map((c) => {
+                    const platforms = [
                       c.instagram && { platform: "instagram" as const, row: c.instagram },
                       c.youtube && { platform: "youtube" as const, row: c.youtube },
-                    ]
-                      .filter(Boolean)
-                      .map((entry, idx) => {
-                        const { platform, row } = entry as { platform: "instagram" | "youtube"; row: NonNullable<typeof c.instagram> };
-                        return (
-                          <tr key={`${c.id}-${platform}`} style={{ borderTop: "1px solid #EDF5F3" }}>
-                            {idx === 0 && (
-                              <td rowSpan={(c.instagram ? 1 : 0) + (c.youtube ? 1 : 0)} style={{ padding: "9px 12px", fontWeight: 700, color: "#1C2B28", verticalAlign: "top" }}>
-                                {c.hospitalName}
-                              </td>
-                            )}
-                            <td style={{ padding: "9px 12px" }}>
-                              {platform === "instagram" ? <Instagram size={14} color="#E85D2C" /> : <Youtube size={14} color="#DC2626" />}
+                    ].filter(Boolean) as { platform: "instagram" | "youtube"; row: NonNullable<typeof c.instagram> }[];
+
+                    if (platforms.length === 0) {
+                      return (
+                        <tr key={c.id} style={{ borderTop: "1px solid #EDF5F3" }}>
+                          <td style={{ padding: "9px 12px", fontWeight: 700, color: "#1C2B28" }}>{c.hospitalName}</td>
+                          <td colSpan={3} style={{ padding: "9px 12px", color: "#9BB5B0", fontSize: 12 }}>수집 대기중 — &quot;지금 수집&quot; 실행 후 표시됩니다</td>
+                          <td />
+                          <td style={{ padding: "9px 12px", textAlign: "right" }}>
+                            <button onClick={() => deleteCompetitor(c.id)} style={deleteBtnStyle}><Trash2 size={13} /></button>
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return platforms.map((entry, idx) => {
+                      const { platform, row } = entry;
+                      return (
+                        <tr key={`${c.id}-${platform}`} style={{ borderTop: "1px solid #EDF5F3" }}>
+                          {idx === 0 && (
+                            <td rowSpan={platforms.length} style={{ padding: "9px 12px", fontWeight: 700, color: "#1C2B28", verticalAlign: "top" }}>
+                              {c.hospitalName}
                             </td>
-                            <td style={{ padding: "9px 12px" }}>{row.followers.toLocaleString()}</td>
-                            <td style={{ padding: "9px 12px" }}>{row.postsCount.toLocaleString()}</td>
-                            <td style={{ padding: "9px 12px", fontWeight: 800, color: row.growthPct > 0 ? "#059669" : row.growthPct < 0 ? "#DC2626" : "#9BB5B0" }}>
-                              {row.growthPct > 0 ? "+" : ""}{row.growthPct.toFixed(1)}%
+                          )}
+                          <td style={{ padding: "9px 12px" }}>
+                            {platform === "instagram" ? <Instagram size={14} color="#E85D2C" /> : <Youtube size={14} color="#DC2626" />}
+                          </td>
+                          <td style={{ padding: "9px 12px" }}>{row.followers.toLocaleString()}</td>
+                          <td style={{ padding: "9px 12px" }}>{row.postsCount.toLocaleString()}</td>
+                          <td style={{ padding: "9px 12px", fontWeight: 800, color: row.growthPct > 0 ? "#059669" : row.growthPct < 0 ? "#DC2626" : "#9BB5B0" }}>
+                            {row.growthPct > 0 ? "+" : ""}{row.growthPct.toFixed(1)}%
+                          </td>
+                          {idx === 0 && (
+                            <td rowSpan={platforms.length} style={{ padding: "9px 12px", textAlign: "right", verticalAlign: "top" }}>
+                              <button onClick={() => deleteCompetitor(c.id)} style={deleteBtnStyle}><Trash2 size={13} /></button>
                             </td>
-                          </tr>
-                        );
-                      })
-                  )}
+                          )}
+                        </tr>
+                      );
+                    });
+                  })}
                 </tbody>
               </table>
             </div>
