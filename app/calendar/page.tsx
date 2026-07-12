@@ -2001,14 +2001,10 @@ export default function CalendarPage() {
     }
   };
 
-  const [quickAddTrigger, setQuickAddTrigger] = useState(0);
-  const [quickAddTime,    setQuickAddTime]    = useState<string | undefined>();
-
-  const handleSelectDateAndAdd = (ds: string, time?: string) => {
-    handleSelectDate(ds);
-    setQuickAddTime(time);
-    setQuickAddTrigger(t => t + 1);
-  };
+  const openAddPopover = (date: string, x: number, y: number, time?: string) =>
+    setPopover({ mode: "add", date, task: null, x, y, time });
+  const openEditPopover = (task: CalTask, x: number, y: number) =>
+    setPopover({ mode: "edit", date: task.date, task, x, y });
 
   const updateTaskFields = async (id: string, fields: Partial<CalTask>) => {
     await fetch("/api/calendar", { method: "PATCH", headers: { "Content-Type": "application/json" },
