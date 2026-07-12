@@ -904,7 +904,14 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                 else if (e.key === "ArrowLeft") { e.preventDefault(); const n = Math.max(0, idx - 1); setFocusedIdx(n); onSelectDate(cellDateStr(n)); }
                 else if (e.key === "ArrowDown") { e.preventDefault(); const n = Math.min(cells.length - 1, idx + cols); setFocusedIdx(n); onSelectDate(cellDateStr(n)); }
                 else if (e.key === "ArrowUp") { e.preventDefault(); const n = Math.max(0, idx - cols); setFocusedIdx(n); onSelectDate(cellDateStr(n)); }
-                else if (e.key === "Enter") { e.preventDefault(); onSelectDateAndAdd(dateStr); }
+                else if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (isMobile) onNavigateDay?.(dateStr);
+                  else {
+                    const rect = cellRefs.current[idx]?.getBoundingClientRect();
+                    onOpenAdd(dateStr, rect ? rect.left + 20 : 200, rect ? rect.top + 20 : 200);
+                  }
+                }
                 else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
                   if (selectedTaskId) {
                     const t = tasks.find(x => x.id === selectedTaskId);
