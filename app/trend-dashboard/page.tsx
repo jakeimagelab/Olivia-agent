@@ -74,6 +74,9 @@ export default function TrendDashboardPage() {
   const [newCompetitor, setNewCompetitor] = useState({
     hospitalName: "", industry: "기타", instagramHandle: "", youtubeChannelId: "",
   });
+  const [keywordInput, setKeywordInput] = useState("");
+  const [keywordAnalysis, setKeywordAnalysis] = useState<KeywordAnalysis | null>(null);
+  const [searchingKeyword, setSearchingKeyword] = useState(false);
 
   const load = useCallback(async (ind: string) => {
     setLoading(true);
