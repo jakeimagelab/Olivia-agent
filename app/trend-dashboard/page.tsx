@@ -186,22 +186,20 @@ export default function TrendDashboardPage() {
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 20px 60px" }}>
 
-        {/* ── 업종 탭 ── */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {[{ key: "all", label: "전체" }, ...TREND_INDUSTRIES.map((i) => ({ key: i, label: i }))].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setIndustry(tab.key)}
-              style={{
-                padding: "9px 18px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer",
-                border: `1.5px solid ${industry === tab.key ? "#155855" : "#C8DDD9"}`,
-                background: industry === tab.key ? "#155855" : "#fff",
-                color: industry === tab.key ? "#fff" : "#155855",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* ── 진료과 선택 ── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: "#7A9E9B" }}>진료과</span>
+          <select
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            style={{
+              height: 40, padding: "0 14px", borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: "pointer",
+              border: "1.5px solid #155855", background: "#fff", color: "#155855", minWidth: 220,
+            }}
+          >
+            <option value="all">전체</option>
+            {TREND_INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
+          </select>
         </div>
 
         {!data?.dataAvailable && !loading && (
