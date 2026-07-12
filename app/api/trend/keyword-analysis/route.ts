@@ -37,8 +37,17 @@ export async function GET(req: NextRequest) {
     .order("collected_at", { ascending: false })
     .limit(500);
 
+  // "지금 수집" 반복 실행으로 같은 게시물이 여러 행으로 중복 저장될 수 있어 platform+external_id로 1건만 남긴다
+  const seenPosts = new Set<string>();
+  const postRowsDeduped = (postRows || []).filter((p) => {
+    const key = `${p.platform}:${p.external_id || p.id}`;
+    if (seenPosts.has(key)) return false;
+    seenPosts.add(key);
+    return true;
+  });
+
   const kw = keyword.toLowerCase();
-  const matchedPosts = (postRows || []).filter((p) => {
+  const matchedPosts = postRowsDeduped.filter((p) => {
     if (!isHospitalRelevantContent(p.caption || "", p.hashtags || [])) return false;
     const caption = (p.caption || "").toLowerCase();
     const hashtags = (p.hashtags || []) as string[];
