@@ -893,8 +893,11 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
               tabIndex={0}
               className="cal-cell"
               onFocus={() => setFocusedIdx(idx)}
-              onClick={() => { onSelectDate(dateStr); setSelectedTaskId(null); }}
-              onDoubleClick={() => onSelectDateAndAdd(dateStr)}
+              onClick={e => {
+                onSelectDate(dateStr); setSelectedTaskId(null);
+                if (isMobile) onNavigateDay?.(dateStr);
+                else onOpenAdd(dateStr, e.clientX, e.clientY);
+              }}
               onKeyDown={e => {
                 const cols = 7;
                 if (e.key === "ArrowRight") { e.preventDefault(); const n = Math.min(cells.length - 1, idx + 1); setFocusedIdx(n); onSelectDate(cellDateStr(n)); }
