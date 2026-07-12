@@ -1726,6 +1726,16 @@ export default function CalendarPage() {
       if (!map[t.date]) map[t.date] = [];
       map[t.date].push(t);
     }
+    // 시간 없는 일정(종일)은 맨 앞, 나머지는 시간순으로 정렬 — 그렇지 않으면 셀에 추가된 순서대로만 쌓여
+    // 오후 3시 일정이 오전 9시 일정보다 위에 뜨는 등 뒤죽박죽으로 보인다.
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => {
+        if (!a.time && !b.time) return 0;
+        if (!a.time) return -1;
+        if (!b.time) return 1;
+        return a.time.localeCompare(b.time);
+      });
+    }
     return map;
   }, [allTasks]);
 
