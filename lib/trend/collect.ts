@@ -159,18 +159,20 @@ async function collectInstagram() {
         const hashtag = DEFAULT_KEYWORDS_BY_INDUSTRY[industry][0].replace(/\s+/g, "");
         try {
           const posts = await fetchInstagramHashtagPosts(hashtag, { resultsLimit: 15 });
-          return posts.map((p) => ({
-            platform: "instagram",
-            industry,
-            post_type: p.type,
-            external_id: p.id,
-            url: p.url,
-            caption: p.caption,
-            hashtags: p.hashtags,
-            likes: p.likesCount,
-            comments: p.commentsCount,
-            posted_at: p.timestamp || null,
-          }));
+          return posts
+            .filter((p) => isHospitalRelevantContent(p.caption, p.hashtags))
+            .map((p) => ({
+              platform: "instagram",
+              industry,
+              post_type: INSTAGRAM_TYPE_KO[p.type] || p.type,
+              external_id: p.id,
+              url: p.url,
+              caption: p.caption,
+              hashtags: p.hashtags,
+              likes: p.likesCount,
+              comments: p.commentsCount,
+              posted_at: p.timestamp || null,
+            }));
         } catch {
           // 개별 해시태그 실패는 전체 수집을 막지 않음
           return [];
