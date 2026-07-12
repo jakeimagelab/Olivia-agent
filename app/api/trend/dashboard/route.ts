@@ -93,13 +93,16 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 15);
 
+  // 예전 수집분에는 Apify 원문 그대로(Image/Video/Sidecar)의 영문 타입이 남아있을 수 있어 표시 시점에도 한 번 더 맞춰준다.
+  const TYPE_LABEL_KO: Record<string, string> = { Image: "이미지", Video: "동영상", Sidecar: "슬라이드" };
+
   // ── 가공: 플랫폼별 게시물 유형 분포 + 참여 지표 ──
   const buildPlatformBreakdown = (platform: "instagram" | "youtube") => {
     const posts = (postRows || []).filter((p) => p.platform === platform);
     const typeCounts = new Map<string, number>();
     let likesSum = 0, commentsSum = 0, viewsSum = 0;
     for (const post of posts) {
-      const t = post.post_type || "기타";
+      const t = TYPE_LABEL_KO[post.post_type] || post.post_type || "기타";
       typeCounts.set(t, (typeCounts.get(t) || 0) + 1);
       likesSum += post.likes || 0;
       commentsSum += post.comments || 0;
