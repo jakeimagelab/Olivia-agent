@@ -1689,7 +1689,11 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                       }}>
                         {t.completed && <Check size={9} color={cat.color} strokeWidth={3}/>}
                       </button>
-                      <button onClick={e => { e.stopPropagation(); setEditingId(t.id); }} style={{
+                      <button onClick={e => {
+                        e.stopPropagation();
+                        if (isMobile && onOpenEdit) onOpenEdit(t, e.clientX, e.clientY);
+                        else setEditingId(t.id);
+                      }} style={{
                         background: "rgba(255,255,255,.15)", border: "none", borderRadius: 3,
                         cursor: "pointer", color: "rgba(255,255,255,.9)", padding: 1, display: "flex",
                       }}><Pencil size={isMobile ? 12 : 9}/></button>
