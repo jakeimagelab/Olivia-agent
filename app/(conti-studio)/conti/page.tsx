@@ -2258,6 +2258,32 @@ ${header("타임테이블")}
 
               {tab === "checklist" && (
                 <div style={{ overflowX: "auto" }}>
+                  {(() => {
+                    const categories = [...new Set(result.checklist.map(r => r.category).filter(Boolean))];
+                    if (categories.length === 0) return null;
+                    return (
+                      <div style={{
+                        display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10,
+                        padding: "10px 12px", borderBottom: "1px dashed rgba(21,88,85,0.15)",
+                      }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: "#6b7280" }}>분류별 색상</span>
+                        {categories.map(cat => {
+                          const firstRow = result.checklist.find(r => r.category === cat);
+                          const rawColor = firstRow?.color ? firstRow.color.split("|") : null;
+                          return (
+                            <div key={cat} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <ColorPickerCell
+                                bg={rawColor ? rawColor[0] : "#ffffff"}
+                                text={rawColor ? rawColor[1] : "#374151"}
+                                onChange={(bg, text) => updateChecklistCategoryColor(cat, bg, text)}
+                              />
+                              <span style={{ fontSize: 12, color: "#374151" }}>{cat}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
