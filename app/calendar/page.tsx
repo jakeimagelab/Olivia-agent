@@ -972,8 +972,12 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                       draggable
                       onDragStart={e => { e.stopPropagation(); setDragTask(t); e.dataTransfer.effectAllowed = "move"; }}
                       onDragEnd={() => { setDragTask(null); setDragOverDate(null); }}
-                      // pill 더블클릭 시 native dblclick이 셀까지 버블링돼 추가폼도 같이 열릴 수 있음 — 의도적으로 허용 (무해함)
-                      onClick={e => { e.stopPropagation(); onSelectDate(dateStr); setSelectedTaskId(t.id); }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        onSelectDate(dateStr); setSelectedTaskId(t.id);
+                        if (isMobile) onNavigateDay?.(dateStr);
+                        else onOpenEdit(t, e.clientX, e.clientY);
+                      }}
                       style={{
                         fontSize: 10.5, fontWeight: 700, color: "#fff",
                         background: dragTask?.id === t.id ? "#A0AEC0" : t.completed ? "#A0AEC0" : cat.color,
