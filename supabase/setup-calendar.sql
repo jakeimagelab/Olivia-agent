@@ -9,7 +9,7 @@ create table if not exists public.calendar_tasks (
   title       text not null,
   memo        text not null default '',
   category    text not null default 'general'
-              check (category in ('shooting','client','admin','general')),
+              check (category in ('shooting','client','admin','personal','general')),
   completed   boolean not null default false,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
