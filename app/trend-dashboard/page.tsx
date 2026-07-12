@@ -482,13 +482,27 @@ export default function TrendDashboardPage() {
   );
 }
 
-function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function RankCard({
+  icon, title, items, emptyText,
+}: { icon: React.ReactNode; title: string; items: { label: string; value: string; valueColor?: string }[]; emptyText: string }) {
   return (
     <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #C8DDD9", padding: "16px 18px", boxShadow: "0 2px 10px rgba(21,88,85,0.06)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#7A9E9B", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
-        {icon} {label}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#7A9E9B", fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
+        {icon} {title}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 900, color: "#155855", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</div>
+      {items.length === 0 ? (
+        <div style={{ fontSize: 12, color: "#9BB5B0", lineHeight: 1.5 }}>{emptyText}</div>
+      ) : (
+        <div style={{ display: "grid", gap: 6 }}>
+          {items.map((it, i) => (
+            <div key={it.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span style={{ width: 16, color: "#9BB5B0", fontWeight: 800, fontSize: 11 }}>{i + 1}</span>
+              <span style={{ flex: 1, color: "#1C2B28", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.label}</span>
+              <span style={{ color: it.valueColor || "#155855", fontWeight: 800, fontSize: 12 }}>{it.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
