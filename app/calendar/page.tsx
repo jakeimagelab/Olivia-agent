@@ -430,6 +430,95 @@ function EditTaskForm({ task, onSave, onCancel }: {
   );
 }
 
+/* ─── EventPopover ────────────────────────────────────────
+   셀/일정 클릭 시 뜨는 팝업 — 데스크탑은 클릭 위치 근처에 뜨는 카드,
+   모바일은 전체화면 시트. 실제 입력폼은 기존 AddTaskForm/EditTaskForm을 그대로 재사용한다. */
+function EventPopover({ mode, date, task, anchor, isMobile, onClose, onAdd, onSave, onDelete }: {
+  mode: "add" | "edit";
+  date: string;
+  task: CalTask | null;
+  anchor: { x: number; y: number } | null;
+  isMobile: boolean;
+  onClose: () => void;
+  onAdd: (t: CalTask) => void;
+  onSave: (t: CalTask) => void;
+  onDelete: (id: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    // 팝업이 뜨는 클릭 자체가 바로 닫히지 않도록 다음 tick에 리스너 등록
+    const t = setTimeout(() => document.addEventListener("mousedown", close), 0);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", close); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
+
+  const posStyle: React.CSSProperties = isMobile
+    ? { position: "fixed", inset: 0, zIndex: 500 }
+    : (() => {
+        const W = 340;
+        const maxH = typeof window !== "undefined" ? window.innerHeight - 32 : 600;
+        let left = (anchor?.x ?? 200) + 14;
+        let top = (anchor?.y ?? 200) - 20;
+        if (typeof window !== "undefined") {
+          if (left + W > window.innerWidth - 16) left = Math.max(16, window.innerWidth - W - 16);
+          if (top + 460 > window.innerHeight - 16) top = Math.max(16, window.innerHeight - 460 - 16);
+          if (top < 16) top = 16;
+        }
+        return { position: "fixed", left, top, zIndex: 500, width: W, maxHeight: maxH, overflowY: "auto" };
+      })();
+
+  return (
+    <>
+      <div style={{ position: "fixed", inset: 0, zIndex: 499, background: isMobile ? C.bg : "transparent" }}/>
+      <div ref={ref} data-event-popover style={{
+        ...posStyle,
+        background: isMobile ? "transparent" : C.surface,
+        borderRadius: isMobile ? 0 : 14,
+        boxShadow: isMobile ? "none" : "0 20px 50px rgba(15,68,64,.28)",
+        padding: isMobile ? "16px 16px 32px" : 16,
+      }}>
+        {isMobile && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: C.teal,
+              fontSize: 15, fontWeight: 800, cursor: "pointer", padding: "6px 4px" }}>‹ 닫기</button>
+            {mode === "edit" && task && (
+              <button onClick={() => { onDelete(task.id); onClose(); }} style={{
+                background: "none", border: "none", color: "#DC2626", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+                삭제
+              </button>
+            )}
+          </div>
+        )}
+        {!isMobile && (
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.hint, marginBottom: 10 }}>{dateLabel}</div>
+        )}
+        {mode === "add" ? (
+          <AddTaskForm key={`add-${date}-${anchor?.x}-${anchor?.y}`} date={date}
+            onAdd={t => { onAdd(t); onClose(); }} triggerKey={1}/>
+        ) : task && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <EditTaskForm key={task.id} task={task}
+              onSave={t => { onSave(t); onClose(); }} onCancel={onClose}/>
+            {!isMobile && (
+              <button onClick={() => { onDelete(task.id); onClose(); }} style={{
+                height: 34, background: "none", border: "1px solid #FCA5A5", borderRadius: 8,
+                color: "#DC2626", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+                🗑 일정 삭제
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 /* ─── ConsultMemoPanel ─────────────────────────────────── */
 function ConsultMemoPanel({ dateStr, consultations, onAdd }: {
   dateStr: string;
