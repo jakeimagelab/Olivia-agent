@@ -264,40 +264,102 @@ export default function TrendDashboardPage() {
           )}
         </SectionCard>
 
-        {/* ── SNS 트렌드 ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16, marginTop: 16 }}>
-          <SectionCard title="게시물 유형 분포" desc="인스타그램 · 유튜브">
-            {!data || data.postTypeBreakdown.length === 0 ? (
-              <EmptyState text="SNS 게시물 데이터가 아직 없습니다." />
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data.postTypeBreakdown}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E4EEEC" />
-                  <XAxis dataKey="type" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#155855" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </SectionCard>
+        {/* ── 키워드 단건 분석 ── */}
+        <SectionCard title="키워드 분석" desc="특정 키워드의 검색량 추이 + 관련 SNS 게시물 분석" style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: keywordAnalysis ? 16 : 0 }}>
+            <input
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") searchKeyword(); }}
+              placeholder="예: 리프팅 시술, 임플란트, 무릎 통증..."
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={searchKeyword}
+              disabled={searchingKeyword || !keywordInput.trim()}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "0 18px", borderRadius: 8, border: "none", height: 38,
+                background: !keywordInput.trim() ? "#C8DDD9" : "#155855", color: "#fff",
+                fontWeight: 800, fontSize: 13, cursor: !keywordInput.trim() ? "not-allowed" : "pointer",
+              }}
+            >
+              <Search size={14} />
+              {searchingKeyword ? "분석 중..." : "분석"}
+            </button>
+          </div>
 
-          <SectionCard title="해시태그 랭킹" desc="최근 60일">
-            {!data || data.hashtagRanking.length === 0 ? (
-              <EmptyState text="해시태그 데이터가 아직 없습니다." />
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {data.hashtagRanking.map((h, i) => (
-                  <div key={h.hashtag} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
-                    <span style={{ width: 20, color: "#9BB5B0", fontWeight: 800 }}>{i + 1}</span>
-                    <span style={{ flex: 1, color: "#155855", fontWeight: 700 }}>#{h.hashtag}</span>
-                    <span style={{ color: "#7A9E9B", fontSize: 12 }}>{h.count}건</span>
-                  </div>
-                ))}
+          {keywordAnalysis && (
+            <div>
+              <div style={{ display: "flex", gap: 20, marginBottom: 14, flexWrap: "wrap" }}>
+                <Stat label="관련 게시물" value={`${keywordAnalysis.postCount}건`} />
+                <Stat label="인스타그램" value={`${keywordAnalysis.platformCounts.instagram}건`} />
+                <Stat label="유튜브" value={`${keywordAnalysis.platformCounts.youtube}건`} />
               </div>
-            )}
-          </SectionCard>
+
+              {keywordAnalysis.aiSummary && (
+                <div style={{ background: "#EDF5F3", borderRadius: 10, padding: 14, marginBottom: 14, fontSize: 13, color: "#1C2B28", lineHeight: 1.7 }}>
+                  <Sparkles size={13} color="#E85D2C" style={{ marginRight: 6, verticalAlign: -2 }} />
+                  {keywordAnalysis.aiSummary}
+                </div>
+              )}
+              {keywordAnalysis.aiError && (
+                <div style={{ fontSize: 12, color: "#9BB5B0", marginBottom: 14 }}>AI 분석 생성 실패: {keywordAnalysis.aiError}</div>
+              )}
+
+              {keywordAnalysis.topPosts.length === 0 ? (
+                <EmptyState text="이 키워드와 관련된 게시물이 아직 없습니다." />
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {keywordAnalysis.topPosts.map((p) => (
+                    <a key={p.id} href={p.url} target="_blank" rel="noreferrer" style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "9px 12px",
+                      borderRadius: 8, background: "#F7FAFA", textDecoration: "none",
+                    }}>
+                      {p.platform === "instagram" ? <Instagram size={14} color="#E85D2C" /> : <Youtube size={14} color="#DC2626" />}
+                      <span style={{ flex: 1, fontSize: 13, color: "#1C2B28", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption || "(캡션 없음)"}</span>
+                      <span style={{ fontSize: 11, color: "#7A9E9B" }}>❤ {p.likes.toLocaleString()}{p.views > 0 ? ` · 조회 ${p.views.toLocaleString()}` : ""}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* ── SNS 트렌드: 인스타그램 / 유튜브 분리 ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+          <PlatformCard
+            title="인스타그램 게시물 분석"
+            icon={<Instagram size={14} color="#E85D2C" />}
+            data={data?.postBreakdownByPlatform.instagram}
+            engagementLabel="평균 좋아요"
+            engagementValue={data?.postBreakdownByPlatform.instagram.avgLikes}
+          />
+          <PlatformCard
+            title="유튜브 게시물 분석"
+            icon={<Youtube size={14} color="#DC2626" />}
+            data={data?.postBreakdownByPlatform.youtube}
+            engagementLabel="평균 조회수"
+            engagementValue={data?.postBreakdownByPlatform.youtube.avgViews}
+          />
         </div>
+
+        <SectionCard title="해시태그 랭킹" desc="최근 60일" style={{ marginTop: 16 }}>
+          {!data || data.hashtagRanking.length === 0 ? (
+            <EmptyState text="해시태그 데이터가 아직 없습니다." />
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
+              {data.hashtagRanking.map((h, i) => (
+                <div key={h.hashtag} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+                  <span style={{ width: 20, color: "#9BB5B0", fontWeight: 800 }}>{i + 1}</span>
+                  <span style={{ flex: 1, color: "#155855", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>#{h.hashtag}</span>
+                  <span style={{ color: "#7A9E9B", fontSize: 12 }}>{h.count}건</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
 
         {/* ── 경쟁사 비교 테이블 ── */}
         <SectionCard
