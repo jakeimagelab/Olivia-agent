@@ -2074,10 +2074,44 @@ export default function CalendarPage() {
         </>
       )}
 
+      {/* 삭제 확인 팝업 — 트래시 아이콘·키보드 Delete 공통 경로 */}
+      {confirmDeleteId && (
+        <>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", zIndex: 300 }}/>
+          <div data-confirm-delete-modal style={{
+            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 301,
+            width: 320, background: "#fff", borderRadius: 14, padding: "22px 22px 18px",
+            boxShadow: "0 20px 50px rgba(0,0,0,.22)",
+          }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: C.txt, marginBottom: 8 }}>일정을 삭제할까요?</div>
+            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, marginBottom: 20, wordBreak: "break-word" }}>
+              &lsquo;{taskById[confirmDeleteId]?.title ?? ""}&rsquo; 일정을 삭제합니다. 이 작업은 되돌릴 수 없어요.
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setConfirmDeleteId(null)} style={{
+                padding: "8px 16px", borderRadius: 8, border: `1px solid ${C.border}`,
+                background: "#fff", color: C.muted, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              }}>취소</button>
+              <button onClick={confirmDelete} style={{
+                padding: "8px 16px", borderRadius: 8, border: "none",
+                background: "#8E3B46", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+              }}>삭제</button>
+            </div>
+          </div>
+        </>
+      )}
+
       <style>{`
         @keyframes mobileSlideUp {
           from { transform: translateY(100%); }
           to   { transform: translateY(0); }
+        }
+        .cal-cell:focus-visible {
+          outline: 2px solid #0F4440 !important;
+          outline-offset: -2px;
+        }
+        .cal-cell:focus:not(:focus-visible) {
+          outline: none;
         }
       `}</style>
     </main>
