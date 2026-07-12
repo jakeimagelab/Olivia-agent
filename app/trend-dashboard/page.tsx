@@ -351,7 +351,7 @@ export default function TrendDashboardPage() {
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
               {data.hashtagRanking.map((h, i) => (
-                <div key={h.hashtag} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+                <div key={h.hashtag} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, minWidth: 0 }}>
                   <span style={{ width: 20, color: "#9BB5B0", fontWeight: 800 }}>{i + 1}</span>
                   <span style={{ flex: 1, minWidth: 0, color: "#155855", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>#{h.hashtag}</span>
                   <span style={{ color: "#7A9E9B", fontSize: 12, flexShrink: 0 }}>{h.count}건</span>
