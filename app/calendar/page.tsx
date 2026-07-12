@@ -1225,7 +1225,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                         zIndex: isDraggingThis ? 2 : 10,
                         opacity: isDraggingThis ? 0.2 : t.completed ? 0.7 : 1,
                         boxShadow: "0 1px 4px rgba(0,0,0,.15)",
-                        transition: isResizing || isDraggingThis ? "none" : "opacity .15s, box-shadow .15s",
+                        transition: isResizing ? "none" : "opacity .15s, box-shadow .15s",
                         touchAction: "none",
                       }}>
                       <div style={{ fontSize: 10, fontWeight: 800, color: "#fff",
