@@ -682,7 +682,7 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
             ))}
           </div>
         )}
-        <AddTaskForm date={dateStr} onAdd={onAdd}/>
+        <AddTaskForm date={dateStr} onAdd={onAdd} triggerKey={autoOpenTrigger} defaultTime={autoSlotTime}/>
 
         {/* 구분선 */}
         <div style={{ margin: "24px 0 20px", display: "flex", alignItems: "center", gap: 10 }}>
