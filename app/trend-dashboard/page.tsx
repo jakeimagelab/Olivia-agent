@@ -313,7 +313,7 @@ export default function TrendDashboardPage() {
                 <div style={{ display: "grid", gap: 8 }}>
                   {keywordAnalysis.topPosts.map((p) => (
                     <a key={p.id} href={p.url} target="_blank" rel="noreferrer" style={{
-                      display: "flex", alignItems: "center", gap: 10, padding: "9px 12px",
+                      display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", minWidth: 0,
                       borderRadius: 8, background: "#F7FAFA", textDecoration: "none",
                     }}>
                       {p.platform === "instagram" ? <Instagram size={14} color="#E85D2C" /> : <Youtube size={14} color="#DC2626" />}
