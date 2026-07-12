@@ -1986,6 +1986,8 @@ export default function CalendarPage() {
                 onSelectDate={handleSelectDate}
                 onSelectDateAndAdd={handleSelectDateAndAdd}
                 onUpdateTask={updateTaskFields}
+                onCreateTask={createTask}
+                onRequestDelete={requestDeleteTask}
                 onPrev={prevPeriod} onNext={nextPeriod}/>
             </div>
             {/* 데스크탑: 우측 사이드 패널 */}
