@@ -1043,6 +1043,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
   const ghostRef     = useRef<HTMLDivElement>(null);
   const dragPosRef   = useRef<{x:number;y:number}>({x:0,y:0});
   const rafRef       = useRef<number|null>(null);
+  const dragStartRef = useRef<{x:number;y:number}>({x:0,y:0}); // 클릭 vs 드래그 구분용
 
   /* ── drag-to-resize state ── */
   const [resizeInfo, setResizeInfo] = useState<{
