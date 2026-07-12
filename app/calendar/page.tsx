@@ -1494,9 +1494,10 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
       if (d) {
         const moved = Math.hypot(clientX - dragStartRef.current.x, clientY - dragStartRef.current.y);
         if (moved < 6) {
-          // 거의 움직이지 않았으면 드래그가 아니라 클릭 — 인라인 편집 폼을 연다
+          // 거의 움직이지 않았으면 드래그가 아니라 클릭 — 모바일은 전체화면 팝업, 데스크탑은 인라인 편집 폼
           setDragging(null);
-          setEditingId(d.task.id);
+          if (isMobile && onOpenEdit) onOpenEdit(d.task, clientX, clientY);
+          else setEditingId(d.task.id);
           return;
         }
         const newTime = getTimeFromY(clientY);
