@@ -1020,13 +1020,14 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
 
 /* ─── WeekView ────────────────────────────────────────── */
 function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate,
-  onSelectDateAndAdd, onUpdateTask, isMobile = false, onPrev, onNext }: {
+  onUpdateTask, isMobile = false, onPrev, onNext, onOpenAdd, onOpenEdit }: {
   weekDates: Date[]; todayStr: string; selectedDate: string;
   tasksByDate: Record<string, CalTask[]>;
   onSelectDate: (d: string) => void;
-  onSelectDateAndAdd: (d: string, time?: string) => void;
   onUpdateTask: (id: string, fields: Partial<CalTask>) => void;
   isMobile?: boolean; onPrev: () => void; onNext: () => void;
+  onOpenAdd: (date: string, x: number, y: number, time?: string) => void;
+  onOpenEdit: (task: CalTask, x: number, y: number) => void;
 }) {
   const start = weekDates[0], end = weekDates[6];
   const navLabel = start.getMonth() === end.getMonth()
