@@ -1427,12 +1427,14 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
 
 /* ─── DayView (full-width day detail) ────────────────── */
 function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd, onEdit,
-  onUpdateTask, isMobile = false, onPrev, onNext }: {
+  onUpdateTask, isMobile = false, onPrev, onNext, onOpenAdd, onNavigateMonth }: {
   dateStr: string; tasks: CalTask[]; loading: boolean; todayStr: string;
   onToggle: (t: CalTask) => void; onDelete: (id: string) => void;
   onAdd: (t: CalTask) => void; onEdit: (t: CalTask) => void;
   onUpdateTask: (id: string, fields: Partial<CalTask>) => void;
   isMobile?: boolean; onPrev: () => void; onNext: () => void;
+  onOpenAdd?: (date: string, x: number, y: number, time?: string) => void;
+  onNavigateMonth?: () => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const isToday = dateStr === todayStr;
@@ -1446,6 +1448,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
   } | null>(null);
   const draggingRef = useRef(dragging);
   draggingRef.current = dragging;
+  const dragStartRef = useRef<{x:number;y:number}>({x:0,y:0}); // 클릭 vs 드래그 구분용
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const TL_W  = isMobile ? 32 : 44;
