@@ -103,32 +103,36 @@ async function collectGoogleTrends() {
   const db = getSupabaseAdmin();
 
   await withRunLog<any>("google_trends", async () => {
-    const rows: any[] = [];
-    for (const industry of TREND_INDUSTRIES) {
-      // 구글 트렌드는 비공식 엔드포인트라 과호출 시 차단될 수 있어 업종당 대표 키워드 1개만 조회
-      const keyword = DEFAULT_KEYWORDS_BY_INDUSTRY[industry][0];
-      try {
-        const points = await fetchGoogleTrend(keyword, { timeframe: "today 3-m", geo: "KR" });
-        for (const p of points) {
-          rows.push({
+    const allRows: any[] = [];
+    await processInChunks(
+      TREND_INDUSTRIES,
+      4,
+      async (industry) => {
+        // 구글 트렌드는 비공식 엔드포인트라 과호출 시 차단될 수 있어 업종당 대표 키워드 1개만 조회
+        const keyword = DEFAULT_KEYWORDS_BY_INDUSTRY[industry][0];
+        try {
+          const points = await fetchGoogleTrend(keyword, { timeframe: "today 3-m", geo: "KR" });
+          return points.map((p) => ({
             keyword: p.keyword,
             industry,
             source: "google",
             period: "day",
             date: p.date,
             value: p.value,
-          });
+          }));
+        } catch (err: any) {
+          // 개별 키워드 실패는 전체 수집을 막지 않지만 원인은 남긴다
+          console.error(`[trend:google_trends] "${keyword}" 조회 실패:`, err?.message || err);
+          return [];
         }
-      } catch (err: any) {
-        // 개별 키워드 실패는 전체 수집을 막지 않지만 원인은 남긴다
-        console.error(`[trend:google_trends] "${keyword}" 조회 실패:`, err?.message || err);
+      },
+      async (rows) => {
+        allRows.push(...rows);
+        const { error } = await db.from("trend_keywords").upsert(rows, { onConflict: "keyword,source,period,date" });
+        if (error) console.error("[trend:google_trends] trend_keywords upsert 실패:", error.message);
       }
-    }
-    if (rows.length > 0) {
-      const { error } = await db.from("trend_keywords").upsert(rows, { onConflict: "keyword,source,period,date" });
-      if (error) console.error("[trend:google_trends] trend_keywords upsert 실패:", error.message);
-    }
-    return { items: rows };
+    );
+    return { items: allRows };
   });
 }
 
