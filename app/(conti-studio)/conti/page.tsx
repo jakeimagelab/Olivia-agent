@@ -2302,10 +2302,15 @@ ${header("타임테이블")}
                       })}
                     </tbody>
                   </table>
-                  <div style={{ padding: "10px 12px", borderTop: "1px dashed rgba(21,88,85,0.15)" }}>
+                  <div style={{ padding: "10px 12px", borderTop: "1px dashed rgba(21,88,85,0.15)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <button onClick={addChecklistRow} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", border: "1px dashed rgba(21,88,85,0.3)", borderRadius: 6, background: "transparent", color: "#155855", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
                       <Plus size={13} /> 행 추가
                     </button>
+                    {result.checklist.length > 0 && (
+                      <button onClick={clearChecklist} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", border: "1px solid rgba(220,38,38,0.3)", borderRadius: 6, background: "transparent", color: "#DC2626", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+                        <Trash2 size={13} /> 전체 삭제
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
