@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { industryOrDefault } from "@/lib/trend/constants";
+import { isHospitalRelevantContent } from "@/lib/trend/contentFilter";
 
 export const dynamic = "force-dynamic";
 
