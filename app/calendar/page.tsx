@@ -1325,6 +1325,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                         if ((e.target as HTMLElement).closest("[data-resize]")) return;
                         e.preventDefault();
                         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        dragStartRef.current = { x: e.clientX, y: e.clientY };
                         setDragging({
                           task: t,
                           currentX: e.clientX, currentY: e.clientY,
@@ -1336,6 +1337,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                         if ((e.target as HTMLElement).closest("[data-resize]")) return;
                         const touch = e.touches[0];
                         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        dragStartRef.current = { x: touch.clientX, y: touch.clientY };
                         setDragging({
                           task: t,
                           currentX: touch.clientX, currentY: touch.clientY,
