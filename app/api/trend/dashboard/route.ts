@@ -28,9 +28,19 @@ export async function GET(req: NextRequest) {
     .order("collected_at", { ascending: false });
   if (industry) postsQuery = postsQuery.eq("industry", industry);
   const { data: postRowsRaw } = await postsQuery;
+  // "지금 수집"을 여러 번 실행하면 같은 게시물이 매번 새 행으로 다시 저장돼(external_id 유니크 제약이 없음)
+  // 화면에 똑같은 게시물이 중복으로 뜬다. platform+external_id 기준으로 최신 1건만 남긴다
+  // (collected_at desc 정렬이라 먼저 나오는 것이 최신).
+  const seenPosts = new Set<string>();
+  const postRowsDeduped = (postRowsRaw || []).filter((p) => {
+    const key = `${p.platform}:${p.external_id || p.id}`;
+    if (seenPosts.has(key)) return false;
+    seenPosts.add(key);
+    return true;
+  });
   // 이미 저장된 과거 데이터 중 공구/협찬 등 병원과 무관한 게시물은 화면에서 걸러낸다
   // (수집 시점부터는 lib/trend/collect.ts에서 미리 걸러지지만, 재수집 전까지는 여기서도 방어).
-  const postRows = (postRowsRaw || []).filter((p) => isHospitalRelevantContent(p.caption || "", p.hashtags || []));
+  const postRows = postRowsDeduped.filter((p) => isHospitalRelevantContent(p.caption || "", p.hashtags || []));
 
   // ── 경쟁 병원 + 최근 2개 스냅샷 ──
   let competitorsQuery = db.from("trend_competitors").select("*").eq("is_active", true);
