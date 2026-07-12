@@ -212,11 +212,36 @@ export default function TrendDashboardPage() {
           </div>
         )}
 
-        {/* ── 요약 카드 ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 24 }}>
-          <SummaryCard icon={<TrendingUp size={16} />} label="이번 주 인기 키워드" value={data?.summary.topKeyword || "—"} />
-          <SummaryCard icon={<Hash size={16} />} label="급상승 해시태그" value={data?.summary.risingHashtag ? `#${data.summary.risingHashtag}` : "—"} />
-          <SummaryCard icon={<Users size={16} />} label="주목할 병원" value={data?.summary.hospitalToWatch || "—"} />
+        {/* ── 요약: 인기/급상승 키워드 TOP5 + 주목할 병원 ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 24 }}>
+          <RankCard
+            icon={<TrendingUp size={16} />}
+            title="이번 주 인기 키워드"
+            items={(data?.topKeywords || []).map((k) => ({ label: k.keyword, value: k.value.toLocaleString() }))}
+            emptyText="키워드 데이터가 아직 없습니다."
+          />
+          <RankCard
+            icon={<Hash size={16} />}
+            title="급상승 키워드"
+            items={(data?.risingKeywords || []).map((k) => ({
+              label: k.keyword, value: `${k.growthPct > 0 ? "+" : ""}${k.growthPct.toFixed(0)}%`,
+              valueColor: k.growthPct > 0 ? "#059669" : k.growthPct < 0 ? "#DC2626" : "#9BB5B0",
+            }))}
+            emptyText="비교할 만큼 데이터가 쌓이지 않았습니다 (최소 2회 수집 필요)."
+          />
+          <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #C8DDD9", padding: "16px 18px", boxShadow: "0 2px 10px rgba(21,88,85,0.06)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#7A9E9B", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+              <Users size={16} /> 주목할 병원
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#155855", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {data?.summary.hospitalToWatch || "—"}
+            </div>
+            {!data?.summary.hospitalToWatch && (
+              <div style={{ fontSize: 11, color: "#9BB5B0", marginTop: 6, lineHeight: 1.5 }}>
+                경쟁 병원을 등록하고 &quot;지금 수집&quot;을 실행하면 SNS 팔로워 성장률 1위 병원이 여기 표시됩니다.
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── 키워드 트렌드 차트 ── */}
