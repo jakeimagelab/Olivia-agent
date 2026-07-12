@@ -2186,7 +2186,7 @@ export default function CalendarPage() {
               onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}
               onUpdateTask={updateTaskFields} isMobile={isMobile}
               onPrev={prevPeriod} onNext={nextPeriod}
-              onOpenAdd={openAddPopover}
+              onOpenAdd={openAddPopover} onOpenEdit={openEditPopover}
               onNavigateMonth={isMobile ? navigateToMonth : undefined}/>
           </div>
         )}
