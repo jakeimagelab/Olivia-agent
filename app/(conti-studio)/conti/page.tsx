@@ -798,6 +798,14 @@ export default function ContiPage() {
       return { ...prev, checklist: rows };
     });
 
+  // 같은 분류(예: 유니폼/내부청소/섭외)의 모든 행에 한 번에 색상을 적용
+  const updateChecklistCategoryColor = (category: string, bg: string, text: string) =>
+    setResult(prev => {
+      if (!prev) return prev;
+      const rows = prev.checklist.map(r => r.category === category ? { ...r, color: `${bg}|${text}` } : r);
+      return { ...prev, checklist: rows };
+    });
+
   const updateChecklist = (i: number, field: keyof ChecklistRow, v: string) =>
     setResult(prev => {
       if (!prev) return prev;
