@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, X } from "lucide-react";
 
 /* ─── types ──────────────────────────────────────────── */
 type ViewMode = "day" | "week" | "month" | "year";
