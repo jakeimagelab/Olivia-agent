@@ -455,3 +455,23 @@ function EmptyState({ text }: { text: string }) {
     <div style={{ padding: "32px 12px", textAlign: "center", color: "#9BB5B0", fontSize: 13 }}>{text}</div>
   );
 }
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "grid", gap: 4 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: "#7A9E9B" }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  height: 38, padding: "0 10px", borderRadius: 8, border: "1.5px solid #C8DDD9",
+  fontSize: 13, color: "#1C2B28", background: "#fff", outline: "none",
+};
+
+const deleteBtnStyle: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", justifyContent: "center",
+  width: 28, height: 28, borderRadius: 6, border: "1px solid #FECACA",
+  background: "#FEF2F2", color: "#DC2626", cursor: "pointer",
+};
