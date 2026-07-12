@@ -569,6 +569,58 @@ function RankCard({
   );
 }
 
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 16, fontWeight: 900, color: "#155855" }}>{value}</div>
+    </div>
+  );
+}
+
+function PlatformCard({
+  title, icon, data, engagementLabel, engagementValue,
+}: {
+  title: string; icon: React.ReactNode; data?: PlatformBreakdown;
+  engagementLabel: string; engagementValue?: number;
+}) {
+  return (
+    <SectionCard title={title} desc={data ? `게시물 ${data.postCount}건` : undefined}>
+      {!data || data.postCount === 0 ? (
+        <EmptyState text="게시물 데이터가 아직 없습니다." />
+      ) : (
+        <div>
+          <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
+            <Stat label="게시물 수" value={`${data.postCount}건`} />
+            <Stat label={engagementLabel} value={(engagementValue ?? 0).toLocaleString()} />
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={data.typeBreakdown}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E4EEEC" />
+              <XAxis dataKey="type" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#155855" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div style={{ display: "grid", gap: 6, marginTop: 14 }}>
+            {data.topPosts.slice(0, 3).map((p) => (
+              <a key={p.id} href={p.url} target="_blank" rel="noreferrer" style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
+                borderRadius: 8, background: "#F7FAFA", textDecoration: "none", fontSize: 12,
+              }}>
+                {icon}
+                <span style={{ flex: 1, color: "#1C2B28", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption || "(캡션 없음)"}</span>
+                <span style={{ color: "#7A9E9B" }}>❤ {p.likes.toLocaleString()}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
 function SectionCard({
   title, desc, children, style, action,
 }: { title: string; desc?: string; children: React.ReactNode; style?: React.CSSProperties; action?: React.ReactNode }) {
