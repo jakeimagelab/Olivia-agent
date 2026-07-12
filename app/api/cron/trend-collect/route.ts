@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runTrendCollection } from "@/lib/trend/collect";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   // Vercel Cron 보안 검증 (기존 /api/cron/weekly-report와 동일 패턴)
