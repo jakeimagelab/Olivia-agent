@@ -601,13 +601,19 @@ function ProviderPanel({
       <SectionTitle icon={<Gauge size={16} />} title="AI Audit 설정" />
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {providers.map((provider) => (
-          <label key={provider.provider} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", borderRadius: 12, background: C.light, cursor: "pointer", border: `1px solid ${C.border}` }}>
-            <input type="checkbox" checked={selectedProviders.has(provider.provider)} onChange={() => onToggle(provider.provider)} disabled={provider.status !== "CONNECTED"} />
-            <span style={{ flex: 1 }}>
-              <span style={{ display: "block", fontSize: 12, fontWeight: 900, color: C.teal }}>{provider.label}</span>
+          <label key={provider.provider} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 11px", borderRadius: 10, background: C.light, cursor: provider.status === "CONNECTED" ? "pointer" : "not-allowed", border: `1px solid ${C.border}` }}>
+            <input
+              type="checkbox"
+              checked={selectedProviders.has(provider.provider)}
+              onChange={() => onToggle(provider.provider)}
+              disabled={provider.status !== "CONNECTED"}
+              style={{ width: 16, height: 16, flexShrink: 0, accentColor: C.teal, cursor: "inherit" }}
+            />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 12, fontWeight: 800, color: C.teal }}>{provider.label}</span>
               <span style={{ display: "block", fontSize: 10, color: C.muted }}>{provider.note}</span>
             </span>
-            <span style={{ fontSize: 10, fontWeight: 900, color: statusColor(provider.status) }}>{provider.status}</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: statusColor(provider.status), flexShrink: 0, whiteSpace: "nowrap" }}>{provider.status}</span>
           </label>
         ))}
       </div>
