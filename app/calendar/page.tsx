@@ -793,14 +793,19 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
 
 
 /* ─── MonthView ───────────────────────────────────────── */
-function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onSelectDateAndAdd, onUpdateTask, onCreateTask, onRequestDelete, onPrev, onNext }: {
+function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onUpdateTask, onCreateTask, onRequestDelete, onPrev, onNext, onOpenAdd, onOpenEdit, isMobile = false, onNavigateDay, onNavigateYear }: {
   year: number; month: number; todayStr: string; selectedDate: string;
   tasksByDate: Record<string, CalTask[]>;
-  onSelectDate: (d: string) => void; onSelectDateAndAdd: (d: string) => void;
+  onSelectDate: (d: string) => void;
   onUpdateTask: (id: string, fields: Partial<CalTask>) => void;
   onCreateTask: (fields: Omit<CalTask, "id" | "created_at">) => Promise<CalTask | null>;
   onRequestDelete: (id: string) => void;
   onPrev: () => void; onNext: () => void;
+  onOpenAdd: (date: string, x: number, y: number) => void;
+  onOpenEdit: (task: CalTask, x: number, y: number) => void;
+  isMobile?: boolean;
+  onNavigateDay?: (date: string) => void;
+  onNavigateYear?: () => void;
 }) {
   const { cells } = buildMonthCells(year, month);
   const [dragTask,     setDragTask]     = useState<CalTask | null>(null);
