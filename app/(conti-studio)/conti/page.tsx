@@ -884,6 +884,12 @@ export default function ContiPage() {
     ...prev, checklist: prev.checklist.filter((_, idx) => idx !== i).map((r, idx) => ({ ...r, number: idx + 1 }))
   } : prev);
 
+  const clearChecklist = () => {
+    if (!result || result.checklist.length === 0) return;
+    if (!window.confirm(`준비 체크리스트 ${result.checklist.length}개 항목을 전부 삭제할까요? 되돌릴 수 없습니다.`)) return;
+    setResult(prev => prev ? { ...prev, checklist: [] } : prev);
+  };
+
   const addScheduleRow = () => setResult(prev => prev ? {
     ...prev, schedule: [...prev.schedule, { time: "", activity: "", type: "", requirements: "", notes: "" }]
   } : prev);
