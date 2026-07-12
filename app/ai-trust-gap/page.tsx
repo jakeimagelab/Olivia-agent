@@ -711,7 +711,7 @@ function ExecutionPanel({
                 <span>{latestRun.status}</span>
                 <span>{latestRun.completed_requests} / {latestRun.total_requests} 완료 · 실패 {latestRun.failed_requests}</span>
               </div>
-              <div style={{ height: 8, borderRadius: 99, background: "#E4D9CD", overflow: "hidden" }}>
+              <div style={{ height: 8, borderRadius: 99, background: C.light, overflow: "hidden" }}>
                 <div style={{ width: `${progress}%`, height: "100%", background: C.orange }} />
               </div>
             </div>
