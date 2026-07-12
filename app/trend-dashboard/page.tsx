@@ -213,7 +213,7 @@ export default function TrendDashboardPage() {
         )}
 
         {/* ── 요약: 인기/급상승 키워드 TOP5 + 주목할 병원 ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, marginBottom: 24 }}>
           <RankCard
             icon={<TrendingUp size={16} />}
             title="이번 주 인기 키워드"
