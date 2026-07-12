@@ -2310,7 +2310,7 @@ ${header("타임테이블")}
                     <tbody>
                       {result.checklist.map((row, i) => {
                         const isDragOver = dragOver?.type === "checklist" && dragOver.index === i;
-                        const rawColor = row.color ? row.color.split("|") : null;
+                        const rawColor = resolveChecklistColor(row);
                         const rowBg = isDragOver
                           ? "rgba(21,88,85,0.06)"
                           : rawColor
