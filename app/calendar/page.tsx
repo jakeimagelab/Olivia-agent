@@ -501,7 +501,7 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
         )}
         {mode === "add" ? (
           <AddTaskForm key={`add-${date}-${anchor?.x}-${anchor?.y}`} date={date}
-            onAdd={t => { onAdd(t); onClose(); }} triggerKey={1}/>
+            onAdd={t => { onAdd(t); onClose(); }} triggerKey={1} defaultTime={defaultTime}/>
         ) : task && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <EditTaskForm key={task.id} task={task}
