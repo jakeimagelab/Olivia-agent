@@ -317,8 +317,8 @@ export default function TrendDashboardPage() {
                       borderRadius: 8, background: "#F7FAFA", textDecoration: "none",
                     }}>
                       {p.platform === "instagram" ? <Instagram size={14} color="#E85D2C" /> : <Youtube size={14} color="#DC2626" />}
-                      <span style={{ flex: 1, fontSize: 13, color: "#1C2B28", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption || "(캡션 없음)"}</span>
-                      <span style={{ fontSize: 11, color: "#7A9E9B" }}>❤ {p.likes.toLocaleString()}{p.views > 0 ? ` · 조회 ${p.views.toLocaleString()}` : ""}</span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: "#1C2B28", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption || "(캡션 없음)"}</span>
+                      <span style={{ fontSize: 11, color: "#7A9E9B", flexShrink: 0, whiteSpace: "nowrap" }}>❤ {p.likes.toLocaleString()}{p.views > 0 ? ` · 조회 ${p.views.toLocaleString()}` : ""}</span>
                     </a>
                   ))}
                 </div>
@@ -353,8 +353,8 @@ export default function TrendDashboardPage() {
               {data.hashtagRanking.map((h, i) => (
                 <div key={h.hashtag} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
                   <span style={{ width: 20, color: "#9BB5B0", fontWeight: 800 }}>{i + 1}</span>
-                  <span style={{ flex: 1, color: "#155855", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>#{h.hashtag}</span>
-                  <span style={{ color: "#7A9E9B", fontSize: 12 }}>{h.count}건</span>
+                  <span style={{ flex: 1, minWidth: 0, color: "#155855", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>#{h.hashtag}</span>
+                  <span style={{ color: "#7A9E9B", fontSize: 12, flexShrink: 0 }}>{h.count}건</span>
                 </div>
               ))}
             </div>
@@ -559,7 +559,7 @@ function RankCard({
           {items.map((it, i) => (
             <div key={it.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
               <span style={{ width: 16, color: "#9BB5B0", fontWeight: 800, fontSize: 11 }}>{i + 1}</span>
-              <span style={{ flex: 1, color: "#1C2B28", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.label}</span>
+              <span style={{ flex: 1, minWidth: 0, color: "#1C2B28", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.label}</span>
               <span style={{ color: it.valueColor || "#155855", fontWeight: 800, fontSize: 12 }}>{it.value}</span>
             </div>
           ))}
@@ -600,7 +600,7 @@ function PlatformCard({
               <XAxis dataKey="type" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="count" fill="#155855" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="count" fill="#155855" radius={[6, 6, 0, 0]} maxBarSize={56} />
             </BarChart>
           </ResponsiveContainer>
           <div style={{ display: "grid", gap: 6, marginTop: 14 }}>
@@ -610,8 +610,8 @@ function PlatformCard({
                 borderRadius: 8, background: "#F7FAFA", textDecoration: "none", fontSize: 12,
               }}>
                 {icon}
-                <span style={{ flex: 1, color: "#1C2B28", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption || "(캡션 없음)"}</span>
-                <span style={{ color: "#7A9E9B" }}>❤ {p.likes.toLocaleString()}</span>
+                <span style={{ flex: 1, minWidth: 0, color: "#1C2B28", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.caption || "(캡션 없음)"}</span>
+                <span style={{ color: "#7A9E9B", flexShrink: 0, whiteSpace: "nowrap" }}>❤ {p.likes.toLocaleString()}</span>
               </a>
             ))}
           </div>
