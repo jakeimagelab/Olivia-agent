@@ -1955,8 +1955,12 @@ export default function CalendarPage() {
     const d = new Date(ds + "T12:00:00");
     setYear(d.getFullYear()); setMonth(d.getMonth());
     setWeekDates(getWeekDates(ds));
-    if (isMobile) setShowDayPanel(true); // 모바일: 날짜 탭하면 패널 열기
   };
+
+  // 모바일 드릴다운 내비게이션: 연 → 월 → 일, 세그먼트 탭 없이 화면 전환
+  const navigateToDay = (ds: string) => { handleSelectDate(ds); setViewMode("day"); };
+  const navigateToMonth = () => setViewMode("month");
+  const navigateToYear = () => setViewMode("year");
 
   const goToday = () => {
     setYear(today.getFullYear()); setMonth(today.getMonth());
