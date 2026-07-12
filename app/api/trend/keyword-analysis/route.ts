@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
 
   const kw = keyword.toLowerCase();
   const matchedPosts = (postRows || []).filter((p) => {
+    if (!isHospitalRelevantContent(p.caption || "", p.hashtags || [])) return false;
     const caption = (p.caption || "").toLowerCase();
     const hashtags = (p.hashtags || []) as string[];
     return caption.includes(kw) || hashtags.some((h) => h.toLowerCase().includes(kw));
