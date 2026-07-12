@@ -625,7 +625,7 @@ function SectionCard({
   title, desc, children, style, action,
 }: { title: string; desc?: string; children: React.ReactNode; style?: React.CSSProperties; action?: React.ReactNode }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #C8DDD9", padding: "18px 20px", boxShadow: "0 2px 12px rgba(21,88,85,0.06)", ...style }}>
+    <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #C8DDD9", padding: "18px 20px", boxShadow: "0 2px 12px rgba(21,88,85,0.06)", minWidth: 0, overflow: "hidden", ...style }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 900, color: "#1C2B28" }}>{title}</div>
