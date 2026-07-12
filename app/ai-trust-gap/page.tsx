@@ -22,17 +22,21 @@ import { AI_TRUST_DEMAND_SOURCES, AI_TRUST_EVIDENCE_SCHEMAS, AI_TRUST_INTENTS } 
 import type { AiTrustGeneratedPrompt, AiTrustProviderStatus } from "@/lib/ai-trust/types";
 
 const C = {
-  teal: "#155855",
+  teal: "#123F39",
   orange: "#E85D2C",
-  bg: "#F0F9F8",
-  white: "#FFFFFF",
-  border: "rgba(21,88,85,.12)",
-  muted: "#5A7470",
-  hint: "#9BB5B0",
-  txt: "#1C2B28",
-  light: "#EAF4F2",
-  green: "#22876A",
-  red: "#DC2626",
+  gold: "#C9822B",
+  bg: "#FAF7F2",
+  white: "#FFFDF9",
+  paper: "#F6EFE7",
+  border: "rgba(63,49,38,.12)",
+  borderStrong: "rgba(63,49,38,.2)",
+  muted: "#6D6258",
+  hint: "#A79B90",
+  txt: "#241F1A",
+  light: "#F3ECE3",
+  green: "#2F6F5F",
+  red: "#B43D2F",
+  shadow: "0 14px 38px rgba(65,45,30,.08), 0 1px 0 rgba(255,255,255,.82) inset",
 };
 
 type ClientRow = {
@@ -357,11 +361,11 @@ export default function AiTrustGapPage() {
   };
 
   return (
-    <div style={{ color: C.txt, minHeight: "100vh", background: C.bg }}>
+    <div style={{ color: C.txt, minHeight: "100vh", background: `radial-gradient(circle at 14% 4%, rgba(232,93,44,.08), transparent 28%), linear-gradient(180deg, ${C.bg} 0%, #F7F1E9 100%)`, fontFamily: "var(--font-sans)" }}>
       <PageHeader title="AI 추천 병원 역분석" />
-      <main style={{ maxWidth: 1380, margin: "0 auto", padding: "22px 20px 80px" }}>
-        <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(340px, .65fr)", gap: 18, alignItems: "start" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <main style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 22px 88px" }}>
+        <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(360px, .65fr)", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <Hero />
             <StepNav />
             <ProjectForm
@@ -422,16 +426,16 @@ export default function AiTrustGapPage() {
 
 function Hero() {
   return (
-    <section style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 22, boxShadow: "0 3px 16px rgba(21,88,85,.06)" }}>
-      <div style={{ display: "flex", gap: 16, alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap" }}>
+    <section style={{ background: `linear-gradient(135deg, ${C.white} 0%, #FBF4EC 100%)`, border: `1px solid ${C.border}`, borderRadius: 16, padding: 26, boxShadow: C.shadow }}>
+      <div style={{ display: "flex", gap: 18, alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 7 }}>AI TRUST GAP</div>
-          <h1 style={{ margin: 0, fontSize: 25, lineHeight: 1.25, color: C.teal }}>AI가 반복 추천하는 병원의 신뢰 증거를 역분석합니다.</h1>
-          <p style={{ margin: "10px 0 0", maxWidth: 780, fontSize: 13, lineHeight: 1.75, color: C.muted }}>
+          <div style={{ display: "inline-flex", alignItems: "center", height: 26, padding: "0 10px", borderRadius: 999, background: "rgba(232,93,44,.1)", color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 10 }}>AI TRUST GAP</div>
+          <h1 style={{ margin: 0, fontSize: 28, letterSpacing: "-.02em", lineHeight: 1.22, color: C.teal }}>AI가 반복 추천하는 병원의 신뢰 증거를 역분석합니다.</h1>
+          <p style={{ margin: "12px 0 0", maxWidth: 820, fontSize: 13.5, lineHeight: 1.82, color: C.muted }}>
             DEMAND DATA → PROMPT MODEL → AI AUDIT → CONSENSUS → EVIDENCE → TRUST GAP → STRATEGY → SHOOT PLAN 흐름으로 분석합니다.
           </p>
         </div>
-        <Link href="/clients" style={{ height: 38, padding: "0 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.light, color: C.teal, display: "inline-flex", gap: 7, alignItems: "center", fontSize: 12, fontWeight: 900, textDecoration: "none" }}>
+        <Link href="/clients" style={{ height: 40, padding: "0 14px", borderRadius: 10, border: `1px solid ${C.borderStrong}`, background: "rgba(255,255,255,.72)", color: C.teal, display: "inline-flex", gap: 7, alignItems: "center", fontSize: 12, fontWeight: 900, textDecoration: "none", boxShadow: "0 1px 0 rgba(255,255,255,.85) inset" }}>
           고객 관리 <ArrowRight size={15} />
         </Link>
       </div>
@@ -441,13 +445,13 @@ function Hero() {
 
 function StepNav() {
   return (
-    <section style={{ background: "rgba(255,255,255,.72)", border: `1px solid ${C.border}`, borderRadius: 14, padding: 12, overflowX: "auto" }}>
-      <div style={{ display: "flex", minWidth: "max-content", gap: 8 }}>
+    <section style={{ background: "rgba(255,253,249,.82)", border: `1px solid ${C.border}`, borderRadius: 16, padding: 12, overflowX: "auto", boxShadow: "0 8px 24px rgba(65,45,30,.05)" }}>
+      <div style={{ display: "flex", minWidth: "max-content", gap: 7 }}>
         {steps.map((step, index) => {
           const Icon = step.icon;
           return (
             <div key={step.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ minWidth: 116, padding: "9px 10px", borderRadius: 10, background: index < 3 ? C.white : C.light, border: `1px solid ${index < 3 ? C.border : "transparent"}` }}>
+              <div style={{ minWidth: 118, padding: "10px 11px", borderRadius: 12, background: index < 3 ? C.white : C.paper, border: `1px solid ${index < 3 ? C.borderStrong : "transparent"}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, color: index < 3 ? C.teal : C.hint }}>
                   <Icon size={14} />
                   <span style={{ fontSize: 11, fontWeight: 900 }}>{step.label}</span>
@@ -483,7 +487,7 @@ function ProjectForm({
   onSubmit: (e: FormEvent) => void;
 }) {
   return (
-    <form onSubmit={onSubmit} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: "0 3px 16px rgba(21,88,85,.05)" }}>
+    <form onSubmit={onSubmit} style={panelStyle}>
       <SectionTitle icon={<FileSearch size={16} />} title="분석 프로젝트 생성" />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
         <Field label="분석 프로젝트명 *"><input value={form.project_name} onChange={(e) => onSet("project_name", e.target.value)} placeholder="언주역 피부과 AI 추천 분석" style={inputS} /></Field>
@@ -501,7 +505,7 @@ function ProjectForm({
         <Field label="수동 Seed Keyword"><textarea value={form.manual_keywords} onChange={(e) => onSet("manual_keywords", e.target.value)} rows={5} placeholder={"언주역 피부과\n언주역 피부과 추천\n언주역 리쥬란"} style={textareaS} /></Field>
         <Field label="경쟁 병원 / 메모"><textarea value={[form.competitor_hospitals, form.memo].filter(Boolean).join("\n")} onChange={(e) => onSet("memo", e.target.value)} rows={5} placeholder="경쟁 병원은 선택 입력입니다. AI 반복 추천 결과에서 자동 발견하는 것이 기본입니다." style={textareaS} /></Field>
       </div>
-      {message && <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 8, background: C.light, color: C.teal, fontSize: 12, fontWeight: 800 }}>{message}</div>}
+      {message && <div style={{ marginTop: 12, padding: "11px 13px", borderRadius: 10, background: C.light, color: C.teal, fontSize: 12, lineHeight: 1.55, fontWeight: 800, border: `1px solid ${C.border}` }}>{message}</div>}
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 14, flexWrap: "wrap" }}>
         <button type="button" onClick={onGeneratePreview} style={secondaryBtn}><RefreshCw size={15} /> 질문 미리보기</button>
         <button type="submit" disabled={loading} style={primaryBtn}>{loading ? "저장 중..." : "프로젝트 생성"} <CheckCircle2 size={15} /></button>
@@ -528,7 +532,7 @@ function PromptReview({
   onSelectIntent: (intent: string) => void;
 }) {
   return (
-    <section style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: "0 3px 16px rgba(21,88,85,.05)" }}>
+    <section style={panelStyle}>
       <SectionTitle icon={<Search size={16} />} title="질문 검토" right={`${selectedPromptIds.size || prompts.length} / ${prompts.length} 선택`} />
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
         <button type="button" onClick={onSelectAll} style={miniBtn}>전체 선택</button>
@@ -540,13 +544,13 @@ function PromptReview({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {groupedPrompts.filter((group) => group.prompts.length > 0).map((group) => (
-            <div key={group.key} style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-              <div style={{ padding: "10px 12px", background: C.light, display: "flex", justifyContent: "space-between", gap: 12 }}>
+            <div key={group.key} style={{ border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", background: "rgba(255,255,255,.48)" }}>
+              <div style={{ padding: "11px 13px", background: C.light, display: "flex", justifyContent: "space-between", gap: 12 }}>
                 <strong style={{ fontSize: 12, color: C.teal }}>{group.label}</strong>
                 <span style={{ fontSize: 11, color: C.muted }}>{group.prompts.length}개</span>
               </div>
               {group.prompts.map(({ prompt, index }) => (
-                <label key={`${prompt.source_keyword}-${index}`} style={{ display: "grid", gridTemplateColumns: "20px 1fr", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.border}`, cursor: "pointer" }}>
+                <label key={`${prompt.source_keyword}-${index}`} style={{ display: "grid", gridTemplateColumns: "20px 1fr", gap: 8, padding: "11px 13px", borderTop: `1px solid ${C.border}`, cursor: "pointer" }}>
                   <input type="checkbox" checked={selectedPromptIds.has(index)} onChange={() => onTogglePrompt(index)} />
                   <span>
                     <span style={{ display: "block", fontSize: 12, fontWeight: 800, color: C.txt, lineHeight: 1.5 }}>{prompt.question}</span>
@@ -582,7 +586,7 @@ function ProviderPanel({
       <SectionTitle icon={<Gauge size={16} />} title="AI Audit 설정" />
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {providers.map((provider) => (
-          <label key={provider.provider} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 10px", borderRadius: 9, background: C.light, cursor: "pointer" }}>
+          <label key={provider.provider} style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 11px", borderRadius: 12, background: C.light, cursor: "pointer", border: `1px solid ${C.border}` }}>
             <input type="checkbox" checked={selectedProviders.has(provider.provider)} onChange={() => onToggle(provider.provider)} disabled={provider.status !== "CONNECTED"} />
             <span style={{ flex: 1 }}>
               <span style={{ display: "block", fontSize: 12, fontWeight: 900, color: C.teal }}>{provider.label}</span>
@@ -600,7 +604,7 @@ function ProviderPanel({
           <span>1~20회</span>
         </div>
       </div>
-      <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: C.teal, color: "#fff" }}>
+      <div style={{ marginTop: 12, padding: 14, borderRadius: 14, background: `linear-gradient(135deg, ${C.teal} 0%, #275D4E 100%)`, color: "#fff", boxShadow: "0 12px 26px rgba(18,63,57,.16)" }}>
         <div style={{ fontSize: 10, opacity: .7, fontWeight: 900, letterSpacing: ".08em" }}>ESTIMATED API REQUESTS</div>
         <div style={{ fontSize: 28, fontWeight: 900, marginTop: 2 }}>{estimatedRequests.toLocaleString("ko-KR")}</div>
         <div style={{ fontSize: 11, opacity: .76, marginTop: 3 }}>Provider Pricing 설정 필요</div>
@@ -635,7 +639,7 @@ function ProjectList({ projects, activeProjectId, onSelect }: { projects: Projec
       {projects.length === 0 ? <EmptyBox text="생성된 분석 프로젝트가 없습니다." /> : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {projects.slice(0, 6).map((project) => (
-            <button key={project.id} type="button" onClick={() => onSelect(project.id)} style={{ padding: 10, borderRadius: 10, border: `1px solid ${activeProjectId === project.id ? C.teal : C.border}`, background: "#fff", textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
+            <button key={project.id} type="button" onClick={() => onSelect(project.id)} style={{ padding: 11, borderRadius: 12, border: `1px solid ${activeProjectId === project.id ? C.teal : C.border}`, background: activeProjectId === project.id ? "#FFF8F0" : C.white, textAlign: "left", cursor: "pointer", fontFamily: "inherit", boxShadow: activeProjectId === project.id ? "0 8px 18px rgba(232,93,44,.08)" : "none" }}>
               <div style={{ fontSize: 12, fontWeight: 900, color: C.teal, marginBottom: 4 }}>{project.project_name}</div>
               <div style={{ fontSize: 10, color: C.muted }}>{project.client_hospital_name} · {project.region} · {project.department}</div>
               <div style={{ marginTop: 6, fontSize: 10, fontWeight: 900, color: statusColor(project.status) }}>{project.status}</div>
@@ -673,7 +677,7 @@ function ExecutionPanel({
   const latestRun = summary?.runs?.[0];
   const progress = latestRun?.total_requests ? Math.round((latestRun.completed_requests / latestRun.total_requests) * 100) : 0;
   return (
-    <section style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: "0 3px 16px rgba(21,88,85,.05)" }}>
+    <section style={panelStyle}>
       <SectionTitle icon={<Play size={16} />} title="AI Audit 실행" right={activeProjectId ? "프로젝트 선택됨" : "프로젝트 미선택"} />
       {!activeProjectId ? <EmptyBox text="프로젝트를 생성하거나 최근 분석 프로젝트에서 선택하세요." /> : (
         <>
@@ -687,12 +691,12 @@ function ExecutionPanel({
             <Metric label="Shoot Plan" value={summary?.shootPlan?.length || 0} />
           </div>
           {latestRun && (
-            <div style={{ padding: 12, borderRadius: 10, background: C.light, marginBottom: 12 }}>
+            <div style={{ padding: 13, borderRadius: 13, background: C.light, marginBottom: 12, border: `1px solid ${C.border}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 900, color: C.teal, marginBottom: 7 }}>
                 <span>{latestRun.status}</span>
                 <span>{latestRun.completed_requests} / {latestRun.total_requests} 완료 · 실패 {latestRun.failed_requests}</span>
               </div>
-              <div style={{ height: 8, borderRadius: 99, background: "#dcebe8", overflow: "hidden" }}>
+              <div style={{ height: 8, borderRadius: 99, background: "#E4D9CD", overflow: "hidden" }}>
                 <div style={{ width: `${progress}%`, height: "100%", background: C.orange }} />
               </div>
             </div>
@@ -714,7 +718,7 @@ function ExecutionPanel({
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div style={{ padding: 12, borderRadius: 10, background: C.light }}>
+    <div style={{ padding: 13, borderRadius: 13, background: C.light, border: `1px solid ${C.border}` }}>
       <div style={{ fontSize: 10, fontWeight: 900, color: C.muted, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 900, color: C.teal }}>{value.toLocaleString("ko-KR")}</div>
     </div>
@@ -734,11 +738,11 @@ function ReportSkeleton({ summary }: { summary: SummaryData | null }) {
     "EVIDENCE",
   ];
   return (
-    <section style={{ marginTop: 18, background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18 }}>
+    <section style={{ ...panelStyle, marginTop: 20 }}>
       <SectionTitle icon={<Radar size={16} />} title="결과 리포트 구조" />
       {summary?.consensusTop10?.length ? (
         <div style={{ marginBottom: 14, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-          <div style={{ padding: "10px 12px", background: C.light, fontSize: 12, fontWeight: 900, color: C.teal }}>AI RECOMMENDED HOSPITALS · TOP 10</div>
+          <div style={{ padding: "11px 13px", background: C.light, fontSize: 12, fontWeight: 900, color: C.teal }}>AI RECOMMENDED HOSPITALS · TOP 10</div>
           {summary.consensusTop10.map((item, index) => (
             <div key={item.id} style={{ display: "grid", gridTemplateColumns: "42px 1fr repeat(4, 80px)", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.border}`, alignItems: "center", fontSize: 11 }}>
               <strong style={{ color: C.orange }}>{index + 1}</strong>
@@ -753,7 +757,7 @@ function ReportSkeleton({ summary }: { summary: SummaryData | null }) {
       ) : null}
       {summary?.gaps?.length ? (
         <div style={{ marginBottom: 14, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-          <div style={{ padding: "10px 12px", background: C.light, fontSize: 12, fontWeight: 900, color: C.teal }}>AI TRUST GAP · 큰 격차 순</div>
+          <div style={{ padding: "11px 13px", background: C.light, fontSize: 12, fontWeight: 900, color: C.teal }}>AI TRUST GAP · 큰 격차 순</div>
           {summary.gaps.slice(0, 8).map((gap) => {
             const schema = AI_TRUST_EVIDENCE_SCHEMAS.find((item) => item.key === gap.schema_key);
             return (
@@ -770,7 +774,7 @@ function ReportSkeleton({ summary }: { summary: SummaryData | null }) {
       ) : null}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
         {blocks.map((block, index) => (
-          <div key={block} style={{ padding: 14, borderRadius: 11, border: `1px solid ${C.border}`, background: index < 4 ? "#fff" : C.light }}>
+          <div key={block} style={{ padding: 15, borderRadius: 13, border: `1px solid ${C.border}`, background: index < 4 ? C.white : C.light }}>
             <div style={{ fontSize: 10, fontWeight: 900, color: C.hint, marginBottom: 6 }}>{String(index + 1).padStart(2, "0")}</div>
             <div style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>{block}</div>
           </div>
@@ -778,7 +782,7 @@ function ReportSkeleton({ summary }: { summary: SummaryData | null }) {
       </div>
       <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
         {AI_TRUST_EVIDENCE_SCHEMAS.map((schema) => (
-          <div key={schema.key} style={{ padding: 10, borderRadius: 9, background: C.light }}>
+          <div key={schema.key} style={{ padding: 11, borderRadius: 12, background: C.light, border: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 11, fontWeight: 900, color: C.teal }}>{schema.label}</div>
             <div style={{ fontSize: 10, color: C.muted, marginTop: 3, lineHeight: 1.45 }}>{schema.desc}</div>
           </div>
@@ -812,54 +816,58 @@ function EmptyBox({ text }: { text: string }) {
 
 const inputS: React.CSSProperties = {
   width: "100%",
-  height: 40,
-  border: `1.5px solid ${C.border}`,
-  borderRadius: 8,
-  padding: "0 11px",
+  height: 42,
+  border: `1px solid ${C.borderStrong}`,
+  borderRadius: 10,
+  padding: "0 12px",
   fontSize: 12,
   fontFamily: "inherit",
   outline: "none",
-  background: "#fff",
+  background: "rgba(255,255,255,.76)",
   color: C.txt,
   boxSizing: "border-box",
+  boxShadow: "0 1px 0 rgba(255,255,255,.88) inset",
 };
 
 const textareaS: React.CSSProperties = {
   ...inputS,
   height: "auto",
-  minHeight: 108,
-  padding: "10px 11px",
-  lineHeight: 1.55,
+  minHeight: 112,
+  padding: "11px 12px",
+  lineHeight: 1.62,
   resize: "vertical",
 };
 
 const primaryBtn: React.CSSProperties = {
-  height: 40,
+  minHeight: 40,
   padding: "0 16px",
-  borderRadius: 8,
+  borderRadius: 10,
   border: "none",
-  background: C.orange,
+  background: `linear-gradient(135deg, ${C.orange}, ${C.gold})`,
   color: "#fff",
   display: "inline-flex",
   alignItems: "center",
+  justifyContent: "center",
   gap: 7,
   fontSize: 12,
   fontWeight: 900,
   cursor: "pointer",
   fontFamily: "inherit",
+  boxShadow: "0 10px 20px rgba(232,93,44,.16)",
 };
 
 const secondaryBtn: React.CSSProperties = {
   ...primaryBtn,
   background: C.light,
   color: C.teal,
-  border: `1px solid ${C.border}`,
+  border: `1px solid ${C.borderStrong}`,
+  boxShadow: "0 1px 0 rgba(255,255,255,.86) inset",
 };
 
 const miniBtn: React.CSSProperties = {
-  height: 28,
-  padding: "0 10px",
-  borderRadius: 7,
+  height: 30,
+  padding: "0 11px",
+  borderRadius: 999,
   border: `1px solid ${C.border}`,
   background: C.white,
   color: C.teal,
@@ -872,7 +880,15 @@ const miniBtn: React.CSSProperties = {
 const sideCard: React.CSSProperties = {
   background: C.white,
   border: `1px solid ${C.border}`,
-  borderRadius: 14,
-  padding: 15,
-  boxShadow: "0 3px 16px rgba(21,88,85,.05)",
+  borderRadius: 16,
+  padding: 16,
+  boxShadow: C.shadow,
+};
+
+const panelStyle: React.CSSProperties = {
+  background: C.white,
+  border: `1px solid ${C.border}`,
+  borderRadius: 16,
+  padding: 20,
+  boxShadow: C.shadow,
 };
