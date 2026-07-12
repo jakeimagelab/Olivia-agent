@@ -52,15 +52,30 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(1);
 
-  // ── 가공: 키워드 시계열 (키워드별 그룹) ──
+  // ── 가공: 키워드 시계열 (키워드별 그룹, 날짜순 정렬) ──
   const keywordSeries: Record<string, { date: string; value: number }[]> = {};
   for (const row of keywordRows || []) {
     if (!keywordSeries[row.keyword]) keywordSeries[row.keyword] = [];
     keywordSeries[row.keyword].push({ date: row.date, value: Number(row.value) });
   }
-  const topKeyword = Object.entries(keywordSeries)
-    .map(([keyword, points]) => ({ keyword, latest: points[points.length - 1]?.value ?? 0 }))
-    .sort((a, b) => b.latest - a.latest)[0];
+
+  // ── 가공: 인기 키워드 TOP5 (최신 검색량 기준) ──
+  const topKeywords = Object.entries(keywordSeries)
+    .map(([keyword, points]) => ({ keyword, value: points[points.length - 1]?.value ?? 0 }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+
+  // ── 가공: 급상승 키워드 TOP5 (기간 내 첫 값 대비 마지막 값 증감률) ──
+  const risingKeywords = Object.entries(keywordSeries)
+    .map(([keyword, points]) => {
+      const first = points[0]?.value ?? 0;
+      const last = points[points.length - 1]?.value ?? 0;
+      const growthPct = first > 0 ? ((last - first) / first) * 100 : last > 0 ? 100 : 0;
+      return { keyword, value: last, growthPct };
+    })
+    .filter((k) => k.value > 0)
+    .sort((a, b) => b.growthPct - a.growthPct)
+    .slice(0, 5);
 
   // ── 가공: 해시태그 랭킹 ──
   const hashtagCounts = new Map<string, number>();
@@ -74,13 +89,38 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 15);
 
-  // ── 가공: 게시물 유형 분포 ──
-  const postTypeCounts = new Map<string, number>();
-  for (const post of postRows || []) {
-    const t = post.post_type || "기타";
-    postTypeCounts.set(t, (postTypeCounts.get(t) || 0) + 1);
-  }
-  const postTypeBreakdown = [...postTypeCounts.entries()].map(([type, count]) => ({ type, count }));
+  // ── 가공: 플랫폼별 게시물 유형 분포 + 참여 지표 ──
+  const buildPlatformBreakdown = (platform: "instagram" | "youtube") => {
+    const posts = (postRows || []).filter((p) => p.platform === platform);
+    const typeCounts = new Map<string, number>();
+    let likesSum = 0, commentsSum = 0, viewsSum = 0;
+    for (const post of posts) {
+      const t = post.post_type || "기타";
+      typeCounts.set(t, (typeCounts.get(t) || 0) + 1);
+      likesSum += post.likes || 0;
+      commentsSum += post.comments || 0;
+      viewsSum += post.views || 0;
+    }
+    return {
+      postCount: posts.length,
+      typeBreakdown: [...typeCounts.entries()].map(([type, count]) => ({ type, count })),
+      avgLikes: posts.length ? Math.round(likesSum / posts.length) : 0,
+      avgComments: posts.length ? Math.round(commentsSum / posts.length) : 0,
+      avgViews: posts.length ? Math.round(viewsSum / posts.length) : 0,
+      topPosts: [...posts]
+        .sort((a, b) => (b.likes || 0) + (b.views || 0) - ((a.likes || 0) + (a.views || 0)))
+        .slice(0, 5)
+        .map((p) => ({
+          id: p.id, url: p.url, caption: (p.caption || "").slice(0, 80),
+          likes: p.likes || 0, comments: p.comments || 0, views: p.views || 0,
+          postType: p.post_type || "기타", hospitalName: p.hospital_name || "",
+        })),
+    };
+  };
+  const postBreakdownByPlatform = {
+    instagram: buildPlatformBreakdown("instagram"),
+    youtube: buildPlatformBreakdown("youtube"),
+  };
 
   // ── 가공: 경쟁사 성장률 비교 테이블 ──
   const competitorTable = (competitors || []).map((c) => {
