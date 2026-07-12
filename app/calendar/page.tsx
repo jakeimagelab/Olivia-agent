@@ -1856,6 +1856,11 @@ export default function CalendarPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  // 모바일에는 "주" 화면이 없음(세그먼트 탭 자체가 안 보임) — 데스크탑에서 리사이즈해 들어온 경우 월로 보정
+  useEffect(() => {
+    if (isMobile && viewMode === "week") setViewMode("month");
+  }, [isMobile, viewMode]);
+
   useEffect(() => {
     if (!showIcsModal) return;
     const close = (e: MouseEvent) => {
