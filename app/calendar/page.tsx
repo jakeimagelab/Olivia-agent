@@ -1528,6 +1528,17 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
       userSelect: dragging ? "none" : undefined,
       cursor: dragging ? "grabbing" : undefined }}>
 
+      {/* 모바일: 월로 돌아가기 */}
+      {isMobile && onNavigateMonth && (
+        <div style={{ padding: "8px 12px 0", flexShrink: 0 }}>
+          <button onClick={onNavigateMonth} style={{
+            background: "none", border: "none", color: C.teal, fontSize: 14, fontWeight: 800,
+            cursor: "pointer", padding: "4px 2px", fontFamily: "inherit" }}>
+            ‹ {d.getMonth()+1}월
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12,
         padding: isMobile ? "10px 12px 8px" : "14px 24px 12px", flexShrink: 0 }}>
