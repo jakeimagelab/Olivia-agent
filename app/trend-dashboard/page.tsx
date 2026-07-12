@@ -140,6 +140,19 @@ export default function TrendDashboardPage() {
     await load(industry);
   };
 
+  const searchKeyword = async () => {
+    const kw = keywordInput.trim();
+    if (!kw) return;
+    setSearchingKeyword(true);
+    try {
+      const res = await fetch(`/api/trend/keyword-analysis?keyword=${encodeURIComponent(kw)}`);
+      const json = await res.json();
+      setKeywordAnalysis(json.ok ? json : null);
+    } finally {
+      setSearchingKeyword(false);
+    }
+  };
+
   const chartRows = data ? mergeKeywordSeries(data.keywordSeries) : [];
   const keywordNames = data ? Object.keys(data.keywordSeries).slice(0, 6) : [];
 
