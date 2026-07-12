@@ -1488,9 +1488,16 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
       const t = e.touches[0];
       setDragging(d => d ? { ...d, currentX: t.clientX, currentY: t.clientY } : null);
     };
-    const finishDrag = (clientY: number) => {
+    const finishDrag = (clientX: number, clientY: number) => {
       const d = draggingRef.current;
       if (d) {
+        const moved = Math.hypot(clientX - dragStartRef.current.x, clientY - dragStartRef.current.y);
+        if (moved < 6) {
+          // 거의 움직이지 않았으면 드래그가 아니라 클릭 — 인라인 편집 폼을 연다
+          setDragging(null);
+          setEditingId(d.task.id);
+          return;
+        }
         const newTime = getTimeFromY(clientY);
         if (newTime && newTime !== (d.task.time ?? "")) {
           onUpdateTask(d.task.id, { time: newTime });
@@ -1498,8 +1505,8 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
       }
       setDragging(null);
     };
-    const onMouseUp = (e: MouseEvent) => finishDrag(e.clientY);
-    const onTouchEnd = (e: TouchEvent) => finishDrag(e.changedTouches[0].clientY);
+    const onMouseUp = (e: MouseEvent) => finishDrag(e.clientX, e.clientY);
+    const onTouchEnd = (e: TouchEvent) => finishDrag(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
     document.addEventListener("mousemove", onMouseMove, { passive: true });
     document.addEventListener("mouseup", onMouseUp);
     document.addEventListener("touchmove", onTouchMove, { passive: false });
