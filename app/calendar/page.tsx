@@ -784,7 +784,40 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
 
           return (
             <div key={idx}
-              onClick={() => onSelectDateAndAdd(dateStr)}
+              ref={el => { cellRefs.current[idx] = el; }}
+              tabIndex={0}
+              className="cal-cell"
+              onFocus={() => setFocusedIdx(idx)}
+              onClick={() => { onSelectDate(dateStr); setSelectedTaskId(null); }}
+              onDoubleClick={() => onSelectDateAndAdd(dateStr)}
+              onKeyDown={e => {
+                const cols = 7;
+                if (e.key === "ArrowRight") { e.preventDefault(); const n = Math.min(cells.length - 1, idx + 1); setFocusedIdx(n); onSelectDate(cellDateStr(n)); }
+                else if (e.key === "ArrowLeft") { e.preventDefault(); const n = Math.max(0, idx - 1); setFocusedIdx(n); onSelectDate(cellDateStr(n)); }
+                else if (e.key === "ArrowDown") { e.preventDefault(); const n = Math.min(cells.length - 1, idx + cols); setFocusedIdx(n); onSelectDate(cellDateStr(n)); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); const n = Math.max(0, idx - cols); setFocusedIdx(n); onSelectDate(cellDateStr(n)); }
+                else if (e.key === "Enter") { e.preventDefault(); onSelectDateAndAdd(dateStr); }
+                else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
+                  if (selectedTaskId) {
+                    const t = tasks.find(x => x.id === selectedTaskId);
+                    if (t) { e.preventDefault(); setClipboardTask(t); }
+                  }
+                }
+                else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "v") {
+                  if (clipboardTask) {
+                    e.preventDefault();
+                    onCreateTask({
+                      date: dateStr, title: clipboardTask.title, memo: clipboardTask.memo,
+                      category: clipboardTask.category, completed: false,
+                      time: clipboardTask.time, end_time: clipboardTask.end_time, location: clipboardTask.location,
+                    });
+                  }
+                }
+                else if (e.key === "Delete" || e.key === "Backspace") {
+                  // 맥 키보드의 "delete" 키는 실제로 Backspace를 전송하므로 둘 다 처리
+                  if (selectedTaskId) { e.preventDefault(); onRequestDelete(selectedTaskId); }
+                }
+              }}
               onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverDate(dateStr); }}
               onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverDate(null); }}
               onDrop={e => {
