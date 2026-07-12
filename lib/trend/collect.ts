@@ -149,6 +149,7 @@ async function collectInstagram() {
 
   await withRunLog<any>("instagram", async () => {
     const allRows: any[] = [];
+    const today = new Date().toISOString().slice(0, 10);
 
     // 1) 업종별 해시태그 인기 게시물 (Apify 동기 스크레이핑이라 업종당 수초~수십초 소요 — 청크 병렬 처리)
     await processInChunks(
