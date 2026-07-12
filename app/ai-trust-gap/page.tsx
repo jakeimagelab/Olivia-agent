@@ -733,9 +733,9 @@ function ExecutionPanel({
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div style={{ padding: 14, borderRadius: 15, background: "linear-gradient(180deg, #FFFDF9 0%, #F7EFE7 100%)", border: `1px solid ${C.borderStrong}`, boxShadow: "0 1px 0 rgba(255,255,255,.9) inset" }}>
-      <div style={{ fontSize: 10, fontWeight: 950, color: C.muted, marginBottom: 5, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</div>
-      <div style={{ fontSize: 25, fontWeight: 950, color: C.teal, letterSpacing: "-.03em" }}>{value.toLocaleString("ko-KR")}</div>
+    <div style={{ padding: 14, borderRadius: 12, background: C.light, border: `1px solid ${C.border}` }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: C.muted, marginBottom: 5, textTransform: "uppercase", letterSpacing: ".05em" }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 900, color: C.teal, letterSpacing: "-.02em" }}>{value.toLocaleString("ko-KR")}</div>
     </div>
   );
 }
