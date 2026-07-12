@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { generateKeywordInsight } from "@/lib/trend/insights";
+import { isHospitalRelevantContent } from "@/lib/trend/contentFilter";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
