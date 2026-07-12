@@ -148,16 +148,17 @@ async function collectInstagram() {
   const db = getSupabaseAdmin();
 
   await withRunLog<any>("instagram", async () => {
-    const rows: any[] = [];
-    const today = new Date().toISOString().slice(0, 10);
+    const allRows: any[] = [];
 
-    // 1) 업종별 해시태그 인기 게시물
-    for (const industry of TREND_INDUSTRIES) {
-      const hashtag = DEFAULT_KEYWORDS_BY_INDUSTRY[industry][0].replace(/\s+/g, "");
-      try {
-        const posts = await fetchInstagramHashtagPosts(hashtag, { resultsLimit: 15 });
-        for (const p of posts) {
-          rows.push({
+    // 1) 업종별 해시태그 인기 게시물 (Apify 동기 스크레이핑이라 업종당 수초~수십초 소요 — 청크 병렬 처리)
+    await processInChunks(
+      TREND_INDUSTRIES,
+      3,
+      async (industry) => {
+        const hashtag = DEFAULT_KEYWORDS_BY_INDUSTRY[industry][0].replace(/\s+/g, "");
+        try {
+          const posts = await fetchInstagramHashtagPosts(hashtag, { resultsLimit: 15 });
+          return posts.map((p) => ({
             platform: "instagram",
             industry,
             post_type: p.type,
@@ -168,15 +169,19 @@ async function collectInstagram() {
             likes: p.likesCount,
             comments: p.commentsCount,
             posted_at: p.timestamp || null,
-          });
+          }));
+        } catch {
+          // 개별 해시태그 실패는 전체 수집을 막지 않음
+          return [];
         }
-      } catch {
-        // 개별 해시태그 실패는 전체 수집을 막지 않음
+      },
+      async (rows) => {
+        allRows.push(...rows);
+        await db.from("trend_sns_posts").insert(rows);
       }
-    }
-    if (rows.length > 0) {
-      await db.from("trend_sns_posts").insert(rows);
-    }
+    );
+
+    const rows = allRows;
 
     // 2) 등록된 경쟁 병원 프로필 스냅샷
     const { data: competitors } = await db
