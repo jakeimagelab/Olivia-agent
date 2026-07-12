@@ -703,16 +703,41 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
 
 
 /* ─── MonthView ───────────────────────────────────────── */
-function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onSelectDateAndAdd, onUpdateTask, onPrev, onNext }: {
+function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onSelectDateAndAdd, onUpdateTask, onCreateTask, onRequestDelete, onPrev, onNext }: {
   year: number; month: number; todayStr: string; selectedDate: string;
   tasksByDate: Record<string, CalTask[]>;
   onSelectDate: (d: string) => void; onSelectDateAndAdd: (d: string) => void;
   onUpdateTask: (id: string, fields: Partial<CalTask>) => void;
+  onCreateTask: (fields: Omit<CalTask, "id" | "created_at">) => Promise<CalTask | null>;
+  onRequestDelete: (id: string) => void;
   onPrev: () => void; onNext: () => void;
 }) {
   const { cells } = buildMonthCells(year, month);
   const [dragTask,     setDragTask]     = useState<CalTask | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+
+  // ── 키보드 조작: 셀 포커스 이동, 태스크 선택/복사/붙여넣기/삭제 ──
+  const [focusedIdx,    setFocusedIdx]    = useState(0);
+  const [selectedTaskId,setSelectedTaskId]= useState<string | null>(null);
+  const [clipboardTask, setClipboardTask] = useState<CalTask | null>(null); // 메모리에만 보관 (새로고침 시 초기화)
+  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const cellDateStr = (n: number) => {
+    const c = cells[n];
+    return `${c.year}-${String(c.month+1).padStart(2,"0")}-${String(c.day).padStart(2,"0")}`;
+  };
+
+  // 월 이동 시 focus를 선택된 날짜(없으면 오늘, 없으면 첫 칸)로 재조정
+  useEffect(() => {
+    const bySelected = cells.findIndex((_, i) => cellDateStr(i) === selectedDate);
+    const byToday    = cells.findIndex((_, i) => cellDateStr(i) === todayStr);
+    setFocusedIdx(bySelected >= 0 ? bySelected : byToday >= 0 ? byToday : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month]);
+
+  useEffect(() => {
+    cellRefs.current[focusedIdx]?.focus({ preventScroll: true });
+  }, [focusedIdx]);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
