@@ -844,9 +844,19 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
           background: C.mint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
           <ChevronLeft size={16}/>
         </button>
-        <div style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900, color: C.teal, letterSpacing: "-0.3px" }}>
-          {year}년 {monthLabel(month)}
-        </div>
+        {isMobile ? (
+          <button onClick={onNavigateYear} style={{
+            flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900, color: C.teal, letterSpacing: "-0.3px",
+            background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+          }}>
+            <ChevronLeft size={15} style={{ opacity: .55 }}/> {year}년 {monthLabel(month)}
+          </button>
+        ) : (
+          <div style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900, color: C.teal, letterSpacing: "-0.3px" }}>
+            {year}년 {monthLabel(month)}
+          </div>
+        )}
         <button onClick={onNext} style={{ width: 32, height: 32, border: `1.5px solid ${C.border}`, borderRadius: 8,
           background: C.mint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
           <ChevronRight size={16}/>
