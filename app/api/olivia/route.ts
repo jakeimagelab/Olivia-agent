@@ -457,6 +457,15 @@ function calendarShortcutFromText(text: string) {
       return null;
     }
 
+    // 한 문장에 일정이 여러 건 섞여 있으면(예: "A 추가, B 넣어줘") 이 shortcut은
+    // 시간/제목을 하나로만 뽑아서 뭉개버리므로 bail out — Claude의 tool-use 턴이
+    // calendar_add_bulk로 각 일정을 따로 처리하도록 넘긴다.
+    const timeMatches = text.match(/(오전|오후)?\s*\d{1,2}\s*시(?:\s*\d{1,2}\s*분)?/g) || [];
+    const actionVerbMatches = text.match(/(추가|등록|넣어|잡아|예약)/g) || [];
+    if (timeMatches.length >= 2 || actionVerbMatches.length >= 2) {
+      return null;
+    }
+
     const resolvedDate = date || formatDate(new Date(`${TODAY}T00:00:00+09:00`));
     if (!title) {
       return { ok: true, type: "message", text: "어떤 일정 제목으로 추가할까요? 예: 내일 오후 3시 포토클리닉 미팅 추가해줘" };
