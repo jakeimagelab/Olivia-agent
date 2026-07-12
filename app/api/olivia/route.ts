@@ -131,7 +131,7 @@ const TOOLS: Anthropic.Tool[] = [
         title:    { type: "string",  description: "할일 제목" },
         time:     { type: "string",  description: "시간 HH:MM 24시간제 (선택)" },
         location: { type: "string",  description: "장소 (선택)" },
-        category: { type: "string",  enum: ["shooting","client","admin","general"], description: "촬영|고객미팅|행정|기타" },
+        category: { type: "string",  enum: ["shooting","client","admin","personal","general"], description: "촬영|고객미팅|행정|개인|기타" },
         memo:     { type: "string",  description: "메모 (선택)" },
       },
       required: ["date", "title"],
@@ -203,7 +203,7 @@ const TOOLS: Anthropic.Tool[] = [
         title:     { type: "string", description: "변경할 제목" },
         time:      { type: "string", description: "변경할 시간 HH:MM" },
         location:  { type: "string", description: "변경할 장소" },
-        category:  { type: "string", enum: ["shooting","client","admin","general"], description: "변경할 카테고리" },
+        category:  { type: "string", enum: ["shooting","client","admin","personal","general"], description: "변경할 카테고리" },
         memo:      { type: "string", description: "변경할 메모" },
         completed: { type: "boolean", description: "완료 여부 변경" },
       },
@@ -314,7 +314,7 @@ const TOOLS: Anthropic.Tool[] = [
               title:    { type: "string", description: "할일 제목" },
               time:     { type: "string", description: "시간 또는 시간범위 (예: 10:00 또는 10:00~13:00)" },
               location: { type: "string", description: "장소 (선택)" },
-              category: { type: "string", enum: ["shooting","client","admin","general"] },
+              category: { type: "string", enum: ["shooting","client","admin","personal","general"] },
               memo:     { type: "string", description: "메모 (선택)" },
             },
             required: ["date", "title"],
@@ -384,6 +384,7 @@ const inferCategory = (text: string) => {
   if (/촬영|스튜디오|프로필|영상|콘텐츠/.test(text)) return "shooting";
   if (/미팅|상담|회의|클라이언트|병원|원장|실장/.test(text)) return "client";
   if (/정산|계약|견적|세금|입금|청구|관리/.test(text)) return "admin";
+  if (/개인\s*(일정|약속|용무)|개인적으로/.test(text)) return "personal";
   return "general";
 };
 
@@ -590,7 +591,7 @@ Available tools:
 캘린더 도구 사용 규칙:
 - 날짜 표현('오늘', '내일', '다음주 월요일' 등)은 반드시 위의 오늘 날짜 기준으로 YYYY-MM-DD로 변환할 것
 - 시간은 24시간제 HH:MM 형식 (예: 오후 3시 → 15:00, 범위는 10:00~13:00)
-- 카테고리: shooting=촬영, client=고객/미팅, admin=행정, general=기타
+- 카테고리: shooting=촬영, client=고객/미팅, admin=행정, personal=개인, general=기타
 - 2개 이상 일정 추가 시 calendar_add를 여러 번 호출하지 말고 calendar_add_bulk 하나로 처리할 것
 - calendar_delete/complete/update는 ID를 알고 있으면 ID를 사용하고, ID를 모르면 date와 matchTitle을 넣어 도구가 일정을 찾게 할 것
 - "추가해줘", "등록해줘", "캘린더에 넣어줘", "일정 잡아줘"는 calendar_add 또는 calendar_add_bulk를 사용 (날짜/시간이 없는 순수 메모는 아래 규칙 참고)
@@ -997,7 +998,7 @@ async function executeTool(name: string, input: any, req: NextRequest) {
     if (tasks.length === 0) {
       return { action: "done", message: `📅 ${input.date}에 등록된 할일이 없어요.` };
     }
-    const CATLABEL: Record<string, string> = { shooting:"촬영", client:"고객/미팅", admin:"행정", general:"기타" };
+    const CATLABEL: Record<string, string> = { shooting:"촬영", client:"고객/미팅", admin:"행정", personal:"개인", general:"기타" };
     const lines = tasks.map((t, i) => {
       const done  = t.completed ? "✅" : "⬜";
       const time  = t.time     ? ` ${t.time}` : "";
