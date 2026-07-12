@@ -1427,13 +1427,14 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
 
 /* ─── DayView (full-width day detail) ────────────────── */
 function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd, onEdit,
-  onUpdateTask, isMobile = false, onPrev, onNext, onOpenAdd, onNavigateMonth }: {
+  onUpdateTask, isMobile = false, onPrev, onNext, onOpenAdd, onOpenEdit, onNavigateMonth }: {
   dateStr: string; tasks: CalTask[]; loading: boolean; todayStr: string;
   onToggle: (t: CalTask) => void; onDelete: (id: string) => void;
   onAdd: (t: CalTask) => void; onEdit: (t: CalTask) => void;
   onUpdateTask: (id: string, fields: Partial<CalTask>) => void;
   isMobile?: boolean; onPrev: () => void; onNext: () => void;
   onOpenAdd?: (date: string, x: number, y: number, time?: string) => void;
+  onOpenEdit?: (task: CalTask, x: number, y: number) => void;
   onNavigateMonth?: () => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
