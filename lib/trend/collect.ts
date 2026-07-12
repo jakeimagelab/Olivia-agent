@@ -4,8 +4,12 @@ import { fetchNaverKeywordTrend, naverKeysConfigured } from "./naverDatalab";
 import { fetchGoogleTrend } from "./googleTrends";
 import { fetchInstagramHashtagPosts, fetchInstagramProfileStats, apifyTokenConfigured } from "./instagramApify";
 import { fetchYoutubeChannelStats, searchYoutubeTrending, youtubeKeyConfigured } from "./youtube";
+import { isHospitalRelevantContent } from "./contentFilter";
 
 type RunSource = "naver" | "youtube" | "google_trends" | "instagram";
+
+// Apify가 반환하는 영어 타입을 유튜브 쪽(쇼츠/롱폼)과 표기를 맞춘다.
+const INSTAGRAM_TYPE_KO: Record<string, string> = { Image: "이미지", Video: "동영상", Sidecar: "슬라이드" };
 
 // 진료과가 17개로 늘어나면서 순차 루프로는 Vercel maxDuration(120s)을 넘길 수 있다.
 // 청크 단위로 병렬 처리해 총 대기 시간을 줄이고, 청크가 끝날 때마다 바로 저장해서
