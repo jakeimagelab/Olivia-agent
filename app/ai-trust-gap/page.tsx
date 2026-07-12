@@ -433,37 +433,24 @@ function Hero() {
     { label: "Shoot", value: "촬영 기획", desc: "Trust Gap 연결" },
   ];
   return (
-    <section style={{ position: "relative", overflow: "hidden", background: `linear-gradient(135deg, ${C.teal} 0%, #1F5146 52%, #5B3A25 100%)`, border: "1px solid rgba(255,253,249,.18)", borderRadius: 22, padding: 30, boxShadow: "0 24px 60px rgba(36,31,26,.18)" }}>
-      <div style={{ position: "absolute", right: -120, top: -140, width: 320, height: 320, borderRadius: "50%", background: "rgba(232,93,44,.2)" }} />
-      <div style={{ position: "absolute", left: -100, bottom: -160, width: 260, height: 260, borderRadius: "50%", background: "rgba(255,253,249,.08)" }} />
-      <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(300px, .85fr)", gap: 24, alignItems: "stretch" }}>
-        <div>
-          <div style={{ display: "inline-flex", alignItems: "center", height: 28, padding: "0 12px", borderRadius: 999, background: "rgba(255,253,249,.12)", color: "#F8D5C6", fontSize: 10, fontWeight: 900, letterSpacing: ".16em", textTransform: "uppercase", marginBottom: 14, border: "1px solid rgba(255,253,249,.18)" }}>AI TRUST GAP</div>
-          <h1 style={{ margin: 0, maxWidth: 720, fontSize: 36, letterSpacing: "-.035em", lineHeight: 1.12, color: "#FFFDF9", fontWeight: 950 }}>반복 추천 병원의 신뢰 증거를 찾아 촬영 전략으로 연결합니다.</h1>
-          <p style={{ margin: "16px 0 0", maxWidth: 760, fontSize: 14, lineHeight: 1.86, color: "rgba(255,253,249,.76)" }}>
-            DEMAND DATA → PROMPT MODEL → AI AUDIT → CONSENSUS → EVIDENCE → TRUST GAP → STRATEGY → SHOOT PLAN 흐름으로 분석합니다.
-          </p>
-          <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 22 }}>
-            {["결과", "근거", "해석", "실행"].map((item) => (
-              <span key={item} style={{ height: 30, display: "inline-flex", alignItems: "center", padding: "0 12px", borderRadius: 999, background: "rgba(255,253,249,.1)", color: "#FFFDF9", border: "1px solid rgba(255,253,249,.16)", fontSize: 11, fontWeight: 900 }}>{item}</span>
-            ))}
+    <section style={panelStyle}>
+      <div style={{ display: "inline-flex", alignItems: "center", height: 24, padding: "0 10px", borderRadius: 999, background: "rgba(232,93,44,.09)", color: C.orange, fontSize: 10, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 12, border: "1px solid rgba(232,93,44,.22)" }}>AI Trust Gap</div>
+      <h1 style={{ margin: 0, maxWidth: 640, fontSize: 24, letterSpacing: "-.02em", lineHeight: 1.35, color: C.teal, fontWeight: 900 }}>반복 추천 병원의 신뢰 증거를 찾아 촬영 전략으로 연결합니다.</h1>
+      <p style={{ margin: "10px 0 0", maxWidth: 640, fontSize: 13, lineHeight: 1.75, color: C.muted }}>
+        Demand → Prompt → AI Audit → Consensus → Evidence → Trust Gap → Strategy → Shoot Plan 흐름으로 분석합니다.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginTop: 18 }}>
+        {signals.map((signal) => (
+          <div key={signal.label} style={{ padding: 13, borderRadius: 12, background: C.light, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 10, color: C.orange, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em" }}>{signal.label}</div>
+            <div style={{ marginTop: 8, fontSize: 14, color: C.teal, fontWeight: 800, lineHeight: 1.25 }}>{signal.value}</div>
+            <div style={{ marginTop: 4, fontSize: 11, color: C.muted, lineHeight: 1.4 }}>{signal.desc}</div>
           </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12, padding: 16, borderRadius: 18, background: "rgba(255,253,249,.1)", border: "1px solid rgba(255,253,249,.18)", boxShadow: "0 1px 0 rgba(255,255,255,.12) inset" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-            {signals.map((signal) => (
-              <div key={signal.label} style={{ minHeight: 108, padding: 13, borderRadius: 14, background: "rgba(255,253,249,.88)", boxShadow: "0 10px 28px rgba(0,0,0,.08)" }}>
-                <div style={{ fontSize: 10, color: C.orange, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".1em" }}>{signal.label}</div>
-                <div style={{ marginTop: 10, fontSize: 15, color: C.teal, fontWeight: 950, lineHeight: 1.25 }}>{signal.value}</div>
-                <div style={{ marginTop: 6, fontSize: 10.5, color: C.muted, lineHeight: 1.5 }}>{signal.desc}</div>
-              </div>
-            ))}
-          </div>
-          <Link href="/clients" style={{ height: 42, padding: "0 14px", borderRadius: 12, border: "1px solid rgba(255,253,249,.4)", background: "#FFFDF9", color: C.teal, display: "inline-flex", gap: 8, alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 950, textDecoration: "none", boxShadow: "0 12px 24px rgba(0,0,0,.12)" }}>
-            고객 관리에서 병원 선택 <ArrowRight size={15} />
-          </Link>
-        </div>
+        ))}
       </div>
+      <Link href="/clients" style={{ marginTop: 16, height: 38, padding: "0 14px", borderRadius: 9, border: `1px solid ${C.border}`, background: C.white, color: C.teal, display: "inline-flex", gap: 6, alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, textDecoration: "none", width: "fit-content" }}>
+        고객 관리에서 병원 선택 <ArrowRight size={14} />
+      </Link>
     </section>
   );
 }
