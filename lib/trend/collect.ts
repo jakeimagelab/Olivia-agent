@@ -7,6 +7,23 @@ import { fetchYoutubeChannelStats, searchYoutubeTrending, youtubeKeyConfigured }
 
 type RunSource = "naver" | "youtube" | "google_trends" | "instagram";
 
+// 진료과가 17개로 늘어나면서 순차 루프로는 Vercel maxDuration(120s)을 넘길 수 있다.
+// 청크 단위로 병렬 처리해 총 대기 시간을 줄이고, 청크가 끝날 때마다 바로 저장해서
+// 타임아웃이 나더라도 이미 처리된 업종의 데이터는 남긴다.
+async function processInChunks<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R[]>,
+  onChunkDone: (rows: R[]) => Promise<void>
+) {
+  for (let i = 0; i < items.length; i += concurrency) {
+    const chunk = items.slice(i, i + concurrency);
+    const results = await Promise.allSettled(chunk.map(fn));
+    const rows = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+    if (rows.length > 0) await onChunkDone(rows);
+  }
+}
+
 async function withRunLog<T>(source: RunSource, fn: () => Promise<{ items: T[] }>) {
   const db = getSupabaseAdmin();
   const { data: run, error: insertErr } = await db
