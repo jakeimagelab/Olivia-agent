@@ -328,7 +328,7 @@ export default function TrendDashboardPage() {
         </SectionCard>
 
         {/* ── SNS 트렌드: 인스타그램 / 유튜브 분리 ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16, marginTop: 16, alignItems: "start" }}>
           <PlatformCard
             title="인스타그램 게시물 분석"
             icon={<Instagram size={14} color="#E85D2C" />}
