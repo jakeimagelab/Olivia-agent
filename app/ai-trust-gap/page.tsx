@@ -457,23 +457,23 @@ function Hero() {
 
 function StepNav() {
   return (
-    <section style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 18, padding: 14, overflowX: "auto", boxShadow: C.shadow }}>
+    <section style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, overflowX: "auto", boxShadow: C.shadow }}>
       <div style={{ display: "flex", minWidth: "max-content", gap: 8 }}>
         {steps.map((step, index) => {
           const Icon = step.icon;
           const active = index < 4;
           return (
             <div key={step.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ minWidth: 124, padding: 10, borderRadius: 14, background: active ? "#FFF7EF" : C.paper, border: `1px solid ${active ? "rgba(232,93,44,.25)" : C.border}` }}>
+              <div style={{ minWidth: 124, padding: 10, borderRadius: 12, background: active ? C.light : C.paper, border: `1px solid ${active ? "rgba(21,88,85,.2)" : C.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, color: active ? C.teal : C.hint }}>
-                  <span style={{ width: 24, height: 24, borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", background: active ? C.orange : "#E4D9CD", color: active ? "#fff" : C.muted }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 7, display: "inline-flex", alignItems: "center", justifyContent: "center", background: active ? C.teal : "#E1E9E7", color: active ? "#fff" : C.muted }}>
                     <Icon size={13} />
                   </span>
-                  <span style={{ fontSize: 11, fontWeight: 950 }}>{step.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800 }}>{step.label}</span>
                 </div>
                 <div style={{ marginTop: 6, fontSize: 10, color: C.muted, lineHeight: 1.35 }}>{step.desc}</div>
               </div>
-              {index < steps.length - 1 && <ArrowRight size={14} color={active ? C.orange : C.hint} />}
+              {index < steps.length - 1 && <ArrowRight size={14} color={active ? C.teal : C.hint} />}
             </div>
           );
         })}
