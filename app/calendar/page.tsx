@@ -1868,6 +1868,37 @@ export default function CalendarPage() {
     setAllTasks(ts => [...ts, task]); setDayTasks(ts => [...ts, task]);
   };
 
+  // 삭제는 항상 확인 팝업을 거치도록 통일 — 트래시 아이콘, 키보드 Delete 모두 이 경로를 탐
+  const taskById = useMemo(() => {
+    const map: Record<string, CalTask> = {};
+    for (const t of allTasks) map[t.id] = t;
+    return map;
+  }, [allTasks]);
+  const requestDeleteTask = (id: string) => setConfirmDeleteId(id);
+  const confirmDelete = async () => {
+    if (confirmDeleteId) await deleteTask(confirmDeleteId);
+    setConfirmDeleteId(null);
+  };
+
+  // 키보드 붙여넣기(Cmd/Ctrl+V) 등, AddTaskForm 내부 submit()을 거치지 않는 생성 경로용
+  const createTask = async (fields: Omit<CalTask, "id" | "created_at">): Promise<CalTask | null> => {
+    try {
+      const r = await fetch("/api/calendar", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: fields.date, title: fields.title, memo: fields.memo,
+          category: fields.category, time: fields.time ?? null,
+          end_time: fields.end_time ?? null, location: fields.location ?? null,
+        }),
+      });
+      const d = await r.json();
+      if (!d.ok) return null;
+      const newTask: CalTask = { ...fields, id: d.id, created_at: new Date().toISOString() };
+      addTask(newTask);
+      return newTask;
+    } catch { return null; }
+  };
+
   const VIEW_LABELS: Record<ViewMode, string> = { day: "일", week: "주", month: "월", year: "년" };
 
   return (
