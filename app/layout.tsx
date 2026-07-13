@@ -40,8 +40,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-screen font-sans antialiased">
         <SplashScreen />
         <CursorEffect />
-        <GlobalClientContextBridge />
-        {children}
+        <GlobalFeatureSidebar>
+          <GlobalClientContextBridge />
+          {children}
+        </GlobalFeatureSidebar>
         <GlobalOliviaChat />
         <script dangerouslySetInnerHTML={{ __html: `
           document.addEventListener("click", function(e) {
