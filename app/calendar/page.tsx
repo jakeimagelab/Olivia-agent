@@ -1239,7 +1239,12 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           onOpenEdit(d.task, clientX, clientY);
           return;
         }
-        const target = getPosTarget(clientX, clientY, cachedRects);
+        // 박스 안 어디를 잡았든(offsetY) 실제로 화면에 보이는 박스의 "윗변"이 새 시작시간이 되어야
+        // 한다 — getPosTarget에 커서 좌표를 그대로 넣으면 잡은 지점(offsetY)만큼 항상 더 밀려서
+        // 계산되는 버그가 있었다(예: 박스 중간을 잡고 30분 내리면 실제로는 1시간+ 밀려 보임).
+        // ghost의 시각적 top(=clientY - offsetY)과 반드시 같은 좌표를 써야 눈에 보이는 위치와
+        // 저장되는 시간이 일치한다.
+        const target = getPosTarget(clientX, clientY - d.offsetY, cachedRects);
         if (target && (target.date !== d.task.date || target.time !== d.task.time)) {
           // 통째로 이동 — 기존 소요시간(예: 10시~12시 = 2시간)을 그대로 유지한 채 새 시작시간으로 옮긴다
           const fields: Partial<CalTask> = { date: target.date, time: target.time };
