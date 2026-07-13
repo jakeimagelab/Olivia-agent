@@ -524,6 +524,42 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
   );
 }
 
+/* ─── EventDetailView (읽기 전용, "편집" 눌러야 수정 폼으로 전환) ── */
+function EventDetailView({ task, onEdit }: { task: CalTask; onEdit: () => void }) {
+  const cat = CATS[task.category] ?? CATS.general;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ width: 10, height: 10, borderRadius: 3, background: cat.color, marginTop: 5, flexShrink: 0 }}/>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: C.txt, lineHeight: 1.35,
+            textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</div>
+          <span style={{ display: "inline-block", marginTop: 5, fontSize: 11, fontWeight: 800, color: cat.color,
+            background: cat.bg, padding: "2px 9px", borderRadius: 99 }}>{cat.label}</span>
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: C.muted }}>
+        <div>📅 {new Date(task.date + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</div>
+        {task.time && (
+          <div>⏰ {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}</div>
+        )}
+        {task.location && <div>📍 {task.location}</div>}
+      </div>
+      {task.memo && (
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6, background: "#FAFCFB",
+          border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", whiteSpace: "pre-wrap" }}>
+          {task.memo}
+        </div>
+      )}
+      <button onClick={onEdit} style={{
+        height: 38, background: C.teal, color: "#fff", border: "none",
+        borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+        편집
+      </button>
+    </div>
+  );
+}
+
 /* ─── ConsultMemoPanel ─────────────────────────────────── */
 function ConsultMemoPanel({ dateStr, consultations, onAdd }: {
   dateStr: string;
