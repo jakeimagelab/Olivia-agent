@@ -829,8 +829,8 @@ function DashboardPanel({data,loading,onRefresh}:{data:DashboardData|null; loadi
       {/* today tasks */}
       {data && <TodayTasks tasks={data.todayTasks ?? []} onRefresh={onRefresh}/>}
 
-      {/* quick memo — consult input */}
-      {data && <QuickMemoWidget memos={data.recentMemos ?? []} onRefresh={onRefresh}/>}
+      {/* daily quote */}
+      <DailyQuoteWidget/>
 
       {/* total task count */}
       <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:"#fff",borderRadius:10,border:"1px solid rgba(21,88,85,.1)",boxShadow:"0 1px 6px rgba(21,88,85,.05)"}}>
