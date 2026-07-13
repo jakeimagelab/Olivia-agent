@@ -46,6 +46,33 @@ const CATS: Record<string, { label: string; color: string; bg: string }> = {
   general:  { label: "기타",    color: "#5A7470", bg: "#F3F4F6" },
 };
 
+/* 일정 드래그용 커스텀 마우스 커서 — 기본 OS grab/grabbing 손 아이콘 대신 그라디언트+그림자로
+   입체감(눌린 듯한 원형 손잡이) 있는 커서를 씀. data URI 안의 '#'은 외부 URL의 fragment로
+   오인되지 않도록 encodeURIComponent로 통째로 인코딩해야 한다. */
+function svgCursorUrl(svg: string, fallback: string) {
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 16 16, ${fallback}`;
+}
+const CURSOR_GRAB = svgCursorUrl(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
+    <defs><radialGradient id='cg' cx='38%' cy='30%' r='75%'>
+      <stop offset='0%' stop-color='#ffffff'/>
+      <stop offset='55%' stop-color='#DCEAE7'/>
+      <stop offset='100%' stop-color='#5E8983'/>
+    </radialGradient></defs>
+    <ellipse cx='16' cy='20' rx='8.5' ry='6.5' fill='#000000' opacity='0.22'/>
+    <circle cx='16' cy='15' r='9' fill='url(#cg)' stroke='#0F4440' stroke-width='1.5'/>
+  </svg>`, "grab");
+const CURSOR_GRABBING = svgCursorUrl(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
+    <defs><radialGradient id='cg2' cx='40%' cy='38%' r='80%'>
+      <stop offset='0%' stop-color='#EAF1EF'/>
+      <stop offset='60%' stop-color='#9FBAB5'/>
+      <stop offset='100%' stop-color='#4C726C'/>
+    </radialGradient></defs>
+    <ellipse cx='16' cy='19' rx='7.5' ry='5.5' fill='#000000' opacity='0.28'/>
+    <circle cx='16' cy='16' r='8' fill='url(#cg2)' stroke='#0F4440' stroke-width='1.5'/>
+  </svg>`, "grabbing");
+
 const WEEKDAYS = ["일","월","화","수","목","금","토"];
 const HOURS = Array.from({length: 15}, (_, i) => i + 7); // 07:00~21:00
 const HOUR_HEIGHT = 64; // px per hour
