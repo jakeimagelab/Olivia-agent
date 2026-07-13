@@ -1379,10 +1379,11 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                 {/* Timed event blocks */}
                 {timedTasks.map(t => {
                   const cat = CATS[t.category] ?? CATS.general;
-                  const top = timeToTop(t.time!);
                   const isResizing = resizeInfo?.task.id === t.id;
-                  const currentEnd = isResizing ? resizeInfo!.previewEndTime : t.end_time;
-                  const height = durationPx(t.time!, currentEnd);
+                  const currentStart = isResizing && resizeInfo!.edge === "top" ? resizeInfo!.previewStartTime : t.time!;
+                  const currentEnd = isResizing && resizeInfo!.edge === "bottom" ? resizeInfo!.previewEndTime : t.end_time;
+                  const top = timeToTop(currentStart);
+                  const height = durationPx(currentStart, currentEnd);
                   const isDraggingThis = dragging?.task.id === t.id;
 
                   return (
