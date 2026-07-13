@@ -447,6 +447,7 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
   onDelete: (id: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [editing, setEditing] = useState(false); // 편집 버튼을 눌러야 수정 폼(+삭제)이 나온다
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
