@@ -1180,7 +1180,13 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         }
         const target = getPosTarget(clientX, clientY);
         if (target && (target.date !== d.task.date || target.time !== d.task.time)) {
-          onUpdateTask(d.task.id, { date: target.date, time: target.time });
+          // 통째로 이동 — 기존 소요시간(예: 10시~12시 = 2시간)을 그대로 유지한 채 새 시작시간으로 옮긴다
+          const fields: Partial<CalTask> = { date: target.date, time: target.time };
+          if (d.task.end_time && d.task.time) {
+            const durationMins = timeToMinutes(d.task.end_time) - timeToMinutes(d.task.time);
+            if (durationMins > 0) fields.end_time = minutesToTime(timeToMinutes(target.time) + durationMins);
+          }
+          onUpdateTask(d.task.id, fields);
         }
       }
       setDragging(null);
