@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { FormEvent, useEffect, useRef, useState } from "react";
+import { TOOLS_WORK, TOOLS_CONTENT, type ToolDef } from "@/lib/toolNav";
 import {
   Activity, BarChart2, ArrowRight, CalendarCheck, ClipboardList,
   FileVideo, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
