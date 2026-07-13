@@ -13,8 +13,6 @@ export default function ChannelAnalyzerPage() {
       {/* 우리 앱 헤더 */}
       <header className="pc-header" style={{ flexShrink: 0 }}>
         <div className="pc-header-left">
-          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
-          <div className="pc-header-divider" />
           <div className="pc-header-brand">
             <img
               src="https://photoclinic-diangnoisis.vercel.app/logo.svg"

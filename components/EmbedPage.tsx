@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 interface EmbedPageProps {
   title: string;
   badge: string;
@@ -20,10 +17,6 @@ export default function EmbedPage({ title, badge, src }: EmbedPageProps) {
           />
           <span>{badge}</span>
         </div>
-        <Link className="admin-secondary-link" href="/">
-          <ArrowLeft size={17} />
-          관리자 홈
-        </Link>
       </header>
       <iframe
         className="analyzer-frame"

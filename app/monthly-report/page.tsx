@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { calendarItems, hospitals, reportItems } from "@/lib/subscription-data";
 import { createMailingDraft } from "@/lib/mailingQueue";
@@ -32,7 +31,6 @@ export default function MonthlyReportPage() {
   return (
     <main className="ops-shell">
       <header className="ops-header">
-        <Link href="/" className="pc-header-back">← 관리자 홈</Link>
         <p>Monthly Report</p>
         <h1>월간 운영 리포트</h1>
         <span>구독 병원에 매달 제공할 콘텐츠 운영 결과와 다음 달 제안을 정리합니다.</span>

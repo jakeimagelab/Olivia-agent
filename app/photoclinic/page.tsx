@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import OliviaChat from "@/components/OliviaChat";
@@ -8,7 +7,6 @@ import PageHeader from "@/components/PageHeader";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import {
-  ArrowLeft,
   Download,
   Plus,
   RefreshCcw,
@@ -1106,7 +1104,6 @@ export default function QuoteBuilder() {
           <header className="rounded-lg border border-[#155855]/15 bg-white px-5 py-5 shadow-sm">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
               <span style={{fontSize:"11px",fontWeight:700,color:"#E85D2C",letterSpacing:"0.1em",textTransform:"uppercase"}}>PHOTO CLINIC · QUOTE BUILDER</span>
-              <Link href="/" style={{display:"inline-flex",alignItems:"center",gap:"6px",fontSize:"12px",fontWeight:700,color:"#5A7470",textDecoration:"none",border:"1px solid #C8DDD9",padding:"5px 12px",borderRadius:"8px"}}><ArrowLeft size={13}/>관리자 홈</Link>
             </div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e85d2c]" style={{display:"none"}}>
               Photo Clinic Admin

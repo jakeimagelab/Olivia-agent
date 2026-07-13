@@ -112,8 +112,6 @@ export default function DeliveryMailPage() {
       {/* NAV */}
       <header className="pc-header">
         <div className="pc-header-left">
-          <a href="/" className="pc-header-back">← 관리자 홈</a>
-          <div className="pc-header-divider" />
           <div className="pc-header-brand">
             <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
             <span className="pc-header-title">File Transfer</span>

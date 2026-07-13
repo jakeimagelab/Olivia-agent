@@ -2278,14 +2278,12 @@ export default function CalendarPage() {
 
       <header className="pc-header">
         <div className="pc-header-left">
-          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
-          <div className="pc-header-divider"/>
           <div className="pc-header-brand">
             <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo"/>
             <span className="pc-header-title">업무 캘린더</span>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", paddingRight: isMobile ? 8 : 16, flexWrap: "nowrap" }}>
+        <div className="pc-header-actions" style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: isMobile ? 8 : 16, flexWrap: "nowrap" }}>
           {/* view mode tabs — 모바일에서는 숨기고 연/월/일 드릴다운 내비게이션으로 대체 */}
           {!isMobile && (
             <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,

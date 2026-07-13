@@ -219,10 +219,6 @@ function SeoDeliveryInner() {
       {/* ── 헤더 ── */}
       <header className="pc-header">
         <div className="pc-header-left">
-          <Link href={clientId ? `/clients?id=${clientId}` : "/"} className="pc-header-back">
-            ← {clientId ? "고객관리" : "관리자 홈"}
-          </Link>
-          <div className="pc-header-divider" />
           <div className="pc-header-brand">
             <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
             <span className="pc-header-title">
@@ -230,11 +226,11 @@ function SeoDeliveryInner() {
             </span>
           </div>
         </div>
-        {!clientId && (
-          <div className="pc-header-actions" style={{ fontSize: 11, color: "#9BB5B0" }}>
-            독립 실행 모드
-          </div>
-        )}
+        <div className="pc-header-actions" style={{ fontSize: 11, color: "#9BB5B0" }}>
+          {clientId
+            ? <Link href={`/clients?id=${clientId}`} className="pc-header-back">← 고객관리</Link>
+            : <span>독립 실행 모드</span>}
+        </div>
       </header>
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 16px 80px" }}>

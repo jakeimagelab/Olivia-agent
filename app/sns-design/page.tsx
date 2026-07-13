@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { assets, hospitals } from "@/lib/subscription-data";
 
@@ -25,7 +24,6 @@ export default function SnsDesignPage() {
   return (
     <main className="ops-shell">
       <header className="ops-header">
-        <Link href="/" className="pc-header-back">← 관리자 홈</Link>
         <p>SNS Design</p>
         <h1>SNS 디자인 생성</h1>
         <span>촬영 사진을 선택해 구독 병원의 SNS 이미지와 릴스 썸네일을 카드형 템플릿으로 만듭니다.</span>

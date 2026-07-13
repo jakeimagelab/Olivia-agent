@@ -1570,8 +1570,6 @@ export default function WebsiteBuilderPage() {
     <main className="admin-shell">
       <PageHeader
         title="홈페이지 제작"
-        backHref="/"
-        backLabel="관리자 홈"
         actions={
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button onClick={handleSaveProject} style={{
@@ -1736,4 +1734,3 @@ export default function WebsiteBuilderPage() {
     </main>
   );
 }
-

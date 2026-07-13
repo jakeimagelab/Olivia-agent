@@ -61,16 +61,15 @@ function ShootingInner() {
     <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}>
       <header className="pc-header">
         <div className="pc-header-left">
-          {clientId
-            ? <Link href={`/clients?id=${clientId}`} className="pc-header-back">← 고객 화면</Link>
-            : <Link href="/clients" className="pc-header-back">← 고객 목록</Link>}
-          <div className="pc-header-divider" />
           <div className="pc-header-brand">
             <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
             <span className="pc-header-title">촬영 앱</span>
           </div>
         </div>
-        <div style={{ padding: "0 20px" }}>
+        <div className="pc-header-actions" style={{ padding: "0 20px" }}>
+          {clientId
+            ? <Link href={`/clients?id=${clientId}`} className="pc-header-back">← 고객 화면</Link>
+            : <Link href="/clients" className="pc-header-back">← 고객 목록</Link>}
           <span style={{ fontSize: 10, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}40`, borderRadius: 99, padding: "3px 10px" }}>Step 5 · 촬영</span>
         </div>
       </header>

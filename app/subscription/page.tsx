@@ -33,7 +33,6 @@ export default function SubscriptionPage() {
 function OpsHeader({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   return (
     <header className="ops-header">
-      <Link href="/" className="pc-header-back">← 관리자 홈</Link>
       <p>{eyebrow}</p>
       <h1>{title}</h1>
       <span>{description}</span>

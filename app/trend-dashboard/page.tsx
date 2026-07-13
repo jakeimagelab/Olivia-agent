@@ -160,8 +160,6 @@ export default function TrendDashboardPage() {
     <div style={{ minHeight: "100vh", background: "#EDF5F3" }}>
       <header className="pc-header">
         <div className="pc-header-left">
-          <Link href="/" className="pc-header-back">← 관리자 홈</Link>
-          <div className="pc-header-divider" />
           <div className="pc-header-brand">
             <TrendingUp size={20} color="#155855" />
             <span className="pc-header-title">병원 트렌드 분석</span>

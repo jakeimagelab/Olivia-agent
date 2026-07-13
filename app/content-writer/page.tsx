@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { assets, hospitals } from "@/lib/subscription-data";
 
@@ -23,7 +22,6 @@ export default function ContentWriterPage() {
   return (
     <main className="ops-shell">
       <header className="ops-header">
-        <Link href="/" className="pc-header-back">← 관리자 홈</Link>
         <p>Content Writer</p>
         <h1>납품 콘텐츠 초안 생성</h1>
         <span>촬영한 병원 사진을 바탕으로 클라이언트에게 납품할 채널별 콘텐츠를 만들고 의료광고 리스크를 점검합니다.</span>

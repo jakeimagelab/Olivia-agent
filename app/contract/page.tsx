@@ -298,16 +298,15 @@ export default function ContractPage() {
       {/* NAV */}
       <header className="pc-header">
         <div className="pc-header-left">
-          <button onClick={() => window.history.back()} className="pc-header-back">
-            ← 견적서로
-          </button>
-          <div className="pc-header-divider" />
           <div className="pc-header-brand">
             <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
             <span className="pc-header-title">브랜드촬영 계약서</span>
           </div>
         </div>
         <div className="pc-header-actions">
+          <button onClick={() => window.history.back()} className="pc-header-back">
+            ← 견적서로
+          </button>
           <button onClick={handleSave} disabled={saveState === "saving"} className="pc-btn pc-btn--sm"
             style={{
               borderColor: saveState === "saved" ? "#22C55E" : saveState === "error" ? C.orange : undefined,

@@ -66,8 +66,7 @@ export function WorkflowShell({ title, subtitle, children }: { title: string; su
       <div style={{ maxWidth: 1380, margin: "0 auto", padding: "26px 20px 48px" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "flex-start", marginBottom: 22 }}>
           <div>
-            <Link href="/" style={{ color: C.muted, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>← 관리자 홈</Link>
-            <p style={{ margin: "20px 0 6px", color: C.orange, fontSize: 12, fontWeight: 1000, letterSpacing: ".16em", textTransform: "uppercase" }}>Olivia Workflow</p>
+            <p style={{ margin: "0 0 6px", color: C.orange, fontSize: 12, fontWeight: 1000, letterSpacing: ".16em", textTransform: "uppercase" }}>Olivia Workflow</p>
             <h1 style={{ margin: 0, color: C.green, fontSize: 44, lineHeight: 1.08, letterSpacing: 0 }}>{title}</h1>
             <p style={{ margin: "10px 0 0", color: C.muted, fontSize: 15, lineHeight: 1.7 }}>{subtitle}</p>
           </div>

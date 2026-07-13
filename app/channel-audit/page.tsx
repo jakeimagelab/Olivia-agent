@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { hospitals } from "@/lib/subscription-data";
 
@@ -21,7 +20,6 @@ export default function ChannelAuditPage() {
   return (
     <main className="ops-shell">
       <header className="ops-header">
-        <Link href="/" className="pc-header-back">← 관리자 홈</Link>
         <p>Channel Audit</p>
         <h1>채널 진단 리포트</h1>
         <span>병원의 현재 홍보 채널을 점검하고 월간 구독 콘텐츠 제안으로 연결합니다.</span>

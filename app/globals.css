@@ -594,7 +594,7 @@ main:has(> .pc-header) {
   left: 0;
   bottom: 8px;
   width: 64px;
-  background: var(--liquid-panel-strong);
+  background: var(--liquid-bg);
   border: 1px solid var(--liquid-border);
   border-left: 0;
   border-radius: 0 18px 18px 0;
@@ -1779,15 +1779,20 @@ main:has(> .pc-header) {
   position: sticky;
   top: 0;
   z-index: 100;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 18px;
   height: 56px;
   border-bottom: 1px solid rgba(21,88,85,.12);
-  background: #ffffff;
+  background: var(--liquid-bg);
   padding: 0 24px;
   box-shadow: 0 1px 8px rgba(21,88,85,.06);
+}
+
+.analyzer-header .brand-lockup {
+  grid-column: 2;
+  justify-self: center;
 }
 
 .analyzer-frame {
@@ -1811,8 +1816,17 @@ main:has(> .pc-header) {
     flex-direction: column;
   }
 
+  .analyzer-header {
+    align-items: center;
+  }
+
+  .analyzer-header .brand-lockup {
+    align-items: center;
+    flex-direction: row;
+  }
+
   .analyzer-frame {
-    height: calc(100vh - 138px);
+    height: calc(100vh - 56px);
   }
 
   .dashboard-hero {
@@ -3581,9 +3595,9 @@ main:has(> .pc-header) {
   position: sticky;
   top: 0;
   z-index: 200;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   min-height: 58px;
   padding: 0 28px;
@@ -3595,10 +3609,7 @@ main:has(> .pc-header) {
 }
 
 .pc-header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
+  display: contents;
 }
 
 .pc-header-back {
@@ -3636,6 +3647,9 @@ main:has(> .pc-header) {
 }
 
 .pc-header-brand {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -3659,10 +3673,29 @@ main:has(> .pc-header) {
 }
 
 .pc-header-actions {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  justify-content: flex-end;
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
   flex-shrink: 0;
+}
+
+.pc-header-actions::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .pc-feature-sidebar + .pc-fs-content .pc-header-brand,
+  .pc-feature-sidebar + .pc-fs-content .analyzer-header .brand-lockup {
+    transform: translateX(-32px);
+  }
 }
 
 /* ── 공통 탭 바 (underline 스타일) ─────────────────────── */

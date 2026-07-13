@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { calendarItems, hospitals } from "@/lib/subscription-data";
 
 export default function ContentCalendarPage() {
   return (
     <main className="ops-shell">
       <header className="ops-header">
-        <Link href="/" className="pc-header-back">← 관리자 홈</Link>
         <p>Production Calendar</p>
         <h1>월간 납품 제작 캘린더</h1>
         <span>클라이언트 병원별로 한 달 동안 납품할 콘텐츠 제작 일정을 계획하고 진행 상태를 관리합니다.</span>

@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { assets, hospitals } from "@/lib/subscription-data";
 
 export default function AssetsPage() {
   return (
     <main className="ops-shell">
       <header className="ops-header">
-        <Link href="/" className="pc-header-back">← 관리자 홈</Link>
         <p>Content Assets</p>
         <h1>콘텐츠 자산 보관함</h1>
         <span>촬영 사진과 영상 원본을 병원별, 카테고리별, 사용 채널별로 관리합니다.</span>
