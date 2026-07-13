@@ -1026,8 +1026,12 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                       onClick={e => {
                         e.stopPropagation();
                         onSelectDate(dateStr); setSelectedTaskId(t.id);
+                        // 한 번 클릭은 선택만 — 자세히 보려면(팝업) 더블클릭해야 함
                         if (isMobile) onNavigateDay?.(dateStr);
-                        else onOpenEdit(t, e.clientX, e.clientY);
+                      }}
+                      onDoubleClick={e => {
+                        e.stopPropagation();
+                        if (!isMobile) onOpenEdit(t, e.clientX, e.clientY);
                       }}
                       style={{
                         fontSize: 10.5, fontWeight: 700, color: "#fff",
