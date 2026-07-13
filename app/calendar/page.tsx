@@ -1201,21 +1201,29 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDraggingActive]);
 
-  /* Resize effect */
+  /* Resize effect — 위 경계는 시작시간만, 아래 경계는 종료시간만 바꾸고 반대쪽은 고정 */
   useEffect(() => {
     if (!resizeInfo) return;
     const onMove = (e: MouseEvent) => {
       const dy = e.clientY - resizeInfo.startY;
       const deltaMins = Math.round(dy / HOUR_HEIGHT * 60 / 15) * 15;
-      const [oh, om] = resizeInfo.origEndTime.split(":").map(Number);
-      const origTotal = oh * 60 + om;
-      const newTotal = Math.max(origTotal + 30, origTotal + deltaMins);
-      const ch = Math.min(22, Math.max(8, Math.floor(newTotal / 60)));
-      const cm = newTotal % 60;
-      setResizeInfo(r => r ? { ...r, previewEndTime: `${String(ch).padStart(2,"0")}:${String(cm).padStart(2,"0")}` } : null);
+      if (resizeInfo.edge === "bottom") {
+        const origTotal = timeToMinutes(resizeInfo.origEndTime);
+        const startTotal = timeToMinutes(resizeInfo.origStartTime);
+        const newTotal = Math.min(22 * 60, Math.max(startTotal + 15, origTotal + deltaMins));
+        setResizeInfo(r => r ? { ...r, previewEndTime: minutesToTime(newTotal) } : null);
+      } else {
+        const origTotal = timeToMinutes(resizeInfo.origStartTime);
+        const endTotal = timeToMinutes(resizeInfo.origEndTime);
+        const newTotal = Math.max(7 * 60, Math.min(endTotal - 15, origTotal + deltaMins));
+        setResizeInfo(r => r ? { ...r, previewStartTime: minutesToTime(newTotal) } : null);
+      }
     };
     const onUp = () => {
-      if (resizeInfo) onUpdateTask(resizeInfo.task.id, { end_time: resizeInfo.previewEndTime });
+      if (resizeInfo) {
+        if (resizeInfo.edge === "bottom") onUpdateTask(resizeInfo.task.id, { end_time: resizeInfo.previewEndTime });
+        else onUpdateTask(resizeInfo.task.id, { time: resizeInfo.previewStartTime });
+      }
       setResizeInfo(null);
     };
     document.addEventListener("mousemove", onMove, { passive: true });
