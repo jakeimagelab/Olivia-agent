@@ -1487,7 +1487,8 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         </div>
       </div>
 
-      {/* Ghost card — floats above everything, position updated via ref (no React re-render) */}
+      {/* Ghost card — 위치는 오직 direct DOM(dragPosRef)으로만 갱신, React state는 관여하지 않음
+          (초기 프레임 깜빡임 방지용으로 mousedown 시점 좌표만 최초 1회 사용) */}
       {dragging && (() => {
         const cat = CATS[dragging.task.category] ?? CATS.general;
         const cardW = 130;
@@ -1495,7 +1496,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           <div ref={ghostRef} style={{
             position: "fixed", left: 0, top: 0, pointerEvents: "none", zIndex: 9999,
             willChange: "transform",
-            transform: `translate(${dragging.currentX - dragging.offsetX}px,${dragging.currentY - dragging.offsetY}px) rotate(2deg) scale(1.05)`,
+            transform: `translate(${dragStartRef.current.x - dragging.offsetX}px,${dragStartRef.current.y - dragging.offsetY}px) rotate(2deg) scale(1.05)`,
           }}>
             <div style={{
               width: cardW,
