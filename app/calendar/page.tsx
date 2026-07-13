@@ -1192,6 +1192,14 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       ghostRef.current.style.transform =
         `translate(${dragPosRef.current.x - d0.offsetX}px,${dragPosRef.current.y - d0.offsetY}px) rotate(2deg) scale(1.05)`;
     }
+    // 컬럼 rect는 드래그 세션 동안 바뀌지 않으므로 시작 시점에 1회만 캐시 — 매 mousemove마다
+    // getBoundingClientRect()를 다시 호출하면 강제 리플로우가 반복돼 떨림의 원인이 될 수 있다.
+    const cachedRects = scrollRef.current ? {
+      rect: scrollRef.current.getBoundingClientRect(),
+      colRects: dayColRefs.current.map(c => c?.getBoundingClientRect() ?? null),
+    } : undefined;
+    const dropRafRef: { current: number | null } = { current: null };
+    const dropPendingRef: { current: { x: number; y: number } | null } = { current: null };
     const moveGhost = (x: number, y: number) => {
       const d = draggingRef.current;
       if (ghostRef.current && d) {
@@ -1199,12 +1207,21 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           `translate(${x - d.offsetX}px,${y - d.offsetY}px) rotate(2deg) scale(1.05)`;
       }
     };
-    const updateDropTarget = (x: number, y: number) => {
-      const target = getPosTarget(x, y);
+    const applyDropTarget = (x: number, y: number) => {
+      const target = getPosTarget(x, y, cachedRects);
       const key = target ? `${target.date}|${target.time}` : null;
       if (key !== dropTargetKeyRef.current) {
         dropTargetKeyRef.current = key;
         setDropTarget(target);
+      }
+    };
+    const updateDropTarget = (x: number, y: number) => {
+      dropPendingRef.current = { x, y };
+      if (dropRafRef.current === null) {
+        dropRafRef.current = requestAnimationFrame(() => {
+          if (dropPendingRef.current) applyDropTarget(dropPendingRef.current.x, dropPendingRef.current.y);
+          dropRafRef.current = null;
+        });
       }
     };
     const onMouseMove = (e: MouseEvent) => {
@@ -1220,6 +1237,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       updateDropTarget(t.clientX, t.clientY);
     };
     const finishDrag = (clientX: number, clientY: number) => {
+      if (dropRafRef.current !== null) { cancelAnimationFrame(dropRafRef.current); dropRafRef.current = null; }
       const d = draggingRef.current;
       if (d) {
         const moved = Math.hypot(clientX - dragStartRef.current.x, clientY - dragStartRef.current.y);
@@ -1230,7 +1248,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           onOpenEdit(d.task, clientX, clientY);
           return;
         }
-        const target = getPosTarget(clientX, clientY);
+        const target = getPosTarget(clientX, clientY, cachedRects);
         if (target && (target.date !== d.task.date || target.time !== d.task.time)) {
           // 통째로 이동 — 기존 소요시간(예: 10시~12시 = 2시간)을 그대로 유지한 채 새 시작시간으로 옮긴다
           const fields: Partial<CalTask> = { date: target.date, time: target.time };
