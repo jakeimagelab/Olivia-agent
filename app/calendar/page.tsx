@@ -1224,35 +1224,59 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDraggingActive]);
 
-  /* Resize effect — 위 경계는 시작시간만, 아래 경계는 종료시간만 바꾸고 반대쪽은 고정 */
+  /* Resize effect — 위 경계는 시작시간만, 아래 경계는 종료시간만 바꾸고 반대쪽은 고정.
+     예전엔 마우스가 움직일 때마다(초당 수십~백 회) setResizeInfo를 즉시 호출했고, 의존성 배열에
+     resizeInfo 자체가 들어있어 매번 리스너를 통째로 떼었다 다시 붙이기까지 했다 — 드래그 이동과
+     같은 종류의 불안정함(끊김/떨림)을 유발할 수 있어 RAF로 묶어서 초당 최대 화면 주사율만큼만 갱신한다. */
+  const resizeInfoRef = useRef(resizeInfo);
+  resizeInfoRef.current = resizeInfo;
+  const resizeRafRef = useRef<number | null>(null);
+  const resizePendingRef = useRef<{ previewStartTime: string; previewEndTime: string } | null>(null);
+  const isResizingActive = resizeInfo !== null;
   useEffect(() => {
-    if (!resizeInfo) return;
-    const onMove = (e: MouseEvent) => {
-      const dy = e.clientY - resizeInfo.startY;
+    if (!isResizingActive) return;
+    const info = resizeInfoRef.current!; // edge/orig*/task/startY는 리사이즈 도중 안 바뀌므로 시작 시점 값을 고정 캡처
+    const compute = (clientY: number) => {
+      const dy = clientY - info.startY;
       const deltaMins = Math.round(dy / HOUR_HEIGHT * 60 / 15) * 15;
-      if (resizeInfo.edge === "bottom") {
-        const origTotal = timeToMinutes(resizeInfo.origEndTime);
-        const startTotal = timeToMinutes(resizeInfo.origStartTime);
+      if (info.edge === "bottom") {
+        const origTotal = timeToMinutes(info.origEndTime);
+        const startTotal = timeToMinutes(info.origStartTime);
         const newTotal = Math.min(22 * 60, Math.max(startTotal + 15, origTotal + deltaMins));
-        setResizeInfo(r => r ? { ...r, previewEndTime: minutesToTime(newTotal) } : null);
-      } else {
-        const origTotal = timeToMinutes(resizeInfo.origStartTime);
-        const endTotal = timeToMinutes(resizeInfo.origEndTime);
-        const newTotal = Math.max(7 * 60, Math.min(endTotal - 15, origTotal + deltaMins));
-        setResizeInfo(r => r ? { ...r, previewStartTime: minutesToTime(newTotal) } : null);
+        return { previewStartTime: info.origStartTime, previewEndTime: minutesToTime(newTotal) };
+      }
+      const origTotal = timeToMinutes(info.origStartTime);
+      const endTotal = timeToMinutes(info.origEndTime);
+      const newTotal = Math.max(7 * 60, Math.min(endTotal - 15, origTotal + deltaMins));
+      return { previewStartTime: minutesToTime(newTotal), previewEndTime: info.origEndTime };
+    };
+    const onMove = (e: MouseEvent) => {
+      resizePendingRef.current = compute(e.clientY);
+      if (resizeRafRef.current === null) {
+        resizeRafRef.current = requestAnimationFrame(() => {
+          const p = resizePendingRef.current;
+          if (p) setResizeInfo(r => r ? { ...r, ...p } : null);
+          resizeRafRef.current = null;
+        });
       }
     };
     const onUp = () => {
-      if (resizeInfo) {
-        if (resizeInfo.edge === "bottom") onUpdateTask(resizeInfo.task.id, { end_time: resizeInfo.previewEndTime });
-        else onUpdateTask(resizeInfo.task.id, { time: resizeInfo.previewStartTime });
-      }
+      if (resizeRafRef.current !== null) { cancelAnimationFrame(resizeRafRef.current); resizeRafRef.current = null; }
+      const p = resizePendingRef.current;
+      if (info.edge === "bottom") onUpdateTask(info.task.id, { end_time: p?.previewEndTime ?? info.previewEndTime });
+      else onUpdateTask(info.task.id, { time: p?.previewStartTime ?? info.previewStartTime });
+      resizePendingRef.current = null;
       setResizeInfo(null);
     };
     document.addEventListener("mousemove", onMove, { passive: true });
     document.addEventListener("mouseup", onUp);
-    return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
-  }, [resizeInfo, onUpdateTask]);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      if (resizeRafRef.current !== null) { cancelAnimationFrame(resizeRafRef.current); resizeRafRef.current = null; }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isResizingActive]);
 
   const timeToTop = (time: string) => {
     const [h, m] = time.split(":").map(Number);
