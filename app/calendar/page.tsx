@@ -1590,7 +1590,13 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
         }
         const newTime = getTimeFromY(clientY);
         if (newTime && newTime !== (d.task.time ?? "")) {
-          onUpdateTask(d.task.id, { time: newTime });
+          // 통째로 이동 — 기존 소요시간을 그대로 유지한 채 새 시작시간으로 옮긴다
+          const fields: Partial<CalTask> = { time: newTime };
+          if (d.task.end_time && d.task.time) {
+            const durationMins = timeToMinutes(d.task.end_time) - timeToMinutes(d.task.time);
+            if (durationMins > 0) fields.end_time = minutesToTime(timeToMinutes(newTime) + durationMins);
+          }
+          onUpdateTask(d.task.id, fields);
         }
       }
       setDragging(null);
