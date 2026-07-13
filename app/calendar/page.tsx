@@ -1185,69 +1185,48 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
     };
   };
 
-  /* Mouse + touch drag effect — ghost는 항상 direct DOM으로만, 드롭 인디케이터는 스냅 값이
-     바뀔 때만 최소 리렌더 (dual-writer 충돌 제거로 드래그 중 떨림 현상 해결) */
+  /* Mouse + touch drag effect — ghost 위치/크기는 항상 direct DOM으로만 갱신하고, 드래그 중엔
+     React state를 전혀 건드리지 않는다 (리렌더가 아예 없으므로 떨릴 여지가 없다). 15분 단위 스냅은
+     실제로 손을 놓는 순간(finishDrag)에만 계산해서 저장한다. */
   const isDraggingActive = dragging !== null;
   useEffect(() => {
     if (!isDraggingActive) return;
-    const d0 = draggingRef.current;
-    if (ghostRef.current && d0) {
-      ghostRef.current.style.transform =
-        `translate(${dragPosRef.current.x - d0.offsetX}px,${dragPosRef.current.y - d0.offsetY}px) rotate(2deg) scale(1.05)`;
-    }
     // 컬럼 rect는 드래그 세션 동안 바뀌지 않으므로 시작 시점에 1회만 캐시 — 매 mousemove마다
     // getBoundingClientRect()를 다시 호출하면 강제 리플로우가 반복돼 떨림의 원인이 될 수 있다.
     const cachedRects = scrollRef.current ? {
       rect: scrollRef.current.getBoundingClientRect(),
       colRects: dayColRefs.current.map(c => c?.getBoundingClientRect() ?? null),
     } : undefined;
-    const dropRafRef: { current: number | null } = { current: null };
-    const dropPendingRef: { current: { x: number; y: number } | null } = { current: null };
-    const moveGhost = (x: number, y: number) => {
+    const positionGhost = (x: number, y: number) => {
       const d = draggingRef.current;
-      if (ghostRef.current && d) {
-        ghostRef.current.style.transform =
-          `translate(${x - d.offsetX}px,${y - d.offsetY}px) rotate(2deg) scale(1.05)`;
-      }
-    };
-    const applyDropTarget = (x: number, y: number) => {
+      if (!ghostRef.current || !d) return;
+      // 세로는 커서 위치를 그대로 따라가고(부드러움), 가로만 현재 커서가 있는 요일 컬럼 폭/위치에 맞춰
+      // 스냅한다 — 진짜 박스처럼 보이면서도 어느 요일에 놓일지 계속 눈으로 확인할 수 있다.
       const target = getPosTarget(x, y, cachedRects);
-      const key = target ? `${target.date}|${target.time}` : null;
-      if (key !== dropTargetKeyRef.current) {
-        dropTargetKeyRef.current = key;
-        setDropTarget(target);
-      }
+      const colRect = target && cachedRects ? cachedRects.colRects[target.colIdx] : null;
+      const left = colRect ? colRect.left + 2 : x - d.offsetX;
+      const top = y - d.offsetY;
+      ghostRef.current.style.transform = `translate(${left}px,${top}px)`;
+      if (colRect) ghostRef.current.style.width = `${colRect.width - 4}px`;
     };
-    const updateDropTarget = (x: number, y: number) => {
-      dropPendingRef.current = { x, y };
-      if (dropRafRef.current === null) {
-        dropRafRef.current = requestAnimationFrame(() => {
-          if (dropPendingRef.current) applyDropTarget(dropPendingRef.current.x, dropPendingRef.current.y);
-          dropRafRef.current = null;
-        });
-      }
-    };
+    positionGhost(dragPosRef.current.x, dragPosRef.current.y);
     const onMouseMove = (e: MouseEvent) => {
       dragPosRef.current = { x: e.clientX, y: e.clientY };
-      moveGhost(e.clientX, e.clientY);
-      updateDropTarget(e.clientX, e.clientY);
+      positionGhost(e.clientX, e.clientY);
     };
     const onTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       const t = e.touches[0];
       dragPosRef.current = { x: t.clientX, y: t.clientY };
-      moveGhost(t.clientX, t.clientY);
-      updateDropTarget(t.clientX, t.clientY);
+      positionGhost(t.clientX, t.clientY);
     };
     const finishDrag = (clientX: number, clientY: number) => {
-      if (dropRafRef.current !== null) { cancelAnimationFrame(dropRafRef.current); dropRafRef.current = null; }
       const d = draggingRef.current;
       if (d) {
         const moved = Math.hypot(clientX - dragStartRef.current.x, clientY - dragStartRef.current.y);
         if (moved < 6) {
           // 거의 움직이지 않았으면 드래그가 아니라 클릭으로 간주 — 편집 팝업을 연다
           setDragging(null);
-          setDropTarget(null);
           onOpenEdit(d.task, clientX, clientY);
           return;
         }
@@ -1263,7 +1242,6 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         }
       }
       setDragging(null);
-      setDropTarget(null);
     };
     const onMouseUp = (e: MouseEvent) => finishDrag(e.clientX, e.clientY);
     const onTouchEnd = (e: TouchEvent) => { const t = e.changedTouches[0]; finishDrag(t.clientX, t.clientY); };
@@ -1276,7 +1254,6 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       document.removeEventListener("mouseup", onMouseUp);
       document.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("touchend", onTouchEnd);
-      if (dropRafRef.current !== null) cancelAnimationFrame(dropRafRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDraggingActive]);
