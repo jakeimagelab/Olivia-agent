@@ -1430,22 +1430,6 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                   />
                 ))}
 
-                {/* Drop indicator — shows where task will land */}
-                {isDropCol && dropTarget && (
-                  <div style={{
-                    position: "absolute",
-                    top: timeToTop(dropTarget.time),
-                    left: 3, right: 3,
-                    height: Math.max(28, durationPx(dropTarget.time, dragging?.task.end_time)),
-                    background: "rgba(15,68,64,.10)",
-                    border: `2px dashed ${C.teal}`,
-                    borderRadius: 5,
-                    pointerEvents: "none",
-                    zIndex: 5,
-                    transition: "top .05s",
-                  }}/>
-                )}
-
                 {/* Timed event blocks */}
                 {timedTasks.map(t => {
                   const cat = CATS[t.category] ?? CATS.general;
