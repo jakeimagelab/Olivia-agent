@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { LayoutGrid } from "lucide-react";
 import { ALL_TOOLS } from "@/lib/toolNav";
 
-const SIDEBAR_W = 216;
+const SIDEBAR_RAIL_W = 64;
 
 function hasShareScope(): boolean {
   return document.cookie.split("; ").some((c) => c.startsWith("pc_share_scope="));
@@ -28,26 +28,32 @@ export default function GlobalFeatureSidebar({ children }: { children: React.Rea
     <>
       {show && (
         <nav className="pc-feature-sidebar" aria-label="기능 메뉴">
-          <Link href="/" className="pc-fs-item pc-fs-home">
+          <Link href="/" className="pc-fs-item pc-fs-home" title="대시보드">
             <LayoutGrid size={18} strokeWidth={2}/>
-            <span>대시보드</span>
+            <span className="pc-fs-label">대시보드</span>
           </Link>
-          <div className="pc-fs-divider"/>
+          <div className="pc-fs-divider" aria-hidden="true"/>
           <div className="pc-fs-list">
             {ALL_TOOLS.map(t => {
               const active = pathname === t.href || pathname?.startsWith(t.href + "/");
               const Icon = t.icon;
               return (
-                <Link key={t.href} href={t.href} className={`pc-fs-item${active ? " pc-fs-item--active" : ""}`}>
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  className={`pc-fs-item${active ? " pc-fs-item--active" : ""}`}
+                  aria-current={active ? "page" : undefined}
+                  title={t.title}
+                >
                   <Icon size={18}/>
-                  <span>{t.title}</span>
+                  <span className="pc-fs-label">{t.title}</span>
                 </Link>
               );
             })}
           </div>
         </nav>
       )}
-      <div className="pc-fs-content" style={{ marginLeft: show ? SIDEBAR_W : 0 }}>
+      <div className="pc-fs-content" style={{ marginLeft: show ? SIDEBAR_RAIL_W : 0 }}>
         {children}
       </div>
     </>
