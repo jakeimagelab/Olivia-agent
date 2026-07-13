@@ -1063,7 +1063,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                         boxShadow: selectedTaskId === t.id ? "0 0 0 2px #0F4440" : "none",
                       }}>
                       <span style={{
-                        width: 3, height: 10, borderRadius: 1.5, flexShrink: 0,
+                        width: 5, height: 12, borderRadius: 2, flexShrink: 0,
                         background: t.completed ? "#A0AEC0" : cat.color,
                       }}/>
                       <span style={{
