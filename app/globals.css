@@ -3701,6 +3701,7 @@ main:has(> .pc-header) {
 /* ── 공통 탭 바 (underline 스타일) ─────────────────────── */
 .pc-tabs {
   display: flex;
+  justify-content: safe center;
   gap: 4px;
   background: rgba(240,244,242,.68);
   backdrop-filter: blur(24px) saturate(1.6);
@@ -3715,6 +3716,28 @@ main:has(> .pc-header) {
   box-shadow: 0 1px 0 rgba(21,88,85,.04);
 }
 .pc-tabs::-webkit-scrollbar { display: none; }
+
+.pc-subnav,
+.pc-inline-tabs {
+  justify-content: safe center;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pc-subnav::-webkit-scrollbar,
+.pc-inline-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .pc-feature-sidebar + .pc-fs-content .pc-tabs--global {
+    padding-right: 92px;
+  }
+
+  .pc-feature-sidebar + .pc-fs-content .pc-subnav--global {
+    padding-right: 64px;
+  }
+}
 
 .pc-tab {
   display: inline-flex;

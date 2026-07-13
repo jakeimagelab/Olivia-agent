@@ -453,13 +453,14 @@ function PatternBlogWriter() {
               {saving ? "저장 중..." : "💾 초안 저장"}
             </button>
             {saveMsg && <span style={{ fontSize:12, color: saveMsg.includes("실패") ? C.orange : C.teal, fontWeight:700 }}>{saveMsg}</span>}
-            <div style={{ marginLeft:"auto", display:"flex", gap:6 }}>
-              {(["blog","insta","naver","risk"] as const).map(t => (
-                <button key={t} onClick={() => setResultTab(t)} style={{ padding:"6px 12px", borderRadius:8, border:`1.5px solid ${resultTab === t ? C.teal : C.border}`, background: resultTab === t ? C.light : C.white, color: resultTab === t ? C.teal : C.muted, fontSize:12, fontWeight: resultTab === t ? 800 : 600, cursor:"pointer", fontFamily:"inherit" }}>
-                  {t === "blog" ? "📝 블로그" : t === "insta" ? "📷 인스타" : t === "naver" ? "🗺 네이버" : "🛡 리스크"}
-                </button>
-              ))}
-            </div>
+          </div>
+
+          <div className="pc-inline-tabs" style={{ display:"flex", gap:6 }}>
+            {(["blog","insta","naver","risk"] as const).map(t => (
+              <button key={t} onClick={() => setResultTab(t)} style={{ padding:"6px 12px", borderRadius:8, border:`1.5px solid ${resultTab === t ? C.teal : C.border}`, background: resultTab === t ? C.light : C.white, color: resultTab === t ? C.teal : C.muted, fontSize:12, fontWeight: resultTab === t ? 800 : 600, cursor:"pointer", fontFamily:"inherit" }}>
+                {t === "blog" ? "📝 블로그" : t === "insta" ? "📷 인스타" : t === "naver" ? "🗺 네이버" : "🛡 리스크"}
+              </button>
+            ))}
           </div>
 
           {/* 제목 후보 */}
@@ -1487,7 +1488,7 @@ export default function SnsManagerPage() {
       <PageHeader title="홍보 콘텐츠 제작" />
 
       {/* 탭 헤더 */}
-      <div className="pc-tabs">
+      <div className="pc-tabs pc-tabs--global">
         {TABS.map(({ id, label, icon: Icon, status }) => id === "youtube" ? (
           <a key={id} href="/sns-manager?tab=youtube"
             className={`pc-tab${tab === id ? " pc-tab--active" : ""}`}

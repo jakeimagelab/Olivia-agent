@@ -320,7 +320,7 @@ function SyncTab() {
           </div>
 
           {/* 결과 탭 */}
-          <div style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
+          <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
             {([["swatch","🎨 피부톤 비교"],["ps","🖥 Photoshop"],["cameraraw","🎛 Camera Raw"]] as const).map(([id, lbl]) => (
               <button key={id} onClick={() => setResTab(id)} style={{
                 flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
@@ -505,7 +505,7 @@ export default function PhotoRetouchingPage() {
       style={{ background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}
       onPaste={handleGlobalPaste}
     >
-      <div style={{ background: "#FFFFFF", borderBottom: `1px solid ${C.border}`, display: "flex", padding: "0 8px", overflowX: "auto" }}>
+      <div className="pc-inline-tabs" style={{ background: "#FFFFFF", borderBottom: `1px solid ${C.border}`, display: "flex", padding: "0 8px", overflowX: "auto" }}>
         {([["check","색감 체크"],["sync","색감 동기화"],["recipe","보정 레시피"]] as const).map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)} style={{
             padding: "11px 20px", border: "none", borderBottom: `2.5px solid ${tab === id ? C.teal : "transparent"}`,
@@ -557,7 +557,7 @@ export default function PhotoRetouchingPage() {
             {/* 왼쪽 */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {/* 체크 대상 선택 */}
-              <div style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
+              <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
                 {([["skin","🧑 피부톤"],["gown","🥼 가운 컬러"]] as const).map(([id, lbl]) => (
                   <button key={id} onClick={() => { setCheckType(id); setPreview(""); setImgB64(""); setResult(null); setError(""); }} style={{
                     flex: 1, padding: "9px 0", border: "none", borderRadius: 9, cursor: "pointer",
@@ -690,7 +690,7 @@ export default function PhotoRetouchingPage() {
                     </div>
 
                     {/* 결과 탭 */}
-                    <div style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
+                    <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
                       {((checkType === "gown"
                         ? [["compare","📊 컬러 비교"],["ps","🖥 Photoshop 보정"]]
                         : [["compare","📊 피부톤 비교"],["ps","🖥 Photoshop 보정"],["cameraraw","🎛 Camera Raw"]]

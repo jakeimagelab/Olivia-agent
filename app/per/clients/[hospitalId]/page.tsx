@@ -87,7 +87,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
         <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", gap:20 }}>
           {/* 내역 탭 */}
           <div>
-            <div style={{ display:"flex", gap:0, marginBottom:12, background:C.light, borderRadius:8, padding:3, width:"fit-content" }}>
+            <div className="pc-inline-tabs" style={{ display:"flex", gap:0, margin:"0 auto 12px", background:C.light, borderRadius:8, padding:3, width:"fit-content" }}>
               {(["tx","orders","donations"] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)}
                   style={{ padding:"6px 16px", border:"none", borderRadius:6, fontWeight:700, fontSize:12, cursor:"pointer", background:tab===t?C.white:"transparent", color:tab===t?C.teal:C.muted, transition:"all .15s" }}>

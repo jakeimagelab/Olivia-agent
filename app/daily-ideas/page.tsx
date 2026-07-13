@@ -224,7 +224,7 @@ export default function DailyIdeasPage() {
 
       {/* ── 모바일 탭 바 ── */}
       {isMobile && (
-        <div style={{
+        <div className="pc-inline-tabs" style={{
           display: "flex", background: C.surface,
           borderBottom: `1px solid ${C.border}`, position: "sticky", top: 56, zIndex: 50,
         }}>

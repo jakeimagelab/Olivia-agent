@@ -98,7 +98,7 @@ export default function PortalAdminPage() {
       </header>
 
       {/* 탭 */}
-      <div className="pc-tabs">
+      <div className="pc-tabs pc-tabs--global">
         <button className={`pc-tab${tab === "links"     ? " pc-tab--active" : ""}`} onClick={() => setTab("links")}><Users size={13}/> 포털 링크 관리</button>
         <button className={`pc-tab${tab === "revisions" ? " pc-tab--active" : ""}`} onClick={() => setTab("revisions")}><Edit2 size={13}/> 수정 요청</button>
         <button className={`pc-tab${tab === "reviews"   ? " pc-tab--active" : ""}`} onClick={() => setTab("reviews")}><Star size={13}/> 고객 리뷰</button>

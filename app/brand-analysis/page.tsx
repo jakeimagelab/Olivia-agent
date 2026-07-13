@@ -553,7 +553,7 @@ export default function BrandAnalysisPage() {
         </Card>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 0, marginBottom: 20, overflowX: "auto", background: C.white, borderRadius: 12, border: `1px solid ${C.border}` }}>
+        <div className="pc-inline-tabs" style={{ display: "flex", gap: 0, marginBottom: 20, overflowX: "auto", background: C.white, borderRadius: 12, border: `1px solid ${C.border}` }}>
           {TABS.map((tab, i) => (
             <button
               key={i}

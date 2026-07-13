@@ -238,7 +238,7 @@ export default function ReviewStudioPage() {
 
       {/* ── 모바일 탭 바 ── */}
       {isMobile && (
-        <div style={{ display: "flex", background: C.surface, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 56, zIndex: 50 }}>
+        <div className="pc-inline-tabs" style={{ display: "flex", background: C.surface, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 56, zIndex: 50 }}>
           {[
             { id: "list",   label: "📋 후기 목록" },
             { id: "form",   label: "✏️ 후기 등록" },

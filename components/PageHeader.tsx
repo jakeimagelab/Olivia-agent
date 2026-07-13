@@ -39,7 +39,7 @@ export default function PageHeader({
       </header>
 
       {tabs && tabs.length > 0 && (
-        <div className="pc-tabs">
+        <div className="pc-tabs pc-tabs--global">
           {tabs.map((t) => (
             <button
               key={t.key}

@@ -259,7 +259,7 @@ export default function ColorCheckPage() {
                   </div>
 
                   {/* 탭 */}
-                  <div style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
+                  <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
                     {([["compare","📊 피부톤 비교"],["guide","🎛 Camera Raw 가이드"]] as const).map(([id, lbl]) => (
                       <button key={id} onClick={() => setTab(id)} style={{
                         flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
