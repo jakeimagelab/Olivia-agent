@@ -545,15 +545,24 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
 }
 
 /* ─── EventDetailView (읽기 전용, "편집" 눌러야 수정 폼으로 전환) ── */
-function EventDetailView({ task, onEdit }: { task: CalTask; onEdit: () => void }) {
+function EventDetailView({ task, onEdit, onToggle }: { task: CalTask; onEdit: () => void; onToggle: () => void }) {
   const cat = CATS[task.category] ?? CATS.general;
+  const [completed, setCompleted] = useState(task.completed); // 팝업 안에서 즉시 반영되도록 로컬로도 관리
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <div style={{ width: 10, height: 10, borderRadius: 3, background: cat.color, marginTop: 5, flexShrink: 0 }}/>
+        <button onClick={() => { setCompleted(v => !v); onToggle(); }} style={{
+          width: 22, height: 22, borderRadius: "50%", marginTop: 2, flexShrink: 0,
+          border: `2px solid ${completed ? cat.color : C.border}`,
+          background: completed ? cat.color : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", transition: "all .15s", padding: 0,
+        }}>
+          {completed && <Check size={12} color="#fff" strokeWidth={3}/>}
+        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 900, color: C.txt, lineHeight: 1.35,
-            textDecoration: task.completed ? "line-through" : "none" }}>{task.title}</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: completed ? C.hint : C.txt, lineHeight: 1.35,
+            textDecoration: completed ? "line-through" : "none" }}>{task.title}</div>
           <span style={{ display: "inline-block", marginTop: 5, fontSize: 11, fontWeight: 800, color: cat.color,
             background: cat.bg, padding: "2px 9px", borderRadius: 99 }}>{cat.label}</span>
         </div>
