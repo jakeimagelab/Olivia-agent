@@ -1097,7 +1097,9 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
 
   /* ── drag-to-resize state ── */
   const [resizeInfo, setResizeInfo] = useState<{
-    task: CalTask; startY: number; origEndTime: string; previewEndTime: string;
+    task: CalTask; edge: "top" | "bottom"; startY: number;
+    origStartTime: string; origEndTime: string;
+    previewStartTime: string; previewEndTime: string;
   } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
