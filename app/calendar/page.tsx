@@ -1084,15 +1084,21 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
     ? `${start.getFullYear()}년 ${monthLabel(start.getMonth())}`
     : `${monthLabel(start.getMonth())} - ${monthLabel(end.getMonth())}`;
 
-  /* ── smooth drag-to-move state ── */
+  /* ── smooth drag-to-move state ──
+     ghost는 dragPosRef를 통해 direct DOM으로만 움직인다(React state 미개입) — 예전엔 JSX의
+     style.transform도 dragging.currentX/currentY(React state)를 같이 참조해서, RAF로 지연된
+     리렌더가 direct DOM으로 이미 앞서 나간 위치를 순간적으로 되돌리는 "이중 라이터" 충돌이 있었고
+     이게 드래그 중 박스가 미세하게 떨리는 현상의 원인이었다. 이제 dragging state엔 좌표를 아예 안 담고,
+     드롭 인디케이터用 dropTarget만 스냅 값이 바뀔 때만 최소한으로 리렌더한다. */
   const [dragging, setDragging] = useState<{
-    task: CalTask; currentX: number; currentY: number; offsetX: number; offsetY: number;
+    task: CalTask; offsetX: number; offsetY: number;
   } | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ date: string; time: string; colIdx: number } | null>(null);
   const draggingRef  = useRef(dragging);
   draggingRef.current = dragging;
   const ghostRef     = useRef<HTMLDivElement>(null);
   const dragPosRef   = useRef<{x:number;y:number}>({x:0,y:0});
-  const rafRef       = useRef<number|null>(null);
+  const dropTargetKeyRef = useRef<string | null>(null);
   const dragStartRef = useRef<{x:number;y:number}>({x:0,y:0}); // 클릭 vs 드래그 구분용
 
   /* ── drag-to-resize state ── */
