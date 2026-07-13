@@ -1963,7 +1963,12 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
           const hasTasks   = (tasksByDate[ds]?.length ?? 0) > 0;
           const dow = new Date(cell.year, cell.month, cell.day).getDay();
           return (
-            <div key={idx} onClick={e => { e.stopPropagation(); onSelectDate(ds); }}
+            <div key={idx} onClick={e => {
+              // 모바일은 날짜를 눌러도 월 화면으로 이동(탭 영역 대부분이 날짜 숫자라 그래야 자연스럽다).
+              // 데스크탑은 연도 화면에 머문 채 날짜만 선택.
+              if (isMobile) { onSelectDate(ds); onClick(); return; }
+              e.stopPropagation(); onSelectDate(ds);
+            }}
               style={{ display: "flex", alignItems: "center", justifyContent: "center",
                 padding: "1px 0", position: "relative" }}>
               <div style={{
