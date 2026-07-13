@@ -1262,9 +1262,6 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
     return Math.max(28, ((eh * 60 + em) - (sh * 60 + sm)) / 60 * HOUR_HEIGHT);
   };
 
-  /* Live drop indicator from current drag position */
-  const dropTarget = dragging ? getPosTarget(dragging.currentX, dragging.currentY) : null;
-
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
       userSelect: (dragging || resizeInfo) ? "none" : undefined,
