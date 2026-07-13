@@ -454,7 +454,7 @@ function EditTaskForm({ task, onSave, onCancel }: {
 /* ─── EventPopover ────────────────────────────────────────
    셀/일정 클릭 시 뜨는 팝업 — 데스크탑은 클릭 위치 근처에 뜨는 카드,
    모바일은 전체화면 시트. 실제 입력폼은 기존 AddTaskForm/EditTaskForm을 그대로 재사용한다. */
-function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose, onAdd, onSave, onDelete }: {
+function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose, onAdd, onSave, onDelete, onToggle }: {
   mode: "add" | "edit";
   date: string;
   task: CalTask | null;
@@ -465,6 +465,7 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
   onAdd: (t: CalTask) => void;
   onSave: (t: CalTask) => void;
   onDelete: (id: string) => void;
+  onToggle: (t: CalTask) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false); // 편집 버튼을 눌러야 수정 폼(+삭제)이 나온다
