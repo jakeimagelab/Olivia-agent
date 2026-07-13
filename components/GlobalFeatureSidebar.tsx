@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { LayoutGrid } from "lucide-react";
 import { ALL_TOOLS } from "@/lib/toolNav";
 
 const SIDEBAR_W = 216;
 
 function hasShareScope(): boolean {
-  if (typeof document === "undefined") return false;
   return document.cookie.split("; ").some((c) => c.startsWith("pc_share_scope="));
 }
 
@@ -18,7 +18,10 @@ function hasShareScope(): boolean {
 export default function GlobalFeatureSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isDashboard = pathname === "/";
-  const isShared = hasShareScope();
+  // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
+  // (PageHeader의 isSharedSession과 동일한 패턴).
+  const [isShared, setIsShared] = useState(false);
+  useEffect(() => { setIsShared(hasShareScope()); }, []);
   const show = !isDashboard && !isShared;
 
   return (
