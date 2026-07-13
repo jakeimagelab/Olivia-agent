@@ -1150,17 +1150,20 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
   const TL_W = isMobile ? 28 : 44;
   const dayColRefs = useRef<(HTMLDivElement|null)[]>(Array(7).fill(null));
 
-  /* Compute grid target (date + time) from viewport cursor coords */
-  const getPosTarget = (clientX: number, clientY: number) => {
+  /* Compute grid target (date + time) from viewport cursor coords.
+     드래그 중엔 매 mousemove마다 getBoundingClientRect()를 (컬럼 7개분) 다시 계산하면 강제 리플로우가
+     초당 수십~수백 번 발생해서 ghost의 direct DOM transform 갱신과 경합하며 떨림의 원인이 될 수 있다.
+     cached를 넘기면 드래그 시작 시점에 1회 캐시해둔 rect를 재사용해 리플로우를 피한다. */
+  const getPosTarget = (clientX: number, clientY: number, cached?: { rect: DOMRect; colRects: (DOMRect | null)[] }) => {
     const el = scrollRef.current;
     if (!el) return null;
-    const rect = el.getBoundingClientRect();
+    const rect = cached?.rect ?? el.getBoundingClientRect();
     const scrollTop = el.scrollTop;
+    const colRects = cached?.colRects ?? dayColRefs.current.map(c => c?.getBoundingClientRect() ?? null);
     let colIdx = -1;
     for (let i = 0; i < 7; i++) {
-      const colEl = dayColRefs.current[i];
-      if (!colEl) continue;
-      const cr = colEl.getBoundingClientRect();
+      const cr = colRects[i];
+      if (!cr) continue;
       if (clientX >= cr.left && clientX < cr.right) { colIdx = i; break; }
     }
     if (colIdx === -1) {
