@@ -1354,7 +1354,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
       userSelect: (dragging || resizeInfo) ? "none" : undefined,
-      cursor: dragging ? "grabbing" : undefined }}>
+      cursor: dragging ? CURSOR_GRABBING : undefined }}>
 
       {/* Nav */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px 10px", flexShrink: 0,
