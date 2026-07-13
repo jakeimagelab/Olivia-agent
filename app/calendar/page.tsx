@@ -1580,24 +1580,25 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
             willChange: "transform",
             transform: `translate(${dragStartRef.current.x - dragging.offsetX}px,${dragStartRef.current.y - dragging.offsetY}px) rotate(2deg) scale(1.05)`,
           }}>
+            {/* 카테고리색 배경 대신 흰 카드 + 좌측 컬러바로 — 오렌지 계열 카테고리를 드래그할 때
+                박스와 같은 색이라 잘 안 보이던 문제 해결 + 입체감 있는 그림자로 "떠 있는" 느낌 */}
             <div style={{
               width: cardW,
-              background: cat.color,
-              borderRadius: 6, padding: "5px 8px 10px",
-              boxShadow: "0 10px 32px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.18)",
+              background: "linear-gradient(180deg, #ffffff, #F6F9F8)",
+              borderRadius: 8, padding: "7px 10px 7px 11px",
+              borderLeft: `4px solid ${cat.color}`,
+              boxShadow: "0 18px 40px rgba(0,0,0,.24), 0 6px 14px rgba(0,0,0,.16), 0 0 0 1px rgba(0,0,0,.05)",
               overflow: "hidden",
             }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#fff",
+              <div style={{ fontSize: 10.5, fontWeight: 800, color: C.txt,
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {dragging.task.time?.slice(0,5)} {dragging.task.title}
               </div>
               {dragging.task.end_time && (
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,.75)", marginTop: 1 }}>
+                <div style={{ fontSize: 9, color: C.muted, marginTop: 1 }}>
                   ~ {dragging.task.end_time.slice(0,5)}
                 </div>
               )}
-              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 5,
-                background: "rgba(0,0,0,.15)", borderRadius: "0 0 6px 6px" }}/>
             </div>
           </div>
         );
