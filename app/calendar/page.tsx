@@ -1044,16 +1044,27 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                         if (!isMobile) onOpenEdit(t, e.clientX, e.clientY);
                       }}
                       style={{
-                        fontSize: 10.5, fontWeight: 700, color: "#fff",
-                        background: dragTask?.id === t.id ? "#A0AEC0" : t.completed ? "#A0AEC0" : cat.color,
-                        borderRadius: 3, padding: "2px 5px",
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                        opacity: dragTask?.id === t.id ? 0.4 : dimmed ? 0.45 : t.completed ? 0.6 : 1,
-                        lineHeight: 1.3, cursor: "grab",
+                        display: "flex", alignItems: "center", gap: 4,
+                        padding: "1px 3px", borderRadius: 3,
+                        opacity: dragTask?.id === t.id ? 0.4 : dimmed ? 0.45 : t.completed ? 0.55 : 1,
+                        cursor: "grab",
                         transition: "opacity .15s, box-shadow .15s",
                         boxShadow: selectedTaskId === t.id ? "0 0 0 2px #0F4440" : "none",
                       }}>
-                      {t.time ? `${t.time.slice(0,5)} ` : ""}{t.title}
+                      <span style={{
+                        width: 3, height: 10, borderRadius: 1.5, flexShrink: 0,
+                        background: t.completed ? "#A0AEC0" : cat.color,
+                      }}/>
+                      <span style={{
+                        flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 600,
+                        color: C.txt, textDecoration: t.completed ? "line-through" : "none",
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}>{t.title}</span>
+                      {t.time && (
+                        <span style={{ fontSize: 9, color: C.muted, fontWeight: 500, flexShrink: 0 }}>
+                          {formatTimeKo(t.time)}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
