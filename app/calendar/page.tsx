@@ -47,31 +47,13 @@ const CATS: Record<string, { label: string; color: string; bg: string }> = {
 };
 
 /* 일정 드래그용 커스텀 마우스 커서 — 기본 OS grab/grabbing 손 아이콘 대신 그라디언트+그림자로
-   입체감(눌린 듯한 원형 손잡이) 있는 커서를 씀. data URI 안의 '#'은 외부 URL의 fragment로
-   오인되지 않도록 encodeURIComponent로 통째로 인코딩해야 한다. */
-function svgCursorUrl(svg: string, fallback: string) {
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 16 16, ${fallback}`;
-}
-const CURSOR_GRAB = svgCursorUrl(
-  `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
-    <defs><radialGradient id='cg' cx='38%' cy='30%' r='75%'>
-      <stop offset='0%' stop-color='#ffffff'/>
-      <stop offset='55%' stop-color='#DCEAE7'/>
-      <stop offset='100%' stop-color='#5E8983'/>
-    </radialGradient></defs>
-    <ellipse cx='16' cy='20' rx='8.5' ry='6.5' fill='#000000' opacity='0.22'/>
-    <circle cx='16' cy='15' r='9' fill='url(#cg)' stroke='#0F4440' stroke-width='1.5'/>
-  </svg>`, "grab");
-const CURSOR_GRABBING = svgCursorUrl(
-  `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
-    <defs><radialGradient id='cg2' cx='40%' cy='38%' r='80%'>
-      <stop offset='0%' stop-color='#EAF1EF'/>
-      <stop offset='60%' stop-color='#9FBAB5'/>
-      <stop offset='100%' stop-color='#4C726C'/>
-    </radialGradient></defs>
-    <ellipse cx='16' cy='19' rx='7.5' ry='5.5' fill='#000000' opacity='0.28'/>
-    <circle cx='16' cy='16' r='8' fill='url(#cg2)' stroke='#0F4440' stroke-width='1.5'/>
-  </svg>`, "grabbing");
+   입체감(눌린 듯한 원형 손잡이) 있는 커서를 씀. SVG data URI는 사파리 등 일부 브라우저에서
+   cursor: url()에 잘 안 그려지는(특히 그라디언트가 있으면) 이슈가 있어, 미리 32x32 PNG로
+   래스터화해서 base64로 박아넣는다 — 모든 브라우저에서 동일하게 보장되는 방식. */
+const CURSOR_GRAB =
+  `url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAEaElEQVR4nOxXW2wUZRQ+/8yyu71sttuLlEa70QRoRFBqjamkVgISm2h8RQNPhndUjJoYffDFFyWYGF94NDExaow+iIVgSxSI2NpWpFelUCnba9jdmdmdmf/iOTOzG16m7haSvvRsTv75558933euO6vBBosGGyybBDacQASqlX37EvXxSBcD1skAnqJbCuCKYjBkcPgdBgaMasyxip/s64slHOsDBH6LMYhojKl06zZBRzcyt3WpFFMKOFr8KDe/+CFcu+ZUYrYiAvUHevdrDE7j448cP/yKfOnZXq29tRWQBCAwOJzD9flb8N3goDr97TfIEaYl044ZZ38evGcCiQO9PQh0IZlIiM/ffld/Zs8e0JkGCoEx9MCFAKGkt3Ip4dfREThx8iQ3C1ZEAvTkzw38sn4Chw7VNUj3r2Si/sEzn36mtzU1ga7pnuf0TYGAQgpwA3AiQdez8/Nw9P33hGEaN7NabDf095thEGt2QVI4p9DP9Cevv6lvbUwhuIbKYEtE96JAe1ZayRskRtxaW5rhjSNHdbzzcEI4H6+FEU7g4MEkWn3t5ef2q569ez3j3hcQULsLVAvul86Z98H22LULup94XGGtHoPu7pqqCdRL50laj/T1eZZLOad8+6GX3l7Sqvzz8nOeSnj+6W6KiZaojXZVTQA96iKvtre3ByCqDOwKjjkXXs6pC6TyyShvVf65kNDa3BjYguoJYKq70m1tkoqOQHgA7le78EC8vfRJ0LVPBtvS5agOUmGQSiaxGcIJhE5CnCtScKEo5EwGzYJuasistC9574P7a9FxoGAXoei6eG1T5DAoLNzRsAMM28jcQkYng2XPld9mbhABHrRgaQ7QQDIsC8xiESzUnGnCnVxORwZ/VE0AeY/QOjQ+Dg6BIYjLRdDrPCAhynPARo+zpgF5JEAkrGIB/pn7NwBhw2E4oSlAmyMRPP3yzI9yRzqt1cRiEI9FyZjXcl7RYyZc9NrGKBkIaBYKntdEImdacGlslPKvZVnkShiOHnbgzs4a0fRDnXMLCx3bWlqgOZXCwnK9MJO3NhYZARIwAeYROGchuGl5JIYnxuHyyChTgn9lnx/4omoCJI6E32INyVeHJybjnR0dGgoWmI2K4AhsBeAU8nygOUzD7eUl+Pqnc0JwvpQbnz4MhnFnXQQgm7WgJpaD2poXLwwNgY4juKkhBZbtF5kXgYJVJpFDvTw2Bj+cH6A2ZM6t+eP8xs2LaEmsjwCVwvLKshaP/y1jsa6rMzN1E7PXwcU+p4FDBUnAmZUV+HN6Bs5evARjk1PAXb5kZxbfsSem+tHG8loAlbwP0DOPQTL5QGL3oye0eOyF0kGirg47VDKMRLmbZKH4fX706ikMewa34+BNj7WNVyJR1O2EGWlsbNjStnWnXle7Q4tGd0oMhbTtSWVak25mcZqvrlK+86hTqO7/Ga78lcyXFGo7ativWwF1DnUVKpRqCZQkGpCouQu4iGpDlbJeAvdNNv+YbBL4DwAA//94ieNhAAAABklEQVQDAP+QqL+odE2TAAAAAElFTkSuQmCC") 16 16, grab`;
+const CURSOR_GRABBING =
+  `url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADtElEQVR4nOxWT28TRxR/M7NeG5OEVjZRnBglUaiicmmlCIoqoFbSoqIKekpKVVWilx7aQ79ApUrtqV+iVQ+9tZeqSikEKTiBgEQSIgExIomRCYS/UZw4tmd3Z4b3xgRO2LGFlIufPJrZmdn3+72/aw47LBx2WJoEmgR2nIAD9crwsIg+e/iew/hhAPZhZdNcDpiZKo6l5/BB16OO1XO5bfCjE6GQ81ugVAc9J+J7lQEDD58+FfTsCPEgCIIz+QsXz29X57YItA4NxQRXvxsDJ9/v7zenjx9nvV1JBOSgtIZiuQwL95bhrwtjJpPNMuT0t3Hkt+v/T62+EQKJz05c1KCOfD/yBU8NDCCwY18k6/0gwKGg7EuQvg/p6Rn4879RLRifeDR6LlVLt6h1oXUwdSbQwQ/fjYywTw59ABHXhXAoBC4OwQUgkCVCP40u6twbh93RKJvNZHrc3p67XvbuXMMEokePJlxXnB04cMD95tQpBA9b8F04hxyHYk64YAhcGySgAfMDOuJxuJPLwdp6/mPe1/WHv3Rv43UYVctQhMVXaNXuk8eOobXcDheByfpoJILrEIQwHPYM84EzBhzXDOfBQweJXIvQoS+rYVQtQ4xzN819yaS1dCthCIjWzG4YC2jIDaySGXSabG/f0rGvGkb1RmRMd3sspsndBl0caGVdXPY9KHmVpAuwChTuEQGNaxsODIWD7+xpaVWMmX0NewD5b6JiQ6XmqwCcQIBknk02ayvOMvDxTNlB94gknRPRin9ANkwAs3v2yerq6U2sc/EitqScyo5zZhOPgDwiYcsxsN7w0TPFUgnyhQ2BVGcaJoDxmaU5e38Z+rt7rMUEIMSr4iECNKTnWSIekijjOreyUjFC65kaGK+X/FphXAB7MDo5aSjeFPcSKi/KMpSktB3Q7slKPtg7tIfWX7o+pzAZcwXN09UwqjeilRXNuxI3H6/lv367rQ0S2GQoxls5Yd3vk+tfgReKRbh28xZcm5/nSsrPvfRktnECKH5uedFNdh6cz+X2RyO7WEc89tLtNu5IZMsbRQSfRvCxq1dNIOU/hYmpX2vpr0mAJNzbd84E3tCNpaXOBexwLdGobThEoFguwcbmJizix+jf9ARMZzKgfH+aRfSwXFwu1dJdz+eYtRw5/BMPh3/EahCUkLG39lBRwGo+z180I6VL8pfC5Ss/g63AbSiFOqUtldqvlfwUa/Id9MK7uIUpoW8j+gIX4bPr4+ML9eirm8Cbluaf0iaBJoHnAAAA///xsNStAAAABklEQVQDAIN1A2x0naawAAAAAElFTkSuQmCC") 16 16, grabbing`;
 
 const WEEKDAYS = ["일","월","화","수","목","금","토"];
 const HOURS = Array.from({length: 15}, (_, i) => i + 7); // 07:00~21:00
