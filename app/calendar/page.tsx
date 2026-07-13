@@ -1273,6 +1273,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       document.removeEventListener("mouseup", onMouseUp);
       document.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("touchend", onTouchEnd);
+      if (dropRafRef.current !== null) cancelAnimationFrame(dropRafRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDraggingActive]);
