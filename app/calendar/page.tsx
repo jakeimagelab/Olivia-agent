@@ -1417,8 +1417,6 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
             const ds = toYMD(d);
             const isToday = ds === todayStr;
             const timedTasks = (tasksByDate[ds] ?? []).filter(t => !!t.time);
-            const isDropCol = dropTarget?.date === ds;
-
             return (
               <div key={colIdx} ref={el => { dayColRefs.current[colIdx] = el; }} style={{ position: "relative", borderLeft: `1px solid ${C.border}30` }}>
 
