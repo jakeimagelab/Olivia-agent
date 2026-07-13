@@ -1782,7 +1782,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                 <div key={h}
                   style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}20`,
                     background: h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
-                    cursor: dragging ? "grabbing" : onOpenAdd ? "pointer" : "default" }}
+                    cursor: dragging ? CURSOR_GRABBING : onOpenAdd ? "pointer" : "default" }}
                   onClick={e => { if (!dragging) onOpenAdd?.(dateStr, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
                 />
               ))}
