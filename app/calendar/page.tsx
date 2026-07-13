@@ -1935,10 +1935,10 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
 }
 
 /* ─── MiniMonth (for year view) ──────────────────────── */
-function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate, onClick }: {
+function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate, onClick, isMobile = false }: {
   year: number; m: number; todayStr: string; selectedDate: string;
   tasksByDate: Record<string, CalTask[]>;
-  onSelectDate: (d: string) => void; onClick: () => void;
+  onSelectDate: (d: string) => void; onClick: () => void; isMobile?: boolean;
 }) {
   const { cells } = buildMonthCells(year, m);
   return (
