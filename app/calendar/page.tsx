@@ -2017,7 +2017,7 @@ function YearView({ year, todayStr, tasksByDate, selectedDate, onSelectDate, onP
         {Array.from({length: 12}, (_, m) => (
           <MiniMonth key={m} year={year} m={m} todayStr={todayStr}
             selectedDate={selectedDate} tasksByDate={tasksByDate}
-            onSelectDate={onSelectDate}
+            onSelectDate={onSelectDate} isMobile={isMobile}
             onClick={() => onSelectMonth(year, m)}/>
         ))}
       </div>
