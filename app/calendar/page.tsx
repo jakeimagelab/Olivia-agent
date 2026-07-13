@@ -1427,19 +1427,40 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                       }}>
                       <div style={{ fontSize: 10, fontWeight: 800, color: "#fff",
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {t.time?.slice(0,5)} {t.title}
+                        {currentStart?.slice(0,5)} {t.title}
                       </div>
                       {currentEnd && (
                         <div style={{ fontSize: 9, color: "rgba(255,255,255,.75)" }}>~ {currentEnd.slice(0,5)}</div>
                       )}
 
-                      {/* Resize handle */}
+                      {/* 위쪽 경계 — 드래그하면 시작시간만 바뀌고 종료시간은 고정 */}
                       <div
                         data-resize="1"
                         onMouseDown={e => {
                           e.preventDefault(); e.stopPropagation();
-                          const orig = t.end_time || nextHourTime(t.time || "09:00");
-                          setResizeInfo({ task: t, startY: e.clientY, origEndTime: orig, previewEndTime: orig });
+                          const origStart = t.time || "09:00";
+                          const origEnd = t.end_time || nextHourTime(origStart);
+                          setResizeInfo({ task: t, edge: "top", startY: e.clientY,
+                            origStartTime: origStart, origEndTime: origEnd,
+                            previewStartTime: origStart, previewEndTime: origEnd });
+                        }}
+                        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 8,
+                          cursor: "ns-resize", background: "rgba(0,0,0,.12)",
+                          borderRadius: "5px 5px 0 0", display: "flex",
+                          alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ width: 20, height: 2, background: "rgba(255,255,255,.55)", borderRadius: 1 }}/>
+                      </div>
+
+                      {/* 아래쪽 경계 — 드래그하면 종료시간만 바뀌고 시작시간은 고정 */}
+                      <div
+                        data-resize="1"
+                        onMouseDown={e => {
+                          e.preventDefault(); e.stopPropagation();
+                          const origStart = t.time || "09:00";
+                          const origEnd = t.end_time || nextHourTime(origStart);
+                          setResizeInfo({ task: t, edge: "bottom", startY: e.clientY,
+                            origStartTime: origStart, origEndTime: origEnd,
+                            previewStartTime: origStart, previewEndTime: origEnd });
                         }}
                         style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 8,
                           cursor: "ns-resize", background: "rgba(0,0,0,.12)",
