@@ -97,7 +97,7 @@ function deepClone<T>(obj: T): T {
 
 function StepBar({ current }: { current: Step }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 32 }}>
+    <div className="pc-workflow-track pc-workflow-track--fluid" style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 32 }}>
       {STEP_LABELS.map((label, i) => {
         const step = (i + 1) as Step;
         const done = current > step;

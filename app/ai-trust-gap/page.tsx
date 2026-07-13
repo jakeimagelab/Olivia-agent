@@ -457,8 +457,8 @@ function Hero() {
 
 function StepNav() {
   return (
-    <section style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, overflowX: "auto", boxShadow: C.shadow }}>
-      <div style={{ display: "flex", minWidth: "max-content", gap: 8 }}>
+    <section className="pc-workflow-bar" style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 14, overflowX: "auto", boxShadow: C.shadow }}>
+      <div className="pc-workflow-track" style={{ display: "flex", gap: 8 }}>
         {steps.map((step, index) => {
           const Icon = step.icon;
           const active = index < 4;

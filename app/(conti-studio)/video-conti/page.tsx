@@ -81,7 +81,7 @@ function StepBadge({ n, active, done }: { n: number; active: boolean; done: bool
 function StepHeader({ step }: { step: number }) {
   const labels = ["홈페이지 분석", "BGM 업로드", "콘티 자동 생성", "편집 & 완료"];
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+    <div className="pc-workflow-bar pc-workflow-track pc-workflow-track--fluid" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
       {labels.map((l, i) => (
         <React.Fragment key={i}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

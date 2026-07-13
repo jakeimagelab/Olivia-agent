@@ -3729,6 +3729,26 @@ main:has(> .pc-header) {
   display: none;
 }
 
+/* ── 공통 워크플로우 단계 표시 ────────────────────────── */
+.pc-workflow-bar {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pc-workflow-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.pc-workflow-track {
+  width: max-content;
+  min-width: 100%;
+  justify-content: safe center;
+}
+
+.pc-workflow-track--fluid {
+  width: 100%;
+}
+
 @media (min-width: 901px) {
   .pc-feature-sidebar + .pc-fs-content .pc-tabs--global {
     padding-right: 92px;

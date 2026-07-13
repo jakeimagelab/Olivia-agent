@@ -1912,8 +1912,8 @@ function PhotoSortingInner() {
      STEP INDICATOR
   ═══════════════════════════════════════════ */
   const renderStepIndicator = () => (
-    <div style={{background:C.white,borderBottom:`1px solid ${C.border}`,padding:"10px 24px",overflowX:"auto"}}>
-      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+    <div className="pc-workflow-bar" style={{background:C.white,borderBottom:`1px solid ${C.border}`,padding:"10px 24px",overflowX:"auto"}}>
+      <div className="pc-workflow-track" style={{display:"flex",gap:4,alignItems:"center"}}>
         {stepLabels.map((lbl,i)=>(
           <div key={i} style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
             <div style={{width:22,height:22,borderRadius:"50%",fontSize:9,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",background:i<step?(photoMode==="studio"?C.purple:C.green):i===step?C.teal:C.border,color:i<=step?"#fff":C.muted}}>{i<step?"✓":i+1}</div>

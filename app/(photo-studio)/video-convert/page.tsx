@@ -239,8 +239,8 @@ export default function VideoConvertPage() {
   const errorCount = Object.values(results).filter((r) => r.status === "error").length;
 
   const renderStepIndicator = () => (
-    <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 24px", overflowX: "auto" }}>
-      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+    <div className="pc-workflow-bar" style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 24px", overflowX: "auto" }}>
+      <div className="pc-workflow-track" style={{ display: "flex", gap: 4, alignItems: "center" }}>
         {STEP_LABELS.map((lbl, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             <div style={{

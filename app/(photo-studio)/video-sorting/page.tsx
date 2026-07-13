@@ -493,8 +493,8 @@ export default function VideoSortingPage() {
      STEP INDICATOR — photo-sorting의 renderStepIndicator와 동일한 구조
   ═══════════════════════════════════════════════ */
   const renderStepIndicator = () => (
-    <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 24px", overflowX: "auto" }}>
-      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+    <div className="pc-workflow-bar" style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 24px", overflowX: "auto" }}>
+      <div className="pc-workflow-track" style={{ display: "flex", gap: 4, alignItems: "center" }}>
         {stepLabels.map((lbl, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             <div style={{
