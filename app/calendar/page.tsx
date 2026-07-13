@@ -1124,17 +1124,20 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
      ghost는 dragPosRef를 통해 direct DOM으로만 움직인다(React state 미개입) — 예전엔 JSX의
      style.transform도 dragging.currentX/currentY(React state)를 같이 참조해서, RAF로 지연된
      리렌더가 direct DOM으로 이미 앞서 나간 위치를 순간적으로 되돌리는 "이중 라이터" 충돌이 있었고
-     이게 드래그 중 박스가 미세하게 떨리는 현상의 원인이었다. 이제 dragging state엔 좌표를 아예 안 담고,
-     드롭 인디케이터用 dropTarget만 스냅 값이 바뀔 때만 최소한으로 리렌더한다. */
+     이게 드래그 중 박스가 미세하게 떨리는 현상의 원인이었다. 예전엔 별도로 점선 테두리의 "드롭
+     인디케이터"(dropTarget state, 15분 단위로 스냅되고 top에 CSS transition까지 걸려있었다)가
+     ghost와 별개로 렌더링돼서, 실제 이동 중인 박스는 부드러운데 그 옆에서 점선 박스가 스냅→transition으로
+     "쫓아오다 점프"를 반복해 전체적으로 떨리는 것처럼 보였다. 이제 점선 인디케이터를 없애고, 실제
+     박스와 똑같은 크기(요일 컬럼 폭 × 소요시간 높이)의 ghost 하나만 커서를 그대로 따라가게 한다
+     (세로는 커서에 1:1로 붙고, 가로는 어느 요일 컬럼 위에 있는지에 따라서만 스냅) — 15분 단위 스냅은
+     실제로 손을 뗄 때(finishDrag)만 적용해 저장한다. */
   const [dragging, setDragging] = useState<{
     task: CalTask; offsetX: number; offsetY: number;
   } | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ date: string; time: string; colIdx: number } | null>(null);
   const draggingRef  = useRef(dragging);
   draggingRef.current = dragging;
   const ghostRef     = useRef<HTMLDivElement>(null);
   const dragPosRef   = useRef<{x:number;y:number}>({x:0,y:0});
-  const dropTargetKeyRef = useRef<string | null>(null);
   const dragStartRef = useRef<{x:number;y:number}>({x:0,y:0}); // 클릭 vs 드래그 구분용
 
   /* ── drag-to-resize state ── */
