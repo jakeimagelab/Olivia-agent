@@ -78,6 +78,16 @@ function minutesToTime(mins: number): string {
   return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
 }
 
+function formatTimeKo(t: string): string {
+  const [hStr, mStr] = t.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+  const period = h < 12 ? "오전" : "오후";
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  return m === 0 ? `${period} ${h12}시` : `${period} ${h12}:${String(m).padStart(2,"0")}`;
+}
+
 function monthLabel(m: number) { return `${m+1}월`; }
 
 function getWeekDates(dateStr: string): Date[] {
