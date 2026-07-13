@@ -1499,7 +1499,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                         background: t.completed ? "#9CA3AF" : cat.color,
                         borderRadius: 5, padding: "3px 6px 8px",
                         overflow: "hidden",
-                        cursor: isDraggingThis ? "grabbing" : "grab",
+                        cursor: isDraggingThis ? CURSOR_GRABBING : CURSOR_GRAB,
                         zIndex: isDraggingThis ? 2 : 10,
                         opacity: isDraggingThis ? 0.2 : t.completed ? 0.7 : 1,
                         boxShadow: "0 1px 4px rgba(0,0,0,.15)",
