@@ -1706,7 +1706,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
       maxWidth: isMobile ? undefined : 700, margin: "0 auto", width: "100%",
       userSelect: dragging ? "none" : undefined,
-      cursor: dragging ? "grabbing" : undefined }}>
+      cursor: dragging ? CURSOR_GRABBING : undefined }}>
 
       {/* 모바일: 월로 돌아가기 */}
       {isMobile && onNavigateMonth && (
