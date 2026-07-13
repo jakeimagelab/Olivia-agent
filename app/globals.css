@@ -587,6 +587,80 @@ main:has(> .pc-header) {
   min-height: calc(100vh - 56px);
 }
 
+/* ── 전역 기능 사이드바 (대시보드 제외 모든 기능 페이지) ─────────── */
+.pc-feature-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 216px;
+  background: #fff;
+  border-right: 1px solid rgba(21, 88, 85, .1);
+  overflow-y: auto;
+  padding: 16px 10px;
+  z-index: 210;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pc-fs-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--muted-green);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+
+.pc-fs-item:hover {
+  background: rgba(21, 88, 85, .06);
+}
+
+.pc-fs-item--active {
+  background: var(--soft-mint);
+  color: var(--deep-green);
+}
+
+.pc-fs-item svg {
+  flex-shrink: 0;
+}
+
+.pc-fs-home {
+  color: var(--deep-green);
+  font-weight: 900;
+}
+
+.pc-fs-divider {
+  height: 1px;
+  background: rgba(21, 88, 85, .1);
+  margin: 8px 4px 10px;
+}
+
+.pc-fs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pc-fs-content {
+  transition: margin-left .1s;
+}
+
+@media (max-width: 900px) {
+  .pc-feature-sidebar {
+    display: none;
+  }
+  .pc-fs-content {
+    margin-left: 0 !important;
+  }
+}
+
 .login-panel,
 .admin-dashboard,
 .placeholder-page {
