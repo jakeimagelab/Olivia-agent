@@ -552,7 +552,7 @@ function EventDetailView({ task, onEdit, onToggle }: { task: CalTask; onEdit: ()
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <button onClick={() => { setCompleted(v => !v); onToggle(); }} style={{
-          width: 22, height: 22, borderRadius: "50%", marginTop: 2, flexShrink: 0,
+          width: 22, height: 22, borderRadius: "50%", marginTop: 4, flexShrink: 0,
           border: `2px solid ${completed ? cat.color : C.border}`,
           background: completed ? cat.color : "transparent",
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -560,6 +560,7 @@ function EventDetailView({ task, onEdit, onToggle }: { task: CalTask; onEdit: ()
         }}>
           {completed && <Check size={12} color="#fff" strokeWidth={3}/>}
         </button>
+        <div style={{ width: 10, height: 10, borderRadius: 3, background: cat.color, marginTop: 7, flexShrink: 0 }}/>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 900, color: completed ? C.hint : C.txt, lineHeight: 1.35,
             textDecoration: completed ? "line-through" : "none" }}>{task.title}</div>
