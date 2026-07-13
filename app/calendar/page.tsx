@@ -1071,7 +1071,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                         color: C.txt, textDecoration: t.completed ? "line-through" : "none",
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                       }}>{t.title}</span>
-                      {t.time && (
+                      {t.time && !isMobile && (
                         <span style={{ fontSize: 9, color: C.muted, fontWeight: 500, flexShrink: 0 }}>
                           {formatTimeKo(t.time)}
                         </span>
