@@ -490,7 +490,7 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <button onClick={onClose} style={{ background: "none", border: "none", color: C.teal,
               fontSize: 15, fontWeight: 800, cursor: "pointer", padding: "6px 4px" }}>‹ 닫기</button>
-            {mode === "edit" && task && (
+            {mode === "edit" && task && editing && (
               <button onClick={() => { onDelete(task.id); onClose(); }} style={{
                 background: "none", border: "none", color: "#DC2626", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
                 삭제
@@ -504,10 +504,12 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
         {mode === "add" ? (
           <AddTaskForm key={`add-${date}-${anchor?.x}-${anchor?.y}`} date={date}
             onAdd={t => { onAdd(t); onClose(); }} triggerKey={1} defaultTime={defaultTime}/>
+        ) : task && !editing ? (
+          <EventDetailView task={task} onEdit={() => setEditing(true)}/>
         ) : task && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <EditTaskForm key={task.id} task={task}
-              onSave={t => { onSave(t); onClose(); }} onCancel={onClose}/>
+              onSave={t => { onSave(t); onClose(); }} onCancel={() => setEditing(false)}/>
             {!isMobile && (
               <button onClick={() => { onDelete(task.id); onClose(); }} style={{
                 height: 34, background: "none", border: "1px solid #FCA5A5", borderRadius: 8,
