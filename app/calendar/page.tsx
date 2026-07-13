@@ -2406,7 +2406,7 @@ export default function CalendarPage() {
           mode={popover.mode} date={popover.date} task={popover.task}
           anchor={{ x: popover.x, y: popover.y }} isMobile={isMobile} defaultTime={popover.time}
           onClose={() => setPopover(null)}
-          onAdd={addTask} onSave={editTask}
+          onAdd={addTask} onSave={editTask} onToggle={toggleTask}
           onDelete={id => { setPopover(null); requestDeleteTask(id); }}/>
       )}
 
