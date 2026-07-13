@@ -1659,7 +1659,9 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
           else setEditingId(d.task.id);
           return;
         }
-        const newTime = getTimeFromY(clientY);
+        // 박스 안 어디를 잡았든(offsetY) 화면에 보이는 박스의 윗변이 새 시작시간이 되어야 한다 —
+        // 커서 좌표를 그대로 넣으면 잡은 지점만큼 항상 더 밀려서 계산되는 버그가 있었다.
+        const newTime = getTimeFromY(clientY - d.offsetY);
         if (newTime && newTime !== (d.task.time ?? "")) {
           // 통째로 이동 — 기존 소요시간을 그대로 유지한 채 새 시작시간으로 옮긴다
           const fields: Partial<CalTask> = { time: newTime };
