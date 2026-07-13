@@ -1531,37 +1531,38 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         </div>
       </div>
 
-      {/* Ghost card — 위치는 오직 direct DOM(dragPosRef)으로만 갱신, React state는 관여하지 않음
-          (초기 프레임 깜빡임 방지용으로 mousedown 시점 좌표만 최초 1회 사용) */}
+      {/* Ghost — 실제 박스와 동일한 크기(요일 컬럼 폭 × 소요시간 높이)로 커서를 그대로 따라간다.
+          위치/폭은 오직 direct DOM(positionGhost)으로만 갱신되고 React state는 전혀 관여하지 않는다.
+          예전엔 작은 카드가 커서를 따라가는 것과 별개로 점선 테두리의 "드롭 위치 표시" 박스가 15분
+          단위로 스냅+transition 되며 렌더링돼서, 두 요소가 따로 움직이는 게 떨림처럼 보였다 — 이제
+          이 ghost 하나가 곧 "이동 중인 그 박스"라 크기가 유지된 채 부드럽게만 움직인다. */}
       {dragging && (() => {
         const cat = CATS[dragging.task.category] ?? CATS.general;
-        const cardW = 130;
+        const height = Math.max(28, durationPx(dragging.task.time || "09:00", dragging.task.end_time));
+        const initialColIdx = weekDates.findIndex(d => toYMD(d) === dragging.task.date);
+        const initialColRect = initialColIdx >= 0 ? dayColRefs.current[initialColIdx]?.getBoundingClientRect() : null;
+        const initialWidth = initialColRect ? initialColRect.width - 4 : 130;
+        const initialLeft = initialColRect ? initialColRect.left + 2 : dragStartRef.current.x - dragging.offsetX;
         return (
           <div ref={ghostRef} style={{
             position: "fixed", left: 0, top: 0, pointerEvents: "none", zIndex: 9999,
             willChange: "transform",
-            transform: `translate(${dragStartRef.current.x - dragging.offsetX}px,${dragStartRef.current.y - dragging.offsetY}px) rotate(2deg) scale(1.05)`,
+            width: initialWidth, height,
+            transform: `translate(${initialLeft}px,${dragStartRef.current.y - dragging.offsetY}px)`,
+            background: dragging.task.completed ? "#9CA3AF" : cat.color,
+            borderRadius: 5, padding: "3px 6px 8px",
+            boxShadow: "0 16px 34px rgba(0,0,0,.26), 0 5px 12px rgba(0,0,0,.18)",
+            overflow: "hidden",
           }}>
-            {/* 카테고리색 배경 대신 흰 카드 + 좌측 컬러바로 — 오렌지 계열 카테고리를 드래그할 때
-                박스와 같은 색이라 잘 안 보이던 문제 해결 + 입체감 있는 그림자로 "떠 있는" 느낌 */}
-            <div style={{
-              width: cardW,
-              background: "linear-gradient(180deg, #ffffff, #F6F9F8)",
-              borderRadius: 8, padding: "7px 10px 7px 11px",
-              borderLeft: `4px solid ${cat.color}`,
-              boxShadow: "0 18px 40px rgba(0,0,0,.24), 0 6px 14px rgba(0,0,0,.16), 0 0 0 1px rgba(0,0,0,.05)",
-              overflow: "hidden",
-            }}>
-              <div style={{ fontSize: 10.5, fontWeight: 800, color: C.txt,
-                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {dragging.task.time?.slice(0,5)} {dragging.task.title}
-              </div>
-              {dragging.task.end_time && (
-                <div style={{ fontSize: 9, color: C.muted, marginTop: 1 }}>
-                  ~ {dragging.task.end_time.slice(0,5)}
-                </div>
-              )}
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#fff",
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {dragging.task.time?.slice(0,5)} {dragging.task.title}
             </div>
+            {dragging.task.end_time && (
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,.75)", marginTop: 1 }}>
+                ~ {dragging.task.end_time.slice(0,5)}
+              </div>
+            )}
           </div>
         );
       })()}
