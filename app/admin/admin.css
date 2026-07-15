@@ -163,7 +163,7 @@
 .oa-timeline-item:first-child { border-top: 0; }
 .oa-timeline-item time { color: #8c949a; font-size: 10px; font-weight: 900; }
 .oa-timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: #cad3d9; box-shadow: 0 0 0 4px #f1f4f6; }
-.oa-timeline-item.is-active .oa-timeline-dot { background: var(--oa-blue); box-shadow: 0 0 0 4px #e5f3fc; }
+.oa-timeline-item.is-active .oa-timeline-dot { background: var(--oa-blue); box-shadow: 0 0 0 4px #eaf4f2; }
 .oa-timeline-item strong { color: #444a4e; font-size: 11px; }
 .oa-timeline-item p { margin: 3px 0 0; color: #a0a6ab; font-size: 9px; }
 .oa-compact-list { display: grid; gap: 7px; }
