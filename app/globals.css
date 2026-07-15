@@ -708,6 +708,40 @@ main:has(> .pc-header) {
   gap: 1px;
 }
 
+.pc-fs-group + .pc-fs-group {
+  margin-top: 4px;
+}
+
+/* /admin 사이드바의 섹션 라벨과 같은 스타일 — 접힌 레일에서는 공간을 차지하지 않다가,
+   레일이 펼쳐지거나(hover) 모바일 드로어에서는 그룹 이름이 드러난다. */
+.pc-fs-section-label {
+  font-size: 9px;
+  font-weight: 900;
+  color: var(--muted-green);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 0 12px;
+  margin: 0;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 140ms cubic-bezier(.22, 1, .36, 1), max-height 200ms cubic-bezier(.22, 1, .36, 1), padding 200ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.pc-feature-sidebar:hover .pc-fs-section-label,
+.pc-feature-sidebar:focus-within .pc-fs-section-label {
+  opacity: 1;
+  max-height: 24px;
+  padding: 8px 12px 3px;
+}
+
+.pc-fs-mobile-drawer .pc-fs-section-label {
+  opacity: 1;
+  max-height: none;
+  padding: 10px 12px 4px;
+}
+
 .pc-fs-content {
   min-width: 0;
 }
