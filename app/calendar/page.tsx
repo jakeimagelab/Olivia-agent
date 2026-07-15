@@ -2079,16 +2079,6 @@ export default function CalendarPage() {
     return { total: monthTasks.length, byCategory, completed: monthTasks.filter(t => t.completed).length };
   }, [allTasks, year, month]);
 
-  // 상담 메모는 별도 저장소 없이 category:"shooting" 태스크에서 그대로 파생 (구 DayPanel과 동일 로직)
-  const consultations = useMemo<ConsultEntry[]>(() => dayTasks
-    .filter(t => t.category === "shooting" && t.memo)
-    .map(t => ({
-      hospital: t.location || t.title.replace(/\s*촬영\s*일정\s*$/, "").trim() || "미입력",
-      summary: t.memo,
-      items: [],
-      budget: "",
-      savedAt: new Date(t.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-    })), [dayTasks]);
 
   const loadMonth = useCallback(async (y: number, m: number) => {
     const key = `${y}-${String(m+1).padStart(2,"0")}`;
