@@ -77,6 +77,26 @@ function stepBadgeColor(key: string) {
   return C.green;
 }
 
+/* ── 칸반 보드용 큰 단계 묶음 ──────────────────────────────
+   17개 세부 단계를 그대로 칸반 컬럼으로 쓰면 가로 스크롤이 너무 길어져서, 이어지는 업무 흐름
+   기준으로 8개 컬럼으로 묶는다. 촬영/보정은 AI 자동화가 없는(순수 수작업) 단계라 다른 AI 보조
+   단계와 섞지 않고 각각 단독 컬럼으로 뺐다. 칸반에서 카드를 다른 컬럼으로 드래그하면 해당 컬럼의
+   첫 세부 단계로 이동하고, 정밀한 세부 단계 조정은 기존 상세화면 체크리스트에서 한다. */
+const WORKFLOW_PHASES: { id: string; label: string; stepKeys: string[]; color: string }[] = [
+  { id: "prep",         label: "사전 준비",        stepKeys: ["consult_meeting", "quote", "contract", "conti"], color: C.orange },
+  { id: "shooting",     label: "촬영",             stepKeys: ["shooting"],                                       color: "#D97706" },
+  { id: "processing",   label: "데이터 처리·셀렉",  stepKeys: ["backup_sorting", "original_delivery", "client_selection", "raw_matching"], color: "#7C3AED" },
+  { id: "retouching",   label: "보정",             stepKeys: ["retouching"],                                     color: "#0891B2" },
+  { id: "delivery_prep",label: "납품 준비",        stepKeys: ["revision", "seo_delivery"],                       color: C.teal },
+  { id: "final",        label: "최종 전달",        stepKeys: ["final_delivery"],                                 color: C.green },
+  { id: "review",       label: "후기·리워드",      stepKeys: ["review_content", "reward"],                       color: "#059669" },
+  { id: "care",         label: "사후 관리·마케팅", stepKeys: ["customer_care", "content_planning"],              color: C.hint },
+];
+
+function phaseForStep(stepKey?: string | null) {
+  return WORKFLOW_PHASES.find((p) => p.stepKeys.includes(stepKey || "")) ?? null;
+}
+
 export default function ClientsPage() {
   return (
     <Suspense fallback={<SpinBox />}>
