@@ -2039,26 +2039,6 @@ export default function CalendarPage() {
   }, [isMobile, viewMode]);
 
   useEffect(() => {
-    if (!showIcsModal) return;
-    const close = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      if (!t.closest("[data-ics-modal]")) setShowIcsModal(false);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [showIcsModal]);
-
-  useEffect(() => {
-    if (!showConsultModal) return;
-    const close = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      if (!t.closest("[data-consult-modal]")) setShowConsultModal(false);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [showConsultModal]);
-
-  useEffect(() => {
     if (!confirmDeleteId) return;
     const close = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
