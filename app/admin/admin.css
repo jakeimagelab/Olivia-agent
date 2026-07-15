@@ -147,7 +147,7 @@
 .oa-action-card__meta { display: inline-block; margin-top: 6px; color: #5a7470; font-size: 8px; font-weight: 900; letter-spacing: .08em; }
 .oa-action-card__arrow { flex: 0 0 auto; color: #a4c1d4; }
 
-.oa-recommendation { overflow: hidden; padding: 21px; background: linear-gradient(145deg,#1e88d1 0%,#48a4dd 100%); color: #fff; box-shadow: 0 16px 36px rgba(30,136,209,.2); }
+.oa-recommendation { overflow: hidden; padding: 21px; background: linear-gradient(145deg,#155855 0%,#1e7870 100%); color: #fff; box-shadow: 0 16px 36px rgba(21,88,85,.22); }
 .oa-recommendation__header { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }
 .oa-recommendation__icon { width: 37px; height: 37px; display: grid; place-items: center; border-radius: 12px; background: rgba(255,255,255,.18); }
 .oa-recommendation__eyebrow { margin: 0 0 2px; color: rgba(255,255,255,.65); font-size: 8px; font-weight: 900; letter-spacing: .16em; }
