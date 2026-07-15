@@ -128,6 +128,7 @@ function ListView() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const router = useRouter();
 
   const load = async () => {
@@ -147,11 +148,20 @@ function ListView() {
 
   return (
     <div style={{ color: C.txt }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 20px 80px" }}>
+      <div style={{ maxWidth: viewMode === "kanban" ? undefined : 1280, margin: "0 auto", padding: "20px 20px 80px" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="병원명 · 진료과 검색"
             style={{ flex: "1 1 180px", maxWidth: 300, height: 40, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0 14px", fontSize: 13, fontFamily: "inherit", outline: "none", background: C.white, color: C.txt }} />
-          <span style={{ fontSize: 12, color: C.hint, marginLeft: "auto" }}>총 {filtered.length}명</span>
+          <div style={{ display: "flex", background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 9, padding: 2, gap: 1 }}>
+            {([["kanban", "🗂 칸반"], ["list", "▤ 리스트"]] as const).map(([v, label]) => (
+              <button key={v} onClick={() => setViewMode(v)} style={{
+                padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 800, border: "none",
+                cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
+                background: viewMode === v ? C.teal : "transparent", color: viewMode === v ? "#fff" : C.muted,
+              }}>{label}</button>
+            ))}
+          </div>
+          <span style={{ fontSize: 12, color: C.hint, marginLeft: viewMode === "kanban" ? 0 : "auto" }}>총 {filtered.length}명</span>
           <button onClick={() => setShowModal(true)}
             style={{ height: 40, padding: "0 20px", background: C.orange, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
             + 신규 등록
