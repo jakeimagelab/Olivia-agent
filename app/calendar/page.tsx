@@ -965,10 +965,12 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
         ))}
       </div>
 
-      {/* ── Day grid */}
+      {/* ── Day grid — 주 수(5~6주)에 따라 실제 높이가 달라지고, 남는 세로 공간은 아래
+          데일리 루틴 패널이 flex:1로 흡수한다(예전엔 이 div가 flex:1이라 그리드 밑에 빈
+          배경색만 남았다). */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)",
         gridAutoRows: "124px", gap: "1px", background: C.border,
-        border: `1px solid ${C.border}`, flex: 1, overflow: "hidden" }}>
+        border: `1px solid ${C.border}`, flexShrink: 0, overflow: "hidden" }}>
         {cells.map((cell, idx) => {
           const dateStr    = `${cell.year}-${String(cell.month+1).padStart(2,"0")}-${String(cell.day).padStart(2,"0")}`;
           const isToday    = dateStr === todayStr;
