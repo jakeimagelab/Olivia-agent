@@ -136,7 +136,7 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
     <aside ref={asideRef} className={`oa-sidebar${open ? " oa-sidebar--open" : ""}`} aria-label="관리자 메뉴" aria-hidden={inert || undefined} inert={inert || undefined}>
       <div className="oa-sidebar__brand">
         <Link className="oa-sidebar__brand-link" href="/admin/dashboard/home" onClick={onClose}>
-          <span className="oa-sidebar__brand-mark" aria-hidden="true"><Sparkles size={19} /></span>
+          <span className="oa-sidebar__brand-mark" aria-hidden="true"><img src="/assets/photoclinic-mark.png" alt="" /></span>
           <span className="oa-sidebar__brand-copy">
             <strong>Olivia</strong>
             <small>Admin</small>
