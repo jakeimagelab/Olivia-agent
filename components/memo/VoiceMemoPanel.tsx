@@ -71,7 +71,7 @@ export default function VoiceMemoPanel({ memoId, existingUrl, transcript, summar
     setBusy(true); setError("");
     try {
       const id = memoId || await ensureSaved();
-      const audio = new File([blob], "consultation.webm", { type: blob.type || "audio/webm" });
+      const audio = new File([blob], "voice-memo.webm", { type: blob.type || "audio/webm" });
       const upload = new FormData(); upload.append("file", audio); upload.append("memo_id", id); upload.append("kind", "audio"); upload.append("duration_seconds", String(seconds));
       const uploadResponse = await fetch("/api/memo/assets", { method: "POST", body: upload });
       const uploadData = await uploadResponse.json();

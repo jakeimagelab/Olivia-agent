@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: process.env.OPENAI_MEMO_MODEL || "gpt-4.1-mini",
-        instructions: "병원 촬영 상담 음성 전사를 한국어로 간결하게 정리하세요. 반드시 '핵심 내용', '결정 사항', '후속 작업' 세 구역으로 작성하고, 전사에 없는 사실은 만들지 마세요.",
+        instructions: "한국어 음성 메모를 간결하고 읽기 쉽게 정리하세요. 반드시 '핵심 내용', '결정 사항', '후속 작업' 세 구역으로 작성하고, 전사에 없는 사실은 만들지 마세요.",
         input: transcript,
       }),
     });

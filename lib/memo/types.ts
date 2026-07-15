@@ -1,8 +1,10 @@
 export type MemoTemplateType = "text" | "cornell" | "todo" | "blank" | "grid" | "conti";
+export type MemoMode = "general" | "template" | "voice";
 
 export type TodoItem = { id: string; text: string; done: boolean };
 
 export type MemoTemplateData = {
+  noteMode?: MemoMode;
   body?: string;
   cues?: string;
   notes?: string;
@@ -37,13 +39,15 @@ export type ConsultationMemo = {
 };
 
 export const TEMPLATE_OPTIONS: { type: MemoTemplateType; label: string; description: string; mark: string }[] = [
-  { type: "text", label: "기본 텍스트", description: "빠르게 적는 자유 메모", mark: "Aa" },
-  { type: "cornell", label: "코넬형", description: "키워드·본문·요약 분리", mark: "Co" },
-  { type: "todo", label: "할 일", description: "후속 작업 체크리스트", mark: "✓" },
+  { type: "text", label: "일반메모", description: "키보드로 작성하는 텍스트 메모", mark: "Aa" },
   { type: "blank", label: "백지", description: "자유 필기와 스케치", mark: "□" },
+  { type: "cornell", label: "코넬형", description: "키워드·노트·요약 필기", mark: "Co" },
+  { type: "todo", label: "To do list", description: "직접 쓰는 할 일 체크리스트", mark: "✓" },
   { type: "grid", label: "모눈종이", description: "격자 위 아이디어 정리", mark: "#" },
   { type: "conti", label: "콘티", description: "행·열 촬영 프레임", mark: "▦" },
 ];
+
+export const PEN_TEMPLATE_OPTIONS = TEMPLATE_OPTIONS.filter(option => option.type !== "text");
 
 export const emptyTemplateData = (type: MemoTemplateType): MemoTemplateData => {
   if (type === "todo") return { todos: [{ id: crypto.randomUUID(), text: "", done: false }] };

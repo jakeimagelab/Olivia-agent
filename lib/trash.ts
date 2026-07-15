@@ -30,9 +30,9 @@ const clipped = (value: unknown, length = 120) => text(value).replace(/\s+/g, " 
 
 export const TRASH_SOURCES: Record<TrashSourceType, SourceConfig> = {
   consultation_memo: {
-    label: "상담 메모",
+    label: "메모",
     table: "consultation_memos",
-    title: row => text(row.title) || clipped(row.summary, 60) || clipped(row.raw_memo, 60) || "제목 없는 상담 메모",
+    title: row => text(row.title) || clipped(row.summary, 60) || clipped(row.raw_memo, 60) || "제목 없는 메모",
     preview: row => clipped(row.raw_memo || row.summary),
     assets: row => [row.canvas_path, row.ai_image_path, row.audio_path]
       .filter((v): v is string => typeof v === "string" && Boolean(v))

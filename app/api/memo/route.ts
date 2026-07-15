@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
         extracted_data: extracted,
         recommended_package: extracted.recommended_package || "",
         next_action: extracted.next_action || "",
-        title: body.title || extracted.hospital_name || "상담 메모",
+        title: body.title || extracted.hospital_name || "메모",
       });
     } else if (body.id) {
       const db = getSupabaseAdmin();

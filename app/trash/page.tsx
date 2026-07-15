@@ -86,7 +86,7 @@ export default function TrashPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 26, flexWrap: "wrap" }}>
           <Link href="/" style={{ color: C.teal, textDecoration: "none", fontSize: 13, fontWeight: 800 }}>← Olivia</Link>
           <div style={{ flex: 1 }} />
-          <Link href="/memo" style={{ color: C.teal, textDecoration: "none", fontSize: 13, fontWeight: 800 }}>상담 메모</Link>
+          <Link href="/memo" style={{ color: C.teal, textDecoration: "none", fontSize: 13, fontWeight: 800 }}>메모</Link>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 20, alignItems: "end", marginBottom: 24 }}>

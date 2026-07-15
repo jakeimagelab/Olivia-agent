@@ -38,6 +38,8 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
   const [, forceHistory] = useState(0);
 
   const background = useMemo(() => {
+    if (templateType === "cornell") return { backgroundColor: "#FCFDFC", backgroundImage: "linear-gradient(to right,transparent calc(31% - 1px),rgba(21,88,85,.22) calc(31% - 1px),rgba(21,88,85,.22) calc(31% + 1px),transparent calc(31% + 1px)),linear-gradient(to bottom,transparent calc(78% - 1px),rgba(21,88,85,.22) calc(78% - 1px),rgba(21,88,85,.22) calc(78% + 1px),transparent calc(78% + 1px))" };
+    if (templateType === "todo") return { backgroundColor: "#FCFDFC", backgroundImage: "linear-gradient(90deg,transparent 55px,rgba(21,88,85,.14) 55px,rgba(21,88,85,.14) 57px,transparent 57px),repeating-linear-gradient(to bottom,transparent 0,transparent 47px,rgba(21,88,85,.14) 47px,rgba(21,88,85,.14) 48px)" };
     if (templateType === "grid") return { backgroundColor: "#FCFDFC", backgroundImage: "linear-gradient(rgba(21,88,85,.095) 1px, transparent 1px),linear-gradient(90deg, rgba(21,88,85,.095) 1px, transparent 1px)", backgroundSize: "24px 24px" };
     if (templateType === "conti") {
       const columns = templateData.contiColumns ?? 2;

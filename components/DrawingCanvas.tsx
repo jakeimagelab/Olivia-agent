@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
 export type PenType = "pen" | "marker" | "highlighter" | "brush" | "pencil" | "ballpoint" | "fountain";
 export type DrawShape = "freehand" | "line" | "arrow" | "rectangle" | "ellipse";
-export type CanvasExportOptions = { background?: "white" | "grid" | "conti"; columns?: number; rows?: number };
+export type CanvasExportOptions = { background?: "white" | "cornell" | "todo" | "grid" | "conti"; columns?: number; rows?: number };
 
 export const PEN_TYPES: { key: PenType; label: string; icon: string }[] = [
   { key: "pencil",      label: "연필",  icon: "✎" },
@@ -117,7 +117,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
       const ctx = output.getContext("2d", { willReadFrequently: true });
       if (!ctx) return canvas.toDataURL("image/png");
       ctx.fillStyle = "#FCFDFC"; ctx.fillRect(0, 0, output.width, output.height);
-      ctx.strokeStyle = options.background === "grid" ? "rgba(21,88,85,.14)" : "rgba(21,88,85,.28)";
+      ctx.strokeStyle = options.background === "grid" || options.background === "todo" ? "rgba(21,88,85,.14)" : "rgba(21,88,85,.28)";
       ctx.lineWidth = Math.max(1, dprRef.current);
       if (options.background === "grid") {
         const step = 24 * dprRef.current;
@@ -127,6 +127,14 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
         const columns = Math.max(1, options.columns ?? 2); const rows = Math.max(1, options.rows ?? 3);
         for (let column = 1; column < columns; column += 1) { const x = output.width * column / columns; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, output.height); ctx.stroke(); }
         for (let row = 1; row < rows; row += 1) { const y = output.height * row / rows; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(output.width, y); ctx.stroke(); }
+      } else if (options.background === "cornell") {
+        const splitX = output.width * .31; const summaryY = output.height * .78;
+        ctx.beginPath(); ctx.moveTo(splitX, 0); ctx.lineTo(splitX, summaryY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, summaryY); ctx.lineTo(output.width, summaryY); ctx.stroke();
+      } else if (options.background === "todo") {
+        const marginX = 56 * dprRef.current; const step = 48 * dprRef.current;
+        ctx.beginPath(); ctx.moveTo(marginX, 0); ctx.lineTo(marginX, output.height); ctx.stroke();
+        for (let y = step; y < output.height; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(output.width, y); ctx.stroke(); }
       }
       ctx.drawImage(canvas, 0, 0);
       return output.toDataURL("image/png");
