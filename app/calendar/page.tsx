@@ -2090,6 +2090,18 @@ export default function CalendarPage() {
     return map;
   }, [allTasks]);
 
+  // 일정 분석 — 지금 보고 있는 달(year/month) 기준으로 카테고리별 건수를 센다.
+  // 뷰(월/주/일/연) 모드와 무관하게 상단 nav의 year/month가 항상 "현재 기준 월"을 가리키므로 그대로 쓴다.
+  const monthStats = useMemo(() => {
+    const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const monthTasks = allTasks.filter(t => t.date.startsWith(prefix));
+    const byCategory = Object.keys(CATS).map(key => ({
+      key, ...CATS[key],
+      count: monthTasks.filter(t => t.category === key).length,
+    }));
+    return { total: monthTasks.length, byCategory, completed: monthTasks.filter(t => t.completed).length };
+  }, [allTasks, year, month]);
+
   // 상담 메모는 별도 저장소 없이 category:"shooting" 태스크에서 그대로 파생 (구 DayPanel과 동일 로직)
   const consultations = useMemo<ConsultEntry[]>(() => dayTasks
     .filter(t => t.category === "shooting" && t.memo)
