@@ -265,6 +265,117 @@ function ListView() {
   );
 }
 
+/* ── KANBAN BOARD ──
+   8개 큰 단계(WORKFLOW_PHASES)를 컬럼으로, 각 컬럼 안에 해당 세부 단계에 있는 고객 카드를 놓는다.
+   카드를 다른 컬럼으로 드래그하면 그 컬럼의 첫 세부 단계로 워크플로우를 이동시킨다 — 세밀한
+   단계 조정은 카드 클릭 후 상세화면 체크리스트에서 그대로 한다. */
+function KanbanBoard({ clients, onRefresh, router }: { clients: any[]; onRefresh: () => void; router: ReturnType<typeof useRouter> }) {
+  const [dragClientId, setDragClientId] = useState<string | null>(null);
+  const [dragOverPhase, setDragOverPhase] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
+
+  const byPhase = WORKFLOW_PHASES.map((phase) => ({
+    phase,
+    cards: clients.filter((c) => phaseForStep(c.active_run?.current_step_key)?.id === phase.id),
+  }));
+  const unassigned = clients.filter((c) => !phaseForStep(c.active_run?.current_step_key));
+
+  const handleDrop = async (targetPhase: typeof WORKFLOW_PHASES[number]) => {
+    setDragOverPhase(null);
+    const client = clients.find((c) => c.id === dragClientId);
+    setDragClientId(null);
+    if (!client?.active_run?.id) return;
+    const currentPhase = phaseForStep(client.active_run.current_step_key);
+    if (currentPhase?.id === targetPhase.id) return;
+    setMoving(true);
+    try {
+      await fetch("/api/workflow/advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workflow_run_id: client.active_run.id,
+          to_step_key: targetPhase.stepKeys[0],
+          from_step_key: client.active_run.current_step_key,
+          reason: `칸반 보드에서 '${targetPhase.label}' 컬럼으로 이동`,
+        }),
+      });
+      onRefresh();
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  return (
+    <div style={{ opacity: moving ? 0.6 : 1, transition: "opacity .15s" }}>
+      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+        {byPhase.map(({ phase, cards }) => (
+          <div key={phase.id}
+            onDragOver={(e) => { e.preventDefault(); setDragOverPhase(phase.id); }}
+            onDragLeave={() => setDragOverPhase((p) => (p === phase.id ? null : p))}
+            onDrop={(e) => { e.preventDefault(); handleDrop(phase); }}
+            style={{
+              flex: "0 0 232px", width: 232, background: dragOverPhase === phase.id ? `${phase.color}12` : "#F4F9F8",
+              borderRadius: 14, border: `1.5px solid ${dragOverPhase === phase.id ? phase.color : C.border}`,
+              transition: "background .12s, border-color .12s", display: "flex", flexDirection: "column",
+              maxHeight: "calc(100vh - 210px)",
+            }}>
+            <div style={{ padding: "12px 14px 10px", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: phase.color, flexShrink: 0 }}/>
+                <span style={{ fontSize: 12, fontWeight: 900, color: C.txt, flex: 1 }}>{phase.label}</span>
+                <span style={{ fontSize: 10, fontWeight: 800, color: phase.color, background: `${phase.color}18`, borderRadius: 99, padding: "1px 8px" }}>{cards.length}</span>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 8px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {cards.length === 0 && (
+                <div style={{ fontSize: 11, color: C.hint, textAlign: "center", padding: "18px 0" }}>없음</div>
+              )}
+              {cards.map((c) => {
+                const stepKey = c.active_run?.current_step_key;
+                const stepName = stepKey ? (STEP_NAME[stepKey] || stepKey) : null;
+                return (
+                  <div key={c.id}
+                    draggable
+                    onDragStart={() => setDragClientId(c.id)}
+                    onDragEnd={() => { setDragClientId(null); setDragOverPhase(null); }}
+                    onClick={() => router.push(`/clients?id=${c.id}`)}
+                    style={{
+                      background: C.white, borderRadius: 10, border: `1px solid ${C.border}`,
+                      padding: "10px 11px", cursor: dragClientId === c.id ? "grabbing" : "grab",
+                      opacity: dragClientId === c.id ? 0.4 : 1,
+                      boxShadow: "0 1px 4px rgba(21,88,85,.06)", transition: "opacity .1s, box-shadow .12s",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 3px 10px rgba(21,88,85,.14)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 4px rgba(21,88,85,.06)"; }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 2 }}>{c.name}</div>
+                    {c.department && <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>{c.department}</div>}
+                    {stepName && (
+                      <div style={{ fontSize: 9, fontWeight: 700, color: phase.color, background: `${phase.color}12`, display: "inline-block", borderRadius: 6, padding: "2px 6px", marginBottom: c.next_action?.label ? 6 : 0 }}>
+                        {stepName}
+                      </div>
+                    )}
+                    {c.next_action?.label && (
+                      <div style={{ fontSize: 10.5, color: C.txt, lineHeight: 1.4, borderTop: `1px solid ${C.border}`, paddingTop: 6 }}>
+                        {c.next_action.label}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {unassigned.length > 0 && (
+        <div style={{ marginTop: 14, fontSize: 11, color: C.hint }}>
+          단계 미배정 {unassigned.length}명: {unassigned.map((c) => c.name).join(", ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── DETAIL VIEW ── */
 function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void }) {
   const [pageData, setPageData] = useState<any>(null);
