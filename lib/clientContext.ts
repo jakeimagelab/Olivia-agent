@@ -2,6 +2,7 @@ import { STEP_NAME } from "@/lib/workflow";
 
 export type ClientContext = {
   clientId: string;
+  projectId?: string;
   workflowRunId?: string;
   stepKey?: string;
   clientName: string;
@@ -26,6 +27,7 @@ export function normalizeClientContext(client: any, workflowRun?: any): ClientCo
   const currentStepKey = workflowRun?.current_step_key;
   return {
     clientId: client.id,
+    projectId: workflowRun?.project_id,
     workflowRunId: workflowRun?.id,
     stepKey: currentStepKey,
     clientName: client.name || client.hospital_name || "",

@@ -18,11 +18,12 @@ function hasShareScope(): boolean {
 export default function GlobalFeatureSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isDashboard = pathname === "/";
+  const isAdminArea = pathname === "/admin" || pathname?.startsWith("/admin/");
   // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
   // (PageHeader의 isSharedSession과 동일한 패턴).
   const [isShared, setIsShared] = useState(false);
   useEffect(() => { setIsShared(hasShareScope()); }, []);
-  const show = !isDashboard && !isShared;
+  const show = !isDashboard && !isAdminArea && !isShared;
 
   // 모바일은 hover가 없어서 데스크탑처럼 레일에 마우스를 올려 펼치는 방식이 통하지 않는다 —
   // 대신 하단에 작은 트리거 버튼을 두고, 탭하면 라벨이 보이는 드로어를 연다. 페이지 이동 시(링크

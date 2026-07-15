@@ -4,6 +4,9 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export const runtime = "nodejs";
 
 const protectedApiPrefixes = [
+  "/api/admin",
+  "/api/dashboard",
+  "/api/trash",
   "/api/olivia",
   "/api/send-delivery",
   "/api/send-contract",
@@ -136,6 +139,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   }
 
+  // 새 관리자 콘솔은 정식 관리자 세션에서만 접근한다.
+  if ((pathname === "/admin" || pathname.startsWith("/admin/")) && !isAdminSession) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+
   // ── 공유 세션의 페이지 이동 제한 (정식 관리자 세션이면 제한 없음) ──
   if (!isAdminSession && shareToken && SHARE_SCOPED_PAGE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     const featurePath = await resolveShareScope(shareToken);
@@ -153,6 +161,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/api/:path*",
+    "/admin", "/admin/:path*",
     "/",
     "/memo", "/memo/:path*",
     "/calendar", "/calendar/:path*",

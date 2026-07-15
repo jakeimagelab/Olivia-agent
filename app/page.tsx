@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React, { FormEvent, useEffect, useRef, useState } from "react";
 import { TOOLS_WORK, TOOLS_CONTENT, type ToolDef } from "@/lib/toolNav";
 import {
@@ -1061,13 +1062,14 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
 /* ─── root ───────────────────────────────────────────────── */
 
 export default function AdminHome() {
-  const [auth,setAuth]=useState(false);
+  const router=useRouter();
   const [ready,setReady]=useState(false);
   useEffect(()=>{
-    fetch("/api/auth/check").then(r=>r.json()).then(d=>setAuth(Boolean(d.authenticated))).catch(()=>setAuth(false)).finally(()=>setReady(true));
-  },[]);
-  const logout=async()=>{await fetch("/api/logout",{method:"POST"}); setAuth(false);};
+    fetch("/api/auth/check").then(r=>r.json()).then(d=>{
+      if(d.authenticated) router.replace("/admin/dashboard/home");
+      else setReady(true);
+    }).catch(()=>setReady(true));
+  },[router]);
   if(!ready) return <main className="admin-shell"><div className="admin-loading"/></main>;
-  if(!auth)  return <LoginScreen onAuth={()=>setAuth(true)}/>;
-  return <Dashboard onLogout={logout}/>;
+  return <LoginScreen onAuth={()=>router.replace("/admin/dashboard/home")}/>;
 }

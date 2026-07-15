@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import OliviaChat from "@/components/OliviaChat";
 
-const localContextPages = ["/conti", "/photoclinic"];
+const localContextPages = ["/conti", "/photoclinic", "/admin"];
 
 export default function GlobalOliviaChat() {
   const pathname = usePathname();

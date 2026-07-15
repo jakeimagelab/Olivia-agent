@@ -38,12 +38,13 @@ export default function ClientContextBanner({
     );
   }
 
-  const backHref = `/clients?id=${context.clientId}${context.workflowRunId ? `&workflowRunId=${context.workflowRunId}` : ""}`;
+  const backHref = `/clients?id=${context.clientId}${context.projectId ? `&projectId=${context.projectId}` : ""}${context.workflowRunId ? `&workflowRunId=${context.workflowRunId}` : ""}`;
 
   return (
     <div style={boxStyle}>
       <div>
         <strong style={{ color: C.teal }}>현재 고객: {context.hospitalName || context.clientName}</strong>
+        {context.packageName || context.projectId ? <span style={{ color: C.muted, marginLeft: 10 }}>프로젝트: {context.packageName || context.projectId}</span> : null}
         {context.currentStepName ? <span style={{ color: C.muted, marginLeft: 10 }}>워크플로우 단계: {context.currentStepName}</span> : null}
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

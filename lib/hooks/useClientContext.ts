@@ -7,6 +7,7 @@ import type { ClientContext } from "@/lib/clientContext";
 export function useClientContext() {
   const searchParams = useSearchParams();
   const clientId = searchParams.get("clientId") || searchParams.get("client_id") || "";
+  const projectId = searchParams.get("projectId") || "";
   const workflowRunId = searchParams.get("workflowRunId") || "";
   const stepKey = searchParams.get("stepKey") || "";
   const [clientContext, setClientContext] = useState<ClientContext | null>(null);
@@ -28,12 +29,12 @@ export function useClientContext() {
       .then((data) => {
         if (!alive) return;
         if (!data.ok) throw new Error(data.error || "고객정보를 불러오지 못했습니다.");
-        setClientContext({ ...data.client, ...data.workflow, stepKey: stepKey || data.workflow?.currentStepKey });
+        setClientContext({ ...data.client, ...data.workflow, projectId: projectId || data.workflow?.projectId, stepKey: stepKey || data.workflow?.currentStepKey });
       })
       .catch((err) => alive && setError(err.message))
       .finally(() => alive && setIsLoading(false));
     return () => { alive = false; };
-  }, [clientId, workflowRunId, stepKey]);
+  }, [clientId, projectId, workflowRunId, stepKey]);
 
   return {
     clientContext,
