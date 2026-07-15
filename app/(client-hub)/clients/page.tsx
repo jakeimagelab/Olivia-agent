@@ -196,6 +196,8 @@ function ListView() {
               </button>
             )}
           </div>
+        ) : viewMode === "kanban" ? (
+          <KanbanBoard clients={filtered} onRefresh={load} router={router} />
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
             {filtered.map((c) => {
