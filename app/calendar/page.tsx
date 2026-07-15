@@ -2323,6 +2323,12 @@ export default function CalendarPage() {
               borderRadius: 8, padding: isMobile ? "5px 10px" : "6px 12px", cursor: "pointer", fontFamily: "inherit" }}>
             📝{!isMobile && " 상담 메모"}
           </button>
+          <button onClick={() => setShowStatsModal(v => !v)}
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: isMobile ? 11 : 12, fontWeight: 700,
+              color: C.teal, background: C.mint, border: `1px solid ${C.border}`,
+              borderRadius: 8, padding: isMobile ? "5px 10px" : "6px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+            📊{!isMobile && " 일정 분석"}
+          </button>
           <div style={{ position: "relative" }} data-ics-modal>
             <button onClick={() => setShowIcsModal(v => !v)}
               style={{ display: "flex", alignItems: "center", gap: 5, fontSize: isMobile ? 11 : 12, fontWeight: 700,
