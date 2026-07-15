@@ -9,7 +9,7 @@ type PageMeta = { title: string; description: string };
 const pageMeta: Record<string, PageMeta> = {
   "/admin/dashboard": { title: "오늘의 운영 현황", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
   "/admin/dashboard/home": { title: "오늘의 운영 현황", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
-  "/admin/dashboard/consultations": { title: "상담", description: "고객 상담 일정과 기록을 확인합니다." },
+  "/admin/dashboard/memo": { title: "메모", description: "일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다." },
   "/admin/dashboard/calendar": { title: "캘린더", description: "촬영과 운영 일정을 한눈에 관리합니다." },
   "/admin/dashboard/mailing": { title: "메일링", description: "발송 대기 메일과 발송 이력을 관리합니다." },
   "/admin/dashboard/links": { title: "외부링크", description: "업무에 필요한 외부 서비스 링크를 관리합니다." },
