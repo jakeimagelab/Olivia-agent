@@ -161,9 +161,9 @@ function ListView() {
               }}>{label}</button>
             ))}
           </div>
-          <span style={{ fontSize: 12, color: C.hint, marginLeft: viewMode === "kanban" ? 0 : "auto" }}>총 {filtered.length}명</span>
+          <span style={{ fontSize: 12, color: C.hint }}>총 {filtered.length}명</span>
           <button onClick={() => setShowModal(true)}
-            style={{ height: 40, padding: "0 20px", background: C.orange, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
+            style={{ height: 40, padding: "0 20px", background: C.orange, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>
             + 신규 등록
           </button>
         </div>
