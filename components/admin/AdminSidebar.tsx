@@ -24,7 +24,7 @@ import {
   Link2,
   ListChecks,
   Mail,
-  MessageSquareText,
+  NotebookPen,
   PanelTop,
   SearchCheck,
   Settings,
