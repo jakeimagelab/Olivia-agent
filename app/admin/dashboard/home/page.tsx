@@ -87,7 +87,7 @@ export default function AdminDashboardHomePage() {
 
           <CategorySection eyebrow="QUICK" title="빠른 실행">
             <div className="oa-quick-grid">
-              <Link href="/consultation"><WandSparkles size={18}/><span>상담 시작</span></Link>
+              <Link href="/memo"><WandSparkles size={18}/><span>메모 작성</span></Link>
               <Link href="/calendar"><CalendarDays size={18}/><span>일정 추가</span></Link>
               <Link href="/mailing"><Mail size={18}/><span>메일 확인</span></Link>
               <Link href="/admin/tools"><Clock3 size={18}/><span>기능 열기</span></Link>
