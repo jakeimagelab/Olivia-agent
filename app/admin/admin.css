@@ -3,25 +3,28 @@
   --brand-green: #155855;
 }
 
+/* 색상 토큰 — 원래 시안은 Financial Dashboard 참고용 블루 팔레트였지만, 포토클리닉의
+   기존 브랜드 톤(--brand-green 티얼 / --brand-orange 오렌지)을 그대로 재사용해서
+   나머지 화면들과 같은 느낌으로 맞춘다. 클래스/구조는 그대로 두고 값만 브랜드 톤으로 교체. */
 .oa-shell {
-  --oa-bg: #f5f6f8;
+  --oa-bg: #f0f4f2;
   --oa-card: #ffffff;
-  --oa-text: #2f3437;
-  --oa-subtext: #8f969d;
-  --oa-line: #e9edf1;
-  --oa-blue: #1e88d1;
-  --oa-blue-soft: #eaf4ff;
-  --oa-orange: #f6b23c;
-  --oa-green: #2ead6b;
-  --oa-red: #e85d5d;
+  --oa-text: #1c2b28;
+  --oa-subtext: #9bb5b0;
+  --oa-line: #dceae7;
+  --oa-blue: #155855;
+  --oa-blue-soft: #eaf4f2;
+  --oa-orange: #eb8f22;
+  --oa-green: #22876a;
+  --oa-red: #dc2626;
   --brand-orange: #e85d2c;
   --brand-green: #155855;
   min-height: 100dvh;
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
-  background: var(--oa-bg);
+  background: var(--mesh-bg, var(--oa-bg));
   color: var(--oa-text);
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
 }
 
 .oa-sidebar {
