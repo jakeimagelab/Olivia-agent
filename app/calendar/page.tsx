@@ -957,7 +957,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
 
       {/* ── Day grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)",
-        gridAutoRows: "108px", gap: "1px", background: C.border,
+        gridAutoRows: "124px", gap: "1px", background: C.border,
         border: `1px solid ${C.border}`, flex: 1, overflow: "hidden" }}>
         {cells.map((cell, idx) => {
           const dateStr    = `${cell.year}-${String(cell.month+1).padStart(2,"0")}-${String(cell.day).padStart(2,"0")}`;
