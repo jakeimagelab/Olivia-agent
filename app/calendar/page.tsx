@@ -2290,8 +2290,6 @@ export default function CalendarPage() {
               borderRadius: 8, padding: isMobile ? "5px 10px" : "6px 12px", cursor: "pointer", fontFamily: "inherit" }}>
             📊{!isMobile && " 일정 분석"}
           </button>
-          <div style={{ position: "relative" }}>
-          </div>
         </div>
       </header>
 
