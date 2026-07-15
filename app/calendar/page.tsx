@@ -56,6 +56,16 @@ const CURSOR_GRABBING =
   `url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADtElEQVR4nOxWT28TRxR/M7NeG5OEVjZRnBglUaiicmmlCIoqoFbSoqIKekpKVVWilx7aQ79ApUrtqV+iVQ+9tZeqSikEKTiBgEQSIgExIomRCYS/UZw4tmd3Z4b3xgRO2LGFlIufPJrZmdn3+72/aw47LBx2WJoEmgR2nIAD9crwsIg+e/iew/hhAPZhZdNcDpiZKo6l5/BB16OO1XO5bfCjE6GQ81ugVAc9J+J7lQEDD58+FfTsCPEgCIIz+QsXz29X57YItA4NxQRXvxsDJ9/v7zenjx9nvV1JBOSgtIZiuQwL95bhrwtjJpPNMuT0t3Hkt+v/T62+EQKJz05c1KCOfD/yBU8NDCCwY18k6/0gwKGg7EuQvg/p6Rn4879RLRifeDR6LlVLt6h1oXUwdSbQwQ/fjYywTw59ABHXhXAoBC4OwQUgkCVCP40u6twbh93RKJvNZHrc3p67XvbuXMMEokePJlxXnB04cMD95tQpBA9b8F04hxyHYk64YAhcGySgAfMDOuJxuJPLwdp6/mPe1/WHv3Rv43UYVctQhMVXaNXuk8eOobXcDheByfpoJILrEIQwHPYM84EzBhzXDOfBQweJXIvQoS+rYVQtQ4xzN819yaS1dCthCIjWzG4YC2jIDaySGXSabG/f0rGvGkb1RmRMd3sspsndBl0caGVdXPY9KHmVpAuwChTuEQGNaxsODIWD7+xpaVWMmX0NewD5b6JiQ6XmqwCcQIBknk02ayvOMvDxTNlB94gknRPRin9ANkwAs3v2yerq6U2sc/EitqScyo5zZhOPgDwiYcsxsN7w0TPFUgnyhQ2BVGcaJoDxmaU5e38Z+rt7rMUEIMSr4iECNKTnWSIekijjOreyUjFC65kaGK+X/FphXAB7MDo5aSjeFPcSKi/KMpSktB3Q7slKPtg7tIfWX7o+pzAZcwXN09UwqjeilRXNuxI3H6/lv367rQ0S2GQoxls5Yd3vk+tfgReKRbh28xZcm5/nSsrPvfRktnECKH5uedFNdh6cz+X2RyO7WEc89tLtNu5IZMsbRQSfRvCxq1dNIOU/hYmpX2vpr0mAJNzbd84E3tCNpaXOBexwLdGobThEoFguwcbmJizix+jf9ARMZzKgfH+aRfSwXFwu1dJdz+eYtRw5/BMPh3/EahCUkLG39lBRwGo+z180I6VL8pfC5Ss/g63AbSiFOqUtldqvlfwUa/Id9MK7uIUpoW8j+gIX4bPr4+ML9eirm8Cbluaf0iaBJoHnAAAA///xsNStAAAABklEQVQDAIN1A2x0naawAAAAAElFTkSuQmCC") 16 16, grabbing`;
 
 const WEEKDAYS = ["일","월","화","수","목","금","토"];
+
+/* 매일 반복되는 개인 루틴 — 특정 날짜에 매인 일정이 아니라서 Supabase에 저장하지 않고
+   월 화면 하단 빈 공간에 고정 안내로 띄운다. */
+const DAILY_ROUTINE: { time: string; label: string }[] = [
+  { time: "07:30", label: "명상" },
+  { time: "08:40", label: "은우 등원" },
+  { time: "10:00", label: "업무시작(출근)" },
+  { time: "11:00", label: "운동" },
+  { time: "12:00", label: "감사일기" },
+];
 const HOURS = Array.from({length: 15}, (_, i) => i + 7); // 07:00~21:00
 const HOUR_HEIGHT = 64; // px per hour
 
