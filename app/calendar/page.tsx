@@ -2358,32 +2358,6 @@ export default function CalendarPage() {
           onDelete={id => { setPopover(null); requestDeleteTask(id); }}/>
       )}
 
-      {/* AI 상담 메모 분석 팝업 (구 DayPanel 하단 탭) — 선택된 날짜 기준 */}
-      {showConsultModal && (
-        <>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", zIndex: 300 }}/>
-          <div data-consult-modal style={{
-            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 301,
-            width: isMobile ? "calc(100vw - 32px)" : 420, maxHeight: "80vh", overflowY: "auto",
-            background: "#fff", borderRadius: 14, padding: "20px 20px 18px",
-            boxShadow: "0 20px 50px rgba(0,0,0,.22)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <span style={{ fontSize: 15, fontWeight: 900, color: C.txt }}>📝 상담 메모 분석</span>
-              <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 800, color: C.muted,
-                background: C.mint, padding: "3px 10px", borderRadius: 20 }}>
-                {new Date(selectedDate + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
-              </span>
-              <button onClick={() => setShowConsultModal(false)} style={{
-                background: "none", border: "none", color: C.muted, cursor: "pointer", padding: 2, display: "flex" }}>
-                <X size={16}/>
-              </button>
-            </div>
-            <ConsultMemoPanel dateStr={selectedDate} consultations={consultations} onAdd={addTask}/>
-          </div>
-        </>
-      )}
-
       {/* 일정 분석 팝업 — 지금 보고 있는 달 기준 카테고리별 건수 */}
       {showStatsModal && (
         <>
