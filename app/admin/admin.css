@@ -184,7 +184,7 @@
 .oa-activity-list time { color: #b1b6ba; font-size: 7px; white-space: nowrap; }
 .oa-quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .oa-quick-grid a { min-height: 72px; display: flex; flex-direction: column; justify-content: center; gap: 7px; border: 1px solid #edf0f2; border-radius: 14px; padding: 11px; background: #fafcfd; color: #6c757b; text-decoration: none; font-size: 9px; font-weight: 900; }
-.oa-quick-grid a:hover { color: var(--oa-blue); border-color: #dcebf5; background: var(--oa-blue-soft); }
+.oa-quick-grid a:hover { color: var(--oa-blue); border-color: #d7eae7; background: var(--oa-blue-soft); }
 
 .oa-board-preview { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; overflow-x: auto; }
 .oa-board-column { min-width: 175px; border-radius: 16px; padding: 12px; background: #f7f9fa; }
