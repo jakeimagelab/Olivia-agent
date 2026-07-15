@@ -129,9 +129,9 @@
 .oa-category-section__description { margin: 5px 0 0; color: #a0a6ac; font-size: 10px; line-height: 1.55; }
 .oa-category-section__action { flex-shrink: 0; }
 .oa-status-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; border-radius: 99px; padding: 0 9px; font-size: 9px; font-weight: 900; white-space: nowrap; }
-.oa-status-badge--blue { color: #1379b9; background: #e6f3fc; }
-.oa-status-badge--orange { color: #b97912; background: #fff2db; }
-.oa-status-badge--green { color: #1d8d55; background: #e4f7ed; }
+.oa-status-badge--blue { color: #155855; background: #eaf4f2; }
+.oa-status-badge--orange { color: #eb8f22; background: #fff3e0; }
+.oa-status-badge--green { color: #22876a; background: #e4f7ed; }
 .oa-status-badge--red { color: #c44747; background: #ffeded; }
 .oa-status-badge--gray { color: #737d84; background: #f0f2f4; }
 .oa-text-link { display: inline-flex; align-items: center; gap: 5px; color: var(--oa-blue); text-decoration: none; font-size: 10px; font-weight: 900; }
