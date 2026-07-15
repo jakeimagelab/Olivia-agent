@@ -2019,14 +2019,11 @@ export default function CalendarPage() {
   const [dayTasks,    setDayTasks]    = useState<CalTask[]>([]);
   const [dayLoading,  setDayLoading]  = useState(false);
   const [isMobile,    setIsMobile]    = useState(false);
-  const [showIcsModal,setShowIcsModal]= useState(false);
-  const [showConsultModal, setShowConsultModal] = useState(false); // AI 상담 메모 분석 팝업 (구 DayPanel 하단 탭)
   const [showStatsModal, setShowStatsModal] = useState(false); // 일정 분석(카테고리별 건수) 팝업
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null); // 삭제 확인 팝업 대상 태스크 id
   const [popover, setPopover] = useState<{
     mode: "add" | "edit"; date: string; task: CalTask | null; x: number; y: number; time?: string;
   } | null>(null);
-  const webcalUrl = typeof window !== "undefined" ? `webcal://${window.location.host}/api/calendar/ics` : "";
   const loadedKeys = useRef<Set<string>>(new Set());
 
   useEffect(() => {
