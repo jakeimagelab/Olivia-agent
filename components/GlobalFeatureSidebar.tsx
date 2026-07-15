@@ -31,6 +31,8 @@ export default function GlobalFeatureSidebar({ children }: { children: React.Rea
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
+  // /admin 콘솔과 같은 3분류(관리자 대시보드 / 고객관리 CRM / 개별 기능)로 묶어서 보여준다 —
+  // 예전엔 20개 기능이 한 줄로 쭉 나열돼서 원하는 걸 찾기 번거로웠다.
   const navItems = (
     <>
       <Link href="/" className="pc-fs-item pc-fs-home" title="대시보드" onClick={() => setMobileOpen(false)}>
@@ -38,25 +40,30 @@ export default function GlobalFeatureSidebar({ children }: { children: React.Rea
         <span className="pc-fs-label">대시보드</span>
       </Link>
       <div className="pc-fs-divider" aria-hidden="true"/>
-      <div className="pc-fs-list">
-        {ALL_TOOLS.map(t => {
-          const active = pathname === t.href || pathname?.startsWith(t.href + "/");
-          const Icon = t.icon;
-          return (
-            <Link
-              key={t.href}
-              href={t.href}
-              className={`pc-fs-item${active ? " pc-fs-item--active" : ""}`}
-              aria-current={active ? "page" : undefined}
-              title={t.title}
-              onClick={() => setMobileOpen(false)}
-            >
-              <Icon size={18}/>
-              <span className="pc-fs-label">{t.title}</span>
-            </Link>
-          );
-        })}
-      </div>
+      {groupToolsByCategory().map(group => (
+        <div className="pc-fs-group" key={group.category}>
+          <div className="pc-fs-section-label">{group.label}</div>
+          <div className="pc-fs-list">
+            {group.items.map(t => {
+              const active = pathname === t.href || pathname?.startsWith(t.href + "/");
+              const Icon = t.icon;
+              return (
+                <Link
+                  key={t.href}
+                  href={t.href}
+                  className={`pc-fs-item${active ? " pc-fs-item--active" : ""}`}
+                  aria-current={active ? "page" : undefined}
+                  title={t.title}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <Icon size={18}/>
+                  <span className="pc-fs-label">{t.title}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </>
   );
 
