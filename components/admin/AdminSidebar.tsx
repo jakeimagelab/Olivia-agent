@@ -28,7 +28,6 @@ import {
   PanelTop,
   SearchCheck,
   Settings,
-  Sparkles,
   UsersRound,
   WandSparkles,
   X,
