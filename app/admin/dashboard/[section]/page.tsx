@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 const LEGACY_ROUTES: Record<string, string> = {
-  consultations: "/consultation",
+  memo: "/memo",
   calendar: "/calendar",
   mailing: "/mailing",
   links: "/link-generator",
