@@ -88,7 +88,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
           <span className="oa-header__notification-dot" aria-hidden="true" />
         </button>
         <div className="oa-header__profile" aria-label="현재 관리자">
-          <span className="oa-header__avatar" aria-hidden="true">O</span>
+          <span className="oa-header__avatar" aria-hidden="true"><img src="/assets/photoclinic-mark.png" alt=""/></span>
           <span className="oa-header__profile-copy">
             <strong>Olivia Admin</strong>
             <small>관리자 계정</small>
