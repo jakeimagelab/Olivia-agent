@@ -2460,6 +2460,55 @@ export default function CalendarPage() {
         </>
       )}
 
+      {/* 일정 분석 팝업 — 지금 보고 있는 달 기준 카테고리별 건수 */}
+      {showStatsModal && (
+        <>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", zIndex: 300 }}
+            onClick={() => setShowStatsModal(false)}/>
+          <div style={{
+            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", zIndex: 301,
+            width: isMobile ? "calc(100vw - 32px)" : 360, maxHeight: "80vh", overflowY: "auto",
+            background: "#fff", borderRadius: 14, padding: "20px 20px 18px",
+            boxShadow: "0 20px 50px rgba(0,0,0,.22)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 900, color: C.txt }}>📊 일정 분석</span>
+              <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 800, color: C.muted,
+                background: C.mint, padding: "3px 10px", borderRadius: 20 }}>
+                {year}년 {monthLabel(month)}
+              </span>
+              <button onClick={() => setShowStatsModal(false)} style={{
+                background: "none", border: "none", color: C.muted, cursor: "pointer", padding: 2, display: "flex" }}>
+                <X size={16}/>
+              </button>
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
+              총 {monthStats.total}건 · 완료 {monthStats.completed}건
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {monthStats.byCategory.map(c => {
+                const pct = monthStats.total > 0 ? Math.round((c.count / monthStats.total) * 100) : 0;
+                return (
+                  <div key={c.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 9, height: 9, borderRadius: 3, background: c.color, flexShrink: 0 }}/>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.txt, width: 44, flexShrink: 0 }}>{c.label}</span>
+                    <div style={{ flex: 1, height: 8, borderRadius: 99, background: "#F1F5F4", overflow: "hidden" }}>
+                      <div style={{ width: `${pct}%`, height: "100%", background: c.color, borderRadius: 99, transition: "width .3s" }}/>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: C.muted, width: 36, textAlign: "right", flexShrink: 0 }}>{c.count}건</span>
+                  </div>
+                );
+              })}
+            </div>
+            {monthStats.total === 0 && (
+              <div style={{ fontSize: 12, color: C.hint, textAlign: "center", padding: "16px 0 4px" }}>
+                이 달에 등록된 일정이 없어요
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       {/* 삭제 확인 팝업 — 트래시 아이콘·키보드 Delete 공통 경로 */}
       {confirmDeleteId && (
         <>
