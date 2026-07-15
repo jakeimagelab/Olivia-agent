@@ -123,28 +123,24 @@ function MarkdownText({ text, isUser }: { text: string; isUser: boolean }) {
   return <>{result}</>;
 }
 
-// ── 올리비아 여성 아이콘 ──────────────────────────────────────
+// ── 올리비아 아이콘 — 포토클리닉 로고 마크(조리개) + 작은 안테나로 로봇/AI 느낌 ──
 function OliviaIcon({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* 긴 머리 — 왼쪽 */}
-      <path d="M8 22C7.5 18 7 15 7 12.5C6.5 11 6.5 9.5 7 8C8 5.5 9.8 4 12 4"
-        fill="rgba(255,255,255,0.55)" />
-      {/* 긴 머리 — 오른쪽 */}
-      <path d="M16 22C16.5 18 17 15 17 12.5C17.5 11 17.5 9.5 17 8C16 5.5 14.2 4 12 4"
-        fill="rgba(255,255,255,0.55)" />
-      {/* 머리카락 윗부분 (볼륨) */}
-      <path d="M8.5 11.5C9 7.5 10.3 5.5 12 5.5C13.7 5.5 15 7.5 15.5 11.5C14.2 9.5 13.2 9 12 9C10.8 9 9.8 9.5 8.5 11.5Z"
-        fill="rgba(255,255,255,0.95)" />
-      {/* 얼굴 */}
-      <ellipse cx="12" cy="12.5" rx="3.6" ry="3.9" fill="rgba(255,255,255,0.97)" />
-      {/* 목 */}
-      <path d="M10.8 16.2C10.8 16.2 11.2 17 12 17C12.8 17 13.2 16.2 13.2 16.2"
-        fill="rgba(255,255,255,0.85)" />
-      {/* 어깨 (우아한 곡선) */}
-      <path d="M3.5 23.5C3.5 19.5 7 17.5 12 17.5C17 17.5 20.5 19.5 20.5 23.5"
-        fill="rgba(255,255,255,0.92)" />
-    </svg>
+    <span style={{ position: "relative", display: "inline-flex", width: size, height: size }}>
+      {/* 안테나 — 로고 위에 작은 점 하나만 얹어 로봇 실루엣 느낌을 준다 */}
+      <span style={{
+        position: "absolute", top: -size * 0.16, left: "50%", transform: "translateX(-50%)",
+        width: Math.max(2, size * 0.09), height: Math.max(2, size * 0.09), borderRadius: "50%",
+        background: "rgba(255,255,255,.9)",
+      }}/>
+      <img
+        src="/assets/photoclinic-mark.png"
+        alt=""
+        width={size}
+        height={size}
+        style={{ width: size, height: size, objectFit: "contain", display: "block" }}
+      />
+    </span>
   );
 }
 
