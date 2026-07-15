@@ -110,7 +110,7 @@
 .oa-summary-card__value { margin-top: auto; color: var(--oa-text); font-size: 31px; font-weight: 900; line-height: 1; letter-spacing: -.04em; }
 .oa-summary-card__description { margin: 7px 0 0; color: #a5abb0; font-size: 9px; }
 .oa-summary-card--blue .oa-summary-card__icon { color: var(--oa-blue); background: #e9f4fc; }
-.oa-summary-card--orange .oa-summary-card__icon { color: #ef9d18; background: #fff4df; }
+.oa-summary-card--orange .oa-summary-card__icon { color: #eb8f22; background: #fff3e0; }
 .oa-summary-card--green .oa-summary-card__icon { color: var(--oa-green); background: #e8f8ef; }
 .oa-summary-card--red .oa-summary-card__icon { color: var(--oa-red); background: #fff0f0; }
 .oa-summary-card--gray .oa-summary-card__icon { color: #78828a; background: #f0f2f4; }
