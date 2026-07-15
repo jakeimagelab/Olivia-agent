@@ -1111,6 +1111,25 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
         })}
       </div>
 
+      {/* ── 데일리 루틴 — 그리드 밑에 남는 공간을 채우는 매일 반복 일정 안내 */}
+      <div style={{ flex: 1, minHeight: 56, overflowY: "auto", background: C.surface,
+        borderTop: `1px solid ${C.border}`, padding: "12px 20px" }}>
+        <div style={{ fontSize: 10, fontWeight: 900, color: C.hint, letterSpacing: ".06em",
+          textTransform: "uppercase", marginBottom: 10 }}>⏰ 데일리 루틴</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 10 : 22 }}>
+          {DAILY_ROUTINE.map((r, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.teal, flexShrink: 0 }}/>
+              <span style={{ fontSize: 12, fontWeight: 800, color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.txt, whiteSpace: "nowrap" }}>{r.label}</span>
+              {i < DAILY_ROUTINE.length - 1 && (
+                <div style={{ width: 14, height: 1, background: C.border, marginLeft: isMobile ? 2 : 14 }}/>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── Legend */}
       <div style={{ display: "flex", gap: 14, padding: "8px 20px", flexWrap: "wrap", flexShrink: 0,
         background: C.surface, borderTop: `1px solid ${C.border}` }}>
