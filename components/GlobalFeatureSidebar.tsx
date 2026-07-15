@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, Menu, X } from "lucide-react";
 import { ALL_TOOLS } from "@/lib/toolNav";
 
 const SIDEBAR_RAIL_W = 64;
