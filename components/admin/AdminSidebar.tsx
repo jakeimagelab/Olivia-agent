@@ -52,7 +52,7 @@ const navigation: NavigationSection[] = [
     label: "관리자 대시보드",
     items: [
       { label: "홈", href: "/admin/dashboard/home", icon: House },
-      { label: "상담", href: "/admin/dashboard/consultations", icon: MessageSquareText },
+      { label: "메모", href: "/admin/dashboard/memo", icon: NotebookPen },
       { label: "캘린더", href: "/admin/dashboard/calendar", icon: CalendarDays },
       { label: "메일링", href: "/admin/dashboard/mailing", icon: Mail },
       { label: "외부링크", href: "/admin/dashboard/links", icon: Link2 },
