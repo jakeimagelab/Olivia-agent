@@ -88,7 +88,8 @@
 .oa-header__notification { position: relative; width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #edf0f2; border-radius: 13px; background: #fff; color: #9ba2a8; cursor: pointer; }
 .oa-header__notification-dot { position: absolute; top: 9px; right: 9px; width: 7px; height: 7px; border: 2px solid #fff; border-radius: 50%; background: var(--oa-red); }
 .oa-header__profile { display: flex; align-items: center; gap: 9px; border: 0; padding: 4px 6px; background: transparent; color: var(--oa-text); text-align: left; cursor: pointer; }
-.oa-header__avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg,#ffc85a,#f6a92a); color: #fff; font-size: 14px; font-weight: 900; box-shadow: 0 6px 15px rgba(246,178,60,.25); }
+.oa-header__avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg,#e85d2c,#eb8f22); color: #fff; font-size: 14px; font-weight: 900; box-shadow: 0 6px 15px rgba(232,93,44,.25); overflow: hidden; }
+.oa-header__avatar img { width: 100%; height: 100%; object-fit: contain; padding: 6px; box-sizing: border-box; }
 .oa-header__profile-copy { display: grid; line-height: 1.25; }
 .oa-header__profile-copy strong { font-size: 11px; }
 .oa-header__profile-copy small { color: #a2a8ae; font-size: 9px; }
