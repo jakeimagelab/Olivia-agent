@@ -225,7 +225,7 @@
 .oa-feature-card:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(31,45,61,.075); }
 .oa-feature-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .oa-feature-card__icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; color: var(--oa-blue); background: var(--oa-blue-soft); }
-.oa-feature-card:nth-child(3n+2) .oa-feature-card__icon { color: #d99019; background: #fff3de; }
+.oa-feature-card:nth-child(3n+2) .oa-feature-card__icon { color: #eb8f22; background: #fff3e0; }
 .oa-feature-card:nth-child(3n) .oa-feature-card__icon { color: var(--oa-green); background: #e7f8ef; }
 .oa-feature-card__body { margin-top: 17px; }
 .oa-feature-card__title { margin: 0; color: #3d4448; font-size: 14px; font-weight: 900; }
