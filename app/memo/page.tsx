@@ -1,575 +1,211 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import type { DrawingCanvasHandle } from "@/components/DrawingCanvas";
+import NoteCanvasPanel from "@/components/memo/NoteCanvasPanel";
+import NoteTemplateEditor from "@/components/memo/NoteTemplateEditor";
+import VoiceMemoPanel from "@/components/memo/VoiceMemoPanel";
+import { TEMPLATE_OPTIONS, emptyTemplateData, type ConsultationMemo, type MemoTemplateData, type MemoTemplateType } from "@/lib/memo/types";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 
-const C = {
-  teal: "#155855", orange: "#E85D2C", bg: "#EDF5F3",
-  surface: "#FFFFFF", border: "#C8DDD9", muted: "#5A7470",
-  hint: "#9BB5B0", txt: "#1C2B28", mint: "#EAF4F2",
-};
+const C = { teal: "#155855", orange: "#E85D2C", ink: "#1C2B28", muted: "#607873", hint: "#98AEA9", mist: "#EDF5F3", white: "#FFFFFF", red: "#B42318" };
 
-const iS: React.CSSProperties = {
-  width: "100%", border: `1px solid ${C.border}`, borderRadius: 9,
-  padding: "10px 13px", fontSize: 13, fontFamily: "inherit",
-  background: C.surface, color: C.txt, outline: "none",
-};
-
-type HistoryMemo = {
-  id: string;
-  raw_memo: string;
-  summary: string;
-  extracted_data: Extracted | null;
-  recommended_package: string;
-  next_action: string;
-  created_at: string;
-};
-
-type Extracted = {
-  summary?: string;
-  hospital_name?: string;
-  manager_name?: string;
-  phone?: string;
-  email?: string;
-  department?: string;
-  purpose?: string;
-  shooting_items?: string[];
-  doctors_count?: string;
-  staff_count?: string;
-  locations?: string;
-  needs_video?: boolean;
-  needs_website?: boolean;
-  interested_in_sns?: boolean;
-  preferred_date?: string;
-  budget?: string;
-  special_notes?: string;
-  recommended_package?: string;
-  next_action?: string;
-};
-
-const NEXT_ACTIONS = ["견적서 만들기", "콘티 만들기", "제안서 만들기", "병원 이미지 진단 시작하기", "클라이언트 등록하기"];
-
-function relTime(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "방금";
-  if (m < 60) return `${m}분 전`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}시간 전`;
-  return `${Math.floor(h / 24)}일 전`;
+function templateText(type: MemoTemplateType, data: MemoTemplateData) {
+  const extra = data.body?.trim() || "";
+  if (type === "cornell") return [["핵심 키워드", data.cues], ["상담 기록", data.notes], ["요약", data.summary], ["AI 정리", extra]].filter(([, value]) => value?.trim()).map(([label, value]) => `${label}\n${value}`).join("\n\n");
+  if (type === "todo") return [...(data.todos ?? []).map(item => `${item.done ? "[완료]" : "[ ]"} ${item.text}`), extra].filter(Boolean).join("\n");
+  if (type === "conti") return [...(data.contiCaptions ?? []).map((caption, index) => caption ? `프레임 ${index + 1}: ${caption}` : ""), extra].filter(Boolean).join("\n");
+  return extra;
 }
 
-function MemoPage() {
+function dataUrlFile(dataUrl: string, name: string) {
+  const [header, encoded] = dataUrl.split(",");
+  const mime = header.match(/data:(.*);base64/)?.[1] || "image/png";
+  const binary = atob(encoded); const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new File([bytes], name, { type: mime });
+}
+
+function MemoWorkspace() {
   const searchParams = useSearchParams();
-  const dateParam    = searchParams.get("date") ?? "";
+  const dateParam = searchParams.get("date") ?? "";
+  const [memos, setMemos] = useState<ConsultationMemo[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [templateChosen, setTemplateChosen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [templateType, setTemplateType] = useState<MemoTemplateType>("text");
+  const [templateData, setTemplateData] = useState<MemoTemplateData>(() => emptyTemplateData("text"));
+  const [rawMemo, setRawMemo] = useState("");
+  const [transcript, setTranscript] = useState("");
+  const [audioSummary, setAudioSummary] = useState("");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [initialCanvas, setInitialCanvas] = useState<string | null>(null);
+  const [canvasDirty, setCanvasDirty] = useState<string | null>(null);
+  const [aiImage, setAiImage] = useState<string | null>(null);
+  const [aiText, setAiText] = useState("");
+  const [analysis, setAnalysis] = useState<Record<string, any> | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [transforming, setTransforming] = useState<"text" | "image" | null>(null);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const canvasRef = useRef<DrawingCanvasHandle>(null);
 
-  const [rawMemo, setRawMemo]           = useState("");
-  const [analyzing, setAnalyzing]       = useState(false);
-  const [result, setResult]             = useState<Extracted | null>(null);
-  const [edited, setEdited]             = useState<Extracted>(() => dateParam ? { preferred_date: dateParam } : {});
-  const [error, setError]               = useState("");
-  const [saved, setSaved]               = useState(false);
-  const [calAdding, setCalAdding]       = useState(false);
-  const [calSaved, setCalSaved]         = useState(false);
-  const [calError, setCalError]         = useState("");
-  const [history, setHistory]           = useState<HistoryMemo[]>([]);
-  const [historyOpen, setHistoryOpen]   = useState(true);
-  const [expandedId, setExpandedId]     = useState<string | null>(null);
-
-  // 녹음 → 텍스트 변환 → AI 분석
-  const [isRecording, setIsRecording]   = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);
-  const [recordedUrl, setRecordedUrl]   = useState<string | null>(null);
-  const [transcribing, setTranscribing] = useState(false);
-  const [recordError, setRecordError]   = useState("");
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
-  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  useEffect(() => {
-    fetch("/api/memo").then(r => r.json()).then(d => { if (d.ok) setHistory(d.memos); }).catch(() => {});
+  const loadHistory = useCallback(async () => {
+    try {
+      const response = await fetch("/api/memo", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "기록 조회 실패");
+      setMemos(data.memos);
+    } catch (error) { setStatus({ ok: false, text: error instanceof Error ? error.message : "기록 조회 실패" }); }
   }, []);
+  useEffect(() => { void loadHistory(); }, [loadHistory]);
 
-  useEffect(() => () => {
-    if (recordTimerRef.current) clearInterval(recordTimerRef.current);
-    streamRef.current?.getTracks().forEach(t => t.stop());
-  }, []);
+  const reset = () => {
+    setCurrentId(null); setTemplateChosen(false); setTitle(""); setTemplateType("text"); setTemplateData(emptyTemplateData("text"));
+    setRawMemo(""); setTranscript(""); setAudioSummary(""); setAudioUrl(null); setInitialCanvas(null); setCanvasDirty(null);
+    setAiImage(null); setAiText(""); setAnalysis(null); setStatus(null);
+  };
 
-  const startRecording = async () => {
-    setRecordError("");
+  const chooseTemplate = (type: MemoTemplateType) => {
+    if (templateChosen && (rawMemo.trim() || canvasDirty) && !window.confirm("템플릿을 바꾸면 현재 템플릿 구성이 초기화됩니다. 계속할까요?")) return;
+    setTemplateType(type); setTemplateData(emptyTemplateData(type)); setRawMemo(""); setTemplateChosen(true); setAnalysis(null); setAiText("");
+  };
+
+  const updateTemplate = (next: MemoTemplateData) => {
+    setTemplateData(next); setRawMemo(templateText(templateType, next));
+  };
+
+  const openMemo = (memo: ConsultationMemo) => {
+    setCurrentId(memo.id); setTemplateChosen(true); setTitle(memo.title); setTemplateType(memo.template_type);
+    setTemplateData(memo.template_data || emptyTemplateData(memo.template_type)); setRawMemo(memo.raw_memo || "");
+    setTranscript(memo.transcript || ""); setAudioSummary(memo.audio_summary || ""); setAudioUrl(memo.audio_url);
+    setInitialCanvas(memo.canvas_url); setCanvasDirty(null); setAiImage(memo.ai_image_url); setAiText("");
+    setAnalysis(memo.extracted_data || null); setStatus(null); window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const save = useCallback(async (): Promise<string> => {
+    if (!templateChosen) throw new Error("먼저 메모 템플릿을 선택해주세요.");
+    setSaving(true); setStatus(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      recordedChunksRef.current = [];
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
-      recorder.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        setRecordedUrl(URL.createObjectURL(blob));
-        streamRef.current?.getTracks().forEach(t => t.stop());
-        streamRef.current = null;
-      };
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setRecordedUrl(null);
-      setRecordSeconds(0);
-      setIsRecording(true);
-      recordTimerRef.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
-    } catch {
-      setRecordError("마이크 접근 권한이 필요합니다. 브라우저 권한을 확인해주세요.");
-    }
-  };
+      const response = await fetch("/api/memo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        action: "save", id: currentId, title: title.trim() || "제목 없는 상담 메모", template_type: templateType,
+        template_data: templateData, raw_memo: rawMemo || templateText(templateType, templateData), transcript, audio_summary: audioSummary,
+      }) });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "저장 실패");
+      const id = data.memo.id as string; setCurrentId(id);
+      if (canvasDirty) {
+        const form = new FormData(); form.append("memo_id", id); form.append("kind", "canvas"); form.append("file", dataUrlFile(canvasDirty, "canvas.png"));
+        const uploadResponse = await fetch("/api/memo/assets", { method: "POST", body: form });
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok || !uploadData.ok) throw new Error(uploadData.error || "필기 저장 실패");
+        setInitialCanvas(uploadData.url); setCanvasDirty(null);
+      }
+      setStatus({ ok: true, text: "상담 메모를 저장했습니다." }); void loadHistory(); return id;
+    } catch (error) { const message = error instanceof Error ? error.message : "저장 실패"; setStatus({ ok: false, text: message }); throw error; }
+    finally { setSaving(false); }
+  }, [audioSummary, canvasDirty, currentId, loadHistory, rawMemo, templateChosen, templateData, templateType, title, transcript]);
 
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-    if (recordTimerRef.current) { clearInterval(recordTimerRef.current); recordTimerRef.current = null; }
-  };
+  useSaveShortcut(() => { void save().catch(() => undefined); });
 
-  const transcribeAndAnalyze = async () => {
-    if (!recordedChunksRef.current.length) return;
-    setTranscribing(true); setRecordError("");
+  const analyze = async () => {
+    if (!rawMemo.trim() && !transcript.trim()) { setStatus({ ok: false, text: "분석할 메모나 음성 전사가 없습니다." }); return; }
+    setAnalyzing(true); setStatus(null);
     try {
-      const blob = new Blob(recordedChunksRef.current, { type: mediaRecorderRef.current?.mimeType || "audio/webm" });
-      const form = new FormData();
-      form.append("audio", blob, "memo.webm");
-      const res = await fetch("/api/memo/transcribe", { method: "POST", body: form });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error ?? "텍스트 변환 실패");
-      const text = data.text?.trim();
-      if (!text) throw new Error("인식된 음성이 없습니다.");
-      const merged = rawMemo ? `${rawMemo}\n${text}` : text;
-      setRawMemo(merged);
-      setRecordedUrl(null);
-      recordedChunksRef.current = [];
-      setRecordSeconds(0);
-      await analyze(merged);
-    } catch (e: any) {
-      setRecordError(e.message || "텍스트 변환에 실패했습니다.");
-    } finally {
-      setTranscribing(false);
-    }
+      const id = await save();
+      const response = await fetch("/api/memo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, raw_memo: rawMemo, transcript, persist: false }) });
+      const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "AI 분석 실패");
+      setAnalysis(data); setStatus({ ok: true, text: "상담 내용을 분석했습니다." }); void loadHistory();
+    } catch (error) { setStatus({ ok: false, text: error instanceof Error ? error.message : "AI 분석 실패" }); }
+    finally { setAnalyzing(false); }
   };
 
-  const fmtRecordTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-
-  const analyze = async (textOverride?: string) => {
-    const text = textOverride ?? rawMemo;
-    if (!text.trim()) { setError("상담 메모를 입력해주세요."); return; }
-    setAnalyzing(true); setError(""); setResult(null);
+  const transform = async (mode: "text" | "image") => {
+    const canvas = canvasRef.current?.getDataUrl({
+      background: templateType === "grid" ? "grid" : templateType === "conti" ? "conti" : "white",
+      columns: templateData.contiColumns,
+      rows: templateData.contiRows,
+    });
+    if (!canvas) { setStatus({ ok: false, text: "분석할 필기나 그림이 없습니다." }); return; }
+    setTransforming(mode); setStatus(null);
     try {
-      const res = await fetch("/api/memo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ raw_memo: text }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error);
-      setResult(data);
-      setEdited({ ...data, preferred_date: data.preferred_date || dateParam || "" });
-      setSaved(false);
-      // 히스토리 새로고침
-      fetch("/api/memo").then(r => r.json()).then(d => { if (d.ok) setHistory(d.memos); }).catch(() => {});
-    } catch (e: any) {
-      setError(e.message || "분석에 실패했습니다.");
-    } finally {
-      setAnalyzing(false);
-    }
+      const id = await save();
+      const response = await fetch("/api/memo/transform", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode, memo_id: id, canvas_data_url: canvas, raw_memo: rawMemo, transcript }) });
+      const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "AI 변환 실패");
+      if (mode === "text") setAiText(data.text); else setAiImage(data.url || data.image);
+      setStatus({ ok: true, text: mode === "text" ? "필기를 텍스트로 정리했습니다. 확인 후 적용하세요." : "정돈된 이미지를 만들었습니다." });
+    } catch (error) { setStatus({ ok: false, text: error instanceof Error ? error.message : "AI 변환 실패" }); }
+    finally { setTransforming(null); }
   };
 
-  useSaveShortcut(() => analyze());
+  const applyAiText = () => {
+    const separator = templateData.body?.trim() ? "\n\n" : "";
+    const next = { ...templateData, body: `${templateData.body ?? ""}${separator}${aiText}` };
+    setTemplateData(next); setRawMemo(templateText(templateType, next)); setAiText(""); setStatus({ ok: true, text: "AI 정리 내용을 메모에 추가했습니다." });
+  };
 
-  const upd = (key: keyof Extracted, val: any) =>
-    setEdited(prev => ({ ...prev, [key]: val }));
-
-  const addToCalendar = async () => {
-    const date = edited.preferred_date?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
-    if (!date) { setCalError("희망 촬영일이 없어요. 날짜를 직접 입력해주세요 (예: 2026-07-05)"); return; }
-    setCalAdding(true); setCalError("");
+  const deleteMemo = async (memo: ConsultationMemo) => {
+    if (!window.confirm(`‘${memo.title || "상담 메모"}’을 휴지통으로 이동할까요?`)) return;
     try {
-      const title = [edited.hospital_name, "촬영 일정"].filter(Boolean).join(" ");
-      const memo  = [
-        edited.summary,
-        edited.shooting_items?.length ? "항목: " + edited.shooting_items.join(", ") : "",
-        edited.budget ? "예산: " + edited.budget : "",
-        edited.special_notes,
-      ].filter(Boolean).join("\n");
-      const res  = await fetch("/api/calendar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, title, memo, category: "shooting", location: edited.hospital_name || null }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error);
-      // calendar_tasks에 저장된 이 항목이 캘린더 페이지의 "상담 메모" 카드로 그대로
-      // 표시된다 (Supabase 기반이라 다른 컴퓨터에서도 동일하게 보임).
-      setCalSaved(true);
-    } catch (e: any) {
-      setCalError(e.message || "캘린더 저장 실패");
-    } finally {
-      setCalAdding(false);
-    }
+      const response = await fetch(`/api/memo?id=${memo.id}`, { method: "DELETE" }); const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "삭제 실패");
+      setMemos(rows => rows.filter(row => row.id !== memo.id)); if (currentId === memo.id) reset();
+      setStatus({ ok: true, text: "상담 기록을 휴지통으로 이동했습니다. 30일 안에 복원할 수 있습니다." });
+    } catch (error) { setStatus({ ok: false, text: error instanceof Error ? error.message : "삭제 실패" }); }
   };
 
-  const goToQuote = () => {
-    const data = edited;
-    const items = [{
-      name: (data.shooting_items || []).join(", ") || "촬영 서비스",
-      detail: data.purpose || "",
-      unitPrice: 0, qty: 1, subtotal: 0, note: "",
-    }];
-    const quoteData = {
-      hospitalName:  data.hospital_name || "",
-      contactName:   data.manager_name  || "",
-      phone:         data.phone         || "",
-      email:         data.email         || "",
-      quoteNumber:   `PC-${new Date().toISOString().slice(0,10).replace(/-/g,"")}`,
-      quoteDate:     new Date().toISOString().slice(0,10),
-      shootDate:     data.preferred_date || null,
-      validUntil:    "",
-      items,
-      supplyAmount: 0, discountAmount: 0, vat: 0,
-      totalAmount: 0, depositAmount: 0, balanceAmount: 0,
-      memos: data.special_notes || "",
-    };
-    window.location.href = `/quote?data=${encodeURIComponent(JSON.stringify(quoteData))}`;
-  };
-
-  const InfoRow = ({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) => (
-    <div style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "center", paddingBottom: 8, borderBottom: `1px solid ${C.mint}` }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: C.muted }}>{label}</span>
-      <input value={value || ""} onChange={e => onChange(e.target.value)} style={{ ...iS, padding: "6px 10px", fontSize: 12 }} />
-    </div>
-  );
+  const activeTemplate = useMemo(() => TEMPLATE_OPTIONS.find(option => option.type === templateType), [templateType]);
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">올리비아 메모</span>
-          </div>
-        </div>
+    <main style={{ minHeight: "100dvh", background: C.mist, color: C.ink, fontFamily: "'Noto Sans KR', sans-serif", paddingBottom: 80 }}>
+      <header className="memo-topbar" style={{ maxWidth: 1320, margin: "0 auto", padding: "24px 20px 0", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <Link href="/" style={{ color: C.teal, textDecoration: "none", fontSize: 13, fontWeight: 900 }}>Olivia</Link><span style={{ color: C.hint }}>/</span><span style={{ color: C.muted, fontSize: 12, fontWeight: 800 }}>상담 메모</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}><Link href="/trash" style={{ minHeight: 38, display: "inline-flex", alignItems: "center", padding: "0 14px", borderRadius: 99, background: "#fff", color: C.teal, textDecoration: "none", fontSize: 11, fontWeight: 900 }}>휴지통</Link><button onClick={reset} style={{ minHeight: 38, border: "none", borderRadius: 99, padding: "0 15px", background: C.orange, color: "#fff", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>+ 새 상담</button></div>
       </header>
 
-      {dateParam && (
-        <div style={{ maxWidth: 1100, margin: "8px auto 0", padding: "0 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#EAF4F2",
-            border: "1px solid #C8DDD9", borderRadius: 10, padding: "10px 16px" }}>
-            <span style={{ fontSize: 13 }}>📅</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>
-              {dateParam} 일정에서 연결됐어요.
-            </span>
-            <span style={{ fontSize: 12, color: C.muted }}>메모 분석 후 해당 날짜로 자동 등록됩니다.</span>
-            <a href="/calendar" style={{ marginLeft: "auto", fontSize: 11, color: C.teal,
-              fontWeight: 800, textDecoration: "none" }}>← 캘린더로</a>
+      <section style={{ maxWidth: 1320, margin: "0 auto", padding: "46px 20px 0" }}>
+        <span style={{ display: "inline-flex", padding: "5px 11px", borderRadius: 99, background: "rgba(21,88,85,.08)", color: C.teal, fontSize: 10, fontWeight: 900, letterSpacing: ".14em" }}>CONSULTATION STUDIO</span>
+        <h1 style={{ margin: "14px 0 9px", fontSize: "clamp(38px,6vw,72px)", lineHeight: .96, letterSpacing: "-.065em" }}>듣고, 그리고,<br />정리하는 상담 메모</h1>
+        <p style={{ maxWidth: 610, margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.8 }}>텍스트와 터치 필기, 음성을 한 장에 기록하고 필요한 순간에만 AI로 정리합니다.</p>
+      </section>
+
+      {dateParam ? <div style={{ maxWidth: 1320, margin: "18px auto 0", padding: "0 20px" }}><div style={{ padding: "11px 15px", borderRadius: 14, background: "#DDEDE9", color: C.teal, fontSize: 12, fontWeight: 800 }}>캘린더 {dateParam} 일정에서 시작한 메모입니다.</div></div> : null}
+      {status ? <div style={{ maxWidth: 1320, margin: "14px auto 0", padding: "0 20px" }}><div role="status" style={{ padding: "11px 15px", borderRadius: 13, background: status.ok ? "#DFF1EB" : "#FFF0ED", color: status.ok ? C.teal : C.red, fontSize: 12, fontWeight: 900 }}>{status.text}</div></div> : null}
+
+      <div className="memo-layout" style={{ maxWidth: 1320, margin: "24px auto 0", padding: "0 20px", display: "grid", gridTemplateColumns: "280px minmax(0,1fr)", gap: 18, alignItems: "start" }}>
+        <aside style={{ padding: 6, borderRadius: 24, background: "rgba(21,88,85,.055)", position: "sticky", top: 18 }}>
+          <div style={{ borderRadius: 18, background: C.white, overflow: "hidden" }}>
+            <button onClick={() => setHistoryOpen(value => !value)} style={{ width: "100%", border: "none", background: "#fff", padding: "16px", display: "flex", alignItems: "center", gap: 8, font: "inherit", cursor: "pointer" }}><strong style={{ color: C.teal, fontSize: 12 }}>이전 상담 기록</strong><span style={{ color: C.hint, fontSize: 10 }}>{memos.length}</span><span style={{ marginLeft: "auto", color: C.hint }}>{historyOpen ? "−" : "+"}</span></button>
+            {historyOpen ? <div style={{ maxHeight: 620, overflowY: "auto", padding: "0 8px 8px" }}>{memos.map(memo => <div key={memo.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 32px", gap: 4, borderTop: "1px solid rgba(21,88,85,.08)", padding: "7px 0" }}>
+              <button onClick={() => openMemo(memo)} style={{ border: "none", borderRadius: 12, background: currentId === memo.id ? C.mist : "transparent", padding: "9px 10px", textAlign: "left", font: "inherit", cursor: "pointer", minWidth: 0 }}><span style={{ display: "block", color: C.ink, fontSize: 12, fontWeight: 900, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{memo.title || memo.summary || "제목 없는 메모"}</span><span style={{ display: "block", marginTop: 4, color: C.hint, fontSize: 9 }}>{TEMPLATE_OPTIONS.find(option => option.type === memo.template_type)?.label} · {new Date(memo.updated_at || memo.created_at).toLocaleDateString("ko-KR")}</span></button>
+              <button aria-label="상담 기록 삭제" onClick={() => void deleteMemo(memo)} style={{ alignSelf: "center", width: 30, height: 30, border: "none", borderRadius: 99, background: "transparent", color: "#B8C8C5", cursor: "pointer" }}>×</button>
+            </div>)}</div> : null}
           </div>
+        </aside>
+
+        <div style={{ display: "grid", gap: 16 }}>
+          {!templateChosen ? <section style={{ padding: 7, borderRadius: 28, background: "rgba(21,88,85,.055)" }}><div style={{ borderRadius: 21, background: C.white, padding: "24px" }}><div style={{ color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: ".15em" }}>CHOOSE A NOTE</div><h2 style={{ margin: "7px 0 18px", fontSize: 24, letterSpacing: "-.04em" }}>어떤 방식으로 기록할까요?</h2><div className="memo-template-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>{TEMPLATE_OPTIONS.map(option => <button key={option.type} onClick={() => chooseTemplate(option.type)} style={{ minHeight: 128, border: "none", borderRadius: 18, padding: 16, background: "#F5F9F8", textAlign: "left", font: "inherit", cursor: "pointer", transition: "transform 500ms cubic-bezier(.32,.72,0,1),background 500ms cubic-bezier(.32,.72,0,1)" }}><span style={{ width: 34, height: 34, display: "grid", placeItems: "center", borderRadius: 12, background: "#fff", color: C.orange, fontSize: 13, fontWeight: 900 }}>{option.mark}</span><strong style={{ display: "block", marginTop: 14, color: C.teal, fontSize: 13 }}>{option.label}</strong><span style={{ display: "block", marginTop: 4, color: C.muted, fontSize: 10, lineHeight: 1.5 }}>{option.description}</span></button>)}</div></div></section> : <>
+            <section style={{ padding: 7, borderRadius: 28, background: "rgba(21,88,85,.055)" }}><div style={{ borderRadius: 21, background: C.white, padding: 20 }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}><span style={{ padding: "5px 10px", borderRadius: 99, background: C.mist, color: C.teal, fontSize: 10, fontWeight: 900 }}>{activeTemplate?.label}</span><button onClick={() => setTemplateChosen(false)} style={{ border: "none", background: "transparent", color: C.hint, font: "inherit", fontSize: 10, cursor: "pointer" }}>템플릿 변경</button><span style={{ marginLeft: "auto", color: C.hint, fontSize: 9 }}>⌘S 저장</span></div>
+              <input value={title} onChange={event => setTitle(event.target.value)} placeholder="상담 제목" style={{ width: "100%", border: "none", outline: "none", marginBottom: 16, color: C.ink, font: "inherit", fontSize: "clamp(22px,4vw,36px)", fontWeight: 900, letterSpacing: "-.045em" }} />
+              <NoteTemplateEditor type={templateType} data={templateData} onChange={updateTemplate} />
+            </div></section>
+
+            <section style={{ padding: 7, borderRadius: 28, background: "rgba(21,88,85,.055)" }}><div style={{ borderRadius: 21, background: C.white, padding: 18 }}><div style={{ marginBottom: 12 }}><div style={{ color: C.teal, fontSize: 13, fontWeight: 900 }}>터치 필기 · 스케치</div><div style={{ marginTop: 3, color: C.muted, fontSize: 10 }}>Apple Pencil, 터치, 마우스로 그리고 도형을 추가하세요.</div></div><NoteCanvasPanel key={`${currentId ?? "new"}-${templateType}`} ref={canvasRef} templateType={templateType} templateData={templateData} initialImage={initialCanvas} onChange={setCanvasDirty} /></div></section>
+
+            <section style={{ padding: 7, borderRadius: 28, background: "rgba(21,88,85,.055)" }}><div style={{ borderRadius: 21, background: C.white, padding: 18 }}><div style={{ marginBottom: 12 }}><div style={{ color: C.teal, fontSize: 13, fontWeight: 900 }}>AI로 필기 정리</div><div style={{ marginTop: 3, color: C.muted, fontSize: 10 }}>원본은 보존하며 결과를 확인한 뒤 적용합니다.</div></div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button onClick={() => void transform("text")} disabled={Boolean(transforming)} style={{ minHeight: 42, border: "none", borderRadius: 99, padding: "0 17px", background: C.teal, color: "#fff", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{transforming === "text" ? "텍스트 정리 중…" : "텍스트로 정리"}</button><button onClick={() => void transform("image")} disabled={Boolean(transforming)} style={{ minHeight: 42, border: "none", borderRadius: 99, padding: "0 17px", background: C.orange, color: "#fff", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{transforming === "image" ? "이미지 정돈 중…" : "이미지로 정리"}</button></div>{aiText ? <div style={{ marginTop: 14, padding: 15, borderRadius: 15, background: C.mist }}><div style={{ whiteSpace: "pre-wrap", color: C.ink, fontSize: 12, lineHeight: 1.75 }}>{aiText}</div><div style={{ display: "flex", gap: 7, marginTop: 12 }}><button onClick={applyAiText} style={{ border: "none", borderRadius: 99, padding: "8px 13px", background: C.teal, color: "#fff", font: "inherit", fontSize: 10, fontWeight: 900, cursor: "pointer" }}>메모에 추가</button><button onClick={() => setAiText("")} style={{ border: "none", borderRadius: 99, padding: "8px 13px", background: "#fff", color: C.muted, font: "inherit", fontSize: 10, fontWeight: 900, cursor: "pointer" }}>닫기</button></div></div> : null}{aiImage ? <figure style={{ margin: "14px 0 0" }}><img src={aiImage} alt="AI가 정돈한 상담 노트" style={{ display: "block", width: "100%", borderRadius: 16 }} /><figcaption style={{ marginTop: 7, color: C.muted, fontSize: 10 }}>AI 정돈 이미지 · 원본 필기는 그대로 보존됩니다.</figcaption></figure> : null}</div></section>
+
+            <div><div style={{ margin: "0 0 9px 5px", color: C.teal, fontSize: 13, fontWeight: 900 }}>음성 메모</div><VoiceMemoPanel memoId={currentId} existingUrl={audioUrl} transcript={transcript} summary={audioSummary} ensureSaved={save} onTranscriptChange={setTranscript} onProcessed={values => { setAudioUrl(values.audioUrl); setTranscript(values.transcript); setAudioSummary(values.summary); void loadHistory(); }} /></div>
+
+            <section style={{ padding: 7, borderRadius: 28, background: "rgba(21,88,85,.055)" }}><div style={{ borderRadius: 21, background: C.white, padding: 18 }}><div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><button onClick={() => void save()} disabled={saving} style={{ flex: "1 1 180px", minHeight: 50, border: "none", borderRadius: 99, background: C.teal, color: "#fff", font: "inherit", fontSize: 13, fontWeight: 900, cursor: "pointer" }}>{saving ? "저장 중…" : "상담 메모 저장"}</button><button onClick={() => void analyze()} disabled={analyzing} style={{ flex: "1 1 180px", minHeight: 50, border: "none", borderRadius: 99, background: C.orange, color: "#fff", font: "inherit", fontSize: 13, fontWeight: 900, cursor: "pointer" }}>{analyzing ? "AI 분석 중…" : "AI 상담 분석"}</button></div>{analysis ? <div style={{ marginTop: 16, padding: 16, borderRadius: 16, background: C.mist }}><span style={{ color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: ".12em" }}>ANALYSIS</span><h3 style={{ margin: "7px 0 10px", color: C.teal, fontSize: 16 }}>상담 요약</h3><p style={{ margin: 0, color: C.ink, fontSize: 12, lineHeight: 1.75 }}>{String(analysis.summary || "요약 없음")}</p><div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8, marginTop: 13 }}>{[["병원", analysis.hospital_name], ["담당자", analysis.manager_name], ["희망일", analysis.preferred_date], ["예산", analysis.budget], ["추천", analysis.recommended_package], ["다음 행동", analysis.next_action]].filter(([, value]) => value).map(([label, value]) => <div key={String(label)} style={{ padding: 10, borderRadius: 11, background: "#fff" }}><span style={{ display: "block", color: C.hint, fontSize: 9, fontWeight: 900 }}>{label}</span><strong style={{ display: "block", marginTop: 3, color: C.ink, fontSize: 11 }}>{String(value)}</strong></div>)}</div></div> : null}</div></section>
+          </>}
         </div>
-      )}
-
-      {/* 이전 메모 히스토리 패널 */}
-      {history.length > 0 && (
-        <div style={{ maxWidth: 1100, margin: "8px auto 0", padding: "0 20px" }}>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
-            <button
-              onClick={() => setHistoryOpen(o => !o)}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "12px 18px",
-                background: C.mint, border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
-            >
-              <span style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>📋 이전 상담 기록</span>
-              <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{history.length}건</span>
-              <span style={{ marginLeft: "auto", fontSize: 11, color: C.hint }}>{historyOpen ? "▲ 접기" : "▼ 펼치기"}</span>
-            </button>
-            {historyOpen && (
-              <div style={{ maxHeight: 320, overflowY: "auto" }}>
-                {history.map(m => (
-                  <div key={m.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                    <button
-                      onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
-                      style={{ width: "100%", display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 18px",
-                        background: expandedId === m.id ? C.mint : "transparent", border: "none",
-                        cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 2 }}>
-                          {m.summary || m.raw_memo.slice(0, 50)}
-                        </div>
-                        <div style={{ fontSize: 11, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {m.raw_memo.slice(0, 80)}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: 10, color: C.hint, whiteSpace: "nowrap", flexShrink: 0, marginTop: 2 }}>
-                        {relTime(m.created_at)}
-                      </span>
-                    </button>
-                    {expandedId === m.id && m.extracted_data && (
-                      <div style={{ padding: "10px 18px 14px", background: "#FAFDFB", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
-                        {[
-                          ["병원명", m.extracted_data.hospital_name],
-                          ["담당자", m.extracted_data.manager_name],
-                          ["연락처", m.extracted_data.phone],
-                          ["희망일", m.extracted_data.preferred_date],
-                          ["예산", m.extracted_data.budget],
-                          ["촬영 항목", (m.extracted_data.shooting_items || []).join(", ")],
-                          ["특이사항", m.extracted_data.special_notes],
-                          ["추천 패키지", m.recommended_package],
-                          ["다음 액션", m.next_action],
-                        ].filter(([, v]) => v).map(([label, val]) => (
-                          <div key={label as string} style={{ display: "flex", gap: 6, fontSize: 11 }}>
-                            <span style={{ fontWeight: 800, color: C.muted, whiteSpace: "nowrap" }}>{label}:</span>
-                            <span style={{ color: C.txt }}>{val as string}</span>
-                          </div>
-                        ))}
-                        <button
-                          onClick={() => {
-                            if (m.extracted_data) {
-                              setRawMemo(m.raw_memo);
-                              setResult(m.extracted_data);
-                              setEdited({ ...m.extracted_data });
-                              setExpandedId(null);
-                              window.scrollTo({ top: 0, behavior: "smooth" });
-                            }
-                          }}
-                          style={{ gridColumn: "1/-1", marginTop: 6, padding: "6px 14px",
-                            background: C.teal, color: "#fff", border: "none", borderRadius: 8,
-                            fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
-                            alignSelf: "start", width: "fit-content" }}
-                        >
-                          이 메모 불러오기
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: result ? "1fr 1fr" : "1fr", gap: 22, alignItems: "start" }}>
-
-        {/* 메모 입력 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ background: C.mint, padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>📝 상담/미팅 메모</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>자유롭게 메모하세요. AI가 자동으로 분석하고 견적서에 필요한 정보를 추출합니다.</div>
-            </div>
-            <div style={{ padding: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, padding: "10px 14px", background: C.mint, borderRadius: 10 }}>
-                {!isRecording ? (
-                  <button
-                    onClick={startRecording}
-                    disabled={transcribing}
-                    style={{ display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 9, padding: "9px 16px", background: C.teal, color: "#fff", fontSize: 12, fontWeight: 800, cursor: transcribing ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: transcribing ? 0.6 : 1 }}
-                  >🎙️ 상담 녹음 시작</button>
-                ) : (
-                  <button
-                    onClick={stopRecording}
-                    style={{ display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 9, padding: "9px 16px", background: C.orange, color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
-                  >⏹ 녹음 중지 · {fmtRecordTime(recordSeconds)}</button>
-                )}
-                {recordedUrl && !isRecording && (
-                  <>
-                    <audio controls src={recordedUrl} style={{ height: 32, flex: 1, minWidth: 160 }} />
-                    <button
-                      onClick={transcribeAndAnalyze}
-                      disabled={transcribing}
-                      style={{ display: "flex", alignItems: "center", gap: 6, border: "none", borderRadius: 9, padding: "9px 16px", background: transcribing ? C.hint : "#0F4440", color: "#fff", fontSize: 12, fontWeight: 800, cursor: transcribing ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
-                    >{transcribing ? "변환 중…" : "✨ 텍스트 변환 + AI 분석"}</button>
-                  </>
-                )}
-                {!recordedUrl && !isRecording && (
-                  <span style={{ fontSize: 11, color: C.muted }}>상담 내용을 녹음하면 텍스트로 변환해 자동 분석합니다.</span>
-                )}
-              </div>
-              {recordError && (
-                <div style={{ marginBottom: 10, padding: "8px 12px", background: "#FFF0EB", border: `1px solid #FACCB8`, borderRadius: 8, fontSize: 12, color: C.orange }}>
-                  ⚠ {recordError}
-                </div>
-              )}
-              <textarea
-                value={rawMemo}
-                onChange={e => setRawMemo(e.target.value)}
-                placeholder={`예시:\n강남 피부과 - 김실장 상담 (2026.06.15)\n\n원장님 프로필 촬영 + 시술 연출 + 공간사진 필요\n직원 3명 포함 단체사진도 원함\n촬영일은 7월 초 희망, 토요일 선호\n예산은 200-300 사이에서 조율 가능하다고 함\n인스타 운영도 관심 있음\n연락처: 010-1234-5678 / kim@skincare.kr`}
-                rows={14}
-                style={{ ...iS, resize: "vertical", lineHeight: 1.8, fontSize: 13 }}
-              />
-              {error && (
-                <div style={{ marginTop: 10, padding: "8px 12px", background: "#FFF0EB", border: `1px solid #FACCB8`, borderRadius: 8, fontSize: 12, color: C.orange }}>
-                  ⚠ {error}
-                </div>
-              )}
-              <button
-                onClick={() => analyze()}
-                disabled={analyzing}
-                style={{ width: "100%", marginTop: 14, height: 50, border: "none", borderRadius: 10, background: analyzing ? C.hint : C.teal, color: "#fff", fontSize: 15, fontWeight: 800, cursor: analyzing ? "not-allowed" : "pointer", fontFamily: "inherit" }}
-              >
-                {analyzing ? "AI 분석 중..." : "✨ AI 분석하기"}
-              </button>
-            </div>
-          </div>
-
-          {/* 샘플 힌트 */}
-          {!result && (
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 20px" }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.teal, marginBottom: 10 }}>💡 메모 작성 팁</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
-                <span>· 날짜, 병원명, 담당자 이름을 첫 줄에 메모</span>
-                <span>· 필요한 촬영 항목, 원장·직원 수 간략히</span>
-                <span>· 희망 촬영일, 예산 범위 포함하면 정확도 향상</span>
-                <span>· 영상, 홈페이지, SNS 구독 관심 여부 메모</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 분석 결과 */}
-        {result && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-            {/* 요약 */}
-            <div style={{ background: C.teal, borderRadius: 14, padding: "18px 20px", color: "#fff" }}>
-              <div style={{ fontSize: 11, opacity: .7, marginBottom: 4 }}>AI 분석 요약</div>
-              <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.7 }}>{edited.summary || "—"}</div>
-            </div>
-
-            {/* 추출 정보 편집 */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden" }}>
-              <div style={{ background: C.mint, padding: "12px 18px", borderBottom: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.teal }}>📋 추출된 정보 (수정 가능)</div>
-              </div>
-              <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-                <InfoRow label="병원명" value={edited.hospital_name || ""} onChange={v => upd("hospital_name", v)} />
-                <InfoRow label="담당자" value={edited.manager_name || ""} onChange={v => upd("manager_name", v)} />
-                <InfoRow label="연락처" value={edited.phone || ""} onChange={v => upd("phone", v)} />
-                <InfoRow label="이메일" value={edited.email || ""} onChange={v => upd("email", v)} />
-                <InfoRow label="진료과" value={edited.department || ""} onChange={v => upd("department", v)} />
-                <InfoRow label="촬영 목적" value={edited.purpose || ""} onChange={v => upd("purpose", v)} />
-                <InfoRow label="희망 촬영일" value={edited.preferred_date || ""} onChange={v => upd("preferred_date", v)} />
-                <InfoRow label="예산" value={edited.budget || ""} onChange={v => upd("budget", v)} />
-                <div style={{ paddingBottom: 8, borderBottom: `1px solid ${C.mint}` }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 5 }}>촬영 항목</div>
-                  <textarea
-                    value={(edited.shooting_items || []).join(", ")}
-                    onChange={e => upd("shooting_items", e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
-                    rows={2}
-                    style={{ ...iS, fontSize: 12, resize: "none" }}
-                  />
-                </div>
-                <InfoRow label="특이사항" value={edited.special_notes || ""} onChange={v => upd("special_notes", v)} />
-
-                <div style={{ display: "flex", gap: 12, paddingTop: 4 }}>
-                  {[
-                    { key: "needs_video", label: "영상 필요" },
-                    { key: "needs_website", label: "홈페이지 필요" },
-                    { key: "interested_in_sns", label: "SNS 구독 관심" },
-                  ].map(({ key, label }) => (
-                    <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.muted, cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean((edited as any)[key])}
-                        onChange={e => upd(key as keyof Extracted, e.target.checked)}
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* 추천 패키지 & 다음 액션 */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px" }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.teal, marginBottom: 10 }}>💡 AI 추천</div>
-              <div style={{ fontSize: 13, color: C.orange, fontWeight: 700, marginBottom: 6 }}>
-                추천 패키지: {edited.recommended_package || "—"}
-              </div>
-              <div style={{ fontSize: 12, color: C.muted }}>
-                다음 액션: {edited.next_action || "—"}
-              </div>
-            </div>
-
-            {/* 캘린더 추가 */}
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px" }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.teal, marginBottom: 4 }}>📅 촬영 일정 캘린더 등록</div>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 10, lineHeight: 1.6 }}>
-                희망 촬영일 <strong style={{ color: C.teal }}>{edited.preferred_date || "미입력"}</strong>로 캘린더에 일정을 추가합니다.
-              </div>
-              {calSaved ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ flex: 1, padding: "9px 13px", background: "#E6F4EA", border: "1px solid #86EFAC",
-                    borderRadius: 9, fontSize: 12, color: "#166534", fontWeight: 700 }}>
-                    ✅ 캘린더에 추가됐어요!
-                  </div>
-                  <a href="/calendar" style={{ padding: "9px 14px", background: C.teal, color: "#fff",
-                    borderRadius: 9, fontSize: 12, fontWeight: 800, textDecoration: "none", whiteSpace: "nowrap" }}>
-                    캘린더 보기 →
-                  </a>
-                </div>
-              ) : (
-                <>
-                  <button onClick={addToCalendar} disabled={calAdding}
-                    style={{ width: "100%", height: 42, border: "none", borderRadius: 9,
-                      background: calAdding ? C.hint : "#0F4440", color: "#fff",
-                      fontSize: 13, fontWeight: 800, cursor: calAdding ? "not-allowed" : "pointer",
-                      fontFamily: "inherit" }}>
-                    {calAdding ? "추가 중…" : "📅 캘린더에 일정 추가"}
-                  </button>
-                  {calError && (
-                    <div style={{ marginTop: 8, fontSize: 11, color: C.orange, background: "#FFF0EB",
-                      borderRadius: 7, padding: "7px 11px" }}>⚠ {calError}</div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* 액션 버튼 */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 2 }}>다음 단계로 이동</div>
-              {NEXT_ACTIONS.map(action => {
-                let href = "#";
-                let highlight = false;
-                if (action === "견적서 만들기") { highlight = true; }
-                if (action === "콘티 만들기") href = "/conti";
-                if (action === "병원 이미지 진단 시작하기") href = "/diagnosis";
-                if (action === "클라이언트 등록하기") href = "/clients";
-
-                return action === "견적서 만들기" ? (
-                  <button
-                    key={action}
-                    onClick={goToQuote}
-                    style={{ width: "100%", height: 46, border: "none", borderRadius: 10, background: C.orange, color: "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-                  >
-                    📄 {action}
-                  </button>
-                ) : (
-                  <Link
-                    key={action}
-                    href={href}
-                    style={{ display: "block", width: "100%", height: 46, lineHeight: "46px", textAlign: "center", border: `1px solid ${C.border}`, borderRadius: 10, background: C.surface, color: C.teal, fontWeight: 700, fontSize: 13, textDecoration: "none" }}
-                  >
-                    {action}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </main>
   );
 }
 
-export default function MemoPageWrapper() {
-  return (
-    <Suspense>
-      <MemoPage />
-    </Suspense>
-  );
-}
+export default function MemoPage() { return <Suspense fallback={<div style={{ padding: 40 }}>상담 메모를 준비하는 중…</div>}><MemoWorkspace /></Suspense>; }

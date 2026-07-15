@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import {
   NotebookPen, Calendar, ClipboardList, FileVideo, Users, Link2, Mail, Wand2,
   BarChart2, Share2, Lightbulb, CalendarCheck, Sparkles, ScanSearch, ShieldCheck,
-  ImageDown, Activity, TrendingUp, Globe2, Search,
+  ImageDown, Activity, TrendingUp, Globe2, Search, Trash2,
 } from "lucide-react";
 
 export type ToolDef = {
@@ -22,6 +22,7 @@ export const TOOLS_WORK: ToolDef[] = [
   { title: "사진 작업실", desc: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.", href: "/photo-sorting", icon: Wand2, meta: "Photo Studio", orange: false },
   { title: "업무 리포트", desc: "AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.", href: "/report", icon: BarChart2, meta: "Weekly Report", orange: false },
   { title: "외부 공유 링크", desc: "비밀번호 없는 외부인에게 특정 기능 하나만 열어주는 링크를 생성·관리합니다.", href: "/link-generator", icon: Share2, meta: "Share Links", orange: false },
+  { title: "휴지통", desc: "삭제한 상담·일정·고객·콘티를 30일 동안 확인하고 복원합니다.", href: "/trash", icon: Trash2, meta: "Recovery Bin", orange: false },
 ];
 
 export const TOOLS_CONTENT: ToolDef[] = [

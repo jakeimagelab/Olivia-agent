@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { createStorageTrashItem } from "@/lib/trash";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,9 +75,24 @@ export async function DELETE(req: NextRequest) {
 
     const sb = getSupabaseAdmin();
     const path = `${safeKey(hospital)}/drawing.png`;
-    await sb.storage.from(BUCKET).remove([path]);
-
-    return NextResponse.json({ ok: true });
+    const item = await createStorageTrashItem(sb, "conti_drawing", { hospital, bucket: BUCKET, path }, []);
+    const trashPath = `trash/${item.id}/drawing.png`;
+    const { error: moveError } = await sb.storage.from(BUCKET).move(path, trashPath);
+    if (moveError) {
+      await sb.from("trash_items").delete().eq("id", item.id);
+      if (moveError.message.toLowerCase().includes("not found")) return NextResponse.json({ ok: true, trashId: null });
+      throw moveError;
+    }
+    const { error: updateError } = await sb.from("trash_items").update({
+      payload: { hospital, bucket: BUCKET, path, trash_path: trashPath },
+      asset_paths: [`${BUCKET}:${trashPath}`],
+    }).eq("id", item.id);
+    if (updateError) {
+      await sb.storage.from(BUCKET).move(trashPath, path);
+      await sb.from("trash_items").delete().eq("id", item.id);
+      throw updateError;
+    }
+    return NextResponse.json({ ok: true, trashId: item.id });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }

@@ -1,91 +1,162 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { moveRecordToTrash } from "@/lib/trash";
 
-export async function GET() {
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 120;
+
+const ASSET_BUCKET = "consultation-assets";
+const TEMPLATE_TYPES = new Set(["text", "cornell", "todo", "blank", "grid", "conti"]);
+const MEMO_FIELDS = "id, hospital_id, title, template_type, template_data, raw_memo, summary, extracted_data, recommended_package, next_action, canvas_path, ai_image_path, audio_path, audio_duration_seconds, transcript, audio_summary, created_at, updated_at";
+
+const analysisSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    summary: { type: "string" }, hospital_name: { type: "string" }, manager_name: { type: "string" },
+    phone: { type: "string" }, email: { type: "string" }, department: { type: "string" },
+    purpose: { type: "string" }, shooting_items: { type: "array", items: { type: "string" } },
+    doctors_count: { type: "string" }, staff_count: { type: "string" }, locations: { type: "string" },
+    needs_video: { type: "boolean" }, needs_website: { type: "boolean" }, interested_in_sns: { type: "boolean" },
+    preferred_date: { type: "string" }, budget: { type: "string" }, special_notes: { type: "string" },
+    recommended_package: { type: "string" }, next_action: { type: "string" },
+  },
+  required: ["summary", "hospital_name", "manager_name", "phone", "email", "department", "purpose", "shooting_items", "doctors_count", "staff_count", "locations", "needs_video", "needs_website", "interested_in_sns", "preferred_date", "budget", "special_notes", "recommended_package", "next_action"],
+};
+
+function outputText(json: any): string {
+  if (typeof json.output_text === "string") return json.output_text;
+  for (const item of json.output ?? []) {
+    for (const part of item.content ?? []) if (typeof part.text === "string") return part.text;
+  }
+  return "";
+}
+
+async function withSignedUrls(rows: any[]) {
+  const db = getSupabaseAdmin();
+  return Promise.all(rows.map(async row => {
+    const signed: Record<string, string | null> = {};
+    for (const [field, output] of [["canvas_path", "canvas_url"], ["ai_image_path", "ai_image_url"], ["audio_path", "audio_url"]] as const) {
+      const path = row[field];
+      if (!path) { signed[output] = null; continue; }
+      const { data } = await db.storage.from(ASSET_BUCKET).createSignedUrl(path, 60 * 60);
+      signed[output] = data?.signedUrl ?? null;
+    }
+    return { ...row, ...signed };
+  }));
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
-    const { data } = await supabase
-      .from("consultation_memos")
-      .select("id, raw_memo, summary, extracted_data, recommended_package, next_action, created_at")
-      .order("created_at", { ascending: false })
-      .limit(20);
-    return NextResponse.json({ ok: true, memos: data ?? [] });
-  } catch {
-    return NextResponse.json({ ok: false, memos: [] });
+    const db = getSupabaseAdmin();
+    const id = req.nextUrl.searchParams.get("id");
+    if (id) {
+      const { data, error } = await db.from("consultation_memos").select(MEMO_FIELDS).eq("id", id).maybeSingle();
+      if (error) throw error;
+      if (!data) return NextResponse.json({ ok: false, error: "메모를 찾을 수 없습니다." }, { status: 404 });
+      const [memo] = await withSignedUrls([data]);
+      return NextResponse.json({ ok: true, memo });
+    }
+    const { data, error } = await db.from("consultation_memos").select(MEMO_FIELDS).order("updated_at", { ascending: false }).limit(100);
+    if (error) throw error;
+    return NextResponse.json({ ok: true, memos: await withSignedUrls(data ?? []) });
+  } catch (error) {
+    return NextResponse.json({ ok: false, memos: [], error: error instanceof Error ? error.message : "메모 조회 실패" }, { status: 500 });
   }
 }
 
-export const dynamic = "force-dynamic";
-export const maxDuration = 60;
-
-export async function POST(req: NextRequest) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return NextResponse.json({ ok: false, error: "OPENAI_API_KEY 미설정" }, { status: 500 });
-
-  const { raw_memo, hospital_id } = await req.json();
-  if (!raw_memo?.trim()) return NextResponse.json({ ok: false, error: "메모 내용을 입력해주세요." }, { status: 400 });
-
-  const systemPrompt = `당신은 포토클리닉(병원 전문 브랜드 촬영) 영업 AI 비서 올리비아입니다.
-상담/미팅 메모를 분석해 구조화된 정보를 추출합니다.
-
-반드시 아래 JSON 형식으로만 응답하세요:
-{
-  "summary": "상담 내용 1-2문장 요약",
-  "hospital_name": "병원명",
-  "manager_name": "담당자명",
-  "phone": "연락처",
-  "email": "이메일",
-  "department": "진료과",
-  "purpose": "촬영 목적",
-  "shooting_items": ["촬영 항목 배열"],
-  "doctors_count": "원장 수",
-  "staff_count": "직원 수",
-  "locations": "촬영 공간",
-  "needs_video": true/false,
-  "needs_website": true/false,
-  "interested_in_sns": true/false,
-  "preferred_date": "희망 촬영일",
-  "budget": "예산",
-  "special_notes": "특이사항",
-  "recommended_package": "추천 패키지명",
-  "next_action": "다음 액션 (예: 견적서 전달, 콘티 작성 등)"
+async function saveMemo(body: any) {
+  const db = getSupabaseAdmin();
+  const templateType = TEMPLATE_TYPES.has(body.template_type) ? body.template_type : "text";
+  const values = {
+    hospital_id: body.hospital_id || null,
+    title: String(body.title || "").slice(0, 200),
+    template_type: templateType,
+    template_data: body.template_data && typeof body.template_data === "object" ? body.template_data : {},
+    raw_memo: String(body.raw_memo || "").slice(0, 100_000),
+    transcript: String(body.transcript || "").slice(0, 200_000),
+    audio_summary: String(body.audio_summary || "").slice(0, 20_000),
+  };
+  if (body.id) {
+    const { data, error } = await db.from("consultation_memos").update(values).eq("id", body.id).select(MEMO_FIELDS).single();
+    if (error) throw error;
+    return data;
+  }
+  const { data, error } = await db.from("consultation_memos").insert(values).select(MEMO_FIELDS).single();
+  if (error) throw error;
+  return data;
 }
 
-정보가 없는 항목은 빈 문자열("")이나 false로 처리하세요.`;
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+async function analyzeMemo(rawMemo: string, transcript: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY 미설정");
+  const combined = [rawMemo, transcript ? `음성 전사:\n${transcript}` : ""].filter(Boolean).join("\n\n");
+  const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `상담 메모:\n\n${raw_memo}` },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.3,
+      model: process.env.OPENAI_MEMO_MODEL || "gpt-4.1-mini",
+      instructions: "당신은 병원 전문 브랜드 촬영 스튜디오 포토클리닉의 상담 AI 비서 올리비아입니다. 한국어 상담 메모에서 확인된 사실만 구조화하고, 없는 정보는 빈 문자열이나 false로 반환하세요.",
+      input: combined,
+      text: { format: { type: "json_schema", name: "consultation_analysis", strict: true, schema: analysisSchema } },
     }),
   });
+  const json = await response.json();
+  if (!response.ok) throw new Error(json.error?.message || "AI 분석 실패");
+  const content = outputText(json);
+  if (!content) throw new Error("AI 응답 없음");
+  try { return JSON.parse(content); } catch { throw new Error("AI 응답 파싱 실패"); }
+}
 
-  const json = await res.json();
-  const content = json.choices?.[0]?.message?.content;
-  if (!content) return NextResponse.json({ ok: false, error: "AI 응답 없음" }, { status: 500 });
-
-  let extracted: Record<string, unknown> = {};
-  try { extracted = JSON.parse(content); } catch { return NextResponse.json({ ok: false, error: "응답 파싱 실패" }, { status: 500 }); }
-
-  // Supabase에 저장
+export async function POST(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
-    await supabase.from("consultation_memos").insert({
-      hospital_id: hospital_id || null,
-      raw_memo,
-      summary: extracted.summary || "",
-      extracted_data: extracted,
-      recommended_package: extracted.recommended_package || "",
-      next_action: extracted.next_action || "",
-    });
-  } catch {}
+    const body = await req.json();
+    if (body.action === "save") {
+      const memo = await saveMemo(body);
+      return NextResponse.json({ ok: true, memo });
+    }
 
-  return NextResponse.json({ ok: true, ...extracted });
+    const rawMemo = String(body.raw_memo || "");
+    const transcript = String(body.transcript || "");
+    if (!rawMemo.trim() && !transcript.trim()) return NextResponse.json({ ok: false, error: "메모 내용을 입력해주세요." }, { status: 400 });
+    const extracted = await analyzeMemo(rawMemo, transcript);
+
+    // 기존 /consultation 및 고객 등록 폼 호환: persist=false가 아닌 분석은 기록으로 저장한다.
+    if (body.persist !== false) {
+      const db = getSupabaseAdmin();
+      await db.from("consultation_memos").insert({
+        hospital_id: body.hospital_id || null,
+        raw_memo: rawMemo,
+        transcript,
+        summary: extracted.summary || "",
+        extracted_data: extracted,
+        recommended_package: extracted.recommended_package || "",
+        next_action: extracted.next_action || "",
+        title: body.title || extracted.hospital_name || "상담 메모",
+      });
+    } else if (body.id) {
+      const db = getSupabaseAdmin();
+      await db.from("consultation_memos").update({
+        summary: extracted.summary || "",
+        extracted_data: extracted,
+        recommended_package: extracted.recommended_package || "",
+        next_action: extracted.next_action || "",
+      }).eq("id", body.id);
+    }
+    return NextResponse.json({ ok: true, ...extracted });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "메모 처리 실패" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ ok: false, error: "id 필수" }, { status: 400 });
+  try {
+    const item = await moveRecordToTrash(getSupabaseAdmin(), "consultation_memo", id);
+    return NextResponse.json({ ok: true, trashId: item.id });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "메모 삭제 실패" }, { status: 500 });
+  }
 }

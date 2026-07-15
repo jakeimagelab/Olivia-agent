@@ -167,10 +167,13 @@ function QueueTab() {
   };
 
   const deleteItem = async (id: string) => {
-    if (!confirm("삭제하시겠습니까?")) return;
-    await fetch(`/api/mailing/${id}`, { method: "DELETE" });
+    if (!confirm("메일을 휴지통으로 이동할까요? 30일 안에 복원할 수 있습니다.")) return;
+    const response = await fetch(`/api/mailing/${id}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) { setSaveMsg(`삭제 실패: ${data.error || "알 수 없는 오류"}`); return; }
     if (selected?.id === id) setSelected(null);
     setItems(prev => prev.filter(i => i.id !== id));
+    setSaveMsg("휴지통으로 이동했습니다.");
   };
 
   return (

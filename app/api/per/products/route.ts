@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { moveRecordToTrash } from "@/lib/trash";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,11 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const db = getSupabaseAdmin();
   const { id } = await req.json();
-  const { error } = await db.from("reward_products").delete().eq("id", id);
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  if (!id) return NextResponse.json({ ok: false, error: "id 필수" }, { status: 400 });
+  try {
+    const item = await moveRecordToTrash(db, "reward_product", id);
+    return NextResponse.json({ ok: true, trashId: item.id });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "상품 삭제 실패" }, { status: 500 });
+  }
 }

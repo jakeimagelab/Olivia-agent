@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { logActivity } from "@/lib/activityLogger";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { moveRecordToTrash } from "@/lib/trash";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -808,8 +809,7 @@ async function updateCalendarTask(input: Record<string, unknown>) {
 
 async function deleteCalendarTask(id: string) {
   const db = getSupabaseAdmin();
-  const { error } = await db.from("calendar_tasks").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await moveRecordToTrash(db, "calendar_task", id);
 }
 
 async function resolveCalendarTaskId(input: any) {

@@ -2242,7 +2242,9 @@ export default function CalendarPage() {
   };
 
   const deleteTask = async (id: string) => {
-    await fetch(`/api/calendar?id=${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/calendar?id=${id}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "일정 삭제 실패");
     setAllTasks(ts => ts.filter(t => t.id !== id));
     setDayTasks(ts => ts.filter(t => t.id !== id));
   };
@@ -2259,8 +2261,9 @@ export default function CalendarPage() {
   }, [allTasks]);
   const requestDeleteTask = (id: string) => setConfirmDeleteId(id);
   const confirmDelete = async () => {
-    if (confirmDeleteId) await deleteTask(confirmDeleteId);
-    setConfirmDeleteId(null);
+    if (!confirmDeleteId) return;
+    try { await deleteTask(confirmDeleteId); setConfirmDeleteId(null); }
+    catch (error) { window.alert(error instanceof Error ? error.message : "일정 삭제 실패"); }
   };
 
   // 키보드 붙여넣기(Cmd/Ctrl+V) 등, AddTaskForm 내부 submit()을 거치지 않는 생성 경로용
@@ -2449,7 +2452,7 @@ export default function CalendarPage() {
           }}>
             <div style={{ fontSize: 15, fontWeight: 900, color: C.txt, marginBottom: 8 }}>일정을 삭제할까요?</div>
             <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, marginBottom: 20, wordBreak: "break-word" }}>
-              &lsquo;{taskById[confirmDeleteId]?.title ?? ""}&rsquo; 일정을 삭제합니다. 이 작업은 되돌릴 수 없어요.
+              &lsquo;{taskById[confirmDeleteId]?.title ?? ""}&rsquo; 일정을 휴지통으로 이동합니다. 30일 안에 복원할 수 있어요.
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => setConfirmDeleteId(null)} style={{

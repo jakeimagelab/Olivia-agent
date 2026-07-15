@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { industryOrDefault } from "@/lib/trend/constants";
+import { moveRecordToTrash } from "@/lib/trash";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,10 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ ok: false, error: "id가 필요합니다." }, { status: 400 });
 
   const db = getSupabaseAdmin();
-  const { error } = await db.from("trend_competitors").update({ is_active: false }).eq("id", id);
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  try {
+    const item = await moveRecordToTrash(db, "trend_competitor", id);
+    return NextResponse.json({ ok: true, trashId: item.id });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "경쟁사 삭제 실패" }, { status: 500 });
+  }
 }

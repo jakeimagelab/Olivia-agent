@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { moveRecordToTrash } from "@/lib/trash";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,9 +50,8 @@ export async function DELETE(_req: NextRequest, ctx: any) {
   try {
     const { id } = await ctx.params;
     const db = getSupabaseAdmin();
-    const { error } = await db.from("video_conti").delete().eq("id", id);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    const item = await moveRecordToTrash(db, "video_conti", id);
+    return NextResponse.json({ ok: true, trashId: item.id });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }

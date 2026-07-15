@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { moveAllRecordsToTrash } from "@/lib/trash";
 
 export const dynamic = "force-dynamic";
 
@@ -49,10 +50,10 @@ export async function POST(req: NextRequest) {
 // DELETE /api/olivia/messages  — 전체 삭제 (초기화)
 export async function DELETE() {
   const db = getSupabaseAdmin();
-  const { error } = await db
-    .from("olivia_chat_messages")
-    .delete()
-    .not("id", "is", null);
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  try {
+    const item = await moveAllRecordsToTrash(db, "olivia_chat");
+    return NextResponse.json({ ok: true, trashId: item?.id ?? null });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "대화 기록 삭제 실패" }, { status: 500 });
+  }
 }

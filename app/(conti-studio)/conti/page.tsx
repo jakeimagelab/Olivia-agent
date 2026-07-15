@@ -1321,7 +1321,10 @@ ${contiSummary}
   };
 
   const deleteConti = async (id: string) => {
-    await fetch(`/api/conti/saves?id=${id}`, { method: "DELETE" });
+    if (!window.confirm("저장 콘티를 휴지통으로 이동할까요?")) return;
+    const response = await fetch(`/api/conti/saves?id=${id}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) { window.alert(data.error || "콘티 삭제 실패"); return; }
     setSavedList(prev => prev.filter(s => s.id !== id));
   };
 
@@ -2572,9 +2575,14 @@ ${header("타임테이블")}
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>↩️</button>
                     <button onClick={async () => {
+                      if (!window.confirm("저장된 드로잉을 휴지통으로 이동하고 화면을 지울까요?")) return;
                       clearCanvas();
                       const hospital = form.hospitalName || resultTitle;
-                      if (hospital) await fetch(`/api/conti-drawing?hospital=${encodeURIComponent(hospital)}`, { method: "DELETE" });
+                      if (hospital) {
+                        const response = await fetch(`/api/conti-drawing?hospital=${encodeURIComponent(hospital)}`, { method: "DELETE" });
+                        const data = await response.json();
+                        if (!response.ok || !data.ok) window.alert(data.error || "드로잉 삭제 실패");
+                      }
                     }} title="전체 지우기 (저장 데이터도 삭제)" style={{
                       width: 34, height: 34, borderRadius: 10,
                       background: "rgba(255,255,255,0.08)", border: "2px solid rgba(255,255,255,0.2)",
