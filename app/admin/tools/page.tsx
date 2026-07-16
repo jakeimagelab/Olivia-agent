@@ -50,12 +50,21 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
             <button type="button" aria-label="필터 설정"><SlidersHorizontal size={14} aria-hidden="true"/></button>
           </div>
         </div>
-        <div className="oa-feature-grid">
-          {TOOLS.map(tool => (
-            <FeatureCard key={tool.href} title={tool.title} description={tool.desc}
-              href={`${tool.href}${suffix}`} icon={<tool.icon size={22}/>}
-              tags={[tool.meta]} status="사용 가능" orange={tool.orange}/>
-          ))}
+        <div className="admin-menu-grid">
+          {TOOLS.map(tool => {
+            const Icon = tool.icon;
+            return (
+              <Link key={tool.href} href={`${tool.href}${suffix}`} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
+                <div className="admin-menu-icon"><Icon size={26}/></div>
+                <div className="admin-menu-copy">
+                  <span>{tool.meta}</span>
+                  <h2>{tool.title}</h2>
+                  <p>{tool.desc}</p>
+                </div>
+                <div className="admin-menu-action" aria-hidden="true"><ArrowRight size={21}/></div>
+              </Link>
+            );
+          })}
         </div>
       </CategorySection>
     </div>
