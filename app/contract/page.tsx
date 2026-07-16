@@ -358,7 +358,7 @@ export default function ContractPage() {
           </div>
 
           {/* 계약 병원 정보 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px" }}>
+          <div className="pc-card pc-card--padded">
             <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 10 }}>🏥 계약 병원 정보</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div>
@@ -400,7 +400,7 @@ export default function ContractPage() {
           </div>
 
           {/* 포토클리닉 서명 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px" }}>
+          <div className="pc-card pc-card--padded">
             <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 8 }}>✍️ 포토클리닉 서명</div>
             <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6, marginBottom: 10 }}>
               아래 칸에 직접 서명하면 계약서와 PDF에 바로 반영됩니다.
@@ -435,7 +435,7 @@ export default function ContractPage() {
           </div>
 
           {/* PDF 다운로드 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: "16px 18px" }}>
+          <div className="pc-card pc-card--padded">
             <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 8 }}>📄 PDF 저장</div>
             <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.7, marginBottom: 12 }}>
               계약서 미리보기 내용 그대로<br/>PDF 파일을 생성합니다.
