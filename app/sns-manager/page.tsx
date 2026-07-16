@@ -35,7 +35,7 @@ function CopyBtn({ text, label = "복사" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   return (
-    <button onClick={copy} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7, border: `1px solid ${C.border}`, background: copied ? C.light : C.white, color: copied ? C.teal : C.muted, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", transition: "all 150ms" }}>
+    <button onClick={copy} className={`pc-btn pc-btn--sm ${copied ? "pc-btn--primary" : "pc-btn--secondary"}`}>
       {copied ? <Check size={13} /> : <Copy size={13} />}{copied ? "복사됨!" : label}
     </button>
   );
