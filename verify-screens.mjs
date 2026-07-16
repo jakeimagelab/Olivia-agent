@@ -22,7 +22,7 @@ const targets = [
 for (const t of targets) {
   errors.length = 0;
   await page.goto(`${BASE}${t.path}`, { waitUntil: "networkidle", timeout: 20000 }).catch(e => console.log(`goto error ${t.path}:`, e.message));
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(2500);
   await page.screenshot({ path: `${OUT}/${t.file}`, fullPage: false });
   console.log(`--- ${t.path} ---`);
   console.log("errors:", errors.length ? errors.join(" | ") : "none");
