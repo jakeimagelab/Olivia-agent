@@ -48,6 +48,9 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: "#1C2B28" }}>
       {!inIframe && <PageHeader title={title} />}
+      {!inIframe && HEADING[pathname] && (
+        <PageHeading kicker={HEADING[pathname].kicker} title={HEADING[pathname].title} desc={HEADING[pathname].desc} />
+      )}
 
       <nav className="pc-subnav pc-subnav--global" style={{
         background: "rgba(255,255,255,.72)",
