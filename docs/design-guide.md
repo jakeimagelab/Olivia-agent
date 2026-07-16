@@ -167,7 +167,31 @@ const C = {
 
 ---
 
-## 7. 빠른 체크리스트 (새 페이지 만들 때)
+## 7. `.ops-*` 시스템 (독립 레이아웃, 흡수하지 않음)
+
+`subscription`, `content-writer`, `sns-design`, `channel-audit`, `content-calendar`, `assets`, `monthly-report` 7개 페이지는 `.pc-header` + `.pc-card` 그리드 대신 **큰 히어로 타이틀 + 표 형태 목록**에 맞춘 별도 클래스 세트(`.ops-shell`/`.ops-header`/`.ops-panel`/`.ops-table-card`/`.ops-table-head`/`.ops-table-row`)를 씁니다 (`app/globals.css` 899줄~).
+
+```tsx
+<div className="ops-shell">
+  <header className="ops-header">
+    <p>EYEBROW LABEL</p>
+    <h1>페이지 제목</h1>
+    <span>설명 문구</span>
+  </header>
+  <div className="ops-table-card">
+    <div className="ops-table-head">{/* 컬럼 헤더 */}</div>
+    <a className="ops-table-row">{/* 행 */}</a>
+  </div>
+</div>
+```
+
+**`.pc-*`와 같은 CSS 변수(`--liquid-panel-strong`, `--liquid-border`, `--mesh-bg`, `--deep-green`, `--orange`)를 그대로 재사용**하므로 색감·블러 톤은 이미 통일돼 있습니다 — 다만 컴포넌트 이름과 6컬럼 그리드 레이아웃이 `.pc-card`/`.pc-header`와 다릅니다.
+
+**방침: 문서화만 하고 `.pc-*`로 흡수하지 않습니다.** 7개 페이지 모두 표 형태 목록 화면이라 `.ops-table-*`가 `.pc-card` 그리드보다 실제로 더 적합하고, 이미 완결된 상태로 잘 동작합니다. `.pc-*`로 강제 통일하면 7개 페이지를 사실상 다시 짜야 하는데 비해 얻는 이득(순수 클래스 이름 통일)이 크지 않아 별도 시스템으로 유지합니다. 새로 이 7개 페이지 중 하나를 수정할 때는 `.ops-*` 패턴을 따라가고, 아예 새 "표 목록형" 페이지를 만들 때만 `.ops-*` 재사용을 고려하세요.
+
+---
+
+## 8. 빠른 체크리스트 (새 페이지 만들 때)
 
 1. `"use client"` + `<header className="pc-header">`로 시작
 2. 본문은 `<div className="pc-content">`로 감싸기 (mesh 배경은 자동 적용됨)
