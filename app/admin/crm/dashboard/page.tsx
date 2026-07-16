@@ -28,13 +28,12 @@ const BOARD_COLUMNS = [
 
 export default function CrmDashboardPage() {
   return (
-    <div className="oa-page">
-      <div className="oa-preview-note"><Sparkles size={14}/><span>프로젝트 수치는 2차 CRM 데이터 모델 연결 전 UI 프레젠테이션 값입니다.</span></div>
-      <section className="oa-summary-grid oa-summary-grid--crm" aria-label="CRM 현황 요약">
+    <div className="oa-page pc-dash-home">
+      <section className="oa-summary-grid oa-summary-grid--crm pc-dash-summary" aria-label="CRM 현황 요약">
         {DEMO_CRM_SUMMARY.map(item => <SummaryCard key={item.label} {...item}/>) }
       </section>
 
-      <div className="oa-dashboard-layout">
+      <div className="oa-dashboard-layout pc-dash-layout">
         <div className="oa-main-column">
           <CategorySection
             eyebrow="PIPELINE"
