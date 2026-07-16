@@ -242,7 +242,7 @@ function ConsultationInner() {
 
         {/* 오른쪽: 메모 + AI 분석 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ padding: "14px 20px", background: "rgba(124,58,237,.04)", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>📝 상담 메모 + AI 자동 추출</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>자유롭게 메모하면 AI가 왼쪽 폼 빈 항목을 자동으로 채웁니다.</div>
