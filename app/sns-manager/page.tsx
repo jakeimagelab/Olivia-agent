@@ -1055,7 +1055,7 @@ function AdCheckTab() {
             <textarea value={text} onChange={e => setText(e.target.value)} rows={10} placeholder="인스타그램 캡션, 블로그 글, 플레이스 소식글 등 검토가 필요한 텍스트를 입력하세요." style={{ ...taS, lineHeight: 1.7 }} />
           </div>
           {error && <div style={{ padding: "10px 14px", background: "#FFF0F0", border: "1px solid #FECACA", borderRadius: 10, fontSize: 13, color: "#DC2626" }}>⚠ {error}</div>}
-          <button onClick={check} disabled={loading} style={{ width: "100%", height: 50, borderRadius: 12, border: "none", background: loading ? "#9ca3af" : C.teal, color: "#fff", fontSize: 15, fontWeight: 900, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <button onClick={check} disabled={loading} className="pc-btn pc-btn--primary pc-btn--lg" style={{ width: "100%" }}>
             {loading ? <><div style={{ width: 16, height: 16, border: "2.5px solid rgba(255,255,255,.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin .7s linear infinite" }} />분석 중...</> : <><ShieldAlert size={16} />의료광고 리스크 체크</>}
           </button>
         </div>
