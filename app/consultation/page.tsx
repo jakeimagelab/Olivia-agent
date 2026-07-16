@@ -265,7 +265,7 @@ function ConsultationInner() {
           </div>
 
           {extracted && (
-            <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+            <div className="pc-card">
               <div style={{ padding: "16px 20px", background: C.teal, color: "#fff" }}>
                 <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 3 }}>AI 분석 요약</div>
                 <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.65 }}>{extracted.summary || "분석 완료"}</div>
