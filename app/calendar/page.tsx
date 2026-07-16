@@ -906,7 +906,14 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
   const [focusedIdx,    setFocusedIdx]    = useState(0);
   const [selectedTaskId,setSelectedTaskId]= useState<string | null>(null);
   const [clipboardTask, setClipboardTask] = useState<CalTask | null>(null); // 메모리에만 보관 (새로고침 시 초기화)
+  const [toast,         setToast]         = useState<string | null>(null); // 복사/붙여넣기는 눈에 보이는 변화가 없어서 확인용 토스트가 필요
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 1800);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const cellDateStr = (n: number) => {
     const c = cells[n];
