@@ -49,7 +49,7 @@ export default function PerOrdersPage() {
         <div style={{ display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" }}>
           {["전체",...Object.keys(ORDER_STATUS_LABEL)].map(s => (
             <button key={s} onClick={() => setStatusF(s)}
-              style={{ padding:"5px 13px", border:`1px solid ${statusF===s?C.teal:C.border}`, borderRadius:20, background:statusF===s?C.teal:"transparent", color:statusF===s?"#fff":C.muted, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              className={`pc-btn pc-btn--sm ${statusF===s ? "pc-btn--primary" : "pc-btn--ghost"}`}>
               {ORDER_STATUS_LABEL[s] ?? s}
             </button>
           ))}
