@@ -32,7 +32,9 @@ export default function AdminDashboardHomePage() {
   return (
     <div className="oa-page pc-dash-home">
       <div className="pc-dash-brief">
-        <TodayAlertBanner/>
+        <DailyBriefCard/>
+        <TodayScheduleCard/>
+        <DailyQuoteWidget/>
       </div>
 
       <section className="oa-summary-grid pc-dash-summary" aria-label="운영 현황 요약">
@@ -41,19 +43,6 @@ export default function AdminDashboardHomePage() {
 
       <div className="oa-dashboard-layout pc-dash-layout">
         <div className="oa-main-column">
-          <CategorySection
-            eyebrow="SCHEDULE"
-            title="오늘의 촬영 일정"
-            description="촬영과 상담 일정을 시간 순서로 확인하세요."
-            action={<Link className="oa-text-link" href="/calendar">캘린더 열기 <ExternalLink size={13}/></Link>}
-          >
-            <div className="oa-timeline">
-              <div className="oa-timeline-item is-active"><time>10:30</time><span className="oa-timeline-dot"/><div><strong>오블리브의원 사전 상담</strong><p>브랜드 촬영 범위와 의료진 프로필 구성 확인</p></div><StatusBadge tone="blue">상담</StatusBadge></div>
-              <div className="oa-timeline-item"><time>14:00</time><span className="oa-timeline-dot"/><div><strong>리움피부과 브랜드 촬영</strong><p>원장 프로필 · 공간 · 진료 연출 촬영</p></div><StatusBadge tone="orange">촬영</StatusBadge></div>
-              <div className="oa-timeline-item"><time>17:30</time><span className="oa-timeline-dot"/><div><strong>당일 파일 백업 확인</strong><p>NAS 업로드와 이중 백업 상태 점검</p></div><StatusBadge tone="gray">운영</StatusBadge></div>
-            </div>
-          </CategorySection>
-
           <CategorySection
             eyebrow="TODAY"
             title="오늘 처리할 업무"
