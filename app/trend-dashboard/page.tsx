@@ -169,12 +169,7 @@ export default function TrendDashboardPage() {
           <button
             onClick={runCollect}
             disabled={collecting}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "8px 16px", borderRadius: 10, border: "1.5px solid #155855",
-              background: collecting ? "#EDF5F3" : "#155855", color: collecting ? "#155855" : "#fff",
-              fontWeight: 800, fontSize: 13, cursor: collecting ? "not-allowed" : "pointer",
-            }}
+            className="pc-btn pc-btn--primary pc-btn--sm"
           >
             <RefreshCw size={14} className={collecting ? "spin" : ""} />
             {collecting ? "수집 중..." : "지금 수집"}
