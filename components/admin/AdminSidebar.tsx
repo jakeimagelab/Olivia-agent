@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   Archive,
   CalendarDays,
@@ -20,14 +20,13 @@ import {
   Settings,
   UsersRound,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import { groupToolsByCategory } from "@/lib/toolNav";
 
 type NavigationItem = {
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: ComponentType<{ size?: number }>;
   /* 개별 기능 항목만 clientId/projectId 등 CRM 컨텍스트를 쿼리로 이어 붙인다 */
   carryContext?: boolean;
 };
