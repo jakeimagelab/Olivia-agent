@@ -5,6 +5,7 @@ import GlobalFeatureSidebar from "@/components/GlobalFeatureSidebar";
 import CursorEffect from "@/components/CursorEffect";
 import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
+import "./admin/admin.css";
 
 export const viewport: Viewport = {
   width: "device-width",
