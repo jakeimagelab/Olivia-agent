@@ -324,7 +324,7 @@ export default function ContractPage() {
                     gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 20, alignItems: "start" }}>
 
         {/* 계약서 미리보기 */}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+        <div className="pc-card">
           <div style={{ background: C.mint, padding: "12px 20px", borderBottom: `1px solid ${C.border}`,
                          display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>계약서 미리보기</div>
