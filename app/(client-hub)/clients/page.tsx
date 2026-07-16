@@ -8,12 +8,7 @@ import { STEP_NAME, WORKFLOW_STEPS } from "@/lib/workflow";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import NextActionCard from "@/components/NextActionCard";
 import ConsultMeetingForm from "./_components/ConsultMeetingForm";
-
-const C = {
-  teal: "#155855", orange: "#E85D2C", bg: "#F0F9F8",
-  white: "#FFFFFF", border: "rgba(21,88,85,.12)", muted: "#5A7470",
-  hint: "#9BB5B0", txt: "#1C2B28", light: "#EAF4F2", green: "#22876A",
-};
+import { C } from "@/lib/theme";
 
 const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = {
   consult_meeting:   { icon: "🤝", desc: "병원 기본 정보 등록, 상담 내용 AI 분析",  href: "/consultation" },
