@@ -535,9 +535,7 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
             <EditTaskForm key={task.id} task={task}
               onSave={t => { onSave(t); onClose(); }} onCancel={() => setEditing(false)}/>
             {!isMobile && (
-              <button onClick={() => { onDelete(task.id); onClose(); }} style={{
-                height: 34, background: "none", border: "1px solid #FCA5A5", borderRadius: 8,
-                color: "#DC2626", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              <button onClick={() => { onDelete(task.id); onClose(); }} className="pc-btn pc-btn--danger pc-btn--sm">
                 🗑 일정 삭제
               </button>
             )}
