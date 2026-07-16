@@ -211,12 +211,7 @@ export default function DailyIdeasPage() {
         </div>
         <div className="pc-header-actions" style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {genMsg && <span style={{ fontSize: 12, fontWeight: 700, color: genMsg.includes("됐") ? "#22876A" : C.orange }}>{genMsg}</span>}
-          <button onClick={generate} disabled={generating} style={{
-            height: 36, padding: "0 16px", border: "none", borderRadius: 9,
-            background: generating ? C.hint : hasToday ? C.teal : C.orange,
-            color: "#fff", fontWeight: 800, fontSize: 13, cursor: generating ? "not-allowed" : "pointer",
-            fontFamily: "inherit",
-          }}>
+          <button onClick={generate} disabled={generating} className={`pc-btn pc-btn--sm ${hasToday ? "pc-btn--primary" : "pc-btn--orange"}`}>
             {generating ? "생성 중..." : hasToday ? "재생성" : "✨ 생성"}
           </button>
         </div>
