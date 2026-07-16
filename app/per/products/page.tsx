@@ -90,7 +90,7 @@ export default function PerProductsPage() {
         ) : (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14 }}>
             {products.map((p: any) => (
-              <div key={p.id} style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", position:"relative" }}>
+              <div key={p.id} className="pc-card" style={{ position:"relative" }}>
                 {p.is_featured && <div style={{ position:"absolute", top:10, left:10, background:C.orange, color:"#fff", fontSize:10, fontWeight:700, borderRadius:4, padding:"2px 7px" }}>추천</div>}
                 <div style={{ background:C.light, height:140, display:"flex", alignItems:"center", justifyContent:"center" }}>
                   {p.image_url ? <img src={p.image_url} alt={p.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <Package size={36} color={C.hint} />}
