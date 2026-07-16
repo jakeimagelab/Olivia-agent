@@ -384,7 +384,7 @@ function GalleryPageInner() {
                       <span style={{ fontSize: 16, fontWeight: 900, color: C.teal, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {gallery.hospital_name}
                       </span>
-                      <button type="button" onClick={() => startEdit(gallery)} style={{ flexShrink: 0, border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, color: C.muted, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", marginLeft: 8 }}>
+                      <button type="button" onClick={() => startEdit(gallery)} className="pc-btn pc-btn--secondary pc-btn--sm" style={{ flexShrink: 0, marginLeft: 8 }}>
                         수정
                       </button>
                     </div>
