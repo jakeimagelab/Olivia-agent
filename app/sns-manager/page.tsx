@@ -256,10 +256,10 @@ function PatternBlogWriter() {
                 </div>
                 <div><label style={{ fontSize:12, fontWeight:700, color:C.muted, display:"block", marginBottom:4 }}>본문 내용 * <span style={{fontWeight:400}}>(복사해서 붙여넣기)</span></label><textarea value={srcForm.body} onChange={e => setSrcForm(p=>({...p, body:e.target.value}))} rows={8} placeholder="블로그 본문을 붙여넣으세요..." style={sTA} /></div>
               </div>
-              <button onClick={addSourcePost} style={{ width:"100%", marginTop:14, height:44, border:"none", borderRadius:10, background:C.teal, color:"#fff", fontWeight:900, fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>소스 글 추가</button>
+              <button onClick={addSourcePost} className="pc-btn pc-btn--primary" style={{ width:"100%", marginTop:14 }}>소스 글 추가</button>
               {srcMsg && <div style={{ marginTop:8, fontSize:12, color: srcMsg.includes("실패")||srcMsg.includes("입력") ? C.orange : C.teal, fontWeight:700 }}>{srcMsg}</div>}
             </div>
-            <button onClick={buildProfileFromAnalyzed} style={{ height:46, border:`2px solid ${C.teal}`, borderRadius:12, background:C.light, color:C.teal, fontWeight:900, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+            <button onClick={buildProfileFromAnalyzed} className="pc-btn pc-btn--secondary">
               ✨ 분석된 글로 커스텀 프로필 생성
             </button>
           </div>
