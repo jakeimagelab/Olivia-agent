@@ -558,6 +558,9 @@
 .oa-feature-card__link { margin-left: auto; gap: 6px; font-size: 8px; }
 .oa-feature-card__arrow { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--command-teal-soft); transition: transform 440ms var(--command-ease), background 440ms var(--command-ease); }
 .oa-feature-card:hover .oa-feature-card__arrow { transform: translate(2px,-1px); background: #dcece9; }
+.oa-feature-card.is-orange:hover { box-shadow: 0 0 0 3px rgba(232,93,44,.1), 0 17px 34px rgba(232,93,44,.14), inset 0 1px 0 #fff; }
+.oa-feature-card.is-orange .oa-feature-card__arrow { background: #fde3d3; }
+.oa-feature-card.is-orange:hover .oa-feature-card__arrow { background: #fbd0b0; }
 
 .oa-daily-brief { height: 100%; min-height: 142px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(135deg,#155855 0%,#0d3e3b 100%); color: #fff; box-shadow: 0 0 0 3px rgba(21,88,85,.08), 0 14px 34px rgba(21,88,85,.18), inset 0 1px 0 rgba(255,255,255,.15); }
 .oa-daily-brief__top,
