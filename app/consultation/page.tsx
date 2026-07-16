@@ -260,12 +260,8 @@ function ConsultationInner() {
                 }}
               />
               {analyzeErr && <div style={{ marginTop: 8, padding: "8px 12px", background: "#FFF0EB", borderRadius: 8, fontSize: 12, color: C.orange }}>⚠ {analyzeErr}</div>}
-              <button onClick={analyze} disabled={analyzing || !memo.trim()} style={{
-                width: "100%", marginTop: 12, height: 48, border: "none", borderRadius: 10,
-                background: analyzing ? "#D8B4FE" : C.purple, color: "#fff",
-                fontSize: 14, fontWeight: 800, cursor: analyzing || !memo.trim() ? "not-allowed" : "pointer",
-                fontFamily: "inherit", opacity: !memo.trim() ? 0.6 : 1,
-              }}>
+              <button onClick={analyze} disabled={analyzing || !memo.trim()} className="pc-btn pc-btn--lg"
+                style={{ width: "100%", marginTop: 12, background: C.purple, color: "#fff" }}>
                 {analyzing ? "AI 분석 중..." : "✨ AI 분석 + 자동 입력"}
               </button>
             </div>
