@@ -205,7 +205,7 @@ export default function ReportPage() {
             </div>
 
             {/* 최근 활동 로그 */}
-            <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(21,88,85,.1)", overflow: "hidden" }}>
+            <div className="pc-card">
               <div style={{ padding: "18px 22px", borderBottom: "1px solid rgba(21,88,85,.08)", display: "flex", alignItems: "center", gap: 8 }}>
                 <Activity size={16} color="#155855" />
                 <span style={{ fontSize: 13, fontWeight: 800, color: "#155855" }}>최근 활동 로그</span>
