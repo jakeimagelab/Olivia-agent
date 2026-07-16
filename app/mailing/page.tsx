@@ -287,8 +287,8 @@ function QueueTab() {
             {saveMsg && <div style={{ marginBottom: 12, fontSize: 12, fontWeight: 700, color: saveMsg.includes("완료") ? "#22876A" : C.orange }}>{saveMsg}</div>}
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={saveEdit} style={{ flex: 1, height: 44, border: `1px solid ${C.border}`, borderRadius: 10, background: C.surface, color: C.teal, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>임시 저장</button>
-              <button onClick={sendMail} disabled={sending || selected.status === "sent"} style={{ flex: 2, height: 44, border: "none", borderRadius: 10, background: sending || selected.status === "sent" ? C.hint : C.orange, color: "#fff", fontWeight: 800, fontSize: 13, cursor: sending || selected.status === "sent" ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+              <button onClick={saveEdit} className="pc-btn pc-btn--secondary pc-btn--lg" style={{ flex: 1 }}>임시 저장</button>
+              <button onClick={sendMail} disabled={sending || selected.status === "sent"} className="pc-btn pc-btn--orange pc-btn--lg" style={{ flex: 2 }}>
                 {sending ? "발송 중..." : selected.status === "sent" ? "발송 완료" : "📨 메일 발송"}
               </button>
             </div>
