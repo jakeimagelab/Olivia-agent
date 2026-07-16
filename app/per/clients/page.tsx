@@ -77,7 +77,7 @@ export default function PerClientsPage() {
             {clients.length === 0 && <div style={{ background:C.white, borderRadius:12, padding:24, textAlign:"center", color:C.hint, fontSize:13, marginBottom:20 }}>PER 참여 병원이 없습니다. 포인트를 적립하면 자동으로 등록됩니다.</div>}
             {clients.map((c: any) => (
               <Link key={c.id} href={`/per/clients/${c.id}`} style={{ textDecoration:"none" }}>
-                <div style={{ background:C.white, borderRadius:12, border:`1px solid ${C.border}`, padding:"16px 20px", marginBottom:10, display:"flex", alignItems:"center", gap:12, transition:"box-shadow .15s" }}
+                <div className="pc-card" style={{ padding:"16px 20px", marginBottom:10, display:"flex", alignItems:"center", gap:12, transition:"box-shadow .15s" }}
                   onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(21,88,85,.1)")}
                   onMouseLeave={e => (e.currentTarget.style.boxShadow = "none")}>
                   <div style={{ flex:1 }}>
