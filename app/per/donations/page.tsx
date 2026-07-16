@@ -68,7 +68,7 @@ export default function PerDonationsPage() {
           donations.length === 0
             ? <div style={{ background:C.white, borderRadius:12, padding:40, textAlign:"center", color:C.hint }}>기부 내역이 없습니다.</div>
             : donations.map((d:any) => (
-              <div key={d.id} style={{ background:C.white, borderRadius:12, border:`1px solid ${C.border}`, padding:"16px 20px", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div key={d.id} className="pc-card" style={{ padding:"16px 20px", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <div>
                   <div style={{ fontWeight:700, fontSize:14 }}>{d.display_name ?? d.clients?.name}</div>
                   <div style={{ fontSize:12, color:C.muted, marginTop:2 }}>{d.donation_campaigns?.title ?? "개별 기부"}</div>
