@@ -904,7 +904,9 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
 
   // ── 키보드 조작: 셀 포커스 이동, 태스크 선택/복사/붙여넣기/삭제 ──
   const [focusedIdx,    setFocusedIdx]    = useState(0);
-  const [selectedTaskId,setSelectedTaskId]= useState<string | null>(null);
+  // id만 들고 있으면 Cmd+C 시 "현재 포커스된 셀"의 tasks 목록에서 다시 찾아야 하는데,
+  // 포커스가 선택한 셀과 다른 셀에 가 있으면 못 찾아서 조용히 실패했었다 — 객체 자체를 들고 있는다.
+  const [selectedTask,  setSelectedTask]  = useState<CalTask | null>(null);
   const [clipboardTask, setClipboardTask] = useState<CalTask | null>(null); // 메모리에만 보관 (새로고침 시 초기화)
   const [toast,         setToast]         = useState<string | null>(null); // 복사/붙여넣기는 눈에 보이는 변화가 없어서 확인용 토스트가 필요
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
