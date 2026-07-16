@@ -222,7 +222,7 @@ export default function PortalAdminPage() {
             {reviews.length === 0 ? (
               <div style={{ background:C.white, borderRadius:12, padding:40, textAlign:"center", color:C.hint }}>작성된 리뷰가 없습니다.</div>
             ) : reviews.map(r => (
-              <div key={r.id} style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:"18px 20px", marginBottom:10 }}>
+              <div key={r.id} className="pc-card pc-card--padded" style={{ marginBottom:10 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
                   <div>
                     <div style={{ fontWeight:800, fontSize:14 }}>{r.clients?.name}</div>
