@@ -844,6 +844,7 @@ main:has(> .pc-header) {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 12px;
+  min-width: 0;
 }
 
 @media (max-width: 1400px) {
