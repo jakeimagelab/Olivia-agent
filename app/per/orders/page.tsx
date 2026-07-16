@@ -64,7 +64,7 @@ export default function PerOrdersPage() {
                   <div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       <span style={{ fontWeight:800, fontSize:15 }}>{o.clients?.name ?? "—"}</span>
-                      <span style={{ fontSize:11, background:`${STATUS_COLOR[o.status]}20`, color:STATUS_COLOR[o.status], borderRadius:4, padding:"2px 8px", fontWeight:700 }}>{ORDER_STATUS_LABEL[o.status]??o.status}</span>
+                      <span className={`pc-badge pc-badge--${STATUS_BADGE_VARIANT[o.status] ?? "gray"}`}>{ORDER_STATUS_LABEL[o.status]??o.status}</span>
                     </div>
                     <div style={{ fontSize:12, color:C.muted, marginTop:2 }}>{o.reward_products?.name ?? "제품"} × {o.quantity}</div>
                   </div>
