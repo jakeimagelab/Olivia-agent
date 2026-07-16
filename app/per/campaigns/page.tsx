@@ -81,7 +81,7 @@ export default function PerCampaignsPage() {
               : camps.map((c: any) => (
                 <div key={c.id} onClick={() => loadDetail(c.id)}
                   className="pc-card"
-                  style={{ border:`1.5px solid ${detail?.campaign?.id===c.id?C.teal:"rgba(21,88,85,.12)"}`, padding:"18px 20px", marginBottom:12, cursor:"pointer", transition:"box-shadow .15s" }}
+                  style={{ border:`1.5px solid ${detail?.campaign?.id===c.id?C.teal:C.border}`, padding:"18px 20px", marginBottom:12, cursor:"pointer", transition:"box-shadow .15s" }}
                   onMouseEnter={e => (e.currentTarget.style.boxShadow="0 4px 12px rgba(21,88,85,.1)")}
                   onMouseLeave={e => (e.currentTarget.style.boxShadow="none")}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
