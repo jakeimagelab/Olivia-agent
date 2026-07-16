@@ -357,7 +357,7 @@ function BrandMailTab() {
 
           {/* 미리보기 토글 */}
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => setPreview(p => !p)} style={{ ...btnSm, border: `1px solid ${C.border}`, background: preview ? C.teal : C.surface, color: preview ? "#fff" : C.muted }}>
+            <button onClick={() => setPreview(p => !p)} className={`pc-btn pc-btn--sm ${preview ? "pc-btn--primary" : "pc-btn--secondary"}`}>
               {preview ? "미리보기 숨기기" : "📧 미리보기"}
             </button>
           </div>
@@ -712,7 +712,7 @@ function CustomBrandMailTab() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => setPreview(p => !p)} style={{ ...btnSm, border: `1px solid ${C.border}`, background: preview ? C.teal : C.surface, color: preview ? "#fff" : C.muted }}>
+            <button onClick={() => setPreview(p => !p)} className={`pc-btn pc-btn--sm ${preview ? "pc-btn--primary" : "pc-btn--secondary"}`}>
               {preview ? "미리보기 숨기기" : "📧 미리보기"}
             </button>
           </div>
@@ -1080,7 +1080,7 @@ function ReviewOnlyMailTab() {
       <div className="pc-mobile-stack" style={{ maxWidth: preview ? 1120 : 580, margin: "0 auto", display: "grid", gridTemplateColumns: preview ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => setPreview(p => !p)} style={{ ...btnSm, border: `1px solid ${C.border}`, background: preview ? C.teal : C.surface, color: preview ? "#fff" : C.muted }}>
+            <button onClick={() => setPreview(p => !p)} className={`pc-btn pc-btn--sm ${preview ? "pc-btn--primary" : "pc-btn--secondary"}`}>
               {preview ? "미리보기 숨기기" : "📧 미리보기"}
             </button>
           </div>
