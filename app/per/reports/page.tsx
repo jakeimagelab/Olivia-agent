@@ -59,7 +59,7 @@ export default function PerReportsPage() {
       <div style={{ maxWidth:900, margin:"0 auto", padding:"24px 20px 100px" }}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:28 }}>
           {/* 병원별 리포트 생성 */}
-          <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:20 }}>
+          <div className="pc-card" style={{ padding:20 }}>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
               <FileText size={16} color={C.teal}/>
               <span style={{ fontWeight:800, fontSize:14 }}>병원별 PER 리포트</span>
