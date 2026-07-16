@@ -299,11 +299,6 @@ function QueueTab() {
   );
 }
 
-const btnSm: React.CSSProperties = {
-  height: 34, padding: "0 14px", borderRadius: 8, fontSize: 12,
-  fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-};
-
 // ═══════════════════════════════════════════════════════════
 // 탭 2 — 브랜드 메일 보내기 (delivery-mail 통합)
 // ═══════════════════════════════════════════════════════════
