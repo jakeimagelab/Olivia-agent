@@ -135,7 +135,7 @@ function ShootingInner() {
 
           {/* 메모 + 완료 */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px" }}>
+            <div className="pc-card pc-card--padded">
               <div style={{ fontSize: 12, fontWeight: 900, color: C.teal, marginBottom: 10 }}>촬영 현장 메모</div>
               <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={6}
                 placeholder="촬영 중 특이사항, 추가 요청, 컷 수, 주의사항 등을 기록하세요."
