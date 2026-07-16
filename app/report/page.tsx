@@ -134,9 +134,8 @@ export default function ReportPage() {
                 const meta = ACTION_META[key];
                 const count = data.counts[key] || 0;
                 return (
-                  <div key={key} style={{
-                    background: "#fff", borderRadius: 14, padding: "16px 18px",
-                    border: "1px solid rgba(21,88,85,.1)",
+                  <div key={key} className="pc-card pc-card--padded" style={{
+                    padding: "16px 18px",
                     display: "flex", alignItems: "center", gap: 14,
                   }}>
                     <div style={{ width: 44, height: 44, borderRadius: 12, background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
