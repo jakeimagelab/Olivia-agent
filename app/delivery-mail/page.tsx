@@ -186,14 +186,11 @@ export default function DeliveryMailPage() {
                         placeholder="photoclnic@gmail.com" style={{ ...iS, flex: 1 }}/>
                       {session ? (
                         <button onClick={() => { setShowDropdown(!showDropdown); loadContacts(); }}
-                          style={{ height: 38, padding: "0 10px", background: C.mint, border: `1px solid ${C.border}`,
-                                   borderRadius: 8, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
+                          className="pc-btn pc-btn--secondary pc-btn--sm" style={{ flexShrink: 0 }}
                           title="연락처 검색">👥</button>
                       ) : (
                         <button onClick={() => window.location.href = "/api/auth/google"}
-                          style={{ height: 38, padding: "0 10px", background: "#fff", border: `1px solid ${C.border}`,
-                                   borderRadius: 8, fontSize: 11, cursor: "pointer", fontFamily: "inherit",
-                                   color: C.muted, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>
+                          className="pc-btn pc-btn--secondary pc-btn--sm" style={{ flexShrink: 0, whiteSpace: "nowrap" }}>
                           G 연락처
                         </button>
                       )}
