@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 
 // ─────────────────────────────────────────────────────────────
