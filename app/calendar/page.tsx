@@ -2434,14 +2434,8 @@ export default function CalendarPage() {
               &lsquo;{taskById[confirmDeleteId]?.title ?? ""}&rsquo; 일정을 휴지통으로 이동합니다. 30일 안에 복원할 수 있어요.
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => setConfirmDeleteId(null)} style={{
-                padding: "8px 16px", borderRadius: 8, border: `1px solid ${C.border}`,
-                background: "#fff", color: C.muted, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-              }}>취소</button>
-              <button onClick={confirmDelete} style={{
-                padding: "8px 16px", borderRadius: 8, border: "none",
-                background: "#EB8F22", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
-              }}>삭제</button>
+              <button onClick={() => setConfirmDeleteId(null)} className="pc-btn pc-btn--secondary pc-btn--sm">취소</button>
+              <button onClick={confirmDelete} className="pc-btn pc-btn--orange pc-btn--sm">삭제</button>
             </div>
           </div>
         </>
