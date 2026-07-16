@@ -1153,6 +1153,16 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
           </div>
         ))}
       </div>
+
+      {/* 복사/붙여넣기는 화면에 눈에 띄는 변화가 없어서 결과를 알려주는 토스트 */}
+      {toast && (
+        <div style={{
+          position: "fixed", left: "50%", bottom: 28, transform: "translateX(-50%)", zIndex: 400,
+          background: "#0F4440", color: "#fff", padding: "10px 18px", borderRadius: 99,
+          fontSize: 12.5, fontWeight: 700, boxShadow: "0 10px 28px rgba(15,68,64,.32)",
+          pointerEvents: "none", whiteSpace: "nowrap",
+        }}>{toast}</div>
+      )}
     </div>
   );
 }
