@@ -441,9 +441,7 @@ export default function ContractPage() {
               계약서 미리보기 내용 그대로<br/>PDF 파일을 생성합니다.
             </div>
             <button onClick={downloadPdf} disabled={pdfGenerating}
-              style={{ width: "100%", height: 42, background: C.teal, color: "#fff", border: "none",
-                       borderRadius: 9, fontSize: 13, fontWeight: 700,
-                       cursor: pdfGenerating ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+              className="pc-btn pc-btn--primary" style={{ width: "100%" }}>
               {pdfGenerating ? "PDF 생성 중..." : "계약서 PDF 다운로드"}
             </button>
           </div>
