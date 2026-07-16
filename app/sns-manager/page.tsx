@@ -9,6 +9,7 @@ import {
   Youtube, Image as ImageIcon,
 } from "lucide-react";
 import { C } from "@/lib/theme";
+import { PageHeading } from "@/components/PageHeading";
 
 const TABS = [
   { id: "insta",    label: "인스타그램",          icon: Instagram,    status: "active" },
