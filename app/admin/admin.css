@@ -589,15 +589,9 @@
 .oa-daily-quote blockquote { margin: auto 0 0; color: var(--command-text); font-size: 11px; font-weight: 750; line-height: 1.62; }
 .oa-daily-quote cite { margin-top: 7px; color: #8fa19c; font-size: 9px; font-style: normal; font-weight: 700; text-align: right; }
 
-/* 관리자 홈 통합 브리프 — 왼쪽 운영 요약과 오른쪽 오늘 일정 체크를 같은 카드 안에 둔다. */
-.oa-daily-brief { min-height: 158px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); overflow: hidden; padding: 0; }
-.oa-daily-brief__primary { min-width: 0; padding: 12px 14px; }
-.oa-daily-brief__primary .oa-daily-brief__top { margin-bottom: 6px; }
-.oa-daily-brief__primary .oa-daily-brief__clock { margin-bottom: 6px; padding: 5px 0; font-size: 18px; }
-.oa-daily-brief__primary .oa-daily-brief__message { min-height: 20px; font-size: 9.5px; }
-.oa-daily-brief__primary .oa-daily-brief__next { min-height: 28px; margin-top: 5px; }
-.oa-daily-brief__primary .oa-daily-brief__progress { margin-top: 5px; }
-.oa-daily-brief__schedule { min-width: 0; display: flex; flex-direction: column; border-left: 1px solid rgba(255,255,255,.12); padding: 12px 14px; background: rgba(255,255,255,.035); }
+/* 관리자 홈 맨 위 3개 카드(브리핑/스케줄/명언) 중 브리핑·스케줄 두 장 — 예전엔 한 카드를
+   반으로 나눠 썼지만 이제 각자 독립된 카드라 세로로 쌓이는 flex column으로만 정리한다. */
+.oa-daily-brief--schedule { display: flex; flex-direction: column; }
 .oa-daily-brief__schedule-head,
 .oa-daily-brief__schedule-head > div { display: flex; align-items: center; }
 .oa-daily-brief__schedule-head { justify-content: space-between; gap: 10px; min-height: 28px; }
