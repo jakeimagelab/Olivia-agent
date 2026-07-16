@@ -587,191 +587,29 @@ main:has(> .pc-header) {
   min-height: calc(100vh - 56px);
 }
 
-/* ── 전역 기능 사이드바 (대시보드 제외 모든 기능 페이지) ─────────── */
-.pc-feature-sidebar {
-  position: fixed;
-  top: 8px;
-  left: 0;
-  bottom: 8px;
-  width: 64px;
-  background: var(--liquid-bg);
-  border: 1px solid var(--liquid-border);
-  border-left: 0;
-  border-radius: 0 18px 18px 0;
-  box-shadow: var(--liquid-shadow-strong);
-  backdrop-filter: blur(24px) saturate(1.6);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 10px;
-  z-index: 210;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  scrollbar-color: rgba(21, 88, 85, .2) transparent;
-  scrollbar-width: thin;
-  transition: width 240ms cubic-bezier(.22, 1, .36, 1), box-shadow 240ms cubic-bezier(.22, 1, .36, 1);
+/* ── 전역 사이드바 (대시보드 홈 / /admin 제외 모든 페이지) ───────
+   /admin 콘솔과 똑같은 AdminSidebar를 그대로 재사용한다 — 예전엔 이 파일이 자체 아이콘 레일을
+   따로 그려서 두 개의 서로 다른 내비게이션이 존재했다. */
+.pc-gs-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
 }
 
-.pc-feature-sidebar:hover,
-.pc-feature-sidebar:focus-within {
-  width: 216px;
-  box-shadow: 0 18px 48px rgba(21, 88, 85, .16), 0 1px 0 rgba(255, 255, 255, .94) inset;
-}
-
-.pc-feature-sidebar::-webkit-scrollbar {
-  width: 5px;
-}
-
-.pc-feature-sidebar::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(21, 88, 85, .18);
-}
-
-.pc-fs-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 194px;
-  min-height: 42px;
-  padding: 9px 12px;
-  border-radius: 12px;
-  color: var(--muted-green);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  transition: color 160ms cubic-bezier(.22, 1, .36, 1), background 160ms cubic-bezier(.22, 1, .36, 1), transform 160ms cubic-bezier(.22, 1, .36, 1);
-}
-
-.pc-fs-item:hover {
-  background: rgba(21, 88, 85, .06);
-  color: var(--deep-green);
-  transform: translateX(2px);
-}
-
-.pc-fs-item:focus-visible {
-  outline: 2px solid rgba(232, 93, 44, .72);
-  outline-offset: -2px;
-}
-
-.pc-fs-item--active {
-  background: rgba(234, 244, 242, .9);
-  color: var(--deep-green);
-}
-
-.pc-fs-item--active::before {
-  position: absolute;
-  top: 11px;
-  left: 3px;
-  width: 3px;
-  height: 20px;
-  border-radius: 999px;
-  background: var(--orange);
-  content: "";
-  box-shadow: 0 0 10px rgba(232, 93, 44, .28);
-}
-
-.pc-fs-item svg {
-  flex-shrink: 0;
-  stroke-width: 1.8;
-}
-
-.pc-fs-home {
-  color: var(--deep-green);
-  font-weight: 900;
-}
-
-.pc-fs-label {
-  opacity: 0;
-  transform: translateX(-6px);
-  transition: opacity 140ms cubic-bezier(.22, 1, .36, 1), transform 220ms cubic-bezier(.22, 1, .36, 1);
-}
-
-.pc-feature-sidebar:hover .pc-fs-label,
-.pc-feature-sidebar:focus-within .pc-fs-label {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.pc-fs-divider {
-  height: 1px;
-  width: 194px;
-  background: linear-gradient(90deg, rgba(21, 88, 85, .14), rgba(21, 88, 85, .04));
-  margin: 7px 0 9px;
-}
-
-.pc-fs-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.pc-fs-group + .pc-fs-group {
-  margin-top: 4px;
-}
-
-/* /admin 사이드바의 섹션 라벨과 같은 스타일 — 접힌 레일에서는 공간을 차지하지 않다가,
-   레일이 펼쳐지거나(hover) 모바일 드로어에서는 그룹 이름이 드러난다. */
-.pc-fs-section-label {
-  font-size: 9px;
-  font-weight: 900;
-  color: var(--muted-green);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  padding: 0 12px;
-  margin: 0;
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  transition: opacity 140ms cubic-bezier(.22, 1, .36, 1), max-height 200ms cubic-bezier(.22, 1, .36, 1), padding 200ms cubic-bezier(.22, 1, .36, 1);
-}
-
-.pc-feature-sidebar:hover .pc-fs-section-label,
-.pc-feature-sidebar:focus-within .pc-fs-section-label {
-  opacity: 1;
-  max-height: 24px;
-  padding: 8px 12px 3px;
-}
-
-.pc-fs-mobile-drawer .pc-fs-section-label {
-  opacity: 1;
-  max-height: none;
-  padding: 10px 12px 4px;
-}
-
-.pc-fs-content {
+.pc-gs-workspace {
   min-width: 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .pc-feature-sidebar,
-  .pc-fs-item,
-  .pc-fs-label {
-    transition-duration: 1ms;
-  }
-}
-
-/* ── 모바일 기능 메뉴 (하단 트리거 버튼 → 드로어) ──────────────
-   모바일은 hover가 없어 데스크탑 레일(마우스 올리면 펼쳐지는 방식)이 통하지 않는다.
-   대신 화면 하단 왼쪽에 작은 원형 버튼을 띄우고, 탭하면 전체 목록이 라벨과 함께 펼쳐지는
-   드로어를 연다. 데스크탑에서는 이 트리거/드로어를 아예 렌더링 공간에서 숨긴다. */
-.pc-fs-mobile-trigger,
-.pc-fs-mobile-scrim {
+.pc-gs-mobile-menu {
   display: none;
 }
 
 @media (max-width: 900px) {
-  .pc-feature-sidebar {
-    display: none;
-  }
-  .pc-fs-content {
-    margin-left: 0 !important;
+  .pc-gs-shell {
+    display: block;
   }
 
-  .pc-fs-mobile-trigger {
+  .pc-gs-mobile-menu {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -788,65 +626,6 @@ main:has(> .pc-header) {
     z-index: 220;
     cursor: pointer;
   }
-
-  .pc-fs-mobile-scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(10, 24, 22, .42);
-    z-index: 230;
-    animation: pc-fs-fade 160ms ease-out;
-  }
-
-  .pc-fs-mobile-drawer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: min(78vw, 268px);
-    background: #fff;
-    box-shadow: 0 0 32px rgba(0, 0, 0, .22);
-    overflow-y: auto;
-    padding: 18px 12px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    animation: pc-fs-slide-in 200ms cubic-bezier(.22, 1, .36, 1);
-  }
-
-  .pc-fs-mobile-drawer .pc-fs-item {
-    width: 100%;
-  }
-
-  .pc-fs-mobile-drawer .pc-fs-label {
-    opacity: 1;
-    transform: none;
-  }
-
-  .pc-fs-mobile-close {
-    align-self: flex-end;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(21, 88, 85, .08);
-    color: var(--deep-green);
-    margin-bottom: 8px;
-    cursor: pointer;
-  }
-}
-
-@keyframes pc-fs-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes pc-fs-slide-in {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
 }
 
 .login-panel,
