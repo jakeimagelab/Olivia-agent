@@ -8,12 +8,7 @@ import {
   Copy, Check, RefreshCw, ChevronDown, ChevronUp, AlertTriangle,
   Youtube, Image as ImageIcon,
 } from "lucide-react";
-
-const C = {
-  teal: "#155855", orange: "#E85D2C", yellow: "#EB8F22",
-  sage: "#569082", bg: "#F0F9F8", white: "#ffffff",
-  border: "rgba(21,88,85,.12)", muted: "#5A7470", light: "#EAF4F2",
-};
+import { C } from "@/lib/theme";
 
 const TABS = [
   { id: "insta",    label: "인스타그램",          icon: Instagram,    status: "active" },
