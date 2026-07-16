@@ -1394,8 +1394,8 @@ function YoutubePlannerTab() {
               <textarea value={thumbForm.notes} onChange={(e) => setThumbForm((p) => ({ ...p, notes: e.target.value }))} rows={3} placeholder="원하는 디자인 방향" style={taS} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
-              <button onClick={runThumbGuide} disabled={loading === "thumbnail"} style={{ height: 42, border: `1.5px solid ${C.teal}`, borderRadius: 10, background: C.light, color: C.teal, fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>{loading === "thumbnail" ? "추천 중..." : "문구/레이아웃 추천"}</button>
-              <button onClick={downloadThumbnail} style={{ height: 42, border: "none", borderRadius: 10, background: C.teal, color: "#fff", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>JPG 다운로드</button>
+              <button onClick={runThumbGuide} disabled={loading === "thumbnail"} className="pc-btn pc-btn--secondary pc-btn--sm">{loading === "thumbnail" ? "추천 중..." : "문구/레이아웃 추천"}</button>
+              <button onClick={downloadThumbnail} className="pc-btn pc-btn--primary pc-btn--sm">JPG 다운로드</button>
             </div>
             {thumbGuide && (
               <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
