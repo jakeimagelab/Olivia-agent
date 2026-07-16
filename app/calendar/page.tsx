@@ -583,9 +583,7 @@ function EventDetailView({ task, onEdit, onToggle }: { task: CalTask; onEdit: ()
           {task.memo}
         </div>
       )}
-      <button onClick={onEdit} style={{
-        height: 38, background: C.teal, color: "#fff", border: "none",
-        borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+      <button onClick={onEdit} className="pc-btn pc-btn--primary">
         편집
       </button>
     </div>
