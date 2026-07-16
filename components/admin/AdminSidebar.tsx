@@ -26,7 +26,7 @@ import { groupToolsByCategory } from "@/lib/toolNav";
 type NavigationItem = {
   label: string;
   href: string;
-  icon: ComponentType<{ size?: number }>;
+  icon: ComponentType<any>;
   /* 개별 기능 항목만 clientId/projectId 등 CRM 컨텍스트를 쿼리로 이어 붙인다 */
   carryContext?: boolean;
 };
