@@ -443,9 +443,9 @@ function PatternBlogWriter() {
         <div ref={resultRef} style={{ display:"flex", flexDirection:"column", gap:18 }}>
           {/* 상단 액션 바 */}
           <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-            <button onClick={() => setStep("write")} style={{ padding:"7px 14px", border:`1px solid ${C.border}`, borderRadius:8, background:C.white, color:C.muted, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>← 다시 작성</button>
-            <button onClick={generate} style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"7px 14px", border:`1px solid ${C.border}`, borderRadius:8, background:C.white, color:C.muted, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}><RefreshCw size={13} />재생성</button>
-            <button onClick={savePost} disabled={saving} style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"7px 14px", border:`1.5px solid ${C.teal}`, borderRadius:8, background:C.light, color:C.teal, fontSize:12, fontWeight:800, cursor:"pointer", fontFamily:"inherit" }}>
+            <button onClick={() => setStep("write")} className="pc-btn pc-btn--secondary pc-btn--sm">← 다시 작성</button>
+            <button onClick={generate} className="pc-btn pc-btn--secondary pc-btn--sm"><RefreshCw size={13} />재생성</button>
+            <button onClick={savePost} disabled={saving} className="pc-btn pc-btn--ghost pc-btn--sm">
               {saving ? "저장 중..." : "💾 초안 저장"}
             </button>
             {saveMsg && <span style={{ fontSize:12, color: saveMsg.includes("실패") ? C.orange : C.teal, fontWeight:700 }}>{saveMsg}</span>}
