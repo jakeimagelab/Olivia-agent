@@ -64,7 +64,7 @@ export default function PerProductsPage() {
           </div>
         </div>
         <div className="pc-header-actions">
-          <button onClick={openAdd} style={{ display:"flex", alignItems:"center", gap:6, height:36, padding:"0 14px", border:"none", borderRadius:9, background:C.orange, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+          <button onClick={openAdd} className="pc-btn pc-btn--orange pc-btn--sm">
             <Plus size={13}/> 제품 등록
           </button>
         </div>
@@ -74,12 +74,12 @@ export default function PerProductsPage() {
         {/* 필터 */}
         <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
           {CATEGORIES.map(c => (
-            <button key={c} onClick={() => setCat(c)} style={{ padding:"5px 13px", border:`1px solid ${cat===c?C.teal:C.border}`, borderRadius:20, background:cat===c?C.teal:"transparent", color:cat===c?"#fff":C.muted, fontSize:12, fontWeight:700, cursor:"pointer" }}>{c}</button>
+            <button key={c} onClick={() => setCat(c)} className={`pc-btn pc-btn--sm ${cat===c ? "pc-btn--primary" : "pc-btn--ghost"}`}>{c}</button>
           ))}
         </div>
         <div style={{ display:"flex", gap:6, marginBottom:20 }}>
           {["전체","active","hidden","sold_out","inquiry_only"].map(s => (
-            <button key={s} onClick={() => setStatusF(s)} style={{ padding:"4px 12px", border:`1px solid ${statusF===s?C.orange:C.border}`, borderRadius:20, background:statusF===s?C.orange:"transparent", color:statusF===s?"#fff":C.muted, fontSize:11, fontWeight:700, cursor:"pointer" }}>
+            <button key={s} onClick={() => setStatusF(s)} className={`pc-btn pc-btn--sm ${statusF===s ? "pc-btn--orange" : "pc-btn--ghost"}`}>
               {STATUS_LABEL[s] ?? s}
             </button>
           ))}
