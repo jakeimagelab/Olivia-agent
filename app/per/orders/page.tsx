@@ -84,13 +84,13 @@ export default function PerOrdersPage() {
                     style={{ flex:1, border:`1px solid ${C.border}`, borderRadius:7, padding:"7px 12px", fontSize:12, outline:"none", fontFamily:"inherit" }} />
                   {NEXT_STATUS[o.status] && (
                     <button onClick={() => updateStatus(o.id, NEXT_STATUS[o.status], memo[o.id]??"")} disabled={busy===o.id}
-                      style={{ background:C.teal, color:"#fff", border:"none", borderRadius:7, padding:"7px 14px", fontWeight:700, fontSize:12, cursor:"pointer", whiteSpace:"nowrap", opacity:busy===o.id?.5:1 }}>
+                      className="pc-btn pc-btn--primary pc-btn--sm" style={{ whiteSpace:"nowrap" }}>
                       {busy===o.id?"처리 중...":NEXT_LABEL[o.status]}
                     </button>
                   )}
                   {o.status === "pending" && (
                     <button onClick={() => updateStatus(o.id, "rejected", memo[o.id]??"")} disabled={busy===o.id}
-                      style={{ background:"#FEF2F2", color:"#EF4444", border:"1px solid #FCA5A5", borderRadius:7, padding:"7px 12px", fontWeight:700, fontSize:12, cursor:"pointer" }}>반려</button>
+                      className="pc-btn pc-btn--danger pc-btn--sm">반려</button>
                   )}
                 </div>
                 <div style={{ fontSize:11, color:C.hint, marginTop:8 }}>신청일: {new Date(o.created_at).toLocaleDateString("ko-KR")} {o.admin_memo && `· 메모: ${o.admin_memo}`}</div>
