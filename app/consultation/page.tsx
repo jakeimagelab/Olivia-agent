@@ -229,12 +229,9 @@ function ConsultationInner() {
                   { label: "🎬 4단계: 촬영 콘티 생성", href: `/conti?client_id=${savedId}`, primary: false },
                   { label: "← 고객 상세 화면으로", href: `/clients?id=${savedId}`, primary: false },
                 ].map(({ label, href, primary }) => (
-                  <Link key={href} href={href} style={{
-                    display: "block", textAlign: "center", height: 44, lineHeight: "44px",
-                    background: primary ? C.orange : C.white, color: primary ? "#fff" : C.teal,
-                    border: `1.5px solid ${primary ? C.orange : C.border}`,
-                    borderRadius: 10, fontSize: 13, fontWeight: 800, textDecoration: "none",
-                  }}>
+                  <Link key={href} href={href}
+                    className={`pc-btn ${primary ? "pc-btn--orange" : "pc-btn--secondary"}`}
+                    style={{ width: "100%", textDecoration: "none" }}>
                     {label}
                   </Link>
                 ))}
