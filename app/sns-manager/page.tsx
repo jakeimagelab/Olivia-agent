@@ -372,7 +372,7 @@ function PatternBlogWriter() {
             {/* 선택된 스타일 표시 */}
             <div style={{ background:C.light, borderRadius:12, padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div style={{ fontSize:13, color:C.teal }}><span style={{fontWeight:400}}>선택된 스타일:</span> <strong>{selected.name}</strong> — {selected.tone}</div>
-              <button onClick={() => setStep("style")} style={{ border:`1px solid ${C.teal}`, borderRadius:8, background:"transparent", color:C.teal, fontSize:11, fontWeight:800, padding:"4px 10px", cursor:"pointer", fontFamily:"inherit" }}>변경</button>
+              <button onClick={() => setStep("style")} className="pc-btn pc-btn--ghost pc-btn--sm">변경</button>
             </div>
 
             {/* 클라이언트 정보 */}
