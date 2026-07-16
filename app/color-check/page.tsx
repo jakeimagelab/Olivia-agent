@@ -322,7 +322,7 @@ export default function ColorCheckPage() {
                       </div>
 
                       {/* HSL 테이블 */}
-                      <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+                      <div className="pc-card">
                         <div style={{ padding: "13px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
                           <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>HSL — 피부톤 보정</div>
                           <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>노란기·붉은기 절제 → 클린한 한국인 피부톤</div>
