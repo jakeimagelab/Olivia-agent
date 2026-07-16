@@ -3642,15 +3642,6 @@ main:has(> .pc-header) {
   width: 100%;
 }
 
-@media (min-width: 901px) {
-  .pc-feature-sidebar + .pc-fs-content .pc-tabs--global {
-    padding-right: 92px;
-  }
-
-  .pc-feature-sidebar + .pc-fs-content .pc-subnav--global {
-    padding-right: 64px;
-  }
-}
 
 .pc-tab {
   display: inline-flex;
