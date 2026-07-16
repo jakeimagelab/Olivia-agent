@@ -1,13 +1,14 @@
-import { Camera, SlidersHorizontal, Search } from "lucide-react";
-import FeatureCard from "@/components/admin/FeatureCard";
+import Link from "next/link";
+import { ArrowRight, Camera, SlidersHorizontal, Search } from "lucide-react";
 import CategorySection from "@/components/admin/CategorySection";
 import StatusBadge from "@/components/admin/StatusBadge";
-import { groupToolsByCategory } from "@/lib/toolNav";
+import { ALL_TOOLS } from "@/lib/toolNav";
 
-// 사이드바 "개별 기능"과 동일한 소스(lib/toolNav.ts)에서 tools 카테고리 전체를 가져온다 —
-// 예전엔 여기 자체 하드코딩 목록(11개, 실제 라우트와 안 맞는 가짜 slug)이 따로 있어서
-// 사이드바와 내용이 어긋났었다.
-const TOOLS = groupToolsByCategory().find(g => g.category === "tools")?.items ?? [];
+// 사이드바 "개별 기능"은 tools 카테고리만 보여주지만, 이 홈은 이름 그대로 전체 기능 목록
+// (메모·캘린더 등 대시보드/CRM 카테고리 포함)이 다 있어야 한다는 요청 — ALL_TOOLS 전체를 쓴다.
+// 카드 디자인은 예전 홈(app/page.tsx)의 admin-menu-card를 그대로 재사용 — 새로 만들지 않고
+// 이미 검증된 반응형 그리드(5→4→3→2→1열)를 그대로 가져다 써서 old-design 느낌을 100% 맞춘다.
+const TOOLS = ALL_TOOLS;
 
 const CONTEXT_KEYS = ["clientId", "projectId", "workflowRunId", "stepKey"] as const;
 
