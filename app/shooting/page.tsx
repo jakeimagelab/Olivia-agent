@@ -105,7 +105,7 @@ function ShootingInner() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
 
           {/* 체크리스트 */}
-          <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ padding: "14px 18px", background: "rgba(21,88,85,.03)", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>촬영 체크리스트</div>
               <span style={{ fontSize: 11, fontWeight: 800, color: done === total && total > 0 ? C.green : C.muted }}>{done}/{total} 완료</span>
