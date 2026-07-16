@@ -321,9 +321,7 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime }: {
 
   if (!open) return (
     <button onClick={() => { setOpen(true); setTimeout(() => titleRef.current?.focus(), 50); }}
-      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%",
-        padding: "10px 14px", background: C.mint, border: `1.5px dashed ${C.border}`,
-        borderRadius: 10, color: C.teal, fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+      className="pc-btn pc-btn--ghost" style={{ width: "100%", justifyContent: "flex-start" }}>
       <Plus size={14}/> 할일 추가
     </button>
   );
