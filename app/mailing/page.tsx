@@ -827,14 +827,16 @@ function CustomBrandMailTab() {
                     onClick={() => removeLink(i)}
                     disabled={links.length === 1}
                     title="이 링크 삭제"
-                    style={{ height: 42, width: 36, border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, color: links.length === 1 ? C.hint : C.orange, cursor: links.length === 1 ? "not-allowed" : "pointer", fontSize: 14 }}
+                    className="pc-btn pc-btn--ghost pc-btn--sm"
+                    style={{ width: 36, padding: 0 }}
                   >✕</button>
                 </div>
               ))}
               <button
                 type="button"
                 onClick={addLink}
-                style={{ alignSelf: "flex-start", padding: "7px 14px", border: `1px dashed ${C.teal}`, borderRadius: 8, background: "transparent", color: C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                className="pc-btn pc-btn--ghost pc-btn--sm"
+                style={{ alignSelf: "flex-start" }}
               >+ 링크 추가</button>
             </div>
           </div>
