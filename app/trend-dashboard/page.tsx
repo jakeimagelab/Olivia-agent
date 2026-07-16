@@ -357,12 +357,7 @@ export default function TrendDashboardPage() {
           action={
             <button
               onClick={() => setShowAddCompetitor((v) => !v)}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "7px 14px", borderRadius: 8, border: "1.5px solid #155855",
-                background: showAddCompetitor ? "#EDF5F3" : "rgba(21,88,85,0.08)", color: "#155855",
-                fontWeight: 800, fontSize: 12, cursor: "pointer",
-              }}
+              className="pc-btn pc-btn--secondary pc-btn--sm"
             >
               {showAddCompetitor ? <X size={13} /> : <Plus size={13} />}
               {showAddCompetitor ? "닫기" : "병원 추가"}
