@@ -42,7 +42,7 @@ function ContentCard({ idea, i }: { idea: ContentIdea; i: number }) {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px" }}>
+    <div className="pc-card pc-card--padded">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <span style={{ background: i === 0 ? C.orange : C.teal, color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 99 }}>{idea.platform}</span>
         <button onClick={copy} style={{ fontSize: 11, color: copied ? "#22876A" : C.hint, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
