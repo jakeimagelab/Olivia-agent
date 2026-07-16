@@ -77,7 +77,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
             { l:"기부 참여", v:(client.total_donated_points??0).toLocaleString()+"P", c:"#7C3AED" },
             { l:"누적 촬영금액", v:((client.total_paid_amount??0)/10000).toFixed(0)+"만원", c:C.muted },
           ].map(s => (
-            <div key={s.l} style={{ background:C.white, borderRadius:10, padding:"14px 16px", border:`1px solid ${C.border}`, textAlign:"center" }}>
+            <div key={s.l} className="pc-card pc-card--padded" style={{ padding:"14px 16px", textAlign:"center" }}>
               <div style={{ fontSize:18, fontWeight:800, color:s.c }}>{s.v}</div>
               <div style={{ fontSize:11, color:C.hint, marginTop:2 }}>{s.l}</div>
             </div>
