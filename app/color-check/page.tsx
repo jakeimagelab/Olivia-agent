@@ -351,7 +351,7 @@ export default function ColorCheckPage() {
                       </div>
 
                       {/* 편집 순서 */}
-                      <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: "16px 18px" }}>
+                      <div className="pc-card pc-card--padded">
                         <div style={{ fontSize: 12, fontWeight: 900, color: C.teal, marginBottom: 12 }}>권장 편집 순서</div>
                         {[
                           { n: 1, step: "Camera Raw", desc: "위 기준값 적용", sub: "XMP 프리셋 드래그&드롭" },
