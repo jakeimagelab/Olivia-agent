@@ -946,7 +946,7 @@ function NaverPlaceTab() {
           </div>
         </div>
 
-        <button onClick={generate} disabled={!canGenerate || loading} style={{ width: "100%", height: 50, borderRadius: 12, border: "none", background: canGenerate && !loading ? `linear-gradient(135deg, ${C.teal}, #1e7870)` : "#E5E7EB", color: canGenerate && !loading ? "#fff" : "#9ca3af", fontSize: 15, fontWeight: 900, cursor: canGenerate && !loading ? "pointer" : "not-allowed", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+        <button onClick={generate} disabled={!canGenerate || loading} className="pc-btn pc-btn--primary pc-btn--lg" style={{ width: "100%" }}>
           {loading ? <><div style={{ width: 16, height: 16, border: "2.5px solid rgba(255,255,255,.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin .7s linear infinite" }} />생성 중...</> : <><MapPin size={16} />네이버 플레이스 콘텐츠 생성</>}
         </button>
         {error && <div style={{ padding: "10px 14px", background: "#FFF0F0", border: "1px solid #FECACA", borderRadius: 10, fontSize: 13, color: "#DC2626" }}>⚠ {error}</div>}
