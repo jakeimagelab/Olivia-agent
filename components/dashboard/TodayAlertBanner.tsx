@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertCircle, Bell, Clock, RefreshCw } from "lucide-react";
+import { AlertCircle, Bell, CalendarCheck2, Check, Clock, RefreshCw } from "lucide-react";
 
 type BriefTask = { id: string; title: string; completed: boolean; time?: string | null };
 type BriefState = "loading" | "ready" | "empty" | "error";
+
+function taskStartTime(task: BriefTask) {
+  return task.time?.split("~")[0].trim() || "99:99";
+}
 
 /* 예전 app/page.tsx의 Dashboard 첫 화면에 있던 "디지털시계 + 올리비아 인사말" 배너 —
    /admin 콘솔로 옮겨오면서 빠졌던 걸 그대로 복구. 데이터를 직접 fetch하는 독립 컴포넌트라
@@ -22,6 +26,8 @@ export default function TodayAlertBanner() {
   const [totalPending, setTotalPending] = useState(0);
   const [briefState, setBriefState] = useState<BriefState>("loading");
   const [reloadKey, setReloadKey] = useState(0);
+  const [savingTaskIds, setSavingTaskIds] = useState<Set<string>>(() => new Set());
+  const [saveError, setSaveError] = useState("");
   useEffect(() => {
     const controller = new AbortController();
     setBriefState("loading");
@@ -41,6 +47,7 @@ export default function TodayAlertBanner() {
           (clients.reviewPending?.length ?? 0) + (clients.snsPending?.length ?? 0);
         setTasks(nextTasks);
         setTotalPending(pending);
+        setSaveError("");
         setBriefState(nextTasks.length || pending ? "ready" : "empty");
       })
       .catch((error: unknown) => {
@@ -57,45 +64,123 @@ export default function TodayAlertBanner() {
 
   const remaining = tasks.filter(t => !t.completed);
   const done = tasks.filter(t => t.completed).length;
-  const nextTask = remaining.toSorted((a, b) => {
-    const ta = a.time ? a.time.split("~")[0].trim() : "99:99";
-    const tb = b.time ? b.time.split("~")[0].trim() : "99:99";
-    return ta.localeCompare(tb);
-  })[0];
+  const orderedTasks = tasks.toSorted((a, b) => Number(a.completed) - Number(b.completed) || taskStartTime(a).localeCompare(taskStartTime(b)));
+  const nextTask = remaining.toSorted((a, b) => taskStartTime(a).localeCompare(taskStartTime(b)))[0];
+  const completionRate = tasks.length ? (done / tasks.length) * 100 : 0;
+
+  async function toggleTask(task: BriefTask) {
+    if (savingTaskIds.has(task.id)) return;
+
+    const nextCompleted = !task.completed;
+    setSaveError("");
+    setSavingTaskIds((current) => new Set(current).add(task.id));
+    setTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: nextCompleted } : item));
+
+    try {
+      const response = await fetch("/api/calendar", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: task.id, completed: nextCompleted }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) throw new Error(data?.error || `calendar:${response.status}`);
+    } catch {
+      setTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: task.completed } : item));
+      setSaveError(`‘${task.title}’ 완료 상태를 저장하지 못했습니다. 다시 시도해 주세요.`);
+    } finally {
+      setSavingTaskIds((current) => {
+        const next = new Set(current);
+        next.delete(task.id);
+        return next;
+      });
+    }
+  }
 
   return (
-    <section className="oa-daily-brief" aria-live="polite" aria-busy={briefState === "loading"}>
-      <div className="oa-daily-brief__top">
-        <div className="oa-daily-brief__identity">
-          <span className="oa-daily-brief__bell"><Bell size={13} aria-hidden="true"/></span>
-          <div>
-            <div className="oa-daily-brief__eyebrow">OLIVIA DAILY BRIEF</div>
-            <div className="oa-daily-brief__date">{today}</div>
+    <section className="oa-daily-brief" aria-busy={briefState === "loading"}>
+      <div className="oa-daily-brief__primary">
+        <div className="oa-daily-brief__top">
+          <div className="oa-daily-brief__identity">
+            <span className="oa-daily-brief__bell"><Bell size={13} aria-hidden="true"/></span>
+            <div>
+              <div className="oa-daily-brief__eyebrow">OLIVIA DAILY BRIEF</div>
+              <div className="oa-daily-brief__date">{today}</div>
+            </div>
           </div>
+          {briefState === "ready" && <span className="oa-daily-brief__state">{totalPending > 0 ? `대기 ${totalPending}건` : "방금 갱신"}</span>}
         </div>
-        {briefState === "ready" && <span className="oa-daily-brief__state">{totalPending > 0 ? `대기 ${totalPending}건` : "방금 갱신"}</span>}
+
+        <div className="oa-daily-brief__clock">{clock}</div>
+
+        <div className="oa-daily-brief__message">
+          {briefState === "loading" ? <><span className="oa-daily-brief__pulse"/> 운영 데이터를 불러오는 중입니다.</> : null}
+          {briefState === "error" ? <><AlertCircle size={15} aria-hidden="true"/> 운영 데이터 연결에 실패했습니다.<button type="button" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={12} aria-hidden="true"/>다시 불러오기</button></> : null}
+          {briefState === "empty" ? <>{greeting}, 정연호 대표님. 오늘 등록된 일정이 없어요.</> : null}
+          {briefState === "ready" ? <>{greeting}, 정연호 대표님. {remaining.length > 0 ? <>오늘 할일 <strong>{remaining.length}개</strong> 남았어요.</> : <>오늘 할일을 모두 완료했어요!</>}</> : null}
+        </div>
+
+        {briefState === "ready" && nextTask ? (
+          <Link href="/calendar" className="oa-daily-brief__next">
+            <Clock size={11} aria-hidden="true"/><span>다음</span>
+            {nextTask.time && <time>{nextTask.time}</time>}
+            <strong>{nextTask.title}</strong>
+          </Link>
+        ) : null}
+
+        {briefState === "ready" && tasks.length > 0 ? (
+          <div className="oa-daily-brief__progress" aria-hidden="true"><span style={{ transform: `scaleX(${completionRate / 100})` }}/></div>
+        ) : null}
       </div>
 
-      <div className="oa-daily-brief__clock">{clock}</div>
+      <div className="oa-daily-brief__schedule">
+        <div className="oa-daily-brief__schedule-head">
+          <div>
+            <span className="oa-daily-brief__schedule-icon"><CalendarCheck2 size={13} aria-hidden="true"/></span>
+            <div>
+              <div className="oa-daily-brief__eyebrow">TODAY SCHEDULE</div>
+              <strong>오늘 스케줄</strong>
+            </div>
+          </div>
+          {tasks.length > 0 ? <span>{done}/{tasks.length} 완료</span> : null}
+        </div>
 
-      <div className="oa-daily-brief__message">
-        {briefState === "loading" ? <><span className="oa-daily-brief__pulse"/> 운영 데이터를 불러오는 중입니다.</> : null}
-        {briefState === "error" ? <><AlertCircle size={15} aria-hidden="true"/> 운영 데이터 연결에 실패했습니다.<button type="button" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={12} aria-hidden="true"/>다시 불러오기</button></> : null}
-        {briefState === "empty" ? <>{greeting}, 정연호 대표님. 오늘 등록된 일정이 없어요.</> : null}
-        {briefState === "ready" ? <>{greeting}, 정연호 대표님. {remaining.length > 0 ? <>오늘 할일 <strong>{remaining.length}개</strong> 남았어요.</> : <>오늘 할일을 모두 완료했어요!</>}</> : null}
+        {briefState === "loading" ? (
+          <div className="oa-daily-brief__schedule-skeleton" aria-label="오늘 일정을 불러오는 중" role="status"><span/><span/><span/></div>
+        ) : null}
+        {briefState === "error" ? (
+          <div className="oa-daily-brief__schedule-state is-error" role="status"><AlertCircle size={14} aria-hidden="true"/> 일정을 불러오지 못했습니다.<button type="button" onClick={() => setReloadKey(key => key + 1)}>다시 시도</button></div>
+        ) : null}
+        {briefState !== "loading" && briefState !== "error" && tasks.length === 0 ? (
+          <div className="oa-daily-brief__schedule-empty"><p>오늘 등록된 일정이 없습니다.</p><Link href="/calendar">캘린더에서 일정 추가</Link></div>
+        ) : null}
+        {briefState !== "loading" && briefState !== "error" && tasks.length > 0 ? (
+          <ul className="oa-daily-brief__checklist" aria-label="오늘 스케줄 체크리스트">
+            {orderedTasks.map((task) => {
+              const saving = savingTaskIds.has(task.id);
+              return (
+                <li key={task.id} className={task.completed ? "is-completed" : undefined} aria-busy={saving}>
+                  <label>
+                    <input type="checkbox" checked={task.completed} disabled={saving} onChange={() => void toggleTask(task)}/>
+                    <span className="oa-daily-brief__checkbox" aria-hidden="true">{task.completed ? <Check size={11}/> : null}</span>
+                    {task.time ? <time>{taskStartTime(task)}</time> : <time>종일</time>}
+                    <strong>{task.title}</strong>
+                    <small>{saving ? "저장 중" : task.completed ? "완료" : "예정"}</small>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+
+        {saveError ? <p className="oa-daily-brief__save-error" role="alert"><AlertCircle size={11} aria-hidden="true"/>{saveError}</p> : null}
+
+        {tasks.length > 0 ? (
+          <div className="oa-daily-brief__schedule-footer">
+            <div className="oa-daily-brief__schedule-progress" aria-hidden="true"><span style={{ transform: `scaleX(${completionRate / 100})` }}/></div>
+            <Link href="/calendar">전체 일정 보기</Link>
+          </div>
+        ) : null}
       </div>
-
-      {nextTask && (
-        <Link href="/calendar" className="oa-daily-brief__next">
-          <Clock size={11} aria-hidden="true"/><span>다음</span>
-          {nextTask.time && <time>{nextTask.time}</time>}
-          <strong>{nextTask.title}</strong>
-        </Link>
-      )}
-
-      {tasks.length > 0 && done > 0 && (
-        <div className="oa-daily-brief__progress"><span style={{ width: `${(done / tasks.length) * 100}%` }}/></div>
-      )}
     </section>
   );
 }

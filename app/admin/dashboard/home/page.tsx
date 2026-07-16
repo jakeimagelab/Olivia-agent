@@ -9,7 +9,6 @@ import OliviaRecommendationPanel from "@/components/admin/OliviaRecommendationPa
 import CategorySection from "@/components/admin/CategorySection";
 import StatusBadge from "@/components/admin/StatusBadge";
 import TodayAlertBanner from "@/components/dashboard/TodayAlertBanner";
-import DailyQuoteWidget from "@/components/dashboard/DailyQuoteWidget";
 
 /* 숫자·업무 목록은 2차 데이터 연동 전까지 쓰는 프레젠테이션 값 — 색은 6개 카드가
    전부 다른 톤을 쓰도록 다양화해서(파랑=테일 하나로만 안 몰리게) 화면에 생동감을 준다. */
@@ -32,8 +31,7 @@ export default function AdminDashboardHomePage() {
   return (
     <div className="oa-page pc-dash-home">
       <div className="pc-dash-brief">
-        <div className="pc-dash-brief__main"><TodayAlertBanner/></div>
-        <div className="pc-dash-brief__quote"><DailyQuoteWidget/></div>
+        <TodayAlertBanner/>
       </div>
 
       <section className="oa-summary-grid pc-dash-summary" aria-label="운영 현황 요약">
