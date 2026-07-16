@@ -37,6 +37,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&family=Nanum+Myeongjo:wght@400;700;800&display=swap"
           rel="stylesheet"
         />
+        {/* 나눔고딕스퀘어 — Google Fonts에는 없어서 커뮤니티가 올려둔 jsDelivr(GitHub 배포) CDN을 씀 */}
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/nanumsquare.css" />
       </head>
       <body className="min-h-screen font-sans antialiased">
         <SplashScreen />
