@@ -144,7 +144,7 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
                   <li className="oa-sidebar__list-item" key={item.href}>
                     <Link
                       className={`oa-sidebar__link${active ? " oa-sidebar__link--active" : ""}`}
-                      href={`${item.href}${item.href.startsWith("/admin/tools/") ? contextSuffix : ""}`}
+                      href={`${item.href}${item.carryContext ? contextSuffix : ""}`}
                       aria-current={active ? "page" : undefined}
                       onClick={onClose}
                     >
