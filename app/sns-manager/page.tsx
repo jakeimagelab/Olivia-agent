@@ -357,7 +357,7 @@ function PatternBlogWriter() {
                   </div>
                 )}
               </div>
-              <button onClick={() => { setSelected(viewProfile); setStep("write"); }} style={{ width:"100%", marginTop:16, height:44, border:"none", borderRadius:10, background:C.teal, color:"#fff", fontWeight:900, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+              <button onClick={() => { setSelected(viewProfile); setStep("write"); }} className="pc-btn pc-btn--primary" style={{ width:"100%", marginTop:16 }}>
                 이 스타일로 작성하기
               </button>
             </div>
