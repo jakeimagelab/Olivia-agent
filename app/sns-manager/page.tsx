@@ -812,7 +812,7 @@ function InstagramContentTab() {
         </div>
 
         {error && <div style={{ padding: "10px 14px", background: "#FFF0F0", border: "1px solid #FECACA", borderRadius: 10, fontSize: 13, color: "#DC2626" }}>⚠ {error}</div>}
-        <button onClick={generate} style={{ width: "100%", height: 50, borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${C.teal}, #1e7870)`, color: "#fff", fontSize: 15, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+        <button onClick={generate} className="pc-btn pc-btn--primary pc-btn--lg" style={{ width: "100%" }}>
           <Sparkles size={16} />인스타그램 콘텐츠 생성
         </button>
 
