@@ -1,12 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-
-const C = {
-  teal: "#155855", orange: "#E85D2C",
-  bg: "#EDF5F3", surface: "#FFFFFF", border: "#C8DDD9",
-  muted: "#5A7470", hint: "#9BB5B0", txt: "#1C2B28", mint: "#EAF4F2",
-};
+import { C } from "@/lib/theme";
 
 export default function DeliveryMailPage() {
   const [hospitalName, setHospitalName] = useState("");
