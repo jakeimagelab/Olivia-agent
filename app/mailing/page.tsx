@@ -358,7 +358,7 @@ function BrandMailTab() {
           </div>
 
           {/* 사진 전달 정보 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📋 사진 전달 정보</div>
             </div>
@@ -387,7 +387,7 @@ function BrandMailTab() {
           </div>
 
           {/* 받는 분 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>👤 받는 분</div>
             </div>
@@ -453,7 +453,7 @@ function BrandMailTab() {
           </div>
 
           {/* NAS 링크 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>🔗 다운로드 링크</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>NAS 공유 링크를 붙여넣으세요</div>
@@ -470,7 +470,7 @@ function BrandMailTab() {
           </div>
 
           {/* 본문 편집 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>✉️ 본문 편집</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>다운로드 버튼 위에 표시되는 내용을 수정하세요</div>
@@ -715,7 +715,7 @@ function CustomBrandMailTab() {
           </div>
 
           {/* 받는 분 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>👤 받는 분</div>
             </div>
@@ -777,7 +777,7 @@ function CustomBrandMailTab() {
           </div>
 
           {/* 제목 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>✏️ 메일 제목 *</div>
             </div>
@@ -788,7 +788,7 @@ function CustomBrandMailTab() {
           </div>
 
           {/* 본문 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📝 본문 *</div>
             </div>
@@ -801,7 +801,7 @@ function CustomBrandMailTab() {
           </div>
 
           {/* 링크 버튼 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>🔗 링크 버튼 <span style={{ fontWeight: 400, color: C.hint }}>(선택, 여러 개 추가 가능)</span></div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>메일 본문에 클릭 가능한 버튼을 추가합니다</div>
@@ -837,7 +837,7 @@ function CustomBrandMailTab() {
           </div>
 
           {/* 사진 셀렉 링크 — 별도 박스 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📸 사진 셀렉 링크 <span style={{ fontWeight: 400, color: C.hint }}>(선택)</span></div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>기존 셀렉 갤러리를 골라 위 링크 버튼 목록에 바로 추가합니다 — 고객이 웹에서 선택하거나, 선택한 파일을 업로드하는 방식 둘 다 지원됩니다.</div>
@@ -877,7 +877,7 @@ function CustomBrandMailTab() {
           </div>
 
           {/* 파일 첨부 */}
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📎 파일 첨부 <span style={{ fontWeight: 400, color: C.hint }}>(선택)</span></div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>PDF, 이미지, 문서 등 — 드래그 또는 클릭</div>
@@ -1087,7 +1087,7 @@ function ReviewOnlyMailTab() {
             </button>
           </div>
 
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>⭐ 후기 요청 정보</div>
             </div>
@@ -1109,7 +1109,7 @@ function ReviewOnlyMailTab() {
             </div>
           </div>
 
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>👤 받는 분</div>
             </div>
@@ -1172,7 +1172,7 @@ function ReviewOnlyMailTab() {
             </div>
           </div>
 
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>🔗 후기 작성 링크</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>고객과 담당자명이 링크에 자동 반영됩니다</div>
@@ -1182,7 +1182,7 @@ function ReviewOnlyMailTab() {
             </div>
           </div>
 
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>✉️ 본문 편집</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>후기 버튼 위에 표시되는 내용을 수정하세요</div>
@@ -1338,7 +1338,7 @@ function SelectGalleryMailTab() {
 
         {/* 갤러리 목록 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal, flex: 1 }}>📸 셀렉 갤러리 목록</div>
               <input value={search} onChange={e => setSearch(e.target.value)}
@@ -1384,7 +1384,7 @@ function SelectGalleryMailTab() {
         {/* 메일 발송 폼 */}
         {selected && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+            <div className="pc-card">
               <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.teal, flex: 1 }}>📧 셀렉 안내 메일 발송</div>
                 <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 18, lineHeight: 1 }}>✕</button>
