@@ -111,7 +111,7 @@ export default function PerCampaignsPage() {
         {/* 캠페인 상세 */}
         <div>
           {detail ? (
-            <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:"20px", position:"sticky", top:20 }}>
+            <div className="pc-card pc-card--padded" style={{ position:"sticky", top:20 }}>
               <h3 style={{ margin:"0 0 4px", fontSize:15, fontWeight:800 }}>{detail.campaign?.title}</h3>
               <p style={{ fontSize:12, color:C.muted, margin:"0 0 16px" }}>{detail.campaign?.description}</p>
               <div style={{ fontWeight:700, fontSize:12, color:C.muted, marginBottom:10 }}>참여 병원 ({(detail.records??[]).length}곳)</div>
