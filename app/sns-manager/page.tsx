@@ -273,7 +273,7 @@ function PatternBlogWriter() {
                     <div style={{ fontSize:14, fontWeight:800, color:"#1C2B28" }}>{post.title}</div>
                     <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{post.category} {post.url && <a href={post.url} target="_blank" rel="noreferrer" style={{color:C.teal}}>링크 ↗</a>}</div>
                   </div>
-                  <button onClick={() => analyzePost(post)} disabled={analyzing === post.id} style={{ padding:"6px 12px", border:"none", borderRadius:8, background: post.analysis ? "#E8F5F3" : C.orange, color: post.analysis ? C.teal : "#fff", fontSize:11, fontWeight:800, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" }}>
+                  <button onClick={() => analyzePost(post)} disabled={analyzing === post.id} className={`pc-btn pc-btn--sm ${post.analysis ? "pc-btn--secondary" : "pc-btn--orange"}`} style={{ whiteSpace:"nowrap" }}>
                     {analyzing === post.id ? "분석 중..." : post.analysis ? "재분석" : "패턴 분석"}
                   </button>
                 </div>
