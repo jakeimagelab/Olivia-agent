@@ -1597,6 +1597,7 @@ main:has(> .pc-header) {
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .admin-menu-copy h2 {
@@ -1606,6 +1607,7 @@ main:has(> .pc-header) {
   font-weight: 800;
   line-height: 1.18;
   letter-spacing: -0.2px;
+  overflow-wrap: anywhere;
 }
 
 .admin-menu-copy p {
@@ -1613,6 +1615,7 @@ main:has(> .pc-header) {
   color: #6a8e8a;
   font-size: 12.5px;
   line-height: 1.62;
+  overflow-wrap: anywhere;
 }
 
 .admin-menu-action {
