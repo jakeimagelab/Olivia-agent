@@ -350,7 +350,7 @@ function SeoDeliveryInner() {
                     ].map(({ type, label, file }) => (
                       <button key={type} onClick={() => exportFile(type, file)}
                         disabled={exporting === type}
-                        style={{ ...btnSecondary, fontSize: 10, padding: "4px 10px", opacity: exporting === type ? 0.6 : 1 }}>
+                        className="pc-btn pc-btn--secondary" style={{ fontSize: 10, padding: "4px 10px", height: "auto" }}>
                         {exporting === type ? "..." : `↓ ${label}`}
                       </button>
                     ))}
