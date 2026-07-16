@@ -118,9 +118,9 @@ export default function PerDonationsPage() {
               <label htmlFor="pub" style={{ fontSize:13, fontWeight:600 }}>기부 리포트에 병원명 공개</label>
             </div>
             <div style={{ display:"flex", gap:10 }}>
-              <button onClick={() => setModal(false)} style={{ flex:1, background:C.light, color:C.muted, border:"none", borderRadius:8, padding:12, fontWeight:700, cursor:"pointer" }}>취소</button>
+              <button onClick={() => setModal(false)} className="pc-btn pc-btn--secondary" style={{ flex:1 }}>취소</button>
               <button onClick={handleDonate} disabled={saving||!form.clientId||!form.points}
-                style={{ flex:2, background:"#7C3AED", color:"#fff", border:"none", borderRadius:8, padding:12, fontWeight:700, cursor:"pointer", opacity:(saving||!form.clientId||!form.points)?.5:1 }}>
+                className="pc-btn pc-btn--primary" style={{ flex:2, background:"#7C3AED" }}>
                 {saving?"기부 처리 중...":"기부 등록"}
               </button>
             </div>
