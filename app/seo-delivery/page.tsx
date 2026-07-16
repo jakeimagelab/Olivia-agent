@@ -315,7 +315,7 @@ function SeoDeliveryInner() {
                       {IMAGE_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                     <button onClick={() => removeImage(i)}
-                      style={{ width: 28, height: 28, borderRadius: 6, border: "none", background: "#FEE2E2", color: C.danger, cursor: "pointer", fontSize: 14, fontWeight: 900 }}>
+                      className="pc-btn pc-btn--danger" style={{ width: 28, height: 28, padding: 0, borderRadius: 6, fontSize: 14 }}>
                       ×
                     </button>
                   </div>
