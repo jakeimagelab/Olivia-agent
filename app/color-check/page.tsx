@@ -176,7 +176,7 @@ export default function ColorCheckPage() {
                   onChange={e => { const f = e.target.files?.[0]; if(f) handleFile(f); }}/>
               </div>
             ) : (
-              <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+              <div className="pc-card">
                 <img src={preview} alt="" style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", display: "block" }}/>
                 <div style={{ padding: "12px 14px", display: "flex", gap: 8 }}>
                   <button onClick={analyze} disabled={loading} className="pc-btn pc-btn--primary pc-btn--lg" style={{ flex: 1 }}>
