@@ -845,7 +845,7 @@ function InstagramContentTab() {
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <CopyBtn text={draft.caption} label="캡션 복사" />
-                <button onClick={saveDraft} style={{ padding: "6px 12px", borderRadius: 7, border: `1px solid ${C.teal}`, background: C.light, color: C.teal, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>초안 저장</button>
+                <button onClick={saveDraft} className="pc-btn pc-btn--ghost pc-btn--sm">초안 저장</button>
               </div>
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.9, color: "#374141", whiteSpace: "pre-wrap", background: "#FAFAFA", borderRadius: 10, padding: "16px 18px" }}>{draft.caption}</div>
