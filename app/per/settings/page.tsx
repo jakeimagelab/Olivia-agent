@@ -121,8 +121,7 @@ export default function PerSettingsPage() {
           </div>
         </div>
 
-        <button onClick={handleSave} disabled={saving}
-          style={{ width:"100%", background:saved?C.green:C.teal, color:"#fff", border:"none", borderRadius:10, padding:14, fontWeight:800, fontSize:14, cursor:"pointer", transition:"background .3s", opacity:saving?.7:1 }}>
+        <button onClick={handleSave} disabled={saving} className="pc-btn pc-btn--primary" style={{ width: "100%", background: saved ? C.green : undefined }}>
           {saved ? "✓ 저장 완료" : saving ? "저장 중..." : "정책 저장"}
         </button>
       </div>
