@@ -108,11 +108,7 @@ function DeliveryInner() {
                 )}
               </div>
             ) : (
-              <button onClick={deliver} disabled={delivering || !workflowRun} style={{
-                height: 52, background: delivering || !workflowRun ? C.hint : C.teal,
-                color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 900,
-                cursor: delivering || !workflowRun ? "not-allowed" : "pointer", fontFamily: "inherit",
-              }}>
+              <button onClick={deliver} disabled={delivering || !workflowRun} className="pc-btn pc-btn--primary pc-btn--lg">
                 {delivering ? "처리 중..." : "⚡ 원본 전달 완료 → 8단계(보정)로 이동"}
               </button>
             )}
