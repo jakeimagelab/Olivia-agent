@@ -86,7 +86,7 @@ function IdeaDetail({ idea }: { idea: DailyIdea }) {
 
       <div>
         <div style={{ fontSize: 10, fontWeight: 800, color: C.teal, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>💬 오늘의 고객 관리 팁</div>
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px" }}>
+        <div className="pc-card pc-card--padded">
           <div style={{ fontSize: 15, fontWeight: 800, color: C.txt, marginBottom: 8 }}>{idea.customer_tip.title}</div>
           <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 12 }}>{idea.customer_tip.body}</div>
           <div style={{ background: "#F0FDF4", borderRadius: 10, padding: "14px 16px" }}>
