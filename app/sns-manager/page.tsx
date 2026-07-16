@@ -565,7 +565,7 @@ function PatternBlogWriter() {
         <div style={{ textAlign:"center", padding:"60px 20px", color:C.muted }}>
           <div style={{ fontSize:40, marginBottom:12 }}>📝</div>
           <div style={{ fontSize:16, fontWeight:700 }}>아직 생성된 결과가 없습니다.</div>
-          <button onClick={() => setStep("write")} style={{ marginTop:16, padding:"10px 20px", border:"none", borderRadius:10, background:C.teal, color:"#fff", fontSize:14, fontWeight:800, cursor:"pointer", fontFamily:"inherit" }}>글 작성하러 가기</button>
+          <button onClick={() => setStep("write")} className="pc-btn pc-btn--primary" style={{ marginTop:16 }}>글 작성하러 가기</button>
         </div>
       )}
 
