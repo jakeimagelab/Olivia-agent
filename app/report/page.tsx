@@ -152,7 +152,7 @@ export default function ReportPage() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
               {/* 일별 차트 */}
-              <div style={{ background: "#fff", borderRadius: 16, padding: "22px 22px 18px", border: "1px solid rgba(21,88,85,.1)" }}>
+              <div className="pc-card pc-card--padded" style={{ padding: "22px 22px 18px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
                   <BarChart2 size={16} color="#155855" />
                   <span style={{ fontSize: 13, fontWeight: 800, color: "#155855" }}>일별 활동 추이 (7일)</span>
