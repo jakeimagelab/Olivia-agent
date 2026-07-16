@@ -129,7 +129,7 @@ export default function PerCampaignsPage() {
               }
             </div>
           ) : (
-            <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:24, textAlign:"center", color:C.hint, fontSize:13 }}>
+            <div className="pc-card pc-card--padded" style={{ textAlign:"center", color:C.hint, fontSize:13 }}>
               <Heart size={28} style={{ marginBottom:8, opacity:.3 }} /><br/>캠페인을 선택하면 참여 병원 목록이 표시됩니다.
             </div>
           )}
