@@ -362,7 +362,7 @@ function GalleryPageInner() {
             {galleries.map((gallery) => {
               const thumbnailUrl = gallery.items?.[0]?.thumbnail_url || "";
               return (
-                <article key={gallery.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", boxShadow: "0 2px 12px rgba(21,88,85,.06)" }}>
+                <article key={gallery.id} className="pc-card">
                   {/* 썸네일 */}
                   <div style={{ position: "relative" }}>
                     {thumbnailUrl ? (
