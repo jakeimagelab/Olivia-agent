@@ -184,7 +184,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
             </div>
 
             {/* PER 리포트 */}
-            <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:"20px", marginTop:14 }}>
+            <div className="pc-card pc-card--padded" style={{ marginTop:14 }}>
               <h3 style={{ margin:"0 0 12px", fontSize:14, fontWeight:800, color:C.txt }}>PER 리포트</h3>
               <p style={{ fontSize:12, color:C.muted, margin:"0 0 14px" }}>병원별 리워드 활동 리포트를 생성하고 메일링함에 저장합니다.</p>
               <button onClick={async () => {
