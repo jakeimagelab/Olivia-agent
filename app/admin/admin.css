@@ -299,30 +299,11 @@
   font-size: 22px;
 }
 
-.pc-dash-layout {
-  flex: 1;
-  min-height: 0;
-}
-
-.pc-dash-layout .oa-main-column,
-.pc-dash-layout .oa-right-column {
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.pc-dash-layout .oa-right-column {
-  position: static;
-}
-
 .pc-dash-layout .oa-category-section {
   padding: 14px 16px;
 }
 
 @media (max-width: 1080px) {
-  .pc-dash-home {
-    height: auto;
-    overflow: visible;
-  }
   .pc-dash-brief {
     grid-template-columns: 1fr;
   }
