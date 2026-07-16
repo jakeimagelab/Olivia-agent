@@ -10,6 +10,7 @@ import {
   Columns3,
   ContactRound,
   FolderKanban,
+  Grid2X2,
   House,
   LayoutDashboard,
   Link2,
@@ -27,6 +28,7 @@ type NavigationItem = {
   label: string;
   href: string;
   icon: ComponentType<any>;
+  exact?: boolean;
   /* 개별 기능 항목만 clientId/projectId 등 CRM 컨텍스트를 쿼리로 이어 붙인다 */
   carryContext?: boolean;
 };
@@ -72,7 +74,10 @@ const navigation: NavigationSection[] = [
   {
     key: "tools",
     label: "개별 기능",
-    items: toolItems.map((t) => ({ label: t.title, href: t.href, icon: t.icon, carryContext: true })),
+    items: [
+      { label: "개별 기능 홈", href: "/admin/tools", icon: Grid2X2, exact: true, carryContext: true },
+      ...toolItems.map((t) => ({ label: t.title, href: t.href, icon: t.icon, carryContext: true })),
+    ],
   },
 ];
 
@@ -138,7 +143,7 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
             <ul className="oa-sidebar__list">
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const active = isActiveRoute(pathname, item.href);
+                const active = item.exact ? pathname === item.href : isActiveRoute(pathname, item.href);
                 return (
                   <li className="oa-sidebar__list-item" key={item.href}>
                     <Link
