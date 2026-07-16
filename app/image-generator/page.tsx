@@ -361,15 +361,8 @@ export default function ImageDirectorPage() {
       <PageHeader title="리얼 이미지 디렉터" />
 
       {/* Hero */}
-      <div style={{ padding: "32px 32px 0" }}>
-        <p className="admin-kicker">PHOTOCLINIC REAL IMAGE DIRECTOR</p>
-        <h1 style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--deep-green)", marginBottom: 8 }}>
-          포토클리닉 리얼 이미지 디렉터
-        </h1>
-        <p style={{ color: "#555", marginBottom: 24, fontSize: "0.95rem" }}>
-          올리비아가 병원 촬영 디렉터처럼 프롬프트를 설계하고, OpenAI gpt-image-1로 실사 품질 병원 이미지 4장을 생성합니다.
-        </p>
-      </div>
+      <PageHeading kicker="AI IMAGE" title="포토클리닉 리얼 이미지 디렉터"
+        desc="올리비아가 병원 촬영 디렉터처럼 프롬프트를 설계하고, OpenAI gpt-image-1로 실사 품질 병원 이미지 4장을 생성합니다." />
 
       {/* Mode Tabs */}
       <div style={{ padding: "0 32px 24px" }}>
