@@ -229,7 +229,7 @@ export default function ColorCheckPage() {
               ) : (
                 <>
                   {/* 매칭 점수 */}
-                  <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px 22px", display: "flex", gap: 20, alignItems: "center" }}>
+                  <div className="pc-card pc-card--padded" style={{ display: "flex", gap: 20, alignItems: "center" }}>
                     <div style={{
                       width: 76, height: 76, borderRadius: "50%", flexShrink: 0,
                       background: `conic-gradient(${scoreColor} ${sc}%, #E5E7EB ${sc}%)`,
