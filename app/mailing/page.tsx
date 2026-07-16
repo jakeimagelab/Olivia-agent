@@ -411,7 +411,8 @@ function BrandMailTab() {
                         onFocus={() => { dir.setShowDropdown(true); dir.load(); }}
                         placeholder="photoclnic@gmail.com" style={{ ...iS, flex: 1 }} />
                       <button onClick={() => { dir.setShowDropdown(!dir.showDropdown); dir.load(); }}
-                        style={{ height: 38, padding: "0 10px", background: C.mint, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
+                        className="pc-btn pc-btn--ghost pc-btn--sm"
+                        style={{ padding: "0 10px", flexShrink: 0 }}
                         title="고객·연락처 검색">👥</button>
                     </div>
                     {dir.showDropdown && dir.filtered.length > 0 && (
@@ -1126,7 +1127,8 @@ function ReviewOnlyMailTab() {
                         onFocus={() => { dir.setShowDropdown(true); dir.load(); }}
                         placeholder="photoclinic@gmail.com" style={{ ...iS, flex: 1 }} />
                       <button onClick={() => { dir.setShowDropdown(!dir.showDropdown); dir.load(); }}
-                        style={{ height: 38, padding: "0 10px", background: C.mint, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14, cursor: "pointer", flexShrink: 0 }}
+                        className="pc-btn pc-btn--ghost pc-btn--sm"
+                        style={{ padding: "0 10px", flexShrink: 0 }}
                         title="고객·연락처 검색">👥</button>
                     </div>
                     {dir.showDropdown && dir.filtered.length > 0 && (
