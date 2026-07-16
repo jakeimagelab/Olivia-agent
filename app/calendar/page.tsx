@@ -996,7 +996,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
               className="cal-cell"
               onFocus={() => setFocusedIdx(idx)}
               onClick={e => {
-                onSelectDate(dateStr); setSelectedTaskId(null);
+                onSelectDate(dateStr); setSelectedTask(null);
                 if (isMobile) onNavigateDay?.(dateStr);
                 else onOpenAdd(dateStr, e.clientX, e.clientY);
               }}
