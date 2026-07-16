@@ -17,12 +17,6 @@ type GeneratedContent = {
   caption: string; hashtags: string;
 };
 
-const C = {
-  teal: "#155855", orange: "#E85D2C",
-  bg: "#EDF5F3", surface: "#FFFFFF", border: "#C8DDD9",
-  muted: "#5A7470", hint: "#9BB5B0", txt: "#1C2B28", mint: "#EAF4F2",
-};
-
 export default function ReviewStudioPage() {
   const [reviews, setReviews]       = useState<Review[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
