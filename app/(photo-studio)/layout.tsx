@@ -46,7 +46,7 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
   const visibleTabs = shareScope ? PHOTO_TABS.filter((t) => t.matches.includes(shareScope)) : PHOTO_TABS;
 
   return (
-    <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'Noto Sans KR', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       <PageHeader title={title} />
 
       <nav className="pc-subnav pc-subnav--global" style={{

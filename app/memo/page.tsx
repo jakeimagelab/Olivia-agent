@@ -262,7 +262,7 @@ function MemoWorkspace() {
   const resizeConti = (columns: number, rows: number) => setTemplateData(current => ({ ...current, contiColumns: columns, contiRows: rows, noteMode: "template" }));
 
   return (
-    <main className="pc-page" style={{ color: C.ink, fontFamily: "'Noto Sans KR', sans-serif" }}>
+    <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       <PageHeader
         title="메모"
         tabs={MODE_TABS}

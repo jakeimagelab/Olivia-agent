@@ -502,7 +502,7 @@ export default function PhotoRetouchingPage() {
 
   return (
     <main
-      style={{ background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}
+      style={{ background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}
       onPaste={handleGlobalPaste}
     >
       <div className="pc-inline-tabs" style={{ background: "#FFFFFF", borderBottom: `1px solid ${C.border}`, display: "flex", padding: "0 8px", overflowX: "auto" }}>

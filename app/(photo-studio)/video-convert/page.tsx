@@ -258,7 +258,7 @@ export default function VideoConvertPage() {
   );
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", color: C.txt, fontFamily: "'Noto Sans KR', sans-serif" }}>
+    <div style={{ background: C.bg, minHeight: "100vh", color: C.txt, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       {renderStepIndicator()}
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 20px" }}>
 

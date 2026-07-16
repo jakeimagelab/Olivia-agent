@@ -40,7 +40,7 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'Noto Sans KR', sans-serif", color: "#1C2B28" }}>
+    <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: "#1C2B28" }}>
       {!inIframe && <PageHeader title={title} />}
 
       <nav className="pc-subnav pc-subnav--global" style={{

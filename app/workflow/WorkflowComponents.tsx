@@ -62,7 +62,7 @@ export function WorkflowShell({ title, subtitle, children }: { title: string; su
     ["/workflow/logs", "에이전트 로그"],
   ];
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'Noto Sans KR', sans-serif" }}>
+    <main style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       <div style={{ maxWidth: 1380, margin: "0 auto", padding: "26px 20px 48px" }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 18, alignItems: "flex-start", marginBottom: 22 }}>
           <div>

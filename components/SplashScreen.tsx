@@ -65,7 +65,7 @@ export default function SplashScreen() {
         <div style={{
           fontSize: 26, fontWeight: 900, color: "#fff",
           letterSpacing: "-0.4px", lineHeight: 1.15,
-          fontFamily: "'Noto Sans KR', sans-serif",
+          fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif",
         }}>
           포토클리닉
         </div>
@@ -74,7 +74,7 @@ export default function SplashScreen() {
           color: "rgba(255,255,255,0.55)",
           letterSpacing: "0.12em",
           marginTop: 6,
-          fontFamily: "'Noto Sans KR', sans-serif",
+          fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif",
         }}>
           AI 에이전트
         </div>

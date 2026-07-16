@@ -293,7 +293,7 @@ export default function ContractPage() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
 
       {/* NAV */}
       <header className="pc-header">

@@ -131,7 +131,7 @@ export default function ColorCheckPage() {
   const scoreLabel = sc >= 80 ? "포토클리닉 DNA 일치" : sc >= 60 ? "소폭 조정 필요" : "보정 필요";
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}>
+    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
 
       <header className="pc-header">
         <div className="pc-header-left">

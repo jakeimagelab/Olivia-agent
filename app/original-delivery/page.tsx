@@ -42,7 +42,7 @@ function DeliveryInner() {
   };
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif", color: C.txt }}>
+    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
       <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">

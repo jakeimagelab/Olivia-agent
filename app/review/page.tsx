@@ -257,7 +257,7 @@ function ReviewForm() {
 
 export default function ReviewPage() {
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif", color: C.txt }}>
+    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif", color: C.txt }}>
 
       <div style={{ background: C.teal, padding: "22px 24px 22px", textAlign: "center" }}>
         <div style={{ fontSize: 10, color: "rgba(255,255,255,.45)", letterSpacing: "2px", textTransform: "uppercase", marginBottom: 5 }}>PHOTO CLINIC</div>

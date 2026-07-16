@@ -729,7 +729,7 @@ export default function BrandAnalysisPage() {
 
   /* ── Layout ───────────────────────────────────────────────── */
   return (
-    <div style={{ minHeight: "100vh", background: C.ivory, fontFamily: "'Noto Sans KR', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: C.ivory, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       <PageHeader
         title={result ? `홈페이지 브랜드 분석 — ${result.brandName}` : "홈페이지 브랜드 분석"}
       />

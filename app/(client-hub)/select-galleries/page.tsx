@@ -23,7 +23,7 @@ function nextActionLabel(g: SelectGallery) {
 
 export default function SelectGalleriesPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#5A7470", fontFamily: "'Noto Sans KR',sans-serif" }}>불러오는 중...</div>}>
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#5A7470", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>불러오는 중...</div>}>
       <SelectGalleriesInner />
     </Suspense>
   );
@@ -133,7 +133,7 @@ function SelectGalleriesInner() {
   };
 
   return (
-    <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 16px", fontFamily: "'Noto Sans KR',sans-serif" }}>
+    <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 16px", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
 
       {/* 고객 컨텍스트 배너 */}
       {client ? (

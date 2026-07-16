@@ -81,7 +81,7 @@ export default function TrashPage() {
   };
 
   return (
-    <main style={{ minHeight: "100dvh", background: C.mist, color: C.ink, fontFamily: "'Noto Sans KR', sans-serif", padding: "28px 16px 80px" }}>
+    <main style={{ minHeight: "100dvh", background: C.mist, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", padding: "28px 16px 80px" }}>
       <section style={{ maxWidth: 1040, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 26, flexWrap: "wrap" }}>
           <Link href="/" style={{ color: C.teal, textDecoration: "none", fontSize: 13, fontWeight: 800 }}>← Olivia</Link>

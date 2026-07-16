@@ -26,7 +26,7 @@ interface RawMatchRow {
 /* ════════════════════════════════════════════ */
 export default function SelectGalleryDetailPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#5A7470", fontFamily: "'Noto Sans KR',sans-serif" }}>불러오는 중...</div>}>
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#5A7470", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>불러오는 중...</div>}>
       <SelectGalleryDetailInner />
     </Suspense>
   );
@@ -279,8 +279,8 @@ function SelectGalleryDetailInner() {
     load();
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.muted, fontFamily: "'Noto Sans KR',sans-serif" }}>불러오는 중...</div>;
-  if (!gallery) return <div style={{ padding: 40, textAlign: "center", color: C.muted, fontFamily: "'Noto Sans KR',sans-serif" }}>갤러리를 찾을 수 없습니다</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.muted, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>불러오는 중...</div>;
+  if (!gallery) return <div style={{ padding: 40, textAlign: "center", color: C.muted, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>갤러리를 찾을 수 없습니다</div>;
 
   const selectUrl = typeof window !== "undefined" ? `${window.location.origin}/select/${gallery.share_token}` : `/select/${gallery.share_token}`;
   const statusColor = GALLERY_STATUS_COLOR[gallery.status] ?? C.muted;
@@ -312,7 +312,7 @@ function SelectGalleryDetailInner() {
   const backHref = `/select-galleries?${backParams.toString()}`;
 
   return (
-    <div style={{ maxWidth: 780, margin: "0 auto", padding: "24px 16px", fontFamily: "'Noto Sans KR',sans-serif", color: C.txt }}>
+    <div style={{ maxWidth: 780, margin: "0 auto", padding: "24px 16px", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
 
       {/* 고객 컨텍스트 배너 */}
       {(client || clientId) && (

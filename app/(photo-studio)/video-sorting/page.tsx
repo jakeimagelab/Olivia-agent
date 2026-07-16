@@ -522,7 +522,7 @@ export default function VideoSortingPage() {
         </div>
       )}
 
-      <div style={{ background: C.bg, minHeight: "100vh", color: C.txt, fontFamily: "'Noto Sans KR', sans-serif" }}>
+      <div style={{ background: C.bg, minHeight: "100vh", color: C.txt, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
         {renderStepIndicator()}
         <div className="ps-wrap" style={{ maxWidth: 960, margin: "0 auto" }}>
 

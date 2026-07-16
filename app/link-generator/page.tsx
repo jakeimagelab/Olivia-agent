@@ -140,7 +140,7 @@ export default function LinkGeneratorPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Noto Sans KR', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       <PageHeader title="외부 공유 링크" />
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "24px 20px 80px" }}>
         <Card>
