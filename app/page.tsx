@@ -63,7 +63,7 @@ function LoginScreen({ onAuth }:{ onAuth:()=>void }) {
     <main className="admin-shell">
       <section className="login-panel" aria-labelledby="login-title">
         <div className="brand-lockup">
-          <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉"/>
+          <img src="/assets/photoclinic-logo.png" alt="포토클리닉"/>
           <span>Admin Console</span>
         </div>
         <div>
@@ -892,7 +892,7 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
         boxShadow:"0 1px 0 rgba(21,88,85,.07), 0 4px 20px rgba(0,0,0,.04)",
       }}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{height:24}}/>
+          <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{height:24}}/>
           <div style={{width:1,height:14,background:"rgba(21,88,85,.18)"}}/>
           <span style={{fontSize:11,fontWeight:700,color:"rgba(21,88,85,.52)",letterSpacing:".06em"}}>AI 관리자</span>
         </div>
@@ -991,7 +991,7 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
         boxShadow:"0 1px 0 rgba(21,88,85,.06), 0 4px 24px rgba(0,0,0,.04)",
       }}>
         <div style={{display:"flex",alignItems:"center",gap:14}}>
-          <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{height:26}}/>
+          <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{height:26}}/>
           <div style={{width:1,height:18,background:"rgba(21,88,85,.18)"}}/>
           <span style={{fontSize:11,fontWeight:700,color:"rgba(21,88,85,.52)",letterSpacing:".08em",textTransform:"uppercase" as const}}>포토클리닉 AI 관리자</span>
         </div>

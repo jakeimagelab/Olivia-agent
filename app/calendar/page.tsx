@@ -2283,7 +2283,7 @@ export default function CalendarPage() {
       <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo"/>
+            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo"/>
             <span className="pc-header-title">업무 캘린더</span>
           </div>
         </div>

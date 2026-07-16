@@ -83,7 +83,7 @@ export default function VideoContiViewPage({ params }: { params: any }) {
         background: C.teal, color: C.white, padding: "14px 24px",
         display: "flex", alignItems: "center", gap: 12,
       }}>
-        <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, filter: "brightness(0) invert(1)" }} />
+        <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{ height: 24, filter: "brightness(0) invert(1)" }} />
         <div>
           <div style={{ fontSize: 10, opacity: 0.7 }}>영상 콘티 공유</div>
           <div style={{ fontSize: 14, fontWeight: 800 }}>{data.hospital_name || data.title}</div>

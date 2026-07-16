@@ -554,7 +554,7 @@ function BrandMailTab() {
                 </div>
                 {/* 푸터 */}
                 <div style={{ background: C.mint, padding: "16px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
-                  <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
+                  <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 3 }}>사진으로 병원이야기를 전합니다, 포토클리닉</div>
                   <div style={{ fontSize: 11, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
                 </div>
@@ -973,7 +973,7 @@ function CustomBrandMailTab() {
                   </p>
                 </div>
                 <div style={{ background: C.mint, padding: "16px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
-                  <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
+                  <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 3 }}>사진으로 병원이야기를 전합니다, 포토클리닉</div>
                   <div style={{ fontSize: 11, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
                 </div>
@@ -1258,7 +1258,7 @@ function ReviewOnlyMailTab() {
                   </p>
                 </div>
                 <div style={{ background: C.mint, padding: "16px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
-                  <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
+                  <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 3 }}>사진으로 병원이야기를 전합니다, 포토클리닉</div>
                   <div style={{ fontSize: 11, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
                 </div>
@@ -1453,7 +1453,7 @@ export default function MailingPage() {
       <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
             <span className="pc-header-title">통합 메일링</span>
           </div>
         </div>

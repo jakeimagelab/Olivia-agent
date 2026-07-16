@@ -29,7 +29,7 @@ export default function PortalAccessPage() {
   if (status === "loading") {
     return (
       <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16, background:"#F7F4EF" }}>
-        <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height:28, opacity:.3 }} />
+        <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{ height:28, opacity:.3 }} />
         <p style={{ fontSize:14, color:"#9BB5B0", margin:0 }}>인증 중입니다...</p>
       </div>
     );
@@ -37,7 +37,7 @@ export default function PortalAccessPage() {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center", background:"#F7F4EF" }}>
-      <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height:28, marginBottom:20, opacity:.4 }} />
+      <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{ height:28, marginBottom:20, opacity:.4 }} />
       <div style={{ fontSize:40, marginBottom:12 }}>🔐</div>
       <h2 style={{ fontSize:18, fontWeight:800, margin:"0 0 8px" }}>접근할 수 없습니다</h2>
       <p style={{ fontSize:14, color:"#5A7470", lineHeight:1.7, margin:"0 0 8px", maxWidth:320 }}>{msg}</p>

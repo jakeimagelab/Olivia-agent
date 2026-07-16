@@ -15,7 +15,7 @@ export default function ChannelAnalyzerPage() {
         <div className="pc-header-left">
           <div className="pc-header-brand">
             <img
-              src="https://photoclinic-diangnoisis.vercel.app/logo.svg"
+              src="/assets/photoclinic-logo.png"
               alt="포토클리닉"
               className="pc-header-logo"
             />

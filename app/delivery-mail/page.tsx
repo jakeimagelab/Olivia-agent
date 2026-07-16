@@ -108,7 +108,7 @@ export default function DeliveryMailPage() {
       <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" className="pc-header-logo" />
+            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
             <span className="pc-header-title">File Transfer</span>
           </div>
         </div>

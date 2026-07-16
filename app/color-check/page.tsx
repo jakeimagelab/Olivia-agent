@@ -136,7 +136,7 @@ export default function ColorCheckPage() {
       <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
-            <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="" className="pc-header-logo"/>
+            <img src="/assets/photoclinic-logo.png" alt="" className="pc-header-logo"/>
             <span className="pc-header-title">색감 체크</span>
           </div>
         </div>

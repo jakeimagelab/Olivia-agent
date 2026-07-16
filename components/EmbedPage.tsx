@@ -12,7 +12,7 @@ export default function EmbedPage({ title, badge, src }: EmbedPageProps) {
       <header className="analyzer-header">
         <div className="brand-lockup">
           <img
-            src="https://photoclinic-diangnoisis.vercel.app/logo.svg"
+            src="/assets/photoclinic-logo.png"
             alt="포토클리닉"
           />
           <span>{badge}</span>
