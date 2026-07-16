@@ -125,7 +125,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
               orders.length === 0
                 ? <div style={{ background:C.white, borderRadius:10, padding:20, textAlign:"center", color:C.hint, fontSize:13 }}>제품 신청 내역이 없습니다</div>
                 : orders.map((o:any) => (
-                  <div key={o.id} style={{ background:C.white, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 16px", marginBottom:8 }}>
+                  <div key={o.id} className="pc-card" style={{ padding:"14px 16px", marginBottom:8 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                       <span style={{ fontWeight:700, fontSize:13 }}>{o.reward_products?.name ?? "제품"}</span>
                       <span style={{ fontSize:11, background:`${C.orange}20`, color:C.orange, borderRadius:4, padding:"2px 8px", fontWeight:700 }}>{ORDER_STATUS_LABEL[o.status]??o.status}</span>
@@ -140,7 +140,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
               donations.length === 0
                 ? <div style={{ background:C.white, borderRadius:10, padding:20, textAlign:"center", color:C.hint, fontSize:13 }}>기부 내역이 없습니다</div>
                 : donations.map((d:any) => (
-                  <div key={d.id} style={{ background:C.white, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 16px", marginBottom:8 }}>
+                  <div key={d.id} className="pc-card" style={{ padding:"14px 16px", marginBottom:8 }}>
                     <div style={{ fontWeight:700, fontSize:13 }}>{d.donation_campaigns?.title ?? "기부"}</div>
                     <div style={{ fontSize:12, color:"#7C3AED", marginTop:4, fontWeight:700 }}>{d.points?.toLocaleString()}P 기부</div>
                     <div style={{ fontSize:11, color:C.hint, marginTop:2 }}>{new Date(d.created_at).toLocaleDateString("ko-KR")} · {d.hospital_name_public?"병원명 공개":"비공개"}</div>
