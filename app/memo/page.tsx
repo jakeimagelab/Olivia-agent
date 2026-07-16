@@ -275,14 +275,8 @@ function MemoWorkspace() {
       />
 
       <div className="pc-content pc-content--wide memo-content">
-        <section className="pc-hero pc-liquid-hero memo-hero">
-          <div>
-            <div className="pc-hero-kicker">MEMO</div>
-            <h1 className="pc-hero-title">메모</h1>
-            <p className="pc-hero-desc">일반 텍스트, 펜 템플릿, AI 음성 요약 중 기록에 가장 잘 맞는 방식을 선택하세요.</p>
-          </div>
-          <span className="pc-badge pc-badge--green">{MODE_INFO[mode].label}</span>
-        </section>
+        <PageHeading kicker="CONSULT MEMO" title="메모" desc="일반 텍스트, 펜 템플릿, AI 음성 요약 중 기록에 가장 잘 맞는 방식을 선택하세요."
+          actions={<span className="pc-badge pc-badge--green">{MODE_INFO[mode].label}</span>} />
 
         {dateParam ? <div className="memo-notice">캘린더 {dateParam} 일정에서 시작한 메모입니다.</div> : null}
         {status ? <div role="status" className={`memo-status ${status.ok ? "is-success" : "is-error"}`}>{status.text}</div> : null}
