@@ -36,7 +36,7 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
         eyebrow="WORK TOOLS"
         title="실제 작업 도구"
         description="각 기능은 고객 연결 없이도 독립적으로 실행할 수 있습니다."
-        action={<StatusBadge tone="blue">11개 기능</StatusBadge>}
+        action={<StatusBadge tone="blue">{TOOLS.length}개 기능</StatusBadge>}
       >
         <div className="oa-tool-toolbar" aria-label="기능 탐색 도구">
           <label className="oa-tool-search">
@@ -46,14 +46,15 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
           </label>
           <div className="oa-tool-filters" aria-label="기능 카테고리">
             <button className="is-active" type="button">전체</button>
-            <button type="button">문서</button>
-            <button type="button">사진</button>
-            <button type="button">고객</button>
             <button type="button" aria-label="필터 설정"><SlidersHorizontal size={14} aria-hidden="true"/></button>
           </div>
         </div>
         <div className="oa-feature-grid">
-          {TOOLS.map(tool => <FeatureCard key={tool.slug} title={tool.title} description={tool.description} href={`/admin/tools/${tool.slug}${suffix}`} icon={tool.icon} tags={tool.tags} status="사용 가능"/>)}
+          {TOOLS.map(tool => (
+            <FeatureCard key={tool.href} title={tool.title} description={tool.desc}
+              href={`${tool.href}${suffix}`} icon={<tool.icon size={22}/>}
+              tags={[tool.meta]} status="사용 가능" orange={tool.orange}/>
+          ))}
         </div>
       </CategorySection>
     </div>
