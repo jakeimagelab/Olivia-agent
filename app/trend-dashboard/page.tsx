@@ -405,11 +405,7 @@ export default function TrendDashboardPage() {
               <button
                 onClick={submitCompetitor}
                 disabled={addingCompetitor || !newCompetitor.hospitalName.trim()}
-                style={{
-                  padding: "9px 16px", borderRadius: 8, border: "none", height: 38,
-                  background: !newCompetitor.hospitalName.trim() ? "#C8DDD9" : "#155855", color: "#fff",
-                  fontWeight: 800, fontSize: 12, cursor: !newCompetitor.hospitalName.trim() ? "not-allowed" : "pointer",
-                }}
+                className="pc-btn pc-btn--primary pc-btn--sm"
               >
                 {addingCompetitor ? "등록 중..." : "등록"}
               </button>
