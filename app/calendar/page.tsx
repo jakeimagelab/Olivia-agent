@@ -683,12 +683,7 @@ function ConsultMemoPanel({ dateStr, consultations, onAdd }: {
               borderRadius: 10, padding: "10px 12px", resize: "none", background: "#FAFCFB",
               outline: "none", lineHeight: 1.75, fontFamily: "inherit", boxSizing: "border-box" }}/>
           {memoError && <div style={{ fontSize: 11, color: "#E85D2C", background: "#FFF0EB", borderRadius: 7, padding: "6px 10px" }}>⚠ {memoError}</div>}
-          <button onClick={analyze} disabled={analyzing} style={{
-            height: 42, border: "none", borderRadius: 9,
-            background: analyzing ? C.hint : C.teal,
-            color: "#fff", fontSize: 13, fontWeight: 800,
-            cursor: analyzing ? "not-allowed" : "pointer", fontFamily: "inherit",
-          }}>
+          <button onClick={analyze} disabled={analyzing} className="pc-btn pc-btn--primary">
             {analyzing ? "AI 분석 중…" : "✨ AI 분석하기"}
           </button>
         </>
