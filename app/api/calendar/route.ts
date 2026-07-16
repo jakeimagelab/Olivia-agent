@@ -72,6 +72,7 @@ export async function DELETE(req: NextRequest) {
     const item = await moveRecordToTrash(db, "calendar_task", id);
     return NextResponse.json({ ok: true, trashId: item.id });
   } catch (error) {
+    console.error("[calendar] DELETE 실패:", error);
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "일정 삭제 실패" }, { status: 500 });
   }
 }
