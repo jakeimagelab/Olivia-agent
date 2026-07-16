@@ -1430,7 +1430,7 @@ function SelectGalleryMailTab() {
                 )}
 
                 <button onClick={handleSend} disabled={!toEmail || sending}
-                  style={{ height: 44, background: toEmail ? C.teal : C.border, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: toEmail ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
+                  className="pc-btn pc-btn--primary">
                   {sending ? "저장 중..." : "📬 메일 초안 메일링 큐에 저장"}
                 </button>
                 <div style={{ fontSize: 11, color: C.hint, textAlign: "center" }}>
