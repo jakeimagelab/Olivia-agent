@@ -19,6 +19,7 @@ import {
 } from "@/lib/memo/types";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { C } from "@/lib/theme";
+import { PageHeading } from "@/components/PageHeading";
 
 const MODE_INFO: Record<MemoMode, { label: string; description: string }> = {
   general: { label: "일반메모", description: "키보드로 빠르게 작성하고 정리하는 기본 텍스트 메모입니다." },
