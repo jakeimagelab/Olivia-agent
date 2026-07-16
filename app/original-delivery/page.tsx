@@ -102,7 +102,7 @@ function DeliveryInner() {
               <div style={{ padding: "14px 18px", background: doneMsg.includes("완료") ? C.light : "#FFF0F0", borderRadius: 10, fontSize: 13, fontWeight: 700, color: doneMsg.includes("완료") ? C.green : C.orange }}>
                 {doneMsg}
                 {doneMsg.includes("완료") && clientId && (
-                  <Link href={`/photo-sorting?client_id=${clientId}`} style={{ display: "block", marginTop: 12, padding: "10px 0", textAlign: "center", background: C.teal, color: "#fff", borderRadius: 8, textDecoration: "none", fontWeight: 800, fontSize: 13 }}>
+                  <Link href={`/photo-sorting?client_id=${clientId}`} className="pc-btn pc-btn--primary" style={{ display: "flex", width: "100%", marginTop: 12, textDecoration: "none" }}>
                     8단계: 보정 화면으로 →
                   </Link>
                 )}
