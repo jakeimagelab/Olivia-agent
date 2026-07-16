@@ -1068,6 +1068,9 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                       onClick={e => {
                         e.stopPropagation();
                         onSelectDate(dateStr); setSelectedTaskId(t.id);
+                        // 일정 pill은 포커스를 못 받는 요소라 클릭해도 셀의 키보드 이벤트가 안 잡혔음 —
+                        // Cmd+C/V/Delete가 부모 셀의 onKeyDown에서 처리되므로 셀에 포커스를 옮겨줘야 한다.
+                        cellRefs.current[idx]?.focus();
                         // 한 번 클릭은 선택만 — 자세히 보려면(팝업) 더블클릭해야 함
                         if (isMobile) onNavigateDay?.(dateStr);
                       }}
