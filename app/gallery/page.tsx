@@ -340,11 +340,11 @@ function GalleryPageInner() {
           </div>
 
           <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: editingId ? "1fr 120px" : "1fr", gap: 10 }}>
-            <button disabled={saving} style={{ minHeight: 50, border: 0, borderRadius: 12, background: C.teal, color: "#fff", fontWeight: 900, fontSize: 15 }}>
+            <button disabled={saving} className="pc-btn pc-btn--primary pc-btn--lg">
               {saving ? "저장 중..." : editingId ? "카드 수정 저장" : "갤러리 저장"}
             </button>
             {editingId ? (
-              <button type="button" onClick={resetForm} style={{ minHeight: 50, border: `1px solid ${C.border}`, borderRadius: 12, background: C.surface, color: C.teal, fontWeight: 900, fontSize: 14 }}>
+              <button type="button" onClick={resetForm} className="pc-btn pc-btn--secondary pc-btn--lg">
                 취소
               </button>
             ) : null}
