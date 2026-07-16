@@ -178,8 +178,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
                 <label style={{ fontSize:11, fontWeight:600, color:C.muted, display:"block", marginBottom:4 }}>메모</label>
                 <input value={adjForm.memo} onChange={e => setAdjForm(f => ({ ...f, memo:e.target.value }))} placeholder="처리 사유" style={iS} />
               </div>
-              <button onClick={handleAdjust} disabled={saving}
-                style={{ width:"100%", background:C.teal, color:"#fff", border:"none", borderRadius:8, padding:12, fontWeight:700, fontSize:13, cursor:"pointer", opacity:saving?.5:1 }}>
+              <button onClick={handleAdjust} disabled={saving} className="pc-btn pc-btn--primary" style={{ width:"100%" }}>
                 {saving?"처리 중...":"포인트 처리"}
               </button>
             </div>
