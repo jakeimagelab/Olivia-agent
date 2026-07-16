@@ -825,8 +825,8 @@ function InstagramContentTab() {
                   <div style={{ fontSize: 12, fontWeight: 800, color: "#374141" }}>{item.topic}</div>
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{item.hospitalName} · {item.format}</div>
                   <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                    <button onClick={() => loadDraft(item)} style={{ flex: 1, height: 28, border: `1px solid ${C.border}`, borderRadius: 7, background: C.white, color: C.teal, fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>불러오기</button>
-                    <button onClick={() => deleteDraft(item.id)} style={{ width: 48, height: 28, border: "none", borderRadius: 7, background: "#FFF0F0", color: "#DC2626", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>삭제</button>
+                    <button onClick={() => loadDraft(item)} className="pc-btn pc-btn--secondary pc-btn--sm" style={{ flex: 1, height: 28 }}>불러오기</button>
+                    <button onClick={() => deleteDraft(item.id)} className="pc-btn pc-btn--danger pc-btn--sm" style={{ width: 48, height: 28 }}>삭제</button>
                   </div>
                 </div>
               ))}
