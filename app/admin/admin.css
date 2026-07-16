@@ -224,9 +224,8 @@
 .oa-feature-card { min-width: 0; min-height: 225px; display: flex; flex-direction: column; border: 1px solid #edf0f2; border-radius: 21px; padding: 18px; background: #fff; box-shadow: 0 9px 24px rgba(31,45,61,.04); transition: transform .16s ease, box-shadow .16s ease; }
 .oa-feature-card:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(31,45,61,.075); }
 .oa-feature-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.oa-feature-card__icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; color: var(--oa-blue); background: var(--oa-blue-soft); }
-.oa-feature-card:nth-child(3n+2) .oa-feature-card__icon { color: #eb8f22; background: #fff3e0; }
-.oa-feature-card:nth-child(3n) .oa-feature-card__icon { color: var(--oa-green); background: #e7f8ef; }
+.oa-feature-card__icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; color: #fff; background: linear-gradient(148deg, var(--oa-blue) 0%, #1a8575 100%); box-shadow: 0 5px 18px rgba(21,88,85,.28), 0 1px 0 rgba(255,255,255,.28) inset; }
+.oa-feature-card.is-orange .oa-feature-card__icon { background: linear-gradient(148deg, var(--oa-orange) 0%, #EB8F22 100%); box-shadow: 0 5px 18px rgba(232,93,44,.28), 0 1px 0 rgba(255,255,255,.28) inset; }
 .oa-feature-card__body { margin-top: 17px; }
 .oa-feature-card__title { margin: 0; color: #3d4448; font-size: 14px; font-weight: 900; }
 .oa-feature-card__description { margin: 7px 0 0; color: #989fa4; font-size: 9px; line-height: 1.65; }
