@@ -69,7 +69,7 @@ export default function PerReportsPage() {
               {clients.map((c:any) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <button onClick={() => selClient && generate("client", selClient)} disabled={!selClient || busy}
-              style={{ width:"100%", background:selClient?C.teal:C.light, color:selClient?"#fff":C.hint, border:"none", borderRadius:8, padding:10, fontWeight:700, fontSize:13, cursor:selClient?"pointer":"not-allowed", transition:"all .15s" }}>
+              className="pc-btn pc-btn--primary" style={{ width:"100%" }}>
               {busy?"생성 중...":"리포트 생성 + 메일링함 저장"}
             </button>
             <p style={{ fontSize:11, color:C.hint, margin:"10px 0 0", lineHeight:1.6 }}>누적 포인트, 제품 신청, 기부 내역이 포함된 HTML 리포트를 생성하고 올리비아 메일링함에 자동 저장합니다.</p>
