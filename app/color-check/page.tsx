@@ -256,12 +256,8 @@ export default function ColorCheckPage() {
                   {/* 탭 */}
                   <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
                     {([["compare","📊 피부톤 비교"],["guide","🎛 Camera Raw 가이드"]] as const).map(([id, lbl]) => (
-                      <button key={id} onClick={() => setTab(id)} style={{
-                        flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
-                        fontFamily: "inherit", fontSize: 13, fontWeight: tab === id ? 900 : 500,
-                        background: tab === id ? C.teal : "transparent",
-                        color: tab === id ? "#fff" : C.muted,
-                      }}>{lbl}</button>
+                      <button key={id} onClick={() => setTab(id)}
+                        className={`pc-btn pc-btn--sm ${tab === id ? "pc-btn--primary" : "pc-btn--ghost"}`} style={{ flex: 1 }}>{lbl}</button>
                     ))}
                   </div>
 
