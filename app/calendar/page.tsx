@@ -1015,9 +1015,10 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                   }
                 }
                 else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
-                  if (selectedTaskId) {
-                    const t = tasks.find(x => x.id === selectedTaskId);
-                    if (t) { e.preventDefault(); setClipboardTask(t); }
+                  if (selectedTask) {
+                    e.preventDefault();
+                    setClipboardTask(selectedTask);
+                    setToast(`'${selectedTask.title}' 복사됨 — 다른 날짜로 이동해 ⌘V로 붙여넣으세요`);
                   }
                 }
                 else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "v") {
@@ -1027,12 +1028,12 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                       date: dateStr, title: clipboardTask.title, memo: clipboardTask.memo,
                       category: clipboardTask.category, completed: false,
                       time: clipboardTask.time, end_time: clipboardTask.end_time, location: clipboardTask.location,
-                    });
+                    }).then(created => setToast(created ? `'${clipboardTask.title}' 붙여넣기 완료` : "붙여넣기 실패 — 다시 시도해 주세요"));
                   }
                 }
                 else if (e.key === "Delete" || e.key === "Backspace") {
                   // 맥 키보드의 "delete" 키는 실제로 Backspace를 전송하므로 둘 다 처리
-                  if (selectedTaskId) { e.preventDefault(); onRequestDelete(selectedTaskId); }
+                  if (selectedTask) { e.preventDefault(); onRequestDelete(selectedTask.id); }
                 }
               }}
               onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOverDate(dateStr); }}
