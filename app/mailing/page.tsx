@@ -507,7 +507,7 @@ function BrandMailTab() {
 
         {/* ── 메일 미리보기 ─────────────────────────── */}
         {preview && (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", position: "sticky", top: 0 }}>
+          <div className="pc-card" style={{ position: "sticky", top: 0 }}>
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📧 메일 미리보기</div>
               <div style={{ fontSize: 11, color: C.muted }}>실제 발송될 메일 디자인</div>
@@ -937,7 +937,7 @@ function CustomBrandMailTab() {
 
         {/* ── 미리보기 ── */}
         {preview && (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", position: "sticky", top: 0 }}>
+          <div className="pc-card" style={{ position: "sticky", top: 0 }}>
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📧 메일 미리보기</div>
               <div style={{ fontSize: 11, color: C.muted }}>실제 발송될 메일 디자인</div>
@@ -1225,7 +1225,7 @@ function ReviewOnlyMailTab() {
         </div>
 
         {preview && (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden", position: "sticky", top: 0 }}>
+          <div className="pc-card" style={{ position: "sticky", top: 0 }}>
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>📧 메일 미리보기</div>
               <div style={{ fontSize: 11, color: C.muted }}>실제 발송될 메일 디자인</div>
