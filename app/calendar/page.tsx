@@ -693,7 +693,7 @@ function ConsultMemoPanel({ dateStr, consultations, onAdd }: {
             <div style={{ fontSize: 9, opacity: .6, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 3 }}>AI 분석 요약</div>
             <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.65 }}>{edited.summary || "—"}</div>
           </div>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="pc-card pc-card--padded" style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
             {([
               { key: "hospital_name"  as const, label: "병원명" },
               { key: "manager_name"   as const, label: "담당자" },
