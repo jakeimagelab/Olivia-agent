@@ -292,13 +292,13 @@ function ConsultationInner() {
                 ))}
               </div>
               <div style={{ padding: "12px 18px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={goToQuote} style={{ height: 38, padding: "0 16px", background: C.orange, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                <button onClick={goToQuote} className="pc-btn pc-btn--orange pc-btn--sm">
                   📄 견적서 바로 만들기
                 </button>
-                <Link href={`/conti${savedId ? `?client_id=${savedId}` : ""}`} style={{ height: 38, lineHeight: "38px", padding: "0 16px", background: C.white, color: C.teal, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>
+                <Link href={`/conti${savedId ? `?client_id=${savedId}` : ""}`} className="pc-btn pc-btn--secondary pc-btn--sm">
                   🎬 콘티 생성
                 </Link>
-                <Link href="/calendar" style={{ height: 38, lineHeight: "38px", padding: "0 16px", background: C.white, color: C.teal, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>
+                <Link href="/calendar" className="pc-btn pc-btn--secondary pc-btn--sm">
                   📅 캘린더
                 </Link>
               </div>
