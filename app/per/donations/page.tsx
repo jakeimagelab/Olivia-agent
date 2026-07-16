@@ -76,7 +76,7 @@ export default function PerDonationsPage() {
                 </div>
                 <div style={{ textAlign:"right" }}>
                   <div style={{ fontSize:18, fontWeight:800, color:"#7C3AED" }}>{d.points?.toLocaleString()}P</div>
-                  <span style={{ fontSize:10, background:d.status==="confirmed"?"#F0FDF4":"#FFF7ED", color:d.status==="confirmed"?C.green:C.orange, borderRadius:4, padding:"2px 7px", fontWeight:700 }}>
+                  <span className={`pc-badge pc-badge--${d.status==="confirmed"?"green":"orange"}`}>
                     {d.status==="confirmed"?"확인 완료":"대기"}
                   </span>
                 </div>
