@@ -96,11 +96,11 @@ export default function PerCampaignsPage() {
                   </div>
                   <div style={{ display:"flex", gap:6, marginTop:12 }}>
                     <button onClick={e => { e.stopPropagation(); setEditing(c); setForm({ title:c.title, periodLabel:c.period_label, startDate:c.start_date??"", endDate:c.end_date??"", donationTarget:c.donation_target, description:c.description, goalAmount:String(c.goal_amount??0) }); setModal(true); }}
-                      style={{ background:C.light, color:C.teal, border:"none", borderRadius:6, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer" }}>수정</button>
-                    {c.status === "draft"   && <button onClick={e => { e.stopPropagation(); changeStatus(c.id,"active"); }} style={{ background:"#F0FDF4", color:C.green, border:"none", borderRadius:6, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer" }}>캠페인 시작</button>}
-                    {c.status === "active"  && <button onClick={e => { e.stopPropagation(); changeStatus(c.id,"closed"); }} style={{ background:"#FFF7ED", color:C.orange, border:"none", borderRadius:6, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer" }}>마감</button>}
-                    {c.status === "closed"  && <button onClick={e => { e.stopPropagation(); changeStatus(c.id,"donated"); }} style={{ background:"#F5F3FF", color:"#7C3AED", border:"none", borderRadius:6, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer" }}>기부 완료</button>}
-                    {(c.status === "donated"||c.status === "closed") && <button onClick={e => { e.stopPropagation(); generateReport(c.id); }} style={{ background:C.light, color:C.teal, border:"none", borderRadius:6, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer" }}>리포트 생성</button>}
+                      className="pc-btn pc-btn--secondary pc-btn--sm">수정</button>
+                    {c.status === "draft"   && <button onClick={e => { e.stopPropagation(); changeStatus(c.id,"active"); }} className="pc-btn pc-btn--sm" style={{ background:"#F0FDF4", color:C.green }}>캠페인 시작</button>}
+                    {c.status === "active"  && <button onClick={e => { e.stopPropagation(); changeStatus(c.id,"closed"); }} className="pc-btn pc-btn--sm" style={{ background:"#FFF7ED", color:C.orange }}>마감</button>}
+                    {c.status === "closed"  && <button onClick={e => { e.stopPropagation(); changeStatus(c.id,"donated"); }} className="pc-btn pc-btn--sm" style={{ background:"#F5F3FF", color:"#7C3AED" }}>기부 완료</button>}
+                    {(c.status === "donated"||c.status === "closed") && <button onClick={e => { e.stopPropagation(); generateReport(c.id); }} className="pc-btn pc-btn--secondary pc-btn--sm">리포트 생성</button>}
                   </div>
                 </div>
               ))
