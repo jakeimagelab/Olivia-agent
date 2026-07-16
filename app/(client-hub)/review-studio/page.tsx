@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { createMailingDraft } from "@/lib/mailingQueue";
+import { C } from "@/lib/theme";
 
 type Review = {
   id: string; hospital_name: string; reviewer_name?: string;
