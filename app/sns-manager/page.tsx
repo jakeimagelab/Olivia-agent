@@ -1343,7 +1343,7 @@ function YoutubePlannerTab() {
               <textarea value={storyForm.keyMessage} onChange={(e) => setStoryForm((p) => ({ ...p, keyMessage: e.target.value }))} rows={4} placeholder="반드시 담아야 할 핵심 메시지" style={taS} />
             </div>
             {benchmark && <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 10, background: C.light, color: C.teal, fontSize: 12, fontWeight: 800 }}>벤치마킹 결과가 스토리에 참고됩니다.</div>}
-            <button onClick={runStory} disabled={loading === "story"} style={{ width: "100%", height: 48, marginTop: 14, border: "none", borderRadius: 12, background: C.teal, color: "#fff", fontSize: 14, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={runStory} disabled={loading === "story"} className="pc-btn pc-btn--primary" style={{ width: "100%", marginTop: 14 }}>
               {loading === "story" ? "생성 중..." : "스토리 생성 + 의료심의 체크"}
             </button>
           </div>
