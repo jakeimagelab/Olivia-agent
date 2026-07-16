@@ -196,7 +196,7 @@ function SelectGalleriesInner() {
                   )}
                 </>
               )}
-              <div style={{ fontSize: 10, color: C.hint, marginTop: 4 }}>직접 입력하고 싶으면 비워두고 아래 병원명을 바로 입력해도 됩니다.</div>
+              <div style={{ fontSize: 11, color: C.hint, marginTop: 4 }}>직접 입력하고 싶으면 비워두고 아래 병원명을 바로 입력해도 됩니다.</div>
             </div>
           )}
 

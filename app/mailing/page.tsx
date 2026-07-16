@@ -199,7 +199,7 @@ function QueueTab() {
           <span style={{ fontSize: 12, fontWeight: 800, color: dbStatus.ok ? "#22876A" : "#DC2626" }}>{dbStatus.ok ? "DB 연결 정상" : "DB 연결 실패"}</span>
           {dbStatus.fatal && <span style={{ fontSize: 11, color: "#DC2626" }}>{dbStatus.fatal}</span>}
           {dbStatus.tables && Object.entries(dbStatus.tables).map(([t, ok]) => (
-            <span key={t} style={{ fontSize: 10, padding: "1px 7px", borderRadius: 99, background: (ok as boolean) ? "#D1FAE5" : "#FEE2E2", color: (ok as boolean) ? "#065F46" : "#DC2626", fontWeight: 700 }}>
+            <span key={t} style={{ fontSize: 11, padding: "1px 7px", borderRadius: 99, background: (ok as boolean) ? "#D1FAE5" : "#FEE2E2", color: (ok as boolean) ? "#065F46" : "#DC2626", fontWeight: 700 }}>
               {(ok as boolean) ? "✓" : "✗"} {t}
             </span>
           ))}
@@ -224,10 +224,10 @@ function QueueTab() {
             <div key={item.id} onClick={() => openItem(item)} style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, cursor: "pointer", background: selected?.id === item.id ? C.mint : C.surface, transition: "background .15s" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 5 }}>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, background: C.teal, color: "#fff", borderRadius: 99, padding: "2px 8px" }}>{TYPE_LABELS[item.type] || item.type}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 99, padding: "2px 8px", border: `1px solid ${statusColor[item.status]}`, color: statusColor[item.status] }}>{STATUS_LABELS[item.status]}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, background: C.teal, color: "#fff", borderRadius: 99, padding: "2px 8px" }}>{TYPE_LABELS[item.type] || item.type}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 99, padding: "2px 8px", border: `1px solid ${statusColor[item.status]}`, color: statusColor[item.status] }}>{STATUS_LABELS[item.status]}</span>
                 </div>
-                <span style={{ fontSize: 10, color: C.hint, whiteSpace: "nowrap" }}>{fmtDate(item.created_at)}</span>
+                <span style={{ fontSize: 11, color: C.hint, whiteSpace: "nowrap" }}>{fmtDate(item.created_at)}</span>
               </div>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 3, lineHeight: 1.3 }}>{item.subject}</div>
               <div style={{ fontSize: 11, color: C.muted }}>{item.hospital_name} · {item.to_email || "이메일 미입력"}</div>
@@ -370,21 +370,21 @@ function BrandMailTab() {
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>고객 *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>고객 *</label>
                   <input value={hospitalName} onChange={e => setHospitalName(e.target.value)} placeholder="고객사명" style={iS} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>촬영일</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>촬영일</label>
                   <input type="date" value={shootDate} onChange={e => setShootDate(e.target.value)} style={iS} />
                 </div>
               </div>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>촬영 내용</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>촬영 내용</label>
                   <input value={packageName} onChange={e => setPackageName(e.target.value)} placeholder="Premium 촬영 내용" style={iS} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>전달 수량 (장)</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>전달 수량 (장)</label>
                   <input type="number" value={fileCount} onChange={e => setFileCount(e.target.value)} placeholder="120" style={iS} />
                 </div>
               </div>
@@ -399,11 +399,11 @@ function BrandMailTab() {
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
                   <input value={toName} onChange={e => setToName(e.target.value)} placeholder="정연호 실장님" style={iS} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
                   <div style={{ position: "relative" }} ref={dir.dropdownRef}>
                     <div style={{ display: "flex", gap: 6 }}>
                       <input type="email" value={toEmail}
@@ -442,12 +442,12 @@ function BrandMailTab() {
                       </div>
                     )}
                   </div>
-                  <div style={{ fontSize: 10, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
+                  <div style={{ fontSize: 11, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
                     <span>🏥 등록된 고객 자동 연동{dir.session ? " · ✓ Google 연락처 연동됨" : ""}{dir.loaded ? ` · 총 ${dir.contacts.length}명` : ""}</span>
                     {dir.session ? (
-                      <button onClick={() => window.location.href = "/api/auth/signout"} style={{ background: "none", border: "none", fontSize: 10, color: C.hint, cursor: "pointer", padding: 0 }}>Google 연동 해제</button>
+                      <button onClick={() => window.location.href = "/api/auth/signout"} style={{ background: "none", border: "none", fontSize: 11, color: C.hint, cursor: "pointer", padding: 0 }}>Google 연동 해제</button>
                     ) : (
-                      <button onClick={() => window.location.href = "/api/auth/google"} style={{ background: "none", border: "none", fontSize: 10, color: C.teal, fontWeight: 700, cursor: "pointer", padding: 0 }}>+ Google 연락처 연동</button>
+                      <button onClick={() => window.location.href = "/api/auth/google"} style={{ background: "none", border: "none", fontSize: 11, color: C.teal, fontWeight: 700, cursor: "pointer", padding: 0 }}>+ Google 연락처 연동</button>
                     )}
                   </div>
                 </div>
@@ -482,9 +482,9 @@ function BrandMailTab() {
               <textarea value={message} onChange={e => setMessage(e.target.value)} rows={5}
                 style={{ ...iS, resize: "vertical", lineHeight: 1.8 }} />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-                <div style={{ fontSize: 10, color: C.hint }}>{message.length}자</div>
+                <div style={{ fontSize: 11, color: C.hint }}>{message.length}자</div>
                 <button onClick={() => setMessage(DEFAULT_DELIVERY_BODY)}
-                  style={{ fontSize: 10, color: C.hint, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
+                  style={{ fontSize: 11, color: C.hint, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
                   기본 문구로 초기화
                 </button>
               </div>
@@ -519,9 +519,9 @@ function BrandMailTab() {
               <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden" }}>
                 {/* 헤더 */}
                 <div style={{ background: C.teal, padding: "20px 24px", textAlign: "center" }}>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>PHOTO CLINIC · 포토클리닉</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>PHOTO CLINIC · 포토클리닉</div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 3 }}>병원의 멋진 이야기 공유드립니다</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)" }}>{new Date().toLocaleDateString("ko-KR")}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)" }}>{new Date().toLocaleDateString("ko-KR")}</div>
                 </div>
                 {/* 본문 */}
                 <div style={{ padding: "20px 24px" }}>
@@ -536,8 +536,8 @@ function BrandMailTab() {
                   </div>
                   {(packageName || fileCount) && (
                     <div style={{ background: C.mint, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}>
-                      {packageName && <div style={{ fontSize: 10, marginBottom: 3 }}><span style={{ color: C.hint, marginRight: 8, fontWeight: 700 }}>폴더 구성</span><span style={{ fontWeight: 700, color: C.txt }}>{packageName}</span></div>}
-                      {fileCount && <div style={{ fontSize: 10 }}><span style={{ color: C.hint, marginRight: 8, fontWeight: 700 }}>전달 수량</span><span style={{ fontWeight: 800, color: C.orange }}>총 {fileCount}컷</span></div>}
+                      {packageName && <div style={{ fontSize: 11, marginBottom: 3 }}><span style={{ color: C.hint, marginRight: 8, fontWeight: 700 }}>폴더 구성</span><span style={{ fontWeight: 700, color: C.txt }}>{packageName}</span></div>}
+                      {fileCount && <div style={{ fontSize: 11 }}><span style={{ color: C.hint, marginRight: 8, fontWeight: 700 }}>전달 수량</span><span style={{ fontWeight: 800, color: C.orange }}>총 {fileCount}컷</span></div>}
                     </div>
                   )}
                   <div style={{ textAlign: "center", margin: "14px 0" }}>
@@ -548,10 +548,10 @@ function BrandMailTab() {
                     긴 시간 촬영, 끝까지 함께 잘 해주셔서 감사합니다.
                   </p>
                   <div style={{ textAlign: "center", margin: "14px 0" }}>
-                    <div style={{ fontSize: 9, color: C.hint, marginBottom: 7 }}>촬영 경험이 만족스러우셨다면 후기를 남겨주세요 🙏</div>
+                    <div style={{ fontSize: 11, color: C.hint, marginBottom: 7 }}>촬영 경험이 만족스러우셨다면 후기를 남겨주세요 🙏</div>
                     <div style={{ background: C.teal, color: "#fff", display: "inline-block", padding: "9px 22px", borderRadius: 8, fontSize: 11, fontWeight: 800 }}>리뷰 작성하기</div>
                   </div>
-                  <p style={{ fontSize: 10, color: C.hint, borderTop: `1px solid #EEF4F3`, paddingTop: 10, margin: "10px 0 0", lineHeight: 1.8 }}>
+                  <p style={{ fontSize: 11, color: C.hint, borderTop: `1px solid #EEF4F3`, paddingTop: 10, margin: "10px 0 0", lineHeight: 1.8 }}>
                     문의사항은 언제든지 연락 주세요. 감사합니다.<br/>포토클리닉 대표 정연호 드림.
                   </p>
                 </div>
@@ -559,7 +559,7 @@ function BrandMailTab() {
                 <div style={{ background: C.mint, padding: "16px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
                   <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 3 }}>사진으로 병원이야기를 전합니다, 포토클리닉</div>
-                  <div style={{ fontSize: 9, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
+                  <div style={{ fontSize: 11, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
                 </div>
               </div>
             </div>
@@ -724,11 +724,11 @@ function CustomBrandMailTab() {
             </div>
             <div style={{ padding: "18px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이름</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이름</label>
                 <input value={toName} onChange={e => setToName(e.target.value)} placeholder="원장님 / 담당자" style={iS} />
               </div>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
                 <div ref={dir.dropdownRef} style={{ position: "relative" }}>
                   <div style={{ display: "flex", gap: 6 }}>
                     <input type="email" value={toEmail}
@@ -745,7 +745,7 @@ function CustomBrandMailTab() {
                         <input value={dir.search} onChange={e => dir.setSearch(e.target.value)} placeholder="이름·이메일 검색..." style={{ ...iS, height: 34, padding: "6px 10px" }} />
                         {dir.session && (
                           <button type="button" onClick={dir.loadGmailHistory} disabled={dir.gmailHistoryState === "loading"}
-                            style={{ marginTop: 5, width: "100%", padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.border}`, background: C.mint, color: C.teal, fontSize: 10, fontWeight: 700, cursor: dir.gmailHistoryState === "loading" ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                            style={{ marginTop: 5, width: "100%", padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.border}`, background: C.mint, color: C.teal, fontSize: 11, fontWeight: 700, cursor: dir.gmailHistoryState === "loading" ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
                             {dir.gmailHistoryState === "loading" ? "📤 지메일 기록 검색 중..." : dir.gmailHistoryState === "done" ? "✓ 지메일 기록 반영됨" : "📤 지메일 보낸기록에서 더 찾기"}
                           </button>
                         )}
@@ -757,7 +757,7 @@ function CustomBrandMailTab() {
                           onMouseEnter={e => (e.currentTarget.style.background = C.mint)}
                           onMouseLeave={e => (e.currentTarget.style.background = "")}>
                           <span style={{ fontSize: 13, fontWeight: 700, color: C.txt, display: "flex", alignItems: "center", gap: 6 }}>
-                            <span title={CONTACT_SOURCE_BADGE[c.source]?.title} style={{ fontSize: 10 }}>{CONTACT_SOURCE_BADGE[c.source]?.icon}</span>
+                            <span title={CONTACT_SOURCE_BADGE[c.source]?.title} style={{ fontSize: 11 }}>{CONTACT_SOURCE_BADGE[c.source]?.icon}</span>
                             {c.name}
                           </span>
                           <span style={{ fontSize: 12, color: C.muted }}>{c.email}</span>
@@ -767,10 +767,10 @@ function CustomBrandMailTab() {
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 10, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
+                <div style={{ fontSize: 11, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
                   <span>🏥 등록된 고객 자동 연동{dir.session ? " · ✓ Google 연락처 연동됨" : ""}</span>
                   {!dir.session && (
-                    <button onClick={() => window.location.href = "/api/auth/google"} style={{ background: "none", border: "none", fontSize: 10, color: C.teal, fontWeight: 700, cursor: "pointer", padding: 0 }}>+ Google 연락처 연동</button>
+                    <button onClick={() => window.location.href = "/api/auth/google"} style={{ background: "none", border: "none", fontSize: 11, color: C.teal, fontWeight: 700, cursor: "pointer", padding: 0 }}>+ Google 연락처 연동</button>
                   )}
                 </div>
               </div>
@@ -797,7 +797,7 @@ function CustomBrandMailTab() {
               <textarea value={body} onChange={e => setBody(e.target.value)} rows={7}
                 placeholder={"안녕하세요.\n촬영 콘티를 전달드립니다.\n검토 후 피드백 부탁드립니다.\n\n감사합니다."}
                 style={{ ...iS, resize: "vertical", lineHeight: 1.8 }} />
-              <div style={{ fontSize: 10, color: C.hint, marginTop: 4, textAlign: "right" }}>{body.length}자</div>
+              <div style={{ fontSize: 11, color: C.hint, marginTop: 4, textAlign: "right" }}>{body.length}자</div>
             </div>
           </div>
 
@@ -811,11 +811,11 @@ function CustomBrandMailTab() {
               {links.map((link, i) => (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: 10, alignItems: "end" }}>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>버튼 텍스트</label>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>버튼 텍스트</label>
                     <input value={link.label} onChange={e => updateLink(i, "label", e.target.value)} placeholder="자료 확인하기" style={iS} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>링크 URL</label>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>링크 URL</label>
                     <input value={link.url} onChange={e => updateLink(i, "url", e.target.value)} placeholder="https://..." style={{ ...iS, fontSize: 12 }} />
                   </div>
                   <button
@@ -898,7 +898,7 @@ function CustomBrandMailTab() {
                       <span style={{ fontSize: 16 }}>📄</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: C.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.filename}</div>
-                        <div style={{ fontSize: 10, color: C.hint }}>{fmtSize(a.size)}</div>
+                        <div style={{ fontSize: 11, color: C.hint }}>{fmtSize(a.size)}</div>
                       </div>
                       <button onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
                         style={{ border: "none", background: "none", color: C.hint, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
@@ -943,9 +943,9 @@ function CustomBrandMailTab() {
             <div style={{ padding: 16, background: "#EDF5F3" }}>
               <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden" }}>
                 <div style={{ background: C.teal, padding: "20px 24px", textAlign: "center" }}>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>PHOTO CLINIC · 포토클리닉</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>PHOTO CLINIC · 포토클리닉</div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 3 }}>{subject || "메일 제목을 입력하세요"}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)" }}>{new Date().toLocaleDateString("ko-KR")}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)" }}>{new Date().toLocaleDateString("ko-KR")}</div>
                 </div>
                 <div style={{ padding: "20px 24px" }}>
                   <p style={{ fontSize: 13, fontWeight: 800, color: C.txt, margin: "0 0 4px" }}>안녕하세요. 병원이야기를 전하는 포토클리닉입니다.</p>
@@ -962,18 +962,18 @@ function CustomBrandMailTab() {
                   )}
                   {attachments.length > 0 && (
                     <div style={{ background: C.mint, borderRadius: 8, padding: "10px 14px", marginTop: 12 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.teal, marginBottom: 6 }}>📎 첨부파일 {attachments.length}개</div>
-                      {attachments.map((a, i) => <div key={i} style={{ fontSize: 10, color: C.muted }}>{a.filename} ({fmtSize(a.size)})</div>)}
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 6 }}>📎 첨부파일 {attachments.length}개</div>
+                      {attachments.map((a, i) => <div key={i} style={{ fontSize: 11, color: C.muted }}>{a.filename} ({fmtSize(a.size)})</div>)}
                     </div>
                   )}
-                  <p style={{ fontSize: 10, color: C.hint, borderTop: `1px solid #EEF4F3`, paddingTop: 10, margin: "14px 0 0", lineHeight: 1.8 }}>
+                  <p style={{ fontSize: 11, color: C.hint, borderTop: `1px solid #EEF4F3`, paddingTop: 10, margin: "14px 0 0", lineHeight: 1.8 }}>
                     문의사항은 언제든지 연락 주세요. 감사합니다.<br/>포토클리닉 대표 정연호 드림.
                   </p>
                 </div>
                 <div style={{ background: C.mint, padding: "16px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
                   <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 3 }}>사진으로 병원이야기를 전합니다, 포토클리닉</div>
-                  <div style={{ fontSize: 9, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
+                  <div style={{ fontSize: 11, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
                 </div>
               </div>
             </div>
@@ -1092,16 +1092,16 @@ function ReviewOnlyMailTab() {
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>고객 *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>고객 *</label>
                   <input value={hospitalName} onChange={e => setHospitalName(e.target.value)} placeholder="고객사명" style={iS} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>촬영일</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>촬영일</label>
                   <input type="date" value={shootDate} onChange={e => setShootDate(e.target.value)} style={iS} />
                 </div>
               </div>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>메일 제목 *</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>메일 제목 *</label>
                 <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="[포토클리닉] 촬영 후기 부탁드립니다" style={iS} />
               </div>
             </div>
@@ -1114,11 +1114,11 @@ function ReviewOnlyMailTab() {
             <div style={{ padding: "18px 20px" }}>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
                   <input value={toName} onChange={e => setToName(e.target.value)} placeholder="정연호 실장님" style={iS} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
                   <div style={{ position: "relative" }} ref={dir.dropdownRef}>
                     <div style={{ display: "flex", gap: 6 }}>
                       <input type="email" value={toEmail}
@@ -1157,10 +1157,10 @@ function ReviewOnlyMailTab() {
                       </div>
                     )}
                   </div>
-                  <div style={{ fontSize: 10, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
+                  <div style={{ fontSize: 11, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
                     <span>🏥 등록된 고객 자동 연동{dir.session ? " · ✓ Google 연락처 연동됨" : ""}</span>
                     {!dir.session && (
-                      <button onClick={() => window.location.href = "/api/auth/google"} style={{ background: "none", border: "none", fontSize: 10, color: C.teal, fontWeight: 700, cursor: "pointer", padding: 0 }}>+ Google 연락처 연동</button>
+                      <button onClick={() => window.location.href = "/api/auth/google"} style={{ background: "none", border: "none", fontSize: 11, color: C.teal, fontWeight: 700, cursor: "pointer", padding: 0 }}>+ Google 연락처 연동</button>
                     )}
                   </div>
                 </div>
@@ -1187,9 +1187,9 @@ function ReviewOnlyMailTab() {
               <textarea value={message} onChange={e => setMessage(e.target.value)} rows={6}
                 style={{ ...iS, resize: "vertical", lineHeight: 1.8 }} />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
-                <div style={{ fontSize: 10, color: C.hint }}>{message.length}자</div>
+                <div style={{ fontSize: 11, color: C.hint }}>{message.length}자</div>
                 <button onClick={() => setMessage(DEFAULT_REVIEW_BODY)}
-                  style={{ fontSize: 10, color: C.hint, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
+                  style={{ fontSize: 11, color: C.hint, background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>
                   기본 문구로 초기화
                 </button>
               </div>
@@ -1229,9 +1229,9 @@ function ReviewOnlyMailTab() {
             <div style={{ padding: 16, background: "#EDF5F3" }}>
               <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden" }}>
                 <div style={{ background: C.teal, padding: "20px 24px", textAlign: "center" }}>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>PHOTO CLINIC · 포토클리닉</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.5)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>PHOTO CLINIC · 포토클리닉</div>
                   <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 3 }}>{subject || "촬영 후기 부탁드립니다"}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)" }}>{new Date().toLocaleDateString("ko-KR")}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)" }}>{new Date().toLocaleDateString("ko-KR")}</div>
                 </div>
                 <div style={{ padding: "20px 24px" }}>
                   <p style={{ fontSize: 13, fontWeight: 800, color: C.txt, margin: "0 0 4px" }}>안녕하세요. 병원이야기를 전하는 포토클리닉입니다.</p>
@@ -1243,20 +1243,20 @@ function ReviewOnlyMailTab() {
                   </div>
                   {shootDate && (
                     <div style={{ background: C.mint, borderRadius: 8, padding: "10px 14px", marginBottom: 12 }}>
-                      <div style={{ fontSize: 10 }}><span style={{ color: C.hint, marginRight: 8, fontWeight: 700 }}>촬영일</span><span style={{ fontWeight: 700, color: C.txt }}>{shootDate}</span></div>
+                      <div style={{ fontSize: 11 }}><span style={{ color: C.hint, marginRight: 8, fontWeight: 700 }}>촬영일</span><span style={{ fontWeight: 700, color: C.txt }}>{shootDate}</span></div>
                     </div>
                   )}
                   <div style={{ textAlign: "center", margin: "18px 0 20px" }}>
                     <div style={{ background: C.teal, color: "#fff", display: "inline-block", padding: "10px 24px", borderRadius: 8, fontSize: 12, fontWeight: 800 }}>리뷰 작성하기</div>
                   </div>
-                  <p style={{ fontSize: 10, color: C.hint, borderTop: `1px solid #EEF4F3`, paddingTop: 10, margin: "14px 0 0", lineHeight: 1.8 }}>
+                  <p style={{ fontSize: 11, color: C.hint, borderTop: `1px solid #EEF4F3`, paddingTop: 10, margin: "14px 0 0", lineHeight: 1.8 }}>
                     문의사항은 언제든지 연락 주세요. 감사합니다.<br/>포토클리닉 대표 정연호 드림.
                   </p>
                 </div>
                 <div style={{ background: C.mint, padding: "16px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
                   <img src="https://photoclinic-diangnoisis.vercel.app/logo.svg" alt="포토클리닉" style={{ height: 24, display: "block", margin: "0 auto 6px" }} />
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 3 }}>사진으로 병원이야기를 전합니다, 포토클리닉</div>
-                  <div style={{ fontSize: 9, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
+                  <div style={{ fontSize: 11, color: C.hint }}>PHOTO CLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
                 </div>
               </div>
             </div>
@@ -1360,7 +1360,7 @@ function SelectGalleryMailTab() {
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: C.txt, flex: 1 }}>{g.hospital_name ?? g.title}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, background: statusColor, color: "#fff", borderRadius: 99, padding: "2px 8px" }}>{statusLabel}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, background: statusColor, color: "#fff", borderRadius: 99, padding: "2px 8px" }}>{statusLabel}</span>
                       </div>
                       <div style={{ display: "flex", gap: 12, fontSize: 11, color: C.muted }}>
                         <span>{g.shooting_name ?? "–"}</span>
@@ -1403,11 +1403,11 @@ function SelectGalleryMailTab() {
                 )}
 
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>담당자명</label>
                   <input value={toName} onChange={e => setToName(e.target.value)} placeholder="원장님 / 담당자" style={iS} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이메일 *</label>
                   <input type="email" value={toEmail} onChange={e => setToEmail(e.target.value)} placeholder="example@hospital.com" style={iS} />
                 </div>
 

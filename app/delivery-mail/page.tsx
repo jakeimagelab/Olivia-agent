@@ -128,14 +128,14 @@ export default function DeliveryMailPage() {
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
                     고객 *
                   </label>
                   <input value={hospitalName} onChange={e => setHospitalName(e.target.value)}
                     placeholder="고객사명" style={iS}/>
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
                     촬영일
                   </label>
                   <input type="date" value={shootDate} onChange={e => setShootDate(e.target.value)} style={iS}/>
@@ -143,14 +143,14 @@ export default function DeliveryMailPage() {
               </div>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
                     촬영 내용
                   </label>
                   <input value={packageName} onChange={e => setPackageName(e.target.value)}
                     placeholder="Premium 촬영 내용" style={iS}/>
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
                     전달 수량 (장)
                   </label>
                   <input type="number" value={fileCount} onChange={e => setFileCount(e.target.value)}
@@ -168,14 +168,14 @@ export default function DeliveryMailPage() {
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
                     담당자명
                   </label>
                   <input value={toName} onChange={e => setToName(e.target.value)}
                     placeholder="정연호 실장님" style={iS}/>
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>
                     이메일 *
                   </label>
                   <div style={{ position: "relative" }} ref={dropdownRef}>
@@ -192,7 +192,7 @@ export default function DeliveryMailPage() {
                       ) : (
                         <button onClick={() => window.location.href = "/api/auth/google"}
                           style={{ height: 38, padding: "0 10px", background: "#fff", border: `1px solid ${C.border}`,
-                                   borderRadius: 8, fontSize: 10, cursor: "pointer", fontFamily: "inherit",
+                                   borderRadius: 8, fontSize: 11, cursor: "pointer", fontFamily: "inherit",
                                    color: C.muted, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" }}>
                           G 연락처
                         </button>
@@ -224,9 +224,9 @@ export default function DeliveryMailPage() {
                     )}
                   </div>
                   {session ? (
-                    <div style={{ fontSize: 10, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ fontSize: 11, color: C.hint, marginTop: 4, display: "flex", justifyContent: "space-between" }}>
                       <span>✓ Google 연락처 {contactsLoaded ? `${contacts.length}명` : "연동됨"}</span>
-                      <button onClick={() => window.location.href = "/api/auth/signout"} style={{ background: "none", border: "none", fontSize: 10, color: C.hint, cursor: "pointer", padding: 0 }}>연동 해제</button>
+                      <button onClick={() => window.location.href = "/api/auth/signout"} style={{ background: "none", border: "none", fontSize: 11, color: C.hint, cursor: "pointer", padding: 0 }}>연동 해제</button>
                     </div>
                   ) : null}
                 </div>
@@ -266,7 +266,7 @@ export default function DeliveryMailPage() {
               <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3}
                 placeholder={`${hospitalName || "○○기업"} 촬영 파일 전송을 안내드립니다.\n아래 링크에서 사진을 다운로드해 주세요.`}
                 style={{ ...iS, resize: "vertical", lineHeight: 1.7 }}/>
-              <div style={{ fontSize: 10, color: C.hint, marginTop: 5 }}>
+              <div style={{ fontSize: 11, color: C.hint, marginTop: 5 }}>
                 입력하지 않으면 기본 문구로 발송됩니다
               </div>
             </div>
@@ -327,9 +327,9 @@ export default function DeliveryMailPage() {
               <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,.08)" }}>
                 {/* 헤더 */}
                 <div style={{ background: C.teal, padding: "20px 24px", textAlign: "center" }}>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,.55)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>PHOTO CLINIC</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.55)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 4 }}>PHOTO CLINIC</div>
                   <div style={{ fontSize: 17, fontWeight: 700, color: "#fff", marginBottom: 3 }}>촬영 파일 전송 안내</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)" }}>{new Date().toLocaleDateString("ko-KR")}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)" }}>{new Date().toLocaleDateString("ko-KR")}</div>
                 </div>
                 {/* 내용 */}
                 <div style={{ padding: "20px 24px" }}>
@@ -341,7 +341,7 @@ export default function DeliveryMailPage() {
                   </p>
                   {/* 사진 전달 */}
                   <div style={{ background: C.mint, borderRadius: 9, padding: "13px 16px", marginBottom: 14 }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: C.teal, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 9 }}>사진 전달</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 9 }}>사진 전달</div>
                     {hospitalName && <div style={{ display: "flex", gap: 8, fontSize: 11, marginBottom: 4 }}><span style={{ color: C.hint, minWidth: 60 }}>고객</span><span style={{ fontWeight: 600 }}>{hospitalName}</span></div>}
                     {shootDate && <div style={{ display: "flex", gap: 8, fontSize: 11, marginBottom: 4 }}><span style={{ color: C.hint, minWidth: 60 }}>촬영일</span><span style={{ fontWeight: 600 }}>{shootDate}</span></div>}
                     {packageName && <div style={{ display: "flex", gap: 8, fontSize: 11, marginBottom: 4 }}><span style={{ color: C.hint, minWidth: 60 }}>촬영 내용</span><span style={{ fontWeight: 600 }}>{packageName}</span></div>}
@@ -349,21 +349,21 @@ export default function DeliveryMailPage() {
                   </div>
                   {/* 다운로드 버튼 */}
                   <div style={{ background: "#F8FAFA", border: `2px dashed ${C.border}`, borderRadius: 9, padding: "16px", textAlign: "center", marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, color: C.hint, marginBottom: 8 }}>아래 버튼을 클릭하여 사진을 다운로드하세요</div>
+                    <div style={{ fontSize: 11, color: C.hint, marginBottom: 8 }}>아래 버튼을 클릭하여 사진을 다운로드하세요</div>
                     <div style={{ background: C.orange, color: "#fff", display: "inline-block",
                                    padding: "9px 24px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                       📁 사진 다운로드
                     </div>
                     {nasLink && (
-                      <div style={{ fontSize: 9, color: C.hint, marginTop: 7, wordBreak: "break-all" }}>
+                      <div style={{ fontSize: 11, color: C.hint, marginTop: 7, wordBreak: "break-all" }}>
                         {nasLink.length > 50 ? nasLink.slice(0, 50) + "..." : nasLink}
                       </div>
                     )}
                   </div>
                   {/* 안내사항 */}
                   <div style={{ background: "#FFF8F5", borderLeft: `3px solid ${C.orange}`, padding: "10px 12px", borderRadius: "0 6px 6px 0" }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: C.orange, marginBottom: 4 }}>📌 이용 안내</div>
-                    <div style={{ fontSize: 9, color: C.muted, lineHeight: 1.8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.orange, marginBottom: 4 }}>📌 이용 안내</div>
+                    <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.8 }}>
                       · 링크 유효기간: 수신 후 30일 이내 다운로드 권장<br/>
                       · 파일 형식: JPG (고해상도)<br/>
                       · 문의사항은 언제든지 연락 주세요
@@ -372,7 +372,7 @@ export default function DeliveryMailPage() {
                 </div>
                 {/* 푸터 */}
                 <div style={{ background: C.mint, padding: "12px 20px", textAlign: "center", borderTop: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 9, color: C.hint, lineHeight: 1.8 }}>
+                  <div style={{ fontSize: 11, color: C.hint, lineHeight: 1.8 }}>
                     PHOTO CLINIC · 제이크이미지연구소 · @photoclinic_kr
                   </div>
                 </div>

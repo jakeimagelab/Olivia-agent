@@ -301,13 +301,13 @@ function PatternBlogWriter() {
               {profiles.map(p => (
                 <div key={p.id} onClick={() => setSelected(p)}
                   style={{ background:C.white, borderRadius:14, padding:18, border:`2px solid ${selected.id === p.id ? C.teal : C.border}`, cursor:"pointer", transition:"all 150ms", position:"relative" }}>
-                  {!p.isDefault && <span style={{ position:"absolute", top:12, right:12, background:C.orange, color:"#fff", fontSize:9, fontWeight:800, padding:"2px 7px", borderRadius:99 }}>커스텀</span>}
+                  {!p.isDefault && <span style={{ position:"absolute", top:12, right:12, background:C.orange, color:"#fff", fontSize:11, fontWeight:800, padding:"2px 7px", borderRadius:99 }}>커스텀</span>}
                   {selected.id === p.id && <span style={{ position:"absolute", top:12, right:p.isDefault ? 12 : 60, fontSize:14 }}>✓</span>}
                   <div style={{ fontSize:14, fontWeight:900, color:C.teal, marginBottom:4 }}>{p.name}</div>
                   <div style={{ fontSize:11, color:C.muted, marginBottom:10, lineHeight:1.5 }}>{p.description}</div>
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                    <span style={{ background:C.light, color:C.teal, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99 }}>{p.tone}</span>
-                    {!p.isDefault && p.sourceCount > 0 && <span style={{ background:"#FFF0EB", color:C.orange, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99 }}>소스 {p.sourceCount}개</span>}
+                    <span style={{ background:C.light, color:C.teal, fontSize:11, fontWeight:700, padding:"3px 8px", borderRadius:99 }}>{p.tone}</span>
+                    {!p.isDefault && p.sourceCount > 0 && <span style={{ background:"#FFF0EB", color:C.orange, fontSize:11, fontWeight:700, padding:"3px 8px", borderRadius:99 }}>소스 {p.sourceCount}개</span>}
                   </div>
                   <button onClick={e => { e.stopPropagation(); setViewProfile(viewProfile?.id === p.id ? null : p); }}
                     style={{ marginTop:10, width:"100%", padding:"6px 0", border:`1px solid ${C.border}`, borderRadius:8, background:"transparent", color:C.muted, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
@@ -394,7 +394,7 @@ function PatternBlogWriter() {
                   <button key={t.id} onClick={() => setForm(p=>({...p,blogType:t.label}))}
                     style={{ padding:"10px 8px", borderRadius:10, fontFamily:"inherit", border:`2px solid ${form.blogType === t.label ? C.teal : C.border}`, background: form.blogType === t.label ? C.light : C.white, cursor:"pointer", textAlign:"center" }}>
                     <div style={{ fontSize:12, fontWeight:900, color: form.blogType === t.label ? C.teal : "#374141", marginBottom:2 }}>{t.label}</div>
-                    <div style={{ fontSize:10, color:C.muted }}>{t.desc}</div>
+                    <div style={{ fontSize:11, color:C.muted }}>{t.desc}</div>
                   </button>
                 ))}
               </div>
@@ -823,7 +823,7 @@ function InstagramContentTab() {
               {saved.map((item) => (
                 <div key={item.id} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 10, background: "#FAFAFA" }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: "#374141" }}>{item.topic}</div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{item.hospitalName} · {item.format}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{item.hospitalName} · {item.format}</div>
                   <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                     <button onClick={() => loadDraft(item)} style={{ flex: 1, height: 28, border: `1px solid ${C.border}`, borderRadius: 7, background: C.white, color: C.teal, fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>불러오기</button>
                     <button onClick={() => deleteDraft(item.id)} style={{ width: 48, height: 28, border: "none", borderRadius: 7, background: "#FFF0F0", color: "#DC2626", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>삭제</button>
@@ -1499,7 +1499,7 @@ export default function SnsManagerPage() {
             style={{ cursor: status === "active" ? "pointer" : "default", color: status === "coming" ? "#C4C4C4" : undefined }}>
             <Icon size={13} />
             {label}
-            {status === "coming" && <span style={{ background: "#F3F4F6", color: "#9CA3AF", fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 99, marginLeft: 2 }}>준비중</span>}
+            {status === "coming" && <span style={{ background: "#F3F4F6", color: "#9CA3AF", fontSize: 11, fontWeight: 700, padding: "2px 5px", borderRadius: 99, marginLeft: 2 }}>준비중</span>}
           </button>
         ))}
       </div>

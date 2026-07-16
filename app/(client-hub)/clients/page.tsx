@@ -209,14 +209,14 @@ function ListView() {
                       <div style={{ fontSize: 15, fontWeight: 900, color: C.teal, marginBottom: 3 }}>{c.name}</div>
                       {c.department && <div style={{ fontSize: 11, color: C.muted }}>{c.department}</div>}
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 99, background: `${sc}18`, color: sc, border: `1px solid ${sc}30`, whiteSpace: "nowrap", marginLeft: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 99, background: `${sc}18`, color: sc, border: `1px solid ${sc}30`, whiteSpace: "nowrap", marginLeft: 8 }}>
                       {stepName ?? "미시작"}
                     </span>
                   </div>
                   {c.director_name && <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>원장: {c.director_name}</div>}
                   {c.next_action?.label && (
                     <div style={{ marginTop: 8, padding: "8px 10px", background: C.light, borderRadius: 8 }}>
-                      <div style={{ fontSize: 10, color: C.hint, fontWeight: 900, marginBottom: 2 }}>다음 액션</div>
+                      <div style={{ fontSize: 11, color: C.hint, fontWeight: 900, marginBottom: 2 }}>다음 액션</div>
                       <div style={{ fontSize: 12, color: C.teal, fontWeight: 800, lineHeight: 1.45 }}>{c.next_action.label}</div>
                     </div>
                   )}
@@ -318,7 +318,7 @@ function KanbanBoard({ clients, onRefresh, router }: { clients: any[]; onRefresh
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: phase.color, flexShrink: 0 }}/>
                 <span style={{ fontSize: 12, fontWeight: 900, color: C.txt, flex: 1 }}>{phase.label}</span>
-                <span style={{ fontSize: 10, fontWeight: 800, color: phase.color, background: `${phase.color}18`, borderRadius: 99, padding: "1px 8px" }}>{cards.length}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: phase.color, background: `${phase.color}18`, borderRadius: 99, padding: "1px 8px" }}>{cards.length}</span>
               </div>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "0 8px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -343,14 +343,14 @@ function KanbanBoard({ clients, onRefresh, router }: { clients: any[]; onRefresh
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 3px 10px rgba(21,88,85,.14)"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 4px rgba(21,88,85,.06)"; }}>
                     <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 2 }}>{c.name}</div>
-                    {c.department && <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>{c.department}</div>}
+                    {c.department && <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>{c.department}</div>}
                     {stepName && (
-                      <div style={{ fontSize: 9, fontWeight: 700, color: phase.color, background: `${phase.color}12`, display: "inline-block", borderRadius: 6, padding: "2px 6px", marginBottom: c.next_action?.label ? 6 : 0 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: phase.color, background: `${phase.color}12`, display: "inline-block", borderRadius: 6, padding: "2px 6px", marginBottom: c.next_action?.label ? 6 : 0 }}>
                         {stepName}
                       </div>
                     )}
                     {c.next_action?.label && (
-                      <div style={{ fontSize: 10.5, color: C.txt, lineHeight: 1.4, borderTop: `1px solid ${C.border}`, paddingTop: 6 }}>
+                      <div style={{ fontSize: 11, color: C.txt, lineHeight: 1.4, borderTop: `1px solid ${C.border}`, paddingTop: 6 }}>
                         {c.next_action.label}
                       </div>
                     )}
@@ -417,7 +417,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
             {client.specialty && <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>{client.specialty}</div>}
           </div>
           <div style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 10, padding: "6px 14px", textAlign: "center", flexShrink: 0 }}>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,.6)", letterSpacing: ".08em" }}>진행</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)", letterSpacing: ".08em" }}>진행</div>
             <div style={{ fontSize: 15, fontWeight: 900 }}>{currentIdx}/{WORKFLOW_STEPS.length}</div>
           </div>
         </div>
@@ -467,7 +467,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
                   <span style={{ fontSize: 12, fontWeight: isCurrent ? 900 : isDone ? 600 : 500, color: isCurrent ? C.teal : isDone ? C.muted : C.txt, flex: 1 }}>
                     {STEP_NAME[step.key] || step.key}
                   </span>
-                  {isCurrent && <span style={{ fontSize: 8, fontWeight: 900, color: C.orange, background: `${C.orange}15`, borderRadius: 99, padding: "2px 6px" }}>NOW</span>}
+                  {isCurrent && <span style={{ fontSize: 11, fontWeight: 900, color: C.orange, background: `${C.orange}15`, borderRadius: 99, padding: "2px 6px" }}>NOW</span>}
                 </button>
               );
             })}
@@ -499,13 +499,13 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
                 <div style={{ padding: "4px 0" }}>
                   {mailingQueue.map((m: any) => (
                     <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 18px", borderBottom: `1px solid ${C.border}` }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: `${MAIL_COLOR[m.status] || C.hint}18`, color: MAIL_COLOR[m.status] || C.hint }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: `${MAIL_COLOR[m.status] || C.hint}18`, color: MAIL_COLOR[m.status] || C.hint }}>
                         {m.status === "draft" ? "초안" : m.status === "ready" ? "대기" : m.status === "sent" ? "발송" : m.status}
                       </span>
                       <span style={{ flex: 1, fontSize: 12, color: C.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {MAIL_LABELS[m.type] || m.type}{m.subject ? ` — ${m.subject}` : ""}
                       </span>
-                      <span style={{ fontSize: 10, color: C.hint }}>
+                      <span style={{ fontSize: 11, color: C.hint }}>
                         {m.created_at ? new Date(m.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" }) : ""}
                       </span>
                     </div>
@@ -743,7 +743,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
             </div>
           </div>
           <span style={{
-            fontSize: 10, fontWeight: 800, padding: "4px 12px", borderRadius: 99, flexShrink: 0,
+            fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 99, flexShrink: 0,
             background: isCurrent ? "rgba(255,255,255,.2)" : isDone ? "rgba(34,135,106,.12)" : C.light,
             color: isCurrent ? "#fff" : isDone ? C.green : C.muted,
             border: isCurrent ? "1px solid rgba(255,255,255,.3)" : "none",
@@ -838,7 +838,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
                   ["주요 시술", client.main_treatments], ["특이사항", client.special_notes],
                 ].filter(([, v]) => v).map(([label, value]) => (
                   <div key={label as string}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 2 }}>{label}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 2 }}>{label}</div>
                     <div style={{ fontSize: 12, color: C.txt, fontWeight: 600 }}>{value}</div>
                   </div>
                 ))}

@@ -1994,7 +1994,7 @@ ${header("타임테이블")}
                   <div style={{ fontSize: 11, fontWeight: 700 }}>
                     {autoSaveState === "saving" ? "저장 중..." : autoSaveState === "saved" ? "자동 저장됨" : autoSaveState === "error" ? "저장 실패" : "자동 저장 대기"}
                   </div>
-                  <div style={{ fontSize: 10, color: "#9BB5B0", marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: "#9BB5B0", marginTop: 2 }}>
                     ⌘S · ⌘Z · ⇧⌘Z
                   </div>
                 </div>
@@ -2235,8 +2235,8 @@ ${header("타임테이블")}
                               {sceneImages[String(idx)] ? (
                                 <div style={{ position: "relative" }}>
                                   <img src={sceneImages[String(idx)]} alt={`씬${idx+1}`} style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
-                                  <div style={{ position: "absolute", top: 6, left: 6, background: "#E85D2C", color: "#fff", fontSize: 9, fontWeight: 900, padding: "2px 7px", borderRadius: 4 }}>씬 {idx+1}</div>
-                                  <div style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,.5)", color: "#fff", fontSize: 9, padding: "2px 7px", borderRadius: 4 }}>⏱ {row.duration}</div>
+                                  <div style={{ position: "absolute", top: 6, left: 6, background: "#E85D2C", color: "#fff", fontSize: 11, fontWeight: 900, padding: "2px 7px", borderRadius: 4 }}>씬 {idx+1}</div>
+                                  <div style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,.5)", color: "#fff", fontSize: 11, padding: "2px 7px", borderRadius: 4 }}>⏱ {row.duration}</div>
                                 </div>
                               ) : (
                                 <div style={{
@@ -2244,8 +2244,8 @@ ${header("타임테이블")}
                                   padding: "10px 12px",
                                   display: "flex", justifyContent: "space-between", alignItems: "center",
                                 }}>
-                                  <span style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.7)", letterSpacing: ".1em" }}>씬 {String(idx + 1).padStart(2, "0")}</span>
-                                  <span style={{ fontSize: 10, color: "rgba(255,255,255,.8)" }}>⏱ {row.duration}</span>
+                                  <span style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,.7)", letterSpacing: ".1em" }}>씬 {String(idx + 1).padStart(2, "0")}</span>
+                                  <span style={{ fontSize: 11, color: "rgba(255,255,255,.8)" }}>⏱ {row.duration}</span>
                                 </div>
                               )}
                               {/* 씬 내용 */}
@@ -2257,9 +2257,9 @@ ${header("타임테이블")}
                                   {row.description?.slice(0, 60)}{(row.description?.length || 0) > 60 ? "..." : ""}
                                 </div>
                                 <div style={{ borderTop: "1px solid #f0f0f0", paddingTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
-                                  <div style={{ fontSize: 10, color: "#6b7280" }}>📍 {row.location}</div>
-                                  <div style={{ fontSize: 10, color: "#6b7280" }}>👥 {row.personnel?.slice(0, 40)}{(row.personnel?.length || 0) > 40 ? "..." : ""}</div>
-                                  {row.cameraAngle && <div style={{ fontSize: 10, color: "#6b7280" }}>📷 {row.cameraAngle?.slice(0, 30)}</div>}
+                                  <div style={{ fontSize: 11, color: "#6b7280" }}>📍 {row.location}</div>
+                                  <div style={{ fontSize: 11, color: "#6b7280" }}>👥 {row.personnel?.slice(0, 40)}{(row.personnel?.length || 0) > 40 ? "..." : ""}</div>
+                                  {row.cameraAngle && <div style={{ fontSize: 11, color: "#6b7280" }}>📷 {row.cameraAngle?.slice(0, 30)}</div>}
                                 </div>
                               </div>
                             </div>
@@ -2756,15 +2756,15 @@ ${header("타임테이블")}
                               </p>
                               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 2 }}>
                                 <div style={{ background: "#EDF5F3", borderRadius: 9, padding: "8px 12px" }}>
-                                  <div style={{ color: "#7A9E9B", fontSize: 10, fontWeight: 700, marginBottom: 3 }}>📍 장소</div>
+                                  <div style={{ color: "#7A9E9B", fontSize: 11, fontWeight: 700, marginBottom: 3 }}>📍 장소</div>
                                   <div style={{ color: "#1C2B28", fontSize: 13, fontWeight: 700 }}>{row.location || "—"}</div>
                                 </div>
                                 <div style={{ background: "#EDF5F3", borderRadius: 9, padding: "8px 12px" }}>
-                                  <div style={{ color: "#7A9E9B", fontSize: 10, fontWeight: 700, marginBottom: 3 }}>📷 구도</div>
+                                  <div style={{ color: "#7A9E9B", fontSize: 11, fontWeight: 700, marginBottom: 3 }}>📷 구도</div>
                                   <div style={{ color: "#1C2B28", fontSize: 13, fontWeight: 700 }}>{row.cameraAngle || "—"}</div>
                                 </div>
                                 <div style={{ background: "#EDF5F3", borderRadius: 9, padding: "8px 12px", gridColumn: "1/-1" }}>
-                                  <div style={{ color: "#7A9E9B", fontSize: 10, fontWeight: 700, marginBottom: 3 }}>👥 필요인원</div>
+                                  <div style={{ color: "#7A9E9B", fontSize: 11, fontWeight: 700, marginBottom: 3 }}>👥 필요인원</div>
                                   <div style={{ color: "#1C2B28", fontSize: 13 }}>{row.personnel || "—"}</div>
                                 </div>
                               </div>
