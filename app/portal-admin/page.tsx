@@ -192,8 +192,8 @@ export default function PortalAdminPage() {
                     <div style={{ fontSize:11, color:C.muted }}>{r.clients?.name} · {r.request_type} · 우선순위: {r.priority}</div>
                   </div>
                   <div style={{ display:"flex", gap:6 }}>
-                    {r.status === "requested" && <button onClick={() => updateRevisionStatus(r.id,"in_progress")} style={{ padding:"5px 10px", border:"none", borderRadius:6, background:`${C.orange}15`, color:C.orange, fontWeight:700, fontSize:11, cursor:"pointer" }}>진행 시작</button>}
-                    {r.status === "in_progress" && <button onClick={() => updateRevisionStatus(r.id,"completed")} style={{ padding:"5px 10px", border:"none", borderRadius:6, background:`${C.green}15`, color:C.green, fontWeight:700, fontSize:11, cursor:"pointer" }}>완료 처리</button>}
+                    {r.status === "requested" && <button onClick={() => updateRevisionStatus(r.id,"in_progress")} className="pc-btn pc-btn--orange pc-btn--sm">진행 시작</button>}
+                    {r.status === "in_progress" && <button onClick={() => updateRevisionStatus(r.id,"completed")} className="pc-btn pc-btn--primary pc-btn--sm">완료 처리</button>}
                     <button onClick={() => { setReplyId(r.id); setReplyText(r.admin_reply ?? ""); }} className="pc-btn pc-btn--secondary pc-btn--sm">답변 작성</button>
                   </div>
                 </div>
