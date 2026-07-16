@@ -523,7 +523,7 @@ function RankCard({
   icon, title, items, emptyText,
 }: { icon: React.ReactNode; title: string; items: { label: string; value: string; valueColor?: string }[]; emptyText: string }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #C8DDD9", padding: "16px 18px", boxShadow: "0 2px 10px rgba(21,88,85,0.06)", minWidth: 0, overflow: "hidden" }}>
+    <div className="pc-card pc-card--padded" style={{ padding: "16px 18px", minWidth: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#7A9E9B", fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
         {icon} {title}
       </div>
