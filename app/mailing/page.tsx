@@ -500,7 +500,7 @@ function BrandMailTab() {
               <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: C.teal, marginBottom: 4 }}>메일 발송 완료!</div>
               <div style={{ fontSize: 12, color: C.muted }}>{toEmail} 로 파일 전송 메일이 발송됐어요</div>
-              <button onClick={resetForm} style={{ marginTop: 12, height: 36, padding: "0 20px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>새 메일 작성</button>
+              <button onClick={resetForm} className="pc-btn pc-btn--primary pc-btn--sm" style={{ marginTop: 12 }}>새 메일 작성</button>
             </div>
           ) : (
             <button onClick={handleSend} disabled={sending || !toEmail || !hospitalName || !nasLink}
@@ -921,7 +921,7 @@ function CustomBrandMailTab() {
               <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: C.teal, marginBottom: 4 }}>메일 발송 완료!</div>
               <div style={{ fontSize: 12, color: C.muted }}>{toEmail} 으로 브랜드 메일이 발송됐어요</div>
-              <button onClick={resetForm} style={{ marginTop: 12, height: 36, padding: "0 20px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>새 메일 작성</button>
+              <button onClick={resetForm} className="pc-btn pc-btn--primary pc-btn--sm" style={{ marginTop: 12 }}>새 메일 작성</button>
             </div>
           ) : (
             <div style={{ display: "flex", gap: 10 }}>
@@ -1210,7 +1210,7 @@ function ReviewOnlyMailTab() {
               <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: C.teal, marginBottom: 4 }}>후기 요청 메일 발송 완료!</div>
               <div style={{ fontSize: 12, color: C.muted }}>{toEmail} 로 후기 요청 메일이 발송됐어요</div>
-              <button onClick={resetForm} style={{ marginTop: 12, height: 36, padding: "0 20px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>새 메일 작성</button>
+              <button onClick={resetForm} className="pc-btn pc-btn--primary pc-btn--sm" style={{ marginTop: 12 }}>새 메일 작성</button>
             </div>
           ) : (
             <div style={{ display: "flex", gap: 10 }}>
