@@ -210,11 +210,7 @@ function ConsultationInner() {
                   </div>
                 )}
 
-                <button type="submit" disabled={saving || !form.name.trim()} style={{
-                  height: 48, background: saving || !form.name.trim() ? C.hint : C.teal,
-                  color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 900,
-                  cursor: saving || !form.name.trim() ? "not-allowed" : "pointer", fontFamily: "inherit",
-                }}>
+                <button type="submit" disabled={saving || !form.name.trim()} className="pc-btn pc-btn--primary pc-btn--lg">
                   {saving ? "저장 중..." : savedId ? "정보 업데이트" : "✓ 고객 등록 + 워크플로우 시작"}
                 </button>
               </div>
