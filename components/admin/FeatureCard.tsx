@@ -10,11 +10,12 @@ type FeatureCardProps = {
   icon: ReactNode;
   tags?: string[];
   status?: string;
+  orange?: boolean;
 };
 
-export function FeatureCard({ title, description, href, icon, tags = [], status }: FeatureCardProps) {
+export function FeatureCard({ title, description, href, icon, tags = [], status, orange = false }: FeatureCardProps) {
   return (
-    <Link className="oa-feature-card" href={href} aria-label={`${title} 열기`}>
+    <Link className={`oa-feature-card${orange ? " is-orange" : ""}`} href={href} aria-label={`${title} 열기`}>
       <div className="oa-feature-card__top">
         <span className="oa-feature-card__icon" aria-hidden="true">{icon}</span>
         {status && <StatusBadge tone="green">{status}</StatusBadge>}
