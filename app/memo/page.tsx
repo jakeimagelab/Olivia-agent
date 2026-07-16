@@ -18,8 +18,7 @@ import {
   type MemoTemplateType,
 } from "@/lib/memo/types";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
-
-const C = { teal: "#155855", orange: "#E85D2C", ink: "#1C2B28", muted: "#607873", hint: "#98AEA9", mist: "#EDF5F3", red: "#B42318" };
+import { C } from "@/lib/theme";
 
 const MODE_INFO: Record<MemoMode, { label: string; description: string }> = {
   general: { label: "일반메모", description: "키보드로 빠르게 작성하고 정리하는 기본 텍스트 메모입니다." },
