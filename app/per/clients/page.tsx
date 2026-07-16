@@ -56,7 +56,7 @@ export default function PerClientsPage() {
           </div>
         </div>
         <div className="pc-header-actions">
-          <button onClick={() => setAddModal(true)} style={{ display:"flex", alignItems:"center", gap:6, height:36, padding:"0 14px", border:"none", borderRadius:9, background:C.orange, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+          <button onClick={() => setAddModal(true)} className="pc-btn pc-btn--orange pc-btn--sm">
             <Plus size={13}/> 포인트 적립
           </button>
         </div>
