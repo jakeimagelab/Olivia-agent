@@ -687,8 +687,6 @@
   .oa-feature-card__description,
   .oa-feature-card__footer { display: none; }
   .pc-dash-brief { grid-template-columns: 1fr; gap: 9px; }
-  .oa-daily-brief { grid-template-columns: 1fr; }
-  .oa-daily-brief__schedule { border-top: 1px solid rgba(255,255,255,.12); border-left: 0; }
   .oa-daily-brief__checklist { max-height: 126px; }
   .oa-daily-quote { min-height: 134px; }
 }
