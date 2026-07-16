@@ -186,8 +186,8 @@ function QueueTab() {
         <input value={filterHosp} onChange={e => setFilterHosp(e.target.value)} placeholder="병원명 검색" style={{ ...iS, width: 160 }} />
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           {testResult && <span style={{ fontSize: 12, fontWeight: 700, color: testResult.startsWith("✅") ? "#22876A" : testResult.startsWith("❌") ? C.orange : C.muted }}>{testResult}</span>}
-          <button onClick={testInsert} style={{ ...btnSm, border: `1px solid ${C.orange}`, background: "#FFF5F0", color: C.orange }}>DB 테스트</button>
-          <button onClick={load} style={{ ...btnSm, border: `1px solid ${C.border}`, background: C.surface, color: C.teal }}>새로고침</button>
+          <button onClick={testInsert} className="pc-btn pc-btn--ghost pc-btn--sm">DB 테스트</button>
+          <button onClick={load} className="pc-btn pc-btn--secondary pc-btn--sm">새로고침</button>
           <span style={{ fontSize: 12, color: C.muted }}>총 {items.length}건</span>
         </div>
       </div>
