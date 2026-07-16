@@ -288,10 +288,7 @@ export default function DeliveryMailPage() {
               <div style={{ fontSize: 12, color: C.muted }}>
                 {toEmail} 로 파일 전송 메일이 발송됐어요
               </div>
-              <button onClick={resetForm}
-                style={{ marginTop: 12, height: 36, padding: "0 20px", background: C.teal,
-                         color: "#fff", border: "none", borderRadius: 8, fontSize: 12,
-                         fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              <button onClick={resetForm} className="pc-btn pc-btn--primary pc-btn--sm" style={{ marginTop: 12 }}>
                 새 메일 작성
               </button>
             </div>
@@ -300,11 +297,7 @@ export default function DeliveryMailPage() {
           {/* 발송 버튼 */}
           {result !== "success" && (
             <button onClick={handleSend} disabled={sending || !toEmail || !hospitalName || !nasLink}
-              style={{ width: "100%", height: 50, background: sending ? C.hint : C.orange,
-                       color: "#fff", border: "none", borderRadius: 12, fontSize: 15,
-                       fontWeight: 700, cursor: sending || !toEmail || !hospitalName || !nasLink ? "not-allowed" : "pointer",
-                       fontFamily: "inherit", display: "flex", alignItems: "center",
-                       justifyContent: "center", gap: 8 }}>
+              className="pc-btn pc-btn--orange pc-btn--lg" style={{ width: "100%" }}>
               {sending ? "발송 중..." : `📨 ${hospitalName || "고객"}에 사진 전달 메일 발송`}
             </button>
           )}
