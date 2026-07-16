@@ -3590,6 +3590,62 @@ main:has(> .pc-header) {
   display: none;
 }
 
+/* 위쪽(1355행 근처)에도 같은 이름의 모바일 @media 블록이 있지만, 이 파일 뒤쪽에 있는
+   .pc-header-left{display:contents} 같은 무조건 규칙과 우선순위(같은 specificity라 순서로
+   판정)가 겹쳐서 실제로는 무시되고 있었다 — 모바일에서 헤더 로고와 액션(뒤로가기/스텝뱃지 등)이
+   한 줄에 눌려서 서로 겹치는 버그의 원인. 같은 규칙을 여기(무조건 .pc-header* 선언들 뒤)에
+   다시 선언해서 실제로 적용되게 한다. */
+@media (max-width: 720px) {
+  .pc-header {
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .pc-header-left,
+  .pc-header-actions {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    grid-column: auto;
+    grid-row: auto;
+    justify-self: auto;
+    justify-content: flex-start;
+    overflow-x: visible;
+  }
+  .pc-header-actions {
+    justify-content: flex-start;
+  }
+  .pc-header-divider {
+    display: none;
+  }
+  .pc-header-brand {
+    justify-self: start;
+  }
+  .pc-header-title {
+    max-width: calc(100vw - 112px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+  .pc-header-logo {
+    height: 24px;
+    max-width: 112px;
+    object-fit: contain;
+  }
+  .pc-header-back {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+}
+
 
 /* ── 공통 탭 바 (underline 스타일) ─────────────────────── */
 .pc-tabs {
