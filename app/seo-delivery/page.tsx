@@ -467,13 +467,13 @@ function SeoDeliveryInner() {
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setSelectedIdx((p) => Math.max(0, (p ?? 0) - 1))}
                   disabled={!selectedIdx}
-                  style={{ ...btnSecondary, flex: 1, opacity: selectedIdx === 0 ? 0.4 : 1 }}>← 이전</button>
+                  className="pc-btn pc-btn--secondary pc-btn--sm" style={{ flex: 1 }}>← 이전</button>
                 <span style={{ fontSize: 12, color: C.muted, display: "flex", alignItems: "center", minWidth: 60, justifyContent: "center" }}>
                   {(selectedIdx ?? 0) + 1} / {results.length}
                 </span>
                 <button onClick={() => setSelectedIdx((p) => Math.min(results.length - 1, (p ?? 0) + 1))}
                   disabled={selectedIdx === results.length - 1}
-                  style={{ ...btnSecondary, flex: 1, opacity: selectedIdx === results.length - 1 ? 0.4 : 1 }}>다음 →</button>
+                  className="pc-btn pc-btn--secondary pc-btn--sm" style={{ flex: 1 }}>다음 →</button>
               </div>
             </div>
           )}
