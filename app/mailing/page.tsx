@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { useContactDirectory } from "@/lib/hooks/useContactDirectory";
-
-// ── 공통 색상 ──────────────────────────────────────────────
-const C = {
-  teal: "#155855", orange: "#E85D2C",
-  bg: "#EDF5F3", surface: "#FFFFFF", border: "#C8DDD9",
-  muted: "#5A7470", hint: "#9BB5B0", txt: "#1C2B28", mint: "#EAF4F2",
-};
+import { C } from "@/lib/theme";
 
 const iS: React.CSSProperties = {
   width: "100%", border: `1px solid ${C.border}`, borderRadius: 9,
