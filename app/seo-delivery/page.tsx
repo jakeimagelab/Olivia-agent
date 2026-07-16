@@ -276,7 +276,7 @@ function SeoDeliveryInner() {
                   <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>이미지 목록 ({images.length}장)</div>
                   <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>파일명과 장면 정보를 입력하세요</div>
                 </div>
-                <button onClick={addImage} style={btnSecondary}>+ 추가</button>
+                <button onClick={addImage} className="pc-btn pc-btn--secondary pc-btn--sm">+ 추가</button>
               </div>
 
               {/* 일괄 입력 */}
