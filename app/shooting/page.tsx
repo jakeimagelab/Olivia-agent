@@ -158,11 +158,7 @@ function ShootingInner() {
                 )}
               </div>
             ) : (
-              <button onClick={completeShooting} disabled={advancing || !workflowRun} style={{
-                height: 54, background: advancing || !workflowRun ? C.hint : C.orange,
-                color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 900,
-                cursor: advancing || !workflowRun ? "not-allowed" : "pointer", fontFamily: "inherit",
-              }}>
+              <button onClick={completeShooting} disabled={advancing || !workflowRun} className="pc-btn pc-btn--orange pc-btn--lg">
                 {advancing ? "처리 중..." : !workflowRun ? "워크플로우 없음 (client_id 필요)" : "✓ 촬영 완료 → 6단계(백업)로 전환"}
               </button>
             )}
