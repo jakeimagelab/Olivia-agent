@@ -241,7 +241,7 @@ function PatternBlogWriter() {
 
       {/* ── Step 1: 소스 글 관리 ── */}
       {step === "source" && (
-        <div style={{ display:"grid", gridTemplateColumns:"400px 1fr", gap:20, alignItems:"start" }}>
+        <div className="pc-mobile-stack" style={{ display:"grid", gridTemplateColumns:"400px 1fr", gap:20, alignItems:"start" }}>
           <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
             <div style={{ background:C.white, borderRadius:14, padding:20, border:`1px solid ${C.border}` }}>
               <div style={{ fontSize:13, fontWeight:900, color:C.teal, marginBottom:4 }}>📄 기존 블로그 글 추가</div>
@@ -731,7 +731,7 @@ function InstagramContentTab() {
   const deleteDraft = (id: string) => persist(saved.filter((item) => item.id !== id));
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: draft ? "420px 1fr" : "minmax(360px, 640px)", gap: 24, alignItems: "start", justifyContent: draft ? "stretch" : "center" }}>
+    <div className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: draft ? "420px 1fr" : "minmax(360px, 640px)", gap: 24, alignItems: "start", justifyContent: draft ? "stretch" : "center" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1px solid ${C.border}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
@@ -918,7 +918,7 @@ function NaverPlaceTab() {
   const riskColor = { "안전": C.teal, "주의": C.yellow, "위험": C.orange };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: result ? "380px 1fr" : "500px", gap: 24, justifyContent: "center" }}>
+    <div className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: result ? "380px 1fr" : "500px", gap: 24, justifyContent: "center" }}>
       {/* 입력 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1px solid ${C.border}` }}>
@@ -1294,7 +1294,7 @@ function YoutubePlannerTab() {
       {error && <div style={{ padding: "10px 14px", background: "#FFF0F0", border: "1px solid #FECACA", borderRadius: 10, fontSize: 13, color: "#DC2626" }}>⚠ {error}</div>}
 
       {section === "benchmark" && (
-        <div style={{ display: "grid", gridTemplateColumns: benchmark ? "390px 1fr" : "minmax(420px, 680px)", gap: 20, justifyContent: "center", alignItems: "start" }}>
+        <div className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: benchmark ? "390px 1fr" : "minmax(420px, 680px)", gap: 20, justifyContent: "center", alignItems: "start" }}>
           <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 12 }}>유튜브 벤치마킹 입력</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1329,7 +1329,7 @@ function YoutubePlannerTab() {
       )}
 
       {section === "story" && (
-        <div style={{ display: "grid", gridTemplateColumns: story ? "390px 1fr" : "minmax(420px, 680px)", gap: 20, justifyContent: "center", alignItems: "start" }}>
+        <div className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: story ? "390px 1fr" : "minmax(420px, 680px)", gap: 20, justifyContent: "center", alignItems: "start" }}>
           <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 12 }}>스토리 생성</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -1381,7 +1381,7 @@ function YoutubePlannerTab() {
       )}
 
       {section === "thumbnail" && (
-        <div style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 20, alignItems: "start" }}>
+        <div className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: "380px 1fr", gap: 20, alignItems: "start" }}>
           <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginBottom: 12 }}>썸네일 생성기</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
