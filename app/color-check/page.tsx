@@ -144,7 +144,7 @@ export default function ColorCheckPage() {
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 20px 80px" }}>
 
-        <div style={{ display: "grid", gridTemplateColumns: result ? "340px 1fr" : "560px", gap: 24, justifyContent: "center" }}>
+        <div className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: result ? "340px 1fr" : "560px", gap: 24, justifyContent: "center" }}>
 
           {/* ── 왼쪽 패널 ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
