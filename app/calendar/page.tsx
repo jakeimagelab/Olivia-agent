@@ -447,15 +447,8 @@ function EditTaskForm({ task, onSave, onCancel }: {
       {err && <div style={{ fontSize: 11, color: "#E85D2C", background: "#FFF0EB",
         borderRadius: 6, padding: "6px 10px" }}>⚠️ {err}</div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={submit} disabled={busy || !title.trim()} style={{
-          flex: 1, height: 36, background: C.teal, color: "#fff", border: "none",
-          borderRadius: 8, fontSize: 13, fontWeight: 800,
-          cursor: busy ? "not-allowed" : "pointer", opacity: !title.trim() ? .5 : 1,
-        }}>{busy ? "저장 중…" : "수정 저장"}</button>
-        <button onClick={onCancel} style={{
-          width: 70, height: 36, background: "none", border: `1px solid ${C.border}`,
-          borderRadius: 8, fontSize: 13, color: C.muted, cursor: "pointer",
-        }}>취소</button>
+        <button onClick={submit} disabled={busy || !title.trim()} className="pc-btn pc-btn--primary pc-btn--sm" style={{ flex: 1 }}>{busy ? "저장 중…" : "수정 저장"}</button>
+        <button onClick={onCancel} className="pc-btn pc-btn--secondary pc-btn--sm" style={{ width: 70 }}>취소</button>
       </div>
     </div>
   );
