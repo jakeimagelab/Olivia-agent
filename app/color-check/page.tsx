@@ -179,18 +179,13 @@ export default function ColorCheckPage() {
               <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
                 <img src={preview} alt="" style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", display: "block" }}/>
                 <div style={{ padding: "12px 14px", display: "flex", gap: 8 }}>
-                  <button onClick={analyze} disabled={loading} style={{
-                    flex: 1, height: 44, border: "none", borderRadius: 10,
-                    background: loading ? C.hint : C.teal, color: "#fff",
-                    fontWeight: 900, fontSize: 14, cursor: loading ? "not-allowed" : "pointer",
-                    fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  }}>
+                  <button onClick={analyze} disabled={loading} className="pc-btn pc-btn--primary pc-btn--lg" style={{ flex: 1 }}>
                     {loading
                       ? <><RefreshCw size={15} style={{ animation: "spin .7s linear infinite" }}/> 분석 중…</>
                       : <><Camera size={15}/> AI 색감 분석</>}
                   </button>
                   <button onClick={() => { setPreview(""); setImgB64(""); setResult(null); setError(""); }}
-                    style={{ width: 44, height: 44, border: `1.5px solid ${C.border}`, borderRadius: 10, background: C.white, cursor: "pointer", fontSize: 18 }}>↺</button>
+                    className="pc-btn pc-btn--secondary pc-btn--lg" style={{ width: 44, padding: 0, fontSize: 18 }}>↺</button>
                 </div>
               </div>
             )}
