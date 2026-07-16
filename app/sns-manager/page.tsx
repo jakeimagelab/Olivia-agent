@@ -413,7 +413,7 @@ function PatternBlogWriter() {
             </div>
 
             {genError && <div style={{ padding:"12px 16px", background:"#FFF0F0", border:"1px solid #FECACA", borderRadius:10, fontSize:13, color:"#DC2626" }}>⚠ {genError}</div>}
-            <button onClick={generate} disabled={generating} style={{ height:54, border:"none", borderRadius:14, background: generating ? "#E5E7EB" : `linear-gradient(135deg, ${C.teal}, #1e7870)`, color: generating ? "#9ca3af" : "#fff", fontSize:16, fontWeight:900, cursor: generating ? "not-allowed" : "pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+            <button onClick={generate} disabled={generating} className="pc-btn pc-btn--primary pc-btn--lg" style={{ height:54 }}>
               {generating ? <><div style={{width:18,height:18,border:"2.5px solid rgba(255,255,255,.4)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin .7s linear infinite"}} />AI 블로그 생성 중...</> : <><Sparkles size={18} />포토클리닉 블로그 패턴 생성</>}
             </button>
           </div>
