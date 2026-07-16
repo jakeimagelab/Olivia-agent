@@ -86,7 +86,7 @@ export default function PerReportsPage() {
               {campaigns.map((c:any) => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
             <button onClick={() => selCamp && generate("campaign", selCamp)} disabled={!selCamp || busy}
-              style={{ width:"100%", background:selCamp?"#7C3AED":C.light, color:selCamp?"#fff":C.hint, border:"none", borderRadius:8, padding:10, fontWeight:700, fontSize:13, cursor:selCamp?"pointer":"not-allowed", transition:"all .15s" }}>
+              className="pc-btn" style={{ width:"100%", background:"#7C3AED", color:"#fff" }}>
               {busy?"생성 중...":"기부 리포트 생성 + 메일링함 저장"}
             </button>
             <p style={{ fontSize:11, color:C.hint, margin:"10px 0 0", lineHeight:1.6 }}>참여 병원 명단, 총 기부 포인트, SNS용 요약 문구가 포함된 리포트를 생성합니다.</p>
