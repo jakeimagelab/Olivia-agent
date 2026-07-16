@@ -441,7 +441,7 @@ export default function TrendDashboardPage() {
                           <td colSpan={3} style={{ padding: "9px 12px", color: "#9BB5B0", fontSize: 12 }}>수집 대기중 — &quot;지금 수집&quot; 실행 후 표시됩니다</td>
                           <td />
                           <td style={{ padding: "9px 12px", textAlign: "right" }}>
-                            <button onClick={() => deleteCompetitor(c.id)} style={deleteBtnStyle}><Trash2 size={13} /></button>
+                            <button onClick={() => deleteCompetitor(c.id)} className="pc-btn pc-btn--danger" style={{ width: 28, height: 28, padding: 0 }}><Trash2 size={13} /></button>
                           </td>
                         </tr>
                       );
@@ -466,7 +466,7 @@ export default function TrendDashboardPage() {
                           </td>
                           {idx === 0 && (
                             <td rowSpan={platforms.length} style={{ padding: "9px 12px", textAlign: "right", verticalAlign: "top" }}>
-                              <button onClick={() => deleteCompetitor(c.id)} style={deleteBtnStyle}><Trash2 size={13} /></button>
+                              <button onClick={() => deleteCompetitor(c.id)} className="pc-btn pc-btn--danger" style={{ width: 28, height: 28, padding: 0 }}><Trash2 size={13} /></button>
                             </td>
                           )}
                         </tr>
@@ -488,12 +488,8 @@ export default function TrendDashboardPage() {
             <button
               onClick={runInsight}
               disabled={generatingInsight}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "7px 14px", borderRadius: 8, border: "1.5px solid #E85D2C",
-                background: generatingInsight ? "#fff" : "rgba(232,93,44,0.08)", color: "#E85D2C",
-                fontWeight: 800, fontSize: 12, cursor: generatingInsight ? "not-allowed" : "pointer",
-              }}
+              className="pc-btn pc-btn--sm"
+              style={{ border: "1.5px solid #E85D2C", background: "rgba(232,93,44,0.08)", color: "#E85D2C" }}
             >
               <Sparkles size={13} />
               {generatingInsight ? "생성 중..." : data?.latestInsight ? "다시 생성" : "인사이트 생성"}
