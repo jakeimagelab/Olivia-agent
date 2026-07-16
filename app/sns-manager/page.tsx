@@ -1302,7 +1302,7 @@ function YoutubePlannerTab() {
               <textarea value={benchmarkForm.firstMinuteMemo} onChange={(e) => setBenchmarkForm((p) => ({ ...p, firstMinuteMemo: e.target.value }))} rows={6} placeholder={"00초-60초 구간 메모/자막을 붙여넣으면 분석 정확도가 올라갑니다.\n예: 0-5초 원장 질문, 5-15초 환자 고민 설명..."} style={taS} />
               <textarea value={benchmarkForm.notes} onChange={(e) => setBenchmarkForm((p) => ({ ...p, notes: e.target.value }))} rows={3} placeholder="추가로 보고 싶은 포인트: 썸네일, 제목, 편집 리듬 등" style={taS} />
             </div>
-            <button onClick={runBenchmark} disabled={loading === "benchmark"} style={{ width: "100%", height: 48, marginTop: 14, border: "none", borderRadius: 12, background: C.teal, color: "#fff", fontSize: 14, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={runBenchmark} disabled={loading === "benchmark"} className="pc-btn pc-btn--primary" style={{ width: "100%", marginTop: 14 }}>
               {loading === "benchmark" ? "분석 중..." : "벤치마킹 분석"}
             </button>
           </div>
