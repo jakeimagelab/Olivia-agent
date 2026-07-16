@@ -151,7 +151,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
 
           {/* 수동 포인트 조정 */}
           <div>
-            <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:"20px" }}>
+            <div className="pc-card pc-card--padded">
               <h3 style={{ margin:"0 0 16px", fontSize:14, fontWeight:800, color:C.txt }}>포인트 수동 처리</h3>
               <div style={{ marginBottom:10 }}>
                 <label style={{ fontSize:11, fontWeight:600, color:C.muted, display:"block", marginBottom:4 }}>처리 유형</label>
