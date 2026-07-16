@@ -317,10 +317,10 @@ function PatternBlogWriter() {
               ))}
             </div>
             <div style={{ marginTop:16, display:"flex", gap:10 }}>
-              <button onClick={() => setStep("write")} style={{ flex:1, height:50, border:"none", borderRadius:12, background:`linear-gradient(135deg, ${C.teal}, #1e7870)`, color:"#fff", fontSize:15, fontWeight:900, cursor:"pointer", fontFamily:"inherit" }}>
+              <button onClick={() => setStep("write")} className="pc-btn pc-btn--primary pc-btn--lg" style={{ flex:1 }}>
                 "{selected.name}" 스타일로 글 쓰기 →
               </button>
-              <button onClick={() => setStep("source")} style={{ padding:"0 20px", height:50, border:`1.5px solid ${C.border}`, borderRadius:12, background:C.white, color:C.muted, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+              <button onClick={() => setStep("source")} className="pc-btn pc-btn--secondary pc-btn--lg">
                 소스 글 관리
               </button>
             </div>
