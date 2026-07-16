@@ -404,7 +404,7 @@
     radial-gradient(circle at 18% 72%, rgba(21, 88, 85, .065), transparent 30%),
     var(--command-bg);
   color: var(--command-text);
-  font-family: "Pretendard Variable", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-family: "NanumSquare", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
 }
 
 .oa-shell svg,
