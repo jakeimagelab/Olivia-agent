@@ -600,7 +600,7 @@ function SectionCard({
   title, desc, children, style, action,
 }: { title: string; desc?: string; children: React.ReactNode; style?: React.CSSProperties; action?: React.ReactNode }) {
   return (
-    <div className="pc-card pc-card--padded" style={{ minWidth: 0, ...style }}>
+    <div className="pc-card" style={{ padding: "18px 20px", minWidth: 0, ...style }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 900, color: "#1C2B28" }}>{title}</div>
