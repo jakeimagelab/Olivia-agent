@@ -24,7 +24,7 @@
   grid-template-columns: 260px minmax(0, 1fr);
   background: var(--mesh-bg, var(--oa-bg));
   color: var(--oa-text);
-  font-family: "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  font-family: "NanumSquare", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
 }
 
 .oa-sidebar {
