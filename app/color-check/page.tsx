@@ -33,7 +33,7 @@ function SwatchCompare({ label, current, target, diff }: {
   const ok   = diff.dist <= 15;
   const warn = diff.dist > 30;
   return (
-    <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: "14px 16px" }}>
+    <div className="pc-card pc-card--padded">
       <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, marginBottom: 10 }}>{label}</div>
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: ok ? 0 : 10 }}>
         <div style={{ textAlign: "center" }}>
