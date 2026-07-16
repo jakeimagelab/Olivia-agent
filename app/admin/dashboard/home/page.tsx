@@ -53,6 +53,15 @@ export default function AdminDashboardHomePage() {
               {DEMO_ACTIONS.map(item => <ActionCard key={item.title} {...item}/>) }
             </div>
           </CategorySection>
+
+          <CategorySection eyebrow="QUICK" title="빠른 실행">
+            <div className="oa-quick-grid oa-quick-grid--row">
+              <Link href="/memo"><WandSparkles size={16}/><span>메모 작성</span></Link>
+              <Link href="/calendar"><CalendarDays size={16}/><span>일정 추가</span></Link>
+              <Link href="/mailing"><Mail size={16}/><span>메일 확인</span></Link>
+              <Link href="/admin/tools"><Clock3 size={16}/><span>기능 열기</span></Link>
+            </div>
+          </CategorySection>
         </div>
 
         <aside className="oa-right-column" aria-label="운영 보조 패널">
@@ -67,15 +76,6 @@ export default function AdminDashboardHomePage() {
               <div><span className="oa-mini-icon is-orange"><Mail size={14}/></span><p><strong>메일 초안 2건 생성</strong><small>12분 전</small></p></div>
               <div><span className="oa-mini-icon is-blue"><Images size={14}/></span><p><strong>고객 셀렉 완료</strong><small>38분 전</small></p></div>
               <div><span className="oa-mini-icon is-green"><Target size={14}/></span><p><strong>워크플로우 단계 이동</strong><small>1시간 전</small></p></div>
-            </div>
-          </CategorySection>
-
-          <CategorySection eyebrow="QUICK" title="빠른 실행">
-            <div className="oa-quick-grid">
-              <Link href="/memo"><WandSparkles size={16}/><span>메모 작성</span></Link>
-              <Link href="/calendar"><CalendarDays size={16}/><span>일정 추가</span></Link>
-              <Link href="/mailing"><Mail size={16}/><span>메일 확인</span></Link>
-              <Link href="/admin/tools"><Clock3 size={16}/><span>기능 열기</span></Link>
             </div>
           </CategorySection>
         </aside>
