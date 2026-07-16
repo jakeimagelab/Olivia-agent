@@ -218,7 +218,7 @@ function ConsultationInner() {
           </form>
 
           {savedId && (
-            <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+            <div className="pc-card">
               <div style={{ padding: "12px 18px", background: "rgba(21,88,85,.03)", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>다음 단계로 이동</div>
               </div>
