@@ -514,16 +514,6 @@ function DetailField({ label, value, highlight }: { label: string; value: string
 const labelS: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 5 };
 const fieldLabel: React.CSSProperties = { fontSize: 10, fontWeight: 800, color: C.muted, textTransform: "uppercase", letterSpacing: ".06em" };
 const tdS: React.CSSProperties = { padding: "9px 12px", borderBottom: `1px solid ${C.border}` };
-const btnPrimary: React.CSSProperties = {
-  width: "100%", height: 40, border: "none", borderRadius: 10,
-  background: C.teal, color: "#fff", fontWeight: 900, fontSize: 13,
-  cursor: "pointer", fontFamily: "inherit",
-};
-const btnSecondary: React.CSSProperties = {
-  height: 36, padding: "0 14px", border: `1.5px solid ${C.border}`, borderRadius: 8,
-  background: C.white, color: C.muted, fontWeight: 700, fontSize: 12,
-  cursor: "pointer", fontFamily: "inherit",
-};
 
 export default function SeoDeliveryPage() {
   return (
