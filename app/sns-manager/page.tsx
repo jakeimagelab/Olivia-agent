@@ -310,7 +310,7 @@ function PatternBlogWriter() {
                     {!p.isDefault && p.sourceCount > 0 && <span style={{ background:"#FFF0EB", color:C.orange, fontSize:11, fontWeight:700, padding:"3px 8px", borderRadius:99 }}>소스 {p.sourceCount}개</span>}
                   </div>
                   <button onClick={e => { e.stopPropagation(); setViewProfile(viewProfile?.id === p.id ? null : p); }}
-                    style={{ marginTop:10, width:"100%", padding:"6px 0", border:`1px solid ${C.border}`, borderRadius:8, background:"transparent", color:C.muted, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                    className="pc-btn pc-btn--ghost pc-btn--sm" style={{ marginTop:10, width:"100%" }}>
                     {viewProfile?.id === p.id ? "닫기" : "상세 보기"}
                   </button>
                 </div>
