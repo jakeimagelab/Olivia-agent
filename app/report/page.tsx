@@ -83,21 +83,11 @@ export default function ReportPage() {
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             {(["week","month","all"] as const).map(p => (
-              <button key={p} onClick={() => changePeriod(p)} style={{
-                height: 36, padding: "0 16px", borderRadius: 8, fontFamily: "inherit",
-                fontSize: 12, fontWeight: 800, cursor: "pointer", border: "1.5px solid",
-                borderColor: period === p ? "#155855" : "rgba(21,88,85,.2)",
-                background: period === p ? "#155855" : "#fff",
-                color: period === p ? "#fff" : "#155855",
-                transition: "all 150ms",
-              }}>
+              <button key={p} onClick={() => changePeriod(p)} className={`pc-btn pc-btn--sm ${period === p ? "pc-btn--primary" : "pc-btn--secondary"}`}>
                 {p === "week" ? "7일" : p === "month" ? "30일" : "전체"}
               </button>
             ))}
-            <button onClick={() => load()} style={{
-              height: 36, width: 36, borderRadius: 8, border: "1.5px solid rgba(21,88,85,.2)",
-              background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
+            <button onClick={() => load()} className="pc-btn pc-btn--secondary pc-btn--sm">
               <RefreshCw size={14} color="#155855" style={{ animation: loading ? "spin .8s linear infinite" : "none" }} />
             </button>
           </div>
