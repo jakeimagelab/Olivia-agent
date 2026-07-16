@@ -427,9 +427,8 @@ export default function ContractPage() {
             <button
               type="button"
               onClick={clearSignature}
-              style={{ width: "100%", height: 36, marginTop: 8, border: `1px solid ${C.border}`,
-                       borderRadius: 8, background: C.surface, color: C.muted,
-                       fontSize: 12, fontWeight: 700, fontFamily: "inherit", cursor: "pointer" }}
+              className="pc-btn pc-btn--secondary pc-btn--sm"
+              style={{ width: "100%", marginTop: 8 }}
             >
               서명 지우기
             </button>
