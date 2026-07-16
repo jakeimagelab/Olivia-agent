@@ -59,7 +59,7 @@ export default function PerOrdersPage() {
           orders.length === 0
             ? <div style={{ background:C.white, borderRadius:12, padding:40, textAlign:"center", color:C.hint }}>신청 내역이 없습니다.</div>
             : orders.map((o:any) => (
-              <div key={o.id} style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:"18px 20px", marginBottom:12 }}>
+              <div key={o.id} className="pc-card" style={{ padding:"18px 20px", marginBottom:12 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
                   <div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
