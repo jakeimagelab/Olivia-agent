@@ -4,13 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { GALLERY_STATUS_COLOR, GALLERY_STATUS_LABEL, type SelectGallery } from "@/lib/selectGallery";
-
-const C = {
-  teal: "#155855", bg: "#F0F9F8", white: "#FFFFFF",
-  border: "rgba(21,88,85,.12)", muted: "#5A7470",
-  hint: "#9BB5B0", txt: "#1C2B28", green: "#22876A", red: "#DC2626",
-  orange: "#E85D2C",
-};
+import { C } from "@/lib/theme";
 
 function nextActionLabel(g: SelectGallery) {
   if (g.status === "draft") return { text: "브랜드메일 발송 필요", color: C.orange };
