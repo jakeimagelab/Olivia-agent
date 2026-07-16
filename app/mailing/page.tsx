@@ -722,7 +722,7 @@ function CustomBrandMailTab() {
             <div style={{ background: C.mint, padding: "13px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.teal }}>👤 받는 분</div>
             </div>
-            <div style={{ padding: "18px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div className="pc-mobile-form-grid" style={{ padding: "18px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>이름</label>
                 <input value={toName} onChange={e => setToName(e.target.value)} placeholder="원장님 / 담당자" style={iS} />
