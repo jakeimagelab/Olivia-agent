@@ -3590,12 +3590,6 @@ main:has(> .pc-header) {
   display: none;
 }
 
-@media (min-width: 901px) {
-  .pc-feature-sidebar + .pc-fs-content .pc-header-brand,
-  .pc-feature-sidebar + .pc-fs-content .analyzer-header .brand-lockup {
-    transform: translateX(-32px);
-  }
-}
 
 /* ── 공통 탭 바 (underline 스타일) ─────────────────────── */
 .pc-tabs {
