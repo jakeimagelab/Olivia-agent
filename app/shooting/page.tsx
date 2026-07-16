@@ -164,7 +164,7 @@ function ShootingInner() {
             )}
 
             {clientId && (
-              <Link href={`/clients?id=${clientId}`} style={{ textAlign: "center", padding: "12px", background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 12, fontWeight: 700, color: C.muted, textDecoration: "none" }}>
+              <Link href={`/clients?id=${clientId}`} className="pc-btn pc-btn--secondary" style={{ textDecoration: "none" }}>
                 ← 고객 화면으로 돌아가기
               </Link>
             )}
