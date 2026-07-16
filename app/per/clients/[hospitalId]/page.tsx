@@ -192,7 +192,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
                 const d = await r.json();
                 if (d.ok) { alert(d.message); if (d.html) window.open("data:text/html;charset=utf-8,"+encodeURIComponent(d.html)); }
                 else alert(d.error);
-              }} style={{ width:"100%", background:C.light, color:C.teal, border:`1px solid ${C.teal}30`, borderRadius:8, padding:10, fontWeight:700, fontSize:12, cursor:"pointer" }}>
+              }} className="pc-btn pc-btn--secondary" style={{ width:"100%" }}>
                 리포트 생성 + 메일링함 저장
               </button>
             </div>
