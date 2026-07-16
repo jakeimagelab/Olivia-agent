@@ -119,7 +119,7 @@ export default function ReportPage() {
                 const meta = ACTION_META[key];
                 const count = data.counts[key] || 0;
                 return (
-                  <div key={key} style={{ background: "#fff", borderRadius: 16, padding: "20px", border: "1px solid rgba(21,88,85,.1)" }}>
+                  <div key={key} className="pc-card pc-card--padded">
                     <div style={{ fontSize: 24, marginBottom: 8 }}>{meta.icon}</div>
                     <div style={{ fontSize: 30, fontWeight: 900, color: "#155855" }}>{count}</div>
                     <div style={{ fontSize: 12, color: "#5A7470", marginTop: 4 }}>{meta.label}</div>
