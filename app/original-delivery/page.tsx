@@ -68,7 +68,7 @@ function DeliveryInner() {
           </div>
         )}
 
-        <div style={{ background: C.white, borderRadius: 16, border: `1.5px solid ${C.border}`, overflow: "hidden" }}>
+        <div className="pc-card">
           <div style={{ padding: "14px 20px", background: "rgba(21,88,85,.04)", borderBottom: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 15, fontWeight: 900, color: C.teal }}>📦 원본 파일 전달 정보</div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>NAS 공유 링크와 파일 정보를 입력 후 전달 완료 처리하세요.</div>
