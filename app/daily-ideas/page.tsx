@@ -258,7 +258,7 @@ export default function DailyIdeasPage() {
                 <div style={{ fontSize: 48 }}>✨</div>
                 <div style={{ fontSize: 15, fontWeight: 700 }}>날짜를 선택하거나 오늘의 아이디어를 생성하세요</div>
                 <div style={{ fontSize: 13 }}>클라이언트 홍보 콘텐츠 아이디어 · 매일 아침 8시 자동 생성</div>
-                <button onClick={generate} disabled={generating} style={{ marginTop: 8, height: 44, padding: "0 24px", background: C.orange, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                <button onClick={generate} disabled={generating} className="pc-btn pc-btn--orange pc-btn--lg" style={{ marginTop: 8 }}>
                   {generating ? "생성 중..." : "✨ 지금 바로 생성하기"}
                 </button>
               </div>
@@ -293,7 +293,7 @@ export default function DailyIdeasPage() {
                   <div style={{ fontSize: 40, marginBottom: 12 }}>💡</div>
                   <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>아이디어가 없어요</div>
                   <div style={{ fontSize: 13, marginBottom: 20 }}>상단 버튼으로 오늘의 아이디어를 생성하세요</div>
-                  <button onClick={generate} disabled={generating} style={{ height: 44, padding: "0 24px", background: C.orange, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                  <button onClick={generate} disabled={generating} className="pc-btn pc-btn--orange pc-btn--lg">
                     ✨ 생성하기
                   </button>
                 </div>
@@ -310,10 +310,10 @@ export default function DailyIdeasPage() {
                   <div style={{ fontSize: 48 }}>✨</div>
                   <div style={{ fontSize: 15, fontWeight: 700, textAlign: "center" }}>아이디어를 선택하거나 새로 생성하세요</div>
                   <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                    <button onClick={() => setMobileTab("list")} style={{ height: 44, padding: "0 20px", background: C.teal, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                    <button onClick={() => setMobileTab("list")} className="pc-btn pc-btn--primary pc-btn--lg">
                       📅 날짜 목록
                     </button>
-                    <button onClick={generate} disabled={generating} style={{ height: 44, padding: "0 20px", background: C.orange, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+                    <button onClick={generate} disabled={generating} className="pc-btn pc-btn--orange pc-btn--lg">
                       {generating ? "생성 중..." : "✨ 생성하기"}
                     </button>
                   </div>

@@ -141,24 +141,24 @@ export default function PortalAdminPage() {
                     </div>
                     <div style={{ display:"flex", gap:6 }}>
                       {!loaded && (
-                        <button onClick={() => loadAccess(client.id)} style={{ height:32, padding:"0 10px", border:`1px solid ${C.border}`, borderRadius:7, background:"transparent", color:C.muted, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                        <button onClick={() => loadAccess(client.id)} className="pc-btn pc-btn--ghost pc-btn--sm">
                           현황 보기
                         </button>
                       )}
                       {loaded && !acc && (
-                        <button onClick={() => setModal(client)} style={{ height:32, padding:"0 12px", border:"none", borderRadius:7, background:C.teal, color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                        <button onClick={() => setModal(client)} className="pc-btn pc-btn--primary pc-btn--sm">
                           + 링크 생성
                         </button>
                       )}
                       {acc && (
                         <>
-                          <button onClick={() => copyLink(acc.access_token)} style={{ height:32, padding:"0 10px", border:`1px solid ${C.border}`, borderRadius:7, background: copied===acc.access_token?C.green:C.light, color: copied===acc.access_token?"#fff":C.teal, fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                          <button onClick={() => copyLink(acc.access_token)} className="pc-btn pc-btn--sm" style={{ background: copied===acc.access_token?C.green:C.light, color: copied===acc.access_token?"#fff":C.teal, border: "none" }}>
                             <Copy size={11}/> {copied===acc.access_token ? "복사됨!" : "링크 복사"}
                           </button>
-                          <button onClick={() => setModal(client)} style={{ height:32, padding:"0 10px", border:`1px solid ${C.border}`, borderRadius:7, background:C.light, color:C.teal, fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                          <button onClick={() => setModal(client)} className="pc-btn pc-btn--secondary pc-btn--sm">
                             <RefreshCw size={11}/> 재발급
                           </button>
-                          <button onClick={() => revokeLink(client.id)} style={{ height:32, padding:"0 10px", border:`1px solid #FCA5A5`, borderRadius:7, background:"#FEF2F2", color:"#EF4444", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                          <button onClick={() => revokeLink(client.id)} className="pc-btn pc-btn--danger pc-btn--sm">
                             <X size={11}/> 비활성화
                           </button>
                         </>
@@ -194,7 +194,7 @@ export default function PortalAdminPage() {
                   <div style={{ display:"flex", gap:6 }}>
                     {r.status === "requested" && <button onClick={() => updateRevisionStatus(r.id,"in_progress")} style={{ padding:"5px 10px", border:"none", borderRadius:6, background:`${C.orange}15`, color:C.orange, fontWeight:700, fontSize:11, cursor:"pointer" }}>진행 시작</button>}
                     {r.status === "in_progress" && <button onClick={() => updateRevisionStatus(r.id,"completed")} style={{ padding:"5px 10px", border:"none", borderRadius:6, background:`${C.green}15`, color:C.green, fontWeight:700, fontSize:11, cursor:"pointer" }}>완료 처리</button>}
-                    <button onClick={() => { setReplyId(r.id); setReplyText(r.admin_reply ?? ""); }} style={{ padding:"5px 10px", border:`1px solid ${C.border}`, borderRadius:6, background:C.light, color:C.muted, fontWeight:700, fontSize:11, cursor:"pointer" }}>답변 작성</button>
+                    <button onClick={() => { setReplyId(r.id); setReplyText(r.admin_reply ?? ""); }} className="pc-btn pc-btn--secondary pc-btn--sm">답변 작성</button>
                   </div>
                 </div>
                 <div style={{ fontSize:13, color:C.muted, lineHeight:1.6 }}>{r.content}</div>
@@ -206,7 +206,7 @@ export default function PortalAdminPage() {
                 {replyId === r.id && (
                   <div style={{ marginTop:10, display:"flex", gap:8 }}>
                     <input value={replyText} onChange={e => setReplyText(e.target.value)} placeholder="고객에게 보낼 답변..." style={{ ...iS, flex:1 }} />
-                    <button onClick={() => updateRevisionStatus(r.id, r.status, replyText)} style={{ padding:"0 14px", border:"none", borderRadius:8, background:C.teal, color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>저장</button>
+                    <button onClick={() => updateRevisionStatus(r.id, r.status, replyText)} className="pc-btn pc-btn--primary pc-btn--sm">저장</button>
                   </div>
                 )}
                 <div style={{ fontSize:11, color:C.hint, marginTop:6 }}>{new Date(r.created_at).toLocaleDateString("ko-KR")} · 상태: {r.status}</div>
@@ -272,8 +272,8 @@ export default function PortalAdminPage() {
               고객에게 새 링크를 복사하여 직접 전달해주세요.
             </div>
             <div style={{ display:"flex", gap:10 }}>
-              <button onClick={() => setModal(null)} style={{ flex:1, background:C.light, color:C.muted, border:"none", borderRadius:8, padding:12, fontWeight:700, cursor:"pointer" }}>취소</button>
-              <button onClick={() => createLink(modal)} disabled={creating===modal.id} style={{ flex:2, background:C.teal, color:"#fff", border:"none", borderRadius:8, padding:12, fontWeight:700, cursor:"pointer", opacity:creating===modal.id?.6:1 }}>
+              <button onClick={() => setModal(null)} className="pc-btn pc-btn--secondary" style={{ flex:1 }}>취소</button>
+              <button onClick={() => createLink(modal)} disabled={creating===modal.id} className="pc-btn pc-btn--primary" style={{ flex:2 }}>
                 {creating===modal.id ? "생성 중..." : "링크 생성"}
               </button>
             </div>
