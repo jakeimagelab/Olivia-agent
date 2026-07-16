@@ -6,38 +6,30 @@ import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   CalendarDays,
-  Camera,
   CircleHelp,
-  ClipboardList,
   Columns3,
   ContactRound,
-  FileCheck2,
-  FileSignature,
-  FileText,
   FolderKanban,
-  GalleryHorizontalEnd,
-  Gift,
   House,
-  ImageDown,
-  ImagePlus,
   LayoutDashboard,
   Link2,
   ListChecks,
   Mail,
   NotebookPen,
-  PanelTop,
   SearchCheck,
   Settings,
   UsersRound,
-  WandSparkles,
   X,
   type LucideIcon,
 } from "lucide-react";
+import { groupToolsByCategory } from "@/lib/toolNav";
 
 type NavigationItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  /* 개별 기능 항목만 clientId/projectId 등 CRM 컨텍스트를 쿼리로 이어 붙인다 */
+  carryContext?: boolean;
 };
 
 type NavigationSection = {
@@ -46,17 +38,23 @@ type NavigationSection = {
   items: NavigationItem[];
 };
 
+const toolItems = groupToolsByCategory().find((g) => g.category === "tools")?.items ?? [];
+
+/* 대시보드/CRM 두 섹션은 소규모라 그대로 유지하고, 개별 기능만 lib/toolNav.ts(전역 사이드바와
+   같은 소스)에서 끌어와 실제 존재하는 페이지 전체가 빠짐없이 나오게 한다 — 예전엔 이 목록이
+   따로 하드코딩돼 있어서(11개, 그마저 절반은 실제 라우트가 아닌 가상 경로) 실제 15개 기능 중
+   여러 개가 메뉴에서 아예 빠져 있었다. */
 const navigation: NavigationSection[] = [
   {
     key: "dashboard",
     label: "관리자 대시보드",
     items: [
       { label: "홈", href: "/admin/dashboard/home", icon: House },
-      { label: "메모", href: "/admin/dashboard/memo", icon: NotebookPen },
-      { label: "캘린더", href: "/admin/dashboard/calendar", icon: CalendarDays },
-      { label: "메일링", href: "/admin/dashboard/mailing", icon: Mail },
-      { label: "외부링크", href: "/admin/dashboard/links", icon: Link2 },
-      { label: "휴지통", href: "/admin/dashboard/trash", icon: Archive },
+      { label: "메모", href: "/memo", icon: NotebookPen },
+      { label: "캘린더", href: "/calendar", icon: CalendarDays },
+      { label: "메일링", href: "/mailing", icon: Mail },
+      { label: "외부링크", href: "/link-generator", icon: Link2 },
+      { label: "휴지통", href: "/trash", icon: Archive },
     ],
   },
   {
@@ -64,7 +62,7 @@ const navigation: NavigationSection[] = [
     label: "고객관리 CRM",
     items: [
       { label: "CRM 대시보드", href: "/admin/crm/dashboard", icon: LayoutDashboard },
-      { label: "고객 목록", href: "/admin/crm/clients", icon: UsersRound },
+      { label: "고객 목록", href: "/clients", icon: UsersRound },
       { label: "프로젝트 목록", href: "/admin/crm/projects", icon: FolderKanban },
       { label: "프로젝트 보드", href: "/admin/crm/board", icon: Columns3 },
       { label: "프로젝트 워크플로우", href: "/admin/crm/workflows", icon: ListChecks },
@@ -75,19 +73,7 @@ const navigation: NavigationSection[] = [
   {
     key: "tools",
     label: "개별 기능",
-    items: [
-      { label: "견적서 생성기", href: "/admin/tools/quote", icon: FileText },
-      { label: "계약서 생성기", href: "/admin/tools/contract", icon: FileSignature },
-      { label: "콘티 생성기", href: "/admin/tools/conti", icon: PanelTop },
-      { label: "사진 분류기", href: "/admin/tools/photo-sorting", icon: ImagePlus },
-      { label: "셀렉 갤러리", href: "/admin/tools/select-galleries", icon: GalleryHorizontalEnd },
-      { label: "RAW 자동 매칭", href: "/admin/tools/raw-matching", icon: Camera },
-      { label: "보정 관리", href: "/admin/tools/retouching", icon: WandSparkles },
-      { label: "AI 검색 최적화 납품", href: "/admin/tools/seo-delivery", icon: ImageDown },
-      { label: "후기 DB", href: "/admin/tools/reviews", icon: FileCheck2 },
-      { label: "리워드 관리", href: "/admin/tools/rewards", icon: Gift },
-      { label: "콘텐츠 제작", href: "/admin/tools/content", icon: ClipboardList },
-    ],
+    items: toolItems.map((t) => ({ label: t.title, href: t.href, icon: t.icon, carryContext: true })),
   },
 ];
 
