@@ -851,7 +851,8 @@ function CustomBrandMailTab() {
               <button
                 type="button"
                 onClick={() => { setShowGalleryPicker(v => !v); loadGalleries(); }}
-                style={{ alignSelf: "flex-start", padding: "8px 16px", border: `1px solid ${C.teal}`, borderRadius: 8, background: showGalleryPicker ? C.teal : C.mint, color: showGalleryPicker ? "#fff" : C.teal, fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+                className={`pc-btn pc-btn--sm ${showGalleryPicker ? "pc-btn--primary" : "pc-btn--secondary"}`}
+                style={{ alignSelf: "flex-start" }}
               >{showGalleryPicker ? "갤러리 목록 닫기 ▲" : "갤러리 목록에서 고르기 ▼"}</button>
 
               {showGalleryPicker && (
