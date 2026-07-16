@@ -99,7 +99,7 @@ export default function PerReportsPage() {
           reports.length === 0
             ? <div style={{ background:C.white, borderRadius:12, padding:32, textAlign:"center", color:C.hint, fontSize:13 }}>생성된 리포트가 없습니다.</div>
             : reports.map((r:any) => (
-              <div key={r.id} style={{ background:C.white, borderRadius:12, border:`1px solid ${C.border}`, padding:"14px 20px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div key={r.id} className="pc-card" style={{ padding:"14px 20px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <div>
                   <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                     <span style={{ fontSize:10, background:`${C.teal}15`, color:C.teal, borderRadius:4, padding:"2px 7px", fontWeight:700 }}>{REPORT_TYPE_LABEL[r.report_type]}</span>
