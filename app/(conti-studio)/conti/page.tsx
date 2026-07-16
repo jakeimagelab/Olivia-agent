@@ -1674,12 +1674,8 @@ ${header("타임테이블")}
         {!result && (
           <section>
             <div style={{ marginBottom: 32 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <p className="admin-kicker">병원 • 메디컬 성장 플랫폼</p>
-                  <h1 style={{ margin: 0, color: "var(--deep-green)", fontSize: 20, fontWeight: 800 }}>촬영 콘티 자동 생성</h1>
-                  <p style={{ marginTop: 8, color: "#4d5b56", fontSize: 13, lineHeight: 1.65 }}>병원 정보를 입력하면 AI가 촬영 콘티 · 준비 체크리스트 · 타임테이블을 한 번에 생성합니다.</p>
-                </div>
+              <PageHeading kicker="SHOOTING CONTI" title="촬영 콘티 자동 생성" desc="병원 정보를 입력하면 AI가 촬영 콘티 · 준비 체크리스트 · 타임테이블을 한 번에 생성합니다." />
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", flexWrap: "wrap", gap: 12, marginTop: 16 }}>
                 {/* 불러오기 버튼 */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
