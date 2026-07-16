@@ -4781,9 +4781,6 @@ a.pc-nav-link, a.pc-header-back {
 
 /* ── 아주 작은 화면 (390px 이하) ── */
 @media (max-width: 390px) {
-  .admin-menu-grid {
-    grid-template-columns: 1fr !important;
-  }
   .pc-header-actions button {
     font-size: 11px !important;
     padding: 0 8px !important;
