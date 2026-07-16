@@ -178,7 +178,7 @@ export default function ReportPage() {
               </div>
 
               {/* 병원 랭킹 */}
-              <div style={{ background: "#fff", borderRadius: 16, padding: "22px", border: "1px solid rgba(21,88,85,.1)" }}>
+              <div className="pc-card pc-card--padded">
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
                   <TrendingUp size={16} color="#155855" />
                   <span style={{ fontSize: 13, fontWeight: 800, color: "#155855" }}>병원별 활동 Top 5</span>
