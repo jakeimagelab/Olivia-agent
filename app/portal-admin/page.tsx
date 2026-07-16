@@ -129,7 +129,7 @@ export default function PortalAdminPage() {
               const acc = accesses[client.id];
               const loaded = client.id in accesses;
               return (
-                <div key={client.id} style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:"16px 20px", marginBottom:10 }}>
+                <div key={client.id} className="pc-card pc-card--padded" style={{ marginBottom:10 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <div>
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
@@ -185,7 +185,7 @@ export default function PortalAdminPage() {
             {revisions.length === 0 ? (
               <div style={{ background:C.white, borderRadius:12, padding:40, textAlign:"center", color:C.hint }}>수정 요청이 없습니다.</div>
             ) : revisions.map(r => (
-              <div key={r.id} style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:"16px 20px", marginBottom:10 }}>
+              <div key={r.id} className="pc-card pc-card--padded" style={{ marginBottom:10 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
                   <div>
                     <div style={{ fontWeight:800, fontSize:14, marginBottom:2 }}>{r.title}</div>
