@@ -390,7 +390,7 @@ function SeoDeliveryInner() {
                 {clientId && workflowRunId && (
                   <div style={{ padding: "14px 18px", borderTop: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
                     <button onClick={completeStep}
-                      style={{ ...btnPrimary, width: "100%", height: 44 }}>
+                      className="pc-btn pc-btn--primary pc-btn--lg" style={{ width: "100%" }}>
                       ✓ AI 검색 최적화 완료 → 최종 납품 단계로
                     </button>
                   </div>
