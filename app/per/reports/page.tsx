@@ -110,7 +110,7 @@ export default function PerReportsPage() {
                 </div>
                 {r.html_content && (
                   <button onClick={() => window.open("data:text/html;charset=utf-8,"+encodeURIComponent(r.html_content))}
-                    style={{ background:C.light, color:C.teal, border:"none", borderRadius:7, padding:"7px 14px", fontWeight:700, fontSize:12, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    className="pc-btn pc-btn--secondary pc-btn--sm" style={{ whiteSpace:"nowrap" }}>
                     미리보기
                   </button>
                 )}
