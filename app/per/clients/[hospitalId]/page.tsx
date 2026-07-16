@@ -109,7 +109,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
                 {filteredTx.length === 0 ? (
                   <div style={{ background:C.white, borderRadius:10, padding:20, textAlign:"center", color:C.hint, fontSize:13 }}>내역이 없습니다</div>
                 ) : filteredTx.map((tx:any) => (
-                  <div key={tx.id} style={{ background:C.white, borderRadius:10, border:`1px solid ${C.border}`, padding:"12px 16px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div key={tx.id} className="pc-card" style={{ padding:"12px 16px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <div>
                       <span style={{ fontSize:11, background:`${TX_TYPE_COLOR[tx.type]}22`, color:TX_TYPE_COLOR[tx.type], borderRadius:4, padding:"2px 7px", fontWeight:700 }}>{TX_TYPE_LABEL[tx.type]??tx.type}</span>
                       <span style={{ fontSize:12, color:C.muted, marginLeft:8 }}>{tx.memo||"—"}</span>
