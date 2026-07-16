@@ -270,12 +270,7 @@ export default function TrendDashboardPage() {
             <button
               onClick={searchKeyword}
               disabled={searchingKeyword || !keywordInput.trim()}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "0 18px", borderRadius: 8, border: "none", height: 38,
-                background: !keywordInput.trim() ? "#C8DDD9" : "#155855", color: "#fff",
-                fontWeight: 800, fontSize: 13, cursor: !keywordInput.trim() ? "not-allowed" : "pointer",
-              }}
+              className="pc-btn pc-btn--primary"
             >
               <Search size={14} />
               {searchingKeyword ? "분석 중..." : "분석"}
