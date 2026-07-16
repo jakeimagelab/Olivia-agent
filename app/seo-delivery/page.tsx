@@ -240,7 +240,7 @@ function SeoDeliveryInner() {
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
             {/* 기본 정보 */}
-            <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+            <div className="pc-card">
               <div style={{ padding: "12px 18px", background: "rgba(21,88,85,.03)", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>기본 정보</div>
               </div>
@@ -270,7 +270,7 @@ function SeoDeliveryInner() {
             </div>
 
             {/* 이미지 목록 */}
-            <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+            <div className="pc-card">
               <div style={{ padding: "12px 18px", background: "rgba(21,88,85,.03)", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>이미지 목록 ({images.length}장)</div>
@@ -337,7 +337,7 @@ function SeoDeliveryInner() {
 
             {/* 결과 테이블 (결과 있을 때만) */}
             {results.length > 0 && (
-              <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+              <div className="pc-card">
                 <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>생성 결과 ({results.length}장)</div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -415,7 +415,7 @@ function SeoDeliveryInner() {
                 </div>
               )}
 
-              <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+              <div className="pc-card">
                 <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
                   <div style={{ fontSize: 11, color: C.hint }}>{sel.originalFileName}</div>
                   <div style={{ fontSize: 13, fontWeight: 900, color: C.teal, marginTop: 2 }}>{sel.seoFileName}</div>
@@ -447,7 +447,7 @@ function SeoDeliveryInner() {
               </div>
 
               {/* IPTC 메타데이터 */}
-              <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+              <div className="pc-card">
                 <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, background: C.purpleLight }}>
                   <div style={{ fontSize: 12, fontWeight: 900, color: C.purple }}>IPTC / XMP 메타데이터</div>
                 </div>
