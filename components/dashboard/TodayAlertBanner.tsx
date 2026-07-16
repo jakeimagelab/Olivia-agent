@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Bell, Clock } from "lucide-react";
+import { AlertCircle, Bell, Clock, RefreshCw } from "lucide-react";
 
 type BriefTask = { id: string; title: string; completed: boolean; time?: string | null };
+type BriefState = "loading" | "ready" | "empty" | "error";
 
 /* 예전 app/page.tsx의 Dashboard 첫 화면에 있던 "디지털시계 + 올리비아 인사말" 배너 —
    /admin 콘솔로 옮겨오면서 빠졌던 걸 그대로 복구. 데이터를 직접 fetch하는 독립 컴포넌트라
@@ -19,17 +20,35 @@ export default function TodayAlertBanner() {
 
   const [tasks, setTasks] = useState<BriefTask[]>([]);
   const [totalPending, setTotalPending] = useState(0);
+  const [briefState, setBriefState] = useState<BriefState>("loading");
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
-    fetch("/api/dashboard").then(r => r.json()).then(d => {
-      if (!d.ok) return;
-      setTasks(d.todayTasks ?? []);
-      const c = d.clients ?? {}; const m = d.mailing ?? {};
-      setTotalPending(
-        (m.pending?.length ?? 0) + (c.quoteFollowUp?.length ?? 0) + (c.contractPending?.length ?? 0) +
-        (c.galleryPending?.length ?? 0) + (c.reviewPending?.length ?? 0) + (c.snsPending?.length ?? 0)
-      );
-    }).catch(() => {});
-  }, []);
+    const controller = new AbortController();
+    setBriefState("loading");
+    fetch("/api/dashboard", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`dashboard:${response.status}`);
+        return response.json();
+      })
+      .then((data) => {
+        if (!data.ok) throw new Error("dashboard:not-ok");
+        const nextTasks: BriefTask[] = data.todayTasks ?? [];
+        const clients = data.clients ?? {};
+        const mailing = data.mailing ?? {};
+        const pending =
+          (mailing.pending?.length ?? 0) + (clients.quoteFollowUp?.length ?? 0) +
+          (clients.contractPending?.length ?? 0) + (clients.galleryPending?.length ?? 0) +
+          (clients.reviewPending?.length ?? 0) + (clients.snsPending?.length ?? 0);
+        setTasks(nextTasks);
+        setTotalPending(pending);
+        setBriefState(nextTasks.length || pending ? "ready" : "empty");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setBriefState("error");
+      });
+    return () => controller.abort();
+  }, [reloadKey]);
 
   const hour = now ? now.getHours() : null;
   const greeting = hour === null ? "안녕하세요" : hour < 12 ? "좋은 아침이에요" : hour < 18 ? "수고하고 계세요" : "오늘도 고생많으셨어요";
@@ -38,68 +57,45 @@ export default function TodayAlertBanner() {
 
   const remaining = tasks.filter(t => !t.completed);
   const done = tasks.filter(t => t.completed).length;
-  const nextTask = remaining.sort((a, b) => {
+  const nextTask = remaining.toSorted((a, b) => {
     const ta = a.time ? a.time.split("~")[0].trim() : "99:99";
     const tb = b.time ? b.time.split("~")[0].trim() : "99:99";
     return ta.localeCompare(tb);
   })[0];
 
   return (
-    <div style={{ background: "linear-gradient(135deg,#155855 0%,#0d3e3b 100%)", borderRadius: 16, padding: "14px 16px", boxShadow: "0 4px 20px rgba(21,88,85,.18)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(232,93,44,.85)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Bell size={13} color="#fff"/>
-          </div>
+    <section className="oa-daily-brief" aria-live="polite" aria-busy={briefState === "loading"}>
+      <div className="oa-daily-brief__top">
+        <div className="oa-daily-brief__identity">
+          <span className="oa-daily-brief__bell"><Bell size={13} aria-hidden="true"/></span>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 900, color: "rgba(255,255,255,.45)", letterSpacing: ".1em", textTransform: "uppercase" }}>OLIVIA DAILY BRIEF</div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,.5)" }}>{today}</div>
+            <div className="oa-daily-brief__eyebrow">OLIVIA DAILY BRIEF</div>
+            <div className="oa-daily-brief__date">{today}</div>
           </div>
         </div>
-        {totalPending > 0 && (
-          <div style={{ background: "#E85D2C", borderRadius: 99, padding: "2px 10px", fontSize: 11, fontWeight: 900, color: "#fff" }}>
-            대기 {totalPending}건
-          </div>
-        )}
+        {briefState === "ready" && <span className="oa-daily-brief__state">{totalPending > 0 ? `대기 ${totalPending}건` : "방금 갱신"}</span>}
       </div>
 
-      <div style={{
-        textAlign: "center", padding: "8px 0", marginBottom: 8,
-        borderTop: "1px solid rgba(255,255,255,.1)", borderBottom: "1px solid rgba(255,255,255,.1)",
-      }}>
-        <div style={{
-          fontSize: 24, fontWeight: 800, color: "#6EE7B7",
-          fontVariantNumeric: "tabular-nums", letterSpacing: ".08em",
-          fontFamily: "'SF Mono','Menlo','Consolas',monospace",
-        }}>{clock}</div>
-      </div>
+      <div className="oa-daily-brief__clock">{clock}</div>
 
-      <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", margin: "0 0 8px", lineHeight: 1.5 }}>
-        {greeting}, 정연호 대표님.
-        {remaining.length > 0
-          ? <> 오늘 할일 <span style={{ color: "#EB8F22", fontWeight: 900 }}>{remaining.length}개</span> 남았어요.</>
-          : tasks.length > 0
-            ? <> 오늘 할일 <span style={{ color: "#6EE7B7", fontWeight: 900 }}>모두 완료</span>했어요!</>
-            : <> 오늘 등록된 일정이 없어요.</>
-        }
-      </p>
+      <div className="oa-daily-brief__message">
+        {briefState === "loading" ? <><span className="oa-daily-brief__pulse"/> 운영 데이터를 불러오는 중입니다.</> : null}
+        {briefState === "error" ? <><AlertCircle size={15} aria-hidden="true"/> 운영 데이터 연결에 실패했습니다.<button type="button" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={12} aria-hidden="true"/>다시 불러오기</button></> : null}
+        {briefState === "empty" ? <>{greeting}, 정연호 대표님. 오늘 등록된 일정이 없어요.</> : null}
+        {briefState === "ready" ? <>{greeting}, 정연호 대표님. {remaining.length > 0 ? <>오늘 할일 <strong>{remaining.length}개</strong> 남았어요.</> : <>오늘 할일을 모두 완료했어요!</>}</> : null}
+      </div>
 
       {nextTask && (
-        <Link href="/calendar" style={{ textDecoration: "none" }}>
-          <div style={{ background: "rgba(255,255,255,.1)", borderRadius: 9, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, border: "1px solid rgba(255,255,255,.12)" }}>
-            <Clock size={11} color="rgba(255,255,255,.6)"/>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,.7)", flexShrink: 0 }}>다음:</span>
-            {nextTask.time && <span style={{ fontSize: 10, fontWeight: 800, color: "#EB8F22", background: "rgba(235,143,34,.2)", padding: "1px 6px", borderRadius: 4, flexShrink: 0 }}>{nextTask.time}</span>}
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nextTask.title}</span>
-          </div>
+        <Link href="/calendar" className="oa-daily-brief__next">
+          <Clock size={11} aria-hidden="true"/><span>다음</span>
+          {nextTask.time && <time>{nextTask.time}</time>}
+          <strong>{nextTask.title}</strong>
         </Link>
       )}
 
       {tasks.length > 0 && done > 0 && (
-        <div style={{ marginTop: 8, height: 3, background: "rgba(255,255,255,.1)", borderRadius: 99 }}>
-          <div style={{ height: "100%", background: "#6EE7B7", width: `${(done / tasks.length) * 100}%`, borderRadius: 99, transition: "width .4s" }}/>
-        </div>
+        <div className="oa-daily-brief__progress"><span style={{ width: `${(done / tasks.length) * 100}%` }}/></div>
       )}
-    </div>
+    </section>
   );
 }

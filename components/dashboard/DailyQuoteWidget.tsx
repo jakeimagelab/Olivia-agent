@@ -64,21 +64,13 @@ export function todaysQuote() {
 export default function DailyQuoteWidget() {
   const quote = todaysQuote();
   return (
-    <div style={{
-      background: "linear-gradient(135deg,#fff,#FAF8FF)", borderRadius: 16,
-      border: "1px solid rgba(124,58,237,.12)", overflow: "hidden",
-      boxShadow: "0 1px 8px rgba(21,88,85,.05)", padding: "14px 16px",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-        <Quote size={13} color="#7C3AED"/>
-        <span style={{ fontSize: 10, fontWeight: 900, color: "#7C3AED", letterSpacing: ".08em", textTransform: "uppercase" }}>오늘의 명언</span>
+    <aside className="oa-daily-quote">
+      <div className="oa-daily-quote__label">
+        <Quote size={13} aria-hidden="true"/>
+        <span>오늘의 명언</span>
       </div>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1C2B28", lineHeight: 1.6 }}>
-        “{quote.text}”
-      </div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#9BB5B0", marginTop: 6, textAlign: "right" }}>
-        — {quote.author}
-      </div>
-    </div>
+      <blockquote>“{quote.text}”</blockquote>
+      <cite>— {quote.author}</cite>
+    </aside>
   );
 }
