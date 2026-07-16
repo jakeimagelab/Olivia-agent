@@ -101,7 +101,7 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
                 <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
                   {["전체","earn","use","donate","adjust","expire","cancel"].map(f => (
                     <button key={f} onClick={() => setTxFilter(f)}
-                      style={{ padding:"4px 12px", border:`1px solid ${txFilter===f?C.teal:C.border}`, borderRadius:20, background:txFilter===f?C.teal:"transparent", color:txFilter===f?"#fff":C.muted, fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                      className={`pc-btn pc-btn--sm ${txFilter===f ? "pc-btn--primary" : "pc-btn--ghost"}`}>
                       {TX_TYPE_LABEL[f] ?? f}
                     </button>
                   ))}
