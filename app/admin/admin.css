@@ -250,6 +250,83 @@
 .oa-crm-shortcuts a:hover { color: var(--oa-blue); }
 .oa-shell__scrim { display: none; }
 
+/* ── 대시보드 홈 — 스크롤 없이 화면에 꽉 차게, 브리핑(시계+명언)을 맨 위로 ────── */
+.pc-dash-home {
+  height: calc(100dvh - 96px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.pc-dash-brief {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.pc-dash-brief__main,
+.pc-dash-brief__quote {
+  min-width: 0;
+  display: flex;
+}
+
+.pc-dash-brief__main > *,
+.pc-dash-brief__quote > * {
+  width: 100%;
+}
+
+.pc-dash-summary {
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.pc-dash-summary .oa-summary-card {
+  min-height: 92px;
+  padding: 12px 14px;
+}
+
+.pc-dash-summary .oa-summary-card__icon {
+  width: 30px;
+  height: 30px;
+}
+
+.pc-dash-summary .oa-summary-card__value {
+  font-size: 22px;
+}
+
+.pc-dash-layout {
+  flex: 1;
+  min-height: 0;
+}
+
+.pc-dash-layout .oa-main-column,
+.pc-dash-layout .oa-right-column {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.pc-dash-layout .oa-right-column {
+  position: static;
+}
+
+.pc-dash-layout .oa-category-section {
+  padding: 14px 16px;
+}
+
+@media (max-width: 1080px) {
+  .pc-dash-home {
+    height: auto;
+    overflow: visible;
+  }
+  .pc-dash-brief {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1380px) {
   .oa-shell { grid-template-columns: 238px minmax(0,1fr); }
   .oa-summary-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
