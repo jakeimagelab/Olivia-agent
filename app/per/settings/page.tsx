@@ -48,7 +48,7 @@ export default function PerSettingsPage() {
       </header>
 
       <div style={{ maxWidth:700, margin:"0 auto", padding:"24px 20px 100px" }}>
-        <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:28, marginBottom:20 }}>
+        <div className="pc-card pc-card--padded" style={{ marginBottom:20 }}>
           <h2 style={{ margin:"0 0 20px", fontSize:15, fontWeight:800, display:"flex", alignItems:"center", gap:8 }}>
             <Settings size={16} color={C.teal}/> 적립 정책
           </h2>
@@ -80,7 +80,7 @@ export default function PerSettingsPage() {
           </div>
         </div>
 
-        <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:28, marginBottom:20 }}>
+        <div className="pc-card pc-card--padded" style={{ marginBottom:20 }}>
           <h2 style={{ margin:"0 0 16px", fontSize:15, fontWeight:800 }}>기능 설정</h2>
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             {[
@@ -98,7 +98,7 @@ export default function PerSettingsPage() {
           </div>
         </div>
 
-        <div style={{ background:C.white, borderRadius:14, border:`1px solid ${C.border}`, padding:28, marginBottom:20 }}>
+        <div className="pc-card pc-card--padded" style={{ marginBottom:20 }}>
           <h2 style={{ margin:"0 0 12px", fontSize:15, fontWeight:800 }}>운영 정책 메모</h2>
           <textarea value={form.policy_note ?? ""} onChange={e => setForm((p:any) => ({ ...p, policy_note:e.target.value }))} rows={4} placeholder="내부 운영 메모나 추가 정책 설명을 입력하세요." style={taS} />
         </div>
