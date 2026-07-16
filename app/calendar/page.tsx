@@ -2293,25 +2293,14 @@ export default function CalendarPage() {
             <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,
               borderRadius: 10, padding: 2, gap: 1 }}>
               {(["day","week","month","year"] as ViewMode[]).map(v => (
-                <button key={v} onClick={() => setViewMode(v)} style={{
-                  padding: "5px 13px",
-                  borderRadius: 8, fontSize: 12, fontWeight: 800,
-                  border: "none", cursor: "pointer", transition: "all .15s",
-                  background: viewMode === v ? C.teal : "transparent",
-                  color: viewMode === v ? "#fff" : C.muted,
-                }}>{VIEW_LABELS[v]}</button>
+                <button key={v} onClick={() => setViewMode(v)}
+                  className={`pc-btn pc-btn--sm ${viewMode === v ? "pc-btn--primary" : "pc-btn--ghost"}`}
+                  style={{ border: "none" }}>{VIEW_LABELS[v]}</button>
               ))}
             </div>
           )}
-          <button onClick={goToday} style={{
-            padding: isMobile ? "5px 10px" : "6px 12px",
-            borderRadius: 8, fontSize: isMobile ? 11 : 12, fontWeight: 800,
-            border: `1px solid ${C.border}`, background: C.surface, color: C.teal, cursor: "pointer",
-          }}>오늘</button>
-          <button onClick={() => setShowStatsModal(v => !v)}
-            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: isMobile ? 11 : 12, fontWeight: 700,
-              color: C.teal, background: C.mint, border: `1px solid ${C.border}`,
-              borderRadius: 8, padding: isMobile ? "5px 10px" : "6px 12px", cursor: "pointer", fontFamily: "inherit" }}>
+          <button onClick={goToday} className="pc-btn pc-btn--secondary pc-btn--sm">오늘</button>
+          <button onClick={() => setShowStatsModal(v => !v)} className="pc-btn pc-btn--ghost pc-btn--sm">
             📊{!isMobile && " 일정 분석"}
           </button>
         </div>
