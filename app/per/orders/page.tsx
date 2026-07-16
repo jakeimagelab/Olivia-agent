@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ORDER_STATUS_LABEL } from "@/lib/per";
 
 const C = { teal:"#155855", orange:"#E85D2C", green:"#22876A", bg:"#F0F9F8", white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470", hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2" };
-const STATUS_COLOR: Record<string,string> = { pending:C.orange, approved:C.teal, points_deducted:C.teal, preparing:"#7C3AED", shipped:"#0891B2", completed:C.green, canceled:C.hint, rejected:"#EF4444" };
+const STATUS_BADGE_VARIANT: Record<string,string> = { pending:"orange", approved:"teal", points_deducted:"teal", preparing:"gray", shipped:"blue", completed:"green", canceled:"gray", rejected:"red" };
 const NEXT_STATUS: Record<string,string> = { pending:"approved", approved:"preparing", preparing:"shipped", shipped:"completed" };
 const NEXT_LABEL: Record<string,string>  = { pending:"승인 (포인트 차감)", approved:"준비 중으로 변경", preparing:"배송 중으로 변경", shipped:"완료 처리" };
 
