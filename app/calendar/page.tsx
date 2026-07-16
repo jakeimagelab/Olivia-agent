@@ -722,19 +722,11 @@ function ConsultMemoPanel({ dateStr, consultations, onAdd }: {
               ✅ 캘린더에 등록됐어요!
             </div>
           ) : (
-            <button onClick={saveToCalendar} disabled={saving} style={{
-              height: 42, border: "none", borderRadius: 9,
-              background: saving ? C.hint : C.orange,
-              color: "#fff", fontSize: 13, fontWeight: 800,
-              cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit",
-            }}>
+            <button onClick={saveToCalendar} disabled={saving} className="pc-btn pc-btn--orange">
               {saving ? "등록 중…" : "📅 캘린더에 등록"}
             </button>
           )}
-          <button onClick={() => { setResult(null); setRawMemo(""); setSaved(false); }} style={{
-            height: 36, border: `1px solid ${C.border}`, borderRadius: 9, background: "transparent",
-            color: C.muted, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-          }}>새 메모 작성</button>
+          <button onClick={() => { setResult(null); setRawMemo(""); setSaved(false); }} className="pc-btn pc-btn--ghost pc-btn--sm">새 메모 작성</button>
         </>
       )}
     </div>
