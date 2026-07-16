@@ -114,7 +114,7 @@ export default function PerClientsPage() {
                   <div key={c.id} style={{ background:C.white, borderRadius:12, border:`1px solid ${C.light}`, padding:"12px 20px", marginBottom:8, display:"flex", alignItems:"center", gap:12, opacity:.7 }}>
                     <div style={{ flex:1, fontSize:13, fontWeight:600, color:C.muted }}>{c.name}</div>
                     <button onClick={() => { setAddForm(f => ({ ...f, clientId:c.id })); setAddModal(true); }}
-                      style={{ background:C.light, color:C.teal, border:"none", borderRadius:6, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                      className="pc-btn pc-btn--ghost pc-btn--sm">
                       포인트 적립
                     </button>
                   </div>
