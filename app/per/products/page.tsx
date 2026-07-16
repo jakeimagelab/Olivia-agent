@@ -109,7 +109,7 @@ export default function PerProductsPage() {
                       <span style={{ fontSize:16, fontWeight:800, color:C.green }}>{p.required_points?.toLocaleString()}P</span>
                       {p.price > 0 && <span style={{ fontSize:11, color:C.hint, marginLeft:6 }}>({p.price?.toLocaleString()}원)</span>}
                     </div>
-                    <button onClick={() => openEdit(p)} style={{ background:C.light, color:C.teal, border:"none", borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                    <button onClick={() => openEdit(p)} className="pc-btn pc-btn--secondary pc-btn--sm">
                       <Edit2 size={11}/> 수정
                     </button>
                   </div>
