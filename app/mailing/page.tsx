@@ -245,7 +245,7 @@ function QueueTab() {
                 </div>
                 <div style={{ fontSize: 11, color: C.muted }}>{selected.hospital_name} · {fmtDate(selected.created_at)}</div>
               </div>
-              <button onClick={() => deleteItem(selected.id)} style={{ border: "none", background: "none", color: C.hint, cursor: "pointer", fontSize: 12 }}>삭제</button>
+              <button onClick={() => deleteItem(selected.id)} className="pc-btn pc-btn--danger pc-btn--sm">삭제</button>
             </div>
 
             <div style={{ marginBottom: 14 }}>
