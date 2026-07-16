@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   AlertTriangle, CalendarClock, Camera, CheckCircle2, ClipboardCheck, FileSignature,
-  FolderKanban, Images, RefreshCw, Sparkles, UserRoundCheck, UsersRound,
+  FolderKanban, Images, RefreshCw, UserRoundCheck, UsersRound,
 } from "lucide-react";
 import SummaryCard from "@/components/admin/SummaryCard";
 import OliviaRecommendationPanel from "@/components/admin/OliviaRecommendationPanel";
@@ -9,14 +9,14 @@ import CategorySection from "@/components/admin/CategorySection";
 import StatusBadge from "@/components/admin/StatusBadge";
 
 const DEMO_CRM_SUMMARY = [
-  { label: "진행중 프로젝트", value: "18", description: "이번 달 전체", icon: <FolderKanban size={20}/>, tone: "blue" as const },
-  { label: "견적 대기", value: "3", description: "답변 확인 필요", icon: <ClipboardCheck size={20}/>, tone: "orange" as const },
-  { label: "계약 대기", value: "2", description: "서명 전", icon: <FileSignature size={20}/>, tone: "orange" as const },
-  { label: "촬영 예정", value: "5", description: "7일 이내", icon: <Camera size={20}/>, tone: "blue" as const },
-  { label: "셀렉 대기", value: "4", description: "고객 진행 중", icon: <Images size={20}/>, tone: "green" as const },
-  { label: "RAW 매칭 필요", value: "2", description: "작업 가능", icon: <RefreshCw size={20}/>, tone: "orange" as const },
-  { label: "보정 진행", value: "6", description: "내부 작업 중", icon: <CheckCircle2 size={20}/>, tone: "green" as const },
-  { label: "후속 관리 대상", value: "7", description: "후기·재계약", icon: <UserRoundCheck size={20}/>, tone: "red" as const },
+  { label: "진행중 프로젝트", value: "18", description: "이번 달 전체", icon: <FolderKanban size={18}/>, tone: "blue" as const },
+  { label: "견적 대기", value: "3", description: "답변 확인 필요", icon: <ClipboardCheck size={18}/>, tone: "orange" as const },
+  { label: "계약 대기", value: "2", description: "서명 전", icon: <FileSignature size={18}/>, tone: "orange" as const },
+  { label: "촬영 예정", value: "5", description: "7일 이내", icon: <Camera size={18}/>, tone: "blue" as const },
+  { label: "셀렉 대기", value: "4", description: "고객 진행 중", icon: <Images size={18}/>, tone: "green" as const },
+  { label: "RAW 매칭 필요", value: "2", description: "작업 가능", icon: <RefreshCw size={18}/>, tone: "orange" as const },
+  { label: "보정 진행", value: "6", description: "내부 작업 중", icon: <CheckCircle2 size={18}/>, tone: "green" as const },
+  { label: "후속 관리 대상", value: "7", description: "후기·재계약", icon: <UserRoundCheck size={18}/>, tone: "red" as const },
 ];
 
 const BOARD_COLUMNS = [
