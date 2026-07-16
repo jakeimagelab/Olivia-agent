@@ -222,7 +222,7 @@ export default function TrendDashboardPage() {
             }))}
             emptyText="비교할 만큼 데이터가 쌓이지 않았습니다 (최소 2회 수집 필요)."
           />
-          <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #C8DDD9", padding: "16px 18px", boxShadow: "0 2px 10px rgba(21,88,85,0.06)" }}>
+          <div className="pc-card pc-card--padded" style={{ padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#7A9E9B", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
               <Users size={16} /> 주목할 병원
             </div>
