@@ -748,7 +748,8 @@ function CustomBrandMailTab() {
                         <input value={dir.search} onChange={e => dir.setSearch(e.target.value)} placeholder="이름·이메일 검색..." style={{ ...iS, height: 34, padding: "6px 10px" }} />
                         {dir.session && (
                           <button type="button" onClick={dir.loadGmailHistory} disabled={dir.gmailHistoryState === "loading"}
-                            style={{ marginTop: 5, width: "100%", padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.border}`, background: C.mint, color: C.teal, fontSize: 11, fontWeight: 700, cursor: dir.gmailHistoryState === "loading" ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                            className="pc-btn pc-btn--ghost pc-btn--sm"
+                            style={{ marginTop: 5, width: "100%" }}>
                             {dir.gmailHistoryState === "loading" ? "📤 지메일 기록 검색 중..." : dir.gmailHistoryState === "done" ? "✓ 지메일 기록 반영됨" : "📤 지메일 보낸기록에서 더 찾기"}
                           </button>
                         )}
