@@ -287,7 +287,7 @@ function SeoDeliveryInner() {
                     placeholder={"R5K03697.JPG\t원장 상담\t원장 상담 장면\t마취통증의학과\thomepage\nR5K03698.JPG\t장비 시술\tC-arm 시술 장면\t마취통증의학과\thomepage"}
                     rows={3} style={{ ...iS, height: "auto", padding: "8px 12px", resize: "vertical", fontSize: 11, flex: 1 }} />
                   <button onClick={parseBulk} disabled={!bulkInput.trim()}
-                    style={{ ...btnPrimary, height: "auto", padding: "0 16px", alignSelf: "stretch", opacity: bulkInput.trim() ? 1 : 0.5 }}>
+                    className="pc-btn pc-btn--primary" style={{ height: "auto", padding: "0 16px", alignSelf: "stretch" }}>
                     적용
                   </button>
                 </div>
