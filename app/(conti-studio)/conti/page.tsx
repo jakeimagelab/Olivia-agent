@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import OliviaChat from "@/components/OliviaChat";
 import { createMailingDraft } from "@/lib/mailingQueue";
+import { PageHeading } from "@/components/PageHeading";
 import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
 import {
   ArrowLeft, CheckSquare, ChevronDown, ClipboardList, Copy, Image as ImageIcon,
