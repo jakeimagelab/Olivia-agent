@@ -113,11 +113,15 @@ export type TrashItem = {
 };
 
 // trash_items 테이블이 아직 마이그레이션 안 된 환경(supabase/consultation-memo-trash-migration.sql
-// 미실행)에서도 삭제 자체는 항상 동작해야 한다 — Postgres "42P01 undefined_table" 에러를 감지해서
-// 휴지통 보관 없이 즉시 하드 삭제로 폴백한다.
+// 미실행)에서도 삭제 자체는 항상 동작해야 한다. Supabase-js는 PostgREST를 거치기 때문에 raw
+// Postgres 에러(42P01 undefined_table)가 아니라 PostgREST 자체 에러(PGRST205, "Could not find
+// the table ... in the schema cache")로 온다 — 실제 프로덕션에서 이 형태로 확인됨.
 function isMissingTrashTable(error: { message?: string; code?: string } | null | undefined) {
   if (!error) return false;
-  return error.code === "42P01" || /relation .*trash_items.* does not exist/i.test(error.message ?? "");
+  if (error.code === "42P01" || error.code === "PGRST205") return true;
+  const message = error.message ?? "";
+  return /relation .*trash_items.* does not exist/i.test(message)
+    || /could not find the table 'public\.trash_items'/i.test(message);
 }
 
 export async function moveRecordToTrash(
