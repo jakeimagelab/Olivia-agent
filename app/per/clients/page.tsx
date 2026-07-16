@@ -147,9 +147,9 @@ export default function PerClientsPage() {
               <input value={addForm.memo} onChange={e => setAddForm(f => ({ ...f, memo:e.target.value }))} placeholder="예: 2026년 상반기 촬영 금액" style={iS} />
             </div>
             <div style={{ display:"flex", gap:10 }}>
-              <button onClick={() => setAddModal(false)} style={{ flex:1, background:C.light, color:C.muted, border:"none", borderRadius:8, padding:12, fontWeight:700, cursor:"pointer" }}>취소</button>
+              <button onClick={() => setAddModal(false)} className="pc-btn pc-btn--secondary" style={{ flex:1 }}>취소</button>
               <button onClick={handleAddPoints} disabled={saving || !addForm.clientId || !addForm.amount}
-                style={{ flex:2, background:C.teal, color:"#fff", border:"none", borderRadius:8, padding:12, fontWeight:700, cursor:"pointer", opacity:(saving||!addForm.clientId||!addForm.amount)?0.5:1 }}>
+                className="pc-btn pc-btn--primary" style={{ flex:2 }}>
                 {saving ? "적립 중..." : "포인트 적립"}
               </button>
             </div>
