@@ -161,8 +161,8 @@ export default function PerProductsPage() {
               <label htmlFor="featured" style={{ fontSize:13, fontWeight:600 }}>추천 제품으로 표시</label>
             </div>
             <div style={{ display:"flex", gap:10 }}>
-              <button onClick={() => setModal(false)} style={{ flex:1, background:C.light, color:C.muted, border:"none", borderRadius:8, padding:12, fontWeight:700, cursor:"pointer" }}>취소</button>
-              <button onClick={handleSave} disabled={saving} style={{ flex:2, background:C.teal, color:"#fff", border:"none", borderRadius:8, padding:12, fontWeight:700, cursor:"pointer", opacity:saving?.5:1 }}>{saving?"저장 중...":"저장"}</button>
+              <button onClick={() => setModal(false)} className="pc-btn pc-btn--secondary" style={{ flex:1 }}>취소</button>
+              <button onClick={handleSave} disabled={saving} className="pc-btn pc-btn--primary" style={{ flex:2 }}>{saving?"저장 중...":"저장"}</button>
             </div>
           </div>
         </div>
