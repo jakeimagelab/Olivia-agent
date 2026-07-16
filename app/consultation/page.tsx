@@ -154,7 +154,7 @@ function ConsultationInner() {
         {/* 왼쪽: 병원 정보 폼 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <form onSubmit={saveClient}>
-            <div style={{ background: C.white, borderRadius: 16, border: `1.5px solid ${C.border}`, overflow: "hidden" }}>
+            <div className="pc-card">
               <div style={{ padding: "14px 20px", background: "rgba(21,88,85,.04)", borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, letterSpacing: ".1em", marginBottom: 3 }}>STEP 1 · 상담/미팅</div>
                 <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>병원 기본 정보</div>
