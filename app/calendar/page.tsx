@@ -1094,7 +1094,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                         opacity: dragTask?.id === t.id ? 0.4 : dimmed ? 0.45 : t.completed ? 0.55 : 1,
                         cursor: CURSOR_GRAB,
                         transition: "opacity .15s, box-shadow .15s",
-                        boxShadow: selectedTaskId === t.id ? "0 0 0 2px #0F4440" : "none",
+                        boxShadow: selectedTask?.id === t.id ? "0 0 0 2px #0F4440" : "none",
                       }}>
                       <span style={{
                         width: 5, height: 12, borderRadius: 2, flexShrink: 0,
