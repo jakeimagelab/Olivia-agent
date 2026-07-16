@@ -116,7 +116,7 @@ function DeliveryInner() {
         </div>
 
         {clientId && (
-          <Link href={`/clients?id=${clientId}`} style={{ display: "block", textAlign: "center", marginTop: 14, padding: "12px", background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 12, fontWeight: 700, color: C.muted, textDecoration: "none" }}>
+          <Link href={`/clients?id=${clientId}`} className="pc-btn pc-btn--secondary" style={{ display: "flex", width: "100%", marginTop: 14, textDecoration: "none" }}>
             ← 고객 화면으로 돌아가기
           </Link>
         )}
