@@ -308,7 +308,7 @@ function GalleryPageInner() {
 
       <section className="pc-mobile-stack" style={{ maxWidth: 1220, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "420px 1fr", gap: 22, alignItems: "start" }}>
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
+          <div className="pc-card">
             <div style={{ background: C.mint, padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>{editingId ? "갤러리 카드 편집" : "촬영 갤러리 등록"}</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>원본 사진은 NAS에 두고, 카드용 작은 대표 미리보기만 저장합니다.</div>
