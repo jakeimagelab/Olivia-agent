@@ -112,6 +112,14 @@ export type TrashItem = {
   expires_at: string;
 };
 
+// trash_items 테이블이 아직 마이그레이션 안 된 환경(supabase/consultation-memo-trash-migration.sql
+// 미실행)에서도 삭제 자체는 항상 동작해야 한다 — Postgres "42P01 undefined_table" 에러를 감지해서
+// 휴지통 보관 없이 즉시 하드 삭제로 폴백한다.
+function isMissingTrashTable(error: { message?: string; code?: string } | null | undefined) {
+  if (!error) return false;
+  return error.code === "42P01" || /relation .*trash_items.* does not exist/i.test(error.message ?? "");
+}
+
 export async function moveRecordToTrash(
   db: SupabaseClient,
   sourceType: TrashSourceType,
@@ -134,6 +142,26 @@ export async function moveRecordToTrash(
     payload: row,
     asset_paths: config.assets?.(row) ?? [],
   }).select("*").single();
+
+  if (trashError && isMissingTrashTable(trashError)) {
+    console.error(`[trash] trash_items 테이블이 없어 '${sourceType}' 삭제를 하드 삭제로 폴백합니다:`, trashError.message);
+    const { error: deleteError } = await db.from(config.table).delete().eq("id", id);
+    if (deleteError) throw deleteError;
+    const now = new Date().toISOString();
+    return {
+      id: `hard-delete-${id}`,
+      source_type: sourceType,
+      source_label: config.label,
+      source_table: config.table,
+      source_id: id,
+      title: config.title(row),
+      preview: config.preview(row),
+      payload: row,
+      asset_paths: config.assets?.(row) ?? [],
+      deleted_at: now,
+      expires_at: now,
+    };
+  }
   if (trashError) throw trashError;
 
   const { error: deleteError } = await db.from(config.table).delete().eq("id", id);
