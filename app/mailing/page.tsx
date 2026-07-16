@@ -1218,11 +1218,11 @@ function ReviewOnlyMailTab() {
           ) : (
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={saveDraft} disabled={drafting || !hospitalName || !subject}
-                style={{ flex: "0 0 auto", height: 50, padding: "0 20px", background: C.surface, color: drafting ? C.hint : C.teal, border: `1.5px solid ${C.teal}`, borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: drafting || !hospitalName || !subject ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                className="pc-btn pc-btn--secondary pc-btn--lg" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }}>
                 {drafting ? "저장 중..." : "💾 임시 저장"}
               </button>
               <button onClick={handleSend} disabled={sending || !toEmail || !hospitalName || !subject || !message}
-                style={{ flex: 1, height: 50, background: sending ? C.hint : C.orange, color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: sending || !toEmail || !hospitalName || !subject || !message ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                className="pc-btn pc-btn--orange pc-btn--lg" style={{ flex: 1 }}>
                 {sending ? "발송 중..." : `📨 ${hospitalName || "고객"}에 후기 요청 메일 발송`}
               </button>
             </div>
