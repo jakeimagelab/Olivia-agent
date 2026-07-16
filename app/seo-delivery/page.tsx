@@ -331,7 +331,7 @@ function SeoDeliveryInner() {
               </div>
             )}
             <button onClick={generate} disabled={generating}
-              style={{ ...btnPrimary, height: 52, fontSize: 15, opacity: generating ? 0.7 : 1 }}>
+              className="pc-btn pc-btn--primary pc-btn--lg" style={{ width: "100%" }}>
               {generating ? "AI가 SEO 최적화 중..." : `✨ AI 검색 최적화 생성 (${images.filter((i) => i.originalFileName.trim()).length}장)`}
             </button>
 
