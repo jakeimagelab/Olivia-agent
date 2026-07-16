@@ -66,7 +66,7 @@ export default function PerCampaignsPage() {
         </div>
         <div className="pc-header-actions">
           <button onClick={() => { setEditing(null); setForm({ title:"", periodLabel:"", startDate:"", endDate:"", donationTarget:"", description:"", goalAmount:"" }); setModal(true); }}
-            style={{ display:"flex", alignItems:"center", gap:6, height:36, padding:"0 14px", border:"none", borderRadius:9, background:C.teal, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+            className="pc-btn pc-btn--primary pc-btn--sm">
             <Plus size={13}/> 캠페인 생성
           </button>
         </div>
