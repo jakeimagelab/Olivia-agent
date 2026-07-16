@@ -221,7 +221,7 @@ export default function ColorCheckPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
               {!result.detected ? (
-                <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "48px 24px", textAlign: "center" }}>
+                <div className="pc-card pc-card--padded" style={{ textAlign: "center" }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>🤔</div>
                   <div style={{ fontSize: 15, fontWeight: 900, color: C.teal }}>피부를 찾지 못했어요</div>
                   <div style={{ fontSize: 13, color: C.muted, marginTop: 6 }}>인물이 잘 보이는 사진을 올려주세요</div>
