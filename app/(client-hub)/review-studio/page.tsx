@@ -141,7 +141,7 @@ export default function ReviewStudioPage() {
     <form onSubmit={handleSave} style={{ display: "grid", gap: 14 }}>
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: "hidden" }}>
         <div style={{ background: C.mint, padding: "14px 20px", borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>클라이언트 후기 등록</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>리뷰 수동 등록</div>
           <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>받은 반응을 정리하고 홍보 콘텐츠로 재활용합니다.</div>
         </div>
         <div style={{ padding: 20, display: "grid", gap: 12 }}>
