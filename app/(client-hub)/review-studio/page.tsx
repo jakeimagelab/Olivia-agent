@@ -270,24 +270,16 @@ export default function ReviewStudioPage() {
   return (
     <div style={{ color: C.txt }}>
 
-      {/* ── 히어로 배너 ── */}
-      <div style={{ background: `linear-gradient(135deg, ${C.teal}, #22876A)`, color: "#fff", padding: "28px 24px 24px" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, opacity: .8, marginBottom: 4 }}>⭐ Review Studio</div>
-          <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 800 }}>클라이언트 후기 콘텐츠</h1>
-          <p style={{ margin: 0, fontSize: 13, opacity: .8 }}>받은 반응을 정리하고 인스타그램 홍보 콘텐츠로 재활용합니다.</p>
-        </div>
-      </div>
-
       {/* ── 모바일 탭 바 ── */}
       {isMobile && (
         <div className="pc-inline-tabs" style={{ display: "flex", background: C.surface, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 56, zIndex: 50 }}>
           {[
+            { id: "inbox",  label: "📥 접수 후기" },
             { id: "list",   label: "📋 후기 목록" },
             { id: "form",   label: "✏️ 후기 등록" },
             { id: "result", label: "✨ 생성 결과", dot: !!content },
           ].map(tab => (
-            <button key={tab.id} onClick={() => setMobileTab(tab.id as "form" | "list" | "result")} style={{
+            <button key={tab.id} onClick={() => setMobileTab(tab.id as "inbox" | "form" | "list" | "result")} style={{
               flex: 1, height: 44, border: "none", background: "transparent",
               fontFamily: "inherit", fontSize: 12, fontWeight: 800, cursor: "pointer",
               color: mobileTab === tab.id ? C.teal : C.muted, position: "relative",
