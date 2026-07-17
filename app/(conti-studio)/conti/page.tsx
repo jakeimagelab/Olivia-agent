@@ -1800,9 +1800,9 @@ ${header("타임테이블")}
                 disabled={quickLoading}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
-                  padding: "0 28px", minHeight: 44, border: "none",
-                  borderRadius: 8, background: "#155855", color: "#fff",
-                  fontWeight: 900, fontSize: 14, cursor: "pointer",
+                  padding: "0 20px", height: 40, border: "none",
+                  borderRadius: 8, background: "#E85D2C", color: "#fff",
+                  fontWeight: 900, fontSize: 13, cursor: "pointer",
                   opacity: quickLoading ? 0.7 : 1,
                   transition: "all 160ms ease"
                 }}
