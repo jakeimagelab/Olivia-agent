@@ -64,8 +64,31 @@ export default function ReviewStudioPage() {
 
   useEffect(() => { loadReviews(); }, []);
 
+  const loadWorkflowReviews = async () => {
+    setInboxLoading(true);
+    try {
+      const res  = await fetch("/api/admin/client-portal/reviews");
+      const data = await res.json();
+      if (data.ok) setWorkflowReviews(data.reviews || []);
+    } finally { setInboxLoading(false); }
+  };
+
+  useEffect(() => { loadWorkflowReviews(); }, []);
+
   const set = (key: keyof typeof form, value: string | boolean) =>
     setForm(cur => ({ ...cur, [key]: value }));
+
+  const useWorkflowReview = (r: WorkflowReview) => {
+    setForm(cur => ({
+      ...cur,
+      hospitalName: r.clients?.name || cur.hospitalName,
+      reviewerName: r.writer_name || cur.reviewerName,
+      rating: r.overall_rating ? String(r.overall_rating) : cur.rating,
+      reviewText: r.public_review_text || r.good_points || cur.reviewText,
+      permissionToPublish: r.allow_public_use ?? cur.permissionToPublish,
+    }));
+    if (isMobile) setMobileTab("form");
+  };
 
   const toggleSelect = (id: string) =>
     setSelectedIds(cur => cur.includes(id) ? cur.filter(i => i !== id) : [...cur, id]);
