@@ -53,7 +53,7 @@ function DeliveryInner() {
         <div className="pc-header-actions" style={{ padding: "0 20px" }}>
           {clientId
             ? <Link href={`/clients?id=${clientId}`} className="pc-header-back">← 고객 화면</Link>
-            : <Link href="/clients" className="pc-header-back">← 고객 목록</Link>}
+            : <Link href="/clients" className="pc-header-back">← 고객관리</Link>}
           <span style={{ fontSize: 10, fontWeight: 900, color: "#7C3AED", border: "1px solid rgba(124,58,237,.4)", borderRadius: 99, padding: "3px 10px" }}>Step 7 · 원본 전달</span>
         </div>
       </header>

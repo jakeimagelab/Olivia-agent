@@ -69,7 +69,7 @@ function ShootingInner() {
         <div className="pc-header-actions" style={{ padding: "0 20px" }}>
           {clientId
             ? <Link href={`/clients?id=${clientId}`} className="pc-header-back">← 고객 화면</Link>
-            : <Link href="/clients" className="pc-header-back">← 고객 목록</Link>}
+            : <Link href="/clients" className="pc-header-back">← 고객관리</Link>}
           <span style={{ fontSize: 10, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}40`, borderRadius: 99, padding: "3px 10px" }}>Step 5 · 촬영</span>
         </div>
       </header>

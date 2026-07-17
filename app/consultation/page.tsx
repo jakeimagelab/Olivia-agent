@@ -135,7 +135,7 @@ function ConsultationInner() {
         <div className="pc-header-actions" style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 20px" }}>
           {savedId
             ? <Link href={`/clients?id=${savedId}`} className="pc-header-back">← 고객 화면</Link>
-            : <Link href="/clients" className="pc-header-back">← 고객 목록</Link>}
+            : <Link href="/clients" className="pc-header-back">← 고객관리</Link>}
           <span style={{ fontSize: 10, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}40`, borderRadius: 99, padding: "3px 10px" }}>Step 1 · 상담/미팅</span>
           {savedId && <Link href={`/clients?id=${savedId}`} style={{ fontSize: 12, fontWeight: 800, color: C.teal, textDecoration: "none" }}>고객 상세 →</Link>}
         </div>
