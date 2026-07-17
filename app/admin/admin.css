@@ -792,10 +792,11 @@
 .crm-alarm-icon { width: 28px; height: 28px; border-radius: 8px; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .crm-alarm-text { font-size: 12px; color: #1C2B28; flex: 1; }
 .crm-alarm-text strong { color: var(--orange); }
-.crm-alarm-link { flex-shrink: 0; font-size: 11px; color: var(--orange); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.crm-alarm-time { flex-shrink: 0; font-size: 10px; color: #9BB5B0; white-space: nowrap; }
 
+.crm-kanban-label { font-size: 13px; font-weight: 800; color: #1C2B28; margin-bottom: 10px; }
 .crm-kanban { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
-.crm-kanban-col { flex-shrink: 0; width: 220px; }
+.crm-kanban-col { flex-shrink: 0; width: 180px; }
 .crm-kanban-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding: 0 2px; }
 .crm-kanban-dot { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; }
 .crm-kanban-title { font-size: 12px; font-weight: 800; color: #1C2B28; }
