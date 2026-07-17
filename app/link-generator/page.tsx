@@ -40,7 +40,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
     items: [
       { path: "/daily-ideas", label: "아이디어 제안" },
       { path: "/sns-manager", label: "홍보 콘텐츠 제작" },
-      { path: "/review-studio", label: "클라이언트 후기 콘텐츠" },
+      { path: "/review-studio", label: "리뷰컨텐츠" },
       { path: "/brand-analysis", label: "홈페이지 브랜드 분석" },
       { path: "/ai-trust-gap", label: "AI 추천 병원 역분석" },
       { path: "/diagnosis", label: "병원이미지 진단" },
