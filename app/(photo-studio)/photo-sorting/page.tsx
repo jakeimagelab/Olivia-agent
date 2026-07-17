@@ -2548,7 +2548,7 @@ function PhotoSortingInner() {
           })}
 
           {/* 액션 버튼 */}
-          <div className="ps-btn-row" style={{position:"sticky",bottom:0,background:C.bg,paddingTop:4}}>
+          <div className="ps-btn-row" style={{paddingTop:4}}>
             <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
             <Btn onClick={runInAppRawMatch} style={{opacity:totalSelected===0?0.4:1}} disabled={totalSelected===0}>
               {totalSelected>0?`${totalSelected}장 선택 → RAW 매칭`:"사진을 선택하세요"}
