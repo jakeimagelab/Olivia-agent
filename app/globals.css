@@ -5021,8 +5021,8 @@ main, .pc-console, .pc-page, .pc-page-content {
    Photo Sorting page — mobile layout helpers
 ═══════════════════════════════════════════ */
 
-/* Main content padding */
-.ps-wrap { padding: 28px 20px 80px; }
+/* Main content padding — centers narrower step panels within the wrap */
+.ps-wrap { padding: 28px 20px 80px; display: flex; flex-direction: column; align-items: center; }
 
 /* 4-column stat grid that becomes 2×2 on tablet/mobile */
 .ps-stat4 {
