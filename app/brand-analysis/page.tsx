@@ -394,19 +394,7 @@ export default function BrandAnalysisPage() {
 
   /* ── Step 0: Form ─────────────────────────────────────────── */
   const renderForm = () => (
-    <div style={{ maxWidth: 700, margin: "0 auto" }}>
-      {/* Hero */}
-      <div style={{ textAlign: "center", padding: "40px 0 32px" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-        <div style={{ fontSize: 22, fontWeight: 900, color: C.green, marginBottom: 8 }}>
-          홈페이지 브랜드 분석
-        </div>
-        <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.7 }}>
-          병원 홈페이지 URL을 입력하면 올리비아가 브랜드 키워드, 촬영 방향,<br />
-          브랜드필름 문장, 사진 콘티 방향을 자동으로 분석합니다.
-        </div>
-      </div>
-
+    <div style={{ maxWidth: 700, margin: "0 auto", paddingTop: 24 }}>
       {/* URL Input */}
       <Card style={{ padding: "28px 24px", marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 900, color: C.sage, marginBottom: 8, letterSpacing: ".05em" }}>
