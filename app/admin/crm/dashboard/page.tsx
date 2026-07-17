@@ -48,11 +48,11 @@ type SummaryResponse = {
   mock?: boolean;
 };
 
-function runBadge(run: WorkflowRun): { label: string; tone: StatusBadgeTone } {
-  if (run.waiting_approval_count > 0) return { label: "승인대기", tone: "orange" };
-  if (run.waiting_customer) return { label: "고객대기", tone: "blue" };
-  if (run.delayed) return { label: "지연", tone: "red" };
-  return { label: "진행중", tone: "green" };
+function runBadge(run: WorkflowRun): { label: string; cls: string } {
+  if (run.waiting_approval_count > 0) return { label: "승인 대기", cls: "crm-card-status--wait" };
+  if (run.waiting_customer) return { label: "고객 대기", cls: "crm-card-status--client" };
+  if (run.delayed) return { label: "지연", cls: "crm-card-status--delayed" };
+  return { label: "진행중", cls: "crm-card-status--approved" };
 }
 
 export default function CrmDashboardPage() {
