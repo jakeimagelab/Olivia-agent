@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useMemo, useRef, useState } from "react";
+import { Redo2, Trash2, Undo2 } from "lucide-react";
 import DrawingCanvas, { DRAW_COLORS, type DrawingCanvasHandle, type DrawShape, type PenType } from "@/components/DrawingCanvas";
 import type { MemoTemplateData, MemoTemplateType } from "@/lib/memo/types";
 
@@ -15,8 +16,8 @@ const NOTE_PENS: { key: PenType; label: string }[] = [
   { key: "pencil", label: "연필" }, { key: "ballpoint", label: "볼펜" },
   { key: "fountain", label: "만년필" }, { key: "highlighter", label: "형광펜" },
 ];
-const SHAPES: { key: DrawShape; label: string }[] = [
-  { key: "freehand", label: "자유" }, { key: "line", label: "선" }, { key: "arrow", label: "화살표" },
+const SHAPE_OPTIONS: { key: DrawShape; label: string }[] = [
+  { key: "line", label: "선" }, { key: "arrow", label: "화살표" },
   { key: "rectangle", label: "사각형" }, { key: "ellipse", label: "원" },
 ];
 
