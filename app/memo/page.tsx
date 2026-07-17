@@ -312,7 +312,7 @@ function MemoWorkspace() {
               ) : null}
 
               {mode === "template" ? <>
-                <div className="memo-template-picker" aria-label="펜 메모 템플릿 선택">
+                <div className="memo-template-picker" aria-label="태블릿 메모 양식 선택">
                   {PEN_TEMPLATE_OPTIONS.map(option => <button key={option.type} className={templateType === option.type ? "is-active" : ""} onClick={() => chooseTemplate(option.type)}>
                     <span>{option.mark}</span><strong>{option.label}</strong><small>{option.description}</small>
                   </button>)}
