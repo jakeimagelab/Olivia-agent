@@ -45,6 +45,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const meta = getPageMeta(pathname);
+  const isHome = pathname === "/admin/dashboard" || pathname === "/admin/dashboard/home";
 
   const logout = async () => {
     setLoggingOut(true);
