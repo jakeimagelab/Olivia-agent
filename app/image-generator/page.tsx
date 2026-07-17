@@ -356,44 +356,20 @@ export default function ImageDirectorPage() {
   // Render
   // ─────────────────────────────────────────────────────────
   return (
-    <main className="admin-shell">
-      <PageHeader title="리얼 이미지 디렉터" />
+    <main className="pc-page">
+      <PageHeader
+        title="리얼 이미지 디렉터"
+        tabs={[
+          { key: "real", icon: <ImagePlus size={15} />, label: "리얼 병원 이미지 생성" },
+          { key: "variation", icon: <Camera size={15} />, label: "실사진 기반 베리에이션" },
+          { key: "conti", icon: <FileImage size={15} />, label: "촬영 콘티 시안 생성" },
+        ]}
+        activeTab={mode}
+        onTabChange={(key) => setMode(key as Mode)}
+      />
 
-      {/* Mode Tabs */}
-      <div style={{ padding: "0 32px 24px" }}>
-        <div className="ops-filter-bar" style={{ flexWrap: "wrap", gap: 8 }}>
-          {(
-            [
-              { key: "real", icon: <ImagePlus size={15} />, label: "리얼 병원 이미지 생성" },
-              { key: "variation", icon: <Camera size={15} />, label: "실사진 기반 베리에이션" },
-              { key: "conti", icon: <FileImage size={15} />, label: "촬영 콘티 시안 생성" },
-            ] as { key: Mode; icon: React.ReactNode; label: string }[]
-          ).map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setMode(tab.key)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 16px",
-                borderRadius: 8,
-                border: "2px solid",
-                borderColor: mode === tab.key ? "var(--deep-green)" : "#ddd",
-                background: mode === tab.key ? "var(--deep-green)" : "#fff",
-                color: mode === tab.key ? "#fff" : "#555",
-                fontWeight: mode === tab.key ? 700 : 400,
-                cursor: "pointer",
-                fontSize: "0.88rem",
-                transition: "all 0.15s",
-              }}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      {/* Mode 설명 */}
+      <div style={{ padding: "20px 32px 0" }}>
         {mode === "conti" && (
           <p style={{ fontSize: "0.82rem", color: "var(--orange)", marginTop: 8 }}>
             콘티 모드: 스토리보드 스타일의 일러스트레이션 느낌 이미지를 생성합니다.
