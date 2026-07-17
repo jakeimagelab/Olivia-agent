@@ -75,13 +75,13 @@ export const WORKFLOW_STEPS = [
     key: "retouching",        name: "보정",
     order_index: 10, requires_approval: false, automation_level: "manual" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "photo-retouching",
-    stage: "data_sharing" as WorkflowStageKey, primary: true,
+    stage: "data_sharing" as WorkflowStageKey, primary: true, display_order: 9,
   },
   {
     key: "revision",          name: "보정 전달 후 수정 접수",
     order_index: 11, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "revision",
-    stage: "feedback_done" as WorkflowStageKey, primary: true,
+    stage: "feedback_done" as WorkflowStageKey, primary: true, display_order: 10,
   },
   {
     key: "seo_delivery",      name: "AI 검색 최적화 납품 생성",
