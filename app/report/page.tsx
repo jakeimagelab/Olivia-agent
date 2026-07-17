@@ -90,9 +90,9 @@ export default function ReportPage() {
         </div>
 
         {loading && !data ? (
-          <div style={{ textAlign: "center", padding: "80px 0", color: "#5A7470" }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>데이터를 불러오는 중...</div>
+          <div style={{ textAlign: "center", padding: "48px 0", color: "#5A7470" }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>데이터를 불러오는 중...</div>
           </div>
         ) : data ? (
           <>
