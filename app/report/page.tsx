@@ -96,51 +96,26 @@ export default function ReportPage() {
           </div>
         ) : data ? (
           <>
-            {/* 총 활동 + 주요 지표 */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
-              {/* 총계 카드 */}
+            {/* 지표 6개: 총계 포함 한 줄 그리드 */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8, marginBottom: 16 }}>
               <div style={{
                 background: "linear-gradient(135deg, #155855, #1e7870)",
-                borderRadius: 16, padding: "24px 22px",
-                display: "flex", flexDirection: "column", justifyContent: "space-between",
-                boxShadow: "0 8px 24px rgba(21,88,85,.2)",
+                borderRadius: 10, padding: "12px 14px",
+                boxShadow: "0 4px 12px rgba(21,88,85,.18)",
               }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.6)", textTransform: "uppercase", letterSpacing: ".1em" }}>총 활동</div>
-                <div style={{ fontSize: 52, fontWeight: 900, color: "#fff", lineHeight: 1.1, margin: "12px 0 4px" }}>{data.total}</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,.7)" }}>건의 업무 처리</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,.65)" }}>총 활동</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: "#fff", lineHeight: 1.2, margin: "2px 0" }}>{data.total}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,.7)" }}>건</div>
               </div>
 
-              {/* 주요 3개 지표 */}
-              {["create_quote","create_conti","send_file"].map(key => {
+              {(["create_quote","create_conti","send_file","create_contract","create_website","olivia_chat"] as const).map(key => {
                 const meta = ACTION_META[key];
                 const count = data.counts[key] || 0;
                 return (
-                  <div key={key} className="pc-card pc-card--padded">
-                    <div style={{ fontSize: 24, marginBottom: 8 }}>{meta.icon}</div>
-                    <div style={{ fontSize: 30, fontWeight: 900, color: "#155855" }}>{count}</div>
-                    <div style={{ fontSize: 12, color: "#5A7470", marginTop: 4 }}>{meta.label}</div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* 나머지 지표 */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
-              {["create_contract","create_website","olivia_chat"].map(key => {
-                const meta = ACTION_META[key];
-                const count = data.counts[key] || 0;
-                return (
-                  <div key={key} className="pc-card pc-card--padded" style={{
-                    padding: "16px 18px",
-                    display: "flex", alignItems: "center", gap: 14,
-                  }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-                      {meta.icon}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 22, fontWeight: 900, color: meta.color }}>{count}</div>
-                      <div style={{ fontSize: 11, color: "#5A7470", marginTop: 2 }}>{meta.label}</div>
-                    </div>
+                  <div key={key} className="pc-card" style={{ padding: "12px 14px" }}>
+                    <div style={{ fontSize: 15, marginBottom: 4 }}>{meta.icon}</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: meta.color }}>{count}</div>
+                    <div style={{ fontSize: 10, color: "#5A7470", marginTop: 2 }}>{meta.label}</div>
                   </div>
                 );
               })}
