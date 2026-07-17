@@ -84,13 +84,9 @@ export default function TrashPage() {
     <main style={{ minHeight: "100dvh", background: C.mist, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       <PageHeader title="휴지통" />
       <section style={{ maxWidth: 1040, margin: "0 auto", padding: "28px 16px 80px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 20, alignItems: "end", marginBottom: 24 }}>
-          <div>
-            <span style={{ display: "inline-flex", padding: "5px 11px", borderRadius: 99, background: "rgba(232,93,44,.1)", color: C.orange, fontSize: 10, fontWeight: 900, letterSpacing: ".14em" }}>30-DAY RECOVERY</span>
-            <h1 style={{ margin: "12px 0 7px", fontSize: "clamp(32px,6vw,58px)", lineHeight: .98, letterSpacing: "-.055em" }}>휴지통</h1>
-            <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.7 }}>삭제한 항목의 원래 기능을 확인하고 30일 안에 복원할 수 있습니다.</p>
-          </div>
-          <div style={{ padding: "10px 15px", borderRadius: 99, background: C.white, boxShadow: "0 18px 50px rgba(21,88,85,.08)", color: C.teal, fontWeight: 900, fontSize: 12 }}>{items.length}개 보관 중</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.7 }}>삭제한 항목의 원래 기능을 확인하고 30일 안에 복원할 수 있습니다.</p>
+          <div style={{ padding: "10px 15px", borderRadius: 99, background: C.white, boxShadow: "0 18px 50px rgba(21,88,85,.08)", color: C.teal, fontWeight: 900, fontSize: 12, whiteSpace: "nowrap" }}>{items.length}개 보관 중</div>
         </div>
 
         <div style={{ padding: 6, borderRadius: 22, background: "rgba(21,88,85,.06)", boxShadow: "0 24px 70px rgba(21,88,85,.07)", marginBottom: 18 }}>
