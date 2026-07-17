@@ -516,7 +516,7 @@
 }
 .oa-sidebar__brand { min-height: 72px; padding: 0 17px; border-bottom-color: rgba(255,255,255,.08); }
 .oa-sidebar__brand-link { gap: 10px; }
-.oa-sidebar__brand-mark { width: 34px; height: 34px; border: 0; border-radius: 11px; padding: 5px; background: linear-gradient(145deg, var(--command-orange), var(--command-amber)); box-shadow: 0 8px 22px rgba(232,93,44,.24), inset 0 1px 0 rgba(255,255,255,.35); }
+.oa-sidebar__brand-mark { width: 34px; height: 34px; border: 0; padding: 0; background: transparent; box-shadow: none; }
 .oa-sidebar__brand-copy strong { color: #fff; font-size: 15px; }
 .oa-sidebar__brand-copy small { color: rgba(255,255,255,.43); font-size: 8px; }
 .oa-sidebar__close { color: rgba(255,255,255,.72); background: rgba(255,255,255,.09); }
