@@ -72,7 +72,7 @@ export default function CrmDashboardPage() {
     : null;
 
   return (
-    <div className="oa-page pc-dash-home">
+    <div className="oa-page pc-dash-home crm-dashboard-page">
       <section className="crm-kpi-row" aria-label="CRM 현황 요약">
         <div className="crm-kpi crm-kpi--approval">
           <div className="crm-kpi-label">승인 대기</div>
