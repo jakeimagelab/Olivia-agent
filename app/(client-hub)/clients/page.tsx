@@ -113,7 +113,6 @@ function ListView() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const router = useRouter();
 
   const load = async () => {
@@ -133,41 +132,16 @@ function ListView() {
 
   return (
     <div style={{ color: C.txt }}>
-      <div style={{ maxWidth: viewMode === "kanban" ? undefined : 1280, margin: "0 auto", padding: "20px 20px 80px" }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 18, flexWrap: "wrap" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 20px 80px" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="병원명 · 진료과 검색"
             style={{ flex: "1 1 180px", maxWidth: 300, height: 40, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0 14px", fontSize: 13, fontFamily: "inherit", outline: "none", background: C.white, color: C.txt }} />
-          <div style={{ display: "flex", background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 9, padding: 2, gap: 1 }}>
-            {([["kanban", "🗂 칸반"], ["list", "▤ 리스트"]] as const).map(([v, label]) => (
-              <button key={v} onClick={() => setViewMode(v)} style={{
-                padding: "6px 12px", borderRadius: 7, fontSize: 12, fontWeight: 800, border: "none",
-                cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
-                background: viewMode === v ? C.teal : "transparent", color: viewMode === v ? "#fff" : C.muted,
-              }}>{label}</button>
-            ))}
-          </div>
           <span style={{ fontSize: 12, color: C.hint }}>총 {filtered.length}명</span>
           <button onClick={() => setShowModal(true)}
             style={{ height: 40, padding: "0 20px", background: C.orange, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>
             + 신규 등록
           </button>
         </div>
-
-        {!loading && clients.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 20 }}>
-            {[
-              { label: "전체 고객", value: clients.length },
-              { label: "워크플로우 진행", value: clients.filter((c) => c.active_run).length },
-              { label: "촬영 이전", value: clients.filter((c) => { const i = WORKFLOW_STEPS.findIndex((s) => s.key === c.active_run?.current_step_key); return i >= 0 && i < 5; }).length },
-              { label: "후처리 중", value: clients.filter((c) => { const i = WORKFLOW_STEPS.findIndex((s) => s.key === c.active_run?.current_step_key); return i >= 5 && i < 11; }).length },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ background: C.white, borderRadius: 10, border: `1px solid ${C.border}`, padding: "12px 14px", textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: C.teal }}>{value}</div>
-              </div>
-            ))}
-          </div>
-        )}
 
         {loading ? <SpinBox /> : filtered.length === 0 ? (
           <div style={{ padding: "60px 0", textAlign: "center", color: C.muted }}>
@@ -181,40 +155,28 @@ function ListView() {
               </button>
             )}
           </div>
-        ) : viewMode === "kanban" ? (
-          <KanbanBoard clients={filtered} onRefresh={load} router={router} />
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-            {filtered.map((c) => {
+          <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+            {filtered.map((c, i) => {
               const stepKey = c.active_run?.current_step_key;
               const stepName = stepKey ? (STEP_NAME[stepKey] || stepKey) : null;
               const sc = stepKey ? stepBadgeColor(stepKey) : C.hint;
               return (
                 <div key={c.id} onClick={() => router.push(`/clients?id=${c.id}`)}
-                  style={{ background: C.white, borderRadius: 14, border: `1.5px solid ${C.border}`, padding: "16px", cursor: "pointer", transition: "all .15s", boxShadow: "0 2px 8px rgba(21,88,85,.05)" }}
-                  onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = C.teal; el.style.boxShadow = "0 4px 16px rgba(21,88,85,.12)"; }}
-                  onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = C.border; el.style.boxShadow = "0 2px 8px rgba(21,88,85,.05)"; }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 900, color: C.teal, marginBottom: 3 }}>{c.name}</div>
-                      {c.department && <div style={{ fontSize: 11, color: C.muted }}>{c.department}</div>}
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 99, background: `${sc}18`, color: sc, border: `1px solid ${sc}30`, whiteSpace: "nowrap", marginLeft: 8 }}>
-                      {stepName ?? "미시작"}
-                    </span>
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", cursor: "pointer",
+                    borderTop: i === 0 ? "none" : `1px solid ${C.border}`, transition: "background .1s",
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = C.light; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>{c.name}</div>
+                    {c.department && <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{c.department}</div>}
                   </div>
-                  {c.director_name && <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>원장: {c.director_name}</div>}
-                  {c.next_action?.label && (
-                    <div style={{ marginTop: 8, padding: "8px 10px", background: C.light, borderRadius: 8 }}>
-                      <div style={{ fontSize: 11, color: C.hint, fontWeight: 900, marginBottom: 2 }}>다음 액션</div>
-                      <div style={{ fontSize: 12, color: C.teal, fontWeight: 800, lineHeight: 1.45 }}>{c.next_action.label}</div>
-                    </div>
-                  )}
-                  {c.main_treatments && <div style={{ fontSize: 11, color: C.hint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.main_treatments}</div>}
-                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 11, color: C.hint }}>{c.created_at ? new Date(c.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" }) : ""}</span>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: C.teal }}>{c.next_action?.primaryButtonLabel || "처리하기"} →</span>
-                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 99, background: `${sc}18`, color: sc, border: `1px solid ${sc}30`, whiteSpace: "nowrap" }}>
+                    {stepName ?? "미시작"}
+                  </span>
+                  <span style={{ fontSize: 13, color: C.hint }}>→</span>
                 </div>
               );
             })}
