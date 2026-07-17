@@ -1,4 +1,4 @@
-import { Quote } from "lucide-react";
+import { Quote, User } from "lucide-react";
 
 /* 대시보드 홈에 쓰던 "오늘의 명언" 위젯 — 예전 app/page.tsx의 Dashboard에 있던 걸
    그대로 옮겨왔다(외부 API 없이 날짜 기준으로 매일 자동으로 바뀐다). */
