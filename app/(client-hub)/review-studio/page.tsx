@@ -172,18 +172,35 @@ export default function ReviewStudioPage() {
     </form>
   );
 
+  const WorkflowReviewList = () => (
+    <div style={{ display: "grid", gap: 8 }}>
+      {inboxLoading && <div style={{ color: C.muted, padding: 20, textAlign: "center", fontSize: 12 }}>불러오는 중...</div>}
+      {!inboxLoading && workflowReviews.length === 0 && (
+        <div style={{ padding: "24px 14px", textAlign: "center", color: C.hint, fontSize: 12 }}>접수된 후기가 아직 없습니다.</div>
+      )}
+      {workflowReviews.map(r => (
+        <button key={r.id} type="button" onClick={() => useWorkflowReview(r)} style={{
+          border: `1px solid ${C.border}`, borderRadius: 10, background: C.surface,
+          padding: 12, textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+            <strong style={{ color: C.teal, fontSize: 12 }}>{r.clients?.name || "고객 미상"}</strong>
+            {r.overall_rating ? <span style={{ color: C.orange, fontSize: 11, fontWeight: 800 }}>{r.overall_rating}점</span> : null}
+          </div>
+          {(r.public_review_text || r.good_points) && (
+            <p style={{ margin: 0, color: C.muted, fontSize: 11, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+              {r.public_review_text || r.good_points}
+            </p>
+          )}
+          <div style={{ marginTop: 6, fontSize: 10, color: C.hint }}>{r.created_at ? new Date(r.created_at).toLocaleDateString("ko-KR") : ""} · 클릭해서 등록폼에 채우기</div>
+        </button>
+      ))}
+    </div>
+  );
+
   const ReviewList = () => (
     <div style={{ display: "grid", gap: 10 }}>
       {loading && <div style={{ color: C.muted, padding: 20, textAlign: "center" }}>불러오는 중...</div>}
-      {!loading && reviews.length === 0 && (
-        <div style={{ padding: "40px 20px", textAlign: "center", color: C.muted }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>📝</div>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>아직 리뷰가 없어요</div>
-          <div style={{ fontSize: 12, marginTop: 4 }}>
-            {isMobile ? "리뷰 등록 탭에서 추가하세요" : "왼쪽 폼으로 리뷰를 추가하세요"}
-          </div>
-        </div>
-      )}
       {reviews.map(review => (
         <button key={review.id} type="button" onClick={() => toggleSelect(review.id)} style={{
           border: `1.5px solid ${selectedIds.includes(review.id) ? C.teal : C.border}`,
