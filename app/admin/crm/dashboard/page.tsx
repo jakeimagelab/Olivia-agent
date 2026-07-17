@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Mail } from "lucide-react";
+import { AlertTriangle, Mail, ClipboardCheck, RefreshCw, UserRoundCheck, UsersRound } from "lucide-react";
 import OliviaRecommendationPanel from "@/components/admin/OliviaRecommendationPanel";
 import CategorySection from "@/components/admin/CategorySection";
 import StatusBadge from "@/components/admin/StatusBadge";
