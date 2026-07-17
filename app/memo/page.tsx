@@ -19,17 +19,16 @@ import {
 } from "@/lib/memo/types";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { C } from "@/lib/theme";
-import { PageHeading } from "@/components/PageHeading";
 
 const MODE_INFO: Record<MemoMode, { label: string; description: string }> = {
   general: { label: "일반메모", description: "키보드로 빠르게 작성하고 정리하는 기본 텍스트 메모입니다." },
-  template: { label: "템플릿메모", description: "백지·코넬·To do list·모눈종이·콘티 양식 위에 펜으로 기록합니다." },
+  template: { label: "태블릿메모", description: "백지·코넬·To do list·모눈종이·콘티 양식 위에 펜으로 기록합니다." },
   voice: { label: "음성메모", description: "대화를 녹음하면 AI가 텍스트로 변환하고 핵심 내용을 요약합니다." },
 };
 
 const MODE_TABS = [
   { key: "general", label: "일반메모", icon: <FileText size={15} /> },
-  { key: "template", label: "템플릿메모", icon: <PenLine size={15} /> },
+  { key: "template", label: "태블릿메모", icon: <PenLine size={15} /> },
   { key: "voice", label: "음성메모", icon: <Mic size={15} /> },
 ];
 
