@@ -26,11 +26,11 @@ const fmtDate = (d: string) =>
 
 function MissionBadge({ mission }: { mission: Mission }) {
   return (
-    <div style={{ background: "linear-gradient(135deg,#E85D2C,#EB8F22)", borderRadius: 14, padding: "20px 24px" }}>
-      <div style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,.7)", letterSpacing: ".15em", textTransform: "uppercase", marginBottom: 8 }}>TODAY'S MISSION</div>
-      <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", marginBottom: 8 }}>{mission.title}</div>
-      <div style={{ fontSize: 13, color: "rgba(255,255,255,.85)", lineHeight: 1.7, marginBottom: 12 }}>{mission.why}</div>
-      <span style={{ background: "rgba(255,255,255,.25)", padding: "4px 14px", borderRadius: 99, fontSize: 12, fontWeight: 700, color: "#fff" }}>⏱ {mission.estimated_time}</span>
+    <div style={{ background: "linear-gradient(135deg,#E85D2C,#EB8F22)", borderRadius: 12, padding: "14px 16px" }}>
+      <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,.7)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>TODAY'S MISSION</div>
+      <div style={{ fontSize: 15, fontWeight: 900, color: "#fff", marginBottom: 6 }}>{mission.title}</div>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,.85)", lineHeight: 1.6, marginBottom: 10 }}>{mission.why}</div>
+      <span style={{ background: "rgba(255,255,255,.25)", padding: "3px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, color: "#fff" }}>⏱ {mission.estimated_time}</span>
     </div>
   );
 }
