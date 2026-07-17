@@ -771,3 +771,48 @@
   .oa-shell *,
   .pc-gs-shell * { scroll-behavior: auto !important; animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   CRM 하이브리드 대시보드 — 확정 디자인 목업 기준 (KPI 강조바 /
+   피치톤 알람배너 / 점 표시 칸반 / 3단계 카드 상태뱃지)
+   ═══════════════════════════════════════════════════════════ */
+.crm-kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
+.crm-kpi { position: relative; overflow: hidden; background: #fff; border: 1px solid rgba(21,88,85,.12); border-radius: 12px; padding: 14px 14px 14px 18px; }
+.crm-kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.crm-kpi--approval::before { background: var(--orange); }
+.crm-kpi--active::before { background: var(--gold); }
+.crm-kpi--done::before { background: var(--deep-green); }
+.crm-kpi--waiting::before { background: var(--sage); }
+.crm-kpi-label { font-size: 11px; color: #5A7470; font-weight: 700; margin-bottom: 6px; }
+.crm-kpi-num { font-size: 24px; font-weight: 800; color: #1C2B28; }
+.crm-kpi-trend { font-size: 10px; margin-top: 4px; font-weight: 700; color: #9BB5B0; }
+.crm-kpi-trend.attn { color: var(--orange); }
+
+.crm-alarm { margin-bottom: 16px; background: linear-gradient(90deg, #FFF8F5, #fff); border: 1px solid rgba(232,93,44,.2); border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+.crm-alarm-icon { width: 28px; height: 28px; border-radius: 8px; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.crm-alarm-text { font-size: 12px; color: #1C2B28; flex: 1; }
+.crm-alarm-text strong { color: var(--orange); }
+.crm-alarm-link { flex-shrink: 0; font-size: 11px; color: var(--orange); font-weight: 700; text-decoration: none; white-space: nowrap; }
+
+.crm-kanban { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.crm-kanban-col { flex-shrink: 0; width: 220px; }
+.crm-kanban-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding: 0 2px; }
+.crm-kanban-dot { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; }
+.crm-kanban-title { font-size: 12px; font-weight: 800; color: #1C2B28; }
+.crm-kanban-count { font-size: 10px; color: #9BB5B0; background: #EAF4F2; border-radius: 99px; padding: 1px 7px; margin-left: auto; }
+.crm-kanban-empty { font-size: 11px; color: #9BB5B0; padding: 10px 2px; }
+.crm-card { display: block; background: #fff; border-radius: 10px; padding: 11px; border: 1px solid rgba(21,88,85,.12); text-decoration: none; color: inherit; margin-bottom: 7px; transition: border-color .15s; }
+.crm-card:hover { border-color: var(--deep-green); }
+.crm-card-name { font-size: 12px; font-weight: 800; color: #1C2B28; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-card-meta { font-size: 10px; color: #9BB5B0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-card-status { display: inline-block; font-size: 9px; font-weight: 800; padding: 3px 8px; border-radius: 99px; margin-top: 7px; }
+.crm-card-status--wait { background: #FEF3C7; color: #D97706; }
+.crm-card-status--approved { background: #D1FAE5; color: #059669; }
+.crm-card-status--client { background: #DBEAFE; color: #2563EB; }
+.crm-card-status--delayed { background: #FEE2E2; color: #DC2626; }
+.crm-card-progress { height: 3px; background: #EAF4F2; border-radius: 99px; margin-top: 8px; overflow: hidden; }
+.crm-card-progress-fill { height: 100%; background: var(--deep-green); border-radius: 99px; }
+
+@media (max-width: 720px) {
+  .crm-kpi-row { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
