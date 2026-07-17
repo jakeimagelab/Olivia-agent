@@ -1,58 +1,149 @@
+"use client";
+
 import Link from "next/link";
-import {
-  AlertTriangle, CalendarDays, Camera, CheckCircle2, Clock3,
-  Images, Mail, Scissors, Target, WandSparkles,
-} from "lucide-react";
-import SummaryCard from "@/components/admin/SummaryCard";
-import ActionCard from "@/components/admin/ActionCard";
-import OliviaRecommendationPanel from "@/components/admin/OliviaRecommendationPanel";
+import { useEffect, useState } from "react";
+import { CalendarDays, Clock3, Mail, WandSparkles } from "lucide-react";
 import CategorySection from "@/components/admin/CategorySection";
-import StatusBadge from "@/components/admin/StatusBadge";
+import OliviaRecommendationPanel from "@/components/admin/OliviaRecommendationPanel";
 import { DailyBriefCard, TodayScheduleCard } from "@/components/dashboard/TodayAlertBanner";
 import DailyQuoteWidget from "@/components/dashboard/DailyQuoteWidget";
+import { WORKFLOW_STAGES } from "@/lib/workflow";
 
-/* 숫자·업무 목록은 2차 데이터 연동 전까지 쓰는 프레젠테이션 값 — 색은 6개 카드가
-   전부 다른 톤을 쓰도록 다양화해서(파랑=테일 하나로만 안 몰리게) 화면에 생동감을 준다. */
-const DEMO_SUMMARY = [
-  { label: "오늘 할 일", value: "12", description: "완료 4 · 남음 8", icon: <CheckCircle2 size={18}/>, tone: "blue" as const },
-  { label: "촬영 예정", value: "1", description: "오늘 오후 2시", icon: <Camera size={18}/>, tone: "orange" as const },
-  { label: "메일 대기", value: "4", description: "발송 확인 필요", icon: <Mail size={18}/>, tone: "green" as const },
-  { label: "셀렉 완료", value: "2", description: "다음 단계 이동 가능", icon: <Images size={18}/>, tone: "orange" as const },
-  { label: "RAW 매칭 필요", value: "2", description: "신규 작업", icon: <Scissors size={18}/>, tone: "blue" as const },
-  { label: "지연 프로젝트", value: "3", description: "오늘 확인 권장", icon: <AlertTriangle size={18}/>, tone: "red" as const },
-];
+const STAGE_DOT: Record<string, string> = {
+  consult_contract: "var(--orange)",
+  prep_shooting: "var(--gold)",
+  data_sharing: "var(--purple, #7C3AED)",
+  feedback_done: "var(--sage)",
+};
 
-const DEMO_ACTIONS = [
-  { title: "메일 발송 대기 4건", description: "자동 생성된 초안의 수신자와 첨부 파일을 확인한 뒤 발송하세요.", meta: "통합 메일링", status: "확인 필요", href: "/mailing" },
-  { title: "오블리브의원 원본 셀렉 대기 2일차", description: "고객 셀렉 진행 여부를 확인하고 필요하면 링크를 다시 보내세요.", meta: "고객 셀렉", status: "대기 2일", href: "/select-galleries" },
-  { title: "브라보마취통증의학과 RAW 매칭 필요", description: "셀렉 완료 파일과 원본 RAW를 연결할 준비가 됐습니다.", meta: "사진 작업", status: "작업 가능", href: "/select-match" },
-];
+type WorkflowRun = {
+  id: string;
+  client_id: string;
+  client_name: string;
+  project_name: string;
+  current_step_name: string;
+  stage_key: string;
+  progress: number;
+  status: string;
+  delayed: boolean;
+  waiting_approval_count: number;
+  waiting_customer: boolean;
+};
+
+type Summary = {
+  activeProjects: number;
+  pendingApprovals: number;
+  completedThisMonth: number;
+  waitingCustomer: number;
+  failedTasks: number;
+  retentionAlerts: number;
+};
+
+type SummaryResponse = {
+  summary: Summary;
+  workflowRuns: WorkflowRun[];
+  automation: { delayedRuns: WorkflowRun[]; failedTasks: any[]; retentionAlerts: any[] };
+};
+
+function runBadge(run: WorkflowRun): { label: string; cls: string } {
+  if (run.waiting_approval_count > 0) return { label: "승인 대기", cls: "crm-card-status--wait" };
+  if (run.waiting_customer) return { label: "고객 대기", cls: "crm-card-status--client" };
+  if (run.delayed) return { label: "지연", cls: "crm-card-status--delayed" };
+  return { label: "진행중", cls: "crm-card-status--approved" };
+}
 
 export default function AdminDashboardHomePage() {
+  const [data, setData] = useState<SummaryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/workflow/summary", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json) => setData(json))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const summary = data?.summary;
+  const runs = data?.workflowRuns ?? [];
+  const delayedRuns = data?.automation.delayedRuns ?? [];
+  const failedTasks = data?.automation.failedTasks ?? [];
+  const retentionAlerts = data?.automation.retentionAlerts ?? [];
+  const alertCount = delayedRuns.length + failedTasks.length + retentionAlerts.length;
+
+  const latestAlert = failedTasks[0] ? { name: failedTasks[0].client_name || "고객 미연결", text: "작업이 실패했습니다" }
+    : delayedRuns[0] ? { name: delayedRuns[0].client_name, text: "촬영일이 지났습니다" }
+    : retentionAlerts[0] ? { name: (retentionAlerts[0] as any).client_name || "고객 미연결", text: "데이터 보관 만료가 임박했습니다" }
+    : null;
+
   return (
-    <div className="oa-page pc-dash-home">
+    <div className="oa-page pc-dash-home crm-dashboard-page">
       <div className="pc-dash-brief">
         <DailyBriefCard/>
         <TodayScheduleCard/>
         <DailyQuoteWidget/>
       </div>
 
-      <section className="oa-summary-grid pc-dash-summary" aria-label="운영 현황 요약">
-        {DEMO_SUMMARY.map(item => <SummaryCard key={item.label} {...item}/>) }
+      <section className="crm-kpi-row" aria-label="CRM 현황 요약">
+        <div className="crm-kpi crm-kpi--approval">
+          <div className="crm-kpi-label">승인 대기</div>
+          <div className="crm-kpi-num">{loading ? "–" : summary?.pendingApprovals ?? 0}</div>
+          <div className="crm-kpi-trend attn">확인 필요</div>
+        </div>
+        <div className="crm-kpi crm-kpi--active">
+          <div className="crm-kpi-label">진행 중</div>
+          <div className="crm-kpi-num">{loading ? "–" : summary?.activeProjects ?? 0}</div>
+          <div className="crm-kpi-trend">활성 프로젝트</div>
+        </div>
+        <div className="crm-kpi crm-kpi--done">
+          <div className="crm-kpi-label">이번 달 완료</div>
+          <div className="crm-kpi-num">{loading ? "–" : summary?.completedThisMonth ?? 0}</div>
+          <div className="crm-kpi-trend">완료 건수</div>
+        </div>
+        <div className="crm-kpi crm-kpi--waiting">
+          <div className="crm-kpi-label">고객 응답 대기</div>
+          <div className="crm-kpi-num">{loading ? "–" : summary?.waitingCustomer ?? 0}</div>
+          <div className="crm-kpi-trend">셀렉·피드백</div>
+        </div>
       </section>
+
+      {alertCount > 0 && latestAlert && (
+        <div className="crm-alarm">
+          <span className="crm-alarm-icon"><Mail size={14}/></span>
+          <div className="crm-alarm-text"><strong>{latestAlert.name}</strong>{`에서 ${latestAlert.text}`}{alertCount > 1 ? ` · 그 외 ${alertCount - 1}건` : ""}</div>
+          <div className="crm-alarm-time">방금</div>
+        </div>
+      )}
 
       <div className="oa-dashboard-layout pc-dash-layout">
         <div className="oa-main-column">
-          <CategorySection
-            eyebrow="TODAY"
-            title="오늘 처리할 업무"
-            description="지금 움직이면 다음 단계로 넘길 수 있는 업무입니다."
-            action={<StatusBadge tone="blue">우선순위 {DEMO_ACTIONS.length}</StatusBadge>}
-          >
-            <div className="oa-action-list">
-              {DEMO_ACTIONS.map(item => <ActionCard key={item.title} {...item}/>) }
-            </div>
-          </CategorySection>
+          <div className="crm-kanban-label">진행 현황 (카드 클릭 → 프로젝트 상세)</div>
+          <div className="crm-kanban">
+            {WORKFLOW_STAGES.map((stage) => {
+              const stageRuns = runs.filter((run) => run.stage_key === stage.key && run.status === "active");
+              return (
+                <div className="crm-kanban-col" key={stage.key}>
+                  <div className="crm-kanban-head">
+                    <span className="crm-kanban-dot" style={{ background: STAGE_DOT[stage.key] }}/>
+                    <span className="crm-kanban-title">{stage.name}</span>
+                    <span className="crm-kanban-count">{stageRuns.length}</span>
+                  </div>
+                  {stageRuns.length === 0 && !loading ? (
+                    <p className="crm-kanban-empty">진행중 프로젝트 없음</p>
+                  ) : stageRuns.slice(0, 6).map((run) => {
+                    const badge = runBadge(run);
+                    return (
+                      <Link key={run.id} href={`/clients?id=${run.client_id}`} className="crm-card">
+                        <div className="crm-card-name">{run.client_name}</div>
+                        <div className="crm-card-meta">{run.current_step_name}</div>
+                        <span className={`crm-card-status ${badge.cls}`}>{badge.label}</span>
+                        <div className="crm-card-progress"><div className="crm-card-progress-fill" style={{ width: `${run.progress}%` }}/></div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
 
           <CategorySection eyebrow="QUICK" title="빠른 실행">
             <div className="oa-quick-grid oa-quick-grid--row">
@@ -70,14 +161,6 @@ export default function AdminDashboardHomePage() {
             "RAW 매칭 완료 고객 2건의 보정 단계를 시작하세요.",
             "최종 납품 완료 고객 3건에 후기 요청을 보내세요.",
           ]}/>
-
-          <CategorySection eyebrow="ACTIVITY" title="최근 활동">
-            <div className="oa-compact-list">
-              <div><span className="oa-mini-icon is-orange"><Mail size={14}/></span><p><strong>메일 초안 2건 생성</strong><small>12분 전</small></p></div>
-              <div><span className="oa-mini-icon is-blue"><Images size={14}/></span><p><strong>고객 셀렉 완료</strong><small>38분 전</small></p></div>
-              <div><span className="oa-mini-icon is-green"><Target size={14}/></span><p><strong>워크플로우 단계 이동</strong><small>1시간 전</small></p></div>
-            </div>
-          </CategorySection>
         </aside>
       </div>
     </div>
