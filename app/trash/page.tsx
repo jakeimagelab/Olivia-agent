@@ -83,7 +83,7 @@ export default function TrashPage() {
 
   return (
     <main style={{ minHeight: "100dvh", background: C.mist, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <PageHeader title="휴지통" actions={<Link href="/memo" style={{ color: C.teal, textDecoration: "none", fontSize: 13, fontWeight: 800 }}>메모</Link>} />
+      <PageHeader title="휴지통" />
       <section style={{ maxWidth: 1040, margin: "0 auto", padding: "28px 16px 80px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 20, alignItems: "end", marginBottom: 24 }}>
           <div>
