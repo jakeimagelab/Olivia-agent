@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Eye } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ACTIVE_WORKFLOW_STEPS,
