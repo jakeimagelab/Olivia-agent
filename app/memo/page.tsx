@@ -54,7 +54,7 @@ function canvasBackground(type: MemoTemplateType): CanvasExportOptions["backgrou
 }
 
 function defaultTitle(mode: MemoMode) {
-  if (mode === "template") return "제목 없는 템플릿메모";
+  if (mode === "template") return "제목 없는 태블릿메모";
   if (mode === "voice") return "제목 없는 음성메모";
   return "제목 없는 일반메모";
 }
