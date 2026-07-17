@@ -273,7 +273,7 @@ function MemoWorkspace() {
         </>}
       />
 
-      <div className="pc-content pc-content--wide memo-content">
+      <div className={`pc-content pc-content--wide memo-content${mode === "template" ? " memo-content--full" : ""}`}>
         {dateParam ? <div className="memo-notice">캘린더 {dateParam} 일정에서 시작한 메모입니다.</div> : null}
         {status ? <div role="status" className={`memo-status ${status.ok ? "is-success" : "is-error"}`}>{status.text}</div> : null}
 
