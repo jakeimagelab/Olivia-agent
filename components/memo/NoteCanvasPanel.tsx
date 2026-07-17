@@ -65,15 +65,17 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
         </div>
         <button onClick={() => setEraser(value => !value)} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 11px", background: eraser ? "#E85D2C" : "#fff", color: eraser ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>지우개</button>
         {eraser ? <label style={{ display: "flex", alignItems: "center", gap: 6, color: "#607873", fontSize: 10 }}>크기 <input aria-label="지우개 크기" type="range" min={8} max={80} value={eraserSize} onChange={event => setEraserSize(Number(event.target.value))} style={{ width: 80, accentColor: "#E85D2C" }} /></label> : null}
-        <select
-          aria-label="도형 선택"
-          value={shape === "freehand" ? "" : shape}
-          onChange={event => { const value = event.target.value as DrawShape | ""; setShape(value || "freehand"); setEraser(false); }}
-          style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: shape !== "freehand" ? "#DCEDEA" : "#fff", color: "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}
-        >
-          <option value="">도형</option>
-          {SHAPE_OPTIONS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
-        </select>
+        <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
+          {SHAPE_OPTIONS.map(item => {
+            const Icon = item.icon;
+            const active = shape === item.key;
+            return (
+              <button key={item.key} aria-label={item.label} title={item.label} onClick={() => { setShape(active ? "freehand" : item.key); setEraser(false); }} style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: active ? "#155855" : "transparent", color: active ? "#fff" : "#155855", cursor: "pointer" }}>
+                <Icon size={15} />
+              </button>
+            );
+          })}
+        </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
           <button aria-label="실행 취소" title="실행 취소" onClick={() => { innerRef.current?.undo(); forceHistory(v => v + 1); }} disabled={!innerRef.current?.canUndo()} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#fff", color: "#155855", cursor: "pointer" }}><Undo2 size={16} /></button>
           <button aria-label="다시 실행" title="다시 실행" onClick={() => { innerRef.current?.redo(); forceHistory(v => v + 1); }} disabled={!innerRef.current?.canRedo()} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#fff", color: "#155855", cursor: "pointer" }}><Redo2 size={16} /></button>
