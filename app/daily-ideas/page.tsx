@@ -66,37 +66,37 @@ function IdeaDetail({ idea }: { idea: DailyIdea }) {
     setScriptCopied(true); setTimeout(() => setScriptCopied(false), 2000);
   };
   return (
-    <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ background: "linear-gradient(135deg,#EDF5F3,#E0F0EC)", border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px 22px" }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: C.teal, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>📣 오늘의 마케팅 아이디어</div>
-        <div style={{ fontSize: 18, fontWeight: 900, color: C.teal, marginBottom: 10 }}>{idea.marketing_idea.title}</div>
-        <div style={{ fontSize: 14, color: "#3A5450", lineHeight: 1.8, marginBottom: 14 }}>{idea.marketing_idea.body}</div>
-        <div style={{ background: C.teal, borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ color: "#EB8F22", fontSize: 16 }}>▶</span>
-          <span style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>{idea.marketing_idea.action}</span>
+    <div style={{ display: "grid", gap: 12 }}>
+      <div style={{ background: "linear-gradient(135deg,#EDF5F3,#E0F0EC)", border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+        <div style={{ fontSize: 9, fontWeight: 800, color: C.teal, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 8 }}>📣 오늘의 마케팅 아이디어</div>
+        <div style={{ fontSize: 15, fontWeight: 900, color: C.teal, marginBottom: 7 }}>{idea.marketing_idea.title}</div>
+        <div style={{ fontSize: 12, color: "#3A5450", lineHeight: 1.65, marginBottom: 10 }}>{idea.marketing_idea.body}</div>
+        <div style={{ background: C.teal, borderRadius: 8, padding: "9px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: "#EB8F22", fontSize: 13 }}>▶</span>
+          <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>{idea.marketing_idea.action}</span>
         </div>
       </div>
 
       <div>
-        <div style={{ fontSize: 10, fontWeight: 800, color: C.teal, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>📱 오늘의 콘텐츠 아이디어</div>
-        <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ fontSize: 9, fontWeight: 800, color: C.teal, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 8 }}>📱 오늘의 콘텐츠 아이디어</div>
+        <div style={{ display: "grid", gap: 8 }}>
           {(idea.content_ideas || []).map((ci, i) => <ContentCard key={i} idea={ci} i={i} />)}
         </div>
       </div>
 
       <div>
-        <div style={{ fontSize: 10, fontWeight: 800, color: C.teal, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>💬 오늘의 고객 관리 팁</div>
-        <div className="pc-card pc-card--padded">
-          <div style={{ fontSize: 15, fontWeight: 800, color: C.txt, marginBottom: 8 }}>{idea.customer_tip.title}</div>
-          <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 12 }}>{idea.customer_tip.body}</div>
-          <div style={{ background: "#F0FDF4", borderRadius: 10, padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#22876A" }}>📨 카카오톡/문자 예시</div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: C.teal, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 8 }}>💬 오늘의 고객 관리 팁</div>
+        <div className="pc-card" style={{ padding: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: C.txt, marginBottom: 6 }}>{idea.customer_tip.title}</div>
+          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: 10 }}>{idea.customer_tip.body}</div>
+          <div style={{ background: "#F0FDF4", borderRadius: 8, padding: "11px 13px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "#22876A" }}>📨 카카오톡/문자 예시</div>
               <button onClick={copyScript} style={{ fontSize: 11, color: scriptCopied ? "#22876A" : C.hint, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
                 {scriptCopied ? "✓ 복사됨" : "복사"}
               </button>
             </div>
-            <div style={{ fontSize: 13, color: C.txt, lineHeight: 1.7, fontStyle: "italic" }}>"{idea.customer_tip.script}"</div>
+            <div style={{ fontSize: 12, color: C.txt, lineHeight: 1.6, fontStyle: "italic" }}>"{idea.customer_tip.script}"</div>
           </div>
         </div>
       </div>
@@ -104,10 +104,10 @@ function IdeaDetail({ idea }: { idea: DailyIdea }) {
       <MissionBadge mission={idea.mission} />
 
       {idea.trend_keywords?.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: C.hint, fontWeight: 700 }}>트렌드</span>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+          <span style={{ fontSize: 10, color: C.hint, fontWeight: 700 }}>트렌드</span>
           {idea.trend_keywords.map((k, i) => (
-            <span key={i} style={{ background: C.mint, color: C.teal, fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 99 }}>#{k}</span>
+            <span key={i} style={{ background: C.mint, color: C.teal, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99 }}>#{k}</span>
           ))}
         </div>
       )}
