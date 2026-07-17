@@ -1102,29 +1102,15 @@ export default function QuoteBuilder() {
       <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8">
         <div className="min-w-0 space-y-5">
           <header className="rounded-lg border border-[#155855]/15 bg-white px-5 py-5 shadow-sm">
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
-              <span style={{fontSize:"11px",fontWeight:700,color:"#E85D2C",letterSpacing:"0.1em",textTransform:"uppercase"}}>PHOTO CLINIC · QUOTE BUILDER</span>
-            </div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#e85d2c]" style={{display:"none"}}>
-              Photo Clinic Admin
-            </p>
-            <h1 className="mt-2 text-2xl font-bold text-[#155855] sm:text-3xl">
-              포토클리닉 견적서 자동 생성
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-[#5f5b56]">
-              상담 후 확정된 촬영 항목을 선택하면 공급가액, 부가세, 최종 견적금액이 자동 계산됩니다.
-            </p>
-            <div className="mt-5">
-              <Field label="견적서 제목">
-                <textarea
-                  value={quoteTitle}
-                  onChange={(event) => setQuoteTitle(event.target.value)}
-                  placeholder="포토클리닉 브랜드사진 견적서"
-                  rows={2}
-                  style={{resize:"none", fontFamily:"'Nanum Myeongjo', serif", lineHeight:"1.6", width:"100%", padding:"8px 12px", border:"1px solid #d8d0c4", borderRadius:"6px", fontSize:"14px"}}
-                />
-              </Field>
-            </div>
+            <Field label="견적서 제목">
+              <textarea
+                value={quoteTitle}
+                onChange={(event) => setQuoteTitle(event.target.value)}
+                placeholder="포토클리닉 브랜드사진 견적서"
+                rows={2}
+                style={{resize:"none", fontFamily:"'Nanum Myeongjo', serif", lineHeight:"1.6", width:"100%", padding:"8px 12px", border:"1px solid #d8d0c4", borderRadius:"6px", fontSize:"14px"}}
+              />
+            </Field>
           </header>
 
           <Panel title="고객 정보" icon={<UserRound size={18} />}>
