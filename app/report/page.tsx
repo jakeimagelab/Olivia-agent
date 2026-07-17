@@ -121,14 +121,14 @@ export default function ReportPage() {
               })}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
               {/* 일별 차트 */}
-              <div className="pc-card pc-card--padded" style={{ padding: "22px 22px 18px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-                  <BarChart2 size={16} color="#155855" />
-                  <span style={{ fontSize: 13, fontWeight: 800, color: "#155855" }}>일별 활동 추이 (7일)</span>
+              <div className="pc-card" style={{ padding: "14px 14px 10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                  <BarChart2 size={13} color="#155855" />
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#155855" }}>일별 활동 추이 (7일)</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 80 }}>
                   {data.chartData.map((d, i) => {
                     const h = maxChart > 0 ? Math.max((d.count / maxChart) * 100, d.count > 0 ? 8 : 0) : 0;
                     const dayLabel = new Date(d.date).toLocaleDateString("ko-KR", { weekday: "short" });
