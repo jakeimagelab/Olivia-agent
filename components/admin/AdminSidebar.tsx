@@ -9,7 +9,6 @@ import {
   CircleHelp,
   Grid2X2,
   House,
-  LayoutDashboard,
   Link2,
   Mail,
   NotebookPen,
