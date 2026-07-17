@@ -1,22 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
-import { PageHeading } from "@/components/PageHeading";
-
-const HEADING: Record<string, { kicker: string; title: string; desc: string }> = {
-  "/clients":       { kicker: "CLIENT HUB",    title: "고객 관리",   desc: "병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다." },
-  "/review-studio": { kicker: "REVIEW STUDIO", title: "클라이언트 후기 콘텐츠", desc: "클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다." },
-};
-
-const HUB_TABS = [
-  { href: "/clients",          label: "👥 고객 목록" },
-  { href: "/select-galleries", label: "📸 셀렉 갤러리" },
-  { href: "/review-studio",    label: "⭐ 후기 콘텐츠" },
-  { href: "/per",              label: "🏆 PER 리워드" },
-];
 
 const TITLE: Record<string, string> = {
   "/clients":          "고객 관리",
