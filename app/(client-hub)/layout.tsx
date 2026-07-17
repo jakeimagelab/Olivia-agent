@@ -34,29 +34,6 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: "#1C2B28" }}>
       {!inIframe && <PageHeader title={title} />}
-      {!inIframe && HEADING[pathname] && (
-        <PageHeading kicker={HEADING[pathname].kicker} title={HEADING[pathname].title} desc={HEADING[pathname].desc} />
-      )}
-
-      <nav className="pc-subnav pc-subnav--global" style={{
-        background: "rgba(255,255,255,.72)",
-        backdropFilter: "blur(16px) saturate(1.6)",
-        WebkitBackdropFilter: "blur(16px) saturate(1.6)",
-        borderBottom: "1px solid rgba(255,255,255,.7)",
-        boxShadow: "0 1px 0 rgba(21,88,85,.07)",
-        display: "flex", overflowX: "auto", position: "sticky", top: 56, zIndex: 90,
-      }}>
-        {HUB_TABS.map(t => (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={`pc-hub-tab${pathname === t.href || pathname.startsWith(t.href + "/") ? " active" : ""}`}
-            style={{ padding: "11px 22px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: "none", display: "inline-block" }}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
 
       <div className="pc-page-content">
         {children}
