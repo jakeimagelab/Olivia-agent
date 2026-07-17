@@ -215,10 +215,10 @@ export default function ReportPage() {
             </div>
           </>
         ) : (
-          <div style={{ textAlign: "center", padding: "80px 0", color: "#5A7470" }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>데이터를 불러올 수 없어요</div>
-            <div style={{ fontSize: 12, marginTop: 6 }}>Supabase 환경변수를 확인해주세요</div>
+          <div style={{ textAlign: "center", padding: "48px 0", color: "#5A7470" }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>⚠️</div>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>데이터를 불러올 수 없어요</div>
+            <div style={{ fontSize: 11, marginTop: 4 }}>Supabase 환경변수를 확인해주세요</div>
           </div>
         )}
       </div>
