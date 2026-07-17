@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { MOCK_TEMPLATE, WORKFLOW_STEPS } from "@/lib/workflow";
+import { ACTIVE_WORKFLOW_STEPS, MOCK_TEMPLATE } from "@/lib/workflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const db = getSupabaseAdmin();
     // steps는 JOIN하지 않고 template 메타데이터만 읽음
-    // 단계 정의는 코드(WORKFLOW_STEPS)가 단일 소스
+    // 신규 실행 단계 정의는 코드(ACTIVE_WORKFLOW_STEPS)가 단일 소스
     const { data, error } = await db
       .from("workflow_templates")
       .select("id, name, description, type, is_active, created_at")
@@ -20,7 +20,7 @@ export async function GET() {
       return NextResponse.json({ ok: true, mock: true, templates: [MOCK_TEMPLATE] });
     }
 
-    const templates = data.map(t => ({ ...t, steps: WORKFLOW_STEPS }));
+    const templates = data.map(t => ({ ...t, steps: ACTIVE_WORKFLOW_STEPS }));
     return NextResponse.json({ ok: true, templates });
   } catch (error) {
     return NextResponse.json({ ok: true, mock: true, note: error instanceof Error ? error.message : String(error), templates: [MOCK_TEMPLATE] });

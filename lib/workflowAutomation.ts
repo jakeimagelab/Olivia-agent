@@ -1,5 +1,10 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { STEP_NAME, WORKFLOW_STEPS } from "@/lib/workflow";
+import {
+  ACTIVE_WORKFLOW_STEP_KEYS,
+  LEGACY_NEXT_STEP,
+  STEP_NAME,
+  isActiveWorkflowStep,
+} from "@/lib/workflow";
 
 export type StepAutomation = {
   task_type: string;
@@ -95,6 +100,18 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       mailing_type: "proposal",
     },
   ],
+  // 대표가 입금 및 계산서 처리를 확인한 뒤 수동으로 다음 단계로 진행한다.
+  payment_confirm: [],
+  backup_sorting: [
+    {
+      task_type: "backup_sorting_check",
+      title: "촬영 데이터 백업 및 분류 확인",
+      description: "촬영본 백업과 JPG/RAW 분류 상태를 확인합니다.",
+      requires_approval: false,
+      creates_mailing_draft: false,
+      priority: "high",
+    },
+  ],
   original_delivery: [
     {
       task_type: "original_delivery",
@@ -106,6 +123,34 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       mailing_type: "original_files",
     },
   ],
+  client_selection: [
+    {
+      task_type: "original_delivery",
+      title: "원본 전달 메일 초안 생성",
+      description: "NAS 원본 링크를 포함한 원본 전달 메일 초안을 생성합니다.",
+      requires_approval: true,
+      creates_mailing_draft: true,
+      approval_type: "mailing",
+      mailing_type: "original_files",
+    },
+    {
+      task_type: "selection_gallery_prepare",
+      title: "고객 셀렉 갤러리 준비",
+      description: "분류된 JPG를 고객 셀렉 갤러리와 연결합니다.",
+      requires_approval: false,
+      creates_mailing_draft: false,
+    },
+    {
+      task_type: "raw_matching",
+      title: "선택 사진 RAW 자동 매칭",
+      description: "고객이 선택한 JPG와 원본 RAW 파일을 매칭합니다.",
+      requires_approval: true,
+      creates_mailing_draft: false,
+      approval_type: "other",
+      priority: "high",
+    },
+  ],
+  retouching: [],
   revision: [
     {
       task_type: "revision_review",
@@ -115,8 +160,25 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       creates_mailing_draft: false,
       priority: "high",
     },
+    {
+      task_type: "review_summarize",
+      title: "후기 요약 및 콘텐츠 후보 생성",
+      description: "후기를 요약하고 공개 가능한 SNS 콘텐츠 후보를 생성합니다.",
+      requires_approval: true,
+      creates_mailing_draft: false,
+      approval_type: "content",
+    },
   ],
   final_delivery: [
+    {
+      task_type: "seo_delivery_prepare",
+      title: "AI 검색 최적화 납품 생성",
+      description: "최종 이미지와 프로젝트 정보를 바탕으로 검색 최적화 납품 자료를 준비합니다.",
+      requires_approval: true,
+      creates_mailing_draft: false,
+      approval_type: "other",
+      priority: "high",
+    },
     {
       task_type: "gallery_delivery_mailing_draft",
       title: "최종 갤러리 전달 메일 초안 생성",
@@ -170,9 +232,12 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
 };
 
 export function getNextWorkflowStep(stepKey: string) {
-  const sorted = [...WORKFLOW_STEPS].sort((a, b) => a.order_index - b.order_index);
-  const currentIndex = sorted.findIndex((step) => step.key === stepKey);
-  return currentIndex >= 0 ? sorted[currentIndex + 1]?.key ?? null : null;
+  if (Object.prototype.hasOwnProperty.call(LEGACY_NEXT_STEP, stepKey)) {
+    return LEGACY_NEXT_STEP[stepKey];
+  }
+  if (!isActiveWorkflowStep(stepKey)) return null;
+  const currentIndex = ACTIVE_WORKFLOW_STEP_KEYS.indexOf(stepKey);
+  return ACTIVE_WORKFLOW_STEP_KEYS[currentIndex + 1] ?? null;
 }
 
 export async function logAgent(db: SupabaseClient, input: {
@@ -307,6 +372,9 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
   }
 
   const toStep = input.to_step_key || getNextWorkflowStep(fromStep);
+  if (toStep && !STEP_NAME[toStep]) {
+    throw new Error(`정의되지 않은 워크플로우 단계입니다: ${toStep}`);
+  }
   const now = new Date().toISOString();
   if (!toStep) {
     await db.from("workflow_runs").update({ status: "completed", completed_at: now, updated_at: now }).eq("id", run.id);
@@ -359,7 +427,12 @@ export async function maybeAdvanceWorkflow(db: SupabaseClient, workflowRunId: st
   const hasPendingApproval = approvals.some((approval) => approval.status === "pending" || approval.status === "revision_requested");
   if (hasOpenTask || hasPendingApproval) return { advanced: false as const, reason: "open_items" };
 
-  const result = await advanceWorkflow(db, { workflow_run_id: workflowRunId, reason: "required tasks and approvals completed" });
+  const result = await advanceWorkflow(db, {
+    workflow_run_id: workflowRunId,
+    from_step_key: stepKey,
+    reason: "required tasks and approvals completed",
+  });
+  if (result.skipped) return { advanced: false as const, reason: "current_step_changed", result };
   return { advanced: true as const, result };
 }
 
@@ -442,6 +515,14 @@ export async function approveWorkflowItem(db: SupabaseClient, approvalId: string
   if (approval.related_type === "mailing_queue" && approval.related_id) {
     await db.from("mailing_queue").update({ status: "ready", approval_status: "approved", updated_at: now }).eq("id", approval.related_id);
   }
+
+  // 고객 수정본 재제출 뒤 최종 승인된 요청을 닫는다. 마이그레이션 전 DB에서는
+  // 테이블에 새 컬럼이 없어도 기존 승인 동작을 막지 않도록 결과를 의도적으로 무시한다.
+  await db
+    .from("client_revision_requests")
+    .update({ status: "completed", updated_at: now })
+    .eq("approval_id", approval.id)
+    .eq("status", "in_progress");
 
   await logAgent(db, {
     workflow_run_id: approval.workflow_run_id,

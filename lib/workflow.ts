@@ -81,25 +81,25 @@ export const WORKFLOW_STEPS = [
     key: "revision",          name: "보정 전달 후 수정 접수",
     order_index: 11, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "revision",
-    stage: "feedback_done" as WorkflowStageKey, primary: true, display_order: 10,
+    stage: "feedback_done" as WorkflowStageKey, primary: true, display_order: 11,
   },
   {
     key: "seo_delivery",      name: "AI 검색 최적화 납품 생성",
     order_index: 12, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "seo-delivery",
-    stage: "feedback_done" as WorkflowStageKey, primary: false, folded_into: "revision",
+    stage: "feedback_done" as WorkflowStageKey, primary: false, folded_into: "final_delivery",
   },
   {
     key: "final_delivery",    name: "최종파일 전달 + 후기 요청",
     order_index: 13, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing",
-    stage: "feedback_done" as WorkflowStageKey, primary: true,
+    stage: "feedback_done" as WorkflowStageKey, primary: true, display_order: 10,
   },
   {
     key: "review_content",    name: "후기 DB 저장 / 콘텐츠 제작",
     order_index: 14, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "review-studio",
-    stage: "feedback_done" as WorkflowStageKey, primary: false, folded_into: "final_delivery",
+    stage: "feedback_done" as WorkflowStageKey, primary: false, folded_into: "revision",
   },
   {
     key: "reward",            name: "고객 리워드 (1%)",
@@ -123,17 +123,84 @@ export const WORKFLOW_STEPS = [
     key: "payment_confirm",   name: "잔금 / 계산서",
     order_index: 18, requires_approval: false, automation_level: "manual" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "clients",
-    stage: "prep_shooting" as WorkflowStageKey, primary: true,
+    stage: "prep_shooting" as WorkflowStageKey, primary: true, display_order: 6,
     /* 계좌 API 연동 전까지는 대표가 입금 확인 후 수동으로 체크하는 버튼 하나로 처리
        (디자인통일-4차 요청서 0장 "입금확인 버튼" 항목). */
   },
 ];
 
-/* 새 12단계 스마트 타임라인용 — primary만 걸러서 order_index로 정렬하면
-   문의접수부터 최종완료/리워드까지 딱 12개가 나온다. */
-export const PRIMARY_WORKFLOW_STEPS = WORKFLOW_STEPS
-  .filter((step) => step.primary)
-  .sort((a, b) => a.order_index - b.order_index);
+/*
+ * WORKFLOW_STEPS는 기존 DB의 step_key를 해석하기 위한 전체 호환 카탈로그다.
+ * 신규 워크플로우 실행과 진행률 계산은 반드시 아래 활성 12단계를 사용한다.
+ */
+export const ACTIVE_WORKFLOW_STEP_KEYS = [
+  "consult_meeting",
+  "quote",
+  "contract",
+  "conti",
+  "shooting",
+  "payment_confirm",
+  "backup_sorting",
+  "client_selection",
+  "retouching",
+  "final_delivery",
+  "revision",
+  "reward",
+] as const;
+
+export type ActiveWorkflowStepKey = (typeof ACTIVE_WORKFLOW_STEP_KEYS)[number];
+
+export const ACTIVE_WORKFLOW_STEPS = ACTIVE_WORKFLOW_STEP_KEYS.map((key) => {
+  const step = WORKFLOW_STEPS.find((candidate) => candidate.key === key);
+  if (!step) throw new Error(`활성 워크플로우 단계 정의가 없습니다: ${key}`);
+  return step;
+});
+
+/** 활성 단계에 포함되어 실행되는 내부 레거시 작업. */
+export const INTERNAL_STEP_GROUPS: Partial<Record<ActiveWorkflowStepKey, readonly string[]>> = {
+  client_selection: ["original_delivery", "raw_matching"],
+  final_delivery: ["seo_delivery"],
+  revision: ["review_content"],
+};
+
+/** 메인 워크플로우 종료 후 필요할 때 별도로 실행하는 기능. */
+export const STANDALONE_WORKFLOW_STEP_KEYS = ["customer_care", "content_planning"] as const;
+
+/** 레거시 실행 건을 화면의 12단계로 정규화한다. */
+export const LEGACY_STEP_PARENT: Readonly<Record<string, ActiveWorkflowStepKey>> = {
+  original_delivery: "client_selection",
+  raw_matching: "client_selection",
+  seo_delivery: "final_delivery",
+  review_content: "revision",
+};
+
+/** 이미 레거시 단계에 진입한 실행 건의 안전한 다음 단계. */
+export const LEGACY_NEXT_STEP: Readonly<Record<string, ActiveWorkflowStepKey | null>> = {
+  original_delivery: "client_selection",
+  raw_matching: "retouching",
+  seo_delivery: "final_delivery",
+  review_content: "reward",
+  customer_care: null,
+  content_planning: null,
+};
+
+export function isActiveWorkflowStep(stepKey: string): stepKey is ActiveWorkflowStepKey {
+  return (ACTIVE_WORKFLOW_STEP_KEYS as readonly string[]).includes(stepKey);
+}
+
+export function getWorkflowDisplayStepKey(stepKey: string): ActiveWorkflowStepKey | null {
+  if (isActiveWorkflowStep(stepKey)) return stepKey;
+  return LEGACY_STEP_PARENT[stepKey] ?? null;
+}
+
+export function getWorkflowStepProgress(stepKey: string) {
+  const displayKey = getWorkflowDisplayStepKey(stepKey);
+  const index = displayKey ? ACTIVE_WORKFLOW_STEP_KEYS.indexOf(displayKey) : -1;
+  return index >= 0 ? Math.round(((index + 1) / ACTIVE_WORKFLOW_STEP_KEYS.length) * 100) : 0;
+}
+
+// 기존 컴포넌트 import를 깨지 않기 위한 호환 alias.
+export const PRIMARY_WORKFLOW_STEPS = ACTIVE_WORKFLOW_STEPS;
 
 export const STEP_NAME: Record<string, string> = Object.fromEntries(WORKFLOW_STEPS.map((step) => [step.key, step.name]));
 
@@ -308,8 +375,8 @@ export const MOCK_LOGS = [
 export const MOCK_TEMPLATE = {
   id: "template-hospital-shoot-basic",
   name: "병원 촬영 기본 워크플로우",
-  description: "상담·미팅부터 원본전달, 최종파일 전달, 후기 콘텐츠 제작, 리워드 적립까지 이어지는 14단계 촬영 운영 플로우입니다.",
+  description: "상담부터 촬영, 납품, 고객 수정, 리워드까지 이어지는 4스테이지 12단계 촬영 운영 플로우입니다.",
   type: "hospital_shoot",
   is_active: true,
-  steps: WORKFLOW_STEPS,
+  steps: ACTIVE_WORKFLOW_STEPS,
 };
