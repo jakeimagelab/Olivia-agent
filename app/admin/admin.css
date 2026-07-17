@@ -776,7 +776,7 @@
    CRM 하이브리드 대시보드 — 확정 디자인 목업 기준 (KPI 강조바 /
    피치톤 알람배너 / 점 표시 칸반 / 3단계 카드 상태뱃지)
    ═══════════════════════════════════════════════════════════ */
-.crm-dashboard-page { background: var(--ivory, #faf7f2); min-height: 100dvh; margin: 0 -28px; padding: 26px 28px 54px !important; }
+.crm-dashboard-page { background: var(--ivory, #faf7f2); min-height: 100dvh; }
 .crm-kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
 .crm-kpi { position: relative; overflow: hidden; background: #fff; border: 1px solid rgba(21,88,85,.12); border-radius: 12px; padding: 14px 14px 14px 18px; }
 .crm-kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
