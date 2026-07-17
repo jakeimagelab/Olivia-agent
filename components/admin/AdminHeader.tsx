@@ -60,11 +60,11 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
 
   return (
     <header className="oa-header">
-      <div className="oa-header__title-group">
+      <div className="oa-header__title-group" style={isHome ? { flex: 1, justifyContent: "center" } : undefined}>
         <button className="oa-header__menu" type="button" onClick={onMenuToggle} aria-label="관리자 메뉴 열기">
           <Menu size={21} aria-hidden="true" />
         </button>
-        <div>
+        <div style={isHome ? { textAlign: "center" } : undefined}>
           <h1 className="oa-header__title">{meta.title}</h1>
           <p className="oa-header__description">{meta.description}</p>
         </div>
