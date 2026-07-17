@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 
 const TITLE: Record<string, string> = {
-  "/clients":          "고객 관리",
+  "/clients":          "고객관리",
   "/select-galleries": "셀렉 갤러리",
   "/review-studio":    "Review Studio",
   "/per":              "PER 리워드",
