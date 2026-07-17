@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import type { ClientContext } from "@/lib/clientContext";
-
-const C = {
-  teal: "#155855",
-  orange: "#E85D2C",
-  border: "rgba(21,88,85,.14)",
-  muted: "#5A7470",
-  light: "#EAF4F2",
-  white: "#FFFFFF",
-};
+import { C } from "@/lib/theme";
 
 export default function ClientContextBanner({
   context,

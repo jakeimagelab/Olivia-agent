@@ -1,11 +1,7 @@
 "use client";
 
 import { WORKFLOW_STEPS } from "@/lib/workflow";
-
-const C = {
-  teal: "#155855", green: "#22876A", white: "#FFFFFF",
-  border: "rgba(21,88,85,.12)", muted: "#5A7470", hint: "#9BB5B0", light: "#EAF4F2",
-};
+import { C } from "@/lib/theme";
 
 const SHORT: Record<string, string> = {
   consult_meeting: "상담",   quote: "견적서",     contract: "계약서",
@@ -32,9 +28,9 @@ export default function WorkflowBar({ currentStepKey, selectedStepKey, onSelect 
           const isSelected = step.key === selectedStepKey && !isCurrent;
           const isDone = idx < currentIdx;
 
-          let bg = C.white;
-          let borderColor = C.border;
-          let textColor = C.hint;
+          let bg: string = C.white;
+          let borderColor: string = C.border;
+          let textColor: string = C.hint;
 
           if (isCurrent) {
             bg = C.teal; borderColor = C.teal; textColor = "#fff";

@@ -5,6 +5,7 @@ import Link from "next/link";
 import OliviaChat from "@/components/OliviaChat";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { PageHeading } from "@/components/PageHeading";
+import { C } from "@/lib/theme";
 import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
 import {
   ArrowLeft, CheckSquare, ChevronDown, ClipboardList, Copy, Image as ImageIcon,
@@ -74,10 +75,10 @@ const CAT_COLORS = [
   { key: "수술",         bg: "#FEE2E2", text: "#991B1B" },
 ];
 const getColor = (cat: string) =>
-  CAT_COLORS.find(c => cat.includes(c.key)) ?? { bg: "#E6F4F1", text: "#155855" };
+  CAT_COLORS.find(c => cat.includes(c.key)) ?? { bg: C.mint, text: C.teal };
 
 const TH: React.CSSProperties = {
-  background: "#155855", color: "#fff", padding: "10px 12px",
+  background: C.teal, color: C.white, padding: "10px 12px",
   fontWeight: 900, fontSize: 12, textAlign: "left",
   whiteSpace: "nowrap", borderRight: "1px solid rgba(255,255,255,0.12)"
 };
@@ -110,10 +111,10 @@ function EditableCell({
 
   const base: React.CSSProperties = {
     width: "100%", fontSize: 13, lineHeight: 1.6,
-    border: "1.5px solid #155855", borderRadius: 4,
+    border: `1.5px solid ${C.teal}`, borderRadius: 4,
     padding: "4px 6px", background: "#fffef9", outline: "none",
     fontWeight: bold ? 900 : 400, color: color ?? "#374151",
-    boxShadow: "0 0 0 3px rgba(21,88,85,0.12)",
+    boxShadow: `0 0 0 3px ${C.border}`,
   };
 
   if (editing) {

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { C } from "@/lib/theme";
 
 // ── 마크다운 렌더러 (외부 패키지 없이 직접 구현) ─────────────
 function MarkdownText({ text, isUser }: { text: string; isUser: boolean }) {
@@ -153,12 +154,6 @@ interface Message {
   toolResult?: string;
   isApproved?: boolean;
 }
-
-const C = {
-  teal: "#155855", orange: "#E85D2C",
-  bg: "#EDF5F3", surface: "#FFFFFF", border: "#C8DDD9",
-  muted: "#5A7470", hint: "#9BB5B0", txt: "#1C2B28", mint: "#EAF4F2",
-};
 
 const TOOL_LABELS: Record<string, string> = {
   create_quote:        "견적서 생성",

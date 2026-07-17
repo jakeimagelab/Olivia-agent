@@ -2,12 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-
-const C = {
-  teal: "#155855", orange: "#E85D2C", green: "#22876A",
-  white: "#FFFFFF", border: "rgba(21,88,85,.12)", muted: "#5A7470",
-  hint: "#9BB5B0", txt: "#1C2B28", light: "#EAF4F2",
-};
+import { C } from "@/lib/theme";
 
 const iS: React.CSSProperties = {
   width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8,
