@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export const runtime = "nodejs";
-
 const protectedApiPrefixes = [
   "/api/admin",
   "/api/dashboard",
