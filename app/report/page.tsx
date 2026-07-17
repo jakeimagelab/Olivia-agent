@@ -149,24 +149,24 @@ export default function ReportPage() {
               </div>
 
               {/* 병원 랭킹 */}
-              <div className="pc-card pc-card--padded">
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-                  <TrendingUp size={16} color="#155855" />
-                  <span style={{ fontSize: 13, fontWeight: 800, color: "#155855" }}>병원별 활동 Top 5</span>
+              <div className="pc-card" style={{ padding: "14px 14px 10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                  <TrendingUp size={13} color="#155855" />
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#155855" }}>병원별 활동 Top 5</span>
                 </div>
                 {data.hospitalRanking.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "24px 0", color: "#9CA3AF", fontSize: 12 }}>아직 데이터가 없어요</div>
+                  <div style={{ textAlign: "center", padding: "16px 0", color: "#9CA3AF", fontSize: 11 }}>아직 데이터가 없어요</div>
                 ) : data.hospitalRanking.map((h, i) => {
                   const max = data.hospitalRanking[0].count;
                   const pct = Math.round((h.count / max) * 100);
                   const medals = ["🥇","🥈","🥉","4️⃣","5️⃣"];
                   return (
-                    <div key={i} style={{ marginBottom: 12 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{medals[i]} {h.name}</span>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: "#155855" }}>{h.count}건</span>
+                    <div key={i} style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>{medals[i]} {h.name}</span>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: "#155855" }}>{h.count}건</span>
                       </div>
-                      <div style={{ height: 6, background: "#F3F4F6", borderRadius: 99, overflow: "hidden" }}>
+                      <div style={{ height: 4, background: "#F3F4F6", borderRadius: 99, overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#155855,#569082)", borderRadius: 99, transition: "width .5s ease" }} />
                       </div>
                     </div>
@@ -177,38 +177,38 @@ export default function ReportPage() {
 
             {/* 최근 활동 로그 */}
             <div className="pc-card">
-              <div style={{ padding: "18px 22px", borderBottom: "1px solid rgba(21,88,85,.08)", display: "flex", alignItems: "center", gap: 8 }}>
-                <Activity size={16} color="#155855" />
-                <span style={{ fontSize: 13, fontWeight: 800, color: "#155855" }}>최근 활동 로그</span>
+              <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(21,88,85,.08)", display: "flex", alignItems: "center", gap: 6 }}>
+                <Activity size={13} color="#155855" />
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#155855" }}>최근 활동 로그</span>
               </div>
               {data.recent.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px", color: "#9CA3AF", fontSize: 13 }}>
+                <div style={{ textAlign: "center", padding: "28px", color: "#9CA3AF", fontSize: 12 }}>
                   아직 활동 기록이 없어요<br/>
-                  <span style={{ fontSize: 11 }}>올리비아로 견적서·콘티·파일전송을 해보세요</span>
+                  <span style={{ fontSize: 10 }}>올리비아로 견적서·콘티·파일전송을 해보세요</span>
                 </div>
               ) : data.recent.map((log, i) => {
                 const meta = ACTION_META[log.type] || { label: log.type, icon: "📌", color: "#374151", bg: "#F3F4F6" };
                 return (
                   <div key={i} style={{
-                    display: "flex", alignItems: "center", gap: 14, padding: "14px 22px",
+                    display: "flex", alignItems: "center", gap: 10, padding: "9px 14px",
                     borderBottom: i < data.recent.length - 1 ? "1px solid rgba(21,88,85,.06)" : "none",
                     background: i % 2 === 0 ? "#fff" : "#FAFAFA",
                   }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>
                       {meta.icon}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1C2B28" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#1C2B28" }}>
                         {meta.label}
-                        {log.hospital && <span style={{ marginLeft: 8, fontSize: 12, color: "#5A7470", fontWeight: 400 }}>— {log.hospital}</span>}
+                        {log.hospital && <span style={{ marginLeft: 6, fontSize: 11, color: "#5A7470", fontWeight: 400 }}>— {log.hospital}</span>}
                       </div>
                       {log.details && (
-                        <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>
+                        <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {Object.entries(log.details).map(([k,v]) => `${k}: ${v}`).join(" · ")}
                         </div>
                       )}
                     </div>
-                    <div style={{ fontSize: 11, color: "#9CA3AF", flexShrink: 0 }}>{formatTime(log.time)}</div>
+                    <div style={{ fontSize: 10, color: "#9CA3AF", flexShrink: 0 }}>{formatTime(log.time)}</div>
                   </div>
                 );
               })}
