@@ -11,6 +11,12 @@ type Review = {
   delivered_at?: string; permission_to_publish?: boolean; created_at?: string;
 };
 
+type WorkflowReview = {
+  id: string; created_at: string; writer_name?: string; overall_rating?: number;
+  public_review_text?: string; good_points?: string; allow_public_use?: boolean;
+  clients?: { name?: string } | null;
+};
+
 type GeneratedContent = {
   summary: string; insights: string[];
   carousel: { title: string; body: string }[];
