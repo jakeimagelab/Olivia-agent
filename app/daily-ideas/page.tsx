@@ -42,19 +42,19 @@ function ContentCard({ idea, i }: { idea: ContentIdea; i: number }) {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <div className="pc-card pc-card--padded">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ background: i === 0 ? C.orange : C.teal, color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 99 }}>{idea.platform}</span>
+    <div className="pc-card" style={{ padding: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ background: i === 0 ? C.orange : C.teal, color: "#fff", fontSize: 9, fontWeight: 800, padding: "3px 9px", borderRadius: 99 }}>{idea.platform}</span>
         <button onClick={copy} style={{ fontSize: 11, color: copied ? "#22876A" : C.hint, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
           {copied ? "✓ 복사됨" : "복사"}
         </button>
       </div>
-      <div style={{ fontSize: 15, fontWeight: 800, color: C.txt, marginBottom: 8 }}>{idea.title}</div>
-      <div style={{ background: "#FFF8F5", borderLeft: `3px solid ${C.orange}`, padding: "8px 12px", borderRadius: "0 8px 8px 0", marginBottom: 8 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: C.orange, marginBottom: 3 }}>첫 문장 훅</div>
-        <div style={{ fontSize: 13, color: C.txt, fontWeight: 600 }}>"{idea.caption_hook}"</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: C.txt, marginBottom: 6 }}>{idea.title}</div>
+      <div style={{ background: "#FFF8F5", borderLeft: `3px solid ${C.orange}`, padding: "7px 10px", borderRadius: "0 8px 8px 0", marginBottom: 6 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: C.orange, marginBottom: 2 }}>첫 문장 훅</div>
+        <div style={{ fontSize: 12, color: C.txt, fontWeight: 600 }}>"{idea.caption_hook}"</div>
       </div>
-      <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>{idea.body}</div>
+      <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>{idea.body}</div>
     </div>
   );
 }
