@@ -3141,6 +3141,130 @@ main:has(> .pc-header) {
   animation: spin 1s linear infinite;
 }
 
+/* ── Client project smart timeline ─────────────────────── */
+.pc-workflow-phase-bar {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 7px;
+  padding: 6px;
+  border-radius: 20px;
+  background: rgba(21,88,85,.055);
+  box-shadow: inset 0 0 0 1px rgba(21,88,85,.045);
+}
+.pc-workflow-phase {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 15px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.64);
+  color: #8b9995;
+  box-shadow: inset 0 0 0 1px rgba(21,88,85,.055);
+}
+.pc-workflow-phase > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: #edf2f0;
+  color: #8a9995;
+  font-size: 9px;
+  font-weight: 950;
+}
+.pc-workflow-phase div { display: grid; gap: 2px; min-width: 0; }
+.pc-workflow-phase strong { color: inherit; font-size: 10px; }
+.pc-workflow-phase small { color: #aab4b1; font-size: 8px; }
+.pc-workflow-phase.is-done { color: #387f6e; background: #f3fbf7; }
+.pc-workflow-phase.is-done > span { color: #fff; background: #22876a; }
+.pc-workflow-phase.is-current {
+  color: var(--phase-color);
+  background: #fff;
+  box-shadow: 0 10px 26px color-mix(in srgb,var(--phase-color) 15%,transparent), inset 0 0 0 1px color-mix(in srgb,var(--phase-color) 25%,transparent);
+}
+.pc-workflow-phase.is-current > span { color: #fff; background: var(--phase-color); }
+
+.pc-smart-timeline {
+  border-radius: 24px;
+  padding: 6px;
+  background: rgba(21,88,85,.05);
+  box-shadow: inset 0 0 0 1px rgba(21,88,85,.045);
+}
+.pc-smart-timeline__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  border-radius: 18px 18px 0 0;
+  padding: 17px 18px 15px;
+  background: #fff;
+}
+.pc-smart-timeline__header span { color: #155855; font-size: 8px; font-weight: 950; letter-spacing: .18em; }
+.pc-smart-timeline__header h2 { margin: 4px 0 0; color: #263a36; font-size: 17px; font-weight: 950; letter-spacing: -.025em; }
+.pc-smart-timeline__header p { margin: 5px 0 0; color: #99a5a1; font-size: 9px; line-height: 1.55; }
+.pc-smart-timeline__header > strong { flex: 0 0 auto; border-radius: 999px; padding: 7px 11px; background: #eaf4f2; color: #155855; font-size: 10px; }
+.pc-smart-timeline__list { border-radius: 0 0 18px 18px; padding: 7px 10px 12px; background: #fff; }
+.pc-smart-timeline__item { display: grid; grid-template-columns: 38px minmax(0,1fr); gap: 10px; }
+.pc-smart-timeline__rail { display: grid; grid-template-rows: 32px minmax(20px,1fr); justify-items: center; }
+.pc-smart-timeline__rail span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf1f0;
+  color: #95a19e;
+  font-size: 9px;
+  font-weight: 950;
+  box-shadow: 0 0 0 5px #fff;
+  position: relative;
+  z-index: 1;
+}
+.pc-smart-timeline__rail i { width: 2px; height: 100%; background: #e7ecea; }
+.pc-smart-timeline__content { min-width: 0; padding: 2px 0 15px; }
+.pc-smart-timeline__summary {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 3px 10px 3px 2px;
+}
+.pc-smart-timeline__summary > div { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.pc-smart-timeline__summary small { min-width: 64px; color: #abb5b2; font-size: 8px; }
+.pc-smart-timeline__summary strong { overflow: hidden; color: #71807c; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.pc-smart-timeline__summary > b { flex: 0 0 auto; border-radius: 999px; padding: 4px 7px; background: #f0f3f2; color: #99a4a1; font-size: 7px; }
+.pc-smart-timeline__item.is-done .pc-smart-timeline__rail span { color: #fff; background: #22876a; }
+.pc-smart-timeline__item.is-done .pc-smart-timeline__rail i { background: #81bba9; }
+.pc-smart-timeline__item.is-done .pc-smart-timeline__summary strong { color: #55736b; }
+.pc-smart-timeline__item.is-done .pc-smart-timeline__summary > b { color: #22876a; background: #e7f7ed; }
+.pc-smart-timeline__item.is-current .pc-smart-timeline__rail span {
+  color: #fff;
+  background: #e85d2c;
+  box-shadow: 0 0 0 5px #fff, 0 0 0 9px rgba(232,93,44,.11), 0 10px 20px rgba(232,93,44,.22);
+}
+.pc-smart-timeline__item.is-current .pc-smart-timeline__summary { background: #fff8f5; }
+.pc-smart-timeline__item.is-current .pc-smart-timeline__summary strong { color: #c34d24; font-weight: 950; }
+.pc-smart-timeline__item.is-current .pc-smart-timeline__summary > b { color: #c34d24; background: #ffe8dd; }
+.pc-smart-timeline__action { margin-top: 10px; padding: 5px; border-radius: 20px; background: rgba(232,93,44,.06); }
+.pc-smart-timeline__action > div { margin-bottom: 0 !important; border-radius: 15px !important; box-shadow: 0 13px 30px rgba(48,67,62,.08); }
+
+@media (max-width: 767px) {
+  .pc-workflow-phase-bar { grid-template-columns: repeat(4,68vw); overflow-x: auto; scroll-snap-type: x mandatory; }
+  .pc-workflow-phase { scroll-snap-align: start; }
+  .pc-smart-timeline__header { align-items: flex-start; }
+  .pc-smart-timeline__header p { max-width: 32ch; }
+  .pc-smart-timeline__item { grid-template-columns: 32px minmax(0,1fr); gap: 7px; }
+  .pc-smart-timeline__rail span { width: 25px; height: 25px; }
+  .pc-smart-timeline__summary { align-items: flex-start; padding-right: 4px; }
+  .pc-smart-timeline__summary > div { display: grid; gap: 2px; }
+  .pc-smart-timeline__summary small { min-width: 0; }
+  .pc-smart-timeline__action { margin-left: -4px; }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

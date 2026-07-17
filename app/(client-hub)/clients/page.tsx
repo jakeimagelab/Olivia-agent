@@ -4,7 +4,13 @@ import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
-import { STEP_NAME, WORKFLOW_STEPS } from "@/lib/workflow";
+import {
+  ACTIVE_WORKFLOW_STEPS,
+  STEP_NAME,
+  WORKFLOW_STAGES,
+  WORKFLOW_STEPS,
+  getWorkflowDisplayStepKey,
+} from "@/lib/workflow";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import NextActionCard from "@/components/NextActionCard";
 import ConsultMeetingForm from "./_components/ConsultMeetingForm";
@@ -16,8 +22,10 @@ const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = 
   contract:          { icon: "✍️", desc: "계약서 생성 및 이메일 전달",               href: "/contract" },
   conti:             { icon: "🎬", desc: "AI 촬영 콘티 및 체크리스트 생성",          href: "/conti" },
   shooting:          { icon: "📸", desc: "촬영 당일 체크리스트 진행 및 완료 처리",   href: "/shooting" },
+  payment_confirm:   { icon: "🧾", desc: "잔금 입금과 계산서 처리 상태를 수동 확인", href: "/clients" },
   backup_sorting:    { icon: "🗂️", desc: "RAW/JPG 자동 분류 및 백업 관리",          href: "/photo-sorting" },
   original_delivery: { icon: "📦", desc: "원본 파일 NAS 링크 생성 및 발송",          href: "/original-delivery" },
+  client_selection:  { icon: "🖼️", desc: "원본 전달부터 고객 셀렉과 RAW 매칭까지 관리", href: "/select-galleries" },
   retouching:        { icon: "🎨", desc: "색감 보정 및 보정 가이드 작성",             href: "/photo-retouching" },
   revision:          { icon: "🔄", desc: "수정 요청 접수 및 알람 발송",               href: "/mailing" },
   seo_delivery:      { icon: "🔍", desc: "SEO 파일명·ALT·캡션·메타데이터 자동 생성", href: "/seo-delivery" },
@@ -375,8 +383,6 @@ function KanbanBoard({ clients, onRefresh, router }: { clients: any[]; onRefresh
 function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void }) {
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedStep, setSelectedStep] = useState("");
-  const [showAllSteps, setShowAllSteps] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -384,7 +390,6 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
     const d = await res.json();
     if (d.ok) {
       setPageData(d);
-      if (!selectedStep) setSelectedStep(d.workflowRun?.current_step_key || WORKFLOW_STEPS[0].key);
     }
     setLoading(false);
   };
@@ -401,8 +406,10 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
   );
 
   const { client, workflowRun, mailingQueue } = pageData;
-  const currentStepKey = workflowRun?.current_step_key || WORKFLOW_STEPS[0].key;
-  const currentIdx = WORKFLOW_STEPS.findIndex((s) => s.key === currentStepKey);
+  const currentStepKey = workflowRun?.current_step_key || ACTIVE_WORKFLOW_STEPS[0].key;
+  const displayStepKey = getWorkflowDisplayStepKey(currentStepKey) || ACTIVE_WORKFLOW_STEPS[0].key;
+  const currentIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === displayStepKey);
+  const progressStep = Math.max(currentIdx + 1, 1);
 
   return (
     <div style={{ color: C.txt }}>
@@ -418,76 +425,80 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
           </div>
           <div style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 10, padding: "6px 14px", textAlign: "center", flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)", letterSpacing: ".08em" }}>진행</div>
-            <div style={{ fontSize: 15, fontWeight: 900 }}>{currentIdx}/{WORKFLOW_STEPS.length}</div>
+            <div style={{ fontSize: 15, fontWeight: 900 }}>{progressStep}/{ACTIVE_WORKFLOW_STEPS.length}</div>
           </div>
         </div>
       </div>
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
+        <div className="pc-workflow-phase-bar" aria-label="프로젝트 4스테이지 진행 상태">
+          {WORKFLOW_STAGES.map((stage, index) => {
+            const stageSteps = ACTIVE_WORKFLOW_STEPS.filter((step) => step.stage === stage.key);
+            const stageStart = ACTIVE_WORKFLOW_STEPS.findIndex((step) => step.key === stageSteps[0]?.key);
+            const stageEnd = stageStart + stageSteps.length - 1;
+            const isDone = currentIdx > stageEnd;
+            const isCurrent = currentIdx >= stageStart && currentIdx <= stageEnd;
+            return (
+              <div key={stage.key} className={`pc-workflow-phase ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""}`} style={{ "--phase-color": stage.color } as React.CSSProperties}>
+                <span>{isDone ? "✓" : String(index + 1).padStart(2, "0")}</span>
+                <div><strong>{stage.name}</strong><small>{stageSteps.length}단계</small></div>
+              </div>
+            );
+          })}
+        </div>
+
         <NextActionCard client={client} workflowRun={workflowRun} onRefresh={load} />
 
-        <button onClick={() => setShowAllSteps((v) => !v)}
-          style={{ minHeight: 44, border: `1px solid ${C.border}`, borderRadius: 12, background: C.white, color: C.teal, fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px" }}>
-          <span>전체 단계 {showAllSteps ? "접기" : "보기"} ({currentIdx + 1}/{WORKFLOW_STEPS.length})</span>
-          <span style={{ color: C.orange }}>{showAllSteps ? "접기 ↑" : "펼치기 ↓"}</span>
-        </button>
-
-        {/* ── 왼쪽: 14단계 체크리스트 ── */}
-        {showAllSteps && <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-          <div style={{ padding: "10px 14px", background: "rgba(21,88,85,.04)", borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 11, fontWeight: 900, color: C.teal }}>전체 단계 ({currentIdx}/{WORKFLOW_STEPS.length})</div>
-            <div style={{ marginTop: 6, height: 4, borderRadius: 99, background: C.border, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${(currentIdx / WORKFLOW_STEPS.length) * 100}%`, background: C.teal, borderRadius: 99, transition: "width .4s" }} />
+        <section className="pc-smart-timeline" aria-labelledby="smart-timeline-title">
+          <header className="pc-smart-timeline__header">
+            <div>
+              <span>SMART TIMELINE</span>
+              <h2 id="smart-timeline-title">프로젝트 전체 진행</h2>
+              <p>완료 단계는 접어두고, 현재 단계의 실행 도구와 다음 액션을 바로 보여줍니다.</p>
             </div>
-          </div>
-          <div style={{ maxHeight: "calc(100vh - 160px)", overflowY: "auto" }}>
-            {WORKFLOW_STEPS.map((step, idx) => {
+            <strong>{progressStep} / {ACTIVE_WORKFLOW_STEPS.length}</strong>
+          </header>
+          <div className="pc-smart-timeline__list">
+            {ACTIVE_WORKFLOW_STEPS.map((step, idx) => {
               const isDone = idx < currentIdx;
-              const isCurrent = step.key === currentStepKey;
-              const isSelected = step.key === selectedStep;
+              const isCurrent = step.key === displayStepKey;
               return (
-                <button key={step.key} onClick={() => setSelectedStep(step.key)}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: 10,
-                    padding: "9px 14px", border: "none", textAlign: "left",
-                    background: isCurrent ? `${C.teal}10` : isSelected ? `${C.teal}06` : "transparent",
-                    borderLeft: isCurrent ? `3px solid ${C.teal}` : isSelected ? `3px solid ${C.border}` : "3px solid transparent",
-                    cursor: "pointer", fontFamily: "inherit",
-                    borderBottom: `1px solid ${C.border}`,
-                  }}>
-                  <div style={{
-                    width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: isDone ? 11 : 10, fontWeight: 900,
-                    background: isDone ? C.green : isCurrent ? C.teal : C.light,
-                    color: isDone || isCurrent ? "#fff" : C.muted,
-                  }}>
-                    {isDone ? "✓" : idx + 1}
+                <article key={step.key} className={`pc-smart-timeline__item ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""}`}>
+                  <div className="pc-smart-timeline__rail">
+                    <span>{isDone ? "✓" : idx + 1}</span>
+                    {idx < ACTIVE_WORKFLOW_STEPS.length - 1 && <i/>}
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: isCurrent ? 900 : isDone ? 600 : 500, color: isCurrent ? C.teal : isDone ? C.muted : C.txt, flex: 1 }}>
-                    {STEP_NAME[step.key] || step.key}
-                  </span>
-                  {isCurrent && <span style={{ fontSize: 11, fontWeight: 900, color: C.orange, background: `${C.orange}15`, borderRadius: 99, padding: "2px 6px" }}>NOW</span>}
-                </button>
+                  <div className="pc-smart-timeline__content">
+                    <div className="pc-smart-timeline__summary">
+                      <div>
+                        <small>{WORKFLOW_STAGES.find((stage) => stage.key === step.stage)?.name}</small>
+                        <strong>{STEP_NAME[step.key] || step.key}</strong>
+                      </div>
+                      <b>{isDone ? "완료" : isCurrent ? "현재 단계" : "대기"}</b>
+                    </div>
+                    {isCurrent && (
+                      <div className="pc-smart-timeline__action">
+                        <StepPanel
+                          key={displayStepKey}
+                          selectedStepKey={displayStepKey}
+                          currentStepKey={displayStepKey}
+                          currentIdx={currentIdx}
+                          client={client}
+                          workflowRun={workflowRun}
+                          onAdvance={load}
+                          clientId={clientId}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </article>
               );
             })}
           </div>
-        </div>}
+        </section>
 
-        {/* ── 오른쪽: 선택된 단계 패널 ── */}
-        {/* 오른쪽 컬럼 */}
+        {/* 프로젝트 부가 정보 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <StepPanel
-            key={selectedStep}
-            selectedStepKey={selectedStep}
-            currentStepKey={currentStepKey}
-            currentIdx={currentIdx}
-            client={client}
-            workflowRun={workflowRun}
-            onAdvance={load}
-            clientId={clientId}
-          />
-
           {/* 고객 기본정보 + 메일 현황 */}
           <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: mailingQueue.length > 0 ? "1fr 1fr" : "1fr", gap: 14 }}>
             <InfoPanel client={client} onUpdate={load} />
@@ -674,11 +685,11 @@ type SPProps = {
 };
 
 function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workflowRun, onAdvance, clientId }: SPProps) {
-  const selectedIdx = WORKFLOW_STEPS.findIndex((s) => s.key === selectedStepKey);
+  const selectedIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === selectedStepKey);
   const isCurrent = selectedStepKey === currentStepKey;
   const isDone = selectedIdx < currentIdx;
   const info = STEP_INFO[selectedStepKey] ?? { icon: "📌", desc: "", href: "/" };
-  const nextStepKey = WORKFLOW_STEPS[selectedIdx + 1]?.key;
+  const nextStepKey = ACTIVE_WORKFLOW_STEPS[selectedIdx + 1]?.key;
   const nextStepName = nextStepKey ? (STEP_NAME[nextStepKey] || nextStepKey) : null;
 
   const [advancing, setAdvancing] = useState(false);
@@ -697,7 +708,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
     setAdvancing(true);
     const payload: Record<string, unknown> = { workflow_run_id: workflowRun.id, to_step_key: toKey };
     // 최종 전달 완료 시 배송 데이터 전달
-    if (selectedStepKey === "final_delivery" && toKey === "review_content" && finalNasLink) {
+    if (selectedStepKey === "final_delivery" && toKey === "revision" && finalNasLink) {
       payload.deliveryData = { nasLink: finalNasLink, fileCount: finalFileCount, packageName: finalPackage };
     }
     const res = await fetch("/api/workflow/advance", {
@@ -933,7 +944,7 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
                   </button>
                 </>
               ) : (
-                <div style={{ fontSize: 13, color: C.green, fontWeight: 700 }}>🎉 14단계 모두 완료! 워크플로우가 마무리됐습니다.</div>
+                <div style={{ fontSize: 13, color: C.green, fontWeight: 700 }}>🎉 12단계 모두 완료! 워크플로우가 마무리됐습니다.</div>
               )}
             </div>
           </>

@@ -1,11 +1,26 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { MOCK_AGENT_TASKS, MOCK_APPROVALS, MOCK_WORKFLOW_RUNS, STEP_NAME } from "@/lib/workflow";
+import {
+  MOCK_AGENT_TASKS,
+  MOCK_APPROVALS,
+  MOCK_WORKFLOW_RUNS,
+  STEP_NAME,
+  WORKFLOW_STAGES,
+  WORKFLOW_STEPS,
+  getWorkflowDisplayStepKey,
+  getWorkflowStepProgress,
+} from "@/lib/workflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const today = () => new Date().toISOString().slice(0, 10);
+const CUSTOMER_WAIT_STEPS = new Set(["quote", "contract", "conti", "client_selection", "final_delivery", "revision"]);
+
+function monthStart() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+}
 
 export async function GET() {
   try {
@@ -26,26 +41,45 @@ export async function GET() {
     const approvals = approvalsRes.data ?? [];
     const todayTasks = tasks.filter((task) => String(task.created_at || "").startsWith(today()) || task.status === "pending");
     const pendingApprovals = approvals.filter((approval) => approval.status === "pending");
+    const revisionApprovals = approvals.filter((approval) => approval.status === "revision_requested");
     const readyMailing = (mailingRes.data ?? []).filter((mail) => mail.status === "ready");
     const failedTasks = tasks.filter((task) => task.status === "failed");
     const openTaskKeys = new Set(tasks.filter((task) => ["pending", "running", "waiting_approval", "failed"].includes(task.status)).map((task) => `${task.workflow_run_id}:${task.workflow_step_key}`));
     const openApprovalKeys = new Set(approvals.filter((approval) => ["pending", "revision_requested"].includes(approval.status)).map((approval) => `${approval.workflow_run_id}:${approval.workflow_step_key}`));
 
-    const workflowRuns = runs.map((run) => ({
-      ...run,
-      current_step_name: STEP_NAME[run.current_step_key] || run.current_step_key,
-      delayed: Boolean(run.shoot_date && run.shoot_date < today() && run.status === "active"),
-      waiting_approval_count: pendingApprovals.filter((approval) => approval.workflow_run_id === run.id).length,
-      has_ready_mail: readyMailing.some((mail) => mail.workflow_run_id === run.id),
-      has_open_task: tasks.some((task) => task.workflow_run_id === run.id && ["pending", "running", "waiting_approval", "failed"].includes(task.status)),
-      can_advance: !openTaskKeys.has(`${run.id}:${run.current_step_key}`) && !openApprovalKeys.has(`${run.id}:${run.current_step_key}`),
-    }));
+    const workflowRuns = runs.map((run) => {
+      const displayStepKey = getWorkflowDisplayStepKey(run.current_step_key) ?? run.current_step_key;
+      const step = WORKFLOW_STEPS.find((candidate) => candidate.key === displayStepKey);
+      const stage = WORKFLOW_STAGES.find((candidate) => candidate.key === step?.stage);
+      const waitingApprovalCount = pendingApprovals.filter((approval) => approval.workflow_run_id === run.id).length;
+      const revisionRequestCount = revisionApprovals.filter((approval) => approval.workflow_run_id === run.id).length;
+      const waitingCustomer = run.status === "active" && CUSTOMER_WAIT_STEPS.has(displayStepKey) && waitingApprovalCount === 0;
+
+      return {
+        ...run,
+        display_step_key: displayStepKey,
+        current_step_name: STEP_NAME[displayStepKey] || displayStepKey,
+        stage_key: stage?.key ?? "consult_contract",
+        stage_name: stage?.name ?? "상담·계약",
+        progress: getWorkflowStepProgress(run.current_step_key),
+        delayed: Boolean(run.shoot_date && run.shoot_date < today() && run.status === "active"),
+        waiting_approval_count: waitingApprovalCount,
+        revision_request_count: revisionRequestCount,
+        waiting_customer: waitingCustomer,
+        has_ready_mail: readyMailing.some((mail) => mail.workflow_run_id === run.id),
+        has_open_task: tasks.some((task) => task.workflow_run_id === run.id && ["pending", "running", "waiting_approval", "failed"].includes(task.status)),
+        can_advance: !openTaskKeys.has(`${run.id}:${run.current_step_key}`) && !openApprovalKeys.has(`${run.id}:${run.current_step_key}`),
+      };
+    });
     const movableRuns = workflowRuns.filter((run) => run.status === "active" && run.can_advance);
 
     return NextResponse.json({
       ok: true,
       summary: {
         activeClients: runs.filter((run) => run.status === "active").length,
+        activeProjects: runs.filter((run) => run.status === "active").length,
+        completedThisMonth: runs.filter((run) => run.status === "completed" && run.completed_at && run.completed_at >= monthStart()).length,
+        waitingCustomer: workflowRuns.filter((run) => run.waiting_customer).length,
         todayTasks: todayTasks.length,
         pendingApprovals: pendingApprovals.length,
         pendingMailing: mailingRes.data?.length ?? 0,
@@ -63,7 +97,7 @@ export async function GET() {
       automation: {
         todayCreatedTasks: tasks.filter((task) => String(task.created_at || "").startsWith(today())).slice(0, 12),
         readyMailing: readyMailing.slice(0, 12),
-        waitingCustomer: workflowRuns.filter((run) => ["quote", "contract", "conti", "final_delivery"].includes(run.current_step_key)).slice(0, 12),
+        waitingCustomer: workflowRuns.filter((run) => run.waiting_customer).slice(0, 12),
         delayedRuns: workflowRuns.filter((run) => run.delayed).slice(0, 12),
         movableRuns: movableRuns.slice(0, 12),
         failedTasks: failedTasks.slice(0, 12),
@@ -78,6 +112,9 @@ export async function GET() {
       note: error instanceof Error ? error.message : String(error),
       summary: {
         activeClients: MOCK_WORKFLOW_RUNS.length,
+        activeProjects: MOCK_WORKFLOW_RUNS.length,
+        completedThisMonth: 0,
+        waitingCustomer: 2,
         todayTasks: MOCK_AGENT_TASKS.length,
         pendingApprovals: pendingApprovals.length,
         pendingMailing: 2,
