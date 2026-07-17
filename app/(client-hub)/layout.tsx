@@ -7,7 +7,7 @@ import PageHeader from "@/components/PageHeader";
 const TITLE: Record<string, string> = {
   "/clients":          "고객관리",
   "/select-galleries": "셀렉 갤러리",
-  "/review-studio":    "Review Studio",
+  "/review-studio":    "리뷰컨텐츠",
   "/per":              "PER 리워드",
 };
 
