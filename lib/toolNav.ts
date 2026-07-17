@@ -40,7 +40,7 @@ export const TOOLS_WORK: ToolDef[] = [
 export const TOOLS_CONTENT: ToolDef[] = [
   { title: "아이디어 제안", desc: "오늘 제작할 클라이언트 홍보 콘텐츠 아이디어를 AI가 매일 제안합니다.", href: "/daily-ideas", icon: Lightbulb, meta: "Idea Proposal", orange: true, category: "tools" },
   { title: "홍보 콘텐츠 제작", desc: "블로그·인스타·네이버 플레이스 홍보 콘텐츠를 클라이언트별로 제작합니다.", href: "/sns-manager", icon: CalendarCheck, meta: "Content Production", orange: false, category: "tools" },
-  { title: "클라이언트 후기 콘텐츠", desc: "클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다.", href: "/review-studio", icon: Sparkles, meta: "Review Studio", orange: false, category: "tools" },
+  { title: "리뷰컨텐츠", desc: "클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다.", href: "/review-studio", icon: Sparkles, meta: "Review Content", orange: false, category: "tools" },
   { title: "홈페이지 브랜드 분석", desc: "병원 홈페이지 URL만 입력하면 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 자동 분석합니다.", href: "/brand-analysis", icon: ScanSearch, meta: "Brand Analysis", orange: true, category: "tools" },
   { title: "AI 추천 병원 역분석", desc: "AI가 반복 추천하는 병원군의 증거와 패턴을 분석해 신뢰 격차와 촬영 기획으로 연결합니다.", href: "/ai-trust-gap", icon: ShieldCheck, meta: "AI Trust Gap", orange: true, category: "tools" },
   { title: "병원이미지 진단", desc: "병원 현황에 맞는 사진 콘텐츠 방향을 AI가 진단합니다.", href: "/diagnosis", icon: ImageDown, meta: "Clinic Diagnosis", orange: false, category: "tools" },
