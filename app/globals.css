@@ -5070,6 +5070,7 @@ main, .pc-console, .pc-page, .pc-page-content {
    Memo — common feature-page design
 ═══════════════════════════════════════════ */
 .memo-content { max-width: 1320px; }
+.memo-content--full { max-width: 100%; padding-left: 20px; padding-right: 20px; }
 .memo-hero { margin-bottom: 18px; }
 .memo-hero .pc-hero-title { margin: 0 0 8px; font-size: clamp(24px,4vw,38px); line-height: 1.15; letter-spacing: -.03em; }
 .memo-hero .pc-hero-desc { margin: 0; font-size: 14px; line-height: 1.75; }
