@@ -64,11 +64,6 @@ const navigation: NavigationSection[] = [
     items: [
       { label: "CRM 대시보드", href: "/admin/crm/dashboard", icon: LayoutDashboard },
       { label: "고객 목록", href: "/clients", icon: UsersRound },
-      { label: "프로젝트 목록", href: "/admin/crm/projects", icon: FolderKanban },
-      { label: "프로젝트 보드", href: "/admin/crm/board", icon: Columns3 },
-      { label: "프로젝트 워크플로우", href: "/admin/crm/workflows", icon: ListChecks },
-      { label: "지연 / 확인 필요", href: "/admin/crm/issues", icon: SearchCheck },
-      { label: "후속 관리", href: "/admin/crm/aftercare", icon: ContactRound },
     ],
   },
   {
