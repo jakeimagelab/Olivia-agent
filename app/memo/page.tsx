@@ -119,7 +119,7 @@ function MemoWorkspace() {
   };
 
   const chooseTemplate = (type: MemoTemplateType) => {
-    if (canvasDirty && !window.confirm("템플릿을 바꾸면 현재 필기가 초기화됩니다. 계속할까요?")) return;
+    if (canvasDirty && !window.confirm("양식을 바꾸면 현재 필기가 초기화됩니다. 계속할까요?")) return;
     setTemplateType(type);
     setTemplateData({ ...emptyTemplateData(type), noteMode: "template" });
     setInitialCanvas(null);
