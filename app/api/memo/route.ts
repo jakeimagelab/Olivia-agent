@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
+import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { saveMeetingCommitments } from "@/lib/olivia/commitments";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,8 +23,31 @@ const analysisSchema = {
     needs_video: { type: "boolean" }, needs_website: { type: "boolean" }, interested_in_sns: { type: "boolean" },
     preferred_date: { type: "string" }, budget: { type: "string" }, special_notes: { type: "string" },
     recommended_package: { type: "string" }, next_action: { type: "string" },
+    customerNeeds: { type: "array", items: { type: "string" } },
+    confirmedItems: { type: "array", items: { type: "string" } },
+    unresolvedItems: { type: "array", items: { type: "string" } },
+    representativeCommitments: {
+      type: "array",
+      items: {
+        type: "object", additionalProperties: false,
+        properties: { text: { type: "string" }, dueAt: { type: "string" }, ownerName: { type: "string" } },
+        required: ["text", "dueAt", "ownerName"],
+      },
+    },
+    clientCommitments: {
+      type: "array",
+      items: {
+        type: "object", additionalProperties: false,
+        properties: { text: { type: "string" }, dueAt: { type: "string" }, ownerName: { type: "string" } },
+        required: ["text", "dueAt", "ownerName"],
+      },
+    },
+    objections: { type: "array", items: { type: "string" } },
+    desiredSchedule: { type: "string" },
+    decisionMaker: { type: "string" },
+    nextAction: { type: "string" },
   },
-  required: ["summary", "hospital_name", "manager_name", "phone", "email", "department", "purpose", "shooting_items", "doctors_count", "staff_count", "locations", "needs_video", "needs_website", "interested_in_sns", "preferred_date", "budget", "special_notes", "recommended_package", "next_action"],
+  required: ["summary", "hospital_name", "manager_name", "phone", "email", "department", "purpose", "shooting_items", "doctors_count", "staff_count", "locations", "needs_video", "needs_website", "interested_in_sns", "preferred_date", "budget", "special_notes", "recommended_package", "next_action", "customerNeeds", "confirmedItems", "unresolvedItems", "representativeCommitments", "clientCommitments", "objections", "desiredSchedule", "decisionMaker", "nextAction"],
 };
 
 function outputText(json: any): string {
@@ -81,10 +106,26 @@ async function saveMemo(body: any) {
   if (body.id) {
     const { data, error } = await db.from("consultation_memos").update(values).eq("id", body.id).select(MEMO_FIELDS).single();
     if (error) throw error;
+    await emitOliviaEventSafely(db, {
+      eventType: "consultation.updated",
+      eventSource: "memo_api",
+      clientId: data.hospital_id ?? null,
+      actorType: "admin",
+      payload: { memoId: data.id, templateType: data.template_type },
+      deduplicationKey: createEventDeduplicationKey("consultation.updated", data.id, data.updated_at),
+    });
     return data;
   }
   const { data, error } = await db.from("consultation_memos").insert(values).select(MEMO_FIELDS).single();
   if (error) throw error;
+  await emitOliviaEventSafely(db, {
+    eventType: "consultation.memo_created",
+    eventSource: "memo_api",
+    clientId: data.hospital_id ?? null,
+    actorType: "admin",
+    payload: { memoId: data.id, templateType: data.template_type },
+    deduplicationKey: createEventDeduplicationKey("consultation.memo_created", data.id),
+  });
   return data;
 }
 
@@ -97,7 +138,7 @@ async function analyzeMemo(rawMemo: string, transcript: string) {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: process.env.OPENAI_MEMO_MODEL || "gpt-4.1-mini",
-      instructions: "당신은 병원 전문 브랜드 촬영 스튜디오 포토클리닉의 상담 AI 비서 올리비아입니다. 한국어 상담 메모에서 확인된 사실만 구조화하고, 없는 정보는 빈 문자열이나 false로 반환하세요.",
+      instructions: "당신은 병원 전문 브랜드 촬영 스튜디오 포토클리닉의 상담 AI 비서 올리비아입니다. 한국어 상담 메모에서 확인된 사실만 구조화하고, 없는 문자열은 빈 문자열, 목록은 빈 배열, 불리언은 false로 반환하세요. 대표와 고객의 약속은 담당 주체와 가능한 경우 ISO 날짜를 분리하세요. next_action과 nextAction에는 같은 값을 넣으세요.",
       input: combined,
       text: { format: { type: "json_schema", name: "consultation_analysis", strict: true, schema: analysisSchema } },
     }),
@@ -123,17 +164,28 @@ export async function POST(req: NextRequest) {
     const extracted = await analyzeMemo(rawMemo, transcript);
 
     // 기존 /consultation 및 고객 등록 폼 호환: persist=false가 아닌 분석은 기록으로 저장한다.
+    let analyzedMemoId = body.id ? String(body.id) : "";
     if (body.persist !== false) {
       const db = getSupabaseAdmin();
-      await db.from("consultation_memos").insert({
+      const { data: savedMemo, error: saveError } = await db.from("consultation_memos").insert({
         hospital_id: body.hospital_id || null,
         raw_memo: rawMemo,
         transcript,
         summary: extracted.summary || "",
         extracted_data: extracted,
         recommended_package: extracted.recommended_package || "",
-        next_action: extracted.next_action || "",
+        next_action: extracted.nextAction || extracted.next_action || "",
         title: body.title || extracted.hospital_name || "메모",
+      }).select("id, hospital_id, created_at").single();
+      if (saveError) throw saveError;
+      analyzedMemoId = savedMemo.id;
+      await emitOliviaEventSafely(db, {
+        eventType: "consultation.memo_created",
+        eventSource: "memo_api",
+        clientId: savedMemo.hospital_id ?? null,
+        actorType: "admin",
+        payload: { memoId: savedMemo.id, analyzed: true },
+        deduplicationKey: createEventDeduplicationKey("consultation.memo_created", savedMemo.id),
       });
     } else if (body.id) {
       const db = getSupabaseAdmin();
@@ -141,9 +193,36 @@ export async function POST(req: NextRequest) {
         summary: extracted.summary || "",
         extracted_data: extracted,
         recommended_package: extracted.recommended_package || "",
-        next_action: extracted.next_action || "",
+        next_action: extracted.nextAction || extracted.next_action || "",
       }).eq("id", body.id);
     }
+    const db = getSupabaseAdmin();
+    let linkedRun: any = null;
+    if (body.hospital_id) {
+      const { data } = await db.from("workflow_runs").select("id,project_id").eq("client_id", body.hospital_id).eq("status", "active").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+      linkedRun = data;
+    }
+    await saveMeetingCommitments(db, extracted, {
+      memoId: analyzedMemoId || null,
+      clientId: body.hospital_id || null,
+      projectId: linkedRun?.project_id ?? null,
+      workflowRunId: linkedRun?.id ?? null,
+    }).catch(() => []);
+    await emitOliviaEventSafely(db, {
+      eventType: "meeting.analyzed",
+      eventSource: "memo_api",
+      clientId: body.hospital_id || null,
+      actorType: "admin",
+      payload: {
+        memoId: analyzedMemoId || null,
+        confirmedItemCount: Array.isArray(extracted.confirmedItems) ? extracted.confirmedItems.length : 0,
+        unresolvedItemCount: Array.isArray(extracted.unresolvedItems) ? extracted.unresolvedItems.length : 0,
+        nextAction: extracted.nextAction || extracted.next_action || "",
+      },
+      deduplicationKey: analyzedMemoId
+        ? createEventDeduplicationKey("meeting.analyzed", analyzedMemoId)
+        : null,
+    });
     return NextResponse.json({ ok: true, ...extracted });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "메모 처리 실패" }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
+import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,16 @@ export async function POST(req: NextRequest) {
       log_type: "workflow_started",
       message: `${run.client_name || "고객"} 워크플로우가 시작되었습니다.`,
       output_summary: `created_tasks: ${taskResult.created.length}`,
+    });
+    await emitOliviaEventSafely(db, {
+      eventType: "workflow.started",
+      eventSource: "workflow_start_api",
+      clientId: run.client_id ?? null,
+      projectId: run.project_id ?? null,
+      workflowRunId: run.id,
+      actorType: "admin",
+      payload: { firstStepKey: firstStep, clientName: run.client_name, projectName: run.project_name },
+      deduplicationKey: createEventDeduplicationKey("workflow.started", run.id),
     });
 
     return NextResponse.json({ ok: true, run, tasks: taskResult.created });

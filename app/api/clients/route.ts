@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
+import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -75,6 +76,19 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
+  await emitOliviaEventSafely(supabase, {
+    eventType: "customer.created",
+    eventSource: "clients_api",
+    clientId: client.id,
+    actorType: "admin",
+    payload: {
+      name: hospitalName,
+      managerName: body.director_name || body.contact_name || body.manager_name || "",
+      department: body.department || body.specialty || "",
+    },
+    deduplicationKey: createEventDeduplicationKey("customer.created", client.id),
+  });
+
   const { data: run } = await supabase.from("workflow_runs").insert({
     client_id:        client.id,
     client_name:      hospitalName,
@@ -92,6 +106,15 @@ export async function POST(req: NextRequest) {
       log_type: "workflow_started",
       message: `${hospitalName} 고객 생성 후 워크플로우가 시작되었습니다.`,
       output_summary: `created_tasks: ${taskResult.created.length}`,
+    });
+    await emitOliviaEventSafely(supabase, {
+      eventType: "workflow.started",
+      eventSource: "clients_api",
+      clientId: client.id,
+      workflowRunId: run.id,
+      actorType: "admin",
+      payload: { firstStepKey: "consult_meeting", clientName: hospitalName },
+      deduplicationKey: createEventDeduplicationKey("workflow.started", run.id),
     });
   }
 

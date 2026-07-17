@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,6 +20,17 @@ export async function POST(req: NextRequest) {
     const memoId = String(form.get("memo_id") || "");
     if (!(audio instanceof File)) return NextResponse.json({ ok: false, error: "audio 필드 없음" }, { status: 400 });
     if (audio.size > 50 * 1024 * 1024) return NextResponse.json({ ok: false, error: "음성 파일은 50MB까지 지원합니다." }, { status: 413 });
+
+    const db = getSupabaseAdmin();
+    await emitOliviaEventSafely(db, {
+      eventType: "meeting.recording_uploaded",
+      eventSource: "memo_transcribe_api",
+      actorType: "admin",
+      payload: { memoId: memoId || null, fileSize: audio.size, contentType: audio.type },
+      deduplicationKey: memoId
+        ? createEventDeduplicationKey("meeting.recording_uploaded", memoId, audio.size, audio.name)
+        : null,
+    });
 
     const upstream = new FormData();
     upstream.append("file", audio, audio.name || "recording.webm");
@@ -46,9 +58,18 @@ export async function POST(req: NextRequest) {
     const summary = outputText(summaryJson).trim();
 
     if (memoId) {
-      const { error } = await getSupabaseAdmin().from("consultation_memos").update({ transcript, audio_summary: summary }).eq("id", memoId);
+      const { error } = await db.from("consultation_memos").update({ transcript, audio_summary: summary }).eq("id", memoId);
       if (error) throw error;
     }
+    await emitOliviaEventSafely(db, {
+      eventType: "meeting.transcribed",
+      eventSource: "memo_transcribe_api",
+      actorType: "admin",
+      payload: { memoId: memoId || null, transcriptLength: transcript.length, hasSummary: Boolean(summary) },
+      deduplicationKey: memoId
+        ? createEventDeduplicationKey("meeting.transcribed", memoId, transcript.length)
+        : null,
+    });
     return NextResponse.json({ ok: true, text: transcript, transcript, summary });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "음성 처리 실패" }, { status: 500 });

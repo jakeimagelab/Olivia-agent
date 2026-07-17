@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { advanceWorkflow, createStepTasks, logAgent } from "@/lib/workflowAutomation";
+import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,22 @@ const eventToStep: Record<string, string> = {
   review_submitted: "review_content",
   product_requested: "reward",
   donation_requested: "reward",
+};
+
+const portalEventName: Record<string, string> = {
+  quote_confirmed: "client.quote_confirmed",
+  contract_confirmed: "client.contract_confirmed",
+  conti_confirmed: "client.conti_confirmed",
+  selection_started: "client.selection_started",
+  selection_completed: "client.selection_completed",
+  revision_requested: "client.revision_requested",
+  review_submitted: "client.review_submitted",
+  product_requested: "client.product_requested",
+  donation_requested: "client.donation_requested",
+  quote_viewed: "client.quote_viewed",
+  contract_viewed: "client.contract_viewed",
+  conti_viewed: "client.conti_viewed",
+  gallery_viewed: "client.gallery_viewed",
 };
 
 const eventToTask: Record<string, { step: string; task_type: string; title: string; description: string }> = {
@@ -34,6 +51,18 @@ export async function POST(req: NextRequest) {
       log_type: `portal_${event_type}`,
       message: `고객 포털 이벤트 수신: ${event_type}`,
       input_summary: JSON.stringify(payload).slice(0, 500),
+    });
+
+    const canonicalEvent = portalEventName[event_type] || `client.${event_type}`;
+    await emitOliviaEventSafely(db, {
+      eventType: canonicalEvent,
+      eventSource: "workflow_portal_event_api",
+      workflowRunId: workflow_run_id,
+      actorType: "client",
+      payload: { eventType: event_type, ...payload },
+      deduplicationKey: payload.event_id
+        ? createEventDeduplicationKey(canonicalEvent, workflow_run_id, String(payload.event_id))
+        : null,
     });
 
     const toStep = eventToStep[event_type];

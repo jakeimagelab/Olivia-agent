@@ -12,6 +12,7 @@ import {
   Link2,
   Mail,
   NotebookPen,
+  Sparkles,
   Settings,
   UsersRound,
   X,
@@ -45,6 +46,7 @@ const navigation: NavigationSection[] = [
     label: "메인 메뉴",
     items: [
       { label: "홈", href: "/admin/dashboard/home", icon: House },
+      { label: "올리비아 비서", href: "/admin/olivia-assistant", icon: Sparkles },
       { label: "고객관리", href: "/clients", icon: UsersRound },
       { label: "캘린더", href: "/calendar", icon: CalendarDays },
       { label: "메모", href: "/memo", icon: NotebookPen },

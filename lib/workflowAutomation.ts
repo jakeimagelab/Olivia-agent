@@ -6,6 +6,7 @@ import {
   isActiveWorkflowStep,
 } from "@/lib/workflow";
 import { addYearsIso } from "@/lib/dataRetention";
+import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 
 export type StepAutomation = {
   task_type: string;
@@ -351,6 +352,15 @@ export async function createStepTasks(db: SupabaseClient, workflowRunId: string,
       .single();
     if (error) throw new Error(error.message);
     created.push(data);
+    await emitOliviaEventSafely(db, {
+      eventType: "agent.task_created",
+      eventSource: "workflow_automation",
+      clientId: run.client_id ?? null,
+      projectId: run.project_id ?? null,
+      workflowRunId,
+      payload: { taskId: data.id, taskType: data.task_type, stepKey },
+      deduplicationKey: createEventDeduplicationKey("agent.task_created", data.id),
+    });
   }
 
   await logAgent(db, {
@@ -380,6 +390,15 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
   if (!toStep) {
     await db.from("workflow_runs").update({ status: "completed", completed_at: now, updated_at: now }).eq("id", run.id);
     await logAgent(db, { workflow_run_id: run.id, log_type: "workflow_completed", message: `${run.client_name || "워크플로우"} 전체 단계가 완료되었습니다.` });
+    await emitOliviaEventSafely(db, {
+      eventType: "workflow.completed",
+      eventSource: "workflow_automation",
+      clientId: run.client_id ?? null,
+      projectId: run.project_id ?? null,
+      workflowRunId: run.id,
+      payload: { fromStepKey: fromStep, reason: input.reason ?? "" },
+      deduplicationKey: createEventDeduplicationKey("workflow.completed", run.id),
+    });
     return { completed: true, from_step_key: fromStep, to_step_key: null, created: [] };
   }
 
@@ -426,6 +445,22 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
     output_summary: `created_tasks: ${taskResult.created.length}`,
   });
 
+  await emitOliviaEventSafely(db, {
+    eventType: "workflow.step_changed",
+    eventSource: "workflow_automation",
+    clientId: run.client_id ?? null,
+    projectId: run.project_id ?? null,
+    workflowRunId: run.id,
+    payload: {
+      fromStepKey: fromStep,
+      toStepKey: toStep,
+      reason: input.reason ?? "",
+      previousNextAction: run.next_action ?? "",
+      newNextAction: buildNextAction(toStep),
+    },
+    deduplicationKey: createEventDeduplicationKey("workflow.step_changed", run.id, fromStep, toStep),
+  });
+
   return { completed: false, from_step_key: fromStep, to_step_key: toStep, created: taskResult.created };
 }
 
@@ -461,6 +496,15 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
   const now = new Date().toISOString();
 
   await db.from("agent_tasks").update({ status: "running", started_at: task.started_at ?? now, updated_at: now, error_message: "" }).eq("id", task.id);
+  await emitOliviaEventSafely(db, {
+    eventType: "agent.task_started",
+    eventSource: "workflow_automation",
+    clientId: task.client_id ?? run?.client_id ?? null,
+    projectId: task.project_id ?? run?.project_id ?? null,
+    workflowRunId: task.workflow_run_id ?? null,
+    payload: { taskId: task.id, taskType: task.task_type, retryCount: task.retry_count ?? 0 },
+    deduplicationKey: createEventDeduplicationKey("agent.task_started", task.id, task.retry_count ?? 0),
+  });
 
   try {
     const output = buildTaskOutput(task, run);
@@ -488,6 +532,15 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
         .single();
       if (error) throw new Error(error.message);
       await logAgent(db, { workflow_run_id: task.workflow_run_id, agent_task_id: task.id, log_type: "approval_requested", message: `${task.title} 승인 요청이 생성되었습니다.`, output_summary: approval.title });
+      await emitOliviaEventSafely(db, {
+        eventType: "approval.requested",
+        eventSource: "workflow_automation",
+        clientId: task.client_id ?? run?.client_id ?? null,
+        projectId: task.project_id ?? run?.project_id ?? null,
+        workflowRunId: task.workflow_run_id ?? null,
+        payload: { approvalId: approval.id, taskId: task.id, approvalType: approval.approval_type },
+        deduplicationKey: createEventDeduplicationKey("approval.requested", approval.id),
+      });
       return { task: data, approval, output };
     }
 
@@ -504,12 +557,30 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
     if (error) throw new Error(error.message);
 
     await logAgent(db, { workflow_run_id: task.workflow_run_id, agent_task_id: task.id, log_type: "task_completed", message: `${task.title} 작업이 완료되었습니다.`, output_summary: JSON.stringify(output).slice(0, 300) });
+    await emitOliviaEventSafely(db, {
+      eventType: "agent.task_completed",
+      eventSource: "workflow_automation",
+      clientId: task.client_id ?? run?.client_id ?? null,
+      projectId: task.project_id ?? run?.project_id ?? null,
+      workflowRunId: task.workflow_run_id ?? null,
+      payload: { taskId: task.id, taskType: task.task_type, retryCount: task.retry_count ?? 0 },
+      deduplicationKey: createEventDeduplicationKey("agent.task_completed", task.id, task.retry_count ?? 0),
+    });
     if (task.workflow_run_id && task.workflow_step_key) await maybeAdvanceWorkflow(db, task.workflow_run_id, task.workflow_step_key);
     return { task: data, output };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await db.from("agent_tasks").update({ status: "failed", error_message: message, updated_at: new Date().toISOString() }).eq("id", task.id);
     await logAgent(db, { workflow_run_id: task.workflow_run_id, agent_task_id: task.id, log_type: "task_failed", message: `${task.title} 작업 실패`, success: false, error_message: message });
+    await emitOliviaEventSafely(db, {
+      eventType: "agent.task_failed",
+      eventSource: "workflow_automation",
+      clientId: task.client_id ?? run?.client_id ?? null,
+      projectId: task.project_id ?? run?.project_id ?? null,
+      workflowRunId: task.workflow_run_id ?? null,
+      payload: { taskId: task.id, taskType: task.task_type, errorMessage: message.slice(0, 1_000), retryCount: task.retry_count ?? 0 },
+      deduplicationKey: createEventDeduplicationKey("agent.task_failed", task.id, task.retry_count ?? 0),
+    });
     throw error;
   }
 }
@@ -531,6 +602,14 @@ export async function approveWorkflowItem(db: SupabaseClient, approvalId: string
   if (approval.related_type === "mailing_queue" && approval.related_id) {
     await db.from("mailing_queue").update({ status: "ready", approval_status: "approved", updated_at: now }).eq("id", approval.related_id);
   }
+  if (approval.related_type === "olivia_action" && approval.related_id) {
+    await db.from("olivia_actions").update({ status: "approved", updated_at: now }).eq("id", approval.related_id);
+    await db.from("olivia_feedback").insert({
+      action_id: approval.related_id,
+      feedback_type: "approved",
+      original_content: approval.preview_data ?? {},
+    });
+  }
 
   // 고객 수정본 재제출 뒤 최종 승인된 요청을 닫는다. 마이그레이션 전 DB에서는
   // 테이블에 새 컬럼이 없어도 기존 승인 동작을 막지 않도록 결과를 의도적으로 무시한다.
@@ -546,6 +625,17 @@ export async function approveWorkflowItem(db: SupabaseClient, approvalId: string
     log_type: "approval_approved",
     message: `${approval.title} 항목이 승인되었습니다.`,
     output_summary: `${approval.related_type}:${approval.related_id}`,
+  });
+
+  await emitOliviaEventSafely(db, {
+    eventType: "approval.approved",
+    eventSource: "workflow_automation",
+    clientId: approval.client_id ?? null,
+    projectId: approval.project_id ?? null,
+    workflowRunId: approval.workflow_run_id ?? null,
+    actorType: "admin",
+    payload: { approvalId: approval.id, approvalType: approval.approval_type, taskId: approval.agent_task_id },
+    deduplicationKey: createEventDeduplicationKey("approval.approved", approval.id),
   });
 
   if (approval.workflow_run_id && approval.workflow_step_key) {

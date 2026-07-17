@@ -8,6 +8,7 @@ import OliviaRecommendationPanel from "@/components/admin/OliviaRecommendationPa
 import { DailyBriefCard, TodayScheduleCard } from "@/components/dashboard/TodayAlertBanner";
 import DailyQuoteWidget from "@/components/dashboard/DailyQuoteWidget";
 import { WORKFLOW_STAGES } from "@/lib/workflow";
+import OliviaDashboardPanel from "@/components/olivia/OliviaDashboardPanel";
 
 const STAGE_DOT: Record<string, string> = {
   consult_contract: "var(--orange)",
@@ -82,6 +83,8 @@ export default function AdminDashboardHomePage() {
         <TodayScheduleCard/>
         <DailyQuoteWidget/>
       </div>
+
+      <OliviaDashboardPanel/>
 
       <section className="crm-kpi-row" aria-label="CRM 현황 요약">
         <div className="crm-kpi crm-kpi--approval">
