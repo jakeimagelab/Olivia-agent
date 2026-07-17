@@ -53,6 +53,36 @@ export default function ClientContextBanner({
   );
 }
 
+const popupStyle: React.CSSProperties = {
+  position: "fixed",
+  right: 20,
+  bottom: 20,
+  zIndex: 400,
+  width: 280,
+  background: "#fff",
+  border: `1px solid ${C.border}`,
+  borderRadius: 12,
+  padding: "14px 16px",
+  boxShadow: "0 12px 32px rgba(21,88,85,.18)",
+  fontSize: 13,
+};
+
+const closeBtnStyle: React.CSSProperties = {
+  position: "absolute",
+  top: 10,
+  right: 10,
+  width: 22,
+  height: 22,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  border: "none",
+  background: "transparent",
+  color: C.hint,
+  cursor: "pointer",
+  borderRadius: 6,
+};
+
 const boxStyle: React.CSSProperties = {
   margin: "0 auto 16px",
   maxWidth: 1100,
