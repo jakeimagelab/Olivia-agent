@@ -240,8 +240,8 @@ export default function DailyIdeasPage() {
 
       {/* ── 데스크탑: 2컬럼 레이아웃 ── */}
       {!isMobile && (
-        <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", minHeight: "calc(100vh - 56px)" }}>
-          <div style={{ borderRight: `1px solid ${C.border}`, background: C.surface, overflowY: "auto", maxHeight: "calc(100vh - 56px)" }}>
+        <div className="pc-content" style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 16, alignItems: "start" }}>
+          <div className="pc-card" style={{ maxHeight: 620, overflowY: "auto", padding: 0 }}>
             {loading && <div style={{ padding: 32, textAlign: "center", color: C.hint }}>불러오는 중...</div>}
             {!loading && ideas.length === 0 && (
               <div style={{ padding: "32px 16px", textAlign: "center", color: C.muted }}>
@@ -252,26 +252,26 @@ export default function DailyIdeasPage() {
             )}
             <DateSidebar ideas={ideas} selected={selected} today={today} onSelect={setSelected} />
           </div>
-          <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 56px)", padding: "24px 28px" }}>
+          <div>
             {!selected && !loading && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: C.muted, gap: 12 }}>
-                <div style={{ fontSize: 48 }}>✨</div>
-                <div style={{ fontSize: 15, fontWeight: 700 }}>날짜를 선택하거나 오늘의 아이디어를 생성하세요</div>
-                <div style={{ fontSize: 13 }}>클라이언트 홍보 콘텐츠 아이디어 · 매일 아침 8시 자동 생성</div>
-                <button onClick={generate} disabled={generating} className="pc-btn pc-btn--orange pc-btn--lg" style={{ marginTop: 8 }}>
+              <div className="pc-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 24px", color: C.muted, gap: 10 }}>
+                <div style={{ fontSize: 36 }}>✨</div>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>날짜를 선택하거나 오늘의 아이디어를 생성하세요</div>
+                <div style={{ fontSize: 12 }}>클라이언트 홍보 콘텐츠 아이디어 · 매일 아침 8시 자동 생성</div>
+                <button onClick={generate} disabled={generating} className="pc-btn pc-btn--orange" style={{ marginTop: 6 }}>
                   {generating ? "생성 중..." : "✨ 지금 바로 생성하기"}
                 </button>
               </div>
             )}
             {selected && (
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                       {selected.date === today && <span style={{ background: C.orange, color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 99 }}>오늘</span>}
-                      <span style={{ fontSize: 13, color: C.muted, fontWeight: 700 }}>{fmtDate(selected.date)}</span>
+                      <span style={{ fontSize: 12, color: C.muted, fontWeight: 700 }}>{fmtDate(selected.date)}</span>
                     </div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: C.txt }}>{selected.marketing_idea?.title}</div>
+                    <div style={{ fontSize: 17, fontWeight: 900, color: C.txt }}>{selected.marketing_idea?.title}</div>
                   </div>
                 </div>
                 <IdeaDetail idea={selected} />
