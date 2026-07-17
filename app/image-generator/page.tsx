@@ -360,10 +360,6 @@ export default function ImageDirectorPage() {
     <main className="admin-shell">
       <PageHeader title="리얼 이미지 디렉터" />
 
-      {/* Hero */}
-      <PageHeading kicker="AI IMAGE" title="포토클리닉 리얼 이미지 디렉터"
-        desc="올리비아가 병원 촬영 디렉터처럼 프롬프트를 설계하고, OpenAI gpt-image-1로 실사 품질 병원 이미지 4장을 생성합니다." />
-
       {/* Mode Tabs */}
       <div style={{ padding: "0 32px 24px" }}>
         <div className="ops-filter-bar" style={{ flexWrap: "wrap", gap: 8 }}>
