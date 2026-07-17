@@ -84,62 +84,71 @@ export default function CrmDashboardPage() {
     if (retentionAlerts.length > 0) recommendations.push(`데이터 보관 만료 임박 ${retentionAlerts.length}건을 확인하세요.`);
   }
 
+  const latestAlert = failedTasks[0] ? { name: failedTasks[0].client_name || "고객 미연결", text: "작업이 실패했습니다" }
+    : delayedRuns[0] ? { name: delayedRuns[0].client_name, text: "촬영일이 지났습니다" }
+    : retentionAlerts[0] ? { name: (retentionAlerts[0] as any).client_name || "고객 미연결", text: "데이터 보관 만료가 임박했습니다" }
+    : null;
+
   return (
     <div className="oa-page pc-dash-home">
-      {alertCount > 0 && (
-        <section className="oa-context-banner is-linked" style={{ marginBottom: 16 }}>
-          <span className="oa-context-banner__icon"><AlertTriangle size={19}/></span>
-          <div className="oa-context-banner__copy">
-            <strong>확인이 필요한 항목이 {alertCount}건 있습니다.</strong>
-            <p>
-              {[
-                delayedRuns.length > 0 && `지연 ${delayedRuns.length}건`,
-                failedTasks.length > 0 && `실패 ${failedTasks.length}건`,
-                retentionAlerts.length > 0 && `보관 만료 임박 ${retentionAlerts.length}건`,
-              ].filter(Boolean).join(" · ")}
-            </p>
-          </div>
-          <Link className="oa-context-banner__action" href="/admin/crm/issues">확인하러 가기</Link>
-        </section>
+      {alertCount > 0 && latestAlert && (
+        <div className="crm-alarm">
+          <span className="crm-alarm-icon"><Mail size={14}/></span>
+          <div className="crm-alarm-text"><strong>{latestAlert.name}</strong>{`에서 ${latestAlert.text}`} · 그 외 {Math.max(alertCount - 1, 0)}건</div>
+          <Link className="crm-alarm-link" href="/admin/crm/issues">확인하러 가기 →</Link>
+        </div>
       )}
 
-      <section className="oa-summary-grid oa-summary-grid--crm pc-dash-summary" aria-label="CRM 현황 요약">
-        <SummaryCard label="승인 대기" value={loading ? "–" : summary?.pendingApprovals ?? 0} description="대표 확인 필요" icon={<ClipboardCheck size={18}/>} tone="orange"/>
-        <SummaryCard label="진행중" value={loading ? "–" : summary?.activeProjects ?? 0} description="활성 프로젝트" icon={<FolderKanban size={18}/>} tone="blue"/>
-        <SummaryCard label="이번달 완료" value={loading ? "–" : summary?.completedThisMonth ?? 0} description="이번 달 완료 건수" icon={<CheckCircle2 size={18}/>} tone="green"/>
-        <SummaryCard label="고객 응답 대기" value={loading ? "–" : summary?.waitingCustomer ?? 0} description="고객 액션 필요" icon={<Clock3 size={18}/>} tone="red"/>
+      <section className="crm-kpi-row" aria-label="CRM 현황 요약">
+        <div className="crm-kpi crm-kpi--approval">
+          <div className="crm-kpi-label">승인 대기</div>
+          <div className="crm-kpi-num">{loading ? "–" : summary?.pendingApprovals ?? 0}</div>
+          <div className="crm-kpi-trend attn">확인 필요</div>
+        </div>
+        <div className="crm-kpi crm-kpi--active">
+          <div className="crm-kpi-label">진행 중</div>
+          <div className="crm-kpi-num">{loading ? "–" : summary?.activeProjects ?? 0}</div>
+          <div className="crm-kpi-trend">활성 프로젝트</div>
+        </div>
+        <div className="crm-kpi crm-kpi--done">
+          <div className="crm-kpi-label">이번 달 완료</div>
+          <div className="crm-kpi-num">{loading ? "–" : summary?.completedThisMonth ?? 0}</div>
+          <div className="crm-kpi-trend">완료 건수</div>
+        </div>
+        <div className="crm-kpi crm-kpi--waiting">
+          <div className="crm-kpi-label">고객 응답 대기</div>
+          <div className="crm-kpi-num">{loading ? "–" : summary?.waitingCustomer ?? 0}</div>
+          <div className="crm-kpi-trend">셀렉·피드백</div>
+        </div>
       </section>
 
       <div className="oa-dashboard-layout pc-dash-layout">
         <div className="oa-main-column">
           <CategorySection
             eyebrow="PIPELINE"
-            title="프로젝트 보드"
+            title="진행 현황"
             description="4개 스테이지 기준으로 진행 상태를 확인합니다. 카드를 클릭하면 프로젝트 상세로 이동합니다."
           >
-            <div className="oa-board-preview">
+            <div className="crm-kanban">
               {WORKFLOW_STAGES.map((stage) => {
                 const stageRuns = runs.filter((run) => run.stage_key === stage.key && run.status === "active");
                 return (
-                  <div className="oa-board-column" key={stage.key}>
-                    <header><strong>{stage.name}</strong><StatusBadge tone="gray">{stageRuns.length}</StatusBadge></header>
+                  <div className="crm-kanban-col" key={stage.key}>
+                    <div className="crm-kanban-head">
+                      <span className="crm-kanban-dot" style={{ background: STAGE_DOT[stage.key] }}/>
+                      <span className="crm-kanban-title">{stage.name}</span>
+                      <span className="crm-kanban-count">{stageRuns.length}</span>
+                    </div>
                     {stageRuns.length === 0 && !loading ? (
-                      <p style={{ fontSize: 9, color: "#a7adb2", padding: "8px 2px" }}>진행중 프로젝트 없음</p>
-                    ) : stageRuns.slice(0, 6).map((run, index) => {
+                      <p className="crm-kanban-empty">진행중 프로젝트 없음</p>
+                    ) : stageRuns.slice(0, 6).map((run) => {
                       const badge = runBadge(run);
                       return (
-                        <Link key={run.id} href={`/clients?id=${run.client_id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                          <article>
-                            <span className="oa-project-index">0{index + 1}</span>
-                            <div>
-                              <strong>{run.client_name}</strong>
-                              <p>{run.current_step_name}</p>
-                              <div style={{ height: 3, background: "#eef1f2", borderRadius: 99, marginTop: 5, overflow: "hidden" }}>
-                                <div style={{ height: "100%", width: `${run.progress}%`, background: "var(--brand-orange)", borderRadius: 99 }}/>
-                              </div>
-                            </div>
-                            <StatusBadge tone={badge.tone}>{badge.label}</StatusBadge>
-                          </article>
+                        <Link key={run.id} href={`/clients?id=${run.client_id}`} className="crm-card">
+                          <div className="crm-card-name">{run.client_name}</div>
+                          <div className="crm-card-meta">{run.current_step_name}</div>
+                          <span className={`crm-card-status ${badge.cls}`}>{badge.label}</span>
+                          <div className="crm-card-progress"><div className="crm-card-progress-fill" style={{ width: `${run.progress}%` }}/></div>
                         </Link>
                       );
                     })}
@@ -159,7 +168,7 @@ export default function CrmDashboardPage() {
                     <span className="is-strong">{run.client_name}</span>
                     <span>{run.project_name}</span>
                     <span>{run.current_step_name}</span>
-                    <span><StatusBadge tone={badge.tone}>{badge.label}</StatusBadge></span>
+                    <span><span className={`crm-card-status ${badge.cls}`}>{badge.label}</span></span>
                   </div>
                 );
               })}
