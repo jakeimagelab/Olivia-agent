@@ -1568,31 +1568,29 @@ export default function WebsiteBuilderPage() {
 
   return (
     <main className="admin-shell">
-      <PageHeader
-        title="홈페이지 제작"
-        actions={
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={handleSaveProject} style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-              background: saveMsg ? "#155855" : "#f0f7f5", color: saveMsg ? "#fff" : "#155855",
-              border: "1.5px solid #c8ddd9", cursor: "pointer", transition: "all .2s"
-            }}>
-              <Save size={13} /> {saveMsg || "작업 저장"}
-            </button>
-            <button onClick={() => setShowLoadPanel(!showLoadPanel)} style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-              background: showLoadPanel ? "#E85D2C" : "#fff",
-              color: showLoadPanel ? "#fff" : "#555",
-              border: "1.5px solid #e0dcd4", cursor: "pointer", transition: "all .2s"
-            }}>
-              <FileText size={13} /> 작업 불러오기 {savedProjects.length > 0 && `(${savedProjects.length})`}
-            </button>
-          </div>
-        }
-      />
+      <PageHeader title="홈페이지 제작" />
       <section className="admin-dashboard" style={{ maxWidth: 900 }}>
+
+        {/* ── 헤더 아래 액션 버튼 ── */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+          <button onClick={handleSaveProject} style={{
+            display: "flex", alignItems: "center", gap: 6,
+            height: 40, padding: "0 20px", borderRadius: 8, fontSize: 13, fontWeight: 900,
+            background: "#E85D2C", color: "#fff",
+            border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all .2s"
+          }}>
+            <Save size={14} /> {saveMsg || "작업 저장"}
+          </button>
+          <button onClick={() => setShowLoadPanel(!showLoadPanel)} style={{
+            display: "flex", alignItems: "center", gap: 6,
+            height: 40, padding: "0 20px", borderRadius: 8, fontSize: 13, fontWeight: 900,
+            background: "#E85D2C", color: "#fff",
+            border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all .2s",
+            opacity: showLoadPanel ? 0.85 : 1,
+          }}>
+            <FileText size={14} /> 작업 불러오기 {savedProjects.length > 0 && `(${savedProjects.length})`}
+          </button>
+        </div>
 
         {/* ── 불러오기 패널 ── */}
         {showLoadPanel && (
