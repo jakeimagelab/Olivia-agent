@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle, Camera, CheckCircle2, ClipboardCheck, FolderKanban,
+  AlertTriangle, CheckCircle2, ClipboardCheck, FolderKanban,
   RefreshCw, UserRoundCheck, UsersRound, Clock3,
 } from "lucide-react";
 import SummaryCard from "@/components/admin/SummaryCard";
