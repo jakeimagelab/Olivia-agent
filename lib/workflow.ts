@@ -3,94 +3,137 @@ export type StepRunStatus = "pending" | "in_progress" | "waiting_approval" | "co
 export type AgentTaskStatus = "pending" | "running" | "completed" | "failed" | "waiting_approval" | "canceled";
 export type AgentTaskPriority = "low" | "normal" | "high" | "urgent";
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "revision_requested";
+export type WorkflowStageKey = "consult_contract" | "prep_shooting" | "data_sharing" | "feedback_done";
+
+/* 4스테이지 — 새 대시보드/타임라인 UI가 이 그룹으로 칸반 컬럼·phase바를 그린다.
+   기존 17개(+신규 1개) 단계 키는 하나도 바꾸지 않고 stage 필드만 추가로 붙였다 —
+   workflow_runs.current_step_key 등 여러 테이블에 문자열로 저장돼 있는 기존 데이터를
+   깨뜨리지 않기 위해 순수 additive하게 재편했다 (디자인통일-4차 요청서 1장 참고). */
+export const WORKFLOW_STAGES: { key: WorkflowStageKey; name: string; color: string; order: number }[] = [
+  { key: "consult_contract", name: "상담·계약",   color: "#E85D2C", order: 1 },
+  { key: "prep_shooting",    name: "준비·촬영",   color: "#EB8F22", order: 2 },
+  { key: "data_sharing",     name: "데이터·공유", color: "#7C3AED", order: 3 },
+  { key: "feedback_done",    name: "피드백·완료", color: "#569082", order: 4 },
+];
 
 export const WORKFLOW_STEPS = [
   {
     key: "consult_meeting",   name: "상담 / 미팅",
     order_index: 1,  requires_approval: false, automation_level: "manual" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "clients",
+    stage: "consult_contract" as WorkflowStageKey, primary: true,
   },
   {
     key: "quote",             name: "견적서 생성 / 전달",
     order_index: 2,  requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "quotes",
+    stage: "consult_contract" as WorkflowStageKey, primary: true,
   },
   {
     key: "contract",          name: "계약서 작성 / 전달",
     order_index: 3,  requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "contracts",
+    stage: "consult_contract" as WorkflowStageKey, primary: true,
   },
   {
     key: "conti",             name: "콘티 작성 / 전달",
     order_index: 4,  requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "conti",
+    stage: "prep_shooting" as WorkflowStageKey, primary: true,
   },
   {
     key: "shooting",          name: "촬영",
     order_index: 5,  requires_approval: false, automation_level: "manual" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "clients",
+    stage: "prep_shooting" as WorkflowStageKey, primary: true,
   },
   {
     key: "backup_sorting",    name: "백업 및 분류",
     order_index: 6,  requires_approval: false, automation_level: "full" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "photo-sorting",
+    stage: "data_sharing" as WorkflowStageKey, primary: true,
   },
   {
     key: "original_delivery", name: "원본 데이터 전달",
     order_index: 7,  requires_approval: false, automation_level: "full" as const,
     visible_to_client: true,  creates_mailing_draft: false, related_feature: "mailing",
+    stage: "data_sharing" as WorkflowStageKey, primary: false, folded_into: "client_selection",
   },
   {
     key: "client_selection",  name: "고객 사진 셀렉",
     order_index: 8,  requires_approval: false, automation_level: "full" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "select-galleries",
+    stage: "data_sharing" as WorkflowStageKey, primary: true,
   },
   {
     key: "raw_matching",      name: "RAW 자동 매칭",
     order_index: 9,  requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "select-galleries",
+    stage: "data_sharing" as WorkflowStageKey, primary: false, folded_into: "client_selection",
   },
   {
     key: "retouching",        name: "보정",
     order_index: 10, requires_approval: false, automation_level: "manual" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "photo-retouching",
+    stage: "data_sharing" as WorkflowStageKey, primary: true,
   },
   {
     key: "revision",          name: "보정 전달 후 수정 접수",
     order_index: 11, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "revision",
+    stage: "feedback_done" as WorkflowStageKey, primary: true,
   },
   {
     key: "seo_delivery",      name: "AI 검색 최적화 납품 생성",
     order_index: 12, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "seo-delivery",
+    stage: "feedback_done" as WorkflowStageKey, primary: false, folded_into: "revision",
   },
   {
     key: "final_delivery",    name: "최종파일 전달 + 후기 요청",
     order_index: 13, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing",
+    stage: "feedback_done" as WorkflowStageKey, primary: true,
   },
   {
     key: "review_content",    name: "후기 DB 저장 / 콘텐츠 제작",
     order_index: 14, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "review-studio",
+    stage: "feedback_done" as WorkflowStageKey, primary: false, folded_into: "final_delivery",
   },
   {
     key: "reward",            name: "고객 리워드 (1%)",
     order_index: 15, requires_approval: false, automation_level: "full" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "per",
+    stage: "feedback_done" as WorkflowStageKey, primary: true,
   },
   {
     key: "customer_care",     name: "고객관리 (주기 알람/이벤트)",
     order_index: 16, requires_approval: true,  automation_level: "draft_then_approve" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "mailing",
+    stage: "feedback_done" as WorkflowStageKey, primary: false, standalone: true,
   },
   {
     key: "content_planning",  name: "스토리 콘텐츠 기획",
     order_index: 17, requires_approval: false, automation_level: "manual" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "content",
+    stage: "feedback_done" as WorkflowStageKey, primary: false, standalone: true,
+  },
+  {
+    key: "payment_confirm",   name: "잔금 / 계산서",
+    order_index: 18, requires_approval: false, automation_level: "manual" as const,
+    visible_to_client: false, creates_mailing_draft: false, related_feature: "clients",
+    stage: "prep_shooting" as WorkflowStageKey, primary: true,
+    /* 계좌 API 연동 전까지는 대표가 입금 확인 후 수동으로 체크하는 버튼 하나로 처리
+       (디자인통일-4차 요청서 0장 "입금확인 버튼" 항목). */
   },
 ];
+
+/* 새 12단계 스마트 타임라인용 — primary만 걸러서 order_index로 정렬하면
+   문의접수부터 최종완료/리워드까지 딱 12개가 나온다. */
+export const PRIMARY_WORKFLOW_STEPS = WORKFLOW_STEPS
+  .filter((step) => step.primary)
+  .sort((a, b) => a.order_index - b.order_index);
 
 export const STEP_NAME: Record<string, string> = Object.fromEntries(WORKFLOW_STEPS.map((step) => [step.key, step.name]));
 
