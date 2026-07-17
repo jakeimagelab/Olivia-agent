@@ -43,22 +43,15 @@ const toolItems = groupToolsByCategory().find((g) => g.category === "tools")?.it
 const navigation: NavigationSection[] = [
   {
     key: "dashboard",
-    label: "관리자 대시보드",
+    label: "메인 메뉴",
     items: [
       { label: "홈", href: "/admin/dashboard/home", icon: House },
-      { label: "메모", href: "/memo", icon: NotebookPen },
+      { label: "고객관리", href: "/clients", icon: UsersRound },
       { label: "캘린더", href: "/calendar", icon: CalendarDays },
+      { label: "메모", href: "/memo", icon: NotebookPen },
       { label: "메일링", href: "/mailing", icon: Mail },
       { label: "외부링크", href: "/link-generator", icon: Link2 },
       { label: "휴지통", href: "/trash", icon: Archive },
-    ],
-  },
-  {
-    key: "crm",
-    label: "고객관리 CRM",
-    items: [
-      { label: "CRM 대시보드", href: "/admin/crm/dashboard", icon: LayoutDashboard },
-      { label: "고객 목록", href: "/clients", icon: UsersRound },
     ],
   },
   {
