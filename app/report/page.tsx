@@ -72,15 +72,11 @@ export default function ReportPage() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 24px 64px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "18px 20px 48px" }}>
 
         {/* 타이틀 + 기간 선택 */}
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 28 }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: ".18em", textTransform: "uppercase", color: "#E85D2C", marginBottom: 6 }}>PHOTO CLINIC</div>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#155855" }}>업무 리포트</h1>
-            <p style={{ margin: "6px 0 0", fontSize: 13, color: "#5A7470" }}>올리비아 AI 활동 기록을 한눈에 확인하세요</p>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+          <h1 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "#155855" }}>업무 리포트</h1>
           <div style={{ display: "flex", gap: 6 }}>
             {(["week","month","all"] as const).map(p => (
               <button key={p} onClick={() => changePeriod(p)} className={`pc-btn pc-btn--sm ${period === p ? "pc-btn--primary" : "pc-btn--secondary"}`}>
