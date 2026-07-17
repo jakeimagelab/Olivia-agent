@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import PageHeader from "@/components/PageHeader";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 import { buildMergeCandidates } from "@/lib/photo-classifier/scene-merge-candidate";
@@ -1939,18 +1938,18 @@ function PhotoSortingInner() {
 
         {/* 이전 작업 복원 배너 */}
         {savedSession && (
-          <div style={{background:"#EFF6FF",border:"1.5px solid #BFDBFE",borderRadius:12,padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{background:"#E8F0F5",border:"1.5px solid #B8CBD8",borderRadius:12,padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:18}}>💾</span>
               <div>
-                <div style={{fontSize:13,fontWeight:900,color:"#1D4ED8"}}>이전 작업이 저장되어 있습니다</div>
-                <div style={{fontSize:11,color:"#3B82F6",marginTop:2}}>
+                <div style={{fontSize:13,fontWeight:900,color:"#103A62"}}>이전 작업이 저장되어 있습니다</div>
+                <div style={{fontSize:11,color:"#315F7F",marginTop:2}}>
                   {DEPARTMENT_DISPLAY[savedSession.department]} · {savedSession.rootDirName || "폴더"} · {savedSession.sceneSummary.length}개 씬 · {new Date(savedSession.savedAt).toLocaleDateString("ko-KR",{month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
                 </div>
               </div>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>handleRestore(savedSession)} style={{flex:1,padding:"10px 0",background:"#1D4ED8",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}>
+              <button onClick={()=>handleRestore(savedSession)} style={{flex:1,padding:"10px 0",background:"#103A62",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}>
                 📂 폴더 선택 후 이어서 하기
               </button>
               <button onClick={clearSession} style={{padding:"10px 16px",background:"transparent",color:"#6B7280",border:"1px solid #D1D5DB",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
@@ -2209,7 +2208,7 @@ function PhotoSortingInner() {
     const totalJpg = fieldScenes.reduce((s,sc)=>s+sc.fileCount,0);
     return (
       <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:860}}>
-        <div style={{padding:14,background: fastAnalyzeMode ? "#EFF6FF" : "#FEF3C7",borderRadius:10,fontSize:12,color: fastAnalyzeMode ? "#1e40af" : "#92400E",border:`1px solid ${fastAnalyzeMode ? "#BFDBFE" : "#FCD34D"}`}}>
+        <div style={{padding:14,background: fastAnalyzeMode ? "#E8F0F5" : "#FEF3C7",borderRadius:10,fontSize:12,color: fastAnalyzeMode ? "#103A62" : "#92400E",border:`1px solid ${fastAnalyzeMode ? "#B8CBD8" : "#FCD34D"}`}}>
           {fastAnalyzeMode
             ? <><strong>⚡ 빠른 분석 완료</strong> — 파일이 이동되지 않았습니다. 씬 이름을 확인·수정하고 <strong>폴더 정리 실행</strong>을 눌러 실제로 파일을 이동하세요.</>
             : <>Scene 분류가 완료됐습니다. 이름을 확인·수정하고 <strong>확정</strong>을 눌러주세요.</>
@@ -2226,7 +2225,7 @@ function PhotoSortingInner() {
             <div style={{padding:"10px 14px",background:"#F8FAFC",borderRadius:10,border:`1px solid ${C.border}`,fontSize:11,color:C.muted,display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
               <span style={{fontWeight:800,color:C.txt}}>AI 씬 분석 결과</span>
               {activeMerge.length > 0 && (
-                <span style={{background:"#DBEAFE",color:"#1D4ED8",borderRadius:5,padding:"2px 8px",fontWeight:700}}>
+                <span style={{background:"#E8F0F5",color:"#103A62",borderRadius:5,padding:"2px 8px",fontWeight:700}}>
                   🔗 병합 후보 {activeMerge.length}건
                 </span>
               )}
@@ -2321,10 +2320,10 @@ function PhotoSortingInner() {
                       padding:"10px 14px",
                       borderRadius:8,
                       border: candidate.recommendedAction === "merge"
-                        ? "1.5px solid #BFDBFE"
+                        ? "1.5px solid #B8CBD8"
                         : "1.5px solid #FED7AA",
                       background: candidate.recommendedAction === "merge"
-                        ? "#EFF6FF"
+                        ? "#E8F0F5"
                         : "#FFF7ED",
                       display:"flex",flexDirection:"column",gap:6,
                     }}>
@@ -2334,12 +2333,12 @@ function PhotoSortingInner() {
                             {candidate.recommendedAction === "merge" ? "🔗" : "✂️"}
                           </span>
                           <span style={{fontSize:11,fontWeight:900,
-                            color: candidate.recommendedAction === "merge" ? "#1D4ED8" : "#C2410C",
+                            color: candidate.recommendedAction === "merge" ? "#103A62" : "#C2410C",
                           }}>
                             {candidate.recommendedAction === "merge" ? "병합 후보" : "분리 유지 추천"}
                           </span>
                           {candidate.recommendedAction === "merge" && (
-                            <span style={{fontSize:10,color:"#3B82F6",background:"#DBEAFE",borderRadius:4,padding:"1px 6px"}}>
+                            <span style={{fontSize:10,color:"#315F7F",background:"#E8F0F5",borderRadius:4,padding:"1px 6px"}}>
                               유사도 {Math.round(candidate.mergeScore * 100)}%
                             </span>
                           )}
@@ -2377,7 +2376,7 @@ function PhotoSortingInner() {
                       )}
 
                       <div style={{fontSize:10,
-                        color: candidate.recommendedAction === "merge" ? "#1E40AF" : "#9A3412",
+                        color: candidate.recommendedAction === "merge" ? "#103A62" : "#9A3412",
                         lineHeight:1.6,
                       }}>
                         {candidate.reason}
@@ -2386,7 +2385,7 @@ function PhotoSortingInner() {
                       {candidate.matchedSignals.length > 0 && candidate.recommendedAction === "merge" && (
                         <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                           {candidate.matchedSignals.map((s,si)=>(
-                            <span key={si} style={{fontSize:9,background:"#DBEAFE",color:"#1E40AF",borderRadius:4,padding:"1px 6px"}}>{s}</span>
+                            <span key={si} style={{fontSize:9,background:"#E8F0F5",color:"#103A62",borderRadius:4,padding:"1px 6px"}}>{s}</span>
                           ))}
                         </div>
                       )}
@@ -2404,7 +2403,7 @@ function PhotoSortingInner() {
                           <>
                             <button
                               onClick={()=>mergeFieldScenes(i,i+1,candidate.id)}
-                              style={{padding:"5px 12px",background:"#1D4ED8",color:"#fff",border:"none",borderRadius:6,fontSize:10,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}
+                              style={{padding:"5px 12px",background:"#103A62",color:"#fff",border:"none",borderRadius:6,fontSize:10,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}
                             >
                               병합하기
                             </button>
@@ -3086,7 +3085,6 @@ function PhotoSortingInner() {
   ═══════════════════════════════════════════ */
   return (
     <div>
-      <PageHeader title="사진 분류" />
 
       {step > 0 && (
         <div className="ps-mode-badge" style={{background:photoMode==="studio"?"#F5F0FF":C.light,color:photoMode==="studio"?C.purple:C.teal,borderBottom:`1px solid ${photoMode==="studio"?"#DDD6FE":C.border}`}}>

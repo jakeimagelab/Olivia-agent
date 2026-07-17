@@ -25,18 +25,17 @@ export default function PageHeader({
   return (
     <>
       <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img
-              src="/assets/photoclinic-logo.png"
-              alt="포토클리닉"
-              className="pc-header-logo"
-            />
-            <span className="pc-header-title">{title}</span>
-          </div>
+        <div className="pc-header-brand">
+          <img
+            src="/assets/photoclinic-logo.png"
+            alt="포토클리닉"
+            className="pc-header-logo"
+          />
+          <span className="pc-header-title">{title}</span>
         </div>
-        {actions && <div className="pc-header-actions">{actions}</div>}
       </header>
+
+      {actions && <div className="pc-page-actions">{actions}</div>}
 
       {tabs && tabs.length > 0 && (
         <div className="pc-tabs pc-tabs--global">

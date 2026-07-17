@@ -1,4 +1,4 @@
-import { Quote, User } from "lucide-react";
+import { Quote } from "lucide-react";
 
 /* 대시보드 홈에 쓰던 "오늘의 명언" 위젯 — 예전 app/page.tsx의 Dashboard에 있던 걸
    그대로 옮겨왔다(외부 API 없이 날짜 기준으로 매일 자동으로 바뀐다). */
@@ -61,16 +61,49 @@ export function todaysQuote() {
   return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
 }
 
+const PIXEL_FACE = [
+  0,0,1,1,1,1,0,0,
+  0,1,1,1,1,1,1,0,
+  0,1,2,2,2,2,1,0,
+  0,2,3,2,2,3,2,0,
+  0,2,2,2,2,2,2,0,
+  0,2,2,4,4,2,2,0,
+  0,0,2,2,2,2,0,0,
+  0,5,5,5,5,5,5,0,
+];
+
+function PixelPortrait({ author }: { author: string }) {
+  const seed = Array.from(author).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const hair = ["#182B38", "#4A3027", "#75604E", "#D7D0C5"][seed % 4];
+  const skin = ["#F1C7A5", "#DFA77F", "#B97855", "#F0B98B"][seed % 4];
+  const jacket = ["#103A62", "#155855", "#7A3D2B", "#4D4B64"][seed % 4];
+  const colors = ["transparent", hair, skin, "#17242E", "#B65E4A", jacket];
+
+  return (
+    <div className="oa-pixel-portrait" role="img" aria-label={`${author} 픽셀아트 초상`}>
+      {PIXEL_FACE.map((colorIndex, index) => (
+        <span key={index} style={{ background: colors[colorIndex] }} />
+      ))}
+    </div>
+  );
+}
+
 export default function DailyQuoteWidget() {
   const quote = todaysQuote();
   return (
     <aside className="oa-daily-quote">
-      <div className="oa-daily-quote__label">
-        <Quote size={13} aria-hidden="true"/>
-        <span>오늘의 명언</span>
+      <div className="oa-daily-brief__schedule-head oa-daily-quote__head">
+        <div>
+          <span className="oa-daily-brief__schedule-icon"><Quote size={13} aria-hidden="true"/></span>
+          <div>
+            <div className="oa-daily-brief__eyebrow">DAILY INSPIRATION</div>
+            <strong>오늘의 명언</strong>
+          </div>
+        </div>
+        <span>{quote.author}</span>
       </div>
       <div className="oa-daily-quote__portrait" aria-hidden="true">
-        <User size={22} strokeWidth={1.4} color="rgba(255,255,255,.7)"/>
+        <PixelPortrait author={quote.author} />
       </div>
       <blockquote>“{quote.text}”</blockquote>
       <cite>— {quote.author}</cite>

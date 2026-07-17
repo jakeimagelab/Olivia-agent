@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, X } from "lucide-react";
+import PageHeader from "@/components/PageHeader";
 
 /* ─── types ──────────────────────────────────────────── */
 type ViewMode = "day" | "week" | "month" | "year";
@@ -2280,14 +2281,7 @@ export default function CalendarPage() {
   return (
     <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
 
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo"/>
-            <span className="pc-header-title">업무 캘린더</span>
-          </div>
-        </div>
-        <div className="pc-header-actions" style={{ display: "flex", alignItems: "center", gap: 6, paddingRight: isMobile ? 8 : 16, flexWrap: "nowrap" }}>
+      <PageHeader title="업무 캘린더" actions={<>
           {/* view mode tabs — 모바일에서는 숨기고 연/월/일 드릴다운 내비게이션으로 대체 */}
           {!isMobile && (
             <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,
@@ -2303,12 +2297,11 @@ export default function CalendarPage() {
           <button onClick={() => setShowStatsModal(v => !v)} className="pc-btn pc-btn--ghost pc-btn--sm">
             📊{!isMobile && " 일정 분석"}
           </button>
-        </div>
-      </header>
+      </>} />
 
       <div style={{
         maxWidth: isMobile ? undefined : 1440, margin: "0 auto", width: "100%",
-        height: "calc(100vh - 56px)", display: "flex", overflow: "hidden",
+        height: "calc(100vh - 110px)", display: "flex", overflow: "hidden",
       }}>
         {/* 전체화면 캘린더 — 사이드 패널 없이 그리드가 화면 전체를 씀. 셀/일정 클릭은 팝업으로 처리 */}
         {viewMode === "month" && (

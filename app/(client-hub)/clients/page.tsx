@@ -267,9 +267,9 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 
   return (
     <div style={{ color: C.txt }}>
-      {/* 헤더 */}
-      <div style={{ background: `linear-gradient(135deg, ${C.teal}, #0d3e3b)`, color: "#fff", padding: "16px 24px 14px" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", gap: 16 }}>
+      {/* 고객 요약 카드 */}
+      <div style={{ padding: "16px 16px 0" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", color: "#fff", padding: "14px 18px", borderRadius: 16, background: `linear-gradient(135deg, ${C.orange}, #D94F22)`, boxShadow: "0 10px 28px rgba(232,93,44,.18)" }}>
           <button onClick={onBack} style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
             ← 목록
           </button>

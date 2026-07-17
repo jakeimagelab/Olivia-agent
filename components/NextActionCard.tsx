@@ -6,8 +6,8 @@ import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { C } from "@/lib/theme";
 
 const severityColor: Record<string, string> = {
-  default: C.teal,
-  info: "#2563EB",
+  default: C.orange,
+  info: C.orange,
   warning: C.orange,
   danger: C.danger,
   success: C.green,
@@ -51,7 +51,7 @@ export default function NextActionCard({
   }
 
   const action = data || {};
-  const color = severityColor[action.severity] || C.teal;
+  const color = severityColor[action.severity] || C.orange;
   const appHref = buildStepAppLink({
     stepKey: action.currentStepKey || workflowRun.current_step_key,
     clientId: client.id,
@@ -131,27 +131,27 @@ export default function NextActionCard({
           <div style={{ fontSize: 11, fontWeight: 900, color, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 5 }}>NEXT ACTION</div>
           <h2 style={titleStyle}>{client.name}</h2>
           {workflowRun.run_kind === "additional_shooting" && <StatusPill color={C.purple}>추가 촬영</StatusPill>}
-          <p style={descStyle}>현재 단계: <strong style={{ color: C.teal }}>{loading ? "불러오는 중..." : action.currentStepName}</strong></p>
-          <p style={{ margin: "8px 0 0", color, fontSize: 16, fontWeight: 900 }}>{loading ? "다음 액션을 계산하는 중입니다." : action.nextActionLabel || action.label}</p>
+          <p style={descStyle}>현재 단계: <strong style={{ color: C.orange }}>{loading ? "불러오는 중..." : action.currentStepName}</strong></p>
+          <p style={{ margin: "5px 0 0", color, fontSize: 14, fontWeight: 900 }}>{loading ? "다음 액션을 계산하는 중입니다." : action.nextActionLabel || action.label}</p>
           {action.blockedReason ? <p style={{ margin: "5px 0 0", color: C.muted, fontSize: 12 }}>{action.blockedReason}</p> : null}
         </div>
         <div style={{ minWidth: 150, textAlign: "right" }}>
           <div style={{ fontSize: 10, color: C.hint, fontWeight: 900, marginBottom: 5 }}>진행률</div>
-          <div style={{ fontSize: 30, color: C.teal, fontWeight: 1000 }}>{action.progress ?? 0}%</div>
-          <div style={{ height: 6, borderRadius: 999, background: C.light, overflow: "hidden", marginTop: 7 }}>
-            <div style={{ width: `${action.progress ?? 0}%`, height: "100%", background: color }} />
+          <div style={{ fontSize: 24, color: C.orange, fontWeight: 1000 }}>{action.progress ?? 0}%</div>
+          <div style={{ height: 5, borderRadius: 999, background: C.light, overflow: "hidden", marginTop: 5 }}>
+            <div style={{ width: `${action.progress ?? 0}%`, height: "100%", background: C.orange }} />
           </div>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 16 }}>
-        <StatusPill color={action.canRunTasks ? "#2563EB" : C.hint}>자동처리 {action.canRunTasks ? "가능" : "대기"}</StatusPill>
+      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 11 }}>
+        <StatusPill color={action.canRunTasks ? C.orange : C.hint}>자동처리 {action.canRunTasks ? "가능" : "대기"}</StatusPill>
         <StatusPill color={action.canApprove ? C.orange : C.hint}>승인 {action.canApprove ? "필요" : "없음"}</StatusPill>
         <StatusPill color={action.canSendMail ? C.green : C.hint}>메일 {action.canSendMail ? "발송대기" : "대기없음"}</StatusPill>
         <StatusPill color={action.primaryAction === "fix_failed_task" ? C.danger : C.hint}>오류 {action.primaryAction === "fix_failed_task" ? "있음" : "없음"}</StatusPill>
       </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
         {primaryButton()}
         <Link href={appHref} style={secondaryStyle}>관련 앱 열기</Link>
         <Link href="/workflow/approvals" style={secondaryStyle}>승인 대기 보기</Link>
@@ -189,12 +189,12 @@ const cardStyle: React.CSSProperties = {
   background: C.white,
   border: `1.5px solid ${C.border}`,
   borderRadius: 16,
-  padding: 20,
-  boxShadow: "0 10px 28px rgba(21,88,85,.08)",
+  padding: 14,
+  boxShadow: "0 8px 22px rgba(232,93,44,.08)",
 };
 
-const titleStyle: React.CSSProperties = { margin: 0, color: C.teal, fontSize: 24, fontWeight: 1000 };
-const descStyle: React.CSSProperties = { margin: "7px 0 0", color: C.muted, fontSize: 13 };
-const primaryStyle = (color: string): React.CSSProperties => ({ height: 42, padding: "0 18px", border: 0, borderRadius: 10, background: color, color: "#fff", fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" });
+const titleStyle: React.CSSProperties = { margin: 0, color: C.teal, fontSize: 20, fontWeight: 1000 };
+const descStyle: React.CSSProperties = { margin: "5px 0 0", color: C.muted, fontSize: 12 };
+const primaryStyle = (_color: string): React.CSSProperties => ({ height: 38, padding: "0 16px", border: 0, borderRadius: 9, background: C.orange, color: "#fff", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" });
 const primaryLinkStyle = (color: string): React.CSSProperties => ({ ...primaryStyle(color), display: "inline-flex", alignItems: "center", textDecoration: "none" });
-const secondaryStyle: React.CSSProperties = { height: 42, padding: "0 15px", borderRadius: 10, background: C.white, border: `1px solid ${C.border}`, color: C.teal, fontSize: 13, fontWeight: 900, display: "inline-flex", alignItems: "center", textDecoration: "none" };
+const secondaryStyle: React.CSSProperties = { height: 38, padding: "0 13px", borderRadius: 9, background: C.white, border: `1px solid ${C.border}`, color: C.teal, fontSize: 12, fontWeight: 900, display: "inline-flex", alignItems: "center", textDecoration: "none" };

@@ -1684,13 +1684,13 @@ ${header("타임테이블")}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 7,
                       padding: "0 18px", minHeight: 42,
-                      border: "1.5px dashed rgba(21,88,85,0.4)",
-                      borderRadius: 8, background: "#fff", color: "#155855",
+                      border: "1.5px solid #E85D2C",
+                      borderRadius: 8, background: "#E85D2C", color: "#fff",
                       fontWeight: 800, fontSize: 14, cursor: "pointer",
                       transition: "all 160ms ease"
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(21,88,85,0.05)")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#D94F22")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "#E85D2C")}
                   >
                     <FileText size={16} /> 이전 콘티 불러오기
                   </button>
@@ -1709,9 +1709,9 @@ ${header("타임테이블")}
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 7,
                       padding: "0 18px", minHeight: 42,
-                      border: "1.5px solid rgba(21,88,85,0.4)",
-                      borderRadius: 8, background: "#fff",
-                      color: "#155855", fontWeight: 800, fontSize: 14,
+                      border: "1.5px solid #E85D2C",
+                      borderRadius: 8, background: "#E85D2C",
+                      color: "#fff", fontWeight: 800, fontSize: 14,
                       cursor: pdfLoading ? "not-allowed" : "pointer",
                       transition: "all 160ms ease", opacity: pdfLoading ? 0.7 : 1,
                     }}

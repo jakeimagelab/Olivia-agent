@@ -82,6 +82,7 @@ type ContractQuoteData = {
     selectedSingleItemIds: string[];
     profileCount: number;
     stagedCount: number;
+    combinedProfileStagedCount?: number;
     floorCount: number;
     largeHospital: boolean;
     droneCount: number;
@@ -289,6 +290,7 @@ export default function QuoteBuilder() {
   const [selectedSingleItemIds, setSelectedSingleItemIds] = useState<string[]>([]);
   const [profileCount, setProfileCount] = useState(0);
   const [stagedCount, setStagedCount] = useState(0);
+  const [combinedProfileStagedCount, setCombinedProfileStagedCount] = useState(0);
   const [floorCount, setFloorCount] = useState(0);
   const [largeHospital, setLargeHospital] = useState(false);
   const [droneCount, setDroneCount] = useState(0);
@@ -421,6 +423,12 @@ export default function QuoteBuilder() {
         visible: stagedCount > 0
       },
       {
+        name: "프로필/연출 추가",
+        detail: `${combinedProfileStagedCount}인`,
+        amount: combinedProfileStagedCount * 650000,
+        visible: combinedProfileStagedCount > 0
+      },
+      {
         name: "인테리어 층수 추가",
         detail: `${floorCount}층`,
         amount: floorCount * 250000,
@@ -441,7 +449,7 @@ export default function QuoteBuilder() {
     ];
 
     return items.filter((item) => item.visible);
-  }, [droneCount, floorCount, largeHospital, profileCount, stagedCount]);
+  }, [combinedProfileStagedCount, droneCount, floorCount, largeHospital, profileCount, stagedCount]);
 
   const packageTotal = selectedPackage?.price ?? 0;
   const singleItemsTotal = selectedSingleItems.reduce((sum, item) => sum + item.price, 0);
@@ -516,6 +524,7 @@ export default function QuoteBuilder() {
     setSelectedSingleItemIds([]);
     setProfileCount(0);
     setStagedCount(0);
+    setCombinedProfileStagedCount(0);
     setFloorCount(0);
     setLargeHospital(false);
     setDroneCount(0);
@@ -598,6 +607,7 @@ export default function QuoteBuilder() {
         selectedSingleItemIds,
         profileCount,
         stagedCount,
+        combinedProfileStagedCount,
         floorCount,
         largeHospital,
         droneCount,
@@ -643,6 +653,7 @@ export default function QuoteBuilder() {
       setSelectedSingleItemIds(data.formState.selectedSingleItemIds);
       setProfileCount(data.formState.profileCount);
       setStagedCount(data.formState.stagedCount);
+      setCombinedProfileStagedCount(data.formState.combinedProfileStagedCount ?? 0);
       setFloorCount(data.formState.floorCount);
       setLargeHospital(data.formState.largeHospital);
       setDroneCount(data.formState.droneCount);
@@ -667,6 +678,7 @@ export default function QuoteBuilder() {
       setSelectedSingleItemIds([]);
       setProfileCount(0);
       setStagedCount(0);
+      setCombinedProfileStagedCount(0);
       setFloorCount(0);
       setLargeHospital(false);
       setDroneCount(0);
@@ -1242,6 +1254,13 @@ export default function QuoteBuilder() {
                 price="1인당 450,000원"
                 value={stagedCount}
                 onChange={setStagedCount}
+              />
+              <QuantityField
+                label="프로필/연출 추가"
+                unit="인"
+                price="1인당 650,000원"
+                value={combinedProfileStagedCount}
+                onChange={setCombinedProfileStagedCount}
               />
               <QuantityField
                 label="인테리어 층수 추가"

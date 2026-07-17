@@ -175,10 +175,10 @@ export const GALLERY_STATUS_LABEL: Record<GalleryStatus, string> = {
 export const GALLERY_STATUS_COLOR: Record<GalleryStatus, string> = {
   draft:               "#9BB5B0",
   uploading_images:    "#D97706",
-  ready:               "#2563EB",
+  ready:               "#103A62",
   mail_draft_created:  "#D97706",
   mail_sent:           "#D97706",
-  waiting_selection:   "#2563EB",
+  waiting_selection:   "#103A62",
   selection_submitted: "#7C3AED",
   raw_matching:        "#D97706",
   raw_matched:         "#059669",

@@ -294,7 +294,7 @@ function SelectGalleryDetailInner() {
     draft:               { text: "JPG 업로드 후 브랜드메일 초안을 생성하세요", color: C.orange, sub: `${images.length}장 등록됨` },
     uploading_images:    { text: "JPG 업로드 중입니다...", color: C.orange },
     ready:               { text: "브랜드메일 초안을 생성하세요", color: C.orange, sub: `${images.length}장 등록됨` },
-    mail_draft_created:  { text: "메일링 큐에서 브랜드메일을 검토·발송하세요", color: "#2563EB", sub: "메일 관리 → 검토 후 발송" },
+    mail_draft_created:  { text: "메일링 큐에서 브랜드메일을 검토·발송하세요", color: "#103A62", sub: "메일 관리 → 검토 후 발송" },
     mail_sent:           { text: "고객이 사진을 선택하기를 기다리세요", color: C.teal, sub: "셀렉 링크를 고객에게 공유하세요" },
     waiting_selection:   { text: "고객이 사진을 선택하기를 기다리세요", color: C.teal, sub: "셀렉 링크를 고객에게 공유하세요" },
     selection_submitted: { text: "고객이 선택을 완료했습니다. RAW 폴더를 선택해 주세요", color: C.orange, sub: `${gallery.selected_count}장 선택됨` },

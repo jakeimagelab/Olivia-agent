@@ -57,8 +57,8 @@ export default function ReviewStudioPage() {
     setLoading(true);
     try {
       const res  = await fetch("/api/reviews");
-      const data = await res.json();
-      if (data.ok) setReviews(data.reviews || []);
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) setReviews(data.reviews || []);
     } finally { setLoading(false); }
   };
 
@@ -68,8 +68,8 @@ export default function ReviewStudioPage() {
     setInboxLoading(true);
     try {
       const res  = await fetch("/api/admin/client-portal/reviews");
-      const data = await res.json();
-      if (data.ok) setWorkflowReviews(data.reviews || []);
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) setWorkflowReviews(data.reviews || []);
     } finally { setInboxLoading(false); }
   };
 
@@ -329,12 +329,14 @@ export default function ReviewStudioPage() {
 
       {/* ── 데스크탑 레이아웃 ── */}
       {!isMobile && (
-        <section style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "260px 380px 1fr", gap: 20, alignItems: "start" }}>
+        <section style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "260px 1fr", gap: 20, alignItems: "start" }}>
+          <div style={{ gridColumn: "1 / -1", width: "min(100%, 640px)", margin: "0 auto 8px" }}>
+            <ReviewForm />
+          </div>
           <div style={{ position: "sticky", top: 18, display: "grid", gap: 10 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: C.muted }}>📥 워크플로우 접수 후기</div>
             <WorkflowReviewList />
           </div>
-          <ReviewForm />
           <section style={{ display: "grid", gap: 16 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 230px", gap: 12, alignItems: "start" }}>
               <ReviewList />

@@ -54,16 +54,15 @@ export default function ClientContextBanner({
 }
 
 const popupStyle: React.CSSProperties = {
-  position: "fixed",
-  right: 20,
-  bottom: 20,
-  zIndex: 400,
-  width: 280,
-  background: "#fff",
+  position: "relative",
+  margin: "0 auto 16px",
+  maxWidth: 1100,
+  width: "100%",
+  background: "#FFF9F4",
   border: `1px solid ${C.border}`,
   borderRadius: 12,
-  padding: "14px 16px",
-  boxShadow: "0 12px 32px rgba(21,88,85,.18)",
+  padding: "14px 52px 14px 16px",
+  boxShadow: "0 8px 24px rgba(16,58,98,.08)",
   fontSize: 13,
 };
 

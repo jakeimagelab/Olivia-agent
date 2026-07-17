@@ -1281,9 +1281,9 @@ const SEL_STATUS_LABEL: Record<string, string> = {
   retouching: "보정 중", completed: "완료", files_expired: "파일 만료", expired: "만료",
 };
 const SEL_STATUS_COLOR: Record<string, string> = {
-  draft: "#9BB5B0", uploading_images: "#D97706", ready: "#2563EB",
+  draft: "#9BB5B0", uploading_images: "#D97706", ready: "#103A62",
   mail_draft_created: "#D97706", mail_sent: "#D97706",
-  waiting_selection: "#2563EB", selection_submitted: "#7C3AED",
+  waiting_selection: "#103A62", selection_submitted: "#7C3AED",
   raw_matching: "#D97706", raw_matched: "#059669",
   retouching: "#155855", completed: "#22876A", files_expired: "#9BB5B0", expired: "#DC2626",
 };

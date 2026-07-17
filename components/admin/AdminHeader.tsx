@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, LogOut, Menu, Search } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { Menu } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 type PageMeta = { title: string; description: string };
 
@@ -42,56 +41,20 @@ function getPageMeta(pathname: string): PageMeta {
 
 export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [loggingOut, setLoggingOut] = useState(false);
   const meta = getPageMeta(pathname);
-  const isHome = pathname === "/admin/dashboard" || pathname === "/admin/dashboard/home";
-
-  const logout = async () => {
-    setLoggingOut(true);
-    try {
-      await fetch("/api/logout", { method: "POST" });
-      router.replace("/");
-      router.refresh();
-    } finally {
-      setLoggingOut(false);
-    }
-  };
 
   return (
-    <header className="oa-header">
-      <div className="oa-header__title-group" style={isHome ? { flex: 1, justifyContent: "center" } : undefined}>
-        <button className="oa-header__menu" type="button" onClick={onMenuToggle} aria-label="관리자 메뉴 열기">
-          <Menu size={21} aria-hidden="true" />
-        </button>
-        <div style={isHome ? { textAlign: "center" } : undefined}>
+    <>
+      <header className="oa-header">
+        <div className="oa-header__brand">
+          <img src="/assets/photoclinic-logo.png" alt="포토클리닉" />
           <h1 className="oa-header__title">{meta.title}</h1>
-          <p className="oa-header__description">{meta.description}</p>
         </div>
-      </div>
-
-      <div className="oa-header__actions">
-        <label className="oa-header__search">
-          <Search size={17} aria-hidden="true" />
-          <span className="oa-header__search-label">관리자 검색</span>
-          <input type="search" placeholder="고객, 프로젝트 검색" aria-label="고객 또는 프로젝트 검색" />
-        </label>
-        <button className="oa-header__notification" type="button" aria-label="알림 보기">
-          <Bell size={19} aria-hidden="true" />
-          <span className="oa-header__notification-dot" aria-hidden="true" />
-        </button>
-        <div className="oa-header__profile" aria-label="현재 관리자">
-          <span className="oa-header__avatar" aria-hidden="true"><img src="/assets/photoclinic-mark.png" alt=""/></span>
-          <span className="oa-header__profile-copy">
-            <strong>Olivia Admin</strong>
-            <small>관리자 계정</small>
-          </span>
-        </div>
-        <button className="oa-header__logout" type="button" onClick={() => void logout()} disabled={loggingOut} aria-label="로그아웃">
-          <LogOut size={17} aria-hidden="true"/><span>{loggingOut ? "종료 중" : "로그아웃"}</span>
-        </button>
-      </div>
-    </header>
+      </header>
+      <button className="oa-header__menu-dock" type="button" onClick={onMenuToggle} aria-label="관리자 메뉴 열기">
+        <Menu size={20} aria-hidden="true" /> 메뉴
+      </button>
+    </>
   );
 }
 
