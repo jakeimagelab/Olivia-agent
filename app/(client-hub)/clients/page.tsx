@@ -217,6 +217,25 @@ function ListView() {
 function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; workflowRunId: string | null; onBack: () => void }) {
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const openClientPreview = async () => {
+    setPreviewLoading(true);
+    try {
+      const existing = await fetch(`/api/admin/client-portal/access?clientId=${clientId}`).then((r) => r.json());
+      let token = existing?.activeAccess?.access_token;
+      if (!token) {
+        const created = await fetch("/api/admin/client-portal/access", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientId }),
+        }).then((r) => r.json());
+        token = created?.token;
+      }
+      if (token) window.open(`/client-portal/access/${token}`, "_blank", "noopener,noreferrer");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
