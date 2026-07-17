@@ -296,6 +296,12 @@ export default function ReviewStudioPage() {
       {/* ── 모바일 콘텐츠 ── */}
       {isMobile && (
         <div style={{ padding: "16px 16px 80px" }}>
+          {mobileTab === "inbox" && (
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.muted }}>워크플로우에서 접수된 후기</div>
+              <WorkflowReviewList />
+            </div>
+          )}
           {mobileTab === "form" && <ReviewForm />}
           {mobileTab === "list" && (
             <div style={{ display: "grid", gap: 14 }}>
