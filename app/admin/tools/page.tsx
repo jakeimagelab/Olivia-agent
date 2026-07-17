@@ -30,7 +30,7 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
           <strong>{linked ? "고객 프로젝트와 연결된 작업입니다." : "현재 고객과 연결되지 않은 독립 작업입니다."}</strong>
           <p>{linked ? [params.clientId && `고객 ${params.clientId}`, params.projectId && `프로젝트 ${params.projectId}`, params.workflowRunId && `워크플로우 ${params.workflowRunId}`].filter(Boolean).join(" · ") : "도구를 바로 실행하거나, 추후 CRM에서 고객과 프로젝트를 선택해 연결할 수 있습니다."}</p>
         </div>
-        {linked ? <a className="oa-context-banner__action" href="/admin/crm/dashboard">CRM으로 돌아가기</a> : <a className="oa-context-banner__action" href="/admin/crm/clients">고객 선택해서 연결하기</a>}
+        {linked ? <a className="oa-context-banner__action" href="/admin/dashboard/home">홈으로 돌아가기</a> : <a className="oa-context-banner__action" href="/clients">고객 선택해서 연결하기</a>}
       </section>
 
       <CategorySection
