@@ -3086,6 +3086,7 @@ function PhotoSortingInner() {
   ═══════════════════════════════════════════ */
   return (
     <div>
+      <PageHeader title="사진 분류" />
 
       {step > 0 && (
         <div className="ps-mode-badge" style={{background:photoMode==="studio"?"#F5F0FF":C.light,color:photoMode==="studio"?C.purple:C.teal,borderBottom:`1px solid ${photoMode==="studio"?"#DDD6FE":C.border}`}}>
