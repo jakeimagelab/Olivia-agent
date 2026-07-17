@@ -57,14 +57,27 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
           {NOTE_PENS.map(pen => <button key={pen.key} title={pen.label} onClick={() => { setPenType(pen.key); setEraser(false); setShape("freehand"); }} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: !eraser && shape === "freehand" && penType === pen.key ? "#155855" : "transparent", color: !eraser && shape === "freehand" && penType === pen.key ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{pen.label}</button>)}
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 7, color: "#607873", fontSize: 10, fontWeight: 800 }}>굵기 <input aria-label="펜 굵기" type="range" min={1} max={18} value={penSize} onChange={event => setPenSize(Number(event.target.value))} style={{ width: 90, accentColor: "#155855" }} /><span>{penSize}</span></label>
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>{DRAW_COLORS.slice(0, 8).map(item => <button key={item.color} aria-label={item.label} onClick={() => { setPenColor(item.color); setEraser(false); }} style={{ width: 24, height: 24, borderRadius: 99, border: penColor === item.color ? "3px solid #fff" : "2px solid transparent", boxShadow: penColor === item.color ? "0 0 0 2px #155855" : "none", background: item.color, cursor: "pointer" }} />)}</div>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          {DRAW_COLORS.map(item => <button key={item.color} aria-label={item.label} onClick={() => { setPenColor(item.color); setEraser(false); }} style={{ width: 22, height: 22, borderRadius: 99, border: penColor === item.color ? "3px solid #fff" : "2px solid transparent", boxShadow: penColor === item.color ? "0 0 0 2px #155855" : item.color === "#FFFFFF" ? "0 0 0 1px rgba(21,88,85,.2) inset" : "none", background: item.color, cursor: "pointer" }} />)}
+          <label style={{ display: "flex" }} title="커스텀 색상">
+            <input aria-label="커스텀 색상 선택" type="color" value={penColor} onChange={event => { setPenColor(event.target.value); setEraser(false); }} style={{ width: 24, height: 24, padding: 0, border: "none", borderRadius: 6, boxShadow: "0 0 0 1px rgba(21,88,85,.25)", cursor: "pointer", background: "none" }} />
+          </label>
+        </div>
         <button onClick={() => setEraser(value => !value)} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 11px", background: eraser ? "#E85D2C" : "#fff", color: eraser ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>지우개</button>
         {eraser ? <label style={{ display: "flex", alignItems: "center", gap: 6, color: "#607873", fontSize: 10 }}>크기 <input aria-label="지우개 크기" type="range" min={8} max={80} value={eraserSize} onChange={event => setEraserSize(Number(event.target.value))} style={{ width: 80, accentColor: "#E85D2C" }} /></label> : null}
-        <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>{SHAPES.map(item => <button key={item.key} title={item.label} onClick={() => { setShape(item.key); setEraser(false); }} style={{ minHeight: 30, border: "none", borderRadius: 99, padding: "0 8px", background: !eraser && shape === item.key ? "#DCEDEA" : "transparent", color: "#155855", font: "inherit", fontSize: 10, fontWeight: 900, cursor: "pointer" }}>{item.label}</button>)}</div>
+        <select
+          aria-label="도형 선택"
+          value={shape === "freehand" ? "" : shape}
+          onChange={event => { const value = event.target.value as DrawShape | ""; setShape(value || "freehand"); setEraser(false); }}
+          style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: shape !== "freehand" ? "#DCEDEA" : "#fff", color: "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}
+        >
+          <option value="">도형</option>
+          {SHAPE_OPTIONS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
+        </select>
         <div style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
-          <button title="실행 취소" onClick={() => { innerRef.current?.undo(); forceHistory(v => v + 1); }} disabled={!innerRef.current?.canUndo()} style={{ width: 34, height: 34, border: "none", borderRadius: 99, background: "#fff", color: "#155855", cursor: "pointer" }}>↶</button>
-          <button title="다시 실행" onClick={() => { innerRef.current?.redo(); forceHistory(v => v + 1); }} disabled={!innerRef.current?.canRedo()} style={{ width: 34, height: 34, border: "none", borderRadius: 99, background: "#fff", color: "#155855", cursor: "pointer" }}>↷</button>
-          <button title="전체 지우기" onClick={() => { if (window.confirm("필기 내용을 모두 지울까요?")) { innerRef.current?.clear(); forceHistory(v => v + 1); } }} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: "#FFF0ED", color: "#B42318", font: "inherit", fontSize: 10, fontWeight: 900, cursor: "pointer" }}>전체 지우기</button>
+          <button aria-label="실행 취소" title="실행 취소" onClick={() => { innerRef.current?.undo(); forceHistory(v => v + 1); }} disabled={!innerRef.current?.canUndo()} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#fff", color: "#155855", cursor: "pointer" }}><Undo2 size={16} /></button>
+          <button aria-label="다시 실행" title="다시 실행" onClick={() => { innerRef.current?.redo(); forceHistory(v => v + 1); }} disabled={!innerRef.current?.canRedo()} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#fff", color: "#155855", cursor: "pointer" }}><Redo2 size={16} /></button>
+          <button aria-label="전체 지우기" title="전체 지우기" onClick={() => { if (window.confirm("필기 내용을 모두 지울까요?")) { innerRef.current?.clear(); forceHistory(v => v + 1); } }} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#FFF0ED", color: "#B42318", cursor: "pointer" }}><Trash2 size={16} /></button>
         </div>
       </div>
       <div style={{ padding: 6, borderRadius: 22, background: "rgba(21,88,85,.06)" }}>
