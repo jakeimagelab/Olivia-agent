@@ -31,7 +31,7 @@ const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = 
   revision:          { icon: "🔄", desc: "수정 요청 접수 및 알람 발송",               href: "/mailing" },
   seo_delivery:      { icon: "🔍", desc: "SEO 파일명·ALT·캡션·메타데이터 자동 생성", href: "/seo-delivery" },
   final_delivery:    { icon: "🚀", desc: "최종 파일 + 후기 요청 메일 발송",           href: "/delivery-mail" },
-  review_content:    { icon: "⭐", desc: "후기 텍스트 → SNS 콘텐츠 자동 변환",       href: "/review-studio" },
+  review_content:    { icon: "⭐", desc: "후기 텍스트 → 리뷰컨텐츠 자동 변환",       href: "/review-studio" },
   reward:            { icon: "🎁", desc: "PER 포인트 자동 산출 및 적립",              href: "/per" },
   customer_care:     { icon: "💌", desc: "주기 알람 및 이벤트 메일 발송",             href: "/mailing" },
   content_planning:  { icon: "✏️", desc: "블로그 기반 콘텐츠 기획 및 작성",          href: "/content-writer" },
