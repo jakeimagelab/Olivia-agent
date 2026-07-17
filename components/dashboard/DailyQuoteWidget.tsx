@@ -69,6 +69,9 @@ export default function DailyQuoteWidget() {
         <Quote size={13} aria-hidden="true"/>
         <span>오늘의 명언</span>
       </div>
+      <div className="oa-daily-quote__portrait" aria-hidden="true">
+        <User size={22} strokeWidth={1.4} color="rgba(255,255,255,.7)"/>
+      </div>
       <blockquote>“{quote.text}”</blockquote>
       <cite>— {quote.author}</cite>
     </aside>
