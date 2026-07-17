@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  AlertTriangle, CheckCircle2, ClipboardCheck, FolderKanban,
-  RefreshCw, UserRoundCheck, UsersRound, Clock3,
-} from "lucide-react";
-import SummaryCard from "@/components/admin/SummaryCard";
+import { AlertTriangle, Mail } from "lucide-react";
 import OliviaRecommendationPanel from "@/components/admin/OliviaRecommendationPanel";
 import CategorySection from "@/components/admin/CategorySection";
-import StatusBadge, { type StatusBadgeTone } from "@/components/admin/StatusBadge";
+import StatusBadge from "@/components/admin/StatusBadge";
 import { WORKFLOW_STAGES } from "@/lib/workflow";
+
+const STAGE_DOT: Record<string, string> = {
+  consult_contract: "var(--orange)",
+  prep_shooting: "var(--gold)",
+  data_sharing: "var(--purple, #7C3AED)",
+  feedback_done: "var(--sage)",
+};
 
 type WorkflowRun = {
   id: string;
