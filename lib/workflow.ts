@@ -63,7 +63,7 @@ export const WORKFLOW_STEPS = [
     key: "client_selection",  name: "고객 사진 셀렉",
     order_index: 8,  requires_approval: false, automation_level: "full" as const,
     visible_to_client: true,  creates_mailing_draft: true,  related_feature: "select-galleries",
-    stage: "data_sharing" as WorkflowStageKey, primary: true,
+    stage: "data_sharing" as WorkflowStageKey, primary: true, display_order: 8,
   },
   {
     key: "raw_matching",      name: "RAW 자동 매칭",
