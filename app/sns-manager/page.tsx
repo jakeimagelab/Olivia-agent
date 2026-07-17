@@ -1482,7 +1482,6 @@ export default function SnsManagerPage() {
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
       <PageHeader title="홍보 콘텐츠 제작" />
-      <PageHeading kicker="SNS MANAGER" title="홍보 콘텐츠 제작" desc="블로그·인스타·네이버 플레이스 홍보 콘텐츠를 클라이언트별로 제작합니다." />
 
       {/* 탭 헤더 */}
       <div className="pc-tabs pc-tabs--global">
