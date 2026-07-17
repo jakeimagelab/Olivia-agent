@@ -45,6 +45,7 @@ type DashboardPayload = {
     completedThisMonth?: number;
     waitingCustomer?: number;
     failedTasks?: number;
+    retentionAlerts?: number;
   };
   workflowRuns: WorkflowRun[];
   mock?: boolean;
@@ -97,7 +98,8 @@ export default function AdminDashboardHomePage() {
     { label: "고객 응답 대기", value: summary?.waitingCustomer ?? 0, description: "확인·선택·피드백 대기", icon: <UserRoundCheck size={18} strokeWidth={1.8}/>, tone: "gray" as const },
   ];
 
-  const alertCount = (summary?.failedTasks ?? 0) + activeRuns.filter((run) => run.delayed).length;
+  const retentionAlertCount = summary?.retentionAlerts ?? 0;
+  const alertCount = (summary?.failedTasks ?? 0) + activeRuns.filter((run) => run.delayed).length + retentionAlertCount;
 
   return (
     <div className="oa-page oa-operations-home">
@@ -123,7 +125,7 @@ export default function AdminDashboardHomePage() {
         </span>
         <div>
           <strong>{alertCount ? `확인이 필요한 운영 알림 ${alertCount}건` : "긴급한 운영 알림이 없습니다"}</strong>
-          <p>{alertCount ? "실패 작업과 일정 지연 프로젝트를 먼저 확인해 주세요." : "승인 대기와 고객 응답 대기 프로젝트를 순서대로 처리하면 됩니다."}</p>
+          <p>{alertCount ? `실패 작업·일정 지연${retentionAlertCount ? `·데이터 보관 만료 ${retentionAlertCount}건` : ""}을 먼저 확인해 주세요.` : "승인 대기와 고객 응답 대기 프로젝트를 순서대로 처리하면 됩니다."}</p>
         </div>
         <Link href="/workflow/tasks">업무 확인 <ArrowUpRight size={13} strokeWidth={1.8}/></Link>
       </section>

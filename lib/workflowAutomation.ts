@@ -5,6 +5,7 @@ import {
   STEP_NAME,
   isActiveWorkflowStep,
 } from "@/lib/workflow";
+import { addYearsIso } from "@/lib/dataRetention";
 
 export type StepAutomation = {
   task_type: string;
@@ -398,6 +399,21 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
     })
     .eq("id", run.id);
   if (error) throw new Error(error.message);
+
+  // 자동 전진·수동 전진 어느 경로에서든 동일하게 보관 기한을 기록한다.
+  // 마이그레이션 전 DB에서는 업데이트 오류를 무시해 기존 워크플로우를 보호한다.
+  if (fromStep === "client_selection" && toStep === "retouching") {
+    await db.from("workflow_runs").update({
+      original_delivered_at: now,
+      original_expires_at: addYearsIso(new Date(now), 1),
+    }).eq("id", run.id);
+  }
+  if (fromStep === "final_delivery" && toStep === "revision") {
+    await db.from("workflow_runs").update({
+      retouched_delivered_at: now,
+      retouched_expires_at: addYearsIso(new Date(now), 3),
+    }).eq("id", run.id);
+  }
 
   await ensureStepRun(db, run.id, toStep, "in_progress");
   const taskResult = await createStepTasks(db, run.id, toStep);

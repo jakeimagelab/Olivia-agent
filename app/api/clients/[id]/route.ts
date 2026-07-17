@@ -8,19 +8,20 @@ export const runtime = "nodejs";
 /* ── 실제 DB 컬럼: hospital_name, contact_name, phone, email, specialty, memo ── */
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = getSupabaseAdmin();
   const { id } = await params;
 
-  const [clientRes, runRes] = await Promise.all([
+  const requestedRunId = new URL(req.url).searchParams.get("workflowRunId");
+  const [clientRes, runsRes] = await Promise.all([
     supabase.from("clients")
       .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at")
       .eq("id", id).single(),
     supabase.from("workflow_runs")
-      .select("*").eq("client_id", id).eq("status", "active")
-      .order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      .select("*").eq("client_id", id)
+      .order("created_at", { ascending: false }),
   ]);
 
   if (clientRes.error || !clientRes.data)
@@ -28,6 +29,12 @@ export async function GET(
 
   const c = clientRes.data;
   const hospitalName = (c.hospital_name ?? "") as string;
+  const workflowRuns = runsRes.data ?? [];
+  const workflowRun = workflowRuns.find((run) => run.id === requestedRunId)
+    ?? workflowRuns.find((run) => run.status === "active" && run.run_kind !== "additional_shooting")
+    ?? workflowRuns.find((run) => run.status === "active")
+    ?? workflowRuns[0]
+    ?? null;
 
   const { data: mailings } = await supabase
     .from("mailing_queue")
@@ -47,7 +54,8 @@ export async function GET(
   return NextResponse.json({
     ok: true,
     client,
-    workflowRun: runRes.data ?? null,
+    workflowRun,
+    workflowRuns,
     mailingQueue: mailings ?? [],
   });
 }

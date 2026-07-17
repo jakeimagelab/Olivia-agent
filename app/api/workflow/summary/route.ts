@@ -44,6 +44,7 @@ export async function GET() {
     const revisionApprovals = approvals.filter((approval) => approval.status === "revision_requested");
     const readyMailing = (mailingRes.data ?? []).filter((mail) => mail.status === "ready");
     const failedTasks = tasks.filter((task) => task.status === "failed");
+    const retentionAlerts = tasks.filter((task) => String(task.task_type || "").startsWith("data_retention_") && task.status !== "completed" && task.status !== "canceled");
     const openTaskKeys = new Set(tasks.filter((task) => ["pending", "running", "waiting_approval", "failed"].includes(task.status)).map((task) => `${task.workflow_run_id}:${task.workflow_step_key}`));
     const openApprovalKeys = new Set(approvals.filter((approval) => ["pending", "revision_requested"].includes(approval.status)).map((approval) => `${approval.workflow_run_id}:${approval.workflow_step_key}`));
 
@@ -90,6 +91,7 @@ export async function GET() {
         failedTasks: failedTasks.length,
         readyMailing: readyMailing.length,
         movableRuns: movableRuns.length,
+        retentionAlerts: retentionAlerts.length,
       },
       priorityTasks: tasks.slice(0, 8),
       approvals: pendingApprovals.slice(0, 8),
@@ -102,6 +104,7 @@ export async function GET() {
         movableRuns: movableRuns.slice(0, 12),
         failedTasks: failedTasks.slice(0, 12),
         perWaiting: tasks.filter((task) => task.workflow_step_key === "reward" && task.status !== "completed").slice(0, 12),
+        retentionAlerts: retentionAlerts.slice(0, 12),
       },
     });
   } catch (error) {
@@ -125,6 +128,7 @@ export async function GET() {
         failedTasks: 0,
         readyMailing: 1,
         movableRuns: 1,
+        retentionAlerts: 0,
       },
       priorityTasks: MOCK_AGENT_TASKS,
       approvals: pendingApprovals,
@@ -137,6 +141,7 @@ export async function GET() {
         movableRuns: MOCK_WORKFLOW_RUNS.slice(0, 1),
         failedTasks: [],
         perWaiting: MOCK_AGENT_TASKS.filter((task) => task.workflow_step_key === "reward"),
+        retentionAlerts: [],
       },
     });
   }

@@ -121,7 +121,8 @@ function ClientsInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const id = searchParams.get("id");
-  if (id) return <DetailView clientId={id} onBack={() => router.push("/clients")} />;
+  const workflowRunId = searchParams.get("workflowRunId");
+  if (id) return <DetailView clientId={id} workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
   return <ListView />;
 }
 
@@ -380,13 +381,14 @@ function KanbanBoard({ clients, onRefresh, router }: { clients: any[]; onRefresh
 }
 
 /* ── DETAIL VIEW ── */
-function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void }) {
+function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; workflowRunId: string | null; onBack: () => void }) {
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    const res = await fetch(`/api/clients/${clientId}`);
+    const suffix = workflowRunId ? `?workflowRunId=${encodeURIComponent(workflowRunId)}` : "";
+    const res = await fetch(`/api/clients/${clientId}${suffix}`);
     const d = await res.json();
     if (d.ok) {
       setPageData(d);
@@ -394,7 +396,7 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [clientId]);
+  useEffect(() => { load(); }, [clientId, workflowRunId]);
 
   if (loading) return <SpinBox />;
   if (!pageData?.client) return (
@@ -431,6 +433,19 @@ function DetailView({ clientId, onBack }: { clientId: string; onBack: () => void
       </div>
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
+        {pageData.workflowRuns?.length > 1 && (
+          <nav aria-label="프로젝트 실행 선택" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
+            {pageData.workflowRuns.map((run: any) => {
+              const active = run.id === workflowRun?.id;
+              return (
+                <Link key={run.id} href={`/clients?id=${encodeURIComponent(clientId)}&workflowRunId=${encodeURIComponent(run.id)}`}
+                  style={{ flexShrink: 0, padding: "9px 13px", borderRadius: 10, textDecoration: "none", border: `1px solid ${active ? C.orange : C.border}`, background: active ? `${C.orange}10` : C.white, color: active ? C.orange : C.muted, fontSize: 12, fontWeight: 800 }}>
+                  {run.run_kind === "additional_shooting" ? "추가 촬영 · " : "기본 · "}{run.project_name || "촬영 프로젝트"}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
         <div className="pc-workflow-phase-bar" aria-label="프로젝트 4스테이지 진행 상태">
           {WORKFLOW_STAGES.map((stage, index) => {
             const stageSteps = ACTIVE_WORKFLOW_STEPS.filter((step) => step.stage === stage.key);
@@ -729,6 +744,24 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
     setAdvancing(false);
   };
 
+  const completeWithReward = async () => {
+    if (!workflowRun?.id) return;
+    setAdvancing(true);
+    setAdvMsg("");
+    try {
+      const res = await fetch("/api/workflow/run-current-step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workflowRunId: workflowRun.id }),
+      });
+      const d = await res.json();
+      setAdvMsg(d.ok ? "✅ 공급가 기준 1% 리워드를 적립하고 최종 완료 처리를 시작했습니다." : d.error || "최종 완료 처리에 실패했습니다.");
+      if (d.ok) setTimeout(onAdvance, 900);
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
   const toggleCheck = (idx: number) =>
     setChecklist((prev) => prev.map((c, i) => (i === idx ? { ...c, done: !c.done } : c)));
 
@@ -944,7 +977,17 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
                   </button>
                 </>
               ) : (
-                <div style={{ fontSize: 13, color: C.green, fontWeight: 700 }}>🎉 12단계 모두 완료! 워크플로우가 마무리됐습니다.</div>
+                selectedStepKey === "reward" ? (
+                  <>
+                    <span style={{ fontSize: 11, color: C.hint }}>완료 시 공급가 기준 1% PER 포인트가 중복 없이 적립됩니다.</span>
+                    <button onClick={completeWithReward} disabled={advancing}
+                      style={{ height: 42, padding: "0 24px", background: advancing ? C.hint : C.orange, color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 900, cursor: advancing ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                      {advancing ? "처리 중..." : "✓ 최종 완료 · 1% 리워드 적립"}
+                    </button>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 13, color: C.green, fontWeight: 700 }}>🎉 12단계 모두 완료! 워크플로우가 마무리됐습니다.</div>
+                )
               )}
             </div>
           </>

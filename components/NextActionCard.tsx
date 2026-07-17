@@ -3,18 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
-
-const C = {
-  teal: "#155855",
-  orange: "#E85D2C",
-  green: "#22876A",
-  white: "#FFFFFF",
-  border: "rgba(21,88,85,.12)",
-  muted: "#5A7470",
-  hint: "#9BB5B0",
-  light: "#EAF4F2",
-  danger: "#DC2626",
-};
+import { C } from "@/lib/theme";
 
 const severityColor: Record<string, string> = {
   default: C.teal,
@@ -36,6 +25,7 @@ export default function NextActionCard({
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(Boolean(workflowRun?.id));
   const [busy, setBusy] = useState(false);
+  const [additionalBusy, setAdditionalBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
   const load = async () => {
@@ -98,6 +88,23 @@ export default function NextActionCard({
     onRefresh?.();
   };
 
+  const startAdditionalShooting = async () => {
+    setAdditionalBusy(true);
+    setMsg("");
+    try {
+      const res = await fetch(`/api/workflow/runs/${workflowRun.id}/additional-shooting`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_step_key: "quote" }),
+      });
+      const json = await res.json();
+      setMsg(json.ok ? "추가 촬영 하위 워크플로우를 생성했습니다." : json.error || "추가 촬영 생성에 실패했습니다.");
+      if (json.ok) onRefresh?.();
+    } finally {
+      setAdditionalBusy(false);
+    }
+  };
+
   const primaryButton = () => {
     if (action.primaryAction === "run_current_step") {
       return <button onClick={runCurrentStep} disabled={busy} style={primaryStyle(color)}>{busy ? "처리 중..." : action.primaryActionLabel}</button>;
@@ -123,6 +130,7 @@ export default function NextActionCard({
         <div style={{ flex: "1 1 420px" }}>
           <div style={{ fontSize: 11, fontWeight: 900, color, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 5 }}>NEXT ACTION</div>
           <h2 style={titleStyle}>{client.name}</h2>
+          {workflowRun.run_kind === "additional_shooting" && <StatusPill color={C.purple}>추가 촬영</StatusPill>}
           <p style={descStyle}>현재 단계: <strong style={{ color: C.teal }}>{loading ? "불러오는 중..." : action.currentStepName}</strong></p>
           <p style={{ margin: "8px 0 0", color, fontSize: 16, fontWeight: 900 }}>{loading ? "다음 액션을 계산하는 중입니다." : action.nextActionLabel || action.label}</p>
           {action.blockedReason ? <p style={{ margin: "5px 0 0", color: C.muted, fontSize: 12 }}>{action.blockedReason}</p> : null}
@@ -147,9 +155,29 @@ export default function NextActionCard({
         {primaryButton()}
         <Link href={appHref} style={secondaryStyle}>관련 앱 열기</Link>
         <Link href="/workflow/approvals" style={secondaryStyle}>승인 대기 보기</Link>
+        {workflowRun.run_kind !== "additional_shooting" && (
+          <button type="button" onClick={startAdditionalShooting} disabled={additionalBusy} style={{ ...secondaryStyle, cursor: additionalBusy ? "wait" : "pointer", fontFamily: "inherit" }}>
+            {additionalBusy ? "생성 중..." : "+ 추가 촬영 시작"}
+          </button>
+        )}
       </div>
+      {(workflowRun.original_expires_at || workflowRun.retouched_expires_at) && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+          {workflowRun.original_expires_at && <RetentionPill label="원본 1년 보관" date={workflowRun.original_expires_at}/>}
+          {workflowRun.retouched_expires_at && <RetentionPill label="보정본 3년 보관" date={workflowRun.retouched_expires_at}/>}
+        </div>
+      )}
       {msg ? <div style={{ marginTop: 12, color: msg.includes("오류") ? C.danger : C.teal, fontSize: 12, fontWeight: 800 }}>{msg}</div> : null}
     </section>
+  );
+}
+
+function RetentionPill({ label, date }: { label: string; date: string }) {
+  const expired = new Date(date).getTime() <= Date.now();
+  return (
+    <span style={{ padding: "6px 10px", borderRadius: 8, background: expired ? `${C.danger}10` : C.mint, color: expired ? C.danger : C.muted, fontSize: 11, fontWeight: 800 }}>
+      {label} · {new Date(date).toLocaleDateString("ko-KR")}{expired ? " 만료" : "까지"}
+    </span>
   );
 }
 
