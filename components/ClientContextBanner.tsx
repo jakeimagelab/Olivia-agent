@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { X } from "lucide-react";
 import type { ClientContext } from "@/lib/clientContext";
 import { C } from "@/lib/theme";
 
@@ -13,6 +15,8 @@ export default function ClientContextBanner({
   isLoading?: boolean;
   error?: string;
 }) {
+  const [dismissed, setDismissed] = useState(false);
+
   if (isLoading) {
     return <div style={boxStyle}>고객정보를 불러오는 중입니다...</div>;
   }
@@ -22,9 +26,11 @@ export default function ClientContextBanner({
   }
 
   if (!context?.clientId) {
+    if (dismissed) return null;
     return (
-      <div style={boxStyle}>
-        <strong style={{ color: C.teal }}>고객관리와 연결되지 않은 신규 작업입니다.</strong>
+      <div style={popupStyle}>
+        <button onClick={() => setDismissed(true)} aria-label="닫기" style={closeBtnStyle}><X size={14} /></button>
+        <strong style={{ color: C.teal, display: "block", marginBottom: 8, paddingRight: 18 }}>고객관리와 연결되지 않은 신규 작업입니다.</strong>
         <Link href="/clients" style={linkStyle}>고객 선택해서 불러오기</Link>
       </div>
     );
