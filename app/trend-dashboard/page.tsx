@@ -161,26 +161,16 @@ export default function TrendDashboardPage() {
       <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
-            <TrendingUp size={20} color="#155855" />
+            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
             <span className="pc-header-title">병원 트렌드 분석</span>
           </div>
-        </div>
-        <div className="pc-header-actions">
-          <button
-            onClick={runCollect}
-            disabled={collecting}
-            className="pc-btn pc-btn--primary pc-btn--sm"
-          >
-            <RefreshCw size={14} className={collecting ? "spin" : ""} />
-            {collecting ? "수집 중..." : "지금 수집"}
-          </button>
         </div>
       </header>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 20px 60px" }}>
 
-        {/* ── 진료과 선택 ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+        {/* ── 진료과 선택 + 수집 실행 ── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
           <span style={{ fontSize: 12, fontWeight: 800, color: "#7A9E9B" }}>진료과</span>
           <select
             value={industry}
@@ -193,6 +183,19 @@ export default function TrendDashboardPage() {
             <option value="all">전체</option>
             {TREND_INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
           </select>
+          <button
+            onClick={runCollect}
+            disabled={collecting}
+            style={{
+              marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6,
+              height: 40, padding: "0 20px", background: "#E85D2C", color: "#fff",
+              border: "none", borderRadius: 8, fontSize: 13, fontWeight: 900,
+              cursor: collecting ? "not-allowed" : "pointer", fontFamily: "inherit",
+            }}
+          >
+            <RefreshCw size={14} className={collecting ? "spin" : ""} />
+            {collecting ? "수집 중..." : "지금 수집"}
+          </button>
         </div>
 
         {!data?.dataAvailable && !loading && (
