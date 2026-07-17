@@ -32,7 +32,9 @@ export default function ReviewStudioPage() {
   const [message, setMessage]       = useState("");
   const [content, setContent]       = useState<GeneratedContent | null>(null);
   const [isMobile, setIsMobile]     = useState(false);
-  const [mobileTab, setMobileTab]   = useState<"form" | "list" | "result">("list");
+  const [mobileTab, setMobileTab]   = useState<"inbox" | "form" | "list" | "result">("inbox");
+  const [workflowReviews, setWorkflowReviews] = useState<WorkflowReview[]>([]);
+  const [inboxLoading, setInboxLoading] = useState(true);
   const [form, setForm] = useState({
     hospitalName: "", reviewerName: "", channel: "카카오톡",
     rating: "5", deliveredAt: "", reviewText: "", permissionToPublish: true,
