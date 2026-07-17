@@ -1587,7 +1587,7 @@ main:has(> .pc-header) {
 /* Orange-flagged cards get the warm gradient icon */
 .admin-menu-card.orange .admin-menu-icon {
   background: linear-gradient(148deg, #B8431A 0%, #E85D2C 100%);
-  box-shadow: 0 5px 18px rgba(232,93,44,.28), 0 1px 0 rgba(255,255,255,.28) inset;
+  box-shadow: 0 6px 20px rgba(184,67,26,.4), 0 1px 0 rgba(255,255,255,.22) inset;
 }
 
 .admin-menu-copy span {
