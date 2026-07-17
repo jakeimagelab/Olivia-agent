@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import PageHeader from "@/components/PageHeader";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 import { buildMergeCandidates } from "@/lib/photo-classifier/scene-merge-candidate";
