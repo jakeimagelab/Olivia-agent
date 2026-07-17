@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { usePortalSession } from "../_hooks/usePortalSession";
 import { PortalHeader, PortalNav, PortalCard, PortalError, PortalLoading } from "../_components/PortalShell";
+import { C } from "@/lib/theme";
 
-const G = "#155855", OR = "#E85D2C", MUT = "#5A7470", BRD = "rgba(21,88,85,.10)";
+const G = C.teal, OR = C.orange, MUT = C.muted, BRD = C.border;
 
 const REQUEST_TYPES = [
   { value:"retouching",  label:"사진 보정 수정" },
@@ -23,6 +24,8 @@ const iS: React.CSSProperties = { width:"100%", border:`1.5px solid ${BRD}`, bor
 export default function PortalRevisionPage() {
   const { session, loading, error, token } = usePortalSession();
   const [revisions, setRevisions] = useState<any[]>([]);
+  const [eligibleApprovals, setEligibleApprovals] = useState<any[]>([]);
+  const [selectedApprovalId, setSelectedApprovalId] = useState("");
   const [dataLoading, setDataLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ requestType:"general", title:"", content:"", relatedFile:"", priority:"normal" });
@@ -33,18 +36,41 @@ export default function PortalRevisionPage() {
     if (!token) return;
     fetch("/api/client-portal/revision", { headers: { "x-portal-token": token } })
       .then(r => r.json())
-      .then(d => { if (d.ok) setRevisions(d.revisions ?? []); })
+      .then(d => {
+        if (!d.ok) return;
+        const approvals = d.eligibleApprovals ?? [];
+        setRevisions(d.revisions ?? []);
+        setEligibleApprovals(approvals);
+        const requestedId = new URLSearchParams(window.location.search).get("approvalId") ?? "";
+        const initialId = approvals.some((item: any) => item.id === requestedId) ? requestedId : approvals[0]?.id ?? "";
+        if (initialId) {
+          setSelectedApprovalId((current) => current || initialId);
+          if (requestedId) setShowForm(true);
+        }
+      })
       .finally(() => setDataLoading(false));
   };
 
   useEffect(() => { if (!loading && token) load(); }, [token, loading]);
 
   const handleSubmit = async () => {
-    if (!form.title || !form.content) return alert("제목과 내용을 입력해주세요.");
+    if (!form.content) return alert("수정 요청 내용을 입력해주세요.");
+    const approval = eligibleApprovals.find((item) => item.id === selectedApprovalId);
+    const title = form.title || (approval ? `${approval.stepName} 수정 요청` : "일반 수정 요청");
+    const payload = approval
+      ? {
+          ...form,
+          title,
+          message: form.content,
+          approvalId: approval.id,
+          projectId: approval.project_id,
+          stepKey: approval.stepKey,
+        }
+      : { ...form, title };
     setSaving(true);
     const r = await fetch("/api/client-portal/revision", {
       method:"POST", headers:{ "Content-Type":"application/json", "x-portal-token": token },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     const d = await r.json();
     setSaving(false);
@@ -66,9 +92,9 @@ export default function PortalRevisionPage() {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
           <div>
             <h1 style={{ fontSize:20, fontWeight:800, margin:"0 0 4px" }}>✏️ 수정 요청</h1>
-            <p style={{ fontSize:13, color:MUT, margin:0 }}>보정, 콘텐츠, 갤러리 관련 요청을 남겨주세요.</p>
+            <p style={{ fontSize:13, color:MUT, margin:0 }}>승인된 결과를 선택하고 구체적인 수정 내용을 남겨주세요.</p>
           </div>
-          <button onClick={() => setShowForm(v => !v)} style={{ background:G, color:"#fff", border:"none", borderRadius:10, padding:"9px 16px", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>
+          <button onClick={() => setShowForm(v => !v)} style={{ background:OR, color:"#fff", border:"none", borderRadius:10, padding:"9px 16px", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>
             {showForm ? "닫기" : "+ 수정 요청"}
           </button>
         </div>
@@ -87,14 +113,26 @@ export default function PortalRevisionPage() {
           <PortalCard style={{ marginBottom:20, border:`1.5px solid ${G}25` }}>
             <h2 style={{ fontSize:15, fontWeight:800, margin:"0 0 16px", color:G }}>새 수정 요청</h2>
             <div style={{ marginBottom:12 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:MUT, display:"block", marginBottom:5 }}>수정 대상 승인 결과</label>
+              <select value={selectedApprovalId} onChange={e => setSelectedApprovalId(e.target.value)} style={iS}>
+                {eligibleApprovals.length === 0 && <option value="">일반 요청</option>}
+                {eligibleApprovals.map((approval) => (
+                  <option key={approval.id} value={approval.id}>{approval.stepName} · {approval.title}</option>
+                ))}
+              </select>
+              <div style={{ fontSize:10, color:C.hint, marginTop:5 }}>
+                대표 승인이 완료된 결과만 선택할 수 있습니다.
+              </div>
+            </div>
+            <div style={{ marginBottom:12 }}>
               <label style={{ fontSize:12, fontWeight:600, color:MUT, display:"block", marginBottom:5 }}>요청 유형</label>
               <select value={form.requestType} onChange={e => setForm(f => ({ ...f, requestType:e.target.value }))} style={iS}>
                 {REQUEST_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div style={{ marginBottom:12 }}>
-              <label style={{ fontSize:12, fontWeight:600, color:MUT, display:"block", marginBottom:5 }}>요청 제목</label>
-              <input value={form.title} onChange={e => setForm(f => ({ ...f, title:e.target.value }))} placeholder="예: 원장님 프로필 배경 밝기 조정" style={iS} />
+              <label style={{ fontSize:12, fontWeight:600, color:MUT, display:"block", marginBottom:5 }}>요청 제목 (선택)</label>
+              <input value={form.title} onChange={e => setForm(f => ({ ...f, title:e.target.value }))} placeholder="비워두면 승인 결과 이름으로 자동 생성" style={iS} />
             </div>
             <div style={{ marginBottom:12 }}>
               <label style={{ fontSize:12, fontWeight:600, color:MUT, display:"block", marginBottom:5 }}>요청 내용</label>
@@ -112,7 +150,7 @@ export default function PortalRevisionPage() {
                 ))}
               </div>
             </div>
-            <button onClick={handleSubmit} disabled={saving} style={{ width:"100%", background:G, color:"#fff", border:"none", borderRadius:10, padding:14, fontWeight:800, fontSize:14, cursor:"pointer", fontFamily:"inherit", opacity:saving?.6:1 }}>
+            <button onClick={handleSubmit} disabled={saving} style={{ width:"100%", background:OR, color:"#fff", border:"none", borderRadius:10, padding:14, fontWeight:800, fontSize:14, cursor:"pointer", fontFamily:"inherit", opacity:saving?.6:1 }}>
               {saving ? "전송 중..." : "수정 요청 제출"}
             </button>
           </PortalCard>
@@ -123,7 +161,7 @@ export default function PortalRevisionPage() {
             <div style={{ fontSize:40, marginBottom:12 }}>✏️</div>
             <div style={{ fontSize:15, fontWeight:700, marginBottom:6 }}>수정 요청 내역이 없습니다</div>
             <div style={{ fontSize:13, color:MUT, marginBottom:16 }}>사진 보정이나 콘텐츠 수정이 필요하시면 요청을 남겨주세요.</div>
-            <button onClick={() => setShowForm(true)} style={{ background:G, color:"#fff", border:"none", borderRadius:10, padding:"10px 24px", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>수정 요청하기</button>
+            <button onClick={() => setShowForm(true)} style={{ background:OR, color:"#fff", border:"none", borderRadius:10, padding:"10px 24px", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>수정 요청하기</button>
           </PortalCard>
         ) : (
           revisions.map(r => (

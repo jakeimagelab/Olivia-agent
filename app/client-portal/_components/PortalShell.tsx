@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
+import { C } from "@/lib/theme";
 
-const G = "#155855", OR = "#E85D2C", MUT = "#5A7470", BRD = "rgba(21,88,85,.10)";
+const G = C.teal, OR = C.orange, MUT = C.muted, BRD = C.border;
 
 export function PortalHeader({ clientName }: { clientName?: string }) {
   return (

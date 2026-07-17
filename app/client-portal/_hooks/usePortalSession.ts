@@ -9,6 +9,9 @@ export type PortalSession = {
   email: string;
   phone: string;
   workflowStatus: string;
+  workflowRunId: string | null;
+  currentStepKey: string;
+  currentStepName: string;
   tokenExpiresAt: string | null;
 };
 

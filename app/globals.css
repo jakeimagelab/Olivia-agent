@@ -3186,6 +3186,53 @@ main:has(> .pc-header) {
 }
 .pc-workflow-phase.is-current > span { color: #fff; background: var(--phase-color); }
 
+.wf-approval-card {
+  display: grid;
+  gap: 15px;
+  border-radius: 20px;
+  padding: 18px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(58,69,65,.07), inset 0 0 0 1px rgba(21,88,85,.09);
+}
+.wf-approval-card.is-pending,
+.wf-approval-card.is-revision_requested {
+  box-shadow: 0 15px 38px rgba(232,93,44,.1), inset 0 0 0 1.5px rgba(232,93,44,.5);
+}
+.wf-approval-card__shield { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 13px; background: #fff0e9; }
+.wf-approval-card__preview { overflow: hidden; border-radius: 15px; padding: 5px; background: rgba(232,93,44,.055); box-shadow: inset 0 0 0 1px rgba(232,93,44,.08); }
+.wf-approval-card__client { display: grid; gap: 3px; border-radius: 11px 11px 5px 5px; padding: 11px 12px; background: #fff; }
+.wf-approval-card__client span { color: #d05b31; font-size: 8px; font-weight: 950; letter-spacing: .12em; }
+.wf-approval-card__client strong { color: #25403b; font-size: 12px; }
+.wf-approval-card__preview dl { display: grid; gap: 1px; margin: 5px 0 0; }
+.wf-approval-card__preview dl > div { display: grid; grid-template-columns: minmax(75px,.35fr) minmax(0,1fr); gap: 10px; border-radius: 6px; padding: 8px 10px; background: rgba(255,255,255,.72); }
+.wf-approval-card__preview dt { color: #8c9995; font-size: 9px; font-weight: 800; }
+.wf-approval-card__preview dd { overflow-wrap: anywhere; margin: 0; color: #40534f; font-size: 10px; line-height: 1.55; }
+.wf-approval-card__preview > p { margin: 5px 0 0; border-radius: 8px; padding: 12px; background: #fff; color: #8c9995; font-size: 10px; line-height: 1.55; }
+
+.portal-approved-timeline__heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+.portal-approved-timeline__heading span { color: #e85d2c; font-size: 8px; font-weight: 950; letter-spacing: .16em; }
+.portal-approved-timeline__heading h2 { margin: 4px 0 0; color: #24403b; font-size: 16px; font-weight: 950; }
+.portal-approved-timeline__heading > b { border-radius: 999px; padding: 6px 9px; background: #eaf4f2; color: #155855; font-size: 9px; }
+.portal-approved-timeline__empty { border-radius: 13px; padding: 28px 16px; background: #f6f9f8; color: #8e9b97; font-size: 11px; text-align: center; }
+.portal-approved-timeline { display: grid; }
+.portal-approved-step { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 8px; }
+.portal-approved-step__rail { display: grid; grid-template-rows: 28px minmax(22px,1fr); justify-items: center; }
+.portal-approved-step__rail span { width: 26px; height: 26px; display: grid; place-items: center; position: relative; z-index: 1; border-radius: 50%; background: #22876a; color: #fff; font-size: 9px; font-weight: 950; box-shadow: 0 0 0 4px #fff; }
+.portal-approved-step__rail i { width: 2px; height: 100%; background: #9ccabb; }
+.portal-approved-step__body { margin-bottom: 13px; border-radius: 14px; padding: 11px 12px; background: #f6faf8; box-shadow: inset 0 0 0 1px rgba(21,88,85,.07); }
+.portal-approved-step__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.portal-approved-step__top > div { display: grid; gap: 2px; }
+.portal-approved-step__top small { color: #849691; font-size: 8px; }
+.portal-approved-step__top strong { color: #2a423e; font-size: 12px; }
+.portal-approved-step__top > b { flex: 0 0 auto; border-radius: 999px; padding: 4px 7px; background: #e2f5ea; color: #22876a; font-size: 7px; }
+.portal-approved-step__body p { margin: 7px 0 0; color: #71817d; font-size: 10px; line-height: 1.6; }
+.portal-approved-step__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.portal-approved-step__actions a { border-radius: 999px; padding: 7px 10px; background: #fff; color: #155855; text-decoration: none; font-size: 9px; font-weight: 900; box-shadow: inset 0 0 0 1px rgba(21,88,85,.13); }
+.portal-approved-step__actions a:last-child { color: #c84f25; box-shadow: inset 0 0 0 1px rgba(232,93,44,.22); }
+.portal-approved-step.is-revision .portal-approved-step__rail span { background: #e85d2c; }
+.portal-approved-step.is-revision .portal-approved-step__body { background: #fff7f3; box-shadow: inset 0 0 0 1px rgba(232,93,44,.18); }
+.portal-approved-step.is-revision .portal-approved-step__top > b { color: #c84f25; background: #ffe8dd; }
+
 .pc-smart-timeline {
   border-radius: 24px;
   padding: 6px;

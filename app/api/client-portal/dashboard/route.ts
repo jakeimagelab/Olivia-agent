@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validatePortalToken } from "@/lib/clientPortal";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { ACTIVE_WORKFLOW_STEPS } from "@/lib/workflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,8 +21,35 @@ export async function GET(req: NextRequest) {
     db.from("client_reviews").select("id,overall_rating,created_at").eq("client_id", clientId).limit(1),
     db.from("client_portal_events").select("event_type,memo,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(10),
     db.from("clients").select("available_points,total_earned_points,reward_tier,per_joined").eq("id", clientId).single(),
-    db.from("workflow_runs").select("id,current_step_key,status,shoot_date,next_action").eq("client_id", clientId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    db.from("workflow_runs").select("id,project_id,project_name,current_step_key,status,shoot_date,next_action").eq("client_id", clientId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
+
+  const visibleStepKeys = new Set(ACTIVE_WORKFLOW_STEPS.filter((step) => step.visible_to_client).map((step) => step.key));
+  const workflowRun = workflowRes.data ?? null;
+  const { data: approvalRows } = workflowRun?.id
+    ? await db
+        .from("agent_approvals")
+        .select("id,project_id,workflow_run_id,workflow_step_key,title,description,preview_data,status,approved_at,updated_at")
+        .eq("client_id", clientId)
+        .eq("workflow_run_id", workflowRun.id)
+        .in("status", ["approved", "revision_requested"])
+        .order("updated_at", { ascending: false })
+    : { data: [] as any[] };
+
+  const approvedByStep = new Map<string, any>();
+  for (const approval of approvalRows ?? []) {
+    if (!visibleStepKeys.has(approval.workflow_step_key) || approvedByStep.has(approval.workflow_step_key)) continue;
+    approvedByStep.set(approval.workflow_step_key, approval);
+  }
+  const approvedSteps = ACTIVE_WORKFLOW_STEPS
+    .filter((step) => approvedByStep.has(step.key))
+    .map((step) => ({
+      ...approvedByStep.get(step.key),
+      stepKey: step.key,
+      stepName: step.name,
+      stage: step.stage,
+      relatedFeature: step.related_feature,
+    }));
 
   return NextResponse.json({
     ok: true,
@@ -32,6 +60,7 @@ export async function GET(req: NextRequest) {
     hasReview: (reviewRes.data?.length ?? 0) > 0,
     events: eventsRes.data ?? [],
     per: perRes.data,
-    workflowRun: workflowRes.data ?? null,
+    workflowRun,
+    approvedSteps,
   });
 }

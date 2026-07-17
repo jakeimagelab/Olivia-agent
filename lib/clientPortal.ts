@@ -48,7 +48,6 @@ export async function validatePortalToken(token: string): Promise<PortalSession 
       .from("workflow_runs")
       .select("id, current_step_key")
       .eq("client_id", data.client_id)
-      .eq("status", "active")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),

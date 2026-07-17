@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { ReactNode, useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2, ClipboardList, Clock, FileText, ListChecks, RefreshCw, ShieldCheck, Sparkles, XCircle } from "lucide-react";
+import { C as THEME } from "@/lib/theme";
 
 export const C = {
-  green: "#155855",
-  orange: "#E85D2C",
-  bg: "#F7F4EF",
-  card: "#FFFFFF",
-  line: "rgba(21,88,85,.13)",
-  text: "#1C2B28",
-  muted: "#5A7470",
-  hint: "#9BB5B0",
-  mint: "#EAF4F2",
+  green: THEME.teal,
+  orange: THEME.orange,
+  bg: THEME.bg,
+  card: THEME.white,
+  line: THEME.border,
+  text: THEME.ink,
+  muted: THEME.muted,
+  hint: THEME.hint,
+  mint: THEME.mint,
 };
 
 export const priorityColor: Record<string, string> = {
@@ -180,40 +181,89 @@ export function TaskRow({ task, onRefresh }: { task: any; onRefresh?: () => void
 }
 
 export function ApprovalCard({ approval, onRefresh }: { approval: any; onRefresh?: () => void }) {
-  const action = async (kind: "approve" | "reject" | "request-revision") => {
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
+
+  const action = async (kind: "approve" | "reject" | "request-revision" | "resubmit") => {
     const memo = kind === "request-revision" ? window.prompt("수정 요청 메모를 입력해주세요.") || "" : "";
-    await fetch(`/api/agent/approvals/${approval.id}/${kind}`, {
+    if (kind === "request-revision" && !memo) return;
+    setBusy(kind);
+    setMessage("");
+    const response = await fetch(`/api/agent/approvals/${approval.id}/${kind}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memo }),
     });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) setMessage(result.error || "처리하지 못했습니다.");
+    setBusy("");
     onRefresh?.();
   };
+  const previewEntries = Object.entries(approval.preview_data || {}).filter(([, value]) => value !== null && value !== "");
+
   return (
-    <article style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: 18, display: "grid", gap: 14 }}>
+    <article className={`wf-approval-card is-${approval.status || "pending"}`}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div>
           <Pill color={statusColor[approval.status]}>{approval.approval_type || "other"} · {approval.status}</Pill>
           <h3 style={{ margin: "10px 0 6px", color: C.green, fontSize: 20, fontWeight: 1000 }}>{approval.title}</h3>
           <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.7 }}>{approval.description}</p>
         </div>
-        <ShieldCheck size={26} color={C.orange} />
+        <span className="wf-approval-card__shield"><ShieldCheck size={22} color={C.orange} strokeWidth={1.8}/></span>
       </div>
-      <div style={{ background: C.mint, borderRadius: 12, padding: 12, color: C.muted, fontSize: 12, lineHeight: 1.65 }}>
-        <strong style={{ color: C.green }}>{approval.client_name || "고객 미연결"}</strong>
-        {approval.project_name ? ` · ${approval.project_name}` : ""}
-        <pre style={{ whiteSpace: "pre-wrap", margin: "8px 0 0", fontFamily: "inherit", color: C.muted }}>{JSON.stringify(approval.preview_data || {}, null, 2)}</pre>
+      <div className="wf-approval-card__preview">
+        <div className="wf-approval-card__client">
+          <span>고객 공개 미리보기</span>
+          <strong>{approval.client_name || "고객 미연결"}{approval.project_name ? ` · ${approval.project_name}` : ""}</strong>
+        </div>
+        {previewEntries.length ? (
+          <dl>
+            {previewEntries.slice(0, 8).map(([key, value]) => (
+              <div key={key}>
+                <dt>{PREVIEW_LABELS[key] || key.replaceAll("_", " ")}</dt>
+                <dd>{formatPreviewValue(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : <p>미리보기 데이터가 없습니다. 연결된 기능에서 결과를 먼저 확인해주세요.</p>}
       </div>
       {approval.status === "pending" ? (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <ActionButton onClick={() => action("approve")}>승인하고 다음 단계 진행</ActionButton>
+          <ActionButton onClick={() => action("approve")} tone="orange">{busy === "approve" ? "공개 중..." : "승인하고 고객에게 공개"}</ActionButton>
           <ActionButton onClick={() => action("request-revision")} tone="plain">수정 요청</ActionButton>
-          <ActionButton onClick={() => action("reject")} tone="orange">반려</ActionButton>
+          <ActionButton onClick={() => action("reject")} tone="plain">반려</ActionButton>
           {approval.related_type === "mailing_queue" || approval.approval_type === "mailing" ? <Link href="/mailing" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.green, fontSize: 12, fontWeight: 900, textDecoration: "none" }}>메일링함 <ArrowRight size={13} /></Link> : null}
         </div>
+      ) : approval.status === "revision_requested" ? (
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+          <ActionButton onClick={() => action("resubmit")} tone="orange">{busy === "resubmit" ? "재제출 중..." : "수정 완료 · 다시 승인 요청"}</ActionButton>
+          <span style={{ color: C.muted, fontSize: 11 }}>고객 수정 요청을 반영한 뒤 재제출하세요.</span>
+        </div>
       ) : null}
+      {message ? <p style={{ margin: 0, color: "#DC2626", fontSize: 11, fontWeight: 800 }}>{message}</p> : null}
     </article>
   );
+}
+
+const PREVIEW_LABELS: Record<string, string> = {
+  subject: "제목",
+  amount: "금액",
+  total_amount: "합계",
+  packageName: "패키지",
+  package_name: "패키지",
+  contract_title: "계약서",
+  shoot_date: "촬영일",
+  summary: "요약",
+  body_summary: "안내 내용",
+  pdf_url: "문서",
+};
+
+function formatPreviewValue(value: unknown) {
+  if (typeof value === "number") return value.toLocaleString("ko-KR");
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map((item) => typeof item === "string" ? item : JSON.stringify(item)).join(" · ");
+  if (value && typeof value === "object") return JSON.stringify(value);
+  return String(value ?? "-");
 }
 
 export const WorkflowIcons = { ClipboardList, Clock, ShieldCheck, FileText, CheckCircle2, XCircle, ListChecks, RefreshCw };

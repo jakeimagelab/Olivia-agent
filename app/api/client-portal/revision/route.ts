@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validatePortalToken, logPortalEvent } from "@/lib/clientPortal";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { ACTIVE_WORKFLOW_STEPS } from "@/lib/workflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,13 +12,35 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: "인증 필요" }, { status: 401 });
 
   const db = getSupabaseAdmin();
-  const { data } = await db
-    .from("client_revision_requests")
-    .select("*")
-    .eq("client_id", session.clientId)
-    .order("created_at", { ascending: false });
+  const visibleStepNames = new Map(
+    ACTIVE_WORKFLOW_STEPS.filter((step) => step.visible_to_client).map((step) => [step.key, step.name]),
+  );
+  const [revisionResult, approvalResult] = await Promise.all([
+    db
+      .from("client_revision_requests")
+      .select("*")
+      .eq("client_id", session.clientId)
+      .order("created_at", { ascending: false }),
+    session.workflowRunId
+      ? db
+          .from("agent_approvals")
+          .select("id,project_id,workflow_run_id,workflow_step_key,title,description,preview_data,status,approved_at,updated_at")
+          .eq("client_id", session.clientId)
+          .eq("workflow_run_id", session.workflowRunId)
+          .eq("status", "approved")
+          .order("updated_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
 
-  return NextResponse.json({ ok: true, revisions: data ?? [] });
+  const eligibleApprovals = (approvalResult.data ?? [])
+    .filter((approval: any) => visibleStepNames.has(approval.workflow_step_key))
+    .map((approval: any) => ({
+      ...approval,
+      stepKey: approval.workflow_step_key,
+      stepName: visibleStepNames.get(approval.workflow_step_key),
+    }));
+
+  return NextResponse.json({ ok: true, revisions: revisionResult.data ?? [], eligibleApprovals });
 }
 
 export async function POST(req: NextRequest) {

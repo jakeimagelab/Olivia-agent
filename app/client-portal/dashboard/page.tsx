@@ -4,20 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePortalSession } from "../_hooks/usePortalSession";
 import { PortalHeader, PortalNav, PortalCard, PortalError, PortalLoading, StatusBadge } from "../_components/PortalShell";
+import { ACTIVE_WORKFLOW_STEPS, WORKFLOW_STAGES } from "@/lib/workflow";
+import { C } from "@/lib/theme";
 
-const G = "#155855", OR = "#E85D2C", MUT = "#5A7470", BRD = "rgba(21,88,85,.10)";
-
-const WORKFLOW_STEPS = [
-  "상담완료","견적확인","계약확인","콘티확인",
-  "촬영예정","촬영완료","원본전달","보정진행",
-  "갤러리전달","수정요청","최종완료","리뷰작성",
-];
-
-const STEP_ICONS: Record<string, string> = {
-  "상담완료":"💬","견적확인":"📋","계약확인":"📝","콘티확인":"🎬",
-  "촬영예정":"📅","촬영완료":"📸","원본전달":"📦","보정진행":"🖼️",
-  "갤러리전달":"🖼️","수정요청":"✏️","최종완료":"✅","리뷰작성":"⭐",
-};
+const G = C.teal, OR = C.orange, MUT = C.muted, BRD = C.border;
 
 type DashboardData = {
   client: any;
@@ -26,6 +16,8 @@ type DashboardData = {
   hasReview: boolean;
   per: any;
   events: any[];
+  approvedSteps: any[];
+  workflowRun: any;
 };
 
 export default function PortalDashboard() {
@@ -46,7 +38,6 @@ export default function PortalDashboard() {
   if (!session) return <PortalError message="세션 정보를 불러올 수 없습니다." />;
   if (dataLoading) return <PortalLoading />;
 
-  const currentStepIdx = WORKFLOW_STEPS.indexOf(session.workflowStatus);
   const gallery = data?.galleries?.[0];
   const hasGallery = !!gallery?.gallery_link || !!gallery?.retouched_link;
 
@@ -64,33 +55,40 @@ export default function PortalDashboard() {
           <StatusBadge status={session.workflowStatus} />
         </PortalCard>
 
-        {/* 진행 타임라인 */}
+        {/* 대표가 승인해 고객에게 공개한 결과만 표시 */}
         <PortalCard style={{ marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:800, color:G, marginBottom:16 }}>촬영 진행 단계</div>
-          <div style={{ display:"flex", overflowX:"auto", gap:0, paddingBottom:4 }}>
-            {WORKFLOW_STEPS.map((step, i) => {
-              const done = i < currentStepIdx;
-              const cur  = i === currentStepIdx;
-              return (
-                <div key={step} style={{ flex:"0 0 auto", display:"flex", flexDirection:"column", alignItems:"center", minWidth:72 }}>
-                  <div style={{ display:"flex", alignItems:"center", width:"100%" }}>
-                    {i > 0 && <div style={{ flex:1, height:2, background:done||cur?G:"#E8E4DF" }} />}
-                    <div style={{ width:28, height:28, borderRadius:"50%", background:cur?OR:done?G:"#E8E4DF", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, flexShrink:0, transition:"all .3s" }}>
-                      {done ? "✓" : i+1}
-                    </div>
-                    {i < WORKFLOW_STEPS.length-1 && <div style={{ flex:1, height:2, background:done?G:"#E8E4DF" }} />}
-                  </div>
-                  <div style={{ fontSize:9, color:cur?OR:done?G:MUT, fontWeight:cur||done?700:400, marginTop:4, textAlign:"center", lineHeight:1.3, maxWidth:64 }}>{step}</div>
-                </div>
-              );
-            })}
+          <div className="portal-approved-timeline__heading">
+            <div><span>APPROVED TIMELINE</span><h2>확인 가능한 진행 결과</h2></div>
+            <b>{data?.approvedSteps?.length ?? 0}건 공개</b>
           </div>
-          {currentStepIdx >= 0 && (
-            <div style={{ marginTop:14, padding:"10px 14px", background:`${OR}10`, borderRadius:10, borderLeft:`3px solid ${OR}` }}>
-              <span style={{ fontSize:11, fontWeight:700, color:OR }}>현재 단계: {session.workflowStatus}</span>
-              {currentStepIdx < WORKFLOW_STEPS.length-1 && (
-                <span style={{ fontSize:11, color:MUT, marginLeft:8 }}>→ 다음: {WORKFLOW_STEPS[currentStepIdx+1]}</span>
-              )}
+          {(data?.approvedSteps?.length ?? 0) === 0 ? (
+            <div className="portal-approved-timeline__empty">담당자가 승인한 결과가 이곳에 순서대로 공개됩니다.</div>
+          ) : (
+            <div className="portal-approved-timeline">
+              {data!.approvedSteps.map((item: any, index: number) => {
+                const step = ACTIVE_WORKFLOW_STEPS.find((candidate) => candidate.key === item.stepKey);
+                const stage = WORKFLOW_STAGES.find((candidate) => candidate.key === step?.stage);
+                const documentUrl = getDocumentUrl(item.preview_data);
+                const needsRevision = item.status === "revision_requested";
+                return (
+                  <article key={item.id} className={`portal-approved-step ${needsRevision ? "is-revision" : ""}`}>
+                    <div className="portal-approved-step__rail"><span>{needsRevision ? "!" : "✓"}</span>{index < data!.approvedSteps.length - 1 && <i/>}</div>
+                    <div className="portal-approved-step__body">
+                      <div className="portal-approved-step__top">
+                        <div><small>{stage?.name}</small><strong>{item.stepName || item.title}</strong></div>
+                        <b>{needsRevision ? "수정 요청됨" : "승인·공개"}</b>
+                      </div>
+                      {item.description && <p>{item.description}</p>}
+                      <div className="portal-approved-step__actions">
+                        {documentUrl && <a href={documentUrl} target="_blank" rel="noreferrer">승인 문서 보기 ↗</a>}
+                        {item.status === "approved" && (
+                          <Link href={`/client-portal/revision?approvalId=${encodeURIComponent(item.id)}`}>이 결과 수정 요청</Link>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </PortalCard>
@@ -172,4 +170,13 @@ export default function PortalDashboard() {
       </div>
     </div>
   );
+}
+
+function getDocumentUrl(preview: Record<string, unknown> | null | undefined) {
+  if (!preview) return "";
+  for (const key of ["pdf_url", "document_url", "download_url", "file_url"]) {
+    const value = preview[key];
+    if (typeof value === "string" && /^https?:\/\//.test(value)) return value;
+  }
+  return "";
 }
