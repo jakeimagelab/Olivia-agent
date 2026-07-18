@@ -1287,14 +1287,12 @@ async function executeTool(
 
   if (name === "advance_workflow_step") {
     const db = getSupabaseAdmin();
-    const { data: runs } = await db
-      .from("workflow_runs")
-      .select("id, client_name, current_step_key")
-      .eq("status", "active")
-      .ilike("client_name", `%${input.clientName}%`)
-      .order("updated_at", { ascending: false })
-      .limit(1);
-    const run = runs?.[0];
+    const run = await fuzzyNameSearchOne<any>({
+      db, table: "workflow_runs", nameColumn: "client_name",
+      select: "id, client_name, current_step_key",
+      query: input.clientName,
+      filter: (q: any) => q.eq("status", "active").order("updated_at", { ascending: false }),
+    });
     if (!run) {
       return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
     }
@@ -1305,7 +1303,7 @@ async function executeTool(
       "http://localhost:3000";
     const res = await fetch(`${origin}/api/workflow/advance`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
       body: JSON.stringify({ workflow_run_id: run.id, to_step_key: input.toStepKey, reason: "올리비아 요청" }),
     });
     const d = await res.json();
