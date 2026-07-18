@@ -212,21 +212,14 @@ export default function DailyIdeasPage() {
 
       {/* ── 모바일 탭 바 ── */}
       {isMobile && (
-        <div className="pc-inline-tabs" style={{
-          display: "flex", background: C.surface,
-          borderBottom: `1px solid ${C.border}`, position: "sticky", top: 56, zIndex: 50,
-        }}>
+        <div className="pc-tabs pc-tabs--global">
           {[
             { id: "list",   label: "📅 날짜 목록" },
             { id: "detail", label: "💡 아이디어" },
           ].map(tab => (
-            <button key={tab.id} onClick={() => setMobileTab(tab.id as "list" | "detail")} style={{
-              flex: 1, height: 44, border: "none", background: "transparent",
-              fontFamily: "inherit", fontSize: 13, fontWeight: 800, cursor: "pointer",
-              color: mobileTab === tab.id ? C.teal : C.muted,
-              borderBottom: mobileTab === tab.id ? `2px solid ${C.teal}` : "2px solid transparent",
-              transition: "all .15s",
-            }}>{tab.label}</button>
+            <button key={tab.id} className={`pc-tab${mobileTab === tab.id ? " pc-tab--active" : ""}`} onClick={() => setMobileTab(tab.id as "list" | "detail")}>
+              {tab.label}
+            </button>
           ))}
         </div>
       )}
