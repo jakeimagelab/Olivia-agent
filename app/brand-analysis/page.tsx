@@ -624,7 +624,7 @@ export default function BrandAnalysisPage() {
                   <div style={{ marginBottom: 8 }}>
                     {g.keywords.map((k, j) => <Chip key={j} label={k} />)}
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
                       <div style={{ fontSize: 10, fontWeight: 900, color: C.sage, marginBottom: 4 }}>해석</div>
                       <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5 }}>{g.interpretation}</div>
