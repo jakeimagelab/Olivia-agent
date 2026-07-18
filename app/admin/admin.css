@@ -1035,8 +1035,47 @@
   .oa-tools-page .oa-category-section { padding-inline: 8px; }
   .oa-tools-page .admin-menu-grid { width: 100%; grid-template-columns: repeat(4,minmax(0,1fr)); column-gap: 0; row-gap: 12px; justify-items: stretch; }
   .oa-tools-page .admin-menu-card { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
-  .oa-tools-page .admin-menu-icon { width: 40px !important; height: 40px !important; flex: 0 0 40px; border-radius: 11px !important; }
-  .oa-tools-page .admin-menu-icon svg { width: 18px; height: 18px; }
+  .oa-tools-page .admin-menu-icon {
+    position: relative;
+    width: 46px !important;
+    height: 46px !important;
+    flex: 0 0 46px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.48) !important;
+    border-radius: 15px !important;
+    background: linear-gradient(145deg,#6cd9b8 0%,#2eaf88 58%,#167d69 100%);
+    color: #fff;
+    box-shadow: 0 7px 14px rgba(21,88,85,.16), inset 0 1px 1px rgba(255,255,255,.5);
+  }
+  .oa-tools-page .admin-menu-card:nth-child(4n+1) .admin-menu-icon {
+    background: linear-gradient(145deg,#ffbd78 0%,#f47b50 56%,#db512f 100%);
+    box-shadow: 0 7px 14px rgba(232,93,44,.17), inset 0 1px 1px rgba(255,255,255,.52);
+  }
+  .oa-tools-page .admin-menu-card:nth-child(4n+2) .admin-menu-icon {
+    background: linear-gradient(145deg,#72ddbe 0%,#36b991 58%,#177d69 100%);
+  }
+  .oa-tools-page .admin-menu-card:nth-child(4n+3) .admin-menu-icon {
+    background: linear-gradient(145deg,#8bd8ef 0%,#55afd8 56%,#647fc8 100%);
+    box-shadow: 0 7px 14px rgba(62,139,187,.16), inset 0 1px 1px rgba(255,255,255,.52);
+  }
+  .oa-tools-page .admin-menu-card:nth-child(4n) .admin-menu-icon {
+    background: linear-gradient(145deg,#ffe08b 0%,#f5b34e 55%,#ec8247 100%);
+    box-shadow: 0 7px 14px rgba(224,143,47,.16), inset 0 1px 1px rgba(255,255,255,.52);
+  }
+  .oa-tools-page .admin-menu-card.orange .admin-menu-icon {
+    border-color: rgba(255,255,255,.48) !important;
+    color: #fff;
+  }
+  .oa-tools-page .admin-menu-icon::after {
+    content: "";
+    position: absolute;
+    inset: 2px 3px auto;
+    height: 42%;
+    border-radius: 12px 12px 8px 8px;
+    background: linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0));
+    pointer-events: none;
+  }
+  .oa-tools-page .admin-menu-icon svg { position: relative; z-index: 1; width: 20px; height: 20px; stroke-width: 2; }
   .oa-tools-page .admin-menu-copy { width: 100%; text-align: center; }
   .oa-tools-page .admin-menu-copy h2 { margin-top: 4px !important; font-size: 8.5px !important; line-height: 1.25; }
 

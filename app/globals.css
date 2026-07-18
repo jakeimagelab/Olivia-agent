@@ -5373,7 +5373,7 @@ main, .pc-console, .pc-page, .pc-page-content {
 /* 2026-07 모바일 가로 넘침 보정 — 기능별 데스크톱 인라인 그리드를 안전하게 축소한다. */
 @media (max-width: 720px) {
   .pc-gs-workspace,
-  .pc-gs-workspace > *,
+  .pc-gs-workspace > :not(.pc-gs-mobile-menu),
   .ai-trust-gap-page,
   .ai-trust-gap-main,
   .ai-trust-gap-layout,
@@ -5386,6 +5386,15 @@ main, .pc-console, .pc-page, .pc-page-content {
     width: 100%;
     min-width: 0;
     max-width: 100%;
+  }
+
+  .pc-gs-mobile-menu {
+    width: 46px !important;
+    min-width: 46px !important;
+    max-width: 46px !important;
+    height: 46px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
   }
 
   .ai-trust-gap-main {
