@@ -4888,16 +4888,6 @@ a.pc-nav-link, a.pc-header-back {
 
   /* ── 관리자 홈 메뉴 ── */
   .admin-shell { padding: 16px 14px 80px; }
-  .admin-menu-grid {
-    gap: 10px !important;
-  }
-  .admin-menu-card {
-    padding: 14px 12px !important;
-  }
-  .admin-menu-icon { font-size: 22px !important; }
-  .admin-menu-label { font-size: 13px !important; }
-  .admin-menu-desc { display: none; }
-  .admin-menu-action { display: none; }
 
   /* ── 공통 폼/콘텐츠 영역 ── */
   .pc-content {
