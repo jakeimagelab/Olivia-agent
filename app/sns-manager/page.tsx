@@ -1040,7 +1040,7 @@ function AdCheckTab() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+      <div className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
         {/* 입력 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ background: C.white, borderRadius: 14, padding: 20, border: `1px solid ${C.border}` }}>
