@@ -860,6 +860,18 @@
 /* 개별 기능 홈: 모바일에서도 요청된 4열 정사각 카드 유지 */
 .oa-tools-page .oa-category-section__title { color: #155855; font-size: 12px; }
 .oa-tools-page .admin-menu-copy h2 { color: #155855; font-size: 14.5px; }
+.oa-tools-page .admin-menu-icon {
+  border: 1px solid rgba(21,88,85,.1);
+  background: linear-gradient(145deg,#f4faf8,#dfeeea);
+  color: #155855;
+  box-shadow: 0 5px 15px rgba(21,88,85,.1), inset 0 1px 0 rgba(255,255,255,.9);
+}
+.oa-tools-page .admin-menu-card.orange .admin-menu-icon {
+  border-color: rgba(232,93,44,.11);
+  background: linear-gradient(145deg,#fff8f3,#f8ded2);
+  color: #d6542a;
+  box-shadow: 0 5px 15px rgba(232,93,44,.1), inset 0 1px 0 rgba(255,255,255,.9);
+}
 .olivia-assistant-page--embedded { margin-bottom: 18px; padding-bottom: 0; scroll-margin-top: 88px; }
 .olivia-assistant-page--embedded .olivia-page-heading { border-radius: 20px; }
 .olivia-assistant-page--embedded .olivia-tab-content { min-height: 0; }

@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Activity, BarChart3, Check, Clipboard, ExternalLink, History, Loader2, MapPin, Search, Sparkles } from "lucide-react";
+import { Activity, Check, Clipboard, ExternalLink, History, Loader2, MapPin, Search, Sparkles } from "lucide-react";
 import { CHANNELS, type ChannelAnalysisResult, type ChannelKey } from "@/lib/channelAnalysisTypes";
 
 type ReportHistory = { id: string; hospital_name: string; specialty: string; overall_score: number; analysis_status: string; created_at: string };
@@ -94,8 +94,6 @@ function ChannelAnalyzerContent() {
         <div className="channel-history-list">{history.length ? history.map((item) => <button key={item.id} onClick={() => void openReport(item.id)}><div><strong>{item.hospital_name}</strong><span>{item.specialty || "진료과 미입력"} · {new Date(item.created_at).toLocaleString("ko-KR")}</span></div><b>{item.overall_score}</b></button>) : <p>저장된 분석 결과가 없습니다.</p>}</div>
       </section>
     </main> : <main className="channel-native-main">
-      <section className="channel-native-hero"><div><span>PHOTO CLINIC CHANNEL INTELLIGENCE</span><h1>병원 온라인 채널<br/>진단 리포트</h1><p>인스타그램·홈페이지·네이버 플레이스·블로그를 병원 브랜딩과 검색 관점으로 분석합니다.</p></div><div className="channel-hero-mark"><BarChart3 size={34}/><small>4 CHANNEL</small></div></section>
-
       <section className="channel-input-panel">
         <div className="channel-section-heading"><div><span>ANALYSIS INPUT</span><h2>분석 대상 입력</h2><p>한 채널만 입력해도 해당 채널 기준으로 리포트를 생성합니다.</p></div>{clientId && <strong>고객 연결됨</strong>}</div>
         <div className="channel-input-grid">
