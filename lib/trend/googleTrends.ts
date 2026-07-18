@@ -16,11 +16,33 @@ export interface GoogleTrendPoint {
   value: number; // 관심도 0~100
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * 키워드 하나에 대해 최근 기간(geo=KR)의 관심도 변화를 조회한다.
  * pytrends의 interest_over_time()과 동일한 2단계(explore → widgetdata) 흐름을 따른다.
+ * 비공식 엔드포인트라 과호출 시 429가 자주 나는데, 잠깐 쉬었다 재시도하면 성공하는 경우가
+ * 많아서 429에 한해 백오프 재시도를 둔다.
  */
 export async function fetchGoogleTrend(
+  keyword: string,
+  opts: { timeframe?: string; geo?: string } = {}
+): Promise<GoogleTrendPoint[]> {
+  const RETRY_DELAYS_MS = [4000, 8000];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetchGoogleTrendOnce(keyword, opts);
+    } catch (err: any) {
+      const is429 = /\(429\)/.test(String(err?.message || ""));
+      if (!is429 || attempt >= RETRY_DELAYS_MS.length) throw err;
+      await sleep(RETRY_DELAYS_MS[attempt]);
+    }
+  }
+}
+
+async function fetchGoogleTrendOnce(
   keyword: string,
   opts: { timeframe?: string; geo?: string } = {}
 ): Promise<GoogleTrendPoint[]> {
