@@ -1149,12 +1149,12 @@ async function executeTool(
     let hospitalId: string | null = null;
     let hospitalLabel = input.hospitalName || "";
     if (input.hospitalName) {
-      const { data: clients } = await db
-        .from("clients")
-        .select("id, hospital_name")
-        .ilike("hospital_name", `%${input.hospitalName}%`)
-        .limit(1);
-      if (clients?.[0]) { hospitalId = clients[0].id; hospitalLabel = clients[0].hospital_name; }
+      const client = await fuzzyNameSearchOne<any>({
+        db, table: "clients", nameColumn: "hospital_name",
+        select: "id, hospital_name",
+        query: input.hospitalName,
+      });
+      if (client) { hospitalId = client.id; hospitalLabel = client.hospital_name; }
     }
 
     await logActivity("create_memo", hospitalLabel || undefined, { summary: input.summary });
