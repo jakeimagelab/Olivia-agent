@@ -575,7 +575,7 @@ export default function BrandAnalysisPage() {
             </Card>
 
             {/* Main message + shooting direction */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <Card style={{ padding: "20px 24px" }}>
                 <SectionTitle>메인 메시지</SectionTitle>
                 <div style={{ fontSize: 14, color: C.text, lineHeight: 1.7 }}>{result.mainMessage}</div>
