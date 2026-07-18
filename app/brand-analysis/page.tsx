@@ -592,7 +592,7 @@ export default function BrandAnalysisPage() {
             {/* Content directions */}
             <Card style={{ padding: "20px 24px" }}>
               <SectionTitle>콘텐츠 활용 방향</SectionTitle>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
                 {[
                   { label: "브랜드필름", text: result.contentDirections.brandFilm, icon: "🎬" },
                   { label: "사진촬영",   text: result.contentDirections.photo,      icon: "📷" },
