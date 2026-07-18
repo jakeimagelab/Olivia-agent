@@ -220,7 +220,14 @@ async function getUrgentInsights(db: SupabaseClient, input: any): Promise<Olivia
 async function searchProjects(db: SupabaseClient, input: any): Promise<OliviaChatToolResult> {
   const keyword = String(input.query || input.clientName || "").trim().replace(/[,%()]/g, " ");
   if (!keyword) return { action: "done", message: "검색할 고객명 또는 프로젝트명을 알려주세요.", workItems: [] };
-  const result = await safeQuery<any[]>(db.from("workflow_runs").select("*").or(`client_name.ilike.%${keyword}%,project_name.ilike.%${keyword}%`).order("updated_at", { ascending: false }).limit(10), []);
+  let result = await safeQuery<any[]>(db.from("workflow_runs").select("*").or(`client_name.ilike.%${keyword}%,project_name.ilike.%${keyword}%`).order("updated_at", { ascending: false }).limit(10), []);
+  // client_name/project_name 둘 다 대상이라 fuzzyNameSearch(단일 컬럼용)로는 못 돌리고,
+  // 여기서만 직접 후보를 넓게 가져와 공백 무시 매칭한다 (list_mailing_queue의 커스텀 폴백과 동일한 방식).
+  if (result.data.length === 0 && !result.unavailable) {
+    const candidates = await safeQuery<any[]>(db.from("workflow_runs").select("*").order("updated_at", { ascending: false }).limit(500), []);
+    const matched = candidates.data.filter((row) => fuzzyIncludes(row.client_name, keyword) || fuzzyIncludes(row.project_name, keyword)).slice(0, 10);
+    if (matched.length > 0) result = { data: matched, unavailable: candidates.unavailable };
+  }
   const items = result.data.map(projectItem);
   return { action: "done", message: items.length ? `“${keyword}” 관련 프로젝트 ${items.length}건을 찾았어요.${items.length > 1 ? " 정확한 항목을 선택해주세요." : ""}${unavailableNote(result.unavailable ? 1 : 0)}` : `“${keyword}” 관련 프로젝트를 찾지 못했어요.`, workItems: items };
 }
