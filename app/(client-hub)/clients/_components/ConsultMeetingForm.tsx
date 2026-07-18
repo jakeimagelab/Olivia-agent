@@ -213,6 +213,34 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
         </div>
       </div>
 
+      {/* 시작 단계 */}
+      <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "12px 18px", background: "rgba(232,93,44,.03)", borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: C.orange }}>워크플로우 시작 단계</div>
+          <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>
+            이미 촬영 등 중간 단계까지 수동으로 진행한 고객이면 시작 단계를 옮기세요. 이전 단계는 완료로 표시되지만, 클릭하면 언제든 열어서 자료를 채워 넣을 수 있습니다.
+          </div>
+        </div>
+        <div style={{ padding: 18 }}>
+          <select
+            value={startStepKey}
+            onChange={(e) => setStartStepKey(e.target.value)}
+            style={{ ...iS, color: C.txt, fontWeight: 700, cursor: "pointer" }}
+          >
+            {ACTIVE_WORKFLOW_STEPS.map((step, idx) => (
+              <option key={step.key} value={step.key}>
+                {idx + 1}. {step.name}
+              </option>
+            ))}
+          </select>
+          {startStepIdx > 0 && (
+            <div style={{ marginTop: 8, fontSize: 11, color: C.orange, fontWeight: 700 }}>
+              1~{startStepIdx}단계는 완료로 처리됩니다 (수동 진행분 — 나중에 클릭해서 채워 넣으세요).
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* AI 메모 추출 */}
       <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
         <div style={{ padding: "12px 18px", background: "rgba(124,58,237,.03)", borderBottom: `1px solid ${C.border}` }}>
