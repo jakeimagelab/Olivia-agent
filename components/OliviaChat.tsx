@@ -476,7 +476,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             saveToDb([{ role: "assistant", content: resultMsg, workItems: result.workItems }]);
             window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
           } catch (e: any) {
-            const errMsg = "⚠ 캘린더 오류: " + e.message;
+            const errMsg = "⚠ 실행 중 오류: " + e.message;
             setMessages(prev => [...prev, { role: "assistant", content: errMsg, source: "web" }]);
             saveToDb([{ role: "assistant", content: errMsg }]);
           }
