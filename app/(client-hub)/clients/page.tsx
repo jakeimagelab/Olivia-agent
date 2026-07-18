@@ -195,6 +195,12 @@ function ListView() {
                   <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 99, background: `${sc}18`, color: sc, border: `1px solid ${sc}30`, whiteSpace: "nowrap" }}>
                     {stepName ?? "미시작"}
                   </span>
+                  <button onClick={(e) => deleteClient(e, c.id, c.name)} disabled={deletingId === c.id} aria-label={`${c.name} 삭제`}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, border: "none", borderRadius: 8, background: "transparent", color: C.hint, cursor: deletingId === c.id ? "not-allowed" : "pointer", flexShrink: 0 }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFF0ED"; (e.currentTarget as HTMLElement).style.color = C.orange; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = C.hint; }}>
+                    <Trash2 size={14} />
+                  </button>
                   <span style={{ fontSize: 13, color: C.hint }}>→</span>
                 </div>
               );
