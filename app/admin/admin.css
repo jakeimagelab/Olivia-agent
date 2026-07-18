@@ -891,7 +891,7 @@
 }
 
 @media (max-width: 680px) {
-  .oa-header__title--compact { font-size: 17px; }
+  .oa-header__title--compact { font-size: 13.6px; }
   .oa-tools-page .oa-category-section__title { font-size: 11px; }
   .olivia-assistant-page--embedded .olivia-page-heading { border-radius: 16px; }
 }
