@@ -366,7 +366,7 @@ export default function AiTrustGapPage() {
     <div style={{ color: C.txt, minHeight: "100vh", background: C.bg, fontFamily: "var(--font-sans)" }}>
       <PageHeader title="AI 추천 병원 역분석" />
       <main style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 22px 88px" }}>
-        <section style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(360px, .65fr)", gap: 20, alignItems: "start" }}>
+        <section className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(360px, .65fr)", gap: 20, alignItems: "start" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <Hero />
             <StepNav />
