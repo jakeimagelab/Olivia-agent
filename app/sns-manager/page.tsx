@@ -293,7 +293,7 @@ function PatternBlogWriter() {
 
       {/* ── Step 2: 스타일 프로필 선택 ── */}
       {step === "style" && (
-        <div style={{ display:"grid", gridTemplateColumns: viewProfile ? "1fr 380px" : "1fr", gap:20 }}>
+        <div className="pc-mobile-stack" style={{ display:"grid", gridTemplateColumns: viewProfile ? "1fr 380px" : "1fr", gap:20 }}>
           <div>
             <div style={{ fontSize:13, color:C.muted, marginBottom:16 }}>블로그 글의 톤앤매너와 구조를 결정하는 스타일 프로필을 선택하세요. 소스 글 분석으로 커스텀 프로필을 만들 수도 있습니다.</div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(260px, 1fr))", gap:12 }}>
