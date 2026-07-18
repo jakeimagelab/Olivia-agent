@@ -864,21 +864,21 @@
    붕 뜬 줄처럼 보인다 — 여기서는 아이콘 배지 색 자체가 브랜드 컬러라 액센트 바가 필요 없다. */
 .oa-tools-page .admin-menu-card::before { display: none; }
 .oa-tools-page .admin-menu-icon {
-  width: 62px;
-  height: 62px;
-  border-radius: 17px;
+  width: 71px;
+  height: 71px;
+  border-radius: 20px;
   border: 1px solid rgba(255,255,255,.24);
-  background: #155855;
+  background: #569082;
   color: #ffffff;
-  box-shadow: 0 6px 16px rgba(13,50,48,.32);
+  box-shadow: 0 6px 16px rgba(86,144,130,.3);
 }
 .oa-tools-page .admin-menu-card.orange .admin-menu-icon {
   border: 1px solid rgba(255,255,255,.3);
-  background: #e85d2c;
+  background: #eb8f22;
   color: #ffffff;
-  box-shadow: 0 6px 16px rgba(184,67,26,.32);
+  box-shadow: 0 6px 16px rgba(235,143,34,.3);
 }
-.oa-tools-page .admin-menu-icon svg { width: 31px; height: 31px; }
+.oa-tools-page .admin-menu-icon svg { width: 36px; height: 36px; }
 .olivia-assistant-page--embedded { margin-bottom: 18px; padding-bottom: 0; scroll-margin-top: 88px; }
 .olivia-assistant-page--embedded .olivia-page-heading { border-radius: 20px; }
 .olivia-assistant-page--embedded .olivia-tab-content { min-height: 0; }
