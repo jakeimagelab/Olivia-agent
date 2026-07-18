@@ -219,6 +219,22 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const deleteClient = async (clientName: string) => {
+    if (!window.confirm(`'${clientName}' 고객을 삭제할까요? 휴지통으로 이동되며 30일 안에 복원할 수 있습니다.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, { method: "DELETE" });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.error || "삭제 실패");
+      onBack();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "삭제 실패");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const openClientPreview = async () => {
     setPreviewLoading(true);
