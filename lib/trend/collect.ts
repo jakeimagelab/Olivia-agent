@@ -121,8 +121,11 @@ async function collectGoogleTrends() {
     const allRows: any[] = [];
     await processInChunks(
       TREND_INDUSTRIES,
-      4,
+      // 구글 트렌드 비공식 엔드포인트는 동시 요청에 특히 취약해서(4개씩 병렬로 보내면 거의 매번
+      // 429가 남) 다른 소스와 달리 순차(1개씩) + 요청 사이 텀을 둬서 차단 확률을 낮춘다.
+      1,
       async (industry) => {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
         // 구글 트렌드는 비공식 엔드포인트라 과호출 시 차단될 수 있어 업종당 대표 키워드 1개만 조회
         const keyword = DEFAULT_KEYWORDS_BY_INDUSTRY[industry][0];
         try {
