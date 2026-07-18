@@ -861,16 +861,16 @@
 .oa-tools-page .oa-category-section__title { color: #155855; font-size: 12px; }
 .oa-tools-page .admin-menu-copy h2 { color: #155855; font-size: 14.5px; }
 .oa-tools-page .admin-menu-icon {
-  border: 1px solid rgba(21,88,85,.1);
-  background: linear-gradient(145deg,#f4faf8,#dfeeea);
-  color: #155855;
-  box-shadow: 0 5px 15px rgba(21,88,85,.1), inset 0 1px 0 rgba(255,255,255,.9);
+  border: none;
+  background: linear-gradient(148deg, #0d3230 0%, #155855 100%);
+  color: #ffffff;
+  box-shadow: 0 5px 15px rgba(13,50,48,.35), inset 0 1px 0 rgba(255,255,255,.2);
 }
 .oa-tools-page .admin-menu-card.orange .admin-menu-icon {
-  border-color: rgba(232,93,44,.11);
-  background: linear-gradient(145deg,#fff8f3,#f8ded2);
-  color: #d6542a;
-  box-shadow: 0 5px 15px rgba(232,93,44,.1), inset 0 1px 0 rgba(255,255,255,.9);
+  border: none;
+  background: linear-gradient(148deg, #B8431A 0%, #E85D2C 100%);
+  color: #ffffff;
+  box-shadow: 0 5px 15px rgba(184,67,26,.35), inset 0 1px 0 rgba(255,255,255,.2);
 }
 .olivia-assistant-page--embedded { margin-bottom: 18px; padding-bottom: 0; scroll-margin-top: 88px; }
 .olivia-assistant-page--embedded .olivia-page-heading { border-radius: 20px; }
