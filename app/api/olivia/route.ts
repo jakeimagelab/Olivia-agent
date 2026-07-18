@@ -1579,7 +1579,7 @@ async function executeTool(
 
     const sendRes = await fetch(origin + "/api/mailing/send", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
       body: JSON.stringify({ id: inserted.id }),
     });
     const sendData = await sendRes.json();
