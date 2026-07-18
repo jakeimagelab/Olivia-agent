@@ -1261,14 +1261,12 @@ async function executeTool(
 
   if (name === "get_workflow_status") {
     const db = getSupabaseAdmin();
-    const { data: runs } = await db
-      .from("workflow_runs")
-      .select("id, client_name, current_step_key, status, updated_at, next_action")
-      .eq("status", "active")
-      .ilike("client_name", `%${input.clientName}%`)
-      .order("updated_at", { ascending: false })
-      .limit(1);
-    const run = runs?.[0];
+    const run = await fuzzyNameSearchOne<any>({
+      db, table: "workflow_runs", nameColumn: "client_name",
+      select: "id, client_name, current_step_key, status, updated_at, next_action",
+      query: input.clientName,
+      filter: (q: any) => q.eq("status", "active").order("updated_at", { ascending: false }),
+    });
     if (!run) {
       return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.\n/clients 에서 워크플로우를 시작해주세요.` };
     }
