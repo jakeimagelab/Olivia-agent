@@ -188,27 +188,42 @@ function IntakeForm({ data, onChange, onNext }: {
 
       <label style={{ ...labelStyle, marginTop: 16 }}>
         진료과목
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-          {SPECIALTIES_LIST.map(s => (
-            <button key={s}
-              onClick={() => {
-                const current = data.specialties;
-                const arr = current ? current.split(", ") : [];
-                const next = arr.includes(s) ? arr.filter(x => x !== s) : [...arr, s];
-                setField("specialties", next.join(", "));
-              }}
-              style={{
-                padding: "5px 12px", borderRadius: 20, fontSize: 12, cursor: "pointer",
-                border: data.specialties.includes(s)
-                  ? "1.5px solid #155855" : "1.5px solid #ddd",
-                background: data.specialties.includes(s) ? "#155855" : "#fff",
-                color: data.specialties.includes(s) ? "#fff" : "#555",
-                transition: "all .2s"
-              }}>
-              {s}
-            </button>
+        <select
+          value=""
+          style={{ ...inputStyle, marginTop: 8 }}
+          onChange={e => {
+            const s = e.target.value;
+            if (!s) return;
+            const arr = data.specialties ? data.specialties.split(", ") : [];
+            if (!arr.includes(s)) setField("specialties", [...arr, s].join(", "));
+          }}
+        >
+          <option value="">진료과목 추가...</option>
+          {SPECIALTIES_LIST.filter(s => !data.specialties.split(", ").includes(s)).map(s => (
+            <option key={s} value={s}>{s}</option>
           ))}
-        </div>
+        </select>
+        {data.specialties && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+            {data.specialties.split(", ").filter(Boolean).map(s => (
+              <span key={s} style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "5px 8px 5px 12px", borderRadius: 20, fontSize: 12,
+                border: "1.5px solid #155855", background: "#155855", color: "#fff",
+              }}>
+                {s}
+                <button type="button" aria-label={`${s} 제거`}
+                  onClick={() => {
+                    const arr = data.specialties.split(", ").filter(x => x !== s);
+                    setField("specialties", arr.join(", "));
+                  }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 15, height: 15, border: "none", borderRadius: "50%", background: "rgba(255,255,255,.25)", color: "#fff", fontSize: 11, lineHeight: 1, cursor: "pointer", padding: 0 }}>
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </label>
 
       <label style={{ ...labelStyle, marginTop: 16 }}>
