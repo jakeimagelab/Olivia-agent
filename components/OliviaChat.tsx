@@ -216,7 +216,9 @@ const TOOL_ICONS: Record<string, string> = {
   get_meeting_followups: "🤝",
 };
 
-// 캘린더 도구는 승인 없이 자동 실행
+// 페이지 이동만 하거나(DB 기록 없음), 조회이거나, 내부 상태 변경인 도구는 승인 없이 자동 실행.
+// 고객에게 실제 이메일이 나가는 send_file_transfer/send_workflow_mail/send_mailing은 되돌릴 수
+// 없는 행동이라 승인 카드로 남겨둔다.
 const AUTO_EXECUTE_TOOLS = new Set([
   "calendar_add", "calendar_add_bulk", "calendar_list",
   "calendar_complete", "calendar_delete", "calendar_update", "open_page",
@@ -225,6 +227,10 @@ const AUTO_EXECUTE_TOOLS = new Set([
   "prepare_followup", "run_observer",
   "list_upcoming_meetings", "prepare_meeting_brief",
   "analyze_meeting_memo", "complete_meeting", "get_meeting_followups",
+  "create_quote", "create_contract", "create_website", "create_conti",
+  "get_workflow_status", "advance_workflow_step",
+  "get_gallery", "create_gallery", "list_mailing_queue",
+  "memo_add", "manage_olivia_action", "link_meeting_client",
 ]);
 
 // 도구 입력 요약
