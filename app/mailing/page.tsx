@@ -807,7 +807,7 @@ function CustomBrandMailTab() {
             </div>
             <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
               {links.map((link, i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: 10, alignItems: "end" }}>
+                <div key={i} className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: 10, alignItems: "end" }}>
                   <div>
                     <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>버튼 텍스트</label>
                     <input value={link.label} onChange={e => updateLink(i, "label", e.target.value)} placeholder="자료 확인하기" style={iS} />
