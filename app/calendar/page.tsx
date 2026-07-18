@@ -1502,7 +1502,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       </div>
 
       {/* Scrollable time grid */}
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto" }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain" }}>
         <div style={{ display: "grid", gridTemplateColumns: `${TL_W}px repeat(7,1fr)` }}>
 
           {/* Hour labels */}
