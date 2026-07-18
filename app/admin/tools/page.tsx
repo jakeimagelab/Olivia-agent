@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowRight, Camera, SlidersHorizontal, Search } from "lucide-react";
+import { ArrowRight, Camera } from "lucide-react";
 import CategorySection from "@/components/admin/CategorySection";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { ALL_TOOLS } from "@/lib/toolNav";
+import { normalizeAdminSearchQuery } from "@/lib/adminSearch";
 
 // 사이드바 "개별 기능"은 tools 카테고리만 보여주지만, 이 홈은 이름 그대로 전체 기능 목록
 // (메모·캘린더 등 대시보드/CRM 카테고리 포함)이 다 있어야 한다는 요청 — ALL_TOOLS 전체를 쓴다.
@@ -21,6 +22,11 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
   }
   const linked = context.size > 0;
   const suffix = linked ? `?${context.toString()}` : "";
+  const rawQuery = typeof params.q === "string" ? params.q : "";
+  const query = normalizeAdminSearchQuery(rawQuery);
+  const filteredTools = query
+    ? TOOLS.filter((tool) => normalizeAdminSearchQuery(`${tool.title} ${tool.desc} ${tool.meta}`).includes(query))
+    : TOOLS;
 
   return (
     <div className="oa-page oa-tools-page">
@@ -37,21 +43,10 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
         eyebrow="WORK TOOLS"
         title="실제 작업 도구"
         description="각 기능은 고객 연결 없이도 독립적으로 실행할 수 있습니다."
-        action={<StatusBadge tone="blue">{TOOLS.length}개 기능</StatusBadge>}
+        action={<StatusBadge tone="blue">{query ? `${filteredTools.length}개 검색 결과` : `${TOOLS.length}개 기능`}</StatusBadge>}
       >
-        <div className="oa-tool-toolbar" aria-label="기능 탐색 도구">
-          <label className="oa-tool-search">
-            <Search size={15} aria-hidden="true"/>
-            <span className="oa-visually-hidden">기능 검색</span>
-            <input type="search" placeholder="기능 이름 검색" />
-          </label>
-          <div className="oa-tool-filters" aria-label="기능 카테고리">
-            <button className="is-active" type="button">전체</button>
-            <button type="button" aria-label="필터 설정"><SlidersHorizontal size={14} aria-hidden="true"/></button>
-          </div>
-        </div>
-        <div className="admin-menu-grid">
-          {TOOLS.map(tool => {
+        {filteredTools.length ? <div className="admin-menu-grid">
+          {filteredTools.map(tool => {
             const Icon = tool.icon;
             return (
               <Link key={tool.href} href={`${tool.href}${suffix}`} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
@@ -65,7 +60,7 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
               </Link>
             );
           })}
-        </div>
+        </div> : <div className="oa-tool-search-empty"><strong>“{rawQuery}”에 해당하는 기능이 없습니다.</strong><p>다른 기능명이나 설명 키워드로 검색해보세요.</p><Link href={`/admin/tools${suffix}`}>검색 초기화</Link></div>}
       </CategorySection>
     </div>
   );

@@ -11,7 +11,7 @@ export type NavCategory = "dashboard" | "crm" | "tools";
 export const NAV_CATEGORY_LABEL: Record<NavCategory, string> = {
   dashboard: "관리자 대시보드",
   crm:       "고객관리 CRM",
-  tools:     "개별 기능",
+  tools:     "AI Assistant",
 };
 
 export type ToolDef = {

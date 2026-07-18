@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarDays, Clock3, Mail, WandSparkles } from "lucide-react";
-import CategorySection from "@/components/admin/CategorySection";
+import { Mail } from "lucide-react";
 import OliviaRecommendationPanel from "@/components/admin/OliviaRecommendationPanel";
 import { DailyBriefCard, TodayScheduleCard } from "@/components/dashboard/TodayAlertBanner";
 import DailyQuoteWidget from "@/components/dashboard/DailyQuoteWidget";
@@ -150,14 +149,6 @@ export default function AdminDashboardHomePage() {
           </div>
           </section>
 
-          <CategorySection eyebrow="QUICK" title="빠른 실행">
-            <div className="oa-quick-grid oa-quick-grid--row">
-              <Link href="/memo"><WandSparkles size={16}/><span>메모 작성</span></Link>
-              <Link href="/calendar"><CalendarDays size={16}/><span>일정 추가</span></Link>
-              <Link href="/mailing"><Mail size={16}/><span>메일 확인</span></Link>
-              <Link href="/admin/tools"><Clock3 size={16}/><span>기능 열기</span></Link>
-            </div>
-          </CategorySection>
         </div>
 
         <aside className="oa-right-column" aria-label="운영 보조 패널">
