@@ -227,9 +227,9 @@ function PatternBlogWriter() {
   const riskStyle = RISK_COLORS[result?.riskCheck?.level || "안전"] || RISK_COLORS["안전"];
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+    <div className="sns-blog-writer" style={{ display:"flex", flexDirection:"column", gap:20 }}>
       {/* Stepper */}
-      <div style={{ display:"flex", gap:0, background:C.white, borderRadius:12, border:`1px solid ${C.border}`, overflow:"hidden" }}>
+      <div className="sns-blog-stepper" style={{ display:"flex", gap:0, background:C.white, borderRadius:12, border:`1px solid ${C.border}`, overflow:"hidden" }}>
         {STEP_LIST.map((s, i) => (
           <button key={s.id} onClick={() => setStep(s.id as any)}
             style={{ flex:1, padding:"12px 8px", border:"none", borderRight: i < 3 ? `1px solid ${C.border}` : "none", background: step === s.id ? C.teal : "transparent", color: step === s.id ? "#fff" : C.muted, fontSize:12, fontWeight: step === s.id ? 900 : 600, cursor:"pointer", fontFamily:"inherit", transition:"all 150ms" }}>
@@ -1479,7 +1479,7 @@ export default function SnsManagerPage() {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg }}>
+    <div className="sns-manager-page" style={{ minHeight: "100vh", background: C.bg }}>
       <PageHeader title="홍보 콘텐츠 제작" />
 
       {/* 탭 헤더 */}
@@ -1503,7 +1503,7 @@ export default function SnsManagerPage() {
       </div>
 
       {/* 탭 내용 */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px 80px" }}>
+      <div className="sns-manager-content" style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px 80px" }}>
         {tab === "insta" && <InstagramContentTab />}
         {tab === "place"    && <NaverPlaceTab />}
         {tab === "blog"     && <PatternBlogWriter />}

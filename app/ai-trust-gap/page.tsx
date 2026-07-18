@@ -363,11 +363,11 @@ export default function AiTrustGapPage() {
   };
 
   return (
-    <div style={{ color: C.txt, minHeight: "100vh", background: C.bg, fontFamily: "var(--font-sans)" }}>
+    <div className="ai-trust-gap-page" style={{ color: C.txt, minHeight: "100vh", background: C.bg, fontFamily: "var(--font-sans)" }}>
       <PageHeader title="AI 추천 병원 역분석" />
-      <main style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 22px 88px" }}>
-        <section className="pc-mobile-stack" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(360px, .65fr)", gap: 20, alignItems: "start" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <main className="ai-trust-gap-main" style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 22px 88px" }}>
+        <section className="pc-mobile-stack ai-trust-gap-layout" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(360px, .65fr)", gap: 20, alignItems: "start" }}>
+          <div className="ai-trust-gap-primary" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <Hero />
             <StepNav />
             <ProjectForm
@@ -402,7 +402,7 @@ export default function AiTrustGapPage() {
               onReload={() => activeProjectId && loadSummary(activeProjectId)}
             />
           </div>
-          <aside style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 18 }}>
+          <aside className="ai-trust-gap-aside" style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 18 }}>
             <ProviderPanel
               providers={providers}
               selectedProviders={selectedProviders}
@@ -433,13 +433,13 @@ function Hero() {
     { label: "Shoot", value: "촬영 기획", desc: "Trust Gap 연결" },
   ];
   return (
-    <section style={panelStyle}>
+    <section className="ai-trust-gap-hero" style={panelStyle}>
       <div style={{ display: "inline-flex", alignItems: "center", height: 24, padding: "0 10px", borderRadius: 999, background: "rgba(232,93,44,.09)", color: C.orange, fontSize: 10, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 12, border: "1px solid rgba(232,93,44,.22)" }}>AI Trust Gap</div>
       <h1 style={{ margin: 0, maxWidth: 640, fontSize: 24, letterSpacing: "-.02em", lineHeight: 1.35, color: C.teal, fontWeight: 900 }}>반복 추천 병원의 신뢰 증거를 찾아 촬영 전략으로 연결합니다.</h1>
       <p style={{ margin: "10px 0 0", maxWidth: 640, fontSize: 13, lineHeight: 1.75, color: C.muted }}>
         Demand → Prompt → AI Audit → Consensus → Evidence → Trust Gap → Strategy → Shoot Plan 흐름으로 분석합니다.
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginTop: 18 }}>
+      <div className="ai-trust-gap-signals" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginTop: 18 }}>
         {signals.map((signal) => (
           <div key={signal.label} style={{ padding: 13, borderRadius: 12, background: C.light, border: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 10, color: C.orange, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em" }}>{signal.label}</div>
@@ -502,9 +502,9 @@ function ProjectForm({
   onSubmit: (e: FormEvent) => void;
 }) {
   return (
-    <form onSubmit={onSubmit} style={panelStyle}>
+    <form className="ai-trust-project-form" onSubmit={onSubmit} style={panelStyle}>
       <SectionTitle icon={<FileSearch size={16} />} title="분석 프로젝트 생성" />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+      <div className="ai-trust-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
         <Field label="분석 프로젝트명 *"><input value={form.project_name} onChange={(e) => onSet("project_name", e.target.value)} placeholder="언주역 피부과 AI 추천 분석" style={inputS} /></Field>
         <Field label="클라이언트 병원 선택"><select value={form.client_id} onChange={(e) => onSelectClient(e.target.value)} style={inputS}><option value="">직접 입력</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name || client.hospital_name}</option>)}</select></Field>
         <Field label="클라이언트 병원 *"><input value={form.client_hospital_name} onChange={(e) => onSet("client_hospital_name", e.target.value)} placeholder="OO피부과" style={inputS} /></Field>
@@ -516,7 +516,7 @@ function ProjectForm({
         <Field label="타깃 국가"><input value={form.target_countries} onChange={(e) => onSet("target_countries", e.target.value)} placeholder="한국, 일본" style={inputS} /></Field>
         <Field label="타깃 언어"><input value={form.target_languages} onChange={(e) => onSet("target_languages", e.target.value)} placeholder="한국어, 영어, 일본어" style={inputS} /></Field>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 12 }}>
+      <div className="ai-trust-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 12 }}>
         <Field label="수동 Seed Keyword"><textarea value={form.manual_keywords} onChange={(e) => onSet("manual_keywords", e.target.value)} rows={5} placeholder={"언주역 피부과\n언주역 피부과 추천\n언주역 리쥬란"} style={textareaS} /></Field>
         <Field label="경쟁 병원 / 메모"><textarea value={[form.competitor_hospitals, form.memo].filter(Boolean).join("\n")} onChange={(e) => onSet("memo", e.target.value)} rows={5} placeholder="경쟁 병원은 선택 입력입니다. AI 반복 추천 결과에서 자동 발견하는 것이 기본입니다." style={textareaS} /></Field>
       </div>

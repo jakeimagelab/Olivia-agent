@@ -1053,3 +1053,13 @@
   .oa-sidebar.oa-sidebar--open { top: 0; z-index: 1000001 !important; }
   .oa-shell__scrim { z-index: 1000000 !important; }
 }
+
+@media (max-width: 460px) {
+  /* 전역 모바일 h1 규칙보다 우선해 홈 제목과 우측 명령 버튼이 충돌하지 않게 한다. */
+  .oa-header--enhanced .oa-header__brand { min-width: 0; }
+  .oa-header--enhanced .oa-header__title--compact {
+    max-width: 160px;
+    font-size: 10.5px !important;
+    line-height: 1.2;
+  }
+}

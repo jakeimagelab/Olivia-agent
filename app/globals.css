@@ -5369,3 +5369,135 @@ main, .pc-console, .pc-page, .pc-page-content {
   .pc-header-logo { height: 23px; }
   .pc-tabs { top: 56px; justify-content: flex-start; padding: 7px 14px; }
 }
+
+/* 2026-07 모바일 가로 넘침 보정 — 기능별 데스크톱 인라인 그리드를 안전하게 축소한다. */
+@media (max-width: 720px) {
+  .pc-gs-workspace,
+  .pc-gs-workspace > *,
+  .ai-trust-gap-page,
+  .ai-trust-gap-main,
+  .ai-trust-gap-layout,
+  .ai-trust-gap-primary,
+  .ai-trust-gap-aside,
+  .sns-manager-page,
+  .sns-manager-content,
+  .mailing-page,
+  .mailing-tab-content {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ai-trust-gap-main {
+    padding: 14px 12px 84px !important;
+  }
+  .ai-trust-gap-layout {
+    grid-template-columns: minmax(0,1fr) !important;
+    gap: 14px !important;
+    padding-inline: 0 !important;
+  }
+  .ai-trust-gap-primary,
+  .ai-trust-gap-aside {
+    min-width: 0;
+  }
+  .ai-trust-gap-aside {
+    position: static !important;
+  }
+  .ai-trust-form-grid {
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+  .ai-trust-project-form,
+  .ai-trust-project-form > *,
+  .ai-trust-form-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .ai-trust-project-form input,
+  .ai-trust-project-form select,
+  .ai-trust-project-form textarea {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .ai-trust-gap-page .pc-workflow-bar {
+    width: 100%;
+    max-width: 100%;
+    overscroll-behavior-inline: contain;
+  }
+
+  .sns-manager-content {
+    padding: 16px 12px 82px !important;
+  }
+  .sns-manager-page .pc-mobile-stack {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0,1fr) !important;
+    padding-inline: 0 !important;
+  }
+  .sns-manager-page .pc-mobile-stack > *,
+  .sns-blog-writer,
+  .sns-blog-writer > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sns-blog-stepper > button {
+    min-width: 0;
+    padding: 10px 3px !important;
+    font-size: 10px !important;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .sns-manager-page input,
+  .sns-manager-page select,
+  .sns-manager-page textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .mailing-tab-content {
+    padding: 14px 12px 84px !important;
+    overflow-x: clip;
+  }
+  .mailing-page .pc-mobile-stack {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    grid-template-columns: minmax(0,1fr) !important;
+    padding-inline: 0 !important;
+  }
+  .mailing-page .pc-mobile-stack > *,
+  .mailing-page .pc-mobile-form-grid,
+  .mailing-page .pc-mobile-form-grid > *,
+  .mailing-page .pc-card,
+  .mailing-page .pc-card > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .mailing-page input,
+  .mailing-page select,
+  .mailing-page textarea {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .mailing-page .pc-tabs {
+    width: 100%;
+    max-width: 100vw;
+    overscroll-behavior-inline: contain;
+  }
+}
+
+@media (max-width: 430px) {
+  .ai-trust-gap-signals {
+    gap: 6px !important;
+  }
+  .ai-trust-gap-signals > div {
+    min-width: 0;
+    padding: 10px 8px !important;
+  }
+  .ai-trust-gap-hero {
+    padding: 16px !important;
+  }
+  .mailing-page .pc-card [style*="padding: 18px 20px"] {
+    padding: 14px !important;
+  }
+}

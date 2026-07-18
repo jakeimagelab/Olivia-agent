@@ -343,7 +343,7 @@ function BrandMailTab() {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+    <div className="mailing-tab-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
       <div className="pc-mobile-stack" style={{ maxWidth: preview ? 1120 : 580, margin: "0 auto", display: "grid", gridTemplateColumns: preview ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
 
         {/* ── 입력 폼 ─────────────────────────────── */}
@@ -701,7 +701,7 @@ function CustomBrandMailTab() {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+    <div className="mailing-tab-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
       <div className="pc-mobile-stack" style={{ maxWidth: preview ? 1120 : 580, margin: "0 auto", display: "grid", gridTemplateColumns: preview ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
 
         {/* ── 입력 폼 ── */}
@@ -1077,7 +1077,7 @@ function ReviewOnlyMailTab() {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+    <div className="mailing-tab-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
       <div className="pc-mobile-stack" style={{ maxWidth: preview ? 1120 : 580, margin: "0 auto", display: "grid", gridTemplateColumns: preview ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -1332,7 +1332,7 @@ function SelectGalleryMailTab() {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+    <div className="mailing-tab-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
       <div className="pc-mobile-stack" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
 
         {/* 갤러리 목록 */}
@@ -1448,7 +1448,7 @@ export default function MailingPage() {
   const [tab, setTab] = useState<Tab>("custom");
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
+    <main className="mailing-page" style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
       <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
