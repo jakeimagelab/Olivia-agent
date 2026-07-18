@@ -1761,11 +1761,6 @@ main:has(> .pc-header) {
   .dashboard-hero {
     padding-top: 20px;
   }
-
-  .admin-menu-card {
-    min-height: 244px;
-    padding: 20px;
-  }
 }
 
 .field {
