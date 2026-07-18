@@ -598,6 +598,15 @@ main:has(> .pc-header) {
   min-height: calc(100vh - 56px);
 }
 
+.website-builder-page {
+  min-height: 100dvh;
+  background: var(--mesh-bg);
+}
+
+.website-builder-content {
+  min-height: calc(100dvh - 58px);
+}
+
 /* ── 전역 사이드바 (대시보드 홈 / /admin 제외 모든 페이지) ───────
    /admin 콘솔과 똑같은 AdminSidebar를 그대로 재사용한다 — 예전엔 이 파일이 자체 아이콘 레일을
    따로 그려서 두 개의 서로 다른 내비게이션이 존재했다. */

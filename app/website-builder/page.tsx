@@ -1567,9 +1567,10 @@ export default function WebsiteBuilderPage() {
   };
 
   return (
-    <main className="admin-shell">
+    <main className="website-builder-page">
       <PageHeader title="홈페이지 제작" />
-      <section className="admin-dashboard" style={{ maxWidth: 900 }}>
+      <div className="admin-shell website-builder-content">
+        <section className="admin-dashboard" style={{ maxWidth: 900 }}>
 
         {/* ── 헤더 아래 액션 버튼 ── */}
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
@@ -1727,8 +1728,9 @@ export default function WebsiteBuilderPage() {
             )}
           </div>
         </div>
-      </section>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </section>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
     </main>
   );
 }
