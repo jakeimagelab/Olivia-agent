@@ -769,33 +769,37 @@ function ReportSkeleton({ summary }: { summary: SummaryData | null }) {
       {summary?.consensusTop10?.length ? (
         <div style={{ marginBottom: 14, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
           <div style={{ padding: "11px 13px", background: C.light, fontSize: 12, fontWeight: 900, color: C.teal }}>AI RECOMMENDED HOSPITALS · TOP 10</div>
-          {summary.consensusTop10.map((item, index) => (
-            <div key={item.id} style={{ display: "grid", gridTemplateColumns: "42px 1fr repeat(4, 80px)", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.border}`, alignItems: "center", fontSize: 11 }}>
-              <strong style={{ color: C.orange }}>{index + 1}</strong>
-              <strong style={{ color: C.teal }}>{item.hospital?.canonical_name || "병원명 확인 필요"}</strong>
-              <span>노출 {Math.round(item.mention_rate * 100)}%</span>
-              <span>TOP3 {Math.round(item.top3_rate * 100)}%</span>
-              <span>AI {item.provider_consensus}</span>
-              <span>의도 {item.intent_coverage}</span>
-            </div>
-          ))}
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            {summary.consensusTop10.map((item, index) => (
+              <div key={item.id} style={{ display: "grid", gridTemplateColumns: "42px 1fr repeat(4, 80px)", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.border}`, alignItems: "center", fontSize: 11, minWidth: 460 }}>
+                <strong style={{ color: C.orange }}>{index + 1}</strong>
+                <strong style={{ color: C.teal }}>{item.hospital?.canonical_name || "병원명 확인 필요"}</strong>
+                <span>노출 {Math.round(item.mention_rate * 100)}%</span>
+                <span>TOP3 {Math.round(item.top3_rate * 100)}%</span>
+                <span>AI {item.provider_consensus}</span>
+                <span>의도 {item.intent_coverage}</span>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
       {summary?.gaps?.length ? (
         <div style={{ marginBottom: 14, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
           <div style={{ padding: "11px 13px", background: C.light, fontSize: 12, fontWeight: 900, color: C.teal }}>AI TRUST GAP · 큰 격차 순</div>
-          {summary.gaps.slice(0, 8).map((gap) => {
-            const schema = AI_TRUST_EVIDENCE_SCHEMAS.find((item) => item.key === gap.schema_key);
-            return (
-              <div key={gap.id} style={{ display: "grid", gridTemplateColumns: "42px 1fr 90px 90px 90px", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.border}`, alignItems: "center", fontSize: 11 }}>
-                <strong style={{ color: C.orange }}>{gap.rank}</strong>
-                <strong style={{ color: C.teal }}>{schema?.label || gap.schema_key}</strong>
-                <span>추천군 {Math.round(gap.recommended_avg)}</span>
-                <span>클라이언트 {Math.round(gap.client_score)}</span>
-                <strong style={{ color: C.red }}>Gap {Math.round(gap.gap)}</strong>
-              </div>
-            );
-          })}
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            {summary.gaps.slice(0, 8).map((gap) => {
+              const schema = AI_TRUST_EVIDENCE_SCHEMAS.find((item) => item.key === gap.schema_key);
+              return (
+                <div key={gap.id} style={{ display: "grid", gridTemplateColumns: "42px 1fr 90px 90px 90px", gap: 8, padding: "10px 12px", borderTop: `1px solid ${C.border}`, alignItems: "center", fontSize: 11, minWidth: 420 }}>
+                  <strong style={{ color: C.orange }}>{gap.rank}</strong>
+                  <strong style={{ color: C.teal }}>{schema?.label || gap.schema_key}</strong>
+                  <span>추천군 {Math.round(gap.recommended_avg)}</span>
+                  <span>클라이언트 {Math.round(gap.client_score)}</span>
+                  <strong style={{ color: C.red }}>Gap {Math.round(gap.gap)}</strong>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : null}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
