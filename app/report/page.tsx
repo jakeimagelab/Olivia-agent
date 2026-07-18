@@ -63,9 +63,9 @@ export default function ReportPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#F0F9F8" }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
+      <header className="pc-header" style={{ justifyContent: "center" }}>
+        <div className="pc-header-left" style={{ flex: "none" }}>
+          <div className="pc-header-brand" style={{ justifyContent: "center" }}>
             <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
             <span className="pc-header-title">업무 리포트</span>
           </div>
