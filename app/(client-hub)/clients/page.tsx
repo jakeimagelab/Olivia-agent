@@ -298,6 +298,10 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
             style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: previewLoading ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
             <Eye size={13} /> {previewLoading ? "준비 중..." : "고객 화면 미리보기"}
           </button>
+          <button onClick={() => deleteClient(client.name)} disabled={deleting}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
+            <Trash2 size={13} /> {deleting ? "삭제 중..." : "고객 삭제"}
+          </button>
           <div style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 10, padding: "6px 14px", textAlign: "center", flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)", letterSpacing: ".08em" }}>진행</div>
             <div style={{ fontSize: 15, fontWeight: 900 }}>{progressStep}/{ACTIVE_WORKFLOW_STEPS.length}</div>
