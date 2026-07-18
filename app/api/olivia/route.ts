@@ -1327,7 +1327,18 @@ async function executeTool(
       query = query.in("status", ["draft", "ready"]);
     }
     if (input.clientName) query = query.ilike("hospital_name", `%${input.clientName}%`);
-    const { data: items } = await query;
+    let { data: items } = await query;
+
+    if ((!items || items.length === 0) && input.clientName) {
+      let candidateQuery = db.from("mailing_queue")
+        .select("id, type, hospital_name, subject, status, to_email, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      candidateQuery = input.status ? candidateQuery.eq("status", input.status) : candidateQuery.in("status", ["draft", "ready"]);
+      const { data: candidates } = await candidateQuery;
+      items = (candidates || []).filter((row: any) => fuzzyIncludes(row.hospital_name, input.clientName)).slice(0, 10);
+    }
+
     if (!items || items.length === 0) {
       return { action: "done", message: "📭 대기 중인 메일이 없습니다." };
     }
