@@ -147,9 +147,25 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       {/* 기본 정보 */}
       <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "12px 18px", background: "rgba(21,88,85,.03)", borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>병원 기본 정보</div>
-          <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>등록 후 고객 상세에서 언제든 수정할 수 있습니다.</div>
+        <div style={{ padding: "12px 18px", background: "rgba(21,88,85,.03)", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>병원 기본 정보</div>
+            <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>등록 후 고객 상세에서 언제든 수정할 수 있습니다.</div>
+          </div>
+          {contactSupported && (
+            <button
+              type="button"
+              onClick={pickContact}
+              style={{
+                display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+                padding: "7px 12px", background: C.white, color: C.teal,
+                border: `1.5px solid ${C.teal}`, borderRadius: 8,
+                fontSize: 11, fontWeight: 800, fontFamily: "inherit", cursor: "pointer",
+              }}
+            >
+              <Contact size={13} /> 연락처에서 가져오기
+            </button>
+          )}
         </div>
         <div style={{ padding: 18, display: "grid", gap: 12 }}>
           {/* 병원이름 + 담당자 */}
