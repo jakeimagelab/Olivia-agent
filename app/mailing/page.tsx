@@ -1333,7 +1333,7 @@ function SelectGalleryMailTab() {
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
+      <div className="pc-mobile-stack" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: selected ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
 
         {/* 갤러리 목록 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
