@@ -657,7 +657,7 @@ export default function BrandAnalysisPage() {
             <SectionTitle>브랜드필름 문장</SectionTitle>
             <div style={{ display: "grid", gap: 12 }}>
               {result.brandFilmLines.map((l, i) => (
-                <div key={i} style={{
+                <div key={i} className="pc-mobile-form-grid" style={{
                   display: "grid", gridTemplateColumns: "120px 1fr",
                   background: C.ivory, borderRadius: 10, overflow: "hidden",
                 }}>
