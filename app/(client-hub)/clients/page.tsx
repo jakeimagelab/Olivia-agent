@@ -115,6 +115,7 @@ function ListView() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
 
   const load = async () => {
@@ -125,6 +126,22 @@ function ListView() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+
+  const deleteClient = async (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation();
+    if (!window.confirm(`'${name}' 고객을 삭제할까요? 휴지통으로 이동되며 30일 안에 복원할 수 있습니다.`)) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/clients/${id}`, { method: "DELETE" });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.error || "삭제 실패");
+      setClients((cur) => cur.filter((c) => c.id !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "삭제 실패");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = clients.filter((c) =>
     !search ||
