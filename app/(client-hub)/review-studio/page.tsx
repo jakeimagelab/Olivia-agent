@@ -272,22 +272,16 @@ export default function ReviewStudioPage() {
 
       {/* ── 모바일 탭 바 ── */}
       {isMobile && (
-        <div className="pc-inline-tabs" style={{ display: "flex", background: C.surface, borderBottom: `1px solid ${C.border}`, position: "sticky", top: 56, zIndex: 50 }}>
+        <div className="pc-tabs pc-tabs--global">
           {[
             { id: "inbox",  label: "📥 접수 후기" },
             { id: "list",   label: "📋 후기 목록" },
             { id: "form",   label: "✏️ 후기 등록" },
             { id: "result", label: "✨ 생성 결과", dot: !!content },
           ].map(tab => (
-            <button key={tab.id} onClick={() => setMobileTab(tab.id as "inbox" | "form" | "list" | "result")} style={{
-              flex: 1, height: 44, border: "none", background: "transparent",
-              fontFamily: "inherit", fontSize: 12, fontWeight: 800, cursor: "pointer",
-              color: mobileTab === tab.id ? C.teal : C.muted, position: "relative",
-              borderBottom: mobileTab === tab.id ? `2px solid ${C.teal}` : "2px solid transparent",
-              transition: "all .15s",
-            }}>
+            <button key={tab.id} className={`pc-tab${mobileTab === tab.id ? " pc-tab--active" : ""}`} onClick={() => setMobileTab(tab.id as "inbox" | "form" | "list" | "result")} style={{ position: "relative" }}>
               {tab.label}
-              {tab.dot && <span style={{ position: "absolute", top: 8, right: 8, width: 6, height: 6, borderRadius: "50%", background: C.orange }} />}
+              {tab.dot && <span style={{ position: "absolute", top: 4, right: 4, width: 6, height: 6, borderRadius: "50%", background: C.orange }} />}
             </button>
           ))}
         </div>
