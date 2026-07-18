@@ -1,4 +1,5 @@
 import { Quote } from "lucide-react";
+import type { CSSProperties } from "react";
 
 /* 대시보드 홈에 쓰던 "오늘의 명언" 위젯 — 예전 app/page.tsx의 Dashboard에 있던 걸
    그대로 옮겨왔다(외부 API 없이 날짜 기준으로 매일 자동으로 바뀐다). */
@@ -61,29 +62,66 @@ export function todaysQuote() {
   return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
 }
 
-const PIXEL_FACE = [
-  0,0,1,1,1,1,0,0,
-  0,1,1,1,1,1,1,0,
-  0,1,2,2,2,2,1,0,
-  0,2,3,2,2,3,2,0,
-  0,2,2,2,2,2,2,0,
-  0,2,2,4,4,2,2,0,
-  0,0,2,2,2,2,0,0,
-  0,5,5,5,5,5,5,0,
-];
+type PortraitTraits = {
+  skin: string;
+  hair: string;
+  jacket: string;
+  hairStyle: "short" | "wave" | "bald" | "long" | "white";
+  glasses?: boolean;
+  moustache?: boolean;
+  beard?: boolean;
+};
+
+const DARK_SKIN = new Set(["넬슨 만델라", "마야 안젤루", "마틴 루터 킹", "무하마드 알리", "마이클 조던", "코비 브라이언트", "오프라 윈프리"]);
+const GLASSES = new Set(["마하트마 간디", "마틴 루터 킹", "스티브 잡스", "빌 게이츠", "피터 드러커", "워런 버핏", "달라이 라마"]);
+const MOUSTACHE = new Set(["알베르트 아인슈타인", "마하트마 간디", "찰스 다윈", "프리드리히 니체", "마크 트웨인"]);
+const BEARD = new Set(["찰스 다윈", "아리스토텔레스", "소크라테스", "마르쿠스 아우렐리우스", "레오나르도 다빈치"]);
+const LONG_HAIR = new Set(["알베르트 아인슈타인", "빈센트 반 고흐", "윌리엄 셰익스피어", "레오나르도 다빈치", "프리드리히 니체"]);
+const WHITE_HAIR = new Set(["윈스턴 처칠", "알베르트 아인슈타인", "넬슨 만델라", "마리 퀴리", "찰스 다윈", "마크 트웨인", "피터 드러커"]);
+const BALD = new Set(["마하트마 간디", "마틴 루터 킹", "마이클 조던", "달라이 라마", "소크라테스"]);
+
+function portraitTraits(author: string): PortraitTraits {
+  const seed = Array.from(author).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return {
+    skin: DARK_SKIN.has(author) ? "#9B654A" : ["#E8B58F", "#F0C7A4", "#DFA77F"][seed % 3],
+    hair: WHITE_HAIR.has(author) ? "#D9DDD8" : ["#1A2526", "#4A3027", "#745442"][seed % 3],
+    jacket: ["#103A62", "#155855", "#8C4C32", "#524A68"][seed % 4],
+    hairStyle: BALD.has(author) ? "bald" : WHITE_HAIR.has(author) ? "white" : LONG_HAIR.has(author) ? "long" : seed % 3 === 0 ? "wave" : "short",
+    glasses: GLASSES.has(author),
+    moustache: MOUSTACHE.has(author),
+    beard: BEARD.has(author),
+  };
+}
 
 function PixelPortrait({ author }: { author: string }) {
-  const seed = Array.from(author).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const hair = ["#182B38", "#4A3027", "#75604E", "#D7D0C5"][seed % 4];
-  const skin = ["#F1C7A5", "#DFA77F", "#B97855", "#F0B98B"][seed % 4];
-  const jacket = ["#103A62", "#155855", "#7A3D2B", "#4D4B64"][seed % 4];
-  const colors = ["transparent", hair, skin, "#17242E", "#B65E4A", jacket];
-
+  const traits = portraitTraits(author);
   return (
-    <div className="oa-pixel-portrait" role="img" aria-label={`${author} 픽셀아트 초상`}>
-      {PIXEL_FACE.map((colorIndex, index) => (
-        <span key={index} style={{ background: colors[colorIndex] }} />
-      ))}
+    <div
+      className={`oa-pixel-person oa-pixel-person--${traits.hairStyle}`}
+      role="img"
+      aria-label={`${author}의 픽셀아트 초상`}
+      style={{
+        "--portrait-skin": traits.skin,
+        "--portrait-hair": traits.hair,
+        "--portrait-jacket": traits.jacket,
+      } as CSSProperties}
+    >
+      <span className="oa-pixel-person__hair" />
+      <span className="oa-pixel-person__ear oa-pixel-person__ear--left" />
+      <span className="oa-pixel-person__ear oa-pixel-person__ear--right" />
+      <span className="oa-pixel-person__face">
+        <span className="oa-pixel-person__brow oa-pixel-person__brow--left" />
+        <span className="oa-pixel-person__brow oa-pixel-person__brow--right" />
+        <span className="oa-pixel-person__eye oa-pixel-person__eye--left" />
+        <span className="oa-pixel-person__eye oa-pixel-person__eye--right" />
+        {traits.glasses && <span className="oa-pixel-person__glasses" />}
+        <span className="oa-pixel-person__nose" />
+        {traits.moustache && <span className="oa-pixel-person__moustache" />}
+        {traits.beard && <span className="oa-pixel-person__beard" />}
+        <span className="oa-pixel-person__mouth" />
+      </span>
+      <span className="oa-pixel-person__neck" />
+      <span className="oa-pixel-person__body" />
     </div>
   );
 }

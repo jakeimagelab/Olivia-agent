@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 type PageMeta = { title: string; description: string };
 
 const pageMeta: Record<string, PageMeta> = {
-  "/admin/dashboard": { title: "Today's Operations Overview", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
-  "/admin/dashboard/home": { title: "Today's Operations Overview", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
+  "/admin/dashboard": { title: "포토클리닉 올리비아", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
+  "/admin/dashboard/home": { title: "포토클리닉 올리비아", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
   "/admin/dashboard/memo": { title: "메모", description: "일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다." },
   "/admin/dashboard/calendar": { title: "캘린더", description: "촬영과 운영 일정을 한눈에 관리합니다." },
   "/admin/dashboard/mailing": { title: "메일링", description: "발송 대기 메일과 발송 이력을 관리합니다." },

@@ -5,41 +5,44 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
-  const supabase = getSupabaseAdmin();
-  const { searchParams } = new URL(req.url);
-  const prefix = searchParams.get("prefix");
-  const limit = Number(searchParams.get("limit") ?? "10");
+  try {
+    const supabase = getSupabaseAdmin();
+    const { searchParams } = new URL(req.url);
+    const prefix = searchParams.get("prefix");
+    const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "10") || 10));
 
-  if (prefix) {
+    if (prefix) {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("quote_number")
+        .ilike("quote_number", `${prefix}%`);
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, quoteNumbers: (data ?? []).map((row) => row.quote_number as string) });
+    }
+
     const { data, error } = await supabase
       .from("quotes")
-      .select("quote_number")
-      .ilike("quote_number", `${prefix}%`);
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, quoteNumbers: (data ?? []).map((row) => row.quote_number as string) });
+    return NextResponse.json({ ok: true, quotes: data ?? [] });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "견적 조회 실패" }, { status: 500 });
   }
-
-  const { data, error } = await supabase
-    .from("quotes")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, quotes: data ?? [] });
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = getSupabaseAdmin();
-  const body = await req.json();
+  try {
+    const supabase = getSupabaseAdmin();
+    const body = await req.json();
 
-  if (!body.quoteNumber) {
-    return NextResponse.json({ ok: false, error: "quoteNumber 필수" }, { status: 400 });
-  }
+    if (typeof body.quoteNumber !== "string" || !body.quoteNumber.trim()) {
+      return NextResponse.json({ ok: false, error: "견적번호를 입력해주세요." }, { status: 400 });
+    }
 
-  const { data, error } = await supabase
-    .from("quotes")
-    .insert({
+    const payload = {
       quote_number:    body.quoteNumber,
       title:           body.title ?? "",
       hospital_name:   body.hospitalName ?? "",
@@ -59,10 +62,25 @@ export async function POST(req: NextRequest) {
       deposit_rate:    body.depositRate ?? 50,
       memos:           body.memos ?? null,
       form_state:      body.formState ?? null,
-    })
-    .select("id, created_at")
-    .single();
+    };
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at });
+    const { data: existing, error: findError } = await supabase
+      .from("quotes")
+      .select("id")
+      .eq("quote_number", body.quoteNumber)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (findError) throw new Error(findError.message);
+
+    const query = existing?.id
+      ? supabase.from("quotes").update(payload).eq("id", existing.id)
+      : supabase.from("quotes").insert(payload);
+    const { data, error } = await query.select("id, created_at").single();
+
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at, updated: Boolean(existing?.id) });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "견적 저장 실패" }, { status: 500 });
+  }
 }

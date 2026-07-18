@@ -7,6 +7,7 @@ import {
 } from "@/lib/workflow";
 import { addYearsIso } from "@/lib/dataRetention";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { loadWorkflowRegisteredData, workflowContact, type WorkflowRegisteredData } from "@/lib/workflowDataContext";
 
 export type StepAutomation = {
   task_type: string;
@@ -306,6 +307,7 @@ export async function ensureStepRun(db: SupabaseClient, workflowRunId: string, s
 
 export async function createStepTasks(db: SupabaseClient, workflowRunId: string, stepKey: string) {
   const run = await getWorkflowRun(db, workflowRunId);
+  const registeredData = await loadWorkflowRegisteredData(db, run);
   const stepRun = await ensureStepRun(db, workflowRunId, stepKey, "in_progress");
   if (stepRun.status === "completed") return { created: [], skipped: true };
 
@@ -345,6 +347,7 @@ export async function createStepTasks(db: SupabaseClient, workflowRunId: string,
           project_name: run.project_name,
           manager_name: run.manager_name,
           shoot_date: run.shoot_date,
+          registered_data: registeredData,
           automation,
         },
       })
@@ -493,6 +496,9 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
 
   const automation = findAutomation(task.workflow_step_key, task.task_type);
   const run = task.workflow_run_id ? await getWorkflowRun(db, task.workflow_run_id) : null;
+  const registeredData = run
+    ? await loadWorkflowRegisteredData(db, run)
+    : (task.input_data?.registered_data ?? null);
   const now = new Date().toISOString();
 
   await db.from("agent_tasks").update({ status: "running", started_at: task.started_at ?? now, updated_at: now, error_message: "" }).eq("id", task.id);
@@ -507,20 +513,27 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
   });
 
   try {
-    const output = buildTaskOutput(task, run);
+    const enrichedTask = {
+      ...task,
+      input_data: { ...(task.input_data ?? {}), registered_data: registeredData },
+    };
+    if (registeredData) {
+      await db.from("agent_tasks").update({ input_data: enrichedTask.input_data, updated_at: now }).eq("id", task.id);
+    }
+    const output = buildTaskOutput(enrichedTask, run);
     let relatedType = task.task_type;
     let relatedId = `${task.task_type}-${task.id}`;
     let mailingId: string | null = null;
 
     if (automation?.creates_mailing_draft) {
-      const mailing = await ensureMailingDraft(db, task, run, automation, output);
+      const mailing = await ensureMailingDraft(db, enrichedTask, run, automation, output);
       mailingId = mailing.id;
       relatedType = "mailing_queue";
       relatedId = mailing.id;
     }
 
     if (automation?.requires_approval) {
-      const approval = await ensureApproval(db, task, run, automation, output, relatedType, relatedId);
+      const approval = await ensureApproval(db, enrichedTask, run, automation, output, relatedType, relatedId);
       if (mailingId) {
         await db.from("mailing_queue").update({ source_id: task.id, approval_id: approval.id, approval_status: "pending" }).eq("id", mailingId);
       }
@@ -545,7 +558,7 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
     }
 
     if (task.task_type === "per_points_calculate") {
-      await ensureRewardTransaction(db, task, run, output);
+      await ensureRewardTransaction(db, enrichedTask, run, output);
     }
 
     const { data, error } = await db
@@ -667,42 +680,60 @@ function approvalTypeFromTask(taskType: string): StepAutomation["approval_type"]
 }
 
 function buildTaskOutput(task: any, run: any) {
-  const hospitalName = run?.client_name || task.client_name || "병원";
+  const registered = (task.input_data?.registered_data ?? {}) as WorkflowRegisteredData;
+  const contact = workflowContact(registered, run ?? task);
+  const hospitalName = contact.hospitalName;
   const projectName = run?.project_name || task.project_name || "촬영 프로젝트";
-  const shootDate = run?.shoot_date || task.input_data?.shoot_date || "";
-  const amount = Number(task.input_data?.amount || task.input_data?.total_amount || 2200000);
+  const consultation = registered.consultation ?? {};
+  const extracted = consultation.extracted_data ?? {};
+  const quote = registered.quote ?? {};
+  const contractQuote = registered.contract?.quote_data ?? {};
+  const shootDate = run?.shoot_date || registered.project?.shoot_date || quote.shoot_date || registered.gallery?.shoot_date || task.input_data?.shoot_date || "";
+  const amount = Number(quote.total_amount || contractQuote.totalAmount || contractQuote.total_amount || task.input_data?.amount || task.input_data?.total_amount || 2200000);
   const supply = Math.round(amount / 1.1);
+  const quoteItems = Array.isArray(quote.items) ? quote.items : Array.isArray(contractQuote.items) ? contractQuote.items : [];
+  const shootingItems = Array.isArray(extracted.shooting_items)
+    ? extracted.shooting_items
+    : Array.isArray(extracted.shootingItems)
+      ? extracted.shootingItems
+      : quoteItems.map((item: any) => item.name).filter(Boolean);
 
   if (task.task_type === "quote_draft") {
     return {
-      package_name: projectName || "포토클리닉 촬영 패키지",
-      base_amount: amount,
-      options: ["원장 프로필", "상담 장면", "공간 무드컷", "하모니컷"],
-      discount: 0,
-      vat: amount - supply,
+      quote_number: quote.quote_number ?? null,
+      package_name: consultation.recommended_package || quote.title || projectName || "포토클리닉 촬영 패키지",
+      base_amount: Number(quote.supply_amount || supply),
+      options: quoteItems.length ? quoteItems : shootingItems,
+      discount: Number(quote.discount_amount || 0),
+      vat: Number(quote.vat || amount - supply),
       total_amount: amount,
-      memo: `${hospitalName} 상담 내용을 기준으로 생성한 견적 초안입니다.`,
+      memo: consultation.summary || `${hospitalName}에 등록된 고객·프로젝트 정보를 기준으로 생성한 견적 초안입니다.`,
+      source: quote.id ? "registered_quote" : consultation.id ? "registered_consultation" : "workflow_fallback",
     };
   }
   if (task.task_type === "contract_draft") {
     return {
       contract_title: `${hospitalName} 촬영 계약서`,
       contract_amount: amount,
-      scope: ["병원 브랜드 촬영", "보정본 납품", "홈페이지/SNS 활용"],
-      payment_terms: "계약금 50%, 촬영 후 잔금 50%",
-      memo: "전자서명 연동 전 계약서 초안 데이터입니다.",
+      quote_number: quote.quote_number || registered.contract?.quote_number || null,
+      scope: quoteItems.length ? quoteItems.map((item: any) => item.name || item.detail).filter(Boolean) : shootingItems,
+      payment_terms: `계약금 ${Number(quote.deposit_rate ?? contractQuote.depositRate ?? 50)}%, 촬영 후 잔금 ${100 - Number(quote.deposit_rate ?? contractQuote.depositRate ?? 50)}%`,
+      memo: registered.contract?.id ? "등록된 계약 및 견적 데이터를 불러왔습니다." : "등록된 견적 데이터를 기준으로 만든 계약서 초안입니다.",
+      source: registered.contract?.id ? "registered_contract" : quote.id ? "registered_quote" : "workflow_fallback",
     };
   }
   if (task.task_type === "conti_draft") {
     return {
-      title: `${hospitalName} 촬영 콘티`,
+      title: registered.conti?.title || `${hospitalName} 촬영 콘티`,
       shoot_date: shootDate,
-      scenes: [
-        { time: "09:30", title: "공간 첫인상", note: "로비와 진료 동선을 차분하게 기록" },
-        { time: "10:30", title: "원장님 상담 장면", note: "진료 철학과 설명 태도가 보이는 컷" },
-        { time: "11:30", title: "직원 응대", note: "병원의 온도와 신뢰를 보여주는 하모니컷" },
-      ],
-      checklist: ["의료진 가운", "상담실 정리", "공간 소품", "브랜드 컬러 소품"],
+      scenes: registered.conti?.result?.scenes || registered.conti?.result?.conti || shootingItems.map((title: string, index: number) => ({
+        time: `${String(9 + index).padStart(2, "0")}:30`,
+        title,
+        note: extracted.special_notes || extracted.specialNotes || "상담 메모에 등록된 촬영 항목",
+      })),
+      checklist: registered.conti?.result?.checklist || extracted.preparation_items || extracted.preparationItems || [],
+      specialties: registered.conti?.specialties || (registered.client?.department ? [registered.client.department] : []),
+      source: registered.conti?.id ? "registered_conti" : consultation.id ? "registered_consultation" : "workflow_fallback",
     };
   }
   if (task.task_type === "review_summarize") {
@@ -742,9 +773,11 @@ async function ensureMailingDraft(db: SupabaseClient, task: any, run: any, autom
   if (existingError) throw new Error(existingError.message);
   if (existing?.length) return existing[0];
 
-  const hospitalName = run?.client_name || task.client_name || "병원";
-  const contactName = run?.contact_name || run?.manager_name || task.input_data?.manager_name || "";
-  const toEmail = run?.contact_email || task.input_data?.to_email || "";
+  const registered = (task.input_data?.registered_data ?? {}) as WorkflowRegisteredData;
+  const contact = workflowContact(registered, run ?? task);
+  const hospitalName = contact.hospitalName;
+  const contactName = contact.managerName;
+  const toEmail = contact.email || run?.contact_email || task.input_data?.to_email || "";
   const type = automation.mailing_type || "proposal";
   const links = buildMailLinks(task.task_type, hospitalName, output);
 

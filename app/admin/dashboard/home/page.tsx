@@ -119,7 +119,8 @@ export default function AdminDashboardHomePage() {
 
       <div className="oa-dashboard-layout pc-dash-layout">
         <div className="oa-main-column">
-          <div className="crm-kanban-label">진행 현황 (카드 클릭 → 프로젝트 상세)</div>
+          <section className="crm-kanban-shell" aria-labelledby="crm-progress-title">
+          <div className="crm-kanban-label" id="crm-progress-title">진행 현황 <span>카드 클릭 → 프로젝트 상세</span></div>
           <div className="crm-kanban">
             {WORKFLOW_STAGES.map((stage) => {
               const stageRuns = runs.filter((run) => run.stage_key === stage.key && run.status === "active");
@@ -147,6 +148,7 @@ export default function AdminDashboardHomePage() {
               );
             })}
           </div>
+          </section>
 
           <CategorySection eyebrow="QUICK" title="빠른 실행">
             <div className="oa-quick-grid oa-quick-grid--row">

@@ -621,28 +621,31 @@ export default function QuoteBuilder() {
     };
   };
 
-  const saveRecentQuote = (data: ContractQuoteData) => {
-    const next = [data, ...recentQuotes].slice(0, RECENT_QUOTES_DISPLAY_LIMIT);
-    setRecentQuotes(next);
-
-    const todayPrefix = `PC-${todayValue().replaceAll("-", "")}-`;
-    if (data.quoteNumber.startsWith(todayPrefix)) {
-      setTodayQuoteNumbers((prev) => Array.from(new Set([...prev, data.quoteNumber])));
-    }
-
-    fetch("/api/quotes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    })
-      .then(async (res) => {
-        if (res.ok) return;
-        const body = await res.json().catch(() => null);
-        setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${body?.error ?? "서버 오류"} (화면에는 표시되지만 DB에 저장되지 않았습니다)`);
-      })
-      .catch(() => {
-        setRecentQuoteMessage("⚠️ 견적 저장 실패 — 네트워크 오류 (화면에는 표시되지만 DB에 저장되지 않았습니다)");
+  const saveRecentQuote = async (data: ContractQuoteData): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body?.ok) throw new Error(body?.error ?? "서버 오류");
+
+      const savedData = { ...data, id: body.id ?? data.id, savedAt: body.createdAt ?? data.savedAt };
+      setRecentQuotes((current) => [
+        savedData,
+        ...current.filter((quote) => quote.quoteNumber !== savedData.quoteNumber),
+      ].slice(0, RECENT_QUOTES_DISPLAY_LIMIT));
+
+      const todayPrefix = `PC-${todayValue().replaceAll("-", "")}-`;
+      if (data.quoteNumber.startsWith(todayPrefix)) {
+        setTodayQuoteNumbers((prev) => Array.from(new Set([...prev, data.quoteNumber])));
+      }
+      return true;
+    } catch (error) {
+      setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${error instanceof Error ? error.message : "네트워크 오류"}`);
+      return false;
+    }
   };
 
   const loadRecentQuote = (data: ContractQuoteData) => {
@@ -725,11 +728,13 @@ export default function QuoteBuilder() {
   };
 
   const [manualSaving, setManualSaving] = useState(false);
-  const handleManualSave = () => {
+  const handleManualSave = async () => {
     setManualSaving(true);
-    saveCurrentQuoteSnapshot();
-    setRecentQuoteMessage("현재 입력 내용을 최근 견적 목록에 저장했습니다.");
-    setTimeout(() => setManualSaving(false), 600);
+    setRecentQuoteMessage("");
+    const data = buildContractQuoteData();
+    const saved = await saveRecentQuote(data);
+    if (saved) setRecentQuoteMessage("현재 입력 내용을 DB에 저장했습니다.");
+    setManualSaving(false);
   };
   useSaveShortcut(handleManualSave);
 

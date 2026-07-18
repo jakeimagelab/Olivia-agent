@@ -98,6 +98,56 @@ function minutesToTime(mins: number): string {
   return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
 }
 
+type TimedLayout = { left: string; width: string; column: number; columns: number };
+
+function layoutOverlappingTasks(tasks: CalTask[]): Map<string, TimedLayout> {
+  const entries = tasks
+    .filter((task): task is CalTask & { time: string } => Boolean(task.time))
+    .map((task) => {
+      const start = timeToMinutes(task.time);
+      const rawEnd = task.end_time ? timeToMinutes(task.end_time) : start + 60;
+      return { task, start, end: rawEnd > start ? rawEnd : start + 60 };
+    })
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const result = new Map<string, TimedLayout>();
+  let group: typeof entries = [];
+  let groupEnd = -1;
+
+  const placeGroup = () => {
+    if (!group.length) return;
+    const columnEnds: number[] = [];
+    const placements = group.map((entry) => {
+      let column = columnEnds.findIndex((end) => end <= entry.start);
+      if (column === -1) column = columnEnds.length;
+      columnEnds[column] = entry.end;
+      return { entry, column };
+    });
+    const columns = Math.max(1, columnEnds.length);
+    placements.forEach(({ entry, column }) => {
+      const width = 100 / columns;
+      result.set(entry.task.id, {
+        column,
+        columns,
+        left: `calc(${column * width}% + 2px)`,
+        width: `calc(${width}% - 4px)`,
+      });
+    });
+  };
+
+  entries.forEach((entry) => {
+    if (group.length && entry.start >= groupEnd) {
+      placeGroup();
+      group = [];
+      groupEnd = -1;
+    }
+    group.push(entry);
+    groupEnd = Math.max(groupEnd, entry.end);
+  });
+  placeGroup();
+  return result;
+}
+
 function formatTimeKo(t: string): string {
   const [hStr, mStr] = t.split(":");
   const h = Number(hStr);
@@ -1453,6 +1503,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
             const ds = toYMD(d);
             const isToday = ds === todayStr;
             const timedTasks = (tasksByDate[ds] ?? []).filter(t => !!t.time);
+            const timedLayout = layoutOverlappingTasks(timedTasks);
             return (
               <div key={colIdx} ref={el => { dayColRefs.current[colIdx] = el; }} style={{ position: "relative", borderLeft: `1px solid ${C.border}30` }}>
 
@@ -1475,6 +1526,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                   const top = timeToTop(currentStart);
                   const height = durationPx(currentStart, currentEnd);
                   const isDraggingThis = dragging?.task.id === t.id;
+                  const layout = timedLayout.get(t.id);
 
                   return (
                     <div key={t.id}
@@ -1503,7 +1555,9 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                         });
                       }}
                       style={{
-                        position: "absolute", top, left: 2, right: 2,
+                        position: "absolute", top,
+                        left: layout?.left ?? 2,
+                        width: layout?.width ?? "calc(100% - 4px)",
                         height: Math.max(28, height),
                         background: t.completed ? "#9CA3AF" : cat.color,
                         borderRadius: 5, padding: "3px 6px 8px",
@@ -1624,6 +1678,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
   const dow = d.getDay();
   const allDay = tasks.filter(t => !t.time);
   const timed  = tasks.filter(t => !!t.time);
+  const timedLayout = useMemo(() => layoutOverlappingTasks(timed), [timed]);
 
   const [dragging, setDragging] = useState<{
     task: CalTask; currentX: number; currentY: number; offsetX: number; offsetY: number;
@@ -1817,9 +1872,10 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                 const top = timeToTop(t.time!);
                 const height = durationPx(t.time!, t.end_time);
                 const isDraggingThis = dragging?.task.id === t.id;
+                const layout = timedLayout.get(t.id);
 
                 if (editingId === t.id) return (
-                  <div key={t.id} style={{ position: "absolute", top, left: 2, right: 2, zIndex: 20 }}>
+                  <div key={t.id} style={{ position: "absolute", top, left: layout?.left ?? 2, width: layout?.width ?? "calc(100% - 4px)", zIndex: 20 }}>
                     <EditTaskForm task={t}
                       onSave={updated => { onEdit(updated); setEditingId(null); }}
                       onCancel={() => setEditingId(null)}/>
@@ -1843,7 +1899,9 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                         offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
                     }}
                     style={{
-                      position: "absolute", top, left: 2, right: 2,
+                      position: "absolute", top,
+                      left: layout?.left ?? 2,
+                      width: layout?.width ?? "calc(100% - 4px)",
                       height: Math.max(MIN_H, height),
                       background: t.completed ? "#9CA3AF" : cat.color,
                       borderRadius: 6, padding: isMobile ? "5px 8px 12px" : "4px 8px 10px",
