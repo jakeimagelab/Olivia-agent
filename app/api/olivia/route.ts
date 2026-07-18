@@ -6,6 +6,7 @@ import { moveRecordToTrash } from "@/lib/trash";
 import { executeOliviaChatWorkTool, OLIVIA_CHAT_WORK_TOOL_NAMES } from "@/lib/olivia/chatWorkTools";
 import { formatWorkItemReferenceContext, type OliviaChatReference } from "@/lib/olivia/chatTypes";
 import { getErrorMessage } from "@/lib/errors";
+import { fuzzyIncludes, fuzzyNameSearch, fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
