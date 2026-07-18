@@ -90,22 +90,26 @@ export async function POST(req: NextRequest) {
     deduplicationKey: createEventDeduplicationKey("customer.created", client.id),
   });
 
+  const startStepKey = isActiveWorkflowStep(body.startStepKey) ? body.startStepKey : "consult_meeting";
+
   const { data: run } = await supabase.from("workflow_runs").insert({
     client_id:        client.id,
     client_name:      hospitalName,
-    current_step_key: "consult_meeting",
-    next_action:      buildNextAction("consult_meeting"),
+    current_step_key: startStepKey,
+    next_action:      buildNextAction(startStepKey),
     status:           "active",
     started_at:       new Date().toISOString(),
   }).select().single();
 
   if (run?.id) {
-    await ensureStepRun(supabase, run.id, "consult_meeting", "in_progress");
-    const taskResult = await createStepTasks(supabase, run.id, "consult_meeting");
+    await ensureStepRun(supabase, run.id, startStepKey, "in_progress");
+    const taskResult = await createStepTasks(supabase, run.id, startStepKey);
     await logAgent(supabase, {
       workflow_run_id: run.id,
       log_type: "workflow_started",
-      message: `${hospitalName} 고객 생성 후 워크플로우가 시작되었습니다.`,
+      message: startStepKey === "consult_meeting"
+        ? `${hospitalName} 고객 생성 후 워크플로우가 시작되었습니다.`
+        : `${hospitalName} 고객이 중간 단계(${startStepKey})부터 등록되어, 이전 단계는 완료 처리(수동 진행분)됐습니다.`,
       output_summary: `created_tasks: ${taskResult.created.length}`,
     });
     await emitOliviaEventSafely(supabase, {
@@ -114,7 +118,7 @@ export async function POST(req: NextRequest) {
       clientId: client.id,
       workflowRunId: run.id,
       actorType: "admin",
-      payload: { firstStepKey: "consult_meeting", clientName: hospitalName },
+      payload: { firstStepKey: startStepKey, clientName: hospitalName },
       deduplicationKey: createEventDeduplicationKey("workflow.started", run.id),
     });
   }
