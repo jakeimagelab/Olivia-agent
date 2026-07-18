@@ -884,7 +884,7 @@
 @media(max-width:600px){.olivia-dashboard-panel{padding:16px}.olivia-dashboard-grid,.olivia-list-grid,.olivia-project-panel>div{grid-template-columns:1fr}.olivia-page-heading{padding:18px}.olivia-page-heading h1{font-size:20px}.olivia-page-heading{flex-direction:column}.olivia-briefing-sections{grid-template-columns:1fr}.olivia-approval-summary{grid-template-columns:auto auto}.olivia-approval-summary small{grid-column:1/-1}}
 
 /* 관리자 명령 헤더 — 통합검색 / 알림 / 빠른 실행 */
-.oa-header--enhanced { grid-template-columns: auto minmax(0,1fr); justify-content: stretch; gap: 24px; padding-inline: 24px; }
+.oa-header--enhanced { display: grid; grid-template-columns: auto minmax(0,1fr); justify-content: stretch; gap: 24px; padding-inline: 24px; }
 .oa-header--enhanced .oa-header__brand { justify-content: flex-start; gap: 9px; }
 .oa-header--enhanced .oa-header__brand img { height: 27px; }
 .oa-header--enhanced .oa-header__title--compact { color: #155855; font-size: clamp(15px,1.35vw,20px); letter-spacing: -.04em; }
