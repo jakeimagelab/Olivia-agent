@@ -162,16 +162,63 @@ export async function runOliviaAction(db: SupabaseClient, action: any, context?:
       if (!context) throw new Error("내부 업무 생성에 워크플로우 문맥이 필요합니다.");
       const task = await createInternalTask(db, running, context);
       result = { taskId: task.id };
+    } else if (["create_followup_message", "create_mailing_draft"].includes(running.action_type)) {
+      if (!context) throw new Error("후속 연락 준비에 워크플로우 문맥이 필요합니다.");
+      const hospitalName = String(context.workflowRun.client_name || context.client?.name || "고객");
+      const body = String(running.action_payload?.draft || running.description || "진행 상황 확인 부탁드립니다.");
+      const { data: mailing, error: mailingError } = await db.from("mailing_queue").insert({
+        type: "proposal",
+        source_module: "olivia_chat",
+        source_id: running.id,
+        hospital_name: hospitalName,
+        contact_name: String(context.workflowRun.manager_name || context.client?.manager_name || ""),
+        to_email: String(context.client?.email || ""),
+        subject: `[포토클리닉] ${hospitalName} 진행 상황 확인`,
+        body,
+        attachments: [],
+        links: [],
+        status: "draft",
+      }).select("id,status").single();
+      if (mailingError) throw new Error(mailingError.message);
+      result = { mailingId: mailing.id, mailingStatus: mailing.status, preparedOnly: true };
+      await emitOliviaEventSafely(db, {
+        eventType: "mailing.draft_created",
+        eventSource: "olivia_action_planner",
+        clientId: running.client_id,
+        projectId: running.project_id,
+        workflowRunId: running.workflow_run_id,
+        actorType: "admin",
+        payload: { mailingId: mailing.id, actionId: running.id },
+        deduplicationKey: createEventDeduplicationKey("mailing.draft_created", mailing.id),
+      });
     }
 
     const { data: completed, error } = await db.from("olivia_actions").update({
       status: "completed", executed_at: now, result_data: result,
     }).eq("id", running.id).select("*").single();
     if (error) throw new Error(error.message);
+    await emitOliviaEventSafely(db, {
+      eventType: "olivia.action_completed",
+      eventSource: "olivia_action_planner",
+      clientId: running.client_id,
+      projectId: running.project_id,
+      workflowRunId: running.workflow_run_id,
+      payload: { actionId: running.id, actionType: running.action_type },
+      deduplicationKey: createEventDeduplicationKey("olivia.action_completed", running.id),
+    });
     return completed;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await db.from("olivia_actions").update({ status: "failed", error_message: message.slice(0, 1_000) }).eq("id", running.id);
+    await emitOliviaEventSafely(db, {
+      eventType: "olivia.action_failed",
+      eventSource: "olivia_action_planner",
+      clientId: running.client_id,
+      projectId: running.project_id,
+      workflowRunId: running.workflow_run_id,
+      payload: { actionId: running.id, actionType: running.action_type, errorMessage: message.slice(0, 500) },
+      deduplicationKey: createEventDeduplicationKey("olivia.action_failed", running.id, new Date().toISOString().slice(0, 13)),
+    });
     throw error;
   }
 }

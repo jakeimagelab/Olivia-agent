@@ -3,6 +3,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { logActivity } from "@/lib/activityLogger";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
+import { executeOliviaChatWorkTool, OLIVIA_CHAT_WORK_TOOL_NAMES } from "@/lib/olivia/chatWorkTools";
+import { formatWorkItemReferenceContext, type OliviaChatReference } from "@/lib/olivia/chatTypes";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -327,6 +329,97 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
+const OLIVIA_WORK_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "get_today_briefing",
+    description: "오늘 대표가 우선 확인할 긴급 인사이트, 승인, 약속, 고객 반응을 조회합니다. '오늘 뭐 해야 해?', '급한 일 알려줘'에 사용합니다.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_urgent_insights",
+    description: "Olivia Observer가 발견한 긴급 운영 인사이트를 우선순위순으로 조회합니다.",
+    input_schema: {
+      type: "object",
+      properties: { minimumScore: { type: "number", description: "최소 우선순위 점수. 기본값 80" } },
+    },
+  },
+  {
+    name: "search_client_projects",
+    description: "고객명 또는 프로젝트명으로 CRM 워크플로우를 검색합니다. 여러 결과면 사용자가 선택할 수 있는 카드를 반환합니다.",
+    input_schema: {
+      type: "object",
+      properties: { query: { type: "string", description: "고객명 또는 프로젝트명" } },
+      required: ["query"],
+    },
+  },
+  {
+    name: "get_project_status",
+    description: "지정 프로젝트의 현재 단계, 다음 행동, 열린 인사이트, 승인, 약속을 조회합니다. 직전 결과의 순번도 사용할 수 있습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        workflowRunId: { type: "string", description: "workflow_runs ID" },
+        clientName: { type: "string", description: "ID를 모를 때 고객명" },
+        referenceIndex: { type: "integer", description: "직전 업무 조회 결과의 1부터 시작하는 순번" },
+      },
+    },
+  },
+  {
+    name: "list_pending_approvals",
+    description: "기존 승인함과 Olivia 행동의 승인 대기 항목을 함께 조회합니다.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "list_commitments",
+    description: "미팅에서 추출된 대표 또는 고객 약속과 기한 초과 항목을 조회합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ownerType: { type: "string", enum: ["representative", "client", "staff", "unknown"], description: "약속 주체 필터" },
+      },
+    },
+  },
+  {
+    name: "prepare_followup",
+    description: "선택한 인사이트 또는 프로젝트를 기준으로 고객 후속 연락 초안을 만들고 승인함에 등록합니다. 발송은 하지 않습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        insightId: { type: "string", description: "olivia_insights ID" },
+        workflowRunId: { type: "string", description: "workflow_runs ID" },
+        referenceIndex: { type: "integer", description: "직전 업무 조회 결과의 순번" },
+        purpose: { type: "string", description: "연락 목적" },
+        draft: { type: "string", description: "대표에게 보여줄 후속 연락 초안" },
+      },
+    },
+  },
+  {
+    name: "manage_olivia_action",
+    description: "선택한 업무 카드의 승인, 실행, 완료, 확인, 스누즈, 무시를 처리합니다. 외부 행동은 카드 확인 후에만 호출합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        itemId: { type: "string", description: "업무 항목 ID" },
+        itemKind: { type: "string", enum: ["insight", "action", "approval", "commitment"], description: "업무 항목 종류" },
+        referenceIndex: { type: "integer", description: "직전 업무 조회 결과의 순번" },
+        operation: { type: "string", enum: ["approve", "run", "complete", "acknowledge", "snooze", "dismiss"], description: "처리할 동작" },
+        hours: { type: "number", description: "스누즈 시간. 기본 24시간" },
+        memo: { type: "string", description: "승인 메모" },
+        reason: { type: "string", description: "무시 이유" },
+      },
+      required: ["operation"],
+    },
+  },
+  {
+    name: "run_observer",
+    description: "Olivia Observer를 즉시 실행해 최신 프로젝트 위험과 다음 행동을 다시 확인합니다.",
+    input_schema: {
+      type: "object",
+      properties: { workflowRunId: { type: "string", description: "특정 프로젝트만 확인할 때 workflow_runs ID" } },
+    },
+  },
+];
+
 // ── Anthropic 내장 웹 검색 도구 ───────────────────────────────
 const WEB_SEARCH_TOOL: Anthropic.Tool = {
   name: "web_search",
@@ -554,6 +647,15 @@ Available tools:
 - create_website: Start hospital website creation workflow
 - open_page: Navigate to a page (calendar, clients, mailing, gallery, review-studio, workflow 등 앱 이동)
 - web_search: Search the web for real-time information (병원 트렌드, 경쟁 분석, 최신 정보 등)
+- get_today_briefing: 오늘의 긴급·승인·약속·고객 반응 조회
+- get_urgent_insights: Observer가 감지한 긴급 업무 조회
+- search_client_projects: 고객·프로젝트 검색
+- get_project_status: 프로젝트 현재 단계와 다음 행동 조회
+- list_pending_approvals: 승인 대기 통합 조회
+- list_commitments: 대표·고객 약속 조회
+- prepare_followup: 고객 후속 연락 초안을 승인함에 준비 (자동 발송 금지)
+- manage_olivia_action: 선택한 업무 항목 승인·실행·완료·확인·스누즈·무시
+- run_observer: 최신 업무 상태 즉시 재점검
 - calendar_add: 캘린더에 할일/일정 추가 (단건)
 - calendar_add_bulk: 여러 일정을 한번에 추가 (2개 이상 반드시 사용)
 - calendar_list: 특정 날짜의 할일 목록 조회 (ID 포함)
@@ -628,6 +730,9 @@ Rules:
 3. Ask for missing info naturally before using a tool.
 4. 사용자의 요청이 앱 기능 실행/입력/수정/삭제/조회라면 반드시 적절한 tool_use를 반환해라. UI가 승인 카드 또는 자동 실행을 처리한다.
 5. 기능 실행이 필요한데 필수 정보가 부족하면 한 번만 짧게 물어봐라. 이미 충분하면 말로 설명만 하지 말고 tool_use를 사용해라.
+6. 오늘 업무, 긴급, 승인, 약속, 고객 현황 질문은 추측하지 말고 Olivia 업무 조회 도구를 사용해라.
+7. 직전 업무 조회 결과가 제공되면 '첫 번째', '그 고객', '방금 항목'을 해당 ID와 연결해라. 후보가 여러 개면 임의 승인하지 말고 다시 선택하게 해라.
+8. 고객 연락, 워크플로우 이동, 외부 공개는 자동 실행하지 말고 승인 가능한 도구 카드로 반환해라.
 
 콘티 수정 규칙 (매우 중요):
 - 사용자가 현재 편집 중인 콘티 데이터([현재 편집 중인 콘티 데이터] 블록)가 컨텍스트에 있을 때, 콘티 수정 요청을 받으면 반드시 수정된 전체 콘티를 반환해야 한다.
@@ -653,12 +758,15 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { messages, pendingTool, pageContext, imageBase64, imageMime } = body;
+  const recentWorkItems = Array.isArray(body.recentWorkItems)
+    ? body.recentWorkItems.slice(0, 12) as OliviaChatReference[]
+    : [];
 
   // 도구 실행 요청
   if (pendingTool) {
     try {
       await logActivity("olivia_chat", undefined, { tool: pendingTool.name });
-      const result = await executeTool(pendingTool.name, pendingTool.input, req);
+      const result = await executeTool(pendingTool.name, pendingTool.input, req, { recentWorkItems });
       return NextResponse.json({ ok: true, toolResult: result });
     } catch (e: any) {
       return NextResponse.json({ ok: false, error: e?.message ?? "도구 실행 중 오류가 발생했어요." }, { status: 200 });
@@ -676,9 +784,12 @@ export async function POST(req: NextRequest) {
   }
 
   // 시스템 프롬프트에 페이지 컨텍스트 추가
-  const systemWithContext = pageContext
-    ? `${SYSTEM}\n\n현재 사용자가 보고 있는 화면: ${pageContext}\n이 컨텍스트를 참고하여 더 정확하게 도움을 주세요.`
-    : SYSTEM;
+  const referenceContext = formatWorkItemReferenceContext(recentWorkItems);
+  const systemWithContext = [
+    SYSTEM,
+    pageContext ? `현재 사용자가 보고 있는 화면: ${pageContext}\n이 컨텍스트를 참고하여 더 정확하게 도움을 주세요.` : "",
+    referenceContext,
+  ].filter(Boolean).join("\n\n");
 
   // OpenAI 형식 → Anthropic 형식 변환
   const anthropicMessages: Anthropic.MessageParam[] = (messages || [])
@@ -713,7 +824,7 @@ export async function POST(req: NextRequest) {
     model: "claude-sonnet-4-6",
     max_tokens: 4096,
     system: systemWithContext,
-    tools: [...TOOLS, WEB_SEARCH_TOOL],
+    tools: [...TOOLS, ...OLIVIA_WORK_TOOLS, WEB_SEARCH_TOOL],
     messages: anthropicMessages,
   });
 
@@ -829,7 +940,15 @@ async function resolveCalendarTaskId(input: any) {
   return found.id;
 }
 
-async function executeTool(name: string, input: any, req: NextRequest) {
+async function executeTool(
+  name: string,
+  input: any,
+  req: NextRequest,
+  context: { recentWorkItems?: OliviaChatReference[] } = {},
+) {
+  if (OLIVIA_CHAT_WORK_TOOL_NAMES.has(name)) {
+    return executeOliviaChatWorkTool(getSupabaseAdmin(), name, input, context);
+  }
   if (name === "create_quote") {
     await logActivity("create_quote", input.hospitalName, { package: input.packageId });
     const params = new URLSearchParams();

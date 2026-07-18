@@ -12,16 +12,22 @@ export async function GET(req: NextRequest) {
   const since  = searchParams.get("since");
   const source = searchParams.get("source");
 
-  let q = db
+  const buildQuery = (includeMetadata: boolean) => {
+    let q = db
     .from("olivia_chat_messages")
-    .select("id, created_at, role, content, source")
+    .select(includeMetadata ? "id, created_at, role, content, source, metadata" : "id, created_at, role, content, source")
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (since)  q = q.gt("created_at", since);
-  if (source) q = q.eq("source", source);
+    if (since)  q = q.gt("created_at", since);
+    if (source) q = q.eq("source", source);
+    return q;
+  };
 
-  const { data, error } = await q;
+  let { data, error } = await buildQuery(true);
+  if (error && /metadata|column/i.test(error.message)) {
+    ({ data, error } = await buildQuery(false));
+  }
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true, messages: (data ?? []).reverse() });
@@ -37,14 +43,38 @@ export async function POST(req: NextRequest) {
 
   const rows = items
     .filter((m) => m?.role && m?.content)
-    .map((m) => ({ role: m.role, content: m.content, source: m.source ?? "web" }));
+    .map((m) => ({
+      role: m.role,
+      content: m.content,
+      source: m.source ?? "web",
+      metadata: sanitizeMetadata(m.metadata),
+    }));
 
   if (!rows.length) return NextResponse.json({ ok: true });
 
-  const { error } = await db.from("olivia_chat_messages").insert(rows);
+  let { error } = await db.from("olivia_chat_messages").insert(rows);
+  if (error && /metadata|column/i.test(error.message)) {
+    ({ error } = await db.from("olivia_chat_messages").insert(rows.map(({ metadata: _metadata, ...row }) => row)));
+  }
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
+}
+
+function sanitizeMetadata(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object") return {};
+  const workItems = Array.isArray((metadata as any).workItems)
+    ? (metadata as any).workItems.slice(0, 12).map((item: any) => ({
+        id: String(item.id || "").slice(0, 80),
+        kind: String(item.kind || "").slice(0, 30),
+        title: String(item.title || "").slice(0, 160),
+        clientName: item.clientName ? String(item.clientName).slice(0, 120) : undefined,
+        projectName: item.projectName ? String(item.projectName).slice(0, 160) : undefined,
+        workflowRunId: item.workflowRunId ? String(item.workflowRunId).slice(0, 80) : undefined,
+        status: item.status ? String(item.status).slice(0, 40) : undefined,
+      })).filter((item: any) => item.id && item.kind)
+    : [];
+  return workItems.length ? { workItems } : {};
 }
 
 // DELETE /api/olivia/messages  — 전체 삭제 (초기화)

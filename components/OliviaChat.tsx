@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { C } from "@/lib/theme";
+import OliviaChatWorkItemCard from "@/components/olivia/OliviaChatWorkItemCard";
+import { compactWorkItemReferences, type OliviaChatWorkItem, type OliviaChatWorkItemAction } from "@/lib/olivia/chatTypes";
 
 // ── 마크다운 렌더러 (외부 패키지 없이 직접 구현) ─────────────
 function MarkdownText({ text, isUser }: { text: string; isUser: boolean }) {
@@ -153,6 +155,7 @@ interface Message {
   toolRequest?: { name: string; input: any; id: string; label: string };
   toolResult?: string;
   isApproved?: boolean;
+  workItems?: OliviaChatWorkItem[];
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -167,6 +170,15 @@ const TOOL_LABELS: Record<string, string> = {
   calendar_complete:   "일정 완료 처리",
   calendar_delete:     "일정 삭제",
   calendar_update:     "일정 수정",
+  get_today_briefing:  "오늘의 업무 확인",
+  get_urgent_insights: "긴급 인사이트 확인",
+  search_client_projects: "고객·프로젝트 검색",
+  get_project_status:  "프로젝트 현황 확인",
+  list_pending_approvals: "승인 대기 확인",
+  list_commitments:    "약속 확인",
+  prepare_followup:    "고객 후속 연락 준비",
+  manage_olivia_action:"Olivia 업무 처리",
+  run_observer:        "최신 업무 재점검",
 };
 
 const TOOL_ICONS: Record<string, string> = {
@@ -181,12 +193,24 @@ const TOOL_ICONS: Record<string, string> = {
   calendar_complete:   "✅",
   calendar_delete:     "🗑️",
   calendar_update:     "✏️",
+  get_today_briefing:  "☀️",
+  get_urgent_insights: "🚨",
+  search_client_projects: "🔎",
+  get_project_status:  "📍",
+  list_pending_approvals: "✅",
+  list_commitments:    "🤝",
+  prepare_followup:    "✉️",
+  manage_olivia_action:"⚡",
+  run_observer:        "✨",
 };
 
 // 캘린더 도구는 승인 없이 자동 실행
 const AUTO_EXECUTE_TOOLS = new Set([
   "calendar_add", "calendar_add_bulk", "calendar_list",
   "calendar_complete", "calendar_delete", "calendar_update", "open_page",
+  "get_today_briefing", "get_urgent_insights", "search_client_projects",
+  "get_project_status", "list_pending_approvals", "list_commitments",
+  "prepare_followup", "run_observer",
 ]);
 
 // 도구 입력 요약
@@ -209,7 +233,7 @@ function summarizeTool(name: string, input: any): string {
 
 const GREETING: Message = {
   role: "assistant",
-  content: "안녕하세요, 정연호 대표님. 올리비아예요.\n월간 포토클리닉 구독 운영을 도와드릴게요.\n\n예시:\n• \"온유성형외과 이번 달 콘텐츠 추천해줘\"\n• \"리포트 코멘트 작성해줘\"\n• \"촬영 콘티로 이동해줘\"\n• \"파일 전송 메일 작성해줘\"",
+  content: "안녕하세요, 정연호 대표님. 올리비아예요.\n오늘의 운영 상황을 확인하고 필요한 업무를 준비해드릴게요.\n\n예시:\n• \"오늘 가장 급한 일 알려줘\"\n• \"승인 대기 항목 보여줘\"\n• \"오블리브 프로젝트 상황 알려줘\"\n• \"첫 번째 고객 후속 연락 준비해줘\"",
 };
 
 interface OliviaChatProps {
@@ -228,6 +252,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
   const [isAuthReady,     setIsAuthReady]    = useState(false);
   const [unreadCount,     setUnreadCount]    = useState(0);
   const [isMobile,        setIsMobile]       = useState(false);
+  const [workItemBusy,    setWorkItemBusy]   = useState<string | null>(null);
 
   const bottomRef      = useRef<HTMLDivElement>(null);
   const messagesRef    = useRef<HTMLDivElement>(null);
@@ -243,23 +268,26 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
   },[]);
 
   const quickPrompts = [
-    "내일 오후 3시 상담 미팅 추가해줘",
+    "오늘 가장 급한 일 알려줘",
+    "승인 대기 항목 보여줘",
+    "대표 약속 확인해줘",
+    "최신 업무 상태 다시 확인해줘",
     "오늘 일정 보여줘",
-    "이번 달 콘텐츠 추천해줘",
-    "부족한 콘텐츠 찾아줘",
-    "인스타 캡션 만들어줘",
-    "월간 리포트 코멘트 작성해줘",
     "촬영 콘티로 이동해줘",
-    "파일 전송 메일 작성해줘",
   ];
 
   // ── DB 저장 헬퍼 (fire-and-forget) ─────────────────────
-  const saveToDb = (msgs: Array<{ role: "user" | "assistant"; content: string }>) => {
+  const saveToDb = (msgs: Array<{ role: "user" | "assistant"; content: string; workItems?: OliviaChatWorkItem[] }>) => {
     if (!msgs.length) return;
     fetch("/api/olivia/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: msgs.map(m => ({ ...m, source: "web" })) }),
+      body: JSON.stringify({ messages: msgs.map(m => ({
+        role: m.role,
+        content: m.content,
+        source: "web",
+        metadata: m.workItems?.length ? { workItems: compactWorkItemReferences(m.workItems) } : {},
+      })) }),
     }).catch(() => {});
   };
 
@@ -292,6 +320,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             role:    m.role as "user" | "assistant",
             content: m.content,
             source:  m.source as "web" | "telegram" | undefined,
+            workItems: Array.isArray(m.metadata?.workItems) ? m.metadata.workItems.map((item: any) => ({ ...item, summary: item.summary || "저장된 업무 항목", availableActions: item.availableActions || ["view"] })) : undefined,
           })));
           lastPollRef.current = data.messages[data.messages.length - 1].created_at;
         } else {
@@ -372,6 +401,9 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       const apiMessages = updated
         .filter(m => !m.toolRequest || m.isApproved !== undefined)
         .map(m => ({ role: m.role, content: m.content }));
+      const recentWorkItems = compactWorkItemReferences(
+        updated.flatMap((message) => message.workItems || []).slice(-12),
+      );
 
       // 콘티 데이터가 있으면 컨텍스트에 포함
       const contiHint = contiData
@@ -388,6 +420,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         body: JSON.stringify({
           messages: apiMessages,
           pageContext: contextHint,
+          recentWorkItems,
         }),
       });
       const data = await res.json();
@@ -405,7 +438,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             const execRes = await fetch("/api/olivia", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ pendingTool: data.tool }),
+              body: JSON.stringify({ pendingTool: data.tool, recentWorkItems }),
             });
             let execData: any;
             try { execData = await execRes.json(); } catch { throw new Error("서버 응답을 처리할 수 없어요. 잠시 후 다시 시도해주세요."); }
@@ -418,8 +451,9 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             }
             setMessages(prev => [...prev, {
               role: "assistant", content: resultMsg, source: "web", toolResult: "done",
+              workItems: result.workItems,
             }]);
-            saveToDb([{ role: "assistant", content: resultMsg }]);
+            saveToDb([{ role: "assistant", content: resultMsg, workItems: result.workItems }]);
             window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
           } catch (e: any) {
             const errMsg = "⚠ 캘린더 오류: " + e.message;
@@ -478,7 +512,10 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       const res  = await fetch("/api/olivia", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pendingTool: msg.toolRequest }),
+        body: JSON.stringify({
+          pendingTool: msg.toolRequest,
+          recentWorkItems: compactWorkItemReferences(messages.flatMap((message) => message.workItems || []).slice(-12)),
+        }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
@@ -497,8 +534,9 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       const resultMsg = result.message || "완료됐어요!";
       setMessages(prev => [...prev, {
         role: "assistant", content: resultMsg, source: "web", toolResult: result.action,
+        workItems: result.workItems,
       }]);
-      saveToDb([{ role: "assistant", content: resultMsg }]);
+      saveToDb([{ role: "assistant", content: resultMsg, workItems: result.workItems }]);
     } catch (e: any) {
       setMessages(prev => [...prev, { role: "assistant", content: "⚠ 실행 중 오류: " + e.message, source: "web" }]);
     } finally {
@@ -514,6 +552,53 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     const rejectMsg = "알겠어요! 다른 방법으로 도와드릴까요?";
     setMessages(prev => [...prev, { role: "assistant", content: rejectMsg, source: "web" }]);
     saveToDb([{ role: "assistant", content: rejectMsg }]);
+  };
+
+  const handleWorkItemAction = async (item: OliviaChatWorkItem, action: OliviaChatWorkItemAction) => {
+    if (action === "view") {
+      if (item.workflowRunId) window.location.href = `/clients?workflowRunId=${encodeURIComponent(item.workflowRunId)}`;
+      else window.location.href = "/admin/dashboard/home#olivia-assistant";
+      return;
+    }
+
+    setWorkItemBusy(item.id);
+    try {
+      const recentWorkItems = compactWorkItemReferences(messages.flatMap((message) => message.workItems || []).slice(-12));
+      const pendingTool = action === "prepare"
+        ? {
+            name: "prepare_followup",
+            input: { insightId: item.kind === "insight" ? item.id : undefined, workflowRunId: item.workflowRunId },
+            id: `work_item_${Date.now()}`,
+          }
+        : {
+            name: "manage_olivia_action",
+            input: { itemId: item.id, itemKind: item.kind, operation: action, hours: action === "snooze" ? 24 : undefined },
+            id: `work_item_${Date.now()}`,
+          };
+      const response = await fetch("/api/olivia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingTool, recentWorkItems }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || "업무 처리 실패");
+      const result = data.toolResult;
+      const resultMsg = result.message || "업무를 처리했습니다.";
+      setMessages((previous) => [...previous, {
+        role: "assistant",
+        content: resultMsg,
+        source: "web",
+        toolResult: "done",
+        workItems: result.workItems,
+      }]);
+      saveToDb([{ role: "assistant", content: resultMsg, workItems: result.workItems }]);
+    } catch (error) {
+      const message = `⚠ 업무 처리 오류: ${error instanceof Error ? error.message : String(error)}`;
+      setMessages((previous) => [...previous, { role: "assistant", content: message, source: "web" }]);
+      saveToDb([{ role: "assistant", content: message }]);
+    } finally {
+      setWorkItemBusy(null);
+    }
   };
 
   const clearChat = () => {
@@ -667,6 +752,19 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
                     )}
                   </div>
                 )}
+
+                {msg.workItems?.length ? (
+                  <div style={{ marginLeft: msg.role === "assistant" ? 28 : 0 }}>
+                    {msg.workItems.map((item) => (
+                      <OliviaChatWorkItemCard
+                        key={`${item.kind}-${item.id}`}
+                        item={item}
+                        busy={workItemBusy === item.id}
+                        onAction={handleWorkItemAction}
+                      />
+                    ))}
+                  </div>
+                ) : null}
 
                 {/* 도구 승인 카드 */}
                 {msg.toolRequest && msg.isApproved === undefined && (
