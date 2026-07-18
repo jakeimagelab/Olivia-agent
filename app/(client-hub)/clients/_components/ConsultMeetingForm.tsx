@@ -1,8 +1,21 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Contact } from "lucide-react";
 import { C } from "@/lib/theme";
+import { ACTIVE_WORKFLOW_STEPS } from "@/lib/workflow";
+
+/* Contact Picker API — 안드로이드 Chrome 등 일부 브라우저만 지원, lib.dom에 타입이 없어 직접 선언 */
+type ContactPickerProperty = "name" | "tel" | "email";
+type ContactPickerResult = { name?: string[]; tel?: string[]; email?: string[] };
+declare global {
+  interface Navigator {
+    contacts?: {
+      select: (properties: ContactPickerProperty[], options?: { multiple?: boolean }) => Promise<ContactPickerResult[]>;
+    };
+  }
+}
 
 const iS: React.CSSProperties = {
   width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 8,
