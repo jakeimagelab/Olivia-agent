@@ -418,6 +418,36 @@ const OLIVIA_WORK_TOOLS: Anthropic.Tool[] = [
       properties: { workflowRunId: { type: "string", description: "특정 프로젝트만 확인할 때 workflow_runs ID" } },
     },
   },
+  {
+    name: "list_upcoming_meetings",
+    description: "오늘부터 예정된 고객 미팅을 조회하고 고객 프로젝트 연결 상태를 확인합니다.",
+    input_schema: { type: "object", properties: { from: { type: "string" }, to: { type: "string" }, days: { type: "number" }, query: { type: "string" } } },
+  },
+  {
+    name: "link_meeting_client",
+    description: "캘린더 미팅을 선택한 고객 워크플로우와 연결합니다.",
+    input_schema: { type: "object", properties: { calendarTaskId: { type: "string" }, workflowRunId: { type: "string" } }, required: ["calendarTaskId", "workflowRunId"] },
+  },
+  {
+    name: "prepare_meeting_brief",
+    description: "고객 미팅 전에 CRM 문맥, 열린 약속, 승인 대기와 확인 질문을 브리핑으로 준비합니다.",
+    input_schema: { type: "object", properties: { calendarTaskId: { type: "string" }, workflowRunId: { type: "string" } }, required: ["calendarTaskId"] },
+  },
+  {
+    name: "analyze_meeting_memo",
+    description: "완료된 미팅의 메모 후보를 조회하거나 선택한 메모를 분석해 약속과 후속 업무를 생성합니다.",
+    input_schema: { type: "object", properties: { memoId: { type: "string" }, calendarTaskId: { type: "string" }, workflowRunId: { type: "string" } } },
+  },
+  {
+    name: "complete_meeting",
+    description: "캘린더 고객 미팅을 완료 처리하고 후속 메모 분석을 준비합니다.",
+    input_schema: { type: "object", properties: { calendarTaskId: { type: "string" }, workflowRunId: { type: "string" } }, required: ["calendarTaskId"] },
+  },
+  {
+    name: "get_meeting_followups",
+    description: "미팅 뒤 남은 대표·고객 약속, 내부 업무와 승인 행동을 조회합니다.",
+    input_schema: { type: "object", properties: { workflowRunId: { type: "string" } }, required: ["workflowRunId"] },
+  },
 ];
 
 // ── Anthropic 내장 웹 검색 도구 ───────────────────────────────
@@ -590,6 +620,24 @@ function calendarShortcutFromText(text: string) {
   return null;
 }
 
+function meetingAssistantShortcutFromText(text: string) {
+  if (!/(미팅|상담|회의)/.test(text)) return null;
+  if (!/(고객|클라이언트|병원|의원|준비|브리핑|후속|약속|메모|오늘|내일)/.test(text)) return null;
+  if (/(추가|등록|넣어|잡아|예약|저장|기록)/.test(text)) return null;
+  if (/(후속|약속|메모|분석|완료)/.test(text)) return null;
+  const date = parseKoreanDate(text);
+  return {
+    ok: true,
+    type: "tool_request",
+    text: "",
+    tool: {
+      name: "list_upcoming_meetings",
+      input: date ? { from: date, to: date } : { days: 2 },
+      id: `meeting_shortcut_${Date.now()}`,
+    },
+  };
+}
+
 function pageShortcutFromText(text: string) {
   if (!/(열어|이동|가줘|보여|페이지|앱|기능)/.test(text)) return null;
 
@@ -656,6 +704,12 @@ Available tools:
 - prepare_followup: 고객 후속 연락 초안을 승인함에 준비 (자동 발송 금지)
 - manage_olivia_action: 선택한 업무 항목 승인·실행·완료·확인·스누즈·무시
 - run_observer: 최신 업무 상태 즉시 재점검
+- list_upcoming_meetings: 오늘·내일 예정 고객 미팅과 CRM 연결 상태 조회
+- link_meeting_client: 미팅 일정과 고객 프로젝트 연결
+- prepare_meeting_brief: 미팅 전 고객 문맥·확인 질문 브리핑 준비
+- analyze_meeting_memo: 미팅 메모 선택·분석 및 약속·후속 업무 생성
+- complete_meeting: 미팅 완료 처리 후 메모 분석 연결
+- get_meeting_followups: 미팅 후 남은 약속·업무·승인 조회
 - calendar_add: 캘린더에 할일/일정 추가 (단건)
 - calendar_add_bulk: 여러 일정을 한번에 추가 (2개 이상 반드시 사용)
 - calendar_list: 특정 날짜의 할일 목록 조회 (ID 포함)
@@ -733,6 +787,7 @@ Rules:
 6. 오늘 업무, 긴급, 승인, 약속, 고객 현황 질문은 추측하지 말고 Olivia 업무 조회 도구를 사용해라.
 7. 직전 업무 조회 결과가 제공되면 '첫 번째', '그 고객', '방금 항목'을 해당 ID와 연결해라. 후보가 여러 개면 임의 승인하지 말고 다시 선택하게 해라.
 8. 고객 연락, 워크플로우 이동, 외부 공개는 자동 실행하지 말고 승인 가능한 도구 카드로 반환해라.
+9. 고객 미팅 조회·준비·후속 질문은 추측하지 말고 미팅 비서 도구를 사용해라. 고객 메시지는 절대 자동 발송하지 마라.
 
 콘티 수정 규칙 (매우 중요):
 - 사용자가 현재 편집 중인 콘티 데이터([현재 편집 중인 콘티 데이터] 블록)가 컨텍스트에 있을 때, 콘티 수정 요청을 받으면 반드시 수정된 전체 콘티를 반환해야 한다.
@@ -774,6 +829,10 @@ export async function POST(req: NextRequest) {
   }
 
   const lastUserText = [...(messages || [])].reverse().find((m: any) => m.role === "user")?.content || "";
+  const meetingShortcut = typeof lastUserText === "string" ? meetingAssistantShortcutFromText(lastUserText) : null;
+  if (meetingShortcut) {
+    return NextResponse.json(meetingShortcut);
+  }
   const calendarShortcut = typeof lastUserText === "string" ? calendarShortcutFromText(lastUserText) : null;
   if (calendarShortcut) {
     return NextResponse.json(calendarShortcut);

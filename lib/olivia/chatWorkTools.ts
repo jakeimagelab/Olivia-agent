@@ -6,6 +6,17 @@ import { buildWorkflowContext } from "@/lib/olivia/context";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { runOliviaObserver } from "@/lib/olivia/observer";
 import {
+  analyzeMeetingMemo,
+  completeMeeting,
+  getMeetingFollowups,
+  linkMeetingClient,
+  listMeetingMemos,
+  listUpcomingMeetings,
+  meetingCandidateToWorkItem,
+  meetingCandidateSelectionItems,
+  prepareMeetingBriefing,
+} from "@/lib/olivia/meetingAssistant";
+import {
   sortChatWorkItems,
   resolveWorkItemReference,
   type OliviaChatReference,
@@ -23,6 +34,12 @@ export const OLIVIA_CHAT_WORK_TOOL_NAMES = new Set([
   "prepare_followup",
   "manage_olivia_action",
   "run_observer",
+  "list_upcoming_meetings",
+  "link_meeting_client",
+  "prepare_meeting_brief",
+  "analyze_meeting_memo",
+  "complete_meeting",
+  "get_meeting_followups",
 ]);
 
 type ToolContext = { recentWorkItems?: OliviaChatReference[] };
@@ -395,6 +412,40 @@ async function runObserver(db: SupabaseClient, input: any): Promise<OliviaChatTo
   return { action: "done", message: `업무 상태를 다시 확인했어요. 프로젝트 ${result.checkedRuns}건을 점검해 인사이트 ${result.createdInsights}건, 준비 행동 ${result.createdActions}건을 반영했습니다.` };
 }
 
+async function runMeetingTool(db: SupabaseClient, name: string, input: any): Promise<OliviaChatToolResult> {
+  if (name === "list_upcoming_meetings") {
+    const meetings = await listUpcomingMeetings(db, input);
+    const workItems = meetings.flatMap((meeting) => [meetingCandidateToWorkItem(meeting), ...meetingCandidateSelectionItems(meeting)]);
+    return { action: "done", message: workItems.length ? `고객 미팅 ${workItems.length}건을 찾았어요. 미팅 전 브리핑을 바로 준비할 수 있습니다.` : "조회 기간에 예정된 고객 미팅이 없습니다.", workItems };
+  }
+  if (name === "link_meeting_client") {
+    const candidate = await linkMeetingClient(db, String(input.calendarTaskId || ""), String(input.workflowRunId || ""));
+    return { action: "done", message: "미팅 일정과 고객 프로젝트를 연결했습니다.", workItems: [meetingCandidateToWorkItem(candidate)] };
+  }
+  if (name === "prepare_meeting_brief") {
+    const result = await prepareMeetingBriefing(db, { calendarTaskId: String(input.calendarTaskId || ""), workflowRunId: input.workflowRunId ? String(input.workflowRunId) : undefined });
+    if (result.requiresConnection) return { action: "done", message: "미팅과 연결할 고객 프로젝트를 먼저 선택해주세요.", workItems: [meetingCandidateToWorkItem(result.candidate)] };
+    return { action: "done", message: `${result.briefing.title}을 준비했습니다. 열린 약속과 이번 미팅의 확인 질문을 함께 정리했어요.`, workItems: [meetingCandidateToWorkItem(result.candidate)] };
+  }
+  if (name === "analyze_meeting_memo") {
+    const memoId = String(input.memoId || "");
+    if (!memoId) {
+      const workItems = await listMeetingMemos(db, { calendarTaskId: input.calendarTaskId, workflowRunId: input.workflowRunId });
+      return { action: "done", message: workItems.length ? "분석할 미팅 메모를 선택해주세요." : "연결된 고객의 미팅 메모를 찾지 못했습니다.", workItems };
+    }
+    const result = await analyzeMeetingMemo(db, { memoId, workflowRunId: input.workflowRunId, calendarTaskId: input.calendarTaskId });
+    const workItems = input.workflowRunId ? await getMeetingFollowups(db, String(input.workflowRunId)) : [];
+    return { action: "done", message: `미팅 메모 분석을 완료했습니다. 약속 ${result.commitments.length}건과 후속 업무 ${result.createdTasks.length}건을 반영했어요.`, workItems };
+  }
+  if (name === "complete_meeting") {
+    await completeMeeting(db, String(input.calendarTaskId || ""));
+    const workItems = await listMeetingMemos(db, { calendarTaskId: input.calendarTaskId, workflowRunId: input.workflowRunId });
+    return { action: "done", message: workItems.length ? "미팅을 완료 처리했습니다. 이어서 분석할 메모를 선택해주세요." : "미팅을 완료 처리했습니다. 메모를 작성하면 후속 분석을 이어갈 수 있어요.", workItems };
+  }
+  const workItems = await getMeetingFollowups(db, String(input.workflowRunId || ""));
+  return { action: "done", message: workItems.length ? `미팅 후속 항목 ${workItems.length}건입니다.` : "현재 남은 미팅 후속 항목이 없습니다.", workItems };
+}
+
 export async function executeOliviaChatWorkTool(
   db: SupabaseClient,
   name: string,
@@ -410,5 +461,6 @@ export async function executeOliviaChatWorkTool(
   if (name === "prepare_followup") return prepareFollowup(db, input, toolContext);
   if (name === "manage_olivia_action") return manageWorkItem(db, input, toolContext);
   if (name === "run_observer") return runObserver(db, input);
+  if (["list_upcoming_meetings", "link_meeting_client", "prepare_meeting_brief", "analyze_meeting_memo", "complete_meeting", "get_meeting_followups"].includes(name)) return runMeetingTool(db, name, input);
   throw new Error(`지원하지 않는 Olivia 업무 도구입니다: ${name}`);
 }

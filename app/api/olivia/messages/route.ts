@@ -68,10 +68,23 @@ function sanitizeMetadata(metadata: unknown) {
         id: String(item.id || "").slice(0, 80),
         kind: String(item.kind || "").slice(0, 30),
         title: String(item.title || "").slice(0, 160),
+        summary: String(item.summary || "").slice(0, 500),
         clientName: item.clientName ? String(item.clientName).slice(0, 120) : undefined,
         projectName: item.projectName ? String(item.projectName).slice(0, 160) : undefined,
         workflowRunId: item.workflowRunId ? String(item.workflowRunId).slice(0, 80) : undefined,
         status: item.status ? String(item.status).slice(0, 40) : undefined,
+        dueAt: item.dueAt ? String(item.dueAt).slice(0, 40) : undefined,
+        availableActions: Array.isArray(item.availableActions)
+          ? item.availableActions.slice(0, 8).map((action: unknown) => String(action).slice(0, 30))
+          : ["view"],
+        metadata: item.metadata && typeof item.metadata === "object" ? {
+          calendarTaskId: item.metadata.calendarTaskId ? String(item.metadata.calendarTaskId).slice(0, 80) : undefined,
+          memoId: item.metadata.memoId ? String(item.metadata.memoId).slice(0, 80) : undefined,
+          connectionStatus: item.metadata.connectionStatus ? String(item.metadata.connectionStatus).slice(0, 30) : undefined,
+          matchingWorkflowRunIds: Array.isArray(item.metadata.matchingWorkflowRunIds)
+            ? item.metadata.matchingWorkflowRunIds.slice(0, 10).map((id: unknown) => String(id).slice(0, 80))
+            : undefined,
+        } : undefined,
       })).filter((item: any) => item.id && item.kind)
     : [];
   return workItems.length ? { workItems } : {};

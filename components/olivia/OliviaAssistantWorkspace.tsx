@@ -6,6 +6,7 @@ import OliviaApprovalSummary from "@/components/olivia/OliviaApprovalSummary";
 import OliviaBriefingPanel from "@/components/olivia/OliviaBriefingPanel";
 import OliviaInsightCard from "@/components/olivia/OliviaInsightCard";
 import OliviaTimeline from "@/components/olivia/OliviaTimeline";
+import OliviaMeetingPanel from "@/components/olivia/OliviaMeetingPanel";
 
 const TABS = ["오늘", "긴급", "승인 대기", "고객 반응", "약속", "제안", "브리핑", "실행 기록"] as const;
 
@@ -48,7 +49,7 @@ export default function OliviaAssistantWorkspace() {
 
   const content = (() => {
     if (loading) return <div className="olivia-empty">올리비아가 업무 상태를 확인하고 있습니다.</div>;
-    if (tab === "오늘") return <><OliviaBriefingPanel briefing={briefing}/><div className="olivia-list-grid">{insights.slice(0, 6).map((item) => <OliviaInsightCard key={item.id} insight={item} onChanged={load}/>)}</div></>;
+    if (tab === "오늘") return <><OliviaMeetingPanel/><OliviaBriefingPanel briefing={briefing}/><div className="olivia-list-grid">{insights.slice(0, 6).map((item) => <OliviaInsightCard key={item.id} insight={item} onChanged={load}/>)}</div></>;
     if (tab === "긴급") return <div className="olivia-list-grid">{insights.filter((item) => item.priority_score >= 80).map((item) => <OliviaInsightCard key={item.id} insight={item} onChanged={load}/>)}</div>;
     if (tab === "승인 대기") return <><OliviaApprovalSummary actions={actions}/><div className="olivia-list-grid">{actions.filter((item) => item.status === "waiting_approval").map((item) => <OliviaActionCard key={item.id} action={item} onChanged={load}/>)}</div></>;
     if (tab === "고객 반응") return <OliviaTimeline items={customerEvents}/>;

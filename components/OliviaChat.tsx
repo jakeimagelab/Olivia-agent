@@ -179,6 +179,12 @@ const TOOL_LABELS: Record<string, string> = {
   prepare_followup:    "고객 후속 연락 준비",
   manage_olivia_action:"Olivia 업무 처리",
   run_observer:        "최신 업무 재점검",
+  list_upcoming_meetings: "예정 고객 미팅 확인",
+  link_meeting_client: "미팅 고객 연결",
+  prepare_meeting_brief: "미팅 전 브리핑 준비",
+  analyze_meeting_memo: "미팅 메모 분석",
+  complete_meeting: "미팅 완료 처리",
+  get_meeting_followups: "미팅 후속 업무 확인",
 };
 
 const TOOL_ICONS: Record<string, string> = {
@@ -202,6 +208,12 @@ const TOOL_ICONS: Record<string, string> = {
   prepare_followup:    "✉️",
   manage_olivia_action:"⚡",
   run_observer:        "✨",
+  list_upcoming_meetings: "🗓️",
+  link_meeting_client: "🔗",
+  prepare_meeting_brief: "📋",
+  analyze_meeting_memo: "🎙️",
+  complete_meeting: "✅",
+  get_meeting_followups: "🤝",
 };
 
 // 캘린더 도구는 승인 없이 자동 실행
@@ -211,6 +223,8 @@ const AUTO_EXECUTE_TOOLS = new Set([
   "get_today_briefing", "get_urgent_insights", "search_client_projects",
   "get_project_status", "list_pending_approvals", "list_commitments",
   "prepare_followup", "run_observer",
+  "list_upcoming_meetings", "prepare_meeting_brief",
+  "analyze_meeting_memo", "complete_meeting", "get_meeting_followups",
 ]);
 
 // 도구 입력 요약
@@ -272,8 +286,8 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     "승인 대기 항목 보여줘",
     "대표 약속 확인해줘",
     "최신 업무 상태 다시 확인해줘",
-    "오늘 일정 보여줘",
-    "촬영 콘티로 이동해줘",
+    "오늘 고객 미팅 알려줘",
+    "내일 미팅 준비해줘",
   ];
 
   // ── DB 저장 헬퍼 (fire-and-forget) ─────────────────────
@@ -564,7 +578,23 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     setWorkItemBusy(item.id);
     try {
       const recentWorkItems = compactWorkItemReferences(messages.flatMap((message) => message.workItems || []).slice(-12));
-      const pendingTool = action === "prepare"
+      const calendarTaskId = String(item.metadata?.calendarTaskId || (item.kind === "meeting" ? item.id : ""));
+      const meetingTool = item.kind === "meeting" || item.kind === "memo" || (action === "link" && Boolean(calendarTaskId))
+        ? action === "brief"
+          ? { name: "prepare_meeting_brief", input: { calendarTaskId, workflowRunId: item.workflowRunId } }
+          : action === "link"
+            ? { name: "link_meeting_client", input: { calendarTaskId, workflowRunId: item.workflowRunId } }
+            : action === "complete"
+              ? { name: "complete_meeting", input: { calendarTaskId, workflowRunId: item.workflowRunId } }
+              : action === "analyze"
+                ? { name: "analyze_meeting_memo", input: { memoId: item.kind === "memo" ? item.id : undefined, calendarTaskId, workflowRunId: item.workflowRunId } }
+                : action === "followups"
+                  ? { name: "get_meeting_followups", input: { workflowRunId: item.workflowRunId } }
+                  : null
+        : null;
+      const pendingTool = meetingTool
+        ? { ...meetingTool, id: `meeting_item_${Date.now()}` }
+        : action === "prepare"
         ? {
             name: "prepare_followup",
             input: { insightId: item.kind === "insight" ? item.id : undefined, workflowRunId: item.workflowRunId },

@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getKstDate } from "@/lib/olivia/briefings";
+import { prepareMeetingBriefing } from "@/lib/olivia/meetingAssistant";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    if (body.calendarTaskId) {
+      const result = await prepareMeetingBriefing(getSupabaseAdmin(), {
+        calendarTaskId: body.calendarTaskId,
+        workflowRunId: body.workflowRunId,
+      });
+      return NextResponse.json({ ok: true, data: result.briefing, briefing: result.briefing, requiresConnection: result.requiresConnection });
+    }
     if (!body.clientId) return NextResponse.json({ ok: false, error: "clientId가 필요합니다." }, { status: 400 });
     const db = getSupabaseAdmin();
     const runQuery = body.workflowRunId

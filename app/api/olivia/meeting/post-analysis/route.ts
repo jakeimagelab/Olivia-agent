@@ -4,6 +4,7 @@ import { getKstDate } from "@/lib/olivia/briefings";
 import { saveMeetingCommitments } from "@/lib/olivia/commitments";
 import { createStepTasks } from "@/lib/workflowAutomation";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { analyzeMeetingMemo } from "@/lib/olivia/meetingAssistant";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     if (!body.memoId && !body.analysis) return NextResponse.json({ ok: false, error: "memoId 또는 analysis가 필요합니다." }, { status: 400 });
     const db = getSupabaseAdmin();
+    if (body.memoId && !body.analysis) {
+      const result = await analyzeMeetingMemo(db, {
+        memoId: body.memoId,
+        workflowRunId: body.workflowRunId,
+        calendarTaskId: body.calendarTaskId,
+      });
+      return NextResponse.json({ ok: true, data: result, ...result });
+    }
     let memo: any = null;
     if (body.memoId) {
       const { data, error } = await db.from("consultation_memos").select("*").eq("id", body.memoId).single();
