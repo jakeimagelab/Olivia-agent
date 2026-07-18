@@ -1042,7 +1042,7 @@ async function executeTool(
     "http://localhost:3000";
     const r = await fetch(origin + "/api/send-delivery", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
       body: JSON.stringify(input),
     });
     const d = await r.json();
