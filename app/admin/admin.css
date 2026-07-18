@@ -907,7 +907,7 @@
 .oa-header--enhanced { display: grid; grid-template-columns: auto minmax(0,1fr); justify-content: stretch; gap: 24px; padding-inline: 24px; }
 .oa-header--enhanced .oa-header__brand { justify-content: flex-start; gap: 9px; }
 .oa-header--enhanced .oa-header__brand img { height: 27px; }
-.oa-header--enhanced .oa-header__title--compact { color: #155855; font-size: clamp(15px,1.35vw,20px); letter-spacing: -.04em; }
+.oa-header--enhanced .oa-header__title--compact { color: #155855; font-size: clamp(12px,1.1vw,16px); letter-spacing: -.04em; }
 .oa-header__command-area { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 
 .oa-header-search { position: relative; width: min(320px,28vw); }
