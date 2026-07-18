@@ -1418,12 +1418,11 @@ async function executeTool(
 
   if (name === "create_gallery") {
     const db = getSupabaseAdmin();
-    const { data: clients } = await db
-      .from("clients")
-      .select("id, hospital_name, contact_name, email")
-      .ilike("hospital_name", `%${input.clientName}%`)
-      .limit(1);
-    const client = clients?.[0];
+    const client = await fuzzyNameSearchOne<any>({
+      db, table: "clients", nameColumn: "hospital_name",
+      select: "id, hospital_name, contact_name, email",
+      query: input.clientName,
+    });
 
     // 활성 워크플로우 조회 (자동 전진용)
     let run: { id: string; current_step_key: string } | undefined;
