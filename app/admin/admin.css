@@ -701,7 +701,7 @@
 .oa-pixel-person__lapel { bottom: -1px; width: 12px; height: 14px; background: color-mix(in srgb,var(--portrait-jacket) 70%,#fff); z-index: 3; }
 .oa-pixel-person__lapel--left { left: 12px; clip-path: polygon(0 0,100% 20%,62% 100%,20% 68%); }
 .oa-pixel-person__lapel--right { right: 12px; clip-path: polygon(100% 0,0 20%,38% 100%,80% 68%); }
-.oa-daily-quote blockquote { margin: 0 auto; max-width: 92%; color: #fff; font-size: 10px; font-weight: 750; line-height: 1.52; text-align: center; }
+.oa-daily-quote blockquote { margin: 0 auto; width: 92%; max-width: 92%; box-sizing: border-box; color: #fff; font-size: 10px; font-weight: 750; line-height: 1.6; text-align: center; word-break: keep-all; overflow-wrap: break-word; white-space: normal; }
 .oa-daily-quote cite { margin-top: 7px; color: rgba(255,255,255,.5); font-size: 9px; font-style: normal; font-weight: 700; text-align: center; }
 
 /* 관리자 홈 맨 위 3개 카드(브리핑/스케줄/명언) 중 브리핑·스케줄 두 장 — 예전엔 한 카드를
