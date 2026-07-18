@@ -388,7 +388,7 @@ function PatternBlogWriter() {
             {/* 블로그 타입 */}
             <div style={{ background:C.white, borderRadius:14, padding:20, border:`1px solid ${C.border}` }}>
               <div style={{ fontSize:13, fontWeight:900, color:C.teal, marginBottom:14 }}>📋 블로그 타입</div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:8 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(130px, 1fr))", gap:8 }}>
                 {BLOG_TYPES.map(t => (
                   <button key={t.id} onClick={() => setForm(p=>({...p,blogType:t.label}))}
                     style={{ padding:"10px 8px", borderRadius:10, fontFamily:"inherit", border:`2px solid ${form.blogType === t.label ? C.teal : C.border}`, background: form.blogType === t.label ? C.light : C.white, cursor:"pointer", textAlign:"center" }}>
