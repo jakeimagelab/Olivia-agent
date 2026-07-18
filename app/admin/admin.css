@@ -860,6 +860,9 @@
 /* 개별 기능 홈: 모바일에서도 요청된 4열 정사각 카드 유지 */
 .oa-tools-page .oa-category-section__title { color: #155855; font-size: 12px; }
 .oa-tools-page .admin-menu-copy h2 { color: #155855; font-size: 14.5px; }
+/* 아이콘 타일 그리드에서는 카드 자체가 투명/무테두리라, 다른 화면의 카드용 상단 브랜드 액센트 바가
+   붕 뜬 줄처럼 보인다 — 여기서는 아이콘 배지 색 자체가 브랜드 컬러라 액센트 바가 필요 없다. */
+.oa-tools-page .admin-menu-card::before { display: none; }
 .oa-tools-page .admin-menu-icon {
   border: none;
   background: linear-gradient(148deg, #0d3230 0%, #155855 100%);
