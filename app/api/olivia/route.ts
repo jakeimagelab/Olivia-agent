@@ -1474,13 +1474,12 @@ async function executeTool(
     const db = getSupabaseAdmin();
 
     // 병원명으로 clients 테이블에서 이메일 조회
-    const { data: clients } = await db
-      .from("clients")
-      .select("id, hospital_name, contact_name, email")
-      .ilike("hospital_name", `%${input.hospitalName}%`)
-      .limit(1);
+    const client = await fuzzyNameSearchOne<any>({
+      db, table: "clients", nameColumn: "hospital_name",
+      select: "id, hospital_name, contact_name, email",
+      query: input.hospitalName,
+    });
 
-    const client = clients?.[0];
     const toEmail = client?.email;
     const contactName = client?.contact_name || "";
     const hospitalName = client?.hospital_name || input.hospitalName;
