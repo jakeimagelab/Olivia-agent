@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fuzzyIncludes } from "@/lib/olivia/nameSearch";
 import { WORKFLOW_STEPS } from "@/lib/workflow";
 import { approveWorkflowItem } from "@/lib/workflowAutomation";
 import { planOliviaAction, runOliviaAction } from "@/lib/olivia/actionPlanner";
