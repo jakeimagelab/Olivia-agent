@@ -1599,7 +1599,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                       {isResizing && (
                         <span style={{ position: "absolute", top: 2, right: 3, zIndex: 20,
                           borderRadius: 4, padding: "1px 4px", background: "rgba(245,247,247,.94)",
-                          color: "#74827F", fontSize: 8, fontWeight: 900, lineHeight: 1.4,
+                          color: "#74827F", fontSize: isMobile ? 9 : 8, fontWeight: 900, lineHeight: 1.4,
                           boxShadow: "0 1px 3px rgba(21,88,85,.12)" }}>
                           {currentStart.slice(0,5)}{currentEnd ? `–${currentEnd.slice(0,5)}` : ""}
                         </span>
@@ -1692,7 +1692,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           }}>
             <span ref={ghostTimeRef} style={{ position: "absolute", top: 3, right: 4, zIndex: 2,
               borderRadius: 4, padding: "1px 4px", background: "rgba(245,247,247,.94)",
-              color: "#74827F", fontSize: 8, fontWeight: 900, lineHeight: 1.4 }}>
+              color: "#74827F", fontSize: isMobile ? 9 : 8, fontWeight: 900, lineHeight: 1.4 }}>
               {dragging.task.time?.slice(0,5)}
             </span>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#fff",

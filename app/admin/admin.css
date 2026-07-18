@@ -1016,9 +1016,14 @@
   .oa-header-search__mobile-trigger { width: 34px; height: 34px; }
 
   .oa-tools-page .admin-menu-card,
-  .oa-tools-page .admin-menu-card:hover { border: 0 !important; border-radius: 0 !important; padding: 4px 2px !important; background: transparent !important; box-shadow: none !important; transform: none !important; }
-  .oa-tools-page .admin-menu-grid { gap: 9px 3px; }
-  .oa-tools-page .admin-menu-copy h2 { margin-top: 3px !important; font-size: 8px !important; }
+  .oa-tools-page .admin-menu-card:hover { width: 100%; min-height: 72px; aspect-ratio: auto; border: 0 !important; border-radius: 0 !important; padding: 4px 0 !important; background: transparent !important; box-shadow: none !important; transform: none !important; }
+  .oa-tools-page .oa-category-section { padding-inline: 8px; }
+  .oa-tools-page .admin-menu-grid { width: 100%; grid-template-columns: repeat(4,minmax(0,1fr)); column-gap: 0; row-gap: 12px; justify-items: stretch; }
+  .oa-tools-page .admin-menu-card { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+  .oa-tools-page .admin-menu-icon { width: 40px !important; height: 40px !important; flex: 0 0 40px; border-radius: 11px !important; }
+  .oa-tools-page .admin-menu-icon svg { width: 18px; height: 18px; }
+  .oa-tools-page .admin-menu-copy { width: 100%; text-align: center; }
+  .oa-tools-page .admin-menu-copy h2 { margin-top: 4px !important; font-size: 8.5px !important; line-height: 1.25; }
 
   .crm-kpi-row { gap: 7px; margin-bottom: 11px; }
   .crm-kpi { min-height: 76px; border-radius: 10px; padding: 9px 9px 8px 12px; }
