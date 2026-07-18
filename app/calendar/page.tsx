@@ -1564,6 +1564,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                       }}
                       onTouchStart={e => {
                         if ((e.target as HTMLElement).closest("[data-resize]")) return;
+                        e.stopPropagation();
                         const touch = e.touches[0];
                         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                         dragStartRef.current = { x: touch.clientX, y: touch.clientY };
