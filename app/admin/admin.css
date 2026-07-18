@@ -1020,7 +1020,7 @@
   .oa-header--enhanced { min-height: 64px; padding-inline: 9px; }
   .oa-header--enhanced .oa-header__brand { gap: 6px; }
   .oa-header--enhanced .oa-header__brand img { height: 21px; }
-  .oa-header--enhanced .oa-header__title--compact { max-width: 150px; font-size: 9.2px; }
+  .oa-header--enhanced .oa-header__title--compact { max-width: 150px; font-size: 7.4px; }
   .oa-header-actions { gap: 4px; }
   .oa-header-profile { display: none; }
   .oa-header-action-button,
