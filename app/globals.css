@@ -885,9 +885,35 @@ main:has(> .pc-header) {
   }
 }
 
-@media (max-width: 440px) {
+@media (max-width: 640px) {
   .admin-menu-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .admin-menu-card {
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: none;
+    align-items: center;
+    gap: 12px;
+    min-height: 0;
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+  .admin-menu-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 11px;
+  }
+  .admin-menu-copy p {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .admin-menu-action {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
   }
 }
 
