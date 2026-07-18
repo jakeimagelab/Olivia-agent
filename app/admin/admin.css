@@ -1000,7 +1000,7 @@
   .oa-header--enhanced { min-height: 64px; padding-inline: 9px; }
   .oa-header--enhanced .oa-header__brand { gap: 6px; }
   .oa-header--enhanced .oa-header__brand img { height: 21px; }
-  .oa-header--enhanced .oa-header__title--compact { max-width: 122px; font-size: 13px; }
+  .oa-header--enhanced .oa-header__title--compact { max-width: 150px; font-size: 11.5px; }
   .oa-header-actions { gap: 4px; }
   .oa-header-profile { display: none; }
   .oa-header-action-button,
