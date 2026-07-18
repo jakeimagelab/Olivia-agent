@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { isActiveWorkflowStep } from "@/lib/workflow";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
