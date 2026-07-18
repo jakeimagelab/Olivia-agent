@@ -423,7 +423,7 @@ export default function BrandAnalysisPage() {
         <div style={{ fontSize: 12, fontWeight: 900, color: C.sage, marginBottom: 14, letterSpacing: ".05em" }}>
           분석 목적
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
           {PURPOSE_OPTIONS.map(opt => (
             <button
               key={opt.value}
