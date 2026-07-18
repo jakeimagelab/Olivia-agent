@@ -83,42 +83,42 @@ export default function TrashPage() {
   return (
     <main style={{ minHeight: "100dvh", background: C.mist, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       <PageHeader title="휴지통" />
-      <section style={{ maxWidth: 1040, margin: "0 auto", padding: "28px 16px 80px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.7 }}>삭제한 항목의 원래 기능을 확인하고 30일 안에 복원할 수 있습니다.</p>
-          <div style={{ padding: "10px 15px", borderRadius: 99, background: C.white, boxShadow: "0 18px 50px rgba(21,88,85,.08)", color: C.teal, fontWeight: 900, fontSize: 12, whiteSpace: "nowrap" }}>{items.length}개 보관 중</div>
+      <section style={{ maxWidth: 1040, margin: "0 auto", padding: "22px 13px 64px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <p style={{ margin: 0, color: C.muted, fontSize: 11, lineHeight: 1.7 }}>삭제한 항목의 원래 기능을 확인하고 30일 안에 복원할 수 있습니다.</p>
+          <div style={{ padding: "8px 12px", borderRadius: 99, background: C.white, boxShadow: "0 18px 50px rgba(21,88,85,.08)", color: C.teal, fontWeight: 900, fontSize: 10, whiteSpace: "nowrap" }}>{items.length}개 보관 중</div>
         </div>
 
-        <div style={{ padding: 6, borderRadius: 22, background: "rgba(21,88,85,.06)", boxShadow: "0 24px 70px rgba(21,88,85,.07)", marginBottom: 18 }}>
-          <div style={{ background: C.white, borderRadius: 17, padding: 14, display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(150px,220px)", gap: 10 }}>
-            <input aria-label="휴지통 검색" value={query} onChange={event => setQuery(event.target.value)} placeholder="제목이나 내용 검색" style={{ minHeight: 44, border: "none", borderRadius: 12, background: C.mist, padding: "0 14px", font: "inherit", fontSize: 13, outline: "none" }} />
-            <select aria-label="원래 기능 필터" value={source} onChange={event => setSource(event.target.value)} style={{ minHeight: 44, border: "none", borderRadius: 12, background: C.mist, padding: "0 12px", font: "inherit", fontSize: 13, color: C.teal, fontWeight: 800 }}>
+        <div style={{ padding: 5, borderRadius: 18, background: "rgba(21,88,85,.06)", boxShadow: "0 24px 70px rgba(21,88,85,.07)", marginBottom: 14 }}>
+          <div style={{ background: C.white, borderRadius: 14, padding: 11, display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(150px,220px)", gap: 8 }}>
+            <input aria-label="휴지통 검색" value={query} onChange={event => setQuery(event.target.value)} placeholder="제목이나 내용 검색" style={{ minHeight: 35, border: "none", borderRadius: 10, background: C.mist, padding: "0 11px", font: "inherit", fontSize: 10, outline: "none" }} />
+            <select aria-label="원래 기능 필터" value={source} onChange={event => setSource(event.target.value)} style={{ minHeight: 35, border: "none", borderRadius: 10, background: C.mist, padding: "0 10px", font: "inherit", fontSize: 10, color: C.teal, fontWeight: 800 }}>
               <option value="all">모든 기능</option>
               {sources.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>
         </div>
 
-        {message ? <div role="status" style={{ marginBottom: 14, padding: "11px 15px", borderRadius: 12, background: message.ok ? "#E4F4EE" : "#FFF0ED", color: message.ok ? C.teal : C.red, fontSize: 12, fontWeight: 800 }}>{message.text}</div> : null}
+        {message ? <div role="status" style={{ marginBottom: 11, padding: "9px 12px", borderRadius: 10, background: message.ok ? "#E4F4EE" : "#FFF0ED", color: message.ok ? C.teal : C.red, fontSize: 10, fontWeight: 800 }}>{message.text}</div> : null}
 
-        <div style={{ display: "grid", gap: 11 }}>
-          {loading ? <div style={{ padding: 38, textAlign: "center", color: C.muted }}>휴지통을 불러오는 중…</div> : null}
-          {!loading && filtered.length === 0 ? <div style={{ padding: 46, borderRadius: 20, background: C.white, textAlign: "center", color: C.muted }}>조건에 맞는 삭제 항목이 없습니다.</div> : null}
+        <div style={{ display: "grid", gap: 9 }}>
+          {loading ? <div style={{ padding: 30, textAlign: "center", color: C.muted }}>휴지통을 불러오는 중…</div> : null}
+          {!loading && filtered.length === 0 ? <div style={{ padding: 37, borderRadius: 16, background: C.white, textAlign: "center", color: C.muted }}>조건에 맞는 삭제 항목이 없습니다.</div> : null}
           {filtered.map(item => (
-            <article key={item.id} style={{ padding: 6, borderRadius: 22, background: "rgba(21,88,85,.055)" }}>
-              <div style={{ borderRadius: 17, background: C.white, padding: "18px 20px", display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 18, alignItems: "center" }}>
+            <article key={item.id} style={{ padding: 5, borderRadius: 18, background: "rgba(21,88,85,.055)" }}>
+              <div style={{ borderRadius: 14, background: C.white, padding: "14px 16px", display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 14, alignItems: "center" }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 7 }}>
-                    <span style={{ padding: "4px 9px", borderRadius: 99, background: "rgba(21,88,85,.09)", color: C.teal, fontSize: 10, fontWeight: 900 }}>{item.source_label}</span>
-                    <span style={{ color: daysLeft(item.expires_at) <= 5 ? C.orange : C.muted, fontSize: 10, fontWeight: 800 }}>{daysLeft(item.expires_at)}일 후 영구 삭제</span>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+                    <span style={{ padding: "3px 7px", borderRadius: 99, background: "rgba(21,88,85,.09)", color: C.teal, fontSize: 9, fontWeight: 900 }}>{item.source_label}</span>
+                    <span style={{ color: daysLeft(item.expires_at) <= 5 ? C.orange : C.muted, fontSize: 9, fontWeight: 800 }}>{daysLeft(item.expires_at)}일 후 영구 삭제</span>
                   </div>
-                  <h2 style={{ margin: 0, fontSize: 16, letterSpacing: "-.02em" }}>{item.title}</h2>
-                  {item.preview ? <p style={{ margin: "5px 0 0", color: C.muted, fontSize: 12, lineHeight: 1.6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.preview}</p> : null}
-                  <time style={{ display: "block", marginTop: 7, color: "#8BA19D", fontSize: 10 }}>{new Date(item.deleted_at).toLocaleString("ko-KR")} 삭제</time>
+                  <h2 style={{ margin: 0, fontSize: 13, letterSpacing: "-.02em" }}>{item.title}</h2>
+                  {item.preview ? <p style={{ margin: "4px 0 0", color: C.muted, fontSize: 10, lineHeight: 1.6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.preview}</p> : null}
+                  <time style={{ display: "block", marginTop: 6, color: "#8BA19D", fontSize: 9 }}>{new Date(item.deleted_at).toLocaleString("ko-KR")} 삭제</time>
                 </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  <button disabled={working === item.id} onClick={() => void restore(item)} style={{ minHeight: 40, padding: "0 16px", border: "none", borderRadius: 99, background: C.teal, color: C.white, font: "inherit", fontSize: 12, fontWeight: 900, cursor: "pointer" }}>복원</button>
-                  <button disabled={working === item.id} onClick={() => void removeForever(item)} style={{ minHeight: 40, padding: "0 14px", border: "none", borderRadius: 99, background: "#FFF0ED", color: C.red, font: "inherit", fontSize: 12, fontWeight: 900, cursor: "pointer" }}>영구 삭제</button>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <button disabled={working === item.id} onClick={() => void restore(item)} style={{ minHeight: 32, padding: "0 13px", border: "none", borderRadius: 99, background: C.teal, color: C.white, font: "inherit", fontSize: 10, fontWeight: 900, cursor: "pointer" }}>복원</button>
+                  <button disabled={working === item.id} onClick={() => void removeForever(item)} style={{ minHeight: 32, padding: "0 11px", border: "none", borderRadius: 99, background: "#FFF0ED", color: C.red, font: "inherit", fontSize: 10, fontWeight: 900, cursor: "pointer" }}>영구 삭제</button>
                 </div>
               </div>
             </article>
