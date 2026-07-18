@@ -10,6 +10,7 @@ import {
   getWorkflowDisplayStepKey,
   getWorkflowStepProgress,
 } from "@/lib/workflow";
+import { getErrorMessage } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -112,7 +113,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       mock: true,
-      note: error instanceof Error ? error.message : String(error),
+      note: getErrorMessage(error),
       summary: {
         activeClients: MOCK_WORKFLOW_RUNS.length,
         activeProjects: MOCK_WORKFLOW_RUNS.length,
