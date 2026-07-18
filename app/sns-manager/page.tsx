@@ -366,7 +366,7 @@ function PatternBlogWriter() {
 
       {/* ── Step 3: 글 작성 ── */}
       {step === "write" && (
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 360px", gap:24, alignItems:"start" }}>
+        <div className="pc-mobile-stack" style={{ display:"grid", gridTemplateColumns:"1fr 360px", gap:24, alignItems:"start" }}>
           <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
             {/* 선택된 스타일 표시 */}
             <div style={{ background:C.light, borderRadius:12, padding:"12px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
@@ -377,7 +377,7 @@ function PatternBlogWriter() {
             {/* 클라이언트 정보 */}
             <div style={{ background:C.white, borderRadius:14, padding:20, border:`1px solid ${C.border}` }}>
               <div style={{ fontSize:13, fontWeight:900, color:C.teal, marginBottom:14 }}>🏥 클라이언트 정보</div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div className="pc-mobile-form-grid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 <div><label style={{ fontSize:12, fontWeight:700, color:C.muted, display:"block", marginBottom:4 }}>병원명 *</label><input value={form.hospitalName} onChange={e => setForm(p=>({...p,hospitalName:e.target.value}))} placeholder="예: 포토클리닉" style={sI} /></div>
                 <div><label style={{ fontSize:12, fontWeight:700, color:C.muted, display:"block", marginBottom:4 }}>진료과</label><select value={form.department} onChange={e => setForm(p=>({...p,department:e.target.value}))} style={sI}><option value="">선택</option>{DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
                 <div><label style={{ fontSize:12, fontWeight:700, color:C.muted, display:"block", marginBottom:4 }}>지역</label><input value={form.location} onChange={e => setForm(p=>({...p,location:e.target.value}))} placeholder="예: 강남구" style={sI} /></div>
