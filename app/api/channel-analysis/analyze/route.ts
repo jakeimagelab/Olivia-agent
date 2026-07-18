@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeChannels } from "@/lib/channelAnalysis";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getErrorMessage } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,11 +43,11 @@ export async function POST(req: NextRequest) {
       reportId = report?.id ?? null;
       saveError = error?.message || "";
     } catch (error) {
-      saveError = error instanceof Error ? error.message : String(error);
+      saveError = getErrorMessage(error);
     }
 
     return NextResponse.json({ ok: true, result, reportId, saved: !saveError, saveError });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 400 });
+    return NextResponse.json({ ok: false, error: getErrorMessage(error) }, { status: 400 });
   }
 }

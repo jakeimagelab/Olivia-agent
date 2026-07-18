@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getKstDate } from "@/lib/olivia/briefings";
 import { prepareMeetingBriefing } from "@/lib/olivia/meetingAssistant";
+import { getErrorMessage } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,6 @@ export async function POST(req: NextRequest) {
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true, data: briefing, briefing });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

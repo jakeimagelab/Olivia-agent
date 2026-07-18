@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { advanceWorkflow, createStepTasks, logAgent } from "@/lib/workflowAutomation";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { getErrorMessage } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,8 +81,8 @@ export async function POST(req: NextRequest) {
       log_type: "portal_event_failed",
       message: `고객 포털 이벤트 처리 실패: ${event_type}`,
       success: false,
-      error_message: error instanceof Error ? error.message : String(error),
+      error_message: getErrorMessage(error),
     });
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

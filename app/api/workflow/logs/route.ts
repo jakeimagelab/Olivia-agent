@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { MOCK_LOGS } from "@/lib/workflow";
+import { getErrorMessage } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export async function GET() {
     if (error) throw error;
     return NextResponse.json({ ok: true, logs: data ?? [] });
   } catch (error) {
-    return NextResponse.json({ ok: true, mock: true, note: error instanceof Error ? error.message : String(error), logs: MOCK_LOGS });
+    return NextResponse.json({ ok: true, mock: true, note: getErrorMessage(error), logs: MOCK_LOGS });
   }
 }
 

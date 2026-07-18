@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getErrorMessage } from "@/lib/errors";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -72,7 +73,7 @@ export async function GET() {
       ok: true,
       mock: true,
       reviews: mockReviews,
-      note: error instanceof Error ? error.message : String(error)
+      note: getErrorMessage(error)
     });
   }
 }
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, review: data });
   } catch (error) {
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : String(error) },
+      { ok: false, error: getErrorMessage(error) },
       { status: 500 }
     );
   }

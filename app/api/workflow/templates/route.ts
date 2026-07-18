@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { ACTIVE_WORKFLOW_STEPS, MOCK_TEMPLATE } from "@/lib/workflow";
+import { getErrorMessage } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export async function GET() {
     const templates = data.map(t => ({ ...t, steps: ACTIVE_WORKFLOW_STEPS }));
     return NextResponse.json({ ok: true, templates });
   } catch (error) {
-    return NextResponse.json({ ok: true, mock: true, note: error instanceof Error ? error.message : String(error), templates: [MOCK_TEMPLATE] });
+    return NextResponse.json({ ok: true, mock: true, note: getErrorMessage(error), templates: [MOCK_TEMPLATE] });
   }
 }
 

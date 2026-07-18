@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import tls from "node:tls";
+import { getErrorMessage } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, id });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     return NextResponse.json({ ok: false, error: `메일 발송 실패: ${message}` }, { status: 500 });
   }
 }

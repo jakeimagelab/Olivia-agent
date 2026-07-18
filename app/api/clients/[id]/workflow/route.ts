@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { MOCK_AGENT_TASKS, MOCK_APPROVALS, MOCK_WORKFLOW_RUNS } from "@/lib/workflow";
 import { buildNextAction, createStepTasks, ensureStepRun } from "@/lib/workflowAutomation";
+import { getErrorMessage } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     return NextResponse.json({
       ok: true,
       mock: true,
-      note: error instanceof Error ? error.message : String(error),
+      note: getErrorMessage(error),
       runs: MOCK_WORKFLOW_RUNS.filter((run) => run.client_id === id || id),
       tasks: MOCK_AGENT_TASKS,
       approvals: MOCK_APPROVALS,

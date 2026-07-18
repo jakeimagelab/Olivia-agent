@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { MOCK_APPROVALS } from "@/lib/workflow";
+import { getErrorMessage } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
     return NextResponse.json({ ok: true, approvals: data ?? [] });
   } catch (error) {
-    return NextResponse.json({ ok: true, mock: true, note: error instanceof Error ? error.message : String(error), approvals: MOCK_APPROVALS });
+    return NextResponse.json({ ok: true, mock: true, note: getErrorMessage(error), approvals: MOCK_APPROVALS });
   }
 }
 

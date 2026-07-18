@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { MOCK_WORKFLOW_RUNS } from "@/lib/workflow";
 import { buildNextAction, createStepTasks, ensureStepRun } from "@/lib/workflowAutomation";
+import { getErrorMessage } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export async function GET() {
     if (error) throw error;
     return NextResponse.json({ ok: true, runs: data ?? [] });
   } catch (error) {
-    return NextResponse.json({ ok: true, mock: true, note: error instanceof Error ? error.message : String(error), runs: MOCK_WORKFLOW_RUNS });
+    return NextResponse.json({ ok: true, mock: true, note: getErrorMessage(error), runs: MOCK_WORKFLOW_RUNS });
   }
 }
 

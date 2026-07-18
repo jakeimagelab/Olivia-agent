@@ -5,6 +5,7 @@ import { saveMeetingCommitments } from "@/lib/olivia/commitments";
 import { createStepTasks } from "@/lib/workflowAutomation";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { analyzeMeetingMemo } from "@/lib/olivia/meetingAssistant";
+import { getErrorMessage } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,6 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ ok: true, data: { briefing, commitments, createdTasks }, briefing, commitments, createdTasks });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

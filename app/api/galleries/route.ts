@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       mock: true,
       galleries: filtered,
-      note: error instanceof Error ? error.message : String(error)
+      note: getErrorMessage(error)
     });
   }
 }
@@ -344,7 +344,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, gallery });
   } catch (error) {
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : String(error) },
+      { ok: false, error: getErrorMessage(error) },
       { status: 500 }
     );
   }
@@ -418,7 +418,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true, gallery });
   } catch (error) {
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : String(error) },
+      { ok: false, error: getErrorMessage(error) },
       { status: 500 }
     );
   }

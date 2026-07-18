@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
 import { executeOliviaChatWorkTool, OLIVIA_CHAT_WORK_TOOL_NAMES } from "@/lib/olivia/chatWorkTools";
 import { formatWorkItemReferenceContext, type OliviaChatReference } from "@/lib/olivia/chatTypes";
+import { getErrorMessage } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -1248,7 +1249,7 @@ async function executeTool(
         success++;
         results.push(`✅ ${task.date}${timeLabel} ${task.title}`);
       } catch (error) {
-        results.push(`❌ ${task.title}: ${error instanceof Error ? error.message : String(error)}`);
+        results.push(`❌ ${task.title}: ${getErrorMessage(error)}`);
       }
     }
     return {
