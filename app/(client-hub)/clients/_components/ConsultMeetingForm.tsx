@@ -49,11 +49,35 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [startStepKey, setStartStepKey] = useState<string>(ACTIVE_WORKFLOW_STEPS[0].key);
+  const [contactSupported, setContactSupported] = useState(false);
+
+  useEffect(() => {
+    setContactSupported(typeof navigator !== "undefined" && !!navigator.contacts?.select);
+  }, []);
 
   const set =
     (k: keyof F) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  const pickContact = async () => {
+    if (!navigator.contacts) return;
+    try {
+      const [picked] = await navigator.contacts.select(["name", "tel", "email"], { multiple: false });
+      if (!picked) return;
+      setForm((prev) => ({
+        ...prev,
+        manager_name: picked.name?.[0] || prev.manager_name,
+        phone: picked.tel?.[0] || prev.phone,
+        email: picked.email?.[0] || prev.email,
+      }));
+    } catch {
+      /* 사용자가 선택 취소한 경우 등 — 조용히 무시 */
+    }
+  };
+
+  const startStepIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === startStepKey);
 
   const extract = async () => {
     if (!memo.trim()) return;
