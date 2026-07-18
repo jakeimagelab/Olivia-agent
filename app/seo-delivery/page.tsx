@@ -9,7 +9,7 @@ const C = {
   teal: "#155855", orange: "#E85D2C", green: "#22876A",
   white: "#FFFFFF", border: "rgba(21,88,85,.12)", muted: "#5A7470",
   hint: "#9BB5B0", txt: "#1C2B28", light: "#EAF4F2",
-  purple: "#7C3AED", purpleLight: "rgba(124,58,237,.08)",
+  orangeLight: "rgba(232,93,44,.08)",
   danger: "#DC2626", caution: "#D97706",
 };
 
