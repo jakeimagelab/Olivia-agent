@@ -1040,13 +1040,12 @@
   .oa-tools-page .admin-menu-grid { width: 100%; grid-template-columns: repeat(4,minmax(0,1fr)); column-gap: 0; row-gap: 12px; justify-items: stretch; }
   .oa-tools-page .admin-menu-card { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
   .oa-tools-page .admin-menu-icon {
-    width: 46px !important;
-    height: 46px !important;
-    flex: 0 0 46px;
-    border-radius: 15px !important;
+    width: 55px !important;
+    height: 55px !important;
+    flex: 0 0 55px;
+    border-radius: 18px !important;
   }
-  .oa-tools-page .admin-menu-icon::after { border-radius: 11px 11px 5px 5px; }
-  .oa-tools-page .admin-menu-icon svg { width: 20px; height: 20px; stroke-width: 2; }
+  .oa-tools-page .admin-menu-icon svg { width: 24px; height: 24px; stroke-width: 2; }
   .oa-tools-page .admin-menu-copy { width: 100%; text-align: center; }
   .oa-tools-page .admin-menu-copy h2 { margin-top: 4px !important; font-size: 8.5px !important; line-height: 1.25; }
 
