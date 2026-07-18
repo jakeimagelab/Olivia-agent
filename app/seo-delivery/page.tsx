@@ -280,8 +280,8 @@ function SeoDeliveryInner() {
               </div>
 
               {/* 일괄 입력 */}
-              <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: C.purpleLight }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.purple, marginBottom: 6 }}>일괄 입력 (탭 구분: 파일명 장면유형 표시명 진료과 용도)</div>
+              <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: C.orangeLight }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.orange, marginBottom: 6 }}>일괄 입력 (탭 구분: 파일명 장면유형 표시명 진료과 용도)</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <textarea value={bulkInput} onChange={(e) => setBulkInput(e.target.value)}
                     placeholder={"R5K03697.JPG\t원장 상담\t원장 상담 장면\t마취통증의학과\thomepage\nR5K03698.JPG\t장비 시술\tC-arm 시술 장면\t마취통증의학과\thomepage"}
@@ -448,8 +448,8 @@ function SeoDeliveryInner() {
 
               {/* IPTC 메타데이터 */}
               <div className="pc-card">
-                <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, background: C.purpleLight }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: C.purple }}>IPTC / XMP 메타데이터</div>
+                <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, background: C.orangeLight }}>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: C.orange }}>IPTC / XMP 메타데이터</div>
                 </div>
                 <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                   {Object.entries(sel.iptcMetadata).map(([k, v]) => (
