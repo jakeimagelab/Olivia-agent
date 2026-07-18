@@ -3907,6 +3907,9 @@ main:has(> .pc-header) {
   top: 58px;
   z-index: 190;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  scroll-snap-type: x proximity;
   scrollbar-width: none;
   box-shadow: 0 1px 0 rgba(21,88,85,.04);
 }
