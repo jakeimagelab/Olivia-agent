@@ -864,17 +864,29 @@
    붕 뜬 줄처럼 보인다 — 여기서는 아이콘 배지 색 자체가 브랜드 컬러라 액센트 바가 필요 없다. */
 .oa-tools-page .admin-menu-card::before { display: none; }
 .oa-tools-page .admin-menu-icon {
-  border: none;
-  background: linear-gradient(148deg, #0d3230 0%, #155855 100%);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.24);
+  background: linear-gradient(150deg, #2a9d84 0%, #155855 55%, #0a2f2c 100%);
   color: #ffffff;
-  box-shadow: 0 5px 15px rgba(13,50,48,.35), inset 0 1px 0 rgba(255,255,255,.2);
+  box-shadow: 0 6px 16px rgba(13,50,48,.38), inset 0 1px 1px rgba(255,255,255,.36);
 }
 .oa-tools-page .admin-menu-card.orange .admin-menu-icon {
-  border: none;
-  background: linear-gradient(148deg, #B8431A 0%, #E85D2C 100%);
+  border: 1px solid rgba(255,255,255,.3);
+  background: linear-gradient(150deg, #f4874f 0%, #e85d2c 55%, #a83c17 100%);
   color: #ffffff;
-  box-shadow: 0 5px 15px rgba(184,67,26,.35), inset 0 1px 0 rgba(255,255,255,.2);
+  box-shadow: 0 6px 16px rgba(184,67,26,.4), inset 0 1px 1px rgba(255,255,255,.4);
 }
+.oa-tools-page .admin-menu-icon::after {
+  content: "";
+  position: absolute;
+  inset: 2px 2px auto;
+  height: 46%;
+  border-radius: 10px 10px 5px 5px;
+  background: linear-gradient(180deg, rgba(255,255,255,.34), rgba(255,255,255,0));
+  pointer-events: none;
+}
+.oa-tools-page .admin-menu-icon svg { position: relative; z-index: 1; }
 .olivia-assistant-page--embedded { margin-bottom: 18px; padding-bottom: 0; scroll-margin-top: 88px; }
 .olivia-assistant-page--embedded .olivia-page-heading { border-radius: 20px; }
 .olivia-assistant-page--embedded .olivia-tab-content { min-height: 0; }
