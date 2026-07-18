@@ -31,3 +31,11 @@ The existing automation engine remains responsible for task creation and executi
 - Existing mock/fallback behavior remains available for incomplete projects.
 - Calendar drag and resize behavior remains intact.
 - Verify focused unit tests, TypeScript, production build, and representative desktop/mobile routes.
+
+## Approved follow-up: navigation consistency
+
+- Conti and photo-work section tabs use the exact same global tab treatment as integrated mailing; no section-specific underline or filled state remains.
+- The home brand title is shortened to `올리비아`, reduced by approximately 15%, and uses brand green `#155855`.
+- The tools-home primary titles and card labels are reduced by approximately 15% and use brand green.
+- The proactive Olivia workspace is embedded in the admin home. Former assistant routes redirect to the embedded section and the redundant sidebar item is removed.
+- Memo page ordering is header, memo-mode tabs, then trash/new-memo actions.

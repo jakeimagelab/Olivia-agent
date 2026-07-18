@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function OliviaAssistantRedirectPage() {
-  redirect("/admin/olivia-assistant");
+  redirect("/admin/dashboard/home#olivia-assistant");
 }

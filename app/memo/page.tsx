@@ -267,6 +267,7 @@ function MemoWorkspace() {
         tabs={MODE_TABS}
         activeTab={mode}
         onTabChange={key => changeMode(key as MemoMode)}
+        actionsAfterTabs
         actions={<>
           <Link href="/trash" className="pc-btn pc-btn--secondary pc-btn--sm" aria-label="휴지통"><Trash2 size={14} /><span className="memo-header-action-label">휴지통</span></Link>
           <button className="pc-btn pc-btn--orange pc-btn--sm" onClick={() => reset(mode)}><Plus size={15} />새 메모</button>

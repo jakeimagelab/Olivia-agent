@@ -13,6 +13,7 @@ interface PageHeaderProps {
   tabs?: TabDef[];
   activeTab?: string;
   onTabChange?: (key: string) => void;
+  actionsAfterTabs?: boolean;
 }
 
 export default function PageHeader({
@@ -21,7 +22,24 @@ export default function PageHeader({
   tabs,
   activeTab,
   onTabChange,
+  actionsAfterTabs = false,
 }: PageHeaderProps) {
+  const actionRow = actions ? <div className="pc-page-actions">{actions}</div> : null;
+  const tabRow = tabs && tabs.length > 0 ? (
+    <div className="pc-tabs pc-tabs--global">
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          className={`pc-tab${activeTab === t.key ? " pc-tab--active" : ""}`}
+          onClick={() => onTabChange?.(t.key)}
+        >
+          {t.icon && <span className="pc-tab-icon">{t.icon}</span>}
+          {t.label}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
   return (
     <>
       <header className="pc-header">
@@ -35,22 +53,8 @@ export default function PageHeader({
         </div>
       </header>
 
-      {actions && <div className="pc-page-actions">{actions}</div>}
-
-      {tabs && tabs.length > 0 && (
-        <div className="pc-tabs pc-tabs--global">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              className={`pc-tab${activeTab === t.key ? " pc-tab--active" : ""}`}
-              onClick={() => onTabChange?.(t.key)}
-            >
-              {t.icon && <span className="pc-tab-icon">{t.icon}</span>}
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {actionsAfterTabs ? tabRow : actionRow}
+      {actionsAfterTabs ? actionRow : tabRow}
     </>
   );
 }

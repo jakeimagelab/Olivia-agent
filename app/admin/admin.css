@@ -545,6 +545,7 @@
   -webkit-backdrop-filter: blur(18px) saturate(1.15);
 }
 .oa-header__title { font-size: clamp(22px,2vw,29px); color: var(--command-text); }
+.oa-header__title--compact { color: #155855; font-size: clamp(19px,1.7vw,25px); }
 .oa-header__description { margin-top: 2px; color: #879792; font-size: 10px; }
 .oa-header__actions { gap: 7px; }
 .oa-header__search { width: min(245px,20vw); height: 36px; border: 0; border-radius: 11px; background: #f1f5f4; box-shadow: inset 0 0 0 1px rgba(21,88,85,.055); }
@@ -849,6 +850,12 @@
 }
 
 /* 개별 기능 홈: 모바일에서도 요청된 4열 정사각 카드 유지 */
+.oa-tools-page .oa-category-section__title { color: #155855; font-size: 12px; }
+.oa-tools-page .admin-menu-copy h2 { color: #155855; font-size: 14.5px; }
+.olivia-assistant-page--embedded { margin-bottom: 18px; padding-bottom: 0; scroll-margin-top: 88px; }
+.olivia-assistant-page--embedded .olivia-page-heading { border-radius: 20px; }
+.olivia-assistant-page--embedded .olivia-tab-content { min-height: 0; }
+.olivia-assistant-page--embedded .olivia-tab-content > .olivia-empty { padding-block: 14px; }
 @media (max-width: 560px) {
   .oa-tools-page .admin-menu-grid { grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px; }
   .oa-tools-page .admin-menu-card { min-height: 0; aspect-ratio: 1; gap: 5px; border-radius: 12px; padding: 8px; }
@@ -857,9 +864,15 @@
   .oa-tools-page .admin-menu-copy > span,
   .oa-tools-page .admin-menu-copy > p,
   .oa-tools-page .admin-menu-action { display: none; }
-  .oa-tools-page .admin-menu-copy h2 { margin: 2px 0 0 !important; font-size: 10px !important; line-height: 1.16; letter-spacing: -.035em; word-break: keep-all; }
+  .oa-tools-page .admin-menu-copy h2 { margin: 2px 0 0 !important; color: #155855; font-size: 9px !important; line-height: 1.16; letter-spacing: -.035em; word-break: keep-all; }
   .crm-kanban-shell { border-radius: 16px; padding: 12px 10px; }
   .crm-kanban-label { padding-inline: 2px; font-size: 12px; }
+}
+
+@media (max-width: 680px) {
+  .oa-header__title--compact { font-size: 17px; }
+  .oa-tools-page .oa-category-section__title { font-size: 11px; }
+  .olivia-assistant-page--embedded .olivia-page-heading { border-radius: 16px; }
 }
 /* Olivia proactive assistant */
 .olivia-dashboard-panel,.olivia-project-panel,.olivia-briefing-panel,.olivia-approval-summary{background:#fff;border:1px solid rgba(21,88,85,.12);border-radius:22px;box-shadow:0 12px 36px rgba(21,88,85,.07)}

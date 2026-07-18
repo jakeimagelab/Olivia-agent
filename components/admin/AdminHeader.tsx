@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 type PageMeta = { title: string; description: string };
 
 const pageMeta: Record<string, PageMeta> = {
-  "/admin/dashboard": { title: "포토클리닉 올리비아", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
-  "/admin/dashboard/home": { title: "포토클리닉 올리비아", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
+  "/admin/dashboard": { title: "올리비아", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
+  "/admin/dashboard/home": { title: "올리비아", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
   "/admin/dashboard/memo": { title: "메모", description: "일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다." },
   "/admin/dashboard/calendar": { title: "캘린더", description: "촬영과 운영 일정을 한눈에 관리합니다." },
   "/admin/dashboard/mailing": { title: "메일링", description: "발송 대기 메일과 발송 이력을 관리합니다." },
@@ -42,13 +42,14 @@ function getPageMeta(pathname: string): PageMeta {
 export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const pathname = usePathname();
   const meta = getPageMeta(pathname);
+  const compactTitle = pathname === "/admin/dashboard" || pathname === "/admin/dashboard/home" || pathname === "/admin/tools";
 
   return (
     <>
       <header className="oa-header">
         <div className="oa-header__brand">
           <img src="/assets/photoclinic-logo.png" alt="포토클리닉" />
-          <h1 className="oa-header__title">{meta.title}</h1>
+          <h1 className={`oa-header__title${compactTitle ? " oa-header__title--compact" : ""}`}>{meta.title}</h1>
         </div>
       </header>
       <button className="oa-header__menu-dock" type="button" onClick={onMenuToggle} aria-label="관리자 메뉴 열기">
