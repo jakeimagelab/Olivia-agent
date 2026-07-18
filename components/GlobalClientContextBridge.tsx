@@ -14,7 +14,7 @@ function ClientContextBridgeInner() {
     window.dispatchEvent(new CustomEvent("olivia-client-context", { detail: clientContext }));
   }, [clientContext]);
 
-  const standaloneToolPaths = ["/quote", "/contract", "/conti", "/photo-sorting", "/select-galleries", "/select-match", "/photo-retouching", "/seo-delivery", "/review-studio", "/per", "/sns-manager"];
+  const standaloneToolPaths = ["/quote", "/contract", "/conti", "/photo-sorting", "/select-galleries", "/select-match", "/photo-retouching", "/seo-delivery", "/review-studio", "/per", "/sns-manager", "/channel-analyzer"];
   const isStandaloneTool = standaloneToolPaths.some(path => pathname === path || pathname?.startsWith(`${path}/`));
   if (pathname?.startsWith("/admin")) return null;
   if (!isClientLinked && !isStandaloneTool) return null;

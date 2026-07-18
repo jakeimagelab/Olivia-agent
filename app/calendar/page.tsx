@@ -1218,6 +1218,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
   const draggingRef  = useRef(dragging);
   draggingRef.current = dragging;
   const ghostRef     = useRef<HTMLDivElement>(null);
+  const ghostTimeRef = useRef<HTMLSpanElement>(null);
   const dragPosRef   = useRef<{x:number;y:number}>({x:0,y:0});
   const dragStartRef = useRef<{x:number;y:number}>({x:0,y:0}); // 클릭 vs 드래그 구분용
 
@@ -1284,11 +1285,19 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       // 세로는 커서 위치를 그대로 따라가고(부드러움), 가로만 현재 커서가 있는 요일 컬럼 폭/위치에 맞춰
       // 스냅한다 — 진짜 박스처럼 보이면서도 어느 요일에 놓일지 계속 눈으로 확인할 수 있다.
       const target = getPosTarget(x, y, cachedRects);
+      const timeTarget = getPosTarget(x, y - d.offsetY, cachedRects);
       const colRect = target && cachedRects ? cachedRects.colRects[target.colIdx] : null;
       const left = colRect ? colRect.left + 2 : x - d.offsetX;
       const top = y - d.offsetY;
       ghostRef.current.style.transform = `translate(${left}px,${top}px)`;
       if (colRect) ghostRef.current.style.width = `${colRect.width - 4}px`;
+      if (ghostTimeRef.current && timeTarget) {
+        const duration = d.task.time && d.task.end_time
+          ? Math.max(0, timeToMinutes(d.task.end_time) - timeToMinutes(d.task.time))
+          : 0;
+        const end = duration ? minutesToTime(timeToMinutes(timeTarget.time) + duration) : "";
+        ghostTimeRef.current.textContent = end ? `${timeTarget.time}–${end}` : timeTarget.time;
+      }
     };
     positionGhost(dragPosRef.current.x, dragPosRef.current.y);
     const onMouseMove = (e: MouseEvent) => {
@@ -1380,19 +1389,30 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         });
       }
     };
-    const onUp = () => {
+    const finishResize = (clientY?: number) => {
       if (resizeRafRef.current !== null) { cancelAnimationFrame(resizeRafRef.current); resizeRafRef.current = null; }
-      const p = resizePendingRef.current;
+      const p = typeof clientY === "number" ? compute(clientY) : resizePendingRef.current;
       if (info.edge === "bottom") onUpdateTask(info.task.id, { end_time: p?.previewEndTime ?? info.previewEndTime });
       else onUpdateTask(info.task.id, { time: p?.previewStartTime ?? info.previewStartTime });
       resizePendingRef.current = null;
       setResizeInfo(null);
     };
+    const onUp = (e: MouseEvent) => finishResize(e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) onMove({ clientY: touch.clientY } as MouseEvent);
+    };
+    const onTouchEnd = (e: TouchEvent) => finishResize(e.changedTouches[0]?.clientY);
     document.addEventListener("mousemove", onMove, { passive: true });
     document.addEventListener("mouseup", onUp);
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
     return () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
       if (resizeRafRef.current !== null) { cancelAnimationFrame(resizeRafRef.current); resizeRafRef.current = null; }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1576,6 +1596,14 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                       {currentEnd && (
                         <div style={{ fontSize: 9, color: "rgba(255,255,255,.75)" }}>~ {currentEnd.slice(0,5)}</div>
                       )}
+                      {isResizing && (
+                        <span style={{ position: "absolute", top: 2, right: 3, zIndex: 20,
+                          borderRadius: 4, padding: "1px 4px", background: "rgba(245,247,247,.94)",
+                          color: "#74827F", fontSize: 8, fontWeight: 900, lineHeight: 1.4,
+                          boxShadow: "0 1px 3px rgba(21,88,85,.12)" }}>
+                          {currentStart.slice(0,5)}{currentEnd ? `–${currentEnd.slice(0,5)}` : ""}
+                        </span>
+                      )}
 
                       {/* 위쪽 경계 — 드래그하면 시작시간만 바뀌고 종료시간은 고정 */}
                       <div
@@ -1585,6 +1613,15 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                           const origStart = t.time || "09:00";
                           const origEnd = t.end_time || nextHourTime(origStart);
                           setResizeInfo({ task: t, edge: "top", startY: e.clientY,
+                            origStartTime: origStart, origEndTime: origEnd,
+                            previewStartTime: origStart, previewEndTime: origEnd });
+                        }}
+                        onTouchStart={e => {
+                          e.preventDefault(); e.stopPropagation();
+                          const touch = e.touches[0];
+                          const origStart = t.time || "09:00";
+                          const origEnd = t.end_time || nextHourTime(origStart);
+                          setResizeInfo({ task: t, edge: "top", startY: touch.clientY,
                             origStartTime: origStart, origEndTime: origEnd,
                             previewStartTime: origStart, previewEndTime: origEnd });
                         }}
@@ -1603,6 +1640,15 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                           const origStart = t.time || "09:00";
                           const origEnd = t.end_time || nextHourTime(origStart);
                           setResizeInfo({ task: t, edge: "bottom", startY: e.clientY,
+                            origStartTime: origStart, origEndTime: origEnd,
+                            previewStartTime: origStart, previewEndTime: origEnd });
+                        }}
+                        onTouchStart={e => {
+                          e.preventDefault(); e.stopPropagation();
+                          const touch = e.touches[0];
+                          const origStart = t.time || "09:00";
+                          const origEnd = t.end_time || nextHourTime(origStart);
+                          setResizeInfo({ task: t, edge: "bottom", startY: touch.clientY,
                             origStartTime: origStart, origEndTime: origEnd,
                             previewStartTime: origStart, previewEndTime: origEnd });
                         }}
@@ -1644,6 +1690,11 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
             boxShadow: "0 16px 34px rgba(0,0,0,.26), 0 5px 12px rgba(0,0,0,.18)",
             overflow: "hidden",
           }}>
+            <span ref={ghostTimeRef} style={{ position: "absolute", top: 3, right: 4, zIndex: 2,
+              borderRadius: 4, padding: "1px 4px", background: "rgba(245,247,247,.94)",
+              color: "#74827F", fontSize: 8, fontWeight: 900, lineHeight: 1.4 }}>
+              {dragging.task.time?.slice(0,5)}
+            </span>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#fff",
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {dragging.task.time?.slice(0,5)} {dragging.task.title}

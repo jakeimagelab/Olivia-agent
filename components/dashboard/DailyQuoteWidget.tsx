@@ -110,10 +110,13 @@ function PixelPortrait({ author }: { author: string }) {
       <span className="oa-pixel-person__ear oa-pixel-person__ear--left" />
       <span className="oa-pixel-person__ear oa-pixel-person__ear--right" />
       <span className="oa-pixel-person__face">
+        <span className="oa-pixel-person__temple" />
         <span className="oa-pixel-person__brow oa-pixel-person__brow--left" />
         <span className="oa-pixel-person__brow oa-pixel-person__brow--right" />
         <span className="oa-pixel-person__eye oa-pixel-person__eye--left" />
         <span className="oa-pixel-person__eye oa-pixel-person__eye--right" />
+        <span className="oa-pixel-person__cheek oa-pixel-person__cheek--left" />
+        <span className="oa-pixel-person__cheek oa-pixel-person__cheek--right" />
         {traits.glasses && <span className="oa-pixel-person__glasses" />}
         <span className="oa-pixel-person__nose" />
         {traits.moustache && <span className="oa-pixel-person__moustache" />}
@@ -122,6 +125,9 @@ function PixelPortrait({ author }: { author: string }) {
       </span>
       <span className="oa-pixel-person__neck" />
       <span className="oa-pixel-person__body" />
+      <span className="oa-pixel-person__shirt" />
+      <span className="oa-pixel-person__lapel oa-pixel-person__lapel--left" />
+      <span className="oa-pixel-person__lapel oa-pixel-person__lapel--right" />
     </div>
   );
 }
