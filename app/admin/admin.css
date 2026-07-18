@@ -1033,7 +1033,8 @@
 }
 
 @media (max-width: 900px) {
-  .oa-sidebar { top: 0; z-index: 120; }
-  .oa-sidebar--open { top: 0; z-index: 120; }
-  .oa-shell__scrim { z-index: 110; }
+  /* 기능 페이지마다 sticky 헤더/탭의 레이어 값이 달라도 열린 전역 메뉴는 항상 최상단에 둔다. */
+  .oa-sidebar { top: 0; }
+  .oa-sidebar.oa-sidebar--open { top: 0; z-index: 1000001 !important; }
+  .oa-shell__scrim { z-index: 1000000 !important; }
 }
