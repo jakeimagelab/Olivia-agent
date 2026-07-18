@@ -924,9 +924,12 @@ main:has(> .pc-header) {
   gap: 16px;
   min-width: 0;
   min-height: 220px;
-  border: 1px solid rgba(21, 88, 85, 0.1);
+  overflow: hidden;
+  border: 1px solid rgba(21, 88, 85, 0.14);
   border-radius: 20px;
-  background: #ffffff;
+  background:
+    radial-gradient(140% 100% at 100% 0%, rgba(21,88,85,.06) 0%, transparent 55%),
+    #ffffff;
   color: inherit;
   padding: 20px;
   text-decoration: none;
@@ -937,9 +940,35 @@ main:has(> .pc-header) {
   will-change: transform;
 }
 
+.admin-menu-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #155855, #1e7870);
+}
+
+.admin-menu-card.orange::before {
+  background: linear-gradient(90deg, #E85D2C, #EB8F22);
+}
+
+.admin-menu-card.orange {
+  background:
+    radial-gradient(140% 100% at 100% 0%, rgba(232,93,44,.07) 0%, transparent 55%),
+    #ffffff;
+}
+
 .oa-tools-page .admin-menu-card {
-  background: #FBF7EF;
-  border-color: rgba(16,58,98,.1);
+  background:
+    radial-gradient(140% 100% at 100% 0%, rgba(21,88,85,.07) 0%, transparent 55%),
+    #FBF7EF;
+  border-color: rgba(16,58,98,.14);
+}
+
+.oa-tools-page .admin-menu-card.orange {
+  background:
+    radial-gradient(140% 100% at 100% 0%, rgba(232,93,44,.08) 0%, transparent 55%),
+    #FBF7EF;
 }
 
 .admin-menu-card:hover {
