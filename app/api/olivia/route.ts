@@ -1374,23 +1374,31 @@ async function executeTool(
   if (name === "get_gallery") {
     const db = getSupabaseAdmin();
     // 병원명으로 client_id 조회
-    const { data: clients } = await db
-      .from("clients")
-      .select("id, hospital_name")
-      .ilike("hospital_name", `%${input.clientName}%`)
-      .limit(1);
-    const client = clients?.[0];
+    const client = await fuzzyNameSearchOne<any>({
+      db, table: "clients", nameColumn: "hospital_name",
+      select: "id, hospital_name",
+      query: input.clientName,
+    });
 
-    let query = db
-      .from("photo_galleries")
-      .select("id, hospital_name, nas_link, shoot_date, description, created_at, items:photo_gallery_items(thumbnail_url)")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (client?.id) query = query.eq("client_id", client.id);
-    else query = query.ilike("hospital_name", `%${input.clientName}%`);
-
-    const { data: galleries } = await query;
+    const GALLERY_SELECT = "id, hospital_name, nas_link, shoot_date, description, created_at, items:photo_gallery_items(thumbnail_url)";
+    let galleries: any[] | null;
+    if (client?.id) {
+      const { data } = await db
+        .from("photo_galleries")
+        .select(GALLERY_SELECT)
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      galleries = data;
+    } else {
+      galleries = await fuzzyNameSearch<any>({
+        db, table: "photo_galleries", nameColumn: "hospital_name",
+        select: GALLERY_SELECT,
+        query: input.clientName,
+        limit: 5,
+        filter: (q: any) => q.order("created_at", { ascending: false }),
+      });
+    }
 
     if (!galleries || galleries.length === 0) {
       return { action: "done", message: `📷 **${input.clientName}** 갤러리가 아직 없습니다.\n\n갤러리를 등록하려면 create_gallery 도구를 사용해주세요.` };
