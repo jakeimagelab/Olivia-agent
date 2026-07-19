@@ -186,6 +186,7 @@ export async function POST(req: NextRequest) {
       queue_id:      id,
       type:          item.type,
       hospital_name: item.hospital_name,
+      client_id:     item.client_id ?? null,
       to_email:      item.to_email,
       subject:       item.subject,
       status:        "sent",
