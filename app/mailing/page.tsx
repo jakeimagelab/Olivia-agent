@@ -127,6 +127,35 @@ function QueueTab() {
     setSelected(item);
     setEditing({ subject: item.subject, body: item.body, to_email: item.to_email });
     setSaveMsg("");
+    setAvailableArtifacts([]);
+    const params = new URLSearchParams();
+    if (item.workflow_run_id) params.set("workflowRunId", item.workflow_run_id);
+    else if (item.client_id) params.set("clientId", item.client_id);
+    if ([...params.keys()].length) {
+      fetch(`/api/workflow-artifacts?${params}`)
+        .then(r => r.json())
+        .then(d => { if (d.ok) setAvailableArtifacts(d.artifacts || []); })
+        .catch(() => {});
+    }
+  };
+
+  const attachArtifact = async (artifact: WorkflowArtifact) => {
+    if (!selected) return;
+    setAttachingId(artifact.id);
+    try {
+      const res = await fetch(`/api/workflow-artifacts/${artifact.id}/attach-to-mail`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mailingId: selected.id }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setSelected(data.item);
+        setItems(prev => prev.map(i => i.id === selected.id ? data.item : i));
+        setSaveMsg("PDF 첨부됨");
+      } else setSaveMsg(`오류: ${data.error}`);
+    } finally {
+      setAttachingId("");
+    }
   };
 
   const saveEdit = async () => {
