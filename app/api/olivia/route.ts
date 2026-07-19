@@ -7,6 +7,8 @@ import { executeOliviaChatWorkTool, OLIVIA_CHAT_WORK_TOOL_NAMES } from "@/lib/ol
 import { formatWorkItemReferenceContext, type OliviaChatReference } from "@/lib/olivia/chatTypes";
 import { getErrorMessage } from "@/lib/errors";
 import { fuzzyIncludes, fuzzyNameSearch, fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
+import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
+import { OLIVIA_CRUD_DOMAINS } from "@/lib/olivia/crud/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -35,6 +37,44 @@ const QUERYABLE_TABLES = [
   "workflow_runs", "workflow_step_runs", "workflow_templates",
 ] as const;
 const QUERYABLE_TABLE_SET = new Set<string>(QUERYABLE_TABLES);
+
+const OLIVIA_CRUD_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "create_feature_record",
+    description: "앱 기능 데이터를 실제 DB에 새로 생성합니다. 고객, 프로젝트/워크플로우, 메모, 일정, 견적, 계약, 콘티, 갤러리, 후기, 메일 초안, 내부 업무를 생성할 때 사용합니다. 실행 전 사용자 확인 카드가 표시됩니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        domain: { type: "string", enum: [...OLIVIA_CRUD_DOMAINS], description: "생성할 기능 도메인" },
+        data: { type: "object", description: "도메인별 생성 데이터", additionalProperties: true },
+        requestText: { type: "string", description: "사용자의 원래 요청 요약" },
+      },
+      required: ["domain", "data"],
+    },
+  },
+  {
+    name: "update_feature_record",
+    description: "앱 기능의 기존 DB 데이터를 수정합니다. 대상을 확실히 식별할 수 있을 때만 사용하며, 찾지 못한 대상을 임의로 새로 생성하지 않습니다. 실행 전 사용자 확인 카드가 표시됩니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        domain: { type: "string", enum: [...OLIVIA_CRUD_DOMAINS], description: "수정할 기능 도메인" },
+        target: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "수정할 레코드 UUID" },
+            name: { type: "string", description: "병원명, 프로젝트명, 제목 등 대상 이름" },
+            naturalKey: { type: "string", description: "견적번호, 계약 견적번호 등 자연키" },
+          },
+          additionalProperties: false,
+        },
+        data: { type: "object", description: "변경할 필드만 포함한 데이터", additionalProperties: true },
+        requestText: { type: "string", description: "사용자의 원래 요청 요약" },
+      },
+      required: ["domain", "target", "data"],
+    },
+  },
+];
 
 // query_database 결과에서 토큰/비밀번호류 컬럼은 대화 로그에 남지 않도록 마스킹한다.
 const SENSITIVE_FIELD_PATTERN = /token|password|secret|api[_-]?key|service[_-]?role|private[_-]?key/i;
@@ -826,6 +866,25 @@ Available tools:
 - get_gallery: 병원의 납품 갤러리·NAS 링크 조회
 - create_gallery: 보정 완료 후 갤러리 등록 (client_id 연동 시 메일 draft 자동 생성 + 워크플로우 자동 전진)
 - get_client_profile: 고객 통합 정보 한 번에 조회 (기본정보 + 진행단계 + 누적 촬영금액 + PER 포인트/등급 + 원본·보정 링크 + 최근 메일이력)
+- create_feature_record: 기능별 DB 데이터 생성. domain은 client, workflow, memo, calendar, quote, contract, conti, photo_gallery, select_gallery, review, mail_draft, agent_task 중 하나이며 data는 아래 camelCase 필드를 사용한다.
+- update_feature_record: 기존 기능별 DB 데이터 수정. target에 id 또는 name/naturalKey를 반드시 넣고 data에는 바뀌는 필드만 넣는다. 대상을 못 찾았다고 새로 생성하지 않는다.
+
+기능별 생성·수정 규칙 (매우 중요):
+- 고객 등록/수정 → domain client. data: hospitalName, contactName, phone, email, specialty, memo
+- 프로젝트/워크플로우 등록/수정 → domain workflow. data: clientId, clientName, projectName, managerName, contactName, contactEmail, shootDate, nextAction, status
+- 날짜·시간이 없는 일반 메모 생성/수정 → domain memo. data: hospitalName, title, rawMemo, summary, recommendedPackage, nextAction. 절대 calendar로 보내지 않는다.
+- 명시적인 날짜나 시간이 있는 일정 생성/수정은 기존 calendar_add/calendar_update를 우선 사용한다.
+- 견적 저장/수정 → domain quote. data: quoteNumber, hospitalName, contactName, items, 금액 필드, memos. 단순히 견적 페이지를 여는 요청은 create_quote를 사용한다.
+- 계약 저장/수정 → domain contract. data: quoteNumber, hospitalName, contactName, email, quoteData
+- 콘티 저장본 생성/수정 → domain conti. data: hospitalName, specialties, title, result
+- 보정 사진/NAS 갤러리 생성/수정 → domain photo_gallery. data: hospitalName, shootDate, nasLink, description
+- 고객 셀렉 갤러리 생성/수정 → domain select_gallery. data: title, hospitalName, shootingName, shootingDate, status
+- 후기 등록/수정 → domain review. data: hospitalName 또는 clientId, overallRating, goodPoints, improvementPoints, publicReviewText, allowPublicUse
+- 메일은 실제 발송 요청이 아니라 초안 생성/수정 요청일 때만 domain mail_draft. data: type, hospitalName, toEmail, subject, body
+- 내부 업무 생성/수정 → domain agent_task. data: title, description, priority, status, workflowRunId
+- 생성/수정 도구는 확인 카드가 표시되므로 도구 호출 전에 별도의 확인 질문을 반복하지 말고, 필수정보가 있으면 즉시 tool_use를 반환한다.
+- 수정 대상이 모호하면 먼저 query_database나 전용 조회 도구로 하나의 ID를 확인한다.
+- 사용자가 삭제를 요청하면 이 두 도구를 사용하지 않는다.
 
 워크플로우 규칙 (매우 중요):
 - "~병원 현황 알려줘", "~병원 지금 어디까지?" → get_workflow_status 호출
@@ -988,7 +1047,7 @@ export async function POST(req: NextRequest) {
     model: "claude-sonnet-4-6",
     max_tokens: 4096,
     system: systemWithContext,
-    tools: [...TOOLS, ...OLIVIA_WORK_TOOLS, WEB_SEARCH_TOOL],
+    tools: [...TOOLS, ...OLIVIA_CRUD_TOOLS, ...OLIVIA_WORK_TOOLS, WEB_SEARCH_TOOL],
     messages: anthropicMessages,
   });
 
@@ -1110,6 +1169,15 @@ async function executeTool(
   req: NextRequest,
   context: { recentWorkItems?: OliviaChatReference[] } = {},
 ) {
+  if (name === "create_feature_record" || name === "update_feature_record") {
+    return executeOliviaCrud(getSupabaseAdmin(), {
+      operation: name === "create_feature_record" ? "create" : "update",
+      domain: input.domain,
+      data: input.data || {},
+      target: input.target,
+      requestText: input.requestText,
+    });
+  }
   if (OLIVIA_CHAT_WORK_TOOL_NAMES.has(name)) {
     return executeOliviaChatWorkTool(getSupabaseAdmin(), name, input, context);
   }

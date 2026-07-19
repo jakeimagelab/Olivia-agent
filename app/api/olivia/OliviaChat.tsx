@@ -28,6 +28,8 @@ const TOOL_LABELS: Record<string, string> = {
   calendar_list:      "캘린더 할일 조회",
   calendar_complete:  "할일 완료 처리",
   calendar_delete:    "할일 삭제",
+  create_feature_record: "기능 데이터 생성",
+  update_feature_record: "기능 데이터 수정",
 };
 
 const TOOL_ICONS: Record<string, string> = {
@@ -41,10 +43,22 @@ const TOOL_ICONS: Record<string, string> = {
   calendar_list:      "🗓️",
   calendar_complete:  "✅",
   calendar_delete:    "🗑️",
+  create_feature_record: "＋",
+  update_feature_record: "✎",
 };
+
+function summarizeCrudData(input: any) {
+  const prefix = input.target?.name || input.target?.naturalKey || input.target?.id;
+  const fields = Object.entries(input.data || {}).slice(0, 5).map(([key, value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value).slice(0, 48) : String(value).slice(0, 48)}`);
+  return [`${input.domain || "기능"}${prefix ? ` · 대상: ${prefix}` : ""}`, ...fields].join("\n");
+}
 
 function summarizeTool(name: string, input: any): string {
   switch (name) {
+    case "create_feature_record":
+      return summarizeCrudData(input);
+    case "update_feature_record":
+      return summarizeCrudData(input);
     case "create_quote":
       return `${input.hospitalName || ""}${input.packageId ? " · " + input.packageId : ""}`;
     case "send_file_transfer":

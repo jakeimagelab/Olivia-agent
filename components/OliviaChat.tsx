@@ -185,6 +185,8 @@ const TOOL_LABELS: Record<string, string> = {
   analyze_meeting_memo: "미팅 메모 분석",
   complete_meeting: "미팅 완료 처리",
   get_meeting_followups: "미팅 후속 업무 확인",
+  create_feature_record: "기능 데이터 생성",
+  update_feature_record: "기능 데이터 수정",
 };
 
 const TOOL_ICONS: Record<string, string> = {
@@ -214,6 +216,8 @@ const TOOL_ICONS: Record<string, string> = {
   analyze_meeting_memo: "🎙️",
   complete_meeting: "✅",
   get_meeting_followups: "🤝",
+  create_feature_record: "＋",
+  update_feature_record: "✎",
 };
 
 // 페이지 이동만 하거나(DB 기록 없음), 조회이거나, 내부 상태 변경인 도구는 승인 없이 자동 실행.
@@ -233,9 +237,29 @@ const AUTO_EXECUTE_TOOLS = new Set([
   "memo_add", "manage_olivia_action", "link_meeting_client",
 ]);
 
+const CRUD_FIELD_LABELS: Record<string, string> = {
+  hospitalName: "고객", clientName: "고객", projectName: "프로젝트", title: "제목",
+  contactName: "담당자", phone: "전화", email: "이메일", specialty: "진료과",
+  date: "날짜", time: "시간", shootDate: "촬영일", quoteNumber: "견적번호",
+  totalAmount: "합계", nasLink: "NAS", subject: "메일 제목", status: "상태",
+};
+
+function summarizeCrudData(input: any) {
+  const prefix = input.target?.name || input.target?.naturalKey || input.target?.id;
+  const fields = Object.entries(input.data || {}).slice(0, 5).map(([key, value]) => {
+    const printable = typeof value === "object" ? JSON.stringify(value) : String(value);
+    return `${CRUD_FIELD_LABELS[key] || key}: ${printable.slice(0, 48)}`;
+  });
+  return [`${input.domain || "기능"}${prefix ? ` · 대상: ${prefix}` : ""}`, ...fields].join("\n");
+}
+
 // 도구 입력 요약
 function summarizeTool(name: string, input: any): string {
   switch (name) {
+    case "create_feature_record":
+      return summarizeCrudData(input);
+    case "update_feature_record":
+      return summarizeCrudData(input);
     case "create_quote":
       return `${input.hospitalName || ""}${input.packageId ? " · " + input.packageId : ""}`;
     case "send_file_transfer":
@@ -814,7 +838,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
                         <div style={{ fontSize: 12, fontWeight: 700, color: C.teal }}>
                           {msg.toolRequest.label}
                         </div>
-                        <div style={{ fontSize: 10, color: C.muted }}>
+                        <div style={{ fontSize: 10, color: C.muted, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
                           {summarizeTool(msg.toolRequest.name, msg.toolRequest.input)}
                         </div>
                       </div>
