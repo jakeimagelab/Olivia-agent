@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (id) {
     const [campaign, records] = await Promise.all([
       db.from("donation_campaigns").select("*").eq("id", id).single(),
-      db.from("donation_records").select("*, clients(name, manager_name)").eq("campaign_id", id).order("created_at", { ascending: false }),
+      db.from("donation_records").select("*, clients(name:hospital_name, manager_name:contact_name)").eq("campaign_id", id).order("created_at", { ascending: false }),
     ]);
     return NextResponse.json({ ok: true, campaign: campaign.data, records: records.data ?? [] });
   }
