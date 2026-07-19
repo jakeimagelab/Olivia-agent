@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
           if (execData.ok && execData.toolResult) {
             const result = execData.toolResult;
             lines.push(result.action === "navigate"
-              ? (result.message || "완료됐어요!") + `\n🔗 ${base}${result.url}`
+              ? (result.message || "완료됐어요!") + `\n🔗 ${String(result.url || "").startsWith("http") ? result.url : base + result.url}`
               : (result.message || "완료됐어요!"));
           } else {
             lines.push(`⚠️ ${label} 실행 실패`);
