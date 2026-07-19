@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   let query = db
     .from("reward_orders")
-    .select("*, clients(name, manager_name, email), reward_products(name, category, price)")
+    .select("*, clients(name:hospital_name, manager_name:contact_name, email), reward_products(name, category, price)")
     .order("created_at", { ascending: false });
 
   if (status)   query = query.eq("status", status);
