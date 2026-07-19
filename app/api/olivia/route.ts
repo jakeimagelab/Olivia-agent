@@ -509,6 +509,14 @@ const OLIVIA_WORK_TOOLS: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "check_recent_errors",
+    description: "최근 자동화 오류/실패한 작업을 조회합니다(agent_logs의 실패 기록, agent_tasks의 실패 작업). '오늘 뭐 문제 있었어?', '실패한 거 있어?', '자동화 오류 확인해줘' 같은 자체 점검 요청에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: { sinceHours: { type: "number", description: "몇 시간 전부터 조회할지. 기본값 24" } },
+    },
+  },
+  {
     name: "list_commitments",
     description: "미팅에서 추출된 대표 또는 고객 약속과 기한 초과 항목을 조회합니다.",
     input_schema: {
