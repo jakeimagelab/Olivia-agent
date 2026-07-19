@@ -70,7 +70,6 @@ export function rowToCredential(row: {
   };
 }
 
-export function isAdminSession(req: Request): boolean {
-  const cookie = req.headers.get("cookie") || "";
-  return cookie.split(";").some((c) => c.trim() === "pc_admin_session=active");
+export function isAdminSession(req: NextRequest): boolean {
+  return req.cookies.get("pc_admin_session")?.value === "active";
 }
