@@ -720,6 +720,7 @@ function pageShortcutFromText(text: string) {
     [/파일\s*전송|납품\s*메일|전달\s*메일/, "delivery-mail"],
     [/고객|클라이언트|병원\s*관리/, "clients"],
     [/메일링|메일\s*큐|통합\s*메일/, "mailing"],
+    [/셀렉\s*갤러리|셀렉트\s*갤러리/, "select-galleries"],
     [/갤러리|사진\s*전달/, "gallery"],
     [/리뷰|후기/, "review-studio"],
     [/아이디어|오늘\s*콘텐츠/, "daily-ideas"],
