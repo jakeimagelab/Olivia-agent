@@ -365,6 +365,23 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "complete_workflow_retroactively",
+    description:
+      "이미 실제로는 끝난 프로젝트를 뒤늦게 시스템에 등록하면서 한 번에 전체 완료 처리한다. " +
+      "'전체 완료해줘', '이미 끝난 프로젝트라 다 완료 처리해줘' 같은 요청에 사용. " +
+      "진행 중인 프로젝트를 실수로 통째로 끝내버릴 수 있으므로, 호출 전 반드시 " +
+      "'이 병원 워크플로우를 통째로 완료 처리할까요? 진행 중인 작업이 있다면 전부 생략 처리됩니다' 라고 확인받을 것. " +
+      "일반적인 단계 진행에는 advance_workflow_step을 사용하고, 이 도구는 소급 등록 상황에만 사용한다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명" },
+        reason: { type: "string", description: "완료 처리 사유 (예: 이미 종료된 프로젝트 소급 등록)" },
+      },
+      required: ["clientName"],
+    },
+  },
+  {
     name: "list_mailing_queue",
     description: "메일링 큐의 대기 중인 메일 목록을 확인합니다. '보낼 메일 있어?', '메일 대기 목록 알려줘' 등에 사용합니다.",
     input_schema: {
