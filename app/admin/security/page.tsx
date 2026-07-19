@@ -42,8 +42,8 @@ export default function SecurityPage() {
     setErr(""); setMsg(""); setRegistering(true);
     try {
       const optionsRes = await fetch("/api/auth/passkey/register-options", { method: "POST" });
-      const optionsData = await optionsRes.json();
-      if (!optionsData.ok) throw new Error(optionsData.error || "등록 준비에 실패했어요.");
+      const optionsData = await optionsRes.json().catch(() => null);
+      if (!optionsData?.ok) throw new Error(optionsData?.error || "등록 준비에 실패했어요.");
 
       const response = await startRegistration({ optionsJSON: optionsData.options });
 
@@ -52,8 +52,8 @@ export default function SecurityPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ response, deviceName: deviceName || "" }),
       });
-      const verifyData = await verifyRes.json();
-      if (!verifyData.ok) throw new Error(verifyData.error || "등록에 실패했어요.");
+      const verifyData = await verifyRes.json().catch(() => null);
+      if (!verifyData?.ok) throw new Error(verifyData?.error || "등록에 실패했어요.");
 
       setMsg("패스키가 등록됐어요.");
       setDeviceName("");
