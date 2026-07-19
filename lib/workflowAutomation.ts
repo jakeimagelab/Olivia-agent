@@ -521,7 +521,7 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
     if (registeredData) {
       await db.from("agent_tasks").update({ input_data: enrichedTask.input_data, updated_at: now }).eq("id", task.id);
     }
-    const output = buildTaskOutput(enrichedTask, run);
+    const output = await buildTaskOutput(db, enrichedTask, run);
     let relatedType = task.task_type;
     let relatedId = `${task.task_type}-${task.id}`;
     let mailingId: string | null = null;
