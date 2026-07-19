@@ -41,16 +41,16 @@ export async function POST(req: NextRequest) {
     };
 
     const html = buildClientReportHtml(client, reportData);
-    const title = `${client.name} PER 리워드 리포트`;
+    const title = `${client.hospital_name} PER 리워드 리포트`;
 
     const mailingId = await savePerMailingQueue({
       type: "per_report",
-      hospitalName: client.name,
+      hospitalName: client.hospital_name,
       clientId: clientId,
-      contactName:  client.manager_name ?? "",
+      contactName:  client.contact_name ?? "",
       toEmail:      client.email ?? "",
-      subject:      `[PER 리포트] ${client.name} 리워드 활동 내역`,
-      body:         `안녕하세요 ${client.name}님,\n\nPER 리워드 리포트가 생성되었습니다. 자세한 내용은 첨부된 리포트를 확인해주세요.\n\n좋은 병원 이미지를 만드는 촬영이, 좋은 공간과 좋은 나눔으로 이어지도록.\n포토클리닉 드림`,
+      subject:      `[PER 리포트] ${client.hospital_name} 리워드 활동 내역`,
+      body:         `안녕하세요 ${client.hospital_name}님,\n\nPER 리워드 리포트가 생성되었습니다. 자세한 내용은 첨부된 리포트를 확인해주세요.\n\n좋은 병원 이미지를 만드는 촬영이, 좋은 공간과 좋은 나눔으로 이어지도록.\n포토클리닉 드림`,
     });
 
     const { data: report, error } = await db.from("per_reports").insert({
