@@ -895,7 +895,7 @@ Available tools:
 - 견적 저장/수정 → domain quote. data: quoteNumber, hospitalName, contactName, items, 금액 필드, memos. 단순히 견적 페이지를 여는 요청은 create_quote를 사용한다.
 - 계약 저장/수정 → domain contract. data: quoteNumber, hospitalName, contactName, email, quoteData
 - 콘티 저장본 생성/수정 → domain conti. data: hospitalName, specialties, title, result
-- 보정 사진/NAS 갤러리 생성/수정 → domain photo_gallery. data: hospitalName, shootDate, nasLink, description
+- 보정 사진/NAS 갤러리 생성/수정 → domain photo_gallery. data: hospitalName, shootDate, nasLink, description, galleryType(original|retouched, 기본 retouched)
 - 고객 셀렉 갤러리 생성/수정 → domain select_gallery. data: title, hospitalName, shootingName, shootingDate, status
 - 후기 등록/수정 → domain review. data: hospitalName 또는 clientId, overallRating, goodPoints, improvementPoints, publicReviewText, allowPublicUse
 - 메일은 실제 발송 요청이 아니라 초안 생성/수정 요청일 때만 domain mail_draft. data: type, hospitalName, toEmail, subject, body
