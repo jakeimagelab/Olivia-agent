@@ -22,7 +22,10 @@ type Gallery = {
   description?: string;
   created_at?: string;
   items?: GalleryItem[];
+  client_id?: string | null;
 };
+
+type ClientOption = { id: string; hospital_name?: string; name?: string };
 
 const C = {
   teal: "#155855",
