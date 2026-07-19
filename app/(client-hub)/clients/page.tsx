@@ -986,6 +986,23 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
             )}
           </div>
         ))}
+        {(client.original_photos_link || client.retouched_photos_link) && (
+          <>
+            <div style={{ height: 1, background: C.border, margin: "2px 0" }} />
+            {client.original_photos_link && (
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "start" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, paddingTop: 3 }}>원본사진공유링크</span>
+                <a href={client.original_photos_link} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: C.teal, textDecoration: "none", wordBreak: "break-word" }}>{client.original_photos_link} ↗</a>
+              </div>
+            )}
+            {client.retouched_photos_link && (
+              <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "start" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, paddingTop: 3 }}>보정사진공유링크</span>
+                <a href={client.retouched_photos_link} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: C.teal, textDecoration: "none", wordBreak: "break-word" }}>{client.retouched_photos_link} ↗</a>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
