@@ -32,6 +32,7 @@ async function generateAndSaveDraft(review: {
       type: "review_form",
       status: "draft",
       hospital_name: review.hospital_name,
+      client_id: await resolveClientId(db, review.hospital_name),
       subject: `[자동생성] ${review.hospital_name} 후기 콘텐츠 초안`,
       body: `${parsed.caption}\n\n${parsed.hashtags}`,
       source_module: "review-auto",
