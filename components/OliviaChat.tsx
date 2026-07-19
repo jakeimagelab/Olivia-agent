@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { C } from "@/lib/theme";
 import OliviaChatWorkItemCard from "@/components/olivia/OliviaChatWorkItemCard";
 import { compactWorkItemReferences, type OliviaChatWorkItem, type OliviaChatWorkItemAction } from "@/lib/olivia/chatTypes";
+import { isAutoExecutableClientCreate } from "@/lib/olivia/crud/autoExecution";
 
 // ── 마크다운 렌더러 (외부 패키지 없이 직접 구현) ─────────────
 function MarkdownText({ text, isUser }: { text: string; isUser: boolean }) {
@@ -480,8 +481,8 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       if (data.type === "tool_request") {
         const toolName = data.tool.name as string;
 
-        if (AUTO_EXECUTE_TOOLS.has(toolName)) {
-          // 캘린더 도구: 승인 없이 즉시 실행
+        if (AUTO_EXECUTE_TOOLS.has(toolName) || isAutoExecutableClientCreate(data.tool)) {
+          // 안전한 도구와 명시적으로 요청한 신규 고객 등록은 즉시 실행
           if (data.text) {
             setMessages(prev => [...prev, { role: "assistant", content: data.text }]);
           }

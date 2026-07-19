@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { isAutoExecutableClientCreate } from "@/lib/olivia/crud/autoExecution";
 
 // ── 타입 ─────────────────────────────────────────────────
 interface Message {
@@ -234,16 +235,38 @@ export default function OliviaChat() {
       if (!data.ok) throw new Error(data.error || "알 수 없는 오류");
 
       if (data.type === "tool_request") {
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: data.text || "",
-          toolRequest: {
-            name:  data.tool.name,
-            input: data.tool.input,
-            id:    data.tool.id,
-            label: TOOL_LABELS[data.tool.name] || data.tool.name,
-          },
-        }]);
+        const toolRequest = {
+          name: data.tool.name,
+          input: data.tool.input,
+          id: data.tool.id,
+          label: TOOL_LABELS[data.tool.name] || data.tool.name,
+        };
+
+        if (isAutoExecutableClientCreate(toolRequest)) {
+          if (data.text) setMessages(prev => [...prev, { role: "assistant", content: data.text }]);
+          const execRes = await fetch("/api/olivia", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pendingTool: toolRequest }),
+          });
+          const execRaw = await execRes.text();
+          if (!execRaw.trim()) throw new Error("서버 응답이 없습니다.");
+          let execData: any;
+          try { execData = JSON.parse(execRaw); } catch { throw new Error("서버 응답을 처리할 수 없습니다."); }
+          if (!execData.ok) throw new Error(execData.error || "고객 등록에 실패했습니다.");
+
+          const result = execData.toolResult;
+          dispatchOliviaDataChanged(result);
+          const resultMessage = result.message || "고객 등록이 완료됐어요!";
+          setMessages(prev => [...prev, { role: "assistant", content: resultMessage, toolResult: result.action }]);
+          if (result.action === "navigate" && result.url) window.location.href = result.url;
+        } else {
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: data.text || "",
+            toolRequest,
+          }]);
+        }
       } else {
         setMessages(prev => [...prev, { role: "assistant", content: data.text }]);
       }

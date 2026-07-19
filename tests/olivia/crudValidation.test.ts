@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getOliviaCrudCapabilities } from "@/lib/olivia/crud/registry";
 import { validateOliviaCrudRequest } from "@/lib/olivia/crud/validation";
 import { getOliviaCrudNavigation } from "@/lib/olivia/crud/executor";
+import { isAutoExecutableClientCreate } from "@/lib/olivia/crud/autoExecution";
 
 describe("Olivia 기능별 생성·수정 검증", () => {
   it("지원 도메인과 허용 필드를 공개한다", () => {
@@ -58,5 +59,12 @@ describe("Olivia 기능별 생성·수정 검증", () => {
     expect(getOliviaCrudNavigation("client", "create", "client-123")).toBe("/clients?id=client-123");
     expect(getOliviaCrudNavigation("client", "update", "client-123")).toBeNull();
     expect(getOliviaCrudNavigation("quote", "create", "quote-123")).toBeNull();
+  });
+
+  it("고객 신규 생성 도구만 승인 없이 자동 실행한다", () => {
+    expect(isAutoExecutableClientCreate({ name: "create_feature_record", input: { domain: "client" } })).toBe(true);
+    expect(isAutoExecutableClientCreate({ name: "create_feature_record", input: { domain: "quote" } })).toBe(false);
+    expect(isAutoExecutableClientCreate({ name: "update_feature_record", input: { domain: "client" } })).toBe(false);
+    expect(isAutoExecutableClientCreate({ name: "create_feature_record", input: null })).toBe(false);
   });
 });
