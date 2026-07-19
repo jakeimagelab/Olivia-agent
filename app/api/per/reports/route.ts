@@ -121,7 +121,7 @@ function buildClientReportHtml(client: any, data: any): string {
 </style></head><body>
 <div class="header">
   <h1>PER 리워드 리포트</h1>
-  <p>${client.name} · ${client.manager_name ?? ""}</p>
+  <p>${client.hospital_name} · ${client.contact_name ?? ""}</p>
   <span class="badge">${tier} 등급</span>
 </div>
 <div class="card">
