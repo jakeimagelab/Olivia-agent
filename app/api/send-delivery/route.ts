@@ -121,19 +121,34 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`;
 
+  const subject = `[포토클리닉] 병원의 멋진 이야기 공유드립니다`;
+  const supabase = getSupabaseAdmin();
+
   try {
     const id = await sendGmail({
       user: gmailUser,
       appPassword: gmailPass,
       to,
       fromName,
-      subject: `[포토클리닉] 병원의 멋진 이야기 공유드립니다`,
+      subject,
       html: emailHtml,
     });
+
+    // 이 경로는 mailing_queue를 거치지 않는 직접 발송이라 queue_id 없이 발송이력에 남긴다.
+    await supabase.from("mailing_logs").insert({
+      queue_id: null, type: "original_files", hospital_name: hospitalName || "",
+      to_email: to, subject, status: "sent",
+    }).then(() => {}, () => {});
 
     return NextResponse.json({ ok: true, id });
   } catch (error) {
     const message = getErrorMessage(error);
+
+    await supabase.from("mailing_logs").insert({
+      queue_id: null, type: "original_files", hospital_name: hospitalName || "",
+      to_email: to, subject, status: "failed", error: message,
+    }).then(() => {}, () => {});
+
     return NextResponse.json({ ok: false, error: `메일 발송 실패: ${message}` }, { status: 500 });
   }
 }
