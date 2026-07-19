@@ -867,6 +867,8 @@ Available tools:
 - get_project_status: 프로젝트 현재 단계와 다음 행동 조회
 - list_pending_approvals: 승인 대기 통합 조회
 - list_commitments: 대표·고객 약속 조회
+- check_recent_errors: 최근 자동화 오류/실패한 작업 조회 (자체 문제 점검). "오늘 뭐 문제 있었어?", "실패한 거 있어?" 같은 질문에 사용
+- generate_document: 대화 내용을 바탕으로 자유 형식 PDF 문서를 생성해 다운로드 링크로 제공. "이거 PDF로 만들어줘", "제안서/보고서 파일로 만들어줘" 같은 요청에 사용
 - prepare_followup: 고객 후속 연락 초안을 승인함에 준비 (자동 발송 금지)
 - manage_olivia_action: 선택한 업무 항목 승인·실행·완료·확인·스누즈·무시
 - run_observer: 최신 업무 상태 즉시 재점검
