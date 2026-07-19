@@ -3536,6 +3536,8 @@ main:has(> .pc-header) {
 .pc-smart-timeline__header > strong { flex: 0 0 auto; border-radius: 999px; padding: 7px 11px; background: #eaf4f2; color: #155855; font-size: 10px; }
 .pc-smart-timeline__list { border-radius: 0 0 18px 18px; padding: 7px 10px 12px; background: #fff; }
 .pc-smart-timeline__item { display: grid; grid-template-columns: 38px minmax(0,1fr); gap: 10px; }
+.pc-smart-timeline__item--clickable { cursor: pointer; }
+.pc-smart-timeline__item--clickable .pc-smart-timeline__summary:hover { background: rgba(21,88,85,.05); }
 .pc-smart-timeline__rail { display: grid; grid-template-rows: 32px minmax(20px,1fr); justify-items: center; }
 .pc-smart-timeline__rail span {
   width: 28px;
