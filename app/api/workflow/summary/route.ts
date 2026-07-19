@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
+  ACTIVE_WORKFLOW_STEP_KEYS,
   MOCK_AGENT_TASKS,
   MOCK_APPROVALS,
   MOCK_WORKFLOW_RUNS,
@@ -50,7 +51,10 @@ export async function GET() {
     const openApprovalKeys = new Set(approvals.filter((approval) => ["pending", "revision_requested"].includes(approval.status)).map((approval) => `${approval.workflow_run_id}:${approval.workflow_step_key}`));
 
     const workflowRuns = runs.map((run) => {
-      const displayStepKey = getWorkflowDisplayStepKey(run.current_step_key) ?? run.current_step_key;
+      const isCompleted = run.status === "completed";
+      const displayStepKey = isCompleted
+        ? ACTIVE_WORKFLOW_STEP_KEYS[ACTIVE_WORKFLOW_STEP_KEYS.length - 1]
+        : getWorkflowDisplayStepKey(run.current_step_key) ?? run.current_step_key;
       const step = WORKFLOW_STEPS.find((candidate) => candidate.key === displayStepKey);
       const stage = WORKFLOW_STAGES.find((candidate) => candidate.key === step?.stage);
       const waitingApprovalCount = pendingApprovals.filter((approval) => approval.workflow_run_id === run.id).length;
@@ -63,7 +67,7 @@ export async function GET() {
         current_step_name: STEP_NAME[displayStepKey] || displayStepKey,
         stage_key: stage?.key ?? "consult_contract",
         stage_name: stage?.name ?? "상담·계약",
-        progress: getWorkflowStepProgress(run.current_step_key),
+        progress: getWorkflowStepProgress(run.current_step_key, run.status),
         delayed: Boolean(run.shoot_date && run.shoot_date < today() && run.status === "active"),
         waiting_approval_count: waitingApprovalCount,
         revision_request_count: revisionRequestCount,

@@ -193,7 +193,8 @@ export function getWorkflowDisplayStepKey(stepKey: string): ActiveWorkflowStepKe
   return LEGACY_STEP_PARENT[stepKey] ?? null;
 }
 
-export function getWorkflowStepProgress(stepKey: string) {
+export function getWorkflowStepProgress(stepKey: string, workflowStatus?: string | null) {
+  if (workflowStatus === "completed") return 100;
   const displayKey = getWorkflowDisplayStepKey(stepKey);
   const index = displayKey ? ACTIVE_WORKFLOW_STEP_KEYS.indexOf(displayKey) : -1;
   return index >= 0 ? Math.round(((index + 1) / ACTIVE_WORKFLOW_STEP_KEYS.length) * 100) : 0;

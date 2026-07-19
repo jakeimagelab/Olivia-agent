@@ -5,6 +5,14 @@ import { resolveClientId } from "@/lib/clientLookup";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function quoteErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : fallback;
+  if (message.includes("public.quotes") && message.includes("schema cache")) {
+    return "견적 저장 DB가 아직 준비되지 않았습니다. Supabase SQL Editor에서 supabase/quotes-schema.sql을 실행해주세요.";
+  }
+  return message;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
@@ -30,7 +38,7 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, quotes: data ?? [] });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "견적 조회 실패" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: quoteErrorMessage(error, "견적 조회 실패") }, { status: 500 });
   }
 }
 
@@ -85,6 +93,6 @@ export async function POST(req: NextRequest) {
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at, updated: Boolean(existing?.id) });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "견적 저장 실패" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: quoteErrorMessage(error, "견적 저장 실패") }, { status: 500 });
   }
 }

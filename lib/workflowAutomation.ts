@@ -392,7 +392,22 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
   }
   const now = new Date().toISOString();
   if (!toStep) {
-    await db.from("workflow_runs").update({ status: "completed", completed_at: now, updated_at: now }).eq("id", run.id);
+    const lastStepKey = ACTIVE_WORKFLOW_STEP_KEYS[ACTIVE_WORKFLOW_STEP_KEYS.length - 1];
+    const { error: finalStepError } = await db.from("workflow_step_runs")
+      .update({ status: "completed", completed_at: now, updated_at: now })
+      .eq("workflow_run_id", run.id)
+      .eq("step_key", fromStep)
+      .neq("status", "completed");
+    if (finalStepError) throw new Error(finalStepError.message);
+
+    const { error: completionError } = await db.from("workflow_runs").update({
+      current_step_key: lastStepKey,
+      next_action: "전체 워크플로우 완료",
+      status: "completed",
+      completed_at: now,
+      updated_at: now,
+    }).eq("id", run.id);
+    if (completionError) throw new Error(completionError.message);
     await logAgent(db, { workflow_run_id: run.id, log_type: "workflow_completed", message: `${run.client_name || "워크플로우"} 전체 단계가 완료되었습니다.` });
     await emitOliviaEventSafely(db, {
       eventType: "workflow.completed",
@@ -485,26 +500,37 @@ export async function completeWorkflowRetroactively(
   const lastStepKey = ACTIVE_WORKFLOW_STEP_KEYS[ACTIVE_WORKFLOW_STEP_KEYS.length - 1];
 
   // 1) 안 끝난 단계(step_runs) 전부 완료 처리
-  await db.from("workflow_step_runs")
+  const { error: stepRunsError } = await db.from("workflow_step_runs")
     .update({ status: "completed", completed_at: now, updated_at: now })
     .eq("workflow_run_id", run.id)
     .neq("status", "completed");
+  if (stepRunsError) throw new Error(stepRunsError.message);
 
   // 2) 안 끝난 업무(agent_tasks) 전부 정리 (완료가 아니라 "소급등록으로 생략"으로 명확히 구분)
-  await db.from("agent_tasks")
+  const { error: tasksError } = await db.from("agent_tasks")
     .update({ status: "canceled", error_message: "소급 등록으로 인해 생략됨", completed_at: now, updated_at: now })
     .eq("workflow_run_id", run.id)
-    .in("status", ["pending", "running", "waiting_approval"]);
+    .in("status", ["pending", "running", "waiting_approval", "failed"]);
+  if (tasksError) throw new Error(tasksError.message);
+
+  // 완료된 프로젝트가 승인함에 계속 남지 않도록 열려 있는 승인도 함께 정리한다.
+  const { error: approvalsError } = await db.from("agent_approvals")
+    .update({ status: "rejected", admin_memo: "워크플로우 전체 완료로 종료됨", rejected_at: now, updated_at: now })
+    .eq("workflow_run_id", run.id)
+    .in("status", ["pending", "revision_requested"]);
+  if (approvalsError) throw new Error(approvalsError.message);
 
   // 3) 워크플로우 본체를 마지막 단계로 옮기고 completed 처리
-  await db.from("workflow_runs")
+  const { error: runError } = await db.from("workflow_runs")
     .update({
       current_step_key: lastStepKey,
       status: "completed",
+      next_action: "전체 워크플로우 완료",
       completed_at: now,
       updated_at: now,
     })
     .eq("id", run.id);
+  if (runError) throw new Error(runError.message);
 
   await logAgent(db, {
     workflow_run_id: run.id,

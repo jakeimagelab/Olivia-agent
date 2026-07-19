@@ -51,7 +51,8 @@ export default function NextActionCard({
   }
 
   const action = data || {};
-  const color = severityColor[action.severity] || C.orange;
+  const isCompleted = workflowRun.status === "completed" || action.primaryAction === "completed";
+  const color = isCompleted ? C.green : severityColor[action.severity] || C.orange;
   const appHref = buildStepAppLink({
     stepKey: action.currentStepKey || workflowRun.current_step_key,
     clientId: client.id,
@@ -106,6 +107,7 @@ export default function NextActionCard({
   };
 
   const primaryButton = () => {
+    if (isCompleted) return null;
     if (action.primaryAction === "run_current_step") {
       return <button onClick={runCurrentStep} disabled={busy} style={primaryStyle(color)}>{busy ? "처리 중..." : action.primaryActionLabel}</button>;
     }
@@ -131,30 +133,37 @@ export default function NextActionCard({
           <div style={{ fontSize: 11, fontWeight: 900, color, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 5 }}>NEXT ACTION</div>
           <h2 style={titleStyle}>{client.name}</h2>
           {workflowRun.run_kind === "additional_shooting" && <StatusPill color={C.purple}>추가 촬영</StatusPill>}
-          <p style={descStyle}>현재 단계: <strong style={{ color: C.orange }}>{loading ? "불러오는 중..." : action.currentStepName}</strong></p>
-          <p style={{ margin: "5px 0 0", color, fontSize: 14, fontWeight: 900 }}>{loading ? "다음 액션을 계산하는 중입니다." : action.nextActionLabel || action.label}</p>
+          <p style={descStyle}>현재 단계: <strong style={{ color }}>{isCompleted ? "전체 완료" : loading ? "불러오는 중..." : action.currentStepName}</strong></p>
+          <p style={{ margin: "5px 0 0", color, fontSize: 14, fontWeight: 900 }}>{isCompleted ? "워크플로우의 모든 단계가 완료되었습니다." : loading ? "다음 액션을 계산하는 중입니다." : action.nextActionLabel || action.label}</p>
           {action.blockedReason ? <p style={{ margin: "5px 0 0", color: C.muted, fontSize: 12 }}>{action.blockedReason}</p> : null}
         </div>
         <div style={{ minWidth: 150, textAlign: "right" }}>
           <div style={{ fontSize: 10, color: C.hint, fontWeight: 900, marginBottom: 5 }}>진행률</div>
-          <div style={{ fontSize: 24, color: C.orange, fontWeight: 1000 }}>{action.progress ?? 0}%</div>
+          <div style={{ fontSize: 24, color, fontWeight: 1000 }}>{isCompleted ? 100 : action.progress ?? 0}%</div>
           <div style={{ height: 5, borderRadius: 999, background: C.light, overflow: "hidden", marginTop: 5 }}>
-            <div style={{ width: `${action.progress ?? 0}%`, height: "100%", background: C.orange }} />
+            <div style={{ width: `${isCompleted ? 100 : action.progress ?? 0}%`, height: "100%", background: color }} />
           </div>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 11 }}>
-        <StatusPill color={action.canRunTasks ? C.orange : C.hint}>자동처리 {action.canRunTasks ? "가능" : "대기"}</StatusPill>
-        <StatusPill color={action.canApprove ? C.orange : C.hint}>승인 {action.canApprove ? "필요" : "없음"}</StatusPill>
-        <StatusPill color={action.canSendMail ? C.green : C.hint}>메일 {action.canSendMail ? "발송대기" : "대기없음"}</StatusPill>
-        <StatusPill color={action.primaryAction === "fix_failed_task" ? C.danger : C.hint}>오류 {action.primaryAction === "fix_failed_task" ? "있음" : "없음"}</StatusPill>
-      </div>
+      {isCompleted ? (
+        <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 11 }}>
+          <StatusPill color={C.green}>전체 단계 완료</StatusPill>
+          <StatusPill color={C.green}>남은 작업 없음</StatusPill>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginTop: 11 }}>
+          <StatusPill color={action.canRunTasks ? C.orange : C.hint}>자동처리 {action.canRunTasks ? "가능" : "대기"}</StatusPill>
+          <StatusPill color={action.canApprove ? C.orange : C.hint}>승인 {action.canApprove ? "필요" : "없음"}</StatusPill>
+          <StatusPill color={action.canSendMail ? C.green : C.hint}>메일 {action.canSendMail ? "발송대기" : "대기없음"}</StatusPill>
+          <StatusPill color={action.primaryAction === "fix_failed_task" ? C.danger : C.hint}>오류 {action.primaryAction === "fix_failed_task" ? "있음" : "없음"}</StatusPill>
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
         {primaryButton()}
-        <Link href={appHref} style={secondaryStyle}>관련 앱 열기</Link>
-        <Link href="/workflow/approvals" style={secondaryStyle}>승인 대기 보기</Link>
+        {!isCompleted && <Link href={appHref} style={secondaryStyle}>관련 앱 열기</Link>}
+        {!isCompleted && <Link href="/workflow/approvals" style={secondaryStyle}>승인 대기 보기</Link>}
         {workflowRun.run_kind !== "additional_shooting" && (
           <button type="button" onClick={startAdditionalShooting} disabled={additionalBusy} style={{ ...secondaryStyle, cursor: additionalBusy ? "wait" : "pointer", fontFamily: "inherit" }}>
             {additionalBusy ? "생성 중..." : "+ 추가 촬영 시작"}

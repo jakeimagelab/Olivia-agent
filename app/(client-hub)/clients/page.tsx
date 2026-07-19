@@ -331,10 +331,13 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   );
 
   const { client, workflowRun, quotes = [], contracts = [] } = pageData;
-  const currentStepKey = workflowRun?.current_step_key || ACTIVE_WORKFLOW_STEPS[0].key;
+  const workflowCompleted = workflowRun?.status === "completed";
+  const currentStepKey = workflowCompleted
+    ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
+    : workflowRun?.current_step_key || ACTIVE_WORKFLOW_STEPS[0].key;
   const displayStepKey = getWorkflowDisplayStepKey(currentStepKey) || ACTIVE_WORKFLOW_STEPS[0].key;
   const currentIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === displayStepKey);
-  const progressStep = Math.max(currentIdx + 1, 1);
+  const progressStep = workflowCompleted ? ACTIVE_WORKFLOW_STEPS.length : Math.max(currentIdx + 1, 1);
 
   return (
     <div style={{ color: C.txt }}>
@@ -382,8 +385,8 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
             const stageSteps = ACTIVE_WORKFLOW_STEPS.filter((step) => step.stage === stage.key);
             const stageStart = ACTIVE_WORKFLOW_STEPS.findIndex((step) => step.key === stageSteps[0]?.key);
             const stageEnd = stageStart + stageSteps.length - 1;
-            const isDone = currentIdx > stageEnd;
-            const isCurrent = currentIdx >= stageStart && currentIdx <= stageEnd;
+            const isDone = workflowCompleted || currentIdx > stageEnd;
+            const isCurrent = !workflowCompleted && currentIdx >= stageStart && currentIdx <= stageEnd;
             return (
               <div key={stage.key} className={`pc-workflow-phase ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""}`} style={{ "--phase-color": stage.color } as React.CSSProperties}>
                 <span>{isDone ? "✓" : String(index + 1).padStart(2, "0")}</span>
@@ -408,8 +411,8 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           </header>
           <div className="pc-smart-timeline__list">
             {ACTIVE_WORKFLOW_STEPS.map((step, idx) => {
-              const isDone = idx < currentIdx;
-              const isCurrent = step.key === displayStepKey;
+              const isDone = workflowCompleted || idx < currentIdx;
+              const isCurrent = !workflowCompleted && step.key === displayStepKey;
               return (
                 <article key={step.key} className={`pc-smart-timeline__item ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""}`}>
                   <div className="pc-smart-timeline__rail">

@@ -47,7 +47,7 @@ export function buildWorkflowNextAction({
 }): WorkflowNextAction {
   const stepKey = run?.current_step_key || "consult_meeting";
   const displayStepKey = getWorkflowDisplayStepKey(stepKey);
-  const progress = getWorkflowStepProgress(stepKey);
+  const progress = getWorkflowStepProgress(stepKey, run?.status);
 
   const stepTasks = (tasks || []).filter((task) => task.workflow_step_key ? task.workflow_step_key === stepKey : task.workflow_run_id === run?.id);
   const stepApprovals = (approvals || []).filter((approval) => approval.workflow_step_key ? approval.workflow_step_key === stepKey : approval.workflow_run_id === run?.id);
