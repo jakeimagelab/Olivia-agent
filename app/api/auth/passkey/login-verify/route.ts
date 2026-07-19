@@ -50,13 +50,14 @@ export async function POST(req: NextRequest) {
     .update({ counter: verification.authenticationInfo.newCounter, last_used_at: new Date().toISOString() })
     .eq("id", row.id);
 
+  // maxAge를 주지 않으면 브라우저 세션 쿠키가 되어, 브라우저를 완전히 종료하면 로그인이 풀린다 —
+  // 다시 열 때마다 패스키(Face ID/Touch ID) 또는 비밀번호로 재인증하도록 하기 위함.
   const res = NextResponse.json({ ok: true });
   res.cookies.set("pc_admin_session", "active", {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
   });
   return res;
 }
