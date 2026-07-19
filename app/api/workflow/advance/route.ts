@@ -15,15 +15,23 @@ export async function POST(req: NextRequest) {
   try {
     const db = getSupabaseAdmin();
 
-    // 원본 데이터 전달 단계에서 NAS 링크가 함께 오면, 고객 레코드의 "원본사진공유링크"로 반영한다.
+    // 원본 데이터 전달 단계에서 NAS 링크가 함께 오면 photo_galleries에 원본(original) 레코드로 남긴다.
+    // clients.original_photos_link 반영은 여기서 직접 하지 않고 DB 트리거(trg_sync_gallery_to_client)가 처리한다 —
+    // 보정 갤러리(app/api/galleries/route.ts)와 동일한 한 경로로 통합.
     if (body.nas_link) {
       const { data: run } = await db
         .from("workflow_runs")
-        .select("client_id")
+        .select("client_id, client_name")
         .eq("id", body.workflow_run_id)
         .maybeSingle();
       if (run?.client_id) {
-        await db.from("clients").update({ original_photos_link: body.nas_link }).eq("id", run.client_id);
+        await db.from("photo_galleries").insert({
+          hospital_name: run.client_name || "",
+          client_id: run.client_id,
+          workflow_run_id: body.workflow_run_id,
+          nas_link: body.nas_link,
+          gallery_type: "original",
+        });
       }
     }
 
