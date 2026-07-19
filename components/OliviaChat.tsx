@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { C } from "@/lib/theme";
 import OliviaChatWorkItemCard from "@/components/olivia/OliviaChatWorkItemCard";
 import { compactWorkItemReferences, type OliviaChatWorkItem, type OliviaChatWorkItemAction } from "@/lib/olivia/chatTypes";
