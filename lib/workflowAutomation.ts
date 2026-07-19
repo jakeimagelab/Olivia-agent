@@ -680,7 +680,7 @@ function approvalTypeFromTask(taskType: string): StepAutomation["approval_type"]
   return "other";
 }
 
-function buildTaskOutput(task: any, run: any) {
+async function buildTaskOutput(db: SupabaseClient, task: any, run: any) {
   const registered = (task.input_data?.registered_data ?? {}) as WorkflowRegisteredData;
   const contact = workflowContact(registered, run ?? task);
   const hospitalName = contact.hospitalName;
