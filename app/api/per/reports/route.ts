@@ -142,7 +142,7 @@ ${donations ? `<div class="card"><h3>기부 참여 내역</h3><ul>${donations}</
 
 function buildCampaignReportHtml(camp: any, records: any[]): string {
   const publicList = records.filter(r => r.hospital_name_public).map(r =>
-    `<li>${r.display_name ?? r.clients?.name ?? "익명"} — ${r.points?.toLocaleString()}P</li>`
+    `<li>${r.display_name ?? r.clients?.hospital_name ?? "익명"} — ${r.points?.toLocaleString()}P</li>`
   ).join("");
 
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"/>
