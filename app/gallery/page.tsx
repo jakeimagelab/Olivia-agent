@@ -289,7 +289,7 @@ function GalleryPageInner() {
           ...form,
           id: editingId,
           thumbnailUrl: uploadedThumbnailUrl,
-          client_id: clientId || null,
+          client_id: selectedClientId || null,
           workflow_run_id: workflowRunId || null,
         }),
       });
