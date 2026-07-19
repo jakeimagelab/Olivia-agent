@@ -51,7 +51,19 @@ function relTime(iso:string) {
 /* ─── login ─────────────────────────────────────────────── */
 
 function LoginScreen({ onAuth }:{ onAuth:()=>void }) {
+  const [mode,setMode]=useState<"passkey"|"password">("password");
+  const [passkeySupported,setPasskeySupported]=useState(false);
+  const [passkeyBusy,setPasskeyBusy]=useState(false);
+  const [passkeyErr,setPasskeyErr]=useState("");
+
   const [pw,setPw]=useState(""); const [err,setErr]=useState(""); const [busy,setBusy]=useState(false);
+
+  useEffect(()=>{
+    const supported = browserSupportsWebAuthn();
+    setPasskeySupported(supported);
+    if(supported) setMode("passkey");
+  },[]);
+
   const submit=async(e:FormEvent)=>{
     e.preventDefault(); setErr(""); setBusy(true);
     try{
@@ -60,6 +72,31 @@ function LoginScreen({ onAuth }:{ onAuth:()=>void }) {
       if(d.ok){setPw(""); onAuth();} else setErr(d.error||"비밀번호를 다시 확인해주세요.");
     }finally{setBusy(false);}
   };
+
+  const loginWithPasskey=async()=>{
+    setPasskeyErr(""); setPasskeyBusy(true);
+    try{
+      const optionsRes=await fetch("/api/auth/passkey/login-options",{method:"POST"});
+      const optionsData=await optionsRes.json();
+      if(!optionsData.ok) throw new Error(optionsData.error||"등록된 패스키가 없어요.");
+
+      const response=await startAuthentication({optionsJSON:optionsData.options});
+
+      const verifyRes=await fetch("/api/auth/passkey/login-verify",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({response}),
+      });
+      const verifyData=await verifyRes.json();
+      if(!verifyData.ok) throw new Error(verifyData.error||"패스키 인증에 실패했어요.");
+      onAuth();
+    }catch(e){
+      setPasskeyErr(e instanceof Error ? e.message : "패스키 로그인에 실패했어요.");
+      setMode("password");
+    }finally{
+      setPasskeyBusy(false);
+    }
+  };
+
   return(
     <main className="admin-shell">
       <section className="login-panel" aria-labelledby="login-title">
@@ -70,17 +107,43 @@ function LoginScreen({ onAuth }:{ onAuth:()=>void }) {
         <div>
           <p className="admin-kicker">병원 · 메디컬 성장 플랫폼</p>
           <h1 id="login-title">포토클리닉 AI 비서 관리자</h1>
-          <p className="login-copy">관리자 비밀번호를 입력하면 견적서, 병원이미지 진단, 채널 분석, 홍보 디자인, 사진 분류, 홈페이지 제작, 사진 보정으로 바로 이동할 수 있습니다.</p>
+          <p className="login-copy">
+            {mode==="passkey"
+              ? "Touch ID · Face ID로 빠르고 안전하게 로그인하세요."
+              : "관리자 비밀번호를 입력하면 견적서, 병원이미지 진단, 채널 분석, 홍보 디자인, 사진 분류, 홈페이지 제작, 사진 보정으로 바로 이동할 수 있습니다."}
+          </p>
         </div>
-        <form className="login-form" onSubmit={submit}>
-          <label className="field"><span>비밀번호</span>
-            <input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="관리자 비밀번호" autoComplete="off"/>
-          </label>
-          {err&&<p className="login-error">{err}</p>}
-          <button className="admin-primary-button" type="submit" disabled={busy}>
-            <LockKeyhole size={18}/>{busy?"확인 중...":"로그인"}
-          </button>
-        </form>
+
+        {mode==="passkey" ? (
+          <div className="login-form">
+            <button type="button" className="passkey-cta" onClick={loginWithPasskey} disabled={passkeyBusy}>
+              <span className="passkey-cta-icon"><Fingerprint size={26}/></span>
+              <span>
+                <strong>{passkeyBusy?"인증 중...":"Face ID / Touch ID로 로그인"}</strong>
+                <small>이 기기의 생체인증으로 바로 접속</small>
+              </span>
+            </button>
+            {passkeyErr&&<p className="login-error">{passkeyErr}</p>}
+            <button type="button" className="login-alt-link" onClick={()=>{setPasskeyErr(""); setMode("password");}}>
+              비밀번호로 로그인
+            </button>
+          </div>
+        ) : (
+          <form className="login-form" onSubmit={submit}>
+            <label className="field"><span>비밀번호</span>
+              <input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="관리자 비밀번호" autoComplete="off"/>
+            </label>
+            {err&&<p className="login-error">{err}</p>}
+            <button className="admin-primary-button" type="submit" disabled={busy}>
+              <LockKeyhole size={18}/>{busy?"확인 중...":"로그인"}
+            </button>
+            {passkeySupported&&(
+              <button type="button" className="login-alt-link" onClick={()=>{setErr(""); setMode("passkey");}}>
+                <Fingerprint size={13}/> 패스키로 로그인
+              </button>
+            )}
+          </form>
+        )}
       </section>
     </main>
   );
