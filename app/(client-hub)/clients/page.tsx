@@ -903,12 +903,23 @@ function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workfl
 
         {/* ── 완료된 단계 ── */}
         {isDone && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-            <div style={{ fontSize: 13, color: C.muted }}>이 단계는 완료됐습니다. 앱에서 내용을 재확인할 수 있습니다.</div>
-            <Link href={buildStepAppLink({ stepKey: selectedStepKey, clientId, workflowRunId: workflowRun?.id })}
-              style={{ padding: "8px 18px", background: C.light, color: C.teal, borderRadius: 8, fontSize: 12, fontWeight: 800, textDecoration: "none", border: `1px solid rgba(21,88,85,.2)` }}>
-              {STEP_NAME[selectedStepKey]} 앱 열기 →
-            </Link>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ fontSize: 13, color: C.muted }}>이 단계는 완료됐습니다. 앱에서 내용을 재확인할 수 있습니다.</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Link href={buildStepAppLink({ stepKey: selectedStepKey, clientId, workflowRunId: workflowRun?.id })}
+                  style={{ padding: "8px 18px", background: C.light, color: C.teal, borderRadius: 8, fontSize: 12, fontWeight: 800, textDecoration: "none", border: `1px solid rgba(21,88,85,.2)` }}>
+                  {STEP_NAME[selectedStepKey]} 앱 열기 →
+                </Link>
+                {!isCurrent && (
+                  <button type="button" onClick={revertToThisStep} disabled={reverting}
+                    style={{ padding: "8px 18px", background: "#FFF0EB", color: C.orange, borderRadius: 8, fontSize: 12, fontWeight: 800, border: `1px solid rgba(232,93,44,.25)`, cursor: reverting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                    {reverting ? "되돌리는 중..." : "↩ 이 단계로 되돌리기"}
+                  </button>
+                )}
+              </div>
+            </div>
+            {revertMsg && <div style={{ marginTop: 10, fontSize: 12, color: C.orange, fontWeight: 700 }}>{revertMsg}</div>}
           </div>
         )}
 
