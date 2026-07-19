@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest) {
   const { id, status, adminMemo } = await req.json();
   if (!id || !status) return NextResponse.json({ ok: false, error: "id, status 필수" }, { status: 400 });
 
-  const { data: order } = await db.from("reward_orders").select("*, clients(name, email, manager_name)").eq("id", id).single();
+  const { data: order } = await db.from("reward_orders").select("*, clients(name:hospital_name, email, manager_name:contact_name)").eq("id", id).single();
 
   if (status === "approved" && order?.status === "pending") {
     try {
