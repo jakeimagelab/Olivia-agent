@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const clientId     = process.env.GOOGLE_CLIENT_ID!;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
-  const baseUrl      = process.env.NEXTAUTH_URL || "https://olivia-agent-smoky.vercel.app";
+  const baseUrl      = process.env.NEXTAUTH_URL || "https://olivia.photoclinic.kr";
   const redirectUri  = baseUrl + "/api/auth/google/callback";
 
   const code = req.nextUrl.searchParams.get("code");
