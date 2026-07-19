@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { data: runs, error } = await db
     .from("workflow_runs")
-    .select("id, client_name, project_name, contact_name, contact_email, shoot_date, reminder_sent_at")
+    .select("id, client_id, client_name, project_name, contact_name, contact_email, shoot_date, reminder_sent_at")
     .eq("status", "active")
     .eq("shoot_date", targetDateStr)
     .is("reminder_sent_at", null);
