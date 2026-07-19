@@ -507,53 +507,61 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       if (!data.ok) throw new Error(data.error);
 
       if (data.type === "tool_request") {
-        const toolName = data.tool.name as string;
+        // 클로드가 한 응답에서 독립적인 여러 작업을 한 번에 요청(병렬 tool_use)할 수 있다.
+        // 이전엔 첫 번째 도구만 처리해서 나머지 요청이 조용히 버려지고 사용자가 다시
+        // 요청해야 했다 — 응답에 담긴 도구를 전부 순서대로 처리한다.
+        const tools: { name: string; input: any; id: string }[] =
+          Array.isArray(data.tools) && data.tools.length ? data.tools : [data.tool];
 
-        if (AUTO_EXECUTE_TOOLS.has(toolName) || isAutoExecutableClientCreate(data.tool)) {
-          // 안전한 도구와 명시적으로 요청한 신규 고객 등록은 즉시 실행
-          if (data.text) {
-            setMessages(prev => [...prev, { role: "assistant", content: data.text }]);
-          }
-          try {
-            const execRes = await fetch("/api/olivia", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ pendingTool: data.tool, recentWorkItems }),
-            });
-            let execData: any;
-            try { execData = await execRes.json(); } catch { throw new Error("서버 응답을 처리할 수 없어요. 잠시 후 다시 시도해주세요."); }
-            if (!execData.ok) throw new Error(execData.error);
-            const result = execData.toolResult;
-            const resultMsg = result.message || "완료됐어요!";
-            dispatchOliviaDataChanged(result);
-            if (result.action === "navigate" && result.url) {
-              if (result.url.startsWith("http")) window.open(result.url, "_blank");
-              else window.location.href = result.url;
+        if (data.text) {
+          setMessages(prev => [...prev, { role: "assistant", content: data.text }]);
+        }
+
+        for (const tool of tools) {
+          const toolName = tool.name as string;
+          if (AUTO_EXECUTE_TOOLS.has(toolName) || isAutoExecutableClientCreate(tool)) {
+            // 안전한 도구와 명시적으로 요청한 신규 고객 등록은 즉시 실행
+            try {
+              const execRes = await fetch("/api/olivia", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pendingTool: tool, recentWorkItems }),
+              });
+              let execData: any;
+              try { execData = await execRes.json(); } catch { throw new Error("서버 응답을 처리할 수 없어요. 잠시 후 다시 시도해주세요."); }
+              if (!execData.ok) throw new Error(execData.error);
+              const result = execData.toolResult;
+              const resultMsg = result.message || "완료됐어요!";
+              dispatchOliviaDataChanged(result);
+              if (result.action === "navigate" && result.url) {
+                if (result.url.startsWith("http")) window.open(result.url, "_blank");
+                else window.location.href = result.url;
+              }
+              setMessages(prev => [...prev, {
+                role: "assistant", content: resultMsg, source: "web", toolResult: "done",
+                workItems: result.workItems,
+              }]);
+              saveToDb([{ role: "assistant", content: resultMsg, workItems: result.workItems }]);
+              window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
+            } catch (e: any) {
+              const errMsg = "⚠ 실행 중 오류: " + e.message;
+              setMessages(prev => [...prev, { role: "assistant", content: errMsg, source: "web" }]);
+              saveToDb([{ role: "assistant", content: errMsg }]);
             }
+          } else {
+            // 일반 도구: 승인 카드 표시 (도구별로 각각 하나씩)
             setMessages(prev => [...prev, {
-              role: "assistant", content: resultMsg, source: "web", toolResult: "done",
-              workItems: result.workItems,
+              role: "assistant",
+              content: "",
+              source: "web",
+              toolRequest: {
+                name:  tool.name,
+                input: tool.input,
+                id:    tool.id,
+                label: TOOL_LABELS[tool.name] || tool.name,
+              },
             }]);
-            saveToDb([{ role: "assistant", content: resultMsg, workItems: result.workItems }]);
-            window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
-          } catch (e: any) {
-            const errMsg = "⚠ 실행 중 오류: " + e.message;
-            setMessages(prev => [...prev, { role: "assistant", content: errMsg, source: "web" }]);
-            saveToDb([{ role: "assistant", content: errMsg }]);
           }
-        } else {
-          // 일반 도구: 승인 카드 표시
-          setMessages(prev => [...prev, {
-            role: "assistant",
-            content: data.text || "",
-            source: "web",
-            toolRequest: {
-              name:  data.tool.name,
-              input: data.tool.input,
-              id:    data.tool.id,
-              label: TOOL_LABELS[data.tool.name] || data.tool.name,
-            },
-          }]);
         }
       } else {
         const rawText: string = data.text || "";
