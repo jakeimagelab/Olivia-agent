@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { resolveClientId } from "@/lib/clientLookup";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
