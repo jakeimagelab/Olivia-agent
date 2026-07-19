@@ -109,7 +109,7 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "open_page",
-    description: "Navigate to a specific page.",
+    description: "Navigate to any page in the app — every page listed here is accessible, there is no page restriction.",
     input_schema: {
       type: "object",
       properties: {
@@ -120,10 +120,46 @@ const TOOLS: Anthropic.Tool[] = [
                  "photo-retouching", "image-generator", "clients", "mailing", "gallery",
                  "review-studio", "daily-ideas", "sns-manager", "youtube-planner", "ai-trust-gap", "assets", "report",
                  "monthly-report", "subscription", "workflow", "workflow-tasks",
-                 "workflow-approvals", "workflow-templates", "workflow-logs", "memo"],
+                 "workflow-approvals", "workflow-templates", "workflow-logs", "memo",
+                 // 전체 페이지 확장 — 관리자/CRM/콘텐츠/촬영 관련 모든 실제 페이지
+                 "admin", "admin-dashboard", "admin-olivia-assistant", "admin-tools",
+                 "brand-analysis", "channel-audit", "color-check", "consultation",
+                 "content-calendar", "content-writer", "link-generator", "olivia-assistant",
+                 "original-delivery", "per", "per-campaigns", "per-clients", "per-donations",
+                 "per-orders", "per-products", "per-reports", "per-settings",
+                 "photoclinic", "portal-admin", "raw-select", "select-galleries",
+                 "select-match", "seo-delivery", "shooting", "sns-design", "trash",
+                 "trend-dashboard", "variation", "video-conti", "video-convert", "video-sorting"],
         },
       },
       required: ["page"],
+    },
+  },
+  {
+    name: "query_database",
+    description:
+      "다른 전용 도구로 커버되지 않는 정보를 DB에서 직접 조회하는 읽기 전용(read-only) 도구입니다. 병원/계약/구독/리뷰/자산/리워드/AI트러스트갭/트렌드/워크플로우 로그 등 앱의 모든 테이블을 조회할 수 있습니다. " +
+      "가능하면 더 구체적인 전용 도구(get_workflow_status, get_gallery, search_client_projects 등)를 먼저 사용하고, 그 도구들로 답할 수 없는 질문에만 이 도구를 사용하세요. " +
+      "이 도구는 조회(SELECT)만 가능하며 데이터를 수정/삭제할 수 없습니다. 자주 쓰는 테이블: clients(hospital_name, contact_name, email, phone, status), " +
+      "contracts(hospital_name, status, total_amount), quotes(hospital_name, package_id, status), client_reviews(hospital_name, rating, content), " +
+      "photo_galleries/select_galleries(hospital_name, nas_link), workflow_runs(client_name, current_step_key, status), activity_logs(action, target, created_at).",
+    input_schema: {
+      type: "object",
+      properties: {
+        table: { type: "string", enum: QUERYABLE_TABLES, description: "조회할 테이블명" },
+        columns: { type: "array", items: { type: "string" }, description: "가져올 컬럼 목록 (선택, 기본은 전체 컬럼)" },
+        filters: {
+          type: "object",
+          description: "컬럼명=값 형태의 정확히 일치(equals) 필터 (선택)",
+          additionalProperties: { type: "string" },
+        },
+        search: { type: "string", description: "부분일치 검색어 (선택, searchColumn과 함께 사용)" },
+        searchColumn: { type: "string", description: "search 검색어를 적용할 텍스트 컬럼명 (예: hospital_name)" },
+        orderBy: { type: "string", description: "정렬 기준 컬럼 (선택, 기본 created_at)" },
+        ascending: { type: "boolean", description: "오름차순 여부 (기본 false = 최신순)" },
+        limit: { type: "number", description: "최대 결과 수 (기본 20, 최대 100)" },
+      },
+      required: ["table"],
     },
   },
   {
