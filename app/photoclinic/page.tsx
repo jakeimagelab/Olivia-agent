@@ -1001,7 +1001,7 @@ export default function QuoteBuilder() {
                 display: grid;
                 place-items: center;
                 font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-                background: #faf7f2;
+                background: #F5F0E8;
                 color: #222;
               }
               .box {
