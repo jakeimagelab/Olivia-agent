@@ -1547,6 +1547,7 @@ export default function MailingPage() {
         <button className={`pc-tab${tab === "brand"  ? " pc-tab--active" : ""}`} onClick={() => setTab("brand")}>📷 파일 전달(리뷰)</button>
         <button className={`pc-tab${tab === "review" ? " pc-tab--active" : ""}`} onClick={() => setTab("review")}>⭐ 후기 요청 메일</button>
         <button className={`pc-tab${tab === "select" ? " pc-tab--active" : ""}`} onClick={() => setTab("select")}>📸 셀렉 갤러리</button>
+        <button className={`pc-tab${tab === "history" ? " pc-tab--active" : ""}`} onClick={() => setTab("history")}>📜 발송이력</button>
       </div>
 
       {tab === "custom" && <CustomBrandMailTab />}
