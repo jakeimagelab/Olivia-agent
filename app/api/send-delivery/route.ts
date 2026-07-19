@@ -144,6 +144,13 @@ export async function POST(req: NextRequest) {
       });
     } catch {}
 
+    // 원본 파일 전달 NAS 링크를 고객 레코드의 "원본사진공유링크"로도 반영한다.
+    if (clientId && nasLink) {
+      try {
+        await supabase.from("clients").update({ original_photos_link: nasLink }).eq("id", clientId);
+      } catch {}
+    }
+
     return NextResponse.json({ ok: true, id });
   } catch (error) {
     const message = getErrorMessage(error);
