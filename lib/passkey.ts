@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
-import type { WebAuthnCredential } from "@simplewebauthn/server";
+import type { WebAuthnCredential, Uint8Array_ } from "@simplewebauthn/server";
 
 export const RP_NAME = "포토클리닉 AI 비서 관리자";
 
