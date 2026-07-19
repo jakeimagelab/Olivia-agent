@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { FormEvent, useEffect, useRef, useState } from "react";
 import { TOOLS_WORK, TOOLS_CONTENT, type ToolDef } from "@/lib/toolNav";
+import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import {
   Activity, BarChart2, ArrowRight, CalendarCheck, ClipboardList,
-  FileVideo, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
+  FileVideo, Fingerprint, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
   NotebookPen, ShieldCheck, Sparkles, Users, Wand2, Lightbulb,
   AlertCircle, CheckCircle2, Clock, RefreshCw, Calendar, Check,
   FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2, Bell,
