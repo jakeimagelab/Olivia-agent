@@ -51,12 +51,12 @@ export async function POST(req: NextRequest) {
 
   await savePerMailingQueue({
     type: "per_order",
-    hospitalName: client?.name ?? "",
+    hospitalName: client?.hospital_name ?? "",
     clientId: clientId,
-    contactName: client?.manager_name ?? "",
+    contactName: client?.contact_name ?? "",
     toEmail: client?.email ?? "",
     subject: `[PER] 제품 신청이 접수되었습니다`,
-    body: `안녕하세요, ${client?.name ?? ""}님.\n\nPER 리워드 제품 신청이 접수되었습니다. 관리자 확인 후 포인트 차감 및 배송이 진행됩니다.\n\n주문번호: ${order.id}\n사용 포인트: ${usedPoints.toLocaleString()}P\n\n좋은 병원 이미지를 만드는 촬영이, 좋은 공간과 좋은 나눔으로 이어지도록.\n포토클리닉 드림`,
+    body: `안녕하세요, ${client?.hospital_name ?? ""}님.\n\nPER 리워드 제품 신청이 접수되었습니다. 관리자 확인 후 포인트 차감 및 배송이 진행됩니다.\n\n주문번호: ${order.id}\n사용 포인트: ${usedPoints.toLocaleString()}P\n\n좋은 병원 이미지를 만드는 촬영이, 좋은 공간과 좋은 나눔으로 이어지도록.\n포토클리닉 드림`,
     sourceId: order.id,
   });
 
