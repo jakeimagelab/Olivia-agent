@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
 
   const subject = `[포토클리닉] 병원의 멋진 이야기 공유드립니다`;
   const supabase = getSupabaseAdmin();
+  const clientId = await resolveClientId(supabase, hospitalName);
 
   try {
     const id = await sendGmail({
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
     // 이 경로는 mailing_queue를 거치지 않는 직접 발송이라 queue_id 없이 발송이력에 남긴다.
     try {
       await supabase.from("mailing_logs").insert({
-        queue_id: null, type: "original_files", hospital_name: hospitalName || "",
+        queue_id: null, type: "original_files", hospital_name: hospitalName || "", client_id: clientId,
         to_email: to, subject, status: "sent",
       });
     } catch {}
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest) {
 
     try {
       await supabase.from("mailing_logs").insert({
-        queue_id: null, type: "original_files", hospital_name: hospitalName || "",
+        queue_id: null, type: "original_files", hospital_name: hospitalName || "", client_id: clientId,
         to_email: to, subject, status: "failed", error: message,
       });
     } catch {}
