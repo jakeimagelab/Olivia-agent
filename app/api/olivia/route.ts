@@ -1546,6 +1546,63 @@ async function executeTool(
     return { action: "done", message: `✅ 메일 발송 완료!\nID: \`${input.mailingId}\`` };
   }
 
+  if (name === "get_client_profile") {
+    const db = getSupabaseAdmin();
+    const client = await fuzzyNameSearchOne<any>({
+      db, table: "clients", nameColumn: "hospital_name",
+      select: "id, hospital_name, contact_name, phone, email, specialty, total_paid_amount, available_points, total_earned_points, reward_tier, original_photos_link, retouched_photos_link",
+      query: input.clientName,
+    });
+    if (!client) {
+      return { action: "done", message: `⚠️ **${input.clientName}** 고객을 찾을 수 없어요.` };
+    }
+
+    const [runRes, mailRes] = await Promise.all([
+      db.from("workflow_runs")
+        .select("current_step_key, status, updated_at")
+        .eq("client_id", client.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      db.from("mailing_logs")
+        .select("type, subject, status, sent_at")
+        .eq("client_id", client.id)
+        .order("sent_at", { ascending: false })
+        .limit(3),
+    ]);
+
+    const run = runRes.data;
+    const recentMail = mailRes.data ?? [];
+
+    const STEP_LABELS: Record<string, string> = {
+      consult_meeting: "상담/미팅", quote: "견적서", contract: "계약서", conti: "콘티",
+      shooting: "촬영", backup_sorting: "백업/분류", original_delivery: "원본 전달",
+      client_selection: "고객 셀렉", raw_matching: "RAW 매칭", retouching: "보정",
+      revision: "수정 접수", seo_delivery: "SEO 납품", final_delivery: "최종 전달",
+      review_content: "후기 콘텐츠", reward: "리워드", customer_care: "고객 케어", content_planning: "콘텐츠 기획",
+    };
+    const TIER_LABEL: Record<string, string> = { standard: "일반", silver: "실버", gold: "골드", vip: "VIP" };
+
+    const stepLabel = run ? (STEP_LABELS[run.current_step_key] ?? run.current_step_key) : "진행 중인 워크플로우 없음";
+    const mailLines = recentMail.length
+      ? recentMail.map((m: any) => `  · ${m.sent_at ? new Date(m.sent_at).toLocaleDateString("ko-KR") : "-"} ${m.subject || m.type} (${m.status === "sent" ? "발송" : "실패"})`).join("\n")
+      : "  최근 발송 이력 없음";
+
+    const message = [
+      `👤 **${client.hospital_name}**`,
+      `담당자: ${client.contact_name || "미입력"} · 연락처: ${client.phone || "미입력"} · 이메일: ${client.email || "미입력"}`,
+      `진행 단계: ${stepLabel}${run?.updated_at ? ` (업데이트 ${new Date(run.updated_at).toLocaleDateString("ko-KR")})` : ""}`,
+      `누적 촬영금액: ${(client.total_paid_amount ?? 0).toLocaleString()}원`,
+      `PER 포인트: 사용 가능 ${(client.available_points ?? 0).toLocaleString()}P · 누적 적립 ${(client.total_earned_points ?? 0).toLocaleString()}P · 등급 ${TIER_LABEL[client.reward_tier] ?? "일반"}`,
+      `원본사진공유링크: ${client.original_photos_link || "미등록"}`,
+      `보정사진공유링크: ${client.retouched_photos_link || "미등록"}`,
+      `최근 메일 발송이력:`,
+      mailLines,
+    ].join("\n");
+
+    return { action: "done", message };
+  }
+
   if (name === "get_gallery") {
     const db = getSupabaseAdmin();
     // 병원명으로 client_id 조회
