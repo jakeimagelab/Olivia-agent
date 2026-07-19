@@ -8,6 +8,27 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const BUCKET = "workflow-artifacts";
+
+export async function GET(req: NextRequest) {
+  const db = getSupabaseAdmin();
+  const { searchParams } = new URL(req.url);
+  const clientId = searchParams.get("clientId");
+  const workflowRunId = searchParams.get("workflowRunId");
+  if (!clientId && !workflowRunId) {
+    return NextResponse.json({ ok: false, error: "clientId 또는 workflowRunId가 필요합니다." }, { status: 400 });
+  }
+
+  let query = db.from("workflow_artifacts")
+    .select("id,client_id,workflow_run_id,workflow_step_key,document_type,source_table,source_id,title,file_name,mime_type,file_size,status,created_at")
+    .eq("status", "ready")
+    .order("created_at", { ascending: false });
+  if (workflowRunId) query = query.eq("workflow_run_id", workflowRunId);
+  else if (clientId) query = query.eq("client_id", clientId);
+
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, artifacts: data ?? [] });
+}
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const SOURCE_TABLE: Record<WorkflowArtifactType, "quotes" | "contracts" | "conti_saves"> = {
   quote: "quotes",
