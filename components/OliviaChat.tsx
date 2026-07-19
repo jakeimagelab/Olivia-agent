@@ -870,8 +870,8 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
                 <div style={{
                   width: 22, height: 22, borderRadius: "50%",
                   background: "linear-gradient(135deg, #E85D2C, #EB8F22)",
-                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11,
-                }}>✨</div>
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}><Sparkles size={13} color="#fff" fill="#fff" strokeWidth={1} /></div>
                 <div style={{
                   background: C.bg, padding: "9px 14px", borderRadius: "14px 14px 14px 4px",
                   fontSize: 12, color: C.muted, display: "flex", alignItems: "center", gap: 7,
