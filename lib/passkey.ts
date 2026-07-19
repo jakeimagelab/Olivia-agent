@@ -1,3 +1,4 @@
+import type { NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
 import type { WebAuthnCredential } from "@simplewebauthn/server";
