@@ -262,6 +262,43 @@ async function getProjectStatus(db: SupabaseClient, input: any, toolContext: Too
   };
 }
 
+async function checkRecentErrors(db: SupabaseClient, input: any): Promise<OliviaChatToolResult> {
+  const sinceHours = Number.isFinite(Number(input?.sinceHours)) && Number(input?.sinceHours) > 0 ? Number(input.sinceHours) : 24;
+  const sinceIso = new Date(Date.now() - sinceHours * 60 * 60_000).toISOString();
+
+  const [failedLogs, failedTasks] = await Promise.all([
+    safeQuery<any[]>(
+      db.from("agent_logs").select("*").eq("success", false).gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(20),
+      [],
+    ),
+    safeQuery<any[]>(
+      db.from("agent_tasks").select("*").eq("status", "failed").gte("updated_at", sinceIso).order("updated_at", { ascending: false }).limit(20),
+      [],
+    ),
+  ]);
+
+  const logLines = failedLogs.data.map((row) => {
+    const who = clientName(row) || "시스템";
+    const when = row.created_at ? new Date(row.created_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    return `- [${when}] ${who} · ${row.log_type || "log"} · ${row.error_message || row.message || "오류 상세 없음"}`;
+  });
+  const taskLines = failedTasks.data.map((row) => {
+    const when = row.updated_at ? new Date(row.updated_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    return `- [${when}] ${row.title || row.task_type || "작업"} 실패 · ${row.error_message || "오류 상세 없음"}`;
+  });
+
+  const total = logLines.length + taskLines.length;
+  const unavailable = Number(failedLogs.unavailable) + Number(failedTasks.unavailable);
+  if (total === 0) {
+    return { action: "done", message: `최근 ${sinceHours}시간 동안 자동화 오류나 실패한 작업이 없어요. 시스템이 정상 동작 중입니다.${unavailableNote(unavailable)}` };
+  }
+
+  const parts = [`최근 ${sinceHours}시간 동안 발견된 오류 ${total}건입니다.`];
+  if (logLines.length) parts.push(`\n**실패한 자동화 로그 (${logLines.length}건)**\n${logLines.join("\n")}`);
+  if (taskLines.length) parts.push(`\n**실패한 업무 (${taskLines.length}건)**\n${taskLines.join("\n")}`);
+  return { action: "done", message: parts.join("\n") + unavailableNote(unavailable) };
+}
+
 async function listPendingApprovals(db: SupabaseClient): Promise<OliviaChatToolResult> {
   const [actions, approvals] = await Promise.all([
     safeQuery<any[]>(db.from("olivia_actions").select("*").eq("status", "waiting_approval").order("created_at", { ascending: true }).limit(20), []),
