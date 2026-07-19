@@ -484,6 +484,60 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
 }
 
 /**
+ * 이전 단계에서 실수가 있었을 때, 관리자가 수동으로 워크플로우를 그 단계로 되돌린다.
+ * advanceWorkflow와 달리 "완료 처리"가 아니라 "재작업"이므로 되돌아갈 단계의 workflow_step_runs를
+ * 다시 진행중으로 열어두고, 그 사이(되돌아간 단계~기존 현재 단계) 구간의 step_runs도 함께 되돌린다.
+ * 이미 생성된 mailing_queue/agent_approvals는 그대로 두되(감사 이력 보존), 새 업무를 중복 생성하진 않는다
+ * (createStepTasks/ensureMailingDraft가 기존 레코드 존재 시 재사용하므로 안전).
+ */
+export async function revertWorkflowToStep(
+  db: SupabaseClient,
+  input: { workflow_run_id: string; to_step_key: string; reason?: string },
+) {
+  const run = await getWorkflowRun(db, input.workflow_run_id);
+  const fromStep = run.current_step_key;
+  const toStep = input.to_step_key;
+
+  if (!isActiveWorkflowStep(toStep)) {
+    throw new Error(`정의되지 않은 워크플로우 단계입니다: ${toStep}`);
+  }
+  const fromIdx = ACTIVE_WORKFLOW_STEP_KEYS.indexOf(fromStep);
+  const toIdx = ACTIVE_WORKFLOW_STEP_KEYS.indexOf(toStep);
+  if (toIdx === -1 || fromIdx === -1 || toIdx >= fromIdx) {
+    throw new Error("이전 단계로만 되돌릴 수 있습니다.");
+  }
+
+  const now = new Date().toISOString();
+  const reopenKeys = ACTIVE_WORKFLOW_STEP_KEYS.slice(toIdx, fromIdx + 1);
+
+  await db.from("workflow_step_runs")
+    .update({ status: "in_progress", completed_at: null, updated_at: now })
+    .eq("workflow_run_id", run.id)
+    .in("step_key", reopenKeys);
+
+  const { error } = await db
+    .from("workflow_runs")
+    .update({
+      current_step_key: toStep,
+      status: "active",
+      completed_at: null,
+      next_action: buildNextAction(toStep),
+      updated_at: now,
+    })
+    .eq("id", run.id);
+  if (error) throw new Error(error.message);
+
+  await logAgent(db, {
+    workflow_run_id: run.id,
+    log_type: "step_reverted",
+    message: `${STEP_NAME[fromStep] || fromStep} 단계에서 ${STEP_NAME[toStep] || toStep} 단계로 되돌아갔습니다 (수정 작업).`,
+    input_summary: input.reason ?? "",
+  });
+
+  return { from_step_key: fromStep, to_step_key: toStep };
+}
+
+/**
  * 이미 실제로는 끝난 프로젝트를 뒤늦게 시스템에 등록하면서 한 번에 완료 처리한다.
  * 정상 진행(advanceWorkflow)과 달리 각 단계의 "다음 할 일"을 새로 만들지 않고,
  * 오히려 남아있는 미완료 단계/업무를 전부 정리하고 워크플로우를 completed로 마감한다.
