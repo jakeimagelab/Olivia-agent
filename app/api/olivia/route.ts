@@ -1576,7 +1576,7 @@ async function executeTool(
 
     return {
       action: "done",
-      message: `📷 **${client?.name || input.clientName}** 갤러리 ${galleries.length}건\n\n${lines.join("\n\n")}`,
+      message: `📷 **${client?.hospital_name || input.clientName}** 갤러리 ${galleries.length}건\n\n${lines.join("\n\n")}`,
     };
   }
 
