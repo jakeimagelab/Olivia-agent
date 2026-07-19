@@ -730,13 +730,28 @@ function pageShortcutFromText(text: string) {
     [/리포트|보고서|통계/, "report"],
     [/월간\s*리포트/, "monthly-report"],
     [/이미지\s*진단|병원\s*진단/, "diagnosis"],
+    [/채널\s*진단|채널\s*감사/, "channel-audit"],
     [/채널\s*분석|인스타\s*분석/, "channel-analyzer"],
+    [/브랜드\s*분석/, "brand-analysis"],
     [/홈페이지|웹사이트/, "website-builder"],
     [/이미지\s*생성|디렉터|AI\s*이미지/, "image-generator"],
     [/사진\s*분류/, "photo-sorting"],
     [/사진\s*보정|보정/, "photo-retouching"],
     [/메모/, "memo"],
     [/워크플로우|업무\s*흐름|작업\s*큐|승인\s*대기|승인함|에이전트\s*작업/, "workflow"],
+    // 전체 페이지 확장 — 새로 열린 페이지들의 단축 이동 (기존 패턴과 겹치지 않는 것만 추가)
+    [/관리자\s*콘솔|관리자\s*페이지|어드민/, "admin"],
+    [/구독|정기구독/, "subscription"],
+    [/트렌드\s*분석|트렌드\s*대시보드/, "trend-dashboard"],
+    [/상담\s*접수|상담\s*내역/, "consultation"],
+    [/휴지통|삭제한\s*항목/, "trash"],
+    [/고객\s*포털/, "portal-admin"],
+    [/PER\s*리워드|추천\s*리워드/i, "per"],
+    [/색감\s*체크|컬러\s*체크/, "color-check"],
+    [/SEO\s*납품|검색\s*최적화/i, "seo-delivery"],
+    [/링크\s*생성기|공유\s*링크\s*생성/, "link-generator"],
+    [/원본\s*전달|원본\s*파일/, "original-delivery"],
+    [/셀렉\s*갤러리|셀렉트\s*갤러리/, "select-galleries"],
   ];
 
   const found = pages.find(([pattern]) => pattern.test(text));
