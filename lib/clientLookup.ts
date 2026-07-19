@@ -13,7 +13,7 @@ export async function resolveClientId(
   if (!name) return null;
 
   const target = normalizeSearchText(name);
-  const { data } = await db.from("clients").select("id, name");
-  const matches = (data ?? []).filter((c: any) => normalizeSearchText(c.name) === target);
+  const { data } = await db.from("clients").select("id, hospital_name");
+  const matches = (data ?? []).filter((c: any) => normalizeSearchText(c.hospital_name) === target);
   return matches.length === 1 ? matches[0].id : null;
 }
