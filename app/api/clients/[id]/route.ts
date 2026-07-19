@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
+import { isOptionalClientDetailColumnMissing, withClientDetailDefaults } from "@/lib/clientDetailFallback";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,19 +16,29 @@ export async function GET(
   const { id } = await params;
 
   const requestedRunId = new URL(req.url).searchParams.get("workflowRunId");
-  const [clientRes, runsRes] = await Promise.all([
+  let [clientRes, runsRes] = await Promise.all([
     supabase.from("clients")
       .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier")
-      .eq("id", id).single(),
+      .eq("id", id).maybeSingle(),
     supabase.from("workflow_runs")
       .select("*").eq("client_id", id)
       .order("created_at", { ascending: false }),
   ]);
 
-  if (clientRes.error || !clientRes.data)
+  if (isOptionalClientDetailColumnMissing(clientRes.error)) {
+    clientRes = await supabase.from("clients")
+      .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link")
+      .eq("id", id)
+      .maybeSingle();
+  }
+
+  if (clientRes.error) {
+    return NextResponse.json({ ok: false, error: clientRes.error.message }, { status: 500 });
+  }
+  if (!clientRes.data)
     return NextResponse.json({ ok: false, error: "고객을 찾을 수 없습니다." }, { status: 404 });
 
-  const c = clientRes.data;
+  const c = withClientDetailDefaults(clientRes.data);
   const hospitalName = (c.hospital_name ?? "") as string;
   const workflowRuns = runsRes.data ?? [];
   const workflowRun = workflowRuns.find((run) => run.id === requestedRunId)

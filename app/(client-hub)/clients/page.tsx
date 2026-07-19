@@ -263,6 +263,7 @@ function ListView() {
 function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; workflowRunId: string | null; onBack: () => void }) {
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -301,13 +302,19 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 
   const load = async () => {
     setLoading(true);
-    const suffix = workflowRunId ? `?workflowRunId=${encodeURIComponent(workflowRunId)}` : "";
-    const res = await fetch(`/api/clients/${clientId}${suffix}`);
-    const d = await res.json();
-    if (d.ok) {
+    setLoadError("");
+    try {
+      const suffix = workflowRunId ? `?workflowRunId=${encodeURIComponent(workflowRunId)}` : "";
+      const res = await fetch(`/api/clients/${clientId}${suffix}`, { cache: "no-store" });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "고객 상세 정보를 불러오지 못했습니다.");
       setPageData(d);
+    } catch (error) {
+      setPageData(null);
+      setLoadError(error instanceof Error ? error.message : "고객 상세 정보를 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => { load(); }, [clientId, workflowRunId]);
@@ -316,7 +323,8 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   if (!pageData?.client) return (
     <div style={{ padding: "60px 24px", textAlign: "center", color: C.muted }}>
       <div style={{ fontSize: 40, marginBottom: 14 }}>❌</div>
-      <div style={{ fontWeight: 700, marginBottom: 12 }}>고객을 찾을 수 없습니다.</div>
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>{loadError || "고객을 찾을 수 없습니다."}</div>
+      {loadError && <div style={{ fontSize: 12, color: C.hint, marginBottom: 12 }}>잠시 후 다시 시도하거나 관리자에게 문의해주세요.</div>}
       <button onClick={onBack} style={{ height: 40, padding: "0 20px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>← 목록으로</button>
     </div>
   );
