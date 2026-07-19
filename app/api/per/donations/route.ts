@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   let query = db
     .from("donation_records")
-    .select("*, clients(name, manager_name), donation_campaigns(title, period_label)")
+    .select("*, clients(hospital_name, contact_name), donation_campaigns(title, period_label)")
     .order("created_at", { ascending: false });
 
   if (campaignId) query = query.eq("campaign_id", campaignId);
