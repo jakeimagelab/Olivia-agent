@@ -1577,6 +1577,32 @@ async function executeTool(
     };
   }
 
+  if (name === "complete_workflow_retroactively") {
+    const db = getSupabaseAdmin();
+    const run = await fuzzyNameSearchOne<any>({
+      db, table: "workflow_runs", nameColumn: "client_name",
+      select: "id, client_name, current_step_key, status",
+      query: input.clientName,
+      filter: (q: any) => q.neq("status", "completed").order("updated_at", { ascending: false }),
+    });
+    if (!run) {
+      return { action: "done", message: `⚠️ **${input.clientName}**의 진행 중인 워크플로우를 찾을 수 없어요. 먼저 고객/워크플로우를 등록해주세요.` };
+    }
+    const origin =
+      req.headers.get("x-base-url") || req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+    const res = await fetch(`${origin}/api/workflow/complete-retroactively`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+      body: JSON.stringify({ workflow_run_id: run.id, reason: input.reason || "소급 등록" }),
+    });
+    const d = await res.json();
+    if (!d.ok) return { action: "done", message: `⚠️ 완료 처리 실패: ${d.error}` };
+    return { action: "done", message: `✅ **${input.clientName}** 워크플로우를 전체 완료 처리했어요.` };
+  }
+
   if (name === "list_mailing_queue") {
     const db = getSupabaseAdmin();
     let query = db.from("mailing_queue")
