@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   let query = db
     .from("reward_transactions")
-    .select("*, clients(name, manager_name)")
+    .select("*, clients(name:hospital_name, manager_name:contact_name)")
     .order("created_at", { ascending: false })
     .limit(limit);
 
