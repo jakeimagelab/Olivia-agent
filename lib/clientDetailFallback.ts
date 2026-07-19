@@ -35,5 +35,12 @@ export function withClientDetailDefaults<T extends Record<string, unknown>>(clie
     available_points: client.available_points ?? 0,
     total_earned_points: client.total_earned_points ?? 0,
     reward_tier: client.reward_tier ?? "standard",
+    quote_amount: client.quote_amount ?? null,
+    quote_vat: client.quote_vat ?? null,
+    quote_total: client.quote_total ?? null,
+    contract_amount: client.contract_amount ?? null,
+    contract_vat: client.contract_vat ?? null,
+    contract_total: client.contract_total ?? null,
+    contract_signed_at: client.contract_signed_at ?? null,
   };
 }
