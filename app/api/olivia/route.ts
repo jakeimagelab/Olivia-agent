@@ -913,6 +913,7 @@ Available tools:
 - "~병원 정보 다 보여줘", "~병원 전체 현황", "~병원 요약해줘" → get_client_profile 호출 (진행단계/촬영금액/PER/링크/메일이력을 한 번에 반환)
 - 워크플로우 단계 key: consult_meeting → quote → contract → conti → shooting → backup_sorting → original_delivery → client_selection → raw_matching → retouching → revision → seo_delivery → final_delivery → review_content → reward → customer_care → content_planning
 - advance_workflow_step 호출 전 반드시 사용자에게 "X단계에서 Y단계로 이동합니다. 맞나요?" 확인할 것
+- "전체 완료해줘", "이미 끝난 프로젝트라 소급 등록하고 완료 처리해줘" → complete_workflow_retroactively 호출 전 반드시 "진행 중인 작업은 전부 생략 처리됩니다. 통째로 완료할까요?" 확인할 것 — 일반적인 단계 진행 요청에는 절대 사용하지 않는다
 
 워크플로우 메일 사용 규칙:
 - "후기 메일", "후기 요청 메일", "리뷰 메일" → mailType: review_form
