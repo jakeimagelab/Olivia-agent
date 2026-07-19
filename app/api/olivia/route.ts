@@ -1314,11 +1314,11 @@ async function executeTool(
     let hospitalLabel = input.hospitalName || "";
     if (input.hospitalName) {
       const client = await fuzzyNameSearchOne<any>({
-        db, table: "clients", nameColumn: "name",
-        select: "id, name",
+        db, table: "clients", nameColumn: "hospital_name",
+        select: "id, hospital_name",
         query: input.hospitalName,
       });
-      if (client) { hospitalId = client.id; hospitalLabel = client.name; }
+      if (client) { hospitalId = client.id; hospitalLabel = client.hospital_name; }
     }
 
     await logActivity("create_memo", hospitalLabel || undefined, { summary: input.summary });
