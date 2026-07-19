@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
   await savePerMailingQueue({
     type: "per_order",
     hospitalName: client?.name ?? "",
+    clientId: clientId,
     contactName: client?.manager_name ?? "",
     toEmail: client?.email ?? "",
     subject: `[PER] 제품 신청이 접수되었습니다`,
