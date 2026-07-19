@@ -268,6 +268,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   const [loadError, setLoadError] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [openStepKey, setOpenStepKey] = useState<string | null>(null);
 
   const deleteClient = async (clientName: string) => {
     if (!window.confirm(`'${clientName}' 고객을 삭제할까요? 휴지통으로 이동되며 30일 안에 복원할 수 있습니다.`)) return;
