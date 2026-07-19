@@ -990,7 +990,7 @@ function buildMailBody(taskType: string, hospitalName: string, contactName: stri
 }
 
 function buildMailLinks(taskType: string, hospitalName: string, output: any) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://olivia-agent-smoky.vercel.app";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://olivia.photoclinic.kr";
   if (taskType.includes("review")) {
     return [{ label: "리뷰 작성하기", url: `${baseUrl}/review?hospital=${encodeURIComponent(hospitalName)}` }];
   }
