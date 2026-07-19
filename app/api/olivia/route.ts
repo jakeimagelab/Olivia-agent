@@ -13,6 +13,39 @@ export const maxDuration = 60;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// ── query_database 도구가 조회 가능한 전체 테이블 목록 (앱 전체 DB) ──
+const QUERYABLE_TABLES = [
+  "activity_logs", "agent_approvals", "agent_logs", "agent_tasks",
+  "ai_trust_ai_responses", "ai_trust_audit_requests", "ai_trust_audit_runs", "ai_trust_consensus_stats",
+  "ai_trust_data_sources", "ai_trust_demand_items", "ai_trust_evidence_documents", "ai_trust_evidence_facts",
+  "ai_trust_gaps", "ai_trust_hospital_mentions", "ai_trust_hospitals", "ai_trust_patterns",
+  "ai_trust_projects", "ai_trust_prompts", "ai_trust_schema_scores", "ai_trust_shoot_plan", "ai_trust_strategies",
+  "blog_posts", "calendar_tasks", "channel_analysis_reports", "client_photo_selections",
+  "client_portal_access", "client_portal_events", "client_reviews", "client_revision_requests",
+  "clients", "consultation_memos", "conti_saves", "conti_shares", "contracts",
+  "daily_ideas", "delivery_reviews", "diagnosis_submissions", "donation_campaigns", "donation_records",
+  "galleries", "generated_images", "mailing_logs", "mailing_queue", "meeting_commitments",
+  "olivia_actions", "olivia_briefings", "olivia_chat_messages", "olivia_events", "olivia_feedback",
+  "olivia_insights", "olivia_notification_history", "per_reports", "per_settings",
+  "photo_galleries", "photo_gallery_items", "projects", "quotes",
+  "reward_orders", "reward_products", "reward_transactions",
+  "select_galleries", "select_gallery_images", "select_raw_matches", "share_links", "trash_items",
+  "trend_collection_runs", "trend_competitor_snapshots", "trend_competitors", "trend_insights",
+  "trend_keywords", "trend_sns_posts", "uploads", "video_conti", "video_conti_shares",
+  "workflow_runs", "workflow_step_runs", "workflow_templates",
+] as const;
+const QUERYABLE_TABLE_SET = new Set<string>(QUERYABLE_TABLES);
+
+// query_database 결과에서 토큰/비밀번호류 컬럼은 대화 로그에 남지 않도록 마스킹한다.
+const SENSITIVE_FIELD_PATTERN = /token|password|secret|api[_-]?key|service[_-]?role|private[_-]?key/i;
+function redactSensitiveFields(row: Record<string, any>) {
+  const clone: Record<string, any> = {};
+  for (const [key, value] of Object.entries(row)) {
+    clone[key] = SENSITIVE_FIELD_PATTERN.test(key) ? "[redacted]" : value;
+  }
+  return clone;
+}
+
 // ── Claude tool 형식 ──────────────────────────────────────────
 const TOOLS: Anthropic.Tool[] = [
   {
