@@ -16,13 +16,24 @@ export async function GET(
   const { id } = await params;
 
   const requestedRunId = new URL(req.url).searchParams.get("workflowRunId");
-  let [clientRes, runsRes] = await Promise.all([
+  let [clientRes, runsRes, quotesRes, contractsRes] = await Promise.all([
     supabase.from("clients")
-      .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier")
+      .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier, quote_amount, quote_vat, quote_total, contract_amount, contract_vat, contract_total, contract_signed_at")
       .eq("id", id).maybeSingle(),
     supabase.from("workflow_runs")
       .select("*").eq("client_id", id)
       .order("created_at", { ascending: false }),
+    // quotes/contracts 테이블이 아직 없는 프로젝트도 있어 실패해도 전체 응답을 막지 않는다 (아래에서 error는 무시하고 빈 배열로 처리).
+    supabase.from("quotes")
+      .select("id, quote_number, title, supply_amount, vat, total_amount, created_at")
+      .eq("client_id", id)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabase.from("contracts")
+      .select("id, quote_number, signature_data_url, created_at")
+      .eq("client_id", id)
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
   if (isOptionalClientDetailColumnMissing(clientRes.error)) {
