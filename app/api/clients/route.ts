@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
     supabase
       .from("workflow_runs")
       .select("id, client_id, client_name, project_name, current_step_key, status, started_at")
-      .eq("status", "active"),
+      .neq("status", "canceled")
+      .order("started_at", { ascending: true }),
     supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(300),
     supabase.from("agent_approvals").select("*").order("created_at", { ascending: false }).limit(300),
     supabase.from("mailing_queue").select("*").order("created_at", { ascending: false }).limit(300),
