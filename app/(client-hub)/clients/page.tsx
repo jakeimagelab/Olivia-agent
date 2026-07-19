@@ -453,6 +453,64 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   );
 }
 
+/* ── 메일 발송이력 섹션 (client_id 기준 전체 이력, 초안부터 발송/실패까지) ── */
+function ClientMailHistorySection({ clientId }: { clientId: string }) {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [queue, setQueue] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!clientId) return;
+    setLoading(true);
+    Promise.all([
+      fetch(`/api/mailing/logs?client_id=${clientId}`).then((r) => r.json()),
+      fetch(`/api/mailing?client_id=${clientId}`).then((r) => r.json()),
+    ])
+      .then(([logsRes, queueRes]) => {
+        setLogs(logsRes.ok ? logsRes.logs ?? [] : []);
+        setQueue(queueRes.ok ? (queueRes.items ?? []).filter((m: any) => m.status !== "sent") : []);
+      })
+      .finally(() => setLoading(false));
+  }, [clientId]);
+
+  const items = [
+    ...logs.map((l: any) => ({ id: `log_${l.id}`, type: l.type, status: l.status, subject: l.subject, at: l.sent_at })),
+    ...queue.map((q: any) => ({ id: `q_${q.id}`, type: q.type, status: q.status, subject: q.subject, at: q.created_at })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  const STATUS_LABEL: Record<string, string> = { draft: "초안", ready: "대기", sent: "발송", failed: "실패" };
+
+  return (
+    <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+      <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
+        <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📬 메일 발송이력</div>
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>이 고객에게 발송/예정된 메일 전체 (최신순)</div>
+      </div>
+      {loading ? (
+        <div style={{ padding: "16px 18px", fontSize: 12, color: C.muted }}>불러오는 중...</div>
+      ) : items.length === 0 ? (
+        <div style={{ padding: "16px 18px", fontSize: 12, color: C.hint }}>발송 이력이 없습니다.</div>
+      ) : (
+        <div style={{ maxHeight: 320, overflowY: "auto" }}>
+          {items.map((m) => (
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 18px", borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: `${MAIL_COLOR[m.status] || C.hint}18`, color: MAIL_COLOR[m.status] || C.hint, flexShrink: 0 }}>
+                {STATUS_LABEL[m.status] || m.status}
+              </span>
+              <span style={{ flex: 1, fontSize: 12, color: C.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {MAIL_LABELS[m.type] || m.type}{m.subject ? ` — ${m.subject}` : ""}
+              </span>
+              <span style={{ fontSize: 11, color: C.hint, flexShrink: 0 }}>
+                {m.at ? new Date(m.at).toLocaleDateString("ko-KR", { year: "2-digit", month: "short", day: "numeric" }) : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── 촬영 갤러리 섹션 ── */
 function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: { clientId: string; hospitalName: string; email?: string; workflowRunId?: string }) {
   const [galleries, setGalleries] = useState<any[]>([]);
