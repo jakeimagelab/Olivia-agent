@@ -42,3 +42,6 @@ drop policy if exists "service role full access photo_gallery_items" on public.p
 create policy "service role full access photo_gallery_items"
   on public.photo_gallery_items for all
   using (true) with check (true);
+
+-- PostgREST가 DDL 직후 스키마 캐시를 바로 갱신 안 하는 경우가 있어 명시적으로 리로드 신호를 보낸다.
+notify pgrst, 'reload schema';
