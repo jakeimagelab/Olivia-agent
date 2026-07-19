@@ -881,22 +881,24 @@ async function ensureRewardTransaction(db: SupabaseClient, task: any, run: any, 
     .limit(1);
   if (existing?.length) return existing[0];
 
-  const payload = {
-    client_id: clientId,
-    type: "earn",
-    points: output.earned_points ?? 0,
-    amount: output.supply_amount ?? 0,
-    memo: `${run?.client_name || task.client_name || "고객"} 촬영 PER 포인트 적립`,
-    balance_after: output.earned_points ?? 0,
-    source_type: "project",
-    source_id: task.id,
-  };
-  const { data, error } = await db.from("reward_transactions").insert(payload).select().single();
-  if (error) {
-    await logAgent(db, { workflow_run_id: task.workflow_run_id, agent_task_id: task.id, log_type: "reward_transaction_skipped", message: "reward_transactions 기록을 건너뛰었습니다.", success: false, error_message: error.message });
+  // addPoints()가 reward_transactions 기록과 clients.available_points/total_earned_points/
+  // total_paid_amount/reward_tier 갱신을 한번에 처리한다 (기존에는 reward_transactions에만
+  // 직접 insert해서 고객 레코드의 누적 포인트/촬영금액이 실제로는 갱신되지 않던 버그였다).
+  try {
+    const txId = await addPoints(clientId, output.earned_points ?? 0, {
+      type: "earn",
+      amount: output.supply_amount ?? 0,
+      sourceType: "project",
+      sourceId: task.id,
+      memo: `${run?.client_name || task.client_name || "고객"} 촬영 PER 포인트 적립`,
+      createdBy: "olivia_workflow",
+    });
+    return { id: txId };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await logAgent(db, { workflow_run_id: task.workflow_run_id, agent_task_id: task.id, log_type: "reward_transaction_skipped", message: "reward_transactions 기록을 건너뛰었습니다.", success: false, error_message: message });
     return null;
   }
-  return data;
 }
 
 function buildMailSubject(taskType: string, hospitalName: string) {
