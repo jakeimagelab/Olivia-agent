@@ -67,15 +67,20 @@ const DAILY_ROUTINE: { time: string; label: string }[] = [
   { time: "11:00", label: "운동" },
   { time: "12:00", label: "감사일기" },
 ];
-const HOURS = Array.from({length: 15}, (_, i) => i + 7); // 07:00~21:00
+const CALENDAR_START_HOUR = 7;
+const CALENDAR_END_HOUR = 24;
+const HOURS = Array.from(
+  { length: CALENDAR_END_HOUR - CALENDAR_START_HOUR },
+  (_, i) => i + CALENDAR_START_HOUR,
+); // 07:00~23:00, 마지막 경계는 24:00
 const HOUR_HEIGHT = 64; // px per hour
 
-const TIME_OPTIONS = Array.from({length: 31}, (_, i) => {
-  const totalMin = 7 * 60 + i * 30;
+const TIME_OPTIONS = Array.from({ length: (CALENDAR_END_HOUR - CALENDAR_START_HOUR) * 2 + 1 }, (_, i) => {
+  const totalMin = CALENDAR_START_HOUR * 60 + i * 30;
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
   return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
-}); // "07:00" ~ "22:00" in 30-min steps
+}); // "07:00" ~ "24:00" in 30-min steps
 
 function nextHourTime(t: string, hrs = 1): string {
   const idx = TIME_OPTIONS.indexOf(t);
@@ -1257,9 +1262,12 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
     }
     const relY = clientY - rect.top + scrollTop;
     const totalMins = Math.round((relY / HOUR_HEIGHT * 60) / 15) * 15;
-    const rawH = Math.floor(totalMins / 60) + 7;
-    const h = Math.max(7, Math.min(21, rawH));
-    const m = rawH > 21 ? 0 : totalMins % 60;
+    const absoluteMinutes = Math.max(
+      CALENDAR_START_HOUR * 60,
+      Math.min(CALENDAR_END_HOUR * 60 - 15, CALENDAR_START_HOUR * 60 + totalMins),
+    );
+    const h = Math.floor(absoluteMinutes / 60);
+    const m = absoluteMinutes % 60;
     return {
       date: toYMD(weekDatesRef.current[colIdx]),
       time: `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`,
@@ -1295,7 +1303,9 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         const duration = d.task.time && d.task.end_time
           ? Math.max(0, timeToMinutes(d.task.end_time) - timeToMinutes(d.task.time))
           : 0;
-        const end = duration ? minutesToTime(timeToMinutes(timeTarget.time) + duration) : "";
+        const end = duration
+          ? minutesToTime(Math.min(CALENDAR_END_HOUR * 60, timeToMinutes(timeTarget.time) + duration))
+          : "";
         ghostTimeRef.current.textContent = end ? `${timeTarget.time}–${end}` : timeTarget.time;
       }
     };
@@ -1331,7 +1341,11 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           const fields: Partial<CalTask> = { date: target.date, time: target.time };
           if (d.task.end_time && d.task.time) {
             const durationMins = timeToMinutes(d.task.end_time) - timeToMinutes(d.task.time);
-            if (durationMins > 0) fields.end_time = minutesToTime(timeToMinutes(target.time) + durationMins);
+            if (durationMins > 0) {
+              fields.end_time = minutesToTime(
+                Math.min(CALENDAR_END_HOUR * 60, timeToMinutes(target.time) + durationMins),
+              );
+            }
           }
           onUpdateTask(d.task.id, fields);
         }
@@ -1371,12 +1385,12 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       if (info.edge === "bottom") {
         const origTotal = timeToMinutes(info.origEndTime);
         const startTotal = timeToMinutes(info.origStartTime);
-        const newTotal = Math.min(22 * 60, Math.max(startTotal + 15, origTotal + deltaMins));
+        const newTotal = Math.min(CALENDAR_END_HOUR * 60, Math.max(startTotal + 15, origTotal + deltaMins));
         return { previewStartTime: info.origStartTime, previewEndTime: minutesToTime(newTotal) };
       }
       const origTotal = timeToMinutes(info.origStartTime);
       const endTotal = timeToMinutes(info.origEndTime);
-      const newTotal = Math.max(7 * 60, Math.min(endTotal - 15, origTotal + deltaMins));
+      const newTotal = Math.max(CALENDAR_START_HOUR * 60, Math.min(endTotal - 15, origTotal + deltaMins));
       return { previewStartTime: minutesToTime(newTotal), previewEndTime: info.origEndTime };
     };
     const onMove = (e: MouseEvent) => {
@@ -1420,7 +1434,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
 
   const timeToTop = (time: string) => {
     const [h, m] = time.split(":").map(Number);
-    return (h - 7 + m / 60) * HOUR_HEIGHT;
+    return (h - CALENDAR_START_HOUR + m / 60) * HOUR_HEIGHT;
   };
 
   const durationPx = (s: string, e: string | null | undefined) => {
@@ -1506,7 +1520,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         <div style={{ display: "grid", gridTemplateColumns: `${TL_W}px repeat(7,1fr)` }}>
 
           {/* Hour labels */}
-          <div style={{ background: "#F8FBFA" }}>
+          <div style={{ position: "relative", background: "#F8FBFA" }}>
             {HOURS.map(h => (
               <div key={h} style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}25`,
                 display: "flex", alignItems: "flex-start", paddingTop: 4,
@@ -1516,6 +1530,10 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                 </span>
               </div>
             ))}
+            <span style={{ position: "absolute", right: isMobile ? 4 : 8, bottom: 3,
+              fontSize: isMobile ? 8 : 9.5, color: C.hint, fontWeight: 700 }}>
+              24:00
+            </span>
           </div>
 
           {/* Day columns */}
@@ -1749,14 +1767,18 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
     const rect = el.getBoundingClientRect();
     const relY = clientY - rect.top + el.scrollTop;
     const totalMins = Math.round((relY / HOUR_HEIGHT * 60) / 15) * 15;
-    const h = Math.max(7, Math.min(21, Math.floor(totalMins / 60) + 7));
-    const m = totalMins % 60;
+    const absoluteMinutes = Math.max(
+      CALENDAR_START_HOUR * 60,
+      Math.min(CALENDAR_END_HOUR * 60 - 15, CALENDAR_START_HOUR * 60 + totalMins),
+    );
+    const h = Math.floor(absoluteMinutes / 60);
+    const m = absoluteMinutes % 60;
     return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
   };
 
   const timeToTop = (time: string) => {
     const [h, m] = time.split(":").map(Number);
-    return (h - 7 + m / 60) * HOUR_HEIGHT;
+    return (h - CALENDAR_START_HOUR + m / 60) * HOUR_HEIGHT;
   };
 
   const durationPx = (s: string, e: string | null | undefined) => {
@@ -1796,7 +1818,11 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
           const fields: Partial<CalTask> = { time: newTime };
           if (d.task.end_time && d.task.time) {
             const durationMins = timeToMinutes(d.task.end_time) - timeToMinutes(d.task.time);
-            if (durationMins > 0) fields.end_time = minutesToTime(timeToMinutes(newTime) + durationMins);
+            if (durationMins > 0) {
+              fields.end_time = minutesToTime(
+                Math.min(CALENDAR_END_HOUR * 60, timeToMinutes(newTime) + durationMins),
+              );
+            }
           }
           onUpdateTask(d.task.id, fields);
         }
@@ -1882,7 +1908,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
           padding: `0 ${isMobile ? 4 : 24}px` }}>
           <div style={{ display: "flex" }}>
             {/* Time labels */}
-            <div style={{ width: TL_W, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: TL_W, flexShrink: 0 }}>
               {HOURS.map(h => (
                 <div key={h} style={{ height: HOUR_HEIGHT, display: "flex", alignItems: "flex-start",
                   paddingTop: 4, justifyContent: "flex-end", paddingRight: isMobile ? 4 : 8 }}>
@@ -1891,6 +1917,10 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                   </span>
                 </div>
               ))}
+              <span style={{ position: "absolute", right: isMobile ? 4 : 8, bottom: 3,
+                fontSize: isMobile ? 8.5 : 9.5, color: C.hint, fontWeight: 700 }}>
+                24:00
+              </span>
             </div>
 
             {/* Event column */}

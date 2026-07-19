@@ -83,7 +83,7 @@ export default function AdminDashboardHomePage() {
         <DailyQuoteWidget/>
       </div>
 
-      <OliviaAssistantWorkspace/>
+      <OliviaAssistantWorkspace compact/>
 
       <section className="crm-kpi-row" aria-label="CRM 현황 요약">
         <div className="crm-kpi crm-kpi--approval">

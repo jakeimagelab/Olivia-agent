@@ -10,7 +10,7 @@ import OliviaMeetingPanel from "@/components/olivia/OliviaMeetingPanel";
 
 const TABS = ["오늘", "긴급", "승인 대기", "고객 반응", "약속", "제안", "브리핑", "실행 기록"] as const;
 
-export default function OliviaAssistantWorkspace() {
+export default function OliviaAssistantWorkspace({ compact = false }: { compact?: boolean }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("오늘");
   const [insights, setInsights] = useState<any[]>([]);
   const [actions, setActions] = useState<any[]>([]);
@@ -69,7 +69,7 @@ export default function OliviaAssistantWorkspace() {
   };
 
   return (
-    <section id="olivia-assistant" className="olivia-assistant-page olivia-assistant-page--embedded">
+    <section id="olivia-assistant" className={`olivia-assistant-page olivia-assistant-page--embedded${compact ? " olivia-assistant-page--compact" : ""}`}>
       <header className="olivia-page-heading">
         <div><span>OLIVIA PROACTIVE ASSISTANT</span><h1>올리비아 비서</h1><p>묻기 전에 발견하고, 말하기 전에 준비하고, 승인되면 실행합니다.</p></div>
         <button onClick={() => void runObserver()}>지금 업무 확인</button>
