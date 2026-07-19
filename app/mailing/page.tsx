@@ -299,6 +299,90 @@ function QueueTab() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// 탭 — 발송이력 (mailing_logs 조회 전용)
+// ═══════════════════════════════════════════════════════════
+type MailLog = {
+  id: string; queue_id: string | null; type: string;
+  hospital_name: string; to_email: string; subject: string;
+  status: "sent" | "failed"; error: string; sent_at: string;
+};
+
+function HistoryTab() {
+  const [logs, setLogs]         = useState<MailLog[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterHosp, setFilterHosp]     = useState("");
+
+  const load = async () => {
+    setLoading(true); setLoadError("");
+    const params = new URLSearchParams();
+    if (filterStatus) params.set("status", filterStatus);
+    if (filterHosp)   params.set("hospital_name", filterHosp);
+    try {
+      const res  = await fetch(`/api/mailing/logs?${params}`);
+      const data = await res.json();
+      if (data.ok) setLogs(data.logs || []);
+      else setLoadError(data.error || "발송이력을 불러오지 못했습니다.");
+    } catch (e: any) { setLoadError(e.message || "네트워크 오류"); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, [filterStatus, filterHosp]);
+
+  const logStatusColor: Record<"sent" | "failed", string> = { sent: "#22876A", failed: "#E85D2C" };
+  const logStatusLabel: Record<"sent" | "failed", string> = { sent: "발송 완료", failed: "발송 실패" };
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: "10px 24px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...iS, width: "auto", minWidth: 120 }}>
+          <option value="">전체 상태</option>
+          <option value="sent">발송 완료</option>
+          <option value="failed">발송 실패</option>
+        </select>
+        <input value={filterHosp} onChange={e => setFilterHosp(e.target.value)} placeholder="병원명 검색" style={{ ...iS, width: 160 }} />
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={load} className="pc-btn pc-btn--secondary pc-btn--sm">새로고침</button>
+          <span style={{ fontSize: 12, color: C.muted }}>총 {logs.length}건</span>
+        </div>
+      </div>
+
+      {loadError && (
+        <div style={{ background: "#FFF5F5", borderBottom: "1px solid #FECACA", padding: "8px 24px", fontSize: 13, color: "#DC2626", fontWeight: 700 }}>🚨 {loadError}</div>
+      )}
+
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {loading && <div style={{ padding: 40, textAlign: "center", color: C.muted }}>불러오는 중...</div>}
+        {!loading && logs.length === 0 && !loadError && (
+          <div style={{ padding: 60, textAlign: "center", color: C.muted }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>📜</div>
+            발송이력이 없습니다.<br/>
+            <span style={{ fontSize: 12 }}>메일을 발송하면 여기에 자동으로 기록됩니다.</span>
+          </div>
+        )}
+        {logs.map(log => (
+          <div key={log.id} style={{ padding: "14px 24px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 5 }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11, fontWeight: 800, background: C.teal, color: "#fff", borderRadius: 99, padding: "2px 8px" }}>{TYPE_LABELS[log.type as MailType] || log.type}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 99, padding: "2px 8px", border: `1px solid ${logStatusColor[log.status]}`, color: logStatusColor[log.status] }}>{logStatusLabel[log.status]}</span>
+              </div>
+              <span style={{ fontSize: 11, color: C.hint, whiteSpace: "nowrap" }}>{fmtDate(log.sent_at)}</span>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 3, lineHeight: 1.3 }}>{log.subject}</div>
+            <div style={{ fontSize: 11, color: C.muted }}>{log.hospital_name} · {log.to_email || "이메일 미입력"}</div>
+            {log.status === "failed" && log.error && (
+              <div style={{ fontSize: 11, color: "#DC2626", marginTop: 4 }}>오류: {log.error}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // 탭 2 — 브랜드 메일 보내기 (delivery-mail 통합)
 // ═══════════════════════════════════════════════════════════
 const DEFAULT_DELIVERY_BODY = `촬영 보정본 공유드립니다.
