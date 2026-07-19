@@ -73,9 +73,9 @@ export default function SecurityPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    const d = await r.json();
-    if (d.ok) { setMsg("삭제했어요."); await load(); }
-    else setErr(d.error || "삭제에 실패했어요.");
+    const d = await r.json().catch(() => null);
+    if (d?.ok) { setMsg("삭제했어요."); await load(); }
+    else setErr(d?.error || "삭제에 실패했어요.");
   };
 
   return (
