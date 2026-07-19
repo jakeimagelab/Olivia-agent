@@ -1539,8 +1539,8 @@ async function executeTool(
     const db = getSupabaseAdmin();
     // 병원명으로 client_id 조회
     const client = await fuzzyNameSearchOne<any>({
-      db, table: "clients", nameColumn: "hospital_name",
-      select: "id, hospital_name",
+      db, table: "clients", nameColumn: "name",
+      select: "id, name",
       query: input.clientName,
     });
 
