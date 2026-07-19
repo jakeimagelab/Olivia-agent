@@ -291,6 +291,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
   const [isMobile,        setIsMobile]       = useState(false);
   const [workItemBusy,    setWorkItemBusy]   = useState<string | null>(null);
   const [panelSize,       setPanelSize]      = useState({ width: 420, height: 580 });
+  const [panelPreset,     setPanelPreset]    = useState<"small" | "medium" | "full" | "custom">("small");
 
   const resizeStartRef = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null);
 
@@ -304,12 +305,13 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       if (!start) return;
       const dx = start.startX - ev.clientX;
       const dy = start.startY - ev.clientY;
-      const maxW = Math.min(720, window.innerWidth - 48);
-      const maxH = Math.min(860, window.innerHeight - 140);
+      const maxW = window.innerWidth - 48;
+      const maxH = window.innerHeight - 116;
       setPanelSize({
         width: Math.min(maxW, Math.max(320, start.startW + dx)),
         height: Math.min(maxH, Math.max(400, start.startH + dy)),
       });
+      setPanelPreset("custom");
     };
     const onUp = () => {
       resizeStartRef.current = null;
@@ -318,6 +320,18 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+  };
+
+  const applyPanelPreset = (preset: "small" | "medium" | "full") => {
+    const availableWidth = Math.max(320, window.innerWidth - 48);
+    const availableHeight = Math.max(400, window.innerHeight - 116);
+    const sizes = {
+      small: { width: Math.min(420, availableWidth), height: Math.min(580, availableHeight) },
+      medium: { width: Math.min(680, availableWidth), height: Math.min(740, availableHeight) },
+      full: { width: availableWidth, height: availableHeight },
+    };
+    setPanelSize(sizes[preset]);
+    setPanelPreset(preset);
   };
 
   const bottomRef      = useRef<HTMLDivElement>(null);
@@ -800,6 +814,31 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
               <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>올리비아</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)" }}>월간 포토클리닉 운영 비서</div>
             </div>
+            {!isMobile && (
+              <div role="group" aria-label="채팅창 크기" style={{
+                display: "flex", gap: 3, padding: 3, borderRadius: 9,
+                background: "rgba(255,255,255,.12)",
+              }}>
+                {(["small", "medium", "full"] as const).map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => applyPanelPreset(preset)}
+                    aria-pressed={panelPreset === preset}
+                    title={preset === "small" ? "작게" : preset === "medium" ? "중간" : "전체"}
+                    style={{
+                      width: 27, height: 24, border: 0, borderRadius: 6, cursor: "pointer",
+                      background: panelPreset === preset ? "#fff" : "transparent",
+                      color: panelPreset === preset ? C.teal : "rgba(255,255,255,.82)",
+                      fontSize: preset === "small" ? 9 : preset === "medium" ? 11 : 13,
+                      fontWeight: 900, lineHeight: 1,
+                    }}
+                  >
+                    {preset === "small" ? "▣" : preset === "medium" ? "▤" : "□"}
+                  </button>
+                ))}
+              </div>
+            )}
             <button onClick={clearChat}
               style={{ background: "rgba(255,255,255,.15)", border: "none", color: "#fff",
                        padding: "4px 10px", borderRadius: 8, fontSize: 10, cursor: "pointer",

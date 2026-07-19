@@ -8,6 +8,7 @@ import { DailyBriefCard, TodayScheduleCard } from "@/components/dashboard/TodayA
 import DailyQuoteWidget from "@/components/dashboard/DailyQuoteWidget";
 import { WORKFLOW_STAGES } from "@/lib/workflow";
 import OliviaAssistantWorkspace from "@/components/olivia/OliviaAssistantWorkspace";
+import RecentActivityWidget from "@/components/admin/RecentActivityWidget";
 
 const STAGE_DOT: Record<string, string> = {
   consult_contract: "var(--orange)",
@@ -83,8 +84,6 @@ export default function AdminDashboardHomePage() {
         <DailyQuoteWidget/>
       </div>
 
-      <OliviaAssistantWorkspace compact/>
-
       <section className="crm-kpi-row" aria-label="CRM 현황 요약">
         <div className="crm-kpi crm-kpi--approval">
           <div className="crm-kpi-label">승인 대기</div>
@@ -152,11 +151,13 @@ export default function AdminDashboardHomePage() {
         </div>
 
         <aside className="oa-right-column" aria-label="운영 보조 패널">
+          <OliviaAssistantWorkspace compact collapsedByDefault/>
           <OliviaRecommendationPanel items={[
             "셀렉 대기 3일차 고객에게 리마인드 메일을 보내세요.",
             "RAW 매칭 완료 고객 2건의 보정 단계를 시작하세요.",
             "최종 납품 완료 고객 3건에 후기 요청을 보내세요.",
           ]}/>
+          <RecentActivityWidget/>
         </aside>
       </div>
     </div>

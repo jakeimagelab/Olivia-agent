@@ -959,7 +959,7 @@ export default function QuoteBuilder() {
                 display: grid;
                 place-items: center;
                 font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-                background: #F5F0E8;
+                background: #f0f4f2;
                 color: #155855;
               }
               .box {
@@ -1001,7 +1001,7 @@ export default function QuoteBuilder() {
                 display: grid;
                 place-items: center;
                 font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-                background: #F5F0E8;
+                background: #f0f4f2;
                 color: #222;
               }
               .box {
@@ -1767,8 +1767,11 @@ export default function QuoteBuilder() {
                       ))}
                       {optionItems.map((item, index) => (
                         <tr key={item.name}>
-                          <td>{(selectedPackage ? 1 : 0) + selectedSingleItems.length + index + 1}. {item.name}</td>
-                          <td>{item.detail}</td>
+                          <td>
+                            {(selectedPackage ? 1 : 0) + selectedSingleItems.length + index + 1}. {item.name}
+                            {item.detail ? <small>{item.detail}</small> : null}
+                          </td>
+                          <td></td>
                           <td>{amount(item.amount)}</td>
                           <td>{amount(item.amount)}</td>
                           <td>-</td>

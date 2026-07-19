@@ -341,9 +341,10 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 
   return (
     <div style={{ color: C.txt }}>
+      <section className="pc-client-overview-shell" aria-label="고객 프로젝트 요약">
       {/* 고객 요약 카드 */}
-      <div style={{ padding: "16px 16px 0" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", color: "#fff", padding: "14px 18px", borderRadius: 16, background: `linear-gradient(135deg, ${C.orange}, #D94F22)`, boxShadow: "0 10px 28px rgba(232,93,44,.18)" }}>
+      <div className="pc-client-overview-head">
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", color: "#fff", padding: "14px 18px", borderRadius: 14, background: `linear-gradient(135deg, ${C.orange}, #D94F22)`, boxShadow: "0 10px 28px rgba(232,93,44,.18)" }}>
           <button onClick={onBack} style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
             ← 목록
           </button>
@@ -366,7 +367,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         </div>
       </div>
 
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
+      <div className="pc-client-overview-body">
         {pageData.workflowRuns?.length > 1 && (
           <nav aria-label="프로젝트 실행 선택" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
             {pageData.workflowRuns.map((run: any) => {
@@ -397,6 +398,10 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         </div>
 
         <NextActionCard client={client} workflowRun={workflowRun} onRefresh={load} />
+      </div>
+      </section>
+
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
 
         <OliviaProjectPanel workflowRunId={workflowRun?.id}/>
 
@@ -467,18 +472,16 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           <div style={{ fontSize: 11, fontWeight: 900, color: C.muted, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12, paddingLeft: 2 }}>
             📢 홍보 콘텐츠 앱
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+          <div className="pc-promo-app-grid">
             {PROMO_APPS.map((app) => (
               <Link key={app.href} href={buildPromoAppHref(app.href, clientId, workflowRun?.id, currentStepKey)}
-                style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 16px", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, textDecoration: "none", transition: "all .15s" }}
-                onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = C.teal; el.style.boxShadow = "0 4px 12px rgba(21,88,85,.1)"; }}
-                onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = C.border; el.style.boxShadow = "none"; }}>
-                <span style={{ fontSize: 22 }}>{app.icon}</span>
+                className="pc-promo-app-card">
+                <span className="pc-promo-app-icon" aria-hidden="true">{app.icon}</span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: C.teal, marginBottom: 3 }}>{app.title}</div>
-                  <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>{app.desc}</div>
+                  <div className="pc-promo-app-title">{app.title}</div>
+                  <div className="pc-promo-app-description">{app.desc}</div>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 800, color: C.orange, marginTop: "auto" }}>열기 →</span>
+                <span className="pc-promo-app-action">열기 <i aria-hidden="true">→</i></span>
               </Link>
             ))}
           </div>

@@ -1,4 +1,7 @@
-import { Quote } from "lucide-react";
+"use client";
+
+import { Quote, Share2 } from "lucide-react";
+import { useState } from "react";
 import type { CSSProperties } from "react";
 
 /* 대시보드 홈에 쓰던 "오늘의 명언" 위젯 — 예전 app/page.tsx의 Dashboard에 있던 걸
@@ -134,6 +137,91 @@ function PixelPortrait({ author }: { author: string }) {
 
 export default function DailyQuoteWidget() {
   const quote = todaysQuote();
+  const [sharing, setSharing] = useState(false);
+
+  const shareQuote = async () => {
+    setSharing(true);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080;
+      canvas.height = 1350;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
+      const gradient = context.createLinearGradient(0, 0, 1080, 1350);
+      gradient.addColorStop(0, "#155855");
+      gradient.addColorStop(1, "#0d3e3b");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, 1080, 1350);
+      context.fillStyle = "rgba(255,255,255,.06)";
+      context.beginPath();
+      context.arc(900, 140, 330, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = "rgba(235,143,34,.13)";
+      context.beginPath();
+      context.arc(100, 1210, 370, 0, Math.PI * 2);
+      context.fill();
+
+      context.fillStyle = "#E85D2C";
+      context.fillRect(86, 88, 72, 12);
+      context.fillStyle = "rgba(255,255,255,.72)";
+      context.font = "700 28px 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+      context.letterSpacing = "5px";
+      context.fillText("PHOTOCLINIC · DAILY INSPIRATION", 86, 158);
+
+      context.fillStyle = "#EB8F22";
+      context.font = "700 170px Georgia, serif";
+      context.fillText("“", 78, 400);
+
+      context.fillStyle = "#FFFFFF";
+      context.font = "800 56px 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+      context.textBaseline = "top";
+      const maxWidth = 860;
+      const words = Array.from(quote.text);
+      const lines: string[] = [];
+      let line = "";
+      for (const word of words) {
+        const candidate = line + word;
+        if (context.measureText(candidate).width > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = candidate;
+        }
+      }
+      if (line) lines.push(line);
+      const lineHeight = 88;
+      const quoteTop = 440;
+      lines.forEach((text, index) => context.fillText(text, 86, quoteTop + index * lineHeight));
+
+      const authorTop = Math.min(1120, quoteTop + lines.length * lineHeight + 88);
+      context.fillStyle = "#EB8F22";
+      context.fillRect(86, authorTop + 11, 52, 4);
+      context.fillStyle = "rgba(255,255,255,.74)";
+      context.font = "700 34px 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+      context.fillText(quote.author, 166, authorTop - 5);
+      context.fillStyle = "rgba(255,255,255,.42)";
+      context.font = "600 24px 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+      context.fillText("포토클리닉 AI 비서 · 올리비아", 86, 1240);
+
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) return;
+      const file = new File([blob], `photoclinic-quote-${new Date().toISOString().slice(0, 10)}.png`, { type: "image/png" });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: "오늘의 명언", text: `${quote.text} — ${quote.author}`, files: [file] });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = file.name;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <aside className="oa-daily-quote">
       <div className="oa-daily-brief__schedule-head oa-daily-quote__head">
@@ -144,7 +232,12 @@ export default function DailyQuoteWidget() {
             <strong>오늘의 명언</strong>
           </div>
         </div>
-        <span>{quote.author}</span>
+        <div className="oa-daily-quote__actions">
+          <span>{quote.author}</span>
+          <button type="button" onClick={() => void shareQuote()} disabled={sharing} aria-label="오늘의 명언 이미지 공유">
+            <Share2 size={12} aria-hidden="true" /> {sharing ? "준비 중" : "공유"}
+          </button>
+        </div>
       </div>
       <div className="oa-daily-quote__portrait" aria-hidden="true">
         <PixelPortrait author={quote.author} />
