@@ -8,6 +8,7 @@ import {
 import { addYearsIso } from "@/lib/dataRetention";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { loadWorkflowRegisteredData, workflowContact, type WorkflowRegisteredData } from "@/lib/workflowDataContext";
+import { addPoints } from "@/lib/per";
 
 export type StepAutomation = {
   task_type: string;
