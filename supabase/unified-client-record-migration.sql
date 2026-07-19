@@ -18,7 +18,9 @@ create index if not exists mailing_queue_client_id_idx  on public.mailing_queue(
 create index if not exists mailing_logs_client_id_idx   on public.mailing_logs(client_id);
 
 -- ── 3. 과거 데이터 best-effort 백필 ──
--- 병원명 공백/대소문자 차이를 무시하고, clients.name과 "정확히 하나"만 매칭될 때만 연결한다.
+-- 병원명 공백/대소문자 차이를 무시하고, clients.hospital_name과 "정확히 하나"만 매칭될 때만 연결한다.
+-- (clients 테이블의 병원명 컬럼은 hospital_name이다 — app/api/clients/route.ts, app/api/clients/[id]/route.ts의
+-- "실제 DB 컬럼" 주석 참고. schema.sql 문서상 이름과 실제 라이브 스키마가 다르므로 반드시 이 컬럼명을 쓴다.)
 -- 동명이인(같은 이름의 병원이 여러 건) 또는 매칭 실패는 그대로 null로 남긴다 — 잘못 연결하는 것보다 안전.
 create or replace function public.normalize_name(input text)
 returns text language sql immutable as $$
@@ -34,7 +36,7 @@ begin
       update public.%I t
       set client_id = m.id
       from (
-        select id, public.normalize_name(name) as norm
+        select id, public.normalize_name(hospital_name) as norm
         from public.clients
       ) m
       where t.client_id is null
@@ -43,7 +45,7 @@ begin
         and public.normalize_name(t.hospital_name) = m.norm
         and (
           select count(*) from public.clients c2
-          where public.normalize_name(c2.name) = public.normalize_name(t.hospital_name)
+          where public.normalize_name(c2.hospital_name) = public.normalize_name(t.hospital_name)
         ) = 1
     $f$, tbl);
   end loop;
