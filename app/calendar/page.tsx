@@ -339,7 +339,7 @@ function TaskItem({
           {task.location && <div style={{ display: "flex", gap: 6, fontSize: 12, color: C.txt }}>
             <span>📍</span>{task.location}
           </div>}
-          {task.reminder_enabled && <div style={{ display: "flex", gap: 6, fontSize: 12, color: C.orange, fontWeight: 800 }}><span>🔔</span>올리비아가 {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]} 텔레그램으로 알려드려요.</div>}
+          {task.reminder_enabled && <div style={{ display: "flex", gap: 6, fontSize: 12, color: C.orange, fontWeight: 800 }}><span>🔔</span>올리비아가 {reminderTimingPhrase(task.reminder_minutes_before ?? 30)} 텔레그램으로 알려드려요.</div>}
           {task.memo && (
             <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7,
               borderLeft: `2px solid ${cat.color}`, paddingLeft: 10, marginTop: 2,
