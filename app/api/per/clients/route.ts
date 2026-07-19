@@ -11,12 +11,15 @@ export async function GET(req: NextRequest) {
   const id = searchParams.get("id");
 
   if (id) {
-    const { data: client, error } = await db
+    const { data: rawClient, error } = await db
       .from("clients")
       .select("*")
       .eq("id", id)
       .single();
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+    // 프론트가 기대하는 필드명으로 정규화 (실제 DB 컬럼: hospital_name, contact_name — app/api/clients/route.ts 참고)
+    const client = { ...rawClient, name: rawClient.hospital_name, manager_name: rawClient.contact_name };
 
     const [txRes, orderRes, donRes] = await Promise.all([
       db.from("reward_transactions").select("*").eq("client_id", id).order("created_at", { ascending: false }).limit(50),
