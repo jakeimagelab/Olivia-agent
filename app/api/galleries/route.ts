@@ -271,6 +271,11 @@ export async function POST(req: NextRequest) {
 
     if (galleryError) throw galleryError;
 
+    // 보정 완료 갤러리 NAS 링크를 고객 레코드의 "보정사진공유링크"로도 반영한다.
+    if (client_id) {
+      await supabase.from("clients").update({ retouched_photos_link: nasLink }).eq("id", client_id);
+    }
+
     const autoThumbnailUrl = thumbnailUrl || await extractThumbnailFromNasLink(nasLink);
 
     const cleanItems = autoThumbnailUrl
