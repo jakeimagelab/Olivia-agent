@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { startRegistration } from "@simplewebauthn/browser";
-import { browserSupportsWebAuthn } from "@simplewebauthn/browser";
+import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import { Fingerprint, ShieldCheck, Trash2, ArrowLeft, Plus, AlertTriangle } from "lucide-react";
 import { C } from "@/lib/theme";
 
