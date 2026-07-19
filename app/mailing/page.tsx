@@ -72,6 +72,8 @@ function QueueTab() {
   const [sending, setSending]         = useState(false);
   const [saveMsg, setSaveMsg]         = useState("");
   const [testResult, setTestResult]   = useState("");
+  const [availableArtifacts, setAvailableArtifacts] = useState<WorkflowArtifact[]>([]);
+  const [attachingId, setAttachingId] = useState("");
 
   const checkDb = async () => {
     try { const res = await fetch("/api/db-check"); setDbStatus(await res.json()); } catch {}
