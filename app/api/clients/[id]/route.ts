@@ -17,7 +17,7 @@ export async function GET(
   const requestedRunId = new URL(req.url).searchParams.get("workflowRunId");
   const [clientRes, runsRes] = await Promise.all([
     supabase.from("clients")
-      .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at")
+      .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier")
       .eq("id", id).single(),
     supabase.from("workflow_runs")
       .select("*").eq("client_id", id)
@@ -39,7 +39,7 @@ export async function GET(
   const { data: mailings } = await supabase
     .from("mailing_queue")
     .select("id, type, status, subject, to_email, created_at")
-    .eq("hospital_name", hospitalName)
+    .eq("client_id", id)
     .order("created_at", { ascending: false })
     .limit(10);
 
