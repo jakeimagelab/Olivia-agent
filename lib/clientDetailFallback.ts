@@ -3,6 +3,13 @@ const OPTIONAL_CLIENT_DETAIL_COLUMNS = [
   "available_points",
   "total_earned_points",
   "reward_tier",
+  "quote_amount",
+  "quote_vat",
+  "quote_total",
+  "contract_amount",
+  "contract_vat",
+  "contract_total",
+  "contract_signed_at",
 ] as const;
 
 type DatabaseErrorLike = {
