@@ -1526,7 +1526,7 @@ function SelectGalleryMailTab() {
 // ═══════════════════════════════════════════════════════════
 // 메인 페이지 — 탭 전환
 // ═══════════════════════════════════════════════════════════
-type Tab = "queue" | "brand" | "review" | "custom" | "select";
+type Tab = "queue" | "brand" | "review" | "custom" | "select" | "history";
 
 export default function MailingPage() {
   const [tab, setTab] = useState<Tab>("custom");
