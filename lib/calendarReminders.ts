@@ -13,6 +13,14 @@ export function isCalendarReminderMinutes(value: unknown): value is CalendarRemi
   return CALENDAR_REMINDER_MINUTES.includes(Number(value) as CalendarReminderMinutes);
 }
 
+// CALENDAR_REMINDER_LABEL은 뱃지/드롭다운처럼 짧게 쓰일 땐 "30분 전"이 자연스럽지만,
+// 문장 안에서 그대로 이어붙이면("30분 전 텔레그램으로") 조사가 빠져 어색해진다.
+// 문장에 넣을 때만 이 함수로 조사를 붙인다.
+export function reminderTimingPhrase(minutes: CalendarReminderMinutes) {
+  const label = CALENDAR_REMINDER_LABEL[minutes];
+  return minutes === 0 ? label : `${label}에`;
+}
+
 export function calendarReminderDueAt(date: string, time: string | null | undefined, minutesBefore: number) {
   const normalizedTime = time?.slice(0, 5);
   const isNextDayMidnight = normalizedTime === "24:00";
