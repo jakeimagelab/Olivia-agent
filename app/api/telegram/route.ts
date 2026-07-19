@@ -195,30 +195,37 @@ export async function POST(req: NextRequest) {
     if (!data.ok) {
       reply = "⚠️ 오류: " + (data.error || "알 수 없는 오류");
     } else if (data.type === "tool_request") {
-      const label = TOOL_LABELS[data.tool?.name] || data.tool?.name || "작업";
       const prefix = data.text ? data.text + "\n\n" : "";
-      try {
-        const execRes = await fetch(`${base}/api/olivia`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-internal-key": process.env.INTERNAL_API_KEY || "",
-            "x-base-url": base,
-          },
-          body: JSON.stringify({ pendingTool: data.tool }),
-        });
-        const execData = await execRes.json();
-        if (execData.ok && execData.toolResult) {
-          const result = execData.toolResult;
-          reply = result.action === "navigate"
-            ? prefix + result.message + `\n🔗 ${base}${result.url}`
-            : prefix + (result.message || "완료됐어요!");
-        } else {
-          reply = prefix + `⚠️ ${label} 실행 실패`;
+      // 클로드가 한 번에 여러 도구(tool_use)를 요청할 수 있어(예: "일정 3개 등록해줘"),
+      // 첫 번째 것만 실행하면 나머지가 조용히 버려져 사용자가 다시 요청해야 했다 — 전부 순차 실행.
+      const tools = Array.isArray(data.tools) && data.tools.length ? data.tools : [data.tool];
+      const lines: string[] = [];
+      for (const tool of tools) {
+        const label = TOOL_LABELS[tool?.name] || tool?.name || "작업";
+        try {
+          const execRes = await fetch(`${base}/api/olivia`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-internal-key": process.env.INTERNAL_API_KEY || "",
+              "x-base-url": base,
+            },
+            body: JSON.stringify({ pendingTool: tool }),
+          });
+          const execData = await execRes.json();
+          if (execData.ok && execData.toolResult) {
+            const result = execData.toolResult;
+            lines.push(result.action === "navigate"
+              ? (result.message || "완료됐어요!") + `\n🔗 ${base}${result.url}`
+              : (result.message || "완료됐어요!"));
+          } else {
+            lines.push(`⚠️ ${label} 실행 실패`);
+          }
+        } catch (e: any) {
+          lines.push(`⚠️ ${label} 실행 중 오류: ${e.message}`);
         }
-      } catch (e: any) {
-        reply = prefix + `⚠️ ${label} 실행 중 오류: ${e.message}`;
       }
+      reply = prefix + lines.join("\n\n");
     } else {
       reply = data.text || "처리됐어요!";
     }
