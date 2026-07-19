@@ -34,7 +34,7 @@ function DeliveryInner() {
     setDelivering(true);
     const res = await fetch("/api/workflow/advance", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workflow_run_id: workflowRun.id, to_step_key: "retouching" }),
+      body: JSON.stringify({ workflow_run_id: workflowRun.id, to_step_key: "retouching", nas_link: nasLink || undefined }),
     });
     const d = await res.json();
     setDoneMsg(d.ok ? "원본 전달 완료! 8단계(보정)로 이동됐습니다." : d.error || "오류가 발생했습니다.");
