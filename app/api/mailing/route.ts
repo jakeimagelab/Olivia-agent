@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "type, hospital_name, subject는 필수입니다." }, { status: 400 });
   }
 
+  const client_id = body.client_id ?? (await resolveClientId(supabase, hospital_name));
+
   const { data, error } = await supabase
     .from("mailing_queue")
     .insert({
@@ -48,6 +50,7 @@ export async function POST(req: NextRequest) {
       source_module: source_module || "",
       source_id:     source_id     || "",
       hospital_name,
+      client_id,
       contact_name:  contact_name  || "",
       to_email:      to_email      || "",
       subject,
