@@ -299,7 +299,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
     </div>
   );
 
-  const { client, workflowRun, mailingQueue } = pageData;
+  const { client, workflowRun } = pageData;
   const currentStepKey = workflowRun?.current_step_key || ACTIVE_WORKFLOW_STEPS[0].key;
   const displayStepKey = getWorkflowDisplayStepKey(currentStepKey) || ACTIVE_WORKFLOW_STEPS[0].key;
   const currentIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === displayStepKey);
