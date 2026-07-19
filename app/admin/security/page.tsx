@@ -191,7 +191,7 @@ export default function SecurityPage() {
         </div>
 
         <p style={{ marginTop: 20, fontSize: 11.5, color: C.hint, lineHeight: 1.7 }}>
-          패스키는 등록한 도메인에서만 동작해요. 항상 같은 주소(olivia-agent-smoky.vercel.app)로 접속해서 등록해주세요 —
+          패스키는 등록한 도메인에서만 동작해요. 항상 같은 주소(olivia.photoclinic.kr)로 접속해서 등록해주세요 —
           다른 미리보기 주소에서 등록하면 실제 서비스 로그인에서는 동작하지 않아요.
         </p>
       </div>
