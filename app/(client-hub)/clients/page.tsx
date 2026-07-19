@@ -486,6 +486,70 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   );
 }
 
+/* ── 견적서 / 계약서 섹션 (client_id 기준, 부가세 별도 금액 표시) ── */
+function ClientQuotesContractsSection({ quotes, contracts }: { quotes: any[]; contracts: any[] }) {
+  if (quotes.length === 0 && contracts.length === 0) return null;
+
+  const won = (n: number | null | undefined) => (n ?? 0).toLocaleString("ko-KR") + "원";
+
+  return (
+    <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📄 견적서 {quotes.length}건</div>
+        </div>
+        {quotes.length === 0 ? (
+          <div style={{ padding: "16px 18px", fontSize: 12, color: C.hint }}>등록된 견적서가 없습니다.</div>
+        ) : (
+          <div>
+            {quotes.map((q: any) => (
+              <div key={q.id} style={{ padding: "10px 18px", borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: C.txt }}>
+                  <span>{q.title || q.quote_number || "견적서"}</span>
+                  <span style={{ color: C.orange }}>{won(q.total_amount)}</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                  공급가액(VAT별도) {won(q.supply_amount)} · 부가세 {won(q.vat)} · {q.created_at ? new Date(q.created_at).toLocaleDateString("ko-KR") : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📝 계약서 {contracts.length}건</div>
+        </div>
+        {contracts.length === 0 ? (
+          <div style={{ padding: "16px 18px", fontSize: 12, color: C.hint }}>등록된 계약서가 없습니다.</div>
+        ) : (
+          <div>
+            {contracts.map((c: any) => {
+              const qd = c.quote_data || {};
+              const supply = qd.supplyAmount ?? qd.supply_amount;
+              const vat = qd.vat;
+              const total = qd.totalAmount ?? qd.total_amount;
+              return (
+                <div key={c.id} style={{ padding: "10px 18px", borderBottom: `1px solid ${C.border}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: C.txt }}>
+                    <span>{c.quote_number || "계약서"}</span>
+                    <span style={{ color: c.signature_data_url ? C.green : C.hint }}>{c.signature_data_url ? "서명완료" : "서명대기"}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                    {supply != null ? `공급가액(VAT별도) ${won(supply)} · 부가세 ${won(vat)} · 합계 ${won(total)}` : "금액 정보 없음"}
+                    {c.created_at ? ` · ${new Date(c.created_at).toLocaleDateString("ko-KR")}` : ""}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── 메일 발송이력 섹션 (client_id 기준 전체 이력, 초안부터 발송/실패까지) ── */
 function ClientMailHistorySection({ clientId }: { clientId: string }) {
   const [logs, setLogs] = useState<any[]>([]);
