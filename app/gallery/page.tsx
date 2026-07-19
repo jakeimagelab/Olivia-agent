@@ -110,6 +110,34 @@ function GalleryPageInner() {
     thumbnailUrl: ""
   });
 
+  // 고객 연결 — URL의 client_id 없이 이 페이지에 바로 들어오면 갤러리가 어느 고객과도
+  // 연결되지 않아 클라이언트 상세 화면 등 다른 곳에서 전혀 보이지 않는 문제가 있었다.
+  // 폼에서 직접 고객을 검색해 연결(또는 재연결)할 수 있게 한다.
+  const [selectedClientId, setSelectedClientId] = useState(clientId);
+  const [selectedClientName, setSelectedClientName] = useState("");
+  const [clientQuery, setClientQuery] = useState("");
+  const [clientResults, setClientResults] = useState<ClientOption[]>([]);
+  const [showClientPicker, setShowClientPicker] = useState(false);
+
+  useEffect(() => {
+    if (!showClientPicker) return;
+    const timer = setTimeout(() => {
+      fetch(`/api/clients?q=${encodeURIComponent(clientQuery)}`)
+        .then(r => r.json())
+        .then(d => { if (d.ok) setClientResults((d.clients || []).slice(0, 8)); })
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [clientQuery, showClientPicker]);
+
+  const pickClient = (c: ClientOption) => {
+    setSelectedClientId(c.id);
+    setSelectedClientName(c.hospital_name || c.name || "");
+    set("hospitalName", c.hospital_name || c.name || form.hospitalName);
+    setShowClientPicker(false);
+    setClientQuery("");
+  };
+
   const fieldStyle: React.CSSProperties = {
     width: "100%",
     border: `1px solid ${C.border}`,
