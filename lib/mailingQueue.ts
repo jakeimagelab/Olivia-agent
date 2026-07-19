@@ -25,6 +25,7 @@ export interface MailingDraftPayload {
   source_module: string;
   source_id?: string;
   hospital_name: string;
+  client_id?: string | null;
   contact_name?: string;
   to_email?: string;
   subject: string;
