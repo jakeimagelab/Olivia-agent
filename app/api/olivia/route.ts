@@ -1187,12 +1187,85 @@ async function executeTool(
       "workflow-logs": "/workflow/logs",
       "youtube-planner": "/sns-manager?tab=youtube",
       "ai-trust-gap": "/ai-trust-gap",
+      "admin-dashboard": "/admin/dashboard",
+      "admin-olivia-assistant": "/admin/olivia-assistant",
+      "admin-tools": "/admin/tools",
+      "per-campaigns": "/per/campaigns",
+      "per-clients": "/per/clients",
+      "per-donations": "/per/donations",
+      "per-orders": "/per/orders",
+      "per-products": "/per/products",
+      "per-reports": "/per/reports",
+      "per-settings": "/per/settings",
     };
 
     return {
       action: "navigate",
       url: pageMap[input.page] || "/" + input.page,
       message: "페이지로 이동할게요!",
+    };
+  }
+
+  if (name === "query_database") {
+    const db = getSupabaseAdmin();
+    const table = String(input.table || "");
+    if (!QUERYABLE_TABLE_SET.has(table)) {
+      return {
+        action: "done",
+        message: `❌ "${table}"은 조회할 수 없는 테이블이에요.\n\n조회 가능한 테이블: ${QUERYABLE_TABLES.join(", ")}`,
+      };
+    }
+
+    const limit = Math.min(Math.max(Number(input.limit) || 20, 1), 100);
+    const columns = Array.isArray(input.columns) && input.columns.length > 0
+      ? input.columns.join(",")
+      : "*";
+
+    let query = db.from(table).select(columns).limit(limit);
+
+    if (input.filters && typeof input.filters === "object") {
+      for (const [key, value] of Object.entries(input.filters)) {
+        if (value !== undefined && value !== null && value !== "") {
+          query = query.eq(key, value as any);
+        }
+      }
+    }
+
+    if (input.search && input.searchColumn) {
+      query = query.ilike(String(input.searchColumn), `%${input.search}%`);
+    }
+
+    query = input.orderBy
+      ? query.order(String(input.orderBy), { ascending: Boolean(input.ascending) })
+      : query.order("created_at", { ascending: Boolean(input.ascending) });
+
+    const { data, error } = await query;
+    // created_at이 없는 테이블이면 정렬 컬럼 오류가 나므로 정렬 없이 재시도한다.
+    if (error && !input.orderBy && (error.message.includes("column") || (error as any).code === "42703")) {
+      const retry = await db.from(table).select(columns).limit(limit);
+      if (retry.error) {
+        return { action: "done", message: `❌ "${table}" 조회 중 오류: ${retry.error.message}` };
+      }
+      const rows = (retry.data || []).map(redactSensitiveFields);
+      await logActivity("query_database", table, { count: rows.length });
+      return rows.length === 0
+        ? { action: "done", message: `🔍 **${table}** 테이블에서 조건에 맞는 데이터를 찾지 못했어요.` }
+        : { action: "done", message: `🔍 **${table}** 조회 결과 (${rows.length}건)\n\n\`\`\`json\n${JSON.stringify(rows, null, 2)}\n\`\`\`` };
+    }
+    if (error) {
+      return { action: "done", message: `❌ "${table}" 조회 중 오류: ${error.message}` };
+    }
+
+    const rows = (data || []).map(redactSensitiveFields);
+    await logActivity("query_database", table, { count: rows.length });
+
+    if (rows.length === 0) {
+      return { action: "done", message: `🔍 **${table}** 테이블에서 조건에 맞는 데이터를 찾지 못했어요.` };
+    }
+
+    return {
+      action: "done",
+      message: `🔍 **${table}** 조회 결과 (${rows.length}건)\n\n\`\`\`json\n${JSON.stringify(rows, null, 2)}\n\`\`\``,
     };
   }
 
