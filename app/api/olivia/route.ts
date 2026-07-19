@@ -752,7 +752,6 @@ function pageShortcutFromText(text: string) {
     [/SEO\s*납품|검색\s*최적화/i, "seo-delivery"],
     [/링크\s*생성기|공유\s*링크\s*생성/, "link-generator"],
     [/원본\s*전달|원본\s*파일/, "original-delivery"],
-    [/셀렉\s*갤러리|셀렉트\s*갤러리/, "select-galleries"],
   ];
 
   const found = pages.find(([pattern]) => pattern.test(text));
