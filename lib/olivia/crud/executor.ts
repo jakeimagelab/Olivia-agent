@@ -175,7 +175,7 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
   }
 
   if (domain === "memo") {
-    const client = await resolveClient(db, data.clientId, data.hospitalName);
+    const client = await resolveClient(db, data.clientId, data.hospitalName, { createIfMissing: true });
     const { data: row, error } = await db.from("consultation_memos").insert({
       hospital_id: client?.id || data.clientId || null,
       title: data.title || data.hospitalName || "메모",
