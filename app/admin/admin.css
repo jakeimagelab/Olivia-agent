@@ -890,7 +890,7 @@
 .olivia-assistant-page--compact .olivia-page-heading p { margin-top: 2px; font-size: 10px; }
 .olivia-assistant-page--compact .olivia-tabs { gap: 5px; padding: 8px 0; }
 .olivia-assistant-page--compact .olivia-tabs button { padding: 6px 10px; border-radius: 8px; font-size: 9px; }
-.olivia-assistant-page--compact .olivia-tab-content { max-height: 330px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(21,88,85,.18) transparent; }
+.olivia-assistant-page--compact .olivia-tab-content { min-height: 0; overflow: visible; }
 .olivia-assistant-page--compact .olivia-meeting-panel,
 .olivia-assistant-page--compact .olivia-briefing-panel { margin-bottom: 10px; padding: 12px; border-radius: 14px; }
 .olivia-assistant-page--compact .olivia-meeting-panel__heading h2,
@@ -920,7 +920,7 @@
   .olivia-assistant-page--compact .olivia-page-heading h1 { font-size: 15px; }
   .olivia-assistant-page--compact .olivia-page-heading p { display: none; }
   .olivia-assistant-page--compact .olivia-page-heading button { padding: 6px 8px; font-size: 8px; white-space: nowrap; }
-  .olivia-assistant-page--compact .olivia-tab-content { max-height: 270px; }
+  .olivia-assistant-page--compact .olivia-tab-content { overflow: visible; }
 }
 /* Olivia proactive assistant */
 .olivia-dashboard-panel,.olivia-project-panel,.olivia-briefing-panel,.olivia-approval-summary{background:#fff;border:1px solid rgba(21,88,85,.12);border-radius:22px;box-shadow:0 12px 36px rgba(21,88,85,.07)}
