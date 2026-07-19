@@ -1559,7 +1559,8 @@ async function executeTool(
         to_email:      toEmail,
         subject:       template.subject,
         body,
-        status:        "pending",
+        // mailing_queue.status는 draft/ready/sent/failed만 허용 — "pending"은 체크 제약 위반으로 항상 실패했다.
+        status:        "ready",
         links:         [],
         attachments:   [],
       })
