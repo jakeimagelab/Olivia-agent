@@ -66,7 +66,7 @@ button {
   cursor: pointer;
 }
 
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 select {
   width: 100%;
@@ -78,9 +78,19 @@ select {
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
-input {
+input:not([type="checkbox"]):not([type="radio"]) {
   min-height: 42px;
   padding: 0 12px;
+}
+
+/* 체크박스/라디오는 위 폼 필드 스타일(width:100%, min-height:42px 등)을 물려받으면 안 되는데
+   지금까지 셀렉터가 이걸 안 걸러서 아무 크기 지정 없는 체크박스가 부모 flex行 너비만큼
+   늘어나 거대한 사각형으로 깨져 보이는 버그가 있었다(달력 알람 체크박스 등). */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  min-height: 0;
+  flex-shrink: 0;
 }
 
 select {
