@@ -180,6 +180,7 @@ export async function deductPoints(
 export async function savePerMailingQueue(opts: {
   type: "per_report" | "per_order" | "per_donation";
   hospitalName: string;
+  clientId?: string | null;
   contactName?: string;
   toEmail?: string;
   subject: string;
@@ -194,6 +195,7 @@ export async function savePerMailingQueue(opts: {
       source_module: "per",
       source_id:     opts.sourceId    ?? "",
       hospital_name: opts.hospitalName,
+      client_id:     opts.clientId    ?? null,
       contact_name:  opts.contactName ?? "",
       to_email:      opts.toEmail     ?? "",
       subject:       opts.subject,
