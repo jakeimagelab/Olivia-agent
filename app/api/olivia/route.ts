@@ -1609,8 +1609,8 @@ async function executeTool(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        hospitalName:  client?.name          || input.clientName,
-        contactName:   client?.manager_name  || "",
+        hospitalName:  client?.hospital_name || input.clientName,
+        contactName:   client?.contact_name  || "",
         contactEmail:  client?.email         || "",
         nasLink:       input.nasLink,
         description:   input.description     || "",
