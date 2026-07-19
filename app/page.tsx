@@ -77,8 +77,8 @@ function LoginScreen({ onAuth }:{ onAuth:()=>void }) {
     setPasskeyErr(""); setPasskeyBusy(true);
     try{
       const optionsRes=await fetch("/api/auth/passkey/login-options",{method:"POST"});
-      const optionsData=await optionsRes.json();
-      if(!optionsData.ok) throw new Error(optionsData.error||"등록된 패스키가 없어요.");
+      const optionsData=await optionsRes.json().catch(()=>null);
+      if(!optionsData?.ok) throw new Error(optionsData?.error||"등록된 패스키가 없거나 서버에 연결할 수 없어요.");
 
       const response=await startAuthentication({optionsJSON:optionsData.options});
 
@@ -86,8 +86,8 @@ function LoginScreen({ onAuth }:{ onAuth:()=>void }) {
         method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({response}),
       });
-      const verifyData=await verifyRes.json();
-      if(!verifyData.ok) throw new Error(verifyData.error||"패스키 인증에 실패했어요.");
+      const verifyData=await verifyRes.json().catch(()=>null);
+      if(!verifyData?.ok) throw new Error(verifyData?.error||"패스키 인증에 실패했어요.");
       onAuth();
     }catch(e){
       setPasskeyErr(e instanceof Error ? e.message : "패스키 로그인에 실패했어요.");
