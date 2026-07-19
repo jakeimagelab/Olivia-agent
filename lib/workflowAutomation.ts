@@ -469,6 +469,61 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
   return { completed: false, from_step_key: fromStep, to_step_key: toStep, created: taskResult.created };
 }
 
+/**
+ * 이미 실제로는 끝난 프로젝트를 뒤늦게 시스템에 등록하면서 한 번에 완료 처리한다.
+ * 정상 진행(advanceWorkflow)과 달리 각 단계의 "다음 할 일"을 새로 만들지 않고,
+ * 오히려 남아있는 미완료 단계/업무를 전부 정리하고 워크플로우를 completed로 마감한다.
+ */
+export async function completeWorkflowRetroactively(
+  db: SupabaseClient,
+  input: { workflow_run_id: string; reason?: string },
+) {
+  const run = await getWorkflowRun(db, input.workflow_run_id);
+  const now = new Date().toISOString();
+  const lastStepKey = WORKFLOW_STEPS[WORKFLOW_STEPS.length - 1].key;
+
+  // 1) 안 끝난 단계(step_runs) 전부 완료 처리
+  await db.from("workflow_step_runs")
+    .update({ status: "completed", completed_at: now, updated_at: now })
+    .eq("workflow_run_id", run.id)
+    .neq("status", "completed");
+
+  // 2) 안 끝난 업무(agent_tasks) 전부 정리 (완료가 아니라 "소급등록으로 생략"으로 명확히 구분)
+  await db.from("agent_tasks")
+    .update({ status: "canceled", error_message: "소급 등록으로 인해 생략됨", completed_at: now, updated_at: now })
+    .eq("workflow_run_id", run.id)
+    .in("status", ["pending", "running", "waiting_approval"]);
+
+  // 3) 워크플로우 본체를 마지막 단계로 옮기고 completed 처리
+  await db.from("workflow_runs")
+    .update({
+      current_step_key: lastStepKey,
+      status: "completed",
+      completed_at: now,
+      updated_at: now,
+    })
+    .eq("id", run.id);
+
+  await logAgent(db, {
+    workflow_run_id: run.id,
+    log_type: "workflow_completed",
+    message: `${run.client_name || "워크플로우"} — 소급 등록 후 전체 완료 처리됨.`,
+    input_summary: input.reason ?? "",
+  });
+
+  await emitOliviaEventSafely(db, {
+    eventType: "workflow.completed",
+    eventSource: "workflow_retroactive_completion",
+    clientId: run.client_id ?? null,
+    projectId: run.project_id ?? null,
+    workflowRunId: run.id,
+    payload: { reason: input.reason ?? "", retroactive: true },
+    deduplicationKey: createEventDeduplicationKey("workflow.completed", run.id, "retroactive"),
+  });
+
+  return { completed: true, workflow_run_id: run.id, final_step_key: lastStepKey };
+}
+
 export async function maybeAdvanceWorkflow(db: SupabaseClient, workflowRunId: string, stepKey: string) {
   const [tasksRes, approvalsRes] = await Promise.all([
     db.from("agent_tasks").select("*").eq("workflow_run_id", workflowRunId).eq("workflow_step_key", stepKey),
