@@ -179,6 +179,7 @@ function GalleryPageInner() {
           contactName:  prev.contactName  || c.manager_name || c.contact_name || c.director_name || "",
           contactEmail: prev.contactEmail  || c.email || "",
         }));
+        setSelectedClientName(c.name || c.hospital_name || "");
       })
       .catch(() => {});
   }, [clientId]);
