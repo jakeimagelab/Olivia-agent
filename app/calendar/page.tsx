@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import { CALENDAR_REMINDER_LABEL, CALENDAR_REMINDER_MINUTES, type CalendarReminderMinutes } from "@/lib/calendarReminders";
 
 /* ─── types ──────────────────────────────────────────── */
 type ViewMode = "day" | "week" | "month" | "year";
@@ -28,6 +29,7 @@ type CalTask = {
   id: string; date: string; title: string; memo: string;
   category: keyof typeof CATS; completed: boolean; created_at: string;
   time?: string | null; end_time?: string | null; location?: string | null;
+  reminder_enabled?: boolean; reminder_minutes_before?: CalendarReminderMinutes; reminder_due_at?: string | null; reminder_sent_at?: string | null;
 };
 
 /* ─── constants ───────────────────────────────────────── */
@@ -212,6 +214,29 @@ function TimeSelect({ value, onChange, placeholder = "시간 없음" }: {
   );
 }
 
+function ReminderControls({ enabled, minutes, hasTime, onEnabled, onMinutes }: {
+  enabled: boolean;
+  minutes: CalendarReminderMinutes;
+  hasTime: boolean;
+  onEnabled: (value: boolean) => void;
+  onMinutes: (value: CalendarReminderMinutes) => void;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 8, border: `1px solid ${enabled ? "#E85D2C55" : C.border}`, borderRadius: 10, padding: "10px 11px", background: enabled ? "#FFF7F2" : "#FAFCFB" }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, color: hasTime ? C.txt : C.hint, fontSize: 12, fontWeight: 800, cursor: hasTime ? "pointer" : "not-allowed" }}>
+        <input type="checkbox" checked={enabled} disabled={!hasTime} onChange={(event) => onEnabled(event.target.checked)} style={{ accentColor: C.orange }} />
+        <span>🔔 올리비아 텔레그램 알람</span>
+      </label>
+      {enabled ? (
+        <select aria-label="알람 시점" value={minutes} onChange={(event) => onMinutes(Number(event.target.value) as CalendarReminderMinutes)}
+          style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 9px", background: "#fff", color: C.txt, fontSize: 12, fontFamily: "inherit" }}>
+          {CALENDAR_REMINDER_MINUTES.map((value) => <option key={value} value={value}>{CALENDAR_REMINDER_LABEL[value]}</option>)}
+        </select>
+      ) : !hasTime ? <small style={{ color: C.hint, fontSize: 10 }}>시작 시간을 선택하면 알람을 켤 수 있습니다.</small> : null}
+    </div>
+  );
+}
+
 /* ─── TaskItem ────────────────────────────────────────── */
 function TaskItem({
   task, compact, onToggle, onDelete, onEdit,
@@ -235,6 +260,7 @@ function TaskItem({
       overflow: "hidden",
     }}>
       {task.time && <span style={{ fontSize: 9, color: cat.color, fontWeight: 800, flexShrink: 0 }}>{task.time.slice(0,5)}</span>}
+      {task.reminder_enabled ? <span aria-label="알람 설정됨" style={{ fontSize: 9, flexShrink: 0 }}>🔔</span> : null}
       <span style={{ fontSize: 10, color: C.txt, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         textDecoration: task.completed ? "line-through" : "none", opacity: task.completed ? 0.55 : 1, fontWeight: 700 }}>
         {task.title}
@@ -279,6 +305,9 @@ function TaskItem({
                 ⏰ {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}
               </span>
             )}
+            {task.reminder_enabled && (
+              <span style={{ fontSize: 11, fontWeight: 800, color: C.orange }}>🔔 {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</span>
+            )}
             {task.location && (
               <span style={{ fontSize: 11, color: C.muted }}>📍 {task.location}</span>
             )}
@@ -310,6 +339,7 @@ function TaskItem({
           {task.location && <div style={{ display: "flex", gap: 6, fontSize: 12, color: C.txt }}>
             <span>📍</span>{task.location}
           </div>}
+          {task.reminder_enabled && <div style={{ display: "flex", gap: 6, fontSize: 12, color: C.orange, fontWeight: 800 }}><span>🔔</span>올리비아가 {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]} 텔레그램으로 알려드려요.</div>}
           {task.memo && (
             <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7,
               borderLeft: `2px solid ${cat.color}`, paddingLeft: 10, marginTop: 2,
@@ -334,6 +364,8 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime }: {
   const [endTime,  setEndTime]  = useState(defaultTime ? nextHourTime(defaultTime) : "");
   const [location, setLocation] = useState("");
   const [cat,      setCat]      = useState<keyof typeof CATS>("general");
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderMinutes, setReminderMinutes] = useState<CalendarReminderMinutes>(30);
   const [busy,     setBusy]     = useState(false);
   const [err,      setErr]      = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
@@ -351,6 +383,7 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime }: {
 
   const handleTimeChange = (v: string) => {
     setTime(v);
+    if (!v) setReminderEnabled(false);
     if (v && !endTime) setEndTime(nextHourTime(v));
   };
 
@@ -362,14 +395,16 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime }: {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date, title: title.trim(), memo: memo.trim(),
           category: cat, time: time || null, end_time: endTime || null,
-          location: location.trim() || null }),
+          location: location.trim() || null, reminder_enabled: reminderEnabled,
+          reminder_minutes_before: reminderMinutes }),
       });
       const d = await r.json();
       if (d.ok) {
         onAdd({ id: d.id, date, title: title.trim(), memo: memo.trim(), category: cat,
           completed: false, created_at: new Date().toISOString(),
-          time: time || null, end_time: endTime || null, location: location.trim() || null });
-        setTitle(""); setMemo(""); setTime(""); setEndTime(""); setLocation(""); setCat("general"); setOpen(false);
+          time: time || null, end_time: endTime || null, location: location.trim() || null,
+          reminder_enabled: reminderEnabled, reminder_minutes_before: reminderMinutes, reminder_due_at: d.reminder_due_at ?? null });
+        setTitle(""); setMemo(""); setTime(""); setEndTime(""); setLocation(""); setCat("general"); setReminderEnabled(false); setReminderMinutes(30); setOpen(false);
       } else setErr(d.error ?? "저장 실패");
     } catch { setErr("네트워크 오류"); }
     finally { setBusy(false); }
@@ -400,6 +435,7 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime }: {
         placeholder="장소 (선택)"
         style={{ fontSize: 13, border: `1px solid ${C.border}`,
           borderRadius: 8, padding: "6px 10px", outline: "none", background: "#FAFAFA", color: C.txt }}/>
+      <ReminderControls enabled={reminderEnabled} minutes={reminderMinutes} hasTime={Boolean(time)} onEnabled={setReminderEnabled} onMinutes={setReminderMinutes}/>
       <div style={{ display: "flex", gap: 6 }}>
         {Object.entries(CATS).map(([key, v]) => (
           <button key={key} onClick={() => setCat(key as keyof typeof CATS)} style={{
@@ -434,11 +470,14 @@ function EditTaskForm({ task, onSave, onCancel }: {
   const [endTime,  setEndTime]  = useState(task.end_time || "");
   const [location, setLocation] = useState(task.location || "");
   const [cat,      setCat]      = useState<keyof typeof CATS>(task.category);
+  const [reminderEnabled, setReminderEnabled] = useState(task.reminder_enabled === true);
+  const [reminderMinutes, setReminderMinutes] = useState<CalendarReminderMinutes>(task.reminder_minutes_before ?? 30);
   const [busy,     setBusy]     = useState(false);
   const [err,      setErr]      = useState("");
 
   const handleTimeChange = (v: string) => {
     setTime(v);
+    if (!v) setReminderEnabled(false);
     if (v && !endTime) setEndTime(nextHourTime(v));
   };
 
@@ -450,12 +489,14 @@ function EditTaskForm({ task, onSave, onCancel }: {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: task.id, title: title.trim(), memo: memo.trim(),
           category: cat, time: time || null, end_time: endTime || null,
-          location: location.trim() || null }),
+          location: location.trim() || null, reminder_enabled: reminderEnabled,
+          reminder_minutes_before: reminderMinutes }),
       });
       const d = await r.json();
       if (d.ok) {
         onSave({ ...task, title: title.trim(), memo: memo.trim(), category: cat,
-          time: time || null, end_time: endTime || null, location: location.trim() || null });
+          time: time || null, end_time: endTime || null, location: location.trim() || null,
+          reminder_enabled: reminderEnabled, reminder_minutes_before: reminderMinutes, reminder_sent_at: null });
       } else setErr(d.error ?? "수정 실패");
     } catch { setErr("네트워크 오류"); }
     finally { setBusy(false); }
@@ -486,6 +527,7 @@ function EditTaskForm({ task, onSave, onCancel }: {
         placeholder="장소 (선택)"
         style={{ fontSize: 13, border: `1px solid ${C.border}`,
           borderRadius: 8, padding: "6px 10px", outline: "none", background: "#FAFAFA", color: C.txt }}/>
+      <ReminderControls enabled={reminderEnabled} minutes={reminderMinutes} hasTime={Boolean(time)} onEnabled={setReminderEnabled} onMinutes={setReminderMinutes}/>
       <div style={{ display: "flex", gap: 6 }}>
         {Object.entries(CATS).map(([key, v]) => (
           <button key={key} onClick={() => setCat(key as keyof typeof CATS)} style={{
@@ -632,6 +674,7 @@ function EventDetailView({ task, onEdit, onToggle }: { task: CalTask; onEdit: ()
           <div>⏰ {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}</div>
         )}
         {task.location && <div>📍 {task.location}</div>}
+        {task.reminder_enabled && <div style={{ color: C.orange, fontWeight: 800 }}>🔔 올리비아 텔레그램 · {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</div>}
       </div>
       {task.memo && (
         <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6, background: "#FAFCFB",
@@ -1051,6 +1094,8 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                       date: dateStr, title: clipboardTask.title, memo: clipboardTask.memo,
                       category: clipboardTask.category, completed: false,
                       time: clipboardTask.time, end_time: clipboardTask.end_time, location: clipboardTask.location,
+                      reminder_enabled: clipboardTask.reminder_enabled,
+                      reminder_minutes_before: clipboardTask.reminder_minutes_before,
                     }).then(created => setToast(created ? `'${clipboardTask.title}' 붙여넣기 완료` : "붙여넣기 실패 — 다시 시도해 주세요"));
                   }
                 }
@@ -2406,11 +2451,13 @@ export default function CalendarPage() {
           date: fields.date, title: fields.title, memo: fields.memo,
           category: fields.category, time: fields.time ?? null,
           end_time: fields.end_time ?? null, location: fields.location ?? null,
+          reminder_enabled: fields.reminder_enabled ?? false,
+          reminder_minutes_before: fields.reminder_minutes_before ?? 30,
         }),
       });
       const d = await r.json();
       if (!d.ok) return null;
-      const newTask: CalTask = { ...fields, id: d.id, created_at: new Date().toISOString() };
+      const newTask: CalTask = { ...fields, id: d.id, created_at: new Date().toISOString(), reminder_due_at: d.reminder_due_at ?? null };
       addTask(newTask);
       return newTask;
     } catch { return null; }

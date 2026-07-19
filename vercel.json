@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/olivia-morning-briefing",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/calendar-reminders",
+      "schedule": "* * * * *"
     }
   ]
 }
