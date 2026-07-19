@@ -14,7 +14,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://olivia-agent-smoky.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://olivia.photoclinic.kr"),
   title: "포토클리닉 구독 콘텐츠 운영",
   description: "월간 포토클리닉 구독 병원의 홍보 콘텐츠 운영 시스템입니다.",
   robots: { index: false, follow: false },
