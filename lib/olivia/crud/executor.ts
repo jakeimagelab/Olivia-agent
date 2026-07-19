@@ -275,9 +275,10 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
       description: data.description || "",
       client_id: client?.id || data.clientId || null,
       workflow_run_id: data.workflowRunId || run?.id || null,
+      gallery_type: data.galleryType || "retouched",
     }).select("*").single();
     if (error || !row) dbError(error, "사진 갤러리 생성에 실패했습니다.");
-    if (client?.id) await db.from("clients").update({ retouched_photos_link: data.nasLink }).eq("id", client.id);
+    // clients.original_photos_link / retouched_photos_link 반영은 DB 트리거(trg_sync_gallery_to_client)가 처리한다.
     return { row: row as Row, clientId: row.client_id, workflowRunId: row.workflow_run_id };
   }
 
