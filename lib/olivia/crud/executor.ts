@@ -76,7 +76,12 @@ async function resolveTarget(db: SupabaseClient, domain: OliviaCrudDomain, targe
   return rows[0];
 }
 
-async function resolveClient(db: SupabaseClient, clientId?: unknown, hospitalName?: unknown) {
+async function resolveClient(
+  db: SupabaseClient,
+  clientId?: unknown,
+  hospitalName?: unknown,
+  opts: { createIfMissing?: boolean } = {},
+) {
   if (typeof clientId === "string" && clientId) {
     const { data } = await db.from("clients").select("id,hospital_name,contact_name,email").eq("id", clientId).maybeSingle();
     if (data) return data as Row;
@@ -85,6 +90,13 @@ async function resolveClient(db: SupabaseClient, clientId?: unknown, hospitalNam
     const rows = await findRows(db, "clients", ["hospital_name"], hospitalName.trim());
     if (rows.length === 1) return rows[0];
     if (rows.length > 1) throw new OliviaCrudError(`"${hospitalName}" 고객이 여러 명입니다. 고객 ID를 선택해주세요.`, "AMBIGUOUS_TARGET");
+    if (rows.length === 0 && opts.createIfMissing) {
+      const { data: created, error } = await db.from("clients")
+        .insert({ hospital_name: hospitalName.trim() })
+        .select("id,hospital_name,contact_name,email")
+        .single();
+      if (!error && created) return created as Row;
+    }
   }
   return null;
 }
