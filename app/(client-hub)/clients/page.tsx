@@ -452,6 +452,9 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
             <ClientMailHistorySection clientId={clientId} />
           </div>
 
+          {/* 견적서 / 계약서 */}
+          <ClientQuotesContractsSection quotes={quotes} contracts={contracts} />
+
           {/* 촬영 갤러리 */}
           <ClientGallerySection clientId={clientId} hospitalName={client.name} email={client.email} workflowRunId={workflowRun?.id} />
 
