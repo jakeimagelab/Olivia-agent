@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     year: "numeric", month: "long", day: "numeric",
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://photoclinic-diangnoisis.vercel.app";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://olivia.photoclinic.kr";
   const reviewUrl = `${baseUrl}/review?hospital=${encodeURIComponent(hospitalName || "")}&name=${encodeURIComponent(toName || "")}`;
 
   const emailHtml = `<!DOCTYPE html>
