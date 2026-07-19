@@ -41,6 +41,7 @@ export const OLIVIA_CHAT_WORK_TOOL_NAMES = new Set([
   "analyze_meeting_memo",
   "complete_meeting",
   "get_meeting_followups",
+  "check_recent_errors",
 ]);
 
 type ToolContext = { recentWorkItems?: OliviaChatReference[] };
