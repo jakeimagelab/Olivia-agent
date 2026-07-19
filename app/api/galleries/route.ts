@@ -289,16 +289,14 @@ export async function POST(req: NextRequest) {
         description: description || "",
         client_id: client_id || null,
         workflow_run_id: workflow_run_id || null,
+        gallery_type: galleryTypeValue,
       })
       .select()
       .single();
 
     if (galleryError) throw galleryError;
 
-    // 보정 완료 갤러리 NAS 링크를 고객 레코드의 "보정사진공유링크"로도 반영한다.
-    if (client_id) {
-      await supabase.from("clients").update({ retouched_photos_link: nasLink }).eq("id", client_id);
-    }
+    // clients.original_photos_link / retouched_photos_link 반영은 DB 트리거(trg_sync_gallery_to_client)가 처리한다.
 
     const autoThumbnailUrl = thumbnailUrl || await extractThumbnailFromNasLink(nasLink);
 
