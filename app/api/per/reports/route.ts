@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
     const mailingId = await savePerMailingQueue({
       type: "per_report",
       hospitalName: client.name,
+      clientId: clientId,
       contactName:  client.manager_name ?? "",
       toEmail:      client.email ?? "",
       subject:      `[PER 리포트] ${client.name} 리워드 활동 내역`,
