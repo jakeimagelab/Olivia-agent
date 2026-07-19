@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "clientId, productId, usedPoints 필수" }, { status: 400 });
   }
 
-  const { data: client } = await db.from("clients").select("available_points, name, email, manager_name").eq("id", clientId).single();
+  const { data: client } = await db.from("clients").select("available_points, hospital_name, email, contact_name").eq("id", clientId).single();
   if ((client?.available_points ?? 0) < usedPoints) {
     return NextResponse.json({ ok: false, error: "포인트가 부족합니다." }, { status: 400 });
   }
