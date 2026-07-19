@@ -315,6 +315,7 @@ export async function POST(req: NextRequest) {
           approval_status: "pending",
           status: "draft",
           hospital_name: hospitalName,
+          client_id,
           contact_name: contactName || "",
           to_email: contactEmail || "",
           subject: `[포토클리닉] ${hospitalName} 촬영 사진 전달드립니다`,
