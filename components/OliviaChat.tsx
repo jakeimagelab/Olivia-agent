@@ -751,7 +751,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         } : {
           // 데스크탑: 기존 방식
           position: "fixed", bottom: 92, right: 24, zIndex: 999,
-          width: 420, height: 580,
+          width: panelSize.width, height: panelSize.height,
           background: C.surface, borderRadius: 20,
           border: `1px solid ${C.border}`,
           boxShadow: "0 20px 60px rgba(21,88,85,.18), 0 4px 16px rgba(0,0,0,.08)",
@@ -759,6 +759,22 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
           overflow: "hidden",
           animation: "fadeIn .2s ease",
         }}>
+
+          {/* 크기 조절 핸들 — 좌상단 모서리를 드래그해 패널 크기를 바꾼다 (패널이 우측 하단에 고정돼 있어 반대 방향으로 늘어남) */}
+          {!isMobile && (
+            <div
+              onMouseDown={startResize}
+              title="드래그해서 크기 조절"
+              style={{
+                position: "absolute", top: 0, left: 0, width: 22, height: 22,
+                cursor: "nwse-resize", zIndex: 10,
+              }}
+            >
+              <svg width="22" height="22" style={{ position: "absolute", top: 5, left: 5, opacity: 0.4 }}>
+                <path d="M2 14 L14 2 M6 14 L14 6 M10 14 L14 10" stroke={C.muted} strokeWidth={1.5} strokeLinecap="round" fill="none" />
+              </svg>
+            </div>
+          )}
 
           {/* 헤더 */}
           <div style={{
