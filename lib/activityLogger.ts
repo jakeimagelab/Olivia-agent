@@ -14,7 +14,8 @@ export type ActionType =
   | "create_memo"
   | "send_workflow_mail"
   | "advance_workflow_step"
-  | "query_database";
+  | "query_database"
+  | "generate_document";
 
 export async function logActivity(
   actionType: ActionType,
