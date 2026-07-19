@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import tls from "node:tls";
 import { getErrorMessage } from "@/lib/errors";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { resolveClientId } from "@/lib/clientLookup";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
