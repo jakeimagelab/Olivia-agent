@@ -749,8 +749,8 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
               width: 34, height: 34, borderRadius: "50%",
               background: "linear-gradient(135deg, #E85D2C, #EB8F22)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 16, flexShrink: 0,
-            }}>✨</div>
+              flexShrink: 0,
+            }}><Sparkles size={18} color="#fff" fill="#fff" strokeWidth={1} /></div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>올리비아</div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,.6)" }}>월간 포토클리닉 운영 비서</div>
