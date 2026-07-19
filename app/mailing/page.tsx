@@ -24,12 +24,17 @@ type MailType = "quote" | "contract" | "conti" | "proposal" | "original_files" |
 
 type MailItem = {
   id: string; type: MailType; source_module: string; source_id?: string;
+  client_id?: string | null; workflow_run_id?: string | null;
   hospital_name: string; contact_name: string;
   to_email: string; subject: string; body: string;
   attachments: { filename: string; content_type: string; content: string }[];
   links: { label: string; url: string }[];
   status: MailStatus; error_message: string;
   created_at: string; sent_at: string | null;
+};
+
+type WorkflowArtifact = {
+  id: string; document_type: string; title: string; file_name: string; file_size: number;
 };
 
 const TYPE_LABELS: Record<MailType, string> = {
