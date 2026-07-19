@@ -142,6 +142,7 @@ export const OLIVIA_CRUD_REGISTRY: Readonly<Record<OliviaCrudDomain, OliviaCrudD
       description: string(10_000),
       clientId: string(80),
       workflowRunId: string(80),
+      galleryType: { type: "string", enum: ["original", "retouched"] },
     },
   },
   select_gallery: {
