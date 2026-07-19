@@ -878,6 +878,7 @@ Available tools:
 - send_workflow_mail: 병원 고객에게 워크플로우 메일 발송 (후기 요청, 원본 전달, 갤러리 공유 등)
 - get_workflow_status: 고객 워크플로우 현재 단계 및 다음 액션 확인
 - advance_workflow_step: 워크플로우 단계 진행 (예: quote → contract, contract → conti)
+- complete_workflow_retroactively: 이미 끝난 프로젝트를 소급 등록 후 한 번에 전체 완료 처리 (진행 중인 프로젝트를 잘못 끝낼 수 있어 반드시 확인 후 호출)
 - list_mailing_queue: 메일 대기 목록 조회 (draft/ready 상태)
 - send_mailing: 대기 중인 특정 메일 즉시 발송
 - get_gallery: 병원의 납품 갤러리·NAS 링크 조회
