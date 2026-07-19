@@ -1076,22 +1076,26 @@ export async function POST(req: NextRequest) {
     .map(b => b.text)
     .join("\n\n");
 
-  // 커스텀 tool_use 블록만 확인 (web_search 제외)
-  const toolUseBlock = response.content.find(
+  // 커스텀 tool_use 블록 전부 확인 (web_search 제외) — 클로드가 한 응답에서
+  // 독립적인 여러 작업을 한 번에 요청(병렬 tool_use)할 수 있어, 첫 번째 것만 쓰면
+  // 나머지 요청이 조용히 버려지고 사용자가 다시 요청해야 하는 문제가 있었다.
+  const toolUseBlocks = response.content.filter(
     (b): b is Anthropic.ToolUseBlock =>
       b.type === "tool_use" && b.name !== "web_search"
   );
 
-  if (toolUseBlock) {
+  if (toolUseBlocks.length > 0) {
+    const tools = toolUseBlocks.map((b) => ({
+      name: b.name,
+      input: b.input,
+      id: b.id,
+    }));
     return NextResponse.json({
       ok: true,
       type: "tool_request",
       text: allText,
-      tool: {
-        name: toolUseBlock.name,
-        input: toolUseBlock.input,
-        id: toolUseBlock.id,
-      },
+      tool: tools[0],
+      tools,
     });
   }
 
