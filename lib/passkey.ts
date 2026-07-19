@@ -48,11 +48,11 @@ export async function consumeChallenge(
   return true;
 }
 
-export function encodePublicKey(publicKey: Uint8Array): string {
+export function encodePublicKey(publicKey: Uint8Array_): string {
   return isoBase64URL.fromBuffer(publicKey);
 }
 
-export function decodePublicKey(encoded: string): Uint8Array {
+export function decodePublicKey(encoded: string): Uint8Array_ {
   return isoBase64URL.toBuffer(encoded);
 }
 
