@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   if (type === "campaign" && campaignId) {
     const [campRes, recordsRes] = await Promise.all([
       db.from("donation_campaigns").select("*").eq("id", campaignId).single(),
-      db.from("donation_records").select("*, clients(name)").eq("campaign_id", campaignId).eq("status", "confirmed"),
+      db.from("donation_records").select("*, clients(hospital_name)").eq("campaign_id", campaignId).eq("status", "confirmed"),
     ]);
 
     const camp = campRes.data;
