@@ -23,7 +23,10 @@ export async function PATCH(req: NextRequest, ctx: any) {
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.quoteData !== undefined) update.quote_data = body.quoteData;
   if (body.signatureDataUrl !== undefined) update.signature_data_url = body.signatureDataUrl;
-  if (body.hospitalName !== undefined) update.hospital_name = body.hospitalName;
+  if (body.hospitalName !== undefined) {
+    update.hospital_name = body.hospitalName;
+    update.client_id = await resolveClientId(supabase, body.hospitalName);
+  }
   if (body.contactName !== undefined) update.contact_name = body.contactName;
   if (body.email !== undefined) update.email = body.email;
 
