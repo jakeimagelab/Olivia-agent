@@ -1043,7 +1043,8 @@ async function executeTool(
     const r = await fetch(origin + "/api/send-delivery", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
-      body: JSON.stringify(input),
+      // /api/send-delivery는 수신 이메일 필드명이 "to"라 그대로 전달하면 항상 "수신 이메일 없음"이 된다.
+      body: JSON.stringify({ ...input, to: input.toEmail }),
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error);
