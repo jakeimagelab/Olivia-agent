@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         type:           "shoot_reminder",
         status:         "draft",
         hospital_name:  run.client_name,
+        client_id:      run.client_id ?? null,
         contact_name:   run.contact_name ?? run.client_name,
         to_email:       run.contact_email ?? "",
         subject,
