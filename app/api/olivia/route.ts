@@ -1583,8 +1583,8 @@ async function executeTool(
   if (name === "create_gallery") {
     const db = getSupabaseAdmin();
     const client = await fuzzyNameSearchOne<any>({
-      db, table: "clients", nameColumn: "hospital_name",
-      select: "id, hospital_name, contact_name, email",
+      db, table: "clients", nameColumn: "name",
+      select: "id, name, manager_name, email",
       query: input.clientName,
     });
 
