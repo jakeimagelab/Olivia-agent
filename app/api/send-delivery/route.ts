@@ -135,19 +135,23 @@ export async function POST(req: NextRequest) {
     });
 
     // 이 경로는 mailing_queue를 거치지 않는 직접 발송이라 queue_id 없이 발송이력에 남긴다.
-    await supabase.from("mailing_logs").insert({
-      queue_id: null, type: "original_files", hospital_name: hospitalName || "",
-      to_email: to, subject, status: "sent",
-    }).then(() => {}, () => {});
+    try {
+      await supabase.from("mailing_logs").insert({
+        queue_id: null, type: "original_files", hospital_name: hospitalName || "",
+        to_email: to, subject, status: "sent",
+      });
+    } catch {}
 
     return NextResponse.json({ ok: true, id });
   } catch (error) {
     const message = getErrorMessage(error);
 
-    await supabase.from("mailing_logs").insert({
-      queue_id: null, type: "original_files", hospital_name: hospitalName || "",
-      to_email: to, subject, status: "failed", error: message,
-    }).then(() => {}, () => {});
+    try {
+      await supabase.from("mailing_logs").insert({
+        queue_id: null, type: "original_files", hospital_name: hospitalName || "",
+        to_email: to, subject, status: "failed", error: message,
+      });
+    } catch {}
 
     return NextResponse.json({ ok: false, error: `메일 발송 실패: ${message}` }, { status: 500 });
   }
