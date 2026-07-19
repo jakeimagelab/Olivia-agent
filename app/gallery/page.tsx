@@ -450,6 +450,9 @@ function GalleryPageInner() {
                     <span style={{ position: "absolute", top: 10, left: 10, background: "rgba(21,88,85,.85)", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
                       {displayDate(gallery.shoot_date)}
                     </span>
+                    <span style={{ position: "absolute", top: 10, right: 10, background: gallery.client_id ? "rgba(21,88,85,.85)" : "rgba(232,93,44,.9)", color: "#fff", borderRadius: 99, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
+                      {gallery.client_id ? "🔗 연결됨" : "⚠ 미연결"}
+                    </span>
                   </div>
 
                   {/* 카드 바디 */}
