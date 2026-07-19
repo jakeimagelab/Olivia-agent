@@ -694,7 +694,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
           }}
           title="올리비아 AI 비서"
         >
-          {open ? "✕" : "✨"}
+          {open ? "✕" : <Sparkles size={24} color="#fff" fill="#fff" strokeWidth={1} />}
           {!open && unreadCount > 0 && (
             <div style={{
               position: "absolute", top: -4, right: -4,
