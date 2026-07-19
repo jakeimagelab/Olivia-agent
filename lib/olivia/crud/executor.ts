@@ -400,7 +400,7 @@ async function updateRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
   if (["workflow", "calendar", "contract", "select_gallery", "agent_task"].includes(domain)) patch.updated_at = new Date().toISOString();
   const { data: row, error } = await db.from(config.table).update(patch).eq("id", current.id).select("*").single();
   if (error || !row) dbError(error, `${domain} 수정에 실패했습니다.`);
-  if (domain === "photo_gallery" && data.nasLink && row.client_id) await db.from("clients").update({ retouched_photos_link: data.nasLink }).eq("id", row.client_id);
+  // clients.original_photos_link / retouched_photos_link 반영은 DB 트리거(trg_sync_gallery_to_client)가 처리한다.
   return { row: row as Row, clientId: row.client_id || row.hospital_id || null, workflowRunId: row.workflow_run_id || (domain === "workflow" ? row.id : null) };
 }
 
