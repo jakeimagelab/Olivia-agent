@@ -128,25 +128,9 @@ function MarkdownText({ text, isUser }: { text: string; isUser: boolean }) {
   return <>{result}</>;
 }
 
-// ── 올리비아 아이콘 — 포토클리닉 로고 마크(조리개) + 작은 안테나로 로봇/AI 느낌 ──
+// ── 올리비아 아이콘 — 오렌지 그라디언트 배지 위 흰색 스파클 (헤더/토글 버튼과 동일 디자인) ──
 function OliviaIcon({ size = 20 }: { size?: number }) {
-  return (
-    <span style={{ position: "relative", display: "inline-flex", width: size, height: size }}>
-      {/* 안테나 — 로고 위에 작은 점 하나만 얹어 로봇 실루엣 느낌을 준다 */}
-      <span style={{
-        position: "absolute", top: -size * 0.16, left: "50%", transform: "translateX(-50%)",
-        width: Math.max(2, size * 0.09), height: Math.max(2, size * 0.09), borderRadius: "50%",
-        background: "rgba(255,255,255,.9)",
-      }}/>
-      <img
-        src="/assets/photoclinic-mark.png"
-        alt=""
-        width={size}
-        height={size}
-        style={{ width: size, height: size, objectFit: "contain", display: "block" }}
-      />
-    </span>
-  );
+  return <Sparkles size={size} color="#fff" fill="#fff" strokeWidth={1} />;
 }
 
 // ── 타입 ─────────────────────────────────────────────────
