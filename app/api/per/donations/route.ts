@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
   await savePerMailingQueue({
     type: "per_donation",
     hospitalName: client?.name ?? "",
+    clientId: clientId,
     contactName:  client?.manager_name ?? "",
     toEmail:      client?.email ?? "",
     subject:      `[PER] 기부 참여 감사합니다`,
