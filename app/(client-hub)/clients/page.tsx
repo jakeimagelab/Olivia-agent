@@ -199,9 +199,10 @@ function ListView() {
         ) : (
           <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
             {filtered.map((c, i) => {
+              const isCompleted = c.active_run?.status === "completed";
               const stepKey = c.active_run?.current_step_key;
-              const stepName = stepKey ? (STEP_NAME[stepKey] || stepKey) : null;
-              const sc = stepKey ? stepBadgeColor(stepKey) : C.hint;
+              const stepName = isCompleted ? "완료" : stepKey ? (STEP_NAME[stepKey] || stepKey) : null;
+              const sc = isCompleted ? C.green : stepKey ? stepBadgeColor(stepKey) : C.hint;
               return (
                 <div key={c.id} onClick={() => router.push(`/clients?id=${c.id}`)}
                   style={{
