@@ -79,6 +79,8 @@ export async function GET(
     workflowRun,
     workflowRuns,
     mailingQueue: mailings ?? [],
+    quotes: quotesRes.error ? [] : quotesRes.data ?? [],
+    contracts: contractsRes.error ? [] : contractsRes.data ?? [],
   });
 }
 
