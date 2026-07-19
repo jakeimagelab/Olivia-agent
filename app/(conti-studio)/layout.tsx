@@ -16,10 +16,10 @@ const CONTI_TABS = [
 ];
 
 const MESH_BG = [
-  "radial-gradient(ellipse 130% 55% at 10% 0%,   rgba(21,88,85,.12)   0%, transparent 52%)",
-  "radial-gradient(ellipse 90%  60% at 90% 100%,  rgba(235,143,34,.08) 0%, transparent 50%)",
-  "radial-gradient(ellipse 80%  80% at 55% 50%,   rgba(86,155,140,.05) 0%, transparent 55%)",
-  "#f0f4f2",
+  "radial-gradient(ellipse 130% 55% at 10% 0%, rgba(73,143,121,.16) 0%, transparent 52%)",
+  "radial-gradient(ellipse 90% 60% at 90% 100%, rgba(128,188,157,.13) 0%, transparent 50%)",
+  "radial-gradient(ellipse 80% 80% at 55% 50%, rgba(177,218,195,.16) 0%, transparent 55%)",
+  "#edf7f1",
 ].join(",");
 
 export default function ContiStudioLayout({ children }: { children: React.ReactNode }) {

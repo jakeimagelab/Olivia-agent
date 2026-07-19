@@ -9,6 +9,11 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const body = await req.json();
   const clientId = await resolveClientId(supabase, body.hospitalName);
+  const workflowRunId = typeof body.workflowRunId === "string" && body.workflowRunId
+    ? body.workflowRunId
+    : clientId
+      ? (await supabase.from("workflow_runs").select("id").eq("client_id", clientId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle()).data?.id ?? null
+      : null;
 
   const { data, error } = await supabase
     .from("contracts")
@@ -16,6 +21,7 @@ export async function POST(req: NextRequest) {
       quote_number: body.quoteNumber ?? null,
       hospital_name: body.hospitalName ?? "",
       client_id: clientId,
+      workflow_run_id: workflowRunId,
       contact_name: body.contactName ?? "",
       email: body.email ?? "",
       quote_data: body.quoteData ?? {},

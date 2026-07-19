@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import OliviaChat from "@/components/OliviaChat";
+import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { C } from "@/lib/theme";
 import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
@@ -50,7 +51,7 @@ interface ContiRow     { category: string; duration: string; location: string; c
 interface ChecklistRow { number: number; category: string; item: string; notes: string; color?: string; }
 interface ScheduleRow  { time: string; duration?: string; activity: string; type: string; requirements: string; notes: string; }
 interface ContiResult  { conti: ContiRow[]; checklist: ChecklistRow[]; schedule: ScheduleRow[]; }
-interface SavedConti   { id: string; saved_at: string; hospital_name: string; title: string; result: ContiResult; specialties: string[]; }
+interface SavedConti   { id: string; saved_at: string; hospital_name: string; title: string; result: ContiResult; specialties: string[]; client_id?: string | null; workflow_run_id?: string | null; }
 
 /* ════════════════════════════════════════
    색상
@@ -1171,6 +1172,7 @@ ${contiSummary}
   const [loadLoading,   setLoadLoading]   = useState(false);
   const [editingId,     setEditingId]     = useState<string | null>(null);
   const [editingName,   setEditingName]   = useState("");
+  const [savedContiId,  setSavedContiId]  = useState<string | null>(null);
 
   useEffect(() => {
     if (!result) return;
@@ -1213,8 +1215,8 @@ ${contiSummary}
     setTimeout(() => setHistoryToast(""), 1600);
   };
 
-  const saveConti = async ({ silent = false }: { silent?: boolean } = {}) => {
-    if (!result) return;
+  const saveConti = async ({ silent = false }: { silent?: boolean } = {}): Promise<string | null> => {
+    if (!result) return null;
     if (silent) setAutoSaveState("saving");
     else setSaveLoading(true);
 
@@ -1233,6 +1235,7 @@ ${contiSummary}
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
+      setSavedContiId(data.id);
       lastAutoSavedSignatureRef.current = JSON.stringify(payload);
       if (silent) {
         setAutoSaveState("saved");
@@ -1241,9 +1244,11 @@ ${contiSummary}
         setAutoSaveState("saved");
         setTimeout(() => setSaveToast(false), 2000);
       }
+      return data.id as string;
     } catch (e: any) {
       if (silent) setAutoSaveState("error");
       else alert("저장 실패: " + e.message);
+      return null;
     } finally {
       if (!silent) setSaveLoading(false);
     }
@@ -1317,6 +1322,7 @@ ${contiSummary}
     setResult(entry.result);
     setResultTitle(entry.title || entry.hospital_name);
     setForm(prev => ({ ...prev, hospitalName: entry.hospital_name, specialties: entry.specialties || prev.specialties }));
+    setSavedContiId(entry.id);
     setTab("conti");
     setShowLoadPanel(false);
   };
@@ -1343,7 +1349,7 @@ ${contiSummary}
 
 
   /* ── PDF 인쇄 (브라우저 print, 한글 완벽 지원, 3섹션 1파일) ── */
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (!result) return;
     const hospitalName = form.hospitalName || "병원";
     const today = new Date().toLocaleDateString("ko-KR", { year:"numeric", month:"long", day:"numeric" });
@@ -1451,7 +1457,8 @@ ${contiSummary}
   @media print { .col-resize, .print-btn { display:none !important; } }
 
   /* 표지 */
-  .cover { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:90vh; text-align:center; padding:40px; }
+  .pdf-page { width:1123px; min-height:794px; overflow:hidden; background:#fff; }
+  .cover { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px; }
   .cover-logo { font-size:11pt; font-weight:900; letter-spacing:0.2em; color:#155855; margin-bottom:6px; }
   .cover-logo-sub { font-size:8pt; color:#888; margin-bottom:60px; }
   .cover-hospital { font-size:28pt; font-weight:900; color:#155855; margin-bottom:12px; word-break:keep-all; }
@@ -1497,7 +1504,7 @@ ${contiSummary}
 </div>
 
 <!-- ① 표지 -->
-<div class="cover">
+<div class="pdf-page cover">
   <div class="cover-logo" contenteditable="true">PHOTO CLINIC</div>
   <div class="cover-logo-sub" contenteditable="true">병원 브랜딩 포토그래피</div>
   <div class="cover-bar" style="margin-bottom:40px"></div>
@@ -1529,7 +1536,7 @@ ${contiSummary}
 </div>
 
 <!-- ② 촬영 콘티 -->
-<div class="page-break"></div>
+<div class="pdf-page page-break">
 ${header("촬영 콘티")}
 <div class="section">
   <p class="section-meta">진료과: ${specialties} &nbsp;·&nbsp; 총 ${result.conti.length}컷</p>
@@ -1549,9 +1556,10 @@ ${header("촬영 콘티")}
     <tbody>${contiRows}</tbody>
   </table>
 </div>
+</div>
 
 <!-- ③ 준비 체크리스트 -->
-<div class="page-break" style="page-break-before:always"></div>
+<div class="pdf-page page-break">
 ${header("준비 체크리스트")}
 <div class="section">
   <p class="section-meta">총 ${result.checklist.length}개 항목</p>
@@ -1568,9 +1576,10 @@ ${header("준비 체크리스트")}
     <tbody>${checkRows}</tbody>
   </table>
 </div>
+</div>
 
 <!-- ④ 타임테이블 -->
-<div class="page-break"></div>
+<div class="pdf-page page-break">
 ${header("타임테이블")}
 <div class="section">
   <p class="section-meta">총 ${result.schedule.length}개 일정</p>
@@ -1586,6 +1595,7 @@ ${header("타임테이블")}
     </thead>
     <tbody>${schedRows}</tbody>
   </table>
+</div>
 </div>
 
 <script>
@@ -1623,11 +1633,66 @@ ${header("타임테이블")}
 </body>
 </html>`;
 
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, "_blank");
-    if (win) win.document.title = `${hospitalName}_촬영콘티`;
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    const sourceId = savedContiId || await saveConti({ silent: true });
+    if (!sourceId) {
+      alert("콘티 DB 저장에 실패해 PDF 원본을 만들지 못했습니다.");
+      return;
+    }
+
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.left = "-12000px";
+    iframe.style.top = "0";
+    iframe.style.width = "1123px";
+    iframe.style.height = "794px";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
+      await new Promise<void>((resolve, reject) => {
+        iframe.onload = () => resolve();
+        iframe.onerror = () => reject(new Error("콘티 PDF 문서를 준비하지 못했습니다."));
+        iframe.srcdoc = html;
+      });
+      const doc = iframe.contentDocument;
+      if (!doc) throw new Error("콘티 PDF 문서를 읽지 못했습니다.");
+      if (doc.fonts?.ready) await doc.fonts.ready;
+      const pages = Array.from(doc.querySelectorAll<HTMLElement>(".pdf-page"));
+      if (!pages.length) throw new Error("콘티 PDF 페이지를 찾지 못했습니다.");
+
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
+      for (const [index, page] of pages.entries()) {
+        const canvas = await html2canvas(page, { scale: 1.6, backgroundColor: "#ffffff", useCORS: true, logging: false });
+        const pageWidth = 289;
+        const pageHeight = 202;
+        const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+        const imageWidth = canvas.width * ratio;
+        const imageHeight = canvas.height * ratio;
+        if (index > 0) pdf.addPage("a4", "landscape");
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", (297 - imageWidth) / 2, (210 - imageHeight) / 2, imageWidth, imageHeight);
+      }
+
+      const fileName = `${hospitalName}_포토클리닉_촬영콘티_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const pageParams = new URLSearchParams(window.location.search);
+      await uploadWorkflowArtifact({
+        file: pdf.output("blob"),
+        fileName,
+        documentType: "conti",
+        sourceTable: "conti_saves",
+        sourceId,
+        title: resultTitle || `${hospitalName} 촬영 콘티`,
+        hospitalName,
+        clientId: pageParams.get("client_id") || pageParams.get("clientId"),
+        workflowRunId: pageParams.get("workflowRunId"),
+      });
+      pdf.save(fileName);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "콘티 PDF 생성에 실패했습니다.");
+    } finally {
+      iframe.remove();
+    }
   };
 
     /* ── Excel 다운로드 (열너비 적용, 3시트) ── */
@@ -1668,7 +1733,7 @@ ${header("타임테이블")}
   ════════════════════════════════ */
   return (
     <>
-    <div style={{ minHeight: "100vh", background: "var(--ivory)" }}>
+    <div style={{ minHeight: "100vh", background: "rgba(237,247,241,.82)" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 24px" }}>
 
         {/* ══ 입력 폼 ══ */}

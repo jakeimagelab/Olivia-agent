@@ -84,6 +84,10 @@ export default function AdminDashboardHomePage() {
         <DailyQuoteWidget/>
       </div>
 
+      <section className="pc-dash-olivia" aria-label="올리비아 비서">
+        <OliviaAssistantWorkspace compact collapsedByDefault/>
+      </section>
+
       <section className="crm-kpi-row" aria-label="CRM 현황 요약">
         <div className="crm-kpi crm-kpi--approval">
           <div className="crm-kpi-label">승인 대기</div>
@@ -151,7 +155,6 @@ export default function AdminDashboardHomePage() {
         </div>
 
         <aside className="oa-right-column" aria-label="운영 보조 패널">
-          <OliviaAssistantWorkspace compact collapsedByDefault/>
           <OliviaRecommendationPanel items={[
             "셀렉 대기 3일차 고객에게 리마인드 메일을 보내세요.",
             "RAW 매칭 완료 고객 2건의 보정 단계를 시작하세요.",

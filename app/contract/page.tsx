@@ -3,6 +3,7 @@ import type { PointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
+import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 
 interface QuoteData {
   hospitalName: string;
@@ -227,8 +228,23 @@ export default function ContractPage() {
     if (!contractHtml || !quote) return;
     setPdfGenerating(true); setError("");
     try {
+      const savedContractId = await handleSave();
+      if (!savedContractId) throw new Error("계약 DB 저장에 실패했습니다.");
       const pdf = await createContractPdf();
-      pdf.save(contractFileName());
+      const fileName = contractFileName();
+      const pageParams = new URLSearchParams(window.location.search);
+      await uploadWorkflowArtifact({
+        file: pdf.output("blob"),
+        fileName,
+        documentType: "contract",
+        sourceTable: "contracts",
+        sourceId: savedContractId,
+        title: `${quote.hospitalName} 촬영 계약서`,
+        hospitalName: quote.hospitalName,
+        clientId: pageParams.get("client_id") || pageParams.get("clientId"),
+        workflowRunId: pageParams.get("workflowRunId"),
+      });
+      pdf.save(fileName);
     } catch (e: any) {
       setError(e.message || "PDF 생성에 실패했습니다.");
     } finally {
@@ -236,8 +252,8 @@ export default function ContractPage() {
     }
   };
 
-  const handleSave = async () => {
-    if (!quote) return;
+  const handleSave = async (): Promise<string | null> => {
+    if (!quote) return null;
     setSaveState("saving");
     try {
       if (contractId) {
@@ -251,6 +267,9 @@ export default function ContractPage() {
         });
         const d = await r.json();
         if (!d.ok) throw new Error(d.error);
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2000);
+        return contractId;
       } else {
         const r = await fetch("/api/contracts", {
           method: "POST",
@@ -264,12 +283,14 @@ export default function ContractPage() {
         const d = await r.json();
         if (!d.ok) throw new Error(d.error);
         setContractId(d.id);
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2000);
+        return d.id;
       }
-      setSaveState("saved");
-      setTimeout(() => setSaveState("idle"), 2000);
     } catch {
       setSaveState("error");
       setTimeout(() => setSaveState("idle"), 3000);
+      return null;
     }
   };
 

@@ -16,7 +16,7 @@ export async function GET(
   const { id } = await params;
 
   const requestedRunId = new URL(req.url).searchParams.get("workflowRunId");
-  let [clientRes, runsRes, quotesRes, contractsRes] = await Promise.all([
+  let [clientRes, runsRes, quotesRes, contractsRes, artifactsRes] = await Promise.all([
     supabase.from("clients")
       .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier, quote_amount, quote_vat, quote_total, contract_amount, contract_vat, contract_total, contract_signed_at")
       .eq("id", id).maybeSingle(),
@@ -30,10 +30,16 @@ export async function GET(
       .order("created_at", { ascending: false })
       .limit(10),
     supabase.from("contracts")
-      .select("id, quote_number, signature_data_url, created_at")
+      .select("id, quote_number, quote_data, signature_data_url, created_at")
       .eq("client_id", id)
       .order("created_at", { ascending: false })
       .limit(10),
+    supabase.from("workflow_artifacts")
+      .select("id, client_id, workflow_run_id, workflow_step_key, document_type, source_table, source_id, title, file_name, mime_type, file_size, status, created_at")
+      .eq("client_id", id)
+      .eq("status", "ready")
+      .order("created_at", { ascending: false })
+      .limit(50),
   ]);
 
   if (isOptionalClientDetailColumnMissing(clientRes.error)) {
@@ -81,6 +87,9 @@ export async function GET(
     mailingQueue: mailings ?? [],
     quotes: quotesRes.error ? [] : quotesRes.data ?? [],
     contracts: contractsRes.error ? [] : contractsRes.data ?? [],
+    artifacts: artifactsRes.error
+      ? []
+      : (artifactsRes.data ?? []).filter((artifact) => !workflowRun?.id || artifact.workflow_run_id === workflowRun.id || artifact.workflow_run_id === null),
   });
 }
 

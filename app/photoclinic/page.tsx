@@ -6,6 +6,7 @@ import OliviaChat from "@/components/OliviaChat";
 import PageHeader from "@/components/PageHeader";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
+import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import {
   Download,
   Plus,
@@ -621,7 +622,7 @@ export default function QuoteBuilder() {
     };
   };
 
-  const saveRecentQuote = async (data: ContractQuoteData): Promise<boolean> => {
+  const saveRecentQuote = async (data: ContractQuoteData): Promise<ContractQuoteData | null> => {
     try {
       const response = await fetch("/api/quotes", {
         method: "POST",
@@ -641,10 +642,10 @@ export default function QuoteBuilder() {
       if (data.quoteNumber.startsWith(todayPrefix)) {
         setTodayQuoteNumbers((prev) => Array.from(new Set([...prev, data.quoteNumber])));
       }
-      return true;
+      return savedData;
     } catch (error) {
       setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${error instanceof Error ? error.message : "네트워크 오류"}`);
-      return false;
+      return null;
     }
   };
 
@@ -922,7 +923,7 @@ export default function QuoteBuilder() {
 
   const downloadPdf = async () => {
     if (!previewRef.current || isGenerating) return;
-    const snapshot = saveCurrentQuoteSnapshot();
+    const snapshot = buildContractQuoteData();
 
     const shootingLines = snapshot.items
       .filter(item => item.subtotal > 0)
@@ -1035,6 +1036,9 @@ export default function QuoteBuilder() {
     let captureRoot: HTMLDivElement | null = null;
 
     try {
+      const savedSnapshot = await saveRecentQuote(snapshot);
+      if (!savedSnapshot) throw new Error("견적 DB 저장에 실패했습니다.");
+
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas"),
         import("jspdf")
@@ -1050,7 +1054,7 @@ export default function QuoteBuilder() {
       captureRoot.style.top = "0";
       captureRoot.style.width = "1123px";
       captureRoot.style.height = "794px";
-      captureRoot.style.overflow = "hidden";
+      captureRoot.style.overflow = "visible";
       captureRoot.style.background = "#ffffff";
       captureRoot.style.pointerEvents = "none";
       captureRoot.style.zIndex = "-1";
@@ -1089,12 +1093,24 @@ export default function QuoteBuilder() {
 
       const image = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
-      pdf.addImage(image, "PNG", 0, 0, 297, 210);
+      const safeMargin = 4;
+      pdf.addImage(image, "PNG", safeMargin, safeMargin, 297 - safeMargin * 2, 210 - safeMargin * 2);
 
       const hospital = customer.hospitalName.trim() || "포토클리닉";
       const fileName = `${hospital}_포토클리닉_견적서_${customer.quoteDate}.pdf`;
-      // 속도 우선: PDF 파일을 바로 저장하고, 새 창/iframe 렌더링은 생략합니다.
-      // 기존 새 창 미리보기 방식은 모바일과 일부 브라우저에서 느리거나 멈출 수 있습니다.
+      const pdfBlob = pdf.output("blob");
+      const pageParams = new URLSearchParams(window.location.search);
+      await uploadWorkflowArtifact({
+        file: pdfBlob,
+        fileName,
+        documentType: "quote",
+        sourceTable: "quotes",
+        sourceId: savedSnapshot.id,
+        title: snapshot.title || `${snapshot.hospitalName} 견적서`,
+        hospitalName: snapshot.hospitalName,
+        clientId: pageParams.get("client_id") || pageParams.get("clientId"),
+        workflowRunId: pageParams.get("workflowRunId"),
+      });
       pdf.save(fileName);
 
       if (pdfWindow) {

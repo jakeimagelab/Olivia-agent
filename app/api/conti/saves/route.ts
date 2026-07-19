@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
+import { resolveClientId } from "@/lib/clientLookup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export async function GET() {
     const db = getSupabaseAdmin();
     const { data, error } = await db
       .from("conti_saves")
-      .select("id, hospital_name, specialties, title, saved_at, result")
+      .select("id, hospital_name, specialties, title, saved_at, result, client_id, workflow_run_id")
       .order("saved_at", { ascending: false })
       .limit(20);
 
@@ -23,8 +24,12 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { hospitalName, specialties, title, result } = await req.json();
+    const { hospitalName, specialties, title, result, clientId: requestedClientId, workflowRunId: requestedRunId } = await req.json();
     const db = getSupabaseAdmin();
+    const clientId = requestedClientId || await resolveClientId(db, hospitalName);
+    const workflowRunId = requestedRunId || (clientId
+      ? (await db.from("workflow_runs").select("id").eq("client_id", clientId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle()).data?.id ?? null
+      : null);
 
     const { data: existing } = await db
       .from("conti_saves")
@@ -35,7 +40,7 @@ export async function POST(req: NextRequest) {
     if (existing?.id) {
       const { error } = await db
         .from("conti_saves")
-        .update({ specialties, title, result, saved_at: new Date().toISOString() })
+        .update({ specialties, title, result, client_id: clientId, workflow_run_id: workflowRunId, saved_at: new Date().toISOString() })
         .eq("id", existing.id);
       if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
       return NextResponse.json({ ok: true, id: existing.id });
@@ -46,6 +51,8 @@ export async function POST(req: NextRequest) {
       specialties: specialties || [],
       title: title || "",
       result,
+      client_id: clientId,
+      workflow_run_id: workflowRunId,
     }).select("id").single();
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

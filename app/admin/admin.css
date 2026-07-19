@@ -380,6 +380,17 @@
   height: 100%;
 }
 
+.pc-dash-olivia {
+  min-width: 0;
+  margin-bottom: 14px;
+}
+
+.pc-dash-olivia > *,
+.pc-dash-olivia .olivia-assistant-page {
+  width: 100%;
+  max-width: none;
+}
+
 .pc-dash-summary {
   margin-bottom: 14px;
   flex-shrink: 0;

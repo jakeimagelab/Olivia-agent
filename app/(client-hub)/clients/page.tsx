@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Eye, Trash2 } from "lucide-react";
+import { Download, Eye, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ACTIVE_WORKFLOW_STEPS,
@@ -17,6 +17,7 @@ import NextActionCard from "@/components/NextActionCard";
 import ConsultMeetingForm from "./_components/ConsultMeetingForm";
 import { C } from "@/lib/theme";
 import OliviaProjectPanel from "@/components/olivia/OliviaProjectPanel";
+import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 
 const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = {
   consult_meeting:   { icon: "🤝", desc: "병원 기본 정보 등록, 상담 내용 AI 분析",  href: "/consultation" },
@@ -330,7 +331,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
     </div>
   );
 
-  const { client, workflowRun, quotes = [], contracts = [] } = pageData;
+  const { client, workflowRun, quotes = [], contracts = [], artifacts = [] } = pageData;
   const workflowCompleted = workflowRun?.status === "completed";
   const currentStepKey = workflowCompleted
     ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
@@ -462,7 +463,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           </div>
 
           {/* 견적서 / 계약서 */}
-          <ClientQuotesContractsSection quotes={quotes} contracts={contracts} />
+          <ClientRelatedArtifactsSection quotes={quotes} contracts={contracts} artifacts={artifacts} />
 
           {/* 촬영 갤러리 */}
           <ClientGallerySection clientId={clientId} hospitalName={client.name} email={client.email} workflowRunId={workflowRun?.id} />
@@ -494,66 +495,75 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 }
 
 /* ── 견적서 / 계약서 섹션 (client_id 기준, 부가세 별도 금액 표시) ── */
-function ClientQuotesContractsSection({ quotes, contracts }: { quotes: any[]; contracts: any[] }) {
-  if (quotes.length === 0 && contracts.length === 0) return null;
+function ClientRelatedArtifactsSection({ quotes, contracts, artifacts }: { quotes: any[]; contracts: any[]; artifacts: WorkflowArtifact[] }) {
+  if (quotes.length === 0 && contracts.length === 0 && artifacts.length === 0) return null;
 
   const won = (n: number | null | undefined) => (n ?? 0).toLocaleString("ko-KR") + "원";
+  const artifactSources = new Set(artifacts.map((artifact) => `${artifact.source_table}:${artifact.source_id}`));
+  const legacyQuotes = quotes.filter((quote: any) => !artifactSources.has(`quotes:${quote.id}`));
+  const legacyContracts = contracts.filter((contract: any) => !artifactSources.has(`contracts:${contract.id}`));
+  const typeLabel = { quote: "견적서", contract: "계약서", conti: "콘티" } as const;
+
+  const accessArtifact = async (artifact: WorkflowArtifact, mode: "view" | "download") => {
+    try {
+      await openWorkflowArtifact(artifact.id, mode);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "원본 파일을 열지 못했습니다.");
+    }
+  };
 
   return (
-    <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-      <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📄 견적서 {quotes.length}건</div>
+    <section style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }} aria-labelledby="client-artifacts-title">
+      <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div id="client-artifacts-title" style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📎 관련 자료</div>
+          <div style={{ marginTop: 2, fontSize: 10, color: C.muted }}>견적서·계약서·콘티 원본을 한곳에서 확인합니다.</div>
         </div>
-        {quotes.length === 0 ? (
-          <div style={{ padding: "16px 18px", fontSize: 12, color: C.hint }}>등록된 견적서가 없습니다.</div>
-        ) : (
-          <div>
-            {quotes.map((q: any) => (
-              <div key={q.id} style={{ padding: "10px 18px", borderBottom: `1px solid ${C.border}` }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: C.txt }}>
-                  <span>{q.title || q.quote_number || "견적서"}</span>
-                  <span style={{ color: C.orange }}>{won(q.total_amount)}</span>
-                </div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                  공급가액(VAT별도) {won(q.supply_amount)} · 부가세 {won(q.vat)} · {q.created_at ? new Date(q.created_at).toLocaleDateString("ko-KR") : ""}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <span style={{ borderRadius: 99, padding: "4px 8px", background: `${C.teal}0D`, color: C.teal, fontSize: 10, fontWeight: 900 }}>{artifacts.length + legacyQuotes.length + legacyContracts.length}건</span>
       </div>
 
-      <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📝 계약서 {contracts.length}건</div>
-        </div>
-        {contracts.length === 0 ? (
-          <div style={{ padding: "16px 18px", fontSize: 12, color: C.hint }}>등록된 계약서가 없습니다.</div>
-        ) : (
-          <div>
-            {contracts.map((c: any) => {
-              const qd = c.quote_data || {};
-              const supply = qd.supplyAmount ?? qd.supply_amount;
-              const vat = qd.vat;
-              const total = qd.totalAmount ?? qd.total_amount;
-              return (
-                <div key={c.id} style={{ padding: "10px 18px", borderBottom: `1px solid ${C.border}` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: C.txt }}>
-                    <span>{c.quote_number || "계약서"}</span>
-                    <span style={{ color: c.signature_data_url ? C.green : C.hint }}>{c.signature_data_url ? "서명완료" : "서명대기"}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                    {supply != null ? `공급가액(VAT별도) ${won(supply)} · 부가세 ${won(vat)} · 합계 ${won(total)}` : "금액 정보 없음"}
-                    {c.created_at ? ` · ${new Date(c.created_at).toLocaleDateString("ko-KR")}` : ""}
-                  </div>
-                </div>
-              );
-            })}
+      {artifacts.map((artifact) => (
+        <div key={artifact.id} style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ borderRadius: 99, padding: "5px 8px", background: artifact.document_type === "quote" ? "#FFF0E8" : artifact.document_type === "contract" ? "#EAF4F2" : "#EEF6EC", color: artifact.document_type === "quote" ? C.orange : C.teal, fontSize: 9, fontWeight: 900, whiteSpace: "nowrap" }}>
+            {typeLabel[artifact.document_type]}
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ overflow: "hidden", color: C.txt, fontSize: 12, fontWeight: 800, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{artifact.title || artifact.file_name}</div>
+            <div style={{ marginTop: 2, overflow: "hidden", color: C.muted, fontSize: 10, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {artifact.file_name} · {new Date(artifact.created_at).toLocaleDateString("ko-KR")}{formatArtifactSize(artifact.file_size) ? ` · ${formatArtifactSize(artifact.file_size)}` : ""}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button type="button" onClick={() => void accessArtifact(artifact, "view")} className="pc-btn pc-btn--sm" style={{ minHeight: 32, padding: "0 10px" }}><Eye size={13}/> 보기</button>
+            <button type="button" onClick={() => void accessArtifact(artifact, "download")} className="pc-btn pc-btn--sm" style={{ minHeight: 32, padding: "0 10px" }}><Download size={13}/> 다운로드</button>
+          </div>
+        </div>
+      ))}
+
+      {legacyQuotes.length > 0 && (
+        <div>
+          {legacyQuotes.map((q: any) => (
+            <div key={q.id} style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", gap: 12, alignItems: "center", padding: "10px 18px", borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ fontSize: 9, fontWeight: 900, color: C.orange }}>견적서</span>
+              <div><div style={{ fontSize: 12, fontWeight: 700, color: C.txt }}>{q.title || q.quote_number || "견적서"} · {won(q.total_amount)}</div><div style={{ fontSize: 10, color: C.muted }}>공급가액 {won(q.supply_amount)} · {q.created_at ? new Date(q.created_at).toLocaleDateString("ko-KR") : ""}</div></div>
+              <span style={{ color: C.hint, fontSize: 10, fontWeight: 800 }}>원본 파일 없음</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {legacyContracts.length > 0 && (
+        <div>
+          {legacyContracts.map((contract: any) => (
+            <div key={contract.id} style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", gap: 12, alignItems: "center", padding: "10px 18px", borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ fontSize: 9, fontWeight: 900, color: C.teal }}>계약서</span>
+              <div><div style={{ fontSize: 12, fontWeight: 700, color: C.txt }}>{contract.quote_number || "계약서"}</div><div style={{ fontSize: 10, color: C.muted }}>{contract.signature_data_url ? "서명완료" : "서명대기"}{contract.created_at ? ` · ${new Date(contract.created_at).toLocaleDateString("ko-KR")}` : ""}</div></div>
+              <span style={{ color: C.hint, fontSize: 10, fontWeight: 800 }}>원본 파일 없음</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
