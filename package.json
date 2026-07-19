@@ -16,6 +16,8 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@next/swc-wasm-nodejs": "^15.5.18",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.2",
     "@supabase/supabase-js": "^2.50.0",
     "clsx": "^2.1.1",
     "html2canvas": "^1.4.1",
