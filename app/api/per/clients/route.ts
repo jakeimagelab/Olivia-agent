@@ -37,11 +37,11 @@ export async function GET(req: NextRequest) {
 
   let query = db
     .from("clients")
-    .select("id, name, manager_name, phone, email, reward_tier, total_paid_amount, total_earned_points, total_used_points, total_donated_points, available_points, per_joined, per_joined_at, updated_at")
+    .select("id, name:hospital_name, manager_name:contact_name, phone, email, reward_tier, total_paid_amount, total_earned_points, total_used_points, total_donated_points, available_points, per_joined, per_joined_at, updated_at")
     .eq("per_joined", true)
     .order("available_points", { ascending: false });
 
-  if (q) query = query.ilike("name", `%${q}%`);
+  if (q) query = query.ilike("hospital_name", `%${q}%`);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
