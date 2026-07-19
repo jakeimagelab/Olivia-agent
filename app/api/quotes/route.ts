@@ -43,10 +43,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "견적번호를 입력해주세요." }, { status: 400 });
     }
 
+    const clientId = await resolveClientId(supabase, body.hospitalName);
+
     const payload = {
       quote_number:    body.quoteNumber,
       title:           body.title ?? "",
       hospital_name:   body.hospitalName ?? "",
+      client_id:       clientId,
       contact_name:    body.contactName ?? "",
       phone:           body.phone ?? "",
       email:           body.email ?? "",
