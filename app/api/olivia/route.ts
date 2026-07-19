@@ -825,6 +825,7 @@ Available tools:
 - send_mailing: 대기 중인 특정 메일 즉시 발송
 - get_gallery: 병원의 납품 갤러리·NAS 링크 조회
 - create_gallery: 보정 완료 후 갤러리 등록 (client_id 연동 시 메일 draft 자동 생성 + 워크플로우 자동 전진)
+- get_client_profile: 고객 통합 정보 한 번에 조회 (기본정보 + 진행단계 + 누적 촬영금액 + PER 포인트/등급 + 원본·보정 링크 + 최근 메일이력)
 
 워크플로우 규칙 (매우 중요):
 - "~병원 현황 알려줘", "~병원 지금 어디까지?" → get_workflow_status 호출
