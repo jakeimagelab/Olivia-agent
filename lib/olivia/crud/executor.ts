@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { generateShareToken, getFileExpiresAt } from "@/lib/selectGallery";
+import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
 import { validateOliviaCrudRequest } from "@/lib/olivia/crud/validation";
 import {
   OliviaCrudError,
@@ -124,6 +125,15 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
     if (!runError && run?.id) {
       await ensureStepRun(db, run.id, firstStep, "in_progress");
       await createStepTasks(db, run.id, firstStep);
+    }
+    try {
+      await linkUnassignedPhotoGalleries(db, {
+        clientId: client.id,
+        hospitalName: data.hospitalName,
+        workflowRunId: run?.id ?? null,
+      });
+    } catch (error) {
+      console.error("[olivia-crud] 기존 촬영 갤러리 고객 연결 실패", error);
     }
     return { row: client as Row, clientId: client.id, workflowRunId: run?.id ?? null };
   }

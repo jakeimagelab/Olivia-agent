@@ -553,10 +553,11 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
   const load = async () => {
     setLoading(true);
     try {
-      // client_id로 조회 우선, 없으면 병원명 ilike 검색 폴백
-      const query = clientId
-        ? `/api/galleries?client_id=${encodeURIComponent(clientId)}`
-        : `/api/galleries?q=${encodeURIComponent(hospitalName)}`;
+      const params = new URLSearchParams();
+      if (clientId) params.set("client_id", clientId);
+      if (hospitalName) params.set("q", hospitalName);
+      if (workflowRunId) params.set("workflow_run_id", workflowRunId);
+      const query = `/api/galleries?${params.toString()}`;
       const res = await fetch(query);
       const d = await res.json();
       if (d.ok) setGalleries(d.galleries || []);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { advanceWorkflow } from "@/lib/workflowAutomation";
 import { getErrorMessage } from "@/lib/errors";
+import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -158,15 +159,32 @@ export async function GET(req: NextRequest) {
   const params = new URL(req.url).searchParams;
   const q = params.get("q") || "";
   const clientId = params.get("client_id") || "";
+  const workflowRunId = params.get("workflow_run_id") || "";
   try {
     const supabase = getSupabaseAdmin();
-    let query = supabase
-      .from("photo_galleries")
-      .select("*, items:photo_gallery_items(*)")
-      .order("created_at", { ascending: false });
-    if (clientId) query = query.eq("client_id", clientId);
-    else if (q) query = query.ilike("hospital_name", `%${q}%`);
-    const { data, error } = await query;
+    const fetchGalleries = async () => {
+      let query = supabase
+        .from("photo_galleries")
+        .select("*, items:photo_gallery_items(*)")
+        .order("created_at", { ascending: false });
+      if (clientId) query = query.eq("client_id", clientId);
+      else if (q) query = query.ilike("hospital_name", `%${q}%`);
+      return query;
+    };
+
+    let { data, error } = await fetchGalleries();
+    if (!error && clientId && q && (data || []).length === 0) {
+      try {
+        const linked = await linkUnassignedPhotoGalleries(supabase, {
+          clientId,
+          hospitalName: q,
+          workflowRunId: workflowRunId || null,
+        });
+        if (linked.linkedIds.length > 0) ({ data, error } = await fetchGalleries());
+      } catch (linkError) {
+        console.error("[galleries-api] 기존 촬영 갤러리 고객 연결 실패", linkError);
+      }
+    }
 
     if (error) throw error;
     return NextResponse.json({ ok: true, galleries: data || [] });

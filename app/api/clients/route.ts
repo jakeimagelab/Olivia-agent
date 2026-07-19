@@ -4,6 +4,7 @@ import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { isActiveWorkflowStep } from "@/lib/workflow";
+import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -124,6 +125,16 @@ export async function POST(req: NextRequest) {
       payload: { firstStepKey: startStepKey, clientName: hospitalName },
       deduplicationKey: createEventDeduplicationKey("workflow.started", run.id),
     });
+  }
+
+  try {
+    await linkUnassignedPhotoGalleries(supabase, {
+      clientId: client.id,
+      hospitalName,
+      workflowRunId: run?.id ?? null,
+    });
+  } catch (linkError) {
+    console.error("[clients-api] 기존 촬영 갤러리 고객 연결 실패", linkError);
   }
 
   return NextResponse.json({ ok: true, id: client.id });
