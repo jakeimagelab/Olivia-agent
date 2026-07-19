@@ -1555,6 +1555,7 @@ export default function MailingPage() {
       {tab === "brand"  && <BrandMailTab />}
       {tab === "review" && <ReviewOnlyMailTab />}
       {tab === "select" && <SelectGalleryMailTab />}
+      {tab === "history" && <HistoryTab />}
     </main>
   );
 }
