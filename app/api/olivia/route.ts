@@ -1274,6 +1274,22 @@ async function executeTool(
     };
   }
 
+  if (name === "generate_document") {
+    if (!input?.title || !input?.content) throw new Error("문서 제목과 내용이 필요합니다.");
+    const { generateFreeformPdf } = await import("@/lib/olivia/documentGenerator");
+    const { url, fileName } = await generateFreeformPdf({
+      title: String(input.title),
+      content: String(input.content),
+      fileName: input.fileName ? String(input.fileName) : undefined,
+    });
+    await logActivity("generate_document", input.title, {});
+    return {
+      action: "navigate",
+      url,
+      message: `"${input.title}" 문서를 PDF로 만들었어요. (${fileName}) 아래 링크에서 30분 안에 다운로드할 수 있어요.`,
+    };
+  }
+
   if (name === "create_conti") {
     await logActivity("create_conti", input.hospitalName, { dept: input.dept });
     const params = new URLSearchParams();
