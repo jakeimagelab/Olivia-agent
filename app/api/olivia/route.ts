@@ -1639,14 +1639,14 @@ async function executeTool(
 
     // 병원명으로 clients 테이블에서 이메일 조회
     const client = await fuzzyNameSearchOne<any>({
-      db, table: "clients", nameColumn: "hospital_name",
-      select: "id, hospital_name, contact_name, email",
+      db, table: "clients", nameColumn: "name",
+      select: "id, name, manager_name, email",
       query: input.hospitalName,
     });
 
     const toEmail = client?.email;
-    const contactName = client?.contact_name || "";
-    const hospitalName = client?.hospital_name || input.hospitalName;
+    const contactName = client?.manager_name || "";
+    const hospitalName = client?.name || input.hospitalName;
 
     // 메일 타입별 기본 제목/본문
     const MAIL_TEMPLATES: Record<string, { subject: string; body: string }> = {
