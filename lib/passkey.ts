@@ -10,7 +10,7 @@ export const RP_NAME = "포토클리닉 AI 비서 관리자";
  * localhost/Vercel 프리뷰/프로덕션 도메인이 서로 달라 한쪽에서 등록한 패스키가 다른 쪽에서
  * 안 먹는 문제가 생기므로, 매 요청의 실제 origin에서 매번 계산한다.
  */
-export function rpFromRequest(req: Request): { rpID: string; origin: string } {
+export function rpFromRequest(req: NextRequest): { rpID: string; origin: string } {
   let origin = req.headers.get("origin") || "";
   if (!origin) {
     const host = req.headers.get("host") || "localhost:3000";
