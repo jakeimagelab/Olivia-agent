@@ -416,31 +416,10 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 
         {/* 프로젝트 부가 정보 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* 고객 기본정보 + 메일 현황 */}
-          <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: mailingQueue.length > 0 ? "1fr 1fr" : "1fr", gap: 14 }}>
+          {/* 고객 기본정보 + 메일 발송이력 */}
+          <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <InfoPanel client={client} onUpdate={load} />
-            {mailingQueue.length > 0 && (
-              <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-                <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>메일 현황</div>
-                </div>
-                <div style={{ padding: "4px 0" }}>
-                  {mailingQueue.map((m: any) => (
-                    <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 18px", borderBottom: `1px solid ${C.border}` }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: `${MAIL_COLOR[m.status] || C.hint}18`, color: MAIL_COLOR[m.status] || C.hint }}>
-                        {m.status === "draft" ? "초안" : m.status === "ready" ? "대기" : m.status === "sent" ? "발송" : m.status}
-                      </span>
-                      <span style={{ flex: 1, fontSize: 12, color: C.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {MAIL_LABELS[m.type] || m.type}{m.subject ? ` — ${m.subject}` : ""}
-                      </span>
-                      <span style={{ fontSize: 11, color: C.hint }}>
-                        {m.created_at ? new Date(m.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" }) : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <ClientMailHistorySection clientId={clientId} />
           </div>
 
           {/* 촬영 갤러리 */}
