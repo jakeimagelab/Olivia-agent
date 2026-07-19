@@ -53,6 +53,13 @@ function summarizeCrudData(input: any) {
   return [`${input.domain || "기능"}${prefix ? ` · 대상: ${prefix}` : ""}`, ...fields].join("\n");
 }
 
+function dispatchOliviaDataChanged(result: any) {
+  if (!result?.domain || !result?.operation || !result?.recordId) return;
+  window.dispatchEvent(new CustomEvent("olivia-data-changed", {
+    detail: { domain: result.domain, operation: result.operation, recordId: result.recordId },
+  }));
+}
+
 function summarizeTool(name: string, input: any): string {
   switch (name) {
     case "create_feature_record":
@@ -270,6 +277,8 @@ export default function OliviaChat() {
       if (!data.ok) throw new Error(data.error || "실행 오류");
 
       const result = data.toolResult;
+
+      dispatchOliviaDataChanged(result);
 
       if (result.action === "navigate") {
         if (result.url.startsWith("http")) {

@@ -253,6 +253,13 @@ function summarizeCrudData(input: any) {
   return [`${input.domain || "기능"}${prefix ? ` · 대상: ${prefix}` : ""}`, ...fields].join("\n");
 }
 
+function dispatchOliviaDataChanged(result: any) {
+  if (!result?.domain || !result?.operation || !result?.recordId) return;
+  window.dispatchEvent(new CustomEvent("olivia-data-changed", {
+    detail: { domain: result.domain, operation: result.operation, recordId: result.recordId },
+  }));
+}
+
 // 도구 입력 요약
 function summarizeTool(name: string, input: any): string {
   switch (name) {
@@ -489,6 +496,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             if (!execData.ok) throw new Error(execData.error);
             const result = execData.toolResult;
             const resultMsg = result.message || "완료됐어요!";
+            dispatchOliviaDataChanged(result);
             if (result.action === "navigate" && result.url) {
               if (result.url.startsWith("http")) window.open(result.url, "_blank");
               else window.location.href = result.url;
@@ -565,6 +573,8 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       if (!data.ok) throw new Error(data.error);
 
       const result = data.toolResult;
+
+      dispatchOliviaDataChanged(result);
 
       // 페이지 이동
       if (result.action === "navigate") {

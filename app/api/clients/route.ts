@@ -52,7 +52,10 @@ export async function GET(req: NextRequest) {
     return { ...normalized, next_action: nextAction };
   });
 
-  return NextResponse.json({ ok: true, clients });
+  return NextResponse.json(
+    { ok: true, clients },
+    { headers: { "Cache-Control": "private, no-store, max-age=0" } },
+  );
 }
 
 export async function POST(req: NextRequest) {

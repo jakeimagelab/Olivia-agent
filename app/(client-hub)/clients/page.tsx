@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Eye, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -116,16 +116,38 @@ function ListView() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const loadRequestRef = useRef(0);
   const router = useRouter();
 
-  const load = async () => {
-    setLoading(true);
-    const res = await fetch("/api/clients");
-    const d = await res.json();
-    if (d.ok) setClients(d.clients || []);
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  const load = useCallback(async (showSpinner = true) => {
+    const requestId = ++loadRequestRef.current;
+    if (showSpinner) setLoading(true);
+    try {
+      const res = await fetch("/api/clients", { cache: "no-store" });
+      const d = await res.json();
+      if (requestId === loadRequestRef.current && d.ok) setClients(d.clients || []);
+    } finally {
+      if (requestId === loadRequestRef.current) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+    const onOliviaDataChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ domain?: string }>).detail;
+      if (detail?.domain === "client" || detail?.domain === "workflow") void load(false);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void load(false);
+    };
+    window.addEventListener("olivia-data-changed", onOliviaDataChanged);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("olivia-data-changed", onOliviaDataChanged);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      loadRequestRef.current += 1;
+    };
+  }, [load]);
 
   const deleteClient = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();

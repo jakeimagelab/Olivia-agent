@@ -50,11 +50,12 @@ export type OliviaCrudRequest = {
 };
 
 export type OliviaCrudExecutionResult = {
-  action: "done";
+  action: "done" | "navigate";
   message: string;
   domain: OliviaCrudDomain;
   operation: OliviaCrudOperation;
   recordId: string;
+  url?: string;
   record?: Record<string, unknown>;
 };
 

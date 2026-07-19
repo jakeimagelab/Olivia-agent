@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getOliviaCrudCapabilities } from "@/lib/olivia/crud/registry";
 import { validateOliviaCrudRequest } from "@/lib/olivia/crud/validation";
+import { getOliviaCrudNavigation } from "@/lib/olivia/crud/executor";
 
 describe("Olivia 기능별 생성·수정 검증", () => {
   it("지원 도메인과 허용 필드를 공개한다", () => {
@@ -51,5 +52,11 @@ describe("Olivia 기능별 생성·수정 검증", () => {
     expect(memo.data).toEqual({ rawMemo: "고객이 따뜻한 톤을 원함" });
     const calendar = validateOliviaCrudRequest({ operation: "create", domain: "calendar", data: { date: "2026-07-20", title: "고객 미팅", rawMemo: "잘못된 필드" } });
     expect(calendar.data).toEqual({ date: "2026-07-20", title: "고객 미팅" });
+  });
+
+  it("고객 생성만 새 고객 상세 페이지로 이동한다", () => {
+    expect(getOliviaCrudNavigation("client", "create", "client-123")).toBe("/clients?id=client-123");
+    expect(getOliviaCrudNavigation("client", "update", "client-123")).toBeNull();
+    expect(getOliviaCrudNavigation("quote", "create", "quote-123")).toBeNull();
   });
 });

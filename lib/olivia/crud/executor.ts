@@ -7,6 +7,7 @@ import {
   OliviaCrudError,
   type OliviaCrudDomain,
   type OliviaCrudExecutionResult,
+  type OliviaCrudOperation,
   type OliviaCrudRequest,
   type OliviaCrudTarget,
 } from "@/lib/olivia/crud/types";
@@ -407,12 +408,25 @@ export async function executeOliviaCrud(
   });
 
   const verb = input.operation === "create" ? "생성" : "수정";
+  const url = getOliviaCrudNavigation(input.domain, input.operation, recordId);
   return {
-    action: "done",
+    action: url ? "navigate" : "done",
     message: `✅ ${validated.definition.label} ${verb}이 완료되었습니다.\nID: ${recordId}`,
     domain: input.domain,
     operation: input.operation,
     recordId,
+    url: url || undefined,
     record: row,
   };
+}
+
+export function getOliviaCrudNavigation(
+  domain: OliviaCrudDomain,
+  operation: OliviaCrudOperation,
+  recordId: string,
+) {
+  if (domain === "client" && operation === "create" && recordId) {
+    return `/clients?id=${encodeURIComponent(recordId)}`;
+  }
+  return null;
 }
