@@ -171,6 +171,7 @@ export async function runOliviaAction(db: SupabaseClient, action: any, context?:
         source_module: "olivia_chat",
         source_id: running.id,
         hospital_name: hospitalName,
+        client_id: running.client_id ?? context.client?.id ?? null,
         contact_name: String(context.workflowRun.manager_name || context.client?.manager_name || ""),
         to_email: String(context.client?.email || ""),
         subject: `[포토클리닉] ${hospitalName} 진행 상황 확인`,
