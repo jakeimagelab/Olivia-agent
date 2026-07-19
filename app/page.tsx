@@ -961,6 +961,15 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
           <span style={{fontSize:11,fontWeight:700,color:"rgba(21,88,85,.52)",letterSpacing:".06em"}}>AI 관리자</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:7}}>
+          <Link href="/admin/security" title="보안 설정" style={{
+            width:34,height:34,
+            border:"1px solid rgba(255,255,255,.75)",borderRadius:10,
+            background:"rgba(255,255,255,.55)",backdropFilter:"blur(8px)",
+            cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+            color:"#155855",boxShadow:"0 2px 8px rgba(0,0,0,.07)",textDecoration:"none",
+          }}>
+            <Fingerprint size={14}/>
+          </Link>
           <button onClick={()=>load(true)} disabled={refreshing} style={{
             width:34,height:34,
             border:"1px solid rgba(255,255,255,.75)",borderRadius:10,
