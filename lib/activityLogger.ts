@@ -13,7 +13,8 @@ export type ActionType =
   | "calendar_delete"
   | "create_memo"
   | "send_workflow_mail"
-  | "advance_workflow_step";
+  | "advance_workflow_step"
+  | "query_database";
 
 export async function logActivity(
   actionType: ActionType,
