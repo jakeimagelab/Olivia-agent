@@ -249,6 +249,8 @@ function GalleryPageInner() {
       if (current) URL.revokeObjectURL(current);
       return "";
     });
+    setSelectedClientId(clientId);
+    setSelectedClientName("");
   };
 
   const startEdit = (gallery: Gallery) => {
@@ -269,6 +271,8 @@ function GalleryPageInner() {
       description: gallery.description || "",
       thumbnailUrl
     });
+    setSelectedClientId(gallery.client_id || "");
+    setSelectedClientName(gallery.client_id ? gallery.hospital_name || "" : "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
