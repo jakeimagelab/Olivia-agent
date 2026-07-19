@@ -595,6 +595,22 @@ const OLIVIA_WORK_TOOLS: Anthropic.Tool[] = [
     description: "미팅 뒤 남은 대표·고객 약속, 내부 업무와 승인 행동을 조회합니다.",
     input_schema: { type: "object", properties: { workflowRunId: { type: "string" } }, required: ["workflowRunId"] },
   },
+  {
+    name: "generate_document",
+    description: "대화 내용을 바탕으로 자유 형식 PDF 문서를 생성해 다운로드 링크를 제공합니다. 견적서/계약서 같은 기존 전용 양식이 아니라, 제안서·보고서·안내문 등 어떤 텍스트 문서든 만들 수 있습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "문서 제목" },
+        content: {
+          type: "string",
+          description: "문서 본문. 일반 문단은 그대로, 소제목은 줄 앞에 '## ', 목록 항목은 줄 앞에 '- '를 붙인다. 빈 줄로 문단을 구분한다.",
+        },
+        fileName: { type: "string", description: "파일명(확장자 제외). 생략 시 제목으로 대체" },
+      },
+      required: ["title", "content"],
+    },
+  },
 ];
 
 // ── Anthropic 내장 웹 검색 도구 ───────────────────────────────
