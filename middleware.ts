@@ -135,6 +135,15 @@ export async function middleware(req: NextRequest) {
       if (allowed.some((prefix) => pathname.startsWith(prefix))) return NextResponse.next();
     }
 
+    // internal-key를 들고 왔는데도 401이 나는 경우(길이만 비교, 값 자체는 로그에 남기지 않음) —
+    // 서버 쪽 INTERNAL_API_KEY 미설정/공백/불일치 여부를 다음 발생 시 바로 확인하기 위한 임시 진단 로그.
+    if (internalKey) {
+      const envKey = process.env.INTERNAL_API_KEY;
+      console.error(
+        `[middleware] internal-key 인증 실패: path=${pathname} envKeySet=${Boolean(envKey)} envKeyLen=${envKey?.length ?? 0} headerKeyLen=${internalKey.length} match=${internalKey === envKey}`
+      );
+    }
+
     return NextResponse.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   }
 
