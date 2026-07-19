@@ -3,6 +3,7 @@ import {
   ACTIVE_WORKFLOW_STEP_KEYS,
   LEGACY_NEXT_STEP,
   STEP_NAME,
+  WORKFLOW_STEPS,
   isActiveWorkflowStep,
 } from "@/lib/workflow";
 import { addYearsIso } from "@/lib/dataRetention";
