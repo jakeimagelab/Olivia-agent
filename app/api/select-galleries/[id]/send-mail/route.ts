@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .single();
     if (!gallery) return NextResponse.json({ ok: false, error: "갤러리 없음" }, { status: 404 });
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://olivia-agent-smoky.vercel.app";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? "https://olivia.photoclinic.kr";
     const selectUrl = `${baseUrl}/select/${gallery.share_token}`;
 
     const expiresDate = new Date(gallery.file_expires_at).toLocaleDateString("ko-KR", {
