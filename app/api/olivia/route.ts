@@ -347,6 +347,17 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "get_client_profile",
+    description: "고객(병원) 하나의 통합 정보를 한 번에 조회합니다 — 기본정보, 현재 워크플로우 진행 단계, 누적 촬영금액, PER 포인트/등급, 원본·보정 사진 공유링크, 최근 메일 발송이력을 한 화면에 모아 반환합니다. '~병원 정보 다 보여줘', '~병원 전체 현황', '~병원 요약' 같은 요청에 사용하세요.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명 (일부만 입력해도 됩니다)" },
+      },
+      required: ["clientName"],
+    },
+  },
+  {
     name: "get_gallery",
     description: "병원의 납품 갤러리와 NAS 링크를 조회합니다. '~병원 갤러리 링크 알려줘', '~병원 사진 전달 링크' 요청에 사용합니다.",
     input_schema: {
