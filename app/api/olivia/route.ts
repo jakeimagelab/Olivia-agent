@@ -1719,6 +1719,7 @@ async function executeTool(
       .insert({
         type:          input.mailType,
         hospital_name: hospitalName,
+        client_id:     client?.id ?? null,
         contact_name:  contactName,
         to_email:      toEmail,
         subject:       template.subject,
