@@ -437,8 +437,15 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
             {ACTIVE_WORKFLOW_STEPS.map((step, idx) => {
               const isDone = workflowCompleted || idx < currentIdx;
               const isCurrent = !workflowCompleted && step.key === displayStepKey;
+              const isOpenHere = openStepKey ? step.key === openStepKey : isCurrent;
               return (
-                <article key={step.key} className={`pc-smart-timeline__item ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""}`}>
+                <article
+                  key={step.key}
+                  className={`pc-smart-timeline__item ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""} ${isDone ? "pc-smart-timeline__item--clickable" : ""}`}
+                  onClick={isDone ? () => setOpenStepKey((prev) => (prev === step.key ? null : step.key)) : undefined}
+                  role={isDone ? "button" : undefined}
+                  tabIndex={isDone ? 0 : undefined}
+                >
                   <div className="pc-smart-timeline__rail">
                     <span>{isDone ? "✓" : idx + 1}</span>
                     {idx < ACTIVE_WORKFLOW_STEPS.length - 1 && <i/>}
@@ -451,16 +458,17 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
                       </div>
                       <b>{isDone ? "완료" : isCurrent ? "현재 단계" : "대기"}</b>
                     </div>
-                    {isCurrent && (
-                      <div className="pc-smart-timeline__action">
+                    {isOpenHere && (
+                      <div className="pc-smart-timeline__action" onClick={(e) => e.stopPropagation()}>
                         <StepPanel
-                          key={displayStepKey}
-                          selectedStepKey={displayStepKey}
+                          key={step.key}
+                          selectedStepKey={step.key}
                           currentStepKey={displayStepKey}
                           currentIdx={currentIdx}
                           client={client}
                           workflowRun={workflowRun}
                           onAdvance={load}
+                          onRevert={() => { setOpenStepKey(null); load(); }}
                           clientId={clientId}
                         />
                       </div>
