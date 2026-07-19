@@ -354,6 +354,45 @@ function GalleryPageInner() {
                 <label className="field"><span>병원명 *</span><input style={fieldStyle} value={form.hospitalName} onChange={(e) => set("hospitalName", e.target.value)} placeholder="포토클리닉" /></label>
                 <label className="field"><span>촬영일</span><input style={fieldStyle} type="date" value={form.shootDate} onChange={(e) => set("shootDate", e.target.value)} /></label>
               </div>
+              <div className="field" style={{ position: "relative" }}>
+                <span>고객 연결</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {selectedClientId ? (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: `${C.teal}12`, border: `1px solid ${C.teal}30`, borderRadius: 8, padding: "6px 10px", flex: 1 }}>
+                      🔗 {selectedClientName || "연결됨"}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.orange, background: `${C.orange}12`, border: `1px solid ${C.orange}30`, borderRadius: 8, padding: "6px 10px", flex: 1 }}>
+                      ⚠ 고객 미연결 — 연결 안 하면 고객 상세화면 등 다른 곳에서 안 보입니다
+                    </span>
+                  )}
+                  <button type="button" onClick={() => setShowClientPicker(v => !v)} style={{ fontSize: 11, fontWeight: 700, color: C.teal, background: C.mint, border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                    {selectedClientId ? "변경" : "연결"}
+                  </button>
+                  {selectedClientId && (
+                    <button type="button" onClick={() => { setSelectedClientId(""); setSelectedClientName(""); }} style={{ fontSize: 11, fontWeight: 700, color: C.muted, background: "transparent", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}>
+                      해제
+                    </button>
+                  )}
+                </div>
+                {showClientPicker && (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20, marginTop: 4, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: "0 12px 30px rgba(21,88,85,.14)", padding: 8 }}>
+                    <input autoFocus value={clientQuery} onChange={(e) => setClientQuery(e.target.value)} placeholder="고객명·병원명 검색..." style={{ ...fieldStyle, marginBottom: 6 }} />
+                    <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                      {clientResults.length === 0 && (
+                        <div style={{ padding: 10, textAlign: "center", fontSize: 12, color: C.hint }}>검색 결과 없음</div>
+                      )}
+                      {clientResults.map((c) => (
+                        <div key={c.id} onClick={() => pickClient(c)} style={{ padding: "8px 10px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 700, color: C.txt }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = C.mint)}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                          {c.hospital_name || c.name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <label className="field"><span>담당자</span><input style={fieldStyle} value={form.contactName} onChange={(e) => set("contactName", e.target.value)} placeholder="정연호" /></label>
                 <label className="field"><span>공유 이메일</span><input style={fieldStyle} type="email" value={form.contactEmail} onChange={(e) => set("contactEmail", e.target.value)} placeholder="photoclnic@gmail.com" /></label>
