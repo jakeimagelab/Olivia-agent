@@ -398,6 +398,23 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           })}
         </div>
 
+        {(client.contact_name || client.manager_name || client.phone || client.email || client.memo) && (
+          <div className="pc-client-info-strip" aria-label="고객 연락처 정보">
+            {(client.contact_name || client.manager_name) && (
+              <span className="pc-client-info-chip"><strong>담당자</strong>{client.contact_name || client.manager_name}</span>
+            )}
+            {client.phone && (
+              <span className="pc-client-info-chip"><strong>연락처</strong>{client.phone}</span>
+            )}
+            {client.email && (
+              <span className="pc-client-info-chip"><strong>이메일</strong>{client.email}</span>
+            )}
+            {client.memo && (
+              <span className="pc-client-info-chip pc-client-info-chip--memo"><strong>메모</strong>{client.memo}</span>
+            )}
+          </div>
+        )}
+
         <NextActionCard client={client} workflowRun={workflowRun} onRefresh={load} />
       </div>
       </section>
