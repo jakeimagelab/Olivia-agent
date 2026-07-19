@@ -15,11 +15,13 @@ export async function GET(req: NextRequest) {
     .order("sent_at", { ascending: false })
     .limit(200);
 
-  const status = searchParams.get("status");
-  const hosp   = searchParams.get("hospital_name");
+  const status   = searchParams.get("status");
+  const hosp     = searchParams.get("hospital_name");
+  const clientId = searchParams.get("client_id");
 
-  if (status) query = query.eq("status", status);
-  if (hosp)   query = query.ilike("hospital_name", `%${hosp}%`);
+  if (status)   query = query.eq("status", status);
+  if (hosp)     query = query.ilike("hospital_name", `%${hosp}%`);
+  if (clientId) query = query.eq("client_id", clientId);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ ok: false, error: getErrorMessage(error) }, { status: 500 });
