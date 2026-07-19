@@ -313,6 +313,23 @@ function QueueTab() {
                 {selected.attachments.map((a, i) => <div key={i} style={{ fontSize: 12, color: C.muted }}>{a.filename}</div>)}
               </div>
             )}
+            {availableArtifacts.filter(a => !selected.attachments?.some(x => x.filename === a.file_name)).length > 0 && (
+              <div style={{ marginBottom: 16, background: "#FFF7ED", border: "1px solid #F4D9AB", borderRadius: 10, padding: "12px 14px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.orange, marginBottom: 8 }}>📄 워크플로우에서 생성된 PDF (첨부 가능)</div>
+                {availableArtifacts.filter(a => !selected.attachments?.some(x => x.filename === a.file_name)).map((a) => (
+                  <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: C.txt, padding: "4px 0" }}>
+                    <span>{a.title || a.file_name}</span>
+                    <button
+                      onClick={() => attachArtifact(a)}
+                      disabled={attachingId === a.id}
+                      className="pc-btn pc-btn--secondary pc-btn--sm"
+                    >
+                      {attachingId === a.id ? "첨부 중..." : "첨부"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {selected.status === "failed" && selected.error_message && (
               <div style={{ marginBottom: 14, padding: "10px 12px", background: "#FFF0EB", border: `1px solid #FACCB8`, borderRadius: 8, fontSize: 12, color: C.orange }}>⚠ {selected.error_message}</div>
             )}
