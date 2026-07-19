@@ -480,7 +480,10 @@ export async function completeWorkflowRetroactively(
 ) {
   const run = await getWorkflowRun(db, input.workflow_run_id);
   const now = new Date().toISOString();
-  const lastStepKey = WORKFLOW_STEPS[WORKFLOW_STEPS.length - 1].key;
+  // WORKFLOW_STEPS(전체 18단계 카탈로그)의 마지막 원소는 배열 선언 순서상 우연히 payment_confirm이라
+  // "진행 6/12"처럼 UI 진행률 계산(ACTIVE_WORKFLOW_STEP_KEYS 기준)과 어긋나는 버그가 있었다.
+  // 진행률·칸반·상세페이지가 전부 ACTIVE_WORKFLOW_STEP_KEYS를 기준으로 계산하므로 그 마지막 값을 써야 한다.
+  const lastStepKey = ACTIVE_WORKFLOW_STEP_KEYS[ACTIVE_WORKFLOW_STEP_KEYS.length - 1];
 
   // 1) 안 끝난 단계(step_runs) 전부 완료 처리
   await db.from("workflow_step_runs")
