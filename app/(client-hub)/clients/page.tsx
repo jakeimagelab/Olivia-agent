@@ -776,12 +776,33 @@ type SPProps = {
   client: any;
   workflowRun: any;
   onAdvance: () => void;
+  onRevert?: () => void;
   clientId: string;
 };
 
-function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workflowRun, onAdvance, clientId }: SPProps) {
+function StepPanel({ selectedStepKey, currentStepKey, currentIdx, client, workflowRun, onAdvance, onRevert, clientId }: SPProps) {
   const selectedIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === selectedStepKey);
   const isCurrent = selectedStepKey === currentStepKey;
+  const [reverting, setReverting] = useState(false);
+  const [revertMsg, setRevertMsg] = useState("");
+
+  const revertToThisStep = async () => {
+    if (!workflowRun?.id) return;
+    if (!window.confirm(`정말 "${STEP_NAME[selectedStepKey] || selectedStepKey}" 단계로 되돌릴까요? 이후 진행된 단계는 다시 진행해야 합니다.`)) return;
+    setReverting(true);
+    setRevertMsg("");
+    try {
+      const res = await fetch("/api/workflow/revert-step", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workflow_run_id: workflowRun.id, to_step_key: selectedStepKey }),
+      });
+      const d = await res.json();
+      if (d.ok) onRevert?.();
+      else setRevertMsg(d.error || "되돌리기에 실패했습니다.");
+    } finally {
+      setReverting(false);
+    }
+  };
   const isDone = selectedIdx < currentIdx;
   const info = STEP_INFO[selectedStepKey] ?? { icon: "📌", desc: "", href: "/" };
   const nextStepKey = ACTIVE_WORKFLOW_STEPS[selectedIdx + 1]?.key;
