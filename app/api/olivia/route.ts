@@ -1630,7 +1630,7 @@ async function executeTool(
 
     return {
       action: "done",
-      message: `📷 **${client?.hospital_name || input.clientName}** 갤러리 등록 완료!\nNAS: ${input.nasLink}${autoMsg}`,
+      message: `📷 **${client?.name || input.clientName}** 갤러리 등록 완료!\nNAS: ${input.nasLink}${autoMsg}`,
     };
   }
 
