@@ -249,7 +249,8 @@ export async function POST(req: NextRequest) {
           contact_email: contactEmail || "",
           shoot_date: shootDate || null,
           nas_link: nasLink,
-          description: description || ""
+          description: description || "",
+          gallery_type: galleryTypeValue,
         })
         .eq("id", id)
         .select()
