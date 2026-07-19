@@ -290,6 +290,35 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
   const [unreadCount,     setUnreadCount]    = useState(0);
   const [isMobile,        setIsMobile]       = useState(false);
   const [workItemBusy,    setWorkItemBusy]   = useState<string | null>(null);
+  const [panelSize,       setPanelSize]      = useState({ width: 420, height: 580 });
+
+  const resizeStartRef = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null);
+
+  // 패널이 우측 하단에 고정돼 있으므로, 좌상단 모서리를 드래그하면 그 방향으로 커지도록 계산한다.
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    resizeStartRef.current = { startX: e.clientX, startY: e.clientY, startW: panelSize.width, startH: panelSize.height };
+
+    const onMove = (ev: MouseEvent) => {
+      const start = resizeStartRef.current;
+      if (!start) return;
+      const dx = start.startX - ev.clientX;
+      const dy = start.startY - ev.clientY;
+      const maxW = Math.min(720, window.innerWidth - 48);
+      const maxH = Math.min(860, window.innerHeight - 140);
+      setPanelSize({
+        width: Math.min(maxW, Math.max(320, start.startW + dx)),
+        height: Math.min(maxH, Math.max(400, start.startH + dy)),
+      });
+    };
+    const onUp = () => {
+      resizeStartRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
 
   const bottomRef      = useRef<HTMLDivElement>(null);
   const messagesRef    = useRef<HTMLDivElement>(null);
