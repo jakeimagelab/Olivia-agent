@@ -745,10 +745,32 @@ async function buildTaskOutput(db: SupabaseClient, task: any, run: any) {
     };
   }
   if (task.task_type === "per_points_calculate") {
-    const points = Math.floor(supply * 0.01);
+    // registered_data에 견적/계약 스냅샷이 없어 하드코딩 기본값(2,200,000원)으로 떨어지는 경우,
+    // 이 고객의 가장 최근 계약 금액을 실제 DB에서 조회해 대체한다 — PER은 실제 촬영금액 기준이어야 한다.
+    let baseAmount = amount;
+    const usedFallback =
+      !quote.total_amount && !contractQuote.totalAmount && !contractQuote.total_amount &&
+      !task.input_data?.amount && !task.input_data?.total_amount;
+    const clientId = task.client_id ?? run?.client_id ?? null;
+    if (usedFallback && clientId) {
+      const { data: latestContract } = await db
+        .from("contracts")
+        .select("quote_data")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const contractAmount = Number(
+        latestContract?.quote_data?.totalAmount || latestContract?.quote_data?.total_amount || 0
+      );
+      if (contractAmount > 0) baseAmount = contractAmount;
+    }
+
+    const supplyForReward = Math.round(baseAmount / 1.1);
+    const points = Math.floor(supplyForReward * 0.01);
     return {
-      base_amount: amount,
-      supply_amount: supply,
+      base_amount: baseAmount,
+      supply_amount: supplyForReward,
       point_rate: 0.01,
       earned_points: points,
       memo: "VAT 제외 공급가 기준 1% PER 포인트 계산",
