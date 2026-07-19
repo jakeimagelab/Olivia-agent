@@ -26,8 +26,8 @@ export default function SecurityPage() {
     setLoading(true);
     try {
       const r = await fetch("/api/auth/passkey/list");
-      const d = await r.json();
-      if (d.ok) setPasskeys(d.passkeys);
+      const d = await r.json().catch(() => null);
+      if (d?.ok) setPasskeys(d.passkeys);
     } finally {
       setLoading(false);
     }
