@@ -215,6 +215,8 @@ export async function POST(req: NextRequest) {
     items = [],
     client_id,
     workflow_run_id,
+    galleryType,
+    gallery_type,
   } = body as {
     id?: string;
     hospitalName?: string;
@@ -227,7 +229,10 @@ export async function POST(req: NextRequest) {
     items?: GalleryItemInput[];
     client_id?: string | null;
     workflow_run_id?: string | null;
+    galleryType?: string;
+    gallery_type?: string;
   };
+  const galleryTypeValue = galleryType || gallery_type || "retouched";
 
   if (!hospitalName || !nasLink) {
     return NextResponse.json({ ok: false, error: "병원명과 NAS 링크는 필수입니다." }, { status: 400 });
