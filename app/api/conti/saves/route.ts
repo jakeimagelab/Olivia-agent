@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
 import { resolveClientId } from "@/lib/clientLookup";
+import { logPortalEvent } from "@/lib/clientPortal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
