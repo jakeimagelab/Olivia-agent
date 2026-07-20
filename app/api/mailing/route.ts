@@ -47,22 +47,50 @@ export async function POST(req: NextRequest) {
 
   const client_id = body.client_id ?? (await resolveClientId(supabase, hospital_name));
 
+  const draftFields = {
+    type,
+    source_module: source_module || "",
+    source_id:     source_id     || "",
+    hospital_name,
+    client_id,
+    contact_name:  contact_name  || "",
+    to_email:      to_email      || "",
+    subject,
+    body:          mailBody      || "",
+    attachments:   attachments   || [],
+    links:         links         || [],
+    status: to_email ? "ready" : "draft",
+  };
+
+  // 같은 견적서/계약서를 재생성(재시도)할 때마다 초안이 중복 쌓이지 않도록,
+  // 아직 발송 전인 동일 소스의 초안이 있으면 새로 만들지 않고 갱신한다.
+  if (source_module && source_id) {
+    const { data: existing } = await supabase
+      .from("mailing_queue")
+      .select("id")
+      .eq("source_module", source_module)
+      .eq("source_id", source_id)
+      .eq("type", type)
+      .neq("status", "sent")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from("mailing_queue")
+        .update(draftFields)
+        .eq("id", existing.id)
+        .select("id")
+        .single();
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, id: data.id });
+    }
+  }
+
   const { data, error } = await supabase
     .from("mailing_queue")
-    .insert({
-      type,
-      source_module: source_module || "",
-      source_id:     source_id     || "",
-      hospital_name,
-      client_id,
-      contact_name:  contact_name  || "",
-      to_email:      to_email      || "",
-      subject,
-      body:          mailBody      || "",
-      attachments:   attachments   || [],
-      links:         links         || [],
-      status: to_email ? "ready" : "draft",
-    })
+    .insert(draftFields)
     .select("id")
     .single();
 
