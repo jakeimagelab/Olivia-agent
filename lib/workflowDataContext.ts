@@ -48,8 +48,9 @@ export async function loadWorkflowRegisteredData(
     clientName
       ? optionalOne(db.from("conti_saves").select("id,hospital_name,specialties,title,result,saved_at").eq("hospital_name", clientName).order("saved_at", { ascending: false }).limit(1).maybeSingle())
       : Promise.resolve(null),
+    // photo_galleries가 실제로 갤러리가 쌓이는 테이블이다 (구 galleries 테이블은 아무도 쓰지 않아 항상 비어있었음).
     clientId
-      ? optionalOne(db.from("galleries").select("id,hospital_name,contact_name,contact_email,shoot_date,title,shooting_items,nas_link,original_link,retouched_link,gallery_link,status,updated_at").eq("hospital_id", clientId).order("updated_at", { ascending: false }).limit(1).maybeSingle())
+      ? optionalOne(db.from("photo_galleries").select("id,hospital_name,contact_name,contact_email,shoot_date,description,nas_link,gallery_type,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(1).maybeSingle())
       : Promise.resolve(null),
   ]);
 
