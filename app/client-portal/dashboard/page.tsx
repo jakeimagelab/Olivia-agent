@@ -42,7 +42,10 @@ export default function PortalDashboard() {
   if (dataLoading) return <PortalLoading />;
 
   const gallery = data?.galleries?.[0];
-  const hasGallery = !!gallery?.gallery_link || !!gallery?.retouched_link;
+  const hasGallery = !!gallery?.nas_link;
+  const quotes = data?.quotes ?? [];
+  const contracts = data?.contracts ?? [];
+  const contiSaves = data?.contiSaves ?? [];
 
   return (
     <div>
