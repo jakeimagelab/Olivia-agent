@@ -256,7 +256,7 @@ export default function DailyQuoteWidget() {
           </button>
         </div>
       </div>
-      <div className="oa-daily-quote__portrait" aria-hidden="true">
+      <div className="oa-daily-quote__portrait" aria-hidden="true" ref={portraitRef}>
         <PixelPortrait author={quote.author} />
       </div>
       <blockquote>“{quote.text}”</blockquote>
