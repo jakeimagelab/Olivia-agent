@@ -3,9 +3,10 @@ import { logAgent } from "@/lib/workflowAutomation";
 import { analyzeOliviaCandidate } from "@/lib/olivia/analyzer";
 import { planOliviaAction, saveOliviaInsight } from "@/lib/olivia/actionPlanner";
 import { buildWorkflowContext } from "@/lib/olivia/context";
-import { markOliviaEventFailed, markOliviaEventProcessed } from "@/lib/olivia/events";
+import { createEventDeduplicationKey, emitOliviaEventSafely, markOliviaEventFailed, markOliviaEventProcessed } from "@/lib/olivia/events";
 import { evaluateOliviaRules } from "@/lib/olivia/rules";
 import { calculatePriorityScore, getNotificationPolicy } from "@/lib/olivia/scoring";
+import { sendTelegramNotification } from "@/lib/telegramNotifications";
 import type { OliviaRuleCandidate } from "@/lib/olivia/types";
 
 export const MAX_RUNS_PER_EXECUTION = 30;
