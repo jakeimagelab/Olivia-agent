@@ -99,7 +99,8 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     const artifactId = existing?.id || randomUUID();
     const fileName = safeFileName(String(form.get("fileName") || file.name));
-    uploadedPath = `${clientId}/${workflowRunId || "unassigned"}/${documentType}/${artifactId}/${fileName}`;
+    const storageFileName = toAsciiStorageSegment(fileName, `${documentType}.pdf`);
+    uploadedPath = `${clientId}/${workflowRunId || "unassigned"}/${documentType}/${artifactId}/${storageFileName}`;
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const { error: uploadError } = await db.storage.from(BUCKET).upload(uploadedPath, buffer, {
