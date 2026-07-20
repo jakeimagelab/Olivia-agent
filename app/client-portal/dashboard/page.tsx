@@ -18,6 +18,9 @@ type DashboardData = {
   events: any[];
   approvedSteps: any[];
   workflowRun: any;
+  quotes: any[];
+  contracts: any[];
+  contiSaves: any[];
 };
 
 export default function PortalDashboard() {
