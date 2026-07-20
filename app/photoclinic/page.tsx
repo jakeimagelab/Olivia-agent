@@ -1728,7 +1728,7 @@ export default function QuoteBuilder() {
             <div
               ref={previewRef}
               className="quote-page"
-              style={{ transform: `scale(${previewScale})` }}
+              style={{ transform: `scale(${showFullscreenPreview ? fullscreenPreviewScale : previewScale})` }}
             >
               <aside className="brand-rail">
                 <div className="rail-slogan" style={{fontFamily:"'Nanum Myeongjo', serif"}}>
