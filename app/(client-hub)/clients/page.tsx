@@ -311,6 +311,14 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
       const suffix = workflowRunId ? `?workflowRunId=${encodeURIComponent(workflowRunId)}` : "";
       const res = await fetch(`/api/clients/${clientId}${suffix}`, { cache: "no-store" });
       const d = await res.json();
+      if (res.status === 409 && d.healedClientId) {
+        // 고객 연결이 방금 자동 복구됨 — 사용자가 새로고침할 필요 없이 바로 다시 불러온다.
+        const retryRes = await fetch(`/api/clients/${d.healedClientId}`, { cache: "no-store" });
+        const retryData = await retryRes.json();
+        if (!retryRes.ok || !retryData.ok) throw new Error(retryData.error || "고객 상세 정보를 불러오지 못했습니다.");
+        setPageData(retryData);
+        return;
+      }
       if (!res.ok || !d.ok) throw new Error(d.error || "고객 상세 정보를 불러오지 못했습니다.");
       setPageData(d);
     } catch (error) {
