@@ -102,6 +102,50 @@ export async function observeWorkflowRun(
   return { createdInsights, createdActions, skippedDuplicates, candidates: rawCandidates.length };
 }
 
+// Observer가 도는 김에 최근 실패한 자동화 작업을 스스로 찾아 텔레그램으로 먼저 보고한다.
+// 대표님이 물어봐야만 답하던 check_recent_errors/generate_dev_request를 능동적으로 앞당기는 역할 —
+// 다만 이 함수 자체는 하루 한 번 도는 올리비아 observer cron(vercel.json)에 얹혀서 실행되므로,
+// "능동적"이어도 하루 한 번 이상 알림이 오지는 않는다 (Hobby 플랜은 cron을 더 자주 못 돌린다).
+async function checkAndReportSystemIssues(db: SupabaseClient) {
+  const sinceIso = new Date(Date.now() - 6 * 60 * 60_000).toISOString();
+  const { data: failedTasks } = await db
+    .from("agent_tasks")
+    .select("id,title,error_message,updated_at")
+    .eq("status", "failed")
+    .gte("updated_at", sinceIso);
+
+  if (!failedTasks || failedTasks.length === 0) return;
+
+  const dedupKeys = failedTasks.map((task) => createEventDeduplicationKey("system.issue_reported", task.id));
+  const { data: alreadyReported } = await db
+    .from("olivia_events")
+    .select("deduplication_key")
+    .in("deduplication_key", dedupKeys);
+  const reportedKeys = new Set((alreadyReported ?? []).map((row) => row.deduplication_key));
+
+  const unreported = failedTasks.filter((task) => !reportedKeys.has(createEventDeduplicationKey("system.issue_reported", task.id)));
+  if (unreported.length === 0) return;
+
+  const summary = unreported.map((t) => `- ${t.title || "작업"}: ${t.error_message || "오류 상세 없음"}`).join("\n");
+  const message = `🔧 올리비아가 문제를 발견했어요 (최근 6시간, ${unreported.length}건)\n\n${summary}\n\n"개발요청으로 만들어줘"라고 말씀하시면 Claude Code에 바로 넘길 스펙을 만들어드릴게요.`;
+
+  try {
+    await sendTelegramNotification(message);
+  } catch (error) {
+    console.error("[observer] 자가진단 텔레그램 발송 실패:", error instanceof Error ? error.message : String(error));
+    return; // 발송 실패 시 미보고 상태로 남겨서 다음 실행에 다시 시도한다.
+  }
+
+  for (const task of unreported) {
+    await emitOliviaEventSafely(db, {
+      eventType: "system.issue_reported",
+      eventSource: "observer_self_diagnosis",
+      payload: { taskId: task.id, message: task.error_message ?? "" },
+      deduplicationKey: createEventDeduplicationKey("system.issue_reported", task.id),
+    });
+  }
+}
+
 export async function runOliviaObserver(
   db: SupabaseClient,
   options: { workflowRunId?: string | null; eventId?: string | null; mode?: "single" | "all_active"; limit?: number } = {},
