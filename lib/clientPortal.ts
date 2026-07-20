@@ -27,6 +27,10 @@ export const PORTAL_EVENT_LABEL: Record<string, string> = {
   quote_viewed: "견적서 확인",
   contract_viewed: "계약서 확인",
   conti_viewed: "콘티 확인",
+  quote_ready: "견적서 새로 등록됨",
+  contract_ready: "계약서 새로 등록됨",
+  gallery_ready: "갤러리 새로 등록됨",
+  conti_ready: "콘티 새로 등록됨",
 };
 
 export async function validatePortalToken(token: string): Promise<PortalSession | null> {
