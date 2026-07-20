@@ -66,5 +66,8 @@ export async function GET(req: NextRequest) {
     per: perRes.data,
     workflowRun,
     approvedSteps,
+    quotes: quotesRes.data ?? [],
+    contracts: contractsRes.data ?? [],
+    contiSaves: contiRes.data ?? [],
   });
 }
