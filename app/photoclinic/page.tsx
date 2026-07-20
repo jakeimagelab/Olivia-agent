@@ -9,6 +9,7 @@ import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import {
   Download,
+  Maximize2,
   Plus,
   RefreshCcw,
   Save,
@@ -16,6 +17,7 @@ import {
   Upload,
   UserRound,
   WalletCards,
+  X,
   ZoomIn,
   ZoomOut,
   FileText
