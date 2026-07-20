@@ -125,11 +125,10 @@ export default function PortalDashboard() {
               <span style={{ fontSize:13, fontWeight:800, color:G }}>📸 최근 갤러리</span>
               <Link href="/client-portal/gallery" style={{ fontSize:12, color:G, fontWeight:700, textDecoration:"none" }}>전체 보기 →</Link>
             </div>
-            <div style={{ fontSize:14, fontWeight:700, marginBottom:4 }}>{gallery.title || "촬영 갤러리"}</div>
+            <div style={{ fontSize:14, fontWeight:700, marginBottom:4 }}>{gallery.description || (gallery.gallery_type === "original" ? "원본 갤러리" : "보정 갤러리")}</div>
             {gallery.shoot_date && <div style={{ fontSize:12, color:MUT, marginBottom:10 }}>촬영일: {new Date(gallery.shoot_date).toLocaleDateString("ko-KR")}</div>}
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              {gallery.gallery_link && <a href={gallery.gallery_link} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:700, color:"#fff", background:G, borderRadius:8, padding:"7px 14px", textDecoration:"none" }}>갤러리 열기</a>}
-              {gallery.retouched_link && <a href={gallery.retouched_link} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:700, color:G, background:`${G}15`, borderRadius:8, padding:"7px 14px", textDecoration:"none" }}>보정본 보기</a>}
+              {gallery.nas_link && <a href={gallery.nas_link} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:700, color:"#fff", background:G, borderRadius:8, padding:"7px 14px", textDecoration:"none" }}>갤러리 열기</a>}
             </div>
           </PortalCard>
         )}
