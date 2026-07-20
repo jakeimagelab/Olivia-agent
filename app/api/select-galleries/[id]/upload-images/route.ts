@@ -30,7 +30,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     for (const file of files) {
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
       const basename = file.name.replace(/\.[^.]+$/, "");
-      const storagePath = `${id}/${file.name}`;
+      const safeFileName = `${sortBase}-${toAsciiStorageSegment(file.name, `image.${ext}`)}`;
+      const storagePath = `${id}/${safeFileName}`;
 
       const arrayBuffer = await file.arrayBuffer();
       const { error: upErr } = await sb.storage
