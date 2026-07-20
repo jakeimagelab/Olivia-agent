@@ -18,10 +18,34 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    let resolvedClientId: string | null = body.client_id ?? null;
+    if (!resolvedClientId && body.client_name) {
+      const existing = await fuzzyNameSearchOne<any>({
+        db, table: "clients", nameColumn: "hospital_name",
+        select: "id", query: body.client_name,
+      });
+      if (existing?.id) {
+        resolvedClientId = existing.id;
+      } else {
+        const { data: created, error: createError } = await db
+          .from("clients")
+          .insert({
+            hospital_name: body.client_name,
+            contact_name: body.contact_name ?? body.manager_name ?? "",
+            phone: body.phone ?? "",
+            email: body.contact_email ?? body.email ?? "",
+          })
+          .select("id")
+          .single();
+        if (createError) console.error("workflow/start: 고객 자동생성 실패:", createError.message);
+        resolvedClientId = created?.id ?? null;
+      }
+    }
+
     const { data: run, error } = await db
       .from("workflow_runs")
       .insert({
-        client_id: body.client_id ?? null,
+        client_id: resolvedClientId,
         project_id: body.project_id ?? null,
         template_id: body.template_id ?? "11111111-1111-1111-1111-111111111111",
         client_name: body.client_name ?? "",
