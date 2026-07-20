@@ -47,6 +47,13 @@ export default function PortalDashboard() {
   const contracts = data?.contracts ?? [];
   const contiSaves = data?.contiSaves ?? [];
 
+  const downloadArtifact = async (artifactId: string) => {
+    if (!token) return;
+    const res = await fetch(`/api/client-portal/artifact/${artifactId}`, { headers: { "x-portal-token": token } });
+    const d = await res.json();
+    if (d.ok && d.url) window.open(d.url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div>
       <PortalHeader clientName={session.clientName} />
