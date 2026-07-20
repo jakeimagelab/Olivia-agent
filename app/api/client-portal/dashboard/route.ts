@@ -14,14 +14,18 @@ export async function GET(req: NextRequest) {
   const db = getSupabaseAdmin();
   const clientId = session.clientId;
 
-  const [clientRes, galleryRes, revisionRes, reviewRes, eventsRes, perRes, workflowRes] = await Promise.all([
+  const [clientRes, galleryRes, revisionRes, reviewRes, eventsRes, perRes, workflowRes, quotesRes, contractsRes, contiRes] = await Promise.all([
     db.from("clients").select("*").eq("id", clientId).single(),
-    db.from("galleries").select("id,title,shoot_date,status,gallery_link,retouched_link,original_link,created_at").eq("hospital_id", clientId).order("created_at", { ascending: false }).limit(5),
+    // photo_galleries가 실제로 갤러리가 쌓이는 테이블이다 (구 galleries 테이블은 아무도 쓰지 않아 항상 비어있었음).
+    db.from("photo_galleries").select("id,description,shoot_date,gallery_type,nas_link,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(10),
     db.from("client_revision_requests").select("id,title,status,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(5),
     db.from("client_reviews").select("id,overall_rating,created_at").eq("client_id", clientId).limit(1),
     db.from("client_portal_events").select("event_type,memo,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(10),
     db.from("clients").select("available_points,total_earned_points,reward_tier,per_joined").eq("id", clientId).single(),
     db.from("workflow_runs").select("id,project_id,project_name,current_step_key,status,shoot_date,next_action").eq("client_id", clientId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    db.from("quotes").select("id,quote_number,title,supply_amount,vat,total_amount,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(5),
+    db.from("contracts").select("id,quote_number,signature_data_url,quote_data,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(5),
+    db.from("conti_saves").select("id,title,result,saved_at").eq("client_id", clientId).order("saved_at", { ascending: false }).limit(5),
   ]);
 
   const visibleStepKeys = new Set(ACTIVE_WORKFLOW_STEPS.filter((step) => step.visible_to_client).map((step) => step.key));
