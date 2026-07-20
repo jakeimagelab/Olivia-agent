@@ -59,8 +59,10 @@ export async function GET(
   if (clientRes.error) {
     return NextResponse.json({ ok: false, error: clientRes.error.message }, { status: 500 });
   }
-  if (!clientRes.data)
+  if (!clientRes.data) {
+    if (requestedRunId) return healClientLinkAndRespond(supabase, requestedRunId);
     return NextResponse.json({ ok: false, error: "고객을 찾을 수 없습니다." }, { status: 404 });
+  }
 
   const c = withClientDetailDefaults(clientRes.data);
   const hospitalName = (c.hospital_name ?? "") as string;
