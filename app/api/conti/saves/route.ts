@@ -57,6 +57,9 @@ export async function POST(req: NextRequest) {
     }).select("id").single();
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (clientId) {
+      await logPortalEvent({ clientId, eventType: "conti_ready", targetType: "conti_saves", targetId: data.id, workflowRunId }).catch(() => {});
+    }
     return NextResponse.json({ ok: true, id: data.id });
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
