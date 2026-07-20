@@ -50,7 +50,7 @@ async function saveChat(chatId: string, role: "user" | "assistant", content: str
 // 최근 대화 히스토리 조회 (최대 10개)
 // 올리비아는 맥/노트북 웹 채팅과 텔레그램에서 하나의 연속된 대화로 동작해야 하므로,
 // 텔레그램 채널로만 필터링하지 않고 채널 상관없이(source 무관) 가장 최근 대화를 가져온다.
-async function getHistory(chatId: string): Promise<{ role: "user" | "assistant"; content: string }[]> {
+async function getHistory(): Promise<{ role: "user" | "assistant"; content: string }[]> {
   try {
     const db = getSupabaseAdmin();
     const { data } = await db
