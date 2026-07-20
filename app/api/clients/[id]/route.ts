@@ -140,6 +140,9 @@ export async function DELETE(
   const { id } = await params;
   try {
     const item = await moveRecordToTrash(supabase, "client", id);
+    // 고객관리가 기준 데이터이므로, 고객을 삭제하면 연결된 프로젝트도 홈 화면 칸반보드에서
+    // 곧바로 사라지도록 취소 처리한다. workflow_runs 자체는 남겨 감사·복구 시 참고할 수 있게 유지한다.
+    await supabase.from("workflow_runs").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("client_id", id);
     return NextResponse.json({ ok: true, trashId: item.id });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "고객 삭제 실패" }, { status: 500 });
