@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { getErrorMessage } from "@/lib/errors";
+import { fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
