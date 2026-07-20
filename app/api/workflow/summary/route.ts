@@ -71,6 +71,7 @@ export async function GET() {
 
       return {
         ...run,
+        client_name: (run.client_id && clientNameById.get(run.client_id)) || run.client_name,
         display_step_key: displayStepKey,
         current_step_name: STEP_NAME[displayStepKey] || displayStepKey,
         stage_key: stage?.key ?? "consult_contract",
