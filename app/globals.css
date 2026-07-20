@@ -2253,6 +2253,43 @@ main:has(> .pc-header) {
   transition: background 220ms ease, box-shadow 220ms ease;
 }
 
+.preview-shell--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  padding: 64px;
+  background: #1c2b28;
+  box-shadow: none;
+}
+
+.preview-fullscreen-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 2001;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.preview-fullscreen-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
 .quote-preview-viewport {
   position: relative;
   flex: 0 0 auto;
