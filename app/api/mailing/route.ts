@@ -14,11 +14,13 @@ export async function GET(req: NextRequest) {
     .select("*")
     .order("created_at", { ascending: false });
 
+  const id       = searchParams.get("id");
   const type     = searchParams.get("type");
   const status   = searchParams.get("status");
   const hosp     = searchParams.get("hospital_name");
   const clientId = searchParams.get("client_id");
 
+  if (id)       query = query.eq("id", id);
   if (type)     query = query.eq("type", type);
   if (status)   query = query.eq("status", status);
   if (hosp)     query = query.ilike("hospital_name", `%${hosp}%`);
