@@ -163,6 +163,22 @@ export default function DailyQuoteWidget() {
       context.arc(100, 1210, 370, 0, Math.PI * 2);
       context.fill();
 
+      // 위젯에 보이는 픽셀아트 인물 초상을 공유 카드에도 그대로 그려 넣는다.
+      if (portraitRef.current) {
+        try {
+          const { default: html2canvas } = await import("html2canvas");
+          const portraitCanvas = await html2canvas(portraitRef.current, {
+            backgroundColor: null,
+            scale: 4,
+          });
+          const size = 220;
+          context.imageSmoothingEnabled = false;
+          context.drawImage(portraitCanvas, 860 - size / 2, 250 - size / 2, size, size);
+        } catch {
+          // 초상 캡처가 실패해도 카드 공유 자체는 계속 진행한다.
+        }
+      }
+
       context.fillStyle = "#E85D2C";
       context.fillRect(86, 88, 72, 12);
       context.fillStyle = "rgba(255,255,255,.72)";
