@@ -138,6 +138,7 @@ function PixelPortrait({ author }: { author: string }) {
 export default function DailyQuoteWidget() {
   const quote = todaysQuote();
   const [sharing, setSharing] = useState(false);
+  const portraitRef = useRef<HTMLDivElement>(null);
 
   const shareQuote = async () => {
     setSharing(true);
