@@ -1891,9 +1891,6 @@ export default function QuoteBuilder() {
                       <p>
                         본 견적서는 상호 협의 및 선금 입금 시 계약서의 효력을 대신할 수 있습니다. 촬영 범위 변경 시 최종 금액은 조정될 수 있습니다.
                       </p>
-                      <p>
-                        계약 후(구두계약 포함) 방문 업무가 진행된 경우, 전체 촬영비의 10%를 취소 수수료로 공제합니다.
-                      </p>
                       {memo.trim() ? <small>{memo}</small> : null}
                     </div>
                   </div>
