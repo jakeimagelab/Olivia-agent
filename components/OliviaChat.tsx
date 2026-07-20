@@ -444,23 +444,30 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     setUnreadCount(0);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── 텔레그램 메시지 폴링 (열림: 5초, 닫힘: 20초) ───────
+  // ── 다른 기기/텔레그램 메시지 폴링 (열림: 5초, 닫힘: 20초) ───────
+  // 맥스튜디오·노트북·텔레그램 어디서든 하나의 대화로 보이도록 소스 구분 없이 폴링하고,
+  // 이 탭이 방금 보낸 메시지는(deviceId로 식별) 중복 표시되지 않게 제외한다.
   useEffect(() => {
     if (!isAuthenticated) return;
 
     const poll = async () => {
       try {
         const since = encodeURIComponent(lastPollRef.current);
-        const res   = await fetch(`/api/olivia/messages?source=telegram&since=${since}&limit=20`);
+        const res   = await fetch(`/api/olivia/messages?since=${since}&limit=20`);
         const data  = await res.json();
         if (!data.ok || !data.messages?.length) return;
 
-        const newMsgs: Message[] = data.messages.map((m: any) => ({
-          role:    m.role as "user" | "assistant",
-          content: m.content,
-          source:  "telegram" as const,
-        }));
         lastPollRef.current = data.messages[data.messages.length - 1].created_at;
+
+        const newMsgs: Message[] = data.messages
+          .filter((m: any) => m.metadata?.deviceId !== deviceIdRef.current)
+          .map((m: any) => ({
+            role:    m.role as "user" | "assistant",
+            content: m.content,
+            source:  (m.source as "web" | "telegram") ?? "web",
+            workItems: Array.isArray(m.metadata?.workItems) ? m.metadata.workItems.map((item: any) => ({ ...item, summary: item.summary || "저장된 업무 항목", availableActions: item.availableActions || ["view"] })) : undefined,
+          }));
+        if (!newMsgs.length) return;
 
         if (open) {
           setMessages(prev => [...prev, ...newMsgs]);
