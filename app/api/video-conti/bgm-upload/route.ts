@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 
 const BUCKET = "video-conti-bgm";
 
+// Supabase Storage 오브젝트 키는 비-ASCII 문자(한글 등)를 거부하므로 업로드 원본 파일명에서 제거한다.
 const safeKey = (name: string) =>
-  name.trim().replace(/[^a-zA-Z0-9가-힣._-]/g, "_").slice(0, 100);
+  name.trim().replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
 
 const ensureBucket = async () => {
   const sb = getSupabaseAdmin();
