@@ -11,6 +11,7 @@ import {
   House,
   Link2,
   Mail,
+  Megaphone,
   NotebookPen,
   Settings,
   UsersRound,
