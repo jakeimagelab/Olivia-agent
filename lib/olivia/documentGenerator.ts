@@ -107,7 +107,8 @@ export async function generateFreeformPdf(input: { title: string; content: strin
 
   const buffer = Buffer.from(pdf.output("arraybuffer"));
   const fileName = safeFileName(input.fileName || input.title || "document") + ".pdf";
-  const storagePath = `chat-generated/${new Date().toISOString().slice(0, 10)}/${randomUUID()}/${fileName}`;
+  const storageFileName = toAsciiStorageSegment(fileName, "document.pdf");
+  const storagePath = `chat-generated/${new Date().toISOString().slice(0, 10)}/${randomUUID()}/${storageFileName}`;
 
   const db = getSupabaseAdmin();
   const { error: uploadError } = await db.storage.from(BUCKET).upload(storagePath, buffer, {
