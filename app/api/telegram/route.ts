@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
   await tgRequest("sendChatAction", { chat_id: chatId, action: "typing" });
 
   // 이전 대화 히스토리 가져오기
-  const history = await getHistory(chatIdStr);
+  const history = await getHistory();
 
   // 현재 메시지 히스토리에 추가
   const userContent = userText || (imageBase64 ? "[📷 사진 전송됨]" : "");
