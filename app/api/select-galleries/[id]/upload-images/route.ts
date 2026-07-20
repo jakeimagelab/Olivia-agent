@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { toAsciiStorageSegment } from "@/lib/storageKey";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
