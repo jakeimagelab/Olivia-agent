@@ -107,6 +107,7 @@ function ClientsInner() {
   const id = searchParams.get("id");
   const workflowRunId = searchParams.get("workflowRunId");
   if (id) return <DetailView clientId={id} workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
+  if (workflowRunId) return <DetailView clientId="_by-workflow" workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
   return <ListView />;
 }
 
