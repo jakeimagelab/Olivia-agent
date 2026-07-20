@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveClientId } from "@/lib/clientLookup";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { toAsciiStorageSegment } from "@/lib/storageKey";
 import { WORKFLOW_ARTIFACT_TYPES, type WorkflowArtifactType } from "@/lib/workflowArtifacts";
 
 export const dynamic = "force-dynamic";
