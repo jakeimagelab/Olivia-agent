@@ -48,8 +48,9 @@ export async function buildWorkflowContext(
     optionalQuery("contracts", clientName
       ? db.from("contracts").select("*").eq("hospital_name", clientName).order("created_at", { ascending: false }).limit(10)
       : Promise.resolve({ data: [], error: null })),
+    // photo_galleries가 실제로 갤러리가 쌓이는 테이블이다 (구 galleries 테이블은 아무도 쓰지 않아 항상 비어있었음).
     optionalQuery("galleries", clientId
-      ? db.from("galleries").select("*").eq("hospital_id", clientId).order("created_at", { ascending: false }).limit(20)
+      ? db.from("photo_galleries").select("*").eq("client_id", clientId).order("created_at", { ascending: false }).limit(20)
       : Promise.resolve({ data: [], error: null })),
     optionalQuery("revisions", clientId
       ? db.from("client_revision_requests").select("*").eq("client_id", clientId).order("created_at", { ascending: false }).limit(30)
