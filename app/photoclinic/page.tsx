@@ -357,6 +357,30 @@ export default function QuoteBuilder() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!showFullscreenPreview) return;
+
+    const updateFullscreenScale = () => {
+      const pad = 64;
+      const availableWidth = Math.max(0, window.innerWidth - pad * 2);
+      const availableHeight = Math.max(0, window.innerHeight - pad * 2);
+      const nextScale = Math.max(0.2, Math.min(availableWidth / 1123, availableHeight / 794));
+      setFullscreenPreviewScale(Number(nextScale.toFixed(3)));
+    };
+    updateFullscreenScale();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowFullscreenPreview(false);
+    };
+
+    window.addEventListener("resize", updateFullscreenScale);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("resize", updateFullscreenScale);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showFullscreenPreview]);
+
   const getPreviewZoomMax = () => {
     if (typeof window === "undefined") return 1.8;
     return window.matchMedia("(max-width: 768px)").matches ? 1.35 : 1.8;
