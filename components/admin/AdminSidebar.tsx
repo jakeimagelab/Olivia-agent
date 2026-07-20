@@ -59,6 +59,7 @@ const navigation: NavigationSection[] = [
     label: "AI Assistant",
     items: [
       { label: "AI Assistant 홈", href: "/admin/tools", icon: Grid2X2, exact: true, carryContext: true },
+      { label: "마케팅 대시보드", href: "/marketing", icon: Megaphone },
       ...toolItems.map((t) => ({ label: t.title, href: t.href, icon: t.icon, carryContext: true })),
     ],
   },
