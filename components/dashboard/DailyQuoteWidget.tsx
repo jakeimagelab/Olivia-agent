@@ -266,7 +266,7 @@ export default function DailyQuoteWidget() {
       // 헤더 텍스트 오른쪽 빈 공간(원형 장식 안)에 배치해 텍스트와 겹치지 않게 한다.
       const portraitSize = 220;
       const portraitCenterX = Math.min(940, Math.max(860, headerRight + 40 + portraitSize / 2));
-      drawPixelPortrait(context, portraitTraits(quote.author), portraitCenterX, 260, portraitSize / 55);
+      drawPixelPortrait(context, portraitTraits(quote.author), portraitCenterX, 260, portraitSize / 60);
 
       context.fillStyle = "#EB8F22";
       context.font = "700 170px Georgia, serif";
