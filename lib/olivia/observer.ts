@@ -190,5 +190,10 @@ export async function runOliviaObserver(
     if (result.failedRuns) await markOliviaEventFailed(db, eventId, "Observer workflow processing failed");
     else await markOliviaEventProcessed(db, eventId);
   }
+
+  await checkAndReportSystemIssues(db).catch((error) => {
+    console.error("[observer] 자가진단 실행 실패:", error instanceof Error ? error.message : String(error));
+  });
+
   return result;
 }
