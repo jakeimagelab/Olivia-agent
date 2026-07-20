@@ -87,7 +87,11 @@ function sanitizeMetadata(metadata: unknown) {
         } : undefined,
       })).filter((item: any) => item.id && item.kind)
     : [];
-  return workItems.length ? { workItems } : {};
+  const deviceId = typeof (metadata as any).deviceId === "string" ? (metadata as any).deviceId.slice(0, 80) : undefined;
+  return {
+    ...(workItems.length ? { workItems } : {}),
+    ...(deviceId ? { deviceId } : {}),
+  };
 }
 
 // DELETE /api/olivia/messages  — 전체 삭제 (초기화)
