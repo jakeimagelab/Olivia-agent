@@ -517,6 +517,21 @@ const OLIVIA_WORK_TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "generate_dev_request",
+    description: "지금까지 대화에서 파악한 문제(버그, 오작동, 기능 요청)를 Claude Code 같은 개발 도구에 바로 붙여넣을 수 있는 구조화된 개발요청 스펙으로 정리합니다. 최근 시스템 오류 로그가 있으면 근거로 자동 첨부합니다. '이거 개발요청으로 만들어줘', '수정 요청 코드로 정리해줘', '이 문제 개발자한테 전달할 수 있게 해줘' 같은 요청에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "개발요청 제목 (없으면 problemSummary 첫 줄 사용)" },
+        problemSummary: { type: "string", description: "대화에서 파악한 문제의 증상과 원인을 네가 직접 요약한 내용 (필수)" },
+        affectedArea: { type: "string", description: "영향받는 화면/기능/파일 (알고 있으면)" },
+        reproSteps: { type: "array", items: { type: "string" }, description: "재현 방법 단계별 설명" },
+        sinceHours: { type: "number", description: "근거로 첨부할 오류 로그를 몇 시간 전부터 조회할지. 기본값 24" },
+      },
+      required: ["problemSummary"],
+    },
+  },
+  {
     name: "list_commitments",
     description: "미팅에서 추출된 대표 또는 고객 약속과 기한 초과 항목을 조회합니다.",
     input_schema: {
