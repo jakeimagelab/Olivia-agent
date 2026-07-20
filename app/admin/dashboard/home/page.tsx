@@ -136,7 +136,7 @@ export default function AdminDashboardHomePage() {
                   ) : stageRuns.slice(0, 6).map((run) => {
                     const badge = runBadge(run);
                     return (
-                      <Link key={run.id} href={`/clients?id=${run.client_id}`} className="crm-card">
+                      <Link key={run.id} href={`/clients?id=${run.client_id ?? ""}&workflowRunId=${run.id}`} className="crm-card">
                         <div className="crm-card-name">{run.client_name}</div>
                         <div className="crm-card-meta">{run.current_step_name}</div>
                         <span className={`crm-card-status ${badge.cls}`}>{badge.label}</span>
