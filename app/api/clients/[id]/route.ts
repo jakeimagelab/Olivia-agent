@@ -14,8 +14,15 @@ export async function GET(
 ) {
   const supabase = getSupabaseAdmin();
   const { id } = await params;
-
   const requestedRunId = new URL(req.url).searchParams.get("workflowRunId");
+
+  // client_id가 없어서 프론트가 자리표시자("_by-workflow")로 보낸 경우,
+  // 잘못된 UUID로 clients 테이블을 조회하지 않고 곧바로 자가치유 경로로 진입한다.
+  if (id === "_by-workflow") {
+    if (!requestedRunId) return NextResponse.json({ ok: false, error: "workflowRunId가 필요합니다." }, { status: 400 });
+    return healClientLinkAndRespond(supabase, requestedRunId);
+  }
+
   let [clientRes, runsRes, quotesRes, contractsRes, artifactsRes] = await Promise.all([
     supabase.from("clients")
       .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier, quote_amount, quote_vat, quote_total, contract_amount, contract_vat, contract_total, contract_signed_at")
