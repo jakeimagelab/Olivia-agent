@@ -145,3 +145,32 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "고객 삭제 실패" }, { status: 500 });
   }
 }
+
+/**
+ * workflow_runs.client_id가 비어있거나(null) 존재하지 않는 고객을 가리킬 때,
+ * 워크플로우의 client_name으로 기존 고객을 찾아 재연결하거나 없으면 새로 만들어 연결한다.
+ * 성공하면 409로 healedClientId를 내려주고, 프론트는 그 id로 즉시 재조회한다.
+ */
+async function healClientLinkAndRespond(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  requestedRunId: string
+) {
+  const { data: run } = await supabase.from("workflow_runs").select("id, client_name").eq("id", requestedRunId).maybeSingle();
+  const runClientName = String(run?.client_name || "").trim();
+  if (run && runClientName) {
+    const { data: candidates } = await supabase.from("clients").select("id, hospital_name").ilike("hospital_name", `%${runClientName}%`).limit(5);
+    const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+    const matched = (candidates ?? []).find((row) => normalize(row.hospital_name) === normalize(runClientName));
+
+    let healedClientId: string | null = matched?.id ?? null;
+    if (!healedClientId) {
+      const { data: created } = await supabase.from("clients").insert({ hospital_name: runClientName }).select("id").single();
+      healedClientId = created?.id ?? null;
+    }
+    if (healedClientId) {
+      await supabase.from("workflow_runs").update({ client_id: healedClientId }).eq("id", run.id);
+      return NextResponse.json({ ok: false, error: "고객 연결이 어긋나 있어 방금 복구했습니다. 새로고침해주세요.", healedClientId }, { status: 409 });
+    }
+  }
+  return NextResponse.json({ ok: false, error: "고객을 찾을 수 없습니다." }, { status: 404 });
+}
