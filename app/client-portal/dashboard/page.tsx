@@ -238,3 +238,32 @@ function getDocumentUrl(preview: Record<string, unknown> | null | undefined) {
   }
   return "";
 }
+
+function ContiPreviewCard({ item }: { item: any }) {
+  const [open, setOpen] = useState(false);
+  const scenes: any[] = Array.isArray(item.result?.conti) ? item.result.conti : [];
+  return (
+    <div style={{ padding:"10px 0", borderBottom:`1px solid ${BRD}` }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:13, fontWeight:700 }}>{item.title || "촬영 콘티"}</div>
+          <div style={{ fontSize:11, color:MUT, marginTop:2 }}>씬 {scenes.length}개</div>
+        </div>
+        <button onClick={() => setOpen((v) => !v)} style={{ flexShrink:0, fontSize:11, fontWeight:700, color:G, background:`${G}10`, border:"none", borderRadius:8, padding:"7px 12px", cursor:"pointer" }}>
+          {open ? "접기" : "상세보기"}
+        </button>
+      </div>
+      {open && scenes.length > 0 && (
+        <div style={{ marginTop:10, background:`${G}05`, borderRadius:8, padding:"10px 12px", display:"flex", flexDirection:"column", gap:8 }}>
+          {scenes.map((scene, i) => (
+            <div key={i} style={{ fontSize:12, lineHeight:1.6 }}>
+              <strong style={{ color:G }}>{i + 1}. {scene.category || "씬"}</strong>
+              {scene.location && <span style={{ color:MUT }}> · {scene.location}</span>}
+              {scene.description && <div style={{ color:MUT }}>{scene.description}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
