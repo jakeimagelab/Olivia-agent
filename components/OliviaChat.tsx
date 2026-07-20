@@ -6,6 +6,32 @@ import OliviaChatWorkItemCard from "@/components/olivia/OliviaChatWorkItemCard";
 import { compactWorkItemReferences, type OliviaChatWorkItem, type OliviaChatWorkItemAction } from "@/lib/olivia/chatTypes";
 import { isAutoExecutableClientCreate } from "@/lib/olivia/crud/autoExecution";
 
+// ── 코드 블록 (복사 버튼 포함, 개발요청 스펙 등을 그대로 복사해 전달할 때 사용) ──
+function CodeBlock({ code, bg, border, color }: { code: string; bg: string; border: string; color: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+  return (
+    <div style={{ position: "relative", margin: "6px 0" }}>
+      <pre style={{ background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: "10px 12px", paddingTop: 30, overflowX: "auto", margin: 0, fontSize: "11px", lineHeight: 1.6 }}>
+        <code style={{ fontFamily: "monospace", color }}>{code}</code>
+      </pre>
+      <button
+        type="button"
+        onClick={copy}
+        style={{ position: "absolute", top: 6, right: 6, fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: `1px solid ${border}`, background: bg, color, cursor: "pointer" }}
+      >
+        {copied ? "복사됨" : "복사"}
+      </button>
+    </div>
+  );
+}
+
 // ── 마크다운 렌더러 (외부 패키지 없이 직접 구현) ─────────────
 function MarkdownText({ text, isUser }: { text: string; isUser: boolean }) {
   const color = isUser ? "#fff" : "#1C2B28";
