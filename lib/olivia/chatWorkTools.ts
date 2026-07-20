@@ -335,7 +335,7 @@ async function generateDevRequest(db: SupabaseClient, input: any): Promise<Olivi
     `## 문제 설명`,
     problemSummary,
     ...(affectedArea ? [``, `## 영향 범위`, affectedArea] : []),
-    ...(steps.length ? [``, `## 재현 방법`, ...steps.map((s, i) => `${i + 1}. ${s}`)] : []),
+    ...(steps.length ? [``, `## 재현 방법`, ...steps.map((s: string, i: number) => `${i + 1}. ${s}`)] : []),
     ...(evidenceLines.length ? [``, `## 관련 오류 로그 (최근 ${sinceHours}시간)`, ...evidenceLines] : []),
     ``,
     `## 요청`,
