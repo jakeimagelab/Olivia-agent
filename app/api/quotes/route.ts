@@ -91,6 +91,11 @@ export async function POST(req: NextRequest) {
     const { data, error } = await query.select("id, created_at").single();
 
     if (error) throw new Error(error.message);
+    // 재시도로 같은 견적을 덮어쓸 때마다 알림이 쌓이지 않도록 신규 생성일 때만 포털에 기록한다.
+    if (!existing?.id && clientId) {
+      const { logPortalEvent } = await import("@/lib/clientPortal");
+      await logPortalEvent({ clientId, eventType: "quote_ready", targetType: "quotes", targetId: data.id }).catch(() => {});
+    }
     return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at, updated: Boolean(existing?.id) });
   } catch (error) {
     return NextResponse.json({ ok: false, error: quoteErrorMessage(error, "견적 저장 실패") }, { status: 500 });
