@@ -557,5 +557,6 @@ export async function executeOliviaChatWorkTool(
   if (name === "run_observer") return runObserver(db, input);
   if (["list_upcoming_meetings", "link_meeting_client", "prepare_meeting_brief", "analyze_meeting_memo", "complete_meeting", "get_meeting_followups"].includes(name)) return runMeetingTool(db, name, input);
   if (name === "check_recent_errors") return checkRecentErrors(db, input);
+  if (name === "generate_dev_request") return generateDevRequest(db, input);
   throw new Error(`지원하지 않는 Olivia 업무 도구입니다: ${name}`);
 }
