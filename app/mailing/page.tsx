@@ -449,9 +449,25 @@ function HistoryTab() {
               <span style={{ fontSize: 11, color: C.hint, whiteSpace: "nowrap" }}>{fmtDate(log.sent_at)}</span>
             </div>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.txt, marginBottom: 3, lineHeight: 1.3 }}>{log.subject}</div>
-            <div style={{ fontSize: 11, color: C.muted }}>{log.hospital_name} · {log.to_email || "이메일 미입력"}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <div style={{ fontSize: 11, color: C.muted }}>{log.hospital_name} · {log.to_email || "이메일 미입력"}</div>
+              <button
+                onClick={() => resend(log)}
+                disabled={!log.queue_id || resendingId === log.id}
+                title={!log.queue_id ? "원본 메일 데이터가 없어 재발송할 수 없습니다." : undefined}
+                className="pc-btn pc-btn--secondary pc-btn--sm"
+                style={!log.queue_id ? { opacity: .4, cursor: "not-allowed" } : undefined}
+              >
+                {resendingId === log.id ? "발송 중..." : "↻ 다시 보내기"}
+              </button>
+            </div>
             {log.status === "failed" && log.error && (
               <div style={{ fontSize: 11, color: "#DC2626", marginTop: 4 }}>오류: {log.error}</div>
+            )}
+            {resendMsg[log.id] && (
+              <div style={{ fontSize: 11, marginTop: 4, fontWeight: 700, color: resendMsg[log.id].ok ? "#22876A" : "#DC2626" }}>
+                {resendMsg[log.id].text}
+              </div>
             )}
           </div>
         ))}
