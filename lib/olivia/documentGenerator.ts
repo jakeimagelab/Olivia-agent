@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { jsPDF } from "jspdf";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { toAsciiStorageSegment } from "@/lib/storageKey";
 
 const BUCKET = "workflow-artifacts";
 const PAGE_MARGIN = 20;
