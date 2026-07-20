@@ -11,10 +11,11 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: "인증 필요" }, { status: 401 });
 
   const db = getSupabaseAdmin();
+  // photo_galleries가 실제로 갤러리가 쌓이는 테이블이다 (구 galleries 테이블은 아무도 쓰지 않아 항상 비어있었음).
   const { data } = await db
-    .from("galleries")
+    .from("photo_galleries")
     .select("*")
-    .eq("hospital_id", session.clientId)
+    .eq("client_id", session.clientId)
     .order("created_at", { ascending: false });
 
   await logPortalEvent({ clientId: session.clientId, eventType: "gallery_viewed" });
