@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { advanceWorkflow } from "@/lib/workflowAutomation";
 import { getErrorMessage } from "@/lib/errors";
 import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
+import { logPortalEvent } from "@/lib/clientPortal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
