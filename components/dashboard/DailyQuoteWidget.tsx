@@ -146,34 +146,35 @@ function drawPixelPortrait(ctx: CanvasRenderingContext2D, traits: PortraitTraits
   poly(23, 44, 8, 12, [[0, 0], [100, 0], [78, 100], [22, 100]], "#f4efe6");
 
   rect(14, 12, 25, 28, skin);
-  rect(50, 5, 3, 12, "rgba(88,48,34,.08)");
-  rect(4, 8, 7, 2, hair);
-  rect(41, 8, 7, 2, hair);
-  rect(6, 11, 3, 3, "#17242e");
-  rect(43, 11, 3, 3, "#17242e");
-  rect(6, 11, 1, 1, "rgba(255,255,255,.9)");
-  rect(43, 11, 1, 1, "rgba(255,255,255,.9)");
-  rect(3, 17, 4, 3, "rgba(186,82,69,.18)");
-  rect(45, 17, 4, 3, "rgba(186,82,69,.18)");
+  // 아래는 전부 face(left:14,top:12) 내부 자식 요소라 face 기준 좌표에 face의 오프셋을 더한다.
+  rect(35, 17, 3, 12, "rgba(88,48,34,.08)");
+  rect(18, 20, 7, 2, hair);
+  rect(28, 20, 7, 2, hair);
+  rect(20, 23, 3, 3, "#17242e");
+  rect(30, 23, 3, 3, "#17242e");
+  rect(20, 23, 1, 1, "rgba(255,255,255,.9)");
+  rect(30, 23, 1, 1, "rgba(255,255,255,.9)");
+  rect(17, 29, 4, 3, "rgba(186,82,69,.18)");
+  rect(32, 29, 4, 3, "rgba(186,82,69,.18)");
   if (glasses) {
     ctx.strokeStyle = "#273638";
     ctx.lineWidth = Math.max(1, 2 * scale);
-    ctx.strokeRect(px(2), py(8), 21 * scale, 8 * scale);
-    rect(2 + 21 * 0.43, 8, 21 * 0.14, 8, "#273638");
+    ctx.strokeRect(px(16), py(20), 21 * scale, 8 * scale);
+    rect(16 + 21 * 0.43, 20, 21 * 0.14, 8, "#273638");
   }
   ctx.strokeStyle = "rgba(80,42,30,.28)";
   ctx.lineWidth = Math.max(1, 2 * scale);
   ctx.beginPath();
-  ctx.moveTo(px(11), py(14));
-  ctx.lineTo(px(11), py(20));
-  ctx.lineTo(px(15), py(20));
+  ctx.moveTo(px(25), py(26));
+  ctx.lineTo(px(25), py(32));
+  ctx.lineTo(px(29), py(32));
   ctx.stroke();
-  rect(9, 23, 8, 2, "#9b554e");
-  if (beard) rect(4, 21, 18, 10, hair, 0.78);
-  if (moustache) poly(7, 20, 12, 4, [[0, 20], [45, 0], [50, 55], [55, 0], [100, 20], [80, 100], [50, 65], [20, 100]], hair);
+  rect(23, 35, 8, 2, "#9b554e");
+  if (beard) rect(18, 33, 18, 10, hair, 0.78);
+  if (moustache) poly(21, 32, 12, 4, [[0, 20], [45, 0], [50, 55], [55, 0], [100, 20], [80, 100], [50, 65], [20, 100]], hair);
 
-  poly(12, 44, 12, 14, [[0, 0], [100, 20], [62, 100], [20, 68]], lapelColor);
-  poly(28, 44, 12, 14, [[100, 0], [0, 20], [38, 100], [80, 68]], lapelColor);
+  poly(12, 42, 12, 14, [[0, 0], [100, 20], [62, 100], [20, 68]], lapelColor);
+  poly(28, 42, 12, 14, [[100, 0], [0, 20], [38, 100], [80, 68]], lapelColor);
 
   if (hairStyle === "bald") {
     rect(15, 9, 23, 7, hair, 0.28);
