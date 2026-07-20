@@ -54,9 +54,7 @@ function MarkdownText({ text, isUser }: { text: string; isUser: boolean }) {
       i++;
       while (i < lines.length && !lines[i].startsWith("```")) { codeLines.push(lines[i]); i++; }
       result.push(
-        <pre key={i} style={{ background: codeBg, border: `1px solid ${borderColor}`, borderRadius: 8, padding: "10px 12px", overflowX: "auto", margin: "6px 0", fontSize: "11px", lineHeight: 1.6 }}>
-          <code style={{ fontFamily: "monospace", color }}>{codeLines.join("\n")}</code>
-        </pre>
+        <CodeBlock key={i} code={codeLines.join("\n")} bg={codeBg} border={borderColor} color={color} />
       );
       i++; continue;
     }
