@@ -1,7 +1,7 @@
 "use client";
 
 import { Quote, Share2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { CSSProperties } from "react";
 
 /* 대시보드 홈에 쓰던 "오늘의 명언" 위젯 — 예전 app/page.tsx의 Dashboard에 있던 걸
