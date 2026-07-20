@@ -615,11 +615,17 @@ function ToolGrid() {
         {TOOLS_WORK.map(t=><ToolCard key={t.href} tool={t}/>)}
       </div>
       <div style={{
-        fontSize:13,fontWeight:700,color:"#3a5c58",
-        letterSpacing:"-.1px",paddingBottom:14,
-        display:"flex",alignItems:"center",gap:6,
+        display:"flex",alignItems:"center",justifyContent:"space-between",
+        paddingBottom:14,
       }}>
-        <span style={{fontSize:16}}>📢</span> 홍보 & 분석
+        <div style={{
+          fontSize:13,fontWeight:700,color:"#3a5c58",
+          letterSpacing:"-.1px",
+          display:"flex",alignItems:"center",gap:6,
+        }}>
+          <span style={{fontSize:16}}>📢</span> 홍보 & 분석
+        </div>
+        <Link href="/marketing" style={{fontSize:11,fontWeight:700,color:"#e85d2c",textDecoration:"none"}}>마케팅 대시보드로 보기 →</Link>
       </div>
       <div className="admin-menu-grid">
         {TOOLS_CONTENT.map(t=><ToolCard key={t.href} tool={t}/>)}
