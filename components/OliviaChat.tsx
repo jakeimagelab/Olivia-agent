@@ -357,6 +357,15 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     "내일 미팅 준비해줘",
   ];
 
+  // 이 브라우저 탭을 식별하는 ID — 다른 기기(맥스튜디오/노트북)의 폴링과 내가 방금
+  // 보낸 메시지를 구분해, 내가 보낸 메시지가 폴링으로 다시 돌아와 중복 표시되지 않게 한다.
+  const deviceIdRef = useRef<string>("");
+  if (!deviceIdRef.current) {
+    deviceIdRef.current = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
   // ── DB 저장 헬퍼 (fire-and-forget) ─────────────────────
   const saveToDb = (msgs: Array<{ role: "user" | "assistant"; content: string; workItems?: OliviaChatWorkItem[] }>) => {
     if (!msgs.length) return;
@@ -367,7 +376,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         role: m.role,
         content: m.content,
         source: "web",
-        metadata: m.workItems?.length ? { workItems: compactWorkItemReferences(m.workItems) } : {},
+        metadata: { ...(m.workItems?.length ? { workItems: compactWorkItemReferences(m.workItems) } : {}), deviceId: deviceIdRef.current },
       })) }),
     }).catch(() => {});
   };
