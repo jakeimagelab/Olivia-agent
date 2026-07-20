@@ -96,6 +96,96 @@ function portraitTraits(author: string): PortraitTraits {
   };
 }
 
+function mixHex(hex: string, withHex: string, ratio: number) {
+  const a = parseInt(hex.slice(1), 16);
+  const b = parseInt(withHex.slice(1), 16);
+  const r = Math.round(((a >> 16) & 255) * ratio + ((b >> 16) & 255) * (1 - ratio));
+  const g = Math.round(((a >> 8) & 255) * ratio + ((b >> 8) & 255) * (1 - ratio));
+  const bl = Math.round((a & 255) * ratio + (b & 255) * (1 - ratio));
+  return `rgb(${r},${g},${bl})`;
+}
+
+// PixelPortrait와 동일한 픽셀아트 인물을 <canvas> 위에 직접 그린다 (공유 카드 이미지용).
+// html2canvas로 위젯 DOM을 그대로 캡처하는 방식은 전체 페이지를 먼저 복제해서 파싱하다가
+// 대시보드처럼 복잡한 페이지에서 무한정 멈추는 문제가 있어, 좌표 기반으로 직접 그린다.
+function drawPixelPortrait(ctx: CanvasRenderingContext2D, traits: PortraitTraits, centerX: number, centerY: number, scale: number) {
+  const ox = centerX - (26 * scale);
+  const oy = centerY - (27.5 * scale);
+  const px = (v: number) => ox + v * scale;
+  const py = (v: number) => oy + v * scale;
+
+  const rect = (x: number, y: number, w: number, h: number, color: string, alpha = 1) => {
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.fillRect(px(x), py(y), w * scale, h * scale);
+    ctx.globalAlpha = 1;
+  };
+
+  // pts: [xPercent, yPercent][] relative to the part's own box (x,y,w,h in local units)
+  const poly = (x: number, y: number, w: number, h: number, pts: [number, number][], color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    pts.forEach(([pxPct, pyPct], i) => {
+      const localX = x + (pxPct / 100) * w;
+      const localY = y + (pyPct / 100) * h;
+      if (i === 0) ctx.moveTo(px(localX), py(localY));
+      else ctx.lineTo(px(localX), py(localY));
+    });
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  const { skin, hair, jacket, hairStyle, glasses, moustache, beard } = traits;
+  const lapelColor = mixHex(jacket, "#ffffff", 0.7);
+
+  // body → ears → neck → shirt → face(+features) → lapels → hair  (CSS z-index 순서를 따름)
+  rect(7, 42, 40, 18, jacket);
+  rect(11, 22, 5, 9, skin);
+  rect(36, 22, 5, 9, skin);
+  rect(21, 37, 12, 8, skin);
+  poly(23, 44, 8, 12, [[0, 0], [100, 0], [78, 100], [22, 100]], "#f4efe6");
+
+  rect(14, 12, 25, 28, skin);
+  rect(50, 5, 3, 12, "rgba(88,48,34,.08)");
+  rect(4, 8, 7, 2, hair);
+  rect(41, 8, 7, 2, hair);
+  rect(6, 11, 3, 3, "#17242e");
+  rect(43, 11, 3, 3, "#17242e");
+  rect(6, 11, 1, 1, "rgba(255,255,255,.9)");
+  rect(43, 11, 1, 1, "rgba(255,255,255,.9)");
+  rect(3, 17, 4, 3, "rgba(186,82,69,.18)");
+  rect(45, 17, 4, 3, "rgba(186,82,69,.18)");
+  if (glasses) {
+    ctx.strokeStyle = "#273638";
+    ctx.lineWidth = Math.max(1, 2 * scale);
+    ctx.strokeRect(px(2), py(8), 21 * scale, 8 * scale);
+    rect(2 + 21 * 0.43, 8, 21 * 0.14, 8, "#273638");
+  }
+  ctx.strokeStyle = "rgba(80,42,30,.28)";
+  ctx.lineWidth = Math.max(1, 2 * scale);
+  ctx.beginPath();
+  ctx.moveTo(px(11), py(14));
+  ctx.lineTo(px(11), py(20));
+  ctx.lineTo(px(15), py(20));
+  ctx.stroke();
+  rect(9, 23, 8, 2, "#9b554e");
+  if (beard) rect(4, 21, 18, 10, hair, 0.78);
+  if (moustache) poly(7, 20, 12, 4, [[0, 20], [45, 0], [50, 55], [55, 0], [100, 20], [80, 100], [50, 65], [20, 100]], hair);
+
+  poly(12, 44, 12, 14, [[0, 0], [100, 20], [62, 100], [20, 68]], lapelColor);
+  poly(28, 44, 12, 14, [[100, 0], [0, 20], [38, 100], [80, 68]], lapelColor);
+
+  if (hairStyle === "bald") {
+    rect(15, 9, 23, 7, hair, 0.28);
+  } else if (hairStyle === "long") {
+    poly(9, 6, 35, 35, [[4, 0], [96, 0], [100, 100], [82, 86], [78, 38], [18, 38], [18, 88], [0, 100]], hair);
+  } else if (hairStyle === "wave" || hairStyle === "white") {
+    poly(11, 6, 31, 18, [[0, 24], [12, 0], [28, 22], [43, 0], [58, 24], [73, 0], [88, 25], [100, 8], [100, 75], [84, 58], [72, 90], [54, 65], [38, 90], [22, 62], [0, 82]], hair);
+  } else {
+    poly(11, 6, 31, 16, [[0, 0], [100, 0], [100, 72], [84, 58], [75, 87], [60, 66], [46, 92], [30, 66], [14, 83], [0, 64]], hair);
+  }
+}
+
 function PixelPortrait({ author }: { author: string }) {
   const traits = portraitTraits(author);
   return (
