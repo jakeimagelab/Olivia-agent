@@ -264,21 +264,9 @@ export default function DailyQuoteWidget() {
 
       // 위젯에 보이는 픽셀아트 인물 초상을 공유 카드에도 그대로 그려 넣는다.
       // 헤더 텍스트 오른쪽 빈 공간(원형 장식 안)에 배치해 텍스트와 겹치지 않게 한다.
-      if (portraitRef.current) {
-        try {
-          const { default: html2canvas } = await import("html2canvas");
-          const portraitCanvas = await html2canvas(portraitRef.current, {
-            backgroundColor: null,
-            scale: 4,
-          });
-          const size = 220;
-          const centerX = Math.min(940, Math.max(860, headerRight + 40 + size / 2));
-          context.imageSmoothingEnabled = false;
-          context.drawImage(portraitCanvas, centerX - size / 2, 260 - size / 2, size, size);
-        } catch {
-          // 초상 캡처가 실패해도 카드 공유 자체는 계속 진행한다.
-        }
-      }
+      const portraitSize = 220;
+      const portraitCenterX = Math.min(940, Math.max(860, headerRight + 40 + portraitSize / 2));
+      drawPixelPortrait(context, portraitTraits(quote.author), portraitCenterX, 260, portraitSize / 55);
 
       context.fillStyle = "#EB8F22";
       context.font = "700 170px Georgia, serif";
