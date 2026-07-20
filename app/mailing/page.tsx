@@ -366,6 +366,31 @@ function HistoryTab() {
   const [loadError, setLoadError] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterHosp, setFilterHosp]     = useState("");
+  const [resendingId, setResendingId]   = useState("");
+  const [resendMsg, setResendMsg]       = useState<Record<string, { ok: boolean; text: string }>>({});
+
+  const resend = async (log: MailLog) => {
+    if (!log.queue_id || resendingId) return;
+    if (!confirm(`"${log.subject}" 메일을 ${log.to_email || "수신자"}에게 다시 보낼까요?`)) return;
+    setResendingId(log.id);
+    setResendMsg(prev => { const { [log.id]: _omit, ...rest } = prev; return rest; });
+    try {
+      const res  = await fetch("/api/mailing/send", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: log.queue_id }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setResendMsg(prev => ({ ...prev, [log.id]: { ok: true, text: "✓ 재발송 완료" } }));
+        await load();
+      } else {
+        setResendMsg(prev => ({ ...prev, [log.id]: { ok: false, text: `재발송 실패: ${data.error}` } }));
+      }
+    } catch (e: any) {
+      setResendMsg(prev => ({ ...prev, [log.id]: { ok: false, text: e.message || "네트워크 오류" } }));
+    } finally {
+      setResendingId("");
+    }
+  };
 
   const load = async () => {
     setLoading(true); setLoadError("");
