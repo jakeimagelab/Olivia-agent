@@ -55,6 +55,19 @@ export async function GET(req: NextRequest) {
       relatedFeature: step.related_feature,
     }));
 
+  // 견적서/계약서에 PDF 다운로드 버튼을 달기 위해 연결된 workflow_artifacts를 찾아 붙인다.
+  const quotes = quotesRes.data ?? [];
+  const contracts = contractsRes.data ?? [];
+  const { data: artifactRows } = (quotes.length || contracts.length)
+    ? await db.from("workflow_artifacts")
+        .select("id,source_table,source_id")
+        .in("source_table", ["quotes", "contracts"])
+        .in("source_id", [...quotes.map((q) => q.id), ...contracts.map((c) => c.id)])
+        .eq("client_id", clientId)
+        .eq("status", "ready")
+    : { data: [] as any[] };
+  const artifactBySourceId = new Map((artifactRows ?? []).map((row) => [row.source_id, row.id]));
+
   return NextResponse.json({
     ok: true,
     session,
@@ -66,8 +79,8 @@ export async function GET(req: NextRequest) {
     per: perRes.data,
     workflowRun,
     approvedSteps,
-    quotes: quotesRes.data ?? [],
-    contracts: contractsRes.data ?? [],
+    quotes: quotes.map((q) => ({ ...q, artifactId: artifactBySourceId.get(q.id) ?? null })),
+    contracts: contracts.map((c) => ({ ...c, artifactId: artifactBySourceId.get(c.id) ?? null })),
     contiSaves: contiRes.data ?? [],
   });
 }
