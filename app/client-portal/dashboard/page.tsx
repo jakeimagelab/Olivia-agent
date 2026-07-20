@@ -140,6 +140,52 @@ export default function PortalDashboard() {
           </PortalCard>
         )}
 
+        {/* 견적서 */}
+        {quotes.length > 0 && (
+          <PortalCard style={{ marginBottom:16 }}>
+            <div style={{ fontSize:13, fontWeight:800, color:G, marginBottom:12 }}>📄 견적서</div>
+            {quotes.map((q: any) => (
+              <div key={q.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${BRD}`, gap:10 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{q.title || q.quote_number}</div>
+                  <div style={{ fontSize:11, color:MUT, marginTop:2 }}>공급가 {(q.supply_amount ?? 0).toLocaleString()}원 · 부가세 {(q.vat ?? 0).toLocaleString()}원 · 합계 {(q.total_amount ?? 0).toLocaleString()}원</div>
+                </div>
+                {q.artifactId
+                  ? <button onClick={() => downloadArtifact(q.artifactId)} style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#fff", background:G, border:"none", borderRadius:8, padding:"7px 12px", cursor:"pointer" }}>PDF 다운로드</button>
+                  : <span style={{ flexShrink:0, fontSize:11, color:MUT }}>PDF 준비 중</span>}
+              </div>
+            ))}
+          </PortalCard>
+        )}
+
+        {/* 계약서 */}
+        {contracts.length > 0 && (
+          <PortalCard style={{ marginBottom:16 }}>
+            <div style={{ fontSize:13, fontWeight:800, color:G, marginBottom:12 }}>📝 계약서</div>
+            {contracts.map((c: any) => (
+              <div key={c.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${BRD}`, gap:10 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:700 }}>{c.quote_number || "계약서"}</div>
+                  <div style={{ fontSize:11, marginTop:2, fontWeight:700, color: c.signature_data_url ? G : OR }}>
+                    {c.signature_data_url ? "✓ 서명 완료" : "서명 대기 — 담당 매니저에게 문의해주세요"}
+                  </div>
+                </div>
+                {c.artifactId
+                  ? <button onClick={() => downloadArtifact(c.artifactId)} style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#fff", background:G, border:"none", borderRadius:8, padding:"7px 12px", cursor:"pointer" }}>PDF 다운로드</button>
+                  : <span style={{ flexShrink:0, fontSize:11, color:MUT }}>PDF 준비 중</span>}
+              </div>
+            ))}
+          </PortalCard>
+        )}
+
+        {/* 콘티 */}
+        {contiSaves.length > 0 && (
+          <PortalCard style={{ marginBottom:16 }}>
+            <div style={{ fontSize:13, fontWeight:800, color:G, marginBottom:12 }}>🎬 촬영 콘티</div>
+            {contiSaves.map((item: any) => <ContiPreviewCard key={item.id} item={item} />)}
+          </PortalCard>
+        )}
+
         {/* 수정 요청 현황 */}
         {(data?.revisions?.length ?? 0) > 0 && (
           <PortalCard style={{ marginBottom:16 }}>
