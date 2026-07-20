@@ -1697,15 +1697,32 @@ export default function QuoteBuilder() {
               <button type="button" onClick={zoomInPreview} aria-label="미리보기 확대">
                 <ZoomIn size={16} />
               </button>
+              <button type="button" onClick={() => setShowFullscreenPreview(true)} aria-label="전체화면 보기">
+                <Maximize2 size={16} />
+              </button>
             </div>
           </div>
 
-          <div className="preview-shell" ref={previewShellRef}>
+          <div
+            className={`preview-shell${showFullscreenPreview ? " preview-shell--fullscreen" : ""}`}
+            ref={previewShellRef}
+          >
+            {showFullscreenPreview && (
+              <button
+                type="button"
+                className="preview-fullscreen-close"
+                onClick={() => setShowFullscreenPreview(false)}
+                aria-label="전체화면 닫기"
+              >
+                <X size={18} />
+                닫기
+              </button>
+            )}
             <div
               className="quote-preview-viewport"
               style={{
-                width: `${1123 * previewScale}px`,
-                height: `${794 * previewScale}px`
+                width: `${1123 * (showFullscreenPreview ? fullscreenPreviewScale : previewScale)}px`,
+                height: `${794 * (showFullscreenPreview ? fullscreenPreviewScale : previewScale)}px`
               }}
             >
             <div
