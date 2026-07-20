@@ -299,6 +299,53 @@ async function checkRecentErrors(db: SupabaseClient, input: any): Promise<Olivia
   return { action: "done", message: parts.join("\n") + unavailableNote(unavailable) };
 }
 
+// 대화에서 파악한 문제를 Claude Code/Codex 같은 개발 도구에 바로 붙여넣을 수 있는
+// 구조화된 개발요청 스펙으로 정리한다. 최근 시스템 오류 로그가 있으면 근거로 함께 첨부한다.
+async function generateDevRequest(db: SupabaseClient, input: any): Promise<OliviaChatToolResult> {
+  const problemSummary = String(input?.problemSummary || "").trim();
+  if (!problemSummary) throw new Error("어떤 문제인지 요약이 필요합니다.");
+
+  const title = String(input?.title || "").trim() || problemSummary.split("\n")[0].slice(0, 60);
+  const sinceHours = Number.isFinite(Number(input?.sinceHours)) && Number(input?.sinceHours) > 0 ? Number(input.sinceHours) : 24;
+  const sinceIso = new Date(Date.now() - sinceHours * 60 * 60_000).toISOString();
+
+  const [failedLogs, failedTasks] = await Promise.all([
+    safeQuery<any[]>(
+      db.from("agent_logs").select("*").eq("success", false).gte("created_at", sinceIso).order("created_at", { ascending: false }).limit(10),
+      [],
+    ),
+    safeQuery<any[]>(
+      db.from("agent_tasks").select("*").eq("status", "failed").gte("updated_at", sinceIso).order("updated_at", { ascending: false }).limit(10),
+      [],
+    ),
+  ]);
+
+  const evidenceLines = [
+    ...failedLogs.data.map((row) => `- [${row.created_at ? new Date(row.created_at).toLocaleString("ko-KR") : "-"}] ${row.log_type || "log"} · ${row.error_message || row.message || "오류 상세 없음"}`),
+    ...failedTasks.data.map((row) => `- [${row.updated_at ? new Date(row.updated_at).toLocaleString("ko-KR") : "-"}] ${row.title || row.task_type || "작업"} 실패 · ${row.error_message || "오류 상세 없음"}`),
+  ];
+
+  const steps = Array.isArray(input?.reproSteps) ? input.reproSteps.filter(Boolean).map(String) : [];
+  const affectedArea = String(input?.affectedArea || "").trim();
+
+  const specLines = [
+    `# ${title}`,
+    ``,
+    `## 문제 설명`,
+    problemSummary,
+    ...(affectedArea ? [``, `## 영향 범위`, affectedArea] : []),
+    ...(steps.length ? [``, `## 재현 방법`, ...steps.map((s, i) => `${i + 1}. ${s}`)] : []),
+    ...(evidenceLines.length ? [``, `## 관련 오류 로그 (최근 ${sinceHours}시간)`, ...evidenceLines] : []),
+    ``,
+    `## 요청`,
+    `위 문제의 원인을 코드에서 직접 확인하고 수정해줘.`,
+  ];
+
+  const spec = specLines.join("\n");
+  const message = `아래 내용을 복사해서 Claude Code나 다른 개발 도구에 그대로 붙여넣으시면 됩니다.\n\n\`\`\`\n${spec}\n\`\`\``;
+  return { action: "done", message };
+}
+
 async function listPendingApprovals(db: SupabaseClient): Promise<OliviaChatToolResult> {
   const [actions, approvals] = await Promise.all([
     safeQuery<any[]>(db.from("olivia_actions").select("*").eq("status", "waiting_approval").order("created_at", { ascending: true }).limit(20), []),
