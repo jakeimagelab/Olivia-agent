@@ -39,6 +39,14 @@ export async function GET() {
     if (approvalsRes.error) throw approvalsRes.error;
 
     const runs = runsRes.data ?? [];
+    // 고객관리(clients)가 기준 데이터이므로, 홈 화면 카드 이름은 워크플로우 생성 시점에 찍어둔
+    // 스냅샷(client_name)이 아니라 고객관리에서 지금 보이는 최신 이름을 우선한다.
+    const clientIds = Array.from(new Set(runs.map((run) => run.client_id).filter((id): id is string => Boolean(id))));
+    const clientNameById = new Map<string, string>();
+    if (clientIds.length) {
+      const { data: clientRows } = await db.from("clients").select("id, hospital_name").in("id", clientIds);
+      for (const row of clientRows ?? []) clientNameById.set(row.id, row.hospital_name);
+    }
     const tasks = tasksRes.data ?? [];
     const approvals = approvalsRes.data ?? [];
     const todayTasks = tasks.filter((task) => String(task.created_at || "").startsWith(today()) || task.status === "pending");
