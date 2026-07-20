@@ -140,6 +140,7 @@ export async function POST(req: NextRequest) {
     await db.from(sourceTable).update({ client_id: clientId, workflow_run_id: workflowRunId }).eq("id", sourceId);
     return NextResponse.json({ ok: true, artifact });
   } catch (error) {
+    console.error("workflow-artifacts upload failed", error);
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "원본 PDF 업로드 실패" }, { status: 500 });
   }
 }
