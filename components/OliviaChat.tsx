@@ -221,7 +221,7 @@ const AUTO_EXECUTE_TOOLS = new Set([
   "get_workflow_status", "advance_workflow_step",
   "get_gallery", "create_gallery", "list_mailing_queue",
   "memo_add", "manage_olivia_action", "link_meeting_client",
-  "check_recent_errors", "generate_document",
+  "check_recent_errors", "generate_document", "generate_dev_request",
 ]);
 
 const CRUD_FIELD_LABELS: Record<string, string> = {
