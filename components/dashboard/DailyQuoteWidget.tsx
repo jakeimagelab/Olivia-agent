@@ -163,7 +163,17 @@ export default function DailyQuoteWidget() {
       context.arc(100, 1210, 370, 0, Math.PI * 2);
       context.fill();
 
+      context.fillStyle = "#E85D2C";
+      context.fillRect(86, 88, 72, 12);
+      context.fillStyle = "rgba(255,255,255,.72)";
+      context.font = "700 28px 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+      context.letterSpacing = "5px";
+      const headerText = "PHOTOCLINIC · DAILY INSPIRATION";
+      const headerRight = 86 + context.measureText(headerText).width;
+      context.fillText(headerText, 86, 158);
+
       // 위젯에 보이는 픽셀아트 인물 초상을 공유 카드에도 그대로 그려 넣는다.
+      // 헤더 텍스트 오른쪽 빈 공간(원형 장식 안)에 배치해 텍스트와 겹치지 않게 한다.
       if (portraitRef.current) {
         try {
           const { default: html2canvas } = await import("html2canvas");
@@ -172,19 +182,13 @@ export default function DailyQuoteWidget() {
             scale: 4,
           });
           const size = 220;
+          const centerX = Math.min(940, Math.max(860, headerRight + 40 + size / 2));
           context.imageSmoothingEnabled = false;
-          context.drawImage(portraitCanvas, 860 - size / 2, 250 - size / 2, size, size);
+          context.drawImage(portraitCanvas, centerX - size / 2, 260 - size / 2, size, size);
         } catch {
           // 초상 캡처가 실패해도 카드 공유 자체는 계속 진행한다.
         }
       }
-
-      context.fillStyle = "#E85D2C";
-      context.fillRect(86, 88, 72, 12);
-      context.fillStyle = "rgba(255,255,255,.72)";
-      context.font = "700 28px 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
-      context.letterSpacing = "5px";
-      context.fillText("PHOTOCLINIC · DAILY INSPIRATION", 86, 158);
 
       context.fillStyle = "#EB8F22";
       context.font = "700 170px Georgia, serif";
