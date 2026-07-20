@@ -32,5 +32,8 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (clientId) {
+    await logPortalEvent({ clientId, eventType: "contract_ready", targetType: "contracts", targetId: data.id }).catch(() => {});
+  }
   return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at });
 }
