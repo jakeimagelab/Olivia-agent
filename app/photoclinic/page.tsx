@@ -356,7 +356,9 @@ export default function QuoteBuilder() {
       observer.disconnect();
       window.removeEventListener("resize", updateScale);
     };
-  }, []);
+    // 전체화면 전환 시 previewShellRef가 portal로 다른 DOM 위치로 이동하면서
+    // React가 이 서브트리를 새로 마운트할 수 있어, 그때마다 다시 구독해야 한다.
+  }, [showFullscreenPreview]);
 
   useEffect(() => {
     if (!showFullscreenPreview) return;
