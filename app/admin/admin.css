@@ -1192,7 +1192,24 @@
 .pt-editor-main { flex: 1; min-width: 0; }
 
 /* 실행 화면 — 타이머 배지 */
-.pt-timer-badge { justify-self: center; color: #fff; font-size: 26px; font-weight: 900; font-variant-numeric: tabular-nums; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); padding: 8px 26px; border-radius: 999px; letter-spacing: .03em; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+.pt-timer-badge { color: #fff; font-size: 23px; font-weight: 900; font-variant-numeric: tabular-nums; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); padding: 7px 20px; border-radius: 999px; letter-spacing: .03em; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+
+/* 편집 화면 — 텍스트/슬라이드 편집 모드 전환 */
+.pt-editor-mode-toggle { display: inline-flex; gap: 4px; padding: 4px; background: #EEF3F1; border-radius: 10px; margin-bottom: 12px; }
+.pt-editor-mode-toggle button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: none; background: transparent; color: #6a8e8a; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.pt-editor-mode-toggle button.active { background: #fff; color: #155855; box-shadow: 0 1px 4px rgba(21,88,85,.12); }
+
+/* 편집 화면 — 슬라이드(문장) 단위 카드 편집 */
+.pt-slide-list { display: flex; flex-direction: column; gap: 10px; }
+.pt-slide-card { border: 1px solid #E0E8E6; border-radius: 12px; padding: 10px 12px; background: #fff; }
+.pt-slide-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.pt-slide-card-head > span { font-size: 11px; font-weight: 800; color: #9BB5B0; }
+.pt-slide-card-actions { display: flex; gap: 2px; }
+.pt-slide-card-actions button { width: 24px; height: 24px; border: none; background: transparent; color: #6a8e8a; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.pt-slide-card-actions button:hover:not(:disabled) { background: #EEF3F1; color: #155855; }
+.pt-slide-card-actions button:disabled { opacity: .3; cursor: not-allowed; }
+.pt-slide-card textarea { width: 100%; border: none; resize: vertical; font-size: 15px; line-height: 1.6; font-family: 'Noto Sans KR', sans-serif; outline: none; padding: 0; }
+.pt-slide-add { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; border-radius: 12px; border: 1px dashed #B8D4CF; background: #F5FAF9; color: #155855; font-weight: 700; font-size: 13px; cursor: pointer; }
 
 /* 실행 화면 — 정렬 버튼 */
 .pt-align-group { display: flex; gap: 4px; }
