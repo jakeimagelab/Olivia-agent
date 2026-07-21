@@ -12,6 +12,7 @@ import {
   Link2,
   Mail,
   Megaphone,
+  MessageCircle,
   NotebookPen,
   Settings,
   UsersRound,
