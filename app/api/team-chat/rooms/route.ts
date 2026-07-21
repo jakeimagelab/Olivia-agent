@@ -44,7 +44,24 @@ export async function POST(req: NextRequest) {
     .insert({ name, created_by: user.id })
     .select("*")
     .single();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    let jwtSub: string | null = null;
+    let jwtRole: string | null = null;
+    if (token) {
+      try {
+        const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64").toString("utf8"));
+        jwtSub = payload.sub ?? null;
+        jwtRole = payload.role ?? null;
+      } catch {}
+    }
+    return NextResponse.json({
+      ok: false,
+      error: error.message,
+      debug: { userId: user.id, jwtSub, jwtRole, hasSession: Boolean(sessionData.session) },
+    }, { status: 500 });
+  }
 
   const uniqueMemberIds = Array.from(new Set([user.id, ...memberIds]));
   const { error: memberError } = await supabase
