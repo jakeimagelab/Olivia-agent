@@ -7,7 +7,7 @@ import {
   Play, Pause, RotateCcw, FlipHorizontal, FlipVertical, Gauge, Type,
   AlignLeft, AlignCenter, AlignRight,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  Mic, Square,
+  Mic, Square, ChevronLeft, ChevronRight, AlignVerticalSpaceAround,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { FONT_OPTIONS, COLOR_OPTIONS, fmtTime, type HAlign, type VAlign } from "@/lib/prompter/constants";
@@ -18,6 +18,8 @@ function pickSupportedAudioMimeType(): string | undefined {
   const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
   return candidates.find((t) => MediaRecorder.isTypeSupported?.(t));
 }
+
+const orangeRange = { accentColor: "#e85d2c", width: "100%" } as const;
 
 export default function PrompterRemotePage() {
   const params = useParams();
@@ -34,6 +36,10 @@ export default function PrompterRemotePage() {
   const [fontColor, setFontColor] = useState("#FFFFFF");
   const [fontFamily, setFontFamily] = useState(FONT_OPTIONS[0].value);
   const [fontSize, setFontSize] = useState(48);
+  const [paragraphSpacing, setParagraphSpacing] = useState(28);
+  const [editorMode, setEditorMode] = useState<"text" | "slides">("text");
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [totalSlides, setTotalSlides] = useState(0);
 
   // 화면이 꺼지지 않게 — 촬영 중 리모컨을 보다가 폰이 잠들어 조작이 끊기는 걸 막는다.
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
@@ -74,6 +80,10 @@ export default function PrompterRemotePage() {
       if (payload.fontColor) setFontColor(payload.fontColor);
       if (payload.fontFamily) setFontFamily(payload.fontFamily);
       if (payload.fontSize) setFontSize(payload.fontSize);
+      if (payload.paragraphSpacing != null) setParagraphSpacing(payload.paragraphSpacing);
+      if (payload.editorMode) setEditorMode(payload.editorMode);
+      if (payload.slideIndex != null) setSlideIndex(payload.slideIndex);
+      if (payload.totalSlides != null) setTotalSlides(payload.totalSlides);
     });
     channel.subscribe();
     channelRef.current = channel;
@@ -117,6 +127,8 @@ export default function PrompterRemotePage() {
   }, []);
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
 
+  const isSlideMode = editorMode === "slides";
+
   return (
     <main style={{ minHeight: "100dvh", background: "#0d1f1e", color: "#fff", padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ textAlign: "center" }}>
@@ -124,14 +136,26 @@ export default function PrompterRemotePage() {
           {connected ? "● 연결됨" : "○ 프롬프터 연결 대기 중…"}
         </p>
         <p style={{ fontSize: 40, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{fmtTime(elapsed)}</p>
+        {isSlideMode && <p style={{ fontSize: 13, color: "#9BB5B0", fontWeight: 700, marginTop: 2 }}>{totalSlides ? slideIndex + 1 : 0} / {totalSlides}</p>}
       </div>
 
-      <button
-        onClick={() => send("toggle")}
-        style={{ padding: "24px 0", borderRadius: 20, background: playing ? "#e85d2c" : "#155855", border: "none", color: "#fff", fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
-      >
-        {playing ? <><Pause size={24} /> 일시정지</> : <><Play size={24} /> 재생</>}
-      </button>
+      {isSlideMode ? (
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => send("prevSlide")} style={{ flex: 1, padding: "24px 0", borderRadius: 20, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 16, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <ChevronLeft size={22} /> 이전
+          </button>
+          <button onClick={() => send("nextSlide")} style={{ flex: 1, padding: "24px 0", borderRadius: 20, background: "#155855", border: "none", color: "#fff", fontSize: 16, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            다음 <ChevronRight size={22} />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => send("toggle")}
+          style={{ padding: "24px 0", borderRadius: 20, background: playing ? "#e85d2c" : "#155855", border: "none", color: "#fff", fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
+        >
+          {playing ? <><Pause size={24} /> 일시정지</> : <><Play size={24} /> 재생</>}
+        </button>
+      )}
 
       <button onClick={() => send("restart")} style={{ padding: 14, borderRadius: 16, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
         <RotateCcw size={18} /> 처음으로
@@ -146,16 +170,30 @@ export default function PrompterRemotePage() {
         </button>
       </div>
 
-      <div>
-        <label style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-          <Gauge size={16} /> 속도 ({speed})
-        </label>
-        <input
-          type="range" min={5} max={200} value={speed}
-          onChange={(e) => { const v = Number(e.target.value); setSpeed(v); send("speed", v); }}
-          style={{ width: "100%" }}
-        />
-      </div>
+      {!isSlideMode && (
+        <>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <Gauge size={16} /> 속도 ({speed})
+            </label>
+            <input
+              type="range" min={5} max={200} value={speed}
+              onChange={(e) => { const v = Number(e.target.value); setSpeed(v); send("speed", v); }}
+              style={orangeRange}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <AlignVerticalSpaceAround size={16} /> 문단 간격 ({paragraphSpacing})
+            </label>
+            <input
+              type="range" min={0} max={120} value={paragraphSpacing}
+              onChange={(e) => { const v = Number(e.target.value); setParagraphSpacing(v); send("paragraphSpacing", v); }}
+              style={orangeRange}
+            />
+          </div>
+        </>
+      )}
 
       <div>
         <label style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -164,7 +202,7 @@ export default function PrompterRemotePage() {
         <input
           type="range" min={20} max={120} value={fontSize}
           onChange={(e) => { const v = Number(e.target.value); setFontSize(v); send("fontSize", v); }}
-          style={{ width: "100%" }}
+          style={orangeRange}
         />
       </div>
 
