@@ -178,7 +178,13 @@ export default function TeamChatShell() {
     return <ShellState message="세션을 확인할 수 없습니다." />;
   }
 
-  // 관리자 세션은 있지만 아직 팀 채팅 멤버로 가입 전 — 초대/Drive 연결 패널만 보여준다.
+  // 관리자는 자동으로 채팅 계정을 준비하는 중 — 별도 화면 없이 짧게 로딩만 보여준다.
+  if (!session.member && session.isAdmin && !adminJoinError) {
+    return <ShellState message="채팅 준비 중..." />;
+  }
+
+  // 관리자 자동 가입이 실패했거나(드묾), 팀원 초대 링크로 들어왔는데 아직 chat_members 행이
+  // 없는 예외적인 경우 — 수동으로 초대 링크를 만들어 다시 시도할 수 있게 안내한다.
   if (!session.member) {
     return (
       <main style={{ minHeight: "100vh", background: "var(--mesh-bg)", padding: "60px 20px" }}>
@@ -188,12 +194,15 @@ export default function TeamChatShell() {
           </div>
           <h1 style={{ fontSize: 18, fontWeight: 900, color: C.ink, margin: "0 0 8px" }}>팀 채팅</h1>
           <p style={{ fontSize: 13, color: C.muted, margin: "0 0 24px", lineHeight: 1.6 }}>
-            관리자님도 채팅에 참여하려면 먼저 팀원으로 가입해야 합니다.<br />
-            아래에서 본인 이메일로 초대 링크를 만들어 가입해주세요.
+            {adminJoinError
+              ? `관리자 계정 준비에 실패했습니다: ${adminJoinError}`
+              : <>아직 채팅 멤버가 아닙니다.<br />초대 링크를 받아 가입해주세요.</>}
           </p>
-          <div style={{ textAlign: "left" }}>
-            <InviteMemberPanel />
-          </div>
+          {session.isAdmin && (
+            <div style={{ textAlign: "left" }}>
+              <InviteMemberPanel />
+            </div>
+          )}
           <Link href="/admin/team-chat-settings" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: C.muted, textDecoration: "none", marginTop: 20 }}>
             <Settings size={14} /> Drive 저장소 연결하기
           </Link>
