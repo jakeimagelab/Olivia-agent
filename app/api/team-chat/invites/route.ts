@@ -23,7 +23,9 @@ export async function POST(req: NextRequest) {
   const { error } = await db.from("team_invites").insert({ token, email });
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  const base = process.env.NEXTAUTH_URL || "https://olivia.photoclinic.kr";
+  // NEXTAUTH_URL 환경변수가 (설정 오류 등으로) *.vercel.app 같은 다른 값을 가리킬 수 있어
+  // 요청이 실제로 들어온 호스트를 그대로 써서 관리자가 접속한 도메인과 항상 일치시킨다.
+  const base = req.nextUrl.origin;
   const url = `${base}/team-chat/invite/${token}`;
   return NextResponse.json({ ok: true, token, url });
 }
