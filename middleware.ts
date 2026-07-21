@@ -210,6 +210,7 @@ export const config = {
     "/api/:path*",
     "/admin", "/admin/:path*",
     "/",
+    "/team-chat", "/team-chat/:path*",
     "/memo", "/memo/:path*",
     "/calendar", "/calendar/:path*",
     "/quote", "/quote/:path*",
