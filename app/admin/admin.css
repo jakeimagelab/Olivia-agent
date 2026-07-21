@@ -1225,6 +1225,28 @@
 .pt-slide-card textarea { width: 100%; border: none; resize: vertical; font-size: 15px; line-height: 1.6; font-family: 'Noto Sans KR', sans-serif; outline: none; padding: 0; }
 .pt-slide-add { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; border-radius: 12px; border: 1px dashed #B8D4CF; background: #F5FAF9; color: #155855; font-weight: 700; font-size: 13px; cursor: pointer; }
 
+/* 편집 화면 — 다중 화자 토글 / 화자 칩 관리 */
+.pt-speaker-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.pt-speaker-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; border: 1px solid #E0E8E6; background: #fff; color: #6a8e8a; font-size: 12px; font-weight: 700; cursor: pointer; }
+.pt-speaker-toggle.active { background: #155855; border-color: #155855; color: #fff; }
+.pt-speaker-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pt-speaker-chip { display: inline-flex; align-items: center; border: 1.5px solid; border-radius: 999px; overflow: hidden; }
+.pt-speaker-chip button:first-child { padding: 5px 4px 5px 10px; background: transparent; border: none; font-size: 11.5px; font-weight: 800; cursor: pointer; color: inherit; }
+.pt-speaker-chip button:last-child { padding: 5px 8px 5px 2px; background: transparent; border: none; cursor: pointer; color: inherit; opacity: .6; display: flex; align-items: center; }
+.pt-speaker-chip button:last-child:hover { opacity: 1; }
+.pt-speaker-add { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 999px; border: 1px dashed #B8D4CF; background: #F5FAF9; color: #155855; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+
+/* 편집 화면 — 다중 화자 문단 카드 (왼쪽 작게: 화자선택/이동/삭제, 오른쪽 크게: 텍스트) */
+.pt-para-list { display: flex; flex-direction: column; gap: 10px; }
+.pt-para-card { display: flex; gap: 10px; border: 1px solid #E0E8E6; border-radius: 12px; padding: 10px; background: #fff; }
+.pt-para-card-speaker { flex: 0 0 104px; display: flex; flex-direction: column; gap: 6px; }
+.pt-para-card-speaker select { width: 100%; padding: 6px 8px; border-radius: 8px; border: 1px solid #E0E8E6; font-size: 11.5px; font-weight: 700; background: #fafcfb; }
+.pt-para-card-actions { display: flex; gap: 2px; justify-content: center; }
+.pt-para-card-actions button { width: 22px; height: 22px; border: none; background: transparent; color: #6a8e8a; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.pt-para-card-actions button:hover:not(:disabled) { background: #EEF3F1; color: #155855; }
+.pt-para-card-actions button:disabled { opacity: .3; cursor: not-allowed; }
+.pt-para-card textarea { flex: 1; min-width: 0; border: 1px solid #E0E8E6; border-radius: 8px; resize: vertical; font-size: 15px; line-height: 1.6; font-family: 'Noto Sans KR', sans-serif; outline: none; padding: 8px 10px; }
+
 /* 실행 화면 — 정렬 버튼 */
 .pt-align-group { display: flex; gap: 4px; }
 .pt-align-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 7px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); color: #fff; cursor: pointer; }
