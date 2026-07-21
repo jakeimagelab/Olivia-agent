@@ -120,28 +120,46 @@ export default function PrompterPage() {
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   // 전체화면 (태블릿에서 흰색 브라우저 주소창이 거슬리지 않도록) —
-  // 스와이프 등으로 브라우저가 임의로 전체화면을 빠져나가도, "전체화면 종료" 버튼을 누른 게
-  // 아니라면 곧바로 다시 전체화면으로 되돌린다 (버튼으로만 종료 가능하게).
+  // 화면을 손으로 터치해서 스크롤을 움직이다가 시스템 제스처로 전체화면이 풀려도,
+  // "전체화면 종료" 버튼을 누른 게 아니라면 곧바로(또는 다음 터치 시) 다시 전체화면으로 되돌린다.
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [intentionallyOutOfFullscreen, setIntentionallyOutOfFullscreen] = useState(false);
   const promptRootRef = useRef<HTMLDivElement>(null);
   const intentionalExitRef = useRef(false);
   useEffect(() => {
     const onChange = () => {
       const fs = Boolean(document.fullscreenElement);
       setIsFullscreen(fs);
-      if (!fs && !intentionalExitRef.current && promptRootRef.current) {
-        promptRootRef.current.requestFullscreen().catch(() => {});
+      if (fs) {
+        setIntentionallyOutOfFullscreen(false);
+      } else if (intentionalExitRef.current) {
+        setIntentionallyOutOfFullscreen(true);
+      } else {
+        // 버튼이 아닌 다른 이유로 풀렸다 — 바로 재시도 (브라우저 정책으로 실패하면
+        // 아래 다음-터치 폴백이 이어서 재시도한다).
+        promptRootRef.current?.requestFullscreen().catch(() => {});
       }
       intentionalExitRef.current = false;
     };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+  // 위 즉시 재요청이 "사용자 제스처 유지시간" 정책으로 조용히 실패할 수 있어,
+  // 버튼으로 나간 게 아닌데 여전히 전체화면이 아니면 다음 터치 때 한 번 더 시도한다.
+  useEffect(() => {
+    if (mode !== "prompt" || isFullscreen || intentionallyOutOfFullscreen) return;
+    const root = promptRootRef.current;
+    if (!root) return;
+    const retry = () => { root.requestFullscreen().catch(() => {}); };
+    root.addEventListener("pointerdown", retry, { once: true });
+    return () => root.removeEventListener("pointerdown", retry);
+  }, [mode, isFullscreen, intentionallyOutOfFullscreen]);
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       intentionalExitRef.current = true;
       document.exitFullscreen().catch(() => { intentionalExitRef.current = false; });
     } else {
+      setIntentionallyOutOfFullscreen(false);
       promptRootRef.current?.requestFullscreen().catch(() => {});
     }
   };
