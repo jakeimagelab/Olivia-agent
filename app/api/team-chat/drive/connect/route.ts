@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const baseUrl = process.env.NEXTAUTH_URL || "https://olivia.photoclinic.kr";
+  // NEXTAUTH_URL이 실제 접속 도메인과 다를 수 있어(예: *.vercel.app) 요청이 들어온 호스트를 그대로 쓴다.
+  const baseUrl = req.nextUrl.origin;
   if (!clientId) return NextResponse.json({ error: "GOOGLE_CLIENT_ID 미설정" }, { status: 500 });
 
   const params = new URLSearchParams({
