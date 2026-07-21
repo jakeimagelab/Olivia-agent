@@ -491,14 +491,23 @@ export default function PrompterPage() {
           </div>
           <div className="pt-edit-layout">
             <aside className="pt-navigator">
-              <button onClick={newScene} className="pt-navigator-new"><Plus size={14} /> 새 씬</button>
+              <button onClick={newScene} className="pt-navigator-new"><Plus size={14} /> 새로운 Scene</button>
               {scenesLoading ? (
                 <p style={{ color: "#9BB5B0", fontSize: 12, padding: "0 4px" }}>불러오는 중…</p>
               ) : scenes.length === 0 ? (
                 <p style={{ color: "#9BB5B0", fontSize: 12, padding: "0 4px" }}>아직 씬이 없어요.</p>
               ) : (
-                scenes.map((s) => (
-                  <div key={s.id} className={`pt-nav-item${s.id === sceneId ? " active" : ""}`}>
+                scenes.map((s, i) => (
+                  <div
+                    key={s.id}
+                    className={`pt-nav-item${s.id === sceneId ? " active" : ""}${dragIndex === i ? " dragging" : ""}`}
+                    draggable
+                    onDragStart={() => setDragIndex(i)}
+                    onDragOver={(e) => handleDragOver(e, i)}
+                    onDrop={(e) => e.preventDefault()}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <span className="pt-nav-item-handle" title="드래그로 순서 변경"><GripVertical size={14} /></span>
                     <button className="pt-nav-item-main" onClick={() => openScene(s)}>
                       <strong>{s.title}</strong>
                       <span>{fmtDate(s.updated_at)}</span>
