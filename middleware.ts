@@ -145,6 +145,12 @@ export async function middleware(req: NextRequest) {
   const isAdminSession = req.cookies.get("pc_admin_session")?.value === "active";
   const shareToken = req.cookies.get("pc_share_token")?.value;
 
+  // ── 팀 채팅 데이터 API — pc_admin_session이 아니라 팀원 개인 Supabase 세션이 있어야 한다 ──
+  if (pathname.startsWith("/api/team-chat/rooms") || pathname.startsWith("/api/team-chat/members")) {
+    if (await hasValidTeamChatMemberSession(req)) return NextResponse.next();
+    return NextResponse.json({ ok: false, error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
   // ── API 보호 ──
   const shouldProtectApi = protectedApiPrefixes.some((prefix) => pathname.startsWith(prefix));
   if (shouldProtectApi) {
