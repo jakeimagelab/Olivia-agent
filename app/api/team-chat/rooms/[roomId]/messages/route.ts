@@ -61,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
   const { data: room } = await supabase.from("chat_rooms").select("olivia_enabled").eq("id", roomId).maybeSingle();
   const mentionsOlivia = /@\s*올리비아|@\s*olivia/i.test(text);
   if (room?.olivia_enabled || mentionsOlivia) {
-    after(() => generateOliviaReply(roomId).catch((err) => console.error("[team-chat] 올리비아 응답 실패:", err)));
+    after(() => generateOliviaReply(roomId).catch((err: unknown) => console.error("[team-chat] 올리비아 응답 실패:", err)));
   }
 
   return NextResponse.json({ ok: true, message });
