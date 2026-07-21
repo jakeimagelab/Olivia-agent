@@ -1167,8 +1167,8 @@
 
 /* 프로젝트 목록 화면 — 새 프로젝트 / 최근 프로젝트 (다른 페이지의 admin-menu-card를 그대로 재사용) */
 .pt-projects-page { max-width: 1100px; }
-.pt-new-project-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 22px; border-radius: 16px; border: 2px dashed #B8D4CF; background: #F5FAF9; color: #155855; font-size: 16px; font-weight: 800; cursor: pointer; transition: background .15s, border-color .15s; }
-.pt-new-project-btn:hover { background: #EAF4F2; border-color: #155855; }
+.pt-new-project-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; padding: 9px 16px; border-radius: 10px; border: none; background: #E85D2C; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; transition: background .15s; }
+.pt-new-project-btn:hover { background: #D1501F; }
 .pt-section-label { font-size: 12px; font-weight: 800; color: #6a8e8a; text-transform: uppercase; letter-spacing: .05em; margin: 28px 0 14px; }
 .pt-project-grid-v2 { margin-top: 0; }
 .pt-project-card-v2 { position: relative; cursor: pointer; }
