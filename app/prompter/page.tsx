@@ -380,6 +380,29 @@ export default function PrompterPage() {
       setSaving(false);
     }
   };
+  /* ── 씬 드래그 순서 변경 ── */
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const handleDragOver = (e: React.DragEvent, i: number) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === i) return;
+    setScenes((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(dragIndex, 1);
+      next.splice(i, 0, moved);
+      return next;
+    });
+    setDragIndex(i);
+  };
+  const handleDragEnd = async () => {
+    setDragIndex(null);
+    if (!currentProject) return;
+    await fetch("/api/prompter-scripts/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId: currentProject.id, orderedIds: scenes.map((s) => s.id) }),
+    });
+  };
+
   const deleteScene = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!confirm("이 씬을 삭제할까요?")) return;
