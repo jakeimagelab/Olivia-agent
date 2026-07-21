@@ -24,13 +24,29 @@ export default function TeamChatShell() {
   const [roomMembers, setRoomMembers] = useState<ChatMember[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showNewRoom, setShowNewRoom] = useState(false);
+  const [adminJoinError, setAdminJoinError] = useState("");
 
-  useEffect(() => {
+  const loadSession = () =>
     fetch("/api/team-chat/session")
       .then((r) => r.json())
-      .then((d) => { if (d.ok) setSession({ isAdmin: d.isAdmin, member: d.member }); })
-      .finally(() => setLoading(false));
+      .then((d) => { if (d.ok) setSession({ isAdmin: d.isAdmin, member: d.member }); });
+
+  useEffect(() => {
+    loadSession().finally(() => setLoading(false));
   }, []);
+
+  // 관리자는 초대 링크 없이 바로 채팅에 참여시킨다 — pc_admin_session만 있고 아직
+  // chat_members 행이 없으면 자동으로 관리자 계정을 만들고 로그인까지 처리한다.
+  useEffect(() => {
+    if (!session?.isAdmin || session.member || adminJoinError) return;
+    fetch("/api/team-chat/admin-join", { method: "POST" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok) return loadSession();
+        setAdminJoinError(d.error || "관리자 계정 준비에 실패했습니다.");
+      })
+      .catch(() => setAdminJoinError("관리자 계정 준비에 실패했습니다."));
+  }, [session?.isAdmin, session?.member, adminJoinError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadRooms = async () => {
     const res = await fetch("/api/team-chat/rooms");
