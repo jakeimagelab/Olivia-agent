@@ -103,7 +103,7 @@ const FEATURE_API_SCOPE: Record<string, string[]> = {
   "/raw-select": ["/api/scene-naming"],
   "/select-match": [],
   "/photo-retouching": ["/api/color-sync", "/api/color-check"],
-  "/prompter": ["/api/prompter-scripts", "/api/prompter-projects"],
+  "/prompter": ["/api/prompter-scripts", "/api/prompter-projects", "/api/prompter-proofread"],
 };
 
 // 위 기능 페이지들 + 공유 대상에서 제외된 페이지(고객 관리 등) — 공유 세션일 때
