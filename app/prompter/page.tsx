@@ -601,6 +601,7 @@ export default function PrompterPage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button onClick={() => setShowRemoteInfo(true)} className="pt-icon-btn"><Smartphone size={14} /> 리모컨</button>
+          <button onClick={toggleFullscreen} className="pt-icon-btn">{isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />} {isFullscreen ? "전체화면 종료" : "전체화면"}</button>
           <button onClick={() => setShowControls((v) => !v)} className="pt-icon-btn">{showControls ? "설정 숨기기" : "설정"}</button>
           <button onClick={exitPromptMode} className="pt-icon-btn"><X size={18} /></button>
         </div>
