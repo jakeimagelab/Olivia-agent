@@ -20,6 +20,8 @@ type Scene = { id: string; title: string; subject?: string; content: string; edi
 
 const SPEAKER_PALETTE = ["#E85D2C", "#155855", "#EB8F22", "#7C3AED", "#2563EB", "#569082"];
 
+type AiIssue = { type: "spelling" | "naturalness"; original: string; suggestion: string; reason: string };
+
 // 문단(빈 줄로 구분)과 화자 배정을 함께 정리한다 — 진짜 빈 문단(카드만 만들고 아직
 // 안 쓴 문단 등)은 실행화면·저장 데이터 모두에서 걸러내고, 화자 배정도 같이 맞춰 당겨준다.
 function getCleanParagraphs(text: string, speakerMap: string[]): { paragraphs: string[]; speakerMap: string[] } {
