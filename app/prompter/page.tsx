@@ -112,17 +112,28 @@ export default function PrompterPage() {
   const [showRemoteInfo, setShowRemoteInfo] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  // 전체화면 (태블릿에서 흰색 브라우저 주소창이 거슬리지 않도록)
+  // 전체화면 (태블릿에서 흰색 브라우저 주소창이 거슬리지 않도록) —
+  // 스와이프 등으로 브라우저가 임의로 전체화면을 빠져나가도, "전체화면 종료" 버튼을 누른 게
+  // 아니라면 곧바로 다시 전체화면으로 되돌린다 (버튼으로만 종료 가능하게).
   const [isFullscreen, setIsFullscreen] = useState(false);
   const promptRootRef = useRef<HTMLDivElement>(null);
+  const intentionalExitRef = useRef(false);
   useEffect(() => {
-    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    const onChange = () => {
+      const fs = Boolean(document.fullscreenElement);
+      setIsFullscreen(fs);
+      if (!fs && !intentionalExitRef.current && promptRootRef.current) {
+        promptRootRef.current.requestFullscreen().catch(() => {});
+      }
+      intentionalExitRef.current = false;
+    };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+      intentionalExitRef.current = true;
+      document.exitFullscreen().catch(() => { intentionalExitRef.current = false; });
     } else {
       promptRootRef.current?.requestFullscreen().catch(() => {});
     }
