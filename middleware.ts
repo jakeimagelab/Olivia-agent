@@ -181,6 +181,16 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
+  // 팀 채팅 페이지 — 로그인 화면/초대 수락 화면은 세션 없이도 열려야 한다.
+  // 그 외(/team-chat, /team-chat/rooms/...)는 관리자 세션 또는 팀원 개인 세션이 있어야 한다.
+  // 관리자는 아직 채팅 멤버로 가입 전이어도 초대 발급/Drive 연결 패널은 볼 수 있게 admin 세션도 허용한다.
+  const isTeamChatPublicPage = pathname.startsWith("/team-chat/login") || pathname.startsWith("/team-chat/invite");
+  if (pathname.startsWith("/team-chat") && !isTeamChatPublicPage) {
+    if (!isAdminSession && !(await hasValidTeamChatMemberSession(req))) {
+      return NextResponse.redirect(new URL("/team-chat/login", req.url));
+    }
+  }
+
   // ── 공유 세션의 페이지 이동 제한 (정식 관리자 세션이면 제한 없음) ──
   if (!isAdminSession && shareToken && SHARE_SCOPED_PAGE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     const featurePath = await resolveShareScope(shareToken);
