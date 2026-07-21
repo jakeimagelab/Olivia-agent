@@ -1233,3 +1233,7 @@
 .pt-color-swatch.active { border-color: #e85d2c; box-shadow: 0 0 0 2px rgba(232,93,44,.4); }
 
 .pt-ctrl-select-sm { font-size: 11px; padding: 5px 6px; max-width: 98px; }
+
+/* 실행 화면 — 속도/문단간격 슬라이더 옆 숫자 직접입력 */
+.pt-ctrl-num { width: 54px; padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; font-size: 12px; font-weight: 700; text-align: center; }
+.pt-ctrl-num:focus { outline: 1px solid #e85d2c; }
