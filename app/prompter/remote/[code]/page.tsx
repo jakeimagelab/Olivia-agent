@@ -130,64 +130,75 @@ export default function PrompterRemotePage() {
   const isSlideMode = editorMode === "slides";
 
   return (
-    <main style={{ minHeight: "100dvh", background: "#0d1f1e", color: "#fff", padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+    <main style={{ height: "100dvh", background: "#0d1f1e", color: "#fff", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 7, overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ textAlign: "center" }}>
-        <p style={{ fontSize: 12, color: connected ? "#5cff8f" : "#ff9c5c", fontWeight: 700 }}>
+        <p style={{ fontSize: 11, color: connected ? "#5cff8f" : "#ff9c5c", fontWeight: 700 }}>
           {connected ? "● 연결됨" : "○ 프롬프터 연결 대기 중…"}
         </p>
-        <p style={{ fontSize: 40, fontWeight: 900, fontVariantNumeric: "tabular-nums" }}>{fmtTime(elapsed)}</p>
-        {isSlideMode && <p style={{ fontSize: 13, color: "#9BB5B0", fontWeight: 700, marginTop: 2 }}>{totalSlides ? slideIndex + 1 : 0} / {totalSlides}</p>}
+        <p style={{ fontSize: 28, fontWeight: 900, fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>{fmtTime(elapsed)}</p>
+        {isSlideMode && <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{totalSlides ? slideIndex + 1 : 0} / {totalSlides}</p>}
       </div>
 
       {isSlideMode ? (
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={() => send("prevSlide")} style={{ flex: 1, padding: "24px 0", borderRadius: 20, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 16, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <ChevronLeft size={22} /> 이전
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => send("prevSlide")} style={{ flex: 1, padding: "13px 0", borderRadius: 14, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <ChevronLeft size={18} /> 이전
           </button>
-          <button onClick={() => send("nextSlide")} style={{ flex: 1, padding: "24px 0", borderRadius: 20, background: "#155855", border: "none", color: "#fff", fontSize: 16, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            다음 <ChevronRight size={22} />
+          <button onClick={() => send("nextSlide")} style={{ flex: 1, padding: "13px 0", borderRadius: 14, background: "#155855", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            다음 <ChevronRight size={18} />
           </button>
         </div>
       ) : (
         <button
           onClick={() => send("toggle")}
-          style={{ padding: "24px 0", borderRadius: 20, background: playing ? "#e85d2c" : "#155855", border: "none", color: "#fff", fontSize: 20, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
+          style={{ padding: "13px 0", borderRadius: 14, background: playing ? "#e85d2c" : "#155855", border: "none", color: "#fff", fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
         >
-          {playing ? <><Pause size={24} /> 일시정지</> : <><Play size={24} /> 재생</>}
+          {playing ? <><Pause size={18} /> 일시정지</> : <><Play size={18} /> 재생</>}
         </button>
       )}
 
-      <button onClick={() => send("restart")} style={{ padding: 14, borderRadius: 16, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-        <RotateCcw size={18} /> 처음으로
-      </button>
-
-      <div style={{ display: "flex", gap: 10 }}>
-        <button onClick={() => { setFlipH((v) => !v); send("flipH"); }} style={{ flex: 1, padding: 14, borderRadius: 16, background: flipH ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <FlipHorizontal size={18} /> 좌우반전
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => send("restart")} style={{ flex: 1, padding: 9, borderRadius: 12, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+          <RotateCcw size={14} /> 처음으로
         </button>
-        <button onClick={() => { setFlipV((v) => !v); send("flipV"); }} style={{ flex: 1, padding: 14, borderRadius: 16, background: flipV ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <FlipVertical size={18} /> 상하반전
+        <button onClick={() => { setFlipH((v) => !v); send("flipH"); }} style={{ flex: 1, padding: 9, borderRadius: 12, background: flipH ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+          <FlipHorizontal size={14} /> 좌우
+        </button>
+        <button onClick={() => { setFlipV((v) => !v); send("flipV"); }} style={{ flex: 1, padding: 9, borderRadius: 12, background: flipV ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+          <FlipVertical size={14} /> 상하
         </button>
       </div>
 
       {!isSlideMode && (
         <>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <Gauge size={16} /> 속도 ({speed})
-            </label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+                <Gauge size={14} /> 속도
+              </label>
+              <input
+                type="number" min={1} max={999} value={speed} className="pt-remote-num"
+                onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(1, v); setSpeed(c); send("speed", c); } }}
+              />
+            </div>
             <input
-              type="range" min={5} max={200} value={speed}
+              type="range" min={1} max={300} value={speed}
               onChange={(e) => { const v = Number(e.target.value); setSpeed(v); send("speed", v); }}
               style={orangeRange}
             />
           </div>
           <div>
-            <label style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <AlignVerticalSpaceAround size={16} /> 문단 간격 ({paragraphSpacing})
-            </label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+                <AlignVerticalSpaceAround size={14} /> 문단 간격
+              </label>
+              <input
+                type="number" min={0} max={999} value={paragraphSpacing} className="pt-remote-num"
+                onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(0, v); setParagraphSpacing(c); send("paragraphSpacing", c); } }}
+              />
+            </div>
             <input
-              type="range" min={0} max={120} value={paragraphSpacing}
+              type="range" min={0} max={240} value={paragraphSpacing}
               onChange={(e) => { const v = Number(e.target.value); setParagraphSpacing(v); send("paragraphSpacing", v); }}
               style={orangeRange}
             />
@@ -196,9 +207,15 @@ export default function PrompterRemotePage() {
       )}
 
       <div>
-        <label style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-          <Type size={16} /> 글자 크기 ({fontSize})
-        </label>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <label style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+            <Type size={14} /> 글자 크기
+          </label>
+          <input
+            type="number" min={10} max={300} value={fontSize} className="pt-remote-num"
+            onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(10, v); setFontSize(c); send("fontSize", c); } }}
+          />
+        </div>
         <input
           type="range" min={20} max={120} value={fontSize}
           onChange={(e) => { const v = Number(e.target.value); setFontSize(v); send("fontSize", v); }}
@@ -206,51 +223,49 @@ export default function PrompterRemotePage() {
         />
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 5 }}>
         {(["left", "center", "right"] as const).map((v) => (
           <button key={v} onClick={() => { setHAlign(v); send("hAlign", v); }}
-            style={{ flex: 1, padding: 12, borderRadius: 12, background: hAlign === v ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {v === "left" ? <AlignLeft size={16} /> : v === "center" ? <AlignCenter size={16} /> : <AlignRight size={16} />}
+            style={{ flex: 1, padding: 7, borderRadius: 9, background: hAlign === v ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {v === "left" ? <AlignLeft size={13} /> : v === "center" ? <AlignCenter size={13} /> : <AlignRight size={13} />}
           </button>
         ))}
         {(["top", "center", "bottom"] as const).map((v) => (
           <button key={v} onClick={() => { setVAlign(v); send("vAlign", v); }}
-            style={{ flex: 1, padding: 12, borderRadius: 12, background: vAlign === v ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {v === "top" ? <AlignVerticalJustifyStart size={16} /> : v === "center" ? <AlignVerticalJustifyCenter size={16} /> : <AlignVerticalJustifyEnd size={16} />}
+            style={{ flex: 1, padding: 7, borderRadius: 9, background: vAlign === v ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {v === "top" ? <AlignVerticalJustifyStart size={13} /> : v === "center" ? <AlignVerticalJustifyCenter size={13} /> : <AlignVerticalJustifyEnd size={13} />}
           </button>
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-        {COLOR_OPTIONS.map((c) => (
-          <button key={c} onClick={() => { setFontColor(c); send("fontColor", c); }}
-            style={{ width: 34, height: 34, borderRadius: 9, background: c, border: fontColor === c ? "3px solid #e85d2c" : "2px solid rgba(255,255,255,.3)" }} />
-        ))}
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 5 }}>
+          {COLOR_OPTIONS.map((c) => (
+            <button key={c} onClick={() => { setFontColor(c); send("fontColor", c); }}
+              style={{ width: 22, height: 22, borderRadius: 6, background: c, border: fontColor === c ? "2px solid #e85d2c" : "1.5px solid rgba(255,255,255,.3)", flexShrink: 0 }} />
+          ))}
+        </div>
+        <select value={fontFamily} onChange={(e) => { setFontFamily(e.target.value); send("fontFamily", e.target.value); }}
+          style={{ flex: 1, minWidth: 0, padding: 7, borderRadius: 9, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", color: "#fff", fontSize: 12 }}>
+          {FONT_OPTIONS.map((f) => <option key={f.value} value={f.value} style={{ color: "#000" }}>{f.label}</option>)}
+        </select>
       </div>
 
-      <select value={fontFamily} onChange={(e) => { setFontFamily(e.target.value); send("fontFamily", e.target.value); }}
-        style={{ width: "100%", padding: 12, borderRadius: 12, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", color: "#fff", fontSize: 14 }}>
-        {FONT_OPTIONS.map((f) => <option key={f.value} value={f.value} style={{ color: "#000" }}>{f.label}</option>)}
-      </select>
-
-      <div style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 16 }}>
-        <label style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-          <Mic size={16} /> 보조 음성 녹음
-        </label>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 7 }}>
         {!recording ? (
-          <button onClick={startRecording} style={{ width: "100%", padding: 14, borderRadius: 16, background: "rgba(255,92,92,.15)", border: "1px solid rgba(255,92,92,.4)", color: "#ff8080", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <Mic size={18} /> 녹음 시작
+          <button onClick={startRecording} style={{ width: "100%", padding: 9, borderRadius: 12, background: "rgba(255,92,92,.15)", border: "1px solid rgba(255,92,92,.4)", color: "#ff8080", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <Mic size={14} /> 보조 음성 녹음 시작
           </button>
         ) : (
-          <button onClick={stopRecording} style={{ width: "100%", padding: 14, borderRadius: 16, background: "#e85d2c", border: "none", color: "#fff", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <Square size={18} /> 녹음 종료
+          <button onClick={stopRecording} style={{ width: "100%", padding: 9, borderRadius: 12, background: "#e85d2c", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            <Square size={14} /> 녹음 종료
           </button>
         )}
         {recordedUrl && (
-          <div style={{ marginTop: 12 }}>
-            <audio src={recordedUrl} controls style={{ width: "100%" }} />
+          <div style={{ marginTop: 8 }}>
+            <audio src={recordedUrl} controls style={{ width: "100%", height: 32 }} />
             <a href={recordedUrl} download={`prompter-audio-${Date.now()}.webm`}
-              style={{ display: "block", textAlign: "center", marginTop: 8, padding: 10, borderRadius: 10, background: "#155855", color: "#fff", fontWeight: 700, textDecoration: "none", fontSize: 13 }}>
+              style={{ display: "block", textAlign: "center", marginTop: 6, padding: 8, borderRadius: 9, background: "#155855", color: "#fff", fontWeight: 700, textDecoration: "none", fontSize: 12 }}>
               다운로드
             </a>
           </div>
