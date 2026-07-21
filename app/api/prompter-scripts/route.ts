@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const clientId = req.nextUrl.searchParams.get("clientId");
   const db = getSupabaseAdmin();
-  let query = db.from("prompter_scripts").select("id,title,content,client_id,updated_at").order("updated_at", { ascending: false }).limit(50);
+  let query = db.from("prompter_scripts").select("id,title,subject,content,client_id,updated_at").order("updated_at", { ascending: false }).limit(50);
   if (clientId) query = query.eq("client_id", clientId);
   const { data, error } = await query;
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
