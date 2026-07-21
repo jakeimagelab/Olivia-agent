@@ -780,6 +780,39 @@ export default function PrompterPage() {
             </div>
           </div>
         )}
+
+        {aiReviewOpen && (
+          <div className="pt-modal-backdrop" onClick={() => setAiReviewOpen(false)}>
+            <div className="pt-modal pt-ai-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="pt-ai-modal-head">
+                <strong style={{ fontSize: 15 }}><Sparkles size={15} /> AI 맞춤법 · 표현 검토</strong>
+                <button onClick={() => setAiReviewOpen(false)} className="pt-ai-modal-close"><X size={16} /></button>
+              </div>
+              {aiReviewLoading ? (
+                <p style={{ fontSize: 13, color: "#8aa39f", padding: "24px 0", textAlign: "center" }}>AI가 대본을 검토하고 있어요…</p>
+              ) : aiIssues.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#8aa39f", padding: "24px 0", textAlign: "center" }}>발견된 문제가 없어요.</p>
+              ) : (
+                <div className="pt-ai-issue-list">
+                  {aiIssues.map((issue, i) => (
+                    <div key={i} className="pt-ai-issue">
+                      <span className={`pt-ai-issue-tag pt-ai-issue-tag-${issue.type}`}>{issue.type === "spelling" ? "맞춤법" : "표현"}</span>
+                      <div className="pt-ai-issue-body">
+                        <div className="pt-ai-issue-diff">
+                          <span className="pt-ai-issue-original">{issue.original}</span>
+                          <span className="pt-ai-issue-arrow">→</span>
+                          <span className="pt-ai-issue-suggestion">{issue.suggestion}</span>
+                        </div>
+                        {issue.reason && <p className="pt-ai-issue-reason">{issue.reason}</p>}
+                      </div>
+                      <button onClick={() => applyAiIssue(issue)} className="pt-ai-issue-apply">적용</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {projectModal}
       </main>
     );
