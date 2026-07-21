@@ -6,7 +6,7 @@ import {
   Circle, Square, Save, Type, Gauge, X, Trash2, Plus,
   AlignLeft, AlignCenter, AlignRight,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  Smartphone, FileText, Rows3, ChevronUp, ChevronDown, ChevronLeft,
+  Smartphone, FileText, Rows3, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Building2, Pencil, AlignVerticalSpaceAround,
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
