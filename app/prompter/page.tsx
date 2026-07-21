@@ -331,8 +331,17 @@ export default function PrompterPage() {
       const box = scrollBoxRef.current;
       if (box) {
         box.scrollTop += speed * dt * (flipV ? -1 : 1);
-        // 끝에 도달하면 자동 정지
-        if (box.scrollTop >= box.scrollHeight - box.clientHeight - 4 && !flipV) setScrolling(false);
+        // 끝에 도달하면 자동 정지 — vAlign 여백(top/center 등) 때문에 스크롤 총량 기준으로 멈추면
+        // 마지막 문단이 화면 위로 사라진 지 한참 뒤에야 멈추게 된다. 그 대신 마지막 문단이
+        // 화면(가이드) 위로 완전히 넘어가기 직전, 즉 화면 맨 위 경계에 닿는 순간 멈춘다.
+        const lastEl = lastParagraphRef.current;
+        if (!flipV) {
+          if (lastEl) {
+            if (lastEl.getBoundingClientRect().bottom <= 0) setScrolling(false);
+          } else if (box.scrollTop >= box.scrollHeight - box.clientHeight - 4) {
+            setScrolling(false);
+          }
+        }
         if (flipV && box.scrollTop <= 0) setScrolling(false);
       }
       rafRef.current = requestAnimationFrame(step);
