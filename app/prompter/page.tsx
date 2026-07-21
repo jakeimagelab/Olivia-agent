@@ -861,7 +861,11 @@ export default function PrompterPage() {
           {paragraphs.map((p, i) => {
             const sp = speakers.find((s) => s.id === playbackSpeakerMap[i]);
             return (
-              <div key={i} style={{ margin: `0 0 ${i < paragraphs.length - 1 ? paragraphSpacing : 0}px`, textAlign: hAlign }}>
+              <div
+                key={i}
+                ref={i === paragraphs.length - 1 ? lastParagraphRef : undefined}
+                style={{ margin: `0 0 ${i < paragraphs.length - 1 ? paragraphSpacing : 0}px`, textAlign: hAlign }}
+              >
                 {sp && (
                   <div style={{ fontSize: Math.max(14, fontSize * 0.32), fontWeight: 900, color: sp.color, marginBottom: 4 }}>
                     {sp.name}
