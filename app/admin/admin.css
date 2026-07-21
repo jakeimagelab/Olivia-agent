@@ -1281,6 +1281,8 @@
 .pt-ctrl-num { width: 54px; padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; font-size: 12px; font-weight: 700; text-align: center; }
 .pt-ctrl-num:focus { outline: 1px solid #e85d2c; }
 
-/* 리모컨 화면 — 속도/문단간격/글자크기 숫자 직접입력 */
-.pt-remote-num { width: 46px; padding: 3px 5px; border-radius: 6px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; font-size: 12px; font-weight: 800; text-align: center; }
+/* 리모컨 화면 — 속도/문단간격/글자크기: 라벨 + 슬라이더 + 숫자입력 한 줄 */
+.pt-remote-slider-row { display: flex; align-items: center; gap: 8px; }
+.pt-remote-slider-row label { flex-shrink: 0; width: 44px; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.pt-remote-num { flex-shrink: 0; width: 42px; padding: 3px 4px; border-radius: 6px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; font-size: 11.5px; font-weight: 800; text-align: center; }
 .pt-remote-num:focus { outline: 1px solid #e85d2c; }
