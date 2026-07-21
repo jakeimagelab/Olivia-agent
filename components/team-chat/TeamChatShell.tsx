@@ -67,12 +67,12 @@ export default function TeamChatShell() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${activeRoomId}` },
-        (payload) => setMessages((prev) => [...prev, payload.new as ChatMessage])
+        (payload: RealtimePostgresChangesPayload<ChatMessage>) => setMessages((prev) => [...prev, payload.new as ChatMessage])
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_attachments", filter: `room_id=eq.${activeRoomId}` },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<ChatAttachment>) => {
           const att = payload.new as ChatAttachment;
           setMessages((prev) => prev.map((m) => (m.id === att.message_id ? { ...m, chat_attachments: [...(m.chat_attachments ?? []), att] } : m)));
         }
@@ -80,7 +80,7 @@ export default function TeamChatShell() {
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "chat_rooms", filter: `id=eq.${activeRoomId}` },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<ChatRoom>) => {
           const patch = payload.new as Partial<ChatRoom>;
           setActiveRoom((prev) => (prev ? { ...prev, ...patch } : prev));
           setRooms((prev) => prev.map((r) => (r.id === activeRoomId ? { ...r, ...patch } : r)));
