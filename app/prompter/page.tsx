@@ -68,6 +68,12 @@ export default function PrompterPage() {
   const [sceneId, setSceneId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // 다중 화자 — 프로젝트 단위 화자 목록 + 씬(대본)의 문단별 화자 배정
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
+  const [multiSpeakerMode, setMultiSpeakerMode] = useState(false);
+  const [speakerMap, setSpeakerMap] = useState<string[]>([]);
+  useEffect(() => { setSpeakers(currentProject?.speakers ?? []); }, [currentProject?.id]);
+
   // 모바일에서는 실행 화면(큰 화면 낭독용)이 아니라 리모컨 용도로만 쓴다.
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileBlocked, setShowMobileBlocked] = useState(false);
