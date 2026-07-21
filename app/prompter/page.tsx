@@ -204,10 +204,14 @@ export default function PrompterPage() {
 
   const newScene = () => {
     setText(""); setTitle(""); setSubject(""); setSceneId(null); setEditorMode("text");
+    setSpeakerMap([]); setMultiSpeakerMode(false);
   };
   const openScene = (s: Scene) => {
     setText(s.content); setTitle(s.title); setSubject(s.subject ?? ""); setSceneId(s.id);
     setEditorMode(s.editor_mode === "slides" ? "slides" : "text");
+    const loadedMap = Array.isArray(s.speaker_map) ? s.speaker_map : [];
+    setSpeakerMap(loadedMap);
+    setMultiSpeakerMode(loadedMap.some((id) => id));
   };
 
   /* ── 슬라이드별 편집 (문장 단위 카드) — text를 줄 단위로 쪼개서 보여줄 뿐, 저장 형식은 그대로 하나의 텍스트 ── */
