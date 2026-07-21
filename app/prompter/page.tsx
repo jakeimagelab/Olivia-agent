@@ -134,7 +134,9 @@ export default function PrompterPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const slides = text.split("\n");
-  const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
+  const { paragraphs, speakerMap: playbackSpeakerMap } = getCleanParagraphs(text, speakerMap);
+  // 편집 중(다중 화자 카드 목록)에는 방금 추가한 빈 문단 카드도 보여야 하므로 필터링 없이 그대로 쓴다.
+  const editParagraphs = text.split(/\n\s*\n/);
 
   /* ── 프로젝트 목록 ── */
   const loadProjects = useCallback(async () => {
