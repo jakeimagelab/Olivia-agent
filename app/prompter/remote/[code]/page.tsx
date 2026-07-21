@@ -158,68 +158,56 @@ export default function PrompterRemotePage() {
       )}
 
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={() => send("restart")} style={{ flex: 1, padding: 9, borderRadius: 12, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-          <RotateCcw size={14} /> 처음으로
+        <button onClick={() => send("restart")} style={{ flex: 1, padding: 14, borderRadius: 14, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <RotateCcw size={18} /> 처음
         </button>
-        <button onClick={() => { setFlipH((v) => !v); send("flipH"); }} style={{ flex: 1, padding: 9, borderRadius: 12, background: flipH ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-          <FlipHorizontal size={14} /> 좌우
+        <button onClick={() => { setFlipH((v) => !v); send("flipH"); }} style={{ flex: 1, padding: 14, borderRadius: 14, background: flipH ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <FlipHorizontal size={18} /> 좌우
         </button>
-        <button onClick={() => { setFlipV((v) => !v); send("flipV"); }} style={{ flex: 1, padding: 9, borderRadius: 12, background: flipV ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-          <FlipVertical size={14} /> 상하
+        <button onClick={() => { setFlipV((v) => !v); send("flipV"); }} style={{ flex: 1, padding: 14, borderRadius: 14, background: flipV ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <FlipVertical size={18} /> 상하
         </button>
       </div>
 
       {!isSlideMode && (
         <>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-                <Gauge size={14} /> 속도
-              </label>
-              <input
-                type="number" min={1} max={999} value={speed} className="pt-remote-num"
-                onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(1, v); setSpeed(c); send("speed", c); } }}
-              />
-            </div>
+          <div className="pt-remote-slider-row">
+            <label><Gauge size={13} /> 속도</label>
             <input
               type="range" min={1} max={300} value={speed}
               onChange={(e) => { const v = Number(e.target.value); setSpeed(v); send("speed", v); }}
               style={orangeRange}
             />
+            <input
+              type="number" min={1} max={999} value={speed} className="pt-remote-num"
+              onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(1, v); setSpeed(c); send("speed", c); } }}
+            />
           </div>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-                <AlignVerticalSpaceAround size={14} /> 문단 간격
-              </label>
-              <input
-                type="number" min={0} max={999} value={paragraphSpacing} className="pt-remote-num"
-                onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(0, v); setParagraphSpacing(c); send("paragraphSpacing", c); } }}
-              />
-            </div>
+          <div className="pt-remote-slider-row">
+            <label><AlignVerticalSpaceAround size={13} /> 문단</label>
             <input
               type="range" min={0} max={240} value={paragraphSpacing}
               onChange={(e) => { const v = Number(e.target.value); setParagraphSpacing(v); send("paragraphSpacing", v); }}
               style={orangeRange}
             />
+            <input
+              type="number" min={0} max={999} value={paragraphSpacing} className="pt-remote-num"
+              onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(0, v); setParagraphSpacing(c); send("paragraphSpacing", c); } }}
+            />
           </div>
         </>
       )}
 
-      <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-            <Type size={14} /> 글자 크기
-          </label>
-          <input
-            type="number" min={10} max={300} value={fontSize} className="pt-remote-num"
-            onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(10, v); setFontSize(c); send("fontSize", c); } }}
-          />
-        </div>
+      <div className="pt-remote-slider-row">
+        <label><Type size={13} /> 크기</label>
         <input
           type="range" min={20} max={120} value={fontSize}
           onChange={(e) => { const v = Number(e.target.value); setFontSize(v); send("fontSize", v); }}
           style={orangeRange}
+        />
+        <input
+          type="number" min={10} max={300} value={fontSize} className="pt-remote-num"
+          onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(10, v); setFontSize(c); send("fontSize", c); } }}
         />
       </div>
 
