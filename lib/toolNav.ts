@@ -23,6 +23,7 @@ export type ToolDef = {
 /* 업무 도구 — 대시보드 왼쪽 그리드 & 전역 사이드바가 공유하는 단일 소스 */
 export const TOOLS_WORK: ToolDef[] = [
   { title: "메모", desc: "일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다.", href: "/memo", icon: NotebookPen, meta: "Memo", orange: true, category: "dashboard" },
+  { title: "팀 채팅", desc: "스튜디오 팀원들과 채팅방을 만들어 대화하고 파일을 주고받습니다.", href: "/team-chat", icon: MessageCircle, meta: "Team Chat", orange: false, category: "dashboard" },
   { title: "업무 캘린더", desc: "날짜별 촬영·미팅·행정 할일을 한 화면에서 관리합니다.", href: "/calendar", icon: Calendar, meta: "Task Calendar", orange: false, category: "dashboard" },
   { title: "견적서 생성", desc: "촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.", href: "/quote", icon: ClipboardList, meta: "Quote Builder", orange: false, category: "tools" },
   { title: "콘티생성", desc: "사진 콘티(체크리스트·타임테이블)와 영상 콘티(씬·컷·손그림 스토리보드)를 한 화면에서 생성합니다.", href: "/conti", icon: FileVideo, meta: "Storyboard Studio", orange: false, category: "tools" },
