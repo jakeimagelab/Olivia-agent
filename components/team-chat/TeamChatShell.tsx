@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LogOut, MessageCircle, Settings } from "lucide-react";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { C } from "@/lib/theme";
 import { getTeamChatSupabaseBrowser } from "@/lib/teamChat/supabaseBrowser";
 import RoomList from "./RoomList";
