@@ -89,6 +89,22 @@ export default function PrompterPage() {
   const [showRemoteInfo, setShowRemoteInfo] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  // 전체화면 (태블릿에서 흰색 브라우저 주소창이 거슬리지 않도록)
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const promptRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      promptRootRef.current?.requestFullscreen().catch(() => {});
+    }
+  };
+
   const scrollBoxRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number | null>(null);
