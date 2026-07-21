@@ -632,11 +632,19 @@ export default function PrompterPage() {
               <button onClick={resetTimer} className="pt-ctrl-btn"><RotateCcw size={18} /> 처음으로</button>
 
               <label className="pt-ctrl-label"><Gauge size={14} /> 속도
-                <input type="range" min={5} max={200} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
+                <input type="range" min={1} max={300} step={1} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
+                <input
+                  type="number" min={1} max={999} value={speed} className="pt-ctrl-num"
+                  onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setSpeed(Math.max(1, v)); }}
+                />
               </label>
 
               <label className="pt-ctrl-label"><AlignVerticalSpaceAround size={14} /> 문단간격
-                <input type="range" min={0} max={120} value={paragraphSpacing} onChange={(e) => setParagraphSpacing(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
+                <input type="range" min={0} max={240} step={1} value={paragraphSpacing} onChange={(e) => setParagraphSpacing(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
+                <input
+                  type="number" min={0} max={999} value={paragraphSpacing} className="pt-ctrl-num"
+                  onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setParagraphSpacing(Math.max(0, v)); }}
+                />
               </label>
             </>
           )}
