@@ -4,7 +4,9 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const baseUrl = process.env.NEXTAUTH_URL || "https://olivia.photoclinic.kr";
+  // NEXTAUTH_URL이 실제 접속 도메인과 다를 수 있어(예: *.vercel.app) 요청이 들어온 호스트를 그대로 쓴다
+  // — /drive/connect가 redirect_uri를 만들 때도 같은 방식을 쓰므로 두 값이 항상 일치한다.
+  const baseUrl = req.nextUrl.origin;
   const settingsUrl = `${baseUrl}/admin/team-chat-settings`;
 
   if (req.cookies.get("pc_admin_session")?.value !== "active") {
