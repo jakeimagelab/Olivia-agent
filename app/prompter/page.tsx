@@ -631,12 +631,67 @@ export default function PrompterPage() {
                 <button className={editorMode === "slides" ? "active" : ""} onClick={() => setEditorMode("slides")}><Rows3 size={13} /> 슬라이드별</button>
               </div>
 
+              {editorMode === "text" && (
+                <div className="pt-speaker-bar">
+                  <button
+                    className={`pt-speaker-toggle${multiSpeakerMode ? " active" : ""}`}
+                    onClick={() => setMultiSpeakerMode((v) => !v)}
+                  >
+                    <Users size={13} /> 다중 화자 {multiSpeakerMode ? "끄기" : "켜기"}
+                  </button>
+                  {multiSpeakerMode && (
+                    <div className="pt-speaker-chips">
+                      {speakers.map((sp) => (
+                        <span key={sp.id} className="pt-speaker-chip" style={{ borderColor: sp.color, color: sp.color, background: sp.color + "18" }}>
+                          <button onClick={() => renameSpeaker(sp.id)}>{sp.name}</button>
+                          <button onClick={() => removeSpeaker(sp.id)} title="삭제"><X size={10} /></button>
+                        </span>
+                      ))}
+                      <button className="pt-speaker-add" onClick={addSpeaker}><Plus size={12} /> 화자 추가</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {editorMode === "text" ? (
-                <textarea
-                  value={text} onChange={(e) => setText(e.target.value)}
-                  placeholder="여기에 대본을 입력하세요. 빈 줄로 문단을 구분하면 실행화면에서 문단 간격이 적용됩니다."
-                  className="pt-textarea"
-                />
+                multiSpeakerMode ? (
+                  <div className="pt-para-list">
+                    {editParagraphs.map((p, i) => {
+                      const sp = speakers.find((s) => s.id === speakerMap[i]);
+                      return (
+                        <div key={i} className="pt-para-card">
+                          <div className="pt-para-card-speaker">
+                            <select
+                              value={speakerMap[i] ?? ""}
+                              onChange={(e) => setParagraphSpeaker(i, e.target.value)}
+                              style={sp ? { borderColor: sp.color, color: sp.color } : undefined}
+                            >
+                              <option value="">미지정</option>
+                              {speakers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                            <div className="pt-para-card-actions">
+                              <button onClick={() => moveParagraph(i, -1)} disabled={i === 0} title="위로"><ChevronUp size={13} /></button>
+                              <button onClick={() => moveParagraph(i, 1)} disabled={i === editParagraphs.length - 1} title="아래로"><ChevronDown size={13} /></button>
+                              <button onClick={() => removeParagraph(i)} title="삭제"><Trash2 size={12} /></button>
+                            </div>
+                          </div>
+                          <textarea
+                            value={p} onChange={(e) => updateParagraph(i, e.target.value)} rows={3}
+                            placeholder="문단 내용을 입력하세요"
+                            style={sp ? { borderLeftColor: sp.color } : undefined}
+                          />
+                        </div>
+                      );
+                    })}
+                    <button onClick={addParagraph} className="pt-slide-add"><Plus size={14} /> 문단 추가</button>
+                  </div>
+                ) : (
+                  <textarea
+                    value={text} onChange={(e) => setText(e.target.value)}
+                    placeholder="여기에 대본을 입력하세요. 빈 줄로 문단을 구분하면 실행화면에서 문단 간격이 적용됩니다."
+                    className="pt-textarea"
+                  />
+                )
               ) : (
                 <div className="pt-slide-list">
                   {slides.map((s, i) => (
