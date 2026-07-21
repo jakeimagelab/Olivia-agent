@@ -1190,7 +1190,10 @@
 .pt-navigator { width: 250px; flex-shrink: 0; background: #fff; border: 1px solid #E0E8E6; border-radius: 16px; padding: 14px; max-height: 660px; overflow-y: auto; box-shadow: 0 1px 6px rgba(21,88,85,.04); }
 .pt-navigator-new { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border-radius: 10px; border: 1px dashed #B8D4CF; background: #F5FAF9; color: #155855; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 12px; transition: background .15s; }
 .pt-navigator-new:hover { background: #EAF4F2; }
-.pt-nav-item { display: flex; align-items: stretch; gap: 4px; margin-bottom: 4px; }
+.pt-nav-item { display: flex; align-items: stretch; gap: 2px; margin-bottom: 4px; }
+.pt-nav-item.dragging { opacity: .4; }
+.pt-nav-item-handle { flex-shrink: 0; width: 18px; display: flex; align-items: center; justify-content: center; color: #C7D6D3; cursor: grab; }
+.pt-nav-item-handle:active { cursor: grabbing; }
 .pt-nav-item-main { flex: 1; min-width: 0; text-align: left; padding: 10px 11px; border-radius: 10px; border: 1px solid transparent; background: transparent; cursor: pointer; transition: background .15s; }
 .pt-nav-item-main:hover { background: #FAFCFB; }
 .pt-nav-item-main strong { display: block; font-size: 12.5px; color: #0d1f1e; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
