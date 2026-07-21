@@ -71,6 +71,7 @@ const protectedApiPrefixes = [
   "/api/color-sync",
   "/api/color-check",
   "/api/share-links",
+  "/api/prompter-scripts",
 ];
 
 // 외부 공유 링크가 허용하는 기능 페이지 → 그 기능에 실제로 필요한 API prefix만 나열.
