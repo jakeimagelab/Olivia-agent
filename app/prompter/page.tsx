@@ -461,10 +461,13 @@ export default function PrompterPage() {
     if (!text.trim() || saving || !currentProject) return;
     setSaving(true);
     try {
+      const cleaned = multiSpeakerMode ? getCleanParagraphs(text, speakerMap) : null;
+      const contentToSave = cleaned ? cleaned.paragraphs.join("\n\n") : text;
+      const speakerMapToSave = cleaned ? cleaned.speakerMap : [];
       const res = await fetch("/api/prompter-scripts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: sceneId, projectId: currentProject.id, title: title || "제목 없는 씬", subject, content: text, editorMode }),
+        body: JSON.stringify({ id: sceneId, projectId: currentProject.id, title: title || "제목 없는 씬", subject, content: contentToSave, editorMode, speakerMap: speakerMapToSave }),
       }).then((r) => r.json());
       if (res.ok) {
         setSceneId(res.script.id); setTitle(res.script.title); setSubject(res.script.subject ?? "");
