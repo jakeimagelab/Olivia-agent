@@ -523,6 +523,36 @@ export default function PrompterPage() {
     });
   };
 
+  /* ── AI 검토 (맞춤법 / 자연스러운 표현) ── */
+  const runAiReview = async () => {
+    if (!text.trim() || aiReviewLoading) return;
+    setAiReviewLoading(true);
+    setAiReviewOpen(true);
+    try {
+      const res = await fetch("/api/prompter-proofread", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      }).then((r) => r.json());
+      if (res.ok) setAiIssues(res.issues ?? []);
+      else { setAiIssues([]); alert(res.error || "AI 검토에 실패했습니다."); }
+    } catch {
+      setAiIssues([]);
+      alert("AI 검토에 실패했습니다.");
+    } finally {
+      setAiReviewLoading(false);
+    }
+  };
+  const applyAiIssue = (issue: AiIssue) => {
+    if (!text.includes(issue.original)) {
+      alert("원문이 이미 바뀌어 적용할 수 없어요.");
+      setAiIssues((prev) => prev.filter((i) => i !== issue));
+      return;
+    }
+    setText(text.replace(issue.original, issue.suggestion));
+    setAiIssues((prev) => prev.filter((i) => i !== issue));
+  };
+
   const deleteScene = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!confirm("이 씬을 삭제할까요?")) return;
