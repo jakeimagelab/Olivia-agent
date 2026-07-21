@@ -230,6 +230,73 @@ export default function PrompterPage() {
     setText(next.join("\n"));
   };
 
+  /* ── 다중 화자 — 문단별 카드 편집 (editParagraphs 기준, 화자 배정은 speakerMap과 같은 인덱스로 맞춰간다) ── */
+  const updateParagraph = (i: number, value: string) => {
+    // 카드 안에서 빈 줄을 넣어도 문단 경계가 흐트러지지 않게 정리.
+    const cleaned = value.replace(/\n\s*\n+/g, "\n");
+    const next = [...editParagraphs]; next[i] = cleaned;
+    setText(next.join("\n\n"));
+  };
+  const addParagraph = () => {
+    setText(text ? `${text}\n\n` : "");
+    setSpeakerMap((prev) => [...prev, ""]);
+  };
+  const removeParagraph = (i: number) => {
+    setText(editParagraphs.filter((_, idx) => idx !== i).join("\n\n"));
+    setSpeakerMap((prev) => prev.filter((_, idx) => idx !== i));
+  };
+  const moveParagraph = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= editParagraphs.length) return;
+    const nextP = [...editParagraphs];
+    [nextP[i], nextP[j]] = [nextP[j], nextP[i]];
+    setText(nextP.join("\n\n"));
+    setSpeakerMap((prev) => {
+      const n = [...prev];
+      while (n.length < editParagraphs.length) n.push("");
+      [n[i], n[j]] = [n[j], n[i]];
+      return n;
+    });
+  };
+  const setParagraphSpeaker = (i: number, speakerId: string) => {
+    setSpeakerMap((prev) => {
+      const n = [...prev];
+      while (n.length <= i) n.push("");
+      n[i] = speakerId;
+      return n;
+    });
+  };
+
+  /* ── 화자 관리 (프로젝트 단위로 저장) ── */
+  const saveSpeakers = async (next: Speaker[]) => {
+    setSpeakers(next);
+    if (!currentProject) return;
+    const res = await fetch("/api/prompter-projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: currentProject.id, name: currentProject.name, speakers: next }),
+    }).then((r) => r.json());
+    if (res.ok) setCurrentProject(res.project);
+  };
+  const addSpeaker = () => {
+    const name = prompt("화자 이름을 입력하세요 (예: 원장님)");
+    if (!name?.trim()) return;
+    const color = SPEAKER_PALETTE[speakers.length % SPEAKER_PALETTE.length];
+    saveSpeakers([...speakers, { id: crypto.randomUUID(), name: name.trim(), color }]);
+  };
+  const renameSpeaker = (id: string) => {
+    const sp = speakers.find((s) => s.id === id);
+    if (!sp) return;
+    const name = prompt("화자 이름 수정", sp.name);
+    if (!name?.trim()) return;
+    saveSpeakers(speakers.map((s) => (s.id === id ? { ...s, name: name.trim() } : s)));
+  };
+  const removeSpeaker = (id: string) => {
+    if (!confirm("이 화자를 삭제할까요? 배정된 문단은 미지정 상태가 됩니다.")) return;
+    saveSpeakers(speakers.filter((s) => s.id !== id));
+    setSpeakerMap((prev) => prev.map((sid) => (sid === id ? "" : sid)));
+  };
+
   /* ── 자동 스크롤 (전체 텍스트 모드) ── */
   useEffect(() => {
     if (mode !== "prompt" || editorMode === "slides") return;
