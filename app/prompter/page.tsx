@@ -767,14 +767,26 @@ export default function PrompterPage() {
             transform: `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
           }}
         >
-          {paragraphs.map((p, i) => (
-            <p key={i} style={{
-              fontSize, color: fontColor, fontFamily, lineHeight: 1.7, whiteSpace: "pre-wrap",
-              margin: `0 0 ${i < paragraphs.length - 1 ? paragraphSpacing : 0}px`, textAlign: hAlign,
-            }}>
-              {p}
-            </p>
-          ))}
+          {paragraphs.map((p, i) => {
+            const sp = speakers.find((s) => s.id === playbackSpeakerMap[i]);
+            return (
+              <div key={i} style={{ margin: `0 0 ${i < paragraphs.length - 1 ? paragraphSpacing : 0}px`, textAlign: hAlign }}>
+                {sp && (
+                  <div style={{ fontSize: Math.max(14, fontSize * 0.32), fontWeight: 900, color: sp.color, marginBottom: 4 }}>
+                    {sp.name}
+                  </div>
+                )}
+                <p style={{
+                  fontSize, color: fontColor, fontFamily, lineHeight: 1.7, whiteSpace: "pre-wrap",
+                  margin: 0, textAlign: hAlign,
+                  borderLeft: sp ? `4px solid ${sp.color}` : "none",
+                  paddingLeft: sp ? "0.4em" : 0,
+                }}>
+                  {p}
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
 
