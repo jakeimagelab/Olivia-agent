@@ -41,5 +41,11 @@ export async function POST(req: NextRequest) {
     ? await db.from("prompter_scripts").update(payload).eq("id", body.id).select().single()
     : await db.from("prompter_scripts").insert(payload).select().single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+  // 씬을 저장하면 그 프로젝트가 최근 목록 맨 위로 올라오게 부모 프로젝트의 updated_at도 갱신한다.
+  if (data?.project_id) {
+    await db.from("prompter_projects").update({ updated_at: new Date().toISOString() }).eq("id", data.project_id);
+  }
+
   return NextResponse.json({ ok: true, script: data });
 }
