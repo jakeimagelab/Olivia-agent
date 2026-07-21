@@ -23,6 +23,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
       { path: "/mailing", label: "통합 메일링" },
       { path: "/report", label: "업무 리포트" },
       { path: "/video-conti", label: "영상 콘티 생성" },
+      { path: "/prompter", label: "프롬프터" },
     ],
   },
   {
