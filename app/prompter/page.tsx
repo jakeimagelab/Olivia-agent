@@ -74,6 +74,11 @@ export default function PrompterPage() {
   const [speakerMap, setSpeakerMap] = useState<string[]>([]);
   useEffect(() => { setSpeakers(currentProject?.speakers ?? []); }, [currentProject?.id]);
 
+  // AI 검토 — 맞춤법 / 자연스러운 표현
+  const [aiReviewOpen, setAiReviewOpen] = useState(false);
+  const [aiReviewLoading, setAiReviewLoading] = useState(false);
+  const [aiIssues, setAiIssues] = useState<AiIssue[]>([]);
+
   // 모바일에서는 실행 화면(큰 화면 낭독용)이 아니라 리모컨 용도로만 쓴다.
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileBlocked, setShowMobileBlocked] = useState(false);
