@@ -1237,3 +1237,7 @@
 /* 실행 화면 — 속도/문단간격 슬라이더 옆 숫자 직접입력 */
 .pt-ctrl-num { width: 54px; padding: 4px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; font-size: 12px; font-weight: 700; text-align: center; }
 .pt-ctrl-num:focus { outline: 1px solid #e85d2c; }
+
+/* 리모컨 화면 — 속도/문단간격/글자크기 숫자 직접입력 */
+.pt-remote-num { width: 46px; padding: 3px 5px; border-radius: 6px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; font-size: 12px; font-weight: 800; text-align: center; }
+.pt-remote-num:focus { outline: 1px solid #e85d2c; }
