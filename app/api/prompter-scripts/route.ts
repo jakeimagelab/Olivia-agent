@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
   const db = getSupabaseAdmin();
   const payload = {
     title: body.title?.trim() || "제목 없는 대본",
+    subject: body.subject?.trim() ?? "",
     content: body.content,
     client_id: body.clientId ?? null,
     updated_at: new Date().toISOString(),
