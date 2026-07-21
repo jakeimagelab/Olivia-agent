@@ -147,6 +147,7 @@ export default function PrompterPage() {
   };
 
   const scrollBoxRef = useRef<HTMLDivElement>(null);
+  const lastParagraphRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
