@@ -6,32 +6,14 @@ import {
   Circle, Square, Save, Type, Gauge, X, Trash2, Plus,
   AlignLeft, AlignCenter, AlignRight,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  Smartphone,
+  Smartphone, FileText, Rows3, ChevronUp, ChevronDown,
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import PageHeader from "@/components/PageHeader";
 import { getSupabase } from "@/lib/supabase";
+import { FONT_OPTIONS, COLOR_OPTIONS, V_ALIGN_PADDING, fmtTime, type HAlign, type VAlign } from "@/lib/prompter/constants";
 
-type SavedScript = { id: string; title: string; content: string; updated_at: string };
-type HAlign = "left" | "center" | "right";
-type VAlign = "top" | "center" | "bottom";
-
-const FONT_OPTIONS = [
-  { label: "고딕", value: "'Noto Sans KR', sans-serif" },
-  { label: "나눔스퀘어", value: "'NanumSquare', sans-serif" },
-  { label: "명조", value: "'Nanum Myeongjo', serif" },
-  { label: "임팩트고딕", value: "'Black Han Sans', sans-serif" },
-  { label: "둥근고딕", value: "'Do Hyeon', sans-serif" },
-  { label: "모던고딕", value: "'Gothic A1', sans-serif" },
-  { label: "붓글씨", value: "'Song Myung', serif" },
-  { label: "시스템", value: "-apple-system, BlinkMacSystemFont, sans-serif" },
-];
-const COLOR_OPTIONS = ["#FFFFFF", "#FFD400", "#FF5C5C", "#5CFF8F", "#5CB8FF"];
-const V_ALIGN_PADDING: Record<VAlign, { top: string; bottom: string }> = {
-  top: { top: "12vh", bottom: "88vh" },
-  center: { top: "50vh", bottom: "50vh" },
-  bottom: { top: "88vh", bottom: "12vh" },
-};
+type SavedScript = { id: string; title: string; subject?: string; content: string; updated_at: string };
 
 // Chrome은 vp9가 안정적이지만 지원하지 않는 브라우저(구형 Chrome, 일부 Safari)에서
 // new MediaRecorder(...)가 바로 예외를 던지지 않도록 지원 코덱을 순서대로 확인한다.
@@ -49,10 +31,22 @@ export default function PrompterPage() {
   const [mode, setMode] = useState<"select" | "edit" | "prompt">("select");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
+  const [subject, setSubject] = useState("");
+  const [editorMode, setEditorMode] = useState<"text" | "slides">("text");
   const [scriptId, setScriptId] = useState<string | null>(null);
   const [savedScripts, setSavedScripts] = useState<SavedScript[]>([]);
   const [scriptsLoading, setScriptsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // 모바일에서는 실행 화면(큰 화면 낭독용)이 아니라 리모컨 용도로만 쓴다.
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileBlocked, setShowMobileBlocked] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // 프롬프터 설정
   const [flipH, setFlipH] = useState(false);
@@ -99,10 +93,25 @@ export default function PrompterPage() {
   useEffect(() => { loadScripts(); }, [loadScripts]);
 
   const newProject = () => {
-    setText(""); setTitle(""); setScriptId(null); setMode("edit");
+    setText(""); setTitle(""); setSubject(""); setScriptId(null); setEditorMode("text"); setMode("edit");
   };
   const openScript = (s: SavedScript) => {
-    setText(s.content); setTitle(s.title); setScriptId(s.id); setMode("edit");
+    setText(s.content); setTitle(s.title); setSubject(s.subject ?? ""); setScriptId(s.id); setEditorMode("text"); setMode("edit");
+  };
+
+  /* ── 슬라이드별 편집 (문장 단위 카드) — text를 줄 단위로 쪼개서 보여줄 뿐, 저장 형식은 그대로 하나의 텍스트 ── */
+  const slides = text.split("\n");
+  const updateSlide = (i: number, value: string) => {
+    const next = [...slides]; next[i] = value; setText(next.join("\n"));
+  };
+  const addSlide = () => setText(text ? `${text}\n` : "");
+  const removeSlide = (i: number) => setText(slides.filter((_, idx) => idx !== i).join("\n"));
+  const moveSlide = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= slides.length) return;
+    const next = [...slides];
+    [next[i], next[j]] = [next[j], next[i]];
+    setText(next.join("\n"));
   };
 
   /* ── 자동 스크롤 ── */
@@ -137,7 +146,7 @@ export default function PrompterPage() {
           const next = e + 1;
           channelRef.current?.send({
             type: "broadcast", event: "state",
-            payload: { playing: true, elapsed: next, speed, flipH, flipV, fontSize },
+            payload: { playing: true, elapsed: next, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize },
           });
           return next;
         });
@@ -146,7 +155,7 @@ export default function PrompterPage() {
       clearInterval(timerRef.current);
       channelRef.current?.send({
         type: "broadcast", event: "state",
-        payload: { playing: false, elapsed, speed, flipH, flipV, fontSize },
+        payload: { playing: false, elapsed, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize },
       });
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
@@ -164,10 +173,11 @@ export default function PrompterPage() {
   }, [mode]);
 
   const resetTimer = () => { setElapsed(0); if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = flipV ? scrollBoxRef.current.scrollHeight : 0; };
-  const fmtTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   /* ── 리모컨 세션 ── */
   const enterPromptMode = () => {
+    if (isMobile) { setShowMobileBlocked(true); return; }
+
     const code = String(Math.floor(1000 + Math.random() * 9000));
     setSessionCode(code);
     setMode("prompt");
@@ -184,6 +194,10 @@ export default function PrompterPage() {
         case "speed": setSpeed(payload.value); break;
         case "flipH": setFlipH((v) => !v); break;
         case "flipV": setFlipV((v) => !v); break;
+        case "hAlign": setHAlign(payload.value); break;
+        case "vAlign": setVAlign(payload.value); break;
+        case "fontColor": setFontColor(payload.value); break;
+        case "fontFamily": setFontFamily(payload.value); break;
         case "fontSize": setFontSize(payload.value); break;
       }
     });
@@ -191,7 +205,10 @@ export default function PrompterPage() {
     channel.subscribe((status) => {
       // 구독 직후 한 번 방송해둬야 리모컨이 재생을 누르기 전에도 "연결됨"을 바로 보여준다.
       if (status === "SUBSCRIBED") {
-        channel.send({ type: "broadcast", event: "state", payload: { playing: false, elapsed: 0, speed, flipH, flipV, fontSize } });
+        channel.send({
+          type: "broadcast", event: "state",
+          payload: { playing: false, elapsed: 0, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize },
+        });
       }
     });
     channelRef.current = channel;
@@ -238,10 +255,10 @@ export default function PrompterPage() {
       const res = await fetch("/api/prompter-scripts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: scriptId, title: title || "제목 없는 대본", content: text }),
+        body: JSON.stringify({ id: scriptId, title: title || "제목 없는 대본", subject, content: text }),
       }).then((r) => r.json());
       if (res.ok) {
-        setScriptId(res.script.id); setTitle(res.script.title);
+        setScriptId(res.script.id); setTitle(res.script.title); setSubject(res.script.subject ?? "");
         await loadScripts();
       } else {
         alert(res.error || "저장에 실패했습니다.");
@@ -256,7 +273,7 @@ export default function PrompterPage() {
     const res = await fetch(`/api/prompter-scripts/${id}`, { method: "DELETE" }).then((r) => r.json());
     if (res.ok) {
       setSavedScripts((prev) => prev.filter((s) => s.id !== id));
-      if (scriptId === id) { setScriptId(null); setText(""); setTitle(""); }
+      if (scriptId === id) { setScriptId(null); setText(""); setTitle(""); setSubject(""); }
     } else {
       alert(res.error || "삭제에 실패했습니다.");
     }
@@ -265,26 +282,31 @@ export default function PrompterPage() {
   /* ── 선택 화면 ── */
   if (mode === "select") {
     return (
-      <main className="oa-page" style={{ maxWidth: 900 }}>
+      <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
         <PageHeader title="프롬프터" />
-        <button onClick={newProject} className="pt-new-project-btn"><Plus size={20} /> 새 프로젝트 만들기</button>
+        <div className="oa-page" style={{ maxWidth: 900 }}>
+          <button onClick={newProject} className="pt-new-project-btn"><Plus size={20} /> 새 프로젝트 만들기</button>
 
-        <div className="pt-section-label">최근 프로젝트</div>
-        {scriptsLoading ? (
-          <p style={{ color: "#8aa39f", fontSize: 13 }}>불러오는 중…</p>
-        ) : savedScripts.length === 0 ? (
-          <p style={{ color: "#8aa39f", fontSize: 13 }}>저장된 대본이 없어요. 새 프로젝트를 만들어보세요.</p>
-        ) : (
-          <div className="pt-project-grid">
-            {savedScripts.map((s) => (
-              <button key={s.id} className="pt-project-card" onClick={() => openScript(s)}>
-                <strong>{s.title}</strong>
-                <span>{fmtDate(s.updated_at)}</span>
-                <p>{s.content.slice(0, 80) || "내용 없음"}</p>
-              </button>
-            ))}
-          </div>
-        )}
+          <div className="pt-section-label">최근 프로젝트</div>
+          {scriptsLoading ? (
+            <p style={{ color: "#8aa39f", fontSize: 13 }}>불러오는 중…</p>
+          ) : savedScripts.length === 0 ? (
+            <p style={{ color: "#8aa39f", fontSize: 13 }}>저장된 대본이 없어요. 새 프로젝트를 만들어보세요.</p>
+          ) : (
+            <div className="pt-project-grid">
+              {savedScripts.map((s) => (
+                <div key={s.id} className="pt-project-card">
+                  <button className="pt-project-card-main" onClick={() => openScript(s)}>
+                    <strong>{s.title}</strong>
+                    <span>{fmtDate(s.updated_at)}</span>
+                    <p>{s.content.slice(0, 80) || "내용 없음"}</p>
+                  </button>
+                  <button className="pt-project-card-delete" onClick={(e) => deleteScript(s.id, e)} title="삭제"><Trash2 size={14} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
     );
   }
@@ -292,7 +314,7 @@ export default function PrompterPage() {
   /* ── 편집 화면 ── */
   if (mode === "edit") {
     return (
-      <main className="oa-page">
+      <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
         <PageHeader
           title="프롬프터"
           actions={<>
@@ -301,37 +323,83 @@ export default function PrompterPage() {
             <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행 →</button>
           </>}
         />
-        <div className="pt-edit-layout">
-          <aside className="pt-navigator">
-            <button onClick={newProject} className="pt-navigator-new"><Plus size={14} /> 새 대본</button>
-            {scriptsLoading ? (
-              <p style={{ color: "#9BB5B0", fontSize: 12, padding: "0 4px" }}>불러오는 중…</p>
-            ) : savedScripts.length === 0 ? (
-              <p style={{ color: "#9BB5B0", fontSize: 12, padding: "0 4px" }}>저장된 대본이 없어요.</p>
-            ) : (
-              savedScripts.map((s) => (
-                <div key={s.id} className={`pt-nav-item${s.id === scriptId ? " active" : ""}`}>
-                  <button className="pt-nav-item-main" onClick={() => openScript(s)}>
-                    <strong>{s.title}</strong>
-                    <span>{fmtDate(s.updated_at)}</span>
-                  </button>
-                  <button className="pt-nav-item-delete" onClick={(e) => deleteScript(s.id, e)} title="삭제"><Trash2 size={13} /></button>
+        <div className="oa-page">
+          <div className="pt-edit-layout">
+            <aside className="pt-navigator">
+              <button onClick={newProject} className="pt-navigator-new"><Plus size={14} /> 새 대본</button>
+              {scriptsLoading ? (
+                <p style={{ color: "#9BB5B0", fontSize: 12, padding: "0 4px" }}>불러오는 중…</p>
+              ) : savedScripts.length === 0 ? (
+                <p style={{ color: "#9BB5B0", fontSize: 12, padding: "0 4px" }}>저장된 대본이 없어요.</p>
+              ) : (
+                savedScripts.map((s) => (
+                  <div key={s.id} className={`pt-nav-item${s.id === scriptId ? " active" : ""}`}>
+                    <button className="pt-nav-item-main" onClick={() => openScript(s)}>
+                      <strong>{s.title}</strong>
+                      <span>{fmtDate(s.updated_at)}</span>
+                    </button>
+                    <button className="pt-nav-item-delete" onClick={(e) => deleteScript(s.id, e)} title="삭제"><Trash2 size={13} /></button>
+                  </div>
+                ))
+              )}
+            </aside>
+            <div className="pt-editor-main">
+              <input
+                value={title} onChange={(e) => setTitle(e.target.value)} placeholder="대본 제목"
+                style={{ width: "100%", padding: "10px 14px", fontSize: 15, fontWeight: 700, border: "1px solid #E0E8E6", borderRadius: 10, marginBottom: 8 }}
+              />
+              <input
+                value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="촬영대상 (예: OOO 원장님 인터뷰)"
+                style={{ width: "100%", padding: "9px 14px", fontSize: 13, border: "1px solid #E0E8E6", borderRadius: 10, marginBottom: 14, color: "#5a7470" }}
+              />
+
+              <div className="pt-editor-mode-toggle">
+                <button className={editorMode === "text" ? "active" : ""} onClick={() => setEditorMode("text")}><FileText size={13} /> 전체 텍스트</button>
+                <button className={editorMode === "slides" ? "active" : ""} onClick={() => setEditorMode("slides")}><Rows3 size={13} /> 슬라이드별</button>
+              </div>
+
+              {editorMode === "text" ? (
+                <textarea
+                  value={text} onChange={(e) => setText(e.target.value)}
+                  placeholder="여기에 대본을 입력하세요. 줄바꿈 단위로 슬라이드 모드와 그대로 연결됩니다."
+                  style={{ width: "100%", minHeight: 480, padding: 20, fontSize: 17, lineHeight: 1.9, border: "1px solid #E0E8E6", borderRadius: 14, resize: "vertical", fontFamily: "'Noto Sans KR', sans-serif" }}
+                />
+              ) : (
+                <div className="pt-slide-list">
+                  {slides.map((s, i) => (
+                    <div key={i} className="pt-slide-card">
+                      <div className="pt-slide-card-head">
+                        <span>{i + 1}</span>
+                        <div className="pt-slide-card-actions">
+                          <button onClick={() => moveSlide(i, -1)} disabled={i === 0} title="위로"><ChevronUp size={14} /></button>
+                          <button onClick={() => moveSlide(i, 1)} disabled={i === slides.length - 1} title="아래로"><ChevronDown size={14} /></button>
+                          <button onClick={() => removeSlide(i)} title="삭제"><Trash2 size={13} /></button>
+                        </div>
+                      </div>
+                      <textarea
+                        value={s} onChange={(e) => updateSlide(i, e.target.value)} rows={2}
+                        placeholder="문장을 입력하세요"
+                      />
+                    </div>
+                  ))}
+                  <button onClick={addSlide} className="pt-slide-add"><Plus size={14} /> 문장 추가</button>
                 </div>
-              ))
-            )}
-          </aside>
-          <div className="pt-editor-main">
-            <input
-              value={title} onChange={(e) => setTitle(e.target.value)} placeholder="대본 제목"
-              style={{ width: "100%", padding: "10px 14px", fontSize: 15, fontWeight: 700, border: "1px solid #E0E8E6", borderRadius: 10, marginBottom: 10 }}
-            />
-            <textarea
-              value={text} onChange={(e) => setText(e.target.value)}
-              placeholder="여기에 대본을 입력하세요. 문단은 그대로 스크롤 화면에 반영됩니다."
-              style={{ width: "100%", minHeight: 520, padding: 20, fontSize: 17, lineHeight: 1.9, border: "1px solid #E0E8E6", borderRadius: 14, resize: "vertical", fontFamily: "'Noto Sans KR', sans-serif" }}
-            />
+              )}
+            </div>
           </div>
         </div>
+
+        {showMobileBlocked && (
+          <div className="pt-modal-backdrop" onClick={() => setShowMobileBlocked(false)}>
+            <div className="pt-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
+              <strong style={{ fontSize: 15 }}>PC 또는 태블릿에서 실행해주세요</strong>
+              <p style={{ fontSize: 13, color: "#6a8e8a", margin: "10px 0 0" }}>
+                모바일 화면은 프롬프터를 읽기엔 너무 작아요.<br />대신 리모컨 기능으로 PC/태블릿의 큰 화면을 조작해보세요.
+              </p>
+              <button onClick={() => setShowMobileBlocked(false)} className="pt-btn pt-btn-primary" style={{ marginTop: 16, width: "100%" }}>확인</button>
+            </div>
+          </div>
+        )}
       </main>
     );
   }
@@ -352,11 +420,13 @@ export default function PrompterPage() {
         </p>
       </div>
 
-      {/* 상단 바 — 타이머는 항상 정중앙 */}
-      <div style={{ position: "fixed", top: 16, left: 16, right: 16, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 12 }}>
-        <div>{recording && <span style={{ color: "#ff5c5c", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><Circle size={10} fill="#ff5c5c" /> REC</span>}</div>
-        <div className="pt-timer-badge">{fmtTime(elapsed)}</div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", justifySelf: "end" }}>
+      {/* 상단 바 — 타이머는 왼쪽 */}
+      <div style={{ position: "fixed", top: 16, left: 16, right: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="pt-timer-badge">{fmtTime(elapsed)}</div>
+          {recording && <span style={{ color: "#ff5c5c", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><Circle size={10} fill="#ff5c5c" /> REC</span>}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button onClick={() => setShowRemoteInfo(true)} className="pt-icon-btn"><Smartphone size={14} /> 리모컨</button>
           <button onClick={() => setShowControls((v) => !v)} className="pt-icon-btn">{showControls ? "설정 숨기기" : "설정"}</button>
           <button onClick={exitPromptMode} className="pt-icon-btn"><X size={18} /></button>
