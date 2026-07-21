@@ -1,5 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { getSupabaseAdmin } from "@/lib/supabase";
+
+// 팀 채팅 데이터 API(방/멤버 조회 등)는 RLS가 auth.uid() 기준으로 동작해서 pc_admin_session만으로는
+// 애초에 유효한 조회가 안 된다 — 실제 Supabase Auth 세션(sb-* 쿠키)이 있는지 직접 확인한다.
+// 초대 발급/Drive 연결처럼 관리자 전용인 라우트는 각 핸들러 안에서 pc_admin_session을 따로 체크한다
+// (여기서 prefix로 뭉뚱그리면 /api/team-chat/invites/[token]/accept 같은 공개 라우트까지 막혀버린다).
+async function hasValidTeamChatMemberSession(req: NextRequest): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return false;
+  try {
+    const supabase = createServerClient(url, anonKey, {
+      cookies: {
+        getAll() { return req.cookies.getAll(); },
+        setAll() { /* 미들웨어에서는 읽기만 — 토큰 갱신은 팀챗 API 라우트에서 처리 */ },
+      },
+    });
+    const { data: { user } } = await supabase.auth.getUser();
+    return Boolean(user);
+  } catch {
+    return false;
+  }
+}
 
 const protectedApiPrefixes = [
   "/api/admin",
