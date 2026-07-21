@@ -832,12 +832,6 @@ export default function PrompterPage() {
   const isSlideMode = editorMode === "slides";
   return (
     <div ref={promptRootRef} style={{ position: "fixed", inset: 0, background: "#000", zIndex: 999 }}>
-      {!isSlideMode && (
-        <>
-          <div style={{ position: "fixed", top: 70, left: "8vw", right: "8vw", borderTop: "1px dashed #E85D2C", pointerEvents: "none", zIndex: 5 }} />
-          <div style={{ position: "fixed", top: 70 + fontSize * 1.7 * 3, left: "8vw", right: "8vw", borderTop: "1px dashed #E85D2C", pointerEvents: "none", zIndex: 5 }} />
-        </>
-      )}
       {isSlideMode ? (
         <div style={{
           height: "100%", display: "flex", flexDirection: "column",
