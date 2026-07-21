@@ -47,6 +47,7 @@ const navigation: NavigationSection[] = [
     label: "메인 메뉴",
     items: [
       { label: "홈", href: "/admin/dashboard/home", icon: House },
+      { label: "팀 채팅", href: "/team-chat", icon: MessageCircle },
       { label: "고객관리", href: "/clients", icon: UsersRound },
       { label: "캘린더", href: "/calendar", icon: CalendarDays },
       { label: "메모", href: "/memo", icon: NotebookPen },
