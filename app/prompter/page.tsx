@@ -593,7 +593,7 @@ export default function PrompterPage() {
           {isSlideMode ? (
             <>
               <button onClick={() => setSlideIndex((i) => Math.max(i - 1, 0))} disabled={slideIndex === 0} className="pt-ctrl-btn"><ChevronLeft size={18} /> 이전</button>
-              <button onClick={() => setSlideIndex((i) => Math.min(i + 1, slides.length - 1))} disabled={slideIndex >= slides.length - 1} className="pt-ctrl-btn">다음 <ChevronRightIcon /></button>
+              <button onClick={() => setSlideIndex((i) => Math.min(i + 1, slides.length - 1))} disabled={slideIndex >= slides.length - 1} className="pt-ctrl-btn">다음 <ChevronRight size={18} /></button>
               <button onClick={resetTimer} className="pt-ctrl-btn"><RotateCcw size={18} /> 처음으로</button>
             </>
           ) : (
