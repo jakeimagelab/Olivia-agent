@@ -85,7 +85,9 @@ export default function TeamChatSettingsPage() {
         <h1 style={{ fontSize: 22, fontWeight: 900, color: C.ink, margin: "0 0 6px" }}>팀 채팅 설정</h1>
         <p style={{ fontSize: 13, color: C.muted, margin: "0 0 24px" }}>관리자만 볼 수 있는 팀 채팅 관리 화면입니다.</p>
 
-        <DriveStatusCard />
+        <Suspense fallback={null}>
+          <DriveStatusCard />
+        </Suspense>
       </div>
     </main>
   );
