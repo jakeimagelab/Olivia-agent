@@ -1185,12 +1185,14 @@
 .pt-input-subject { width: 100%; padding: 10px 16px; font-size: 13px; color: #5a7470; border: 1px solid #E0E8E6; border-radius: 12px; margin-bottom: 16px; background: #fafcfb; }
 .pt-textarea { width: 100%; min-height: 480px; padding: 22px; font-size: 17px; line-height: 1.9; color: #1c2b28; border: 1px solid #E0E8E6; border-radius: 16px; resize: vertical; font-family: 'Noto Sans KR', sans-serif; background: #fff; }
 
-/* 편집 화면 — 왼쪽 프로젝트 네비게이터 */
-.pt-edit-layout { display: flex; gap: 20px; align-items: flex-start; }
-.pt-navigator { width: 240px; flex-shrink: 0; background: #fff; border: 1px solid #E0E8E6; border-radius: 14px; padding: 12px; max-height: 640px; overflow-y: auto; }
-.pt-navigator-new { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border-radius: 10px; border: 1px dashed #B8D4CF; background: #F5FAF9; color: #155855; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 12px; }
+/* 편집 화면 — 왼쪽 씬 네비게이터 */
+.pt-edit-layout { display: flex; gap: 22px; align-items: flex-start; }
+.pt-navigator { width: 250px; flex-shrink: 0; background: #fff; border: 1px solid #E0E8E6; border-radius: 16px; padding: 14px; max-height: 660px; overflow-y: auto; box-shadow: 0 1px 6px rgba(21,88,85,.04); }
+.pt-navigator-new { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border-radius: 10px; border: 1px dashed #B8D4CF; background: #F5FAF9; color: #155855; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 12px; transition: background .15s; }
+.pt-navigator-new:hover { background: #EAF4F2; }
 .pt-nav-item { display: flex; align-items: stretch; gap: 4px; margin-bottom: 4px; }
-.pt-nav-item-main { flex: 1; min-width: 0; text-align: left; padding: 9px 10px; border-radius: 9px; border: 1px solid transparent; background: transparent; cursor: pointer; }
+.pt-nav-item-main { flex: 1; min-width: 0; text-align: left; padding: 10px 11px; border-radius: 10px; border: 1px solid transparent; background: transparent; cursor: pointer; transition: background .15s; }
+.pt-nav-item-main:hover { background: #FAFCFB; }
 .pt-nav-item-main strong { display: block; font-size: 12.5px; color: #0d1f1e; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pt-nav-item-main span { font-size: 10.5px; color: #9BB5B0; }
 .pt-nav-item.active .pt-nav-item-main { background: #EAF4F2; border-color: #B8D4CF; }
@@ -1199,8 +1201,9 @@
 .pt-nav-item-delete:hover { background: #fdf1ef; }
 .pt-editor-main { flex: 1; min-width: 0; }
 
-/* 실행 화면 — 타이머 배지 */
+/* 실행 화면 — 타이머 배지 / 슬라이드 카운터 */
 .pt-timer-badge { color: #fff; font-size: 23px; font-weight: 900; font-variant-numeric: tabular-nums; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); padding: 7px 20px; border-radius: 999px; letter-spacing: .03em; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+.pt-slide-counter { color: #fff; font-size: 13px; font-weight: 800; background: rgba(232,93,44,.18); border: 1px solid rgba(232,93,44,.4); padding: 6px 14px; border-radius: 999px; }
 
 /* 편집 화면 — 텍스트/슬라이드 편집 모드 전환 */
 .pt-editor-mode-toggle { display: inline-flex; gap: 4px; padding: 4px; background: #EEF3F1; border-radius: 10px; margin-bottom: 12px; }
