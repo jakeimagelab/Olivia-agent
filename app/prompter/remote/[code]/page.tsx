@@ -19,7 +19,7 @@ function pickSupportedAudioMimeType(): string | undefined {
   return candidates.find((t) => MediaRecorder.isTypeSupported?.(t));
 }
 
-const orangeRange = { accentColor: "#e85d2c", width: "100%" } as const;
+const orangeRange = { accentColor: "#e85d2c", flex: 1, minWidth: 0 } as const;
 
 export default function PrompterRemotePage() {
   const params = useParams();
