@@ -229,6 +229,7 @@ export const config = {
     "/website-builder", "/website-builder/:path*",
     "/seo-delivery", "/seo-delivery/:path*",
     "/photo-sorting", "/photo-sorting/:path*",
+    "/prompter", "/prompter/:path*",
     "/video-sorting", "/video-sorting/:path*",
     "/video-convert", "/video-convert/:path*",
     "/raw-select", "/raw-select/:path*",
