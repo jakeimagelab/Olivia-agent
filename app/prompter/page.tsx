@@ -823,14 +823,10 @@ export default function PrompterPage() {
   return (
     <div ref={promptRootRef} style={{ position: "fixed", inset: 0, background: "#000", zIndex: 999 }}>
       {!isSlideMode && (
-        <div
-          style={{
-            position: "fixed", top: 70, left: "8vw", right: "8vw",
-            height: `${fontSize * 1.7 * 3}px`,
-            border: "2px dashed #E85D2C", borderRadius: 14,
-            pointerEvents: "none", zIndex: 5,
-          }}
-        />
+        <>
+          <div style={{ position: "fixed", top: 70, left: "8vw", right: "8vw", borderTop: "1px dashed #E85D2C", pointerEvents: "none", zIndex: 5 }} />
+          <div style={{ position: "fixed", top: 70 + fontSize * 1.7 * 3, left: "8vw", right: "8vw", borderTop: "1px dashed #E85D2C", pointerEvents: "none", zIndex: 5 }} />
+        </>
       )}
       {isSlideMode ? (
         <div style={{
