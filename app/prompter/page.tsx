@@ -14,8 +14,25 @@ import PageHeader from "@/components/PageHeader";
 import { getSupabase } from "@/lib/supabase";
 import { FONT_OPTIONS, COLOR_OPTIONS, V_ALIGN_PADDING, fmtTime, type HAlign, type VAlign } from "@/lib/prompter/constants";
 
-type Project = { id: string; name: string; sceneCount: number; lastActivity: string; updated_at: string };
-type Scene = { id: string; title: string; subject?: string; content: string; editor_mode?: "text" | "slides"; updated_at: string };
+type Speaker = { id: string; name: string; color: string };
+type Project = { id: string; name: string; sceneCount: number; lastActivity: string; updated_at: string; speakers?: Speaker[] };
+type Scene = { id: string; title: string; subject?: string; content: string; editor_mode?: "text" | "slides"; speaker_map?: string[]; updated_at: string };
+
+const SPEAKER_PALETTE = ["#E85D2C", "#155855", "#EB8F22", "#7C3AED", "#2563EB", "#569082"];
+
+// 문단(빈 줄로 구분)과 화자 배정을 함께 정리한다 — 진짜 빈 문단(카드만 만들고 아직
+// 안 쓴 문단 등)은 실행화면·저장 데이터 모두에서 걸러내고, 화자 배정도 같이 맞춰 당겨준다.
+function getCleanParagraphs(text: string, speakerMap: string[]): { paragraphs: string[]; speakerMap: string[] } {
+  const raw = text.split(/\n\s*\n/);
+  const paragraphs: string[] = [];
+  const map: string[] = [];
+  raw.forEach((p, i) => {
+    if (p.trim().length === 0) return;
+    paragraphs.push(p);
+    map.push(speakerMap[i] ?? "");
+  });
+  return { paragraphs, speakerMap: map };
+}
 
 // Chrome은 vp9가 안정적이지만 지원하지 않는 브라우저(구형 Chrome, 일부 Safari)에서
 // new MediaRecorder(...)가 바로 예외를 던지지 않도록 지원 코덱을 순서대로 확인한다.
