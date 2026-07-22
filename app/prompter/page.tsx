@@ -629,6 +629,8 @@ export default function PrompterPage() {
         case "fontFamily": setFontFamily(payload.value); break;
         case "fontSize": setFontSize(payload.value); break;
         case "paragraphSpacing": setParagraphSpacing(payload.value); break;
+        case "bgColor": setBgColor(payload.value); break;
+        case "lineHeight": setLineHeight(payload.value); break;
         case "seek": {
           // 리모컨에서 미리보기를 직접 드래그해서 스크롤 위치를 지정했을 때.
           const box = scrollBoxRef.current;
