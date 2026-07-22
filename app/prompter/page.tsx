@@ -1040,7 +1040,7 @@ export default function PrompterPage() {
   /* ── 프롬프터(전체화면) 실행 모드 ── */
   const isSlideMode = editorMode === "slides";
   return (
-    <div ref={promptRootRef} style={{ position: "fixed", inset: 0, background: "#000", zIndex: 999 }}>
+    <div ref={promptRootRef} style={{ position: "fixed", inset: 0, background: bgColor, zIndex: 999 }}>
       {isSlideMode ? (
         <div style={{
           height: "100%", display: "flex", flexDirection: "column",
@@ -1048,7 +1048,7 @@ export default function PrompterPage() {
           padding: "0 8vw",
           transform: `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
         }}>
-          <p style={{ fontSize, color: fontColor, fontFamily, lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0, textAlign: hAlign, width: "100%" }}>
+          <p style={{ fontSize, color: fontColor, fontFamily, lineHeight, whiteSpace: "pre-wrap", margin: 0, textAlign: hAlign, width: "100%" }}>
             {slides[slideIndex] ?? ""}
           </p>
         </div>
