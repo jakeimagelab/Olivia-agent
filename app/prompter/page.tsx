@@ -1191,19 +1191,19 @@ export default function PrompterPage() {
                 <Clock3 size={16} /> 카운트다운
               </button>
 
-              <label className="pt-ctrl-label"><Gauge size={14} /> 속도
-                <input type="range" min={1} max={300} step={1} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
+              <label className="pt-ctrl-label"><Gauge size={14} /> 속도 {levelOf(speed, SPEED_LEVELS)}/10
                 <input
-                  type="number" min={1} max={999} value={speed} className="pt-ctrl-num"
-                  onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setSpeed(Math.max(1, v)); }}
+                  type="range" min={1} max={10} step={1} value={levelOf(speed, SPEED_LEVELS)}
+                  onChange={(e) => setSpeed(SPEED_LEVELS[Number(e.target.value) - 1])}
+                  style={{ accentColor: "#e85d2c" }}
                 />
               </label>
 
-              <label className="pt-ctrl-label"><AlignVerticalSpaceAround size={14} /> 문단간격
-                <input type="range" min={0} max={240} step={1} value={paragraphSpacing} onChange={(e) => setParagraphSpacing(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
+              <label className="pt-ctrl-label"><AlignVerticalSpaceAround size={14} /> 문단간격 {levelOf(paragraphSpacing, PARAGRAPH_SPACING_LEVELS)}/10
                 <input
-                  type="number" min={0} max={999} value={paragraphSpacing} className="pt-ctrl-num"
-                  onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setParagraphSpacing(Math.max(0, v)); }}
+                  type="range" min={1} max={10} step={1} value={levelOf(paragraphSpacing, PARAGRAPH_SPACING_LEVELS)}
+                  onChange={(e) => setParagraphSpacing(PARAGRAPH_SPACING_LEVELS[Number(e.target.value) - 1])}
+                  style={{ accentColor: "#e85d2c" }}
                 />
               </label>
 
