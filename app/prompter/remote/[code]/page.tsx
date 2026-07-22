@@ -40,6 +40,18 @@ export default function PrompterRemotePage() {
   const [editorMode, setEditorMode] = useState<"text" | "slides">("text");
   const [slideIndex, setSlideIndex] = useState(0);
   const [totalSlides, setTotalSlides] = useState(0);
+  const [paragraphIndex, setParagraphIndex] = useState(0);
+  const [totalParagraphs, setTotalParagraphs] = useState(0);
+
+  // 실행화면 미리보기 — 실제 대본 내용을 받아서 그대로 축소 표시하고, 직접 드래그해서 스크롤 위치를 지정할 수 있다.
+  type PreviewSpeaker = { id: string; name: string; color: string };
+  const [previewParagraphs, setPreviewParagraphs] = useState<string[]>([]);
+  const [previewSlides, setPreviewSlides] = useState<string[]>([]);
+  const [previewSpeakers, setPreviewSpeakers] = useState<PreviewSpeaker[]>([]);
+  const [previewSpeakerMap, setPreviewSpeakerMap] = useState<string[]>([]);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const isDraggingPreviewRef = useRef(false);
+  const lastSeekSentRef = useRef(0);
 
   // 화면이 꺼지지 않게 — 촬영 중 리모컨을 보다가 폰이 잠들어 조작이 끊기는 걸 막는다.
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
