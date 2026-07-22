@@ -1222,6 +1222,21 @@ export default function PrompterPage() {
             ))}
           </div>
 
+          <label className="pt-ctrl-label"><Palette size={14} /> 배경
+            <div className="pt-color-row">
+              {BG_COLOR_OPTIONS.map((c) => (
+                <button
+                  key={c} onClick={() => setBgColor(c)}
+                  className={`pt-color-swatch${bgColor === c ? " active" : ""}`}
+                  style={{ background: c, border: c === "#FFFFFF" ? "2px solid #999" : undefined }} title={c}
+                />
+              ))}
+            </div>
+          </label>
+          {bgColor === "#FFFFFF" && fontColor === "#FFFFFF" && (
+            <span style={{ fontSize: 11, color: "#ffb199", fontWeight: 700 }}>⚠ 배경·글자색이 같아 안 보여요</span>
+          )}
+
           <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="pt-ctrl-select pt-ctrl-select-sm">
             {FONT_OPTIONS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
           </select>
