@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   FlipHorizontal, FlipVertical, Play, Pause, RotateCcw,
