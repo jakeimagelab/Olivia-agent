@@ -1159,6 +1159,9 @@
 .pt-ctrl-btn:disabled { opacity: .35; cursor: not-allowed; }
 .pt-rec-btn { color: #ff5c5c; }
 .pt-ctrl-label { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; }
+/* 1~10 단계 숫자가 9→10으로 바뀔 때 자릿수가 늘어도 폭이 고정돼 있어야 컨트롤바 아이콘들이
+   줄바꿈되며 밀리지 않는다. */
+.pt-ctrl-level { display: inline-block; min-width: 26px; }
 .pt-ctrl-label input[type="range"] { accent-color: #e85d2c; }
 .pt-ctrl-select { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 6px 8px; font-size: 12px; }
 
