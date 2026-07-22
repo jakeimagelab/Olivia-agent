@@ -39,13 +39,20 @@ export async function POST(req: NextRequest) {
   }
 
   const { credential } = verification.registrationInfo;
-  const { error } = await db.from("admin_passkeys").insert({
+  const credentialRow = {
     credential_id: credential.id,
     public_key: encodePublicKey(credential.publicKey),
     counter: credential.counter,
     transports: credential.transports ?? [],
     device_name: typeof body.deviceName === "string" ? body.deviceName.slice(0, 120) : "",
-  });
+    rp_id: rpID,
+    registration_origin: origin,
+  };
+  let { error } = await db.from("admin_passkeys").insert(credentialRow);
+  if (error && /rp_id|registration_origin|column/i.test(error.message)) {
+    const { rp_id: _rpId, registration_origin: _registrationOrigin, ...legacyRow } = credentialRow;
+    ({ error } = await db.from("admin_passkeys").insert(legacyRow));
+  }
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }

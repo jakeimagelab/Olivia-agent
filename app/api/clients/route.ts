@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
-import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
-import { isActiveWorkflowStep } from "@/lib/workflow";
-import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
+import { createClientWithWorkflow } from "@/lib/clients/createClientWithWorkflow";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -67,78 +64,21 @@ export async function POST(req: NextRequest) {
   const hospitalName = body.name || body.hospital_name;
   if (!hospitalName) return NextResponse.json({ ok: false, error: "병원명 필수" }, { status: 400 });
 
-  const { data: client, error } = await supabase
-    .from("clients")
-    .insert({
-      hospital_name: hospitalName,
-      contact_name:  body.director_name || body.contact_name || body.manager_name || null,
-      phone:         body.phone         || null,
-      email:         body.email         || null,
-      specialty:     body.department    || body.specialty     || null,
-      memo:          body.memo          || null,
-    })
-    .select("id")
-    .single();
-
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-
-  await emitOliviaEventSafely(supabase, {
-    eventType: "customer.created",
-    eventSource: "clients_api",
-    clientId: client.id,
-    actorType: "admin",
-    payload: {
-      name: hospitalName,
-      managerName: body.director_name || body.contact_name || body.manager_name || "",
-      department: body.department || body.specialty || "",
-    },
-    deduplicationKey: createEventDeduplicationKey("customer.created", client.id),
-  });
-
-  const startStepKey = isActiveWorkflowStep(body.startStepKey) ? body.startStepKey : "consult_meeting";
-
-  const { data: run } = await supabase.from("workflow_runs").insert({
-    client_id:        client.id,
-    client_name:      hospitalName,
-    current_step_key: startStepKey,
-    next_action:      buildNextAction(startStepKey),
-    status:           "active",
-    started_at:       new Date().toISOString(),
-  }).select().single();
-
-  if (run?.id) {
-    await ensureStepRun(supabase, run.id, startStepKey, "in_progress");
-    const taskResult = await createStepTasks(supabase, run.id, startStepKey);
-    await logAgent(supabase, {
-      workflow_run_id: run.id,
-      log_type: "workflow_started",
-      message: startStepKey === "consult_meeting"
-        ? `${hospitalName} 고객 생성 후 워크플로우가 시작되었습니다.`
-        : `${hospitalName} 고객이 중간 단계(${startStepKey})부터 등록되어, 이전 단계는 완료 처리(수동 진행분)됐습니다.`,
-      output_summary: `created_tasks: ${taskResult.created.length}`,
-    });
-    await emitOliviaEventSafely(supabase, {
-      eventType: "workflow.started",
-      eventSource: "clients_api",
-      clientId: client.id,
-      workflowRunId: run.id,
-      actorType: "admin",
-      payload: { firstStepKey: startStepKey, clientName: hospitalName },
-      deduplicationKey: createEventDeduplicationKey("workflow.started", run.id),
-    });
-  }
-
   try {
-    await linkUnassignedPhotoGalleries(supabase, {
-      clientId: client.id,
+    const result = await createClientWithWorkflow(supabase, {
       hospitalName,
-      workflowRunId: run?.id ?? null,
+      contactName: body.director_name || body.contact_name || body.manager_name,
+      phone: body.phone,
+      email: body.email,
+      specialty: body.department || body.specialty,
+      memo: body.memo,
+      startStepKey: body.startStepKey,
+      eventSource: "clients_api",
     });
-  } catch (linkError) {
-    console.error("[clients-api] 기존 촬영 갤러리 고객 연결 실패", linkError);
+    return NextResponse.json({ ok: true, id: result.client.id, workflowRunId: result.run?.id ?? null, created: result.created });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "고객 등록 실패" }, { status: 500 });
   }
-
-  return NextResponse.json({ ok: true, id: client.id });
 }
 
 /* 프론트가 기대하는 필드명으로 정규화 */

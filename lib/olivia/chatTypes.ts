@@ -6,7 +6,8 @@ export type OliviaChatWorkItemKind =
   | "project"
   | "event"
   | "meeting"
-  | "memo";
+  | "memo"
+  | "client_candidate";
 
 export type OliviaChatWorkItemAction =
   | "view"
@@ -20,7 +21,8 @@ export type OliviaChatWorkItemAction =
   | "brief"
   | "link"
   | "analyze"
-  | "followups";
+  | "followups"
+  | "register";
 
 export type OliviaChatWorkItem = {
   id: string;

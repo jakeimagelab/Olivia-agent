@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getPrompterScope, assertProjectOwned } from "@/lib/prompter/scope";
+import { registerClientCandidate } from "@/lib/olivia/clientCandidate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,5 +86,9 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (scope.isAdmin) {
+    after(() => registerClientCandidate(db, { hospitalName: name, sourceType: "prompter", sourceRecordId: data.id })
+      .catch((candidateError) => console.error("[prompter] 신규 고객 감지 실패", candidateError)));
+  }
   return NextResponse.json({ ok: true, project: data });
 }

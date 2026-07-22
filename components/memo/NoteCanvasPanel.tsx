@@ -1,7 +1,7 @@
 "use client";
 
-import { forwardRef, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Circle, Minus, Redo2, Square, Trash2, Undo2 } from "lucide-react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowUpRight, Circle, Maximize2, Minimize2, Minus, Redo2, Square, Trash2, Undo2 } from "lucide-react";
 import DrawingCanvas, { DRAW_COLORS, type DrawingCanvasHandle, type DrawShape, type PenType } from "@/components/DrawingCanvas";
 import type { MemoTemplateData, MemoTemplateType } from "@/lib/memo/types";
 
@@ -37,6 +37,19 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
   const [eraserSize, setEraserSize] = useState(24);
   const [shape, setShape] = useState<DrawShape>("freehand");
   const [, forceHistory] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const sync = () => setIsFullscreen(document.fullscreenElement === panelRef.current);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement === panelRef.current) await document.exitFullscreen();
+    else if (panelRef.current?.requestFullscreen) await panelRef.current.requestFullscreen();
+  };
 
   const background = useMemo(() => {
     if (templateType === "cornell") return { backgroundColor: "#FCFDFC", backgroundImage: "linear-gradient(to right,transparent calc(31% - 1px),rgba(21,88,85,.22) calc(31% - 1px),rgba(21,88,85,.22) calc(31% + 1px),transparent calc(31% + 1px)),linear-gradient(to bottom,transparent calc(78% - 1px),rgba(21,88,85,.22) calc(78% - 1px),rgba(21,88,85,.22) calc(78% + 1px),transparent calc(78% + 1px))" };
@@ -51,7 +64,7 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
   }, [templateData.contiColumns, templateData.contiRows, templateType]);
 
   return (
-    <section aria-label="필기 팔레트">
+    <section ref={panelRef} aria-label="필기 팔레트" style={isFullscreen ? { background: "#FCFDFC", padding: 14, overflow: "hidden" } : undefined}>
       <div className="memo-draw-toolbar" style={{ display: "flex", gap: 9, alignItems: "center", flexWrap: "wrap", padding: 10, borderRadius: 16, background: "#EDF5F3", marginBottom: 10 }}>
         <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
           {NOTE_PENS.map(pen => <button key={pen.key} title={pen.label} onClick={() => { setPenType(pen.key); setEraser(false); setShape("freehand"); }} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: !eraser && shape === "freehand" && penType === pen.key ? "#155855" : "transparent", color: !eraser && shape === "freehand" && penType === pen.key ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{pen.label}</button>)}
@@ -77,6 +90,7 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
           })}
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
+          <button aria-label={isFullscreen ? "전체화면 종료" : "전체화면"} title={isFullscreen ? "전체화면 종료" : "전체화면"} onClick={() => void toggleFullscreen()} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#fff", color: "#155855", cursor: "pointer" }}>{isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
           <button aria-label="실행 취소" title="실행 취소" onClick={() => { innerRef.current?.undo(); forceHistory(v => v + 1); }} disabled={!innerRef.current?.canUndo()} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#fff", color: "#155855", cursor: "pointer" }}><Undo2 size={16} /></button>
           <button aria-label="다시 실행" title="다시 실행" onClick={() => { innerRef.current?.redo(); forceHistory(v => v + 1); }} disabled={!innerRef.current?.canRedo()} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#fff", color: "#155855", cursor: "pointer" }}><Redo2 size={16} /></button>
           <button aria-label="전체 지우기" title="전체 지우기" onClick={() => { if (window.confirm("필기 내용을 모두 지울까요?")) { innerRef.current?.clear(); forceHistory(v => v + 1); } }} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#FFF0ED", color: "#B42318", cursor: "pointer" }}><Trash2 size={16} /></button>
@@ -84,7 +98,7 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
       </div>
       <div style={{ padding: 6, borderRadius: 22, background: "rgba(21,88,85,.06)" }}>
         <div style={{ ...background, borderRadius: 16, overflow: "hidden" }}>
-          <DrawingCanvas ref={setRefs} penType={penType} penSize={penSize} penColor={penColor} isEraser={eraser} eraserSize={eraserSize} shape={shape} initialImage={initialImage} onStrokeEnd={dataUrl => { onChange(dataUrl); forceHistory(v => v + 1); }} style={{ display: "block", width: "100%", height: templateType === "conti" ? 560 : 430 }} />
+          <DrawingCanvas ref={setRefs} penType={penType} penSize={penSize} penColor={penColor} isEraser={eraser} eraserSize={eraserSize} shape={shape} initialImage={initialImage} onStrokeEnd={dataUrl => { onChange(dataUrl); forceHistory(v => v + 1); }} style={{ display: "block", width: "100%", height: isFullscreen ? "calc(100vh - 104px)" : templateType === "conti" ? 560 : 430 }} />
         </div>
       </div>
     </section>

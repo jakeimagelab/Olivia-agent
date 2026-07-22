@@ -11,6 +11,7 @@ type Passkey = {
   device_name: string;
   created_at: string;
   last_used_at: string | null;
+  rp_id?: string | null;
 };
 
 export default function SecurityPage() {
@@ -176,6 +177,7 @@ export default function SecurityPage() {
                   <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>
                     등록 {new Date(p.created_at).toLocaleDateString("ko-KR")}
                     {p.last_used_at ? ` · 마지막 사용 ${new Date(p.last_used_at).toLocaleDateString("ko-KR")}` : ""}
+                    {p.rp_id ? ` · ${p.rp_id}` : " · 등록 도메인 미확인(재등록 권장)"}
                   </div>
                 </div>
                 <button onClick={() => remove(p.id)} title="삭제" style={{

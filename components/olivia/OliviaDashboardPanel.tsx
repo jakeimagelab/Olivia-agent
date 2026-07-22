@@ -13,7 +13,18 @@ export default function OliviaDashboardPanel() {
       else setUnavailable(true);
     }).catch(() => setUnavailable(true));
   }, []);
-  useEffect(load, [load]);
+  useEffect(() => {
+    load();
+    const refresh = () => load();
+    window.addEventListener("olivia-calendar-updated", refresh);
+    window.addEventListener("olivia-data-changed", refresh);
+    const timer = window.setInterval(refresh, 60_000);
+    return () => {
+      window.removeEventListener("olivia-calendar-updated", refresh);
+      window.removeEventListener("olivia-data-changed", refresh);
+      window.clearInterval(timer);
+    };
+  }, [load]);
   if (unavailable) return null;
   return (
     <section className="olivia-dashboard-panel">

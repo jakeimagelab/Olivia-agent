@@ -13,7 +13,10 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getSupabaseAdmin();
-  const { rpID, origin } = rpFromRequest(req);
+  let rpID: string;
+  let origin: string;
+  try { ({ rpID, origin } = rpFromRequest(req)); }
+  catch (error) { return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "접속 주소를 확인하지 못했습니다." }, { status: 400 }); }
   const credentialId = body.response.id as string;
 
   const { data: row } = await db
@@ -23,6 +26,9 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (!row) {
     return NextResponse.json({ ok: false, error: "등록되지 않은 패스키입니다." }, { status: 401 });
+  }
+  if (row.rp_id && row.rp_id !== rpID) {
+    return NextResponse.json({ ok: false, error: `이 패스키는 ${row.rp_id}에서 등록되어 현재 주소에서 사용할 수 없습니다.` }, { status: 401 });
   }
 
   let verification;

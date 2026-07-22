@@ -176,10 +176,18 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
     dprRef.current = window.devicePixelRatio || 1;
     const resize = () => {
       const dpr = dprRef.current;
-      const imgData = canvas.getContext("2d", { willReadFrequently: true })?.getImageData(0, 0, canvas.width, canvas.height);
-      canvas.width = Math.round(canvas.offsetWidth * dpr);
-      canvas.height = Math.round(canvas.offsetHeight * dpr);
-      if (imgData) canvas.getContext("2d", { willReadFrequently: true })?.putImageData(imgData, 0, 0);
+      const nextWidth = Math.round(canvas.offsetWidth * dpr);
+      const nextHeight = Math.round(canvas.offsetHeight * dpr);
+      if (canvas.width === nextWidth && canvas.height === nextHeight) return;
+      const snapshot = document.createElement("canvas");
+      snapshot.width = canvas.width;
+      snapshot.height = canvas.height;
+      snapshot.getContext("2d")?.drawImage(canvas, 0, 0);
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
+      if (snapshot.width > 0 && snapshot.height > 0) {
+        canvas.getContext("2d", { willReadFrequently: true })?.drawImage(snapshot, 0, 0, snapshot.width, snapshot.height, 0, 0, nextWidth, nextHeight);
+      }
     };
     resize();
     if (initialImage) drawImageToFit(canvas, initialImage);
@@ -188,12 +196,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getPos = (e: React.PointerEvent<HTMLCanvasElement>): { x: number; y: number } | null => {
+  const getPos = (clientX: number, clientY: number): { x: number; y: number } | null => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
     const dpr = dprRef.current;
-    return { x: (e.clientX - rect.left) * dpr, y: (e.clientY - rect.top) * dpr };
+    return { x: (clientX - rect.left) * dpr, y: (clientY - rect.top) * dpr };
   };
 
   const applyPenStyle = (ctx: CanvasRenderingContext2D, speed = 0, pressure = 0.5) => {
@@ -247,13 +255,13 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
   const startDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
-    const pos = getPos(e);
+    const pos = getPos(e.clientX, e.clientY);
     if (!pos) return;
     pushHistory();
     isDrawingRef.current = true;
     lastPointRef.current = pos;
     lastMidRef.current = pos;
-    lastTimeRef.current = Date.now();
+    lastTimeRef.current = e.timeStamp || performance.now();
     const ctx = canvasRef.current?.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
     if (shape !== "freehand" && !isEraser) {
@@ -298,34 +306,23 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
     ctx.restore();
   };
 
-  const continueDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    if (!isDrawingRef.current) return;
-    const pos = getPos(e);
+  const drawFreehandPoint = (pos: { x: number; y: number }, pressure: number, timestamp: number) => {
     const last = lastPointRef.current;
     const lastMid = lastMidRef.current;
-    if (!pos || !last || !lastMid) return;
+    if (!last || !lastMid) return;
     const ctx = canvasRef.current?.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
-    if (shape !== "freehand" && !isEraser && shapeStartRef.current && shapeBaseRef.current) {
-      ctx.putImageData(shapeBaseRef.current, 0, 0);
-      drawShape(ctx, shapeStartRef.current, pos);
-      lastPointRef.current = pos;
-      return;
-    }
-
-    const now = Date.now();
-    const dt = Math.max(now - lastTimeRef.current, 1);
+    const dt = Math.max(timestamp - lastTimeRef.current, 1);
     const dx = pos.x - last.x;
     const dy = pos.y - last.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const speed = (dist / dprRef.current) / dt; // dpr과 무관하게 일정한 붓 반응 유지
-    lastTimeRef.current = now;
+    lastTimeRef.current = timestamp;
 
     const newMid = { x: (last.x + pos.x) / 2, y: (last.y + pos.y) / 2 };
 
     ctx.save();
-    applyPenStyle(ctx, speed, e.pressure || 0.5);
+    applyPenStyle(ctx, speed, pressure || 0.5);
     ctx.beginPath();
     ctx.moveTo(lastMid.x, lastMid.y);
     ctx.quadraticCurveTo(last.x, last.y, newMid.x, newMid.y);
@@ -335,6 +332,27 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
 
     lastMidRef.current = newMid;
     lastPointRef.current = pos;
+  };
+
+  const continueDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (!isDrawingRef.current) return;
+    const native = e.nativeEvent;
+    const coalesced = typeof native.getCoalescedEvents === "function" ? native.getCoalescedEvents() : [native];
+    if (shape !== "freehand" && !isEraser && shapeStartRef.current && shapeBaseRef.current) {
+      const sample = coalesced[coalesced.length - 1] || native;
+      const pos = getPos(sample.clientX, sample.clientY);
+      const ctx = canvasRef.current?.getContext("2d", { willReadFrequently: true });
+      if (!pos || !ctx) return;
+      ctx.putImageData(shapeBaseRef.current, 0, 0);
+      drawShape(ctx, shapeStartRef.current, pos);
+      lastPointRef.current = pos;
+      return;
+    }
+    for (const sample of coalesced) {
+      const pos = getPos(sample.clientX, sample.clientY);
+      if (pos) drawFreehandPoint(pos, sample.pressure || e.pressure || 0.5, sample.timeStamp || performance.now());
+    }
   };
 
   const stopDraw = (e?: React.PointerEvent<HTMLCanvasElement>) => {

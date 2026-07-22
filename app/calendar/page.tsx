@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { CALENDAR_REMINDER_LABEL, CALENDAR_REMINDER_MINUTES, reminderTimingPhrase, type CalendarReminderMinutes } from "@/lib/calendarReminders";
+import { parseClipboardTasks } from "@/lib/calendarPaste";
 
 /* ─── types ──────────────────────────────────────────── */
 type ViewMode = "day" | "week" | "month" | "year";
@@ -404,6 +405,7 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime }: {
           completed: false, created_at: new Date().toISOString(),
           time: time || null, end_time: endTime || null, location: location.trim() || null,
           reminder_enabled: reminderEnabled, reminder_minutes_before: reminderMinutes, reminder_due_at: d.reminder_due_at ?? null });
+        window.dispatchEvent(new CustomEvent("olivia-calendar-updated", { detail: { taskId: d.id } }));
         setTitle(""); setMemo(""); setTime(""); setEndTime(""); setLocation(""); setCat("general"); setReminderEnabled(false); setReminderMinutes(30); setOpen(false);
       } else setErr(d.error ?? "저장 실패");
     } catch { setErr("네트워크 오류"); }
@@ -2462,6 +2464,26 @@ export default function CalendarPage() {
       return newTask;
     } catch { return null; }
   };
+
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input,textarea,select,[contenteditable='true']") || popover || showStatsModal || confirmDeleteId) return;
+      const text = event.clipboardData?.getData("text/plain").trim();
+      if (!text) return;
+      const parsed = parseClipboardTasks(text, selectedDate);
+      if (!parsed.length) return;
+      const preview = parsed.slice(0, 8).map((task) => `• ${task.date}${task.time ? ` ${task.time}` : ""} ${task.title}`).join("\n");
+      const suffix = parsed.length > 8 ? `\n외 ${parsed.length - 8}건` : "";
+      if (!window.confirm(`${parsed.length}개 일정을 등록할까요?\n\n${preview}${suffix}`)) return;
+      event.preventDefault();
+      void Promise.all(parsed.map((task) => createTask(task))).then((created) => {
+        if (created.some(Boolean)) window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
+      });
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [confirmDeleteId, popover, selectedDate, showStatsModal]); // createTask only uses functional state updates
 
   const VIEW_LABELS: Record<ViewMode, string> = { day: "일", week: "주", month: "월", year: "년" };
 

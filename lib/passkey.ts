@@ -4,6 +4,21 @@ import { isoBase64URL } from "@simplewebauthn/server/helpers";
 import type { WebAuthnCredential, Uint8Array_ } from "@simplewebauthn/server";
 
 export const RP_NAME = "포토클리닉 AI 비서 관리자";
+export const CANONICAL_PASSKEY_HOST = "olivia.photoclinic.kr";
+
+function firstForwardedValue(value: string | null) {
+  return value?.split(",")[0]?.trim() || "";
+}
+
+function isTrustedPasskeyHost(hostname: string) {
+  if (hostname === CANONICAL_PASSKEY_HOST || hostname === "localhost" || hostname === "127.0.0.1") return true;
+  if (hostname.endsWith(".vercel.app")) return true;
+  const configured = [process.env.NEXT_PUBLIC_BASE_URL, process.env.NEXT_PUBLIC_APP_URL]
+    .flatMap((value) => {
+      try { return value ? [new URL(value).hostname] : []; } catch { return []; }
+    });
+  return configured.includes(hostname);
+}
 
 /**
  * WebAuthn 패스키는 등록된 도메인(rpID)에서만 동작한다. rpID를 고정값으로 하드코딩하면
@@ -13,18 +28,22 @@ export const RP_NAME = "포토클리닉 AI 비서 관리자";
 export function rpFromRequest(req: NextRequest): { rpID: string; origin: string } {
   let origin = req.headers.get("origin") || "";
   if (!origin) {
-    const host = req.headers.get("host") || "localhost:3000";
-    const proto = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
+    const host = firstForwardedValue(req.headers.get("x-forwarded-host")) || req.headers.get("host") || "localhost:3000";
+    const forwardedProto = firstForwardedValue(req.headers.get("x-forwarded-proto"));
+    const proto = forwardedProto || (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
     origin = `${proto}://${host}`;
   }
-  const rpID = new URL(origin).hostname;
+  const parsed = new URL(origin);
+  if (!isTrustedPasskeyHost(parsed.hostname)) throw new Error("허용되지 않은 패스키 접속 주소입니다.");
+  const rpID = parsed.hostname;
   return { rpID, origin };
 }
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
 export async function saveChallenge(db: SupabaseClient, challenge: string, type: "register" | "login") {
-  await db.from("admin_passkey_challenges").insert({ challenge, type });
+  const { error } = await db.from("admin_passkey_challenges").insert({ challenge, type });
+  if (error) throw new Error(`패스키 인증 준비를 저장하지 못했습니다: ${error.message}`);
 }
 
 // challenge를 1회용으로 소비: 조회 즉시 삭제하고, 유효기간(5분) 지난 것들도 함께 청소한다.
@@ -36,13 +55,13 @@ export async function consumeChallenge(
   const cutoff = new Date(Date.now() - CHALLENGE_TTL_MS).toISOString();
   await db.from("admin_passkey_challenges").delete().lt("created_at", cutoff);
 
-  const { data } = await db
+  const { data, error } = await db
     .from("admin_passkey_challenges")
     .select("id")
     .eq("challenge", challenge)
     .eq("type", type)
     .maybeSingle();
-  if (!data) return false;
+  if (error || !data) return false;
 
   await db.from("admin_passkey_challenges").delete().eq("id", data.id);
   return true;
@@ -61,6 +80,7 @@ export function rowToCredential(row: {
   public_key: string;
   counter: number;
   transports: string[] | null;
+  rp_id?: string | null;
 }): WebAuthnCredential {
   return {
     id: row.credential_id,
@@ -68,6 +88,10 @@ export function rowToCredential(row: {
     counter: row.counter,
     transports: (row.transports ?? []) as WebAuthnCredential["transports"],
   };
+}
+
+export function passkeyDomainMessage(rpID: string) {
+  return `현재 주소(${rpID})에서 사용할 패스키가 없습니다. ${CANONICAL_PASSKEY_HOST}에서 비밀번호로 로그인한 뒤 패스키를 다시 등록해주세요.`;
 }
 
 export function isAdminSession(req: NextRequest): boolean {

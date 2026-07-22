@@ -8,10 +8,15 @@ create table if not exists public.admin_passkeys (
   counter           bigint not null default 0,
   device_name       text default '',
   transports        text[] default '{}',
+  rp_id              text,
+  registration_origin text,
   created_at        timestamptz not null default now(),
   last_used_at      timestamptz
 );
 create index if not exists idx_admin_passkeys_credential_id on public.admin_passkeys(credential_id);
+alter table public.admin_passkeys add column if not exists rp_id text;
+alter table public.admin_passkeys add column if not exists registration_origin text;
+create index if not exists idx_admin_passkeys_rp_id on public.admin_passkeys(rp_id) where rp_id is not null;
 
 -- register/login challenge를 서버 세션 없이 stateless하게 검증하기 위한 임시 저장소.
 -- 조회 시 5분 지난 challenge는 폐기한다 (lib/passkey.ts).

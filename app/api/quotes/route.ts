@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { resolveClientId } from "@/lib/clientLookup";
 import { logPortalEvent } from "@/lib/clientPortal";
+import { registerClientCandidate } from "@/lib/olivia/clientCandidate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -95,6 +96,13 @@ export async function POST(req: NextRequest) {
     // 재시도로 같은 견적을 덮어쓸 때마다 알림이 쌓이지 않도록 신규 생성일 때만 포털에 기록한다.
     if (!existing?.id && clientId) {
       await logPortalEvent({ clientId, eventType: "quote_ready", targetType: "quotes", targetId: data.id }).catch(() => {});
+    }
+    if (!clientId && payload.hospital_name) {
+      after(() => registerClientCandidate(supabase, {
+        hospitalName: payload.hospital_name,
+        sourceType: "quote",
+        sourceRecordId: data.id,
+      }).catch((candidateError) => console.error("[quotes] 신규 고객 감지 실패", candidateError)));
     }
     return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at, updated: Boolean(existing?.id) });
   } catch (error) {

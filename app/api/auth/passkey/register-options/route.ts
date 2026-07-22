@@ -12,9 +12,15 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getSupabaseAdmin();
-  const { rpID } = rpFromRequest(req);
+  let rpID: string;
+  try { ({ rpID } = rpFromRequest(req)); }
+  catch (error) { return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "접속 주소를 확인하지 못했습니다." }, { status: 400 }); }
 
-  const { data: existing } = await db.from("admin_passkeys").select("credential_id, transports");
+  let { data: existing, error } = await db.from("admin_passkeys").select("credential_id, transports, rp_id").eq("rp_id", rpID);
+  if (error && /rp_id|column/i.test(error.message)) {
+    ({ data: existing, error } = await db.from("admin_passkeys").select("credential_id, transports"));
+  }
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
@@ -32,7 +38,8 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await saveChallenge(db, options.challenge, "register");
+  try { await saveChallenge(db, options.challenge, "register"); }
+  catch (error) { return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "등록 준비에 실패했습니다." }, { status: 500 }); }
 
   return NextResponse.json({ ok: true, options });
 }

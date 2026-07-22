@@ -84,13 +84,21 @@ function sanitizeMetadata(metadata: unknown) {
           matchingWorkflowRunIds: Array.isArray(item.metadata.matchingWorkflowRunIds)
             ? item.metadata.matchingWorkflowRunIds.slice(0, 10).map((id: unknown) => String(id).slice(0, 80))
             : undefined,
+          eventId: item.metadata.eventId ? String(item.metadata.eventId).slice(0, 80) : undefined,
+          insightId: item.metadata.insightId ? String(item.metadata.insightId).slice(0, 80) : undefined,
+          hospitalName: item.metadata.hospitalName ? String(item.metadata.hospitalName).slice(0, 120) : undefined,
+          sourceType: item.metadata.sourceType ? String(item.metadata.sourceType).slice(0, 30) : undefined,
+          sourceRecordId: item.metadata.sourceRecordId ? String(item.metadata.sourceRecordId).slice(0, 80) : undefined,
+          suggestedStep: item.metadata.suggestedStep ? String(item.metadata.suggestedStep).slice(0, 40) : undefined,
         } : undefined,
       })).filter((item: any) => item.id && item.kind)
     : [];
   const deviceId = typeof (metadata as any).deviceId === "string" ? (metadata as any).deviceId.slice(0, 80) : undefined;
+  const clientRequestId = typeof (metadata as any).clientRequestId === "string" ? (metadata as any).clientRequestId.slice(0, 100) : undefined;
   return {
     ...(workItems.length ? { workItems } : {}),
     ...(deviceId ? { deviceId } : {}),
+    ...(clientRequestId ? { clientRequestId } : {}),
   };
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
 import { calendarReminderDueAt, isCalendarReminderMinutes } from "@/lib/calendarReminders";
+import { registerCalendarAwareness } from "@/lib/olivia/calendarAwareness";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -68,6 +69,18 @@ export async function POST(req: NextRequest) {
   }
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  await registerCalendarAwareness(db, {
+    id: data!.id,
+    date,
+    title,
+    category: category ?? "general",
+    time: time ?? null,
+    location: location ?? null,
+    memo: memo ?? "",
+    reminderEnabled,
+  }).catch((awarenessError) => {
+    console.error("[calendar] 올리비아 일정 인지 실패:", awarenessError instanceof Error ? awarenessError.message : awarenessError);
+  });
   return NextResponse.json({ ok: true, id: data!.id, reminder_enabled: reminderEnabled, reminder_minutes_before: reminderMinutes, reminder_due_at: base.reminder_due_at });
 }
 

@@ -30,12 +30,16 @@ type AiIssue = { type: "spelling" | "naturalness"; original: string; suggestion:
 // 문단(빈 줄로 구분)과 화자 배정을 함께 정리한다 — 진짜 빈 문단(카드만 만들고 아직
 // 안 쓴 문단 등)은 실행화면·저장 데이터 모두에서 걸러내고, 화자 배정도 같이 맞춰 당겨준다.
 function getCleanParagraphs(text: string, speakerMap: string[]): { paragraphs: string[]; speakerMap: string[] } {
-  const raw = text.split(/\n\s*\n/);
+  const normalized = text.replace(/\r\n?/g, "\n").replace(/[\t ]+$/gm, "").trim();
+  const hasBlankLineBoundary = /\n[\t ]*\n/.test(normalized);
+  const raw = hasBlankLineBoundary
+    ? normalized.split(/\n[\t ]*\n+/)
+    : normalized.split("\n");
   const paragraphs: string[] = [];
   const map: string[] = [];
   raw.forEach((p, i) => {
     if (p.trim().length === 0) return;
-    paragraphs.push(p);
+    paragraphs.push(p.trim());
     map.push(speakerMap[i] ?? "");
   });
   return { paragraphs, speakerMap: map };
@@ -165,10 +169,17 @@ export default function PrompterPage() {
   const lastTsRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const syncScrollProgress = useCallback(() => {
+    const box = scrollBoxRef.current;
+    const max = box ? box.scrollHeight - box.clientHeight : 0;
+    const progress = box && max > 0 ? Math.max(0, Math.min(1, box.scrollTop / max)) : 0;
+    if (progressBarRef.current) progressBarRef.current.style.width = `${progress * 100}%`;
+  }, []);
+
   const slides = text.split("\n");
   const { paragraphs, speakerMap: playbackSpeakerMap } = getCleanParagraphs(text, speakerMap);
   // 편집 중(다중 화자 카드 목록)에는 방금 추가한 빈 문단 카드도 보여야 하므로 필터링 없이 그대로 쓴다.
-  const editParagraphs = text.split(/\n\s*\n/);
+  const editParagraphs = text.replace(/\r\n?/g, "\n").split(/\n[\t ]*\n+/);
 
   /* ── 프로젝트 목록 ── */
   const loadProjects = useCallback(async () => {
@@ -399,10 +410,7 @@ export default function PrompterPage() {
         // 같은 증가 방향이라도 뒤집힌 화면에서는 자연스럽게 스크롤이 반대로 보인다.
         box.scrollTop += speedRef.current * dt;
         // 진행률 바는 리렌더(1초 간격) 대신 매 프레임 DOM에 직접 반영해서 실시간으로 움직이게 한다.
-        if (progressBarRef.current && box.scrollHeight > box.clientHeight) {
-          const p = Math.max(0, Math.min(1, box.scrollTop / (box.scrollHeight - box.clientHeight)));
-          progressBarRef.current.style.width = `${p * 100}%`;
-        }
+        syncScrollProgress();
         // 끝에 도달하면 자동 정지 — vAlign 여백(top/center 등) 때문에 스크롤 총량 기준으로 멈추면
         // 마지막 문단이 화면 위로 사라진 지 한참 뒤에야 멈추게 된다. 그 대신 마지막 문단이
         // 화면(가이드) 밖으로 완전히 넘어가기 직전, 화면 경계에 닿는 순간 멈춘다.
@@ -436,7 +444,7 @@ export default function PrompterPage() {
     };
     rafRef.current = requestAnimationFrame(step);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [scrolling, mode, editorMode]);
+  }, [scrolling, mode, editorMode, syncScrollProgress]);
 
   /* ── 타이머 ── */
   useEffect(() => {
@@ -524,6 +532,7 @@ export default function PrompterPage() {
     if (editorMode === "slides") { setSlideIndex(0); return; }
     // scrollTop은 flipV와 무관하게 항상 0이 "처음"이다 (뒤집힌 화면은 CSS scaleY로만 처리).
     if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = 0;
+    requestAnimationFrame(syncScrollProgress);
   };
 
   /* ── 재생 시작/정지 — 리모컨 명령도 항상 이 함수들을 거치게 해서 재생 상태 판단이
@@ -1072,14 +1081,8 @@ export default function PrompterPage() {
 
   /* ── 프롬프터(전체화면) 실행 모드 ── */
   const isSlideMode = editorMode === "slides";
-  // 진행률 바 — elapsed가 1초마다 갱신되면서 리렌더될 때 현재 scrollTop을 다시 읽어 계산한다.
-  const scrollProgressNow = (() => {
-    const box = scrollBoxRef.current;
-    if (!box || box.scrollHeight <= box.clientHeight) return 0;
-    return Math.max(0, Math.min(1, box.scrollTop / (box.scrollHeight - box.clientHeight)));
-  })();
   return (
-    <div ref={promptRootRef} style={{ position: "fixed", inset: 0, background: bgColor, zIndex: 999 }}>
+    <div ref={promptRootRef} style={{ position: "fixed", inset: 0, background: bgColor, zIndex: 999, isolation: "isolate" }}>
       {isSlideMode ? (
         <div style={{
           height: "100%", display: "flex", flexDirection: "column",
@@ -1095,10 +1098,11 @@ export default function PrompterPage() {
         <div
           ref={scrollBoxRef}
           style={{
-            height: "100%", overflowY: "auto",
+            height: "100%", overflowY: "auto", position: "relative", zIndex: 2,
             padding: `${V_ALIGN_PADDING[vAlign].top} 8vw ${V_ALIGN_PADDING[vAlign].bottom}`,
             transform: `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
           }}
+          onScroll={syncScrollProgress}
         >
           {paragraphs.map((p, i) => {
             const sp = speakers.find((s) => s.id === playbackSpeakerMap[i]);
@@ -1133,14 +1137,14 @@ export default function PrompterPage() {
       )}
 
       {/* 상단 바 — 타이머는 왼쪽 */}
-      <div style={{ position: "fixed", top: 16, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ position: "fixed", top: 16, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 8, zIndex: 4, pointerEvents: "none" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div className="pt-timer-badge">{fmtTime(elapsed)}</div>
             {isSlideMode && <div className="pt-slide-counter">{slides.length ? slideIndex + 1 : 0} / {slides.length}</div>}
             {recording && <span style={{ color: "#ff5c5c", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><Circle size={10} fill="#ff5c5c" /> REC</span>}
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", pointerEvents: "auto" }}>
             <button onClick={() => setShowRemoteInfo(true)} className="pt-icon-btn"><Smartphone size={14} /> 리모컨</button>
             <button onClick={toggleFullscreen} className="pt-icon-btn">{isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />} {isFullscreen ? "전체화면 종료" : "전체화면"}</button>
             <button onClick={() => setShowControls((v) => !v)} className="pt-icon-btn">{showControls ? "설정 숨기기" : "설정"}</button>
@@ -1148,29 +1152,27 @@ export default function PrompterPage() {
           </div>
         </div>
         {!isSlideMode && (
-          <div style={{ height: 4, borderRadius: 999, background: "rgba(255,255,255,.15)", overflow: "hidden", maxWidth: 320 }}>
-            <div ref={progressBarRef} style={{ height: "100%", width: `${scrollProgressNow * 100}%`, background: "#e85d2c", transition: scrolling ? "none" : "width .2s linear" }} />
+          <div style={{ height: 4, width: 126, borderRadius: 999, background: "rgba(255,255,255,.15)", overflow: "hidden", pointerEvents: "none" }}>
+            <div ref={progressBarRef} style={{ height: "100%", width: "0%", background: "#e85d2c", transition: scrolling ? "none" : "width .12s linear" }} />
           </div>
         )}
       </div>
 
-      {/* 중앙 포커스 가이드라인 — 음수 z-index로 일반 문서 흐름(텍스트)보다 아래에 깔리게 한다.
-          (텍스트 쪽에 z-index를 줘서 위로 올리는 방식은 하단 컨트롤바까지 덮어버려 버튼 클릭이
-          안 먹히는 사고가 났었다 — 반드시 가이드라인 쪽을 내리는 방식으로만 처리할 것.) */}
+      {/* 가이드(1) < 텍스트(2) < 조작 UI(4): 명시적인 로컬 stacking context로 클릭과 시각 순서를 분리한다. */}
       {guideEnabled && !isSlideMode && (
-        <div style={{ position: "fixed", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.85)", pointerEvents: "none", zIndex: -1 }} />
+        <div style={{ position: "fixed", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.85)", pointerEvents: "none", zIndex: 1 }} />
       )}
 
       {/* 녹화 미리보기 (작은 창) */}
       {recording && (
-        <video ref={videoPreviewRef} muted style={{ position: "fixed", bottom: 100, right: 16, width: 160, borderRadius: 10, border: "2px solid #fff" }} />
+        <video ref={videoPreviewRef} muted style={{ position: "fixed", bottom: 100, right: 16, width: 160, borderRadius: 10, border: "2px solid #fff", zIndex: 5 }} />
       )}
 
       {/* 하단 컨트롤 바 */}
       {showControls && (
         <div style={{
           position: "fixed", left: 0, right: 0, bottom: 0, padding: "14px 24px",
-          background: "rgba(0,0,0,.75)", display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center",
+          background: "rgba(0,0,0,.75)", display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center", zIndex: 4, pointerEvents: "auto",
         }}>
           {isSlideMode ? (
             <>
@@ -1187,7 +1189,7 @@ export default function PrompterPage() {
               <button onClick={() => jumpParagraph(-1)} disabled={paragraphIndex === 0} className="pt-ctrl-btn"><ChevronUp size={16} /> 이전 문단</button>
               <button onClick={() => jumpParagraph(1)} disabled={paragraphIndex >= paragraphs.length - 1} className="pt-ctrl-btn"><ChevronDown size={16} /> 다음 문단</button>
 
-              <label className="pt-ctrl-label"><Gauge size={14} /> 속도 <span className="pt-ctrl-level">{levelOf(speed, SPEED_LEVELS)}/10</span>
+              <label className="pt-ctrl-label"><Gauge size={14} /> 속도
                 <input
                   type="range" min={1} max={10} step={1} value={levelOf(speed, SPEED_LEVELS)}
                   onChange={(e) => setSpeed(SPEED_LEVELS[Number(e.target.value) - 1])}
@@ -1195,7 +1197,7 @@ export default function PrompterPage() {
                 />
               </label>
 
-              <label className="pt-ctrl-label"><AlignVerticalSpaceAround size={14} /> 문단간격 <span className="pt-ctrl-level">{levelOf(paragraphSpacing, PARAGRAPH_SPACING_LEVELS)}/10</span>
+              <label className="pt-ctrl-label"><AlignVerticalSpaceAround size={14} /> 문단간격
                 <input
                   type="range" min={1} max={10} step={1} value={levelOf(paragraphSpacing, PARAGRAPH_SPACING_LEVELS)}
                   onChange={(e) => setParagraphSpacing(PARAGRAPH_SPACING_LEVELS[Number(e.target.value) - 1])}

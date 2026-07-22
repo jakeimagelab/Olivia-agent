@@ -16,6 +16,7 @@ const ACTION_LABEL: Record<OliviaChatWorkItemAction, string> = {
   link: "고객 연결",
   analyze: "메모 연결·분석",
   followups: "후속 업무",
+  register: "고객등록",
 };
 
 const KIND_LABEL: Record<OliviaChatWorkItem["kind"], string> = {
@@ -27,6 +28,7 @@ const KIND_LABEL: Record<OliviaChatWorkItem["kind"], string> = {
   event: "고객 반응",
   meeting: "고객 미팅",
   memo: "미팅 메모",
+  client_candidate: "신규 고객 후보",
 };
 
 function priorityLabel(score = 0) {
@@ -87,9 +89,9 @@ export default function OliviaChatWorkItemCard({
               style={{
                 minHeight: 31,
                 borderRadius: 8,
-                border: ["approve", "run", "prepare", "brief", "analyze"].includes(action) ? "none" : `1px solid ${C.border}`,
-                background: action === "approve" || action === "run" ? C.orange : ["prepare", "brief", "analyze"].includes(action) ? C.teal : C.surface,
-                color: ["approve", "run", "prepare", "brief", "analyze"].includes(action) ? "#fff" : C.muted,
+                border: ["approve", "run", "prepare", "brief", "analyze", "register"].includes(action) ? "none" : `1px solid ${C.border}`,
+                background: action === "approve" || action === "run" || action === "register" ? C.orange : ["prepare", "brief", "analyze"].includes(action) ? C.teal : C.surface,
+                color: ["approve", "run", "prepare", "brief", "analyze", "register"].includes(action) ? "#fff" : C.muted,
                 fontFamily: "inherit",
                 fontSize: 10,
                 fontWeight: 800,

@@ -83,7 +83,10 @@ export default function TeamChatShell() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages", filter: `room_id=eq.${activeRoomId}` },
-        (payload: RealtimePostgresChangesPayload<ChatMessage>) => setMessages((prev) => [...prev, payload.new as ChatMessage])
+        (payload: RealtimePostgresChangesPayload<ChatMessage>) => setMessages((prev) => {
+          const incoming = payload.new as ChatMessage;
+          return prev.some((message) => message.id === incoming.id) ? prev : [...prev, incoming];
+        })
       )
       .on(
         "postgres_changes",

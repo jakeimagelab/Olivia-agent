@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
 import { resolveClientId } from "@/lib/clientLookup";
 import { logPortalEvent } from "@/lib/clientPortal";
+import { registerClientCandidate } from "@/lib/olivia/clientCandidate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,10 @@ export async function POST(req: NextRequest) {
         .update({ specialties, title, result, client_id: clientId, workflow_run_id: workflowRunId, saved_at: new Date().toISOString() })
         .eq("id", existing.id);
       if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      if (!clientId && hospitalName) {
+        after(() => registerClientCandidate(db, { hospitalName, sourceType: "conti", sourceRecordId: existing.id })
+          .catch((candidateError) => console.error("[conti] 신규 고객 감지 실패", candidateError)));
+      }
       return NextResponse.json({ ok: true, id: existing.id });
     }
 
@@ -59,6 +64,10 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     if (clientId) {
       await logPortalEvent({ clientId, eventType: "conti_ready", targetType: "conti_saves", targetId: data.id, workflowRunId }).catch(() => {});
+    }
+    if (!clientId && hospitalName) {
+      after(() => registerClientCandidate(db, { hospitalName, sourceType: "conti", sourceRecordId: data.id })
+        .catch((candidateError) => console.error("[conti] 신규 고객 감지 실패", candidateError)));
     }
     return NextResponse.json({ ok: true, id: data.id });
   } catch (e) {

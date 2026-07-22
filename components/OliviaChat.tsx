@@ -159,6 +159,9 @@ function OliviaIcon({ size = 20 }: { size?: number }) {
 
 // ── 타입 ─────────────────────────────────────────────────
 interface Message {
+  id?: string;
+  clientRequestId?: string;
+  createdAt?: string;
   role: "user" | "assistant";
   content: string;
   source?: "web" | "telegram";
@@ -166,6 +169,20 @@ interface Message {
   toolResult?: string;
   isApproved?: boolean;
   workItems?: OliviaChatWorkItem[];
+}
+
+function mergeMessages(previous: Message[], incoming: Message[]) {
+  if (!incoming.length) return previous;
+  const ids = new Set(previous.flatMap((message) => message.id ? [message.id] : []));
+  const requestIds = new Set(previous.flatMap((message) => message.clientRequestId ? [message.clientRequestId] : []));
+  const merged = [...previous];
+  for (const message of incoming) {
+    if ((message.id && ids.has(message.id)) || (message.clientRequestId && requestIds.has(message.clientRequestId))) continue;
+    merged.push(message);
+    if (message.id) ids.add(message.id);
+    if (message.clientRequestId) requestIds.add(message.clientRequestId);
+  }
+  return merged;
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -391,7 +408,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
   }
 
   // ── DB 저장 헬퍼 (fire-and-forget) ─────────────────────
-  const saveToDb = (msgs: Array<{ role: "user" | "assistant"; content: string; workItems?: OliviaChatWorkItem[] }>) => {
+  const saveToDb = (msgs: Array<{ role: "user" | "assistant"; content: string; workItems?: OliviaChatWorkItem[]; clientRequestId?: string }>) => {
     if (!msgs.length) return;
     fetch("/api/olivia/messages", {
       method: "POST",
@@ -400,7 +417,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         role: m.role,
         content: m.content,
         source: "web",
-        metadata: { ...(m.workItems?.length ? { workItems: compactWorkItemReferences(m.workItems) } : {}), deviceId: deviceIdRef.current },
+        metadata: { ...(m.workItems?.length ? { workItems: compactWorkItemReferences(m.workItems) } : {}), deviceId: deviceIdRef.current, clientRequestId: m.clientRequestId || crypto.randomUUID() },
       })) }),
     }).catch(() => {});
   };
@@ -431,6 +448,9 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       .then(data => {
         if (data.ok && data.messages?.length > 0) {
           setMessages(data.messages.map((m: any) => ({
+            id:      m.id,
+            createdAt: m.created_at,
+            clientRequestId: m.metadata?.clientRequestId,
             role:    m.role as "user" | "assistant",
             content: m.content,
             source:  m.source as "web" | "telegram" | undefined,
@@ -462,7 +482,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     // 패널이 DOM에 마운트된 직후 즉시 맨 아래로 이동
     setTimeout(() => scrollToBottom(false), 50);
     if (pendingRef.current.length > 0) {
-      setMessages(prev => [...prev, ...pendingRef.current]);
+      setMessages(prev => mergeMessages(prev, pendingRef.current));
       pendingRef.current = [];
     }
     setUnreadCount(0);
@@ -486,6 +506,9 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         const newMsgs: Message[] = data.messages
           .filter((m: any) => m.metadata?.deviceId !== deviceIdRef.current)
           .map((m: any) => ({
+            id:      m.id,
+            createdAt: m.created_at,
+            clientRequestId: m.metadata?.clientRequestId,
             role:    m.role as "user" | "assistant",
             content: m.content,
             source:  (m.source as "web" | "telegram") ?? "web",
@@ -494,7 +517,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         if (!newMsgs.length) return;
 
         if (open) {
-          setMessages(prev => [...prev, ...newMsgs]);
+          setMessages(prev => mergeMessages(prev, newMsgs));
         } else {
           pendingRef.current.push(...newMsgs);
           setUnreadCount(c => c + newMsgs.filter(m => m.role === "user").length);
@@ -695,6 +718,20 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
 
     setWorkItemBusy(item.id);
     try {
+      if (item.kind === "client_candidate" && (action === "register" || action === "dismiss")) {
+        const candidateResponse = await fetch(`/api/olivia/client-candidates/${encodeURIComponent(item.id)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ operation: action }),
+        });
+        const candidateData = await candidateResponse.json();
+        if (!candidateData.ok) throw new Error(candidateData.error || "신규 고객 제안 처리 실패");
+        const resultMessage = candidateData.message || "신규 고객 제안을 처리했습니다.";
+        setMessages((previous) => [...previous, { role: "assistant", content: resultMessage, source: "web" }]);
+        saveToDb([{ role: "assistant", content: resultMessage }]);
+        window.dispatchEvent(new CustomEvent("olivia-data-changed", { detail: { domain: "client", operation: action } }));
+        return;
+      }
       const recentWorkItems = compactWorkItemReferences(messages.flatMap((message) => message.workItems || []).slice(-12));
       const calendarTaskId = String(item.metadata?.calendarTaskId || (item.kind === "meeting" ? item.id : ""));
       const meetingTool = item.kind === "meeting" || item.kind === "memo" || (action === "link" && Boolean(calendarTaskId))
