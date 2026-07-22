@@ -1237,8 +1237,12 @@ export default function PrompterPage() {
             <button onClick={() => setVAlign("bottom")} className={`pt-align-btn${vAlign === "bottom" ? " active" : ""}`} title="아래로"><AlignVerticalJustifyEnd size={15} /></button>
           </div>
 
-          <label className="pt-ctrl-label"><Type size={14} /> 크기
-            <input type="range" min={20} max={120} value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
+          <label className="pt-ctrl-label"><Type size={14} /> 크기 {levelOf(fontSize, FONT_SIZE_LEVELS)}/10
+            <input
+              type="range" min={1} max={10} step={1} value={levelOf(fontSize, FONT_SIZE_LEVELS)}
+              onChange={(e) => setFontSize(FONT_SIZE_LEVELS[Number(e.target.value) - 1])}
+              style={{ accentColor: "#e85d2c" }}
+            />
           </label>
 
           <div className="pt-color-row">
