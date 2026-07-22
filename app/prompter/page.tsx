@@ -8,7 +8,7 @@ import {
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   Smartphone, FileText, Rows3, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Building2, Pencil, AlignVerticalSpaceAround, Maximize, Minimize, GripVertical, Users, Sparkles,
-  Clock3, Scan, Palette, AlignVerticalDistributeCenter,
+  Clock3, Scan, Palette, AlignVerticalDistributeCenter, Share2,
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import PageHeader from "@/components/PageHeader";
