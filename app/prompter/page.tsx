@@ -632,6 +632,10 @@ export default function PrompterPage() {
 
     setElapsed(0);
     setSlideIndex(0);
+    // 이전 씬을 실행했을 때 문단 위치가 남아있을 수 있어(state는 리렌더에서 ref로 동기화되지만
+    // 타이밍에 따라 어긋날 수 있다), 매번 새로 실행할 때 확실하게 0으로 정리한다.
+    setParagraphIndex(0);
+    paragraphIndexRef.current = 0;
     const code = String(Math.floor(1000 + Math.random() * 9000));
     setSessionCode(code);
     setMode("prompt");
