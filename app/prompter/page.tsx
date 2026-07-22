@@ -556,7 +556,7 @@ export default function PrompterPage() {
     setScrolling(false);
   };
   const togglePlayback = () => {
-    if (scrolling || countdown !== null) stopPlayback();
+    if (scrollingRef.current || countdownRef.current !== null) stopPlayback();
     else startPlayback();
   };
 
