@@ -13,7 +13,8 @@ export function getPrompterScope(req: NextRequest): PrompterScope {
 }
 
 // 관리자는 share_token이 없는(=본인이 만든) 프로젝트만, 공유 세션은 자기 토큰과
-// 정확히 일치하는 프로젝트만 소유한 것으로 본다 — 서로의 데이터는 절대 섞이지 않는다.
+// 정확히 일치하는 프로젝트(자기가 만든 것)이거나, 관리자가 그 토큰으로 통째로 공유해준
+// 실제 프로젝트(public_share_token 일치)만 소유/접근 가능한 것으로 본다.
 export async function assertProjectOwned(
   db: SupabaseClient,
   projectId: string,
@@ -21,9 +22,10 @@ export async function assertProjectOwned(
 ): Promise<boolean> {
   const { data } = await db
     .from("prompter_projects")
-    .select("share_token")
+    .select("share_token, public_share_token")
     .eq("id", projectId)
     .maybeSingle();
   if (!data) return false;
-  return scope.isAdmin ? data.share_token === null : data.share_token === scope.shareToken;
+  if (scope.isAdmin) return data.share_token === null;
+  return data.share_token === scope.shareToken || (!!scope.shareToken && data.public_share_token === scope.shareToken);
 }
