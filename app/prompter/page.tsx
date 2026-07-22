@@ -354,19 +354,21 @@ export default function PrompterPage() {
       lastTsRef.current = ts;
       const box = scrollBoxRef.current;
       if (box) {
-        box.scrollTop += speed * dt * (flipV ? -1 : 1);
+        // scrollTop은 항상 증가만 한다 — 상하반전(flipV)은 CSS scaleY로 화면을 뒤집어서 처리하므로,
+        // 같은 증가 방향이라도 뒤집힌 화면에서는 자연스럽게 스크롤이 반대로 보인다.
+        box.scrollTop += speed * dt;
         // 끝에 도달하면 자동 정지 — vAlign 여백(top/center 등) 때문에 스크롤 총량 기준으로 멈추면
         // 마지막 문단이 화면 위로 사라진 지 한참 뒤에야 멈추게 된다. 그 대신 마지막 문단이
-        // 화면(가이드) 위로 완전히 넘어가기 직전, 즉 화면 맨 위 경계에 닿는 순간 멈춘다.
+        // 화면(가이드) 밖으로 완전히 넘어가기 직전, 화면 경계에 닿는 순간 멈춘다.
+        // 뒤집힌 화면에서는 scaleY 때문에 시각적 위/아래가 반대이므로 반대쪽 경계를 본다.
         const lastEl = lastParagraphRef.current;
-        if (!flipV) {
-          if (lastEl) {
-            if (lastEl.getBoundingClientRect().bottom <= 0) setScrolling(false);
-          } else if (box.scrollTop >= box.scrollHeight - box.clientHeight - 4) {
-            setScrolling(false);
-          }
+        if (lastEl) {
+          const rect = lastEl.getBoundingClientRect();
+          const passedScreen = flipV ? rect.top >= box.clientHeight : rect.bottom <= 0;
+          if (passedScreen) setScrolling(false);
+        } else if (box.scrollTop >= box.scrollHeight - box.clientHeight - 4) {
+          setScrolling(false);
         }
-        if (flipV && box.scrollTop <= 0) setScrolling(false);
       }
       rafRef.current = requestAnimationFrame(step);
     };
