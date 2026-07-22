@@ -702,7 +702,7 @@ export default function PrompterPage() {
   }, []);
 
   /* ── 저장/삭제 ── */
-  const saveScene = async () => {
+  const saveScene = async (silent = false) => {
     if (!text.trim() || saving || !currentProject) return;
     setSaving(true);
     try {
@@ -716,9 +716,12 @@ export default function PrompterPage() {
       }).then((r) => r.json());
       if (res.ok) {
         setSceneId(res.script.id); setTitle(res.script.title); setSubject(res.script.subject ?? "");
+        setLastAutoSavedAt(Date.now());
         await loadScenes(currentProject.id);
-      } else {
+      } else if (!silent) {
         alert(res.error || "저장에 실패했습니다.");
+      } else {
+        console.error("자동저장 실패:", res.error);
       }
     } finally {
       setSaving(false);
