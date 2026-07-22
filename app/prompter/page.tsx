@@ -364,6 +364,13 @@ export default function PrompterPage() {
   useEffect(() => { speedRef.current = speed; }, [speed]);
   const flipVRef = useRef(flipV);
   useEffect(() => { flipVRef.current = flipV; }, [flipV]);
+  const guideEnabledRef = useRef(guideEnabled);
+  useEffect(() => { guideEnabledRef.current = guideEnabled; }, [guideEnabled]);
+  const guidePositionRef = useRef(guidePosition);
+  useEffect(() => { guidePositionRef.current = guidePosition; }, [guidePosition]);
+  const guideHighlightRef = useRef(guideHighlight);
+  useEffect(() => { guideHighlightRef.current = guideHighlight; }, [guideHighlight]);
+  const focusedParagraphIndexRef = useRef<number | null>(null);
 
   /* ── 자동 스크롤 (전체 텍스트 모드) ── */
   useEffect(() => {
@@ -394,6 +401,22 @@ export default function PrompterPage() {
           if (passedScreen) setScrolling(false);
         } else if (box.scrollTop >= box.scrollHeight - box.clientHeight - 4) {
           setScrolling(false);
+        }
+        // 포커스 가이드라인을 지나는 문단 하이라이트 (옵션) — 매 프레임 문단 위치를 검사해서
+        // 가이드라인과 겹치는 문단만 찾는다. 켜져 있을 때만 계산(끄면 비용 0).
+        if (guideEnabledRef.current && guideHighlightRef.current) {
+          const guideY = box.clientHeight * (guidePositionRef.current / 100);
+          let found: number | null = null;
+          for (let idx = 0; idx < paragraphRefs.current.length; idx++) {
+            const pEl = paragraphRefs.current[idx];
+            if (!pEl) continue;
+            const r = pEl.getBoundingClientRect();
+            if (r.top <= guideY && r.bottom >= guideY) { found = idx; break; }
+          }
+          if (found !== focusedParagraphIndexRef.current) {
+            focusedParagraphIndexRef.current = found;
+            setFocusedParagraphIndex(found);
+          }
         }
       }
       rafRef.current = requestAnimationFrame(step);
