@@ -425,7 +425,7 @@ export default function PrompterPage() {
       }, 80 - sinceLast);
     }
     return () => { if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current); };
-  }, [scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize, paragraphSpacing, editorMode, slideIndex, slides.length]);
+  }, [scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize, paragraphSpacing, editorMode, slideIndex, slides.length, paragraphIndex, paragraphs.length]);
 
   // 프롬프터 모드를 나갈 때 녹화/스크롤/리모컨 채널이 백그라운드에 남지 않도록 정리한다.
   useEffect(() => {
