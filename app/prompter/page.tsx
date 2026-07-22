@@ -498,8 +498,14 @@ export default function PrompterPage() {
         case "play": setScrolling(true); break;
         case "pause": setScrolling(false); break;
         case "restart": setElapsed(0); setSlideIndex(0); if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = 0; break;
-        case "nextSlide": setSlideIndex((i) => Math.min(i + 1, slides.length - 1)); break;
-        case "prevSlide": setSlideIndex((i) => Math.max(i - 1, 0)); break;
+        case "nextSlide":
+          if (editorMode === "slides") setSlideIndex((i) => Math.min(i + 1, slides.length - 1));
+          else jumpParagraph(1);
+          break;
+        case "prevSlide":
+          if (editorMode === "slides") setSlideIndex((i) => Math.max(i - 1, 0));
+          else jumpParagraph(-1);
+          break;
         case "speed": setSpeed(payload.value); break;
         case "flipH": setFlipH((v) => !v); break;
         case "flipV": setFlipV((v) => !v); break;
