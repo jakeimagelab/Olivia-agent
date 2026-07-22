@@ -1119,10 +1119,13 @@ export default function PrompterPage() {
             </>
           ) : (
             <>
-              <button onClick={() => setScrolling((v) => !v)} className="pt-ctrl-btn">
-                {scrolling ? <Pause size={18} /> : <Play size={18} />} {scrolling ? "일시정지" : "재생"}
+              <button onClick={togglePlayback} className="pt-ctrl-btn">
+                {scrolling || countdown !== null ? <Pause size={18} /> : <Play size={18} />} {scrolling ? "일시정지" : countdown !== null ? "취소" : "재생"}
               </button>
               <button onClick={resetTimer} className="pt-ctrl-btn"><RotateCcw size={18} /> 처음으로</button>
+              <button onClick={() => setCountdownEnabled((v) => !v)} className={`pt-ctrl-btn${countdownEnabled ? " active" : ""}`} title="재생 시 3초 카운트다운">
+                <Clock3 size={16} /> 카운트다운
+              </button>
 
               <label className="pt-ctrl-label"><Gauge size={14} /> 속도
                 <input type="range" min={1} max={300} step={1} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
