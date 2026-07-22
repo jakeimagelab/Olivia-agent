@@ -1039,6 +1039,12 @@ export default function PrompterPage() {
 
   /* ── 프롬프터(전체화면) 실행 모드 ── */
   const isSlideMode = editorMode === "slides";
+  // 진행률 바 — elapsed가 1초마다 갱신되면서 리렌더될 때 현재 scrollTop을 다시 읽어 계산한다.
+  const scrollProgressNow = (() => {
+    const box = scrollBoxRef.current;
+    if (!box || box.scrollHeight <= box.clientHeight) return 0;
+    return Math.max(0, Math.min(1, box.scrollTop / (box.scrollHeight - box.clientHeight)));
+  })();
   return (
     <div ref={promptRootRef} style={{ position: "fixed", inset: 0, background: bgColor, zIndex: 999 }}>
       {isSlideMode ? (
