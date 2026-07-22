@@ -63,9 +63,9 @@ export async function POST(req: NextRequest) {
   const db = getSupabaseAdmin();
 
   if (body.id) {
-    const { data: existing } = await db.from("prompter_projects").select("share_token").eq("id", body.id).maybeSingle();
-    const owns = existing && (scope.isAdmin ? existing.share_token === null : existing.share_token === scope.shareToken);
-    if (!owns) return NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 });
+    if (!(await assertProjectOwned(db, body.id, scope))) {
+      return NextResponse.json({ ok: false, error: "권한이 없습니다." }, { status: 403 });
+    }
 
     const { data, error } = await db
       .from("prompter_projects")
