@@ -146,12 +146,18 @@ export default function PrompterPage() {
   }, []);
   // 위 즉시 재요청이 "사용자 제스처 유지시간" 정책으로 조용히 실패할 수 있어,
   // 버튼으로 나간 게 아닌데 여전히 전체화면이 아니면 다음 터치 때 한 번 더 시도한다.
+  // 단, 버튼/입력 등 조작 UI를 누른 것까지 여기에 걸리면 재생 버튼을 누르자마자
+  // 전체화면 진입으로 화면 크기가 바뀌면서 스크롤이 튀어 보이므로, 실제 화면(텍스트) 영역을
+  // 직접 터치했을 때만 재시도한다.
   useEffect(() => {
     if (mode !== "prompt" || isFullscreen || intentionallyOutOfFullscreen) return;
     const root = promptRootRef.current;
     if (!root) return;
-    const retry = () => { root.requestFullscreen().catch(() => {}); };
-    root.addEventListener("pointerdown", retry, { once: true });
+    const retry = (e: PointerEvent) => {
+      if (e.target instanceof Element && e.target.closest("button, select, input, a")) return;
+      root.requestFullscreen().catch(() => {});
+    };
+    root.addEventListener("pointerdown", retry);
     return () => root.removeEventListener("pointerdown", retry);
   }, [mode, isFullscreen, intentionallyOutOfFullscreen]);
   const toggleFullscreen = () => {
