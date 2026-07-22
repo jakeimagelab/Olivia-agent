@@ -6,9 +6,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // 이 API들에 접근할 수 있으므로, 실제 데이터 스코프는 각 라우트에서 이 값으로 걸러야 한다.
 export type PrompterScope = { isAdmin: boolean; shareToken: string | null };
 
+// 토큰은 /s/[token]/route.ts에서 항상 영숫자로만 생성한다 — 값 자체는 클라이언트 쿠키라
+// 사용자가 임의로 바꿔 보낼 수 있으니, 나중에 PostgREST .or() 필터 문자열에 그대로 끼워 넣기
+// 전에 형식을 한 번 더 검증해서 필터 구문을 깨뜨리는 값이 섞여 들어가지 않게 한다.
+const SAFE_TOKEN = /^[a-zA-Z0-9]+$/;
+
 export function getPrompterScope(req: NextRequest): PrompterScope {
   const isAdmin = req.cookies.get("pc_admin_session")?.value === "active";
-  const shareToken = req.cookies.get("pc_share_token")?.value ?? null;
+  const rawToken = req.cookies.get("pc_share_token")?.value ?? null;
+  const shareToken = rawToken && SAFE_TOKEN.test(rawToken) ? rawToken : null;
   return { isAdmin, shareToken: isAdmin ? null : shareToken };
 }
 
