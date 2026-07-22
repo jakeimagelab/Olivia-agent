@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getPrompterScope, assertProjectOwned } from "@/lib/prompter/scope";
+import { encodeLegacySceneMetadata, normalizeSceneMetadata } from "@/lib/prompter/legacySceneMetadata";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,16 +31,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "projectId 필수" }, { status: 400 });
   }
 
-  let query = db
-    .from("prompter_scripts")
-    .select("id,title,subject,content,client_id,project_id,editor_mode,speaker_map,sort_order,updated_at")
-    .order("sort_order", { ascending: true })
-    .limit(200);
-  if (clientId) query = query.eq("client_id", clientId);
-  if (projectId) query = query.eq("project_id", projectId);
-  const { data, error } = await query;
+  const buildQuery = (includeProductionFields: boolean) => {
+    let query = db
+      .from("prompter_scripts")
+      .select(`id,title,subject,content,client_id,project_id,editor_mode,speaker_map,sort_order,updated_at${includeProductionFields ? ",is_shot,gesture_map" : ""}`)
+      .order("sort_order", { ascending: true })
+      .limit(200);
+    if (clientId) query = query.eq("client_id", clientId);
+    if (projectId) query = query.eq("project_id", projectId);
+    return query;
+  };
+  let { data, error } = await buildQuery(true);
+  if (error && /is_shot|gesture_map|column/i.test(error.message)) {
+    const legacyResult = await buildQuery(false);
+    if (legacyResult.error) {
+      return NextResponse.json({ ok: false, error: legacyResult.error.message }, { status: 500 });
+    }
+    const scripts = (legacyResult.data as unknown as Record<string, unknown>[] | null)?.map(normalizeSceneMetadata) ?? [];
+    return NextResponse.json({ ok: true, scripts });
+  }
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, scripts: data ?? [] });
+  const scripts = (data as unknown as Record<string, unknown>[] | null)?.map(normalizeSceneMetadata) ?? [];
+  return NextResponse.json({ ok: true, scripts });
 }
 
 export async function POST(req: NextRequest) {
@@ -67,9 +80,16 @@ export async function POST(req: NextRequest) {
       content: body.content,
       editor_mode: body.editorMode === "slides" ? "slides" : "text",
       speaker_map: Array.isArray(body.speakerMap) ? body.speakerMap : [],
+      is_shot: Boolean(body.isShot),
+      gesture_map: Array.isArray(body.gestureMap) ? body.gestureMap.map((item: unknown) => String(item || "")) : [],
       updated_at: new Date().toISOString(),
     };
-    const { data, error } = await db.from("prompter_scripts").update(payload).eq("id", body.id).select().single();
+    let { data, error } = await db.from("prompter_scripts").update(payload).eq("id", body.id).select().single();
+    if (error && /is_shot|gesture_map|column/i.test(error.message)) {
+      const { is_shot: _isShot, gesture_map: _gestureMap, ...legacyPayload } = payload;
+      legacyPayload.speaker_map = encodeLegacySceneMetadata(payload.speaker_map, payload.is_shot, payload.gesture_map);
+      ({ data, error } = await db.from("prompter_scripts").update(legacyPayload).eq("id", body.id).select().single());
+    }
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     await db.from("prompter_projects").update({ updated_at: new Date().toISOString() }).eq("id", existingScript.project_id);
     return NextResponse.json({ ok: true, script: data });
@@ -95,12 +115,19 @@ export async function POST(req: NextRequest) {
     content: body.content,
     editor_mode: body.editorMode === "slides" ? "slides" : "text",
     speaker_map: Array.isArray(body.speakerMap) ? body.speakerMap : [],
+    is_shot: Boolean(body.isShot),
+    gesture_map: Array.isArray(body.gestureMap) ? body.gestureMap.map((item: unknown) => String(item || "")) : [],
     client_id: scope.isAdmin ? (body.clientId ?? null) : null,
     project_id: body.projectId,
     sort_order: nextOrder,
     updated_at: new Date().toISOString(),
   };
-  const { data, error } = await db.from("prompter_scripts").insert(payload).select().single();
+  let { data, error } = await db.from("prompter_scripts").insert(payload).select().single();
+  if (error && /is_shot|gesture_map|column/i.test(error.message)) {
+    const { is_shot: _isShot, gesture_map: _gestureMap, ...legacyPayload } = payload;
+    legacyPayload.speaker_map = encodeLegacySceneMetadata(payload.speaker_map, payload.is_shot, payload.gesture_map);
+    ({ data, error } = await db.from("prompter_scripts").insert(legacyPayload).select().single());
+  }
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   // 씬을 저장하면 그 프로젝트가 최근 목록 맨 위로 올라오게 부모 프로젝트의 updated_at도 갱신한다.

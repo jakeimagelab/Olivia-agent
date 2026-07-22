@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { C } from "@/lib/theme";
 import OliviaChatWorkItemCard from "@/components/olivia/OliviaChatWorkItemCard";
 import { compactWorkItemReferences, type OliviaChatWorkItem, type OliviaChatWorkItemAction } from "@/lib/olivia/chatTypes";
+import { mergeChatMessages } from "@/lib/olivia/chatMessageMerge";
 import { isAutoExecutableClientCreate } from "@/lib/olivia/crud/autoExecution";
 
 // ── 코드 블록 (복사 버튼 포함, 개발요청 스펙 등을 그대로 복사해 전달할 때 사용) ──
@@ -169,20 +170,6 @@ interface Message {
   toolResult?: string;
   isApproved?: boolean;
   workItems?: OliviaChatWorkItem[];
-}
-
-function mergeMessages(previous: Message[], incoming: Message[]) {
-  if (!incoming.length) return previous;
-  const ids = new Set(previous.flatMap((message) => message.id ? [message.id] : []));
-  const requestIds = new Set(previous.flatMap((message) => message.clientRequestId ? [message.clientRequestId] : []));
-  const merged = [...previous];
-  for (const message of incoming) {
-    if ((message.id && ids.has(message.id)) || (message.clientRequestId && requestIds.has(message.clientRequestId))) continue;
-    merged.push(message);
-    if (message.id) ids.add(message.id);
-    if (message.clientRequestId) requestIds.add(message.clientRequestId);
-  }
-  return merged;
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -408,7 +395,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
   }
 
   // ── DB 저장 헬퍼 (fire-and-forget) ─────────────────────
-  const saveToDb = (msgs: Array<{ role: "user" | "assistant"; content: string; workItems?: OliviaChatWorkItem[]; clientRequestId?: string }>) => {
+  const saveToDb = (msgs: Message[]) => {
     if (!msgs.length) return;
     fetch("/api/olivia/messages", {
       method: "POST",
@@ -417,9 +404,34 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         role: m.role,
         content: m.content,
         source: "web",
-        metadata: { ...(m.workItems?.length ? { workItems: compactWorkItemReferences(m.workItems) } : {}), deviceId: deviceIdRef.current, clientRequestId: m.clientRequestId || crypto.randomUUID() },
+        metadata: { ...(m.workItems?.length ? { workItems: compactWorkItemReferences(m.workItems) } : {}), deviceId: deviceIdRef.current, clientRequestId: m.clientRequestId },
       })) }),
-    }).catch(() => {});
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (!data.ok || !Array.isArray(data.messages)) return;
+        const persisted = data.messages.map((row: any, index: number) => ({
+          ...msgs[index],
+          id: row.id,
+          createdAt: row.created_at,
+          source: row.source || msgs[index]?.source || "web",
+        })).filter((message: Message) => message.id);
+        if (persisted.length) setMessages((previous) => mergeChatMessages(previous, persisted));
+      })
+      .catch(() => {});
+  };
+
+  const createLocalMessage = (message: Omit<Message, "clientRequestId" | "createdAt">): Message => ({
+    ...message,
+    clientRequestId: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  });
+
+  const appendAndSave = (message: Omit<Message, "clientRequestId" | "createdAt">) => {
+    const localMessage = createLocalMessage(message);
+    setMessages((previous) => [...previous, localMessage]);
+    saveToDb([localMessage]);
+    return localMessage;
   };
 
   // ── 인증 확인 ───────────────────────────────────────────
@@ -482,7 +494,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     // 패널이 DOM에 마운트된 직후 즉시 맨 아래로 이동
     setTimeout(() => scrollToBottom(false), 50);
     if (pendingRef.current.length > 0) {
-      setMessages(prev => mergeMessages(prev, pendingRef.current));
+      setMessages(prev => mergeChatMessages(prev, pendingRef.current));
       pendingRef.current = [];
     }
     setUnreadCount(0);
@@ -517,7 +529,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         if (!newMsgs.length) return;
 
         if (open) {
-          setMessages(prev => mergeMessages(prev, newMsgs));
+          setMessages(prev => mergeChatMessages(prev, newMsgs));
         } else {
           pendingRef.current.push(...newMsgs);
           setUnreadCount(c => c + newMsgs.filter(m => m.role === "user").length);
@@ -535,11 +547,11 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     if (!text || loading) return;
     setInput("");
 
-    const newMsg: Message = { role: "user", content: text, source: "web" };
+    const newMsg = createLocalMessage({ role: "user", content: text, source: "web" });
     const updated = [...messages, newMsg];
     setMessages(updated);
     setLoading(true);
-    saveToDb([{ role: "user", content: text }]);
+    saveToDb([newMsg]);
 
     try {
       const apiMessages = updated
@@ -601,16 +613,16 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
                 if (result.url.startsWith("http")) window.open(result.url, "_blank");
                 else window.location.href = result.url;
               }
-              setMessages(prev => [...prev, {
+              const resultMessage = createLocalMessage({
                 role: "assistant", content: resultMsg, source: "web", toolResult: "done",
                 workItems: result.workItems,
-              }]);
-              saveToDb([{ role: "assistant", content: resultMsg, workItems: result.workItems }]);
+              });
+              setMessages(prev => [...prev, resultMessage]);
+              saveToDb([resultMessage]);
               window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
             } catch (e: any) {
               const errMsg = "⚠ 실행 중 오류: " + e.message;
-              setMessages(prev => [...prev, { role: "assistant", content: errMsg, source: "web" }]);
-              saveToDb([{ role: "assistant", content: errMsg }]);
+              appendAndSave({ role: "assistant", content: errMsg, source: "web" });
             }
           } else {
             // 일반 도구: 승인 카드 표시 (도구별로 각각 하나씩)
@@ -640,8 +652,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             displayText = rawText.replace(/<CONTI_UPDATE>[\s\S]*?<\/CONTI_UPDATE>/, "").trim() + "\n\n✅ 콘티가 업데이트됐어요!";
           } catch {}
         }
-        setMessages(prev => [...prev, { role: "assistant", content: displayText, source: "web" }]);
-        saveToDb([{ role: "assistant", content: displayText }]);
+        appendAndSave({ role: "assistant", content: displayText, source: "web" });
       }
     } catch (e: any) {
       setMessages(prev => [...prev, { role: "assistant", content: "⚠ 오류가 발생했어요: " + e.message, source: "web" }]);
@@ -687,11 +698,10 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       }
 
       const resultMsg = result.message || "완료됐어요!";
-      setMessages(prev => [...prev, {
+      appendAndSave({
         role: "assistant", content: resultMsg, source: "web", toolResult: result.action,
         workItems: result.workItems,
-      }]);
-      saveToDb([{ role: "assistant", content: resultMsg, workItems: result.workItems }]);
+      });
     } catch (e: any) {
       setMessages(prev => [...prev, { role: "assistant", content: "⚠ 실행 중 오류: " + e.message, source: "web" }]);
     } finally {
@@ -705,8 +715,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       i === msgIdx ? { ...m, isApproved: false } : m
     ));
     const rejectMsg = "알겠어요! 다른 방법으로 도와드릴까요?";
-    setMessages(prev => [...prev, { role: "assistant", content: rejectMsg, source: "web" }]);
-    saveToDb([{ role: "assistant", content: rejectMsg }]);
+    appendAndSave({ role: "assistant", content: rejectMsg, source: "web" });
   };
 
   const handleWorkItemAction = async (item: OliviaChatWorkItem, action: OliviaChatWorkItemAction) => {
@@ -727,8 +736,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         const candidateData = await candidateResponse.json();
         if (!candidateData.ok) throw new Error(candidateData.error || "신규 고객 제안 처리 실패");
         const resultMessage = candidateData.message || "신규 고객 제안을 처리했습니다.";
-        setMessages((previous) => [...previous, { role: "assistant", content: resultMessage, source: "web" }]);
-        saveToDb([{ role: "assistant", content: resultMessage }]);
+        appendAndSave({ role: "assistant", content: resultMessage, source: "web" });
         window.dispatchEvent(new CustomEvent("olivia-data-changed", { detail: { domain: "client", operation: action } }));
         return;
       }
@@ -769,18 +777,16 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       if (!data.ok) throw new Error(data.error || "업무 처리 실패");
       const result = data.toolResult;
       const resultMsg = result.message || "업무를 처리했습니다.";
-      setMessages((previous) => [...previous, {
+      appendAndSave({
         role: "assistant",
         content: resultMsg,
         source: "web",
         toolResult: "done",
         workItems: result.workItems,
-      }]);
-      saveToDb([{ role: "assistant", content: resultMsg, workItems: result.workItems }]);
+      });
     } catch (error) {
       const message = `⚠ 업무 처리 오류: ${error instanceof Error ? error.message : String(error)}`;
-      setMessages((previous) => [...previous, { role: "assistant", content: message, source: "web" }]);
-      saveToDb([{ role: "assistant", content: message }]);
+      appendAndSave({ role: "assistant", content: message, source: "web" });
     } finally {
       setWorkItemBusy(null);
     }

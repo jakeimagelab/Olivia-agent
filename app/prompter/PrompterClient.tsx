@@ -8,7 +8,7 @@ import {
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   Smartphone, FileText, Rows3, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Building2, Pencil, AlignVerticalSpaceAround, Maximize, Minimize, GripVertical, Users, Sparkles,
-  Scan, Palette, AlignVerticalDistributeCenter, Share2,
+  Scan, Palette, AlignVerticalDistributeCenter, Share2, Hand,
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import PageHeader from "@/components/PageHeader";
@@ -21,7 +21,7 @@ import {
 
 type Speaker = { id: string; name: string; color: string };
 type Project = { id: string; name: string; sceneCount: number; lastActivity: string; updated_at: string; speakers?: Speaker[]; public_share_token?: string | null };
-type Scene = { id: string; title: string; subject?: string; content: string; editor_mode?: "text" | "slides"; speaker_map?: string[]; updated_at: string };
+type Scene = { id: string; title: string; subject?: string; content: string; editor_mode?: "text" | "slides"; speaker_map?: string[]; gesture_map?: string[]; is_shot?: boolean; updated_at: string };
 
 const SPEAKER_PALETTE = ["#E85D2C", "#155855", "#EB8F22", "#7C3AED", "#2563EB", "#569082"];
 
@@ -29,7 +29,7 @@ type AiIssue = { type: "spelling" | "naturalness"; original: string; suggestion:
 
 // 문단(빈 줄로 구분)과 화자 배정을 함께 정리한다 — 진짜 빈 문단(카드만 만들고 아직
 // 안 쓴 문단 등)은 실행화면·저장 데이터 모두에서 걸러내고, 화자 배정도 같이 맞춰 당겨준다.
-function getCleanParagraphs(text: string, speakerMap: string[]): { paragraphs: string[]; speakerMap: string[] } {
+function getCleanParagraphs(text: string, speakerMap: string[], gestureMap: string[] = []): { paragraphs: string[]; speakerMap: string[]; gestureMap: string[] } {
   const normalized = text.replace(/\r\n?/g, "\n").replace(/[\t ]+$/gm, "").trim();
   const hasBlankLineBoundary = /\n[\t ]*\n/.test(normalized);
   const raw = hasBlankLineBoundary
@@ -37,12 +37,14 @@ function getCleanParagraphs(text: string, speakerMap: string[]): { paragraphs: s
     : normalized.split("\n");
   const paragraphs: string[] = [];
   const map: string[] = [];
+  const gestures: string[] = [];
   raw.forEach((p, i) => {
     if (p.trim().length === 0) return;
     paragraphs.push(p.trim());
     map.push(speakerMap[i] ?? "");
+    gestures.push(gestureMap[i]?.trim() ?? "");
   });
-  return { paragraphs, speakerMap: map };
+  return { paragraphs, speakerMap: map, gestureMap: gestures };
 }
 
 // Chrome은 vp9가 안정적이지만 지원하지 않는 브라우저(구형 Chrome, 일부 Safari)에서
@@ -77,6 +79,9 @@ export default function PrompterPage() {
   const [subject, setSubject] = useState("");
   const [editorMode, setEditorMode] = useState<"text" | "slides">("text");
   const [sceneId, setSceneId] = useState<string | null>(null);
+  const [isShot, setIsShot] = useState(false);
+  const [gestureEditorEnabled, setGestureEditorEnabled] = useState(false);
+  const [gestureMap, setGestureMap] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [lastAutoSavedAt, setLastAutoSavedAt] = useState<number | null>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -161,11 +166,13 @@ export default function PrompterPage() {
   const scrollBoxRef = useRef<HTMLDivElement>(null);
   const lastParagraphRef = useRef<HTMLDivElement>(null);
   const paragraphRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const paragraphTextRefs = useRef<(HTMLParagraphElement | null)[]>([]);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const [paragraphIndex, setParagraphIndex] = useState(0);
   const paragraphIndexRef = useRef(0);
   useEffect(() => { paragraphIndexRef.current = paragraphIndex; }, [paragraphIndex]);
   const rafRef = useRef<number | null>(null);
+  const lastRemoteFrameRef = useRef(0);
   const lastTsRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -174,10 +181,15 @@ export default function PrompterPage() {
     const max = box ? box.scrollHeight - box.clientHeight : 0;
     const progress = box && max > 0 ? Math.max(0, Math.min(1, box.scrollTop / max)) : 0;
     if (progressBarRef.current) progressBarRef.current.style.width = `${progress * 100}%`;
+    const now = performance.now();
+    if (channelRef.current && now - lastRemoteFrameRef.current >= 50) {
+      lastRemoteFrameRef.current = now;
+      channelRef.current.send({ type: "broadcast", event: "frame", payload: { scrollProgress: progress } });
+    }
   }, []);
 
   const slides = text.split("\n");
-  const { paragraphs, speakerMap: playbackSpeakerMap } = getCleanParagraphs(text, speakerMap);
+  const { paragraphs, speakerMap: playbackSpeakerMap, gestureMap: playbackGestureMap } = getCleanParagraphs(text, speakerMap, gestureMap);
   // 편집 중(다중 화자 카드 목록)에는 방금 추가한 빈 문단 카드도 보여야 하므로 필터링 없이 그대로 쓴다.
   const editParagraphs = text.replace(/\r\n?/g, "\n").split(/\n[\t ]*\n+/);
 
@@ -280,29 +292,45 @@ export default function PrompterPage() {
   const newScene = () => {
     skipNextAutoSaveRef.current = true;
     setText(""); setTitle(""); setSubject(""); setSceneId(null); setEditorMode("text");
-    setSpeakerMap([]); setMultiSpeakerMode(false);
+    setSpeakerMap([]); setGestureMap([]); setIsShot(false); setMultiSpeakerMode(false); setGestureEditorEnabled(false);
   };
   const openScene = (s: Scene) => {
     skipNextAutoSaveRef.current = true;
     setText(s.content); setTitle(s.title); setSubject(s.subject ?? ""); setSceneId(s.id);
     setEditorMode(s.editor_mode === "slides" ? "slides" : "text");
     const loadedMap = Array.isArray(s.speaker_map) ? s.speaker_map : [];
+    const loadedGestures = Array.isArray(s.gesture_map) ? s.gesture_map : [];
     setSpeakerMap(loadedMap);
+    setGestureMap(loadedGestures);
+    setIsShot(Boolean(s.is_shot));
     setMultiSpeakerMode(loadedMap.some((id) => id));
+    setGestureEditorEnabled(loadedGestures.some((gesture) => gesture?.trim()));
   };
 
   /* ── 슬라이드별 편집 (문장 단위 카드) — text를 줄 단위로 쪼개서 보여줄 뿐, 저장 형식은 그대로 하나의 텍스트 ── */
   const updateSlide = (i: number, value: string) => {
     const next = [...slides]; next[i] = value; setText(next.join("\n"));
   };
-  const addSlide = () => setText(text ? `${text}\n` : "");
-  const removeSlide = (i: number) => setText(slides.filter((_, idx) => idx !== i).join("\n"));
+  const addSlide = () => {
+    setText(text ? `${text}\n` : "");
+    setGestureMap((prev) => [...prev, ""]);
+  };
+  const removeSlide = (i: number) => {
+    setText(slides.filter((_, idx) => idx !== i).join("\n"));
+    setGestureMap((prev) => prev.filter((_, idx) => idx !== i));
+  };
   const moveSlide = (i: number, dir: -1 | 1) => {
     const j = i + dir;
     if (j < 0 || j >= slides.length) return;
     const next = [...slides];
     [next[i], next[j]] = [next[j], next[i]];
     setText(next.join("\n"));
+    setGestureMap((prev) => {
+      const nextGestures = [...prev];
+      while (nextGestures.length < slides.length) nextGestures.push("");
+      [nextGestures[i], nextGestures[j]] = [nextGestures[j], nextGestures[i]];
+      return nextGestures;
+    });
   };
 
   /* ── 다중 화자 — 문단별 카드 편집 (editParagraphs 기준, 화자 배정은 speakerMap과 같은 인덱스로 맞춰간다) ── */
@@ -315,10 +343,12 @@ export default function PrompterPage() {
   const addParagraph = () => {
     setText(text ? `${text}\n\n` : "");
     setSpeakerMap((prev) => [...prev, ""]);
+    setGestureMap((prev) => [...prev, ""]);
   };
   const removeParagraph = (i: number) => {
     setText(editParagraphs.filter((_, idx) => idx !== i).join("\n\n"));
     setSpeakerMap((prev) => prev.filter((_, idx) => idx !== i));
+    setGestureMap((prev) => prev.filter((_, idx) => idx !== i));
   };
   const moveParagraph = (i: number, dir: -1 | 1) => {
     const j = i + dir;
@@ -332,6 +362,12 @@ export default function PrompterPage() {
       [n[i], n[j]] = [n[j], n[i]];
       return n;
     });
+    setGestureMap((prev) => {
+      const n = [...prev];
+      while (n.length < editParagraphs.length) n.push("");
+      [n[i], n[j]] = [n[j], n[i]];
+      return n;
+    });
   };
   const setParagraphSpeaker = (i: number, speakerId: string) => {
     setSpeakerMap((prev) => {
@@ -339,6 +375,14 @@ export default function PrompterPage() {
       while (n.length <= i) n.push("");
       n[i] = speakerId;
       return n;
+    });
+  };
+  const setGesture = (i: number, value: string) => {
+    setGestureMap((prev) => {
+      const next = [...prev];
+      while (next.length <= i) next.push("");
+      next[i] = value.replace(/[()]/g, "");
+      return next;
     });
   };
 
@@ -462,21 +506,23 @@ export default function PrompterPage() {
      끊겨 보이므로, 80ms에 한 번으로 제한하고 마지막 값은 반드시 반영되게 트레일링으로 한 번 더 보낸다. ── */
   const lastBroadcastRef = useRef(0);
   const pendingBroadcastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const remoteStateSnapshotRef = useRef<Record<string, unknown>>({});
   useEffect(() => {
     const send = () => {
       const box = scrollBoxRef.current;
       const scrollProgress = box && box.scrollHeight > box.clientHeight
         ? box.scrollTop / (box.scrollHeight - box.clientHeight)
         : 0;
-      channelRef.current?.send({
-        type: "broadcast", event: "state",
-        payload: {
-          playing: scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign,
-          fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight,
-          editorMode, slideIndex, totalSlides: slides.length,
-          paragraphIndex, totalParagraphs: paragraphs.length, scrollProgress,
-        },
-      });
+      const payload = {
+        playing: scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign,
+        fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight,
+        guideEnabled, guidePosition, guideHighlight,
+        editorMode, slideIndex, totalSlides: slides.length,
+        paragraphIndex, totalParagraphs: paragraphs.length, scrollProgress,
+        viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
+      };
+      remoteStateSnapshotRef.current = payload;
+      channelRef.current?.send({ type: "broadcast", event: "state", payload });
     };
     if (pendingBroadcastRef.current) { clearTimeout(pendingBroadcastRef.current); pendingBroadcastRef.current = null; }
     const sinceLast = Date.now() - lastBroadcastRef.current;
@@ -490,7 +536,7 @@ export default function PrompterPage() {
       }, 80 - sinceLast);
     }
     return () => { if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current); };
-  }, [scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight, editorMode, slideIndex, slides.length, paragraphIndex, paragraphs.length]);
+  }, [scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight, guideEnabled, guidePosition, guideHighlight, editorMode, slideIndex, slides.length, paragraphIndex, paragraphs.length]);
 
   // 프롬프터 모드를 나갈 때 녹화/스크롤/리모컨 채널이 백그라운드에 남지 않도록 정리한다.
   useEffect(() => {
@@ -544,15 +590,22 @@ export default function PrompterPage() {
     else startPlayback();
   };
 
-  /* ── 전체 텍스트 모드에서 특정 문단을 화면 맨 위로 이동 (리모컨의 이전/다음 문단 버튼용) ── */
+  /* ── 전체 텍스트 모드에서 문단의 실제 문장 중앙을 가이드라인에 맞춘다.
+     화자명·문단 간격은 제외하므로 홀수 줄 문단은 정확히 가운데 줄이 라인에 걸친다. ── */
   const scrollToParagraph = (i: number) => {
     const box = scrollBoxRef.current;
-    const el = paragraphRefs.current[i];
+    const el = paragraphTextRefs.current[i];
     if (!box || !el) return;
-    const top = el.getBoundingClientRect().top;
-    // 상하반전 상태에선 scaleY로 화면이 뒤집혀 있어 scrollTop 증감과 화면상 위치 변화가 반대로 움직인다.
-    const delta = flipVRef.current ? -top : top;
-    box.scrollTop = Math.max(0, Math.min(box.scrollTop + delta, box.scrollHeight - box.clientHeight));
+    const boxRect = box.getBoundingClientRect();
+    const textRect = el.getBoundingClientRect();
+    const guideY = boxRect.top + boxRect.height * (guidePositionRef.current / 100);
+    const textCenterY = (textRect.top + textRect.bottom) / 2;
+    const visualDelta = textCenterY - guideY;
+    // scaleY(-1)에서는 scrollTop 변화가 화면상 반대 방향으로 보이므로 보정 방향도 뒤집는다.
+    const scrollDelta = flipVRef.current ? -visualDelta : visualDelta;
+    const max = Math.max(0, box.scrollHeight - box.clientHeight);
+    box.scrollTop = Math.max(0, Math.min(box.scrollTop + scrollDelta, max));
+    requestAnimationFrame(syncScrollProgress);
   };
   const jumpParagraph = (dir: -1 | 1) => {
     if (paragraphs.length === 0) return;
@@ -585,7 +638,7 @@ export default function PrompterPage() {
     const sendContent = () => {
       channel.send({
         type: "broadcast", event: "content",
-        payload: { paragraphs, slides, speakers, speakerMap: playbackSpeakerMap },
+        payload: { paragraphs, slides, speakers, speakerMap: playbackSpeakerMap, gestureMap: playbackGestureMap },
       });
     };
 
@@ -617,6 +670,9 @@ export default function PrompterPage() {
         case "paragraphSpacing": setParagraphSpacing(payload.value); break;
         case "bgColor": setBgColor(payload.value); break;
         case "lineHeight": setLineHeight(payload.value); break;
+        case "guideEnabled": setGuideEnabled(Boolean(payload.value)); break;
+        case "guidePosition": setGuidePosition(Number(payload.value)); break;
+        case "guideHighlight": setGuideHighlight(Boolean(payload.value)); break;
         case "seek": {
           // 리모컨에서 미리보기를 직접 드래그해서 스크롤 위치를 지정했을 때.
           const box = scrollBoxRef.current;
@@ -627,7 +683,10 @@ export default function PrompterPage() {
           }
           break;
         }
-        case "requestContent": sendContent(); break;
+        case "requestContent":
+          sendContent();
+          channel.send({ type: "broadcast", event: "state", payload: remoteStateSnapshotRef.current });
+          break;
       }
     });
 
@@ -639,8 +698,10 @@ export default function PrompterPage() {
           payload: {
             playing: false, elapsed: 0, speed, flipH, flipV, hAlign, vAlign,
             fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight,
+            guideEnabled, guidePosition, guideHighlight,
             editorMode, slideIndex: 0, totalSlides: slides.length,
             paragraphIndex: 0, totalParagraphs: paragraphs.length, scrollProgress: 0,
+            viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
           },
         });
         sendContent();
@@ -695,23 +756,28 @@ export default function PrompterPage() {
     autoSaveTimerRef.current = setTimeout(() => { saveScene(true); }, 3000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, title, subject, mode, multiSpeakerMode, speakerMap]);
+  }, [text, title, subject, mode, multiSpeakerMode, gestureEditorEnabled, speakerMap, gestureMap, isShot]);
 
   /* ── 저장/삭제 ── */
   const saveScene = async (silent = false) => {
     if (!text.trim() || saving || !currentProject) return;
     setSaving(true);
     try {
-      const cleaned = multiSpeakerMode ? getCleanParagraphs(text, speakerMap) : null;
+      const cleaned = editorMode === "text" && (multiSpeakerMode || gestureEditorEnabled)
+        ? getCleanParagraphs(text, speakerMap, gestureMap)
+        : null;
       const contentToSave = cleaned ? cleaned.paragraphs.join("\n\n") : text;
-      const speakerMapToSave = cleaned ? cleaned.speakerMap : [];
+      const speakerMapToSave = cleaned ? cleaned.speakerMap : speakerMap;
+      const gestureMapToSave = cleaned ? cleaned.gestureMap : gestureMap.slice(0, slides.length);
       const res = await fetch("/api/prompter-scripts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: sceneId, projectId: currentProject.id, title: title || "제목 없는 씬", subject, content: contentToSave, editorMode, speakerMap: speakerMapToSave }),
+        body: JSON.stringify({ id: sceneId, projectId: currentProject.id, title: title || "제목 없는 씬", subject, content: contentToSave, editorMode, speakerMap: speakerMapToSave, gestureMap: gestureMapToSave, isShot }),
       }).then((r) => r.json());
       if (res.ok) {
         setSceneId(res.script.id); setTitle(res.script.title); setSubject(res.script.subject ?? "");
+        setGestureMap(Array.isArray(res.script.gesture_map) ? res.script.gesture_map : gestureMapToSave);
+        setIsShot(Boolean(res.script.is_shot ?? isShot));
         setLastAutoSavedAt(Date.now());
         await loadScenes(currentProject.id);
       } else if (!silent) {
@@ -774,6 +840,25 @@ export default function PrompterPage() {
     }
     setText(text.replace(issue.original, issue.suggestion));
     setAiIssues((prev) => prev.filter((i) => i !== issue));
+  };
+
+  const toggleSceneShot = async (scene: Scene) => {
+    const nextValue = !scene.is_shot;
+    setScenes((prev) => prev.map((item) => item.id === scene.id ? { ...item, is_shot: nextValue } : item));
+    if (sceneId === scene.id) setIsShot(nextValue);
+    try {
+      const response = await fetch(`/api/prompter-scripts/${scene.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isShot: nextValue }),
+      });
+      const result = await response.json();
+      if (!result.ok) throw new Error(result.error || "촬영 상태 저장 실패");
+    } catch (error) {
+      setScenes((prev) => prev.map((item) => item.id === scene.id ? { ...item, is_shot: Boolean(scene.is_shot) } : item));
+      if (sceneId === scene.id) setIsShot(Boolean(scene.is_shot));
+      alert(error instanceof Error ? error.message : "촬영 상태 저장에 실패했습니다.");
+    }
   };
 
   const deleteScene = async (id: string, e?: React.MouseEvent) => {
@@ -882,13 +967,17 @@ export default function PrompterPage() {
                 scenes.map((s, i) => (
                   <div
                     key={s.id}
-                    className={`pt-nav-item${s.id === sceneId ? " active" : ""}${dragIndex === i ? " dragging" : ""}`}
+                    className={`pt-nav-item${s.id === sceneId ? " active" : ""}${dragIndex === i ? " dragging" : ""}${s.is_shot ? " shot" : ""}`}
                     draggable
                     onDragStart={() => setDragIndex(i)}
                     onDragOver={(e) => handleDragOver(e, i)}
                     onDrop={(e) => e.preventDefault()}
                     onDragEnd={handleDragEnd}
                   >
+                    <label className="pt-nav-item-shot" title={s.is_shot ? "촬영 완료 해제" : "촬영 완료"} onPointerDown={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={Boolean(s.is_shot)} onChange={() => toggleSceneShot(s)} />
+                      <span />
+                    </label>
                     <span className="pt-nav-item-handle" title="드래그로 순서 변경"><GripVertical size={14} /></span>
                     <button className="pt-nav-item-main" onClick={() => openScene(s)}>
                       <strong>{s.title}</strong>
@@ -917,6 +1006,12 @@ export default function PrompterPage() {
               {editorMode === "text" && (
                 <div className="pt-speaker-bar">
                   <button
+                    className={`pt-speaker-toggle${gestureEditorEnabled ? " active" : ""}`}
+                    onClick={() => setGestureEditorEnabled((value) => !value)}
+                  >
+                    <Hand size={13} /> 제스처 표현 {gestureEditorEnabled ? "끄기" : "켜기"}
+                  </button>
+                  <button
                     className={`pt-speaker-toggle${multiSpeakerMode ? " active" : ""}`}
                     onClick={() => setMultiSpeakerMode((v) => !v)}
                   >
@@ -937,32 +1032,46 @@ export default function PrompterPage() {
               )}
 
               {editorMode === "text" ? (
-                multiSpeakerMode ? (
+                multiSpeakerMode || gestureEditorEnabled ? (
                   <div className="pt-para-list">
                     {editParagraphs.map((p, i) => {
                       const sp = speakers.find((s) => s.id === speakerMap[i]);
                       return (
                         <div key={i} className="pt-para-card">
                           <div className="pt-para-card-speaker">
-                            <select
-                              value={speakerMap[i] ?? ""}
-                              onChange={(e) => setParagraphSpeaker(i, e.target.value)}
-                              style={sp ? { borderColor: sp.color, color: sp.color } : undefined}
-                            >
-                              <option value="">미지정</option>
-                              {speakers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
+                            {multiSpeakerMode ? (
+                              <select
+                                value={speakerMap[i] ?? ""}
+                                onChange={(e) => setParagraphSpeaker(i, e.target.value)}
+                                style={sp ? { borderColor: sp.color, color: sp.color } : undefined}
+                              >
+                                <option value="">미지정</option>
+                                {speakers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                              </select>
+                            ) : <span className="pt-para-number">문단 {i + 1}</span>}
                             <div className="pt-para-card-actions">
                               <button onClick={() => moveParagraph(i, -1)} disabled={i === 0} title="위로"><ChevronUp size={13} /></button>
                               <button onClick={() => moveParagraph(i, 1)} disabled={i === editParagraphs.length - 1} title="아래로"><ChevronDown size={13} /></button>
                               <button onClick={() => removeParagraph(i)} title="삭제"><Trash2 size={12} /></button>
                             </div>
                           </div>
-                          <textarea
-                            value={p} onChange={(e) => updateParagraph(i, e.target.value)} rows={3}
-                            placeholder="문단 내용을 입력하세요"
-                            style={sp ? { borderLeftColor: sp.color } : undefined}
-                          />
+                          <div className="pt-para-card-content">
+                            <textarea
+                              value={p} onChange={(e) => updateParagraph(i, e.target.value)} rows={3}
+                              placeholder="문단 내용을 입력하세요"
+                              style={sp ? { borderLeftColor: sp.color } : undefined}
+                            />
+                            {gestureEditorEnabled && (
+                              <label className="pt-gesture-input">
+                                <Hand size={14} />
+                                <input
+                                  value={gestureMap[i] ?? ""}
+                                  onChange={(e) => setGesture(i, e.target.value)}
+                                  placeholder="제스처 예: 손가락을 든다"
+                                />
+                              </label>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -991,6 +1100,14 @@ export default function PrompterPage() {
                         value={s} onChange={(e) => updateSlide(i, e.target.value)} rows={2}
                         placeholder="문장을 입력하세요"
                       />
+                      <label className="pt-gesture-input">
+                        <Hand size={14} />
+                        <input
+                          value={gestureMap[i] ?? ""}
+                          onChange={(e) => setGesture(i, e.target.value)}
+                          placeholder="제스처 예: 손가락을 든다"
+                        />
+                      </label>
                     </div>
                   ))}
                   <button onClick={addSlide} className="pt-slide-add"><Plus size={14} /> 문장 추가</button>
@@ -1092,6 +1209,7 @@ export default function PrompterPage() {
         }}>
           <p style={{ fontSize, color: fontColor, fontFamily, lineHeight, whiteSpace: "pre-wrap", margin: 0, textAlign: hAlign, width: "100%" }}>
             {slides[slideIndex] ?? ""}
+            {gestureMap[slideIndex]?.trim() && <span className="pt-prompt-gesture">({gestureMap[slideIndex].trim()})</span>}
           </p>
         </div>
       ) : (
@@ -1099,7 +1217,8 @@ export default function PrompterPage() {
           ref={scrollBoxRef}
           style={{
             height: "100%", overflowY: "auto", position: "relative", zIndex: 2,
-            padding: `${V_ALIGN_PADDING[vAlign].top} 8vw ${V_ALIGN_PADDING[vAlign].bottom}`,
+            // 첫·마지막 문단도 현재 가이드 위치까지 이동할 수 있도록 최소 스크롤 여백을 확보한다.
+            padding: `max(${V_ALIGN_PADDING[vAlign].top}, ${guidePosition}vh) 8vw max(${V_ALIGN_PADDING[vAlign].bottom}, ${100 - guidePosition}vh)`,
             transform: `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
           }}
           onScroll={syncScrollProgress}
@@ -1127,8 +1246,9 @@ export default function PrompterPage() {
                   margin: 0, textAlign: hAlign,
                   borderLeft: sp ? `4px solid ${sp.color}` : "none",
                   paddingLeft: sp ? "0.4em" : 0,
-                }}>
+                }} ref={(el) => { paragraphTextRefs.current[i] = el; }}>
                   {p}
+                  {playbackGestureMap[i] && <span className="pt-prompt-gesture">({playbackGestureMap[i]})</span>}
                 </p>
               </div>
             );

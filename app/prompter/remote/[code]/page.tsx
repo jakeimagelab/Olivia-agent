@@ -8,10 +8,11 @@ import {
   AlignLeft, AlignCenter, AlignRight,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   Mic, Square, ChevronLeft, ChevronRight, AlignVerticalSpaceAround, AlignVerticalDistributeCenter,
+  Scan, Palette, Maximize, Minimize,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import {
-  FONT_OPTIONS, COLOR_OPTIONS, fmtTime,
+  FONT_OPTIONS, COLOR_OPTIONS, BG_COLOR_OPTIONS, fmtTime,
   SPEED_LEVELS, PARAGRAPH_SPACING_LEVELS, FONT_SIZE_LEVELS, levelOf,
   type HAlign, type VAlign,
 } from "@/lib/prompter/constants";
@@ -49,6 +50,29 @@ export default function PrompterRemotePage() {
   const [paragraphIndex, setParagraphIndex] = useState(0);
   const [totalParagraphs, setTotalParagraphs] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [guideEnabled, setGuideEnabled] = useState(false);
+  const [guidePosition, setGuidePosition] = useState(40);
+  const [guideHighlight, setGuideHighlight] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hostViewport, setHostViewport] = useState({ width: 1280, height: 720 });
+  const [mirrorScale, setMirrorScale] = useState(1);
+
+  useEffect(() => {
+    const classify = () => {
+      const touchDevice = navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
+      const shortEdge = Math.min(window.screen.width, window.screen.height);
+      setIsTablet(touchDevice && shortEdge >= 600);
+    };
+    const onFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    classify();
+    window.addEventListener("resize", classify);
+    document.addEventListener("fullscreenchange", onFullscreen);
+    return () => {
+      window.removeEventListener("resize", classify);
+      document.removeEventListener("fullscreenchange", onFullscreen);
+    };
+  }, []);
 
   // 실행화면 미리보기 — 실제 대본 내용을 받아서 그대로 축소 표시하고, 직접 드래그해서 스크롤 위치를 지정할 수 있다.
   type PreviewSpeaker = { id: string; name: string; color: string };
@@ -56,6 +80,8 @@ export default function PrompterRemotePage() {
   const [previewSlides, setPreviewSlides] = useState<string[]>([]);
   const [previewSpeakers, setPreviewSpeakers] = useState<PreviewSpeaker[]>([]);
   const [previewSpeakerMap, setPreviewSpeakerMap] = useState<string[]>([]);
+  const [previewGestureMap, setPreviewGestureMap] = useState<string[]>([]);
+  const previewFrameRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const isDraggingPreviewRef = useRef(false);
   const lastSeekSentRef = useRef(0);
@@ -102,12 +128,18 @@ export default function PrompterRemotePage() {
       if (payload.paragraphSpacing != null) setParagraphSpacing(payload.paragraphSpacing);
       if (payload.bgColor) setBgColor(payload.bgColor);
       if (payload.lineHeight != null) setLineHeight(payload.lineHeight);
+      if (payload.guideEnabled != null) setGuideEnabled(payload.guideEnabled);
+      if (payload.guidePosition != null) setGuidePosition(payload.guidePosition);
+      if (payload.guideHighlight != null) setGuideHighlight(payload.guideHighlight);
       if (payload.editorMode) setEditorMode(payload.editorMode);
       if (payload.slideIndex != null) setSlideIndex(payload.slideIndex);
       if (payload.totalSlides != null) setTotalSlides(payload.totalSlides);
       if (payload.paragraphIndex != null) setParagraphIndex(payload.paragraphIndex);
       if (payload.totalParagraphs != null) setTotalParagraphs(payload.totalParagraphs);
       if (payload.scrollProgress != null) setScrollProgress(payload.scrollProgress);
+      if (payload.viewportWidth && payload.viewportHeight) {
+        setHostViewport({ width: Number(payload.viewportWidth), height: Number(payload.viewportHeight) });
+      }
       // 미리보기를 손으로 드래그하는 동안엔 실행화면 쪽 위치로 되돌리지 않는다 (터치가 끝나면 다시 따라간다).
       if (payload.scrollProgress != null && !isDraggingPreviewRef.current) {
         const el = previewRef.current;
@@ -117,11 +149,21 @@ export default function PrompterRemotePage() {
         }
       }
     });
+    channel.on("broadcast", { event: "frame" }, ({ payload }) => {
+      if (typeof payload.scrollProgress !== "number" || isDraggingPreviewRef.current) return;
+      setScrollProgress(payload.scrollProgress);
+      const el = previewRef.current;
+      if (el) {
+        const max = el.scrollHeight - el.clientHeight;
+        el.scrollTop = max > 0 ? payload.scrollProgress * max : 0;
+      }
+    });
     channel.on("broadcast", { event: "content" }, ({ payload }) => {
       setPreviewParagraphs(payload.paragraphs ?? []);
       setPreviewSlides(payload.slides ?? []);
       setPreviewSpeakers(payload.speakers ?? []);
       setPreviewSpeakerMap(payload.speakerMap ?? []);
+      setPreviewGestureMap(payload.gestureMap ?? []);
     });
     channel.subscribe((status) => {
       // 실행화면이 먼저 켜져 있다가 리모컨이 나중에 접속하는 경우가 많아, 접속 직후 내용을 다시 요청한다.
@@ -135,6 +177,10 @@ export default function PrompterRemotePage() {
 
   const send = (type: string, value?: unknown) => {
     channelRef.current?.send({ type: "broadcast", event: "command", payload: { type, value } });
+  };
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen().catch(() => {});
   };
 
   /* ── 음성 녹음 (폰을 보조 오디오로 쓸 때) ── */
@@ -171,10 +217,26 @@ export default function PrompterRemotePage() {
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
 
   const isSlideMode = editorMode === "slides";
+  const vAlignPercent = vAlign === "top" ? 12 : vAlign === "bottom" ? 88 : 50;
+  const tabletTransform = `translateX(-50%) scale(${mirrorScale}) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`;
+
+  useEffect(() => {
+    if (!isTablet) return;
+    const frame = previewFrameRef.current;
+    if (!frame) return;
+    const updateScale = () => {
+      const rect = frame.getBoundingClientRect();
+      setMirrorScale(Math.max(.05, Math.min(rect.width / hostViewport.width, rect.height / hostViewport.height)));
+    };
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [isTablet, hostViewport.width, hostViewport.height]);
 
   return (
-    <main style={{ height: "100dvh", background: "#0d1f1e", color: "#fff", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 7, overflowY: "auto", boxSizing: "border-box" }}>
-      <div style={{ textAlign: "center" }}>
+    <main className={`pt-remote-page${isTablet ? " tablet" : " mobile"}`} style={{ height: "100dvh", background: "#0d1f1e", color: "#fff", padding: isTablet ? "8px 12px 36dvh" : "10px 14px", display: "flex", flexDirection: "column", gap: 7, overflowY: "auto", boxSizing: "border-box" }}>
+      <div style={{ textAlign: "center", position: "relative" }}>
         <p style={{ fontSize: 11, color: connected ? "#5cff8f" : "#ff9c5c", fontWeight: 700 }}>
           {connected ? "● 연결됨" : "○ 프롬프터 연결 대기 중…"}
         </p>
@@ -182,6 +244,9 @@ export default function PrompterRemotePage() {
         {isSlideMode
           ? <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{totalSlides ? slideIndex + 1 : 0} / {totalSlides}</p>
           : totalParagraphs > 0 && <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{paragraphIndex + 1} / {totalParagraphs} 문단</p>}
+        <button onClick={toggleFullscreen} aria-label={isFullscreen ? "전체화면 종료" : "전체화면"} style={{ position: "absolute", right: 0, top: 2, width: 34, height: 34, borderRadius: 10, border: "1px solid rgba(255,255,255,.2)", background: "rgba(255,255,255,.1)", color: "#fff", display: "grid", placeItems: "center" }}>
+          {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+        </button>
       </div>
 
       {/* 실행화면 진행률 바 — 직접 드래그해서 원하는 위치로 바로 이동시킬 수 있다 (스크러버). */}
@@ -217,7 +282,7 @@ export default function PrompterRemotePage() {
       )}
 
       {/* 실행화면 미리보기 — 실제 대본이 그대로 보이고, 손가락으로 직접 스크롤해서 위치를 옮길 수 있다 */}
-      <div style={{ position: "relative" }}>
+      <div ref={previewFrameRef} style={{ position: "relative", flex: isTablet ? "1 1 auto" : "none", minHeight: 0, overflow: "hidden", borderRadius: 14, background: bgColor }}>
         <div
           ref={previewRef}
           onPointerDown={() => { isDraggingPreviewRef.current = true; }}
@@ -235,14 +300,24 @@ export default function PrompterRemotePage() {
             }
           }}
           style={{
-            height: 150, overflowY: isSlideMode ? "hidden" : "auto", background: bgColor,
-            borderRadius: 14, padding: "10px 14px", border: "1px solid rgba(255,255,255,.15)",
-            display: "flex", flexDirection: "column", justifyContent: isSlideMode ? "center" : "flex-start",
+            position: isTablet ? "absolute" : "relative", left: isTablet ? "50%" : "auto", top: 0,
+            width: isTablet ? hostViewport.width : "100%", height: isTablet ? hostViewport.height : 150,
+            minHeight: isTablet ? 0 : 150, overflowY: isSlideMode ? "hidden" : "auto", background: bgColor,
+            borderRadius: isTablet ? 0 : 14,
+            padding: isTablet && !isSlideMode
+              ? `${hostViewport.height * Math.max(vAlignPercent, guidePosition) / 100}px ${hostViewport.width * .08}px ${hostViewport.height * Math.max(100 - vAlignPercent, 100 - guidePosition) / 100}px`
+              : isTablet ? `0 ${hostViewport.width * .08}px` : "10px 14px",
+            border: isTablet ? "none" : "1px solid rgba(255,255,255,.15)",
+            display: "flex", flexDirection: "column",
+            justifyContent: isSlideMode ? (vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center") : "flex-start",
+            transform: isTablet ? tabletTransform : `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
+            transformOrigin: isTablet ? "top center" : "center",
           }}
         >
         {isSlideMode ? (
-          <p style={{ color: fontColor, fontFamily, fontSize: Math.max(10, fontSize * 0.22), textAlign: hAlign, whiteSpace: "pre-wrap", margin: 0 }}>
+          <p style={{ color: fontColor, fontFamily, fontSize: isTablet ? fontSize : Math.max(10, fontSize * 0.22), lineHeight, textAlign: hAlign, whiteSpace: "pre-wrap", margin: 0 }}>
             {previewSlides[slideIndex] ?? ""}
+            {previewGestureMap[slideIndex]?.trim() && <span className="pt-remote-gesture">({previewGestureMap[slideIndex].trim()})</span>}
           </p>
         ) : previewParagraphs.length === 0 ? (
           <p style={{ color: "#6a8e8a", fontSize: 12, textAlign: "center", margin: "auto" }}>미리보기 연결 중…</p>
@@ -251,18 +326,27 @@ export default function PrompterRemotePage() {
             const sp = previewSpeakers.find((s) => s.id === previewSpeakerMap[i]);
             return (
               <p key={i} style={{
-                color: fontColor, fontFamily, fontSize: Math.max(10, fontSize * 0.22), textAlign: hAlign, lineHeight,
-                whiteSpace: "pre-wrap", margin: `0 0 ${Math.max(4, paragraphSpacing * 0.22)}px`,
+                color: fontColor, fontFamily, fontSize: isTablet ? fontSize : Math.max(10, fontSize * 0.22), textAlign: hAlign, lineHeight,
+                whiteSpace: "pre-wrap", margin: `0 0 ${isTablet ? paragraphSpacing : Math.max(4, paragraphSpacing * 0.22)}px`,
                 borderLeft: sp ? `3px solid ${sp.color}` : "none", paddingLeft: sp ? 6 : 0,
+                background: guideHighlight && paragraphIndex === i ? "rgba(232,93,44,.16)" : "transparent",
+                borderRadius: guideHighlight && paragraphIndex === i ? 10 : 0,
               }}>
                 {p}
+                {previewGestureMap[i]?.trim() && <span className="pt-remote-gesture">({previewGestureMap[i].trim()})</span>}
               </p>
             );
           })
         )}
         </div>
+        {guideEnabled && !isSlideMode && (
+          <div style={{ position: "absolute", top: 0, left: isTablet ? "50%" : 0, right: isTablet ? "auto" : 0, width: isTablet ? hostViewport.width : "auto", height: isTablet ? hostViewport.height : "100%", transform: isTablet ? `translateX(-50%) scale(${mirrorScale})` : "none", transformOrigin: "top center", pointerEvents: "none", zIndex: 2 }}>
+            <div style={{ position: "absolute", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.9)" }} />
+          </div>
+        )}
       </div>
 
+      <div className="pt-remote-controls">
       {isSlideMode ? (
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => send("prevSlide")} style={{ flex: 1, padding: "13px 0", borderRadius: 14, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -275,10 +359,11 @@ export default function PrompterRemotePage() {
       ) : (
         <>
           <button
+            className="pt-remote-play"
             onClick={() => send("toggle")}
-            style={{ padding: "13px 0", borderRadius: 14, background: playing ? "#e85d2c" : "#155855", border: "none", color: "#fff", fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            style={{ padding: "17px 0", borderRadius: 16, background: playing ? "#e85d2c" : "#155855", border: "none", color: "#fff", fontSize: 18, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}
           >
-            {playing ? <><Pause size={18} /> 일시정지</> : <><Play size={18} /> 재생</>}
+            {playing ? <><Pause size={24} /> 일시정지</> : <><Play size={24} /> 재생</>}
           </button>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => send("prevSlide")} style={{ flex: 1, padding: "11px 0", borderRadius: 14, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -305,6 +390,31 @@ export default function PrompterRemotePage() {
 
       {!isSlideMode && (
         <>
+          <div style={{ display: "flex", gap: 7 }}>
+            <button
+              onClick={() => { const next = !guideEnabled; setGuideEnabled(next); send("guideEnabled", next); }}
+              style={{ flex: 1, padding: 10, borderRadius: 11, background: guideEnabled ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            >
+              <Scan size={16} /> 가이드라인
+            </button>
+            <button
+              onClick={() => { const next = !guideHighlight; setGuideHighlight(next); send("guideHighlight", next); }}
+              disabled={!guideEnabled}
+              style={{ flex: 1, padding: 10, borderRadius: 11, background: guideHighlight ? "#e85d2c" : "rgba(255,255,255,.1)", opacity: guideEnabled ? 1 : .45, border: "none", color: "#fff", fontSize: 12, fontWeight: 800 }}
+            >
+              문단 강조
+            </button>
+          </div>
+          {guideEnabled && (
+            <div className="pt-remote-slider-row">
+              <label><Scan size={13} /> 가이드 위치</label>
+              <input
+                type="range" min={5} max={90} step={1} value={guidePosition}
+                onChange={(e) => { const v = Number(e.target.value); setGuidePosition(v); send("guidePosition", v); }}
+                style={orangeRange}
+              />
+            </div>
+          )}
           <div className="pt-remote-slider-row">
             <label><Gauge size={13} /> 속도 {levelOf(speed, SPEED_LEVELS)}/10</label>
             <input
@@ -369,6 +479,17 @@ export default function PrompterRemotePage() {
         </select>
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Palette size={14} style={{ flexShrink: 0, color: "#9BB5B0" }} />
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#9BB5B0", flexShrink: 0 }}>배경</span>
+        <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
+          {BG_COLOR_OPTIONS.map((c) => (
+            <button key={c} aria-label={`배경색 ${c}`} onClick={() => { setBgColor(c); send("bgColor", c); }}
+              style={{ width: 25, height: 25, borderRadius: 7, background: c, border: bgColor === c ? "2px solid #e85d2c" : "1.5px solid rgba(255,255,255,.3)", flexShrink: 0 }} />
+          ))}
+        </div>
+      </div>
+
       <div style={{ borderTop: "1px solid rgba(255,255,255,.12)", paddingTop: 7 }}>
         {!recording ? (
           <button onClick={startRecording} style={{ width: "100%", padding: 9, borderRadius: 12, background: "rgba(255,92,92,.15)", border: "1px solid rgba(255,92,92,.4)", color: "#ff8080", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -388,6 +509,7 @@ export default function PrompterRemotePage() {
             </a>
           </div>
         )}
+      </div>
       </div>
     </main>
   );

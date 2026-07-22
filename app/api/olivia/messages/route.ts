@@ -52,13 +52,19 @@ export async function POST(req: NextRequest) {
 
   if (!rows.length) return NextResponse.json({ ok: true });
 
-  let { error } = await db.from("olivia_chat_messages").insert(rows);
+  let { data, error } = await db
+    .from("olivia_chat_messages")
+    .insert(rows)
+    .select("id, created_at, role, content, source");
   if (error && /metadata|column/i.test(error.message)) {
-    ({ error } = await db.from("olivia_chat_messages").insert(rows.map(({ metadata: _metadata, ...row }) => row)));
+    ({ data, error } = await db
+      .from("olivia_chat_messages")
+      .insert(rows.map(({ metadata: _metadata, ...row }) => row))
+      .select("id, created_at, role, content, source"));
   }
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, messages: data ?? [] });
 }
 
 function sanitizeMetadata(metadata: unknown) {
