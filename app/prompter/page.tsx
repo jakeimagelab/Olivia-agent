@@ -135,53 +135,21 @@ export default function PrompterPage() {
   const [showRemoteInfo, setShowRemoteInfo] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  // 전체화면 (태블릿에서 흰색 브라우저 주소창이 거슬리지 않도록) —
-  // 화면을 손으로 터치해서 스크롤을 움직이다가 시스템 제스처로 전체화면이 풀려도,
-  // "전체화면 종료" 버튼을 누른 게 아니라면 곧바로(또는 다음 터치 시) 다시 전체화면으로 되돌린다.
+  // 전체화면 (태블릿에서 흰색 브라우저 주소창이 거슬리지 않도록) — 버튼으로 켜고 끄는
+  // 단순한 토글이다. 이전에 시스템 제스처가 감지되면 자동으로 재진입시키는 로직이 있었는데,
+  // 오히려 재생 버튼을 누르는 순간에도 전체화면 진입이 겹쳐 화면 크기가 바뀌면서 스크롤이
+  // 튀거나 불안정해지는 부작용이 있어서 제거했다.
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [intentionallyOutOfFullscreen, setIntentionallyOutOfFullscreen] = useState(false);
   const promptRootRef = useRef<HTMLDivElement>(null);
-  const intentionalExitRef = useRef(false);
   useEffect(() => {
-    const onChange = () => {
-      const fs = Boolean(document.fullscreenElement);
-      setIsFullscreen(fs);
-      if (fs) {
-        setIntentionallyOutOfFullscreen(false);
-      } else if (intentionalExitRef.current) {
-        setIntentionallyOutOfFullscreen(true);
-      } else {
-        // 버튼이 아닌 다른 이유로 풀렸다 — 바로 재시도 (브라우저 정책으로 실패하면
-        // 아래 다음-터치 폴백이 이어서 재시도한다).
-        promptRootRef.current?.requestFullscreen().catch(() => {});
-      }
-      intentionalExitRef.current = false;
-    };
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
-  // 위 즉시 재요청이 "사용자 제스처 유지시간" 정책으로 조용히 실패할 수 있어,
-  // 버튼으로 나간 게 아닌데 여전히 전체화면이 아니면 다음 터치 때 한 번 더 시도한다.
-  // 단, 버튼/입력 등 조작 UI를 누른 것까지 여기에 걸리면 재생 버튼을 누르자마자
-  // 전체화면 진입으로 화면 크기가 바뀌면서 스크롤이 튀어 보이므로, 실제 화면(텍스트) 영역을
-  // 직접 터치했을 때만 재시도한다.
-  useEffect(() => {
-    if (mode !== "prompt" || isFullscreen || intentionallyOutOfFullscreen) return;
-    const root = promptRootRef.current;
-    if (!root) return;
-    const retry = (e: PointerEvent) => {
-      if (e.target instanceof Element && e.target.closest("button, select, input, a")) return;
-      root.requestFullscreen().catch(() => {});
-    };
-    root.addEventListener("pointerdown", retry);
-    return () => root.removeEventListener("pointerdown", retry);
-  }, [mode, isFullscreen, intentionallyOutOfFullscreen]);
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
-      intentionalExitRef.current = true;
-      document.exitFullscreen().catch(() => { intentionalExitRef.current = false; });
+      document.exitFullscreen().catch(() => {});
     } else {
-      setIntentionallyOutOfFullscreen(false);
       promptRootRef.current?.requestFullscreen().catch(() => {});
     }
   };
