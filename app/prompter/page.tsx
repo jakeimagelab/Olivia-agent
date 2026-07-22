@@ -642,7 +642,7 @@ export default function PrompterPage() {
           if (box && typeof payload.value === "number") {
             const max = box.scrollHeight - box.clientHeight;
             box.scrollTop = Math.max(0, Math.min(payload.value * max, max));
-            setScrolling(false);
+            stopPlayback();
           }
           break;
         }
