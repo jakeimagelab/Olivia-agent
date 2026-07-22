@@ -70,6 +70,9 @@ export default function PrompterPage() {
   const [editorMode, setEditorMode] = useState<"text" | "slides">("text");
   const [sceneId, setSceneId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [lastAutoSavedAt, setLastAutoSavedAt] = useState<number | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipNextAutoSaveRef = useRef(false);
 
   // 다중 화자 — 프로젝트 단위 화자 목록 + 씬(대본)의 문단별 화자 배정
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
