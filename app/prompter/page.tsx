@@ -194,6 +194,7 @@ export default function PrompterPage() {
   const scrollBoxRef = useRef<HTMLDivElement>(null);
   const lastParagraphRef = useRef<HTMLDivElement>(null);
   const paragraphRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const progressBarRef = useRef<HTMLDivElement>(null);
   const [paragraphIndex, setParagraphIndex] = useState(0);
   const paragraphIndexRef = useRef(0);
   useEffect(() => { paragraphIndexRef.current = paragraphIndex; }, [paragraphIndex]);
