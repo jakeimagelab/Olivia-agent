@@ -597,11 +597,12 @@ export default function PrompterPage() {
 
     channel.on("broadcast", { event: "command" }, ({ payload }) => {
       switch (payload.type) {
-        case "toggle": setScrolling((v) => !v); break;
-        case "play": setScrolling(true); break;
-        case "pause": setScrolling(false); break;
+        case "toggle": togglePlayback(); break;
+        case "play": startPlayback(); break;
+        case "pause": stopPlayback(); break;
         case "restart":
           setElapsed(0); setSlideIndex(0); setParagraphIndex(0); paragraphIndexRef.current = 0;
+          setCountdown(null);
           if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = 0;
           break;
         case "nextSlide":
