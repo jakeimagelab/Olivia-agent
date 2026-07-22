@@ -340,6 +340,14 @@ export default function PrompterPage() {
     setSpeakerMap((prev) => prev.map((sid) => (sid === id ? "" : sid)));
   };
 
+  // speed/flipV를 ref로도 들고 있는다 — 슬라이더를 드래그하거나 리모컨에서 값이 자주 바뀔 때마다
+  // 아래 스크롤 루프 effect가 매번 취소·재시작되면 프레임이 끊겨 보인다. ref로 매 프레임 최신값만
+  // 읽으면 루프는 재생 중 한 번만 시작되고 끊기지 않는다.
+  const speedRef = useRef(speed);
+  useEffect(() => { speedRef.current = speed; }, [speed]);
+  const flipVRef = useRef(flipV);
+  useEffect(() => { flipVRef.current = flipV; }, [flipV]);
+
   /* ── 자동 스크롤 (전체 텍스트 모드) ── */
   useEffect(() => {
     if (mode !== "prompt" || editorMode === "slides") return;
@@ -354,9 +362,10 @@ export default function PrompterPage() {
       lastTsRef.current = ts;
       const box = scrollBoxRef.current;
       if (box) {
+        const flipVNow = flipVRef.current;
         // scrollTop은 항상 증가만 한다 — 상하반전(flipV)은 CSS scaleY로 화면을 뒤집어서 처리하므로,
         // 같은 증가 방향이라도 뒤집힌 화면에서는 자연스럽게 스크롤이 반대로 보인다.
-        box.scrollTop += speed * dt;
+        box.scrollTop += speedRef.current * dt;
         // 끝에 도달하면 자동 정지 — vAlign 여백(top/center 등) 때문에 스크롤 총량 기준으로 멈추면
         // 마지막 문단이 화면 위로 사라진 지 한참 뒤에야 멈추게 된다. 그 대신 마지막 문단이
         // 화면(가이드) 밖으로 완전히 넘어가기 직전, 화면 경계에 닿는 순간 멈춘다.
@@ -364,7 +373,7 @@ export default function PrompterPage() {
         const lastEl = lastParagraphRef.current;
         if (lastEl) {
           const rect = lastEl.getBoundingClientRect();
-          const passedScreen = flipV ? rect.top >= box.clientHeight : rect.bottom <= 0;
+          const passedScreen = flipVNow ? rect.top >= box.clientHeight : rect.bottom <= 0;
           if (passedScreen) setScrolling(false);
         } else if (box.scrollTop >= box.scrollHeight - box.clientHeight - 4) {
           setScrolling(false);
@@ -374,7 +383,7 @@ export default function PrompterPage() {
     };
     rafRef.current = requestAnimationFrame(step);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [scrolling, speed, flipV, mode, editorMode]);
+  }, [scrolling, mode, editorMode]);
 
   /* ── 타이머 ── */
   useEffect(() => {
