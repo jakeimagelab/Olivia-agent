@@ -266,10 +266,12 @@ export default function PrompterPage() {
   const backToProjects = () => { loadProjects(); setMode("projects"); };
 
   const newScene = () => {
+    skipNextAutoSaveRef.current = true;
     setText(""); setTitle(""); setSubject(""); setSceneId(null); setEditorMode("text");
     setSpeakerMap([]); setMultiSpeakerMode(false);
   };
   const openScene = (s: Scene) => {
+    skipNextAutoSaveRef.current = true;
     setText(s.content); setTitle(s.title); setSubject(s.subject ?? ""); setSceneId(s.id);
     setEditorMode(s.editor_mode === "slides" ? "slides" : "text");
     const loadedMap = Array.isArray(s.speaker_map) ? s.speaker_map : [];
