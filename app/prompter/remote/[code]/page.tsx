@@ -284,27 +284,19 @@ export default function PrompterRemotePage() {
       {!isSlideMode && (
         <>
           <div className="pt-remote-slider-row">
-            <label><Gauge size={13} /> 속도</label>
+            <label><Gauge size={13} /> 속도 {levelOf(speed, SPEED_LEVELS)}/10</label>
             <input
-              type="range" min={1} max={300} value={speed}
-              onChange={(e) => { const v = Number(e.target.value); setSpeed(v); send("speed", v); }}
+              type="range" min={1} max={10} step={1} value={levelOf(speed, SPEED_LEVELS)}
+              onChange={(e) => { const v = SPEED_LEVELS[Number(e.target.value) - 1]; setSpeed(v); send("speed", v); }}
               style={orangeRange}
-            />
-            <input
-              type="number" min={1} max={999} value={speed} className="pt-remote-num"
-              onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(1, v); setSpeed(c); send("speed", c); } }}
             />
           </div>
           <div className="pt-remote-slider-row">
-            <label><AlignVerticalSpaceAround size={13} /> 문단</label>
+            <label><AlignVerticalSpaceAround size={13} /> 문단 {levelOf(paragraphSpacing, PARAGRAPH_SPACING_LEVELS)}/10</label>
             <input
-              type="range" min={0} max={240} value={paragraphSpacing}
-              onChange={(e) => { const v = Number(e.target.value); setParagraphSpacing(v); send("paragraphSpacing", v); }}
+              type="range" min={1} max={10} step={1} value={levelOf(paragraphSpacing, PARAGRAPH_SPACING_LEVELS)}
+              onChange={(e) => { const v = PARAGRAPH_SPACING_LEVELS[Number(e.target.value) - 1]; setParagraphSpacing(v); send("paragraphSpacing", v); }}
               style={orangeRange}
-            />
-            <input
-              type="number" min={0} max={999} value={paragraphSpacing} className="pt-remote-num"
-              onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(0, v); setParagraphSpacing(c); send("paragraphSpacing", c); } }}
             />
           </div>
           <div className="pt-remote-slider-row">
