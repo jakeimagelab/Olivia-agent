@@ -475,6 +475,8 @@ export default function PrompterPage() {
   useEffect(() => {
     if (mode !== "prompt") {
       setScrolling(false);
+      setCountdown(null);
+      if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       if (channelRef.current) { channelRef.current.unsubscribe(); channelRef.current = null; }
@@ -486,12 +488,34 @@ export default function PrompterPage() {
     }
   }, [mode]);
 
-  // 슬라이드 모드 실행 중 좌우 화살표 키로도 넘길 수 있게.
+  // 카운트다운 진행 — countdown이 3→2→1로 줄어들다가 0 이하가 되면 실제로 스크롤을 시작한다.
   useEffect(() => {
-    if (mode !== "prompt" || editorMode !== "slides") return;
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      setCountdown(null);
+      setScrolling(true);
+      return;
+    }
+    countdownTimerRef.current = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    return () => { if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current); };
+  }, [countdown]);
+
+  // 슬라이드 모드 실행 중 좌우 화살표 키로도 넘길 수 있게. 전체 텍스트 모드에서도 단축키 지원.
+  useEffect(() => {
+    if (mode !== "prompt") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") setSlideIndex((i) => Math.min(i + 1, slides.length - 1));
-      if (e.key === "ArrowLeft") setSlideIndex((i) => Math.max(i - 1, 0));
+      const target = e.target as HTMLElement | null;
+      if (target && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) return;
+      if (editorMode === "slides") {
+        if (e.key === "ArrowRight") setSlideIndex((i) => Math.min(i + 1, slides.length - 1));
+        if (e.key === "ArrowLeft") setSlideIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === " ") { e.preventDefault(); togglePlayback(); }
+      else if (e.key === "r" || e.key === "R") { resetTimer(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); jumpParagraph(-1); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); jumpParagraph(1); }
+      else if (e.key === "f" || e.key === "F") { toggleFullscreen(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
