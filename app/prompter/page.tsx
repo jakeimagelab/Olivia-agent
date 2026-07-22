@@ -492,10 +492,7 @@ export default function PrompterPage() {
       streamRef.current = null;
       if (channelRef.current) { channelRef.current.unsubscribe(); channelRef.current = null; }
       setSessionCode(null);
-      if (document.fullscreenElement) {
-        intentionalExitRef.current = true;
-        document.exitFullscreen().catch(() => { intentionalExitRef.current = false; });
-      }
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     }
   }, [mode]);
 
