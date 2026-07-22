@@ -428,7 +428,8 @@ export default function PrompterPage() {
   const resetTimer = () => {
     setElapsed(0);
     if (editorMode === "slides") { setSlideIndex(0); return; }
-    if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = flipV ? scrollBoxRef.current.scrollHeight : 0;
+    // scrollTop은 flipV와 무관하게 항상 0이 "처음"이다 (뒤집힌 화면은 CSS scaleY로만 처리).
+    if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = 0;
   };
 
   /* ── 리모컨 세션 ── */
