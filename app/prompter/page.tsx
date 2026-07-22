@@ -528,6 +528,7 @@ export default function PrompterPage() {
             playing: false, elapsed: 0, speed, flipH, flipV, hAlign, vAlign,
             fontColor, fontFamily, fontSize, paragraphSpacing,
             editorMode, slideIndex: 0, totalSlides: slides.length,
+            paragraphIndex: 0, totalParagraphs: paragraphs.length,
           },
         });
       }
