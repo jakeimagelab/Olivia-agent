@@ -20,7 +20,7 @@ import {
 } from "@/lib/prompter/constants";
 
 type Speaker = { id: string; name: string; color: string };
-type Project = { id: string; name: string; sceneCount: number; lastActivity: string; updated_at: string; speakers?: Speaker[] };
+type Project = { id: string; name: string; sceneCount: number; lastActivity: string; updated_at: string; speakers?: Speaker[]; public_share_token?: string | null };
 type Scene = { id: string; title: string; subject?: string; content: string; editor_mode?: "text" | "slides"; speaker_map?: string[]; updated_at: string };
 
 const SPEAKER_PALETTE = ["#E85D2C", "#155855", "#EB8F22", "#7C3AED", "#2563EB", "#569082"];
