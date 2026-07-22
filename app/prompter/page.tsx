@@ -408,6 +408,11 @@ export default function PrompterPage() {
         // scrollTop은 항상 증가만 한다 — 상하반전(flipV)은 CSS scaleY로 화면을 뒤집어서 처리하므로,
         // 같은 증가 방향이라도 뒤집힌 화면에서는 자연스럽게 스크롤이 반대로 보인다.
         box.scrollTop += speedRef.current * dt;
+        // 진행률 바는 리렌더(1초 간격) 대신 매 프레임 DOM에 직접 반영해서 실시간으로 움직이게 한다.
+        if (progressBarRef.current && box.scrollHeight > box.clientHeight) {
+          const p = Math.max(0, Math.min(1, box.scrollTop / (box.scrollHeight - box.clientHeight)));
+          progressBarRef.current.style.width = `${p * 100}%`;
+        }
         // 끝에 도달하면 자동 정지 — vAlign 여백(top/center 등) 때문에 스크롤 총량 기준으로 멈추면
         // 마지막 문단이 화면 위로 사라진 지 한참 뒤에야 멈추게 된다. 그 대신 마지막 문단이
         // 화면(가이드) 밖으로 완전히 넘어가기 직전, 화면 경계에 닿는 순간 멈춘다.
