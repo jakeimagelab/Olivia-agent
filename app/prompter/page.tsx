@@ -578,6 +578,7 @@ export default function PrompterPage() {
   const resetTimer = () => {
     setElapsed(0);
     setParagraphIndex(0);
+    paragraphIndexRef.current = 0;
     setCountdown(null);
     if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
     if (editorMode === "slides") { setSlideIndex(0); return; }
