@@ -233,6 +233,12 @@ export default function PrompterRemotePage() {
             );
           })
         )}
+        </div>
+        {countdown !== null && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 14 }}>
+            <span style={{ fontSize: 56, fontWeight: 900, color: "#fff" }}>{countdown}</span>
+          </div>
+        )}
       </div>
 
       {isSlideMode ? (
