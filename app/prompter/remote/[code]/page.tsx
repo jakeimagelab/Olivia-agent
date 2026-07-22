@@ -37,11 +37,15 @@ export default function PrompterRemotePage() {
   const [fontFamily, setFontFamily] = useState(FONT_OPTIONS[0].value);
   const [fontSize, setFontSize] = useState(48);
   const [paragraphSpacing, setParagraphSpacing] = useState(28);
+  const [bgColor, setBgColor] = useState("#000000");
+  const [lineHeight, setLineHeight] = useState(1.7);
   const [editorMode, setEditorMode] = useState<"text" | "slides">("text");
   const [slideIndex, setSlideIndex] = useState(0);
   const [totalSlides, setTotalSlides] = useState(0);
   const [paragraphIndex, setParagraphIndex] = useState(0);
   const [totalParagraphs, setTotalParagraphs] = useState(0);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   // 실행화면 미리보기 — 실제 대본 내용을 받아서 그대로 축소 표시하고, 직접 드래그해서 스크롤 위치를 지정할 수 있다.
   type PreviewSpeaker = { id: string; name: string; color: string };
