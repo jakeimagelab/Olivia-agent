@@ -493,12 +493,24 @@ export default function PrompterPage() {
     const supabase = getSupabase();
     const channel = supabase.channel(`prompter-${code}`, { config: { broadcast: { self: false } } });
 
+    // 리모컨에 실제 대본 내용을 보내서 화면을 그대로 미리보기 할 수 있게 한다.
+    // (연결 시점에 따라 리모컨이 구독을 늦게 시작할 수도 있어, "requestContent" 요청에도 다시 보내준다.)
+    const sendContent = () => {
+      channel.send({
+        type: "broadcast", event: "content",
+        payload: { paragraphs, slides, speakers, speakerMap: playbackSpeakerMap },
+      });
+    };
+
     channel.on("broadcast", { event: "command" }, ({ payload }) => {
       switch (payload.type) {
         case "toggle": setScrolling((v) => !v); break;
         case "play": setScrolling(true); break;
         case "pause": setScrolling(false); break;
-        case "restart": setElapsed(0); setSlideIndex(0); if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = 0; break;
+        case "restart":
+          setElapsed(0); setSlideIndex(0); setParagraphIndex(0); paragraphIndexRef.current = 0;
+          if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = 0;
+          break;
         case "nextSlide":
           if (editorMode === "slides") setSlideIndex((i) => Math.min(i + 1, slides.length - 1));
           else jumpParagraph(1);
@@ -516,6 +528,17 @@ export default function PrompterPage() {
         case "fontFamily": setFontFamily(payload.value); break;
         case "fontSize": setFontSize(payload.value); break;
         case "paragraphSpacing": setParagraphSpacing(payload.value); break;
+        case "seek": {
+          // 리모컨에서 미리보기를 직접 드래그해서 스크롤 위치를 지정했을 때.
+          const box = scrollBoxRef.current;
+          if (box && typeof payload.value === "number") {
+            const max = box.scrollHeight - box.clientHeight;
+            box.scrollTop = Math.max(0, Math.min(payload.value * max, max));
+            setScrolling(false);
+          }
+          break;
+        }
+        case "requestContent": sendContent(); break;
       }
     });
 
@@ -531,6 +554,7 @@ export default function PrompterPage() {
             paragraphIndex: 0, totalParagraphs: paragraphs.length,
           },
         });
+        sendContent();
       }
     });
     channelRef.current = channel;
