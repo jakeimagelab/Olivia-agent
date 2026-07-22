@@ -460,9 +460,9 @@ export default function PrompterPage() {
         type: "broadcast", event: "state",
         payload: {
           playing: scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign,
-          fontColor, fontFamily, fontSize, paragraphSpacing,
+          fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight,
           editorMode, slideIndex, totalSlides: slides.length,
-          paragraphIndex, totalParagraphs: paragraphs.length, scrollProgress,
+          paragraphIndex, totalParagraphs: paragraphs.length, scrollProgress, countdown,
         },
       });
     };
