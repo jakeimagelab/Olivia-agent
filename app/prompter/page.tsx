@@ -1063,11 +1063,16 @@ export default function PrompterPage() {
         >
           {paragraphs.map((p, i) => {
             const sp = speakers.find((s) => s.id === playbackSpeakerMap[i]);
+            const isFocused = guideEnabled && guideHighlight && focusedParagraphIndex === i;
             return (
               <div
                 key={i}
                 ref={(el) => { paragraphRefs.current[i] = el; if (i === paragraphs.length - 1) lastParagraphRef.current = el; }}
-                style={{ margin: `0 0 ${i < paragraphs.length - 1 ? paragraphSpacing : 0}px`, textAlign: hAlign }}
+                style={{
+                  margin: `0 0 ${i < paragraphs.length - 1 ? paragraphSpacing : 0}px`, textAlign: hAlign,
+                  background: isFocused ? "rgba(232,93,44,.16)" : "transparent",
+                  borderRadius: isFocused ? 10 : 0, transition: "background .15s",
+                }}
               >
                 {sp && (
                   <div style={{ fontSize: Math.max(14, fontSize * 0.32), fontWeight: 900, color: sp.color, marginBottom: 4 }}>
@@ -1075,7 +1080,7 @@ export default function PrompterPage() {
                   </div>
                 )}
                 <p style={{
-                  fontSize, color: fontColor, fontFamily, lineHeight: 1.7, whiteSpace: "pre-wrap",
+                  fontSize, color: fontColor, fontFamily, lineHeight, whiteSpace: "pre-wrap",
                   margin: 0, textAlign: hAlign,
                   borderLeft: sp ? `4px solid ${sp.color}` : "none",
                   paddingLeft: sp ? "0.4em" : 0,
