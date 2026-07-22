@@ -254,6 +254,36 @@ export default function PrompterPage() {
     else alert(res.error || "삭제에 실패했습니다.");
   };
 
+  /* ── 프로젝트 전체 공유 — 실제 씬 그대로 외부에 공유(전체 편집 가능) ── */
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const shareProject = async () => {
+    if (!currentProject || sharing) return;
+    setSharing(true);
+    try {
+      const res = await fetch(`/api/prompter-projects/${currentProject.id}/share`, { method: "POST" }).then((r) => r.json());
+      if (res.ok) {
+        setCurrentProject({ ...currentProject, public_share_token: res.token });
+        setShowShareModal(true);
+      } else {
+        alert(res.error || "공유에 실패했습니다.");
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+  const unshareProject = async () => {
+    if (!currentProject) return;
+    if (!confirm("공유를 해제하면 기존 링크로는 더 이상 접근할 수 없습니다. 계속할까요?")) return;
+    const res = await fetch(`/api/prompter-projects/${currentProject.id}/unshare`, { method: "POST" }).then((r) => r.json());
+    if (res.ok) {
+      setCurrentProject({ ...currentProject, public_share_token: null });
+      setShowShareModal(false);
+    } else {
+      alert(res.error || "공유 해제에 실패했습니다.");
+    }
+  };
+
   /* ── 씬 목록 (선택된 프로젝트 안) ── */
   const loadScenes = useCallback(async (projectId: string) => {
     setScenesLoading(true);
