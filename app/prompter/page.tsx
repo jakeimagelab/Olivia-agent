@@ -1149,7 +1149,7 @@ export default function PrompterPage() {
         </div>
         {!isSlideMode && (
           <div style={{ height: 4, borderRadius: 999, background: "rgba(255,255,255,.15)", overflow: "hidden", maxWidth: 320 }}>
-            <div style={{ height: "100%", width: `${scrollProgressNow * 100}%`, background: "#e85d2c", transition: "width .2s linear" }} />
+            <div ref={progressBarRef} style={{ height: "100%", width: `${scrollProgressNow * 100}%`, background: "#e85d2c", transition: scrolling ? "none" : "width .2s linear" }} />
           </div>
         )}
       </div>
