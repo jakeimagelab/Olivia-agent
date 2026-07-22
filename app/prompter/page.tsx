@@ -701,6 +701,18 @@ export default function PrompterPage() {
     setRecording(false);
   }, []);
 
+  // 자동저장 — 대본을 고치다가 저장을 안 누르고 나가서 유실되는 걸 막는다. 씬을 불러오거나
+  // 새로 만든 직후(=사용자가 아직 아무것도 안 고침)는 저장할 필요가 없어 한 번 건너뛴다.
+  useEffect(() => {
+    if (mode !== "scenes" || !currentProject) return;
+    if (skipNextAutoSaveRef.current) { skipNextAutoSaveRef.current = false; return; }
+    if (!text.trim()) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => { saveScene(true); }, 3000);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, title, subject, mode]);
+
   /* ── 저장/삭제 ── */
   const saveScene = async (silent = false) => {
     if (!text.trim() || saving || !currentProject) return;
