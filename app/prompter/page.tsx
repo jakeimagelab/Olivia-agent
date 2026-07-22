@@ -454,9 +454,29 @@ export default function PrompterPage() {
 
   const resetTimer = () => {
     setElapsed(0);
+    setParagraphIndex(0);
     if (editorMode === "slides") { setSlideIndex(0); return; }
     // scrollTop은 flipV와 무관하게 항상 0이 "처음"이다 (뒤집힌 화면은 CSS scaleY로만 처리).
     if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = 0;
+  };
+
+  /* ── 전체 텍스트 모드에서 특정 문단을 화면 맨 위로 이동 (리모컨의 이전/다음 문단 버튼용) ── */
+  const scrollToParagraph = (i: number) => {
+    const box = scrollBoxRef.current;
+    const el = paragraphRefs.current[i];
+    if (!box || !el) return;
+    const top = el.getBoundingClientRect().top;
+    // 상하반전 상태에선 scaleY로 화면이 뒤집혀 있어 scrollTop 증감과 화면상 위치 변화가 반대로 움직인다.
+    const delta = flipVRef.current ? -top : top;
+    box.scrollTop = Math.max(0, Math.min(box.scrollTop + delta, box.scrollHeight - box.clientHeight));
+  };
+  const jumpParagraph = (dir: -1 | 1) => {
+    if (paragraphs.length === 0) return;
+    const next = Math.max(0, Math.min(paragraphIndexRef.current + dir, paragraphs.length - 1));
+    paragraphIndexRef.current = next;
+    setParagraphIndex(next);
+    setScrolling(false);
+    scrollToParagraph(next);
   };
 
   /* ── 리모컨 세션 ── */
