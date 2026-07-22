@@ -169,7 +169,54 @@ export default function PrompterRemotePage() {
           {connected ? "● 연결됨" : "○ 프롬프터 연결 대기 중…"}
         </p>
         <p style={{ fontSize: 28, fontWeight: 900, fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>{fmtTime(elapsed)}</p>
-        {isSlideMode && <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{totalSlides ? slideIndex + 1 : 0} / {totalSlides}</p>}
+        {isSlideMode
+          ? <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{totalSlides ? slideIndex + 1 : 0} / {totalSlides}</p>
+          : totalParagraphs > 0 && <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{paragraphIndex + 1} / {totalParagraphs} 문단</p>}
+      </div>
+
+      {/* 실행화면 미리보기 — 실제 대본이 그대로 보이고, 손가락으로 직접 스크롤해서 위치를 옮길 수 있다 */}
+      <div
+        ref={previewRef}
+        onPointerDown={() => { isDraggingPreviewRef.current = true; }}
+        onPointerUp={() => { isDraggingPreviewRef.current = false; }}
+        onPointerCancel={() => { isDraggingPreviewRef.current = false; }}
+        onScroll={() => {
+          const el = previewRef.current;
+          if (!el || isSlideMode || !isDraggingPreviewRef.current) return;
+          const max = el.scrollHeight - el.clientHeight;
+          const progress = max > 0 ? el.scrollTop / max : 0;
+          const now = Date.now();
+          if (now - lastSeekSentRef.current > 80) {
+            lastSeekSentRef.current = now;
+            send("seek", progress);
+          }
+        }}
+        style={{
+          height: 150, overflowY: isSlideMode ? "hidden" : "auto", background: "#000",
+          borderRadius: 14, padding: "10px 14px", border: "1px solid rgba(255,255,255,.15)",
+          display: "flex", flexDirection: "column", justifyContent: isSlideMode ? "center" : "flex-start",
+        }}
+      >
+        {isSlideMode ? (
+          <p style={{ color: fontColor, fontFamily, fontSize: Math.max(10, fontSize * 0.22), textAlign: hAlign, whiteSpace: "pre-wrap", margin: 0 }}>
+            {previewSlides[slideIndex] ?? ""}
+          </p>
+        ) : previewParagraphs.length === 0 ? (
+          <p style={{ color: "#6a8e8a", fontSize: 12, textAlign: "center", margin: "auto" }}>미리보기 연결 중…</p>
+        ) : (
+          previewParagraphs.map((p, i) => {
+            const sp = previewSpeakers.find((s) => s.id === previewSpeakerMap[i]);
+            return (
+              <p key={i} style={{
+                color: fontColor, fontFamily, fontSize: Math.max(10, fontSize * 0.22), textAlign: hAlign,
+                whiteSpace: "pre-wrap", margin: `0 0 ${Math.max(4, paragraphSpacing * 0.22)}px`,
+                borderLeft: sp ? `3px solid ${sp.color}` : "none", paddingLeft: sp ? 6 : 0,
+              }}>
+                {p}
+              </p>
+            );
+          })
+        )}
       </div>
 
       {isSlideMode ? (
@@ -182,12 +229,22 @@ export default function PrompterRemotePage() {
           </button>
         </div>
       ) : (
-        <button
-          onClick={() => send("toggle")}
-          style={{ padding: "13px 0", borderRadius: 14, background: playing ? "#e85d2c" : "#155855", border: "none", color: "#fff", fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-        >
-          {playing ? <><Pause size={18} /> 일시정지</> : <><Play size={18} /> 재생</>}
-        </button>
+        <>
+          <button
+            onClick={() => send("toggle")}
+            style={{ padding: "13px 0", borderRadius: 14, background: playing ? "#e85d2c" : "#155855", border: "none", color: "#fff", fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+          >
+            {playing ? <><Pause size={18} /> 일시정지</> : <><Play size={18} /> 재생</>}
+          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => send("prevSlide")} style={{ flex: 1, padding: "11px 0", borderRadius: 14, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <ChevronLeft size={16} /> 이전 문단
+            </button>
+            <button onClick={() => send("nextSlide")} style={{ flex: 1, padding: "11px 0", borderRadius: 14, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              다음 문단 <ChevronRight size={16} />
+            </button>
+          </div>
+        </>
       )}
 
       <div style={{ display: "flex", gap: 8 }}>
