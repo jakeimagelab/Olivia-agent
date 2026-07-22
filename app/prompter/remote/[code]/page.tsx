@@ -49,7 +49,6 @@ export default function PrompterRemotePage() {
   const [paragraphIndex, setParagraphIndex] = useState(0);
   const [totalParagraphs, setTotalParagraphs] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [countdown, setCountdown] = useState<number | null>(null);
 
   // 실행화면 미리보기 — 실제 대본 내용을 받아서 그대로 축소 표시하고, 직접 드래그해서 스크롤 위치를 지정할 수 있다.
   type PreviewSpeaker = { id: string; name: string; color: string };
