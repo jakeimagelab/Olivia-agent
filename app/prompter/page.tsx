@@ -1220,7 +1220,7 @@ export default function PrompterPage() {
               <button onClick={() => jumpParagraph(-1)} disabled={paragraphIndex === 0} className="pt-ctrl-btn"><ChevronUp size={16} /> 이전 문단</button>
               <button onClick={() => jumpParagraph(1)} disabled={paragraphIndex >= paragraphs.length - 1} className="pt-ctrl-btn"><ChevronDown size={16} /> 다음 문단</button>
 
-              <label className="pt-ctrl-label"><Gauge size={14} /> 속도 {levelOf(speed, SPEED_LEVELS)}/10
+              <label className="pt-ctrl-label"><Gauge size={14} /> 속도 <span className="pt-ctrl-level">{levelOf(speed, SPEED_LEVELS)}/10</span>
                 <input
                   type="range" min={1} max={10} step={1} value={levelOf(speed, SPEED_LEVELS)}
                   onChange={(e) => setSpeed(SPEED_LEVELS[Number(e.target.value) - 1])}
@@ -1228,7 +1228,7 @@ export default function PrompterPage() {
                 />
               </label>
 
-              <label className="pt-ctrl-label"><AlignVerticalSpaceAround size={14} /> 문단간격 {levelOf(paragraphSpacing, PARAGRAPH_SPACING_LEVELS)}/10
+              <label className="pt-ctrl-label"><AlignVerticalSpaceAround size={14} /> 문단간격 <span className="pt-ctrl-level">{levelOf(paragraphSpacing, PARAGRAPH_SPACING_LEVELS)}/10</span>
                 <input
                   type="range" min={1} max={10} step={1} value={levelOf(paragraphSpacing, PARAGRAPH_SPACING_LEVELS)}
                   onChange={(e) => setParagraphSpacing(PARAGRAPH_SPACING_LEVELS[Number(e.target.value) - 1])}
