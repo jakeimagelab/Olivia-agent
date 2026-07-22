@@ -311,15 +311,11 @@ export default function PrompterRemotePage() {
       )}
 
       <div className="pt-remote-slider-row">
-        <label><Type size={13} /> 크기</label>
+        <label><Type size={13} /> 크기 {levelOf(fontSize, FONT_SIZE_LEVELS)}/10</label>
         <input
-          type="range" min={20} max={120} value={fontSize}
-          onChange={(e) => { const v = Number(e.target.value); setFontSize(v); send("fontSize", v); }}
+          type="range" min={1} max={10} step={1} value={levelOf(fontSize, FONT_SIZE_LEVELS)}
+          onChange={(e) => { const v = FONT_SIZE_LEVELS[Number(e.target.value) - 1]; setFontSize(v); send("fontSize", v); }}
           style={orangeRange}
-        />
-        <input
-          type="number" min={10} max={300} value={fontSize} className="pt-remote-num"
-          onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(10, v); setFontSize(c); send("fontSize", c); } }}
         />
       </div>
 
