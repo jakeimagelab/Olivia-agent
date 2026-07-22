@@ -406,13 +406,21 @@ export default function PrompterPage() {
   const lastBroadcastRef = useRef(0);
   const pendingBroadcastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    const payload = {
-      playing: scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign,
-      fontColor, fontFamily, fontSize, paragraphSpacing,
-      editorMode, slideIndex, totalSlides: slides.length,
-      paragraphIndex, totalParagraphs: paragraphs.length,
+    const send = () => {
+      const box = scrollBoxRef.current;
+      const scrollProgress = box && box.scrollHeight > box.clientHeight
+        ? box.scrollTop / (box.scrollHeight - box.clientHeight)
+        : 0;
+      channelRef.current?.send({
+        type: "broadcast", event: "state",
+        payload: {
+          playing: scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign,
+          fontColor, fontFamily, fontSize, paragraphSpacing,
+          editorMode, slideIndex, totalSlides: slides.length,
+          paragraphIndex, totalParagraphs: paragraphs.length, scrollProgress,
+        },
+      });
     };
-    const send = () => channelRef.current?.send({ type: "broadcast", event: "state", payload });
     if (pendingBroadcastRef.current) { clearTimeout(pendingBroadcastRef.current); pendingBroadcastRef.current = null; }
     const sinceLast = Date.now() - lastBroadcastRef.current;
     if (sinceLast >= 80) {
