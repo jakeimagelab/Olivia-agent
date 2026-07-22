@@ -1100,19 +1100,40 @@ export default function PrompterPage() {
       )}
 
       {/* 상단 바 — 타이머는 왼쪽 */}
-      <div style={{ position: "fixed", top: 16, left: 16, right: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div className="pt-timer-badge">{fmtTime(elapsed)}</div>
-          {isSlideMode && <div className="pt-slide-counter">{slides.length ? slideIndex + 1 : 0} / {slides.length}</div>}
-          {recording && <span style={{ color: "#ff5c5c", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><Circle size={10} fill="#ff5c5c" /> REC</span>}
+      <div style={{ position: "fixed", top: 16, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="pt-timer-badge">{fmtTime(elapsed)}</div>
+            {isSlideMode && <div className="pt-slide-counter">{slides.length ? slideIndex + 1 : 0} / {slides.length}</div>}
+            {recording && <span style={{ color: "#ff5c5c", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}><Circle size={10} fill="#ff5c5c" /> REC</span>}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={() => setShowRemoteInfo(true)} className="pt-icon-btn"><Smartphone size={14} /> 리모컨</button>
+            <button onClick={toggleFullscreen} className="pt-icon-btn">{isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />} {isFullscreen ? "전체화면 종료" : "전체화면"}</button>
+            <button onClick={() => setShowControls((v) => !v)} className="pt-icon-btn">{showControls ? "설정 숨기기" : "설정"}</button>
+            <button onClick={exitPromptMode} className="pt-icon-btn"><X size={18} /></button>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={() => setShowRemoteInfo(true)} className="pt-icon-btn"><Smartphone size={14} /> 리모컨</button>
-          <button onClick={toggleFullscreen} className="pt-icon-btn">{isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />} {isFullscreen ? "전체화면 종료" : "전체화면"}</button>
-          <button onClick={() => setShowControls((v) => !v)} className="pt-icon-btn">{showControls ? "설정 숨기기" : "설정"}</button>
-          <button onClick={exitPromptMode} className="pt-icon-btn"><X size={18} /></button>
-        </div>
+        {!isSlideMode && (
+          <div style={{ height: 4, borderRadius: 999, background: "rgba(255,255,255,.15)", overflow: "hidden", maxWidth: 320 }}>
+            <div style={{ height: "100%", width: `${scrollProgressNow * 100}%`, background: "#e85d2c", transition: "width .2s linear" }} />
+          </div>
+        )}
       </div>
+
+      {/* 중앙 포커스 가이드라인 */}
+      {guideEnabled && !isSlideMode && (
+        <div style={{ position: "fixed", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.85)", pointerEvents: "none", zIndex: 6 }} />
+      )}
+
+      {/* 촬영 시작 카운트다운 (3-2-1) */}
+      {countdown !== null && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1300, pointerEvents: "none" }}>
+          <span style={{ fontSize: "min(40vw, 320px)", fontWeight: 900, color: "#fff", textShadow: "0 4px 24px rgba(0,0,0,.5)" }}>
+            {countdown}
+          </span>
+        </div>
+      )}
 
       {/* 녹화 미리보기 (작은 창) */}
       {recording && (
