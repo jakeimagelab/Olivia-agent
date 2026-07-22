@@ -16,6 +16,12 @@ import {
   SPEED_LEVELS, PARAGRAPH_SPACING_LEVELS, FONT_SIZE_LEVELS, levelOf,
   type HAlign, type VAlign,
 } from "@/lib/prompter/constants";
+import {
+  REMOTE_DISPLAY_MODE_STORAGE_KEY,
+  isRemoteDisplayMode,
+  recommendRemoteDisplayMode,
+  type RemoteDisplayMode,
+} from "@/lib/prompter/remoteDisplayMode";
 
 // 구형 Safari 등 지원 코덱이 다를 수 있어 순서대로 확인 후 첫 번째 지원되는 것을 쓴다.
 function pickSupportedAudioMimeType(): string | undefined {
@@ -53,23 +59,22 @@ export default function PrompterRemotePage() {
   const [guideEnabled, setGuideEnabled] = useState(false);
   const [guidePosition, setGuidePosition] = useState(40);
   const [guideHighlight, setGuideHighlight] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
+  const [displayMode, setDisplayMode] = useState<RemoteDisplayMode>("remote");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hostViewport, setHostViewport] = useState({ width: 1280, height: 720 });
   const [mirrorScale, setMirrorScale] = useState(1);
 
   useEffect(() => {
-    const classify = () => {
-      const touchDevice = navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
-      const shortEdge = Math.min(window.screen.width, window.screen.height);
-      setIsTablet(touchDevice && shortEdge >= 600);
-    };
+    const savedMode = window.localStorage.getItem(REMOTE_DISPLAY_MODE_STORAGE_KEY);
+    setDisplayMode(isRemoteDisplayMode(savedMode) ? savedMode : recommendRemoteDisplayMode({
+      userAgent: navigator.userAgent,
+      maxTouchPoints: navigator.maxTouchPoints,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+    }));
     const onFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
-    classify();
-    window.addEventListener("resize", classify);
     document.addEventListener("fullscreenchange", onFullscreen);
     return () => {
-      window.removeEventListener("resize", classify);
       document.removeEventListener("fullscreenchange", onFullscreen);
     };
   }, []);
@@ -182,6 +187,10 @@ export default function PrompterRemotePage() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen().catch(() => {});
   };
+  const selectDisplayMode = (mode: RemoteDisplayMode) => {
+    setDisplayMode(mode);
+    window.localStorage.setItem(REMOTE_DISPLAY_MODE_STORAGE_KEY, mode);
+  };
 
   /* ── 음성 녹음 (폰을 보조 오디오로 쓸 때) ── */
   const [recording, setRecording] = useState(false);
@@ -217,11 +226,12 @@ export default function PrompterRemotePage() {
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
 
   const isSlideMode = editorMode === "slides";
+  const isMirrorMode = displayMode === "mirror";
   const vAlignPercent = vAlign === "top" ? 12 : vAlign === "bottom" ? 88 : 50;
   const tabletTransform = `translateX(-50%) scale(${mirrorScale}) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`;
 
   useEffect(() => {
-    if (!isTablet) return;
+    if (!isMirrorMode) return;
     const frame = previewFrameRef.current;
     if (!frame) return;
     const updateScale = () => {
@@ -232,10 +242,10 @@ export default function PrompterRemotePage() {
     const observer = new ResizeObserver(updateScale);
     observer.observe(frame);
     return () => observer.disconnect();
-  }, [isTablet, hostViewport.width, hostViewport.height]);
+  }, [isMirrorMode, hostViewport.width, hostViewport.height]);
 
   return (
-    <main className={`pt-remote-page${isTablet ? " tablet" : " mobile"}`} style={{ height: "100dvh", background: "#0d1f1e", color: "#fff", padding: isTablet ? "8px 12px 36dvh" : "10px 14px", display: "flex", flexDirection: "column", gap: 7, overflowY: "auto", boxSizing: "border-box" }}>
+    <main className={`pt-remote-page ${displayMode}`} style={{ height: "100dvh", background: "#0d1f1e", color: "#fff", padding: isMirrorMode ? "8px 12px 36dvh" : "10px 14px", display: "flex", flexDirection: "column", gap: 7, overflowY: "auto", boxSizing: "border-box" }}>
       <div style={{ textAlign: "center", position: "relative" }}>
         <p style={{ fontSize: 11, color: connected ? "#5cff8f" : "#ff9c5c", fontWeight: 700 }}>
           {connected ? "● 연결됨" : "○ 프롬프터 연결 대기 중…"}
@@ -247,6 +257,11 @@ export default function PrompterRemotePage() {
         <button onClick={toggleFullscreen} aria-label={isFullscreen ? "전체화면 종료" : "전체화면"} style={{ position: "absolute", right: 0, top: 2, width: 34, height: 34, borderRadius: 10, border: "1px solid rgba(255,255,255,.2)", background: "rgba(255,255,255,.1)", color: "#fff", display: "grid", placeItems: "center" }}>
           {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
         </button>
+      </div>
+
+      <div className="pt-remote-mode-switch" role="group" aria-label="리모트 화면 모드">
+        <button className={displayMode === "remote" ? "active" : ""} onClick={() => selectDisplayMode("remote")}>리모트 모드</button>
+        <button className={displayMode === "mirror" ? "active" : ""} onClick={() => selectDisplayMode("mirror")}>미러링 모드</button>
       </div>
 
       {/* 실행화면 진행률 바 — 직접 드래그해서 원하는 위치로 바로 이동시킬 수 있다 (스크러버). */}
@@ -282,7 +297,7 @@ export default function PrompterRemotePage() {
       )}
 
       {/* 실행화면 미리보기 — 실제 대본이 그대로 보이고, 손가락으로 직접 스크롤해서 위치를 옮길 수 있다 */}
-      <div ref={previewFrameRef} style={{ position: "relative", flex: isTablet ? "1 1 auto" : "none", minHeight: 0, overflow: "hidden", borderRadius: 14, background: bgColor }}>
+      <div ref={previewFrameRef} style={{ position: "relative", flex: isMirrorMode ? "1 1 auto" : "none", minHeight: 0, overflow: "hidden", borderRadius: 14, background: bgColor }}>
         <div
           ref={previewRef}
           onPointerDown={() => { isDraggingPreviewRef.current = true; }}
@@ -300,22 +315,22 @@ export default function PrompterRemotePage() {
             }
           }}
           style={{
-            position: isTablet ? "absolute" : "relative", left: isTablet ? "50%" : "auto", top: 0,
-            width: isTablet ? hostViewport.width : "100%", height: isTablet ? hostViewport.height : 150,
-            minHeight: isTablet ? 0 : 150, overflowY: isSlideMode ? "hidden" : "auto", background: bgColor,
-            borderRadius: isTablet ? 0 : 14,
-            padding: isTablet && !isSlideMode
+            position: isMirrorMode ? "absolute" : "relative", left: isMirrorMode ? "50%" : "auto", top: 0,
+            width: isMirrorMode ? hostViewport.width : "100%", height: isMirrorMode ? hostViewport.height : 150,
+            minHeight: isMirrorMode ? 0 : 150, overflowY: isSlideMode ? "hidden" : "auto", background: bgColor,
+            borderRadius: isMirrorMode ? 0 : 14,
+            padding: isMirrorMode && !isSlideMode
               ? `${hostViewport.height * Math.max(vAlignPercent, guidePosition) / 100}px ${hostViewport.width * .08}px ${hostViewport.height * Math.max(100 - vAlignPercent, 100 - guidePosition) / 100}px`
-              : isTablet ? `0 ${hostViewport.width * .08}px` : "10px 14px",
-            border: isTablet ? "none" : "1px solid rgba(255,255,255,.15)",
+              : isMirrorMode ? `0 ${hostViewport.width * .08}px` : "10px 14px",
+            border: isMirrorMode ? "none" : "1px solid rgba(255,255,255,.15)",
             display: "flex", flexDirection: "column",
             justifyContent: isSlideMode ? (vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center") : "flex-start",
-            transform: isTablet ? tabletTransform : `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
-            transformOrigin: isTablet ? "top center" : "center",
+            transform: isMirrorMode ? tabletTransform : `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
+            transformOrigin: isMirrorMode ? "top center" : "center",
           }}
         >
         {isSlideMode ? (
-          <p style={{ color: fontColor, fontFamily, fontSize: isTablet ? fontSize : Math.max(10, fontSize * 0.22), lineHeight, textAlign: hAlign, whiteSpace: "pre-wrap", margin: 0 }}>
+          <p style={{ color: fontColor, fontFamily, fontSize: isMirrorMode ? fontSize : Math.max(10, fontSize * 0.22), lineHeight, textAlign: hAlign, whiteSpace: "pre-wrap", margin: 0 }}>
             {previewSlides[slideIndex] ?? ""}
             {previewGestureMap[slideIndex]?.trim() && <span className="pt-remote-gesture">({previewGestureMap[slideIndex].trim()})</span>}
           </p>
@@ -326,8 +341,8 @@ export default function PrompterRemotePage() {
             const sp = previewSpeakers.find((s) => s.id === previewSpeakerMap[i]);
             return (
               <p key={i} style={{
-                color: fontColor, fontFamily, fontSize: isTablet ? fontSize : Math.max(10, fontSize * 0.22), textAlign: hAlign, lineHeight,
-                whiteSpace: "pre-wrap", margin: `0 0 ${isTablet ? paragraphSpacing : Math.max(4, paragraphSpacing * 0.22)}px`,
+                color: fontColor, fontFamily, fontSize: isMirrorMode ? fontSize : Math.max(10, fontSize * 0.22), textAlign: hAlign, lineHeight,
+                whiteSpace: "pre-wrap", margin: `0 0 ${isMirrorMode ? paragraphSpacing : Math.max(4, paragraphSpacing * 0.22)}px`,
                 borderLeft: sp ? `3px solid ${sp.color}` : "none", paddingLeft: sp ? 6 : 0,
                 background: guideHighlight && paragraphIndex === i ? "rgba(232,93,44,.16)" : "transparent",
                 borderRadius: guideHighlight && paragraphIndex === i ? 10 : 0,
@@ -340,7 +355,7 @@ export default function PrompterRemotePage() {
         )}
         </div>
         {guideEnabled && !isSlideMode && (
-          <div style={{ position: "absolute", top: 0, left: isTablet ? "50%" : 0, right: isTablet ? "auto" : 0, width: isTablet ? hostViewport.width : "auto", height: isTablet ? hostViewport.height : "100%", transform: isTablet ? `translateX(-50%) scale(${mirrorScale})` : "none", transformOrigin: "top center", pointerEvents: "none", zIndex: 2 }}>
+          <div style={{ position: "absolute", top: 0, left: isMirrorMode ? "50%" : 0, right: isMirrorMode ? "auto" : 0, width: isMirrorMode ? hostViewport.width : "auto", height: isMirrorMode ? hostViewport.height : "100%", transform: isMirrorMode ? `translateX(-50%) scale(${mirrorScale})` : "none", transformOrigin: "top center", pointerEvents: "none", zIndex: 2 }}>
             <div style={{ position: "absolute", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.9)" }} />
           </div>
         )}
