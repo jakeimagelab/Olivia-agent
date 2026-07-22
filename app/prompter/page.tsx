@@ -1177,6 +1177,20 @@ export default function PrompterPage() {
                   onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setParagraphSpacing(Math.max(0, v)); }}
                 />
               </label>
+
+              <label className="pt-ctrl-label"><AlignVerticalDistributeCenter size={14} /> 줄간격
+                <input type="range" min={1.2} max={2.4} step={0.1} value={lineHeight} onChange={(e) => setLineHeight(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
+              </label>
+
+              <button onClick={() => setGuideEnabled((v) => !v)} className={`pt-ctrl-btn${guideEnabled ? " active" : ""}`}><Scan size={16} /> 가이드라인</button>
+              {guideEnabled && (
+                <>
+                  <label className="pt-ctrl-label">위치
+                    <input type="range" min={5} max={90} value={guidePosition} onChange={(e) => setGuidePosition(Number(e.target.value))} style={{ accentColor: "#e85d2c" }} />
+                  </label>
+                  <button onClick={() => setGuideHighlight((v) => !v)} className={`pt-ctrl-btn${guideHighlight ? " active" : ""}`}>문단 강조</button>
+                </>
+              )}
             </>
           )}
 
