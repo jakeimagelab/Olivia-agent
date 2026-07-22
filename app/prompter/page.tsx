@@ -1181,6 +1181,8 @@ export default function PrompterPage() {
                 {scrolling || countdown !== null ? <Pause size={18} /> : <Play size={18} />} {scrolling ? "일시정지" : countdown !== null ? "취소" : "재생"}
               </button>
               <button onClick={resetTimer} className="pt-ctrl-btn"><RotateCcw size={18} /> 처음으로</button>
+              <button onClick={() => jumpParagraph(-1)} disabled={paragraphIndex === 0} className="pt-ctrl-btn"><ChevronUp size={16} /> 이전 문단</button>
+              <button onClick={() => jumpParagraph(1)} disabled={paragraphIndex >= paragraphs.length - 1} className="pt-ctrl-btn"><ChevronDown size={16} /> 다음 문단</button>
               <button onClick={() => setCountdownEnabled((v) => !v)} className={`pt-ctrl-btn${countdownEnabled ? " active" : ""}`} title="재생 시 3초 카운트다운">
                 <Clock3 size={16} /> 카운트다운
               </button>
