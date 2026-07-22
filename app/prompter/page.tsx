@@ -534,7 +534,7 @@ export default function PrompterPage() {
   /* ── 재생 시작/정지 — 실행화면이 카운트다운의 유일한 소스다. 리모컨 명령도 항상 이 함수들을
      거치게 해서 두 화면의 카운트다운이 어긋나지 않게 한다. ── */
   const startPlayback = () => {
-    if (isSlideModeRef.current) { setScrolling(true); return; }
+    if (editorMode === "slides") { setScrolling(true); return; }
     if (countdownEnabledRef.current) {
       setScrolling(false);
       setCountdown(3);
