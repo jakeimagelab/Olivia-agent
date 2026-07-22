@@ -743,6 +743,9 @@ export default function PrompterPage() {
 
   // 자동저장 — 대본을 고치다가 저장을 안 누르고 나가서 유실되는 걸 막는다. 씬을 불러오거나
   // 새로 만든 직후(=사용자가 아직 아무것도 안 고침)는 저장할 필요가 없어 한 번 건너뛴다.
+  // multiSpeakerMode/speakerMap도 꼭 deps에 있어야 한다 — 없으면 텍스트 수정 후 3초 타이머가
+  // 걸린 상태에서 화자만 새로 배정했을 때, 타이머가 화자 배정 "이전" 시점의 오래된 speakerMap을
+  // 들고 있는 클로저로 저장을 덮어써서 방금 한 화자 배정이 사라진 것처럼 보이는 버그가 있었다.
   useEffect(() => {
     if (mode !== "scenes" || !currentProject) return;
     if (skipNextAutoSaveRef.current) { skipNextAutoSaveRef.current = false; return; }
@@ -751,7 +754,7 @@ export default function PrompterPage() {
     autoSaveTimerRef.current = setTimeout(() => { saveScene(true); }, 3000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, title, subject, mode]);
+  }, [text, title, subject, mode, multiSpeakerMode, speakerMap]);
 
   /* ── 저장/삭제 ── */
   const saveScene = async (silent = false) => {
