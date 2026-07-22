@@ -531,18 +531,6 @@ export default function PrompterPage() {
     }
   }, [mode]);
 
-  // 카운트다운 진행 — countdown이 3→2→1로 줄어들다가 0 이하가 되면 실제로 스크롤을 시작한다.
-  useEffect(() => {
-    if (countdown === null) return;
-    if (countdown <= 0) {
-      setCountdown(null);
-      setScrolling(true);
-      return;
-    }
-    countdownTimerRef.current = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
-    return () => { if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current); };
-  }, [countdown]);
-
   // 슬라이드 모드 실행 중 좌우 화살표 키로도 넘길 수 있게. 전체 텍스트 모드에서도 단축키 지원.
   useEffect(() => {
     if (mode !== "prompt") return;
