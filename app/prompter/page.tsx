@@ -1189,18 +1189,9 @@ export default function PrompterPage() {
         )}
       </div>
 
-      {/* 중앙 포커스 가이드라인 */}
+      {/* 중앙 포커스 가이드라인 — 글자보다 아래(뒤)에 깔리도록 텍스트 쪽에 명시적으로 더 높은 z-index를 준다. */}
       {guideEnabled && !isSlideMode && (
-        <div style={{ position: "fixed", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.85)", pointerEvents: "none", zIndex: 6 }} />
-      )}
-
-      {/* 촬영 시작 카운트다운 (3-2-1) */}
-      {countdown !== null && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1300, pointerEvents: "none" }}>
-          <span style={{ fontSize: "min(40vw, 320px)", fontWeight: 900, color: "#fff", textShadow: "0 4px 24px rgba(0,0,0,.5)" }}>
-            {countdown}
-          </span>
-        </div>
+        <div style={{ position: "fixed", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.85)", pointerEvents: "none", zIndex: 0 }} />
       )}
 
       {/* 녹화 미리보기 (작은 창) */}
