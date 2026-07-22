@@ -891,11 +891,6 @@ export default function PrompterPage() {
             <Building2 size={16} />
             <span>{currentProject?.name}</span>
             <button onClick={() => openProjectModal("rename")} title="이름 수정"><Pencil size={13} /></button>
-            {currentProject?.public_share_token ? (
-              <button onClick={() => setShowShareModal(true)} title="공유 중" style={{ color: "#155855" }}><Share2 size={13} /> 공유 중</button>
-            ) : (
-              <button onClick={shareProject} disabled={sharing} title="프로젝트 전체 공유"><Share2 size={13} /> {sharing ? "공유 중..." : "공유"}</button>
-            )}
           </div>
           <div className="pt-edit-layout">
             <aside className="pt-navigator">
