@@ -184,10 +184,35 @@ export default function PrompterRemotePage() {
           : totalParagraphs > 0 && <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{paragraphIndex + 1} / {totalParagraphs} 문단</p>}
       </div>
 
-      {/* 실행화면 진행률 바 */}
+      {/* 실행화면 진행률 바 — 직접 드래그해서 원하는 위치로 바로 이동시킬 수 있다 (스크러버). */}
       {!isSlideMode && (
-        <div style={{ height: 4, borderRadius: 999, background: "rgba(255,255,255,.15)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${scrollProgress * 100}%`, background: "#e85d2c", transition: "width .2s linear" }} />
+        <div
+          onPointerDown={(e) => {
+            isDraggingPreviewRef.current = true;
+            (e.target as HTMLElement).setPointerCapture(e.pointerId);
+            const rect = e.currentTarget.getBoundingClientRect();
+            const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            setScrollProgress(p);
+            send("seek", p);
+          }}
+          onPointerMove={(e) => {
+            if (!isDraggingPreviewRef.current) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            setScrollProgress(p);
+            const now = Date.now();
+            if (now - lastSeekSentRef.current > 80) {
+              lastSeekSentRef.current = now;
+              send("seek", p);
+            }
+          }}
+          onPointerUp={() => { isDraggingPreviewRef.current = false; }}
+          onPointerCancel={() => { isDraggingPreviewRef.current = false; }}
+          style={{ height: 18, display: "flex", alignItems: "center", cursor: "pointer", touchAction: "none" }}
+        >
+          <div style={{ width: "100%", height: 6, borderRadius: 999, background: "rgba(255,255,255,.15)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${scrollProgress * 100}%`, background: "#e85d2c", transition: isDraggingPreviewRef.current ? "none" : "width .2s linear" }} />
+          </div>
         </div>
       )}
 
