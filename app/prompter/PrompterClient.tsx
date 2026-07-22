@@ -1154,9 +1154,11 @@ export default function PrompterPage() {
         )}
       </div>
 
-      {/* 중앙 포커스 가이드라인 — 글자보다 아래(뒤)에 깔리도록 텍스트 쪽에 명시적으로 더 높은 z-index를 준다. */}
+      {/* 중앙 포커스 가이드라인 — 음수 z-index로 일반 문서 흐름(텍스트)보다 아래에 깔리게 한다.
+          (텍스트 쪽에 z-index를 줘서 위로 올리는 방식은 하단 컨트롤바까지 덮어버려 버튼 클릭이
+          안 먹히는 사고가 났었다 — 반드시 가이드라인 쪽을 내리는 방식으로만 처리할 것.) */}
       {guideEnabled && !isSlideMode && (
-        <div style={{ position: "fixed", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.85)", pointerEvents: "none", zIndex: 0 }} />
+        <div style={{ position: "fixed", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.85)", pointerEvents: "none", zIndex: -1 }} />
       )}
 
       {/* 녹화 미리보기 (작은 창) */}
