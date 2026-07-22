@@ -1095,7 +1095,7 @@ export default function PrompterPage() {
         <div
           ref={scrollBoxRef}
           style={{
-            height: "100%", overflowY: "auto", position: "relative", zIndex: 1,
+            height: "100%", overflowY: "auto",
             padding: `${V_ALIGN_PADDING[vAlign].top} 8vw ${V_ALIGN_PADDING[vAlign].bottom}`,
             transform: `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
           }}
