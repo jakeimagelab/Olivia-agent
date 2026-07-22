@@ -10,7 +10,11 @@ import {
   Mic, Square, ChevronLeft, ChevronRight, AlignVerticalSpaceAround, AlignVerticalDistributeCenter,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
-import { FONT_OPTIONS, COLOR_OPTIONS, fmtTime, type HAlign, type VAlign } from "@/lib/prompter/constants";
+import {
+  FONT_OPTIONS, COLOR_OPTIONS, fmtTime,
+  SPEED_LEVELS, PARAGRAPH_SPACING_LEVELS, FONT_SIZE_LEVELS, levelOf,
+  type HAlign, type VAlign,
+} from "@/lib/prompter/constants";
 
 // 구형 Safari 등 지원 코덱이 다를 수 있어 순서대로 확인 후 첫 번째 지원되는 것을 쓴다.
 function pickSupportedAudioMimeType(): string | undefined {
