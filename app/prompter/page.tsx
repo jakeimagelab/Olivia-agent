@@ -520,8 +520,6 @@ export default function PrompterPage() {
   useEffect(() => {
     if (mode !== "prompt") {
       setScrolling(false);
-      setCountdown(null);
-      if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       if (channelRef.current) { channelRef.current.unsubscribe(); channelRef.current = null; }
