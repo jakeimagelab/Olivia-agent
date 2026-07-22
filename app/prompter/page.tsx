@@ -116,11 +116,6 @@ export default function PrompterPage() {
   const [showControls, setShowControls] = useState(true);
   const [slideIndex, setSlideIndex] = useState(0);
 
-  // 카운트다운 (3-2-1) — 재생 즉시 스크롤이 시작되지 않고, "레디, 액션" 사이 첫 줄을 놓치지 않게 한다.
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [countdownEnabled, setCountdownEnabled] = useState(true);
-  const countdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // 중앙 포커스 가이드라인
   const [guideEnabled, setGuideEnabled] = useState(false);
   const [guidePosition, setGuidePosition] = useState(40); // 화면 세로 위치 %
