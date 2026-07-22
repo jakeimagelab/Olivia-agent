@@ -937,7 +937,7 @@ export default function PrompterPage() {
             return (
               <div
                 key={i}
-                ref={i === paragraphs.length - 1 ? lastParagraphRef : undefined}
+                ref={(el) => { paragraphRefs.current[i] = el; if (i === paragraphs.length - 1) lastParagraphRef.current = el; }}
                 style={{ margin: `0 0 ${i < paragraphs.length - 1 ? paragraphSpacing : 0}px`, textAlign: hAlign }}
               >
                 {sp && (
