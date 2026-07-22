@@ -97,11 +97,15 @@ export default function PrompterRemotePage() {
       if (payload.fontFamily) setFontFamily(payload.fontFamily);
       if (payload.fontSize) setFontSize(payload.fontSize);
       if (payload.paragraphSpacing != null) setParagraphSpacing(payload.paragraphSpacing);
+      if (payload.bgColor) setBgColor(payload.bgColor);
+      if (payload.lineHeight != null) setLineHeight(payload.lineHeight);
       if (payload.editorMode) setEditorMode(payload.editorMode);
       if (payload.slideIndex != null) setSlideIndex(payload.slideIndex);
       if (payload.totalSlides != null) setTotalSlides(payload.totalSlides);
       if (payload.paragraphIndex != null) setParagraphIndex(payload.paragraphIndex);
       if (payload.totalParagraphs != null) setTotalParagraphs(payload.totalParagraphs);
+      if (payload.scrollProgress != null) setScrollProgress(payload.scrollProgress);
+      setCountdown(payload.countdown === undefined ? null : payload.countdown);
       // 미리보기를 손으로 드래그하는 동안엔 실행화면 쪽 위치로 되돌리지 않는다 (터치가 끝나면 다시 따라간다).
       if (payload.scrollProgress != null && !isDraggingPreviewRef.current) {
         const el = previewRef.current;
