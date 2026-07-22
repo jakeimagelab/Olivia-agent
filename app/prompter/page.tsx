@@ -373,6 +373,12 @@ export default function PrompterPage() {
   const focusedParagraphIndexRef = useRef<number | null>(null);
   const countdownEnabledRef = useRef(countdownEnabled);
   useEffect(() => { countdownEnabledRef.current = countdownEnabled; }, [countdownEnabled]);
+  // 리모컨 명령 핸들러는 세션 시작 시점 클로저라 scrolling/countdown을 직접 읽으면 오래된 값을
+  // 볼 수 있다 — 재생 토글 판단은 항상 ref의 최신값으로 한다.
+  const scrollingRef = useRef(scrolling);
+  useEffect(() => { scrollingRef.current = scrolling; }, [scrolling]);
+  const countdownRef = useRef(countdown);
+  useEffect(() => { countdownRef.current = countdown; }, [countdown]);
 
   /* ── 자동 스크롤 (전체 텍스트 모드) ── */
   useEffect(() => {
