@@ -7,7 +7,7 @@ import {
   Play, Pause, RotateCcw, FlipHorizontal, FlipVertical, Gauge, Type,
   AlignLeft, AlignCenter, AlignRight,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  Mic, Square, ChevronLeft, ChevronRight, AlignVerticalSpaceAround,
+  Mic, Square, ChevronLeft, ChevronRight, AlignVerticalSpaceAround, AlignVerticalDistributeCenter,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { FONT_OPTIONS, COLOR_OPTIONS, fmtTime, type HAlign, type VAlign } from "@/lib/prompter/constants";
