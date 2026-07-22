@@ -96,8 +96,29 @@ export default function PrompterRemotePage() {
       if (payload.editorMode) setEditorMode(payload.editorMode);
       if (payload.slideIndex != null) setSlideIndex(payload.slideIndex);
       if (payload.totalSlides != null) setTotalSlides(payload.totalSlides);
+      if (payload.paragraphIndex != null) setParagraphIndex(payload.paragraphIndex);
+      if (payload.totalParagraphs != null) setTotalParagraphs(payload.totalParagraphs);
+      // 미리보기를 손으로 드래그하는 동안엔 실행화면 쪽 위치로 되돌리지 않는다 (터치가 끝나면 다시 따라간다).
+      if (payload.scrollProgress != null && !isDraggingPreviewRef.current) {
+        const el = previewRef.current;
+        if (el) {
+          const max = el.scrollHeight - el.clientHeight;
+          el.scrollTop = max > 0 ? payload.scrollProgress * max : 0;
+        }
+      }
     });
-    channel.subscribe();
+    channel.on("broadcast", { event: "content" }, ({ payload }) => {
+      setPreviewParagraphs(payload.paragraphs ?? []);
+      setPreviewSlides(payload.slides ?? []);
+      setPreviewSpeakers(payload.speakers ?? []);
+      setPreviewSpeakerMap(payload.speakerMap ?? []);
+    });
+    channel.subscribe((status) => {
+      // 실행화면이 먼저 켜져 있다가 리모컨이 나중에 접속하는 경우가 많아, 접속 직후 내용을 다시 요청한다.
+      if (status === "SUBSCRIBED") {
+        channel.send({ type: "broadcast", event: "command", payload: { type: "requestContent" } });
+      }
+    });
     channelRef.current = channel;
     return () => { channel.unsubscribe(); };
   }, [code]);
