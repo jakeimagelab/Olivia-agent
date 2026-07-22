@@ -878,6 +878,11 @@ export default function PrompterPage() {
           title="프롬프터"
           actions={<>
             <button onClick={backToProjects} className="pt-btn"><ChevronLeft size={15} /> 프로젝트 목록</button>
+            {currentProject?.public_share_token ? (
+              <button onClick={() => setShowShareModal(true)} className="pt-btn" style={{ color: "#155855", borderColor: "#B8D4CF" }}><Share2 size={15} /> 공유 중</button>
+            ) : (
+              <button onClick={shareProject} className="pt-btn" disabled={sharing}><Share2 size={15} /> {sharing ? "공유 중..." : "공유"}</button>
+            )}
             <button onClick={runAiReview} className="pt-btn" disabled={!text.trim() || aiReviewLoading}><Sparkles size={15} /> {aiReviewLoading ? "검토 중..." : "AI 검토"}</button>
             <button onClick={() => saveScene()} className="pt-btn" disabled={!text.trim() || saving}><Save size={16} /> {saving ? "저장 중..." : "저장"}</button>
             {!saving && lastAutoSavedAt && (
