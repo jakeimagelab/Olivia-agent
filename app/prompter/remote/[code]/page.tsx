@@ -182,29 +182,42 @@ export default function PrompterRemotePage() {
           : totalParagraphs > 0 && <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{paragraphIndex + 1} / {totalParagraphs} 문단</p>}
       </div>
 
+      {/* 실행화면 진행률 바 */}
+      {!isSlideMode && (
+        <div style={{ height: 4, borderRadius: 999, background: "rgba(255,255,255,.15)", overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${scrollProgress * 100}%`, background: "#e85d2c", transition: "width .2s linear" }} />
+        </div>
+      )}
+
       {/* 실행화면 미리보기 — 실제 대본이 그대로 보이고, 손가락으로 직접 스크롤해서 위치를 옮길 수 있다 */}
-      <div
-        ref={previewRef}
-        onPointerDown={() => { isDraggingPreviewRef.current = true; }}
-        onPointerUp={() => { isDraggingPreviewRef.current = false; }}
-        onPointerCancel={() => { isDraggingPreviewRef.current = false; }}
-        onScroll={() => {
-          const el = previewRef.current;
-          if (!el || isSlideMode || !isDraggingPreviewRef.current) return;
-          const max = el.scrollHeight - el.clientHeight;
-          const progress = max > 0 ? el.scrollTop / max : 0;
-          const now = Date.now();
-          if (now - lastSeekSentRef.current > 80) {
-            lastSeekSentRef.current = now;
-            send("seek", progress);
-          }
-        }}
-        style={{
-          height: 150, overflowY: isSlideMode ? "hidden" : "auto", background: "#000",
-          borderRadius: 14, padding: "10px 14px", border: "1px solid rgba(255,255,255,.15)",
-          display: "flex", flexDirection: "column", justifyContent: isSlideMode ? "center" : "flex-start",
-        }}
-      >
+      <div style={{ position: "relative" }}>
+        <div
+          ref={previewRef}
+          onPointerDown={() => { isDraggingPreviewRef.current = true; }}
+          onPointerUp={() => { isDraggingPreviewRef.current = false; }}
+          onPointerCancel={() => { isDraggingPreviewRef.current = false; }}
+          onScroll={() => {
+            const el = previewRef.current;
+            if (!el || isSlideMode || !isDraggingPreviewRef.current) return;
+            const max = el.scrollHeight - el.clientHeight;
+            const progress = max > 0 ? el.scrollTop / max : 0;
+            const now = Date.now();
+            if (now - lastSeekSentRef.current > 80) {
+              lastSeekSentRef.current = now;
+              send("seek", progress);
+            }
+          }}
+          style={{
+            height: 150, overflowY: isSlideMode ? "hidden" : "auto", background: bgColor,
+            borderRadius: 14, padding: "10px 14px", border: "1px solid rgba(255,255,255,.15)",
+            display: "flex", flexDirection: "column", justifyContent: isSlideMode ? "center" : "flex-start",
+          }}
+        >
+        {countdown !== null && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 14, zIndex: 2 }}>
+            <span style={{ fontSize: 56, fontWeight: 900, color: "#fff" }}>{countdown}</span>
+          </div>
+        )}
         {isSlideMode ? (
           <p style={{ color: fontColor, fontFamily, fontSize: Math.max(10, fontSize * 0.22), textAlign: hAlign, whiteSpace: "pre-wrap", margin: 0 }}>
             {previewSlides[slideIndex] ?? ""}
@@ -216,7 +229,7 @@ export default function PrompterRemotePage() {
             const sp = previewSpeakers.find((s) => s.id === previewSpeakerMap[i]);
             return (
               <p key={i} style={{
-                color: fontColor, fontFamily, fontSize: Math.max(10, fontSize * 0.22), textAlign: hAlign,
+                color: fontColor, fontFamily, fontSize: Math.max(10, fontSize * 0.22), textAlign: hAlign, lineHeight,
                 whiteSpace: "pre-wrap", margin: `0 0 ${Math.max(4, paragraphSpacing * 0.22)}px`,
                 borderLeft: sp ? `3px solid ${sp.color}` : "none", paddingLeft: sp ? 6 : 0,
               }}>
