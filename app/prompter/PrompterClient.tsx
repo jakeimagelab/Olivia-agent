@@ -18,6 +18,7 @@ import {
   SPEED_LEVELS, PARAGRAPH_SPACING_LEVELS, FONT_SIZE_LEVELS, levelOf,
   type HAlign, type VAlign,
 } from "@/lib/prompter/constants";
+import { isNewerSequence } from "@/lib/prompter/realtimeSync";
 
 type Speaker = { id: string; name: string; color: string };
 type Project = { id: string; name: string; sceneCount: number; lastActivity: string; updated_at: string; speakers?: Speaker[]; public_share_token?: string | null };
@@ -173,6 +174,8 @@ export default function PrompterPage() {
   useEffect(() => { paragraphIndexRef.current = paragraphIndex; }, [paragraphIndex]);
   const rafRef = useRef<number | null>(null);
   const lastRemoteFrameRef = useRef(0);
+  const hostSequenceRef = useRef(0);
+  const lastRemoteCommandSeqRef = useRef(new Map<string, number>());
   const lastTsRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -182,9 +185,9 @@ export default function PrompterPage() {
     const progress = box && max > 0 ? Math.max(0, Math.min(1, box.scrollTop / max)) : 0;
     if (progressBarRef.current) progressBarRef.current.style.width = `${progress * 100}%`;
     const now = performance.now();
-    if (channelRef.current && now - lastRemoteFrameRef.current >= 50) {
+    if (channelRef.current && now - lastRemoteFrameRef.current >= 32) {
       lastRemoteFrameRef.current = now;
-      channelRef.current.send({ type: "broadcast", event: "frame", payload: { scrollProgress: progress } });
+      channelRef.current.send({ type: "broadcast", event: "frame", payload: { scrollProgress: progress, hostSeq: ++hostSequenceRef.current } });
     }
   }, []);
 
@@ -514,9 +517,10 @@ export default function PrompterPage() {
         ? box.scrollTop / (box.scrollHeight - box.clientHeight)
         : 0;
       const payload = {
+        hostSeq: ++hostSequenceRef.current,
         playing: scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign,
         fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight,
-        guideEnabled, guidePosition, guideHighlight,
+        guideEnabled, guidePosition, guideHighlight, showControls, recording,
         editorMode, slideIndex, totalSlides: slides.length,
         paragraphIndex, totalParagraphs: paragraphs.length, scrollProgress,
         viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
@@ -536,7 +540,7 @@ export default function PrompterPage() {
       }, 80 - sinceLast);
     }
     return () => { if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current); };
-  }, [scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight, guideEnabled, guidePosition, guideHighlight, editorMode, slideIndex, slides.length, paragraphIndex, paragraphs.length]);
+  }, [scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight, guideEnabled, guidePosition, guideHighlight, showControls, recording, editorMode, slideIndex, slides.length, paragraphIndex, paragraphs.length]);
 
   // 프롬프터 모드를 나갈 때 녹화/스크롤/리모컨 채널이 백그라운드에 남지 않도록 정리한다.
   useEffect(() => {
@@ -643,8 +647,14 @@ export default function PrompterPage() {
     };
 
     channel.on("broadcast", { event: "command" }, ({ payload }) => {
+      const sourceId = typeof payload.sourceId === "string" ? payload.sourceId : "legacy";
+      const commandSeq = typeof payload.seq === "number" ? payload.seq : 0;
+      const previousSeq = lastRemoteCommandSeqRef.current.get(sourceId) ?? -1;
+      if (commandSeq && !isNewerSequence(commandSeq, previousSeq)) return;
+      if (commandSeq) lastRemoteCommandSeqRef.current.set(sourceId, commandSeq);
       switch (payload.type) {
         case "toggle": togglePlayback(); break;
+        case "playing": setScrolling(Boolean(payload.value)); break;
         case "play": startPlayback(); break;
         case "pause": stopPlayback(); break;
         case "restart":
@@ -660,8 +670,8 @@ export default function PrompterPage() {
           else jumpParagraph(-1);
           break;
         case "speed": setSpeed(payload.value); break;
-        case "flipH": setFlipH((v) => !v); break;
-        case "flipV": setFlipV((v) => !v); break;
+        case "flipH": setFlipH(typeof payload.value === "boolean" ? payload.value : (v) => !v); break;
+        case "flipV": setFlipV(typeof payload.value === "boolean" ? payload.value : (v) => !v); break;
         case "hAlign": setHAlign(payload.value); break;
         case "vAlign": setVAlign(payload.value); break;
         case "fontColor": setFontColor(payload.value); break;
@@ -673,6 +683,7 @@ export default function PrompterPage() {
         case "guideEnabled": setGuideEnabled(Boolean(payload.value)); break;
         case "guidePosition": setGuidePosition(Number(payload.value)); break;
         case "guideHighlight": setGuideHighlight(Boolean(payload.value)); break;
+        case "showControls": setShowControls(Boolean(payload.value)); break;
         case "seek": {
           // 리모컨에서 미리보기를 직접 드래그해서 스크롤 위치를 지정했을 때.
           const box = scrollBoxRef.current;
@@ -680,12 +691,13 @@ export default function PrompterPage() {
             const max = box.scrollHeight - box.clientHeight;
             box.scrollTop = Math.max(0, Math.min(payload.value * max, max));
             stopPlayback();
+            requestAnimationFrame(syncScrollProgress);
           }
           break;
         }
         case "requestContent":
           sendContent();
-          channel.send({ type: "broadcast", event: "state", payload: remoteStateSnapshotRef.current });
+          channel.send({ type: "broadcast", event: "state", payload: { ...remoteStateSnapshotRef.current, hostSeq: ++hostSequenceRef.current } });
           break;
       }
     });
@@ -696,9 +708,10 @@ export default function PrompterPage() {
         channel.send({
           type: "broadcast", event: "state",
           payload: {
+            hostSeq: ++hostSequenceRef.current,
             playing: false, elapsed: 0, speed, flipH, flipV, hAlign, vAlign,
             fontColor, fontFamily, fontSize, paragraphSpacing, bgColor, lineHeight,
-            guideEnabled, guidePosition, guideHighlight,
+            guideEnabled, guidePosition, guideHighlight, showControls, recording,
             editorMode, slideIndex: 0, totalSlides: slides.length,
             paragraphIndex: 0, totalParagraphs: paragraphs.length, scrollProgress: 0,
             viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,

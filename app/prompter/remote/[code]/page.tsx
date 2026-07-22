@@ -8,7 +8,7 @@ import {
   AlignLeft, AlignCenter, AlignRight,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
   Mic, Square, ChevronLeft, ChevronRight, AlignVerticalSpaceAround, AlignVerticalDistributeCenter,
-  Scan, Palette, Maximize, Minimize,
+  Scan, Palette, Maximize, Minimize, Smartphone,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import {
@@ -22,6 +22,7 @@ import {
   recommendRemoteDisplayMode,
   type RemoteDisplayMode,
 } from "@/lib/prompter/remoteDisplayMode";
+import { extendInteractionLease, isNewerSequence } from "@/lib/prompter/realtimeSync";
 
 // 구형 Safari 등 지원 코덱이 다를 수 있어 순서대로 확인 후 첫 번째 지원되는 것을 쓴다.
 function pickSupportedAudioMimeType(): string | undefined {
@@ -36,6 +37,11 @@ export default function PrompterRemotePage() {
   const params = useParams();
   const code = String(params.code);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const sourceIdRef = useRef("");
+  const commandSequenceRef = useRef(0);
+  const lastHostStateSequenceRef = useRef(0);
+  const lastHostScrollSequenceRef = useRef(0);
+  const localScrollControlUntilRef = useRef(0);
   const [connected, setConnected] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -59,6 +65,8 @@ export default function PrompterRemotePage() {
   const [guideEnabled, setGuideEnabled] = useState(false);
   const [guidePosition, setGuidePosition] = useState(40);
   const [guideHighlight, setGuideHighlight] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [hostRecording, setHostRecording] = useState(false);
   const [displayMode, setDisplayMode] = useState<RemoteDisplayMode>("remote");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hostViewport, setHostViewport] = useState({ width: 1280, height: 720 });
@@ -72,11 +80,7 @@ export default function PrompterRemotePage() {
       screenWidth: window.screen.width,
       screenHeight: window.screen.height,
     }));
-    const onFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener("fullscreenchange", onFullscreen);
-    return () => {
-      document.removeEventListener("fullscreenchange", onFullscreen);
-    };
+    return undefined;
   }, []);
 
   // 실행화면 미리보기 — 실제 대본 내용을 받아서 그대로 축소 표시하고, 직접 드래그해서 스크롤 위치를 지정할 수 있다.
@@ -89,7 +93,9 @@ export default function PrompterRemotePage() {
   const previewFrameRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const isDraggingPreviewRef = useRef(false);
+  const pointerActiveRef = useRef(false);
   const lastSeekSentRef = useRef(0);
+  const scrollSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 화면이 꺼지지 않게 — 촬영 중 리모컨을 보다가 폰이 잠들어 조작이 끊기는 걸 막는다.
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
@@ -116,9 +122,12 @@ export default function PrompterRemotePage() {
   }, []);
 
   useEffect(() => {
+    if (!sourceIdRef.current) sourceIdRef.current = crypto.randomUUID();
     const supabase = getSupabase();
     const channel = supabase.channel(`prompter-${code}`, { config: { broadcast: { self: false } } });
     channel.on("broadcast", { event: "state" }, ({ payload }) => {
+      if (!isNewerSequence(payload.hostSeq, lastHostStateSequenceRef.current)) return;
+      if (typeof payload.hostSeq === "number") lastHostStateSequenceRef.current = payload.hostSeq;
       setConnected(true);
       setPlaying(payload.playing);
       setElapsed(payload.elapsed);
@@ -136,6 +145,8 @@ export default function PrompterRemotePage() {
       if (payload.guideEnabled != null) setGuideEnabled(payload.guideEnabled);
       if (payload.guidePosition != null) setGuidePosition(payload.guidePosition);
       if (payload.guideHighlight != null) setGuideHighlight(payload.guideHighlight);
+      if (payload.showControls != null) setShowControls(payload.showControls);
+      if (payload.recording != null) setHostRecording(payload.recording);
       if (payload.editorMode) setEditorMode(payload.editorMode);
       if (payload.slideIndex != null) setSlideIndex(payload.slideIndex);
       if (payload.totalSlides != null) setTotalSlides(payload.totalSlides);
@@ -146,7 +157,9 @@ export default function PrompterRemotePage() {
         setHostViewport({ width: Number(payload.viewportWidth), height: Number(payload.viewportHeight) });
       }
       // 미리보기를 손으로 드래그하는 동안엔 실행화면 쪽 위치로 되돌리지 않는다 (터치가 끝나면 다시 따라간다).
-      if (payload.scrollProgress != null && !isDraggingPreviewRef.current) {
+      const stateCanMoveScroll = isNewerSequence(payload.hostSeq, lastHostScrollSequenceRef.current);
+      if (payload.scrollProgress != null && stateCanMoveScroll && Date.now() >= localScrollControlUntilRef.current) {
+        if (typeof payload.hostSeq === "number") lastHostScrollSequenceRef.current = payload.hostSeq;
         const el = previewRef.current;
         if (el) {
           const max = el.scrollHeight - el.clientHeight;
@@ -155,7 +168,9 @@ export default function PrompterRemotePage() {
       }
     });
     channel.on("broadcast", { event: "frame" }, ({ payload }) => {
-      if (typeof payload.scrollProgress !== "number" || isDraggingPreviewRef.current) return;
+      if (!isNewerSequence(payload.hostSeq, lastHostScrollSequenceRef.current)) return;
+      if (typeof payload.hostSeq === "number") lastHostScrollSequenceRef.current = payload.hostSeq;
+      if (typeof payload.scrollProgress !== "number" || Date.now() < localScrollControlUntilRef.current) return;
       setScrollProgress(payload.scrollProgress);
       const el = previewRef.current;
       if (el) {
@@ -181,11 +196,14 @@ export default function PrompterRemotePage() {
   }, [code]);
 
   const send = (type: string, value?: unknown) => {
-    channelRef.current?.send({ type: "broadcast", event: "command", payload: { type, value } });
+    channelRef.current?.send({
+      type: "broadcast",
+      event: "command",
+      payload: { type, value, sourceId: sourceIdRef.current, seq: ++commandSequenceRef.current },
+    });
   };
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else document.documentElement.requestFullscreen().catch(() => {});
+    setIsFullscreen((value) => !value);
   };
   const selectDisplayMode = (mode: RemoteDisplayMode) => {
     setDisplayMode(mode);
@@ -224,11 +242,28 @@ export default function PrompterRemotePage() {
     setRecording(false);
   }, []);
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
+  useEffect(() => () => { if (scrollSettleTimerRef.current) clearTimeout(scrollSettleTimerRef.current); }, []);
 
   const isSlideMode = editorMode === "slides";
   const isMirrorMode = displayMode === "mirror";
   const vAlignPercent = vAlign === "top" ? 12 : vAlign === "bottom" ? 88 : 50;
   const tabletTransform = `translateX(-50%) scale(${mirrorScale}) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`;
+  const commitLocalScroll = () => {
+    isDraggingPreviewRef.current = false;
+    const el = previewRef.current;
+    if (!el || isSlideMode) return;
+    const max = el.scrollHeight - el.clientHeight;
+    send("seek", max > 0 ? el.scrollTop / max : 0);
+  };
+  const scheduleLocalScrollCommit = (delay = 140) => {
+    if (scrollSettleTimerRef.current) clearTimeout(scrollSettleTimerRef.current);
+    scrollSettleTimerRef.current = setTimeout(commitLocalScroll, delay);
+  };
+  const finishLocalScroll = () => {
+    pointerActiveRef.current = false;
+    localScrollControlUntilRef.current = extendInteractionLease(localScrollControlUntilRef.current, Date.now(), 700);
+    scheduleLocalScrollCommit();
+  };
 
   useEffect(() => {
     if (!isMirrorMode) return;
@@ -245,18 +280,26 @@ export default function PrompterRemotePage() {
   }, [isMirrorMode, hostViewport.width, hostViewport.height]);
 
   return (
-    <main className={`pt-remote-page ${displayMode}`} style={{ height: "100dvh", background: "#0d1f1e", color: "#fff", padding: isMirrorMode ? "8px 12px 36dvh" : "10px 14px", display: "flex", flexDirection: "column", gap: 7, overflowY: "auto", boxSizing: "border-box" }}>
-      <div style={{ textAlign: "center", position: "relative" }}>
-        <p style={{ fontSize: 11, color: connected ? "#5cff8f" : "#ff9c5c", fontWeight: 700 }}>
+    <main className={`pt-remote-page ${displayMode}${isFullscreen ? " immersive" : ""}`} style={{ height: "100dvh", background: "#0d1f1e", color: "#fff", padding: isMirrorMode ? 0 : "10px 14px", display: "flex", flexDirection: "column", gap: 7, overflowY: isMirrorMode ? "hidden" : "auto", boxSizing: "border-box" }}>
+      <div className="pt-remote-header" style={{ textAlign: "center", position: "relative" }}>
+        <p className="pt-remote-connection" style={{ fontSize: 11, color: connected ? "#5cff8f" : "#ff9c5c", fontWeight: 700 }}>
           {connected ? "● 연결됨" : "○ 프롬프터 연결 대기 중…"}
         </p>
-        <p style={{ fontSize: 28, fontWeight: 900, fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>{fmtTime(elapsed)}</p>
+        <p className="pt-remote-timer" style={{ fontSize: 28, fontWeight: 900, fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>{fmtTime(elapsed)}</p>
+        {hostRecording && <span className="pt-mirror-rec">● REC</span>}
         {isSlideMode
           ? <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{totalSlides ? slideIndex + 1 : 0} / {totalSlides}</p>
           : totalParagraphs > 0 && <p style={{ fontSize: 11, color: "#9BB5B0", fontWeight: 700 }}>{paragraphIndex + 1} / {totalParagraphs} 문단</p>}
-        <button onClick={toggleFullscreen} aria-label={isFullscreen ? "전체화면 종료" : "전체화면"} style={{ position: "absolute", right: 0, top: 2, width: 34, height: 34, borderRadius: 10, border: "1px solid rgba(255,255,255,.2)", background: "rgba(255,255,255,.1)", color: "#fff", display: "grid", placeItems: "center" }}>
+        <button className="pt-remote-compact-fullscreen" onClick={toggleFullscreen} aria-label={isFullscreen ? "전체화면 종료" : "전체화면"} style={{ position: "absolute", right: 0, top: 2, width: 34, height: 34, borderRadius: 10, border: "1px solid rgba(255,255,255,.2)", background: "rgba(255,255,255,.1)", color: "#fff", display: "grid", placeItems: "center" }}>
           {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
         </button>
+        {isMirrorMode && (
+          <div className="pt-mirror-top-actions">
+            <button onClick={() => selectDisplayMode("remote")} className="pt-icon-btn"><Smartphone size={14} /> 리모컨</button>
+            <button onClick={toggleFullscreen} className="pt-icon-btn">{isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />} {isFullscreen ? "전체화면 종료" : "전체화면"}</button>
+            <button onClick={() => { const next = !showControls; setShowControls(next); send("showControls", next); }} className="pt-icon-btn">{showControls ? "설정 숨기기" : "설정"}</button>
+          </div>
+        )}
       </div>
 
       <div className="pt-remote-mode-switch" role="group" aria-label="리모트 화면 모드">
@@ -266,9 +309,11 @@ export default function PrompterRemotePage() {
 
       {/* 실행화면 진행률 바 — 직접 드래그해서 원하는 위치로 바로 이동시킬 수 있다 (스크러버). */}
       {!isSlideMode && (
-        <div
+        <div className="pt-remote-progress"
           onPointerDown={(e) => {
             isDraggingPreviewRef.current = true;
+            pointerActiveRef.current = true;
+            localScrollControlUntilRef.current = extendInteractionLease(localScrollControlUntilRef.current, Date.now(), 1000);
             (e.target as HTMLElement).setPointerCapture(e.pointerId);
             const rect = e.currentTarget.getBoundingClientRect();
             const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -281,13 +326,14 @@ export default function PrompterRemotePage() {
             const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
             setScrollProgress(p);
             const now = Date.now();
-            if (now - lastSeekSentRef.current > 80) {
+            localScrollControlUntilRef.current = extendInteractionLease(localScrollControlUntilRef.current, now, 450);
+            if (now - lastSeekSentRef.current > 32) {
               lastSeekSentRef.current = now;
               send("seek", p);
             }
           }}
-          onPointerUp={() => { isDraggingPreviewRef.current = false; }}
-          onPointerCancel={() => { isDraggingPreviewRef.current = false; }}
+          onPointerUp={finishLocalScroll}
+          onPointerCancel={finishLocalScroll}
           style={{ height: 18, display: "flex", alignItems: "center", cursor: "pointer", touchAction: "none" }}
         >
           <div style={{ width: "100%", height: 6, borderRadius: 999, background: "rgba(255,255,255,.15)", overflow: "hidden" }}>
@@ -297,19 +343,21 @@ export default function PrompterRemotePage() {
       )}
 
       {/* 실행화면 미리보기 — 실제 대본이 그대로 보이고, 손가락으로 직접 스크롤해서 위치를 옮길 수 있다 */}
-      <div ref={previewFrameRef} style={{ position: "relative", flex: isMirrorMode ? "1 1 auto" : "none", minHeight: 0, overflow: "hidden", borderRadius: 14, background: bgColor }}>
+      <div ref={previewFrameRef} className="pt-remote-preview-frame" style={{ position: "relative", flex: isMirrorMode ? "1 1 auto" : "none", minHeight: 0, overflow: "hidden", borderRadius: isMirrorMode ? 0 : 14, background: bgColor }}>
         <div
           ref={previewRef}
-          onPointerDown={() => { isDraggingPreviewRef.current = true; }}
-          onPointerUp={() => { isDraggingPreviewRef.current = false; }}
-          onPointerCancel={() => { isDraggingPreviewRef.current = false; }}
+          onPointerDown={() => { isDraggingPreviewRef.current = true; pointerActiveRef.current = true; localScrollControlUntilRef.current = extendInteractionLease(localScrollControlUntilRef.current, Date.now(), 1000); }}
+          onPointerUp={finishLocalScroll}
+          onPointerCancel={finishLocalScroll}
           onScroll={() => {
             const el = previewRef.current;
             if (!el || isSlideMode || !isDraggingPreviewRef.current) return;
             const max = el.scrollHeight - el.clientHeight;
             const progress = max > 0 ? el.scrollTop / max : 0;
             const now = Date.now();
-            if (now - lastSeekSentRef.current > 80) {
+            localScrollControlUntilRef.current = extendInteractionLease(localScrollControlUntilRef.current, now, 450);
+            if (!pointerActiveRef.current) scheduleLocalScrollCommit();
+            if (now - lastSeekSentRef.current > 32) {
               lastSeekSentRef.current = now;
               send("seek", progress);
             }
@@ -361,7 +409,7 @@ export default function PrompterRemotePage() {
         )}
       </div>
 
-      <div className="pt-remote-controls">
+      {(!isMirrorMode || showControls) && <div className="pt-remote-controls">
       {isSlideMode ? (
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => send("prevSlide")} style={{ flex: 1, padding: "13px 0", borderRadius: 14, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -375,7 +423,7 @@ export default function PrompterRemotePage() {
         <>
           <button
             className="pt-remote-play"
-            onClick={() => send("toggle")}
+            onClick={() => { const next = !playing; setPlaying(next); send("playing", next); }}
             style={{ padding: "17px 0", borderRadius: 16, background: playing ? "#e85d2c" : "#155855", border: "none", color: "#fff", fontSize: 18, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}
           >
             {playing ? <><Pause size={24} /> 일시정지</> : <><Play size={24} /> 재생</>}
@@ -395,10 +443,10 @@ export default function PrompterRemotePage() {
         <button onClick={() => send("restart")} style={{ flex: 1, padding: 14, borderRadius: 14, background: "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <RotateCcw size={18} /> 처음
         </button>
-        <button onClick={() => { setFlipH((v) => !v); send("flipH"); }} style={{ flex: 1, padding: 14, borderRadius: 14, background: flipH ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <button onClick={() => { const next = !flipH; setFlipH(next); send("flipH", next); }} style={{ flex: 1, padding: 14, borderRadius: 14, background: flipH ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <FlipHorizontal size={18} /> 좌우
         </button>
-        <button onClick={() => { setFlipV((v) => !v); send("flipV"); }} style={{ flex: 1, padding: 14, borderRadius: 14, background: flipV ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <button onClick={() => { const next = !flipV; setFlipV(next); send("flipV", next); }} style={{ flex: 1, padding: 14, borderRadius: 14, background: flipV ? "#e85d2c" : "rgba(255,255,255,.1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <FlipVertical size={18} /> 상하
         </button>
       </div>
@@ -525,7 +573,7 @@ export default function PrompterRemotePage() {
           </div>
         )}
       </div>
-      </div>
+      </div>}
     </main>
   );
 }
