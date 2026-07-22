@@ -213,11 +213,6 @@ export default function PrompterRemotePage() {
             display: "flex", flexDirection: "column", justifyContent: isSlideMode ? "center" : "flex-start",
           }}
         >
-        {countdown !== null && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 14, zIndex: 2 }}>
-            <span style={{ fontSize: 56, fontWeight: 900, color: "#fff" }}>{countdown}</span>
-          </div>
-        )}
         {isSlideMode ? (
           <p style={{ color: fontColor, fontFamily, fontSize: Math.max(10, fontSize * 0.22), textAlign: hAlign, whiteSpace: "pre-wrap", margin: 0 }}>
             {previewSlides[slideIndex] ?? ""}
