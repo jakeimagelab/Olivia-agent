@@ -396,16 +396,30 @@ export default function PrompterPage() {
   }, [scrolling]);
 
   /* ── 리모컨으로 상태 방송 — 설정이 뭐 하나라도 바뀌면(재생 중이 아니어도) 바로 리모컨에도 반영한다.
-     예전엔 재생 중일 때만 방송해서, 일시정지 상태에서 속도를 바꾸면 리모컨엔 안 보이는 버그가 있었다. ── */
+     예전엔 재생 중일 때만 방송해서, 일시정지 상태에서 속도를 바꾸면 리모컨엔 안 보이는 버그가 있었다.
+     단, 슬라이더를 드래그하는 동안엔 값이 프레임마다 바뀌어 방송이 폭주하면서 화면(및 리모컨) 쪽이
+     끊겨 보이므로, 80ms에 한 번으로 제한하고 마지막 값은 반드시 반영되게 트레일링으로 한 번 더 보낸다. ── */
+  const lastBroadcastRef = useRef(0);
+  const pendingBroadcastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    channelRef.current?.send({
-      type: "broadcast", event: "state",
-      payload: {
-        playing: scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign,
-        fontColor, fontFamily, fontSize, paragraphSpacing,
-        editorMode, slideIndex, totalSlides: slides.length,
-      },
-    });
+    const payload = {
+      playing: scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign,
+      fontColor, fontFamily, fontSize, paragraphSpacing,
+      editorMode, slideIndex, totalSlides: slides.length,
+    };
+    const send = () => channelRef.current?.send({ type: "broadcast", event: "state", payload });
+    if (pendingBroadcastRef.current) { clearTimeout(pendingBroadcastRef.current); pendingBroadcastRef.current = null; }
+    const sinceLast = Date.now() - lastBroadcastRef.current;
+    if (sinceLast >= 80) {
+      lastBroadcastRef.current = Date.now();
+      send();
+    } else {
+      pendingBroadcastRef.current = setTimeout(() => {
+        lastBroadcastRef.current = Date.now();
+        send();
+      }, 80 - sinceLast);
+    }
+    return () => { if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current); };
   }, [scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign, fontColor, fontFamily, fontSize, paragraphSpacing, editorMode, slideIndex, slides.length]);
 
   // 프롬프터 모드를 나갈 때 녹화/스크롤/리모컨 채널이 백그라운드에 남지 않도록 정리한다.
