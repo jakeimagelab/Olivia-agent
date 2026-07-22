@@ -13,7 +13,7 @@ import {
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import PageHeader from "@/components/PageHeader";
 import { getSupabase } from "@/lib/supabase";
-import { FONT_OPTIONS, COLOR_OPTIONS, V_ALIGN_PADDING, fmtTime, type HAlign, type VAlign } from "@/lib/prompter/constants";
+import { FONT_OPTIONS, COLOR_OPTIONS, BG_COLOR_OPTIONS, V_ALIGN_PADDING, fmtTime, type HAlign, type VAlign } from "@/lib/prompter/constants";
 
 type Speaker = { id: string; name: string; color: string };
 type Project = { id: string; name: string; sceneCount: number; lastActivity: string; updated_at: string; speakers?: Speaker[] };
