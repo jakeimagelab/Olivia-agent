@@ -307,6 +307,14 @@ export default function PrompterRemotePage() {
               onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) { const c = Math.max(0, v); setParagraphSpacing(c); send("paragraphSpacing", c); } }}
             />
           </div>
+          <div className="pt-remote-slider-row">
+            <label><AlignVerticalDistributeCenter size={13} /> 줄간격</label>
+            <input
+              type="range" min={1.2} max={2.4} step={0.1} value={lineHeight}
+              onChange={(e) => { const v = Number(e.target.value); setLineHeight(v); send("lineHeight", v); }}
+              style={orangeRange}
+            />
+          </div>
         </>
       )}
 
