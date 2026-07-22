@@ -410,6 +410,7 @@ export default function PrompterPage() {
       playing: scrolling, elapsed, speed, flipH, flipV, hAlign, vAlign,
       fontColor, fontFamily, fontSize, paragraphSpacing,
       editorMode, slideIndex, totalSlides: slides.length,
+      paragraphIndex, totalParagraphs: paragraphs.length,
     };
     const send = () => channelRef.current?.send({ type: "broadcast", event: "state", payload });
     if (pendingBroadcastRef.current) { clearTimeout(pendingBroadcastRef.current); pendingBroadcastRef.current = null; }
