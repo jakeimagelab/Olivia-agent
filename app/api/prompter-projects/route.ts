@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getPrompterScope } from "@/lib/prompter/scope";
+import { getPrompterScope, assertProjectOwned } from "@/lib/prompter/scope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,9 +14,12 @@ export async function GET(req: NextRequest) {
   const db = getSupabaseAdmin();
   let query = db
     .from("prompter_projects")
-    .select("id,name,created_at,updated_at,speakers")
+    .select("id,name,created_at,updated_at,speakers,public_share_token")
     .order("updated_at", { ascending: false });
-  query = scope.isAdmin ? query.is("share_token", null) : query.eq("share_token", scope.shareToken);
+  // 공유 세션은 (1) 자기가 만든 프로젝트 또는 (2) 관리자가 통째로 공유해준 실제 프로젝트를 본다.
+  query = scope.isAdmin
+    ? query.is("share_token", null)
+    : query.or(`share_token.eq.${scope.shareToken},public_share_token.eq.${scope.shareToken}`);
   const { data: projects, error } = await query;
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
