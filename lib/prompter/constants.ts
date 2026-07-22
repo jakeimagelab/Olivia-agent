@@ -15,6 +15,7 @@ export const FONT_OPTIONS = [
 ];
 
 export const COLOR_OPTIONS = ["#FFFFFF", "#FFD400", "#FF5C5C", "#5CFF8F", "#5CB8FF"];
+export const BG_COLOR_OPTIONS = ["#000000", "#FFFFFF", "#00B140"];
 
 export const V_ALIGN_PADDING: Record<VAlign, { top: string; bottom: string }> = {
   top: { top: "12vh", bottom: "88vh" },
