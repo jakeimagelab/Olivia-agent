@@ -371,6 +371,8 @@ export default function PrompterPage() {
   const guideHighlightRef = useRef(guideHighlight);
   useEffect(() => { guideHighlightRef.current = guideHighlight; }, [guideHighlight]);
   const focusedParagraphIndexRef = useRef<number | null>(null);
+  const countdownEnabledRef = useRef(countdownEnabled);
+  useEffect(() => { countdownEnabledRef.current = countdownEnabled; }, [countdownEnabled]);
 
   /* ── 자동 스크롤 (전체 텍스트 모드) ── */
   useEffect(() => {
