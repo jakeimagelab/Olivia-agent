@@ -869,7 +869,10 @@ export default function PrompterPage() {
           actions={<>
             <button onClick={backToProjects} className="pt-btn"><ChevronLeft size={15} /> 프로젝트 목록</button>
             <button onClick={runAiReview} className="pt-btn" disabled={!text.trim() || aiReviewLoading}><Sparkles size={15} /> {aiReviewLoading ? "검토 중..." : "AI 검토"}</button>
-            <button onClick={saveScene} className="pt-btn" disabled={!text.trim() || saving}><Save size={16} /> {saving ? "저장 중..." : "저장"}</button>
+            <button onClick={() => saveScene()} className="pt-btn" disabled={!text.trim() || saving}><Save size={16} /> {saving ? "저장 중..." : "저장"}</button>
+            {!saving && lastAutoSavedAt && (
+              <span style={{ fontSize: 11, color: "#8aa39f", alignSelf: "center" }}>저장됨 · 방금 전</span>
+            )}
             <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행 →</button>
           </>}
         />
