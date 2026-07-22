@@ -1100,6 +1100,36 @@ export default function PrompterPage() {
             </div>
           </div>
         )}
+
+        {showShareModal && currentProject?.public_share_token && (
+          <div className="pt-modal-backdrop" onClick={() => setShowShareModal(false)}>
+            <div className="pt-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
+              <strong style={{ fontSize: 15 }}>프로젝트 전체 공유 중</strong>
+              <p style={{ fontSize: 12, color: "#6a8e8a", margin: "6px 0 12px" }}>
+                이 링크를 받은 사람은 &quot;{currentProject.name}&quot; 프로젝트의 실제 씬을 그대로 보고 편집할 수 있습니다.
+              </p>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/s/${currentProject.public_share_token}`)}`}
+                alt="공유 QR코드" style={{ margin: "0 auto 12px", display: "block" }}
+              />
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <input
+                  readOnly value={`${typeof window !== "undefined" ? window.location.origin : ""}/s/${currentProject.public_share_token}`}
+                  style={{ flex: 1, minWidth: 0, padding: "8px 10px", fontSize: 12, border: "1px solid #E0E8E6", borderRadius: 8, background: "#fafcfb" }}
+                  onFocus={(e) => e.target.select()}
+                />
+                <button
+                  className="pt-btn"
+                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}/s/${currentProject.public_share_token}`)}
+                >복사</button>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setShowShareModal(false)} className="pt-btn" style={{ flex: 1 }}>닫기</button>
+                <button onClick={unshareProject} className="pt-btn" style={{ flex: 1, color: "#b04a3a", borderColor: "#f2c9c0" }}>공유 해제</button>
+              </div>
+            </div>
+          </div>
+        )}
         {projectModal}
       </main>
     );
