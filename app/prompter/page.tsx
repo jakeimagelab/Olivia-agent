@@ -524,9 +524,32 @@ export default function PrompterPage() {
   const resetTimer = () => {
     setElapsed(0);
     setParagraphIndex(0);
+    setCountdown(null);
+    if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
     if (editorMode === "slides") { setSlideIndex(0); return; }
     // scrollTop은 flipV와 무관하게 항상 0이 "처음"이다 (뒤집힌 화면은 CSS scaleY로만 처리).
     if (scrollBoxRef.current) scrollBoxRef.current.scrollTop = 0;
+  };
+
+  /* ── 재생 시작/정지 — 실행화면이 카운트다운의 유일한 소스다. 리모컨 명령도 항상 이 함수들을
+     거치게 해서 두 화면의 카운트다운이 어긋나지 않게 한다. ── */
+  const startPlayback = () => {
+    if (isSlideModeRef.current) { setScrolling(true); return; }
+    if (countdownEnabledRef.current) {
+      setScrolling(false);
+      setCountdown(3);
+    } else {
+      setScrolling(true);
+    }
+  };
+  const stopPlayback = () => {
+    setCountdown(null);
+    if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
+    setScrolling(false);
+  };
+  const togglePlayback = () => {
+    if (scrolling || countdown !== null) stopPlayback();
+    else startPlayback();
   };
 
   /* ── 전체 텍스트 모드에서 특정 문단을 화면 맨 위로 이동 (리모컨의 이전/다음 문단 버튼용) ── */
