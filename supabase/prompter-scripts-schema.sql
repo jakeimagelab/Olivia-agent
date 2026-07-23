@@ -4,6 +4,7 @@ create table if not exists public.prompter_scripts (
   client_id   uuid references public.clients(id) on delete set null,
   title       text not null default '제목 없는 대본',
   content     text not null default '',
+  notes       text not null default '',
   is_shot     boolean not null default false,
   gesture_map jsonb not null default '[]'::jsonb,
   created_at  timestamptz not null default now(),
@@ -14,5 +15,6 @@ create index if not exists prompter_scripts_client_id_idx on public.prompter_scr
 
 alter table public.prompter_scripts add column if not exists is_shot boolean not null default false;
 alter table public.prompter_scripts add column if not exists gesture_map jsonb not null default '[]'::jsonb;
+alter table public.prompter_scripts add column if not exists notes text not null default '';
 
 notify pgrst, 'reload schema';

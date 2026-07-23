@@ -37,11 +37,13 @@ export async function POST(req: NextRequest) {
       id: linkData.user.id,
       email: ADMIN_CHAT_EMAIL,
       display_name: ADMIN_CHAT_DISPLAY_NAME,
+      is_admin: true,
     });
     if (memberError) {
       return NextResponse.json({ ok: false, error: memberError.message }, { status: 500 });
     }
   }
+  await db.from("chat_members").update({ is_admin: true }).eq("id", linkData.user.id);
 
   const supabase = await getTeamChatSupabaseServer();
   const { error: verifyError } = await supabase.auth.verifyOtp({

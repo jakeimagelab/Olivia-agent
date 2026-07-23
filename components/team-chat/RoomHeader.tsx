@@ -44,6 +44,11 @@ export default function RoomHeader({
         <div style={{ fontSize: 11, color: C.muted, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {members.map((m) => m.display_name).join(", ")}
         </div>
+        {room.team_project ? (
+          <Link href={`/team/projects/${room.team_project.id}`} style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 5, color: C.teal, fontSize: 10, fontWeight: 800, textDecoration: "none" }}>
+            {room.team_project.name} · 진행률 {room.team_project.progress}% · {room.team_project.status}
+          </Link>
+        ) : null}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative", flexShrink: 0 }}>
         <OliviaToggle enabled={room.olivia_enabled} onChange={onToggleOlivia} />

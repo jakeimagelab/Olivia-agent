@@ -31,19 +31,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "projectId 필수" }, { status: 400 });
   }
 
-  const buildQuery = (includeProductionFields: boolean) => {
+  const buildQuery = (includeProductionFields: boolean, includeNotes: boolean) => {
     let query = db
       .from("prompter_scripts")
-      .select(`id,title,subject,content,client_id,project_id,editor_mode,speaker_map,sort_order,updated_at${includeProductionFields ? ",is_shot,gesture_map" : ""}`)
+      .select(`id,title,subject,content,client_id,project_id,editor_mode,speaker_map,sort_order,updated_at${includeProductionFields ? ",is_shot,gesture_map" : ""}${includeNotes ? ",notes" : ""}`)
       .order("sort_order", { ascending: true })
       .limit(200);
     if (clientId) query = query.eq("client_id", clientId);
     if (projectId) query = query.eq("project_id", projectId);
     return query;
   };
-  let { data, error } = await buildQuery(true);
+  let { data, error } = await buildQuery(true, true);
+  if (error && /notes|column/i.test(error.message)) {
+    const withoutNotes = await buildQuery(true, false);
+    data = withoutNotes.data;
+    error = withoutNotes.error;
+  }
   if (error && /is_shot|gesture_map|column/i.test(error.message)) {
-    const legacyResult = await buildQuery(false);
+    const legacyResult = await buildQuery(false, false);
     if (legacyResult.error) {
       return NextResponse.json({ ok: false, error: legacyResult.error.message }, { status: 500 });
     }
@@ -78,6 +83,7 @@ export async function POST(req: NextRequest) {
       title: body.title?.trim() || "제목 없는 씬",
       subject: body.subject?.trim() ?? "",
       content: body.content,
+      notes: typeof body.notes === "string" ? body.notes.slice(0, 5000) : "",
       editor_mode: body.editorMode === "slides" ? "slides" : "text",
       speaker_map: Array.isArray(body.speakerMap) ? body.speakerMap : [],
       is_shot: Boolean(body.isShot),
@@ -85,8 +91,8 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
     let { data, error } = await db.from("prompter_scripts").update(payload).eq("id", body.id).select().single();
-    if (error && /is_shot|gesture_map|column/i.test(error.message)) {
-      const { is_shot: _isShot, gesture_map: _gestureMap, ...legacyPayload } = payload;
+    if (error && /is_shot|gesture_map|notes|column/i.test(error.message)) {
+      const { is_shot: _isShot, gesture_map: _gestureMap, notes: _notes, ...legacyPayload } = payload;
       legacyPayload.speaker_map = encodeLegacySceneMetadata(payload.speaker_map, payload.is_shot, payload.gesture_map);
       ({ data, error } = await db.from("prompter_scripts").update(legacyPayload).eq("id", body.id).select().single());
     }
@@ -113,6 +119,7 @@ export async function POST(req: NextRequest) {
     title: body.title?.trim() || "제목 없는 씬",
     subject: body.subject?.trim() ?? "",
     content: body.content,
+    notes: typeof body.notes === "string" ? body.notes.slice(0, 5000) : "",
     editor_mode: body.editorMode === "slides" ? "slides" : "text",
     speaker_map: Array.isArray(body.speakerMap) ? body.speakerMap : [],
     is_shot: Boolean(body.isShot),
@@ -123,8 +130,8 @@ export async function POST(req: NextRequest) {
     updated_at: new Date().toISOString(),
   };
   let { data, error } = await db.from("prompter_scripts").insert(payload).select().single();
-  if (error && /is_shot|gesture_map|column/i.test(error.message)) {
-    const { is_shot: _isShot, gesture_map: _gestureMap, ...legacyPayload } = payload;
+  if (error && /is_shot|gesture_map|notes|column/i.test(error.message)) {
+    const { is_shot: _isShot, gesture_map: _gestureMap, notes: _notes, ...legacyPayload } = payload;
     legacyPayload.speaker_map = encodeLegacySceneMetadata(payload.speaker_map, payload.is_shot, payload.gesture_map);
     ({ data, error } = await db.from("prompter_scripts").insert(legacyPayload).select().single());
   }

@@ -177,3 +177,79 @@ export async function getDriveConnectionStatus(): Promise<{ connected: boolean; 
   const { data } = await db.from("chat_drive_connection").select("google_email").eq("id", 1).maybeSingle();
   return { connected: Boolean(data), email: data?.google_email ?? null };
 }
+
+// 팀 워크스페이스 업무 첨부는 기존 방 폴더/업로드 검증 체계를 그대로 사용한다.
+// 기존 채팅 첨부 함수는 변경하지 않고, 업무 테이블 기록만 별도 wrapper로 분리한다.
+export async function createTaskAttachmentUploadSession(params: {
+  taskId: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+}): Promise<{ uploadUrl: string; roomId: string }> {
+  const db = getSupabaseAdmin();
+  const { data: task } = await db
+    .from("team_tasks")
+    .select("room_id,project_id")
+    .eq("id", params.taskId)
+    .maybeSingle();
+  if (!task) throw new Error("업무를 찾을 수 없습니다.");
+  let roomId = task.room_id as string | null;
+  if (!roomId && task.project_id) {
+    const { data: projectRoom } = await db
+      .from("chat_rooms")
+      .select("id")
+      .eq("project_id", task.project_id)
+      .maybeSingle();
+    roomId = projectRoom?.id ?? null;
+  }
+  if (!roomId) throw new Error("결과물을 첨부하려면 업무를 채팅방 또는 프로젝트에 연결해주세요.");
+  const { data: room } = await db.from("chat_rooms").select("id,name").eq("id", roomId).maybeSingle();
+  if (!room) throw new Error("연결된 채팅방을 찾을 수 없습니다.");
+  const uploadUrl = await createResumableUploadSession({
+    roomId,
+    roomName: room.name,
+    fileName: params.fileName,
+    mimeType: params.mimeType,
+    fileSize: params.fileSize,
+  });
+  return { uploadUrl, roomId };
+}
+
+export async function verifyAndRecordTaskAttachment(params: {
+  taskId: string;
+  uploadedBy: string;
+  driveFileId: string;
+  fileName: string;
+  mimeType?: string;
+  sizeBytes?: number;
+}): Promise<Record<string, unknown>> {
+  const db = getSupabaseAdmin();
+  const { data: task } = await db
+    .from("team_tasks")
+    .select("room_id,project_id")
+    .eq("id", params.taskId)
+    .maybeSingle();
+  if (!task) throw new Error("업무를 찾을 수 없습니다.");
+  let roomId = task.room_id as string | null;
+  if (!roomId && task.project_id) {
+    const { data: projectRoom } = await db.from("chat_rooms").select("id").eq("project_id", task.project_id).maybeSingle();
+    roomId = projectRoom?.id ?? null;
+  }
+  if (!roomId) throw new Error("연결된 채팅방을 찾을 수 없습니다.");
+  const { data: room } = await db.from("chat_rooms").select("drive_folder_id").eq("id", roomId).maybeSingle();
+  const accessToken = await getDriveAccessToken();
+  const meta = await driveFetch(`/files/${params.driveFileId}?fields=id,parents,name,mimeType,size`, accessToken);
+  if (!room?.drive_folder_id || !(meta.parents ?? []).includes(room.drive_folder_id)) {
+    throw new Error("첨부파일이 연결된 업무 폴더 안에 없습니다.");
+  }
+  const { data: attachment, error } = await db.from("team_task_attachments").insert({
+    task_id: params.taskId,
+    uploaded_by: params.uploadedBy,
+    drive_file_id: params.driveFileId,
+    file_name: params.fileName,
+    mime_type: params.mimeType ?? meta.mimeType ?? null,
+    size_bytes: params.sizeBytes ?? (meta.size ? Number(meta.size) : null),
+  }).select("*").single();
+  if (error) throw new Error(error.message);
+  return attachment;
+}

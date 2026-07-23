@@ -6,11 +6,13 @@ import MessageBubble from "./MessageBubble";
 import type { ChatMember, ChatMessage } from "./types";
 
 export default function MessageThread({
-  messages, members, currentMemberId,
+  messages, members, currentMemberId, roomProjectId, onChanged,
 }: {
   messages: ChatMessage[];
   members: ChatMember[];
   currentMemberId: string;
+  roomProjectId?: string | null;
+  onChanged: () => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const nameById = new Map(members.map((m) => [m.id, m.display_name]));
@@ -32,6 +34,8 @@ export default function MessageThread({
           message={m}
           isOwn={m.sender_type === "member" && m.sender_member_id === currentMemberId}
           senderName={m.sender_member_id ? (nameById.get(m.sender_member_id) ?? "팀원") : "팀원"}
+          roomProjectId={roomProjectId}
+          onChanged={onChanged}
         />
       ))}
       <div ref={bottomRef} />

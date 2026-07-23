@@ -14,7 +14,7 @@ import NewRoomDialog from "./NewRoomDialog";
 import InviteMemberPanel from "./InviteMemberPanel";
 import type { ChatAttachment, ChatMember, ChatMessage, ChatRoom, TeamChatSession } from "./types";
 
-export default function TeamChatShell() {
+export default function TeamChatShell({ embedded = false }: { embedded?: boolean }) {
   const [session, setSession] = useState<TeamChatSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
@@ -105,6 +105,11 @@ export default function TeamChatShell() {
           setRooms((prev) => prev.map((r) => (r.id === activeRoomId ? { ...r, ...patch } : r)));
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "team_tasks", filter: `room_id=eq.${activeRoomId}` },
+        () => { loadRoomDetail(activeRoomId); }
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [activeRoomId, session?.member?.id]);
@@ -175,15 +180,15 @@ export default function TeamChatShell() {
   };
 
   if (loading) {
-    return <ShellState message="불러오는 중..." />;
+    return <ShellState message="불러오는 중..." embedded={embedded} />;
   }
   if (!session) {
-    return <ShellState message="세션을 확인할 수 없습니다." />;
+    return <ShellState message="세션을 확인할 수 없습니다." embedded={embedded} />;
   }
 
   // 관리자는 자동으로 채팅 계정을 준비하는 중 — 별도 화면 없이 짧게 로딩만 보여준다.
   if (!session.member && session.isAdmin && !adminJoinError) {
-    return <ShellState message="채팅 준비 중..." />;
+    return <ShellState message="채팅 준비 중..." embedded={embedded} />;
   }
 
   // 관리자 자동 가입이 실패했거나(드묾), 팀원 초대 링크로 들어왔는데 아직 chat_members 행이
@@ -215,7 +220,7 @@ export default function TeamChatShell() {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", height: "100vh", background: C.bg }}>
+    <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", height: embedded ? "100%" : "100vh", background: C.bg }}>
       <aside style={{ borderRight: `1px solid ${C.border}`, background: "#fff", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "16px 16px 0" }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: C.ink }}>{session.member.display_name}</div>
@@ -242,7 +247,13 @@ export default function TeamChatShell() {
               onToggleOlivia={toggleOlivia}
               onAddMember={addMember}
             />
-            <MessageThread messages={messages} members={roomMembers} currentMemberId={session.member.id} />
+            <MessageThread
+              messages={messages}
+              members={roomMembers}
+              currentMemberId={session.member.id}
+              roomProjectId={activeRoom.project_id}
+              onChanged={() => loadRoomDetail(activeRoom.id)}
+            />
             <Composer onSend={sendMessage} />
           </>
         ) : (
@@ -259,9 +270,9 @@ export default function TeamChatShell() {
   );
 }
 
-function ShellState({ message }: { message: string }) {
+function ShellState({ message, embedded = false }: { message: string; embedded?: boolean }) {
   return (
-    <main style={{ minHeight: "100vh", background: "var(--mesh-bg)", display: "grid", placeItems: "center" }}>
+    <main style={{ minHeight: embedded ? "100%" : "100vh", background: "var(--mesh-bg)", display: "grid", placeItems: "center" }}>
       <p style={{ fontSize: 13, color: C.muted }}>{message}</p>
     </main>
   );

@@ -22,6 +22,8 @@ export type ChatMessage = {
   body: string;
   created_at: string;
   chat_attachments?: ChatAttachment[];
+  metadata?: Record<string, unknown>;
+  linked_tasks?: Array<{ id: string; title: string; status: string }>;
 };
 
 export type ChatRoom = {
@@ -31,6 +33,11 @@ export type ChatRoom = {
   olivia_enabled: boolean;
   created_by: string;
   memberCount?: number;
+  room_type?: "general" | "project" | "announcement" | "direct";
+  project_id?: string | null;
+  client_id?: string | null;
+  is_announcement?: boolean;
+  team_project?: { id: string; name: string; progress: number; status: string } | null;
 };
 
 export type TeamChatSession = {

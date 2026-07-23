@@ -26,7 +26,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ room
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, messages: (data ?? []).reverse() });
+  const messageIds = (data ?? []).map((message) => message.id);
+  const { data: linkedTasks } = messageIds.length
+    ? await supabase
+        .from("team_tasks")
+        .select("id,title,status,source_message_id")
+        .in("source_message_id", messageIds)
+        .neq("status", "canceled")
+    : { data: [] };
+  const tasksByMessage = new Map<string, Array<{ id: string; title: string; status: string }>>();
+  for (const task of linkedTasks ?? []) {
+    const list = tasksByMessage.get(task.source_message_id) ?? [];
+    list.push({ id: task.id, title: task.title, status: task.status });
+    tasksByMessage.set(task.source_message_id, list);
+  }
+  return NextResponse.json({
+    ok: true,
+    messages: (data ?? []).reverse().map((message) => ({
+      ...message,
+      linked_tasks: tasksByMessage.get(message.id) ?? [],
+    })),
+  });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {

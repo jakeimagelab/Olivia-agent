@@ -1,5 +1,5 @@
-import TeamChatShell from "@/components/team-chat/TeamChatShell";
+import { redirect } from "next/navigation";
 
 export default function TeamChatPage() {
-  return <TeamChatShell />;
+  redirect("/team/chat");
 }

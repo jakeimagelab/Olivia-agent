@@ -6,7 +6,7 @@ import {
   Circle, Square, Save, Type, Gauge, X, Trash2, Plus,
   AlignLeft, AlignCenter, AlignRight,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  Smartphone, FileText, Rows3, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
+  Smartphone, TableProperties, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Building2, Pencil, AlignVerticalSpaceAround, Maximize, Minimize, GripVertical, Users, Sparkles,
   Scan, Palette, AlignVerticalDistributeCenter, Share2, Hand,
 } from "lucide-react";
@@ -22,7 +22,19 @@ import { isNewerSequence } from "@/lib/prompter/realtimeSync";
 
 type Speaker = { id: string; name: string; color: string };
 type Project = { id: string; name: string; sceneCount: number; lastActivity: string; updated_at: string; speakers?: Speaker[]; public_share_token?: string | null };
-type Scene = { id: string; title: string; subject?: string; content: string; editor_mode?: "text" | "slides"; speaker_map?: string[]; gesture_map?: string[]; is_shot?: boolean; updated_at: string };
+type Scene = {
+  id: string;
+  title: string;
+  subject?: string;
+  content: string;
+  notes?: string;
+  editor_mode?: "text" | "slides";
+  speaker_map?: string[];
+  gesture_map?: string[];
+  is_shot?: boolean;
+  updated_at: string;
+  isDraft?: boolean;
+};
 
 const SPEAKER_PALETTE = ["#E85D2C", "#155855", "#EB8F22", "#7C3AED", "#2563EB", "#569082"];
 
@@ -78,7 +90,10 @@ export default function PrompterPage() {
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
+  const [notes, setNotes] = useState("");
   const [editorMode, setEditorMode] = useState<"text" | "slides">("text");
+  const [sceneView, setSceneView] = useState<"editor" | "data">("editor");
+  const [savingDataTable, setSavingDataTable] = useState(false);
   const [sceneId, setSceneId] = useState<string | null>(null);
   const [isShot, setIsShot] = useState(false);
   const [gestureEditorEnabled, setGestureEditorEnabled] = useState(false);
@@ -278,7 +293,9 @@ export default function PrompterPage() {
     setScenesLoading(true);
     try {
       const res = await fetch(`/api/prompter-scripts?projectId=${projectId}`).then((r) => r.json());
-      setScenes(res.scripts ?? []);
+      const loadedScenes = (res.scripts ?? []) as Scene[];
+      setScenes(loadedScenes);
+      return loadedScenes;
     } finally {
       setScenesLoading(false);
     }
@@ -288,19 +305,22 @@ export default function PrompterPage() {
     setCurrentProject(p);
     loadScenes(p.id);
     newScene();
+    setSceneView("editor");
     setMode("scenes");
   };
   const backToProjects = () => { loadProjects(); setMode("projects"); };
 
   const newScene = () => {
     skipNextAutoSaveRef.current = true;
-    setText(""); setTitle(""); setSubject(""); setSceneId(null); setEditorMode("text");
+    setText(""); setTitle(""); setSubject(""); setNotes(""); setSceneId(null); setEditorMode("text");
     setSpeakerMap([]); setGestureMap([]); setIsShot(false); setMultiSpeakerMode(false); setGestureEditorEnabled(false);
   };
   const openScene = (s: Scene) => {
     skipNextAutoSaveRef.current = true;
-    setText(s.content); setTitle(s.title); setSubject(s.subject ?? ""); setSceneId(s.id);
-    setEditorMode(s.editor_mode === "slides" ? "slides" : "text");
+    setText(s.content); setTitle(s.title); setSubject(s.subject ?? ""); setNotes(s.notes ?? ""); setSceneId(s.id);
+    // 편집 화면은 하나의 대본 편집 방식으로 통일한다. 예전 슬라이드 데이터도 텍스트로 열어
+    // 기존 내용을 잃지 않고 새 편집 구조로 저장할 수 있다.
+    setEditorMode("text");
     const loadedMap = Array.isArray(s.speaker_map) ? s.speaker_map : [];
     const loadedGestures = Array.isArray(s.gesture_map) ? s.gesture_map : [];
     setSpeakerMap(loadedMap);
@@ -762,14 +782,14 @@ export default function PrompterPage() {
   // 걸린 상태에서 화자만 새로 배정했을 때, 타이머가 화자 배정 "이전" 시점의 오래된 speakerMap을
   // 들고 있는 클로저로 저장을 덮어써서 방금 한 화자 배정이 사라진 것처럼 보이는 버그가 있었다.
   useEffect(() => {
-    if (mode !== "scenes" || !currentProject) return;
+    if (mode !== "scenes" || sceneView !== "editor" || !currentProject) return;
     if (skipNextAutoSaveRef.current) { skipNextAutoSaveRef.current = false; return; }
     if (!text.trim()) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => { saveScene(true); }, 3000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, title, subject, mode, multiSpeakerMode, gestureEditorEnabled, speakerMap, gestureMap, isShot]);
+  }, [text, title, subject, notes, mode, sceneView, multiSpeakerMode, gestureEditorEnabled, speakerMap, gestureMap, isShot]);
 
   /* ── 저장/삭제 ── */
   const saveScene = async (silent = false) => {
@@ -785,10 +805,10 @@ export default function PrompterPage() {
       const res = await fetch("/api/prompter-scripts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: sceneId, projectId: currentProject.id, title: title || "제목 없는 씬", subject, content: contentToSave, editorMode, speakerMap: speakerMapToSave, gestureMap: gestureMapToSave, isShot }),
+        body: JSON.stringify({ id: sceneId, projectId: currentProject.id, title: title || "제목 없는 씬", subject, content: contentToSave, notes, editorMode, speakerMap: speakerMapToSave, gestureMap: gestureMapToSave, isShot }),
       }).then((r) => r.json());
       if (res.ok) {
-        setSceneId(res.script.id); setTitle(res.script.title); setSubject(res.script.subject ?? "");
+        setSceneId(res.script.id); setTitle(res.script.title); setSubject(res.script.subject ?? ""); setNotes(res.script.notes ?? notes);
         setGestureMap(Array.isArray(res.script.gesture_map) ? res.script.gesture_map : gestureMapToSave);
         setIsShot(Boolean(res.script.is_shot ?? isShot));
         setLastAutoSavedAt(Date.now());
@@ -802,6 +822,91 @@ export default function PrompterPage() {
       setSaving(false);
     }
   };
+
+  const updateSceneDataField = (id: string, field: "title" | "subject" | "content", value: string) => {
+    setScenes((prev) => prev.map((scene) => scene.id === id ? { ...scene, [field]: value } : scene));
+    if (sceneId !== id) return;
+    if (field === "title") setTitle(value);
+    if (field === "subject") setSubject(value);
+    if (field === "content") setText(value);
+  };
+
+  const addSceneDataRow = () => {
+    setScenes((prev) => [
+      ...prev,
+      {
+        id: `draft-${crypto.randomUUID()}`,
+        title: "",
+        subject: "",
+        content: "",
+        notes: "",
+        editor_mode: "text",
+        speaker_map: [],
+        gesture_map: [],
+        is_shot: false,
+        updated_at: new Date().toISOString(),
+        isDraft: true,
+      },
+    ]);
+  };
+
+  const removeSceneDataRow = async (scene: Scene) => {
+    if (scene.isDraft) {
+      setScenes((prev) => prev.filter((item) => item.id !== scene.id));
+      return;
+    }
+    if (!confirm("이 씬을 삭제할까요?")) return;
+    const result = await fetch(`/api/prompter-scripts/${scene.id}`, { method: "DELETE" }).then((response) => response.json());
+    if (!result.ok) {
+      alert(result.error || "삭제에 실패했습니다.");
+      return;
+    }
+    setScenes((prev) => prev.filter((item) => item.id !== scene.id));
+    if (sceneId === scene.id) newScene();
+  };
+
+  const saveSceneDataTable = async () => {
+    if (!currentProject || savingDataTable) return;
+    const rowsToSave = scenes.filter((scene) => !scene.isDraft || scene.title.trim() || scene.subject?.trim() || scene.content.trim());
+    const emptyScript = rowsToSave.find((scene) => !scene.content.trim());
+    if (emptyScript) {
+      alert(`"${emptyScript.title || "새 행"}"의 원본 대본을 입력해주세요.`);
+      return;
+    }
+
+    setSavingDataTable(true);
+    try {
+      for (const scene of rowsToSave) {
+        const response = await fetch("/api/prompter-scripts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: scene.isDraft ? undefined : scene.id,
+            projectId: currentProject.id,
+            title: scene.title || "제목 없는 씬",
+            subject: scene.subject ?? "",
+            content: scene.content,
+            notes: scene.notes ?? "",
+            editorMode: "text",
+            speakerMap: scene.speaker_map ?? [],
+            gestureMap: scene.gesture_map ?? [],
+            isShot: Boolean(scene.is_shot),
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || "실제 데이터 저장에 실패했습니다.");
+      }
+      const loadedScenes = await loadScenes(currentProject.id);
+      const selected = loadedScenes.find((scene) => scene.id === sceneId);
+      if (selected) openScene(selected);
+      setLastAutoSavedAt(Date.now());
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "실제 데이터 저장에 실패했습니다.");
+    } finally {
+      setSavingDataTable(false);
+    }
+  };
+
   /* ── 씬 드래그 순서 변경 ── */
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const handleDragOver = (e: React.DragEvent, i: number) => {
@@ -950,17 +1055,32 @@ export default function PrompterPage() {
           title="프롬프터"
           actions={<>
             <button onClick={backToProjects} className="pt-btn"><ChevronLeft size={15} /> 프로젝트 목록</button>
+            <button
+              onClick={() => setSceneView((view) => view === "editor" ? "data" : "editor")}
+              className="pt-btn"
+              style={sceneView === "data" ? { color: "#155855", borderColor: "#8BB7B0", background: "#EAF4F2" } : undefined}
+            >
+              <TableProperties size={15} /> {sceneView === "data" ? "대본 편집" : "실제 데이터 편집"}
+            </button>
             {currentProject?.public_share_token ? (
               <button onClick={() => setShowShareModal(true)} className="pt-btn" style={{ color: "#155855", borderColor: "#B8D4CF" }}><Share2 size={15} /> 공유 중</button>
             ) : (
               <button onClick={shareProject} className="pt-btn" disabled={sharing}><Share2 size={15} /> {sharing ? "공유 중..." : "공유"}</button>
             )}
-            <button onClick={runAiReview} className="pt-btn" disabled={!text.trim() || aiReviewLoading}><Sparkles size={15} /> {aiReviewLoading ? "검토 중..." : "AI 검토"}</button>
-            <button onClick={() => saveScene()} className="pt-btn" disabled={!text.trim() || saving}><Save size={16} /> {saving ? "저장 중..." : "저장"}</button>
-            {!saving && lastAutoSavedAt && (
-              <span style={{ fontSize: 11, color: "#8aa39f", alignSelf: "center" }}>저장됨 · 방금 전</span>
+            {sceneView === "editor" ? (
+              <>
+                <button onClick={runAiReview} className="pt-btn" disabled={!text.trim() || aiReviewLoading}><Sparkles size={15} /> {aiReviewLoading ? "검토 중..." : "AI 검토"}</button>
+                <button onClick={() => saveScene()} className="pt-btn" disabled={!text.trim() || saving}><Save size={16} /> {saving ? "저장 중..." : "저장"}</button>
+                {!saving && lastAutoSavedAt ? (
+                  <span style={{ fontSize: 11, color: "#8aa39f", alignSelf: "center" }}>저장됨 · 방금 전</span>
+                ) : null}
+                <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행 →</button>
+              </>
+            ) : (
+              <button onClick={saveSceneDataTable} className="pt-btn pt-btn-primary" disabled={savingDataTable}>
+                <Save size={15} /> {savingDataTable ? "저장 중..." : "변경사항 저장"}
+              </button>
             )}
-            <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행 →</button>
           </>}
         />
         <div className="oa-page">
@@ -969,15 +1089,96 @@ export default function PrompterPage() {
             <span>{currentProject?.name}</span>
             <button onClick={() => openProjectModal("rename")} title="이름 수정"><Pencil size={13} /></button>
           </div>
+          {sceneView === "data" ? (
+            <section className="pt-data-editor" aria-label="프롬프터 실제 데이터 편집">
+              <div className="pt-data-editor-head">
+                <div>
+                  <h2>실제 데이터 편집</h2>
+                  <p>한 행이 하나의 씬입니다. 입력한 제목·촬영대상·원본 대본은 프롬프터 편집 화면에 그대로 반영됩니다.</p>
+                </div>
+                <button onClick={addSceneDataRow} className="pt-btn"><Plus size={15} /> 행 추가</button>
+              </div>
+              <div className="pt-data-table-wrap">
+                <table className="pt-data-table">
+                  <colgroup>
+                    <col className="pt-data-col-number" />
+                    <col className="pt-data-col-title" />
+                    <col className="pt-data-col-subject" />
+                    <col />
+                    <col className="pt-data-col-action" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>No</th>
+                      <th>제목</th>
+                      <th>촬영대상</th>
+                      <th>원본 대본</th>
+                      <th><span className="sr-only">행 작업</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scenes.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="pt-data-empty">등록된 씬이 없습니다. 행을 추가해 원본 대본을 입력해보세요.</td>
+                      </tr>
+                    ) : scenes.map((scene, index) => (
+                      <tr key={scene.id}>
+                        <td className="pt-data-number">{index + 1}</td>
+                        <td>
+                          <textarea
+                            value={scene.title}
+                            onChange={(event) => updateSceneDataField(scene.id, "title", event.target.value)}
+                            rows={3}
+                            placeholder="제목"
+                            aria-label={`${index + 1}번 씬 제목`}
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            value={scene.subject ?? ""}
+                            onChange={(event) => updateSceneDataField(scene.id, "subject", event.target.value)}
+                            rows={3}
+                            placeholder="촬영대상"
+                            aria-label={`${index + 1}번 씬 촬영대상`}
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            value={scene.content}
+                            onChange={(event) => updateSceneDataField(scene.id, "content", event.target.value)}
+                            rows={6}
+                            placeholder="원본 대본을 입력하세요"
+                            aria-label={`${index + 1}번 씬 원본 대본`}
+                          />
+                        </td>
+                        <td className="pt-data-action">
+                          {!scene.isDraft ? (
+                            <button
+                              onClick={() => { openScene(scene); setSceneView("editor"); }}
+                              title="대본 편집 화면에서 열기"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          ) : null}
+                          <button onClick={() => removeSceneDataRow(scene)} title="행 삭제"><Trash2 size={14} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button onClick={addSceneDataRow} className="pt-data-add-row"><Plus size={15} /> 새 씬 행 추가</button>
+            </section>
+          ) : (
           <div className="pt-edit-layout">
             <aside className="pt-navigator">
               <button onClick={newScene} className="pt-navigator-new"><Plus size={14} /> 새로운 Scene</button>
               {scenesLoading ? (
                 <p style={{ color: "#9BB5B0", fontSize: 12, padding: "0 4px" }}>불러오는 중…</p>
-              ) : scenes.length === 0 ? (
+              ) : scenes.every((scene) => scene.isDraft) ? (
                 <p style={{ color: "#9BB5B0", fontSize: 12, padding: "0 4px" }}>아직 씬이 없어요.</p>
               ) : (
-                scenes.map((s, i) => (
+                scenes.filter((scene) => !scene.isDraft).map((s, i) => (
                   <div
                     key={s.id}
                     className={`pt-nav-item${s.id === sceneId ? " active" : ""}${dragIndex === i ? " dragging" : ""}${s.is_shot ? " shot" : ""}`}
@@ -1011,13 +1212,7 @@ export default function PrompterPage() {
                 className="pt-input-subject"
               />
 
-              <div className="pt-editor-mode-toggle">
-                <button className={editorMode === "text" ? "active" : ""} onClick={() => setEditorMode("text")}><FileText size={13} /> 전체 텍스트</button>
-                <button className={editorMode === "slides" ? "active" : ""} onClick={() => setEditorMode("slides")}><Rows3 size={13} /> 슬라이드별</button>
-              </div>
-
-              {editorMode === "text" && (
-                <div className="pt-speaker-bar">
+              <div className="pt-speaker-bar">
                   <button
                     className={`pt-speaker-toggle${gestureEditorEnabled ? " active" : ""}`}
                     onClick={() => setGestureEditorEnabled((value) => !value)}
@@ -1041,11 +1236,20 @@ export default function PrompterPage() {
                       <button className="pt-speaker-add" onClick={addSpeaker}><Plus size={12} /> 화자 추가</button>
                     </div>
                   )}
-                </div>
-              )}
+              </div>
 
-              {editorMode === "text" ? (
-                multiSpeakerMode || gestureEditorEnabled ? (
+              <label className="pt-scene-notes">
+                <span>메모 / 비고</span>
+                <textarea
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={3}
+                  maxLength={5000}
+                  placeholder="촬영 시 참고할 내용, 화면 연출, 주의사항 등을 적어주세요."
+                />
+              </label>
+
+              {multiSpeakerMode || gestureEditorEnabled ? (
                   <div className="pt-para-list">
                     {editParagraphs.map((p, i) => {
                       const sp = speakers.find((s) => s.id === speakerMap[i]);
@@ -1096,38 +1300,10 @@ export default function PrompterPage() {
                     placeholder="여기에 대본을 입력하세요. 빈 줄로 문단을 구분하면 실행화면에서 문단 간격이 적용됩니다."
                     className="pt-textarea"
                   />
-                )
-              ) : (
-                <div className="pt-slide-list">
-                  {slides.map((s, i) => (
-                    <div key={i} className="pt-slide-card">
-                      <div className="pt-slide-card-head">
-                        <span>{i + 1}</span>
-                        <div className="pt-slide-card-actions">
-                          <button onClick={() => moveSlide(i, -1)} disabled={i === 0} title="위로"><ChevronUp size={14} /></button>
-                          <button onClick={() => moveSlide(i, 1)} disabled={i === slides.length - 1} title="아래로"><ChevronDown size={14} /></button>
-                          <button onClick={() => removeSlide(i)} title="삭제"><Trash2 size={13} /></button>
-                        </div>
-                      </div>
-                      <textarea
-                        value={s} onChange={(e) => updateSlide(i, e.target.value)} rows={2}
-                        placeholder="문장을 입력하세요"
-                      />
-                      <label className="pt-gesture-input">
-                        <Hand size={14} />
-                        <input
-                          value={gestureMap[i] ?? ""}
-                          onChange={(e) => setGesture(i, e.target.value)}
-                          placeholder="제스처 예: 손가락을 든다"
-                        />
-                      </label>
-                    </div>
-                  ))}
-                  <button onClick={addSlide} className="pt-slide-add"><Plus size={14} /> 문장 추가</button>
-                </div>
-              )}
+                )}
             </div>
           </div>
+          )}
         </div>
 
         {showMobileBlocked && (

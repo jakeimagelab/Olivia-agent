@@ -40,6 +40,7 @@ const protectedApiPrefixes = [
   "/api/website-design",
   "/api/report",
   "/api/ocr-pdf",
+  "/api/select-match",
   "/api/blog",
   "/api/workflow",
   "/api/agent",
@@ -101,7 +102,7 @@ const FEATURE_API_SCOPE: Record<string, string[]> = {
   "/photo-sorting": ["/api/photo-scene-analyze", "/api/studio-face-analysis", "/api/studio-analysis", "/api/portrait-check"],
   "/video-sorting": ["/api/video-classify"],
   "/raw-select": ["/api/scene-naming"],
-  "/select-match": [],
+  "/select-match": ["/api/select-match"],
   "/photo-retouching": ["/api/color-sync", "/api/color-check"],
   "/prompter": ["/api/prompter-scripts", "/api/prompter-projects", "/api/prompter-proofread"],
 };
@@ -150,7 +151,7 @@ export async function middleware(req: NextRequest) {
   const shareToken = req.cookies.get("pc_share_token")?.value;
 
   // ── 팀 채팅 데이터 API — pc_admin_session이 아니라 팀원 개인 Supabase 세션이 있어야 한다 ──
-  if (pathname.startsWith("/api/team-chat/rooms") || pathname.startsWith("/api/team-chat/members")) {
+  if (pathname.startsWith("/api/team-chat/rooms") || pathname.startsWith("/api/team-chat/members") || pathname.startsWith("/api/team/")) {
     if (await hasValidTeamChatMemberSession(req)) return NextResponse.next();
     return NextResponse.json({ ok: false, error: "로그인이 필요합니다." }, { status: 401 });
   }
@@ -194,6 +195,11 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/team-chat/login", req.url));
     }
   }
+  if (pathname === "/team" || pathname.startsWith("/team/")) {
+    if (!isAdminSession && !(await hasValidTeamChatMemberSession(req))) {
+      return NextResponse.redirect(new URL("/team-chat/login", req.url));
+    }
+  }
 
   // ── 공유 세션의 페이지 이동 제한 (정식 관리자 세션이면 제한 없음) ──
   if (!isAdminSession && shareToken && SHARE_SCOPED_PAGE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
@@ -215,6 +221,7 @@ export const config = {
     "/admin", "/admin/:path*",
     "/",
     "/team-chat", "/team-chat/:path*",
+    "/team", "/team/:path*",
     "/memo", "/memo/:path*",
     "/calendar", "/calendar/:path*",
     "/quote", "/quote/:path*",

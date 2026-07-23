@@ -19,7 +19,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ roo
     ? await supabase.from("chat_members").select("id,email,display_name,avatar_url").in("id", memberIds)
     : { data: [] };
 
-  return NextResponse.json({ ok: true, room, members: members ?? [] });
+  const { data: project } = room.project_id
+    ? await supabase.from("team_projects").select("id,name,progress,status").eq("id", room.project_id).maybeSingle()
+    : { data: null };
+  return NextResponse.json({ ok: true, room: { ...room, team_project: project }, members: members ?? [] });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {

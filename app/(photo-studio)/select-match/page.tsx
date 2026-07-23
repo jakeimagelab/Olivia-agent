@@ -143,6 +143,26 @@ function parseFileNameQueries(text: string): NameQuery[] {
   return out;
 }
 
+async function prepareScreenshotForOcr(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("이미지 파일만 선택할 수 있습니다.");
+  const bitmap = await createImageBitmap(file);
+  const maxSide = 2400;
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) {
+    bitmap.close();
+    throw new Error("이미지를 처리하지 못했습니다.");
+  }
+  context.fillStyle = "#FFFFFF";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
 /* ── 파일 순서 검토: 파일명 끝자리 숫자로 넘버링 누락 검사 ── */
 interface SequenceCheckResult {
   totalFiles: number;
@@ -254,6 +274,9 @@ export default function SelectMatchPage() {
   const [fmMissing,   setFmMissing]   = useState<string[]>([]);
   const [fmProgress,  setFmProgress]  = useState({ cur: 0, total: 0 });
   const [fmMovedCount, setFmMovedCount] = useState(0);
+  const [fmOcrLoading, setFmOcrLoading] = useState(false);
+  const [fmOcrMessage, setFmOcrMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const fmOcrFileRef = useRef<HTMLInputElement>(null);
 
   /* ── 텍스트에서 파일명 파싱 ── */
   const parseNamesFromText = (text: string): Set<string> => {
@@ -535,6 +558,29 @@ export default function SelectMatchPage() {
     }
   }, []);
 
+  const extractFmNamesFromScreenshot = useCallback(async (file: File | null) => {
+    if (!file || fmOcrLoading) return;
+    setFmOcrLoading(true);
+    setFmOcrMessage(null);
+    try {
+      const imageBase64 = await prepareScreenshotForOcr(file);
+      const response = await fetch("/api/select-match/ocr-filenames", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64 }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) throw new Error(data?.error || "파일명 추출에 실패했습니다.");
+      setFmText(data.oneLine);
+      setFmOcrMessage({ text: `파일명 ${data.filenames.length}개를 한 줄로 정리했습니다.`, ok: true });
+    } catch (error) {
+      setFmOcrMessage({ text: error instanceof Error ? error.message : "파일명 추출에 실패했습니다.", ok: false });
+    } finally {
+      setFmOcrLoading(false);
+      if (fmOcrFileRef.current) fmOcrFileRef.current.value = "";
+    }
+  }, [fmOcrLoading]);
+
   /* ── 파일명으로 찾아 이동: 폴더 재귀 검색 + 매칭 ── */
   const runFindByName = useCallback(async () => {
     if (!fmRootDir) return;
@@ -598,7 +644,7 @@ export default function SelectMatchPage() {
   }, [fmRootDir, fmMatches, fmFolderName]);
 
   const resetFindByName = () => {
-    setFmStep("idle"); setFmMatches([]); setFmMissing([]); setFmMovedCount(0); setFmText("");
+    setFmStep("idle"); setFmMatches([]); setFmMissing([]); setFmMovedCount(0); setFmText(""); setFmOcrMessage(null);
   };
 
   /* ── 파일 순서 검토: 폴더 선택 ── */
@@ -656,7 +702,7 @@ export default function SelectMatchPage() {
         border: `1.5px solid ${feature === "find_move" ? C.teal : C.border}`,
         background: feature === "find_move" ? C.light : C.white,
         color: feature === "find_move" ? C.teal : C.muted, fontSize: 12, fontWeight: 800,
-      }}>📋 파일명으로 찾아 이동</button>
+      }}>📋 파일명으로 찾기</button>
       <button onClick={() => setFeature("seq_check")} style={{
         padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
         border: `1.5px solid ${feature === "seq_check" ? C.teal : C.border}`,
@@ -712,7 +758,7 @@ export default function SelectMatchPage() {
         <FeatureTabs />
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <div style={{ fontSize: 30, marginBottom: 8 }}>📋</div>
-          <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>파일명으로 찾아 이동</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>파일명으로 찾기</div>
           <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>파일명 목록을 붙여넣으면 폴더에서 찾아 선택 폴더로 이동합니다.</div>
         </div>
 
@@ -728,6 +774,33 @@ export default function SelectMatchPage() {
 
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: C.txt, marginBottom: 8 }}>2. 파일명 목록 (한 줄에 하나씩, 또는 쉼표로 구분)</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+              <input
+                ref={fmOcrFileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                hidden
+                onChange={(e) => extractFmNamesFromScreenshot(e.target.files?.[0] ?? null)}
+              />
+              <Btn
+                variant="secondary"
+                disabled={fmOcrLoading}
+                onClick={() => fmOcrFileRef.current?.click()}
+                style={{ padding: "8px 13px" }}
+              >
+                {fmOcrLoading ? "🔎 이미지 읽는 중..." : "📷 스크린샷에서 파일명 추출"}
+              </Btn>
+              <span style={{ fontSize: 11, color: C.hint }}>확장자를 제거하고 쉼표로 구분한 한 줄로 자동 입력합니다.</span>
+            </div>
+            {fmOcrMessage && (
+              <div style={{
+                marginBottom: 10, borderRadius: 8, padding: "9px 12px", fontSize: 11, fontWeight: 700,
+                color: fmOcrMessage.ok ? C.green : C.red,
+                background: fmOcrMessage.ok ? C.light : "#FEF2F2",
+              }}>
+                {fmOcrMessage.text}
+              </div>
+            )}
             <textarea
               value={fmText}
               onChange={(e) => setFmText(e.target.value)}
