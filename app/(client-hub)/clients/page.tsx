@@ -108,11 +108,11 @@ function ClientsInner() {
   const workflowRunId = searchParams.get("workflowRunId");
   if (id) return <DetailView clientId={id} workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
   if (workflowRunId) return <DetailView clientId="_by-workflow" workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
-  return <ListView />;
+  return <ListView openNewOnLoad={searchParams.get("new") === "1"} />;
 }
 
 /* ── LIST VIEW ── */
-function ListView() {
+function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -120,6 +120,10 @@ function ListView() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const loadRequestRef = useRef(0);
   const router = useRouter();
+
+  useEffect(() => {
+    if (openNewOnLoad) setShowModal(true);
+  }, [openNewOnLoad]);
 
   const load = useCallback(async (showSpinner = true) => {
     const requestId = ++loadRequestRef.current;

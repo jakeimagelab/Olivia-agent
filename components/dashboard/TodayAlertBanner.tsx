@@ -30,6 +30,11 @@ function useDailyBrief() {
   const [savingTaskIds, setSavingTaskIds] = useState<Set<string>>(() => new Set());
   const [saveError, setSaveError] = useState("");
   useEffect(() => {
+    const refresh = () => setReloadKey((key) => key + 1);
+    window.addEventListener("calendar-task-changed", refresh);
+    return () => window.removeEventListener("calendar-task-changed", refresh);
+  }, []);
+  useEffect(() => {
     const controller = new AbortController();
     setBriefState("loading");
     fetch("/api/dashboard", { signal: controller.signal })
@@ -85,6 +90,7 @@ function useDailyBrief() {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.ok) throw new Error(data?.error || `calendar:${response.status}`);
+      window.dispatchEvent(new CustomEvent("calendar-task-changed", { detail: { id: task.id, completed: nextCompleted } }));
     } catch {
       setTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: task.completed } : item));
       setSaveError(`'${task.title}' 완료 상태를 저장하지 못했습니다. 다시 시도해 주세요.`);
