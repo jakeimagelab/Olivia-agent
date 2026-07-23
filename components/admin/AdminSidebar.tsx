@@ -24,6 +24,7 @@ type NavigationItem = {
   label: string;
   href: string;
   icon: ComponentType<any>;
+  accent?: "orange";
   exact?: boolean;
   /* 개별 기능 항목만 clientId/projectId 등 CRM 컨텍스트를 쿼리로 이어 붙인다 */
   carryContext?: boolean;
@@ -46,12 +47,12 @@ const navigation: NavigationSection[] = [
     key: "dashboard",
     label: "메인 메뉴",
     items: [
-      { label: "홈", href: "/admin/dashboard/home", icon: House },
-      { label: "워크스페이스", href: "/team", icon: MessageCircle },
-      { label: "고객관리", href: "/clients", icon: UsersRound },
-      { label: "캘린더", href: "/calendar", icon: CalendarDays },
+      { label: "홈", href: "/admin/dashboard/home", icon: House, accent: "orange" },
+      { label: "캘린더", href: "/calendar", icon: CalendarDays, accent: "orange" },
       { label: "메모", href: "/memo", icon: NotebookPen },
-      { label: "메일링", href: "/mailing", icon: Mail },
+      { label: "메일링", href: "/mailing", icon: Mail, accent: "orange" },
+      { label: "고객관리", href: "/clients", icon: UsersRound },
+      { label: "워크스페이스", href: "/team", icon: MessageCircle },
       { label: "외부링크", href: "/link-generator", icon: Link2 },
       { label: "휴지통", href: "/trash", icon: Archive },
     ],
@@ -133,7 +134,7 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
                 return (
                   <li className="oa-sidebar__list-item" key={item.href}>
                     <Link
-                      className={`oa-sidebar__link${active ? " oa-sidebar__link--active" : ""}`}
+                      className={`oa-sidebar__link${item.accent === "orange" ? " oa-sidebar__link--orange" : ""}${active ? " oa-sidebar__link--active" : ""}`}
                       href={`${item.href}${item.carryContext ? contextSuffix : ""}`}
                       aria-current={active ? "page" : undefined}
                       onClick={onClose}

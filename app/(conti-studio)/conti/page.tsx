@@ -1734,7 +1734,13 @@ ${header("타임테이블")}
   return (
     <>
     <div style={{ minHeight: "100vh", background: "rgba(237,247,241,.82)" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 24px" }}>
+      <div style={{
+        width: "100%",
+        maxWidth: result && !fieldView ? 1880 : 1100,
+        margin: "0 auto",
+        padding: "36px 24px",
+        boxSizing: "border-box",
+      }}>
 
         {/* ══ 입력 폼 ══ */}
         {!result && (
@@ -2141,7 +2147,7 @@ ${header("타임테이블")}
               {/* ── 촬영 콘티 ── */}
               {tab === "conti" && (
                 <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <table style={{ width: "100%", minWidth: 1760, borderCollapse: "collapse" }}>
                     <thead>
                       <tr>
                         {["", "진료과", "소요시간", "장소", "카메라 구도", "키워드", "설명", "필요인원 / 환자역할", "비고", ""].map((h, idx, arr) => (
@@ -2168,7 +2174,7 @@ ${header("타임테이블")}
                             <td style={{ ...TD, width: 36, padding: "6px 4px", cursor: "grab" }}>
                               <DragHandle />
                             </td>
-                            <td style={{ ...TD, background: c.bg, minWidth: 80 }}>
+                            <td style={{ ...TD, background: c.bg, minWidth: 130 }}>
                               <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
                                 <ColorPickerCell
                                   bg={c.bg} text={c.text}
@@ -2177,13 +2183,13 @@ ${header("타임테이블")}
                                 <EditableCell value={row.category} onChange={v => updateConti(i, "category", v)} bold color={c.text} />
                               </div>
                             </td>
-                            <td style={{ ...TD, minWidth: 70 }}><EditableCell value={row.duration} onChange={v => updateConti(i, "duration", v)} /></td>
-                            <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.location} onChange={v => updateConti(i, "location", v)} /></td>
-                            <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.cameraAngle} onChange={v => updateConti(i, "cameraAngle", v)} /></td>
-                            <td style={{ ...TD, minWidth: 100 }}><EditableCell value={row.keyword} onChange={v => updateConti(i, "keyword", v)} color="var(--orange)" bold /></td>
-                            <td style={{ ...TD, minWidth: 300 }}><EditableCell value={row.description} onChange={v => updateConti(i, "description", v)} multiline /></td>
-                            <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.personnel} onChange={v => updateConti(i, "personnel", v)} /></td>
-                            <td style={{ ...TD, minWidth: 80 }}><EditableCell value={row.notes} onChange={v => updateConti(i, "notes", v)} placeholder="-" /></td>
+                            <td style={{ ...TD, minWidth: 95 }}><EditableCell value={row.duration} onChange={v => updateConti(i, "duration", v)} /></td>
+                            <td style={{ ...TD, minWidth: 140 }}><EditableCell value={row.location} onChange={v => updateConti(i, "location", v)} /></td>
+                            <td style={{ ...TD, minWidth: 170 }}><EditableCell value={row.cameraAngle} onChange={v => updateConti(i, "cameraAngle", v)} /></td>
+                            <td style={{ ...TD, minWidth: 160 }}><EditableCell value={row.keyword} onChange={v => updateConti(i, "keyword", v)} color="var(--orange)" bold /></td>
+                            <td style={{ ...TD, minWidth: 440 }}><EditableCell value={row.description} onChange={v => updateConti(i, "description", v)} multiline /></td>
+                            <td style={{ ...TD, minWidth: 240 }}><EditableCell value={row.personnel} onChange={v => updateConti(i, "personnel", v)} /></td>
+                            <td style={{ ...TD, minWidth: 180 }}><EditableCell value={row.notes} onChange={v => updateConti(i, "notes", v)} placeholder="-" /></td>
                             <td style={{ ...TD, width: 76, padding: "6px 4px" }}>
                               <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
                                 <button
