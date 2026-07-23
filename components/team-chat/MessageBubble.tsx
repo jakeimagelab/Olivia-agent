@@ -49,7 +49,7 @@ export default function MessageBubble({
         {message.linked_tasks?.length ? (
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 6, justifyContent: isOwn ? "flex-end" : "flex-start" }}>
             {message.linked_tasks.slice(0, 2).map((task) => (
-              <a key={task.id} href={`/team/tasks?task=${task.id}`} style={{ fontSize: 10, fontWeight: 800, color: C.teal, background: C.mint, borderRadius: 999, padding: "4px 7px", textDecoration: "none" }}>
+              <a key={task.id} href={`/team?tab=tasks&task=${encodeURIComponent(task.id)}`} style={{ fontSize: 10, fontWeight: 800, color: C.teal, background: C.mint, borderRadius: 999, padding: "4px 7px", textDecoration: "none" }}>
                 업무로 등록됨 · {task.title}
               </a>
             ))}

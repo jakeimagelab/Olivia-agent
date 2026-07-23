@@ -11,13 +11,17 @@ import TaskFilters from "./TaskFilters";
 
 const PRIORITY = { urgent: 4, high: 3, normal: 2, low: 1 };
 
-export default function TaskListPage() {
+export default function TaskListPage({
+  initialTaskId = null,
+}: {
+  initialTaskId?: string | null;
+}) {
   const [tasks, setTasks] = useState<TeamTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("mine");
   const [sort, setSort] = useState("due");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialTaskId);
   const [newOpen, setNewOpen] = useState(false);
   const [busyId, setBusyId] = useState("");
   const load = useCallback(async () => {

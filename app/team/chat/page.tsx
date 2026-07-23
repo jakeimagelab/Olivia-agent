@@ -1,6 +1,5 @@
-import TeamChatShell from "@/components/team-chat/TeamChatShell";
-import TeamWorkspaceShell from "@/components/team-workspace/TeamWorkspaceShell";
+import { redirect } from "next/navigation";
 
 export default function TeamChatPage() {
-  return <TeamWorkspaceShell title="팀채팅" fullBleed><TeamChatShell embedded /></TeamWorkspaceShell>;
+  redirect("/team?tab=chat");
 }

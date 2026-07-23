@@ -1,6 +1,5 @@
-import TeamWorkspaceShell from "@/components/team-workspace/TeamWorkspaceShell";
-import TeamGoalsClient from "./TeamGoalsClient";
+import { redirect } from "next/navigation";
 
 export default function TeamGoalsPage() {
-  return <TeamWorkspaceShell title="목표"><TeamGoalsClient /></TeamWorkspaceShell>;
+  redirect("/team");
 }

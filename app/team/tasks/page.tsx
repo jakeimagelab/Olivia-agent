@@ -1,6 +1,12 @@
-import TeamWorkspaceShell from "@/components/team-workspace/TeamWorkspaceShell";
-import TaskListPage from "@/components/team-workspace/tasks/TaskListPage";
+import { redirect } from "next/navigation";
 
-export default function TeamTasksPage() {
-  return <TeamWorkspaceShell title="할 일"><TaskListPage /></TeamWorkspaceShell>;
+export default async function TeamTasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const query = await searchParams;
+  const target = new URLSearchParams({ tab: "tasks" });
+  if (typeof query.task === "string") target.set("task", query.task);
+  redirect(`/team?${target.toString()}`);
 }

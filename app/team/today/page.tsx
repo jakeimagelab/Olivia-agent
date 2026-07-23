@@ -1,6 +1,5 @@
-import TeamWorkspaceShell from "@/components/team-workspace/TeamWorkspaceShell";
-import TodayDashboard from "@/components/team-workspace/today/TodayDashboard";
+import { redirect } from "next/navigation";
 
 export default function TeamTodayPage() {
-  return <TeamWorkspaceShell title="오늘"><TodayDashboard /></TeamWorkspaceShell>;
+  redirect("/team");
 }

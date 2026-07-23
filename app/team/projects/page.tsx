@@ -1,6 +1,5 @@
-import TeamWorkspaceShell from "@/components/team-workspace/TeamWorkspaceShell";
-import ProjectList from "@/components/team-workspace/projects/ProjectList";
+import { redirect } from "next/navigation";
 
 export default function TeamProjectsPage() {
-  return <TeamWorkspaceShell title="프로젝트"><ProjectList /></TeamWorkspaceShell>;
+  redirect("/team");
 }
