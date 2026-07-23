@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertCircle, Bell, CalendarCheck2, Check, Clock, RefreshCw } from "lucide-react";
+import { AlertCircle, Bell, CalendarCheck2, Check, Clock, RefreshCw, Sparkles } from "lucide-react";
 
 type BriefTask = { id: string; title: string; completed: boolean; time?: string | null };
 type BriefState = "loading" | "ready" | "empty" | "error";
@@ -105,7 +105,7 @@ function useDailyBrief() {
 }
 
 /* 카드 1 — 디지털시계 + 올리비아 인사말 */
-export function DailyBriefCard() {
+export function DailyBriefCard({ onOpenBriefing }: { onOpenBriefing?: () => void }) {
   const { briefState, setReloadKey, totalPending, greeting, today, clock, remaining, tasks, nextTask, completionRate } = useDailyBrief();
 
   return (
@@ -118,7 +118,14 @@ export function DailyBriefCard() {
             <div className="oa-daily-brief__date">{today}</div>
           </div>
         </div>
-        {briefState === "ready" && <span className="oa-daily-brief__state">{totalPending > 0 ? `대기 ${totalPending}건` : "방금 갱신"}</span>}
+        <div className="oa-daily-brief__actions">
+          {briefState === "ready" && <span className="oa-daily-brief__state">{totalPending > 0 ? `대기 ${totalPending}건` : "방금 갱신"}</span>}
+          {onOpenBriefing ? (
+            <button type="button" className="oa-daily-brief__open" onClick={onOpenBriefing}>
+              <Sparkles size={11} aria-hidden="true" /> 브리핑 보기
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="oa-daily-brief__clock">{clock}</div>

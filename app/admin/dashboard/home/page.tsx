@@ -7,7 +7,7 @@ import OliviaRecommendationPanel from "@/components/admin/OliviaRecommendationPa
 import { DailyBriefCard, TodayScheduleCard } from "@/components/dashboard/TodayAlertBanner";
 import DailyQuoteWidget from "@/components/dashboard/DailyQuoteWidget";
 import { WORKFLOW_STAGES } from "@/lib/workflow";
-import OliviaAssistantWorkspace from "@/components/olivia/OliviaAssistantWorkspace";
+import OliviaAssistantWorkspace, { type OliviaAssistantTab } from "@/components/olivia/OliviaAssistantWorkspace";
 import RecentActivityWidget from "@/components/admin/RecentActivityWidget";
 
 const STAGE_DOT: Record<string, string> = {
@@ -56,6 +56,14 @@ function runBadge(run: WorkflowRun): { label: string; cls: string } {
 export default function AdminDashboardHomePage() {
   const [data, setData] = useState<SummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [oliviaTab, setOliviaTab] = useState<OliviaAssistantTab>("오늘");
+
+  const openBriefing = () => {
+    setOliviaTab("브리핑");
+    window.requestAnimationFrame(() => {
+      document.getElementById("olivia-assistant")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   useEffect(() => {
     fetch("/api/workflow/summary", { cache: "no-store" })
@@ -79,12 +87,12 @@ export default function AdminDashboardHomePage() {
   return (
     <div className="oa-page pc-dash-home crm-dashboard-page">
       <div className="pc-dash-brief">
-        <DailyBriefCard/>
+        <DailyBriefCard onOpenBriefing={openBriefing}/>
         <TodayScheduleCard/>
         <DailyQuoteWidget/>
       </div>
 
-      <OliviaAssistantWorkspace compact/>
+      <OliviaAssistantWorkspace compact activeTab={oliviaTab} onTabChange={setOliviaTab}/>
 
       <section className="crm-kpi-row" aria-label="CRM 현황 요약">
         <div className="crm-kpi crm-kpi--approval">

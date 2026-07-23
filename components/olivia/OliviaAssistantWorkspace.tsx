@@ -8,22 +8,38 @@ import OliviaInsightCard from "@/components/olivia/OliviaInsightCard";
 import OliviaTimeline from "@/components/olivia/OliviaTimeline";
 import OliviaMeetingPanel from "@/components/olivia/OliviaMeetingPanel";
 
-const TABS = ["오늘", "긴급", "승인 대기", "고객 반응", "약속", "제안", "브리핑", "실행 기록"] as const;
+export const OLIVIA_ASSISTANT_TABS = ["오늘", "긴급", "승인 대기", "고객 반응", "약속", "제안", "브리핑", "실행 기록"] as const;
+export type OliviaAssistantTab = (typeof OLIVIA_ASSISTANT_TABS)[number];
 
 type OliviaAssistantWorkspaceProps = {
   compact?: boolean;
   collapsedByDefault?: boolean;
+  activeTab?: OliviaAssistantTab;
+  onTabChange?: (tab: OliviaAssistantTab) => void;
 };
 
-export default function OliviaAssistantWorkspace({ compact = false, collapsedByDefault = false }: OliviaAssistantWorkspaceProps) {
+export default function OliviaAssistantWorkspace({
+  compact = false,
+  collapsedByDefault = false,
+  activeTab,
+  onTabChange,
+}: OliviaAssistantWorkspaceProps) {
   const [expanded, setExpanded] = useState(!collapsedByDefault);
-  const [tab, setTab] = useState<(typeof TABS)[number]>("오늘");
+  const [internalTab, setInternalTab] = useState<OliviaAssistantTab>("오늘");
+  const tab = activeTab ?? internalTab;
   const [insights, setInsights] = useState<any[]>([]);
   const [actions, setActions] = useState<any[]>([]);
   const [commitments, setCommitments] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [briefing, setBriefing] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [briefingRefreshing, setBriefingRefreshing] = useState(false);
+  const [briefingMessage, setBriefingMessage] = useState("");
+
+  const selectTab = useCallback((nextTab: OliviaAssistantTab) => {
+    if (activeTab === undefined) setInternalTab(nextTab);
+    onTabChange?.(nextTab);
+  }, [activeTab, onTabChange]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,13 +79,13 @@ export default function OliviaAssistantWorkspace({ compact = false, collapsedByD
 
   const content = (() => {
     if (loading) return <div className="olivia-empty">올리비아가 업무 상태를 확인하고 있습니다.</div>;
-    if (tab === "오늘") return <><OliviaMeetingPanel/><OliviaBriefingPanel briefing={briefing}/><div className="olivia-list-grid">{insights.slice(0, 6).map((item) => <OliviaInsightCard key={item.id} insight={item} onChanged={load}/>)}</div></>;
+    if (tab === "오늘") return <><OliviaMeetingPanel/><OliviaBriefingPanel briefing={briefing} onSectionSelect={selectTab}/><div className="olivia-list-grid">{insights.slice(0, 6).map((item) => <OliviaInsightCard key={item.id} insight={item} onChanged={load}/>)}</div></>;
     if (tab === "긴급") return <div className="olivia-list-grid">{insights.filter((item) => item.priority_score >= 80).map((item) => <OliviaInsightCard key={item.id} insight={item} onChanged={load}/>)}</div>;
     if (tab === "승인 대기") return <><OliviaApprovalSummary actions={actions}/><div className="olivia-list-grid">{actions.filter((item) => item.status === "waiting_approval").map((item) => <OliviaActionCard key={item.id} action={item} onChanged={load}/>)}</div></>;
     if (tab === "고객 반응") return <OliviaTimeline items={customerEvents}/>;
     if (tab === "약속") return <div className="olivia-commitment-list">{commitments.map((item) => <article key={item.id}><span>{item.owner_type === "client" ? "고객 약속" : "대표 약속"}</span><strong>{item.commitment}</strong><small>{item.due_at ? new Date(item.due_at).toLocaleString("ko-KR") : "기한 미정"} · {item.status}</small></article>)}</div>;
     if (tab === "제안") return <div className="olivia-list-grid">{suggested.map((item) => <OliviaActionCard key={item.id} action={item} onChanged={load}/>)}</div>;
-    if (tab === "브리핑") return <OliviaBriefingPanel briefing={briefing}/>;
+    if (tab === "브리핑") return <OliviaBriefingPanel briefing={briefing} onSectionSelect={selectTab} onRefresh={() => void refreshBriefing()} refreshing={briefingRefreshing} message={briefingMessage}/>;
     return <OliviaTimeline items={[...events, ...insights, ...actions].sort((x, y) => new Date(y.created_at || y.detected_at || y.occurred_at).getTime() - new Date(x.created_at || x.detected_at || x.occurred_at).getTime()).slice(0, 100)}/>;
   })();
 
@@ -80,6 +96,23 @@ export default function OliviaAssistantWorkspace({ compact = false, collapsedByD
       body: JSON.stringify({ mode: "all_active" }),
     });
     await load();
+  };
+
+  const refreshBriefing = async () => {
+    if (briefingRefreshing) return;
+    setBriefingRefreshing(true);
+    setBriefingMessage("");
+    try {
+      const response = await fetch("/api/olivia/briefings", { method: "POST" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) throw new Error(data?.error || "브리핑을 갱신하지 못했습니다.");
+      setBriefing(data.briefing ?? data.data ?? null);
+      setBriefingMessage("최신 운영 데이터로 브리핑을 갱신했습니다.");
+    } catch (error) {
+      setBriefingMessage(error instanceof Error ? error.message : "브리핑을 갱신하지 못했습니다.");
+    } finally {
+      setBriefingRefreshing(false);
+    }
   };
 
   if (!expanded) {
@@ -112,7 +145,7 @@ export default function OliviaAssistantWorkspace({ compact = false, collapsedByD
         </div>
       </header>
       <nav className="olivia-tabs" aria-label="올리비아 비서 메뉴">
-        {TABS.map((item) => <button key={item} className={tab === item ? "is-active" : ""} onClick={() => setTab(item)}>{item}</button>)}
+        {OLIVIA_ASSISTANT_TABS.map((item) => <button key={item} className={tab === item ? "is-active" : ""} onClick={() => selectTab(item)}>{item}</button>)}
       </nav>
       <section className="olivia-tab-content">{content}</section>
     </section>
