@@ -38,11 +38,11 @@
     },
     {
       "path": "/api/cron/assistant-jobs",
-      "schedule": "* * * * *"
+      "schedule": "5 0 * * *"
     },
     {
       "path": "/api/cron/assistant-important-email",
-      "schedule": "*/5 * * * *"
+      "schedule": "10 0 * * *"
     },
     {
       "path": "/api/cron/assistant-afternoon-briefing",
