@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 type Phase = "entering" | "visible" | "hiding" | "gone";
 
 const SESSION_KEY = "pc_splash_shown";
 
 export default function SplashScreen() {
+  const pathname = usePathname();
   // 기본값 "gone" → 서버 렌더/재방문 시 순간 flash 없음
   const [phase, setPhase] = useState<Phase>("gone");
 
@@ -25,7 +27,7 @@ export default function SplashScreen() {
     return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  if (phase === "gone") return null;
+  if (phase === "gone" || pathname?.startsWith("/client-portal")) return null;
 
   const entering = phase === "entering";
   const hiding   = phase === "hiding";

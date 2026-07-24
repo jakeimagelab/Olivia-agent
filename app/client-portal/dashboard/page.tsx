@@ -38,6 +38,11 @@ type DashboardData = {
   contiSaves: any[];
   publications: any[];
   activities: any[];
+  collaboration?: {
+    preparation: any[];
+    answeredInquiryCount: number;
+    openInquiryCount: number;
+  };
 };
 
 export default function PortalDashboard() {
@@ -71,7 +76,16 @@ export default function PortalDashboard() {
   if (!session || !data) return <PortalError message="세션 정보를 불러올 수 없습니다." />;
 
   const workflow = data.workflowRun;
-  const nextAction = getClientNextAction(workflow?.current_step_key);
+  const workflowNextAction = getClientNextAction(workflow?.current_step_key);
+  const actionablePublication = data.publications.find((item) => ["published", "viewed"].includes(item.status));
+  const preparationAction = data.collaboration?.preparation?.some((item) => ["pending", "draft", "revision_requested"].includes(item.status));
+  const nextAction = actionablePublication
+    ? { title: `${actionablePublication.title} 확인이 필요합니다.`, href: "/client-portal/documents" }
+    : preparationAction
+      ? { title: "촬영 준비 정보를 작성해 주세요.", href: "/client-portal/preparation" }
+      : (data.collaboration?.answeredInquiryCount ?? 0) > 0
+        ? { title: "담당자가 문의에 답변했습니다.", href: "/client-portal/inquiries" }
+        : workflowNextAction;
   const gallery = data.galleries?.[0];
   const resources = [
     ...data.quotes.map((item) => ({ id: item.id, type: "견적서", title: item.title || item.quote_number, artifactId: item.artifactId })),
@@ -188,7 +202,7 @@ export default function PortalDashboard() {
               <Link href="/client-portal/revision"><PenLine size={16} /><span><strong>수정 요청</strong>결과물 의견 남기기</span><ChevronRight size={14} /></Link>
               <Link href="/client-portal/review"><Heart size={16} /><span><strong>리뷰</strong>프로젝트 경험 작성</span><ChevronRight size={14} /></Link>
               <Link href="/client-portal/per"><ShieldCheck size={16} /><span><strong>PER 포인트</strong>{(data.per?.available_points ?? 0).toLocaleString()}P 사용 가능</span><ChevronRight size={14} /></Link>
-              <a href={`mailto:${data.client?.email || ""}`}><MessageCircle size={16} /><span><strong>문의하기</strong>담당자에게 문의 남기기</span><ChevronRight size={14} /></a>
+              <Link href="/client-portal/inquiries"><MessageCircle size={16} /><span><strong>문의하기</strong>담당자에게 문의 남기기</span><ChevronRight size={14} /></Link>
             </PortalCard>
           </aside>
         </div>

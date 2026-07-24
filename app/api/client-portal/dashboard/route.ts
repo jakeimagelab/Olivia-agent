@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     contiQuery = contiQuery.eq("workflow_run_id", workflowRunId);
   }
 
-  const [clientRes, galleryRes, revisionRes, reviewRes, eventsRes, perRes, workflowRes, quotesRes, contractsRes, contiRes, publicationsRes, activitiesRes] = await Promise.all([
+  const [clientRes, galleryRes, revisionRes, reviewRes, eventsRes, perRes, workflowRes, quotesRes, contractsRes, contiRes, publicationsRes, activitiesRes, preparationRes, inquiriesRes] = await Promise.all([
     db.from("clients").select("*").eq("id", clientId).single(),
     galleryQuery,
     revisionQuery,
@@ -78,6 +78,12 @@ export async function GET(req: NextRequest) {
       : Promise.resolve({ data: [], error: null }),
     workflowRunId
       ? db.from("pcrm_activity_logs").select("*").eq("client_id", clientId).eq("workflow_run_id", workflowRunId).order("created_at", { ascending: false }).limit(10)
+      : Promise.resolve({ data: [], error: null }),
+    workflowRunId
+      ? db.from("pcrm_preparation_items").select("id,status,is_required,value").eq("client_id", clientId).eq("workflow_run_id", workflowRunId).eq("is_active", true)
+      : Promise.resolve({ data: [], error: null }),
+    workflowRunId
+      ? db.from("pcrm_inquiries").select("id,status").eq("client_id", clientId).eq("workflow_run_id", workflowRunId)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -147,5 +153,10 @@ export async function GET(req: NextRequest) {
     contiSaves: (contiRes.data ?? []).filter((item) => !enforcePublication || publishedSourceIds.has(item.id)),
     publications,
     activities: activitiesRes.data ?? [],
+    collaboration: {
+      preparation: preparationRes.data ?? [],
+      answeredInquiryCount: (inquiriesRes.data ?? []).filter((item) => item.status === "answered").length,
+      openInquiryCount: (inquiriesRes.data ?? []).filter((item) => item.status === "open").length,
+    },
   });
 }

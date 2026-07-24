@@ -18,6 +18,7 @@ import ConsultMeetingForm from "./_components/ConsultMeetingForm";
 import PcrmDashboard from "./_components/PcrmDashboard";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
 import PcrmActivityTimeline from "./_components/PcrmActivityTimeline";
+import PcrmCollaborationPanel from "./_components/PcrmCollaborationPanel";
 import { C } from "@/lib/theme";
 import OliviaProjectPanel from "@/components/olivia/OliviaProjectPanel";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
@@ -409,6 +410,13 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         )}
 
         <NextActionCard client={client} workflowRun={workflowRun} onRefresh={load} />
+        {workflowRun?.id && (
+          <PcrmCollaborationPanel
+            clientId={client.id}
+            workflowRunId={workflowRun.id}
+            managerName={workflowRun.manager_name || client.contact_name}
+          />
+        )}
         <PcrmActivityTimeline activities={activities} />
       </div>
       </section>

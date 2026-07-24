@@ -78,6 +78,7 @@ export function getClientVisibleMenus(stepKey?: string | null) {
     conti: progress >= 50,
     gallery: progress >= 70,
     revision: progress >= 80,
+    inquiries: true,
     review: progress >= 100,
     per: true,
   };

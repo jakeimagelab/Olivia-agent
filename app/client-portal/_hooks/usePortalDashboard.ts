@@ -8,6 +8,7 @@ export function usePortalDashboard() {
   const [data, setData] = useState<any>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (sessionState.loading) return;
@@ -16,6 +17,7 @@ export function usePortalDashboard() {
       return;
     }
     const controller = new AbortController();
+    setDataError("");
     fetch("/api/client-portal/dashboard", {
       headers: { "x-portal-token": sessionState.token },
       signal: controller.signal,
@@ -31,7 +33,7 @@ export function usePortalDashboard() {
       })
       .finally(() => setDataLoading(false));
     return () => controller.abort();
-  }, [sessionState.loading, sessionState.token]);
+  }, [sessionState.loading, sessionState.token, refreshKey]);
 
   return {
     ...sessionState,
@@ -39,5 +41,6 @@ export function usePortalDashboard() {
     dataLoading,
     dataError,
     loading: sessionState.loading || dataLoading,
+    refresh: () => setRefreshKey((value) => value + 1),
   };
 }

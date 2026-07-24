@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function CursorEffect() {
+  const pathname = usePathname();
   const dotRef = useRef<HTMLDivElement>(null);
   const [clicking, setClicking] = useState(false);
   const [isTouch, setIsTouch] = useState(false);
@@ -32,7 +34,7 @@ export default function CursorEffect() {
     };
   }, []);
 
-  if (isTouch) return null;
+  if (isTouch || pathname?.startsWith("/client-portal")) return null;
 
   return (
     <div

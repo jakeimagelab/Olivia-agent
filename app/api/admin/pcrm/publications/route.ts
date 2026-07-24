@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest) {
   const db = getSupabaseAdmin();
   const now = new Date().toISOString();
   const patch = action === "publish"
-    ? { status: "published", published_at: now }
+    ? { status: "published", published_at: now, approved_at: null, revision_requested_at: null }
     : { status: "archived" };
   const { data, error } = await db.from("pcrm_publications").update(patch).eq("id", id).select().maybeSingle();
   if (error || !data) return NextResponse.json({ ok: false, error: error?.message || "공개 항목을 찾지 못했습니다." }, { status: 404 });

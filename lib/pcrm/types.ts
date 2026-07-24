@@ -64,3 +64,30 @@ export type PcrmActivity = {
   related_id: string;
   created_at: string;
 };
+
+export type PcrmPreparationStatus = "pending" | "draft" | "submitted" | "confirmed" | "revision_requested";
+export type PcrmPreparationInputType = "text" | "textarea" | "boolean" | "date" | "list" | "file";
+
+export type PcrmPreparationItem = {
+  id: string;
+  client_id: string;
+  workflow_run_id: string;
+  item_key: string;
+  title: string;
+  description: string;
+  input_type: PcrmPreparationInputType;
+  is_required: boolean;
+  is_active: boolean;
+  sort_order: number;
+  value: Record<string, unknown>;
+  status: PcrmPreparationStatus;
+  submitted_at?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by?: string;
+};
+
+export type PcrmContiFeedbackStatus = "pending" | "approved" | "commented" | "revision_requested" | "resolved";
+export type PcrmInquiryCategory =
+  | "schedule" | "quote" | "contract" | "preparation" | "conti"
+  | "gallery" | "revision" | "delivery" | "other";
+export type PcrmInquiryStatus = "open" | "answered" | "closed";
