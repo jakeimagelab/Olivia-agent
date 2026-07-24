@@ -217,7 +217,7 @@ begin
         coalesce(d.created_at, now())
       from public.delivery_reviews d
       join lateral (
-        select min(c.id) as client_id
+        select min(c.id::text)::uuid as client_id
         from public.clients c
         where lower(regexp_replace(coalesce(c.hospital_name, ''), '\s+', '', 'g'))
             = lower(regexp_replace(coalesce(d.hospital_name, ''), '\s+', '', 'g'))
