@@ -87,6 +87,19 @@ export async function POST(req: NextRequest) {
   const db = getSupabaseAdmin();
   let webhookEventId: string | null = null;
   try {
+    const linkCommand = parseKakaoLinkCommand(parsed.utterance);
+    const owner = linkCommand
+      ? null
+      : await findKakaoOwner(db, parsed.botUserKey);
+
+    if (!linkCommand && !owner) {
+      return kakaoJson(
+        buildKakaoTextResponse(
+          "등록되지 않은 계정입니다. Olivia 웹에서 연결 코드를 발급한 뒤 ‘올리비아 연결 123456’ 형식으로 입력해 주세요.",
+        ),
+      );
+    }
+
     const eventKey = eventKeyForRequest(
       req,
       parsed.botUserKey,
@@ -119,9 +132,8 @@ export async function POST(req: NextRequest) {
     if (webhookError) throw new Error(webhookError.message);
     webhookEventId = webhookEvent.id;
 
-    const linkCommand = parseKakaoLinkCommand(parsed.utterance);
     if (linkCommand) {
-      const owner = await connectKakaoOwnerWithCode(
+      const connectedOwner = await connectKakaoOwnerWithCode(
         db,
         linkCommand.code,
         {
@@ -135,27 +147,19 @@ export async function POST(req: NextRequest) {
         .update({
           status: "processed",
           processed_at: new Date().toISOString(),
-          owner_id: owner?.id ?? null,
+          owner_id: connectedOwner?.id ?? null,
         })
         .eq("id", webhookEvent.id);
       return kakaoJson(
         buildKakaoTextResponse(
-          owner
+          connectedOwner
             ? "대표자 계정과 연결되었습니다. 이제 Olivia에게 업무를 요청할 수 있어요."
             : "연결 코드가 올바르지 않거나 만료되었습니다. Olivia 웹에서 새 코드를 발급해 주세요.",
         ),
       );
     }
 
-    const owner = await findKakaoOwner(db, parsed.botUserKey);
     if (!owner) {
-      await db
-        .from("assistant_webhook_events")
-        .update({
-          status: "ignored",
-          processed_at: new Date().toISOString(),
-        })
-        .eq("id", webhookEvent.id);
       return kakaoJson(
         buildKakaoTextResponse(
           "등록되지 않은 계정입니다. Olivia 웹에서 연결 코드를 발급한 뒤 ‘올리비아 연결 123456’ 형식으로 입력해 주세요.",
