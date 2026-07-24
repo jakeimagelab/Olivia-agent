@@ -3,6 +3,7 @@
 import { Quote, Share2 } from "lucide-react";
 import { useState } from "react";
 import type { CSSProperties } from "react";
+import { wrapQuoteText } from "@/lib/dashboard/wrapQuoteText";
 
 /* 대시보드 홈에 쓰던 "오늘의 명언" 위젯 — 예전 app/page.tsx의 Dashboard에 있던 걸
    그대로 옮겨왔다(외부 API 없이 날짜 기준으로 매일 자동으로 바뀐다). */
@@ -276,19 +277,7 @@ export default function DailyQuoteWidget() {
       context.font = "800 56px 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
       context.textBaseline = "top";
       const maxWidth = 860;
-      const words = Array.from(quote.text);
-      const lines: string[] = [];
-      let line = "";
-      for (const word of words) {
-        const candidate = line + word;
-        if (context.measureText(candidate).width > maxWidth && line) {
-          lines.push(line);
-          line = word;
-        } else {
-          line = candidate;
-        }
-      }
-      if (line) lines.push(line);
+      const lines = wrapQuoteText(quote.text, maxWidth, (text) => context.measureText(text).width);
       const lineHeight = 88;
       const quoteTop = 440;
       lines.forEach((text, index) => context.fillText(text, 86, quoteTop + index * lineHeight));
