@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { C } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "포토클리닉 고객 포털",
@@ -6,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function ClientPortalLayout({ children }: { children: React.ReactNode }) {
-  return <div style={{ minHeight:"100vh", background:"#F7F4EF", fontFamily:"'Pretendard','Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif", color:"#1C2B28" }}>{children}</div>;
+  return <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'NanumSquare','Noto Sans KR',sans-serif", color:C.ink }}>{children}</div>;
 }

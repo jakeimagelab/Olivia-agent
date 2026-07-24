@@ -16,10 +16,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const db = getSupabaseAdmin();
   const { id } = await params;
-  const { data: artifact, error } = await db.from("workflow_artifacts")
-    .select("storage_path,file_name,status,client_id")
+  let artifactQuery = db.from("workflow_artifacts")
+    .select("storage_path,file_name,status,client_id,workflow_run_id")
     .eq("id", id)
-    .maybeSingle();
+    .eq("client_id", session.clientId);
+  if (session.workflowRunId && session.projectScoped) {
+    artifactQuery = artifactQuery.eq("workflow_run_id", session.workflowRunId);
+  }
+  const { data: artifact, error } = await artifactQuery.maybeSingle();
   if (error || !artifact || artifact.status !== "ready" || artifact.client_id !== session.clientId) {
     return NextResponse.json({ ok: false, error: "원본 파일을 찾지 못했습니다." }, { status: 404 });
   }

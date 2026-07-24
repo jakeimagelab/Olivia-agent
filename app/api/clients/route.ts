@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
-import { createClientWithWorkflow } from "@/lib/clients/createClientWithWorkflow";
+import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     query,
     supabase
       .from("workflow_runs")
-      .select("id, client_id, client_name, project_name, current_step_key, status, started_at")
+      .select("id, client_id, client_name, project_name, current_step_key, status, shoot_date, updated_at, started_at")
       .neq("status", "canceled")
       .order("started_at", { ascending: true }),
     supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(300),
@@ -48,7 +48,16 @@ export async function GET(req: NextRequest) {
       approvals: (approvalsRes.data ?? []).filter((approval) => approval.workflow_run_id === run.id),
       mailing: (mailingRes.data ?? []).filter((mail) => mail.workflow_run_id === run.id || mail.hospital_name === c.hospital_name),
     }) : null;
-    return { ...normalized, next_action: nextAction };
+    return {
+      ...normalized,
+      next_action: nextAction,
+      waiting_approval_count: run
+        ? (approvalsRes.data ?? []).filter((approval) => approval.workflow_run_id === run.id && approval.status === "pending").length
+        : 0,
+      open_task_count: run
+        ? (tasksRes.data ?? []).filter((task) => task.workflow_run_id === run.id && ["pending", "running", "waiting_approval", "failed"].includes(task.status)).length
+        : 0,
+    };
   });
 
   return NextResponse.json(
@@ -65,17 +74,41 @@ export async function POST(req: NextRequest) {
   if (!hospitalName) return NextResponse.json({ ok: false, error: "병원명 필수" }, { status: 400 });
 
   try {
-    const result = await createClientWithWorkflow(supabase, {
-      hospitalName,
-      contactName: body.director_name || body.contact_name || body.manager_name,
-      phone: body.phone,
-      email: body.email,
-      specialty: body.department || body.specialty,
-      memo: body.memo,
-      startStepKey: body.startStepKey,
+    const normalizedName = String(hospitalName).trim();
+    const { data: existing } = await supabase
+      .from("clients")
+      .select("id,hospital_name")
+      .ilike("hospital_name", normalizedName)
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json({ ok: true, id: existing.id, workflowRunId: null, created: false });
+    }
+
+    const { data: client, error } = await supabase.from("clients").insert({
+      hospital_name: normalizedName,
+      contact_name: body.director_name || body.contact_name || body.manager_name || null,
+      phone: body.phone || null,
+      email: body.email || null,
+      specialty: body.department || body.specialty || null,
+      memo: body.memo || null,
+    }).select("id,hospital_name").single();
+    if (error || !client) throw new Error(error?.message || "고객 등록 실패");
+
+    await emitOliviaEventSafely(supabase, {
+      eventType: "customer.created",
       eventSource: "clients_api",
+      clientId: client.id,
+      actorType: "admin",
+      payload: {
+        name: normalizedName,
+        managerName: body.director_name || body.contact_name || body.manager_name || "",
+        department: body.department || body.specialty || "",
+      },
+      deduplicationKey: createEventDeduplicationKey("customer.created", client.id),
     });
-    return NextResponse.json({ ok: true, id: result.client.id, workflowRunId: result.run?.id ?? null, created: result.created });
+
+    return NextResponse.json({ ok: true, id: client.id, workflowRunId: null, created: true });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "고객 등록 실패" }, { status: 500 });
   }

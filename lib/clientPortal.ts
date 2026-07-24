@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "./supabase";
 import { randomUUID } from "crypto";
 import { STEP_NAME } from "./workflow";
+import { getClientVisibleMenus, getClientWorkflowProgress } from "./pcrm/clientWorkflow";
 
 export type PortalSession = {
   accessId: string;
@@ -11,6 +12,12 @@ export type PortalSession = {
   phone: string;
   workflowStatus: string;
   workflowRunId: string | null;
+  projectScoped: boolean;
+  projectName: string;
+  projectStatus: string;
+  shootDate: string | null;
+  projectProgress: number;
+  visibleMenus: ReturnType<typeof getClientVisibleMenus>;
   currentStepKey: string;
   currentStepName: string;
   tokenExpiresAt: string | null;
@@ -38,7 +45,7 @@ export async function validatePortalToken(token: string): Promise<PortalSession 
   const db = getSupabaseAdmin();
   const { data, error } = await db
     .from("client_portal_access")
-    .select("id, client_id, email, token_expires_at, clients(id, name, manager_name, phone, workflow_status)")
+    .select("id, client_id, workflow_run_id, email, token_expires_at, access_count, clients(id, hospital_name, contact_name, email, phone, specialty)")
     .eq("access_token", token)
     .eq("is_active", true)
     .single();
@@ -46,16 +53,19 @@ export async function validatePortalToken(token: string): Promise<PortalSession 
   if (error || !data) return null;
   if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) return null;
 
-  const [, runResult] = await Promise.all([
-    db.from("client_portal_access").update({ last_login_at: new Date().toISOString() }).eq("id", data.id),
-    db
-      .from("workflow_runs")
-      .select("id, current_step_key")
-      .eq("client_id", data.client_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
+  const runQuery = db
+    .from("workflow_runs")
+    .select("id, client_id, project_name, manager_name, current_step_key, status, shoot_date")
+    .eq("client_id", data.client_id);
+  const runResult = data.workflow_run_id
+    ? await runQuery.eq("id", data.workflow_run_id).maybeSingle()
+    : await runQuery.neq("status", "canceled").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (runResult.error || !runResult.data) return null;
+
+  await db.from("client_portal_access").update({
+    last_login_at: new Date().toISOString(),
+    access_count: Number(data.access_count ?? 0) + 1,
+  }).eq("id", data.id);
 
   const c = data.clients as any;
   const runData = runResult.data;
@@ -65,12 +75,18 @@ export async function validatePortalToken(token: string): Promise<PortalSession 
   return {
     accessId: data.id,
     clientId: data.client_id,
-    clientName: c?.name ?? "",
-    managerName: c?.manager_name ?? "",
+    clientName: c?.hospital_name ?? "",
+    managerName: runData?.manager_name ?? c?.contact_name ?? "",
     email: data.email ?? c?.email ?? "",
     phone: c?.phone ?? "",
-    workflowStatus: c?.workflow_status ?? "상담완료",
+    workflowStatus: runData?.status ?? "active",
     workflowRunId: runData?.id ?? null,
+    projectScoped: Boolean(data.workflow_run_id),
+    projectName: runData?.project_name ?? "포토클리닉 프로젝트",
+    projectStatus: runData?.status ?? "active",
+    shootDate: runData?.shoot_date ?? null,
+    projectProgress: getClientWorkflowProgress(currentStepKey, runData?.status),
+    visibleMenus: getClientVisibleMenus(currentStepKey),
     currentStepKey,
     currentStepName,
     tokenExpiresAt: data.token_expires_at,
@@ -89,6 +105,7 @@ export async function logPortalEvent(params: {
   await Promise.all([
     db.from("client_portal_events").insert({
       client_id: params.clientId,
+      workflow_run_id: params.workflowRunId ?? null,
       event_type: params.eventType,
       target_type: params.targetType ?? "",
       target_id: params.targetId ?? "",
@@ -101,11 +118,23 @@ export async function logPortalEvent(params: {
       message: `[포털] ${PORTAL_EVENT_LABEL[params.eventType] ?? params.eventType}${params.memo ? `: ${params.memo}` : ""}`,
       success: true,
     }),
+    db.from("pcrm_activity_logs").insert({
+      client_id: params.clientId,
+      workflow_run_id: params.workflowRunId ?? null,
+      actor_type: "client",
+      actor_name: "고객",
+      action_type: params.eventType,
+      title: PORTAL_EVENT_LABEL[params.eventType] ?? params.eventType,
+      description: params.memo ?? "",
+      related_type: params.targetType ?? "",
+      related_id: params.targetId ?? "",
+    }),
   ]);
 }
 
 export async function createPortalAccess(params: {
   clientId: string;
+  workflowRunId?: string | null;
   email?: string;
   expiresInDays?: number;
 }): Promise<{ token: string; expiresAt: string | null }> {
@@ -115,12 +144,17 @@ export async function createPortalAccess(params: {
     ? new Date(Date.now() + params.expiresInDays * 86400000).toISOString()
     : null;
 
-  await db.from("client_portal_access").update({ is_active: false }).eq("client_id", params.clientId);
+  let revokeQuery = db.from("client_portal_access").update({ is_active: false }).eq("client_id", params.clientId);
+  revokeQuery = params.workflowRunId
+    ? revokeQuery.eq("workflow_run_id", params.workflowRunId)
+    : revokeQuery.is("workflow_run_id", null);
+  await revokeQuery;
 
   const { data, error } = await db
     .from("client_portal_access")
     .insert({
       client_id: params.clientId,
+      workflow_run_id: params.workflowRunId ?? null,
       email: params.email ?? "",
       access_token: token,
       token_expires_at: expiresAt,
@@ -133,7 +167,9 @@ export async function createPortalAccess(params: {
   return { token: data.access_token, expiresAt: data.token_expires_at };
 }
 
-export async function revokePortalAccess(clientId: string) {
+export async function revokePortalAccess(clientId: string, workflowRunId?: string | null) {
   const db = getSupabaseAdmin();
-  await db.from("client_portal_access").update({ is_active: false }).eq("client_id", clientId);
+  let query = db.from("client_portal_access").update({ is_active: false }).eq("client_id", clientId);
+  query = workflowRunId ? query.eq("workflow_run_id", workflowRunId) : query.is("workflow_run_id", null);
+  await query;
 }

@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Contact } from "lucide-react";
 import { C } from "@/lib/theme";
-import { ACTIVE_WORKFLOW_STEPS } from "@/lib/workflow";
 
 /* Contact Picker API — 안드로이드 Chrome 등 일부 브라우저만 지원, lib.dom에 타입이 없어 직접 선언 */
 type ContactPickerProperty = "name" | "tel" | "email";
@@ -49,7 +48,6 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const [startStepKey, setStartStepKey] = useState<string>(ACTIVE_WORKFLOW_STEPS[0].key);
   const [contactSupported, setContactSupported] = useState(false);
 
   useEffect(() => {
@@ -76,8 +74,6 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
       /* 사용자가 선택 취소한 경우 등 — 조용히 무시 */
     }
   };
-
-  const startStepIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === startStepKey);
 
   const extract = async () => {
     if (!memo.trim()) return;
@@ -121,7 +117,6 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
           email:        form.email        || null,
           department:   form.department   || null,
           memo:         memo.trim()       || null,
-          startStepKey,
         }),
       });
       const d = await res.json();
@@ -213,34 +208,6 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
         </div>
       </div>
 
-      {/* 시작 단계 */}
-      <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "12px 18px", background: "rgba(232,93,44,.03)", borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: C.orange }}>워크플로우 시작 단계</div>
-          <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>
-            이미 촬영 등 중간 단계까지 수동으로 진행한 고객이면 시작 단계를 옮기세요. 이전 단계는 완료로 표시되지만, 클릭하면 언제든 열어서 자료를 채워 넣을 수 있습니다.
-          </div>
-        </div>
-        <div style={{ padding: 18 }}>
-          <select
-            value={startStepKey}
-            onChange={(e) => setStartStepKey(e.target.value)}
-            style={{ ...iS, color: C.txt, fontWeight: 700, cursor: "pointer" }}
-          >
-            {ACTIVE_WORKFLOW_STEPS.map((step, idx) => (
-              <option key={step.key} value={step.key}>
-                {idx + 1}. {step.name}
-              </option>
-            ))}
-          </select>
-          {startStepIdx > 0 && (
-            <div style={{ marginTop: 8, fontSize: 11, color: C.orange, fontWeight: 700 }}>
-              1~{startStepIdx}단계는 완료로 처리됩니다 (수동 진행분 — 나중에 클릭해서 채워 넣으세요).
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* AI 메모 추출 */}
       <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
         <div style={{ padding: "12px 18px", background: "rgba(124,58,237,.03)", borderBottom: `1px solid ${C.border}` }}>
@@ -295,7 +262,7 @@ export default function ConsultMeetingForm({ initialValues, onCancel, onSuccess 
             cursor: saving || !form.name.trim() ? "not-allowed" : "pointer", fontFamily: "inherit",
           }}
         >
-          {saving ? "등록 중..." : "✓ 고객 등록 + 워크플로우 시작"}
+          {saving ? "등록 중..." : "고객 등록"}
         </button>
         {onCancel && (
           <button

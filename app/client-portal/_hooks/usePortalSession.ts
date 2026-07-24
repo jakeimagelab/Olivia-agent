@@ -10,6 +10,12 @@ export type PortalSession = {
   phone: string;
   workflowStatus: string;
   workflowRunId: string | null;
+  projectScoped: boolean;
+  projectName: string;
+  projectStatus: string;
+  shootDate: string | null;
+  projectProgress: number;
+  visibleMenus: Record<string, boolean>;
   currentStepKey: string;
   currentStepName: string;
   tokenExpiresAt: string | null;

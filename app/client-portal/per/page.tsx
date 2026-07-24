@@ -35,8 +35,8 @@ export default function PortalPerPage() {
   if (!per?.per_joined) {
     return (
       <div>
-        <PortalHeader clientName={session.clientName} />
-        <PortalNav active="PER 포인트" />
+        <PortalHeader clientName={session.clientName} projectName={session.projectName} managerName={session.managerName} />
+        <PortalNav active="PER 포인트" visibleMenus={session.visibleMenus} />
         <div style={{ maxWidth:780, margin:"0 auto", padding:"40px 16px 80px" }}>
           <PortalCard style={{ textAlign:"center", padding:48 }}>
             <div style={{ fontSize:48, marginBottom:12 }}>🎁</div>
@@ -61,8 +61,8 @@ export default function PortalPerPage() {
 
   return (
     <div>
-      <PortalHeader clientName={session.clientName} />
-      <PortalNav active="PER 포인트" />
+      <PortalHeader clientName={session.clientName} projectName={session.projectName} managerName={session.managerName} />
+      <PortalNav active="PER 포인트" visibleMenus={session.visibleMenus} />
 
       <div style={{ maxWidth:780, margin:"0 auto", padding:"24px 16px 80px" }}>
         {/* 헤더 */}

@@ -63,8 +63,8 @@ export default function PortalReviewPage() {
     const r = existing ?? form;
     return (
       <div>
-        <PortalHeader clientName={session.clientName} />
-        <PortalNav active="리뷰 작성" />
+        <PortalHeader clientName={session.clientName} projectName={session.projectName} managerName={session.managerName} />
+        <PortalNav active="리뷰" visibleMenus={session.visibleMenus} />
         <div style={{ maxWidth:780, margin:"0 auto", padding:"40px 16px 80px" }}>
           <PortalCard style={{ textAlign:"center", padding:48 }}>
             <div style={{ fontSize:48, marginBottom:16 }}>🎉</div>
@@ -86,8 +86,8 @@ export default function PortalReviewPage() {
 
   return (
     <div>
-      <PortalHeader clientName={session.clientName} />
-      <PortalNav active="리뷰 작성" />
+      <PortalHeader clientName={session.clientName} projectName={session.projectName} managerName={session.managerName} />
+      <PortalNav active="리뷰" visibleMenus={session.visibleMenus} />
 
       <div style={{ maxWidth:780, margin:"0 auto", padding:"24px 16px 80px" }}>
         <div style={{ marginBottom:20 }}>

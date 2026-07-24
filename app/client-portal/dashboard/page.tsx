@@ -2,12 +2,27 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  CalendarDays,
+  ChevronRight,
+  CircleCheck,
+  FileText,
+  Heart,
+  Images,
+  MessageCircle,
+  PenLine,
+  ShieldCheck,
+} from "lucide-react";
 import { usePortalSession } from "../_hooks/usePortalSession";
-import { PortalHeader, PortalNav, PortalCard, PortalError, PortalLoading, StatusBadge } from "../_components/PortalShell";
-import { ACTIVE_WORKFLOW_STEPS, WORKFLOW_STAGES } from "@/lib/workflow";
-import { C } from "@/lib/theme";
-
-const G = C.teal, OR = C.orange, MUT = C.muted, BRD = C.border;
+import {
+  PortalCard,
+  PortalError,
+  PortalLoading,
+  PortalPageShell,
+  StatusBadge,
+} from "../_components/PortalShell";
+import PortalWorkflowProgress from "../_components/PortalWorkflowProgress";
+import { getClientNextAction } from "@/lib/pcrm/clientWorkflow";
 
 type DashboardData = {
   client: any;
@@ -21,249 +36,186 @@ type DashboardData = {
   quotes: any[];
   contracts: any[];
   contiSaves: any[];
+  publications: any[];
+  activities: any[];
 };
 
 export default function PortalDashboard() {
   const { session, loading, error, token } = usePortalSession();
   const [data, setData] = useState<DashboardData | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState("");
 
   useEffect(() => {
     if (!token || loading) return;
-    fetch("/api/client-portal/dashboard", { headers: { "x-portal-token": token } })
-      .then(r => r.json())
-      .then(d => { if (d.ok) setData(d); })
+    const controller = new AbortController();
+    fetch("/api/client-portal/dashboard", {
+      headers: { "x-portal-token": token },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error || "프로젝트 정보를 불러오지 못했습니다.");
+        setData(payload);
+      })
+      .catch((fetchError) => {
+        if (fetchError instanceof DOMException && fetchError.name === "AbortError") return;
+        setDataError(fetchError instanceof Error ? fetchError.message : "프로젝트 정보를 불러오지 못했습니다.");
+      })
       .finally(() => setDataLoading(false));
+    return () => controller.abort();
   }, [token, loading]);
 
-  if (loading) return <PortalLoading />;
-  if (error) return <PortalError message={error} />;
-  if (!session) return <PortalError message="세션 정보를 불러올 수 없습니다." />;
-  if (dataLoading) return <PortalLoading />;
+  if (loading || dataLoading) return <PortalLoading />;
+  if (error || dataError) return <PortalError message={error || dataError} />;
+  if (!session || !data) return <PortalError message="세션 정보를 불러올 수 없습니다." />;
 
-  const gallery = data?.galleries?.[0];
-  const hasGallery = !!gallery?.nas_link;
-  const quotes = data?.quotes ?? [];
-  const contracts = data?.contracts ?? [];
-  const contiSaves = data?.contiSaves ?? [];
+  const workflow = data.workflowRun;
+  const nextAction = getClientNextAction(workflow?.current_step_key);
+  const gallery = data.galleries?.[0];
+  const resources = [
+    ...data.quotes.map((item) => ({ id: item.id, type: "견적서", title: item.title || item.quote_number, artifactId: item.artifactId })),
+    ...data.contracts.map((item) => ({ id: item.id, type: "계약서", title: item.quote_number || "프로젝트 계약서", artifactId: item.artifactId })),
+    ...data.contiSaves.map((item) => ({ id: item.id, type: "콘티", title: item.title || "촬영 콘티", artifactId: null })),
+  ].slice(0, 5);
 
-  const downloadArtifact = async (artifactId: string) => {
-    if (!token) return;
-    const res = await fetch(`/api/client-portal/artifact/${artifactId}`, { headers: { "x-portal-token": token } });
-    const d = await res.json();
-    if (d.ok && d.url) window.open(d.url, "_blank", "noopener,noreferrer");
+  const openArtifact = async (artifactId: string) => {
+    const response = await fetch(`/api/client-portal/artifact/${artifactId}`, {
+      headers: { "x-portal-token": token },
+    });
+    const payload = await response.json();
+    if (payload.ok && payload.url) window.open(payload.url, "_blank", "noopener,noreferrer");
   };
 
   return (
-    <div>
-      <PortalHeader clientName={session.clientName} />
-      <PortalNav active="홈" />
-
-      <div style={{ maxWidth:780, margin:"0 auto", padding:"24px 16px 80px" }}>
-        {/* 환영 카드 */}
-        <PortalCard style={{ marginBottom:16, background:`linear-gradient(135deg, ${G}, #22876A)`, color:"#fff", border:"none" }}>
-          <div style={{ fontSize:11, opacity:.75, fontWeight:600, letterSpacing:.5, marginBottom:6 }}>PHOTOCLINIC · 고객 전용 포털</div>
-          <h1 style={{ margin:"0 0 4px", fontSize:20, fontWeight:800 }}>{session.clientName}</h1>
-          <p style={{ margin:"0 0 12px", fontSize:13, opacity:.8 }}>담당자: {session.managerName || "—"}</p>
-          <StatusBadge status={session.workflowStatus} />
-        </PortalCard>
-
-        {/* 대표가 승인해 고객에게 공개한 결과만 표시 */}
-        <PortalCard style={{ marginBottom:16 }}>
-          <div className="portal-approved-timeline__heading">
-            <div><span>APPROVED TIMELINE</span><h2>확인 가능한 진행 결과</h2></div>
-            <b>{data?.approvedSteps?.length ?? 0}건 공개</b>
+    <PortalPageShell session={session} active="홈">
+      <main className="pcrm-client-dashboard">
+        <section className="pcrm-client-hero">
+          <div className="pcrm-client-identity">
+            <span>PCRM · PROJECT</span>
+            <div><h1>{session.clientName}</h1>{data.client?.specialty && <b>{data.client.specialty}</b>}</div>
+            <p>담당 매니저 <strong>{session.managerName || "배정 중"}</strong></p>
           </div>
-          {(data?.approvedSteps?.length ?? 0) === 0 ? (
-            <div className="portal-approved-timeline__empty">담당자가 승인한 결과가 이곳에 순서대로 공개됩니다.</div>
-          ) : (
-            <div className="portal-approved-timeline">
-              {data!.approvedSteps.map((item: any, index: number) => {
-                const step = ACTIVE_WORKFLOW_STEPS.find((candidate) => candidate.key === item.stepKey);
-                const stage = WORKFLOW_STAGES.find((candidate) => candidate.key === step?.stage);
-                const documentUrl = getDocumentUrl(item.preview_data);
-                const needsRevision = item.status === "revision_requested";
-                return (
-                  <article key={item.id} className={`portal-approved-step ${needsRevision ? "is-revision" : ""}`}>
-                    <div className="portal-approved-step__rail"><span>{needsRevision ? "!" : "✓"}</span>{index < data!.approvedSteps.length - 1 && <i/>}</div>
-                    <div className="portal-approved-step__body">
-                      <div className="portal-approved-step__top">
-                        <div><small>{stage?.name}</small><strong>{item.stepName || item.title}</strong></div>
-                        <b>{needsRevision ? "수정 요청됨" : "승인·공개"}</b>
-                      </div>
-                      {item.description && <p>{item.description}</p>}
-                      <div className="portal-approved-step__actions">
-                        {documentUrl && <a href={documentUrl} target="_blank" rel="noreferrer">승인 문서 보기 ↗</a>}
-                        {item.status === "approved" && (
-                          <Link href={`/client-portal/revision?approvalId=${encodeURIComponent(item.id)}`}>이 결과 수정 요청</Link>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
+          <div className="pcrm-client-project-meta">
+            <span>현재 프로젝트</span>
+            <h2>{session.projectName}</h2>
+            <p>{formatPeriod(workflow?.start_date, workflow?.expected_completion_date)}</p>
+          </div>
+          <div className="pcrm-client-current-state">
+            <span>현재 상태</span>
+            <StatusBadge status={session.currentStepName} />
+            <small>최근 업데이트 {formatDate(workflow?.updated_at)}</small>
+          </div>
+        </section>
+
+        <PortalCard className="pcrm-client-progress-card">
+          <header><h2>진행 과정</h2><strong>{session.projectProgress}%</strong></header>
+          <PortalWorkflowProgress currentStepKey={session.currentStepKey} completed={session.projectStatus === "completed"} />
         </PortalCard>
 
-        {/* 퀵 메뉴 카드 */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:16 }}>
-          {[
-            { href:"/client-portal/gallery",  icon:"🖼️", label:"갤러리 확인", desc:"촬영 결과물 보기", highlight: hasGallery },
-            { href:"/client-portal/revision",  icon:"✏️", label:"수정 요청",   desc:"보정·콘텐츠 수정 요청", highlight: (data?.revisions?.length ?? 0) > 0 },
-            { href:"/client-portal/review",    icon:"⭐", label:"리뷰 작성",   desc:"촬영 후기 남기기", highlight: !data?.hasReview },
-            { href:"/client-portal/per",       icon:"🎁", label:"PER 포인트",  desc:"리워드 포인트 확인", highlight: !!data?.per?.per_joined },
-          ].map(item => (
-            <Link key={item.href} href={item.href} style={{ textDecoration:"none" }}>
-              <div style={{ background:"#fff", borderRadius:14, border:`1.5px solid ${item.highlight ? OR+"33" : BRD}`, padding:"16px 14px", cursor:"pointer", transition:"box-shadow .15s", position:"relative" }}>
-                {item.highlight && <div style={{ position:"absolute", top:10, right:10, width:8, height:8, borderRadius:"50%", background:OR }} />}
-                <div style={{ fontSize:24, marginBottom:8 }}>{item.icon}</div>
-                <div style={{ fontSize:13, fontWeight:800, color:"#1C2B28" }}>{item.label}</div>
-                <div style={{ fontSize:11, color:MUT, marginTop:2 }}>{item.desc}</div>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {/* 갤러리 미리보기 */}
-        {gallery && (
-          <PortalCard style={{ marginBottom:16 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <span style={{ fontSize:13, fontWeight:800, color:G }}>📸 최근 갤러리</span>
-              <Link href="/client-portal/gallery" style={{ fontSize:12, color:G, fontWeight:700, textDecoration:"none" }}>전체 보기 →</Link>
-            </div>
-            <div style={{ fontSize:14, fontWeight:700, marginBottom:4 }}>{gallery.description || (gallery.gallery_type === "original" ? "원본 갤러리" : "보정 갤러리")}</div>
-            {gallery.shoot_date && <div style={{ fontSize:12, color:MUT, marginBottom:10 }}>촬영일: {new Date(gallery.shoot_date).toLocaleDateString("ko-KR")}</div>}
-            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              {gallery.nas_link && <a href={gallery.nas_link} target="_blank" rel="noreferrer" style={{ fontSize:12, fontWeight:700, color:"#fff", background:G, borderRadius:8, padding:"7px 14px", textDecoration:"none" }}>갤러리 열기</a>}
-            </div>
-          </PortalCard>
-        )}
-
-        {/* 견적서 */}
-        {quotes.length > 0 && (
-          <PortalCard style={{ marginBottom:16 }}>
-            <div style={{ fontSize:13, fontWeight:800, color:G, marginBottom:12 }}>📄 견적서</div>
-            {quotes.map((q: any) => (
-              <div key={q.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${BRD}`, gap:10 }}>
-                <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{q.title || q.quote_number}</div>
-                  <div style={{ fontSize:11, color:MUT, marginTop:2 }}>공급가 {(q.supply_amount ?? 0).toLocaleString()}원 · 부가세 {(q.vat ?? 0).toLocaleString()}원 · 합계 {(q.total_amount ?? 0).toLocaleString()}원</div>
+        <div className="pcrm-client-main-grid">
+          <div className="pcrm-client-main-column">
+            <PortalCard className="pcrm-client-approval-card">
+              <header><h2>확인 및 승인 항목</h2><span>{data.approvedSteps.length + data.publications.length}건</span></header>
+              {data.approvedSteps.length === 0 && data.publications.length === 0 ? (
+                <div className="pcrm-client-empty">현재 확인이 필요한 공개 자료가 없습니다.</div>
+              ) : (
+                <div className="pcrm-client-list">
+                  {data.publications.slice(0, 4).map((item) => (
+                    <article key={item.id}>
+                      <FileText size={17} />
+                      <div><strong>{item.title || item.related_type}</strong><span>{item.description || "프로젝트 자료를 확인해 주세요."}</span></div>
+                      <StatusBadge status={publicationLabel(item.status)} />
+                    </article>
+                  ))}
+                  {data.approvedSteps.slice(0, 4).map((item) => (
+                    <article key={item.id}>
+                      <CircleCheck size={17} />
+                      <div><strong>{item.stepName || item.title}</strong><span>{item.description || "담당자가 공개한 진행 결과입니다."}</span></div>
+                      <StatusBadge status={item.status === "revision_requested" ? "수정 요청" : "공개"} />
+                    </article>
+                  ))}
                 </div>
-                {q.artifactId
-                  ? <button onClick={() => downloadArtifact(q.artifactId)} style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#fff", background:G, border:"none", borderRadius:8, padding:"7px 12px", cursor:"pointer" }}>PDF 다운로드</button>
-                  : <span style={{ flexShrink:0, fontSize:11, color:MUT }}>PDF 준비 중</span>}
-              </div>
-            ))}
-          </PortalCard>
-        )}
+              )}
+            </PortalCard>
 
-        {/* 계약서 */}
-        {contracts.length > 0 && (
-          <PortalCard style={{ marginBottom:16 }}>
-            <div style={{ fontSize:13, fontWeight:800, color:G, marginBottom:12 }}>📝 계약서</div>
-            {contracts.map((c: any) => (
-              <div key={c.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${BRD}`, gap:10 }}>
-                <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:700 }}>{c.quote_number || "계약서"}</div>
-                  <div style={{ fontSize:11, marginTop:2, fontWeight:700, color: c.signature_data_url ? G : OR }}>
-                    {c.signature_data_url ? "✓ 서명 완료" : "서명 대기 — 담당 매니저에게 문의해주세요"}
-                  </div>
+            <PortalCard className="pcrm-client-resource-card">
+              <header><h2>프로젝트 자료</h2><Link href="/client-portal/documents">문서함 전체 보기 <ChevronRight size={13} /></Link></header>
+              {resources.length === 0 ? (
+                <div className="pcrm-client-empty">아직 공개된 프로젝트 자료가 없습니다.</div>
+              ) : resources.map((item) => (
+                <article key={`${item.type}-${item.id}`}>
+                  <span>{item.type}</span>
+                  <strong>{item.title}</strong>
+                  {item.artifactId
+                    ? <button onClick={() => openArtifact(item.artifactId)}>파일 보기</button>
+                    : <small>상세 화면에서 확인</small>}
+                </article>
+              ))}
+            </PortalCard>
+
+            {gallery && (
+              <PortalCard className="pcrm-client-gallery-preview">
+                <header><h2>최근 갤러리</h2><Link href="/client-portal/gallery">전체 보기 <ChevronRight size={13} /></Link></header>
+                <div>
+                  <Images size={28} />
+                  <span><strong>{gallery.description || "프로젝트 갤러리"}</strong><small>촬영일 {formatDate(gallery.shoot_date)}</small></span>
+                  {gallery.nas_link && <a href={gallery.nas_link} target="_blank" rel="noreferrer">갤러리 열기</a>}
                 </div>
-                {c.artifactId
-                  ? <button onClick={() => downloadArtifact(c.artifactId)} style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#fff", background:G, border:"none", borderRadius:8, padding:"7px 12px", cursor:"pointer" }}>PDF 다운로드</button>
-                  : <span style={{ flexShrink:0, fontSize:11, color:MUT }}>PDF 준비 중</span>}
-              </div>
-            ))}
-          </PortalCard>
-        )}
+              </PortalCard>
+            )}
+          </div>
 
-        {/* 콘티 */}
-        {contiSaves.length > 0 && (
-          <PortalCard style={{ marginBottom:16 }}>
-            <div style={{ fontSize:13, fontWeight:800, color:G, marginBottom:12 }}>🎬 촬영 콘티</div>
-            {contiSaves.map((item: any) => <ContiPreviewCard key={item.id} item={item} />)}
-          </PortalCard>
-        )}
+          <aside className="pcrm-client-side-column">
+            <PortalCard className="pcrm-client-next-action">
+              <header><span>오늘 해야 할 일</span><CircleCheck size={17} /></header>
+              <h2>{nextAction.title}</h2>
+              <Link href={nextAction.href}>지금 확인하기 <ChevronRight size={15} /></Link>
+            </PortalCard>
 
-        {/* 수정 요청 현황 */}
-        {(data?.revisions?.length ?? 0) > 0 && (
-          <PortalCard style={{ marginBottom:16 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <span style={{ fontSize:13, fontWeight:800, color:G }}>✏️ 수정 요청 현황</span>
-              <Link href="/client-portal/revision" style={{ fontSize:12, color:G, fontWeight:700, textDecoration:"none" }}>전체 →</Link>
-            </div>
-            {data!.revisions.slice(0,3).map((r: any) => (
-              <div key={r.id} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:`1px solid ${BRD}` }}>
-                <span style={{ fontSize:13 }}>{r.title}</span>
-                <span style={{ fontSize:11, color:r.status==="completed"?G:r.status==="in_progress"?OR:MUT, fontWeight:700 }}>
-                  {r.status==="requested"?"접수됨":r.status==="in_progress"?"진행 중":r.status==="completed"?"완료":"반려"}
-                </span>
-              </div>
-            ))}
-          </PortalCard>
-        )}
+            <PortalCard className="pcrm-client-note-card">
+              <header><PenLine size={16} /><h2>담당자 메모</h2></header>
+              <p>{workflow?.project_memo || data.client?.memo || "프로젝트 관련 안내는 이곳에 표시됩니다."}</p>
+            </PortalCard>
 
-        {/* PER 포인트 */}
-        {data?.per?.per_joined && (
-          <PortalCard style={{ marginBottom:16, background:`${G}06`, border:`1px solid ${G}15` }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div>
-                <div style={{ fontSize:11, color:G, fontWeight:700, marginBottom:4 }}>🎁 PER 리워드 포인트</div>
-                <div style={{ fontSize:24, fontWeight:800, color:G }}>{(data.per.available_points ?? 0).toLocaleString()}P</div>
-                <div style={{ fontSize:11, color:MUT, marginTop:2 }}>사용 가능 포인트</div>
-              </div>
-              <Link href="/client-portal/per" style={{ fontSize:12, fontWeight:700, color:"#fff", background:G, borderRadius:10, padding:"8px 16px", textDecoration:"none" }}>확인하기</Link>
-            </div>
-          </PortalCard>
-        )}
+            <PortalCard className="pcrm-client-schedule-card">
+              <header><CalendarDays size={16} /><h2>촬영 일정</h2></header>
+              <strong>{formatDate(workflow?.shoot_date)}</strong>
+              <span>{workflow?.shooting_type || "상세 일정은 담당 매니저에게 문의해 주세요."}</span>
+            </PortalCard>
 
-        {/* 안내 문구 */}
-        <div style={{ textAlign:"center", padding:"20px 0", borderTop:`1px solid ${BRD}`, marginTop:8 }}>
-          <p style={{ fontSize:12, color:"#9BB5B0", lineHeight:1.8, margin:0 }}>
-            포토클리닉 촬영 진행상황과 전달 자료를 확인할 수 있는 고객 전용 페이지입니다.<br />
-            문의사항은 담당 매니저에게 연락해주세요.
-          </p>
+            <PortalCard className="pcrm-client-link-stack">
+              <Link href="/client-portal/revision"><PenLine size={16} /><span><strong>수정 요청</strong>결과물 의견 남기기</span><ChevronRight size={14} /></Link>
+              <Link href="/client-portal/review"><Heart size={16} /><span><strong>리뷰</strong>프로젝트 경험 작성</span><ChevronRight size={14} /></Link>
+              <Link href="/client-portal/per"><ShieldCheck size={16} /><span><strong>PER 포인트</strong>{(data.per?.available_points ?? 0).toLocaleString()}P 사용 가능</span><ChevronRight size={14} /></Link>
+              <a href={`mailto:${data.client?.email || ""}`}><MessageCircle size={16} /><span><strong>문의하기</strong>담당자에게 문의 남기기</span><ChevronRight size={14} /></a>
+            </PortalCard>
+          </aside>
         </div>
-      </div>
-    </div>
+      </main>
+    </PortalPageShell>
   );
 }
 
-function getDocumentUrl(preview: Record<string, unknown> | null | undefined) {
-  if (!preview) return "";
-  for (const key of ["pdf_url", "document_url", "download_url", "file_url"]) {
-    const value = preview[key];
-    if (typeof value === "string" && /^https?:\/\//.test(value)) return value;
-  }
-  return "";
+function formatDate(value?: string | null) {
+  if (!value) return "일정 미정";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-function ContiPreviewCard({ item }: { item: any }) {
-  const [open, setOpen] = useState(false);
-  const scenes: any[] = Array.isArray(item.result?.conti) ? item.result.conti : [];
-  return (
-    <div style={{ padding:"10px 0", borderBottom:`1px solid ${BRD}` }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
-        <div style={{ minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:700 }}>{item.title || "촬영 콘티"}</div>
-          <div style={{ fontSize:11, color:MUT, marginTop:2 }}>씬 {scenes.length}개</div>
-        </div>
-        <button onClick={() => setOpen((v) => !v)} style={{ flexShrink:0, fontSize:11, fontWeight:700, color:G, background:`${G}10`, border:"none", borderRadius:8, padding:"7px 12px", cursor:"pointer" }}>
-          {open ? "접기" : "상세보기"}
-        </button>
-      </div>
-      {open && scenes.length > 0 && (
-        <div style={{ marginTop:10, background:`${G}05`, borderRadius:8, padding:"10px 12px", display:"flex", flexDirection:"column", gap:8 }}>
-          {scenes.map((scene, i) => (
-            <div key={i} style={{ fontSize:12, lineHeight:1.6 }}>
-              <strong style={{ color:G }}>{i + 1}. {scene.category || "씬"}</strong>
-              {scene.location && <span style={{ color:MUT }}> · {scene.location}</span>}
-              {scene.description && <div style={{ color:MUT }}>{scene.description}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function formatPeriod(start?: string | null, end?: string | null) {
+  if (!start && !end) return "프로젝트 기간 미정";
+  return `${formatDate(start)} ~ ${formatDate(end)}`;
+}
+
+function publicationLabel(status: string) {
+  const labels: Record<string, string> = {
+    published: "확인 필요",
+    viewed: "열람",
+    revision_requested: "수정 요청",
+    approved: "승인 완료",
+    completed: "완료",
+  };
+  return labels[status] || status;
 }

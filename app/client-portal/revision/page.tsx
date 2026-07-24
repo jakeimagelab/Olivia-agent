@@ -85,8 +85,8 @@ export default function PortalRevisionPage() {
 
   return (
     <div>
-      <PortalHeader clientName={session.clientName} />
-      <PortalNav active="수정 요청" />
+      <PortalHeader clientName={session.clientName} projectName={session.projectName} managerName={session.managerName} />
+      <PortalNav active="수정 요청" visibleMenus={session.visibleMenus} />
 
       <div style={{ maxWidth:780, margin:"0 auto", padding:"24px 16px 80px" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>

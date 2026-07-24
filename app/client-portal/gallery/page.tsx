@@ -27,8 +27,8 @@ export default function PortalGalleryPage() {
 
   return (
     <div>
-      <PortalHeader clientName={session.clientName} />
-      <PortalNav active="갤러리" />
+      <PortalHeader clientName={session.clientName} projectName={session.projectName} managerName={session.managerName} />
+      <PortalNav active="갤러리" visibleMenus={session.visibleMenus} />
 
       <div style={{ maxWidth:780, margin:"0 auto", padding:"24px 16px 80px" }}>
         <div style={{ marginBottom:20 }}>

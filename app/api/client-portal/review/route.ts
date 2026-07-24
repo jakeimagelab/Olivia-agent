@@ -12,14 +12,17 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: "인증 필요" }, { status: 401 });
 
   const db = getSupabaseAdmin();
-  const { data } = await db
+  let query = db
     .from("client_reviews")
     .select("*")
     .eq("client_id", session.clientId)
     .or("source.eq.client_portal,source.is.null")
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+  if (session.workflowRunId && session.projectScoped) {
+    query = query.eq("workflow_run_id", session.workflowRunId);
+  }
+  const { data } = await query.maybeSingle();
 
   return NextResponse.json({ ok: true, review: data ?? null });
 }
@@ -30,13 +33,16 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: "인증 필요" }, { status: 401 });
 
   const db = getSupabaseAdmin();
-  const existing = await db
+  let existingQuery = db
     .from("client_reviews")
     .select("id")
     .eq("client_id", session.clientId)
     .or("source.eq.client_portal,source.is.null")
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+  if (session.workflowRunId && session.projectScoped) {
+    existingQuery = existingQuery.eq("workflow_run_id", session.workflowRunId);
+  }
+  const existing = await existingQuery.maybeSingle();
   if (existing.data) return NextResponse.json({ ok: false, error: "이미 리뷰를 작성하셨습니다." }, { status: 409 });
 
   const body = await req.json();

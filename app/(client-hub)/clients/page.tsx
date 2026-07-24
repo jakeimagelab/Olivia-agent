@@ -15,6 +15,9 @@ import {
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import NextActionCard from "@/components/NextActionCard";
 import ConsultMeetingForm from "./_components/ConsultMeetingForm";
+import PcrmDashboard from "./_components/PcrmDashboard";
+import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
+import PcrmActivityTimeline from "./_components/PcrmActivityTimeline";
 import { C } from "@/lib/theme";
 import OliviaProjectPanel from "@/components/olivia/OliviaProjectPanel";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
@@ -179,62 +182,17 @@ function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
 
   return (
     <div style={{ color: C.txt }}>
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 20px 80px" }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="병원명 · 진료과 검색"
-            style={{ flex: "1 1 180px", maxWidth: 300, height: 40, border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "0 14px", fontSize: 13, fontFamily: "inherit", outline: "none", background: C.white, color: C.txt }} />
-          <span style={{ fontSize: 12, color: C.hint }}>총 {filtered.length}명</span>
-          <button onClick={() => setShowModal(true)}
-            style={{ height: 40, padding: "0 20px", background: C.orange, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit", marginLeft: "auto" }}>
-            + 신규 등록
-          </button>
-        </div>
-
-        {loading ? <SpinBox /> : filtered.length === 0 ? (
-          <div style={{ padding: "60px 0", textAlign: "center", color: C.muted }}>
-            <div style={{ fontSize: 40, marginBottom: 14 }}>🏥</div>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>
-              {search ? "검색 결과가 없습니다." : "등록된 고객이 없습니다."}
-            </div>
-            {!search && (
-              <button onClick={() => setShowModal(true)} style={{ marginTop: 12, height: 44, padding: "0 28px", background: C.orange, color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
-                + 첫 고객 등록하기
-              </button>
-            )}
-          </div>
-        ) : (
-          <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-            {filtered.map((c, i) => {
-              const isCompleted = c.active_run?.status === "completed";
-              const stepKey = c.active_run?.current_step_key;
-              const stepName = isCompleted ? "완료" : stepKey ? (STEP_NAME[stepKey] || stepKey) : null;
-              const sc = isCompleted ? C.green : stepKey ? stepBadgeColor(stepKey) : C.hint;
-              return (
-                <div key={c.id} onClick={() => router.push(`/clients?id=${c.id}`)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", cursor: "pointer",
-                    borderTop: i === 0 ? "none" : `1px solid ${C.border}`, transition: "background .1s",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = C.light; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: C.teal }}>{c.name}</div>
-                    {c.department && <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{c.department}</div>}
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 99, background: `${sc}18`, color: sc, border: `1px solid ${sc}30`, whiteSpace: "nowrap" }}>
-                    {stepName ?? "미시작"}
-                  </span>
-                  <button onClick={(e) => deleteClient(e, c.id, c.name)} disabled={deletingId === c.id} aria-label={`${c.name} 삭제`}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, border: "none", borderRadius: 8, background: "transparent", color: C.hint, cursor: deletingId === c.id ? "not-allowed" : "pointer", flexShrink: 0 }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFF0ED"; (e.currentTarget as HTMLElement).style.color = C.orange; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = C.hint; }}>
-                    <Trash2 size={14} />
-                  </button>
-                  <span style={{ fontSize: 13, color: C.hint }}>→</span>
-                </div>
-              );
-            })}
-          </div>
+      <div style={{ maxWidth: 1500, margin: "0 auto", padding: "0 0 80px" }}>
+        {loading ? <SpinBox /> : (
+          <PcrmDashboard
+            clients={filtered}
+            search={search}
+            onSearch={setSearch}
+            deletingId={deletingId}
+            onOpen={(clientId) => router.push(`/clients?id=${clientId}`)}
+            onDelete={deleteClient}
+            onCreate={() => setShowModal(true)}
+          />
         )}
       </div>
 
@@ -247,9 +205,9 @@ function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
             <div style={{ background: C.bg, borderRadius: 20, width: "100%", maxWidth: 600, padding: 28, boxShadow: "0 24px 80px rgba(0,0,0,.24)" }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, letterSpacing: ".1em", marginBottom: 4 }}>STEP 1 · 상담/미팅</div>
+                  <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, letterSpacing: ".1em", marginBottom: 4 }}>PCRM · CLIENT</div>
                   <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 900, color: C.teal }}>신규 고객 등록</h2>
-                  <p style={{ margin: 0, fontSize: 12, color: C.muted }}>등록 즉시 워크플로우 1단계가 자동으로 시작됩니다.</p>
+                  <p style={{ margin: 0, fontSize: 12, color: C.muted }}>고객 저장 후 상세 화면에서 프로젝트를 생성할 수 있습니다.</p>
                 </div>
                 <button onClick={() => setShowModal(false)} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, cursor: "pointer", fontSize: 18, color: C.muted, fontFamily: "inherit", flexShrink: 0 }}>×</button>
               </div>
@@ -268,12 +226,14 @@ function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
 
 /* ── DETAIL VIEW ── */
 function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; workflowRunId: string | null; onBack: () => void }) {
+  const router = useRouter();
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [openStepKey, setOpenStepKey] = useState<string | null>(null);
+  const [showProjectDialog, setShowProjectDialog] = useState(false);
 
   const deleteClient = async (clientName: string) => {
     if (!window.confirm(`'${clientName}' 고객을 삭제할까요? 휴지통으로 이동되며 30일 안에 복원할 수 있습니다.`)) return;
@@ -291,18 +251,26 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   };
 
   const openClientPreview = async () => {
+    const selectedWorkflowRunId = pageData?.workflowRun?.id || workflowRunId;
+    if (!selectedWorkflowRunId) {
+      alert("먼저 고객 프로젝트를 생성해 주세요.");
+      return;
+    }
     setPreviewLoading(true);
     try {
-      const existing = await fetch(`/api/admin/client-portal/access?clientId=${clientId}`).then((r) => r.json());
+      const existing = await fetch(`/api/admin/client-portal/access?clientId=${clientId}&workflowRunId=${selectedWorkflowRunId}`).then((r) => r.json());
       let token = existing?.activeAccess?.access_token;
       if (!token) {
         const created = await fetch("/api/admin/client-portal/access", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clientId }),
+          body: JSON.stringify({ clientId, workflowRunId: selectedWorkflowRunId }),
         }).then((r) => r.json());
+        if (!created?.ok) throw new Error(created?.error || "고객 포털을 열 수 없습니다.");
         token = created?.token;
       }
       if (token) window.open(`/client-portal/access/${token}`, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "고객 포털을 열 수 없습니다.");
     } finally {
       setPreviewLoading(false);
     }
@@ -345,7 +313,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
     </div>
   );
 
-  const { client, workflowRun, quotes = [], contracts = [], artifacts = [] } = pageData;
+  const { client, workflowRun, quotes = [], contracts = [], artifacts = [], activities = [] } = pageData;
   const workflowCompleted = workflowRun?.status === "completed";
   const currentStepKey = workflowCompleted
     ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
@@ -371,6 +339,10 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
             style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: previewLoading ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
             <Eye size={13} /> {previewLoading ? "준비 중..." : "고객 화면 미리보기"}
           </button>
+          <button onClick={() => setShowProjectDialog(true)}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid rgba(255,255,255,.45)", borderRadius: 8, color: C.orange, fontSize: 12, fontWeight: 900, padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
+            + 새 프로젝트
+          </button>
           <button onClick={() => deleteClient(client.name)} disabled={deleting}
             style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
             <Trash2 size={13} /> {deleting ? "삭제 중..." : "고객 삭제"}
@@ -395,6 +367,13 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
               );
             })}
           </nav>
+        )}
+        {pageData.workflowRuns?.length === 0 && (
+          <div style={{ padding: "22px", border: `1px dashed ${C.border}`, borderRadius: 12, background: C.mint, textAlign: "center" }}>
+            <strong style={{ display: "block", color: C.teal, fontSize: 14 }}>아직 프로젝트가 없습니다.</strong>
+            <span style={{ display: "block", marginTop: 5, color: C.muted, fontSize: 11 }}>고객 정보는 저장되었습니다. 실제 업무를 시작할 프로젝트를 생성해 주세요.</span>
+            <button onClick={() => setShowProjectDialog(true)} style={{ marginTop: 12, height: 40, padding: "0 18px", border: 0, borderRadius: 9, background: C.orange, color: "#fff", fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: "pointer" }}>새 프로젝트 생성</button>
+          </div>
         )}
         <div className="pc-workflow-phase-bar" aria-label="프로젝트 4스테이지 진행 상태">
           {WORKFLOW_STAGES.map((stage, index) => {
@@ -430,8 +409,20 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         )}
 
         <NextActionCard client={client} workflowRun={workflowRun} onRefresh={load} />
+        <PcrmActivityTimeline activities={activities} />
       </div>
       </section>
+      {showProjectDialog && (
+        <NewPcrmProjectDialog
+          clientId={clientId}
+          clientName={client.name}
+          onClose={() => setShowProjectDialog(false)}
+          onCreated={(newWorkflowRunId) => {
+            setShowProjectDialog(false);
+            router.push(`/clients?id=${encodeURIComponent(clientId)}&workflowRunId=${encodeURIComponent(newWorkflowRunId)}`);
+          }}
+        />
+      )}
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
 
@@ -502,7 +493,13 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           </div>
 
           {/* 견적서 / 계약서 */}
-          <ClientRelatedArtifactsSection quotes={quotes} contracts={contracts} artifacts={artifacts} />
+          <ClientRelatedArtifactsSection
+            clientId={clientId}
+            workflowRunId={workflowRun?.id}
+            quotes={quotes}
+            contracts={contracts}
+            artifacts={artifacts}
+          />
 
           {/* 촬영 갤러리 */}
           <ClientGallerySection clientId={clientId} hospitalName={client.name} email={client.email} workflowRunId={workflowRun?.id} />
@@ -534,7 +531,34 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 }
 
 /* ── 견적서 / 계약서 섹션 (client_id 기준, 부가세 별도 금액 표시) ── */
-function ClientRelatedArtifactsSection({ quotes, contracts, artifacts }: { quotes: any[]; contracts: any[]; artifacts: WorkflowArtifact[] }) {
+function ClientRelatedArtifactsSection({
+  clientId,
+  workflowRunId,
+  quotes,
+  contracts,
+  artifacts,
+}: {
+  clientId: string;
+  workflowRunId?: string;
+  quotes: any[];
+  contracts: any[];
+  artifacts: WorkflowArtifact[];
+}) {
+  const [publications, setPublications] = useState<any[]>([]);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!workflowRunId) {
+      setPublications([]);
+      return;
+    }
+    fetch(`/api/admin/pcrm/publications?clientId=${encodeURIComponent(clientId)}&workflowRunId=${encodeURIComponent(workflowRunId)}`)
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload.ok) setPublications(payload.publications ?? []);
+      });
+  }, [clientId, workflowRunId]);
+
   if (quotes.length === 0 && contracts.length === 0 && artifacts.length === 0) return null;
 
   const won = (n: number | null | undefined) => (n ?? 0).toLocaleString("ko-KR") + "원";
@@ -548,6 +572,40 @@ function ClientRelatedArtifactsSection({ quotes, contracts, artifacts }: { quote
       await openWorkflowArtifact(artifact.id, mode);
     } catch (error) {
       alert(error instanceof Error ? error.message : "원본 파일을 열지 못했습니다.");
+    }
+  };
+
+  const togglePublication = async (artifact: WorkflowArtifact) => {
+    if (!workflowRunId || publishingId) return;
+    const existing = publications.find((item) =>
+      item.related_type === "workflow_artifact"
+      && item.related_id === artifact.id
+      && item.status !== "archived"
+    );
+    setPublishingId(artifact.id);
+    try {
+      const response = await fetch("/api/admin/pcrm/publications", {
+        method: existing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(existing
+          ? { id: existing.id, action: "archive" }
+          : {
+              clientId,
+              workflowRunId,
+              relatedType: "workflow_artifact",
+              relatedId: artifact.id,
+              title: artifact.title || artifact.file_name,
+            }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "공개 상태를 변경하지 못했습니다.");
+      setPublications((current) => existing
+        ? current.map((item) => item.id === existing.id ? payload.publication : item)
+        : [payload.publication, ...current]);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "공개 상태를 변경하지 못했습니다.");
+    } finally {
+      setPublishingId(null);
     }
   };
 
@@ -575,6 +633,27 @@ function ClientRelatedArtifactsSection({ quotes, contracts, artifacts }: { quote
           <div style={{ display: "flex", gap: 6 }}>
             <button type="button" onClick={() => void accessArtifact(artifact, "view")} className="pc-btn pc-btn--sm" style={{ minHeight: 32, padding: "0 10px" }}><Eye size={13}/> 보기</button>
             <button type="button" onClick={() => void accessArtifact(artifact, "download")} className="pc-btn pc-btn--sm" style={{ minHeight: 32, padding: "0 10px" }}><Download size={13}/> 다운로드</button>
+            {workflowRunId && (
+              <button
+                type="button"
+                disabled={publishingId === artifact.id}
+                onClick={() => void togglePublication(artifact)}
+                className="pc-btn pc-btn--sm"
+                style={{
+                  minHeight: 32,
+                  padding: "0 10px",
+                  borderColor: publications.some((item) => item.related_type === "workflow_artifact" && item.related_id === artifact.id && item.status !== "archived") ? C.orange : C.teal,
+                  background: publications.some((item) => item.related_type === "workflow_artifact" && item.related_id === artifact.id && item.status !== "archived") ? `${C.orange}10` : `${C.teal}08`,
+                  color: publications.some((item) => item.related_type === "workflow_artifact" && item.related_id === artifact.id && item.status !== "archived") ? C.orange : C.teal,
+                }}
+              >
+                {publishingId === artifact.id
+                  ? "처리 중"
+                  : publications.some((item) => item.related_type === "workflow_artifact" && item.related_id === artifact.id && item.status !== "archived")
+                    ? "공개 취소"
+                    : "고객 공개"}
+              </button>
+            )}
           </div>
         </div>
       ))}
@@ -672,6 +751,8 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [form, setForm] = useState({ nasLink: "", shootDate: "", description: "" });
+  const [publications, setPublications] = useState<any[]>([]);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -681,12 +762,47 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
       if (hospitalName) params.set("q", hospitalName);
       if (workflowRunId) params.set("workflow_run_id", workflowRunId);
       const query = `/api/galleries?${params.toString()}`;
-      const res = await fetch(query);
-      const d = await res.json();
+      const [d, publicationData] = await Promise.all([
+        fetch(query).then((res) => res.json()),
+        workflowRunId
+          ? fetch(`/api/admin/pcrm/publications?clientId=${encodeURIComponent(clientId)}&workflowRunId=${encodeURIComponent(workflowRunId)}`).then((res) => res.json())
+          : Promise.resolve({ ok: true, publications: [] }),
+      ]);
       if (d.ok) setGalleries(d.galleries || []);
+      if (publicationData.ok) setPublications(publicationData.publications || []);
     } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [clientId, hospitalName]);
+
+  const toggleGalleryPublication = async (gallery: any) => {
+    if (!workflowRunId || publishingId) return;
+    const existing = publications.find((item) => item.related_type === "gallery" && item.related_id === gallery.id && item.status !== "archived");
+    setPublishingId(gallery.id);
+    try {
+      const response = await fetch("/api/admin/pcrm/publications", {
+        method: existing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(existing
+          ? { id: existing.id, action: "archive" }
+          : {
+              clientId,
+              workflowRunId,
+              relatedType: "gallery",
+              relatedId: gallery.id,
+              title: gallery.description || "촬영 갤러리",
+            }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "갤러리 공개 상태를 변경하지 못했습니다.");
+      setPublications((current) => existing
+        ? current.map((item) => item.id === existing.id ? payload.publication : item)
+        : [payload.publication, ...current]);
+    } catch (error) {
+      setMsg(error instanceof Error ? error.message : "갤러리 공개 상태를 변경하지 못했습니다.");
+    } finally {
+      setPublishingId(null);
+    }
+  };
+  useEffect(() => { load(); }, [clientId, hospitalName, workflowRunId]);
 
   const save = async () => {
     if (!form.nasLink) { setMsg("NAS 링크를 입력해주세요."); return; }
@@ -773,6 +889,31 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
                 style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, color: C.teal, background: C.light, border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 10px", textDecoration: "none" }}>
                 🔗 열기
               </a>
+              {workflowRunId && (
+                <button
+                  type="button"
+                  disabled={publishingId === g.id}
+                  onClick={() => void toggleGalleryPublication(g)}
+                  style={{
+                    flexShrink: 0,
+                    border: `1px solid ${C.orange}35`,
+                    borderRadius: 7,
+                    padding: "6px 10px",
+                    background: publications.some((item) => item.related_type === "gallery" && item.related_id === g.id && item.status !== "archived") ? `${C.orange}12` : C.white,
+                    color: C.orange,
+                    fontFamily: "inherit",
+                    fontSize: 10,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  {publishingId === g.id
+                    ? "처리 중"
+                    : publications.some((item) => item.related_type === "gallery" && item.related_id === g.id && item.status !== "archived")
+                      ? "공개 취소"
+                      : "고객 공개"}
+                </button>
+              )}
             </div>
           ))}
         </div>

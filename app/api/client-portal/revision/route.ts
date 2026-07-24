@@ -15,12 +15,15 @@ export async function GET(req: NextRequest) {
   const visibleStepNames = new Map(
     ACTIVE_WORKFLOW_STEPS.filter((step) => step.visible_to_client).map((step) => [step.key, step.name]),
   );
+  let revisionQuery = db.from("client_revision_requests")
+    .select("*")
+    .eq("client_id", session.clientId)
+    .order("created_at", { ascending: false });
+  if (session.workflowRunId && session.projectScoped) {
+    revisionQuery = revisionQuery.eq("workflow_run_id", session.workflowRunId);
+  }
   const [revisionResult, approvalResult] = await Promise.all([
-    db
-      .from("client_revision_requests")
-      .select("*")
-      .eq("client_id", session.clientId)
-      .order("created_at", { ascending: false }),
+    revisionQuery,
     session.workflowRunId
       ? db
           .from("agent_approvals")

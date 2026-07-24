@@ -13,19 +13,72 @@ export async function GET(req: NextRequest) {
 
   const db = getSupabaseAdmin();
   const clientId = session.clientId;
+  const workflowRunId = session.workflowRunId;
 
-  const [clientRes, galleryRes, revisionRes, reviewRes, eventsRes, perRes, workflowRes, quotesRes, contractsRes, contiRes] = await Promise.all([
+  let galleryQuery = db.from("photo_galleries")
+    .select("id,workflow_run_id,description,shoot_date,gallery_type,nas_link,created_at")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  let revisionQuery = db.from("client_revision_requests")
+    .select("id,workflow_run_id,title,status,created_at")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  let reviewQuery = db.from("client_reviews")
+    .select("id,workflow_run_id,overall_rating,created_at")
+    .eq("client_id", clientId)
+    .limit(1);
+  let eventQuery = db.from("client_portal_events")
+    .select("event_type,memo,created_at,workflow_run_id")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  let quoteQuery = db.from("quotes")
+    .select("id,workflow_run_id,quote_number,title,supply_amount,vat,total_amount,created_at")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  let contractQuery = db.from("contracts")
+    .select("id,workflow_run_id,quote_number,signature_data_url,quote_data,created_at")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  let contiQuery = db.from("conti_saves")
+    .select("id,workflow_run_id,title,result,saved_at")
+    .eq("client_id", clientId)
+    .order("saved_at", { ascending: false })
+    .limit(5);
+
+  if (workflowRunId && session.projectScoped) {
+    galleryQuery = galleryQuery.eq("workflow_run_id", workflowRunId);
+    revisionQuery = revisionQuery.eq("workflow_run_id", workflowRunId);
+    reviewQuery = reviewQuery.eq("workflow_run_id", workflowRunId);
+    eventQuery = eventQuery.eq("workflow_run_id", workflowRunId);
+    quoteQuery = quoteQuery.eq("workflow_run_id", workflowRunId);
+    contractQuery = contractQuery.eq("workflow_run_id", workflowRunId);
+    contiQuery = contiQuery.eq("workflow_run_id", workflowRunId);
+  }
+
+  const [clientRes, galleryRes, revisionRes, reviewRes, eventsRes, perRes, workflowRes, quotesRes, contractsRes, contiRes, publicationsRes, activitiesRes] = await Promise.all([
     db.from("clients").select("*").eq("id", clientId).single(),
-    // photo_galleries가 실제로 갤러리가 쌓이는 테이블이다 (구 galleries 테이블은 아무도 쓰지 않아 항상 비어있었음).
-    db.from("photo_galleries").select("id,description,shoot_date,gallery_type,nas_link,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(10),
-    db.from("client_revision_requests").select("id,title,status,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(5),
-    db.from("client_reviews").select("id,overall_rating,created_at").eq("client_id", clientId).limit(1),
-    db.from("client_portal_events").select("event_type,memo,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(10),
+    galleryQuery,
+    revisionQuery,
+    reviewQuery,
+    eventQuery,
     db.from("clients").select("available_points,total_earned_points,reward_tier,per_joined").eq("id", clientId).single(),
-    db.from("workflow_runs").select("id,project_id,project_name,current_step_key,status,shoot_date,next_action").eq("client_id", clientId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    db.from("quotes").select("id,quote_number,title,supply_amount,vat,total_amount,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(5),
-    db.from("contracts").select("id,quote_number,signature_data_url,quote_data,created_at").eq("client_id", clientId).order("created_at", { ascending: false }).limit(5),
-    db.from("conti_saves").select("id,title,result,saved_at").eq("client_id", clientId).order("saved_at", { ascending: false }).limit(5),
+    workflowRunId
+      ? db.from("workflow_runs").select("*").eq("id", workflowRunId).eq("client_id", clientId).maybeSingle()
+      : db.from("workflow_runs").select("*").eq("client_id", clientId).neq("status", "canceled").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    quoteQuery,
+    contractQuery,
+    contiQuery,
+    workflowRunId
+      ? db.from("pcrm_publications").select("*").eq("client_id", clientId).eq("workflow_run_id", workflowRunId).in("status", ["published", "viewed", "revision_requested", "approved", "completed"]).order("updated_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    workflowRunId
+      ? db.from("pcrm_activity_logs").select("*").eq("client_id", clientId).eq("workflow_run_id", workflowRunId).order("created_at", { ascending: false }).limit(10)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   const visibleStepKeys = new Set(ACTIVE_WORKFLOW_STEPS.filter((step) => step.visible_to_client).map((step) => step.key));
@@ -68,19 +121,31 @@ export async function GET(req: NextRequest) {
     : { data: [] as any[] };
   const artifactBySourceId = new Map((artifactRows ?? []).map((row) => [row.source_id, row.id]));
 
+  const publications = publicationsRes.data ?? [];
+  const publishedSourceIds = new Set(publications.map((item) => item.related_id));
+  const enforcePublication = session.projectScoped;
+
   return NextResponse.json({
     ok: true,
     session,
     client: clientRes.data,
-    galleries: galleryRes.data ?? [],
+    galleries: enforcePublication
+      ? (galleryRes.data ?? []).filter((item) => publishedSourceIds.has(item.id))
+      : galleryRes.data ?? [],
     revisions: revisionRes.data ?? [],
     hasReview: (reviewRes.data?.length ?? 0) > 0,
     events: eventsRes.data ?? [],
     per: perRes.data,
     workflowRun,
     approvedSteps,
-    quotes: quotes.map((q) => ({ ...q, artifactId: artifactBySourceId.get(q.id) ?? null })),
-    contracts: contracts.map((c) => ({ ...c, artifactId: artifactBySourceId.get(c.id) ?? null })),
-    contiSaves: contiRes.data ?? [],
+    quotes: quotes
+      .filter((item) => !enforcePublication || publishedSourceIds.has(item.id) || publishedSourceIds.has(artifactBySourceId.get(item.id)))
+      .map((q) => ({ ...q, artifactId: artifactBySourceId.get(q.id) ?? null })),
+    contracts: contracts
+      .filter((item) => !enforcePublication || publishedSourceIds.has(item.id) || publishedSourceIds.has(artifactBySourceId.get(item.id)))
+      .map((c) => ({ ...c, artifactId: artifactBySourceId.get(c.id) ?? null })),
+    contiSaves: (contiRes.data ?? []).filter((item) => !enforcePublication || publishedSourceIds.has(item.id)),
+    publications,
+    activities: activitiesRes.data ?? [],
   });
 }

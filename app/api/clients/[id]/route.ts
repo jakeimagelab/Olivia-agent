@@ -73,6 +73,15 @@ export async function GET(
     ?? workflowRuns[0]
     ?? null;
 
+  const activitiesRes = workflowRun?.id
+    ? await supabase.from("pcrm_activity_logs")
+        .select("*")
+        .eq("client_id", id)
+        .eq("workflow_run_id", workflowRun.id)
+        .order("created_at", { ascending: false })
+        .limit(20)
+    : { data: [], error: null };
+
   const { data: mailings } = await supabase
     .from("mailing_queue")
     .select("id, type, status, subject, to_email, created_at")
@@ -99,6 +108,7 @@ export async function GET(
     artifacts: artifactsRes.error
       ? []
       : (artifactsRes.data ?? []).filter((artifact) => !workflowRun?.id || artifact.workflow_run_id === workflowRun.id || artifact.workflow_run_id === null),
+    activities: activitiesRes.error ? [] : activitiesRes.data ?? [],
   });
 }
 
