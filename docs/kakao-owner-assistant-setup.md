@@ -14,7 +14,8 @@ Supabase SQL Editor에서 다음 마이그레이션을 한 번 실행한다.
 
 `.env.local.example`의 대표자용 카카오·Google 항목을 Vercel 환경변수에 등록한다.
 
-- `ASSISTANT_ENCRYPTION_KEY`: 최소 32바이트의 무작위 비밀 문자열
+- `ASSISTANT_CREDENTIAL_ENCRYPTION_KEY`: 32바이트 base64 또는 64자리 hex 비밀값
+- `ASSISTANT_LINK_CODE_PEPPER`: 최소 16자의 무작위 비밀 문자열
 - `KAKAO_SKILL_SECRET`: 카카오 스킬 요청을 Olivia가 추가 검증하는 비밀값
 - `KAKAO_BOT_ID`
 - `KAKAO_REST_API_KEY`
