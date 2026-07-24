@@ -4,6 +4,7 @@ import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia
 import { generateShareToken, getFileExpiresAt } from "@/lib/selectGallery";
 import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
 import { validateOliviaCrudRequest } from "@/lib/olivia/crud/validation";
+import { createUnifiedReview } from "@/lib/reviews/createReview";
 import {
   OliviaCrudError,
   type OliviaCrudDomain,
@@ -304,22 +305,34 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
   }
 
   if (domain === "review") {
-    const client = await resolveClient(db, data.clientId, data.hospitalName);
-    if (!client) throw new OliviaCrudError("후기를 연결할 고객을 찾지 못했습니다.", "TARGET_NOT_FOUND");
-    const { data: row, error } = await db.from("client_reviews").insert({
-      client_id: client.id,
-      overall_rating: data.overallRating ?? 5,
-      shooting_rating: data.shootingRating ?? 5,
-      result_rating: data.resultRating ?? 5,
-      good_points: data.goodPoints || "",
-      improvement_points: data.improvementPoints || "",
-      public_review_text: data.publicReviewText || "",
-      allow_public_use: data.allowPublicUse ?? false,
-      allow_hospital_name: data.allowHospitalName ?? true,
-      writer_name: data.writerName || "",
-    }).select("*").single();
-    if (error || !row) dbError(error, "후기 생성에 실패했습니다.");
-    return { row: row as Row, clientId: client.id };
+    try {
+      const result = await createUnifiedReview(db, {
+        clientId: data.clientId,
+        hospitalName: data.hospitalName,
+        workflowRunId: data.workflowRunId,
+        source: "olivia_chat",
+        sourceChannel: "올리비아챗",
+        overallRating: data.overallRating,
+        shootingRating: data.shootingRating,
+        resultRating: data.resultRating,
+        goodPoints: data.goodPoints,
+        improvementPoints: data.improvementPoints,
+        publicReviewText: data.publicReviewText,
+        allowPublicUse: data.allowPublicUse,
+        allowHospitalName: data.allowHospitalName,
+        writerName: data.writerName,
+      });
+      return {
+        row: result.review as Row,
+        clientId: result.review.client_id,
+        workflowRunId: result.workflowRunId,
+      };
+    } catch (error) {
+      throw new OliviaCrudError(
+        error instanceof Error ? error.message : "후기 생성에 실패했습니다.",
+        "DATABASE_ERROR",
+      );
+    }
   }
 
   if (domain === "mail_draft") {

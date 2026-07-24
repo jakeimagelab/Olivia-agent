@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PC_STYLE } from "@/lib/photoclinic-style";
+import { isAdminSession } from "@/lib/passkey";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type ReviewInput = {
+  id?: string;
+  client_id?: string;
+  workflow_run_id?: string | null;
   hospital_name?: string;
   reviewer_name?: string;
   review_text?: string;
@@ -13,6 +18,9 @@ type ReviewInput = {
 };
 
 export async function POST(req: NextRequest) {
+  if (!isAdminSession(req)) {
+    return NextResponse.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
+  }
   const { hospitalName, reviews = [], angle = "납품 후기" } = await req.json() as {
     hospitalName?: string;
     reviews?: ReviewInput[];
@@ -30,7 +38,9 @@ export async function POST(req: NextRequest) {
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
-    return NextResponse.json({ ok: true, mock: true, ...mockContent(hospitalName || "병원", cleanReviews) });
+    const output = mockContent(hospitalName || "병원", cleanReviews);
+    const contentId = await persistContent(reviews[0], output, "mock");
+    return NextResponse.json({ ok: true, mock: true, contentId, ...output });
   }
 
   const fixedTags = PC_STYLE.fixedHashtags.join(" ");
@@ -74,16 +84,57 @@ ${cleanReviews.map((review, index) => `${index + 1}. ${review}`).join("\n")}
       })
     });
 
-    if (!res.ok) return NextResponse.json({ ok: true, mock: true, ...mockContent(hospitalName || "병원", cleanReviews) });
+    if (!res.ok) {
+      const output = mockContent(hospitalName || "병원", cleanReviews);
+      const contentId = await persistContent(reviews[0], output, "fallback");
+      return NextResponse.json({ ok: true, mock: true, contentId, ...output });
+    }
     const data = await res.json();
     const text = (data.content || []).map((block: any) => block.text || "").join("");
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");
     const parsed = JSON.parse(text.slice(start, end + 1));
-    return NextResponse.json({ ok: true, ...parsed });
+    const contentId = await persistContent(reviews[0], parsed, "anthropic");
+    return NextResponse.json({ ok: true, contentId, ...parsed });
   } catch {
-    return NextResponse.json({ ok: true, mock: true, ...mockContent(hospitalName || "병원", cleanReviews) });
+    const output = mockContent(hospitalName || "병원", cleanReviews);
+    const contentId = await persistContent(reviews[0], output, "fallback");
+    return NextResponse.json({ ok: true, mock: true, contentId, ...output });
   }
+}
+
+async function persistContent(
+  review: ReviewInput | undefined,
+  output: ReturnType<typeof mockContent>,
+  provider: string,
+) {
+  if (!review?.id || !review.client_id) return null;
+  const db = getSupabaseAdmin();
+  const { data, error } = await db.from("review_contents").insert({
+    review_id: review.id,
+    client_id: review.client_id,
+    workflow_run_id: review.workflow_run_id || null,
+    status: "draft",
+    summary: output.summary || "",
+    caption: output.caption || "",
+    hashtags: output.hashtags || "",
+    carousel: output.carousel || [],
+    selection_reason: "공개 동의와 리뷰 내용의 구체성을 기준으로 올리비아가 선택했습니다.",
+    risk_flags: [],
+    created_by: "olivia",
+  }).select("id").single();
+  if (error || !data) throw new Error(error?.message || "리뷰 콘텐츠 저장 실패");
+  await Promise.all([
+    db.from("client_reviews").update({ content_status: "drafted" }).eq("id", review.id),
+    db.from("agent_logs").insert({
+      client_id: review.client_id,
+      workflow_run_id: review.workflow_run_id || null,
+      log_type: "review_content_created",
+      message: `[리뷰 콘텐츠] ${provider} 기반 초안이 생성되었습니다.`,
+      success: true,
+    }),
+  ]);
+  return data.id as string;
 }
 
 function mockContent(hospitalName: string, reviews: string[]) {

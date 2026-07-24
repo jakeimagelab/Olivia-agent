@@ -1,144 +1,68 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getErrorMessage } from "@/lib/errors";
-import { resolveClientId } from "@/lib/clientLookup";
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-async function generateAndSaveDraft(review: {
-  id: string; hospital_name: string; reviewer_name?: string;
-  rating?: number; review_text: string;
-}) {
-  try {
-    const db = getSupabaseAdmin();
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 400,
-      messages: [{
-        role: "user",
-        content: `병원 촬영 후기를 바탕으로 인스타그램 캡션 초안을 한국어로 작성해줘. 150자 이내, 해시태그 5개 포함. JSON만 응답:
-{"caption":"...", "hashtags":"#포토클리닉 ..."}
-
-후기: "${review.review_text}"
-병원: ${review.hospital_name} (${review.rating}점)`,
-      }],
-    });
-    const raw = (msg.content[0] as Anthropic.TextBlock).text;
-    const m = raw.match(/\{[\s\S]*\}/);
-    if (!m) return;
-    const parsed = JSON.parse(m[0]);
-    await db.from("mailing_queue").insert({
-      type: "review_form",
-      status: "draft",
-      hospital_name: review.hospital_name,
-      client_id: await resolveClientId(db, review.hospital_name),
-      subject: `[자동생성] ${review.hospital_name} 후기 콘텐츠 초안`,
-      body: `${parsed.caption}\n\n${parsed.hashtags}`,
-      source_module: "review-auto",
-      created_at: new Date().toISOString(),
-    });
-  } catch {
-    // 백그라운드 실패는 무시
-  }
-}
+import { createUnifiedReview } from "@/lib/reviews/createReview";
+import { normalizeClientReview } from "@/lib/reviews/normalizeReview";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const mockReviews = [
-  {
-    id: "mock-review-1",
-    hospital_name: "포토클리닉",
-    reviewer_name: "정연호",
-    channel: "카카오톡",
-    rating: 5,
-    review_text: "원장님과 직원들이 촬영 결과물을 보고 정말 만족했습니다. 병원 분위기가 따뜻하고 전문적으로 잘 표현됐어요.",
-    permission_to_publish: true,
-    delivered_at: "2026-06-13",
-    created_at: new Date().toISOString()
-  }
-];
-
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("delivery_reviews")
-      .select("*")
-      .order("created_at", { ascending: false });
-
+    const db = getSupabaseAdmin();
+    const clientId = req.nextUrl.searchParams.get("clientId");
+    let query = db
+      .from("client_reviews")
+      .select("*, clients(*)")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (clientId) query = query.eq("client_id", clientId);
+    const { data, error } = await query;
     if (error) throw error;
-    return NextResponse.json({ ok: true, reviews: data || [] });
-  } catch (error) {
     return NextResponse.json({
       ok: true,
-      mock: true,
-      reviews: mockReviews,
-      note: getErrorMessage(error)
+      reviews: (data ?? []).map((row) => normalizeClientReview(row as Record<string, any>)),
     });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const {
-    hospitalName,
-    reviewerName,
-    channel,
-    rating,
-    reviewText,
-    improveText,
-    deliveredAt,
-    permissionToPublish
-  } = body as {
-    hospitalName?: string;
-    reviewerName?: string;
-    channel?: string;
-    rating?: number;
-    reviewText?: string;
-    improveText?: string;
-    deliveredAt?: string;
-    permissionToPublish?: boolean;
-  };
-
-  if (!hospitalName || !reviewText) {
-    return NextResponse.json({ ok: false, error: "병원명과 리뷰 내용은 필수입니다." }, { status: 400 });
-  }
-
   try {
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("delivery_reviews")
-      .insert({
-        hospital_name: hospitalName,
-        reviewer_name: reviewerName || "",
-        channel: channel || "직접 입력",
-        rating: rating || null,
-        review_text: reviewText,
-        improve_text: improveText || "",
-        delivered_at: deliveredAt || null,
-        permission_to_publish: Boolean(permissionToPublish)
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // 백그라운드: 인스타 콘텐츠 초안 자동 생성 (응답 블로킹 없음)
-    if (data && Boolean(body.permissionToPublish)) {
-      generateAndSaveDraft({
-        id: data.id, hospital_name: data.hospital_name,
-        reviewer_name: data.reviewer_name, rating: data.rating,
-        review_text: data.review_text,
-      }).catch(() => {});
+    const body = await req.json();
+    const hospitalName = String(body.hospitalName || "").trim();
+    const reviewText = String(body.reviewText || body.publicReviewText || "").trim();
+    if ((!body.clientId && !hospitalName) || !reviewText) {
+      return NextResponse.json({ ok: false, error: "고객과 리뷰 내용은 필수입니다." }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, review: data });
+    const result = await createUnifiedReview(getSupabaseAdmin(), {
+      clientId: body.clientId || null,
+      hospitalName,
+      workflowRunId: body.workflowRunId || null,
+      source: body.source === "olivia_chat" ? "olivia_chat" : "manual",
+      sourceChannel: String(body.channel || body.sourceChannel || "직접 입력"),
+      overallRating: body.rating == null || body.rating === "" ? 5 : Number(body.rating),
+      shootingRating: body.shootingRating == null ? undefined : Number(body.shootingRating),
+      resultRating: body.resultRating == null ? undefined : Number(body.resultRating),
+      goodPoints: String(body.goodPoints || reviewText),
+      improvementPoints: String(body.improveText || body.improvementPoints || ""),
+      publicReviewText: reviewText,
+      allowPublicUse: Boolean(body.permissionToPublish ?? body.allowPublicUse),
+      allowHospitalName: body.allowHospitalName ?? true,
+      writerName: String(body.reviewerName || body.writerName || ""),
+      deliveredAt: body.deliveredAt || null,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      review: normalizeClientReview({ ...result.review, clients: result.client }),
+      workflowRunId: result.workflowRunId,
+    });
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: getErrorMessage(error) },
-      { status: 500 }
-    );
+    const message = getErrorMessage(error);
+    const status = message.includes("찾지 못했습니다") ? 404 : message.includes("입력") || message.includes("1~5") ? 400 : 500;
+    return NextResponse.json({ ok: false, error: message }, { status });
   }
 }

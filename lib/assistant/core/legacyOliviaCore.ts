@@ -22,6 +22,7 @@ import {
   findCalendarConflicts,
 } from "@/lib/assistant/actions/calendarAvailability";
 import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
+import { createOliviaReviewCampaign } from "@/lib/reviewContent/createOliviaCampaign";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -144,6 +145,21 @@ const ASSISTANT_EMAIL_TOOLS: Anthropic.Tool[] = [
         inReplyTo: { type: "string" },
       },
       required: ["to", "subject", "body"],
+    },
+  },
+];
+
+const REVIEW_CONTENT_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "generate_review_content",
+    description:
+      "공개 활용에 동의한 고객 리뷰 중 안전하고 구체적인 리뷰를 올리비아가 선택해 Instagram 콘텐츠 초안과 이미지 시안 3개를 만듭니다. 외부 게시나 승인은 하지 않습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reviewId: { type: "string", description: "특정 리뷰 UUID (선택)" },
+        hospitalName: { type: "string", description: "특정 병원명 (선택)" },
+      },
     },
   },
 ];
@@ -1213,6 +1229,7 @@ export async function processOliviaRequest(body: any, req: NextRequest) {
       ...TOOLS,
       ...OLIVIA_CRUD_TOOLS,
       ...ASSISTANT_EMAIL_TOOLS,
+      ...REVIEW_CONTENT_TOOLS,
       ...OLIVIA_WORK_TOOLS,
       WEB_SEARCH_TOOL,
     ],
@@ -1366,6 +1383,12 @@ async function executeTool(
       data: input.data || {},
       target: input.target,
       requestText: input.requestText,
+    });
+  }
+  if (name === "generate_review_content") {
+    return createOliviaReviewCampaign(getSupabaseAdmin(), {
+      reviewId: input.reviewId,
+      hospitalName: input.hospitalName,
     });
   }
   if (OLIVIA_CHAT_WORK_TOOL_NAMES.has(name)) {

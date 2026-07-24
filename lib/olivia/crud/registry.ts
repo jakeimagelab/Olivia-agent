@@ -171,6 +171,7 @@ export const OLIVIA_CRUD_REGISTRY: Readonly<Record<OliviaCrudDomain, OliviaCrudD
     fields: {
       clientId: string(80),
       hospitalName: string(200),
+      workflowRunId: string(80),
       overallRating: number(1, 5),
       shootingRating: number(1, 5),
       resultRating: number(1, 5),

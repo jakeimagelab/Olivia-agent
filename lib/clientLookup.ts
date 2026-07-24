@@ -13,7 +13,12 @@ export async function resolveClientId(
   if (!name) return null;
 
   const target = normalizeSearchText(name);
-  const { data } = await db.from("clients").select("id, hospital_name");
-  const matches = (data ?? []).filter((c: any) => normalizeSearchText(c.hospital_name) === target);
+  const { data } = await db.from("clients").select("*");
+  const matches = (data ?? []).filter((client: any) => {
+    const names = [client.hospital_name, client.name]
+      .map((value) => normalizeSearchText(value))
+      .filter(Boolean);
+    return names.includes(target);
+  });
   return matches.length === 1 ? matches[0].id : null;
 }

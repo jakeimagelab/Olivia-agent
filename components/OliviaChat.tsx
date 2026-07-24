@@ -213,6 +213,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_meeting_followups: "미팅 후속 업무 확인",
   create_feature_record: "기능 데이터 생성",
   update_feature_record: "기능 데이터 수정",
+  generate_review_content: "리뷰 콘텐츠 이미지 생성",
 };
 
 const TOOL_ICONS: Record<string, string> = {
@@ -244,6 +245,7 @@ const TOOL_ICONS: Record<string, string> = {
   get_meeting_followups: "🤝",
   create_feature_record: "＋",
   update_feature_record: "✎",
+  generate_review_content: "✨",
 };
 
 // 페이지 이동만 하거나(DB 기록 없음), 조회이거나, 내부 상태 변경인 도구는 승인 없이 자동 실행.
@@ -262,6 +264,7 @@ const AUTO_EXECUTE_TOOLS = new Set([
   "get_gallery", "create_gallery", "list_mailing_queue",
   "memo_add", "manage_olivia_action", "link_meeting_client",
   "check_recent_errors", "generate_document", "generate_dev_request",
+  "generate_review_content",
 ]);
 
 const CRUD_FIELD_LABELS: Record<string, string> = {

@@ -9,7 +9,7 @@ export default function KakaoAssistantPage() {
         margin: "0 auto",
         padding: "28px clamp(16px, 3vw, 32px) 56px",
         color: C.ink,
-        fontFamily: "inherit",
+        fontFamily: "var(--font-sans)",
       }}
     >
       <header style={{ marginBottom: 20 }}>
@@ -18,13 +18,13 @@ export default function KakaoAssistantPage() {
             margin: "0 0 7px",
             color: C.orange,
             fontSize: 11,
-            fontWeight: 900,
+            fontWeight: 700,
             letterSpacing: "0.08em",
           }}
         >
           OLIVIA EXTERNAL CHANNEL
         </p>
-        <h1 style={{ margin: 0, fontSize: 26, letterSpacing: "-0.03em" }}>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, letterSpacing: "-0.03em" }}>
           카카오 AI 비서
         </h1>
         <p

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { C } from "@/lib/theme";
+import ReviewAutomationPanel from "@/components/reviews/ReviewAutomationPanel";
 
 type Review = {
   id: string; hospital_name: string; reviewer_name?: string;
@@ -14,13 +15,14 @@ type Review = {
 type WorkflowReview = {
   id: string; created_at: string; writer_name?: string; overall_rating?: number;
   public_review_text?: string; good_points?: string; allow_public_use?: boolean;
-  clients?: { name?: string } | null;
+  clients?: { name?: string; hospital_name?: string } | null;
 };
 
 type GeneratedContent = {
   summary: string; insights: string[];
   carousel: { title: string; body: string }[];
   caption: string; hashtags: string;
+  contentId?: string | null;
 };
 
 export default function ReviewStudioPage() {
@@ -81,7 +83,7 @@ export default function ReviewStudioPage() {
   const useWorkflowReview = (r: WorkflowReview) => {
     setForm(cur => ({
       ...cur,
-      hospitalName: r.clients?.name || cur.hospitalName,
+      hospitalName: r.clients?.hospital_name || r.clients?.name || cur.hospitalName,
       reviewerName: r.writer_name || cur.reviewerName,
       rating: r.overall_rating ? String(r.overall_rating) : cur.rating,
       reviewText: r.public_review_text || r.good_points || cur.reviewText,
@@ -184,7 +186,7 @@ export default function ReviewStudioPage() {
           padding: 12, textAlign: "left", cursor: "pointer", fontFamily: "inherit",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-            <strong style={{ color: C.teal, fontSize: 12 }}>{r.clients?.name || "고객 미상"}</strong>
+            <strong style={{ color: C.teal, fontSize: 12 }}>{r.clients?.hospital_name || r.clients?.name || "고객 미상"}</strong>
             {r.overall_rating ? <span style={{ color: C.orange, fontSize: 11, fontWeight: 800 }}>{r.overall_rating}점</span> : null}
           </div>
           {(r.public_review_text || r.good_points) && (
@@ -316,6 +318,7 @@ export default function ReviewStudioPage() {
               )}
               {message && <div style={{ color: message.includes("실패") || message.includes("선택") ? C.orange : C.teal, fontSize: 13, fontWeight: 800 }}>{message}</div>}
               <ContentResult />
+              <ReviewAutomationPanel refreshKey={content?.contentId} />
             </div>
           )}
         </div>
@@ -340,6 +343,7 @@ export default function ReviewStudioPage() {
               </div>
             </div>
             <ContentResult />
+            <ReviewAutomationPanel refreshKey={content?.contentId} />
           </section>
         </section>
       )}

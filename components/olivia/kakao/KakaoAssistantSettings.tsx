@@ -60,6 +60,7 @@ const cardStyle = {
   borderRadius: R.xl,
   padding: 20,
   minWidth: 0,
+  boxShadow: "0 10px 30px rgba(14, 77, 73, 0.045)",
 } as const;
 
 const buttonStyle = {
@@ -68,7 +69,7 @@ const buttonStyle = {
   padding: "10px 14px",
   font: "inherit",
   fontSize: 12,
-  fontWeight: 800,
+  fontWeight: 700,
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
@@ -262,7 +263,7 @@ export default function KakaoAssistantSettings() {
       style={{
         display: "grid",
         gap: SP.lg,
-        fontFamily: "inherit",
+        fontFamily: "var(--font-sans)",
         color: C.ink,
       }}
     >
@@ -275,7 +276,7 @@ export default function KakaoAssistantSettings() {
             background: message.ok ? "#E5F4ED" : "#FFF0EC",
             color: message.ok ? C.success : C.danger,
             fontSize: 12,
-            fontWeight: 750,
+            fontWeight: 700,
           }}
         >
           {message.text}
@@ -304,7 +305,7 @@ export default function KakaoAssistantSettings() {
                   margin: "0 0 6px",
                   color: C.muted,
                   fontSize: 11,
-                  fontWeight: 800,
+                  fontWeight: 700,
                 }}
               >
                 KAKAO CONNECTION
@@ -318,7 +319,7 @@ export default function KakaoAssistantSettings() {
                 background: `${statusColor}18`,
                 color: statusColor,
                 fontSize: 11,
-                fontWeight: 850,
+                fontWeight: 700,
               }}
             >
               {connection?.connected ? "연결됨" : "연결 전"}
@@ -402,7 +403,7 @@ export default function KakaoAssistantSettings() {
               margin: "0 0 6px",
               color: C.muted,
               fontSize: 11,
-              fontWeight: 800,
+              fontWeight: 700,
             }}
           >
             BRIEFING
@@ -433,7 +434,7 @@ export default function KakaoAssistantSettings() {
                       fontSize: 12,
                     }}
                   >
-                    <span style={{ fontWeight: 750 }}>{item[1]}</span>
+                    <span style={{ fontWeight: 700 }}>{item[1]}</span>
                     <input
                       type="time"
                       value={String(settings[timeKey]).slice(0, 5)}
@@ -470,7 +471,7 @@ export default function KakaoAssistantSettings() {
                   paddingTop: 10,
                   borderTop: `1px solid ${C.border}`,
                   fontSize: 12,
-                  fontWeight: 750,
+                  fontWeight: 700,
                 }}
               >
                 카카오 알림 수신
@@ -508,7 +509,7 @@ export default function KakaoAssistantSettings() {
                 margin: "0 0 5px",
                 color: C.muted,
                 fontSize: 11,
-                fontWeight: 800,
+                fontWeight: 700,
               }}
             >
               SKILL SIMULATOR
@@ -619,7 +620,7 @@ export default function KakaoAssistantSettings() {
                 margin: "0 0 5px",
                 color: C.muted,
                 fontSize: 11,
-                fontWeight: 800,
+                fontWeight: 700,
               }}
             >
               GOOGLE MAIL
@@ -668,7 +669,7 @@ export default function KakaoAssistantSettings() {
                 margin: "0 0 5px",
                 color: C.muted,
                 fontSize: 11,
-                fontWeight: 800,
+                fontWeight: 700,
               }}
             >
               ACTION HISTORY
@@ -716,7 +717,7 @@ export default function KakaoAssistantSettings() {
                 <span
                   style={{
                     fontSize: 10,
-                    fontWeight: 850,
+                    fontWeight: 700,
                     color:
                       action.status === "completed"
                         ? C.success
