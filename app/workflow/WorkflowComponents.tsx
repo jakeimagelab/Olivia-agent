@@ -124,8 +124,8 @@ export function useApi<T>(url: string, fallback: T) {
   const [loading, setLoading] = useState(true);
   const [mock, setMock] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await fetch(url, { cache: "no-store" });
       const json = await res.json();
@@ -137,17 +137,17 @@ export function useApi<T>(url: string, fallback: T) {
   };
 
   useEffect(() => {
-    load();
-  }, [url]);
+    void load();
+  }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { data, loading, mock, reload: load };
+  return { data, loading, mock, reload: () => load(false) };
 }
 
-export function ActionButton({ children, onClick, tone = "green" }: { children: ReactNode; onClick?: () => void; tone?: "green" | "orange" | "plain" }) {
+export function ActionButton({ children, onClick, tone = "green", disabled = false }: { children: ReactNode; onClick?: () => void; tone?: "green" | "orange" | "plain"; disabled?: boolean }) {
   const bg = tone === "orange" ? C.orange : tone === "plain" ? C.card : C.green;
   const color = tone === "plain" ? C.green : "#fff";
   return (
-    <button onClick={onClick} style={{ minHeight: 34, border: tone === "plain" ? `1px solid ${C.line}` : 0, borderRadius: 9, background: bg, color, padding: "0 12px", fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
+    <button disabled={disabled} onClick={onClick} style={{ minHeight: 34, border: tone === "plain" ? `1px solid ${C.line}` : 0, borderRadius: 9, background: bg, color, padding: "0 12px", fontSize: 12, fontWeight: 900, cursor: disabled ? "wait" : "pointer", opacity: disabled ? .65 : 1, fontFamily: "inherit" }}>
       {children}
     </button>
   );
@@ -183,10 +183,17 @@ export function TaskRow({ task, onRefresh }: { task: any; onRefresh?: () => void
 export function ApprovalCard({ approval, onRefresh }: { approval: any; onRefresh?: () => void }) {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [visibleStatus, setVisibleStatus] = useState(approval.status);
 
   const action = async (kind: "approve" | "reject" | "request-revision" | "resubmit") => {
     const memo = kind === "request-revision" ? window.prompt("수정 요청 메모를 입력해주세요.") || "" : "";
     if (kind === "request-revision" && !memo) return;
+    const previousStatus = visibleStatus;
+    const optimisticStatus = kind === "approve" ? "approved"
+      : kind === "reject" ? "rejected"
+      : kind === "request-revision" ? "revision_requested"
+      : "pending";
+    setVisibleStatus(optimisticStatus);
     setBusy(kind);
     setMessage("");
     const response = await fetch(`/api/agent/approvals/${approval.id}/${kind}`, {
@@ -195,17 +202,21 @@ export function ApprovalCard({ approval, onRefresh }: { approval: any; onRefresh
       body: JSON.stringify({ memo }),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok) setMessage(result.error || "처리하지 못했습니다.");
+    if (!response.ok || !result.ok) {
+      setVisibleStatus(previousStatus);
+      setMessage(result.error || "처리하지 못했습니다.");
+    } else {
+      void onRefresh?.();
+    }
     setBusy("");
-    onRefresh?.();
   };
   const previewEntries = Object.entries(approval.preview_data || {}).filter(([, value]) => value !== null && value !== "");
 
   return (
-    <article className={`wf-approval-card is-${approval.status || "pending"}`}>
+    <article className={`wf-approval-card is-${visibleStatus || "pending"}`}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <Pill color={statusColor[approval.status]}>{approval.approval_type || "other"} · {approval.status}</Pill>
+          <Pill color={statusColor[visibleStatus]}>{approval.approval_type || "other"} · {visibleStatus}</Pill>
           <h3 style={{ margin: "10px 0 6px", color: C.green, fontSize: 20, fontWeight: 1000 }}>{approval.title}</h3>
           <p style={{ margin: 0, color: C.muted, fontSize: 13, lineHeight: 1.7 }}>{approval.description}</p>
         </div>
@@ -227,14 +238,14 @@ export function ApprovalCard({ approval, onRefresh }: { approval: any; onRefresh
           </dl>
         ) : <p>미리보기 데이터가 없습니다. 연결된 기능에서 결과를 먼저 확인해주세요.</p>}
       </div>
-      {approval.status === "pending" ? (
+      {visibleStatus === "pending" ? (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <ActionButton onClick={() => action("approve")} tone="orange">{busy === "approve" ? "공개 중..." : "승인하고 고객에게 공개"}</ActionButton>
-          <ActionButton onClick={() => action("request-revision")} tone="plain">수정 요청</ActionButton>
-          <ActionButton onClick={() => action("reject")} tone="plain">반려</ActionButton>
+          <ActionButton disabled={Boolean(busy)} onClick={() => action("approve")} tone="orange">{busy === "approve" ? "공개 중..." : "승인하고 고객에게 공개"}</ActionButton>
+          <ActionButton disabled={Boolean(busy)} onClick={() => action("request-revision")} tone="plain">수정 요청</ActionButton>
+          <ActionButton disabled={Boolean(busy)} onClick={() => action("reject")} tone="plain">반려</ActionButton>
           {approval.related_type === "mailing_queue" || approval.approval_type === "mailing" ? <Link href="/mailing" style={{ display: "inline-flex", alignItems: "center", gap: 6, color: C.green, fontSize: 12, fontWeight: 900, textDecoration: "none" }}>메일링함 <ArrowRight size={13} /></Link> : null}
         </div>
-      ) : approval.status === "revision_requested" ? (
+      ) : visibleStatus === "revision_requested" ? (
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
           <ActionButton onClick={() => action("resubmit")} tone="orange">{busy === "resubmit" ? "재제출 중..." : "수정 완료 · 다시 승인 요청"}</ActionButton>
           <span style={{ color: C.muted, fontSize: 11 }}>고객 수정 요청을 반영한 뒤 재제출하세요.</span>

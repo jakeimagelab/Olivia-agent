@@ -45,6 +45,17 @@ export default function TaskDetailDrawer({
       if (!revisionNote) return;
       body = { revisionNote };
     }
+    const previousTask = task;
+    const nextStatus = name === "start" || name === "request-revision" || name === "reopen" ? "in_progress"
+      : name === "submit" ? "review"
+      : name === "approve" ? "completed"
+      : name === "hold" ? "on_hold"
+      : task.status;
+    setTask({
+      ...task,
+      status: nextStatus,
+      revision_note: name === "request-revision" ? body?.revisionNote ?? task.revision_note : task.revision_note,
+    });
     setBusy(name);
     setError("");
     try {
@@ -55,9 +66,10 @@ export default function TaskDetailDrawer({
       });
       const data = await response.json();
       if (!data.ok) throw new Error(data.error);
-      await load();
       onChanged();
+      void load();
     } catch (actionError) {
+      setTask(previousTask);
       setError(actionError instanceof Error ? actionError.message : "상태 변경에 실패했습니다.");
     } finally {
       setBusy("");

@@ -23,6 +23,12 @@ import {
   type RemoteDisplayMode,
 } from "@/lib/prompter/remoteDisplayMode";
 import { extendInteractionLease, isNewerSequence } from "@/lib/prompter/realtimeSync";
+import {
+  createPrompterRemoteBridge,
+  type PrompterPeerBridge,
+  type PrompterPeerSignal,
+  type PrompterPeerStatus,
+} from "@/lib/prompter/peerTransport";
 
 // 구형 Safari 등 지원 코덱이 다를 수 있어 순서대로 확인 후 첫 번째 지원되는 것을 쓴다.
 function pickSupportedAudioMimeType(): string | undefined {
@@ -37,12 +43,15 @@ export default function PrompterRemotePage() {
   const params = useParams();
   const code = String(params.code);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const peerBridgeRef = useRef<PrompterPeerBridge | null>(null);
+  const peerStatusRef = useRef<PrompterPeerStatus>("cloud");
   const sourceIdRef = useRef("");
   const commandSequenceRef = useRef(0);
   const lastHostStateSequenceRef = useRef(0);
   const lastHostScrollSequenceRef = useRef(0);
   const localScrollControlUntilRef = useRef(0);
   const [connected, setConnected] = useState(false);
+  const [peerStatus, setPeerStatus] = useState<PrompterPeerStatus>("cloud");
   const [playing, setPlaying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [speed, setSpeed] = useState(40);
@@ -92,10 +101,16 @@ export default function PrompterRemotePage() {
   const [previewGestureMap, setPreviewGestureMap] = useState<string[]>([]);
   const previewFrameRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
   const isDraggingPreviewRef = useRef(false);
   const pointerActiveRef = useRef(false);
   const lastSeekSentRef = useRef(0);
   const scrollSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const targetScrollProgressRef = useRef(0);
+  const displayedScrollProgressRef = useRef(0);
+  const scrollVelocityRef = useRef(0);
+  const lastMotionAtRef = useRef(0);
+  const motionAnimationRef = useRef<number | null>(null);
 
   // 화면이 꺼지지 않게 — 촬영 중 리모컨을 보다가 폰이 잠들어 조작이 끊기는 걸 막는다.
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
@@ -121,10 +136,82 @@ export default function PrompterRemotePage() {
     };
   }, []);
 
+  const receiveMotion = useCallback((rawPayload: unknown) => {
+    if (!rawPayload || typeof rawPayload !== "object") return;
+    const payload = rawPayload as { hostSeq?: number; scrollProgress?: number };
+    if (!isNewerSequence(payload.hostSeq, lastHostScrollSequenceRef.current)) return;
+    if (typeof payload.hostSeq === "number") lastHostScrollSequenceRef.current = payload.hostSeq;
+    if (typeof payload.scrollProgress !== "number") return;
+
+    const next = Math.max(0, Math.min(1, payload.scrollProgress));
+    const now = performance.now();
+    const previousAt = lastMotionAtRef.current;
+    if (previousAt > 0) {
+      const deltaTime = Math.max(1, now - previousAt);
+      const rawVelocity = (next - targetScrollProgressRef.current) / deltaTime;
+      scrollVelocityRef.current = scrollVelocityRef.current * 0.35 + rawVelocity * 0.65;
+    }
+    targetScrollProgressRef.current = next;
+    lastMotionAtRef.current = now;
+    setConnected(true);
+  }, []);
+
+  // 직접 연결 패킷은 React state를 매 프레임 갱신하지 않는다. DOM 스크롤과 진행률만
+  // requestAnimationFrame에서 부드럽게 보간해 태블릿의 뚝뚝 끊기는 느낌을 없앤다.
+  useEffect(() => {
+    const animate = () => {
+      const now = performance.now();
+      const locallyControlled = Date.now() < localScrollControlUntilRef.current || isDraggingPreviewRef.current;
+      if (!locallyControlled) {
+        const sinceMotion = Math.min(72, Math.max(0, now - lastMotionAtRef.current));
+        const predicted = Math.max(0, Math.min(
+          1,
+          targetScrollProgressRef.current + scrollVelocityRef.current * sinceMotion,
+        ));
+        const current = displayedScrollProgressRef.current;
+        const difference = predicted - current;
+        const next = Math.abs(difference) > 0.12 ? predicted : current + difference * 0.42;
+        displayedScrollProgressRef.current = Math.abs(predicted - next) < 0.00002 ? predicted : next;
+
+        const el = previewRef.current;
+        if (el) {
+          const max = el.scrollHeight - el.clientHeight;
+          el.scrollTop = max > 0 ? displayedScrollProgressRef.current * max : 0;
+        }
+        if (progressBarRef.current) {
+          progressBarRef.current.style.width = `${displayedScrollProgressRef.current * 100}%`;
+        }
+      }
+      motionAnimationRef.current = requestAnimationFrame(animate);
+    };
+    motionAnimationRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (motionAnimationRef.current != null) cancelAnimationFrame(motionAnimationRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     if (!sourceIdRef.current) sourceIdRef.current = crypto.randomUUID();
     const supabase = getSupabase();
     const channel = supabase.channel(`prompter-${code}`, { config: { broadcast: { self: false } } });
+    const updatePeerStatus = (status: PrompterPeerStatus) => {
+      peerStatusRef.current = status;
+      setPeerStatus(status);
+    };
+    const peerBridge = createPrompterRemoteBridge({
+      id: sourceIdRef.current,
+      signal: (payload) => {
+        channel.send({ type: "broadcast", event: "peer", payload });
+      },
+      onControl: () => {
+        // 현재 설정과 대본은 기존 Supabase 채널을 유지해 유실 없이 동기화한다.
+      },
+      onMotion: receiveMotion,
+      onStatus: updatePeerStatus,
+    });
+    peerBridgeRef.current?.close();
+    peerBridgeRef.current = peerBridge;
+
     channel.on("broadcast", { event: "state" }, ({ payload }) => {
       if (!isNewerSequence(payload.hostSeq, lastHostStateSequenceRef.current)) return;
       if (typeof payload.hostSeq === "number") lastHostStateSequenceRef.current = payload.hostSeq;
@@ -152,7 +239,11 @@ export default function PrompterRemotePage() {
       if (payload.totalSlides != null) setTotalSlides(payload.totalSlides);
       if (payload.paragraphIndex != null) setParagraphIndex(payload.paragraphIndex);
       if (payload.totalParagraphs != null) setTotalParagraphs(payload.totalParagraphs);
-      if (payload.scrollProgress != null) setScrollProgress(payload.scrollProgress);
+      if (payload.scrollProgress != null) {
+        const next = Math.max(0, Math.min(1, Number(payload.scrollProgress)));
+        setScrollProgress(next);
+        targetScrollProgressRef.current = next;
+      }
       if (payload.viewportWidth && payload.viewportHeight) {
         setHostViewport({ width: Number(payload.viewportWidth), height: Number(payload.viewportHeight) });
       }
@@ -160,23 +251,16 @@ export default function PrompterRemotePage() {
       const stateCanMoveScroll = isNewerSequence(payload.hostSeq, lastHostScrollSequenceRef.current);
       if (payload.scrollProgress != null && stateCanMoveScroll && Date.now() >= localScrollControlUntilRef.current) {
         if (typeof payload.hostSeq === "number") lastHostScrollSequenceRef.current = payload.hostSeq;
-        const el = previewRef.current;
-        if (el) {
-          const max = el.scrollHeight - el.clientHeight;
-          el.scrollTop = max > 0 ? payload.scrollProgress * max : 0;
-        }
+        targetScrollProgressRef.current = Math.max(0, Math.min(1, Number(payload.scrollProgress)));
       }
     });
     channel.on("broadcast", { event: "frame" }, ({ payload }) => {
-      if (!isNewerSequence(payload.hostSeq, lastHostScrollSequenceRef.current)) return;
-      if (typeof payload.hostSeq === "number") lastHostScrollSequenceRef.current = payload.hostSeq;
-      if (typeof payload.scrollProgress !== "number" || Date.now() < localScrollControlUntilRef.current) return;
-      setScrollProgress(payload.scrollProgress);
-      const el = previewRef.current;
-      if (el) {
-        const max = el.scrollHeight - el.clientHeight;
-        el.scrollTop = max > 0 ? payload.scrollProgress * max : 0;
-      }
+      receiveMotion(payload);
+    });
+    channel.on("broadcast", { event: "peer" }, ({ payload }) => {
+      void peerBridge.handleSignal(payload as PrompterPeerSignal).catch(() => {
+        updatePeerStatus("cloud");
+      });
     });
     channel.on("broadcast", { event: "content" }, ({ payload }) => {
       setPreviewParagraphs(payload.paragraphs ?? []);
@@ -188,18 +272,35 @@ export default function PrompterRemotePage() {
     channel.subscribe((status) => {
       // 실행화면이 먼저 켜져 있다가 리모컨이 나중에 접속하는 경우가 많아, 접속 직후 내용을 다시 요청한다.
       if (status === "SUBSCRIBED") {
-        channel.send({ type: "broadcast", event: "command", payload: { type: "requestContent" } });
+        const requestPayload = {
+          type: "requestContent",
+          sourceId: sourceIdRef.current,
+          seq: ++commandSequenceRef.current,
+        };
+        channel.send({ type: "broadcast", event: "command", payload: requestPayload });
+        peerBridge.announce?.();
       }
     });
     channelRef.current = channel;
-    return () => { channel.unsubscribe(); };
-  }, [code]);
+    const announceTimer = window.setInterval(() => {
+      if (peerStatusRef.current === "cloud") peerBridge.announce?.();
+    }, 4000);
+    return () => {
+      window.clearInterval(announceTimer);
+      peerBridge.close();
+      if (peerBridgeRef.current === peerBridge) peerBridgeRef.current = null;
+      if (channelRef.current === channel) channelRef.current = null;
+      channel.unsubscribe();
+    };
+  }, [code, receiveMotion]);
 
   const send = (type: string, value?: unknown) => {
+    const payload = { type, value, sourceId: sourceIdRef.current, seq: ++commandSequenceRef.current };
+    if (peerBridgeRef.current?.sendControl(payload)) return;
     channelRef.current?.send({
       type: "broadcast",
       event: "command",
-      payload: { type, value, sourceId: sourceIdRef.current, seq: ++commandSequenceRef.current },
+      payload,
     });
   };
   const toggleFullscreen = () => {
@@ -283,7 +384,11 @@ export default function PrompterRemotePage() {
     <main className={`pt-remote-page ${displayMode}${isFullscreen ? " immersive" : ""}`} style={{ height: "100dvh", background: "#0d1f1e", color: "#fff", padding: isMirrorMode ? 0 : "10px 14px", display: "flex", flexDirection: "column", gap: 7, overflowY: isMirrorMode ? "hidden" : "auto", boxSizing: "border-box" }}>
       <div className="pt-remote-header" style={{ textAlign: "center", position: "relative" }}>
         <p className="pt-remote-connection" style={{ fontSize: 11, color: connected ? "#5cff8f" : "#ff9c5c", fontWeight: 700 }}>
-          {connected ? "● 연결됨" : "○ 프롬프터 연결 대기 중…"}
+          {peerStatus === "direct"
+            ? "● 같은 네트워크 직접 연결"
+            : peerStatus === "connecting"
+              ? "◌ 직접 연결 중…"
+              : connected ? "● 클라우드 연결" : "○ 프롬프터 연결 대기 중…"}
         </p>
         <p className="pt-remote-timer" style={{ fontSize: 28, fontWeight: 900, fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>{fmtTime(elapsed)}</p>
         {hostRecording && <span className="pt-mirror-rec">● REC</span>}
@@ -318,6 +423,8 @@ export default function PrompterRemotePage() {
             const rect = e.currentTarget.getBoundingClientRect();
             const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
             setScrollProgress(p);
+            targetScrollProgressRef.current = p;
+            displayedScrollProgressRef.current = p;
             send("seek", p);
           }}
           onPointerMove={(e) => {
@@ -325,6 +432,8 @@ export default function PrompterRemotePage() {
             const rect = e.currentTarget.getBoundingClientRect();
             const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
             setScrollProgress(p);
+            targetScrollProgressRef.current = p;
+            displayedScrollProgressRef.current = p;
             const now = Date.now();
             localScrollControlUntilRef.current = extendInteractionLease(localScrollControlUntilRef.current, now, 450);
             if (now - lastSeekSentRef.current > 32) {
@@ -337,7 +446,7 @@ export default function PrompterRemotePage() {
           style={{ height: 18, display: "flex", alignItems: "center", cursor: "pointer", touchAction: "none" }}
         >
           <div style={{ width: "100%", height: 6, borderRadius: 999, background: "rgba(255,255,255,.15)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${scrollProgress * 100}%`, background: "#e85d2c", transition: isDraggingPreviewRef.current ? "none" : "width .2s linear" }} />
+            <div ref={progressBarRef} style={{ height: "100%", width: `${scrollProgress * 100}%`, background: "#e85d2c" }} />
           </div>
         </div>
       )}

@@ -4,9 +4,11 @@ import Link from "next/link";
 import { AlertCircle, BriefcaseBusiness, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import EmptyBriefingState from "@/components/dashboard/EmptyBriefingState";
+import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 import WorkBriefingItem from "@/components/dashboard/WorkBriefingItem";
 import {
   buildWorkBriefingItems,
+  type DashboardWorkflowRun,
   type WorkBriefingFilter,
   type WorkBriefingItem as WorkItem,
 } from "@/lib/dashboardBriefing";
@@ -18,68 +20,48 @@ const FILTERS: { value: WorkBriefingFilter; label: string }[] = [
 ];
 
 export default function WorkBriefing() {
-  const [items, setItems] = useState<WorkItem[]>([]);
+  const { data: dashboard, state: dashboardState, savingTaskIds, setTaskCompleted } = useHomeDashboardData();
+  const [workflowRuns, setWorkflowRuns] = useState<DashboardWorkflowRun[]>([]);
   const [filter, setFilter] = useState<WorkBriefingFilter>("all");
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [savingIds, setSavingIds] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    setState("loading");
+    setState((current) => current === "ready" ? current : "loading");
     setError("");
     try {
-      const [dashboardResponse, workflowResponse] = await Promise.all([
-        fetch("/api/dashboard", { cache: "no-store" }),
-        fetch("/api/workflow/summary", { cache: "no-store" }),
-      ]);
-      if (!dashboardResponse.ok || !workflowResponse.ok) throw new Error("업무 데이터를 불러오지 못했습니다.");
-      const [dashboard, workflow] = await Promise.all([dashboardResponse.json(), workflowResponse.json()]);
-      if (!dashboard?.ok || !Array.isArray(workflow?.workflowRuns)) throw new Error("업무 데이터를 불러오지 못했습니다.");
-      setItems(buildWorkBriefingItems(dashboard.todayTasks ?? [], workflow.workflowRuns ?? []));
+      const workflowResponse = await fetch("/api/workflow/summary", { cache: "no-store" });
+      if (!workflowResponse.ok) throw new Error("업무 데이터를 불러오지 못했습니다.");
+      const workflow = await workflowResponse.json();
+      if (!Array.isArray(workflow?.workflowRuns)) throw new Error("업무 데이터를 불러오지 못했습니다.");
+      setWorkflowRuns(workflow.workflowRuns);
       setState("ready");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "업무 데이터를 불러오지 못했습니다.");
-      setState("error");
+      setState((current) => current === "ready" ? current : "error");
     }
   }, []);
 
   useEffect(() => {
     void load();
-    const refresh = () => void load();
-    window.addEventListener("calendar-task-changed", refresh);
-    return () => window.removeEventListener("calendar-task-changed", refresh);
   }, [load]);
 
+  const items = useMemo(
+    () => buildWorkBriefingItems(dashboard?.todayTasks ?? [], workflowRuns),
+    [dashboard?.todayTasks, workflowRuns],
+  );
   const visibleItems = useMemo(
-    () => items.filter((item) => filter === "all" || item.kind === filter).slice(0, 5),
+    () => items.filter((item) => filter === "all" || item.kind === filter).slice(0, 3),
     [filter, items],
   );
   const filteredCount = items.filter((item) => filter === "all" || item.kind === filter).length;
 
   async function complete(item: WorkItem) {
     const taskId = item.id.replace(/^todo:/, "");
-    if (savingIds.has(taskId)) return;
-    setSavingIds((current) => new Set(current).add(taskId));
+    if (savingTaskIds.has(taskId)) return;
     setError("");
-    try {
-      const response = await fetch("/api/calendar", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: taskId, completed: true }),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.ok) throw new Error(data?.error || "완료 상태를 저장하지 못했습니다.");
-      setItems((current) => current.filter((candidate) => candidate.id !== item.id));
-      window.dispatchEvent(new CustomEvent("calendar-task-changed", { detail: { id: taskId, completed: true } }));
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "완료 상태를 저장하지 못했습니다.");
-    } finally {
-      setSavingIds((current) => {
-        const next = new Set(current);
-        next.delete(taskId);
-        return next;
-      });
-    }
+    const ok = await setTaskCompleted(taskId, true);
+    if (!ok) setError("완료 상태를 저장하지 못했습니다.");
   }
 
   return (
@@ -107,7 +89,7 @@ export default function WorkBriefing() {
         ))}
       </div>
 
-      {state === "loading" ? (
+      {state === "loading" || dashboardState === "loading" ? (
         <div className="home-briefing-loading" role="status"><span/><span/><span/></div>
       ) : state === "error" ? (
         <div className="home-briefing-error" role="alert">
@@ -122,15 +104,15 @@ export default function WorkBriefing() {
             <WorkBriefingItem
               key={item.id}
               item={item}
-              saving={savingIds.has(item.id.replace(/^todo:/, ""))}
+              saving={savingTaskIds.has(item.id.replace(/^todo:/, ""))}
               onComplete={(target) => void complete(target)}
             />
           ))}
         </div>
       )}
 
-      {state === "ready" && filteredCount > 5 ? (
-        <Link className="home-briefing-more" href="/workflow/tasks">나머지 {filteredCount - 5}개 업무 보기</Link>
+      {state === "ready" && filteredCount > 3 ? (
+        <Link className="home-briefing-more" href="/workflow/tasks">나머지 {filteredCount - 3}개 업무 보기</Link>
       ) : null}
       {error && state !== "error" ? <p className="home-briefing-inline-error" role="alert">{error}</p> : null}
     </section>

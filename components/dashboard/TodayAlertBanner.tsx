@@ -3,18 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AlertCircle, Bell, CalendarCheck2, Check, Clock, RefreshCw, Sparkles } from "lucide-react";
+import { useHomeDashboardData, type HomeCalendarTask } from "@/components/dashboard/HomeDashboardData";
 
-type BriefTask = { id: string; title: string; completed: boolean; time?: string | null };
-type BriefState = "loading" | "ready" | "empty" | "error";
-
-function taskStartTime(task: BriefTask) {
+function taskStartTime(task: HomeCalendarTask) {
   return task.time?.split("~")[0].trim() || "99:99";
 }
 
-/* 대시보드 홈 맨 위 세 카드(브리핑/스케줄/명언)가 공유하는 데이터 — 예전엔 브리핑과 스케줄이
-   한 컴포넌트(TodayAlertBanner)에 fused돼 있었는데, 세 개의 독립된 섹션으로 나누기 위해
-   데이터 fetch/상태 로직만 이 훅으로 뽑고 DailyBriefCard/TodayScheduleCard 두 컴포넌트가
-   각각 나눠 쓴다. */
+/* 홈의 브리핑·스케줄·업무 목록은 HomeDashboardDataProvider의 단일 요청 결과를 공유한다. */
 function useDailyBrief() {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
@@ -23,45 +18,14 @@ function useDailyBrief() {
     return () => clearInterval(timer);
   }, []);
 
-  const [tasks, setTasks] = useState<BriefTask[]>([]);
-  const [totalPending, setTotalPending] = useState(0);
-  const [briefState, setBriefState] = useState<BriefState>("loading");
-  const [reloadKey, setReloadKey] = useState(0);
-  const [savingTaskIds, setSavingTaskIds] = useState<Set<string>>(() => new Set());
-  const [saveError, setSaveError] = useState("");
-  useEffect(() => {
-    const refresh = () => setReloadKey((key) => key + 1);
-    window.addEventListener("calendar-task-changed", refresh);
-    return () => window.removeEventListener("calendar-task-changed", refresh);
-  }, []);
-  useEffect(() => {
-    const controller = new AbortController();
-    setBriefState("loading");
-    fetch("/api/dashboard", { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`dashboard:${response.status}`);
-        return response.json();
-      })
-      .then((data) => {
-        if (!data.ok) throw new Error("dashboard:not-ok");
-        const nextTasks: BriefTask[] = data.todayTasks ?? [];
-        const clients = data.clients ?? {};
-        const mailing = data.mailing ?? {};
-        const pending =
-          (mailing.pending?.length ?? 0) + (clients.quoteFollowUp?.length ?? 0) +
-          (clients.contractPending?.length ?? 0) + (clients.galleryPending?.length ?? 0) +
-          (clients.reviewPending?.length ?? 0) + (clients.snsPending?.length ?? 0);
-        setTasks(nextTasks);
-        setTotalPending(pending);
-        setSaveError("");
-        setBriefState(nextTasks.length || pending ? "ready" : "empty");
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setBriefState("error");
-      });
-    return () => controller.abort();
-  }, [reloadKey]);
+  const { data, state: briefState, error, savingTaskIds, refresh, setTaskCompleted } = useHomeDashboardData();
+  const tasks = data?.todayTasks ?? [];
+  const clients = data?.clients ?? {};
+  const mailing = data?.mailing ?? {};
+  const totalPending =
+    (mailing.pending?.length ?? 0) + (clients.quoteFollowUp?.length ?? 0) +
+    (clients.contractPending?.length ?? 0) + (clients.galleryPending?.length ?? 0) +
+    (clients.reviewPending?.length ?? 0) + (clients.snsPending?.length ?? 0);
 
   const hour = now ? now.getHours() : null;
   const greeting = hour === null ? "안녕하세요" : hour < 12 ? "좋은 아침이에요" : hour < 18 ? "수고하고 계세요" : "오늘도 고생많으셨어요";
@@ -74,45 +38,18 @@ function useDailyBrief() {
   const nextTask = remaining.toSorted((a, b) => taskStartTime(a).localeCompare(taskStartTime(b)))[0];
   const completionRate = tasks.length ? (done / tasks.length) * 100 : 0;
 
-  async function toggleTask(task: BriefTask) {
-    if (savingTaskIds.has(task.id)) return;
-
-    const nextCompleted = !task.completed;
-    setSaveError("");
-    setSavingTaskIds((current) => new Set(current).add(task.id));
-    setTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: nextCompleted } : item));
-
-    try {
-      const response = await fetch("/api/calendar", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: task.id, completed: nextCompleted }),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.ok) throw new Error(data?.error || `calendar:${response.status}`);
-      window.dispatchEvent(new CustomEvent("calendar-task-changed", { detail: { id: task.id, completed: nextCompleted } }));
-    } catch {
-      setTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: task.completed } : item));
-      setSaveError(`'${task.title}' 완료 상태를 저장하지 못했습니다. 다시 시도해 주세요.`);
-    } finally {
-      setSavingTaskIds((current) => {
-        const next = new Set(current);
-        next.delete(task.id);
-        return next;
-      });
-    }
-  }
+  const toggleTask = (task: HomeCalendarTask) => setTaskCompleted(task.id, !task.completed);
 
   return {
-    briefState, reloadKey, setReloadKey, tasks, orderedTasks, totalPending,
+    briefState, refresh, tasks, orderedTasks, totalPending,
     greeting, today, clock, remaining, done, nextTask, completionRate,
-    savingTaskIds, saveError, toggleTask,
+    savingTaskIds, saveError: error, toggleTask,
   };
 }
 
 /* 카드 1 — 디지털시계 + 올리비아 인사말 */
 export function DailyBriefCard({ onOpenBriefing }: { onOpenBriefing?: () => void }) {
-  const { briefState, setReloadKey, totalPending, greeting, today, clock, remaining, tasks, nextTask, completionRate } = useDailyBrief();
+  const { briefState, refresh, totalPending, greeting, today, clock, remaining, tasks, nextTask, completionRate } = useDailyBrief();
 
   return (
     <section className="oa-daily-brief" aria-busy={briefState === "loading"}>
@@ -138,7 +75,7 @@ export function DailyBriefCard({ onOpenBriefing }: { onOpenBriefing?: () => void
 
       <div className="oa-daily-brief__message">
         {briefState === "loading" ? <><span className="oa-daily-brief__pulse"/> 운영 데이터를 불러오는 중입니다.</> : null}
-        {briefState === "error" ? <><AlertCircle size={15} aria-hidden="true"/> 운영 데이터 연결에 실패했습니다.<button type="button" onClick={() => setReloadKey((key) => key + 1)}><RefreshCw size={12} aria-hidden="true"/>다시 불러오기</button></> : null}
+        {briefState === "error" ? <><AlertCircle size={15} aria-hidden="true"/> 운영 데이터 연결에 실패했습니다.<button type="button" onClick={() => void refresh()}><RefreshCw size={12} aria-hidden="true"/>다시 불러오기</button></> : null}
         {briefState === "empty" ? <>{greeting}, 정연호 대표님. 오늘 등록된 일정이 없어요.</> : null}
         {briefState === "ready" ? <>{greeting}, 정연호 대표님. {remaining.length > 0 ? <>오늘 할일 <strong>{remaining.length}개</strong> 남았어요.</> : <>오늘 할일을 모두 완료했어요!</>}</> : null}
       </div>
@@ -160,7 +97,7 @@ export function DailyBriefCard({ onOpenBriefing }: { onOpenBriefing?: () => void
 
 /* 카드 2 — 오늘 스케줄 체크리스트 */
 export function TodayScheduleCard() {
-  const { briefState, setReloadKey, tasks, orderedTasks, done, completionRate, savingTaskIds, saveError, toggleTask } = useDailyBrief();
+  const { briefState, refresh, tasks, orderedTasks, done, completionRate, savingTaskIds, saveError, toggleTask } = useDailyBrief();
 
   return (
     <section className="oa-daily-brief oa-daily-brief--schedule" aria-busy={briefState === "loading"}>
@@ -179,7 +116,7 @@ export function TodayScheduleCard() {
         <div className="oa-daily-brief__schedule-skeleton" aria-label="오늘 일정을 불러오는 중" role="status"><span/><span/><span/></div>
       ) : null}
       {briefState === "error" ? (
-        <div className="oa-daily-brief__schedule-state is-error" role="status"><AlertCircle size={14} aria-hidden="true"/> 일정을 불러오지 못했습니다.<button type="button" onClick={() => setReloadKey(key => key + 1)}>다시 시도</button></div>
+        <div className="oa-daily-brief__schedule-state is-error" role="status"><AlertCircle size={14} aria-hidden="true"/> 일정을 불러오지 못했습니다.<button type="button" onClick={() => void refresh()}>다시 시도</button></div>
       ) : null}
       {briefState !== "loading" && briefState !== "error" && tasks.length === 0 ? (
         <div className="oa-daily-brief__schedule-empty"><p>오늘 등록된 일정이 없습니다.</p><Link href="/calendar">캘린더에서 일정 추가</Link></div>

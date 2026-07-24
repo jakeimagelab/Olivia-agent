@@ -124,7 +124,7 @@ export default function MarketingBriefing() {
   }, []);
 
   const visibleItems = useMemo(
-    () => items.filter((item) => filter === "all" || item.category === filter).slice(0, 5),
+    () => items.filter((item) => filter === "all" || item.category === filter).slice(0, 3),
     [filter, items],
   );
 

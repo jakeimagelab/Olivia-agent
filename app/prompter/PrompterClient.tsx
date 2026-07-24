@@ -19,6 +19,11 @@ import {
   type HAlign, type VAlign,
 } from "@/lib/prompter/constants";
 import { isNewerSequence } from "@/lib/prompter/realtimeSync";
+import {
+  createPrompterHostBridge,
+  type PrompterPeerBridge,
+  type PrompterPeerSignal,
+} from "@/lib/prompter/peerTransport";
 
 type Speaker = { id: string; name: string; color: string };
 type Project = { id: string; name: string; sceneCount: number; lastActivity: string; updated_at: string; speakers?: Speaker[]; public_share_token?: string | null };
@@ -159,6 +164,7 @@ export default function PrompterPage() {
   const [sessionCode, setSessionCode] = useState<string | null>(null);
   const [showRemoteInfo, setShowRemoteInfo] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const peerBridgeRef = useRef<PrompterPeerBridge | null>(null);
 
   // 전체화면 (태블릿에서 흰색 브라우저 주소창이 거슬리지 않도록) — 버튼으로 켜고 끄는
   // 단순한 토글이다. 이전에 시스템 제스처가 감지되면 자동으로 재진입시키는 로직이 있었는데,
@@ -189,6 +195,7 @@ export default function PrompterPage() {
   useEffect(() => { paragraphIndexRef.current = paragraphIndex; }, [paragraphIndex]);
   const rafRef = useRef<number | null>(null);
   const lastRemoteFrameRef = useRef(0);
+  const lastCloudFrameRef = useRef(0);
   const hostSequenceRef = useRef(0);
   const lastRemoteCommandSeqRef = useRef(new Map<string, number>());
   const lastTsRef = useRef<number | null>(null);
@@ -200,9 +207,13 @@ export default function PrompterPage() {
     const progress = box && max > 0 ? Math.max(0, Math.min(1, box.scrollTop / max)) : 0;
     if (progressBarRef.current) progressBarRef.current.style.width = `${progress * 100}%`;
     const now = performance.now();
-    if (channelRef.current && now - lastRemoteFrameRef.current >= 32) {
-      lastRemoteFrameRef.current = now;
-      channelRef.current.send({ type: "broadcast", event: "frame", payload: { scrollProgress: progress, hostSeq: ++hostSequenceRef.current } });
+    if (now - lastRemoteFrameRef.current < 32) return;
+    lastRemoteFrameRef.current = now;
+    const payload = { scrollProgress: progress, hostSeq: ++hostSequenceRef.current, sentAt: Date.now() };
+    if (peerBridgeRef.current?.sendMotion(payload)) return;
+    if (channelRef.current && now - lastCloudFrameRef.current >= 64) {
+      lastCloudFrameRef.current = now;
+      channelRef.current.send({ type: "broadcast", event: "frame", payload });
     }
   }, []);
 
@@ -568,6 +579,8 @@ export default function PrompterPage() {
       setScrolling(false);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
+      peerBridgeRef.current?.close();
+      peerBridgeRef.current = null;
       if (channelRef.current) { channelRef.current.unsubscribe(); channelRef.current = null; }
       setSessionCode(null);
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -666,7 +679,9 @@ export default function PrompterPage() {
       });
     };
 
-    channel.on("broadcast", { event: "command" }, ({ payload }) => {
+    const handleCommand = (rawPayload: unknown) => {
+      if (!rawPayload || typeof rawPayload !== "object") return;
+      const payload = rawPayload as Record<string, any>;
       const sourceId = typeof payload.sourceId === "string" ? payload.sourceId : "legacy";
       const commandSeq = typeof payload.seq === "number" ? payload.seq : 0;
       const previousSeq = lastRemoteCommandSeqRef.current.get(sourceId) ?? -1;
@@ -720,6 +735,29 @@ export default function PrompterPage() {
           channel.send({ type: "broadcast", event: "state", payload: { ...remoteStateSnapshotRef.current, hostSeq: ++hostSequenceRef.current } });
           break;
       }
+    };
+
+    const peerBridge = createPrompterHostBridge({
+      id: crypto.randomUUID(),
+      signal: (payload) => {
+        channel.send({ type: "broadcast", event: "peer", payload });
+      },
+      onControl: handleCommand,
+      onStatus: () => {
+        // 상태 표시는 리모컨에서 담당한다. 연결이 닫히면 sendMotion/sendControl이
+        // false를 반환하므로 기존 Supabase broadcast로 즉시 자동 전환된다.
+      },
+    });
+    peerBridgeRef.current?.close();
+    peerBridgeRef.current = peerBridge;
+
+    channel.on("broadcast", { event: "command" }, ({ payload }) => {
+      handleCommand(payload);
+    });
+    channel.on("broadcast", { event: "peer" }, ({ payload }) => {
+      void peerBridge.handleSignal(payload as PrompterPeerSignal).catch(() => {
+        // WebRTC 협상이 실패해도 기존 Supabase 제어 채널이 계속 동작한다.
+      });
     });
 
     channel.subscribe((status) => {

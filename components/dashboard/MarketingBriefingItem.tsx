@@ -30,7 +30,7 @@ export default function MarketingBriefingItem({
       <h3>{item.title}</h3>
       <p>{item.summary}</p>
       {item.recommendation ? (
-        <div className="home-marketing-item__recommend"><b>추천 행동</b>{item.recommendation}</div>
+        <p className="home-marketing-item__recommend"><b>추천</b>{item.recommendation}</p>
       ) : null}
       <div className="home-marketing-item__meta">
         <span>{item.source ?? "올리비아 브리핑"}</span>

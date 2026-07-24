@@ -46,7 +46,7 @@ type DashboardTask = {
   memo?: string | null;
 };
 
-type WorkflowRun = {
+export type DashboardWorkflowRun = {
   id: string;
   client_id?: string | null;
   client_name?: string | null;
@@ -86,7 +86,7 @@ function taskPriority(task: DashboardTask) {
 
 export function buildWorkBriefingItems(
   dashboardTasks: DashboardTask[],
-  workflowRuns: WorkflowRun[],
+  workflowRuns: DashboardWorkflowRun[],
 ): WorkBriefingItem[] {
   const todoItems = dashboardTasks
     .filter((task) => !task.completed)
