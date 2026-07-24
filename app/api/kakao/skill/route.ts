@@ -19,12 +19,37 @@ import {
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+export const preferredRegion = "icn1";
+
+const KAKAO_RESPONSE_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, x-api-key, x-olivia-kakao-skill-secret",
+  "Cache-Control": "no-store",
+} as const;
 
 function kakaoJson(
-  response: ReturnType<typeof buildKakaoTextResponse>,
+  response: object,
   status = 200,
 ) {
-  return NextResponse.json(response, { status });
+  return NextResponse.json(response, {
+    status,
+    headers: KAKAO_RESPONSE_HEADERS,
+  });
+}
+
+export function GET() {
+  return kakaoJson(
+    buildKakaoTextResponse("Olivia 스킬 서버가 정상적으로 연결되었습니다."),
+  );
+}
+
+export function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: KAKAO_RESPONSE_HEADERS,
+  });
 }
 
 function eventKeyForRequest(
@@ -274,7 +299,7 @@ export async function POST(req: NextRequest) {
         .from("assistant_webhook_events")
         .update({ status: "processed", processed_at: new Date().toISOString() })
         .eq("id", webhookEvent.id);
-      return NextResponse.json(
+      return kakaoJson(
         buildKakaoWebLinkResponse({
           title: "Olivia 음성 입력",
           description: text,
@@ -324,7 +349,7 @@ export async function POST(req: NextRequest) {
         .from("assistant_webhook_events")
         .update({ status: "processed", processed_at: new Date().toISOString() })
         .eq("id", webhookEvent.id);
-      return NextResponse.json(buildKakaoCallbackResponse());
+      return kakaoJson(buildKakaoCallbackResponse());
     }
 
     const { processOliviaChannelMessage } = await import(
@@ -370,7 +395,7 @@ export async function POST(req: NextRequest) {
       .update({ status: "processed", processed_at: new Date().toISOString() })
       .eq("id", webhookEvent.id);
 
-    return NextResponse.json(
+    return kakaoJson(
       result.kind === "confirmation"
         ? buildKakaoConfirmationResponse({
             text,
