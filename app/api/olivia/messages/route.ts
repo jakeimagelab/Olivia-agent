@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveAllRecordsToTrash } from "@/lib/trash";
+import {
+  OLIVIA_ATTACHMENT_BUCKET,
+  sanitizeOliviaAttachments,
+} from "@/lib/olivia/chatAttachments";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +34,35 @@ export async function GET(req: NextRequest) {
   }
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, messages: (data ?? []).reverse() });
+  const messages = (data ?? []).reverse();
+  const paths = [...new Set(messages.flatMap((message: any) => (
+    sanitizeOliviaAttachments(message.metadata?.attachments).map((attachment) => attachment.storagePath)
+  )))];
+  const signedUrlByPath = new Map<string, string>();
+  if (paths.length) {
+    const { data: signedUrls } = await db.storage
+      .from(OLIVIA_ATTACHMENT_BUCKET)
+      .createSignedUrls(paths, 60 * 30);
+    signedUrls?.forEach((signed) => {
+      if (signed.path && signed.signedUrl) signedUrlByPath.set(signed.path, signed.signedUrl);
+    });
+  }
+  const hydratedMessages = messages.map((message: any) => {
+    const attachments = sanitizeOliviaAttachments(message.metadata?.attachments);
+    if (!attachments.length) return message;
+    return {
+      ...message,
+      metadata: {
+        ...(message.metadata ?? {}),
+        attachments: attachments.map((attachment) => ({
+          ...attachment,
+          ...(signedUrlByPath.get(attachment.storagePath) ? { downloadUrl: signedUrlByPath.get(attachment.storagePath) } : {}),
+        })),
+      },
+    };
+  });
+
+  return NextResponse.json({ ok: true, messages: hydratedMessages });
 }
 
 // POST /api/olivia/messages
@@ -101,8 +133,11 @@ function sanitizeMetadata(metadata: unknown) {
     : [];
   const deviceId = typeof (metadata as any).deviceId === "string" ? (metadata as any).deviceId.slice(0, 80) : undefined;
   const clientRequestId = typeof (metadata as any).clientRequestId === "string" ? (metadata as any).clientRequestId.slice(0, 100) : undefined;
+  const attachments = sanitizeOliviaAttachments((metadata as any).attachments)
+    .map(({ downloadUrl: _downloadUrl, ...attachment }) => attachment);
   return {
     ...(workItems.length ? { workItems } : {}),
+    ...(attachments.length ? { attachments } : {}),
     ...(deviceId ? { deviceId } : {}),
     ...(clientRequestId ? { clientRequestId } : {}),
   };

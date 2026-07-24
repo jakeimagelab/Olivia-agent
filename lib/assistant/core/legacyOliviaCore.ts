@@ -1,0 +1,2187 @@
+import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
+import { prepareOliviaAttachmentBlocks } from "@/lib/olivia/attachmentAnalysis";
+import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
+import { logActivity } from "@/lib/activityLogger";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { moveRecordToTrash } from "@/lib/trash";
+import { executeOliviaChatWorkTool, OLIVIA_CHAT_WORK_TOOL_NAMES } from "@/lib/olivia/chatWorkTools";
+import { formatWorkItemReferenceContext, type OliviaChatReference } from "@/lib/olivia/chatTypes";
+import { getErrorMessage } from "@/lib/errors";
+import { fuzzyIncludes, fuzzyNameSearch, fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
+import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
+import { OLIVIA_CRUD_DOMAINS } from "@/lib/olivia/crud/types";
+import {
+  createAssistantEmailDraft,
+  readAssistantEmail,
+  searchAssistantEmail,
+  summarizeAssistantEmail,
+} from "@/lib/assistant/actions/email";
+import {
+  calculateCalendarAvailability,
+  findCalendarConflicts,
+} from "@/lib/assistant/actions/calendarAvailability";
+import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ── query_database 도구가 조회 가능한 전체 테이블 목록 (앱 전체 DB) ──
+const QUERYABLE_TABLES = [
+  "activity_logs", "agent_approvals", "agent_logs", "agent_tasks",
+  "ai_trust_ai_responses", "ai_trust_audit_requests", "ai_trust_audit_runs", "ai_trust_consensus_stats",
+  "ai_trust_data_sources", "ai_trust_demand_items", "ai_trust_evidence_documents", "ai_trust_evidence_facts",
+  "ai_trust_gaps", "ai_trust_hospital_mentions", "ai_trust_hospitals", "ai_trust_patterns",
+  "ai_trust_projects", "ai_trust_prompts", "ai_trust_schema_scores", "ai_trust_shoot_plan", "ai_trust_strategies",
+  "blog_posts", "calendar_tasks", "channel_analysis_reports", "client_photo_selections",
+  "client_portal_access", "client_portal_events", "client_reviews", "client_revision_requests",
+  "clients", "consultation_memos", "conti_saves", "conti_shares", "contracts",
+  "daily_ideas", "delivery_reviews", "diagnosis_submissions", "donation_campaigns", "donation_records",
+  "galleries", "generated_images", "mailing_logs", "mailing_queue", "meeting_commitments",
+  "olivia_actions", "olivia_briefings", "olivia_chat_messages", "olivia_events", "olivia_feedback",
+  "olivia_insights", "olivia_notification_history", "per_reports", "per_settings",
+  "photo_galleries", "photo_gallery_items", "projects", "quotes",
+  "reward_orders", "reward_products", "reward_transactions",
+  "select_galleries", "select_gallery_images", "select_raw_matches", "share_links", "trash_items",
+  "trend_collection_runs", "trend_competitor_snapshots", "trend_competitors", "trend_insights",
+  "trend_keywords", "trend_sns_posts", "uploads", "video_conti", "video_conti_shares",
+  "workflow_runs", "workflow_step_runs", "workflow_templates",
+] as const;
+const QUERYABLE_TABLE_SET = new Set<string>(QUERYABLE_TABLES);
+
+const OLIVIA_CRUD_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "create_feature_record",
+    description: "앱 기능 데이터를 실제 DB에 새로 생성합니다. 고객, 프로젝트/워크플로우, 메모, 일정, 견적, 계약, 콘티, 갤러리, 후기, 메일 초안, 내부 업무를 생성할 때 사용합니다. 실행 전 사용자 확인 카드가 표시됩니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        domain: { type: "string", enum: [...OLIVIA_CRUD_DOMAINS], description: "생성할 기능 도메인" },
+        data: { type: "object", description: "도메인별 생성 데이터", additionalProperties: true },
+        requestText: { type: "string", description: "사용자의 원래 요청 요약" },
+      },
+      required: ["domain", "data"],
+    },
+  },
+  {
+    name: "update_feature_record",
+    description: "앱 기능의 기존 DB 데이터를 수정합니다. 대상을 확실히 식별할 수 있을 때만 사용하며, 찾지 못한 대상을 임의로 새로 생성하지 않습니다. 실행 전 사용자 확인 카드가 표시됩니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        domain: { type: "string", enum: [...OLIVIA_CRUD_DOMAINS], description: "수정할 기능 도메인" },
+        target: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "수정할 레코드 UUID" },
+            name: { type: "string", description: "병원명, 프로젝트명, 제목 등 대상 이름" },
+            naturalKey: { type: "string", description: "견적번호, 계약 견적번호 등 자연키" },
+          },
+          additionalProperties: false,
+        },
+        data: { type: "object", description: "변경할 필드만 포함한 데이터", additionalProperties: true },
+        requestText: { type: "string", description: "사용자의 원래 요청 요약" },
+      },
+      required: ["domain", "target", "data"],
+    },
+  },
+];
+
+const ASSISTANT_EMAIL_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "email_search",
+    description:
+      "연결된 대표자 Gmail에서 최근 메일, 안 읽은 메일, 특정 발신자나 키워드 메일을 검색합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description:
+            "Gmail 검색식. 예: is:unread newer_than:3d, from:name@example.com, 견적",
+        },
+        limit: { type: "number", minimum: 1, maximum: 20 },
+      },
+    },
+  },
+  {
+    name: "email_read",
+    description:
+      "email_search 결과의 messageId로 이메일 본문과 첨부파일 유무를 읽습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Gmail message ID" },
+      },
+      required: ["messageId"],
+    },
+  },
+  {
+    name: "email_summarize",
+    description:
+      "긴 이메일의 핵심 내용, 요청사항, 기한, 다음 행동을 요약합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Gmail message ID" },
+      },
+      required: ["messageId"],
+    },
+  },
+  {
+    name: "email_create_draft",
+    description:
+      "실제 발송하지 않고 Gmail 답장 초안만 만듭니다. 받는 사람, 제목, 본문이 모두 있어야 합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        to: { type: "string" },
+        subject: { type: "string" },
+        body: { type: "string" },
+        threadId: { type: "string" },
+        inReplyTo: { type: "string" },
+      },
+      required: ["to", "subject", "body"],
+    },
+  },
+];
+
+// query_database 결과에서 토큰/비밀번호류 컬럼은 대화 로그에 남지 않도록 마스킹한다.
+const SENSITIVE_FIELD_PATTERN = /token|password|secret|api[_-]?key|service[_-]?role|private[_-]?key/i;
+function redactSensitiveFields(row: Record<string, any>) {
+  const clone: Record<string, any> = {};
+  for (const [key, value] of Object.entries(row)) {
+    clone[key] = SENSITIVE_FIELD_PATTERN.test(key) ? "[redacted]" : value;
+  }
+  return clone;
+}
+
+// ── Claude tool 형식 ──────────────────────────────────────────
+const TOOLS: Anthropic.Tool[] = [
+  {
+    name: "create_quote",
+    description: "Create a quote for hospital photography. Opens the quote page with pre-filled data.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName:  { type: "string",  description: "Hospital or client name" },
+        packageId:     { type: "string",  description: "Package: standard | premium | premium-plus-1 | premium-plus-2" },
+        contactName:   { type: "string",  description: "Contact person name" },
+        email:         { type: "string",  description: "Email address" },
+        phone:         { type: "string",  description: "Phone number" },
+        shootDate:     { type: "string",  description: "Shoot date YYYY-MM-DD" },
+        profileCount:  { type: "number",  description: "Extra profile persons" },
+        stagedCount:   { type: "number",  description: "Extra staged persons" },
+        floorCount:    { type: "number",  description: "Extra interior floors" },
+        largeHospital: { type: "boolean", description: "Hospital-grade scale" },
+        droneCount:    { type: "number",  description: "Drone shoot count" },
+        memo:          { type: "string",  description: "Memo" },
+      },
+      required: ["hospitalName"],
+    },
+  },
+  {
+    name: "send_file_transfer",
+    description: "Send a file delivery email with NAS link to client.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName: { type: "string", description: "Client name" },
+        toName:       { type: "string", description: "Recipient name" },
+        toEmail:      { type: "string", description: "Recipient email" },
+        nasLink:      { type: "string", description: "NAS download link" },
+        shootDate:    { type: "string", description: "Shoot date" },
+        packageName:  { type: "string", description: "Package name" },
+        fileCount:    { type: "number", description: "File count" },
+        message:      { type: "string", description: "Extra message" },
+      },
+      required: ["hospitalName", "toEmail", "nasLink"],
+    },
+  },
+  {
+    name: "create_conti",
+    description: "Create a shooting plan/conti document for a hospital.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName: { type: "string", description: "Hospital name" },
+        dept:         { type: "string", description: "Medical department" },
+        shootDate:    { type: "string", description: "Shoot date" },
+        spaces:       { type: "string", description: "Space info" },
+        doctors:      { type: "string", description: "Medical staff info" },
+        extras:       { type: "string", description: "Extra requests" },
+      },
+      required: ["hospitalName", "dept", "shootDate", "spaces"],
+    },
+  },
+  {
+    name: "create_contract",
+    description: "Create a contract from an approved quote.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName:  { type: "string",  description: "Hospital name" },
+        contactName:   { type: "string",  description: "Contact name" },
+        phone:         { type: "string",  description: "Phone" },
+        email:         { type: "string",  description: "Email" },
+        quoteNumber:   { type: "string",  description: "Quote number" },
+        shootDate:     { type: "string",  description: "Shoot date" },
+        totalAmount:   { type: "number",  description: "Total amount" },
+        packageName:   { type: "string",  description: "Package name" },
+        memo:          { type: "string",  description: "Memo" },
+      },
+      required: ["hospitalName", "totalAmount"],
+    },
+  },
+  {
+    name: "create_website",
+    description: "Start the hospital website creation workflow.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName: { type: "string", description: "Hospital name" },
+        doctorName:   { type: "string", description: "Doctor/director name" },
+        specialties:  { type: "string", description: "Medical specialties" },
+        phone:        { type: "string", description: "Phone number" },
+        address:      { type: "string", description: "Address" },
+        concept:      { type: "string", description: "Design concept/mood" },
+        memo:         { type: "string", description: "Additional notes" },
+      },
+      required: ["hospitalName"],
+    },
+  },
+  {
+    name: "open_page",
+    description: "Navigate to any page in the app — every page listed here is accessible, there is no page restriction.",
+    input_schema: {
+      type: "object",
+      properties: {
+        page: {
+          type: "string",
+          enum: ["calendar", "quote", "conti", "contract", "delivery-mail", "diagnosis", "channel-analyzer",
+                 "instagram-promo-design", "photo-sorting", "website-builder",
+                 "photo-retouching", "image-generator", "clients", "mailing", "gallery",
+                 "review-studio", "daily-ideas", "sns-manager", "youtube-planner", "ai-trust-gap", "assets", "report",
+                 "monthly-report", "subscription", "workflow", "workflow-tasks",
+                 "workflow-approvals", "workflow-templates", "workflow-logs", "memo",
+                 // 전체 페이지 확장 — 관리자/CRM/콘텐츠/촬영 관련 모든 실제 페이지
+                 "admin", "admin-dashboard", "admin-olivia-assistant", "admin-tools",
+                 "brand-analysis", "channel-audit", "color-check", "consultation",
+                 "content-calendar", "content-writer", "link-generator", "olivia-assistant",
+                 "original-delivery", "per", "per-campaigns", "per-clients", "per-donations",
+                 "per-orders", "per-products", "per-reports", "per-settings",
+                 "photoclinic", "portal-admin", "raw-select", "select-galleries",
+                 "select-match", "seo-delivery", "shooting", "sns-design", "trash",
+                 "trend-dashboard", "variation", "video-conti", "video-convert", "video-sorting"],
+        },
+      },
+      required: ["page"],
+    },
+  },
+  {
+    name: "query_database",
+    description:
+      "다른 전용 도구로 커버되지 않는 정보를 DB에서 직접 조회하는 읽기 전용(read-only) 도구입니다. 병원/계약/구독/리뷰/자산/리워드/AI트러스트갭/트렌드/워크플로우 로그 등 앱의 모든 테이블을 조회할 수 있습니다. " +
+      "가능하면 더 구체적인 전용 도구(get_workflow_status, get_gallery, search_client_projects 등)를 먼저 사용하고, 그 도구들로 답할 수 없는 질문에만 이 도구를 사용하세요. " +
+      "이 도구는 조회(SELECT)만 가능하며 데이터를 수정/삭제할 수 없습니다. 자주 쓰는 테이블: clients(hospital_name, contact_name, email, phone, status), " +
+      "contracts(hospital_name, status, total_amount), quotes(hospital_name, package_id, status), client_reviews(hospital_name, rating, content), " +
+      "photo_galleries/select_galleries(hospital_name, nas_link), workflow_runs(client_name, current_step_key, status), activity_logs(action, target, created_at).",
+    input_schema: {
+      type: "object",
+      properties: {
+        table: { type: "string", enum: QUERYABLE_TABLES, description: "조회할 테이블명" },
+        columns: { type: "array", items: { type: "string" }, description: "가져올 컬럼 목록 (선택, 기본은 전체 컬럼)" },
+        filters: {
+          type: "object",
+          description: "컬럼명=값 형태의 정확히 일치(equals) 필터 (선택)",
+          additionalProperties: { type: "string" },
+        },
+        search: { type: "string", description: "부분일치 검색어 (선택, searchColumn과 함께 사용)" },
+        searchColumn: { type: "string", description: "search 검색어를 적용할 텍스트 컬럼명 (예: hospital_name)" },
+        orderBy: { type: "string", description: "정렬 기준 컬럼 (선택, 기본 created_at)" },
+        ascending: { type: "boolean", description: "오름차순 여부 (기본 false = 최신순)" },
+        limit: { type: "number", description: "최대 결과 수 (기본 20, 최대 100)" },
+      },
+      required: ["table"],
+    },
+  },
+  {
+    name: "calendar_add",
+    description: "캘린더에 새 할일/일정을 추가합니다. '오늘', '내일' 등은 오늘 날짜 기준으로 YYYY-MM-DD로 변환하세요. 구체적인 날짜/시간이 없는 일반 메모는 이 도구 대신 memo_add를 사용하세요.",
+    input_schema: {
+      type: "object",
+      properties: {
+        date:     { type: "string",  description: "날짜 YYYY-MM-DD" },
+        title:    { type: "string",  description: "할일 제목" },
+        time:     { type: "string",  description: "시간 HH:MM 24시간제 (선택)" },
+        location: { type: "string",  description: "장소 (선택)" },
+        category: { type: "string",  enum: ["shooting","client","admin","personal","general"], description: "촬영|고객미팅|행정|개인|기타" },
+        memo:     { type: "string",  description: "메모 (선택)" },
+      },
+      required: ["date", "title"],
+    },
+  },
+  {
+    name: "memo_add",
+    description: "구체적인 날짜/시간이 없는 일반 메모나 상담 내용을 저장합니다. 사용자가 '메모해줘', '기록해줘', '저장해줘'라고 했지만 특정 일정(날짜/시간)이 없으면 calendar_add 대신 이 도구를 사용하세요. 오늘 날짜로 지레짐작해서 캘린더에 넣지 마세요.",
+    input_schema: {
+      type: "object",
+      properties: {
+        rawMemo:            { type: "string", description: "메모 원문 또는 정리된 내용" },
+        hospitalName:       { type: "string", description: "관련 병원명 (선택, 알고 있으면 채울 것)" },
+        summary:            { type: "string", description: "1~2문장 요약 (선택)" },
+        nextAction:         { type: "string", description: "다음 액션 (선택, 예: 견적서 전달)" },
+        recommendedPackage: { type: "string", description: "추천 패키지 (선택)" },
+      },
+      required: ["rawMemo"],
+    },
+  },
+  {
+    name: "calendar_list",
+    description: "특정 날짜의 캘린더 할일 목록을 조회합니다. 결과에 ID가 포함되어 완료/삭제 시 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "날짜 YYYY-MM-DD" },
+      },
+      required: ["date"],
+    },
+  },
+  {
+    name: "calendar_availability",
+    description: "특정 날짜의 등록된 일정을 기준으로 비어 있는 시간을 조회합니다. 기본 업무 시간은 09:00~18:00이고 각 일정은 별도 길이가 없으면 60분으로 계산합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "날짜 YYYY-MM-DD" },
+        workdayStart: { type: "string", description: "조회 시작 시각 HH:MM (기본 09:00)" },
+        workdayEnd: { type: "string", description: "조회 종료 시각 HH:MM (기본 18:00)" },
+        minimumWindowMinutes: { type: "number", description: "표시할 최소 빈 시간(분, 기본 30)" },
+      },
+      required: ["date"],
+    },
+  },
+  {
+    name: "calendar_complete",
+    description: "캘린더 할일을 완료 또는 미완료로 변경합니다. ID를 모르면 date와 matchTitle을 함께 사용해 가장 가까운 일정을 찾습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id:        { type: "string",  description: "태스크 ID (calendar_list 결과에서 확인)" },
+        date:      { type: "string",  description: "ID가 없을 때 검색할 날짜 YYYY-MM-DD" },
+        matchTitle:{ type: "string",  description: "ID가 없을 때 찾을 일정 제목 일부" },
+        completed: { type: "boolean", description: "true=완료, false=미완료" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "calendar_delete",
+    description: "캘린더 할일을 삭제합니다. ID를 모르면 date와 matchTitle을 함께 사용해 가장 가까운 일정을 찾습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "태스크 ID (calendar_list 결과에서 확인)" },
+        date: { type: "string", description: "ID가 없을 때 검색할 날짜 YYYY-MM-DD" },
+        matchTitle: { type: "string", description: "ID가 없을 때 찾을 일정 제목 일부" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "calendar_update",
+    description: "캘린더 할일/일정을 수정합니다. ID를 모르면 date와 matchTitle을 함께 사용해 가장 가까운 일정을 찾습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id:        { type: "string", description: "태스크 ID" },
+        date:      { type: "string", description: "ID가 없을 때 검색할 기존 날짜 YYYY-MM-DD" },
+        matchTitle:{ type: "string", description: "ID가 없을 때 찾을 기존 일정 제목 일부" },
+        newDate:   { type: "string", description: "변경할 날짜 YYYY-MM-DD" },
+        title:     { type: "string", description: "변경할 제목" },
+        time:      { type: "string", description: "변경할 시간 HH:MM" },
+        location:  { type: "string", description: "변경할 장소" },
+        category:  { type: "string", enum: ["shooting","client","admin","personal","general"], description: "변경할 카테고리" },
+        memo:      { type: "string", description: "변경할 메모" },
+        completed: { type: "boolean", description: "완료 여부 변경" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "send_workflow_mail",
+    description: "워크플로우 메일 발송 — 후기 요청, 원본 전달, 갤러리 공유 등 병원 고객에게 단계별 메일을 보냅니다. 병원명으로 DB에서 이메일을 자동 조회합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        hospitalName: { type: "string", description: "병원명 (DB에서 이메일 자동 조회)" },
+        mailType: {
+          type: "string",
+          enum: ["review_form", "original_files", "gallery", "quote", "contract", "conti", "proposal"],
+          description: "메일 종류: review_form=후기요청, original_files=원본파일전달, gallery=갤러리공유, quote=견적, contract=계약, conti=콘티, proposal=제안",
+        },
+        customBody: { type: "string", description: "메일 본문 추가 메시지 (선택)" },
+      },
+      required: ["hospitalName", "mailType"],
+    },
+  },
+  {
+    name: "get_workflow_status",
+    description: "고객의 워크플로우 현재 단계와 다음 액션을 확인합니다. '~병원 현황 알려줘', '~병원 지금 어디까지 했어?' 등의 요청에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명 (일부만 입력해도 됩니다)" },
+      },
+      required: ["clientName"],
+    },
+  },
+  {
+    name: "advance_workflow_step",
+    description: "고객 워크플로우의 현재 단계를 완료하고 다음 단계로 진행합니다. '다음 단계로 넘겨줘', '콘티 단계로 이동해줘' 등의 요청에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명" },
+        toStepKey:  { type: "string", description: "이동할 단계 key (예: contract, conti, shooting, original_delivery, final_delivery, review_content)" },
+      },
+      required: ["clientName", "toStepKey"],
+    },
+  },
+  {
+    name: "complete_workflow_retroactively",
+    description:
+      "이미 실제로는 끝난 프로젝트를 뒤늦게 시스템에 등록하면서 한 번에 전체 완료 처리한다. " +
+      "'전체 완료해줘', '이미 끝난 프로젝트라 다 완료 처리해줘' 같은 요청에 사용. " +
+      "진행 중인 프로젝트를 실수로 통째로 끝내버릴 수 있으므로, 호출 전 반드시 " +
+      "'이 병원 워크플로우를 통째로 완료 처리할까요? 진행 중인 작업이 있다면 전부 생략 처리됩니다' 라고 확인받을 것. " +
+      "일반적인 단계 진행에는 advance_workflow_step을 사용하고, 이 도구는 소급 등록 상황에만 사용한다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명" },
+        reason: { type: "string", description: "완료 처리 사유 (예: 이미 종료된 프로젝트 소급 등록)" },
+      },
+      required: ["clientName"],
+    },
+  },
+  {
+    name: "list_mailing_queue",
+    description: "메일링 큐의 대기 중인 메일 목록을 확인합니다. '보낼 메일 있어?', '메일 대기 목록 알려줘' 등에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "특정 병원 필터 (선택)" },
+        status:     { type: "string", enum: ["draft", "ready", "sent", "failed"], description: "상태 필터 (선택, 기본: draft+ready)" },
+      },
+    },
+  },
+  {
+    name: "send_mailing",
+    description: "메일링 큐의 특정 메일을 발송합니다. list_mailing_queue로 ID를 확인한 후 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        mailingId: { type: "string", description: "mailing_queue 테이블의 메일 ID" },
+      },
+      required: ["mailingId"],
+    },
+  },
+  {
+    name: "get_client_profile",
+    description: "고객(병원) 하나의 통합 정보를 한 번에 조회합니다 — 기본정보, 현재 워크플로우 진행 단계, 누적 촬영금액, PER 포인트/등급, 원본·보정 사진 공유링크, 최근 메일 발송이력을 한 화면에 모아 반환합니다. '~병원 정보 다 보여줘', '~병원 전체 현황', '~병원 요약' 같은 요청에 사용하세요.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명 (일부만 입력해도 됩니다)" },
+      },
+      required: ["clientName"],
+    },
+  },
+  {
+    name: "get_gallery",
+    description: "병원의 납품 갤러리와 NAS 링크를 조회합니다. '~병원 갤러리 링크 알려줘', '~병원 사진 전달 링크' 요청에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName: { type: "string", description: "병원명" },
+      },
+      required: ["clientName"],
+    },
+  },
+  {
+    name: "create_gallery",
+    description: "보정 완료 후 갤러리를 등록하고 메일 초안을 자동 생성합니다. NAS 링크를 포함해 갤러리를 생성하며, client_id가 있으면 mailing_queue draft 자동 생성 + 워크플로우 final_delivery 단계로 자동 전진합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        clientName:   { type: "string", description: "병원명" },
+        nasLink:      { type: "string", description: "NAS 공유 링크" },
+        thumbnailUrl: { type: "string", description: "대표 이미지 URL (선택)" },
+        description:  { type: "string", description: "촬영 내용 메모 (선택)" },
+        shootDate:    { type: "string", description: "촬영 날짜 YYYY-MM-DD (선택)" },
+      },
+      required: ["clientName", "nasLink"],
+    },
+  },
+  {
+    name: "calendar_add_bulk",
+    description: "캘린더에 여러 할일/일정을 한번에 추가합니다. 2개 이상의 일정을 추가할 때는 반드시 이 도구를 사용하세요.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tasks: {
+          type: "array",
+          description: "추가할 일정 목록",
+          items: {
+            type: "object",
+            properties: {
+              date:     { type: "string", description: "날짜 YYYY-MM-DD" },
+              title:    { type: "string", description: "할일 제목" },
+              time:     { type: "string", description: "시간 또는 시간범위 (예: 10:00 또는 10:00~13:00)" },
+              location: { type: "string", description: "장소 (선택)" },
+              category: { type: "string", enum: ["shooting","client","admin","personal","general"] },
+              memo:     { type: "string", description: "메모 (선택)" },
+            },
+            required: ["date", "title"],
+          },
+        },
+      },
+      required: ["tasks"],
+    },
+  },
+];
+
+const OLIVIA_WORK_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "get_today_briefing",
+    description: "오늘 대표가 우선 확인할 긴급 인사이트, 승인, 약속, 고객 반응을 조회합니다. '오늘 뭐 해야 해?', '급한 일 알려줘'에 사용합니다.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_urgent_insights",
+    description: "Olivia Observer가 발견한 긴급 운영 인사이트를 우선순위순으로 조회합니다.",
+    input_schema: {
+      type: "object",
+      properties: { minimumScore: { type: "number", description: "최소 우선순위 점수. 기본값 80" } },
+    },
+  },
+  {
+    name: "search_client_projects",
+    description: "고객명 또는 프로젝트명으로 CRM 워크플로우를 검색합니다. 여러 결과면 사용자가 선택할 수 있는 카드를 반환합니다.",
+    input_schema: {
+      type: "object",
+      properties: { query: { type: "string", description: "고객명 또는 프로젝트명" } },
+      required: ["query"],
+    },
+  },
+  {
+    name: "get_project_status",
+    description: "지정 프로젝트의 현재 단계, 다음 행동, 열린 인사이트, 승인, 약속을 조회합니다. 직전 결과의 순번도 사용할 수 있습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        workflowRunId: { type: "string", description: "workflow_runs ID" },
+        clientName: { type: "string", description: "ID를 모를 때 고객명" },
+        referenceIndex: { type: "integer", description: "직전 업무 조회 결과의 1부터 시작하는 순번" },
+      },
+    },
+  },
+  {
+    name: "list_pending_approvals",
+    description: "기존 승인함과 Olivia 행동의 승인 대기 항목을 함께 조회합니다.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "check_recent_errors",
+    description: "최근 자동화 오류/실패한 작업을 조회합니다(agent_logs의 실패 기록, agent_tasks의 실패 작업). '오늘 뭐 문제 있었어?', '실패한 거 있어?', '자동화 오류 확인해줘' 같은 자체 점검 요청에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: { sinceHours: { type: "number", description: "몇 시간 전부터 조회할지. 기본값 24" } },
+    },
+  },
+  {
+    name: "generate_dev_request",
+    description: "지금까지 대화에서 파악한 문제(버그, 오작동, 기능 요청)를 Claude Code 같은 개발 도구에 바로 붙여넣을 수 있는 구조화된 개발요청 스펙으로 정리합니다. 최근 시스템 오류 로그가 있으면 근거로 자동 첨부합니다. '이거 개발요청으로 만들어줘', '수정 요청 코드로 정리해줘', '이 문제 개발자한테 전달할 수 있게 해줘' 같은 요청에 사용합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "개발요청 제목 (없으면 problemSummary 첫 줄 사용)" },
+        problemSummary: { type: "string", description: "대화에서 파악한 문제의 증상과 원인을 네가 직접 요약한 내용 (필수)" },
+        affectedArea: { type: "string", description: "영향받는 화면/기능/파일 (알고 있으면)" },
+        reproSteps: { type: "array", items: { type: "string" }, description: "재현 방법 단계별 설명" },
+        sinceHours: { type: "number", description: "근거로 첨부할 오류 로그를 몇 시간 전부터 조회할지. 기본값 24" },
+      },
+      required: ["problemSummary"],
+    },
+  },
+  {
+    name: "list_commitments",
+    description: "미팅에서 추출된 대표 또는 고객 약속과 기한 초과 항목을 조회합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ownerType: { type: "string", enum: ["representative", "client", "staff", "unknown"], description: "약속 주체 필터" },
+      },
+    },
+  },
+  {
+    name: "prepare_followup",
+    description: "선택한 인사이트 또는 프로젝트를 기준으로 고객 후속 연락 초안을 만들고 승인함에 등록합니다. 발송은 하지 않습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        insightId: { type: "string", description: "olivia_insights ID" },
+        workflowRunId: { type: "string", description: "workflow_runs ID" },
+        referenceIndex: { type: "integer", description: "직전 업무 조회 결과의 순번" },
+        purpose: { type: "string", description: "연락 목적" },
+        draft: { type: "string", description: "대표에게 보여줄 후속 연락 초안" },
+      },
+    },
+  },
+  {
+    name: "manage_olivia_action",
+    description: "선택한 업무 카드의 승인, 실행, 완료, 확인, 스누즈, 무시를 처리합니다. 외부 행동은 카드 확인 후에만 호출합니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        itemId: { type: "string", description: "업무 항목 ID" },
+        itemKind: { type: "string", enum: ["insight", "action", "approval", "commitment"], description: "업무 항목 종류" },
+        referenceIndex: { type: "integer", description: "직전 업무 조회 결과의 순번" },
+        operation: { type: "string", enum: ["approve", "run", "complete", "acknowledge", "snooze", "dismiss"], description: "처리할 동작" },
+        hours: { type: "number", description: "스누즈 시간. 기본 24시간" },
+        memo: { type: "string", description: "승인 메모" },
+        reason: { type: "string", description: "무시 이유" },
+      },
+      required: ["operation"],
+    },
+  },
+  {
+    name: "run_observer",
+    description: "Olivia Observer를 즉시 실행해 최신 프로젝트 위험과 다음 행동을 다시 확인합니다.",
+    input_schema: {
+      type: "object",
+      properties: { workflowRunId: { type: "string", description: "특정 프로젝트만 확인할 때 workflow_runs ID" } },
+    },
+  },
+  {
+    name: "list_upcoming_meetings",
+    description: "오늘부터 예정된 고객 미팅을 조회하고 고객 프로젝트 연결 상태를 확인합니다.",
+    input_schema: { type: "object", properties: { from: { type: "string" }, to: { type: "string" }, days: { type: "number" }, query: { type: "string" } } },
+  },
+  {
+    name: "link_meeting_client",
+    description: "캘린더 미팅을 선택한 고객 워크플로우와 연결합니다.",
+    input_schema: { type: "object", properties: { calendarTaskId: { type: "string" }, workflowRunId: { type: "string" } }, required: ["calendarTaskId", "workflowRunId"] },
+  },
+  {
+    name: "prepare_meeting_brief",
+    description: "고객 미팅 전에 CRM 문맥, 열린 약속, 승인 대기와 확인 질문을 브리핑으로 준비합니다.",
+    input_schema: { type: "object", properties: { calendarTaskId: { type: "string" }, workflowRunId: { type: "string" } }, required: ["calendarTaskId"] },
+  },
+  {
+    name: "analyze_meeting_memo",
+    description: "완료된 미팅의 메모 후보를 조회하거나 선택한 메모를 분석해 약속과 후속 업무를 생성합니다.",
+    input_schema: { type: "object", properties: { memoId: { type: "string" }, calendarTaskId: { type: "string" }, workflowRunId: { type: "string" } } },
+  },
+  {
+    name: "complete_meeting",
+    description: "캘린더 고객 미팅을 완료 처리하고 후속 메모 분석을 준비합니다.",
+    input_schema: { type: "object", properties: { calendarTaskId: { type: "string" }, workflowRunId: { type: "string" } }, required: ["calendarTaskId"] },
+  },
+  {
+    name: "get_meeting_followups",
+    description: "미팅 뒤 남은 대표·고객 약속, 내부 업무와 승인 행동을 조회합니다.",
+    input_schema: { type: "object", properties: { workflowRunId: { type: "string" } }, required: ["workflowRunId"] },
+  },
+  {
+    name: "generate_document",
+    description: "대화 내용을 바탕으로 자유 형식 PDF 문서를 생성해 다운로드 링크를 제공합니다. 견적서/계약서 같은 기존 전용 양식이 아니라, 제안서·보고서·안내문 등 어떤 텍스트 문서든 만들 수 있습니다.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "문서 제목" },
+        content: {
+          type: "string",
+          description: "문서 본문. 일반 문단은 그대로, 소제목은 줄 앞에 '## ', 목록 항목은 줄 앞에 '- '를 붙인다. 빈 줄로 문단을 구분한다.",
+        },
+        fileName: { type: "string", description: "파일명(확장자 제외). 생략 시 제목으로 대체" },
+      },
+      required: ["title", "content"],
+    },
+  },
+];
+
+// ── Anthropic 내장 웹 검색 도구 ───────────────────────────────
+const WEB_SEARCH_TOOL: Anthropic.Tool = {
+  name: "web_search",
+  type: "web_search_20250305" as any,
+} as any;
+
+const TODAY = new Date().toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\.\s*/g, "-").replace(/-$/, "");
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const formatDate = (date: Date) =>
+  date.toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+
+const parseKoreanDate = (text: string) => {
+  const today = new Date(`${TODAY}T00:00:00+09:00`);
+  if (/모레/.test(text)) return formatDate(addDays(today, 2));
+  if (/내일/.test(text)) return formatDate(addDays(today, 1));
+  if (/어제/.test(text)) return formatDate(addDays(today, -1));
+  if (/오늘|금일|지금/.test(text)) return formatDate(today);
+
+  const iso = text.match(/(20\d{2})[-./년\s]+(\d{1,2})[-./월\s]+(\d{1,2})/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+
+  const md = text.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+  if (md) return `${today.getFullYear()}-${md[1].padStart(2, "0")}-${md[2].padStart(2, "0")}`;
+
+  const weekdays: Record<string, number> = { 일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6 };
+  const weekday = text.match(/(이번\s*주|다음\s*주|다다음\s*주)?\s*([월화수목금토일])요일/);
+  if (weekday) {
+    const target = weekdays[weekday[2]];
+    const current = today.getDay();
+    const base = weekday[1]?.includes("다다음") ? 14 : weekday[1]?.includes("다음") ? 7 : 0;
+    let diff = target - current + base;
+    if (diff < 0) diff += 7;
+    return formatDate(addDays(today, diff));
+  }
+
+  return "";
+};
+
+const parseKoreanTime = (text: string) => {
+  const match = text.match(/(오전|오후)?\s*(\d{1,2})\s*시(?:\s*(\d{1,2})\s*분)?/);
+  if (!match) return "";
+  let hour = Number(match[2]);
+  const minute = match[3] ? Number(match[3]) : 0;
+  if (match[1] === "오후" && hour < 12) hour += 12;
+  if (match[1] === "오전" && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+};
+
+const inferCategory = (text: string) => {
+  if (/촬영|스튜디오|프로필|영상|콘텐츠/.test(text)) return "shooting";
+  if (/미팅|상담|회의|클라이언트|병원|원장|실장/.test(text)) return "client";
+  if (/정산|계약|견적|세금|입금|청구|관리/.test(text)) return "admin";
+  if (/개인\s*(일정|약속|용무)|개인적으로/.test(text)) return "personal";
+  return "general";
+};
+
+const parseLocation = (text: string): string => {
+  // "장소는 XXX", "위치는 XXX", "장소: XXX"
+  const m1 = text.match(/(?:장소|위치)\s*[는은:]\s*([^,，。\n]+)/);
+  if (m1) return m1[1].trim();
+  // "XXX에서" 패턴 — 2~6 글자 명사구
+  const m2 = text.match(/([가-힣a-zA-Z0-9\s]{2,12})\s*에서\b/);
+  if (m2) return m2[1].trim();
+  return "";
+};
+
+const cleanCalendarTitle = (text: string) =>
+  text
+    // ① 장소/위치 표현 전체 제거 ("장소는 XXX", "XXX에서")
+    .replace(/(?:장소|위치)\s*[는은:]\s*[^,，。\n]*/g, "")
+    .replace(/(?:[가-힣a-zA-Z0-9]{1,8}\s+)?[가-힣a-zA-Z0-9]{1,8}\s*에서\b/g, "")
+    // ② 공백 포함 요청 동사 복합 패턴 (먼저 제거해야 함)
+    //    "등록 해 줘", "추가 해 줄래", "해 주세요", "해 줬으면" 등
+    .replace(/(?:추가|등록|넣어|잡아|예약|메모|기록|저장|삭제|지워|취소|수정|변경|바꿔|옮겨|완료|조회)\s*해\s*(?:줘|줄래|주세요|주면|줬으면|줄\s*수\s*있어|줄게|드려)/g, "")
+    .replace(/해\s*(?:줘|줄래|주세요|주면|줬으면|줄\s*수\s*있어|줄게|드려)/g, "")
+    .replace(/부탁\s*(?:드려|해|드립니다)?/g, "")
+    .replace(/주\s*세\s*요/g, "")
+    // ③ 캘린더/할일 키워드
+    .replace(/(캘린더|일정|할일|업무)/g, "")
+    // ④ 동사+줘 복합 (잡아줘, 넣어줘 등 — 해 없이 바로 줘)
+    .replace(/(?:추가|등록|넣어|잡아|예약|메모|기록|저장|삭제|지워|취소|수정|변경|바꿔|옮겨|완료|조회)\s*줘/g, "")
+    // ⑤ 단독 동사
+    .replace(/(추가|등록|넣어|잡아|메모|기록|저장|해줘|해줄래|완료|삭제|지워|취소|수정|변경|바꿔|옮겨|조회|보여줘|알려줘)/g, "")
+    // ⑥ 잔여 줘/줄래 단독 처리
+    .replace(/\s+(?:줘|줄래)\b/g, "")
+    // ⑤ 날짜 표현
+    .replace(/(오늘|내일|모레|어제|금일|이번\s*주|다음\s*주|다다음\s*주|[월화수목금토일]요일)/g, "")
+    .replace(/\d{1,2}\s*월\s*\d{1,2}\s*일/g, "")
+    // ⑥ 시간 표현
+    .replace(/(오전|오후)?\s*\d{1,2}\s*시\s*\d{1,2}\s*분/g, "")
+    .replace(/(오전|오후)?\s*\d{1,2}\s*시/g, "")
+    // ⑦ 남은 구두점 정리
+    .replace(/[,，、。]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+function calendarShortcutFromText(text: string) {
+  const isCalendarText = /(캘린더|일정|할일|메모|기록|저장|촬영|미팅|상담|회의|모임|약속)/.test(text);
+  if (!isCalendarText) return null;
+
+  const date = parseKoreanDate(text);
+  const time = parseKoreanTime(text);
+  const location = parseLocation(text);
+  const title = cleanCalendarTitle(text);
+
+  const makeTool = (name: string, input: Record<string, unknown>) => ({
+    ok: true,
+    type: "tool_request",
+    text: "",
+    tool: { name, input, id: `shortcut_${Date.now()}` },
+  });
+
+  if (/(보여|조회|목록|뭐\s*있|알려)/.test(text)) {
+    return date ? makeTool("calendar_list", { date }) : null;
+  }
+
+  // "추가/등록"을 먼저 체크 — "취소 일정 등록해줘" 같이 두 키워드가 동시에 있을 때 추가 의도 우선
+  if (/(추가|등록|넣어|잡아|예약|메모|기록|저장)/.test(text)) {
+    // 날짜/시간이나 일정성 키워드(미팅/상담/회의 등)가 전혀 없는 순수 "메모해줘" 류 요청은
+    // 오늘 날짜로 지레짐작해 캘린더에 넣지 않는다. Claude가 memo_add 도구로 직접 판단하도록
+    // shortcut을 건너뛰고 전체 tool-use 턴으로 넘긴다.
+    const hasScheduleSignal = !!date || !!time || /(미팅|상담|회의|모임|약속|촬영|일정|캘린더|할일)/.test(text);
+    if (!hasScheduleSignal && /(메모|기록|저장)/.test(text)) {
+      return null;
+    }
+
+    // 한 문장에 일정이 여러 건 섞여 있으면(예: "A 추가, B 넣어줘") 이 shortcut은
+    // 시간/제목을 하나로만 뽑아서 뭉개버리므로 bail out — Claude의 tool-use 턴이
+    // calendar_add_bulk로 각 일정을 따로 처리하도록 넘긴다.
+    const timeMatches = text.match(/(오전|오후)?\s*\d{1,2}\s*시(?:\s*\d{1,2}\s*분)?/g) || [];
+    const actionVerbMatches = text.match(/(추가|등록|넣어|잡아|예약)/g) || [];
+    if (timeMatches.length >= 2 || actionVerbMatches.length >= 2) {
+      return null;
+    }
+
+    const resolvedDate = date || formatDate(new Date(`${TODAY}T00:00:00+09:00`));
+    if (!title) {
+      return { ok: true, type: "message", text: "어떤 일정 제목으로 추가할까요? 예: 내일 오후 3시 포토클리닉 미팅 추가해줘" };
+    }
+    return makeTool("calendar_add", {
+      date: resolvedDate,
+      title,
+      time: time || undefined,
+      location: location || undefined,
+      category: inferCategory(text),
+      memo: text,
+    });
+  }
+
+  if (/(삭제|지워|취소)/.test(text)) {
+    return date && title ? makeTool("calendar_delete", { date, matchTitle: title }) : null;
+  }
+
+  if (/(완료|끝냈|처리)/.test(text)) {
+    return date && title ? makeTool("calendar_complete", { date, matchTitle: title, completed: true }) : null;
+  }
+
+  if (/(수정|변경|바꿔|옮겨|미뤄|앞당겨)/.test(text)) {
+    return date && title ? makeTool("calendar_update", { date, matchTitle: title, time: time || undefined }) : null;
+  }
+
+  return null;
+}
+
+function meetingAssistantShortcutFromText(text: string) {
+  if (!/(미팅|상담|회의)/.test(text)) return null;
+  if (!/(고객|클라이언트|병원|의원|준비|브리핑|후속|약속|메모|오늘|내일)/.test(text)) return null;
+  if (/(추가|등록|넣어|잡아|예약|저장|기록)/.test(text)) return null;
+  if (/(후속|약속|메모|분석|완료)/.test(text)) return null;
+  const date = parseKoreanDate(text);
+  return {
+    ok: true,
+    type: "tool_request",
+    text: "",
+    tool: {
+      name: "list_upcoming_meetings",
+      input: date ? { from: date, to: date } : { days: 2 },
+      id: `meeting_shortcut_${Date.now()}`,
+    },
+  };
+}
+
+function pageShortcutFromText(text: string) {
+  if (!/(열어|이동|가줘|보여|페이지|앱|기능)/.test(text)) return null;
+
+  const pages: Array<[RegExp, string]> = [
+    [/캘린더|일정|할일/, "calendar"],
+    [/견적|견적서/, "quote"],
+    [/콘티|촬영\s*계획/, "conti"],
+    [/계약|계약서/, "contract"],
+    [/파일\s*전송|납품\s*메일|전달\s*메일/, "delivery-mail"],
+    [/고객|클라이언트|병원\s*관리/, "clients"],
+    [/메일링|메일\s*큐|통합\s*메일/, "mailing"],
+    [/셀렉\s*갤러리|셀렉트\s*갤러리/, "select-galleries"],
+    [/갤러리|사진\s*전달/, "gallery"],
+    [/리뷰|후기/, "review-studio"],
+    [/아이디어|오늘\s*콘텐츠/, "daily-ideas"],
+    [/AI\s*추천|트러스트\s*갭|trust\s*gap|역분석|추천\s*병원/, "ai-trust-gap"],
+    [/유튜브|youtube|쇼츠|영상\s*기획|콘텐츠\s*기획/, "youtube-planner"],
+    [/SNS|인스타|콘텐츠\s*제작/, "sns-manager"],
+    [/자산|보관함|콘텐츠\s*자산/, "assets"],
+    [/리포트|보고서|통계/, "report"],
+    [/월간\s*리포트/, "monthly-report"],
+    [/이미지\s*진단|병원\s*진단/, "diagnosis"],
+    [/채널\s*진단|채널\s*감사/, "channel-audit"],
+    [/채널\s*분석|인스타\s*분석/, "channel-analyzer"],
+    [/브랜드\s*분석/, "brand-analysis"],
+    [/홈페이지|웹사이트/, "website-builder"],
+    [/이미지\s*생성|디렉터|AI\s*이미지/, "image-generator"],
+    [/사진\s*분류/, "photo-sorting"],
+    [/사진\s*보정|보정/, "photo-retouching"],
+    [/메모/, "memo"],
+    [/워크플로우|업무\s*흐름|작업\s*큐|승인\s*대기|승인함|에이전트\s*작업/, "workflow"],
+    // 전체 페이지 확장 — 새로 열린 페이지들의 단축 이동 (기존 패턴과 겹치지 않는 것만 추가)
+    [/관리자\s*콘솔|관리자\s*페이지|어드민/, "admin"],
+    [/구독|정기구독/, "subscription"],
+    [/트렌드\s*분석|트렌드\s*대시보드/, "trend-dashboard"],
+    [/상담\s*접수|상담\s*내역/, "consultation"],
+    [/휴지통|삭제한\s*항목/, "trash"],
+    [/고객\s*포털/, "portal-admin"],
+    [/PER\s*리워드|추천\s*리워드/i, "per"],
+    [/색감\s*체크|컬러\s*체크/, "color-check"],
+    [/SEO\s*납품|검색\s*최적화/i, "seo-delivery"],
+    [/링크\s*생성기|공유\s*링크\s*생성/, "link-generator"],
+    [/원본\s*전달|원본\s*파일/, "original-delivery"],
+  ];
+
+  const found = pages.find(([pattern]) => pattern.test(text));
+  if (!found) return null;
+
+  return {
+    ok: true,
+    type: "tool_request",
+    text: "",
+    tool: {
+      name: "open_page",
+      input: { page: found[1] },
+      id: `shortcut_${Date.now()}`,
+    },
+  };
+}
+
+const SYSTEM = `You are Olivia, the AI assistant of PhotoClinic (a hospital branding photography studio in Korea).
+You help the studio owner Jeong Yeon-ho (Jung Yeonho) with daily tasks.
+오늘 날짜: ${TODAY} (한국 시간 기준, '오늘'/'내일'/'이번주 금요일' 등을 YYYY-MM-DD로 변환할 때 사용)
+
+권한 범위: 대표님(스튜디오 운영자)과의 대화이므로 앱의 모든 페이지 이동과 모든 테이블 조회가 허용되어 있다.
+페이지 이동이나 정보 조회를 "권한이 없어서" 또는 "접근할 수 없어서"라는 이유로 거절하지 말 것 — 아래 open_page/query_database 도구가 앱 전체를 커버한다.
+
+Available tools:
+- create_quote: Generate a photography quote
+- send_file_transfer: Send files via email to clients
+- create_conti: Create a shooting plan
+- create_contract: Generate a contract from an approved quote
+- create_website: Start hospital website creation workflow
+- open_page: 앱의 모든 페이지로 이동 (제한 없음 — calendar, clients, mailing, gallery, review-studio, workflow, admin, per, trend-dashboard, portal-admin 등 앱에 존재하는 모든 페이지)
+- query_database: 전용 도구가 없는 질문에 쓰는 읽기 전용 DB 조회 도구. 앱의 모든 테이블(고객/계약/견적/리뷰/자산/리워드/AI트러스트갭/트렌드/로그 등)을 조회할 수 있다. 수정/삭제는 불가 — 오직 조회만.
+- web_search: Search the web for real-time information (병원 트렌드, 경쟁 분석, 최신 정보 등)
+- get_today_briefing: 오늘의 긴급·승인·약속·고객 반응 조회
+- get_urgent_insights: Observer가 감지한 긴급 업무 조회
+- search_client_projects: 고객·프로젝트 검색
+- get_project_status: 프로젝트 현재 단계와 다음 행동 조회
+- list_pending_approvals: 승인 대기 통합 조회
+- list_commitments: 대표·고객 약속 조회
+- check_recent_errors: 최근 자동화 오류/실패한 작업 조회 (자체 문제 점검). "오늘 뭐 문제 있었어?", "실패한 거 있어?" 같은 질문에 사용
+- generate_dev_request: 대화에서 파악한 문제를 개발 도구(Claude Code 등)에 붙여넣을 수 있는 개발요청 스펙으로 정리. "개발요청으로 만들어줘", "수정 요청 코드로 줘" 같은 요청에 사용. problemSummary에는 네가 대화에서 이해한 문제의 증상·원인을 직접 요약해서 넣을 것 — 사용자에게 다시 요약해달라고 되묻지 말 것
+- generate_document: 대화 내용을 바탕으로 자유 형식 PDF 문서를 생성해 다운로드 링크로 제공. "이거 PDF로 만들어줘", "제안서/보고서 파일로 만들어줘" 같은 요청에 사용
+- prepare_followup: 고객 후속 연락 초안을 승인함에 준비 (자동 발송 금지)
+- manage_olivia_action: 선택한 업무 항목 승인·실행·완료·확인·스누즈·무시
+- run_observer: 최신 업무 상태 즉시 재점검
+- list_upcoming_meetings: 오늘·내일 예정 고객 미팅과 CRM 연결 상태 조회
+- link_meeting_client: 미팅 일정과 고객 프로젝트 연결
+- prepare_meeting_brief: 미팅 전 고객 문맥·확인 질문 브리핑 준비
+- analyze_meeting_memo: 미팅 메모 선택·분석 및 약속·후속 업무 생성
+- complete_meeting: 미팅 완료 처리 후 메모 분석 연결
+- get_meeting_followups: 미팅 후 남은 약속·업무·승인 조회
+- calendar_add: 캘린더에 할일/일정 추가 (단건)
+- calendar_add_bulk: 여러 일정을 한번에 추가 (2개 이상 반드시 사용)
+- calendar_list: 특정 날짜의 할일 목록 조회 (ID 포함)
+- calendar_availability: 특정 날짜의 빈 시간 조회
+- calendar_complete: 할일 완료/미완료 처리
+- calendar_delete: 할일 삭제
+- calendar_update: 할일 제목/날짜/시간/장소/메모 수정
+- memo_add: 날짜/시간이 없는 일반 메모·상담 내용 저장 (캘린더 아님)
+- email_search: 대표자 Gmail에서 최근·안 읽은·특정 발신자 이메일 검색
+- email_read: email_search 결과의 messageId로 본문과 첨부 유무 확인
+- email_summarize: 긴 이메일의 핵심 내용·요청사항·기한·다음 행동 요약
+- email_create_draft: Gmail 답장 초안 생성. 실제 발송은 하지 않음
+- send_workflow_mail: 병원 고객에게 워크플로우 메일 발송 (후기 요청, 원본 전달, 갤러리 공유 등)
+- get_workflow_status: 고객 워크플로우 현재 단계 및 다음 액션 확인
+- advance_workflow_step: 워크플로우 단계 진행 (예: quote → contract, contract → conti)
+- complete_workflow_retroactively: 이미 끝난 프로젝트를 소급 등록 후 한 번에 전체 완료 처리 (진행 중인 프로젝트를 잘못 끝낼 수 있어 반드시 확인 후 호출)
+- list_mailing_queue: 메일 대기 목록 조회 (draft/ready 상태)
+- send_mailing: 대기 중인 특정 메일 즉시 발송
+- get_gallery: 병원의 납품 갤러리·NAS 링크 조회
+- create_gallery: 보정 완료 후 갤러리 등록 (client_id 연동 시 메일 draft 자동 생성 + 워크플로우 자동 전진)
+- get_client_profile: 고객 통합 정보 한 번에 조회 (기본정보 + 진행단계 + 누적 촬영금액 + PER 포인트/등급 + 원본·보정 링크 + 최근 메일이력)
+- create_feature_record: 기능별 DB 데이터 생성. domain은 client, workflow, memo, calendar, quote, contract, conti, photo_gallery, select_gallery, review, mail_draft, agent_task 중 하나이며 data는 아래 camelCase 필드를 사용한다.
+- update_feature_record: 기존 기능별 DB 데이터 수정. target에 id 또는 name/naturalKey를 반드시 넣고 data에는 바뀌는 필드만 넣는다. 대상을 못 찾았다고 새로 생성하지 않는다.
+
+기능별 생성·수정 규칙 (매우 중요):
+- 고객 등록/수정 → domain client. data: hospitalName, contactName, phone, email, specialty, memo
+- 프로젝트/워크플로우 등록/수정 → domain workflow. data: clientId, clientName, projectName, managerName, contactName, contactEmail, shootDate, nextAction, status
+- 날짜·시간이 없는 일반 메모 생성/수정 → domain memo. data: hospitalName, title, rawMemo, summary, recommendedPackage, nextAction. 절대 calendar로 보내지 않는다.
+- 명시적인 날짜나 시간이 있는 일정 생성/수정은 기존 calendar_add/calendar_update를 우선 사용한다.
+- 견적 저장/수정 → domain quote. data: quoteNumber, hospitalName, contactName, items, 금액 필드, memos. 단순히 견적 페이지를 여는 요청은 create_quote를 사용한다.
+- 계약 저장/수정 → domain contract. data: quoteNumber, hospitalName, contactName, email, quoteData
+- 콘티 저장본 생성/수정 → domain conti. data: hospitalName, specialties, title, result
+- 보정 사진/NAS 갤러리 생성/수정 → domain photo_gallery. data: hospitalName, shootDate, nasLink, description, galleryType(original|retouched, 기본 retouched)
+- 고객 셀렉 갤러리 생성/수정 → domain select_gallery. data: title, hospitalName, shootingName, shootingDate, status
+- 후기 등록/수정 → domain review. data: hospitalName 또는 clientId, overallRating, goodPoints, improvementPoints, publicReviewText, allowPublicUse
+- 메일은 실제 발송 요청이 아니라 초안 생성/수정 요청일 때만 domain mail_draft. data: type, hospitalName, toEmail, subject, body
+- 내부 업무 생성/수정 → domain agent_task. data: title, description, priority, status, workflowRunId
+- 생성/수정 도구는 확인 카드가 표시되므로 도구 호출 전에 별도의 확인 질문을 반복하지 말고, 필수정보가 있으면 즉시 tool_use를 반환한다.
+- 수정 대상이 모호하면 먼저 query_database나 전용 조회 도구로 하나의 ID를 확인한다.
+- 사용자가 삭제를 요청하면 이 두 도구를 사용하지 않는다.
+
+워크플로우 규칙 (매우 중요):
+- "~병원 현황 알려줘", "~병원 지금 어디까지?" → get_workflow_status 호출
+- "다음 단계로", "~단계로 넘겨줘" → 먼저 get_workflow_status로 현재 단계 확인 후 advance_workflow_step 호출
+- "메일 있어?", "대기 메일 알려줘" → list_mailing_queue 호출 → 사용자 확인 → send_mailing
+- "갤러리 링크 알려줘", "~병원 NAS 링크", "갤러리 어디야?" → get_gallery 호출
+- "갤러리 등록", "NAS 링크 올려줘", "보정 완료" → create_gallery 호출 (client_id 있으면 워크플로우 자동 전진)
+- "~병원 정보 다 보여줘", "~병원 전체 현황", "~병원 요약해줘" → get_client_profile 호출 (진행단계/촬영금액/PER/링크/메일이력을 한 번에 반환)
+- 워크플로우 단계 key: consult_meeting → quote → contract → conti → shooting → backup_sorting → original_delivery → client_selection → raw_matching → retouching → revision → seo_delivery → final_delivery → review_content → reward → customer_care → content_planning
+- advance_workflow_step 호출 전 반드시 사용자에게 "X단계에서 Y단계로 이동합니다. 맞나요?" 확인할 것
+- "전체 완료해줘", "이미 끝난 프로젝트라 소급 등록하고 완료 처리해줘" → complete_workflow_retroactively 호출 전 반드시 "진행 중인 작업은 전부 생략 처리됩니다. 통째로 완료할까요?" 확인할 것 — 일반적인 단계 진행 요청에는 절대 사용하지 않는다
+
+워크플로우 메일 사용 규칙:
+- "후기 메일", "후기 요청 메일", "리뷰 메일" → mailType: review_form
+- "원본 전달", "원본 파일 메일" → mailType: original_files
+- "갤러리 공유", "갤러리 메일" → mailType: gallery
+- "견적 메일" → mailType: quote
+- "계약 메일" → mailType: contract
+- "콘티 메일" → mailType: conti
+- "제안서 메일" → mailType: proposal
+- 병원명만 말해도 DB에서 이메일 자동 조회 — 따로 묻지 말 것
+- 메일이 성공하면 발송 완료 메시지, 이메일 없으면 등록 필요 안내
+- 견적서/계약서/갤러리/콘티는 생성되는 즉시 고객 포털에도 자동으로 올라간다. 그러니 이 발송 도구들은
+  자료를 전달하는 기본 수단이 아니라, 고객이 "메일로 보내달라"고 명시적으로 요청했을 때만 사용할 것.
+  단순히 "~병원에 견적서 등록해줘" 같은 요청은 메일 발송 없이 자료 생성만 하면 된다.
+
+캘린더 도구 사용 규칙:
+- 날짜 표현('오늘', '내일', '다음주 월요일' 등)은 반드시 위의 오늘 날짜 기준으로 YYYY-MM-DD로 변환할 것
+- 시간은 24시간제 HH:MM 형식 (예: 오후 3시 → 15:00, 범위는 10:00~13:00)
+- 카테고리: shooting=촬영, client=고객/미팅, admin=행정, personal=개인, general=기타
+- 2개 이상 일정 추가 시 calendar_add를 여러 번 호출하지 말고 calendar_add_bulk 하나로 처리할 것
+- calendar_delete/complete/update는 ID를 알고 있으면 ID를 사용하고, ID를 모르면 date와 matchTitle을 넣어 도구가 일정을 찾게 할 것
+- "추가해줘", "등록해줘", "캘린더에 넣어줘", "일정 잡아줘"는 calendar_add 또는 calendar_add_bulk를 사용 (날짜/시간이 없는 순수 메모는 아래 규칙 참고)
+- "수정해줘", "바꿔줘", "변경해줘", "옮겨줘", "시간 바꿔줘"는 calendar_update를 사용
+- "삭제해줘", "지워줘", "취소해줘"는 calendar_delete를 사용
+- "완료했어", "완료 처리해줘"는 calendar_complete를 사용
+
+캘린더 title/location 파싱 규칙 (매우 중요):
+- title은 모임/행사/할일의 이름만 담을 것. 아래 표현은 절대 title에 포함하지 말 것:
+  · 동작 표현: "등록해줘", "추가해줘", "넣어줘", "잡아줘", "기록해줘", "메모해줘", "저장해줘"
+  · 장소 표현: "장소는", "위치는", "장소:", "위치:", "에서"
+  · 날짜/시간 표현: "내일", "오늘", "오전", "오후", "시", "분" 등
+- "장소는 XXX", "위치는 XXX", "장소: XXX", "XXX에서" → location 필드에 XXX를 저장할 것
+- 파싱 예시:
+  · "내일 오전 10시, OO모임 등록해줘, 장소는 강남역" → title:"OO모임", time:"10:00", location:"강남역"
+  · "다음주 화요일 오후 2시 병원 미팅, 장소는 서울대병원" → title:"병원 미팅", time:"14:00", location:"서울대병원"
+  · "오늘 3시 촬영 일정 잡아줘, 스튜디오 A에서" → title:"촬영", time:"15:00", location:"스튜디오 A"
+  · "내일 오전 10시 김철수 대표 미팅, 강남구청 근처 카페" → title:"김철수 대표 미팅", time:"10:00", location:"강남구청 근처 카페"
+
+메모 vs 캘린더 판단 규칙 (매우 중요 — 짐작하지 말고 아래 기준으로 직접 판단할 것):
+- 사용자가 "메모해줘", "기록해줘", "저장해줘" 등을 말하면, 날짜/시간이 있는지로 도구를 선택할 것:
+  · 구체적인 날짜나 시간이 있는 일정/미팅/상담 (예: "오늘 11시 미팅 메모해줘", "내일 촬영 기록해줘") → calendar_add 사용, 전달받은 내용(주제·논의 사항·후속 액션)을 요약해서 memo 필드에 담을 것
+  · 날짜/시간이 전혀 없는 일반 메모나 상담 요약 (예: "메모해줘: 클라이언트가 파란 배경 원함") → memo_add 사용. 오늘 날짜로 지레짐작해서 캘린더에 넣지 말 것
+- 여러 건의 후속 일정이 언급된 경우(예: "다음 주 촬영") calendar_add_bulk로 한번에 추가
+- 사용자가 일정 조회만 원하는 것이 아니라 저장을 원하는 경우, calendar_list를 먼저 호출하지 말고 바로 calendar_add 또는 memo_add로 저장할 것
+- memo_add 사용 시 병원 상담 내용이면 가능한 한 hospitalName·summary·nextAction을 채워 상담 이력이 명확히 남도록 할 것
+- 예시(날짜 언급 없음): "허태경 대표님 미팅 - AI 기능 전환, 플랫폼 논의" → memo_add(rawMemo="허태경 대표님 미팅 - AI 기능 전환, 플랫폼 논의", summary="AI 기능 전환 및 플랫폼 방향성 논의")
+- 예시(날짜 있음): "오늘 11시 허태경 대표님 미팅 메모해줘 - AI 기능 전환 논의" → calendar_add(date=오늘, time="11:00", title="허태경 대표님 미팅", category="client", memo="AI 기능 전환 논의")
+
+Rules:
+1. Always respond in Korean (hangul).
+2. Be friendly and concise.
+3. Ask for missing info naturally before using a tool.
+4. 사용자의 요청이 앱 기능 실행/입력/수정/삭제/조회라면 반드시 적절한 tool_use를 반환해라. UI가 승인 카드 또는 자동 실행을 처리한다.
+5. 기능 실행이 필요한데 필수 정보가 부족하면 한 번만 짧게 물어봐라. 이미 충분하면 말로 설명만 하지 말고 tool_use를 사용해라.
+6. 오늘 업무, 긴급, 승인, 약속, 고객 현황 질문은 추측하지 말고 Olivia 업무 조회 도구를 사용해라.
+7. 직전 업무 조회 결과가 제공되면 '첫 번째', '그 고객', '방금 항목'을 해당 ID와 연결해라. 후보가 여러 개면 임의 승인하지 말고 다시 선택하게 해라.
+8. 고객 연락, 워크플로우 이동, 외부 공개는 자동 실행하지 말고 승인 가능한 도구 카드로 반환해라.
+9. 고객 미팅 조회·준비·후속 질문은 추측하지 말고 미팅 비서 도구를 사용해라. 고객 메시지는 절대 자동 발송하지 마라.
+10. 전용 도구로 답할 수 없는 DB 정보 질문(예: "이번달 계약 목록", "리뷰 평점 알려줘", "구독 현황")은 추측하지 말고 query_database로 실제 데이터를 조회해서 답해라.
+11. 어떤 페이지든 이동 요청을 받으면 "권한이 없다"고 거절하지 말고 open_page로 이동해라 — 앱의 모든 페이지가 열려 있다.
+12. 고객 정보, DB 조회 결과, 원본 JSON 등을 절대 \`\`\` 코드블록으로 감싸지 마라 — 코드가 아니다. 굵게(**)/줄바꿈/불릿(·)만 사용해 사람이 읽기 편한 일반 텍스트로 정리해서 보여줘라. 코드블록은 실제 프로그래밍 코드·SQL·설정 파일을 보여줄 때만 사용해라.
+
+콘티 수정 규칙 (매우 중요):
+- 사용자가 현재 편집 중인 콘티 데이터([현재 편집 중인 콘티 데이터] 블록)가 컨텍스트에 있을 때, 콘티 수정 요청을 받으면 반드시 수정된 전체 콘티를 반환해야 한다.
+- 수정 응답 맨 끝에 반드시 아래 형식으로 포함할 것 (태그 안은 반드시 유효한 JSON):
+  <CONTI_UPDATE>{"conti":[...],"checklist":[...],"schedule":[...]}</CONTI_UPDATE>
+- conti 배열의 각 항목 필드: category, duration, location, cameraAngle, keyword, description, personnel, notes, color(선택)
+- checklist 배열의 각 항목 필드: number, category, item, notes
+- schedule 배열의 각 항목 필드: time, activity, type, requirements, notes
+- 수정하지 않은 행은 원본 그대로 유지할 것. 일부만 수정 요청이면 해당 행만 바꾸고 나머지는 그대로 복사.
+- 태그 안의 JSON은 반드시 파싱 가능한 완전한 형태여야 한다.
+
+Packages (use exact packageId):
+- standard: 스탠다드 135만원 - 프로필 + 연출사진
+- premium: 프리미엄 200만원 - 프로필 + 연출사진 + 인테리어
+- premium-plus-1: 프리미엄 플러스1 360만원 - 프로필 + 연출사진 + 인테리어 + 포인트영상
+- premium-plus-2: 프리미엄 플러스2 450만원 - 프로필 + 연출사진 + 인테리어 + 브랜드필름`;
+
+// 웹·텔레그램·카카오 채널이 동일한 Olivia Core를 호출하기 위한 서버 공통 진입점.
+// 기존 route 동작을 그대로 유지하면서 채널 어댑터가 별도 AI 로직을 만들지 않게 한다.
+export async function processOliviaRequest(body: any, req: NextRequest) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ ok: false, error: "ANTHROPIC_API_KEY 미설정" }, { status: 500 });
+  }
+
+  const { messages, pendingTool, pageContext, imageBase64, imageMime } = body;
+  const attachments = sanitizeOliviaAttachments(body.attachments);
+  const recentWorkItems = Array.isArray(body.recentWorkItems)
+    ? body.recentWorkItems.slice(0, 12) as OliviaChatReference[]
+    : [];
+
+  // 도구 실행 요청
+  if (pendingTool) {
+    try {
+      await logActivity("olivia_chat", undefined, { tool: pendingTool.name });
+      const result = await executeTool(pendingTool.name, pendingTool.input, req, { recentWorkItems });
+      return NextResponse.json({ ok: true, toolResult: result });
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, error: e?.message ?? "도구 실행 중 오류가 발생했어요." }, { status: 200 });
+    }
+  }
+
+  const lastUserText = [...(messages || [])].reverse().find((m: any) => m.role === "user")?.content || "";
+  const meetingShortcut = typeof lastUserText === "string" ? meetingAssistantShortcutFromText(lastUserText) : null;
+  if (meetingShortcut && !attachments.length) {
+    return NextResponse.json(meetingShortcut);
+  }
+  const calendarShortcut = typeof lastUserText === "string" ? calendarShortcutFromText(lastUserText) : null;
+  if (calendarShortcut && !attachments.length) {
+    return NextResponse.json(calendarShortcut);
+  }
+  const pageShortcut = typeof lastUserText === "string" ? pageShortcutFromText(lastUserText) : null;
+  if (pageShortcut && !attachments.length) {
+    return NextResponse.json(pageShortcut);
+  }
+
+  // 시스템 프롬프트에 페이지 컨텍스트 추가
+  const referenceContext = formatWorkItemReferenceContext(recentWorkItems);
+  const systemWithContext = [
+    SYSTEM,
+    pageContext ? `현재 사용자가 보고 있는 화면: ${pageContext}\n이 컨텍스트를 참고하여 더 정확하게 도움을 주세요.` : "",
+    referenceContext,
+  ].filter(Boolean).join("\n\n");
+
+  // OpenAI 형식 → Anthropic 형식 변환
+  const anthropicMessages: Anthropic.MessageParam[] = (messages || [])
+    .filter((m: any) => m.role === "user" || m.role === "assistant")
+    .map((m: any) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+  // 첨부된 사진·문서를 마지막 사용자 메시지의 멀티모달 content로 변환한다.
+  if ((imageBase64 || attachments.length) && anthropicMessages.length > 0) {
+    const last = anthropicMessages[anthropicMessages.length - 1];
+    if (last.role === "user") {
+      const attachmentBlocks = attachments.length
+        ? await prepareOliviaAttachmentBlocks(attachments)
+        : [];
+      last.content = [
+        ...attachmentBlocks,
+        ...(imageBase64 ? [{
+          type: "image" as const,
+          source: {
+            type: "base64" as const,
+            media_type: (imageMime || "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+            data: imageBase64,
+          },
+        }] : []),
+        {
+          type: "text",
+          text: typeof last.content === "string" ? last.content : "",
+        },
+      ];
+    }
+  }
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    system: systemWithContext,
+    tools: [
+      ...TOOLS,
+      ...OLIVIA_CRUD_TOOLS,
+      ...ASSISTANT_EMAIL_TOOLS,
+      ...OLIVIA_WORK_TOOLS,
+      WEB_SEARCH_TOOL,
+    ],
+    messages: anthropicMessages,
+  });
+
+  // 모든 text 블록 수집 (웹 검색 결과 포함)
+  const allText = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map(b => b.text)
+    .join("\n\n");
+
+  // 커스텀 tool_use 블록 전부 확인 (web_search 제외) — 클로드가 한 응답에서
+  // 독립적인 여러 작업을 한 번에 요청(병렬 tool_use)할 수 있어, 첫 번째 것만 쓰면
+  // 나머지 요청이 조용히 버려지고 사용자가 다시 요청해야 하는 문제가 있었다.
+  const toolUseBlocks = response.content.filter(
+    (b): b is Anthropic.ToolUseBlock =>
+      b.type === "tool_use" && b.name !== "web_search"
+  );
+
+  if (toolUseBlocks.length > 0) {
+    const tools = toolUseBlocks.map((b) => ({
+      name: b.name,
+      input: b.input,
+      id: b.id,
+    }));
+    return NextResponse.json({
+      ok: true,
+      type: "tool_request",
+      text: allText,
+      tool: tools[0],
+      tools,
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    type: "message",
+    text: allText || "",
+  });
+}
+
+async function listCalendarTasks(date: string) {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db
+    .from("calendar_tasks")
+    .select("*")
+    .eq("date", date)
+    .order("time", { ascending: true, nullsFirst: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+async function addCalendarTask(input: any) {
+  const db = getSupabaseAdmin();
+  const base = {
+    date: input.date,
+    title: input.title,
+    memo: input.memo ?? "",
+    category: input.category ?? "general",
+    completed: false,
+  };
+
+  let { data, error } = await db
+    .from("calendar_tasks")
+    .insert({ ...base, time: input.time ?? null, location: input.location ?? null })
+    .select("id")
+    .single();
+
+  if (error && (error.message.includes("column") || error.code === "42703")) {
+    ({ data, error } = await db.from("calendar_tasks").insert(base).select("id").single());
+  }
+
+  if (error) throw new Error(error.message);
+  return data?.id;
+}
+
+async function updateCalendarTask(input: Record<string, unknown>) {
+  const db = getSupabaseAdmin();
+  const { id, ...fields } = input;
+  if (!id) throw new Error("수정할 일정 ID가 없습니다.");
+
+  let { error } = await db
+    .from("calendar_tasks")
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error && (error.message.includes("column") || error.code === "42703")) {
+    const fallback = { ...fields };
+    delete fallback.time;
+    delete fallback.location;
+    ({ error } = await db
+      .from("calendar_tasks")
+      .update({ ...fallback, updated_at: new Date().toISOString() })
+      .eq("id", id));
+  }
+
+  if (error) throw new Error(error.message);
+}
+
+async function deleteCalendarTask(id: string) {
+  const db = getSupabaseAdmin();
+  await moveRecordToTrash(db, "calendar_task", id);
+}
+
+async function resolveCalendarTaskId(input: any) {
+  if (input.id) return input.id;
+  if (!input.date || !input.matchTitle) {
+    throw new Error("수정/삭제/완료할 일정의 ID 또는 날짜+제목 일부가 필요합니다.");
+  }
+
+  const tasks: any[] = await listCalendarTasks(input.date);
+  const keyword = String(input.matchTitle).trim().toLowerCase();
+  const found = tasks.find((task) => String(task.title || "").toLowerCase().includes(keyword));
+  if (!found) {
+    const list = tasks.map((task, index) => `${index + 1}. ${task.title} (${task.id})`).join("\n");
+    throw new Error(`${input.date}에서 "${input.matchTitle}" 일정을 찾지 못했어요.${list ? "\n\n가능한 일정:\n" + list : ""}`);
+  }
+
+  return found.id;
+}
+
+async function executeTool(
+  name: string,
+  input: any,
+  req: NextRequest,
+  context: { recentWorkItems?: OliviaChatReference[] } = {},
+) {
+  if (
+    ["email_search", "email_read", "email_summarize", "email_create_draft"].includes(
+      name,
+    )
+  ) {
+    const db = getSupabaseAdmin();
+    const owner = await ensurePrimaryAssistantOwner(db);
+    if (name === "email_search") {
+      return searchAssistantEmail(db, owner.id, input);
+    }
+    if (name === "email_read") {
+      return readAssistantEmail(db, owner.id, input);
+    }
+    if (name === "email_summarize") {
+      return summarizeAssistantEmail(db, owner.id, input);
+    }
+    return createAssistantEmailDraft(db, owner.id, input);
+  }
+  if (name === "create_feature_record" || name === "update_feature_record") {
+    return executeOliviaCrud(getSupabaseAdmin(), {
+      operation: name === "create_feature_record" ? "create" : "update",
+      domain: input.domain,
+      data: input.data || {},
+      target: input.target,
+      requestText: input.requestText,
+    });
+  }
+  if (OLIVIA_CHAT_WORK_TOOL_NAMES.has(name)) {
+    return executeOliviaChatWorkTool(getSupabaseAdmin(), name, input, context);
+  }
+  if (name === "create_quote") {
+    await logActivity("create_quote", input.hospitalName, { package: input.packageId });
+    const params = new URLSearchParams();
+    if (input.hospitalName)  params.set("hospitalName", input.hospitalName);
+    if (input.packageId)     params.set("pkg", input.packageId);
+    if (input.contactName)   params.set("contact", input.contactName);
+    if (input.email)         params.set("email", input.email);
+    if (input.phone)         params.set("phone", input.phone);
+    if (input.shootDate)     params.set("shootDate", input.shootDate);
+    if (input.profileCount)  params.set("profileCount", String(input.profileCount));
+    if (input.stagedCount)   params.set("stagedCount", String(input.stagedCount));
+    if (input.floorCount)    params.set("floorCount", String(input.floorCount));
+    if (input.largeHospital) params.set("large", "1");
+    if (input.droneCount)    params.set("droneCount", String(input.droneCount));
+    if (input.memo)          params.set("memo", input.memo);
+    return {
+      action: "navigate",
+      url: "/quote?" + params.toString(),
+      message: input.hospitalName + " 견적서 페이지를 열었어요!",
+    };
+  }
+
+  if (name === "send_file_transfer") {
+    await logActivity("send_file", input.hospitalName, { email: input.toEmail });
+    const origin =
+    req.headers.get("x-base-url") ||
+    req.headers.get("origin") ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    "http://localhost:3000";
+    const r = await fetch(origin + "/api/send-delivery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+      // /api/send-delivery는 수신 이메일 필드명이 "to"라 그대로 전달하면 항상 "수신 이메일 없음"이 된다.
+      body: JSON.stringify({ ...input, to: input.toEmail }),
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    return {
+      action: "done",
+      message: input.hospitalName + " 파일 전송 메일을 " + input.toEmail + "로 발송했어요!",
+    };
+  }
+
+  if (name === "generate_document") {
+    if (!input?.title || !input?.content) throw new Error("문서 제목과 내용이 필요합니다.");
+    const { generateFreeformPdf } = await import("@/lib/olivia/documentGenerator");
+    const { url, fileName } = await generateFreeformPdf({
+      title: String(input.title),
+      content: String(input.content),
+      fileName: input.fileName ? String(input.fileName) : undefined,
+    });
+    await logActivity("generate_document", input.title, {});
+    return {
+      action: "navigate",
+      url,
+      message: `"${input.title}" 문서를 PDF로 만들었어요. (${fileName}) 아래 링크에서 30분 안에 다운로드할 수 있어요.`,
+    };
+  }
+
+  if (name === "create_conti") {
+    await logActivity("create_conti", input.hospitalName, { dept: input.dept });
+    const params = new URLSearchParams();
+    Object.entries(input).forEach(([k, v]) => { if (v) params.set(k, String(v)); });
+    return {
+      action: "navigate",
+      url: "/conti?" + params.toString(),
+      message: input.hospitalName + " 콘티 페이지를 열었어요!",
+    };
+  }
+
+  if (name === "create_contract") {
+    await logActivity("create_contract", input.hospitalName, { amount: input.totalAmount });
+    const params = new URLSearchParams();
+    const data = {
+      hospitalName:  input.hospitalName  || "",
+      contactName:   input.contactName   || "",
+      phone:         input.phone         || "",
+      email:         input.email         || "",
+      quoteNumber:   input.quoteNumber   || "",
+      shootDate:     input.shootDate     || null,
+      totalAmount:   input.totalAmount   || 0,
+      depositAmount: Math.round((input.totalAmount || 0) * 0.5),
+      balanceAmount: Math.round((input.totalAmount || 0) * 0.5),
+      supplyAmount:  Math.round((input.totalAmount || 0) / 1.1),
+      vat:           Math.round((input.totalAmount || 0) / 11),
+      discountAmount: 0,
+      items: [{ name: input.packageName || "촬영 패키지", qty: 1, unitPrice: input.totalAmount || 0, subtotal: input.totalAmount || 0, note: "" }],
+      memos: input.memo || null,
+    };
+    params.set("data", encodeURIComponent(JSON.stringify(data)));
+    return {
+      action: "navigate",
+      url: "/contract?" + params.toString(),
+      message: input.hospitalName + " 계약서 페이지를 열었어요!",
+    };
+  }
+
+  if (name === "create_website") {
+    await logActivity("create_website", input.hospitalName, { specialties: input.specialties });
+    const params = new URLSearchParams();
+    if (input.hospitalName) params.set("hospitalName", input.hospitalName);
+    if (input.doctorName)   params.set("doctorName",   input.doctorName);
+    if (input.specialties)  params.set("specialties",  input.specialties);
+    if (input.phone)        params.set("phone",         input.phone);
+    if (input.address)      params.set("address",       input.address);
+    if (input.concept)      params.set("concept",       input.concept);
+    if (input.memo)         params.set("memo",          input.memo);
+    return {
+      action: "navigate",
+      url: "/website-builder?" + params.toString(),
+      message: `${input.hospitalName} 홈페이지 제작 페이지를 열었어요! 🌐`,
+    };
+  }
+
+  if (name === "open_page") {
+    const pageMap: Record<string, string> = {
+      workflow: "/workflow",
+      "workflow-tasks": "/workflow/tasks",
+      "workflow-approvals": "/workflow/approvals",
+      "workflow-templates": "/workflow/templates",
+      "workflow-logs": "/workflow/logs",
+      "youtube-planner": "/sns-manager?tab=youtube",
+      "ai-trust-gap": "/ai-trust-gap",
+      "admin-dashboard": "/admin/dashboard",
+      "admin-olivia-assistant": "/admin/olivia-assistant",
+      "admin-tools": "/admin/tools",
+      "per-campaigns": "/per/campaigns",
+      "per-clients": "/per/clients",
+      "per-donations": "/per/donations",
+      "per-orders": "/per/orders",
+      "per-products": "/per/products",
+      "per-reports": "/per/reports",
+      "per-settings": "/per/settings",
+    };
+
+    return {
+      action: "navigate",
+      url: pageMap[input.page] || "/" + input.page,
+      message: "페이지로 이동할게요!",
+    };
+  }
+
+  if (name === "query_database") {
+    const db = getSupabaseAdmin();
+    const table = String(input.table || "");
+    if (!QUERYABLE_TABLE_SET.has(table)) {
+      return {
+        action: "done",
+        message: `❌ "${table}"은 조회할 수 없는 테이블이에요.\n\n조회 가능한 테이블: ${QUERYABLE_TABLES.join(", ")}`,
+      };
+    }
+
+    const limit = Math.min(Math.max(Number(input.limit) || 20, 1), 100);
+    const columns = Array.isArray(input.columns) && input.columns.length > 0
+      ? input.columns.join(",")
+      : "*";
+
+    let query = db.from(table).select(columns).limit(limit);
+
+    if (input.filters && typeof input.filters === "object") {
+      for (const [key, value] of Object.entries(input.filters)) {
+        if (value !== undefined && value !== null && value !== "") {
+          query = query.eq(key, value as any);
+        }
+      }
+    }
+
+    if (input.search && input.searchColumn) {
+      query = query.ilike(String(input.searchColumn), `%${input.search}%`);
+    }
+
+    query = input.orderBy
+      ? query.order(String(input.orderBy), { ascending: Boolean(input.ascending) })
+      : query.order("created_at", { ascending: Boolean(input.ascending) });
+
+    const { data, error } = await query;
+    // created_at이 없는 테이블이면 정렬 컬럼 오류가 나므로 정렬 없이 재시도한다.
+    if (error && !input.orderBy && (error.message.includes("column") || (error as any).code === "42703")) {
+      const retry = await db.from(table).select(columns).limit(limit);
+      if (retry.error) {
+        return { action: "done", message: `❌ "${table}" 조회 중 오류: ${retry.error.message}` };
+      }
+      const rows = (retry.data || []).map(redactSensitiveFields);
+      await logActivity("query_database", table, { count: rows.length });
+      return rows.length === 0
+        ? { action: "done", message: `🔍 **${table}** 테이블에서 조건에 맞는 데이터를 찾지 못했어요.` }
+        : { action: "done", message: `🔍 **${table}** 조회 결과 (${rows.length}건)\n\n\`\`\`json\n${JSON.stringify(rows, null, 2)}\n\`\`\`` };
+    }
+    if (error) {
+      return { action: "done", message: `❌ "${table}" 조회 중 오류: ${error.message}` };
+    }
+
+    const rows = (data || []).map(redactSensitiveFields);
+    await logActivity("query_database", table, { count: rows.length });
+
+    if (rows.length === 0) {
+      return { action: "done", message: `🔍 **${table}** 테이블에서 조건에 맞는 데이터를 찾지 못했어요.` };
+    }
+
+    return {
+      action: "done",
+      message: `🔍 **${table}** 조회 결과 (${rows.length}건)\n\n\`\`\`json\n${JSON.stringify(rows, null, 2)}\n\`\`\``,
+    };
+  }
+
+  if (name === "calendar_add") {
+    if (input.time) {
+      const existing = await listCalendarTasks(input.date);
+      const conflicts = findCalendarConflicts(existing, input.time, 60);
+      if (conflicts.length > 0) {
+        const labels = conflicts
+          .slice(0, 3)
+          .map((task) => `${task.time} ${task.title}`)
+          .join(", ");
+        throw new Error(
+          `같은 시간대에 등록된 일정이 있습니다: ${labels}. 시간을 변경하거나 기존 일정을 먼저 확인해 주세요.`,
+        );
+      }
+    }
+    await logActivity("calendar_add", input.title, { date: input.date, category: input.category });
+    await addCalendarTask({
+      date:     input.date,
+      title:    input.title,
+      memo:     input.memo     ?? "",
+      category: input.category ?? "general",
+      time:     input.time     ?? null,
+      location: input.location ?? null,
+    });
+    const timeStr     = input.time     ? ` · ${input.time}` : "";
+    const locationStr = input.location ? ` 📍${input.location}` : "";
+    return {
+      action: "done",
+      message: `📅 "${input.title}"을(를) ${input.date}${timeStr}${locationStr}에 추가했어요!`,
+    };
+  }
+
+  if (name === "memo_add") {
+    const db = getSupabaseAdmin();
+    let hospitalId: string | null = null;
+    let hospitalLabel = input.hospitalName || "";
+    if (input.hospitalName) {
+      const client = await fuzzyNameSearchOne<any>({
+        db, table: "clients", nameColumn: "hospital_name",
+        select: "id, hospital_name",
+        query: input.hospitalName,
+      });
+      if (client) { hospitalId = client.id; hospitalLabel = client.hospital_name; }
+    }
+
+    await logActivity("create_memo", hospitalLabel || undefined, { summary: input.summary });
+    await db.from("consultation_memos").insert({
+      hospital_id: hospitalId,
+      raw_memo: input.rawMemo,
+      summary: input.summary || "",
+      extracted_data: {},
+      recommended_package: input.recommendedPackage || "",
+      next_action: input.nextAction || "",
+    });
+
+    return {
+      action: "done",
+      message: `📝 메모를 저장했어요${hospitalLabel ? ` (${hospitalLabel})` : ""}.${input.nextAction ? `\n다음 액션: ${input.nextAction}` : ""}`,
+    };
+  }
+
+  if (name === "calendar_list") {
+    const tasks: any[] = await listCalendarTasks(input.date);
+    if (tasks.length === 0) {
+      return { action: "done", message: `📅 ${input.date}에 등록된 할일이 없어요.` };
+    }
+    const CATLABEL: Record<string, string> = { shooting:"촬영", client:"고객/미팅", admin:"행정", personal:"개인", general:"기타" };
+    const lines = tasks.map((t, i) => {
+      const done  = t.completed ? "✅" : "⬜";
+      const time  = t.time     ? ` ${t.time}` : "";
+      const loc   = t.location ? ` 📍${t.location}` : "";
+      const cat   = CATLABEL[t.category] ?? t.category;
+      return `${done} ${i+1}. [${cat}] ${t.title}${time}${loc}\n   ID: ${t.id}`;
+    });
+    return {
+      action: "done",
+      message: `📅 **${input.date} 할일 목록** (총 ${tasks.length}개)\n\n${lines.join("\n\n")}`,
+    };
+  }
+
+  if (name === "calendar_availability") {
+    const tasks: any[] = await listCalendarTasks(input.date);
+    const windows = calculateCalendarAvailability({
+      items: tasks,
+      workdayStart: input.workdayStart,
+      workdayEnd: input.workdayEnd,
+      minimumWindowMinutes: input.minimumWindowMinutes,
+    });
+    if (windows.length === 0) {
+      return {
+        action: "done",
+        message: `📅 ${input.date}에는 요청한 업무 시간 안에 비어 있는 시간이 없어요.`,
+      };
+    }
+    return {
+      action: "done",
+      message: `📅 **${input.date} 빈 시간**\n\n${windows
+        .map((window) => `• ${window.start}~${window.end}`)
+        .join("\n")}`,
+    };
+  }
+
+  if (name === "calendar_complete") {
+    const id = await resolveCalendarTaskId(input);
+    await updateCalendarTask({ id, completed: input.completed ?? true });
+    return {
+      action: "done",
+      message: input.completed === false ? "↩️ 할일을 미완료로 되돌렸어요!" : "✅ 할일을 완료 처리했어요!",
+    };
+  }
+
+  if (name === "calendar_delete") {
+    const id = await resolveCalendarTaskId(input);
+    await deleteCalendarTask(id);
+    return { action: "done", message: "🗑️ 할일을 삭제했어요!" };
+  }
+
+  if (name === "calendar_update") {
+    const id = await resolveCalendarTaskId(input);
+    const patch: Record<string, unknown> = { id };
+    if (input.newDate) patch.date = input.newDate;
+    if (input.title) patch.title = input.title;
+    if (input.time !== undefined) patch.time = input.time || null;
+    if (input.location !== undefined) patch.location = input.location || null;
+    if (input.category) patch.category = input.category;
+    if (input.memo !== undefined) patch.memo = input.memo || "";
+    if (input.completed !== undefined) patch.completed = Boolean(input.completed);
+
+    await updateCalendarTask(patch);
+
+    const changed = [
+      input.newDate ? `날짜 ${input.newDate}` : "",
+      input.time !== undefined ? `시간 ${input.time || "없음"}` : "",
+      input.location !== undefined ? `장소 ${input.location || "없음"}` : "",
+      input.title ? `제목 "${input.title}"` : "",
+    ].filter(Boolean).join(" · ");
+    return { action: "done", message: `✏️ 일정을 수정했어요.${changed ? "\n" + changed : ""}` };
+  }
+
+  if (name === "calendar_add_bulk") {
+    await logActivity("calendar_add", "bulk", { count: input.tasks?.length });
+    const tasks: any[] = input.tasks ?? [];
+    const results: string[] = [];
+    let success = 0;
+    for (const task of tasks) {
+      // time 범위(10:00~13:00)는 HH:MM 부분만 추출해서 저장
+      const timeVal = task.time ? task.time.split("~")[0].trim() : null;
+      const timeLabel = task.time ? ` ${task.time}` : "";
+      try {
+        if (timeVal) {
+          const existing = await listCalendarTasks(task.date);
+          const conflicts = findCalendarConflicts(existing, timeVal, 60);
+          if (conflicts.length > 0) {
+            throw new Error(
+              `같은 시간대 일정: ${conflicts
+                .slice(0, 2)
+                .map((item) => `${item.time} ${item.title}`)
+                .join(", ")}`,
+            );
+          }
+        }
+        await addCalendarTask({
+          date:     task.date,
+          title:    task.title,
+          memo:     task.memo     ?? "",
+          category: task.category ?? "shooting",
+          time:     timeVal,
+          location: task.location ?? null,
+        });
+        success++;
+        results.push(`✅ ${task.date}${timeLabel} ${task.title}`);
+      } catch (error) {
+        results.push(`❌ ${task.title}: ${getErrorMessage(error)}`);
+      }
+    }
+    return {
+      action: "done",
+      message: `📅 **${success}/${tasks.length}개 일정 추가 완료!**\n\n${results.join("\n")}`,
+    };
+  }
+
+  if (name === "get_workflow_status") {
+    const db = getSupabaseAdmin();
+    const run = await fuzzyNameSearchOne<any>({
+      db, table: "workflow_runs", nameColumn: "client_name",
+      select: "id, client_name, current_step_key, status, updated_at, next_action",
+      query: input.clientName,
+      filter: (q: any) => q.eq("status", "active").order("updated_at", { ascending: false }),
+    });
+    if (!run) {
+      return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.\n/clients 에서 워크플로우를 시작해주세요.` };
+    }
+    const STEP_LABELS: Record<string, string> = {
+      consult_meeting: "1. 상담/미팅", quote: "2. 견적서", contract: "3. 계약서", conti: "4. 콘티",
+      shooting: "5. 촬영", backup_sorting: "6. 백업/분류", original_delivery: "7. 원본 전달",
+      client_selection: "8. 고객 셀렉", raw_matching: "9. RAW 매칭", retouching: "10. 보정",
+      revision: "11. 수정 접수", seo_delivery: "12. SEO 납품", final_delivery: "13. 최종 전달",
+      review_content: "14. 후기 콘텐츠", reward: "15. 리워드", customer_care: "16. 고객 케어", content_planning: "17. 콘텐츠 기획",
+    };
+    const step = STEP_LABELS[run.current_step_key] ?? run.current_step_key;
+    const updated = new Date(run.updated_at).toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
+    return {
+      action: "done",
+      message: `📋 **${run.client_name}** 워크플로우 현황\n\n**현재 단계:** ${step}\n**마지막 업데이트:** ${updated}\n\n다음 단계로 진행하려면 "다음 단계로 넘겨줘" 또는 "XX단계로 이동해줘"라고 말씀해주세요.`,
+    };
+  }
+
+  if (name === "advance_workflow_step") {
+    const db = getSupabaseAdmin();
+    const run = await fuzzyNameSearchOne<any>({
+      db, table: "workflow_runs", nameColumn: "client_name",
+      select: "id, client_name, current_step_key",
+      query: input.clientName,
+      filter: (q: any) => q.eq("status", "active").order("updated_at", { ascending: false }),
+    });
+    if (!run) {
+      return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
+    }
+    const origin =
+      req.headers.get("x-base-url") || req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+    const res = await fetch(`${origin}/api/workflow/advance`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+      body: JSON.stringify({ workflow_run_id: run.id, to_step_key: input.toStepKey, reason: "올리비아 요청" }),
+    });
+    const d = await res.json();
+    if (!d.ok) return { action: "done", message: `❌ 단계 이동 실패: ${d.error}` };
+    await logActivity("advance_workflow_step", run.client_name, { from: run.current_step_key, to: input.toStepKey });
+    return {
+      action: "done",
+      message: `✅ **${run.client_name}** 워크플로우를 **${input.toStepKey}** 단계로 이동했어요!\n\n/clients 에서 다음 할 일을 확인해주세요.`,
+    };
+  }
+
+  if (name === "complete_workflow_retroactively") {
+    const db = getSupabaseAdmin();
+    const run = await fuzzyNameSearchOne<any>({
+      db, table: "workflow_runs", nameColumn: "client_name",
+      select: "id, client_name, current_step_key, status",
+      query: input.clientName,
+      filter: (q: any) => q.neq("status", "completed").order("updated_at", { ascending: false }),
+    });
+    if (!run) {
+      return { action: "done", message: `⚠️ **${input.clientName}**의 진행 중인 워크플로우를 찾을 수 없어요. 먼저 고객/워크플로우를 등록해주세요.` };
+    }
+    const origin =
+      req.headers.get("x-base-url") || req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+    const res = await fetch(`${origin}/api/workflow/complete-retroactively`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+      body: JSON.stringify({ workflow_run_id: run.id, reason: input.reason || "소급 등록" }),
+    });
+    const d = await res.json();
+    if (!d.ok) return { action: "done", message: `⚠️ 완료 처리 실패: ${d.error}` };
+    return { action: "done", message: `✅ **${input.clientName}** 워크플로우를 전체 완료 처리했어요.` };
+  }
+
+  if (name === "list_mailing_queue") {
+    const db = getSupabaseAdmin();
+    let query = db.from("mailing_queue")
+      .select("id, type, hospital_name, subject, status, to_email, created_at")
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (input.status) {
+      query = query.eq("status", input.status);
+    } else {
+      query = query.in("status", ["draft", "ready"]);
+    }
+    if (input.clientName) query = query.ilike("hospital_name", `%${input.clientName}%`);
+    let { data: items } = await query;
+
+    if ((!items || items.length === 0) && input.clientName) {
+      let candidateQuery = db.from("mailing_queue")
+        .select("id, type, hospital_name, subject, status, to_email, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      candidateQuery = input.status ? candidateQuery.eq("status", input.status) : candidateQuery.in("status", ["draft", "ready"]);
+      const { data: candidates } = await candidateQuery;
+      items = (candidates || []).filter((row: any) => fuzzyIncludes(row.hospital_name, input.clientName)).slice(0, 10);
+    }
+
+    if (!items || items.length === 0) {
+      return { action: "done", message: "📭 대기 중인 메일이 없습니다." };
+    }
+    const TYPE_KR: Record<string, string> = {
+      quote: "견적서", contract: "계약서", conti: "콘티", original_files: "원본파일",
+      gallery: "갤러리", review_form: "후기 요청", monthly_report: "리포트", proposal: "제안서",
+    };
+    const list = items.map((m: any, i: number) =>
+      `${i + 1}. **${m.hospital_name}** — ${TYPE_KR[m.type] ?? m.type} (${m.status})\n   ID: \`${m.id}\`\n   수신: ${m.to_email || "미입력"}`
+    ).join("\n\n");
+    return {
+      action: "done",
+      message: `📬 **대기 중인 메일 ${items.length}건**\n\n${list}\n\n특정 메일을 발송하려면 ID를 알려주세요.`,
+    };
+  }
+
+  if (name === "send_mailing") {
+    const origin =
+      req.headers.get("x-base-url") || req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+    const res = await fetch(`${origin}/api/mailing/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+      body: JSON.stringify({ id: input.mailingId }),
+    });
+    const d = await res.json();
+    if (!d.ok) return { action: "done", message: `❌ 발송 실패: ${d.error}` };
+    return { action: "done", message: `✅ 메일 발송 완료!\nID: \`${input.mailingId}\`` };
+  }
+
+  if (name === "get_client_profile") {
+    const db = getSupabaseAdmin();
+    const client = await fuzzyNameSearchOne<any>({
+      db, table: "clients", nameColumn: "hospital_name",
+      select: "id, hospital_name, contact_name, phone, email, specialty, total_paid_amount, available_points, total_earned_points, reward_tier, original_photos_link, retouched_photos_link",
+      query: input.clientName,
+    });
+    if (!client) {
+      return { action: "done", message: `⚠️ **${input.clientName}** 고객을 찾을 수 없어요.` };
+    }
+
+    const [runRes, mailRes] = await Promise.all([
+      db.from("workflow_runs")
+        .select("current_step_key, status, updated_at")
+        .eq("client_id", client.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      db.from("mailing_logs")
+        .select("type, subject, status, sent_at")
+        .eq("client_id", client.id)
+        .order("sent_at", { ascending: false })
+        .limit(3),
+    ]);
+
+    const run = runRes.data;
+    const recentMail = mailRes.data ?? [];
+
+    const STEP_LABELS: Record<string, string> = {
+      consult_meeting: "상담/미팅", quote: "견적서", contract: "계약서", conti: "콘티",
+      shooting: "촬영", backup_sorting: "백업/분류", original_delivery: "원본 전달",
+      client_selection: "고객 셀렉", raw_matching: "RAW 매칭", retouching: "보정",
+      revision: "수정 접수", seo_delivery: "SEO 납품", final_delivery: "최종 전달",
+      review_content: "후기 콘텐츠", reward: "리워드", customer_care: "고객 케어", content_planning: "콘텐츠 기획",
+    };
+    const TIER_LABEL: Record<string, string> = { standard: "일반", silver: "실버", gold: "골드", vip: "VIP" };
+
+    const stepLabel = run ? (STEP_LABELS[run.current_step_key] ?? run.current_step_key) : "진행 중인 워크플로우 없음";
+    const mailLines = recentMail.length
+      ? recentMail.map((m: any) => `  · ${m.sent_at ? new Date(m.sent_at).toLocaleDateString("ko-KR") : "-"} ${m.subject || m.type} (${m.status === "sent" ? "발송" : "실패"})`).join("\n")
+      : "  최근 발송 이력 없음";
+
+    const message = [
+      `👤 **${client.hospital_name}**`,
+      `담당자: ${client.contact_name || "미입력"} · 연락처: ${client.phone || "미입력"} · 이메일: ${client.email || "미입력"}`,
+      `진행 단계: ${stepLabel}${run?.updated_at ? ` (업데이트 ${new Date(run.updated_at).toLocaleDateString("ko-KR")})` : ""}`,
+      `누적 촬영금액: ${(client.total_paid_amount ?? 0).toLocaleString()}원`,
+      `PER 포인트: 사용 가능 ${(client.available_points ?? 0).toLocaleString()}P · 누적 적립 ${(client.total_earned_points ?? 0).toLocaleString()}P · 등급 ${TIER_LABEL[client.reward_tier] ?? "일반"}`,
+      `원본사진공유링크: ${client.original_photos_link || "미등록"}`,
+      `보정사진공유링크: ${client.retouched_photos_link || "미등록"}`,
+      `최근 메일 발송이력:`,
+      mailLines,
+    ].join("\n");
+
+    return { action: "done", message };
+  }
+
+  if (name === "get_gallery") {
+    const db = getSupabaseAdmin();
+    // 병원명으로 client_id 조회
+    const client = await fuzzyNameSearchOne<any>({
+      db, table: "clients", nameColumn: "hospital_name",
+      select: "id, hospital_name",
+      query: input.clientName,
+    });
+
+    const GALLERY_SELECT = "id, hospital_name, nas_link, shoot_date, description, created_at, items:photo_gallery_items(thumbnail_url)";
+    let galleries: any[] | null;
+    if (client?.id) {
+      const { data } = await db
+        .from("photo_galleries")
+        .select(GALLERY_SELECT)
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      galleries = data;
+    } else {
+      galleries = await fuzzyNameSearch<any>({
+        db, table: "photo_galleries", nameColumn: "hospital_name",
+        select: GALLERY_SELECT,
+        query: input.clientName,
+        limit: 5,
+        filter: (q: any) => q.order("created_at", { ascending: false }),
+      });
+    }
+
+    if (!galleries || galleries.length === 0) {
+      return { action: "done", message: `📷 **${input.clientName}** 갤러리가 아직 없습니다.\n\n갤러리를 등록하려면 create_gallery 도구를 사용해주세요.` };
+    }
+
+    const lines = galleries.map((g: any) => {
+      const date = g.shoot_date ? new Date(g.shoot_date).toLocaleDateString("ko-KR") : "날짜 미입력";
+      const desc = g.description ? ` — ${g.description}` : "";
+      return `• [${date}${desc}]\n  NAS: ${g.nas_link}`;
+    });
+
+    return {
+      action: "done",
+      message: `📷 **${client?.hospital_name || input.clientName}** 갤러리 ${galleries.length}건\n\n${lines.join("\n\n")}`,
+    };
+  }
+
+  if (name === "create_gallery") {
+    const db = getSupabaseAdmin();
+    const client = await fuzzyNameSearchOne<any>({
+      db, table: "clients", nameColumn: "hospital_name",
+      select: "id, hospital_name, contact_name, email",
+      query: input.clientName,
+    });
+
+    // 활성 워크플로우 조회 (자동 전진용)
+    let run: { id: string; current_step_key: string } | undefined;
+    if (client?.id) {
+      const { data: runs } = await db
+        .from("workflow_runs")
+        .select("id, current_step_key")
+        .eq("client_id", client.id)
+        .eq("status", "active")
+        .limit(1);
+      run = (runs as { id: string; current_step_key: string }[] | null)?.[0];
+    }
+
+    const origin =
+      req.headers.get("x-base-url") || req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+    const res = await fetch(`${origin}/api/galleries`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        hospitalName:  client?.hospital_name || input.clientName,
+        contactName:   client?.contact_name  || "",
+        contactEmail:  client?.email         || "",
+        nasLink:       input.nasLink,
+        description:   input.description     || "",
+        shootDate:     input.shootDate        || null,
+        thumbnailUrl:  input.thumbnailUrl     || "",
+        client_id:       client?.id          || null,
+        workflow_run_id: run?.id             || null,
+      }),
+    });
+    const d = await res.json();
+    if (!d.ok) return { action: "done", message: `❌ 갤러리 생성 실패: ${d.error}` };
+    await logActivity("send_workflow_mail", input.clientName, { gallery: true, nasLink: input.nasLink });
+
+    const autoMsg = run?.current_step_key === "retouching"
+      ? "\n\n✅ 보정완료 처리 + 메일 draft 자동 생성 + **final_delivery** 단계로 자동 전진됐어요."
+      : "\n\n메일링함에 draft가 저장됐습니다.";
+
+    return {
+      action: "done",
+      message: `📷 **${client?.hospital_name || input.clientName}** 갤러리 등록 완료!\nNAS: ${input.nasLink}${autoMsg}`,
+    };
+  }
+
+  if (name === "send_workflow_mail") {
+    const db = getSupabaseAdmin();
+
+    // 병원명으로 clients 테이블에서 이메일 조회
+    const client = await fuzzyNameSearchOne<any>({
+      db, table: "clients", nameColumn: "hospital_name",
+      select: "id, hospital_name, contact_name, email",
+      query: input.hospitalName,
+    });
+
+    const toEmail = client?.email;
+    const contactName = client?.contact_name || "";
+    const hospitalName = client?.hospital_name || input.hospitalName;
+
+    // 메일 타입별 기본 제목/본문
+    const MAIL_TEMPLATES: Record<string, { subject: string; body: string }> = {
+      review_form: {
+        subject: `[포토클리닉] ${hospitalName} 후기 작성 요청`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n포토클리닉 촬영 서비스를 이용해 주셔서 진심으로 감사드립니다.\n\n촬영 결과물이 마음에 드셨다면, 소중한 후기를 남겨주시면 큰 힘이 됩니다.\n후기는 저희 서비스 발전에 큰 도움이 됩니다.\n\n감사합니다.`,
+      },
+      original_files: {
+        subject: `[포토클리닉] ${hospitalName} 원본 파일 전달`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n촬영 원본 파일을 전달드립니다.\n파일 수령 후 이상 여부를 확인해주시고, 문의사항이 있으시면 언제든지 연락 주세요.\n\n감사합니다.`,
+      },
+      gallery: {
+        subject: `[포토클리닉] ${hospitalName} 갤러리 공유`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n촬영 결과물 갤러리 링크를 공유드립니다.\n확인하신 후 선택 또는 피드백을 주시면 감사하겠습니다.\n\n감사합니다.`,
+      },
+      quote: {
+        subject: `[포토클리닉] ${hospitalName} 견적서 안내`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n포토클리닉 촬영 견적서를 보내드립니다.\n검토하신 후 궁금하신 사항이 있으시면 언제든지 문의해 주세요.\n\n감사합니다.`,
+      },
+      contract: {
+        subject: `[포토클리닉] ${hospitalName} 계약서 안내`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n계약서를 첨부드립니다.\n내용 검토 후 서명하여 회신해 주시면 감사하겠습니다.\n\n감사합니다.`,
+      },
+      conti: {
+        subject: `[포토클리닉] ${hospitalName} 콘티/촬영 계획서 안내`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n촬영 계획서(콘티)를 공유드립니다.\n확인 후 수정사항이 있으시면 알려주세요.\n\n감사합니다.`,
+      },
+      proposal: {
+        subject: `[포토클리닉] ${hospitalName} 제안서 안내`,
+        body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n포토클리닉 브랜드 촬영 제안서를 보내드립니다.\n검토하신 후 편하게 연락 주세요.\n\n감사합니다.`,
+      },
+    };
+
+    const template = MAIL_TEMPLATES[input.mailType] ?? {
+      subject: `[포토클리닉] ${hospitalName} 안내`,
+      body: `안녕하세요${contactName ? ", " + contactName + " 담당자님" : ""}.\n\n포토클리닉입니다. 확인 부탁드립니다.\n\n감사합니다.`,
+    };
+
+    const body = input.customBody
+      ? template.body + "\n\n" + input.customBody
+      : template.body;
+
+    if (!toEmail) {
+      // 이메일 없으면 draft로 저장
+      const { data: inserted } = await db
+        .from("mailing_queue")
+        .insert({
+          type:          input.mailType,
+          hospital_name: hospitalName,
+          client_id:     client?.id ?? null,
+          contact_name:  contactName,
+          subject:       template.subject,
+          body,
+          status:        "draft",
+          links:         [],
+          attachments:   [],
+        })
+        .select("id")
+        .single();
+
+      return {
+        action: "done",
+        message: `⚠️ **${hospitalName}**의 이메일이 등록되어 있지 않아요.\n\n메일 초안을 저장했어요 (ID: ${inserted?.id ?? "?"}).\n고객 정보에서 이메일을 등록하면 메일링 페이지에서 발송할 수 있어요.`,
+      };
+    }
+
+    // mailing_queue에 INSERT
+    const { data: inserted, error: insertErr } = await db
+      .from("mailing_queue")
+      .insert({
+        type:          input.mailType,
+        hospital_name: hospitalName,
+        client_id:     client?.id ?? null,
+        contact_name:  contactName,
+        to_email:      toEmail,
+        subject:       template.subject,
+        body,
+        // mailing_queue.status는 draft/ready/sent/failed만 허용 — "pending"은 체크 제약 위반으로 항상 실패했다.
+        status:        "ready",
+        links:         [],
+        attachments:   [],
+      })
+      .select("id")
+      .single();
+
+    if (insertErr || !inserted?.id) {
+      throw new Error(`메일 큐 생성 실패: ${insertErr?.message ?? "알 수 없는 오류"}`);
+    }
+
+    // 실제 발송
+    const origin =
+      req.headers.get("x-base-url") ||
+      req.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+
+    const sendRes = await fetch(origin + "/api/mailing/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+      body: JSON.stringify({ id: inserted.id }),
+    });
+    const sendData = await sendRes.json();
+
+    if (!sendData.ok) {
+      return {
+        action: "done",
+        message: `⚠️ **${hospitalName}** 메일 발송 실패\n수신: ${toEmail}\n오류: ${sendData.error}`,
+      };
+    }
+
+    await logActivity("send_workflow_mail", hospitalName, { mailType: input.mailType, toEmail });
+
+    return {
+      action: "done",
+      message: `✅ **${hospitalName}** ${input.mailType === "review_form" ? "후기 요청" : input.mailType === "original_files" ? "원본 전달" : input.mailType === "gallery" ? "갤러리 공유" : input.mailType} 메일을 **${toEmail}**으로 발송했어요!`,
+    };
+  }
+
+  return { action: "done", message: "완료됐어요!" };
+}

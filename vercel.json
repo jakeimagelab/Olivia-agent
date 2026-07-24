@@ -35,6 +35,22 @@
     {
       "path": "/api/cron/olivia-morning-briefing",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/assistant-jobs",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/assistant-important-email",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/assistant-afternoon-briefing",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/assistant-evening-briefing",
+      "schedule": "0 10 * * *"
     }
   ]
 }

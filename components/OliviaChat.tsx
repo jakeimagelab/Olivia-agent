@@ -1,11 +1,22 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Paperclip, Sparkles } from "lucide-react";
 import { C } from "@/lib/theme";
 import OliviaChatWorkItemCard from "@/components/olivia/OliviaChatWorkItemCard";
 import { compactWorkItemReferences, type OliviaChatWorkItem, type OliviaChatWorkItemAction } from "@/lib/olivia/chatTypes";
 import { mergeChatMessages } from "@/lib/olivia/chatMessageMerge";
 import { isAutoExecutableClientCreate } from "@/lib/olivia/crud/autoExecution";
+import { getSupabase } from "@/lib/supabase";
+import {
+  OLIVIA_ATTACHMENT_BUCKET,
+  validateOliviaAttachmentBatch,
+  type OliviaChatAttachment,
+} from "@/lib/olivia/chatAttachments";
+import {
+  OliviaChatAttachmentTray,
+  OliviaChatMessageAttachments,
+  type PendingOliviaAttachment,
+} from "@/components/olivia/OliviaChatAttachments";
 
 // ── 코드 블록 (복사 버튼 포함, 개발요청 스펙 등을 그대로 복사해 전달할 때 사용) ──
 function CodeBlock({ code, bg, border, color }: { code: string; bg: string; border: string; color: string }) {
@@ -170,6 +181,7 @@ interface Message {
   toolResult?: string;
   isApproved?: boolean;
   workItems?: OliviaChatWorkItem[];
+  attachments?: OliviaChatAttachment[];
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -321,8 +333,12 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
   const [workItemBusy,    setWorkItemBusy]   = useState<string | null>(null);
   const [panelSize,       setPanelSize]      = useState({ width: 420, height: 580 });
   const [panelPreset,     setPanelPreset]    = useState<"small" | "medium" | "full" | "custom">("small");
+  const [pendingAttachments, setPendingAttachments] = useState<PendingOliviaAttachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState("");
 
   const resizeStartRef = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewUrlsRef = useRef(new Set<string>());
 
   // 패널이 우측 하단에 고정돼 있으므로, 좌상단 모서리를 드래그하면 그 방향으로 커지도록 계산한다.
   const startResize = (e: React.MouseEvent) => {
@@ -404,7 +420,12 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
         role: m.role,
         content: m.content,
         source: "web",
-        metadata: { ...(m.workItems?.length ? { workItems: compactWorkItemReferences(m.workItems) } : {}), deviceId: deviceIdRef.current, clientRequestId: m.clientRequestId },
+        metadata: {
+          ...(m.workItems?.length ? { workItems: compactWorkItemReferences(m.workItems) } : {}),
+          ...(m.attachments?.length ? { attachments: m.attachments } : {}),
+          deviceId: deviceIdRef.current,
+          clientRequestId: m.clientRequestId,
+        },
       })) }),
     })
       .then((response) => response.json())
@@ -466,6 +487,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             role:    m.role as "user" | "assistant",
             content: m.content,
             source:  m.source as "web" | "telegram" | undefined,
+            attachments: Array.isArray(m.metadata?.attachments) ? m.metadata.attachments : undefined,
             workItems: Array.isArray(m.metadata?.workItems) ? m.metadata.workItems.map((item: any) => ({ ...item, summary: item.summary || "저장된 업무 항목", availableActions: item.availableActions || ["view"] })) : undefined,
           })));
           lastPollRef.current = data.messages[data.messages.length - 1].created_at;
@@ -524,6 +546,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             role:    m.role as "user" | "assistant",
             content: m.content,
             source:  (m.source as "web" | "telegram") ?? "web",
+            attachments: Array.isArray(m.metadata?.attachments) ? m.metadata.attachments : undefined,
             workItems: Array.isArray(m.metadata?.workItems) ? m.metadata.workItems.map((item: any) => ({ ...item, summary: item.summary || "저장된 업무 항목", availableActions: item.availableActions || ["view"] })) : undefined,
           }));
         if (!newMsgs.length) return;
@@ -541,13 +564,115 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     return () => clearInterval(id);
   }, [open, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => () => {
+    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    previewUrlsRef.current.clear();
+  }, []);
+
+  const uploadAttachment = async (localId: string, file: File, previewUrl?: string) => {
+    setPendingAttachments((items) => items.map((item) => (
+      item.localId === localId ? { ...item, status: "uploading", error: undefined } : item
+    )));
+    try {
+      const sessionResponse = await fetch("/api/olivia/attachments/upload-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          fileSize: file.size,
+        }),
+      });
+      const session = await sessionResponse.json();
+      if (!sessionResponse.ok || !session.ok) throw new Error(session.error || "업로드를 시작하지 못했습니다.");
+      const { error: uploadError } = await getSupabase()
+        .storage
+        .from(session.bucket || OLIVIA_ATTACHMENT_BUCKET)
+        .uploadToSignedUrl(session.storagePath, session.token, file, {
+          contentType: file.type || "application/octet-stream",
+          upsert: false,
+        });
+      if (uploadError) throw uploadError;
+      const signResponse = await fetch("/api/olivia/attachments/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storagePath: session.storagePath }),
+      });
+      const signed = await signResponse.json().catch(() => null);
+      const attachment: OliviaChatAttachment = {
+        id: session.id,
+        storagePath: session.storagePath,
+        fileName: session.fileName,
+        mimeType: session.mimeType,
+        sizeBytes: session.sizeBytes,
+        kind: session.kind,
+        analysisStatus: session.analysisStatus,
+        ...(signed?.downloadUrl ? { downloadUrl: signed.downloadUrl } : previewUrl ? { downloadUrl: previewUrl } : {}),
+      };
+      setPendingAttachments((items) => items.map((item) => (
+        item.localId === localId ? { ...item, status: "ready", attachment } : item
+      )));
+    } catch (error) {
+      setPendingAttachments((items) => items.map((item) => (
+        item.localId === localId
+          ? { ...item, status: "error", error: error instanceof Error ? error.message : "업로드 실패" }
+          : item
+      )));
+    }
+  };
+
+  const addAttachments = (incoming: File[]) => {
+    if (!incoming.length) return;
+    setAttachmentError("");
+    const existingFiles = pendingAttachments.map((item) => item.file);
+    const validationError = validateOliviaAttachmentBatch([...existingFiles, ...incoming]);
+    if (validationError) {
+      setAttachmentError(validationError);
+      return;
+    }
+    const additions = incoming.map((file) => {
+      const previewUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined;
+      if (previewUrl) previewUrlsRef.current.add(previewUrl);
+      return {
+        localId: crypto.randomUUID(),
+        file,
+        previewUrl,
+        status: "uploading" as const,
+      };
+    });
+    setPendingAttachments((items) => [...items, ...additions]);
+    void Promise.all(additions.map((item) => uploadAttachment(item.localId, item.file, item.previewUrl)));
+  };
+
+  const removeAttachment = (localId: string) => {
+    setPendingAttachments((items) => {
+      const removed = items.find((item) => item.localId === localId);
+      if (removed?.previewUrl) {
+        URL.revokeObjectURL(removed.previewUrl);
+        previewUrlsRef.current.delete(removed.previewUrl);
+      }
+      return items.filter((item) => item.localId !== localId);
+    });
+    setAttachmentError("");
+  };
+
+  const retryAttachment = (localId: string) => {
+    const item = pendingAttachments.find((candidate) => candidate.localId === localId);
+    if (item) void uploadAttachment(item.localId, item.file, item.previewUrl);
+  };
+
   // ── 메시지 전송 ─────────────────────────────────────────
   const send = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    const isUploading = pendingAttachments.some((item) => item.status === "uploading");
+    const readyAttachments = pendingAttachments.flatMap((item) => item.status === "ready" && item.attachment ? [item.attachment] : []);
+    if ((!text && !readyAttachments.length) || loading || isUploading) return;
+    const messageText = text || `첨부파일을 확인해주세요: ${readyAttachments.map((attachment) => attachment.fileName).join(", ")}`;
     setInput("");
+    setPendingAttachments((items) => items.filter((item) => item.status === "error"));
+    setAttachmentError("");
 
-    const newMsg = createLocalMessage({ role: "user", content: text, source: "web" });
+    const newMsg = createLocalMessage({ role: "user", content: messageText, source: "web", attachments: readyAttachments });
     const updated = [...messages, newMsg];
     setMessages(updated);
     setLoading(true);
@@ -577,6 +702,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
           messages: apiMessages,
           pageContext: contextHint,
           recentWorkItems,
+          attachments: readyAttachments,
         }),
       });
       const data = await res.json();
@@ -797,6 +923,14 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
     fetch("/api/olivia/messages", { method: "DELETE" }).catch(() => {});
     lastPollRef.current = new Date().toISOString();
     pendingRef.current  = [];
+    pendingAttachments.forEach((item) => {
+      if (item.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl);
+        previewUrlsRef.current.delete(item.previewUrl);
+      }
+    });
+    setPendingAttachments([]);
+    setAttachmentError("");
     setUnreadCount(0);
     setMessages([GREETING]);
   };
@@ -971,6 +1105,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
                           ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
                         fontSize: 12, lineHeight: 1.7,
                       }}>
+                        <OliviaChatMessageAttachments attachments={msg.attachments} />
                         <MarkdownText text={msg.content} isUser={msg.role === "user"} />
                       </div>
                     </div>
@@ -1098,10 +1233,38 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
               </button>
             ))}
           </div>
+          <OliviaChatAttachmentTray
+            items={pendingAttachments}
+            onRemove={removeAttachment}
+            onRetry={retryAttachment}
+          />
+          {attachmentError ? <div className="olivia-chat-attachment-error">{attachmentError}</div> : null}
           <div style={{
             padding: "10px 12px",
             display: "flex", gap: 8, alignItems: "flex-end",
+            fontFamily: "var(--font-sans)",
           }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              hidden
+              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.csv,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.zip"
+              onChange={(event) => {
+                addAttachments(Array.from(event.target.files ?? []));
+                event.currentTarget.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className="olivia-chat-attach-button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || pendingAttachments.length >= 5}
+              aria-label="사진 또는 파일 첨부"
+              title="사진 또는 파일 첨부"
+            >
+              <Paperclip size={17} />
+            </button>
             <textarea
               ref={inputRef}
               value={input}
@@ -1111,6 +1274,18 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
                   e.preventDefault();
                   send();
                 }
+              }}
+              onPaste={(event) => {
+                const files = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
+                if (files.length) {
+                  event.preventDefault();
+                  addAttachments(files);
+                }
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                addAttachments(Array.from(event.dataTransfer.files));
               }}
               placeholder={"무엇이 필요하세요?\n(⌘+Enter로 전송)"}
               disabled={loading}
@@ -1127,10 +1302,14 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
                 el.style.height = Math.min(el.scrollHeight, 120) + "px";
               }}
             />
-            <button onClick={send} disabled={loading || !input.trim()}
+            <button
+              onClick={send}
+              disabled={loading || pendingAttachments.some((item) => item.status === "uploading") || (!input.trim() && !pendingAttachments.some((item) => item.status === "ready"))}
               style={{
-                width: 38, height: 38, background: input.trim() ? C.orange : C.border,
-                border: "none", borderRadius: 10, cursor: input.trim() ? "pointer" : "default",
+                width: 38, height: 38,
+                background: input.trim() || pendingAttachments.some((item) => item.status === "ready") ? C.orange : C.border,
+                border: "none", borderRadius: 10,
+                cursor: input.trim() || pendingAttachments.some((item) => item.status === "ready") ? "pointer" : "default",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 16, flexShrink: 0, transition: "background .15s", marginBottom: 1,
               }}>

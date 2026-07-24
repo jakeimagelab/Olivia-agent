@@ -94,6 +94,24 @@ export const TRASH_SOURCES: Record<TrashSourceType, SourceConfig> = {
     table: "olivia_chat_messages",
     title: () => "Olivia 대화 기록",
     preview: row => clipped(Array.isArray(row.records) ? (row.records[0] as RecordValue | undefined)?.content : row.content),
+    assets: row => {
+      const records = Array.isArray(row.records) ? row.records : [row];
+      return records.flatMap((record) => {
+        if (!record || typeof record !== "object") return [];
+        const metadata = (record as RecordValue).metadata;
+        if (!metadata || typeof metadata !== "object") return [];
+        const attachments = Array.isArray((metadata as RecordValue).attachments)
+          ? (metadata as RecordValue).attachments as unknown[]
+          : [];
+        return attachments.flatMap((attachment) => {
+          if (!attachment || typeof attachment !== "object") return [];
+          const storagePath = (attachment as RecordValue).storagePath;
+          return typeof storagePath === "string" && storagePath.startsWith("uploads/")
+            ? [`olivia-chat-attachments:${storagePath}`]
+            : [];
+        });
+      });
+    },
     multiple: true,
   },
 };
@@ -193,6 +211,7 @@ export async function moveAllRecordsToTrash(
     title: config.title(payload),
     preview: config.preview(payload),
     payload,
+    asset_paths: config.assets?.(payload) ?? [],
   }).select("*").single();
   if (trashError) throw trashError;
 

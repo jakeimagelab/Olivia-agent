@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import GlobalOliviaChat from "@/components/GlobalOliviaChat";
 import GlobalClientContextBridge from "@/components/GlobalClientContextBridge";
 import GlobalFeatureSidebar from "@/components/GlobalFeatureSidebar";
@@ -6,6 +7,12 @@ import CursorEffect from "@/components/CursorEffect";
 import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
 import "./admin/admin.css";
+
+const nanumSquare = localFont({
+  src: "../lib/olivia/fonts/NanumSquare-Regular.ttf",
+  variable: "--font-nanum-square",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -37,10 +44,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&family=Nanum+Myeongjo:wght@400;700;800&family=Black+Han+Sans&family=Do+Hyeon&family=Gothic+A1:wght@400;700;900&family=Song+Myung&display=swap"
           rel="stylesheet"
         />
-        {/* 나눔고딕스퀘어 — Google Fonts에는 없어서 커뮤니티가 올려둔 jsDelivr(GitHub 배포) CDN을 씀 */}
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/nanumsquare.css" />
       </head>
-      <body className="min-h-screen font-sans antialiased">
+      <body className={`${nanumSquare.variable} min-h-screen font-sans antialiased`}>
         <SplashScreen />
         <CursorEffect />
         <GlobalFeatureSidebar>

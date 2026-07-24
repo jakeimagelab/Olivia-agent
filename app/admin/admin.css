@@ -24,7 +24,7 @@
   grid-template-columns: 260px minmax(0, 1fr);
   background: var(--mesh-bg, var(--oa-bg));
   color: var(--oa-text);
-  font-family: "NanumSquare", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  font-family: var(--font-sans);
 }
 
 .oa-sidebar {
@@ -517,7 +517,7 @@
     radial-gradient(circle at 18% 72%, rgba(21, 88, 85, .065), transparent 30%),
     var(--command-bg);
   color: var(--command-text);
-  font-family: "NanumSquare", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-family: var(--font-sans);
 }
 
 .oa-shell svg,
@@ -1193,7 +1193,7 @@
 /* 씬 편집 화면 — 입력 필드 */
 .pt-input-title { width: 100%; padding: 12px 16px; font-size: 16px; font-weight: 800; color: #0d1f1e; border: 1px solid #E0E8E6; border-radius: 12px; margin-bottom: 8px; background: #fff; }
 .pt-input-subject { width: 100%; padding: 10px 16px; font-size: 13px; color: #5a7470; border: 1px solid #E0E8E6; border-radius: 12px; margin-bottom: 16px; background: #fafcfb; }
-.pt-textarea { width: 100%; min-height: 480px; padding: 22px; font-size: 17px; line-height: 1.9; color: #1c2b28; border: 1px solid #E0E8E6; border-radius: 16px; resize: vertical; font-family: 'Noto Sans KR', sans-serif; background: #fff; }
+.pt-textarea { width: 100%; min-height: 480px; padding: 22px; font-size: 17px; line-height: 1.9; color: #1c2b28; border: 1px solid #E0E8E6; border-radius: 16px; resize: vertical; font-family: var(--font-sans); background: #fff; }
 
 /* 편집 화면 — 왼쪽 씬 네비게이터 */
 .pt-edit-layout { display: flex; gap: 22px; align-items: flex-start; }
@@ -1277,7 +1277,7 @@
 .pt-slide-card-actions button { width: 24px; height: 24px; border: none; background: transparent; color: #6a8e8a; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .pt-slide-card-actions button:hover:not(:disabled) { background: #EEF3F1; color: #155855; }
 .pt-slide-card-actions button:disabled { opacity: .3; cursor: not-allowed; }
-.pt-slide-card textarea { width: 100%; border: none; resize: vertical; font-size: 15px; line-height: 1.6; font-family: 'Noto Sans KR', sans-serif; outline: none; padding: 0; }
+.pt-slide-card textarea { width: 100%; border: none; resize: vertical; font-size: 15px; line-height: 1.6; font-family: var(--font-sans); outline: none; padding: 0; }
 .pt-slide-add { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; border-radius: 12px; border: 1px dashed #B8D4CF; background: #F5FAF9; color: #155855; font-weight: 700; font-size: 13px; cursor: pointer; }
 
 /* 편집 화면 — 다중 화자 토글 / 화자 칩 관리 */
@@ -1304,12 +1304,12 @@
 .pt-para-card-actions button { width: 22px; height: 22px; border: none; background: transparent; color: #6a8e8a; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .pt-para-card-actions button:hover:not(:disabled) { background: #EEF3F1; color: #155855; }
 .pt-para-card-actions button:disabled { opacity: .3; cursor: not-allowed; }
-.pt-para-card textarea { flex: 1; min-width: 0; border: 1px solid #E0E8E6; border-radius: 8px; resize: vertical; font-size: 15px; line-height: 1.6; font-family: 'Noto Sans KR', sans-serif; outline: none; padding: 8px 10px; }
+.pt-para-card textarea { flex: 1; min-width: 0; border: 1px solid #E0E8E6; border-radius: 8px; resize: vertical; font-size: 15px; line-height: 1.6; font-family: var(--font-sans); outline: none; padding: 8px 10px; }
 .pt-para-number { padding: 6px 8px; border-radius: 8px; background: #F3F7F6; color: #6A8E8A; font-size: 11px; font-weight: 800; text-align: center; }
 .pt-para-card-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
 .pt-para-card-content textarea { width: 100%; flex: none; }
 .pt-gesture-input { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid #F0D3C7; border-radius: 8px; background: #FFF8F4; color: #E85D2C; }
-.pt-gesture-input input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: #7A4430; font-size: 12.5px; font-family: 'Noto Sans KR', sans-serif; }
+.pt-gesture-input input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: #7A4430; font-size: 12.5px; font-family: var(--font-sans); }
 .pt-prompt-gesture { display: inline-block; margin-left: .55em; color: #FF9A72; font-size: .52em; font-weight: 700; font-style: italic; vertical-align: middle; white-space: nowrap; }
 .pt-remote-gesture { display: inline-block; margin-left: .5em; color: #FF9A72; font-size: .55em; font-weight: 700; font-style: italic; vertical-align: middle; white-space: nowrap; }
 .pt-remote-controls { display: flex; flex-direction: column; gap: 7px; }
