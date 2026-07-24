@@ -9,6 +9,10 @@ import {
   parseKakaoLinkCommand,
   parseKakaoSkillPayload,
 } from "@/lib/assistant/channels/kakao/parser";
+import {
+  getKakaoSkillSecretHeader,
+  verifyKakaoSkillSecret,
+} from "@/lib/assistant/channels/kakao/requestSecurity";
 
 const payload = {
   userRequest: {
@@ -99,5 +103,35 @@ describe("Kakao channel adapter", () => {
       "진행",
       "취소",
     ]);
+  });
+
+  it("공식 x-api-key 헤더를 우선 사용한다", () => {
+    const headers = new Headers({
+      "x-api-key": "official-key",
+      "x-olivia-kakao-skill-secret": "legacy-key",
+    });
+    expect(getKakaoSkillSecretHeader(headers)).toBe("official-key");
+  });
+
+  it("기존 긴 헤더도 계속 지원한다", () => {
+    const headers = new Headers({
+      "x-olivia-kakao-skill-secret": "legacy-key",
+    });
+    expect(getKakaoSkillSecretHeader(headers)).toBe("legacy-key");
+  });
+
+  it("스킬 비밀값은 정확히 일치할 때만 허용한다", () => {
+    const previous = process.env.KAKAO_SKILL_SECRET;
+    process.env.KAKAO_SKILL_SECRET = "test-secret";
+    try {
+      expect(verifyKakaoSkillSecret("test-secret")).toBe(true);
+      expect(verifyKakaoSkillSecret("wrong-secret")).toBe(false);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.KAKAO_SKILL_SECRET;
+      } else {
+        process.env.KAKAO_SKILL_SECRET = previous;
+      }
+    }
   });
 });

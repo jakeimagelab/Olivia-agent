@@ -12,27 +12,10 @@ import {
   parseKakaoSkillPayload,
 } from "@/lib/assistant/channels/kakao/parser";
 import {
+  getKakaoSkillSecretHeader,
   isKakaoSkillConfigured,
   verifyKakaoSkillSecret,
 } from "@/lib/assistant/channels/kakao/requestSecurity";
-import { claimAssistantConfirmation } from "@/lib/assistant/confirmations/service";
-import {
-  getOrCreateAssistantConversation,
-  listAssistantMessages,
-  saveAssistantMessage,
-} from "@/lib/assistant/conversations/service";
-import {
-  executeApprovedAssistantAction,
-  processOliviaChannelMessage,
-} from "@/lib/assistant/core/oliviaCore";
-import {
-  connectKakaoOwnerWithCode,
-  findKakaoOwner,
-} from "@/lib/assistant/owners/service";
-import { encryptAssistantSecret } from "@/lib/assistant/security";
-import { processAssistantJobs } from "@/lib/assistant/jobs/service";
-import { issueAssistantVoiceSession } from "@/lib/assistant/voice/service";
-import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -67,7 +50,7 @@ export async function POST(req: NextRequest) {
   }
   if (
     !verifyKakaoSkillSecret(
-      req.headers.get("x-olivia-kakao-skill-secret"),
+      getKakaoSkillSecretHeader(req.headers),
     )
   ) {
     return kakaoJson(
@@ -76,11 +59,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let rawPayload: unknown;
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return kakaoJson(
+      buildKakaoTextResponse("Olivia 스킬 서버가 정상적으로 연결되었습니다."),
+    );
+  }
+
+  let parsed: ReturnType<typeof parseKakaoSkillPayload>;
+  try {
+    parsed = parseKakaoSkillPayload(rawPayload);
+  } catch {
+    return kakaoJson(
+      buildKakaoTextResponse("Olivia 스킬 서버가 정상적으로 연결되었습니다."),
+    );
+  }
+
+  const [
+    { getSupabaseAdmin },
+    { connectKakaoOwnerWithCode, findKakaoOwner },
+  ] = await Promise.all([
+    import("@/lib/supabase"),
+    import("@/lib/assistant/owners/service"),
+  ]);
   const db = getSupabaseAdmin();
   let webhookEventId: string | null = null;
   try {
-    const rawPayload = await req.json();
-    const parsed = parseKakaoSkillPayload(rawPayload);
     const eventKey = eventKeyForRequest(
       req,
       parsed.botUserKey,
@@ -168,6 +174,11 @@ export async function POST(req: NextRequest) {
       .update({ owner_id: owner.id })
       .eq("id", webhookEvent.id);
 
+    const {
+      getOrCreateAssistantConversation,
+      listAssistantMessages,
+      saveAssistantMessage,
+    } = await import("@/lib/assistant/conversations/service");
     const conversation = await getOrCreateAssistantConversation(db, owner.id);
     const saved = await saveAssistantMessage(db, {
       ownerId: owner.id,
@@ -189,6 +200,13 @@ export async function POST(req: NextRequest) {
 
     const confirmation = parseKakaoConfirmationCommand(parsed.utterance);
     if (confirmation) {
+      const [
+        { claimAssistantConfirmation },
+        { executeApprovedAssistantAction },
+      ] = await Promise.all([
+        import("@/lib/assistant/confirmations/service"),
+        import("@/lib/assistant/core/oliviaCore"),
+      ]);
       const action = await claimAssistantConfirmation(db, {
         token: confirmation.token,
         ownerId: owner.id,
@@ -222,6 +240,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (/음성(?:으로)?\s*(?:입력|명령|말하기)|말로\s*(?:요청|입력)/.test(parsed.utterance)) {
+      const { issueAssistantVoiceSession } = await import(
+        "@/lib/assistant/voice/service"
+      );
       const voiceSession = await issueAssistantVoiceSession(db, {
         ownerId: owner.id,
         conversationId: conversation.id,
@@ -263,6 +284,9 @@ export async function POST(req: NextRequest) {
       parsed.callbackUrl &&
       process.env.KAKAO_CALLBACK_ENABLED === "true"
     ) {
+      const { encryptAssistantSecret } = await import(
+        "@/lib/assistant/security"
+      );
       const { error: jobError } = await db.from("assistant_jobs").insert({
         owner_id: owner.id,
         job_type: "kakao_message",
@@ -282,6 +306,9 @@ export async function POST(req: NextRequest) {
         headers: req.headers,
       });
       after(async () => {
+        const { processAssistantJobs } = await import(
+          "@/lib/assistant/jobs/service"
+        );
         await processAssistantJobs({
           db: getSupabaseAdmin(),
           req: backgroundRequest,
@@ -296,6 +323,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(buildKakaoCallbackResponse());
     }
 
+    const { processOliviaChannelMessage } = await import(
+      "@/lib/assistant/core/oliviaCore"
+    );
     const history = await listAssistantMessages(
       db,
       owner.id,
