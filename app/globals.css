@@ -2887,6 +2887,15 @@ main:has(> .pc-header) {
   line-height: 1;
 }
 
+.pcrm-summary-grid article small {
+  overflow: hidden;
+  color: #22876a;
+  font-size: 9px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pcrm-dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 2.1fr) minmax(260px, .8fr);
