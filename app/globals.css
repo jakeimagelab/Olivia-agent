@@ -3238,6 +3238,55 @@ main:has(> .pc-header) {
 .pcrm-per-stats b.is-plus { color: #22876a; }
 .pcrm-per-stats b.is-minus { color: #e85d2c; }
 
+.pcrm-subnav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(21, 88, 85, .12);
+  background: #fff;
+  padding: 0 24px;
+}
+
+.pcrm-subnav a,
+.pcrm-subnav button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 7px;
+  height: 52px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 0 14px;
+  color: #5a7470;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pcrm-subnav a:hover,
+.pcrm-subnav button:hover { color: #155855; }
+
+.pcrm-subnav a[data-active="true"] {
+  border-bottom-color: #155855;
+  color: #155855;
+}
+
+.pcrm-subnav button[data-muted="true"] { color: #b7c4c0; }
+.pcrm-subnav button[data-muted="true"]:hover { color: #8da09c; }
+
+@media (max-width: 680px) {
+  .pcrm-subnav { padding: 0 12px; }
+  .pcrm-subnav a, .pcrm-subnav button { height: 46px; padding: 0 10px; font-size: 11px; }
+}
+
 .pcrm-dialog-backdrop {
   position: fixed;
   inset: 0;
