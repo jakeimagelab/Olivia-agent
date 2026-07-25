@@ -136,7 +136,10 @@ function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
     try {
       const res = await fetch("/api/clients", { cache: "no-store" });
       const d = await res.json();
-      if (requestId === loadRequestRef.current && d.ok) setClients(d.clients || []);
+      if (requestId === loadRequestRef.current && d.ok) {
+        setClients(d.clients || []);
+        setDashboard(d.dashboard || null);
+      }
     } finally {
       if (requestId === loadRequestRef.current) setLoading(false);
     }
