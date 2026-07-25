@@ -2942,8 +2942,34 @@ main:has(> .pc-header) {
   font-size: 11px;
 }
 
+.pcrm-project-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(21, 88, 85, .12);
+}
+
+.pcrm-project-tabs button {
+  border: 1px solid rgba(21, 88, 85, .16);
+  border-radius: 999px;
+  padding: 6px 13px;
+  background: #fff;
+  color: #5a7470;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pcrm-project-tabs button[data-active="true"] {
+  border-color: #155855;
+  background: #155855;
+  color: #fff;
+}
+
 .pcrm-project-table {
-  min-width: 740px;
+  min-width: 860px;
 }
 
 .pcrm-project-panel {
@@ -2952,7 +2978,7 @@ main:has(> .pc-header) {
 
 .pcrm-project-row {
   display: grid;
-  grid-template-columns: 1.45fr 1fr .85fr .72fr 1.3fr 54px;
+  grid-template-columns: 1.3fr .95fr .78fr .68fr .68fr .82fr 54px;
   width: 100%;
   min-height: 58px;
   align-items: center;
