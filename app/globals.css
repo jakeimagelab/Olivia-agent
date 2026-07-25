@@ -2912,7 +2912,9 @@ main:has(> .pc-header) {
 
 .pcrm-project-panel > header,
 .pcrm-side-card > header,
-.pcrm-activity-card > header {
+.pcrm-activity-card > header,
+.pcrm-inquiry-card > header,
+.pcrm-per-card > header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2923,7 +2925,9 @@ main:has(> .pc-header) {
 
 .pcrm-project-panel header h2,
 .pcrm-side-card header h2,
-.pcrm-activity-card header h2 {
+.pcrm-activity-card header h2,
+.pcrm-inquiry-card header h2,
+.pcrm-per-card header h2 {
   margin: 0;
   color: #1c2b28;
   font-size: 14px;
