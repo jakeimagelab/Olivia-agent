@@ -12,6 +12,8 @@ const RELATED_TABLE: Record<string, string> = {
   contract: "contracts",
   conti: "conti_saves",
   gallery: "photo_galleries",
+  select_gallery: "select_galleries",
+  final_delivery: "photo_galleries",
 };
 
 export async function GET(req: NextRequest) {
@@ -37,7 +39,10 @@ export async function POST(req: NextRequest) {
   const relatedType = String(body?.relatedType ?? "");
   const relatedId = String(body?.relatedId ?? "");
   const title = String(body?.title ?? "").trim();
-  if (!isPcrmUuid(clientId) || !isPcrmUuid(workflowRunId) || !isPcrmUuid(relatedId)) {
+  const validRelatedId = relatedType === "select_gallery"
+    ? relatedId.length > 0 && relatedId.length <= 100
+    : isPcrmUuid(relatedId);
+  if (!isPcrmUuid(clientId) || !isPcrmUuid(workflowRunId) || !validRelatedId) {
     return NextResponse.json({ ok: false, error: "공개할 프로젝트 자료의 ID가 올바르지 않습니다." }, { status: 400 });
   }
   const table = RELATED_TABLE[relatedType];

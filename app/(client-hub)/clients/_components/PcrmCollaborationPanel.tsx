@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, ClipboardList, FileCheck2, MessageSquareText, Send, Video } from "lucide-react";
-import { C } from "@/lib/theme";
+import { CheckCircle2, ClipboardList, FileCheck2, Images, MessageSquareText, Send, Video } from "lucide-react";
+import PcrmGalleryDeliveryPanel from "./PcrmGalleryDeliveryPanel";
 
-type Tab = "documents" | "preparation" | "conti" | "inquiries";
+type Tab = "documents" | "preparation" | "conti" | "inquiries" | "gallery";
 
 export default function PcrmCollaborationPanel({
   clientId,
@@ -154,6 +154,7 @@ export default function PcrmCollaborationPanel({
     { key: "preparation" as const, label: "촬영 준비", Icon: ClipboardList, count: preparation.filter((item) => item.status === "submitted").length },
     { key: "conti" as const, label: "콘티 피드백", Icon: Video, count: feedback.filter((item) => item.status !== "resolved" && item.status !== "approved").length },
     { key: "inquiries" as const, label: "고객 문의", Icon: MessageSquareText, count: inquiries.filter((item) => item.status === "open").length },
+    { key: "gallery" as const, label: "갤러리·납품", Icon: Images, count: 0 },
   ];
 
   return (
@@ -214,6 +215,7 @@ export default function PcrmCollaborationPanel({
               </article>
             ))
           )}
+          {tab === "gallery" && <PcrmGalleryDeliveryPanel clientId={clientId} workflowRunId={workflowRunId} />}
         </div>
       )}
     </section>
