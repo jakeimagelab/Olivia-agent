@@ -48,7 +48,8 @@ export default function PcrmSubNav() {
             <button
               key={item.key}
               type="button"
-              disabled
+              aria-disabled="true"
+              data-muted="true"
               title="준비 중입니다."
               onClick={() => window.alert(`${item.label} 기능은 준비 중입니다.`)}
             >
