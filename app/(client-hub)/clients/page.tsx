@@ -117,73 +117,12 @@ function ClientsInner() {
 
 /* ── LIST VIEW ── */
 function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
-  const [clients, setClients] = useState<any[]>([]);
-  const [dashboard, setDashboard] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const loadRequestRef = useRef(0);
   const router = useRouter();
+  const { filtered, dashboard, loading, search, setSearch, showModal, setShowModal, deletingId, deleteClient } = useClientRoster();
 
   useEffect(() => {
     if (openNewOnLoad) setShowModal(true);
-  }, [openNewOnLoad]);
-
-  const load = useCallback(async (showSpinner = true) => {
-    const requestId = ++loadRequestRef.current;
-    if (showSpinner) setLoading(true);
-    try {
-      const res = await fetch("/api/clients", { cache: "no-store" });
-      const d = await res.json();
-      if (requestId === loadRequestRef.current && d.ok) {
-        setClients(d.clients || []);
-        setDashboard(d.dashboard || null);
-      }
-    } finally {
-      if (requestId === loadRequestRef.current) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-    const onOliviaDataChanged = (event: Event) => {
-      const detail = (event as CustomEvent<{ domain?: string }>).detail;
-      if (detail?.domain === "client" || detail?.domain === "workflow") void load(false);
-    };
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void load(false);
-    };
-    window.addEventListener("olivia-data-changed", onOliviaDataChanged);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      window.removeEventListener("olivia-data-changed", onOliviaDataChanged);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      loadRequestRef.current += 1;
-    };
-  }, [load]);
-
-  const deleteClient = async (e: React.MouseEvent, id: string, name: string) => {
-    e.stopPropagation();
-    if (!window.confirm(`'${name}' 고객을 삭제할까요? 휴지통으로 이동되며 30일 안에 복원할 수 있습니다.`)) return;
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/clients/${id}`, { method: "DELETE" });
-      const d = await res.json();
-      if (!d.ok) throw new Error(d.error || "삭제 실패");
-      setClients((cur) => cur.filter((c) => c.id !== id));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "삭제 실패");
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const filtered = clients.filter((c) =>
-    !search ||
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.department || "").toLowerCase().includes(search.toLowerCase())
-  );
+  }, [openNewOnLoad, setShowModal]);
 
   return (
     <div style={{ color: C.txt }}>
@@ -202,30 +141,11 @@ function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
         )}
       </div>
 
-      {showModal && typeof document !== "undefined" && createPortal(
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,.45)", overflowY: "auto" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
-        >
-          <div style={{ minHeight: "100%", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px 60px" }}>
-            <div style={{ background: C.bg, borderRadius: 20, width: "100%", maxWidth: 600, padding: 28, boxShadow: "0 24px 80px rgba(0,0,0,.24)" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 900, color: C.orange, letterSpacing: ".1em", marginBottom: 4 }}>PCRM · CLIENT</div>
-                  <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 900, color: C.teal }}>신규 고객 등록</h2>
-                  <p style={{ margin: 0, fontSize: 12, color: C.muted }}>고객 저장 후 상세 화면에서 프로젝트를 생성할 수 있습니다.</p>
-                </div>
-                <button onClick={() => setShowModal(false)} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: 8, background: C.white, cursor: "pointer", fontSize: 18, color: C.muted, fontFamily: "inherit", flexShrink: 0 }}>×</button>
-              </div>
-              <ConsultMeetingForm
-                onCancel={() => setShowModal(false)}
-                onSuccess={(id) => { setShowModal(false); router.push(`/clients?id=${id}`); }}
-              />
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <NewClientModal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        onCreated={(id) => { setShowModal(false); router.push(`/clients?id=${id}`); }}
+      />
     </div>
   );
 }
