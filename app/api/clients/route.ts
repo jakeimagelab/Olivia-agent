@@ -8,6 +8,18 @@ export const runtime = "nodejs";
 
 /* ── 실제 DB 컬럼: hospital_name, contact_name, phone, email, specialty, memo ── */
 
+const APPROVAL_TYPE_LABEL: Record<string, string> = {
+  quote: "견적 승인 대기",
+  contract: "계약 서명 대기",
+  conti: "콘티 승인 대기",
+  mailing: "메일 승인 대기",
+  portal_link: "포털 링크 승인 대기",
+  content: "콘텐츠 승인 대기",
+  per: "PER 승인 대기",
+  report: "리포트 승인 대기",
+  other: "기타 승인 대기",
+};
+
 export async function GET(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { searchParams } = new URL(req.url);
@@ -20,16 +32,29 @@ export async function GET(req: NextRequest) {
 
   if (q) query = query.ilike("hospital_name", `%${q}%`);
 
-  const [clientsRes, runsRes, tasksRes, approvalsRes, mailingRes] = await Promise.all([
+  const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  const monthStartIso = `${todayStr.slice(0, 7)}-01T00:00:00+09:00`;
+  const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [
+    clientsRes, runsRes, tasksRes, approvalsRes, mailingRes,
+    todayTasksRes, activityRes, inquiriesRes, perClientsRes, perTxRes,
+  ] = await Promise.all([
     query,
     supabase
       .from("workflow_runs")
-      .select("id, client_id, client_name, project_name, current_step_key, status, shoot_date, updated_at, started_at")
+      .select("id, client_id, client_name, project_name, current_step_key, status, shoot_date, updated_at, started_at, manager_name, completed_at")
       .neq("status", "canceled")
       .order("started_at", { ascending: true }),
     supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(300),
     supabase.from("agent_approvals").select("*").order("created_at", { ascending: false }).limit(300),
     supabase.from("mailing_queue").select("*").order("created_at", { ascending: false }).limit(300),
+    supabase.from("calendar_tasks").select("id, title, category, time, end_time, location, completed").eq("date", todayStr).order("time", { ascending: true, nullsFirst: false }),
+    supabase.from("pcrm_activity_logs").select("id, actor_type, actor_name, action_type, title, description, created_at, clients(hospital_name)").order("created_at", { ascending: false }).limit(6),
+    supabase.from("pcrm_inquiries").select("id, client_id, title, status, last_message_at, clients(hospital_name)").order("last_message_at", { ascending: false }).limit(6),
+    supabase.from("clients").select("available_points").eq("per_joined", true),
+    supabase.from("reward_transactions").select("type, points").gte("created_at", monthStartIso),
   ]);
 
   if (clientsRes.error)
@@ -60,8 +85,77 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  /* ── 요약 카드 증감 (신규/완료 건수) ── */
+  const newClientsThisWeek = (clientsRes.data ?? []).filter((c) => c.created_at >= weekAgoIso).length;
+  const newActiveProjectsThisWeek = (runsRes.data ?? []).filter((r) => r.status === "active" && r.started_at >= weekAgoIso).length;
+  const completedThisMonth = (runsRes.data ?? []).filter((r) => r.status === "completed" && r.completed_at && r.completed_at >= monthStartIso).length;
+  const newApprovalsLast24h = (approvalsRes.data ?? []).filter((a) => a.status === "pending" && a.created_at >= dayAgoIso).length;
+  const newTasksLast24h = (tasksRes.data ?? []).filter((t) => ["pending", "running", "waiting_approval", "failed"].includes(t.status) && t.created_at >= dayAgoIso).length;
+
+  /* ── 승인 대기 항목 (유형별 집계) ── */
+  const approvalTypeCounts = new Map<string, number>();
+  for (const approval of approvalsRes.data ?? []) {
+    if (approval.status !== "pending") continue;
+    const type = approval.approval_type || "other";
+    approvalTypeCounts.set(type, (approvalTypeCounts.get(type) ?? 0) + 1);
+  }
+  const pendingApprovalsByType = Array.from(approvalTypeCounts.entries())
+    .map(([type, count]) => ({ type, label: APPROVAL_TYPE_LABEL[type] || `${type} 승인 대기`, count }))
+    .sort((a, b) => b.count - a.count);
+
+  /* ── 최근 문의/메시지 (전체 고객, 최근 메시지 본문 포함) ── */
+  const inquiries = inquiriesRes.data ?? [];
+  const inquiryIds = inquiries.map((item: any) => item.id);
+  const { data: latestMessages } = inquiryIds.length
+    ? await supabase.from("pcrm_inquiry_messages").select("inquiry_id, content, created_at").in("inquiry_id", inquiryIds).order("created_at", { ascending: false })
+    : { data: [] as any[] };
+  const latestMessageByInquiry = new Map<string, string>();
+  for (const message of latestMessages ?? []) {
+    if (!latestMessageByInquiry.has(message.inquiry_id)) latestMessageByInquiry.set(message.inquiry_id, message.content);
+  }
+  const recentInquiries = inquiries.map((item: any) => ({
+    id: item.id,
+    clientId: item.client_id,
+    clientName: item.clients?.hospital_name || "",
+    title: item.title,
+    status: item.status,
+    preview: latestMessageByInquiry.get(item.id) || item.title,
+    lastMessageAt: item.last_message_at,
+  }));
+
+  /* ── 최근 활동 (전체 고객) ── */
+  const recentActivity = (activityRes.data ?? []).map((item: any) => ({
+    id: item.id,
+    clientName: item.clients?.hospital_name || "",
+    actionType: item.action_type,
+    title: item.title,
+    createdAt: item.created_at,
+  }));
+
+  /* ── PER 포인트 현황 ── */
+  const perPoints = {
+    available: (perClientsRes.data ?? []).reduce((sum, c: any) => sum + (c.available_points ?? 0), 0),
+    earnedThisMonth: (perTxRes.data ?? []).filter((t: any) => t.type === "earn").reduce((sum, t: any) => sum + (t.points ?? 0), 0),
+    usedThisMonth: (perTxRes.data ?? []).filter((t: any) => t.type === "use").reduce((sum, t: any) => sum + (t.points ?? 0), 0),
+  };
+
   return NextResponse.json(
-    { ok: true, clients },
+    {
+      ok: true,
+      clients,
+      dashboard: {
+        newClientsThisWeek,
+        newActiveProjectsThisWeek,
+        completedThisMonth,
+        newApprovalsLast24h,
+        newTasksLast24h,
+        pendingApprovalsByType,
+        todaySchedule: todayTasksRes.data ?? [],
+        recentActivity,
+        recentInquiries,
+        perPoints,
+      },
+    },
     { headers: { "Cache-Control": "private, no-store, max-age=0" } },
   );
 }
