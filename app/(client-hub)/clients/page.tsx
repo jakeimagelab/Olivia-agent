@@ -118,6 +118,7 @@ function ClientsInner() {
 /* ── LIST VIEW ── */
 function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
   const [clients, setClients] = useState<any[]>([]);
+  const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
