@@ -23,6 +23,7 @@ const MESH_BG = [
 export default function ClientHubLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = TITLE[pathname] ?? (pathname.startsWith("/select-galleries") ? "셀렉 갤러리" : "고객 허브");
+  const isPcrmSection = pathname === "/clients" || pathname.startsWith("/clients/");
   const [inIframe, setInIframe] = useState(false);
 
   useEffect(() => {
