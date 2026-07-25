@@ -3086,7 +3086,8 @@ main:has(> .pc-header) {
 }
 
 .pcrm-side-card header svg,
-.pcrm-activity-card header svg { color: #155855; }
+.pcrm-activity-card header svg,
+.pcrm-inquiry-card header svg { color: #155855; }
 
 .pcrm-side-card > button,
 .pcrm-activity-card > button {
