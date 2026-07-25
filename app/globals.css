@@ -2979,6 +2979,9 @@ main:has(> .pc-header) {
 .pcrm-roster-table.pcrm-roster-table { min-width: 900px; }
 .pcrm-roster-table .pcrm-project-row { grid-template-columns: 1.2fr .85fr .9fr 1.2fr .85fr .78fr 54px; }
 
+.pcrm-document-table.pcrm-document-table { min-width: 760px; }
+.pcrm-document-table .pcrm-project-row { grid-template-columns: .7fr 1.6fr .9fr .68fr .6fr 74px; }
+
 .pcrm-project-panel {
   overflow-x: auto;
 }
