@@ -15,20 +15,23 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const clientId = searchParams.get("clientId");
   const workflowRunId = searchParams.get("workflowRunId");
-  if (!clientId && !workflowRunId) {
-    return NextResponse.json({ ok: false, error: "clientId 또는 workflowRunId가 필요합니다." }, { status: 400 });
-  }
+  const documentType = searchParams.get("documentType");
 
+  // clientId/workflowRunId가 없으면 전체 고객의 문서를 최신순으로 모아 보여주는
+  // 문서관리 저장소 조회 모드로 동작한다 (관리자 전용 목록 화면).
   let query = db.from("workflow_artifacts")
-    .select("id,client_id,workflow_run_id,workflow_step_key,document_type,source_table,source_id,title,file_name,mime_type,file_size,status,created_at")
+    .select("id,client_id,workflow_run_id,workflow_step_key,document_type,source_table,source_id,title,file_name,mime_type,file_size,status,created_at,clients(hospital_name)")
     .eq("status", "ready")
     .order("created_at", { ascending: false });
   if (workflowRunId) query = query.eq("workflow_run_id", workflowRunId);
   else if (clientId) query = query.eq("client_id", clientId);
+  else query = query.limit(200);
+  if (documentType) query = query.eq("document_type", documentType);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, artifacts: data ?? [] });
+  const artifacts = (data ?? []).map((item: any) => ({ ...item, hospital_name: item.clients?.hospital_name || "" }));
+  return NextResponse.json({ ok: true, artifacts });
 }
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 const SOURCE_TABLE: Record<WorkflowArtifactType, "quotes" | "contracts" | "conti_saves"> = {
