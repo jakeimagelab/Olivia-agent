@@ -3109,7 +3109,8 @@ main:has(> .pc-header) {
 .pcrm-side-card > button:hover,
 .pcrm-activity-card > button:hover { background: #eaf4f2; }
 
-.pcrm-side-card > button span { flex: 1; min-width: 0; font-weight: 800; }
+.pcrm-side-card > button span { display: grid; flex: 1; min-width: 0; gap: 2px; font-weight: 800; }
+.pcrm-side-card > button span small { color: #9bb5b0; font-size: 9px; font-weight: 700; }
 .pcrm-side-card > button b { color: #e85d2c; font-size: 10px; }
 
 .pcrm-empty-copy {
