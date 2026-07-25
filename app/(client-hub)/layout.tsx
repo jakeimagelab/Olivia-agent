@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
+import PcrmHeader from "@/components/pcrm/PcrmHeader";
+import PcrmSubNav from "@/components/pcrm/PcrmSubNav";
 
 const TITLE: Record<string, string> = {
   "/clients":          "고객관리",
