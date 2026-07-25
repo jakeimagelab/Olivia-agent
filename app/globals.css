@@ -2904,7 +2904,8 @@ main:has(> .pc-header) {
 .pcrm-project-panel,
 .pcrm-side-card,
 .pcrm-activity-card,
-.pcrm-guide-card {
+.pcrm-inquiry-card,
+.pcrm-per-card {
   min-width: 0;
   overflow: hidden;
 }
