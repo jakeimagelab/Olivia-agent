@@ -2803,8 +2803,7 @@ main:has(> .pc-header) {
   font-weight: 900;
 }
 
-.pcrm-dashboard-actions > button,
-.pcrm-guide-card > button {
+.pcrm-dashboard-actions > button {
   display: inline-flex;
   min-height: 40px;
   align-items: center;
