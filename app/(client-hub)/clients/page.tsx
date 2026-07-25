@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { Suspense, useEffect, useState } from "react";
 import { Download, Eye, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -14,14 +13,15 @@ import {
 } from "@/lib/workflow";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import NextActionCard from "@/components/NextActionCard";
-import ConsultMeetingForm from "./_components/ConsultMeetingForm";
 import PcrmDashboard from "./_components/PcrmDashboard";
+import NewClientModal from "./_components/NewClientModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
 import PcrmActivityTimeline from "./_components/PcrmActivityTimeline";
 import PcrmCollaborationPanel from "./_components/PcrmCollaborationPanel";
 import { C } from "@/lib/theme";
 import OliviaProjectPanel from "@/components/olivia/OliviaProjectPanel";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
+import { useClientRoster } from "./_hooks/useClientRoster";
 
 const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = {
   consult_meeting:   { icon: "🤝", desc: "병원 기본 정보 등록, 상담 내용 AI 분析",  href: "/consultation" },
