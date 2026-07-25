@@ -191,6 +191,7 @@ function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
         {loading ? <SpinBox /> : (
           <PcrmDashboard
             clients={filtered}
+            dashboard={dashboard}
             search={search}
             onSearch={setSearch}
             deletingId={deletingId}
