@@ -3392,7 +3392,8 @@ main:has(> .pc-header) {
 .pcrm-subnav a:hover,
 .pcrm-subnav button:hover { color: #155855; }
 
-.pcrm-subnav a[data-active="true"] {
+.pcrm-subnav a[data-active="true"],
+.pcrm-subnav button[data-active="true"] {
   border-bottom-color: #155855;
   color: #155855;
 }
