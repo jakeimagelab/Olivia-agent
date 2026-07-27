@@ -371,7 +371,19 @@ export default function PcrmClientTable({ clients, deletingId, onOpen, onEdit, o
                 onClick={() => onOpen(client.id)}
                 onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onOpen(client.id); }}
               >
-                <span><UsersRound size={15} />{client.name}</span>
+                <span>
+                  <button
+                    type="button"
+                    className="pcrm-fav-star"
+                    aria-label="즐겨찾기"
+                    data-active={favorites.has(client.id)}
+                    onClick={(event) => { event.stopPropagation(); toggleFavorite(client.id); }}
+                  >
+                    <Star size={13} />
+                  </button>
+                  <span className="pcrm-hospital-avatar" style={{ background: avatarColor(client.name) }}>{client.name.slice(0, 1)}</span>
+                  {client.name}
+                </span>
                 {isVisible("director") && <span>{client.director_name || "—"}</span>}
                 {isVisible("manager") && <span>{client.manager_name || "—"}</span>}
                 {isVisible("phone") && <span>{client.phone || "—"}</span>}
