@@ -1003,37 +1003,39 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
   }, [focusedIdx]);
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+      margin: "14px 20px", border: "1px solid rgba(21,88,85,.12)", borderRadius: 16,
+      boxShadow: "0 5px 18px rgba(21,88,85,.055)" }}>
 
       {/* ── Month nav header */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px 12px",
-        background: C.surface, borderBottom: `1.5px solid ${C.border}`, flexShrink: 0 }}>
-        <button onClick={onPrev} style={{ width: 32, height: 32, border: `1.5px solid ${C.border}`, borderRadius: 8,
-          background: C.mint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
+        background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0 }}>
+        <button onClick={onPrev} style={{ width: 34, height: 34, border: "1px solid rgba(21,88,85,.14)", borderRadius: 9,
+          background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#155855" }}>
           <ChevronLeft size={16}/>
         </button>
         {isMobile ? (
           <button onClick={onNavigateYear} style={{
-            flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900, color: C.teal, letterSpacing: "-0.3px",
+            flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900, color: "#1c2b28", letterSpacing: "-0.3px",
             background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
           }}>
             <ChevronLeft size={15} style={{ opacity: .55 }}/> {year}년 {monthLabel(month)}
           </button>
         ) : (
-          <div style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900, color: C.teal, letterSpacing: "-0.3px" }}>
+          <div style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900, color: "#1c2b28", letterSpacing: "-0.3px" }}>
             {year}년 {monthLabel(month)}
           </div>
         )}
-        <button onClick={onNext} style={{ width: 32, height: 32, border: `1.5px solid ${C.border}`, borderRadius: 8,
-          background: C.mint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
+        <button onClick={onNext} style={{ width: 34, height: 34, border: "1px solid rgba(21,88,85,.14)", borderRadius: 9,
+          background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#155855" }}>
           <ChevronRight size={16}/>
         </button>
       </div>
 
       {/* ── Weekday row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)",
-        background: C.surface, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+        background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0 }}>
         {WEEKDAYS.map((w, i) => (
           <div key={w} style={{ textAlign: "center", fontSize: 12, fontWeight: 900, padding: "8px 0 7px",
             color: i===0 ? "#C0201A" : i===6 ? "#1D4ED8" : C.muted }}>
