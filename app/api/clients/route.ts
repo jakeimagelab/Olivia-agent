@@ -32,10 +32,11 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("clients")
-    .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at")
+    .select(`${BASE_CLIENT_COLUMNS}, ${EXTENDED_CLIENT_COLUMNS}`)
     .order("created_at", { ascending: false });
-
-  if (q) query = query.ilike("hospital_name", `%${q}%`);
+  // 병원명/원장명/담당자명 통합 검색. 확장 컬럼(director_name)이 없는 환경일 수 있어
+  // q 검색은 안전하게 hospital_name/contact_name만 우선 적용하고, director_name은 클라이언트 select 실패 시 자동으로 빠진다.
+  if (q) query = query.or(`hospital_name.ilike.%${q}%,contact_name.ilike.%${q}%,director_name.ilike.%${q}%`);
 
   const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
   const monthStartIso = `${todayStr.slice(0, 7)}-01T00:00:00+09:00`;
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
 
   const [
     clientsRes, runsRes, tasksRes, approvalsRes, mailingRes,
-    todayTasksRes, activityRes, inquiriesRes, perClientsRes, perTxRes,
+    todayTasksRes, activityRes, inquiriesRes, perClientsRes, perTxRes, portalRes,
   ] = await Promise.all([
     query,
     supabase
@@ -60,14 +61,30 @@ export async function GET(req: NextRequest) {
     supabase.from("pcrm_inquiries").select("id, client_id, title, status, last_message_at, clients(hospital_name)").order("last_message_at", { ascending: false }).limit(6),
     supabase.from("clients").select("available_points").eq("per_joined", true),
     supabase.from("reward_transactions").select("type, points").gte("created_at", monthStartIso),
+    supabase.from("client_portal_access").select("client_id, is_active"),
   ]);
 
+  if (isMissingColumnError(clientsRes.error)) {
+    let fallbackQuery = supabase.from("clients").select(BASE_CLIENT_COLUMNS).order("created_at", { ascending: false });
+    if (q) fallbackQuery = fallbackQuery.or(`hospital_name.ilike.%${q}%,contact_name.ilike.%${q}%`);
+    clientsRes = await fallbackQuery;
+  }
   if (clientsRes.error)
     return NextResponse.json({ ok: false, error: clientsRes.error.message }, { status: 500 });
 
   const runMap = Object.fromEntries(
     (runsRes.data ?? []).map((r) => [r.client_id, r])
   );
+  const activeProjectCountMap = new Map<string, number>();
+  for (const run of runsRes.data ?? []) {
+    if (run.status !== "active") continue;
+    activeProjectCountMap.set(run.client_id, (activeProjectCountMap.get(run.client_id) ?? 0) + 1);
+  }
+  const portalStatusMap = new Map<string, "connected" | "inactive">();
+  for (const access of portalRes.data ?? []) {
+    if (access.is_active) portalStatusMap.set(access.client_id, "connected");
+    else if (!portalStatusMap.has(access.client_id)) portalStatusMap.set(access.client_id, "inactive");
+  }
 
   const clients = (clientsRes.data ?? []).map((c) => {
     const run = runMap[c.id] ?? null;
@@ -87,6 +104,8 @@ export async function GET(req: NextRequest) {
       open_task_count: run
         ? (tasksRes.data ?? []).filter((task) => task.workflow_run_id === run.id && ["pending", "running", "waiting_approval", "failed"].includes(task.status)).length
         : 0,
+      active_project_count: activeProjectCountMap.get(c.id) ?? 0,
+      portal_status: portalStatusMap.get(c.id) ?? "none",
     };
   });
 
