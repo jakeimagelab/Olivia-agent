@@ -53,6 +53,11 @@ export async function GET(
       .limit(50),
   ]);
 
+  if (isMissingColumnError(clientRes.error)) {
+    clientRes = await supabase.from("clients")
+      .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier, quote_amount, quote_vat, quote_total, contract_amount, contract_vat, contract_total, contract_signed_at")
+      .eq("id", id).maybeSingle();
+  }
   if (isOptionalClientDetailColumnMissing(clientRes.error)) {
     clientRes = await supabase.from("clients")
       .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link")
