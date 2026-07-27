@@ -9,7 +9,7 @@ export default function PcrmHeader() {
     <header className="oa-header oa-header--enhanced">
       <div className="oa-header__brand">
         <img src="/assets/photoclinic-logo.png" alt="포토클리닉" />
-        <h1 className="oa-header__title oa-header__title--compact">포토클리닉 AI 비서</h1>
+        <h1 className="oa-header__title oa-header__title--compact">관리자 PCRM</h1>
       </div>
       <div className="oa-header__command-area">
         <Suspense fallback={<div className="oa-header-search oa-header-search--loading" aria-label="검색 준비 중" />}>
