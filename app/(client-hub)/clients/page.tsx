@@ -1224,12 +1224,20 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
 
   const startEdit = () => {
     setForm({
-      name:         client.hospital_name || client.name || "",
-      manager_name: client.contact_name  || client.manager_name || "",
-      phone:        client.phone         || "",
-      email:        client.email         || "",
-      department:   client.specialty     || client.department    || "",
-      memo:         client.memo          || "",
+      name:             client.hospital_name  || client.name         || "",
+      director_name:    client.director_name  || "",
+      manager_name:     client.contact_name   || client.manager_name || "",
+      phone:            client.phone          || "",
+      email:            client.email          || "",
+      department:       client.specialty      || client.department   || "",
+      address:          client.address        || "",
+      website_url:      client.website_url    || "",
+      instagram_url:    client.instagram_url  || "",
+      naver_place_url:  client.naver_place_url|| "",
+      manager_staff:    client.manager_staff  || "",
+      referral_source:  client.referral_source|| "",
+      notes:            client.notes          || "",
+      memo:             client.memo           || "",
     });
     setEditing(true); setMsg("");
   };
