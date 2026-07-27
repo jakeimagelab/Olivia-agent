@@ -168,7 +168,6 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   const [loadError, setLoadError] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [openStepKey, setOpenStepKey] = useState<string | null>(null);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [linkCopyBusy, setLinkCopyBusy] = useState(false);
