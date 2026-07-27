@@ -1729,7 +1729,7 @@ export default function QuoteBuilder() {
                   className={`discount-rate-button ${discountRate === rate ? "discount-rate-button-active" : ""}`}
                 >
                   <span>{rate === 0 ? "할인 없음" : `${rate}% 할인`}</span>
-                  <strong>{rate === 0 ? won(0) : `-${won(Math.round(contentSubtotal * (rate / 100)))}`}</strong>
+                  <strong>{rate === 0 ? won(0) : `-${won(Math.round(discountableSubtotal * (rate / 100)))}`}</strong>
                 </button>
               ))}
             </div>
