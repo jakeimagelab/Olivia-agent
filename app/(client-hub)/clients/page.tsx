@@ -426,7 +426,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           <ClientOverviewTab client={client} workflowRun={workflowRun} artifacts={artifacts} activities={activities} onRefresh={load} onNavigateTab={setActiveTab} />
         )}
 
-        {false && (
+        {activeTab === "projects" && (
           <>
             {pageData.workflowRuns?.length > 1 && (
               <nav aria-label="프로젝트 실행 선택" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
