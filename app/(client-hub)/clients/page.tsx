@@ -304,12 +304,17 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   return (
     <div style={{ color: C.txt }}>
       <section className="pcrm-dashboard" aria-label="고객 프로젝트 요약" style={{ paddingBottom: 0 }}>
+      <nav className="pcrm-breadcrumb" aria-label="이동 경로">
+        <Link href="/clients">고객 관리</Link><span>/</span><span>고객 상세</span>
+      </nav>
       {/* 고객 요약 헤더 — 다른 고객관리 화면과 동일한 타이틀바 스타일 */}
       <div className="pcrm-dashboard-title">
         <div>
           <span>PCRM · PHOTOCLINIC CRM</span>
           <h1>{client.name}</h1>
-          {client.specialty && <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 700, color: C.muted }}>{client.specialty}</small>}
+          <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 700, color: C.muted }}>
+            {[client.director_name, client.specialty, workflowRun?.manager_name && `담당 ${workflowRun.manager_name}`].filter(Boolean).join(" · ") || "정보 없음"}
+          </small>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", marginRight: 4 }}>
@@ -327,71 +332,21 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         </div>
       </div>
 
-      <div className="pc-client-overview-body">
-        {pageData.workflowRuns?.length > 1 && (
-          <nav aria-label="프로젝트 실행 선택" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
-            {pageData.workflowRuns.map((run: any) => {
-              const active = run.id === workflowRun?.id;
-              return (
-                <Link key={run.id} href={`/clients?id=${encodeURIComponent(clientId)}&workflowRunId=${encodeURIComponent(run.id)}`}
-                  style={{ flexShrink: 0, padding: "9px 13px", borderRadius: 10, textDecoration: "none", border: `1px solid ${active ? C.orange : C.border}`, background: active ? `${C.orange}10` : C.white, color: active ? C.orange : C.muted, fontSize: 12, fontWeight: 800 }}>
-                  {run.run_kind === "additional_shooting" ? "추가 촬영 · " : "기본 · "}{run.project_name || "촬영 프로젝트"}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
-        {pageData.workflowRuns?.length === 0 && (
-          <div style={{ padding: "22px", border: `1px dashed ${C.border}`, borderRadius: 12, background: C.mint, textAlign: "center" }}>
-            <strong style={{ display: "block", color: C.teal, fontSize: 14 }}>아직 프로젝트가 없습니다.</strong>
-            <span style={{ display: "block", marginTop: 5, color: C.muted, fontSize: 11 }}>고객 정보는 저장되었습니다. 실제 업무를 시작할 프로젝트를 생성해 주세요.</span>
-            <button onClick={() => setShowProjectDialog(true)} style={{ marginTop: 12, height: 40, padding: "0 18px", border: 0, borderRadius: 9, background: C.orange, color: "#fff", fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: "pointer" }}>새 프로젝트 생성</button>
-          </div>
-        )}
-        <div className="pc-workflow-phase-bar" aria-label="프로젝트 4스테이지 진행 상태">
-          {WORKFLOW_STAGES.map((stage, index) => {
-            const stageSteps = ACTIVE_WORKFLOW_STEPS.filter((step) => step.stage === stage.key);
-            const stageStart = ACTIVE_WORKFLOW_STEPS.findIndex((step) => step.key === stageSteps[0]?.key);
-            const stageEnd = stageStart + stageSteps.length - 1;
-            const isDone = workflowCompleted || currentIdx > stageEnd;
-            const isCurrent = !workflowCompleted && currentIdx >= stageStart && currentIdx <= stageEnd;
-            return (
-              <div key={stage.key} className={`pc-workflow-phase ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""}`} style={{ "--phase-color": stage.color } as React.CSSProperties}>
-                <span>{isDone ? "✓" : String(index + 1).padStart(2, "0")}</span>
-                <div><strong>{stage.name}</strong><small>{stageSteps.length}단계</small></div>
-              </div>
-            );
-          })}
-        </div>
-
-        {(client.contact_name || client.manager_name || client.phone || client.email || client.memo) && (
-          <div className="pc-client-info-strip" aria-label="고객 연락처 정보">
-            {(client.contact_name || client.manager_name) && (
-              <span className="pc-client-info-chip"><strong>담당자</strong>{client.contact_name || client.manager_name}</span>
-            )}
-            {client.phone && (
-              <span className="pc-client-info-chip"><strong>연락처</strong>{client.phone}</span>
-            )}
-            {client.email && (
-              <span className="pc-client-info-chip"><strong>이메일</strong>{client.email}</span>
-            )}
-            {client.memo && (
-              <span className="pc-client-info-chip pc-client-info-chip--memo"><strong>메모</strong>{client.memo}</span>
-            )}
-          </div>
-        )}
-
-        <NextActionCard client={client} workflowRun={workflowRun} onRefresh={load} />
-        {workflowRun?.id && (
-          <PcrmCollaborationPanel
-            clientId={client.id}
-            workflowRunId={workflowRun.id}
-            managerName={workflowRun.manager_name || client.contact_name}
-          />
-        )}
-        <PcrmActivityTimeline activities={activities} />
+      <div className="pcrm-summary-grid pcrm-summary-grid--compact" aria-label="요약 정보">
+        <article><div><span>진행 중 프로젝트</span><strong>{summary ? summary.activeProjectCount : "—"}</strong></div></article>
+        <article><div><span>승인 대기</span><strong>{summary ? summary.pendingApprovalCount : "—"}</strong></div></article>
+        <article><div><span>이번 주 일정</span><strong>{summary ? summary.thisWeekScheduleCount : "—"}</strong></div></article>
+        <article><div><span>미처리 수정 요청</span><strong>{summary ? summary.openRevisionCount : "—"}</strong></div></article>
+        <article><div><span>최근 활동</span><strong style={{ fontSize: 14 }}>{activities[0] ? new Date(activities[0].created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) : "—"}</strong></div></article>
       </div>
+
+      <nav className="pcrm-detail-tabs" aria-label="고객 상세 탭">
+        {DETAIL_TABS.map((tab) => (
+          <button key={tab.key} type="button" data-active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>
+        ))}
+      </nav>
       </section>
+
       {showProjectDialog && (
         <NewPcrmProjectDialog
           clientId={clientId}
@@ -406,106 +361,157 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
 
-        <OliviaProjectPanel workflowRunId={workflowRun?.id}/>
+        {activeTab === "overview" && (
+          <ClientOverviewTab client={client} workflowRun={workflowRun} artifacts={artifacts} activities={activities} onRefresh={load} />
+        )}
 
-        <section className="pc-smart-timeline" aria-labelledby="smart-timeline-title">
-          <header className="pc-smart-timeline__header">
-            <div>
-              <span>SMART TIMELINE</span>
-              <h2 id="smart-timeline-title">프로젝트 전체 진행</h2>
-              <p>완료 단계는 접어두고, 현재 단계의 실행 도구와 다음 액션을 바로 보여줍니다.</p>
+        {activeTab === "projects" && (
+          <>
+            {pageData.workflowRuns?.length > 1 && (
+              <nav aria-label="프로젝트 실행 선택" style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
+                {pageData.workflowRuns.map((run: any) => {
+                  const active = run.id === workflowRun?.id;
+                  return (
+                    <Link key={run.id} href={`/clients?id=${encodeURIComponent(clientId)}&workflowRunId=${encodeURIComponent(run.id)}`}
+                      style={{ flexShrink: 0, padding: "9px 13px", borderRadius: 10, textDecoration: "none", border: `1px solid ${active ? C.orange : C.border}`, background: active ? `${C.orange}10` : C.white, color: active ? C.orange : C.muted, fontSize: 12, fontWeight: 800 }}>
+                      {run.run_kind === "additional_shooting" ? "추가 촬영 · " : "기본 · "}{run.project_name || "촬영 프로젝트"}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+            {pageData.workflowRuns?.length === 0 && (
+              <div style={{ padding: "22px", border: `1px dashed ${C.border}`, borderRadius: 12, background: C.mint, textAlign: "center" }}>
+                <strong style={{ display: "block", color: C.teal, fontSize: 14 }}>아직 프로젝트가 없습니다.</strong>
+                <span style={{ display: "block", marginTop: 5, color: C.muted, fontSize: 11 }}>고객 정보는 저장되었습니다. 실제 업무를 시작할 프로젝트를 생성해 주세요.</span>
+                <button onClick={() => setShowProjectDialog(true)} style={{ marginTop: 12, height: 40, padding: "0 18px", border: 0, borderRadius: 9, background: C.orange, color: "#fff", fontFamily: "inherit", fontSize: 12, fontWeight: 900, cursor: "pointer" }}>새 프로젝트 생성</button>
+              </div>
+            )}
+            <div className="pc-workflow-phase-bar" aria-label="프로젝트 4스테이지 진행 상태">
+              {WORKFLOW_STAGES.map((stage, index) => {
+                const stageSteps = ACTIVE_WORKFLOW_STEPS.filter((step) => step.stage === stage.key);
+                const stageStart = ACTIVE_WORKFLOW_STEPS.findIndex((step) => step.key === stageSteps[0]?.key);
+                const stageEnd = stageStart + stageSteps.length - 1;
+                const isDone = workflowCompleted || currentIdx > stageEnd;
+                const isCurrent = !workflowCompleted && currentIdx >= stageStart && currentIdx <= stageEnd;
+                return (
+                  <div key={stage.key} className={`pc-workflow-phase ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""}`} style={{ "--phase-color": stage.color } as React.CSSProperties}>
+                    <span>{isDone ? "✓" : String(index + 1).padStart(2, "0")}</span>
+                    <div><strong>{stage.name}</strong><small>{stageSteps.length}단계</small></div>
+                  </div>
+                );
+              })}
             </div>
-            <strong>{progressStep} / {ACTIVE_WORKFLOW_STEPS.length}</strong>
-          </header>
-          <div className="pc-smart-timeline__list">
-            {ACTIVE_WORKFLOW_STEPS.map((step, idx) => {
-              const isDone = workflowCompleted || idx < currentIdx;
-              const isCurrent = !workflowCompleted && step.key === displayStepKey;
-              const isOpenHere = openStepKey ? step.key === openStepKey : isCurrent;
-              return (
-                <article
-                  key={step.key}
-                  className={`pc-smart-timeline__item ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""} ${isDone ? "pc-smart-timeline__item--clickable" : ""}`}
-                  onClick={isDone ? () => setOpenStepKey((prev) => (prev === step.key ? null : step.key)) : undefined}
-                  role={isDone ? "button" : undefined}
-                  tabIndex={isDone ? 0 : undefined}
-                >
-                  <div className="pc-smart-timeline__rail">
-                    <span>{isDone ? "✓" : idx + 1}</span>
-                    {idx < ACTIVE_WORKFLOW_STEPS.length - 1 && <i/>}
-                  </div>
-                  <div className="pc-smart-timeline__content">
-                    <div className="pc-smart-timeline__summary">
-                      <div>
-                        <small>{WORKFLOW_STAGES.find((stage) => stage.key === step.stage)?.name}</small>
-                        <strong>{STEP_NAME[step.key] || step.key}</strong>
-                      </div>
-                      <b>{isDone ? "완료" : isCurrent ? "현재 단계" : "대기"}</b>
-                    </div>
-                    {isOpenHere && (
-                      <div className="pc-smart-timeline__action" onClick={(e) => e.stopPropagation()}>
-                        <StepPanel
-                          key={step.key}
-                          selectedStepKey={step.key}
-                          currentStepKey={displayStepKey}
-                          currentIdx={currentIdx}
-                          client={client}
-                          workflowRun={workflowRun}
-                          onAdvance={load}
-                          onRevert={() => { setOpenStepKey(null); load(); }}
-                          clientId={clientId}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
 
-        {/* 프로젝트 부가 정보 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* 고객 기본정보 + 메일 발송이력 */}
-          <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <InfoPanel client={client} onUpdate={load} />
+            <OliviaProjectPanel workflowRunId={workflowRun?.id}/>
+
+            <section className="pc-smart-timeline" aria-labelledby="smart-timeline-title">
+              <header className="pc-smart-timeline__header">
+                <div>
+                  <span>SMART TIMELINE</span>
+                  <h2 id="smart-timeline-title">프로젝트 전체 진행</h2>
+                  <p>완료 단계는 접어두고, 현재 단계의 실행 도구와 다음 액션을 바로 보여줍니다.</p>
+                </div>
+                <strong>{progressStep} / {ACTIVE_WORKFLOW_STEPS.length}</strong>
+              </header>
+              <div className="pc-smart-timeline__list">
+                {ACTIVE_WORKFLOW_STEPS.map((step, idx) => {
+                  const isDone = workflowCompleted || idx < currentIdx;
+                  const isCurrent = !workflowCompleted && step.key === displayStepKey;
+                  const isOpenHere = openStepKey ? step.key === openStepKey : isCurrent;
+                  return (
+                    <article
+                      key={step.key}
+                      className={`pc-smart-timeline__item ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""} ${isDone ? "pc-smart-timeline__item--clickable" : ""}`}
+                      onClick={isDone ? () => setOpenStepKey((prev) => (prev === step.key ? null : step.key)) : undefined}
+                      role={isDone ? "button" : undefined}
+                      tabIndex={isDone ? 0 : undefined}
+                    >
+                      <div className="pc-smart-timeline__rail">
+                        <span>{isDone ? "✓" : idx + 1}</span>
+                        {idx < ACTIVE_WORKFLOW_STEPS.length - 1 && <i/>}
+                      </div>
+                      <div className="pc-smart-timeline__content">
+                        <div className="pc-smart-timeline__summary">
+                          <div>
+                            <small>{WORKFLOW_STAGES.find((stage) => stage.key === step.stage)?.name}</small>
+                            <strong>{STEP_NAME[step.key] || step.key}</strong>
+                          </div>
+                          <b>{isDone ? "완료" : isCurrent ? "현재 단계" : "대기"}</b>
+                        </div>
+                        {isOpenHere && (
+                          <div className="pc-smart-timeline__action" onClick={(e) => e.stopPropagation()}>
+                            <StepPanel
+                              key={step.key}
+                              selectedStepKey={step.key}
+                              currentStepKey={displayStepKey}
+                              currentIdx={currentIdx}
+                              client={client}
+                              workflowRun={workflowRun}
+                              onAdvance={load}
+                              onRevert={() => { setOpenStepKey(null); load(); }}
+                              clientId={clientId}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 900, color: C.muted, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12, paddingLeft: 2 }}>
+                📢 홍보 콘텐츠 앱
+              </div>
+              <div className="pc-promo-app-grid">
+                {PROMO_APPS.map((app) => (
+                  <Link key={app.href} href={buildPromoAppHref(app.href, clientId, workflowRun?.id, currentStepKey)}
+                    className="pc-promo-app-card">
+                    <span className="pc-promo-app-icon" aria-hidden="true">{app.icon}</span>
+                    <div>
+                      <div className="pc-promo-app-title">{app.title}</div>
+                      <div className="pc-promo-app-description">{app.desc}</div>
+                    </div>
+                    <span className="pc-promo-app-action">열기 <i aria-hidden="true">→</i></span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === "documents" && (
+          <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
+            <ClientRelatedArtifactsSection
+              clientId={clientId}
+              workflowRunId={workflowRun?.id}
+              quotes={quotes}
+              contracts={contracts}
+              artifacts={artifacts}
+            />
             <ClientMailHistorySection clientId={clientId} />
           </div>
+        )}
 
-          {/* 견적서 / 계약서 */}
-          <ClientRelatedArtifactsSection
-            clientId={clientId}
-            workflowRunId={workflowRun?.id}
-            quotes={quotes}
-            contracts={contracts}
-            artifacts={artifacts}
-          />
+        {activeTab === "schedule" && <ClientScheduleTab hospitalName={client.name} />}
 
-          {/* 촬영 갤러리 */}
+        {activeTab === "gallery" && (
           <ClientGallerySection clientId={clientId} hospitalName={client.name} email={client.email} workflowRunId={workflowRun?.id} />
+        )}
 
-          {/* 홍보 콘텐츠 앱 */}
-          <div>
-          <div style={{ fontSize: 11, fontWeight: 900, color: C.muted, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12, paddingLeft: 2 }}>
-            📢 홍보 콘텐츠 앱
-          </div>
-          <div className="pc-promo-app-grid">
-            {PROMO_APPS.map((app) => (
-              <Link key={app.href} href={buildPromoAppHref(app.href, clientId, workflowRun?.id, currentStepKey)}
-                className="pc-promo-app-card">
-                <span className="pc-promo-app-icon" aria-hidden="true">{app.icon}</span>
-                <div>
-                  <div className="pc-promo-app-title">{app.title}</div>
-                  <div className="pc-promo-app-description">{app.desc}</div>
-                </div>
-                <span className="pc-promo-app-action">열기 <i aria-hidden="true">→</i></span>
-              </Link>
-            ))}
-          </div>
-          </div>
-        </div>
+        {activeTab === "revisions" && (
+          <ClientRevisionsTab clientId={clientId} workflowRunId={workflowRun?.id} managerName={workflowRun?.manager_name || client.contact_name} />
+        )}
 
-      </div>{/* 2컬럼 그리드 끝 */}
+        {activeTab === "activity" && <PcrmActivityTimeline activities={activities} variant="full" />}
+
+        {activeTab === "info" && <InfoPanel client={client} onUpdate={load} />}
+
+        {activeTab === "portal" && <ClientPortalTab clientId={clientId} workflowRunId={workflowRun?.id} />}
+
+      </div>
     </div>
   );
 }
