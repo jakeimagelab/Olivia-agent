@@ -28,7 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "list", label: "고객 관리", icon: Users, href: "/clients/list" },
   { key: "projects", label: "프로젝트", icon: FolderKanban, disabled: true },
   { key: "documents", label: "문서 관리", icon: FileText, href: "/clients/documents" },
-  { key: "calendar", label: "일정 관리", icon: Calendar, href: "/calendar" },
+  { key: "calendar", label: "일정 관리", icon: Calendar, href: "/clients/schedule" },
   { key: "gallery", label: "앨범/갤러리", icon: ImageIcon, href: "/gallery" },
   { key: "revisions", label: "수정 요청", icon: PenLine, href: "/clients/revisions" },
   { key: "reviews", label: "리뷰 관리", icon: Heart, href: "/review-studio" },
