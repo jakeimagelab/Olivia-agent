@@ -115,7 +115,7 @@ export default function PcrmRevisionTable({ revisions, loading, onUpdate }: Prop
             <div key={row.id} className="pcrm-revision-item">
               <button type="button" className="pcrm-revision-summary" onClick={() => toggleOpen(row)}>
                 <span className={`pcrm-revision-priority pcrm-revision-priority--${row.priority}`}>{PRIORITY_LABEL[row.priority]}</span>
-                <span className="pcrm-revision-title"><PenLine size={14} />{row.title}<small>{row.clients?.name || "—"}</small></span>
+                <span className="pcrm-revision-title"><PenLine size={14} />{row.title}<small>{row.clients?.hospital_name || "—"}</small></span>
                 <select
                   value={row.status}
                   disabled={savingId === row.id}
