@@ -27,9 +27,8 @@ function dueBadge(insight: Insight) {
   return { label: due.toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }), tone: "neutral" as const };
 }
 
-export default function ClientOverviewTab({ client, workflowRun, artifacts, activities, summary, onRefresh, onNavigateTab }: {
+export default function ClientOverviewTab({ client, workflowRun, artifacts, activities, onRefresh, onNavigateTab }: {
   client: any; workflowRun: any; artifacts: WorkflowArtifact[]; activities: any[];
-  summary?: { pendingApprovalCount: number } | null;
   onRefresh: () => void;
   onNavigateTab?: (tab: string) => void;
 }) {
