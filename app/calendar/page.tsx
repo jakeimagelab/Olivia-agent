@@ -1162,19 +1162,20 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 4,
-                        padding: "1px 3px", borderRadius: 3,
+                        padding: "2px 4px", borderRadius: 5,
+                        background: t.completed ? "#F3F4F6" : cat.bg,
                         opacity: dragTask?.id === t.id ? 0.4 : dimmed ? 0.45 : t.completed ? 0.55 : 1,
                         cursor: CURSOR_GRAB,
                         transition: "opacity .15s, box-shadow .15s",
                         boxShadow: selectedTask?.id === t.id ? "0 0 0 2px #0F4440" : "none",
                       }}>
                       <span style={{
-                        width: 5, height: 12, borderRadius: 2, flexShrink: 0,
+                        width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
                         background: t.completed ? "#A0AEC0" : cat.color,
                       }}/>
                       <span style={{
-                        flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 600,
-                        color: C.txt, textDecoration: t.completed ? "line-through" : "none",
+                        flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700,
+                        color: t.completed ? C.muted : cat.color, textDecoration: t.completed ? "line-through" : "none",
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                       }}>{t.title}</span>
                       {t.time && !isMobile && (
