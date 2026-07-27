@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ClientEditSource } from "../_components/ClientFormModal";
+
+type FormModalState = { mode: "create" | "edit"; client: ClientEditSource | null } | null;
 
 export function useClientRoster() {
   const [clients, setClients] = useState<any[]>([]);
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [showModal, setShowModal] = useState(false);
+  const [formModal, setFormModal] = useState<FormModalState>(null);
+  const [projectDialogFor, setProjectDialogFor] = useState<{ id: string; name: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const loadRequestRef = useRef(0);
 
@@ -66,5 +70,14 @@ export function useClientRoster() {
     (c.department || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  return { clients, filtered, dashboard, loading, search, setSearch, showModal, setShowModal, deletingId, deleteClient, load };
+  const openCreate = () => setFormModal({ mode: "create", client: null });
+  const openEdit = (client: ClientEditSource) => setFormModal({ mode: "edit", client });
+  const closeForm = () => setFormModal(null);
+
+  return {
+    clients, filtered, dashboard, loading, search, setSearch,
+    formModal, openCreate, openEdit, closeForm,
+    projectDialogFor, setProjectDialogFor,
+    deletingId, deleteClient, load,
+  };
 }
