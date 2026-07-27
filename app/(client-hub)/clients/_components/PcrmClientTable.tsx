@@ -81,10 +81,37 @@ function stageLabel(client: ClientRow) {
   if (!run) return { label: "기획 단계", tone: "empty" };
   if (run.status === "completed") return { label: "촬영 완료", tone: "done" };
   const key = run.current_step_key || "";
-  if (["consult_meeting", "quote", "contract"].includes(key)) return { label: "상담 진행 중", tone: "active" };
-  if (["conti", "shooting"].includes(key)) return { label: "촬영 진행 중", tone: "active" };
-  if (["backup_sorting", "original_delivery", "client_selection", "retouching", "revision"].includes(key)) return { label: "수정 진행 중", tone: "active" };
-  return { label: "납품 진행 중", tone: "active" };
+  if (["consult_meeting", "quote", "contract"].includes(key)) return { label: "상담 진행 중", tone: "consult" };
+  if (["conti", "shooting"].includes(key)) return { label: "촬영 진행 중", tone: "shoot" };
+  if (["backup_sorting", "original_delivery", "client_selection", "retouching", "revision"].includes(key)) return { label: "수정 진행 중", tone: "revision" };
+  return { label: "납품 진행 중", tone: "delivery" };
+}
+
+const AVATAR_COLORS = ["#e85d2c", "#155855", "#2f5fd6", "#7c3aed", "#c9581a", "#15805f", "#c0388a"];
+function avatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
+function useFavorites() {
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      return new Set(JSON.parse(window.localStorage.getItem("pcrm_client_favorites") || "[]"));
+    } catch {
+      return new Set();
+    }
+  });
+  const toggle = (id: string) => {
+    setFavorites((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      window.localStorage.setItem("pcrm_client_favorites", JSON.stringify(Array.from(next)));
+      return next;
+    });
+  };
+  return { favorites, toggle };
 }
 
 function formatDate(value?: string | null) {
