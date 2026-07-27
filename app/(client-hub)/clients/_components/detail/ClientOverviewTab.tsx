@@ -189,7 +189,7 @@ export default function ClientOverviewTab({ client, workflowRun, artifacts, acti
         </section>
 
         {/* 최근 활동 */}
-        <PcrmActivityTimeline activities={activities} variant="row" />
+        <PcrmActivityTimeline activities={activities} variant="row" onViewAll={() => onNavigateTab?.("activity")} />
       </div>
     </div>
   );
