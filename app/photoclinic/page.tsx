@@ -42,6 +42,7 @@ type CustomItem = {
   name: string;
   detail: string;
   amount: number;
+  discountable?: boolean;
 };
 
 type BenefitItem = {
