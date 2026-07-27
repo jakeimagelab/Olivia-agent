@@ -24,7 +24,6 @@ import ClientScheduleTab from "./_components/detail/ClientScheduleTab";
 import ClientRevisionsTab from "./_components/detail/ClientRevisionsTab";
 import ClientPortalTab from "./_components/detail/ClientPortalTab";
 import { C } from "@/lib/theme";
-import OliviaProjectPanel from "@/components/olivia/OliviaProjectPanel";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "./_hooks/useClientRoster";
 
