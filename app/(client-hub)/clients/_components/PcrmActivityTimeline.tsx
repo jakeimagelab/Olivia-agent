@@ -16,17 +16,20 @@ function categoryOf(actionType: string): string {
   return "document";
 }
 
-export default function PcrmActivityTimeline({ activities, variant = "compact" }: { activities: any[]; variant?: "compact" | "full" }) {
+export default function PcrmActivityTimeline({ activities, variant = "compact", onViewAll }: { activities: any[]; variant?: "compact" | "full" | "row"; onViewAll?: () => void }) {
   const [filter, setFilter] = useState("all");
   const filtered = useMemo(() => {
     if (variant !== "full" || filter === "all") return activities;
     return activities.filter((item) => categoryOf(item.action_type || "") === filter);
   }, [activities, filter, variant]);
-  const list = variant === "full" ? filtered : filtered.slice(0, 8);
+  const list = variant === "full" ? filtered : filtered.slice(0, variant === "row" ? 5 : 8);
 
   return (
-    <section className="pcrm-admin-activity">
-      <header><div><span>PCRM · ACTIVITY</span><h2>프로젝트 활동 기록</h2></div><Activity size={17} /></header>
+    <section className={`pcrm-admin-activity${variant === "row" ? " pcrm-admin-activity--row" : ""}`}>
+      <header>
+        <div>{variant === "row" ? <h2>최근 활동</h2> : <><span>PCRM · ACTIVITY</span><h2>프로젝트 활동 기록</h2></>}</div>
+        {onViewAll ? <button type="button" onClick={onViewAll} style={{ border: 0, background: "none", color: "#155855", fontSize: 10.5, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>전체 활동 보기 ›</button> : <Activity size={17} />}
+      </header>
       {variant === "full" && (
         <div className="pcrm-project-tabs">
           {Object.entries(CATEGORY_LABEL).map(([key, label]) => (
