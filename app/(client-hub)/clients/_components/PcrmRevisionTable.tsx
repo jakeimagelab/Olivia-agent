@@ -15,7 +15,7 @@ type RevisionRow = {
   status: "requested" | "in_progress" | "completed" | "rejected";
   admin_reply?: string;
   created_at: string;
-  clients?: { name: string };
+  clients?: { hospital_name: string };
 };
 
 const STATUS_TABS: { key: "all" | RevisionRow["status"]; label: string }[] = [
