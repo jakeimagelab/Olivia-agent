@@ -258,7 +258,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           <h1>{client.name}</h1>
           {client.specialty && <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 700, color: C.muted }}>{client.specialty}</small>}
         </div>
-        <div className="pcrm-dashboard-actions">
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", marginRight: 4 }}>
             <small style={{ fontSize: 9, fontWeight: 800, color: C.hint, letterSpacing: ".06em" }}>진행</small>
             <b style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>{progressStep}/{ACTIVE_WORKFLOW_STEPS.length}</b>
