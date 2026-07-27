@@ -56,7 +56,7 @@ export default function PcrmRevisionTable({ revisions, loading, onUpdate }: Prop
   const filtered = revisions.filter((row) => {
     if (tab !== "all" && row.status !== tab) return false;
     if (!search) return true;
-    const haystack = `${row.clients?.name ?? ""} ${row.title} ${row.content}`.toLowerCase();
+    const haystack = `${row.clients?.hospital_name ?? ""} ${row.title} ${row.content}`.toLowerCase();
     return haystack.includes(search.toLowerCase());
   });
 
