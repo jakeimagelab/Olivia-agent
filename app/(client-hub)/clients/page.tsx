@@ -51,7 +51,6 @@ const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = 
 
 const DETAIL_TABS: { key: string; label: string }[] = [
   { key: "overview", label: "개요" },
-  { key: "projects", label: "프로젝트" },
   { key: "documents", label: "문서" },
   { key: "schedule", label: "일정" },
   { key: "gallery", label: "갤러리" },
