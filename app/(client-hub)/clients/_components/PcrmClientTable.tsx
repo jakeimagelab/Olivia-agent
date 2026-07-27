@@ -275,32 +275,47 @@ export default function PcrmClientTable({ clients, deletingId, onOpen, onEdit, o
       </div>
 
       <section className="pcrm-filter-bar" style={cardStyle} aria-label="고객 검색·필터">
-        <label className="pcrm-filter-search">
-          <Search size={15} />
-          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="병원명 · 원장명 · 담당자명 검색" />
-        </label>
-        <select value={managerFilter} onChange={(event) => { setManagerFilter(event.target.value); setPage(1); }}>
-          <option value="">담당 매니저 전체</option>
-          {managers.map((m) => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
-          <option value="">프로젝트 상태 전체</option>
-          <option value="active">진행 중</option>
-          <option value="completed">완료</option>
-          <option value="paused">일시 중지</option>
-          <option value="none">미생성</option>
-        </select>
-        <select value={specialtyFilter} onChange={(event) => { setSpecialtyFilter(event.target.value); setPage(1); }}>
-          <option value="">진료과 전체</option>
-          {specialties.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select value={portalFilter} onChange={(event) => { setPortalFilter(event.target.value); setPage(1); }}>
-          <option value="">포털 상태 전체</option>
-          <option value="connected">포털 연결됨</option>
-          <option value="inactive">연결 해제</option>
-          <option value="none">연결 대기</option>
-        </select>
-        <button type="button" className="pcrm-filter-reset" onClick={resetFilters}>초기화</button>
+        <div className="pcrm-filter-field">
+          <span>병원명</span>
+          <label className="pcrm-filter-search">
+            <Search size={15} />
+            <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="병원명, 원장명, 담당자명으로 검색하세요." />
+          </label>
+        </div>
+        <div className="pcrm-filter-field">
+          <span>담당 매니저</span>
+          <select value={managerFilter} onChange={(event) => { setManagerFilter(event.target.value); setPage(1); }}>
+            <option value="">전체</option>
+            {managers.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        <div className="pcrm-filter-field">
+          <span>프로젝트 상태</span>
+          <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+            <option value="">전체</option>
+            <option value="active">진행 중</option>
+            <option value="completed">완료</option>
+            <option value="paused">일시 중지</option>
+            <option value="none">미생성</option>
+          </select>
+        </div>
+        <div className="pcrm-filter-field">
+          <span>진료과</span>
+          <select value={specialtyFilter} onChange={(event) => { setSpecialtyFilter(event.target.value); setPage(1); }}>
+            <option value="">전체</option>
+            {specialties.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="pcrm-filter-field">
+          <span>포털 상태</span>
+          <select value={portalFilter} onChange={(event) => { setPortalFilter(event.target.value); setPage(1); }}>
+            <option value="">전체</option>
+            <option value="connected">포털 연결됨</option>
+            <option value="inactive">연결 해제</option>
+            <option value="none">연결 대기</option>
+          </select>
+        </div>
+        <button type="button" className="pcrm-filter-reset" onClick={resetFilters}>필터 초기화</button>
       </section>
 
       <section className="pcrm-project-panel" style={cardStyle}>
