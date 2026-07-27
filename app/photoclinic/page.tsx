@@ -512,7 +512,7 @@ export default function QuoteBuilder() {
   const addCustomItem = () => {
     setCustomItems((items) => [
       ...items,
-      { id: crypto.randomUUID(), name: "", detail: "", amount: 0 }
+      { id: crypto.randomUUID(), name: "", detail: "", amount: 0, discountable: true }
     ]);
   };
 
