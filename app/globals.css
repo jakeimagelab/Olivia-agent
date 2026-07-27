@@ -3203,7 +3203,13 @@ main:has(> .pc-header) {
 .pcrm-pagination__nav button:disabled { opacity: .4; cursor: not-allowed; }
 
 @media (max-width: 1120px) {
-  .pcrm-filter-bar select { min-width: calc(50% - 10px); flex: 1 1 calc(50% - 10px); }
+  .pcrm-filter-bar { grid-template-columns: repeat(3, 1fr); }
+  .pcrm-filter-field:first-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 680px) {
+  .pcrm-filter-bar { grid-template-columns: 1fr 1fr; }
+  .pcrm-filter-reset { grid-column: 1 / -1; }
 }
 
 .pcrm-document-table.pcrm-document-table { min-width: 760px; }
