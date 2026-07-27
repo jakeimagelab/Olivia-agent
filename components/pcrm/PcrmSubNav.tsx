@@ -38,11 +38,29 @@ const NAV_ITEMS: NavItem[] = [
 
 export default function PcrmSubNav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const inProjectView = pathname === "/clients" && (searchParams.has("id") || searchParams.has("workflowRunId"));
 
   return (
     <nav className="pcrm-subnav" aria-label="고객관리 메뉴">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
+        if (item.key === "projects") {
+          return (
+            <button
+              key={item.key}
+              type="button"
+              aria-disabled={!inProjectView}
+              data-active={inProjectView}
+              data-muted={!inProjectView}
+              title={inProjectView ? undefined : "준비 중입니다."}
+              onClick={() => { if (!inProjectView) window.alert(`${item.label} 기능은 준비 중입니다.`); }}
+            >
+              <Icon size={16} strokeWidth={1.8} />
+              {item.label}
+            </button>
+          );
+        }
         if (item.disabled || !item.href) {
           return (
             <button
@@ -58,7 +76,7 @@ export default function PcrmSubNav() {
             </button>
           );
         }
-        const active = item.href === "/clients" ? pathname === "/clients" : pathname.startsWith(item.href);
+        const active = item.href === "/clients" ? pathname === "/clients" && !inProjectView : pathname.startsWith(item.href);
         return (
           <Link key={item.key} href={item.href} data-active={active}>
             <Icon size={16} strokeWidth={1.8} />
