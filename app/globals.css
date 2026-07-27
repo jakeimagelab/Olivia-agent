@@ -2148,6 +2148,23 @@ main:has(> .pc-header) {
   gap: 8px;
 }
 
+.custom-item-discount-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6f6961;
+  font-size: 11.5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.custom-item-discount-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #155855;
+  cursor: pointer;
+}
+
 .custom-items-box {
   display: grid;
   gap: 12px;
