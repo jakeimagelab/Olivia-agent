@@ -212,6 +212,7 @@ function RowMenu({ client, onOpen, onEdit, onDelete, onNewProject }: {
 }
 
 export default function PcrmClientTable({ clients, deletingId, onOpen, onEdit, onDelete, onCreate, onNewProject }: Props) {
+  const { favorites, toggle: toggleFavorite } = useFavorites();
   const [search, setSearch] = useState("");
   const [managerFilter, setManagerFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
