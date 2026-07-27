@@ -201,6 +201,8 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   const [deleting, setDeleting] = useState(false);
   const [openStepKey, setOpenStepKey] = useState<string | null>(null);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [summary, setSummary] = useState<{ activeProjectCount: number; pendingApprovalCount: number; openRevisionCount: number; thisWeekScheduleCount: number } | null>(null);
 
   const deleteClient = async (clientName: string) => {
     if (!window.confirm(`'${clientName}' 고객을 삭제할까요? 휴지통으로 이동되며 30일 안에 복원할 수 있습니다.`)) return;
