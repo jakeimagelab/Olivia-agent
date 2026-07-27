@@ -3607,6 +3607,37 @@ main:has(> .pc-header) {
 
 .pcrm-project-row i[data-state="done"] { background: rgba(34, 135, 106, .1); color: #22876a; }
 .pcrm-project-row i[data-state="empty"] { background: rgba(155, 181, 176, .13); color: #5a7470; }
+.pcrm-project-row i[data-state="consult"] { background: #e5eefc; color: #2f5fd6; }
+.pcrm-project-row i[data-state="shoot"] { background: #fdece0; color: #c9581a; }
+.pcrm-project-row i[data-state="revision"] { background: #f1e9fb; color: #7c3aed; }
+.pcrm-project-row i[data-state="delivery"] { background: #e3f5ef; color: #15805f; }
+
+.pcrm-fav-star {
+  display: grid;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #cbd8d5;
+  cursor: pointer;
+}
+.pcrm-fav-star:hover { color: #f0b429; }
+.pcrm-fav-star[data-active="true"] { color: #f0b429; }
+.pcrm-fav-star[data-active="true"] svg { fill: currentColor; }
+
+.pcrm-hospital-avatar {
+  display: grid;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 900;
+}
 
 .pcrm-project-row--head {
   min-height: 36px;
