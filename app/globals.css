@@ -3186,13 +3186,14 @@ main:has(> .pc-header) {
   font-size: 11px;
   font-weight: 700;
 }
-.pcrm-pagination__nav { display: flex; align-items: center; gap: 10px; }
+.pcrm-pagination__nav { display: flex; align-items: center; gap: 5px; }
 .pcrm-pagination__nav span { color: #5a7470; font-size: 11px; font-weight: 800; }
 .pcrm-pagination__nav button {
   height: 30px;
+  min-width: 30px;
   border: 1px solid rgba(21, 88, 85, .14);
   border-radius: 7px;
-  padding: 0 12px;
+  padding: 0 10px;
   background: #fff;
   color: #155855;
   font: inherit;
@@ -3201,6 +3202,13 @@ main:has(> .pc-header) {
   cursor: pointer;
 }
 .pcrm-pagination__nav button:disabled { opacity: .4; cursor: not-allowed; }
+.pcrm-pagination__nav button[data-active="true"] {
+  border-color: #155855;
+  background: #155855;
+  color: #fff;
+}
+.pcrm-pagination__nav button.is-arrow { color: #5a7470; }
+.pcrm-pagination__nav em { padding: 0 3px; color: #9bb5b0; font-style: normal; }
 
 @media (max-width: 1120px) {
   .pcrm-filter-bar { grid-template-columns: repeat(3, 1fr); }
