@@ -203,14 +203,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, id: existing.id, workflowRunId: null, created: false });
     }
 
-    const { data: client, error } = await supabase.from("clients").insert({
+    const basePayload = {
       hospital_name: normalizedName,
-      contact_name: body.director_name || body.contact_name || body.manager_name || null,
+      contact_name: body.contact_name || body.manager_name || null,
       phone: body.phone || null,
       email: body.email || null,
       specialty: body.department || body.specialty || null,
       memo: body.memo || null,
-    }).select("id,hospital_name").single();
+    };
+    const extendedPayload = {
+      director_name: body.director_name || null,
+      address: body.address || null,
+      website_url: body.website_url || null,
+      instagram_url: body.instagram_url || null,
+      naver_place_url: body.naver_place_url || null,
+      manager_staff: body.manager_staff || null,
+      referral_source: body.referral_source || null,
+      notes: body.notes || null,
+    };
+
+    let { data: client, error } = await supabase.from("clients").insert({ ...basePayload, ...extendedPayload }).select("id,hospital_name").single();
+    if (isMissingColumnError(error)) {
+      ({ data: client, error } = await supabase.from("clients").insert(basePayload).select("id,hospital_name").single());
+    }
     if (error || !client) throw new Error(error?.message || "고객 등록 실패");
 
     await emitOliviaEventSafely(supabase, {
