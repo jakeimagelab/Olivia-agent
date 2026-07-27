@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import PcrmHeader from "@/components/pcrm/PcrmHeader";
