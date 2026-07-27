@@ -12,6 +12,8 @@ import {
   getWorkflowDisplayStepKey,
 } from "@/lib/workflow";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
+import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
+import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import NextActionCard from "@/components/NextActionCard";
 import PcrmDashboard from "./_components/PcrmDashboard";
 import ClientFormModal from "./_components/ClientFormModal";
