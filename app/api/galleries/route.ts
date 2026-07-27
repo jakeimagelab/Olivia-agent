@@ -188,7 +188,25 @@ export async function GET(req: NextRequest) {
     }
 
     if (error) throw error;
-    return NextResponse.json({ ok: true, galleries: data || [] });
+    const galleries = data || [];
+
+    // 공개 상태 — pcrm_publications에 related_type=gallery/final_delivery로 기록된 실제 공개 이력을 붙인다.
+    const galleryIds = galleries.map((g: any) => g.id).filter(Boolean);
+    let publicationByGalleryId = new Map<string, any>();
+    if (galleryIds.length) {
+      const { data: publications } = await supabase
+        .from("pcrm_publications")
+        .select("related_id, related_type, status, created_at")
+        .in("related_type", ["gallery", "final_delivery"])
+        .in("related_id", galleryIds)
+        .order("created_at", { ascending: false });
+      for (const pub of publications || []) {
+        if (!publicationByGalleryId.has(pub.related_id)) publicationByGalleryId.set(pub.related_id, pub);
+      }
+    }
+    const enriched = galleries.map((g: any) => ({ ...g, publication: publicationByGalleryId.get(g.id) || null }));
+
+    return NextResponse.json({ ok: true, galleries: enriched });
   } catch (error) {
     const filtered = q
       ? mockGalleries.filter(g => g.hospital_name.includes(q))
