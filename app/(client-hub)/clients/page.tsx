@@ -47,6 +47,18 @@ const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = 
   content_planning:  { icon: "✏️", desc: "블로그 기반 콘텐츠 기획 및 작성",          href: "/content-writer" },
 };
 
+const DETAIL_TABS: { key: string; label: string }[] = [
+  { key: "overview", label: "개요" },
+  { key: "projects", label: "프로젝트" },
+  { key: "documents", label: "문서" },
+  { key: "schedule", label: "일정" },
+  { key: "gallery", label: "갤러리" },
+  { key: "revisions", label: "수정·승인" },
+  { key: "activity", label: "활동 기록" },
+  { key: "info", label: "고객 정보" },
+  { key: "portal", label: "포털 관리" },
+];
+
 const PROMO_APPS = [
   { title: "아이디어 제안",    desc: "오늘의 홍보 콘텐츠 아이디어 AI 제안",   href: "/daily-ideas",      icon: "💡" },
   { title: "홍보 콘텐츠 제작", desc: "블로그·인스타 콘텐츠 클라이언트별 제작", href: "/sns-manager",      icon: "📢" },
