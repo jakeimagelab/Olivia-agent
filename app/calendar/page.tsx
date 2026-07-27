@@ -1117,16 +1117,16 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
               }}
               style={{
                 overflow: "hidden", padding: "6px 5px 4px", cursor: "pointer",
-                background: isDragOver ? "#D4EDE8" : isToday ? "#FFF5F4" : isSelected ? "#EAF4F2" : dimmed ? "#F3F6F5" : C.surface,
+                background: isDragOver ? "#D4EDE8" : isToday ? "rgba(232,93,44,.05)" : isSelected ? "#EAF4F2" : dimmed ? "#F3F6F5" : C.surface,
                 transition: "background .1s",
-                outline: isDragOver ? `2px solid ${C.teal}` : isSelected ? `2px solid ${C.teal}` : isToday ? `2px solid ${C.todayRed}` : "none",
+                outline: isDragOver ? `2px solid ${C.teal}` : isSelected ? `2px solid ${C.teal}` : "none",
                 outlineOffset: "-2px",
               }}>
               {/* date number */}
               <div style={{ display: "flex", justifyContent: "flex-end", paddingRight: 2, marginBottom: 3 }}>
                 <div style={{
                   width: 26, height: 26, borderRadius: "50%",
-                  background: isToday ? C.todayRed : "transparent",
+                  background: isToday ? "#e85d2c" : "transparent",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                   <span style={{
