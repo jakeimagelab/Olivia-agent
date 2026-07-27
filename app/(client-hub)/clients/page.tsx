@@ -1305,15 +1305,15 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
           <div key={key} className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "start" }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, paddingTop: 3 }}>{label}</span>
             {editing ? (
-              key === "special_notes" ? (
+              key === "memo" || key === "notes" ? (
                 <textarea value={form[key] || ""} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))} rows={2}
                   style={{ ...iS, height: "auto", padding: "6px 9px", resize: "vertical", lineHeight: 1.5 }} />
               ) : (
-                <input type={key === "doctor_count" ? "number" : "text"} value={form[key] || ""} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))} style={iS} />
+                <input type="text" value={form[key] || ""} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))} style={iS} />
               )
             ) : (
               <span style={{ fontSize: 12, color: displayVal(key) === "—" ? C.hint : C.txt, wordBreak: "break-word" }}>
-                {(key === "website_url" || key === "instagram_url") && displayVal(key) !== "—" ? (
+                {LINK_KEYS.includes(key) && displayVal(key) !== "—" ? (
                   <a href={displayVal(key).startsWith("http") ? displayVal(key) : `https://${displayVal(key)}`} target="_blank" rel="noreferrer" style={{ color: C.teal, textDecoration: "none" }}>{displayVal(key)} ↗</a>
                 ) : displayVal(key)}
               </span>
