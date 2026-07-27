@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { C, R } from "@/lib/theme";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
+import { avatarColor } from "@/lib/pcrmAvatar";
 
 type ClientRow = {
   id: string;
