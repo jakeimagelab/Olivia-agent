@@ -303,48 +303,109 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
     : workflowRun?.current_step_key || ACTIVE_WORKFLOW_STEPS[0].key;
   const displayStepKey = getWorkflowDisplayStepKey(currentStepKey) || ACTIVE_WORKFLOW_STEPS[0].key;
   const currentIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === displayStepKey);
-  const progressStep = workflowCompleted ? ACTIVE_WORKFLOW_STEPS.length : Math.max(currentIdx + 1, 1);
+
+  const workflowStepDef = WORKFLOW_STEPS.find((s) => s.key === displayStepKey);
+  const currentStageKey = workflowCompleted ? WORKFLOW_STAGES[WORKFLOW_STAGES.length - 1].key : (workflowStepDef?.stage || WORKFLOW_STAGES[0].key);
+  const currentStageIdx = Math.max(0, WORKFLOW_STAGES.findIndex((s) => s.key === currentStageKey));
+  const stageDisplayName: Record<string, string> = { data_sharing: "데이터·보정", feedback_done: "납품·완료" };
+  const activeTabLabel = DETAIL_TABS.find((t) => t.key === activeTab)?.label || "개요";
+
+  const copyPortalLink = async () => {
+    if (!workflowRun?.id) { alert("먼저 프로젝트를 생성해야 링크를 복사할 수 있습니다."); return; }
+    setLinkCopyBusy(true);
+    try {
+      const token = await getOrCreatePortalAccessToken(clientId, workflowRun.id);
+      await navigator.clipboard.writeText(portalUrlFromToken(token));
+      alert("포털 링크를 복사했습니다.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "링크 복사에 실패했습니다.");
+    } finally {
+      setLinkCopyBusy(false);
+    }
+  };
 
   return (
     <div style={{ color: C.txt }}>
       <section className="pcrm-dashboard" aria-label="고객 프로젝트 요약" style={{ paddingBottom: 0 }}>
       <nav className="pcrm-breadcrumb" aria-label="이동 경로">
-        <Link href="/clients">고객 관리</Link><span>/</span><span>고객 상세</span>
+        <Link href="/clients">고객 관리</Link><span>/</span><span>고객 상세 · {activeTabLabel}</span>
+        <button type="button" onClick={onBack} style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, border: 0, background: "none", color: "#5a7470", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+          <ChevronLeft size={13} /> 목록
+        </button>
       </nav>
-      {/* 고객 요약 헤더 — 다른 고객관리 화면과 동일한 타이틀바 스타일 */}
-      <div className="pcrm-dashboard-title">
-        <div>
-          <span>PCRM · PHOTOCLINIC CRM</span>
-          <h1>{client.name}</h1>
-          <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 700, color: C.muted }}>
-            {[client.director_name, client.specialty, workflowRun?.manager_name && `담당 ${workflowRun.manager_name}`].filter(Boolean).join(" · ") || "정보 없음"}
-          </small>
+
+      <div className="pcrm-detail-header">
+        <div className="pcrm-detail-header__identity">
+          <span className="pcrm-detail-header__logo" style={{ background: avatarColor(client.name) }}>{avatarInitial(client.name)}</span>
+          <div className="pcrm-detail-header__body">
+            <div className="pcrm-detail-header__name-row">
+              <h1>{client.name}</h1>
+              <span className="pcrm-badge-soft" data-tone={workflowCompleted ? "done" : "active"}>{workflowCompleted ? "프로젝트 완료" : workflowRun ? "프로젝트 진행 중" : "프로젝트 없음"}</span>
+            </div>
+            <div className="pcrm-detail-header__fields">
+              <div><span>프로젝트명</span><span>{workflowRun?.project_name || "—"}</span></div>
+              <div>
+                <span>담당 매니저</span>
+                <span>
+                  {workflowRun?.manager_name && <i className="pcrm-mini-avatar" style={{ background: avatarColor(workflowRun.manager_name) }}>{avatarInitial(workflowRun.manager_name)}</i>}
+                  {workflowRun?.manager_name || "미지정"}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", marginRight: 4 }}>
-            <small style={{ fontSize: 9, fontWeight: 800, color: C.hint, letterSpacing: ".06em" }}>진행</small>
-            <b style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>{progressStep}/{ACTIVE_WORKFLOW_STEPS.length}</b>
-          </span>
-          <button onClick={onBack} className="pc-btn pc-btn--ghost pc-btn--sm"><ChevronLeft size={14} /> 목록</button>
+
+        <div className="pcrm-detail-header__meta">
+          <div><CalendarDays size={14} /> 프로젝트 기간 <b>{workflowRun ? `${fmtDot(workflowRun.created_at)} ~ ${workflowRun.shoot_date ? fmtDot(workflowRun.shoot_date) : "미정"}` : "—"}</b></div>
+          <div><CalendarDays size={14} /> 촬영 예정일 <b>{workflowRun?.shoot_date ? fmtDot(workflowRun.shoot_date) : "—"}</b></div>
+          <div><ClipboardList size={14} /> 프로젝트 상태 <b><span className="pcrm-badge-soft" data-tone={workflowCompleted ? "done" : "active"}>{workflowCompleted ? "완료" : workflowRun ? "진행 중" : "없음"}</span></b></div>
+        </div>
+
+        <div className="pcrm-detail-header__actions">
           <button onClick={openClientPreview} disabled={previewLoading} className="pc-btn pc-btn--secondary pc-btn--sm">
-            <Eye size={13} /> {previewLoading ? "준비 중..." : "고객 화면 미리보기"}
+            <Eye size={13} /> {previewLoading ? "준비 중..." : "고객 포털 보기"}
           </button>
-          <button onClick={() => setShowProjectDialog(true)} className="pc-btn pc-btn--orange pc-btn--sm"><Plus size={13} /> 새 프로젝트</button>
-          <button onClick={() => deleteClient(client.name)} disabled={deleting} className="pc-btn pc-btn--danger pc-btn--sm">
-            <Trash2 size={13} /> {deleting ? "삭제 중..." : "고객 삭제"}
+          <button onClick={copyPortalLink} disabled={linkCopyBusy} className="pc-btn pc-btn--ghost pc-btn--sm">
+            <Copy size={13} /> {linkCopyBusy ? "복사 중..." : "링크 복사"}
           </button>
+          <button onClick={() => setShowProjectDialog(true)} className="pc-btn pc-btn--orange pc-btn--sm"><Plus size={13} /> 프로젝트 생성</button>
+          <div className="pcrm-row-menu">
+            <button type="button" className="pc-btn pc-btn--ghost pc-btn--sm" aria-label="더보기" onClick={() => setHeaderMenuOpen((v) => !v)}>
+              <MoreVertical size={15} />
+            </button>
+            {headerMenuOpen && (
+              <>
+                <div className="pcrm-row-menu__scrim" onClick={() => setHeaderMenuOpen(false)} />
+                <div className="pcrm-row-menu__panel">
+                  <button type="button" className="is-danger" disabled={deleting} onClick={() => { setHeaderMenuOpen(false); deleteClient(client.name); }}>
+                    <Trash2 size={13} /> {deleting ? "삭제 중..." : "고객 삭제"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="pcrm-summary-grid pcrm-summary-grid--compact" aria-label="요약 정보">
-        <article><div><span>진행 중 프로젝트</span><strong>{summary ? summary.activeProjectCount : "—"}</strong></div></article>
-        <article><div><span>승인 대기</span><strong>{summary ? summary.pendingApprovalCount : "—"}</strong></div></article>
-        <article><div><span>이번 주 일정</span><strong>{summary ? summary.thisWeekScheduleCount : "—"}</strong></div></article>
-        <article><div><span>미처리 수정 요청</span><strong>{summary ? summary.openRevisionCount : "—"}</strong></div></article>
-        <article><div><span>최근 활동</span><strong style={{ fontSize: 14 }}>{activities[0] ? new Date(activities[0].created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) : "—"}</strong></div></article>
+      <div className="pcrm-stage-stepper" aria-label="프로젝트 진행 단계">
+        {WORKFLOW_STAGES.map((stage, i) => {
+          const state = i < currentStageIdx ? "done" : i === currentStageIdx ? "current" : "pending";
+          return (
+            <div className="pcrm-stage-stepper__step" key={stage.key}>
+              <span className="pcrm-stage-stepper__circle" data-state={state}>{state === "pending" ? stage.order : <Check size={16} />}</span>
+              <div className="pcrm-stage-stepper__text">
+                <b>{stage.order} {stageDisplayName[stage.key] || stage.name}</b>
+                <small data-state={state}>{state === "done" ? "완료" : state === "current" ? "현재 단계" : "대기"}</small>
+              </div>
+              {i < WORKFLOW_STAGES.length - 1 && <span className="pcrm-stage-stepper__line" data-filled={i < currentStageIdx} />}
+            </div>
+          );
+        })}
       </div>
 
-      <nav className="pcrm-detail-tabs" aria-label="고객 상세 탭">
+      <NextActionCard client={client} workflowRun={workflowRun} stepIcon={STEP_INFO[displayStepKey]?.icon} stepDescription={STEP_INFO[displayStepKey]?.desc} onRefresh={load} />
+
+      <nav className="pcrm-detail-tabs" aria-label="고객 상세 탭" style={{ marginTop: 14 }}>
         {DETAIL_TABS.map((tab) => (
           <button key={tab.key} type="button" data-active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>
         ))}
