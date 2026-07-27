@@ -175,7 +175,7 @@ export default function ClientOverviewTab({ client, workflowRun, artifacts, acti
       <div className="pcrm-overview-row2">
         {/* 승인 대기 */}
         <section className="pcrm-side-card" style={cardStyle}>
-          <header><h2>승인 대기</h2><b>{summary?.pendingApprovalCount ?? approvalInsights.length}건</b></header>
+          <header><h2>승인 대기</h2><b>{approvalInsights.length}건</b></header>
           <div className="pcrm-mini-list">
             {approvalInsights.length === 0 ? <p className="pcrm-empty-copy">승인 대기 항목이 없습니다.</p> : approvalInsights.slice(0, 4).map((item) => (
               <Link key={item.id} href="/workflow/approvals" className="pcrm-mini-list__item" style={{ textDecoration: "none", cursor: "pointer" }}>
