@@ -130,22 +130,40 @@ export async function PATCH(
   const body = await req.json();
 
   // 프론트 필드 → 실제 DB 컬럼 매핑
+  // 담당자(contact_name)와 원장명(director_name)은 서로 다른 사람이므로 별도 컬럼에 저장한다.
   const patch: Record<string, unknown> = {};
   const hospitalName = body.name || body.hospital_name;
-  if (hospitalName !== undefined)                       patch.hospital_name = hospitalName;
-  if (body.contact_name  !== undefined)                 patch.contact_name  = body.contact_name  || null;
-  if (body.manager_name  !== undefined)                 patch.contact_name  = body.manager_name  || null;
-  if (body.director_name !== undefined)                 patch.contact_name  = body.director_name || null;
-  if (body.phone         !== undefined)                 patch.phone         = body.phone         || null;
-  if (body.email         !== undefined)                 patch.email         = body.email         || null;
-  if (body.specialty     !== undefined)                 patch.specialty     = body.specialty     || null;
-  if (body.department    !== undefined)                 patch.specialty     = body.department    || null;
-  if (body.memo          !== undefined)                 patch.memo          = body.memo          || null;
+  if (hospitalName !== undefined)                       patch.hospital_name   = hospitalName;
+  if (body.contact_name    !== undefined)               patch.contact_name    = body.contact_name    || null;
+  if (body.manager_name    !== undefined)               patch.contact_name    = body.manager_name     || null;
+  if (body.director_name   !== undefined)               patch.director_name   = body.director_name    || null;
+  if (body.phone           !== undefined)               patch.phone           = body.phone            || null;
+  if (body.email           !== undefined)               patch.email           = body.email            || null;
+  if (body.specialty       !== undefined)               patch.specialty       = body.specialty         || null;
+  if (body.department      !== undefined)               patch.specialty       = body.department        || null;
+  if (body.memo            !== undefined)               patch.memo            = body.memo              || null;
+  if (body.address         !== undefined)               patch.address         = body.address           || null;
+  if (body.website_url     !== undefined)               patch.website_url     = body.website_url        || null;
+  if (body.instagram_url   !== undefined)               patch.instagram_url   = body.instagram_url      || null;
+  if (body.naver_place_url !== undefined)               patch.naver_place_url = body.naver_place_url    || null;
+  if (body.manager_staff   !== undefined)               patch.manager_staff   = body.manager_staff      || null;
+  if (body.referral_source !== undefined)               patch.referral_source = body.referral_source    || null;
+  if (body.notes           !== undefined)               patch.notes           = body.notes              || null;
 
   if (Object.keys(patch).length === 0)
     return NextResponse.json({ ok: true });
 
-  const { error } = await supabase.from("clients").update(patch).eq("id", id);
+  let { error } = await supabase.from("clients").update(patch).eq("id", id);
+  // 확장 필드 마이그레이션이 아직 안 돌았으면, 그 필드들만 빼고 나머지는 저장되도록 한 번 더 시도한다.
+  if (isMissingColumnError(error)) {
+    const EXTENDED_KEYS = ["director_name", "address", "website_url", "instagram_url", "naver_place_url", "manager_staff", "referral_source", "notes"];
+    const basePatch = Object.fromEntries(Object.entries(patch).filter(([key]) => !EXTENDED_KEYS.includes(key)));
+    if (Object.keys(basePatch).length > 0) {
+      ({ error } = await supabase.from("clients").update(basePatch).eq("id", id));
+    } else {
+      error = null;
+    }
+  }
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
