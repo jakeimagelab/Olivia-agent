@@ -1670,6 +1670,16 @@ export default function QuoteBuilder() {
                           placeholder="서브항목 메모 예: 4K 카메라 2대, 삼각대, 프롬프터 등"
                           rows={2}
                         />
+                        <label className="custom-item-discount-toggle">
+                          <input
+                            type="checkbox"
+                            checked={item.discountable !== false}
+                            onChange={(event) =>
+                              updateCustomItem(item.id, "discountable", event.target.checked)
+                            }
+                          />
+                          할인 적용 (외주 헤어메이크업·모델료 등은 해제)
+                        </label>
                       </div>
                     ))}
                   </div>
