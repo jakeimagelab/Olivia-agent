@@ -250,33 +250,27 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 
   return (
     <div style={{ color: C.txt }}>
-      <section className="pc-client-overview-shell" aria-label="고객 프로젝트 요약">
-      {/* 고객 요약 카드 */}
-      <div className="pc-client-overview-head">
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", color: "#fff", padding: "14px 18px", borderRadius: 14, background: `linear-gradient(135deg, ${C.orange}, #D94F22)`, boxShadow: "0 10px 28px rgba(232,93,44,.18)" }}>
-          <button onClick={onBack} style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
-            ← 목록
-          </button>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ margin: 0, fontSize: 18, fontWeight: 900 }}>{client.name}</h1>
-            {client.specialty && <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>{client.specialty}</div>}
-          </div>
-          <button onClick={openClientPreview} disabled={previewLoading}
-            style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: previewLoading ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
+      <section className="pcrm-dashboard" aria-label="고객 프로젝트 요약" style={{ paddingBottom: 0 }}>
+      {/* 고객 요약 헤더 — 다른 고객관리 화면과 동일한 타이틀바 스타일 */}
+      <div className="pcrm-dashboard-title">
+        <div>
+          <span>PCRM · PHOTOCLINIC CRM</span>
+          <h1>{client.name}</h1>
+          {client.specialty && <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 700, color: C.muted }}>{client.specialty}</small>}
+        </div>
+        <div className="pcrm-dashboard-actions">
+          <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", marginRight: 4 }}>
+            <small style={{ fontSize: 9, fontWeight: 800, color: C.hint, letterSpacing: ".06em" }}>진행</small>
+            <b style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>{progressStep}/{ACTIVE_WORKFLOW_STEPS.length}</b>
+          </span>
+          <button onClick={onBack} className="pc-btn pc-btn--ghost pc-btn--sm"><ChevronLeft size={14} /> 목록</button>
+          <button onClick={openClientPreview} disabled={previewLoading} className="pc-btn pc-btn--secondary pc-btn--sm">
             <Eye size={13} /> {previewLoading ? "준비 중..." : "고객 화면 미리보기"}
           </button>
-          <button onClick={() => setShowProjectDialog(true)}
-            style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid rgba(255,255,255,.45)", borderRadius: 8, color: C.orange, fontSize: 12, fontWeight: 900, padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
-            + 새 프로젝트
-          </button>
-          <button onClick={() => deleteClient(client.name)} disabled={deleting}
-            style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, padding: "5px 12px", cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}>
+          <button onClick={() => setShowProjectDialog(true)} className="pc-btn pc-btn--orange pc-btn--sm"><Plus size={13} /> 새 프로젝트</button>
+          <button onClick={() => deleteClient(client.name)} disabled={deleting} className="pc-btn pc-btn--danger pc-btn--sm">
             <Trash2 size={13} /> {deleting ? "삭제 중..." : "고객 삭제"}
           </button>
-          <div style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.25)", borderRadius: 10, padding: "6px 14px", textAlign: "center", flexShrink: 0 }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,.6)", letterSpacing: ".08em" }}>진행</div>
-            <div style={{ fontSize: 15, fontWeight: 900 }}>{progressStep}/{ACTIVE_WORKFLOW_STEPS.length}</div>
-          </div>
         </div>
       </div>
 
