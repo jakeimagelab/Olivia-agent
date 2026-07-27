@@ -54,3 +54,18 @@ export async function DELETE(req: NextRequest) {
   await revokePortalAccess(clientId, workflowRunId);
   return NextResponse.json({ ok: true });
 }
+
+// PATCH: 기존 접근 링크의 활성화 상태 또는 만료일을 직접 변경 (재발급 없이)
+export async function PATCH(req: NextRequest) {
+  const { id, isActive, tokenExpiresAt } = await req.json();
+  if (!isPcrmUuid(id)) return NextResponse.json({ ok: false, error: "접근 ID가 올바르지 않습니다." }, { status: 400 });
+
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (isActive !== undefined) update.is_active = Boolean(isActive);
+  if (tokenExpiresAt !== undefined) update.token_expires_at = tokenExpiresAt;
+
+  const db = getSupabaseAdmin();
+  const { error } = await db.from("client_portal_access").update(update).eq("id", id);
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
