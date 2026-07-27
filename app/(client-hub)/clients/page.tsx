@@ -14,7 +14,7 @@ import {
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import NextActionCard from "@/components/NextActionCard";
 import PcrmDashboard from "./_components/PcrmDashboard";
-import NewClientModal from "./_components/NewClientModal";
+import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
 import PcrmActivityTimeline from "./_components/PcrmActivityTimeline";
 import PcrmCollaborationPanel from "./_components/PcrmCollaborationPanel";
