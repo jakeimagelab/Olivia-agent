@@ -29,7 +29,7 @@ export async function GET(
 
   let [clientRes, runsRes, quotesRes, contractsRes, artifactsRes] = await Promise.all([
     supabase.from("clients")
-      .select("id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier, quote_amount, quote_vat, quote_total, contract_amount, contract_vat, contract_total, contract_signed_at")
+      .select(`id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier, quote_amount, quote_vat, quote_total, contract_amount, contract_vat, contract_total, contract_signed_at, ${EXTENDED_CLIENT_COLUMNS}`)
       .eq("id", id).maybeSingle(),
     supabase.from("workflow_runs")
       .select("*").eq("client_id", id)
