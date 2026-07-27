@@ -1217,12 +1217,12 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
       </div>
 
       {/* ── Legend */}
-      <div style={{ display: "flex", gap: 14, padding: "8px 20px", flexWrap: "wrap", flexShrink: 0,
-        background: C.surface, borderTop: `1px solid ${C.border}` }}>
+      <div style={{ display: "flex", gap: 14, padding: "10px 20px", flexWrap: "wrap", flexShrink: 0,
+        background: C.surface, borderTop: "1px solid rgba(21,88,85,.1)" }}>
         {Object.entries(CATS).map(([, v]) => (
           <div key={v.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 3, background: v.color }}/>
-            <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{v.label}</span>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }}/>
+            <span style={{ fontSize: 10.5, color: "#5a7470", fontWeight: 700 }}>{v.label}</span>
           </div>
         ))}
       </div>
