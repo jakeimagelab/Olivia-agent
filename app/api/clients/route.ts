@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { isMissingColumnError } from "@/lib/dbErrors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /* ── 실제 DB 컬럼: hospital_name, contact_name, phone, email, specialty, memo ── */
+/* ── 확장 컬럼(2026-07-27 고객관리 개편, 마이그레이션 미적용 시 자동 폴백): director_name,
+     address, website_url, instagram_url, naver_place_url, manager_staff, referral_source, notes ── */
+const EXTENDED_CLIENT_COLUMNS = "director_name, address, website_url, instagram_url, naver_place_url, manager_staff, referral_source, notes";
+const BASE_CLIENT_COLUMNS = "id, hospital_name, contact_name, phone, email, specialty, memo, created_at";
 
 const APPROVAL_TYPE_LABEL: Record<string, string> = {
   quote: "견적 승인 대기",
