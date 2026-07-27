@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [
+  let [
     clientsRes, runsRes, tasksRes, approvalsRes, mailingRes,
     todayTasksRes, activityRes, inquiriesRes, perClientsRes, perTxRes, portalRes,
   ] = await Promise.all([
