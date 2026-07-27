@@ -1262,16 +1262,26 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
   };
 
   const rows: [string, string][] = [
-    ["name",         "병원이름"],
-    ["manager_name", "담당자"],
-    ["phone",        "연락처"],
-    ["email",        "이메일"],
-    ["department",   "진료과"],
-    ["memo",         "메모"],
+    ["name",            "병원이름"],
+    ["director_name",   "원장명"],
+    ["manager_name",    "담당자"],
+    ["phone",           "연락처"],
+    ["email",           "이메일"],
+    ["department",      "진료과"],
+    ["address",         "주소"],
+    ["website_url",     "홈페이지"],
+    ["instagram_url",   "인스타그램"],
+    ["naver_place_url", "네이버플레이스"],
+    ["manager_staff",   "담당 매니저"],
+    ["referral_source", "유입 경로"],
+    ["notes",           "비고"],
+    ["memo",            "내부 메모"],
   ];
 
+  const ALIAS: Record<string, string> = { name: "hospital_name", manager_name: "contact_name", department: "specialty" };
+  const LINK_KEYS = ["website_url", "instagram_url", "naver_place_url"];
   const displayVal = (key: string) => {
-    const v = client[key] ?? client[{ name:"hospital_name", manager_name:"contact_name", department:"specialty" }[key] ?? key];
+    const v = client[key] ?? client[ALIAS[key] ?? key];
     if (!v) return "—";
     return String(v);
   };
