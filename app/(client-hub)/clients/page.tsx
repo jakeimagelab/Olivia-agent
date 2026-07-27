@@ -115,14 +115,20 @@ function ClientsInner() {
   return <ListView openNewOnLoad={searchParams.get("new") === "1"} />;
 }
 
-/* ── LIST VIEW ── */
+/* ── LIST VIEW (대시보드 탭) ── */
 function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
   const router = useRouter();
-  const { filtered, dashboard, loading, search, setSearch, showModal, setShowModal, deletingId, deleteClient } = useClientRoster();
+  const {
+    filtered, dashboard, loading, search, setSearch,
+    formModal, openCreate, closeForm,
+    projectDialogFor, setProjectDialogFor,
+    deletingId, deleteClient, load,
+  } = useClientRoster();
 
   useEffect(() => {
-    if (openNewOnLoad) setShowModal(true);
-  }, [openNewOnLoad, setShowModal]);
+    if (openNewOnLoad) openCreate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openNewOnLoad]);
 
   return (
     <div style={{ color: C.txt }}>
@@ -136,16 +142,35 @@ function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
             deletingId={deletingId}
             onOpen={(clientId) => router.push(`/clients?id=${clientId}`)}
             onDelete={deleteClient}
-            onCreate={() => setShowModal(true)}
+            onCreate={openCreate}
           />
         )}
       </div>
 
-      <NewClientModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        onCreated={(id) => { setShowModal(false); router.push(`/clients?id=${id}`); }}
+      <ClientFormModal
+        open={formModal !== null}
+        mode={formModal?.mode ?? "create"}
+        client={formModal?.client}
+        onClose={closeForm}
+        onSaved={(id) => { closeForm(); void load(false); router.push(`/clients?id=${id}`); }}
+        onSavedAndNewProject={(id) => {
+          closeForm();
+          void load(false);
+          const created = filtered.find((c) => c.id === id);
+          setProjectDialogFor({ id, name: created?.name || "" });
+        }}
       />
+      {projectDialogFor && (
+        <NewPcrmProjectDialog
+          clientId={projectDialogFor.id}
+          clientName={projectDialogFor.name}
+          onClose={() => setProjectDialogFor(null)}
+          onCreated={(workflowRunId) => {
+            setProjectDialogFor(null);
+            router.push(`/clients?id=${encodeURIComponent(projectDialogFor.id)}&workflowRunId=${encodeURIComponent(workflowRunId)}`);
+          }}
+        />
+      )}
     </div>
   );
 }
