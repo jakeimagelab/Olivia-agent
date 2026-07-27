@@ -488,11 +488,16 @@ export default function QuoteBuilder() {
   const singleItemsTotal = selectedSingleItems.reduce((sum, item) => sum + item.price, 0);
   const optionsTotal = optionItems.reduce((sum, item) => sum + item.amount, 0);
   const customTotal = customItems.reduce((sum, item) => sum + item.amount, 0);
+  // 외주 헤어메이크업·모델료처럼 할인이 적용되면 안 되는 기타 항목은 discountable=false로
+  // 표시해 할인율/추가할인 계산 대상(discountableSubtotal)에서 제외하고 원가 그대로 청구한다.
+  const discountableCustomTotal = customItems.filter((item) => item.discountable !== false).reduce((sum, item) => sum + item.amount, 0);
+  const nonDiscountableCustomTotal = customTotal - discountableCustomTotal;
   const visibleCustomItems = customItems.filter((item) => item.name || item.detail || item.amount > 0);
   const visibleBenefitItems = benefitItems.filter((item) => item.name);
-  const contentSubtotal = packageTotal + singleItemsTotal + optionsTotal + customTotal;
-  const rateDiscountAmount = Math.round(contentSubtotal * (discountRate / 100));
-  const extraDiscountAmount = Math.min(Math.max(Number(extraDiscount) || 0, 0), Math.max(contentSubtotal - rateDiscountAmount, 0));
+  const discountableSubtotal = packageTotal + singleItemsTotal + optionsTotal + discountableCustomTotal;
+  const contentSubtotal = discountableSubtotal + nonDiscountableCustomTotal;
+  const rateDiscountAmount = Math.round(discountableSubtotal * (discountRate / 100));
+  const extraDiscountAmount = Math.min(Math.max(Number(extraDiscount) || 0, 0), Math.max(discountableSubtotal - rateDiscountAmount, 0));
   const discountTotal = rateDiscountAmount + extraDiscountAmount;
   const rawSupplyAmount = Math.max(contentSubtotal - discountTotal, 0);
   const supplyAmount = Math.floor(rawSupplyAmount / 10000) * 10000;
