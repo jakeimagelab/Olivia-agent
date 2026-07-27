@@ -72,6 +72,13 @@ const PROMO_APPS = [
   { title: "홈페이지 제작",    desc: "병원 홈페이지 제작 기획 정리",          href: "/website-builder",  icon: "🌐" },
 ];
 
+function fmtDot(value?: string | null) {
+  if (!value) return "미정";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "미정";
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function buildPromoAppHref(appHref: string, clientId: string, workflowRunId: string | undefined, stepKey: string) {
   const [path, query = ""] = appHref.split("?");
   const params = new URLSearchParams(query);
