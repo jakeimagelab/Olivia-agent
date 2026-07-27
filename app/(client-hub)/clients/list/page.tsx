@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { C } from "@/lib/theme";
 import { useClientRoster } from "../_hooks/useClientRoster";
 import PcrmClientTable from "../_components/PcrmClientTable";
-import NewClientModal from "../_components/NewClientModal";
+import ClientFormModal, { type ClientEditSource } from "../_components/ClientFormModal";
+import NewPcrmProjectDialog from "../_components/NewPcrmProjectDialog";
 
 function SpinBox() {
   return (
@@ -17,7 +18,12 @@ function SpinBox() {
 
 export default function ClientRosterPage() {
   const router = useRouter();
-  const { filtered, loading, search, setSearch, showModal, setShowModal, deletingId, deleteClient } = useClientRoster();
+  const {
+    filtered, loading,
+    formModal, openCreate, openEdit, closeForm,
+    projectDialogFor, setProjectDialogFor,
+    deletingId, deleteClient, load,
+  } = useClientRoster();
 
   return (
     <div style={{ color: C.txt }}>
@@ -25,21 +31,40 @@ export default function ClientRosterPage() {
         {loading ? <SpinBox /> : (
           <PcrmClientTable
             clients={filtered}
-            search={search}
-            onSearch={setSearch}
             deletingId={deletingId}
             onOpen={(clientId) => router.push(`/clients?id=${clientId}`)}
+            onEdit={(client) => openEdit(client as ClientEditSource)}
             onDelete={deleteClient}
-            onCreate={() => setShowModal(true)}
+            onCreate={openCreate}
+            onNewProject={(client) => setProjectDialogFor({ id: client.id, name: client.name })}
           />
         )}
       </div>
 
-      <NewClientModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        onCreated={(id) => { setShowModal(false); router.push(`/clients?id=${id}`); }}
+      <ClientFormModal
+        open={formModal !== null}
+        mode={formModal?.mode ?? "create"}
+        client={formModal?.client}
+        onClose={closeForm}
+        onSaved={(id) => { closeForm(); void load(false); router.push(`/clients?id=${id}`); }}
+        onSavedAndNewProject={(id) => {
+          closeForm();
+          void load(false);
+          const created = filtered.find((c) => c.id === id);
+          setProjectDialogFor({ id, name: created?.name || "" });
+        }}
       />
+      {projectDialogFor && (
+        <NewPcrmProjectDialog
+          clientId={projectDialogFor.id}
+          clientName={projectDialogFor.name}
+          onClose={() => setProjectDialogFor(null)}
+          onCreated={(workflowRunId) => {
+            setProjectDialogFor(null);
+            router.push(`/clients?id=${encodeURIComponent(projectDialogFor.id)}&workflowRunId=${encodeURIComponent(workflowRunId)}`);
+          }}
+        />
+      )}
     </div>
   );
 }
