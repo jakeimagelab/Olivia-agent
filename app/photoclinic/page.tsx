@@ -605,7 +605,7 @@ export default function QuoteBuilder() {
         unitPrice: item.amount,
         qty: 1,
         subtotal: item.amount,
-        note: "기타"
+        note: item.discountable === false ? "기타 · 할인 제외" : "기타"
       })),
       ...visibleBenefitItems.map((item) => ({
         name: item.name,
