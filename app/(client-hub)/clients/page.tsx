@@ -211,7 +211,6 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   const [openStepKey, setOpenStepKey] = useState<string | null>(null);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [summary, setSummary] = useState<{ activeProjectCount: number; pendingApprovalCount: number; openRevisionCount: number; thisWeekScheduleCount: number } | null>(null);
   const [linkCopyBusy, setLinkCopyBusy] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
 
