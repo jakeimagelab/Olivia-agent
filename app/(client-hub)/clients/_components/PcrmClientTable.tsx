@@ -88,13 +88,6 @@ function stageLabel(client: ClientRow) {
   return { label: "납품 진행 중", tone: "delivery" };
 }
 
-const AVATAR_COLORS = ["#e85d2c", "#155855", "#2f5fd6", "#7c3aed", "#c9581a", "#15805f", "#c0388a"];
-function avatarColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
-
 function useFavorites() {
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
