@@ -411,9 +411,15 @@ export default function PcrmClientTable({ clients, deletingId, onOpen, onEdit, o
             </select>
           </div>
           <div className="pcrm-pagination__nav">
-            <button type="button" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>이전</button>
-            <span>{currentPage} / {totalPages}</span>
-            <button type="button" disabled={currentPage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>다음</button>
+            <button type="button" className="is-arrow" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{"<"}</button>
+            {pageNumbers(currentPage, totalPages).map((entry, index) =>
+              entry === "…" ? (
+                <em key={`gap-${index}`}>…</em>
+              ) : (
+                <button key={entry} type="button" data-active={entry === currentPage} onClick={() => setPage(entry as number)}>{entry}</button>
+              )
+            )}
+            <button type="button" className="is-arrow" disabled={currentPage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>{">"}</button>
           </div>
         </footer>
       </section>
