@@ -435,7 +435,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
 
         {activeTab === "overview" && (
-          <ClientOverviewTab client={client} workflowRun={workflowRun} artifacts={artifacts} activities={activities} summary={summary} onRefresh={load} onNavigateTab={setActiveTab} />
+          <ClientOverviewTab client={client} workflowRun={workflowRun} artifacts={artifacts} activities={activities} onRefresh={load} onNavigateTab={setActiveTab} />
         )}
 
         {activeTab === "projects" && (
