@@ -282,16 +282,6 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 
   useEffect(() => { load(); }, [clientId, workflowRunId]);
 
-  useEffect(() => {
-    if (!pageData?.client) return;
-    const params = new URLSearchParams({ clientId: pageData.client.id, hospitalName: pageData.client.name || pageData.client.hospital_name || "" });
-    if (pageData.workflowRun?.id) params.set("workflowRunId", pageData.workflowRun.id);
-    fetch(`/api/admin/pcrm/client-summary?${params.toString()}`, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((d) => { if (d.ok) setSummary(d.summary); })
-      .catch(() => {});
-  }, [pageData?.client?.id, pageData?.workflowRun?.id]);
-
   if (loading) return <SpinBox />;
   if (!pageData?.client) return (
     <div style={{ padding: "60px 24px", textAlign: "center", color: C.muted }}>
