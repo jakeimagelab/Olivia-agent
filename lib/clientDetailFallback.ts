@@ -42,5 +42,13 @@ export function withClientDetailDefaults<T extends Record<string, unknown>>(clie
     contract_vat: client.contract_vat ?? null,
     contract_total: client.contract_total ?? null,
     contract_signed_at: client.contract_signed_at ?? null,
+    director_name: client.director_name ?? "",
+    address: client.address ?? "",
+    website_url: client.website_url ?? "",
+    instagram_url: client.instagram_url ?? "",
+    naver_place_url: client.naver_place_url ?? "",
+    manager_staff: client.manager_staff ?? "",
+    referral_source: client.referral_source ?? "",
+    notes: client.notes ?? "",
   };
 }
