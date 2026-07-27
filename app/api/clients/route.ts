@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
   if (isMissingColumnError(clientsRes.error)) {
     let fallbackQuery = supabase.from("clients").select(BASE_CLIENT_COLUMNS).order("created_at", { ascending: false });
     if (q) fallbackQuery = fallbackQuery.or(`hospital_name.ilike.%${q}%,contact_name.ilike.%${q}%`);
-    clientsRes = await fallbackQuery;
+    clientsRes = (await fallbackQuery) as typeof clientsRes;
   }
   if (clientsRes.error)
     return NextResponse.json({ ok: false, error: clientsRes.error.message }, { status: 500 });
