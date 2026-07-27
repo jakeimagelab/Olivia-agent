@@ -12,8 +12,8 @@ import {
   Pencil,
   Plus,
   Search,
+  Star,
   Trash2,
-  UsersRound,
 } from "lucide-react";
 import { C, R } from "@/lib/theme";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
