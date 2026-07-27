@@ -2503,8 +2503,8 @@ export default function CalendarPage() {
             </div>
           )}
           <button onClick={goToday} className="pc-btn pc-btn--secondary pc-btn--sm">오늘</button>
-          <button onClick={() => setShowStatsModal(v => !v)} className="pc-btn pc-btn--ghost pc-btn--sm">
-            📊{!isMobile && " 일정 분석"}
+          <button onClick={() => setShowStatsModal(v => !v)} className="pc-btn pc-btn--stats pc-btn--sm">
+            <BarChart3 size={15} strokeWidth={2} />{!isMobile && " 일정 분석"}
           </button>
       </>} />
 
