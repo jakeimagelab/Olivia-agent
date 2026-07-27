@@ -526,7 +526,7 @@ export default function QuoteBuilder() {
   const updateCustomItem = (
     id: string,
     key: keyof CustomItem,
-    value: string | number
+    value: string | number | boolean
   ) => {
     setCustomItems((items) =>
       items.map((item) => (item.id === id ? { ...item, [key]: value } : item))
