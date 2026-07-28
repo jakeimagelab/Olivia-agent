@@ -1494,15 +1494,29 @@ export default function QuoteBuilder() {
   return (
     <>
     <PageHeader title="Quote Builder" />
-    <main className="min-h-screen text-[#222222]" style={{ background: "var(--mesh-bg)" }}>
+    <main className={`min-h-screen text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`} style={{ background: "var(--mesh-bg)" }}>
       <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8">
         <div className="min-w-0 space-y-5">
-          <header className="rounded-lg border border-[#155855]/15 bg-white px-5 py-5 shadow-sm">
+          <header className="rounded-lg border border-[var(--quote-ink)]/15 bg-white px-5 py-5 shadow-sm">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[var(--quote-ink)]">
+                {cfg.label}
+              </span>
+              <button
+                type="button"
+                onClick={toggleBrand}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition hover:-translate-y-0.5"
+                style={{ borderColor: "var(--quote-ink)", color: "var(--quote-ink)" }}
+              >
+                <RefreshCcw size={13} />
+                {brand === "photoclinic" ? "제이크이미지연구소로 전환" : "포토클리닉으로 전환"}
+              </button>
+            </div>
             <Field label="견적서 제목">
               <textarea
                 value={quoteTitle}
                 onChange={(event) => setQuoteTitle(event.target.value)}
-                placeholder="포토클리닉 브랜드사진 견적서"
+                placeholder={cfg.defaultQuoteTitle}
                 rows={2}
                 style={{resize:"none", fontFamily:"'Nanum Myeongjo', serif", lineHeight:"1.6", width:"100%", padding:"8px 12px", border:"1px solid #d8d0c4", borderRadius:"6px", fontSize:"14px"}}
               />
@@ -1511,11 +1525,11 @@ export default function QuoteBuilder() {
 
           <Panel title="고객 정보" icon={<UserRound size={18} />}>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="병원명">
+              <Field label={cfg.entityLabel}>
                 <input
                   value={customer.hospitalName}
                   onChange={(event) => updateCustomer("hospitalName", event.target.value)}
-                  placeholder="포토클리닉"
+                  placeholder={cfg.entityPlaceholder}
                 />
               </Field>
               <Field label="담당자명">
