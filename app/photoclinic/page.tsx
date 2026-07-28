@@ -798,6 +798,7 @@ export default function QuoteBuilder() {
       setExtraDiscount(data.formState.extraDiscount);
       setMemo(data.formState.memo);
     } else {
+      setBrand("photoclinic");
       setCustomer({
         hospitalName: data.hospitalName || "",
         managerName: data.contactName || "",
@@ -808,9 +809,10 @@ export default function QuoteBuilder() {
         shootDate: data.shootDate || "",
         quoteNumber: data.quoteNumber || createQuoteNumber()
       });
-      setQuoteTitle(data.title || cfg.defaultQuoteTitle);
+      setQuoteTitle(data.title || BRAND_CONFIG.photoclinic.defaultQuoteTitle);
       setSelectedPackageId(null);
       setSelectedSingleItemIds([]);
+      setSingleItemAmounts({});
       setProfileCount(0);
       setStagedCount(0);
       setCombinedProfileStagedCount(0);
