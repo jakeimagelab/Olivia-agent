@@ -859,8 +859,9 @@ export default function QuoteBuilder() {
 
   const openContractWithQuote = (data: ContractQuoteData) => {
     const { formState, ...contractPayload } = data;
+    const contractBrand = formState?.brand ?? "photoclinic";
     const encoded = encodeURIComponent(JSON.stringify(contractPayload));
-    window.open(`/contract?data=${encoded}`, "_blank");
+    window.open(`/contract?data=${encoded}&brand=${contractBrand}`, "_blank");
   };
 
   // 계약서 생성 페이지로 이동 (견적 데이터 전달)
