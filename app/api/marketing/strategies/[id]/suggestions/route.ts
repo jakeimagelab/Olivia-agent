@@ -63,14 +63,20 @@ export async function POST(
     }
 
     // 9.2 지식 패치 — 마케팅 카테고리로 저장된 축적 인사이트를 근거로 함께 활용한다.
-    const { data: patches } = await supabase
-      .from("olivia_knowledge_patches")
-      .select("title, content")
-      .eq("is_active", true)
-      .eq("category", "marketing")
-      .order("created_at", { ascending: false })
-      .limit(5)
-      .then((r) => r, () => ({ data: [] as any[] }));
+    // 마이그레이션 전이라 테이블이 없어도 제안 생성 자체는 막지 않는다.
+    let patches: { title: string; content: string }[] = [];
+    try {
+      const patchesRes = await supabase
+        .from("olivia_knowledge_patches")
+        .select("title, content")
+        .eq("is_active", true)
+        .eq("category", "marketing")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      patches = patchesRes.data ?? [];
+    } catch {
+      patches = [];
+    }
 
     const actionsSummary = (actions ?? []).map((a) => {
       const actionMetrics = metrics.filter((m) => m.action_id === a.id)
