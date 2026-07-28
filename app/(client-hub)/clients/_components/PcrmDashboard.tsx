@@ -160,7 +160,7 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
           </div>
           <div className="pcrm-project-table">
             <div className="pcrm-project-row pcrm-project-row--head">
-              <span>프로젝트명</span><span>고객명</span><span>단계</span><span>담당 매니저</span><span>촬영 예정일</span><span>최근 활동</span><span />
+              <span>프로젝트명</span><span>고객명</span><span>단계</span><span>담당 매니저</span><span>촬영 예정일</span><span>최근 활동</span><span className="pcrm-row-actions" />
             </div>
             {tabbedClients.length === 0 ? (
               <p className="pcrm-empty-copy">해당 조건의 프로젝트가 없습니다.</p>
