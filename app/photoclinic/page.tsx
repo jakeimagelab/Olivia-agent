@@ -296,10 +296,14 @@ const BRAND_CONFIG: Record<Brand, {
   emailPlaceholder: string;
   largeScaleLabel: string;
   brandMarkCaption: string;
+  railCaptionTitle: string | null;
+  railCaptionSub: string | null;
   railNoticeTitle: string;
   railNoticeSub: string;
   railNoticeDetail: string;
   popupBg: string;
+  quoteNumberPrefix: string;
+  defaultMemo: string;
 }> = {
   photoclinic: {
     label: "포토클리닉",
@@ -310,10 +314,14 @@ const BRAND_CONFIG: Record<Brand, {
     emailPlaceholder: "photoclnic@gmail.com",
     largeScaleLabel: "병원급 규모 추가",
     brandMarkCaption: "제이크이미지연구소 · 병원 전문 브랜드 촬영",
+    railCaptionTitle: null,
+    railCaptionSub: null,
     railNoticeTitle: "포토클리닉",
     railNoticeSub: "제이크이미지연구소",
     railNoticeDetail: "병원 전문 브랜드 촬영",
-    popupBg: "#f0f4f2"
+    popupBg: "#f0f4f2",
+    quoteNumberPrefix: "PC-",
+    defaultMemo: ""
   },
   jakeimage: {
     label: "제이크이미지연구소",
@@ -323,11 +331,15 @@ const BRAND_CONFIG: Record<Brand, {
     entityPlaceholder: "제이크이미지연구소",
     emailPlaceholder: "contact@jakeimage.com",
     largeScaleLabel: "대형 규모 촬영 추가",
-    brandMarkCaption: "Jake Image Institute · 기업·브랜드 이미지 디렉션",
-    railNoticeTitle: "제이크이미지연구소",
-    railNoticeSub: "Jake Image Institute",
-    railNoticeDetail: "기업·브랜드 이미지 디렉션",
-    popupBg: "#eef1f5"
+    brandMarkCaption: "Jake Image Institute · Brand Image Direction",
+    railCaptionTitle: "BRAND IMAGE DIRECTION",
+    railCaptionSub: "Portrait · Brand · Editorial",
+    railNoticeTitle: "Jake Image Institute",
+    railNoticeSub: "기업과 개인 브랜드의",
+    railNoticeDetail: "이미지를 설계합니다.",
+    popupBg: "#eef1f5",
+    quoteNumberPrefix: "JI-",
+    defaultMemo: "촬영 범위와 일정은 상담 후 최종 확정됩니다."
   }
 };
 
