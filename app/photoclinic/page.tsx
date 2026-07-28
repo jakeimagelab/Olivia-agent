@@ -1199,6 +1199,11 @@ export default function QuoteBuilder() {
       // PDF용으로는 원본 견적서를 복제해 1123 x 794 사이즈로 따로 캡처합니다.
       // 이렇게 해야 새 창에 "생성 중"만 남거나 PDF가 미리보기와 다르게 나오는 문제를 줄일 수 있습니다.
       captureRoot = document.createElement("div");
+      // previewRef가 가리키는 .quote-page는 브랜드 색상(--quote-ink 등)을 정의하는
+      // .quote-app / .quote-app--jakeimage의 자손일 뿐이라, previewRef만 복제하면
+      // 그 조상 클래스가 통째로 빠져 CSS 변수가 비어버린다 — 캡처 컨테이너에도 동일한
+      // 브랜드 클래스를 붙여줘야 PDF가 화면 미리보기와 같은 색상으로 나온다.
+      captureRoot.className = `quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`;
       captureRoot.setAttribute("aria-hidden", "true");
       captureRoot.style.position = "fixed";
       captureRoot.style.left = "-10000px";
