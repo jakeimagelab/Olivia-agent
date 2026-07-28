@@ -287,6 +287,33 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
+// html2canvas가 CSS filter를 지원하지 못해, PDF 캡처 직전에 로고 이미지를
+// 직접 색상 반전(흰색화)한 data URL로 바꿔치기하기 위한 헬퍼.
+const invertImageColors = (src: string): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("canvas context 생성 실패")); return; }
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = 255 - data[i];
+        data[i + 1] = 255 - data[i + 1];
+        data[i + 2] = 255 - data[i + 2];
+      }
+      ctx.putImageData(imageData, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("로고 이미지 로드 실패"));
+    img.src = src;
+  });
+
 type Brand = "photoclinic" | "jakeimage";
 
 const BRAND_CONFIG: Record<Brand, {
