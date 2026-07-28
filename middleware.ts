@@ -59,6 +59,7 @@ const protectedApiPrefixes = [
   "/api/channel-analysis",
   "/api/daily-ideas",
   "/api/marketing",
+  "/api/hospital-brand-diagnosis",
   "/api/naver-place",
   "/api/medical-ad-check",
   "/api/reviews",
