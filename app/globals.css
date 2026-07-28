@@ -7108,6 +7108,23 @@ main:has(> .pc-header) {
 }
 .pc-btn--danger:hover { background: #fee2e2; }
 
+/* 계약서 화면 브랜드 토글 — 제이크이미지연구소 선택 시 공용 pc-* 크롬 컬러를 네이비로 재정의 */
+.contract-app--jakeimage {
+  --deep-green: #162238;
+  --orange: #2f4a73;
+}
+.contract-app--jakeimage .pc-header-back:hover {
+  color: #162238;
+  border-color: rgba(22, 34, 56, .28);
+  box-shadow: 0 4px 14px rgba(22, 34, 56, .1);
+}
+.contract-app--jakeimage .pc-header-divider {
+  background: rgba(22, 34, 56, .18);
+}
+.contract-app--jakeimage .pc-header-title {
+  color: rgba(22, 34, 56, .55);
+}
+
 .pc-btn--stats {
   background: linear-gradient(135deg, rgba(21,88,85,.1), rgba(232,93,44,.1));
   color: var(--deep-green);
