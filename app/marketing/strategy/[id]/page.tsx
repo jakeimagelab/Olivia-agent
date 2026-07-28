@@ -352,6 +352,46 @@ export default function StrategyDetailPage() {
           </div>
         </div>
 
+        <div style={{ background: "linear-gradient(135deg, #F5F0FF, #FFF)", borderRadius: R.lg, border: `1px solid #E4D9FF`, padding: 16, marginBottom: 20 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Sparkles size={16} color="#7C3AED" />
+              <span style={{ fontSize: FS.md, fontWeight: 900, color: "#4C1D95" }}>AI 액션 제안</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button onClick={() => router.push("/marketing/knowledge")} style={{
+                border: "none", background: "transparent", color: "#7C3AED", fontWeight: 700, fontSize: FS.xs, cursor: "pointer", textDecoration: "underline",
+              }}>지식 패치 관리</button>
+              <button onClick={requestSuggestions} disabled={suggesting} style={{
+                display: "inline-flex", alignItems: "center", gap: 6, height: 34, padding: "0 14px",
+                borderRadius: R.md, border: "none", background: "#7C3AED", color: "#fff", fontWeight: 800, fontSize: FS.sm, cursor: "pointer", opacity: suggesting ? 0.6 : 1,
+              }}><Sparkles size={13} /> {suggesting ? "제안 생성 중…" : "액션 제안 받기"}</button>
+            </div>
+          </div>
+
+          {suggestError && <p style={{ color: C.danger, fontSize: FS.sm, margin: "10px 0 0" }}>{suggestError}</p>}
+
+          {suggestions.length > 0 && (
+            <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+              {suggestions.map((s) => (
+                <div key={s.id} style={{ background: C.white, borderRadius: R.md, border: "1px solid #E4D9FF", padding: 14 }}>
+                  <strong style={{ fontSize: FS.md, color: C.ink }}>{s.suggested_title}</strong>
+                  {s.suggested_description && <p style={{ margin: "6px 0 0", fontSize: FS.sm, color: C.ink, lineHeight: 1.55 }}>{s.suggested_description}</p>}
+                  {s.rationale && <p style={{ margin: "6px 0 0", fontSize: FS.xs, color: C.muted, lineHeight: 1.5 }}>근거: {s.rationale}</p>}
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button onClick={() => resolveSuggestion(s, "accepted")} style={{
+                      height: 30, padding: "0 12px", borderRadius: R.sm, border: "none", background: C.teal, color: "#fff", fontWeight: 800, fontSize: FS.xs, cursor: "pointer",
+                    }}>액션으로 채택</button>
+                    <button onClick={() => resolveSuggestion(s, "dismissed")} style={{
+                      height: 30, padding: "0 12px", borderRadius: R.sm, border: `1px solid ${C.border}`, background: C.white, color: C.muted, fontWeight: 800, fontSize: FS.xs, cursor: "pointer",
+                    }}>기각</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: FS.lg, fontWeight: 900, color: C.ink }}>액션 타임라인</h2>
           <button onClick={() => setShowActionForm((v) => !v)} style={{
