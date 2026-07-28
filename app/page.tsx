@@ -516,6 +516,79 @@ function DailyIdeaBanner({idea}:{idea:DashboardData["todayIdea"]}) {
   );
 }
 
+/* ─── marketing plan summary (채널 무관 마케팅 전략/액션 요약) ────── */
+
+type MarketingSummary = {
+  activeStrategiesCount: number;
+  upcomingActions: { id:string; title:string; scheduledDate:string; strategyTitle:string }[];
+  overdueActions: { id:string; title:string; scheduledDate:string; strategyTitle:string; daysOverdue:number }[];
+};
+
+function marketingDDay(dateStr:string) {
+  const today = new Date(new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"}));
+  const target = new Date(dateStr);
+  const days = Math.round((target.getTime()-today.getTime())/(24*60*60*1000));
+  if (days === 0) return "D-day";
+  return days>0 ? `D-${days}` : `D+${Math.abs(days)}`;
+}
+
+function MarketingSummaryCard() {
+  const [summary, setSummary] = useState<MarketingSummary|null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/marketing/summary", { cache:"no-store" })
+      .then(r=>r.json())
+      .then(json=>{ if(json?.ok) setSummary(json); })
+      .catch(()=>{})
+      .finally(()=>setLoading(false));
+  }, []);
+
+  if (loading) return null;
+
+  // 지연된 액션이 있으면 예정 목록보다 먼저 보여 놓치지 않게 한다(Phase 1은 알람배너 연동 없이 이 카드 안에서만 강조).
+  const overdue = summary?.overdueActions ?? [];
+  const upcoming = summary?.upcomingActions ?? [];
+  const rows = [...overdue, ...upcoming].slice(0,3);
+
+  return (
+    <Link href="/marketing/strategy" style={{textDecoration:"none",display:"block"}}>
+      <div style={{background:"#fff",borderRadius:12,border:"1px solid rgba(21,88,85,.1)",overflow:"hidden",boxShadow:"0 1px 8px rgba(21,88,85,.05)"}}>
+        <div style={{padding:"10px 14px",borderBottom: rows.length ? "1px solid rgba(21,88,85,.07)" : "none",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{display:"flex",alignItems:"center",gap:5,fontSize:10,fontWeight:900,color:"#7C3AED",letterSpacing:".08em",textTransform:"uppercase"}}>
+            <Megaphone size={12}/> 마케팅 플랜
+          </span>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {!!summary && (
+              <span style={{fontSize:9,fontWeight:900,color:"#7C3AED",background:"#F5F0FF",borderRadius:99,padding:"2px 8px"}}>
+                진행중 {summary.activeStrategiesCount}
+              </span>
+            )}
+            <ArrowRight size={12} color="#9BB5B0"/>
+          </div>
+        </div>
+
+        {rows.length === 0 ? (
+          <div style={{padding:"14px",fontSize:11,color:"#9BB5B0",textAlign:"center"}}>등록된 마케팅 액션이 없어요.</div>
+        ) : rows.map((a)=>{
+          const isOverdue = "daysOverdue" in a;
+          return (
+            <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 14px",borderBottom:"1px solid rgba(21,88,85,.05)"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:800,color:"#1C2B28",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.title}</div>
+                <div style={{fontSize:9,color:"#9BB5B0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.strategyTitle}</div>
+              </div>
+              <div style={{fontSize:10,fontWeight:900,color:isOverdue?"#E85D2C":"#155855",flexShrink:0}}>
+                {isOverdue ? `${(a as any).daysOverdue}일 지연` : marketingDDay(a.scheduledDate)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Link>
+  );
+}
+
 /* ─── tool grid (right 70%) ──────────────────────────────── */
 /* TOOLS_WORK / TOOLS_CONTENT는 lib/toolNav.ts가 단일 소스 — 전역 사이드바(GlobalFeatureSidebar)와 공유 */
 
