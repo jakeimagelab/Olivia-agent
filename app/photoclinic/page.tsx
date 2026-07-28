@@ -639,6 +639,17 @@ export default function QuoteBuilder() {
         ? toCfg.quoteNumberPrefix + current.quoteNumber.slice(fromCfg.quoteNumberPrefix.length)
         : current.quoteNumber
     }));
+    if (nextBrand === "jakeimage") {
+      // 제이크이미지연구소 견적서에는 패키지/추가옵션 UI가 없으므로
+      // 숨겨진 값이 계산에 몰래 남지 않도록 초기화한다.
+      setSelectedPackageId(null);
+      setProfileCount(0);
+      setStagedCount(0);
+      setCombinedProfileStagedCount(0);
+      setFloorCount(0);
+      setLargeHospital(false);
+      setDroneCount(0);
+    }
     setBrand(nextBrand);
   };
 
@@ -648,8 +659,9 @@ export default function QuoteBuilder() {
       quoteNumber: createNextQuoteNumber()
     });
     setQuoteTitle(cfg.defaultQuoteTitle);
-    setSelectedPackageId(packages[0].id);
+    setSelectedPackageId(brand === "jakeimage" ? null : packages[0].id);
     setSelectedSingleItemIds([]);
+    setSingleItemAmounts({});
     setProfileCount(0);
     setStagedCount(0);
     setCombinedProfileStagedCount(0);
