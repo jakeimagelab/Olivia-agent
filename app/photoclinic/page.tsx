@@ -2093,7 +2093,7 @@ function Panel({
   return (
     <section className="rounded-lg border border-[#ded7cc] bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-base font-bold text-[#155855]">
+        <h2 className="flex items-center gap-2 text-base font-bold text-[var(--quote-ink)]">
           {icon}
           {title}
         </h2>
