@@ -234,7 +234,7 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
           <header><h2>최근 활동</h2><Clock3 size={17} /></header>
           {!dashboard || dashboard.recentActivity.length === 0 ? (
             <p className="pcrm-empty-copy">최근 활동이 없습니다.</p>
-          ) : dashboard.recentActivity.map((item) => {
+          ) : dashboard.recentActivity.slice(0, 4).map((item) => {
             const tag = activityTag(item.actionType);
             return (
               <div key={item.id} className="pcrm-activity-row">
