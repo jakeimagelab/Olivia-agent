@@ -1954,32 +1954,32 @@ export default function QuoteBuilder() {
                     className="grid gap-3 rounded-xl border border-[#d8d0c4] bg-[#fffdfa] p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                   >
                     <div className="min-w-0">
-                      <div className="mb-2 inline-flex rounded-full bg-[#eaf4f2] px-3 py-1 text-xs font-extrabold text-[#155855]">
+                      <div className="mb-2 inline-flex rounded-full bg-[var(--quote-tint)] px-3 py-1 text-xs font-extrabold text-[var(--quote-ink)]">
                         최근 견적
                       </div>
-                      <strong className="block truncate text-base font-extrabold text-[#155855]">
-                        {item.hospitalName || "병원명 없음"}
+                      <strong className="block truncate text-base font-extrabold text-[var(--quote-ink)]">
+                        {item.hospitalName || `${cfg.entityLabel} 없음`}
                       </strong>
                       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#6f6961]">
                         <span>{item.quoteNumber}</span>
                         <span className="text-[#c7bbad]">|</span>
                         <span>{displayDate(item.quoteDate)}</span>
                       </div>
-                      <b className="mt-2 block text-lg font-extrabold text-[#e85d2c]">
+                      <b className="mt-2 block text-lg font-extrabold text-[var(--quote-accent)]">
                         {won(item.totalAmount)}
                       </b>
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:w-[172px]">
                       <button
                         type="button"
-                        className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d8d0c4] bg-white px-3 text-sm font-extrabold text-[#155855] transition hover:-translate-y-0.5 hover:border-[#155855]"
+                        className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d8d0c4] bg-white px-3 text-sm font-extrabold text-[var(--quote-ink)] transition hover:-translate-y-0.5 hover:border-[var(--quote-ink)]"
                         onClick={() => loadRecentQuote(item)}
                       >
                         불러오기
                       </button>
                       <button
                         type="button"
-                        className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[#155855] bg-[#e85d2c] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5"
+                        className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5"
                         onClick={() => openContractWithQuote(item)}
                       >
                         <FileText size={15} />
