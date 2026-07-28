@@ -600,12 +600,22 @@ export default function QuoteBuilder() {
     setBenefitItems((items) => items.filter((item) => item.id !== id));
   };
 
+  const toggleBrand = () => {
+    const nextBrand: Brand = brand === "photoclinic" ? "jakeimage" : "photoclinic";
+    setQuoteTitle((currentTitle) =>
+      currentTitle === BRAND_CONFIG[brand].defaultQuoteTitle
+        ? BRAND_CONFIG[nextBrand].defaultQuoteTitle
+        : currentTitle
+    );
+    setBrand(nextBrand);
+  };
+
   const resetForm = () => {
     setCustomer({
       ...initialCustomer(),
       quoteNumber: createNextQuoteNumber()
     });
-    setQuoteTitle("포토클리닉 브랜드사진 견적서");
+    setQuoteTitle(cfg.defaultQuoteTitle);
     setSelectedPackageId(packages[0].id);
     setSelectedSingleItemIds([]);
     setProfileCount(0);
