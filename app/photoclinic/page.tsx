@@ -617,11 +617,18 @@ export default function QuoteBuilder() {
 
   const toggleBrand = () => {
     const nextBrand: Brand = brand === "photoclinic" ? "jakeimage" : "photoclinic";
+    const fromCfg = BRAND_CONFIG[brand];
+    const toCfg = BRAND_CONFIG[nextBrand];
     setQuoteTitle((currentTitle) =>
-      currentTitle === BRAND_CONFIG[brand].defaultQuoteTitle
-        ? BRAND_CONFIG[nextBrand].defaultQuoteTitle
-        : currentTitle
+      currentTitle === fromCfg.defaultQuoteTitle ? toCfg.defaultQuoteTitle : currentTitle
     );
+    setMemo((currentMemo) => (currentMemo === fromCfg.defaultMemo ? toCfg.defaultMemo : currentMemo));
+    setCustomer((current) => ({
+      ...current,
+      quoteNumber: current.quoteNumber.startsWith(fromCfg.quoteNumberPrefix)
+        ? toCfg.quoteNumberPrefix + current.quoteNumber.slice(fromCfg.quoteNumberPrefix.length)
+        : current.quoteNumber
+    }));
     setBrand(nextBrand);
   };
 
