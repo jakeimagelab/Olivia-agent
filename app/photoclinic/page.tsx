@@ -1254,14 +1254,20 @@ export default function QuoteBuilder() {
               style={{ transform: `scale(${showFullscreenPreview ? fullscreenPreviewScale : previewScale})` }}
             >
               <aside className="brand-rail">
-                <div className="rail-slogan" style={{fontFamily:"'Nanum Myeongjo', serif"}}>
-                  <p>브랜드를 담습니다.</p>
-                  <p>정직하고,</p>
-                  <p>자연스럽게.</p>
+                <div className="rail-slogan" style={brand === "photoclinic" ? {fontFamily:"'Nanum Myeongjo', serif"} : undefined}>
+                  {brand === "jakeimage" ? (
+                    <img src={cfg.logo} alt={cfg.label} />
+                  ) : (
+                    <>
+                      <p>브랜드를 담습니다.</p>
+                      <p>정직하고,</p>
+                      <p>자연스럽게.</p>
+                    </>
+                  )}
                 </div>
                 <div className="rail-address">
                   <span>TO.</span>
-                  <strong>{customer.hospitalName || "병원명"}</strong>
+                  <strong>{customer.hospitalName || cfg.entityLabel}</strong>
                   <small>{customer.managerName || "담당자"}</small>
                 </div>
                 <div className="rail-notice">
@@ -1270,9 +1276,9 @@ export default function QuoteBuilder() {
                   <span>세부 조건은 상호 협의 가능</span>
                 </div>
                 <div className="rail-notice">
-                  <strong>포토클리닉</strong>
-                  <span>제이크이미지연구소</span>
-                  <span>병원 전문 브랜드 촬영</span>
+                  <strong>{cfg.railNoticeTitle}</strong>
+                  <span>{cfg.railNoticeSub}</span>
+                  <span>{cfg.railNoticeDetail}</span>
                 </div>
               </aside>
 
