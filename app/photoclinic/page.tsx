@@ -2043,7 +2043,7 @@ export default function QuoteBuilder() {
         <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
-              <p className="text-sm font-bold text-[#155855]">실시간 견적서 미리보기</p>
+              <p className="text-sm font-bold text-[var(--quote-ink)]">실시간 견적서 미리보기</p>
               <p className="text-xs text-[#797168]">A4 가로형 1페이지 · 100%는 화면 맞춤</p>
             </div>
             <div className="preview-zoom-controls" aria-label="견적서 미리보기 확대 축소">
