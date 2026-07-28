@@ -459,20 +459,22 @@ export default function ContractPage() {
             </div>
           </div>
 
-          {/* 계약 병원 정보 */}
+          {/* 계약 고객 정보 */}
           <div className="pc-card pc-card--padded">
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 10 }}>🏥 계약 병원 정보</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 10 }}>
+              {brand === "jakeimage" ? `🏢 ${cfg.clientPartyTitle} 정보` : `🏥 ${cfg.clientPartyTitle} 정보`}
+            </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 3 }}>
-                  병원명
+                  {cfg.entityLabel}
                 </label>
                 <input value={quote.hospitalName} onChange={e => updateQuote("hospitalName", e.target.value)}
-                  placeholder="포토클리닉" style={iS}/>
+                  placeholder={cfg.label} style={iS}/>
               </div>
               <div>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 3 }}>
-                  대표원장
+                  {cfg.directorLabel}
                 </label>
                 <input value={quote.contactName} onChange={e => updateQuote("contactName", e.target.value)}
                   placeholder="정연호" style={iS}/>
