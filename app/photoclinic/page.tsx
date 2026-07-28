@@ -1278,7 +1278,15 @@ export default function QuoteBuilder() {
               <aside className="brand-rail">
                 <div className="rail-slogan" style={brand === "photoclinic" ? {fontFamily:"'Nanum Myeongjo', serif"} : undefined}>
                   {brand === "jakeimage" ? (
-                    <img src={cfg.logo} alt={cfg.label} />
+                    <>
+                      <img src={cfg.logo} alt={cfg.label} />
+                      {cfg.railCaptionTitle ? (
+                        <div className="rail-caption">
+                          <strong>{cfg.railCaptionTitle}</strong>
+                          <span>{cfg.railCaptionSub}</span>
+                        </div>
+                      ) : null}
+                    </>
                   ) : (
                     <>
                       <p>브랜드를 담습니다.</p>
