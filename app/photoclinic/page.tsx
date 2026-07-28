@@ -1393,8 +1393,8 @@ export default function QuoteBuilder() {
                         <tr key={item.id}>
                           <td>{(selectedPackage ? 2 : 1) + index}. {item.name}</td>
                           <td></td>
-                          <td>{amount(item.price)}</td>
-                          <td>{amount(item.price)}</td>
+                          <td>{amount(singleItemPrice(item))}</td>
+                          <td>{amount(singleItemPrice(item))}</td>
                           <td>단일 콘텐츠</td>
                         </tr>
                       ))}
