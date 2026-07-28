@@ -712,31 +712,31 @@ function buildContractHtml(q: QuoteData, signatureDataUrl = "", brand: ContractB
 <div class="top-accent"></div>
 <div class="header">
   <div>
-    <img class="brand-logo" src="/assets/photoclinic-logo.png" alt="PHOTOCLINIC">
-    <div class="brand-sub">제이크이미지연구소 · 병원 전문 브랜드 촬영</div>
+    <img class="brand-logo" src="${cfg.logo}" alt="${cfg.logoAlt}">
+    <div class="brand-sub">${cfg.brandSub}</div>
     <div class="brand-sub">사업자번호: 190-16-00212 · 제이크이미지연구소</div>
   </div>
   <div>
-    <div class="doc-title">포토클리닉 브랜드촬영 계약서</div>
+    <div class="doc-title">${cfg.docTitle}</div>
     <div class="doc-meta">
       <strong>계약일: ${today}</strong><br>
-      견적번호: ${q.quoteNumber || "PC-" + new Date().toISOString().slice(0,10).replace(/-/g,"")}
+      견적번호: ${q.quoteNumber || quoteNumberPrefix + new Date().toISOString().slice(0,10).replace(/-/g,"")}
     </div>
   </div>
 </div>
 
 <div class="parties">
   <div class="party party-client">
-    <h3>계약 병원</h3>
-    <div class="row"><span class="k">병원명</span><span class="v">${q.hospitalName || "-"}</span></div>
-    <div class="row"><span class="k">대표원장</span><span class="v">${q.contactName || "-"}</span></div>
+    <h3>${cfg.clientPartyTitle}</h3>
+    <div class="row"><span class="k">${cfg.entityLabel}</span><span class="v">${q.hospitalName || "-"}</span></div>
+    <div class="row"><span class="k">${cfg.directorLabel}</span><span class="v">${q.contactName || "-"}</span></div>
     <div class="row"><span class="k">사업자번호</span><span class="v">${q.businessNumber || "-"}</span></div>
     <div class="row"><span class="k">연락처</span><span class="v">${q.phone || "-"}</span></div>
     <div class="row"><span class="k">이메일</span><span class="v">${q.email || "-"}</span></div>
   </div>
   <div class="party">
-    <h3>포토클리닉(제이크이미지연구소)</h3>
-    <div class="row"><span class="k">상호</span><span class="v">포토클리닉(제이크이미지연구소)</span></div>
+    <h3>${cfg.companyDisplayName}</h3>
+    <div class="row"><span class="k">상호</span><span class="v">${cfg.companyDisplayName}</span></div>
     <div class="row"><span class="k">대표자</span><span class="v">정연호</span></div>
     <div class="row"><span class="k">사업자번호</span><span class="v">190-16-00212</span></div>
     <div class="row"><span class="k">연락처</span><span class="v">010-8556-2988</span></div>
