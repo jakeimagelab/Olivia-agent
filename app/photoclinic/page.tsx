@@ -336,7 +336,9 @@ export default function QuoteBuilder() {
   const previewShellRef = useRef<HTMLDivElement>(null);
   const quotePdfInputRef = useRef<HTMLInputElement>(null);
   const [customer, setCustomer] = useState<CustomerInfo>(() => initialCustomer());
-  const [quoteTitle, setQuoteTitle] = useState("포토클리닉 브랜드사진 견적서");
+  const [brand, setBrand] = useState<Brand>("photoclinic");
+  const cfg = BRAND_CONFIG[brand];
+  const [quoteTitle, setQuoteTitle] = useState(BRAND_CONFIG.photoclinic.defaultQuoteTitle);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(packages[0].id);
   const [selectedSingleItemIds, setSelectedSingleItemIds] = useState<string[]>([]);
   const [profileCount, setProfileCount] = useState(0);
