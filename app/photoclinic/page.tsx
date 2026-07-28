@@ -1227,7 +1227,7 @@ export default function QuoteBuilder() {
 
   const quotePreviewShellNode = (
           <div
-            className={showFullscreenPreview ? "preview-shell preview-shell--fullscreen" : "preview-shell"}
+            className={`quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""} ${showFullscreenPreview ? "preview-shell preview-shell--fullscreen" : "preview-shell"}`}
             ref={previewShellRef}
           >
             {showFullscreenPreview && (
