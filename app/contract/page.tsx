@@ -164,8 +164,8 @@ export default function ContractPage() {
         hospital_name: data.hospitalName,
         contact_name: data.contactName,
         to_email: data.email,
-        subject: `[포토클리닉] ${data.hospitalName} 촬영 계약서`,
-        body: `포토클리닉 촬영 계약서를 발송드립니다.\n내용 확인 후 서명하여 회신 부탁드립니다.\n\n계약 금액: ${(data.totalAmount || 0).toLocaleString("ko-KR")}원\n계약금 (50%): ${(data.depositAmount || 0).toLocaleString("ko-KR")}원\n잔금 (50%): ${(data.balanceAmount || 0).toLocaleString("ko-KR")}원`,
+        subject: `[${activeCfg.label}] ${data.hospitalName} 촬영 계약서`,
+        body: `${activeCfg.label} 촬영 계약서를 발송드립니다.\n내용 확인 후 서명하여 회신 부탁드립니다.\n\n계약 금액: ${(data.totalAmount || 0).toLocaleString("ko-KR")}원\n계약금 (50%): ${(data.depositAmount || 0).toLocaleString("ko-KR")}원\n잔금 (50%): ${(data.balanceAmount || 0).toLocaleString("ko-KR")}원`,
       }).then(() => {
         setMailingQueued(true);
         setMailingNotice("계약서가 올리비아 메일링함에 자동 저장되었습니다.");
