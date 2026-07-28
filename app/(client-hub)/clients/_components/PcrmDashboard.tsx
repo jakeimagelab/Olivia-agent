@@ -117,7 +117,7 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
   });
 
   return (
-    <div className="pcrm-dashboard">
+    <div className="pcrm-dashboard pcrm-home-dashboard">
       <div className="pcrm-dashboard-title">
         <div>
           <span>PCRM · PHOTOCLINIC CRM</span>
