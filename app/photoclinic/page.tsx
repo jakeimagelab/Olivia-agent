@@ -1474,11 +1474,11 @@ export default function QuoteBuilder() {
                   <div className="brand-mark-spacer" aria-hidden="true" />
                   <div className="brand-logo-stack">
                     <img
-                      src="/assets/photoclinic-logo.png?v=3"
-                      alt="PHOTO CLINIC"
+                      src={cfg.logo}
+                      alt={cfg.label}
                       className="brand-logo-image"
                     />
-                    <p>제이크이미지연구소 · 병원 전문 브랜드 촬영</p>
+                    <p>{cfg.brandMarkCaption}</p>
                   </div>
                   <div className="signature-area brand-signature">
                     <span>Director Signature</span>
