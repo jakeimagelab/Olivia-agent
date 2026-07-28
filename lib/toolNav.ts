@@ -47,6 +47,7 @@ export const TOOLS_CONTENT: ToolDef[] = [
   { title: "홈페이지 브랜드 분석", desc: "병원 홈페이지 URL만 입력하면 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 자동 분석합니다.", href: "/brand-analysis", icon: ScanSearch, meta: "Brand Analysis", orange: true, category: "tools" },
   { title: "AI 추천 병원 역분석", desc: "AI가 반복 추천하는 병원군의 증거와 패턴을 분석해 신뢰 격차와 촬영 기획으로 연결합니다.", href: "/ai-trust-gap", icon: ShieldCheck, meta: "AI Trust Gap", orange: true, category: "tools" },
   { title: "병원이미지 진단", desc: "병원 현황에 맞는 사진 콘텐츠 방향을 AI가 진단합니다.", href: "/diagnosis", icon: ImageDown, meta: "Clinic Diagnosis", orange: false, category: "tools" },
+  { title: "병원브랜드이미지 진단", desc: "홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다.", href: "/hospital-brand-image-diagnosis", icon: Fingerprint, meta: "Brand Image Diagnosis", orange: false, category: "tools" },
   { title: "병원 채널 분석", desc: "인스타그램·홈페이지·네이버 플레이스·블로그를 함께 분석합니다.", href: "/channel-analyzer", icon: Activity, meta: "Channel Analysis", orange: false, category: "tools" },
   { title: "병원 트렌드 분석", desc: "SNS·키워드 검색량·경쟁사 현황을 업종별로 수집해 AI 인사이트와 함께 보여줍니다.", href: "/trend-dashboard", icon: TrendingUp, meta: "Trend Dashboard", orange: true, category: "tools" },
   { title: "리얼 이미지 디렉터", desc: "올리비아가 촬영 디렉팅하고 OpenAI gpt-image-1로 실사 병원 이미지를 생성합니다.", href: "/image-generator", icon: Sparkles, meta: "Real Image Director", orange: true, category: "tools" },
