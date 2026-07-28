@@ -1219,17 +1219,22 @@ export default function QuoteBuilder() {
       const fileName = `${hospital}_${cfg.label}_견적서_${customer.quoteDate}.pdf`;
       const pdfBlob = pdf.output("blob");
       const pageParams = new URLSearchParams(window.location.search);
-      await uploadWorkflowArtifact({
-        file: pdfBlob,
-        fileName,
-        documentType: "quote",
-        sourceTable: "quotes",
-        sourceId: savedSnapshot.id,
-        title: snapshot.title || `${snapshot.hospitalName} 견적서`,
-        hospitalName: snapshot.hospitalName,
-        clientId: pageParams.get("client_id") || pageParams.get("clientId"),
-        workflowRunId: pageParams.get("workflowRunId"),
-      });
+      try {
+        // 고객 레코드가 아직 CRM에 없어 연결에 실패해도(신규 브랜드 등) 로컬 PDF 저장은 막지 않는다.
+        await uploadWorkflowArtifact({
+          file: pdfBlob,
+          fileName,
+          documentType: "quote",
+          sourceTable: "quotes",
+          sourceId: savedSnapshot.id,
+          title: snapshot.title || `${snapshot.hospitalName} 견적서`,
+          hospitalName: snapshot.hospitalName,
+          clientId: pageParams.get("client_id") || pageParams.get("clientId"),
+          workflowRunId: pageParams.get("workflowRunId"),
+        });
+      } catch (artifactError) {
+        console.error("workflow artifact upload failed (non-blocking)", artifactError);
+      }
       pdf.save(fileName);
 
       if (pdfWindow) {
