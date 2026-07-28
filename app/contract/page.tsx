@@ -295,7 +295,7 @@ export default function ContractPage() {
   };
 
   const contractFileName = () =>
-    `포토클리닉_계약서_${quote?.hospitalName || "고객"}_${quote?.quoteDate || ""}.pdf`;
+    `${cfg.label}_계약서_${quote?.hospitalName || "고객"}_${quote?.quoteDate || ""}.pdf`;
 
   const downloadPdf = async () => {
     if (!contractHtml || !quote) return;
