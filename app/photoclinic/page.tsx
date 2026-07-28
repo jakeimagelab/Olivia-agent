@@ -316,6 +316,7 @@ const BRAND_CONFIG: Record<Brand, {
     entityPlaceholder: "포토클리닉",
     emailPlaceholder: "photoclnic@gmail.com",
     largeScaleLabel: "병원급 규모 추가",
+    customItemsLabel: "기타 항목",
     brandMarkCaption: "제이크이미지연구소 · 병원 전문 브랜드 촬영",
     railCaptionTitle: null,
     railCaptionSub: null,
