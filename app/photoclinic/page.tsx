@@ -1193,8 +1193,8 @@ export default function QuoteBuilder() {
       const safeMargin = 4;
       pdf.addImage(image, "PNG", safeMargin, safeMargin, 297 - safeMargin * 2, 210 - safeMargin * 2);
 
-      const hospital = customer.hospitalName.trim() || "포토클리닉";
-      const fileName = `${hospital}_포토클리닉_견적서_${customer.quoteDate}.pdf`;
+      const hospital = customer.hospitalName.trim() || cfg.label;
+      const fileName = `${hospital}_${cfg.label}_견적서_${customer.quoteDate}.pdf`;
       const pdfBlob = pdf.output("blob");
       const pageParams = new URLSearchParams(window.location.search);
       await uploadWorkflowArtifact({
