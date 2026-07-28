@@ -88,6 +88,24 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// 섹션 12: AI가 분류한 이미지 카테고리를 사용자가 수정할 수 있어야 한다.
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const assetId = String(body.assetId || "");
+    const category = String(body.category || "");
+    if (!assetId || !category) return NextResponse.json({ ok: false, error: "assetId와 category가 필요합니다." }, { status: 400 });
+
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.from("hospital_brand_diagnosis_assets").update({ category }).eq("id", assetId);
+    if (error) throw error;
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "분류 수정 실패" }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
