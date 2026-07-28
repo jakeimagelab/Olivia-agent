@@ -1032,11 +1032,13 @@ export default function QuoteBuilder() {
       hospital_name: snapshot.hospitalName,
       contact_name: snapshot.contactName,
       to_email: snapshot.email,
-      subject: `[포토클리닉] ${snapshot.hospitalName} 촬영 견적서`,
-      body: `안녕하세요${snapshot.contactName ? `, ${snapshot.contactName} 담당자님` : ""}.\n\n포토클리닉입니다.\n이번 촬영 관련 견적서를 첨부 파일로 보내드립니다.\n아래 촬영 구성을 확인하시고, 궁금하신 점은 편하게 연락 주시기 바랍니다.\n\n[촬영 구성]\n${shootingLines || "• 별도 협의"}\n\n견적서는 ${snapshot.validUntil}까지 유효합니다.\n계약 확정 시 선금 입금을 완료하시면 촬영 일정이 확정됩니다.\n\n감사합니다.\n포토클리닉 드림`,
+      subject: `[${cfg.label}] ${snapshot.hospitalName} 촬영 견적서`,
+      body: `안녕하세요${snapshot.contactName ? `, ${snapshot.contactName} 담당자님` : ""}.\n\n${cfg.label}입니다.\n이번 촬영 관련 견적서를 첨부 파일로 보내드립니다.\n아래 촬영 구성을 확인하시고, 궁금하신 점은 편하게 연락 주시기 바랍니다.\n\n[촬영 구성]\n${shootingLines || "• 별도 협의"}\n\n견적서는 ${snapshot.validUntil}까지 유효합니다.\n계약 확정 시 선금 입금을 완료하시면 촬영 일정이 확정됩니다.\n\n감사합니다.\n${cfg.label} 드림`,
     });
 
     const pdfWindow = window.open("", "_blank");
+    const popupInk = brand === "jakeimage" ? "#162238" : "#155855";
+    const popupInkRgb = brand === "jakeimage" ? "22, 34, 56" : "21, 88, 85";
 
     const writeGeneratingWindow = () => {
       if (!pdfWindow) return;
@@ -1046,7 +1048,7 @@ export default function QuoteBuilder() {
         <!doctype html>
         <html lang="ko">
           <head>
-            <title>포토클리닉 견적서 생성 중</title>
+            <title>${cfg.label} 견적서 생성 중</title>
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <style>
               body {
@@ -1055,15 +1057,15 @@ export default function QuoteBuilder() {
                 display: grid;
                 place-items: center;
                 font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-                background: #f0f4f2;
-                color: #155855;
+                background: ${cfg.popupBg};
+                color: ${popupInk};
               }
               .box {
                 text-align: center;
                 padding: 32px;
                 border-radius: 18px;
                 background: #fff;
-                box-shadow: 0 18px 50px rgba(21, 88, 85, 0.12);
+                box-shadow: 0 18px 50px rgba(${popupInkRgb}, 0.12);
               }
               strong { display: block; margin-bottom: 8px; font-size: 18px; }
               span { color: #6f6961; font-size: 14px; }
