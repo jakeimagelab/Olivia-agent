@@ -204,31 +204,29 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
           </div>
         </section>
 
-        <aside className="pcrm-side-stack">
-          <section style={cardStyle} className="pcrm-side-card">
-            <header><h2>승인 대기 항목</h2><Hourglass size={17} /></header>
-            {!dashboard || dashboard.pendingApprovalsByType.length === 0 ? (
-              <p className="pcrm-empty-copy">현재 승인 대기 항목이 없습니다.</p>
-            ) : dashboard.pendingApprovalsByType.slice(0, 5).map((item) => (
-              <button key={item.type} type="button" onClick={() => setTab("waiting")}>
-                <span>{item.label}</span>
-                <b>{item.count}건</b>
-              </button>
-            ))}
-          </section>
+        <section style={cardStyle} className="pcrm-side-card">
+          <header><h2>승인 대기 항목</h2><Hourglass size={17} /></header>
+          {!dashboard || dashboard.pendingApprovalsByType.length === 0 ? (
+            <p className="pcrm-empty-copy">현재 승인 대기 항목이 없습니다.</p>
+          ) : dashboard.pendingApprovalsByType.slice(0, 4).map((item) => (
+            <button key={item.type} type="button" onClick={() => setTab("waiting")}>
+              <span>{item.label}</span>
+              <b>{item.count}건</b>
+            </button>
+          ))}
+        </section>
 
-          <section style={cardStyle} className="pcrm-side-card">
-            <header><h2>오늘의 일정</h2><CalendarDays size={17} /></header>
-            {!dashboard || dashboard.todaySchedule.length === 0 ? (
-              <p className="pcrm-empty-copy">오늘 등록된 일정이 없습니다.</p>
-            ) : dashboard.todaySchedule.slice(0, 5).map((item) => (
-              <button key={item.id} type="button" onClick={() => { window.location.href = "/calendar"; }}>
-                <span>{item.title}<small>{CALENDAR_CATEGORY_LABEL[item.category ?? "general"] ?? item.category}</small></span>
-                <b>{item.time ? item.time.slice(0, 5) : "종일"}</b>
-              </button>
-            ))}
-          </section>
-        </aside>
+        <section style={cardStyle} className="pcrm-side-card">
+          <header><h2>오늘의 일정</h2><CalendarDays size={17} /></header>
+          {!dashboard || dashboard.todaySchedule.length === 0 ? (
+            <p className="pcrm-empty-copy">오늘 등록된 일정이 없습니다.</p>
+          ) : dashboard.todaySchedule.slice(0, 4).map((item) => (
+            <button key={item.id} type="button" onClick={() => { window.location.href = "/calendar"; }}>
+              <span>{item.title}<small>{CALENDAR_CATEGORY_LABEL[item.category ?? "general"] ?? item.category}</small></span>
+              <b>{item.time ? item.time.slice(0, 5) : "종일"}</b>
+            </button>
+          ))}
+        </section>
       </div>
 
       <div className="pcrm-bottom-grid">
