@@ -619,7 +619,7 @@ function buildContractHtml(q: QuoteData, signatureDataUrl = "", brand: ContractB
 <head>
 <meta charset="UTF-8">
 <base href="${baseHref}/">
-<title>포토클리닉 브랜드촬영 계약서 · ${q.hospitalName}</title>
+<title>${cfg.docTitle} · ${q.hospitalName}</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -628,59 +628,59 @@ function buildContractHtml(q: QuoteData, signatureDataUrl = "", brand: ContractB
   .contract-page{width:794px;height:1123px;margin:0 auto 18px;padding:42px 56px;
                  background:#fff;overflow:hidden;position:relative;page-break-after:always;}
   .contract-page:last-child{margin-bottom:0;page-break-after:auto;}
-  .top-accent{height:6px;background:linear-gradient(90deg,#E85D2C 0 42%,#EB8F22 42% 58%,#155855 58% 100%);
+  .top-accent{height:6px;background:linear-gradient(90deg,${accent} 0 42%,${accent} 42% 58%,${ink} 58% 100%);
               border-radius:99px;margin-bottom:18px;}
   .header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:start;
-          margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #155855;}
+          margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid ${ink};}
   .brand-logo{width:126px;height:auto;display:block;margin-bottom:8px;}
   .brand-sub{font-size:8.8px;color:#6B8B87;margin-top:2px;line-height:1.45;white-space:nowrap;}
   .doc-title{font-size:20px;font-weight:700;color:#1C2B28;letter-spacing:.3px;text-align:right;white-space:nowrap;}
   .doc-meta{font-size:10px;color:#6B8B87;text-align:right;margin-top:6px;line-height:1.55;}
-  .doc-meta strong{color:#E85D2C;}
+  .doc-meta strong{color:${accent};}
   .parties{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:18px;}
-  .party{border-top:3px solid #155855;padding:9px 0 0;background:#fff;}
-  .party.party-client{border-top-color:#E85D2C;}
-  .party h3{font-size:10px;font-weight:700;color:#155855;letter-spacing:.02em;margin-bottom:7px;}
-  .party.party-client h3{color:#E85D2C;}
+  .party{border-top:3px solid ${ink};padding:9px 0 0;background:#fff;}
+  .party.party-client{border-top-color:${accent};}
+  .party h3{font-size:10px;font-weight:700;color:${ink};letter-spacing:.02em;margin-bottom:7px;}
+  .party.party-client h3{color:${accent};}
   .party .row{display:grid;grid-template-columns:62px minmax(0,1fr);gap:9px;padding:3px 0;font-size:10.4px;border-bottom:1px solid #EEF4F3;}
   .party .k{color:#6B8B87;}
   .party .v{font-weight:600;color:#1C2B28;word-break:keep-all;overflow-wrap:break-word;line-height:1.45;}
   .section{margin-bottom:13px;break-inside:avoid;}
-  .section h3{font-size:10.6px;font-weight:700;color:#155855;margin-bottom:5px;
+  .section h3{font-size:10.6px;font-weight:700;color:${ink};margin-bottom:5px;
               padding-bottom:4px;border-bottom:1px solid #C8DDD9;
               display:flex;align-items:center;gap:7px;}
-  .art{display:inline-block;background:#155855;color:#fff;font-size:9px;font-weight:700;
+  .art{display:inline-block;background:${ink};color:#fff;font-size:9px;font-weight:700;
        padding:2px 7px;border-radius:10px;flex-shrink:0;}
-  .section:nth-of-type(2n) .art{background:#E85D2C;}
-  .clause{border-left:3px solid #155855;padding:2px 0 2px 11px;
+  .section:nth-of-type(2n) .art{background:${accent};}
+  .clause{border-left:3px solid ${ink};padding:2px 0 2px 11px;
           font-size:10px;line-height:1.6;color:#2C3E3D;white-space:pre-line;
           word-break:keep-all;overflow-wrap:break-word;}
   .quote-list{display:grid;gap:3px;margin-bottom:8px;}
   .quote-item{display:grid;grid-template-columns:36px minmax(0,1fr) 132px;gap:12px;align-items:start;
               padding:6px 0;border-bottom:1px solid #E4F0EE;}
-  .item-index{font-size:10px;font-weight:700;color:#E85D2C;}
+  .item-index{font-size:10px;font-weight:700;color:${accent};}
   .item-main strong{display:block;font-size:10.6px;color:#1C2B28;margin-bottom:1px;word-break:keep-all;overflow-wrap:break-word;}
   .item-main span{display:block;font-size:9.2px;color:#6B8B87;line-height:1.35;word-break:keep-all;overflow-wrap:break-word;}
   .item-main em{display:inline-block;margin-top:4px;font-style:normal;font-size:9px;color:#fff;
-                background:#155855;border-radius:99px;padding:1px 7px;}
+                background:${ink};border-radius:99px;padding:1px 7px;}
   .item-amount{text-align:right;}
   .item-amount small{display:block;font-size:9px;color:#9BB5B0;margin-bottom:2px;}
-  .item-amount b{font-size:10.8px;color:#155855;}
+  .item-amount b{font-size:10.8px;color:${ink};}
   .amount-panel{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:18px;align-items:end;
-                border-top:2px solid #155855;padding-top:8px;}
+                border-top:2px solid ${ink};padding-top:8px;}
   .amount-note{font-size:9px;color:#6B8B87;line-height:1.45;word-break:keep-all;}
   .amt-row{display:flex;justify-content:space-between;padding:2px 0;font-size:9.8px;
            border-bottom:.5px solid #EEF4F3;}
   .amt-row .l{color:#6B8B87;}
   .amt-total{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;
-             font-weight:700;color:#155855;border-top:2px solid #E85D2C;margin-top:2px;}
+             font-weight:700;color:${ink};border-top:2px solid ${accent};margin-top:2px;}
   .pay-boxes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px;}
   .pay-box{border:1px solid #C8DDD9;border-radius:7px;padding:8px;text-align:center;background:#FAFCFC;}
   .pay-box .pt{font-size:10px;color:#9BB5B0;margin-bottom:3px;}
-  .pay-box .pa{font-size:14px;font-weight:700;color:#155855;}
-  .pay-box:first-child .pa{color:#E85D2C;}
+  .pay-box .pa{font-size:14px;font-weight:700;color:${ink};}
+  .pay-box:first-child .pa{color:${accent};}
   .pay-box .ps{font-size:10px;color:#9BB5B0;margin-top:2px;}
-  .effect-box{background:#FFF6F1;border:1px solid #F3C6B1;border-radius:7px;
+  .effect-box{background:${tint};border:1px solid ${tintBorder};border-radius:7px;
               padding:8px 10px;margin:14px 0 12px;font-size:9.1px;
               color:#2C3E3D;line-height:1.55;text-align:center;}
   .sign-area{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;align-items:stretch;}
