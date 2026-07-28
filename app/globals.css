@@ -2813,9 +2813,9 @@ main:has(> .pc-header) {
   color: var(--quote-ink);
 }
 
-.quote-app--jakeimage .field input:focus,
-.quote-app--jakeimage .field textarea:focus,
-.quote-app--jakeimage .field select:focus {
+.quote-app--jakeimage input:focus,
+.quote-app--jakeimage textarea:focus,
+.quote-app--jakeimage select:focus {
   border-color: var(--quote-ink);
 }
 
