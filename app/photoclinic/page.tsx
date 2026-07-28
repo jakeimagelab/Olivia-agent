@@ -780,10 +780,12 @@ export default function QuoteBuilder() {
 
   const loadRecentQuote = (data: ContractQuoteData) => {
     if (data.formState) {
+      setBrand(data.formState.brand ?? "photoclinic");
       setCustomer(data.formState.customer);
       setQuoteTitle(data.formState.quoteTitle);
       setSelectedPackageId(data.formState.selectedPackageId);
       setSelectedSingleItemIds(data.formState.selectedSingleItemIds);
+      setSingleItemAmounts(data.formState.singleItemAmounts ?? {});
       setProfileCount(data.formState.profileCount);
       setStagedCount(data.formState.stagedCount);
       setCombinedProfileStagedCount(data.formState.combinedProfileStagedCount ?? 0);
