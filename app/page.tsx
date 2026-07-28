@@ -958,6 +958,9 @@ function DashboardPanel({data,loading,onRefresh}:{data:DashboardData|null; loadi
       {/* daily idea */}
       {data?.todayIdea&&<DailyIdeaBanner idea={data.todayIdea}/>}
 
+      {/* marketing plan summary */}
+      <MarketingSummaryCard/>
+
       {/* recent activity */}
       {data&&<RecentActivity data={data}/>}
 
