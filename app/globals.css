@@ -2988,6 +2988,28 @@ main:has(> .pc-header) {
   color: var(--quote-ink);
 }
 
+.jake-single-item-row {
+  display: grid;
+  gap: 8px;
+}
+
+.jake-single-item-amount {
+  width: 100%;
+  border: 1px solid #ded7cc;
+  border-radius: 8px;
+  background: #fffdfa;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: #222222;
+}
+
+.jake-single-item-amount:focus {
+  outline: none;
+  border-color: var(--quote-ink);
+  box-shadow: 0 0 0 3px rgba(22, 34, 56, 0.12);
+}
+
 /* 고객 상세의 핵심 상태를 하나의 명확한 명령 영역으로 묶는다. */
 .pc-client-overview-shell {
   max-width: 1280px;
