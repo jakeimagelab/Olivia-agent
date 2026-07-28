@@ -556,7 +556,7 @@ export default function QuoteBuilder() {
   }, [cfg.largeScaleLabel, combinedProfileStagedCount, droneCount, floorCount, largeHospital, profileCount, stagedCount]);
 
   const packageTotal = selectedPackage?.price ?? 0;
-  const singleItemsTotal = selectedSingleItems.reduce((sum, item) => sum + item.price, 0);
+  const singleItemsTotal = selectedSingleItems.reduce((sum, item) => sum + singleItemPrice(item), 0);
   const optionsTotal = optionItems.reduce((sum, item) => sum + item.amount, 0);
   const customTotal = customItems.reduce((sum, item) => sum + item.amount, 0);
   // 외주 헤어메이크업·모델료처럼 할인이 적용되면 안 되는 기타 항목은 discountable=false로
