@@ -285,6 +285,52 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
+type Brand = "photoclinic" | "jakeimage";
+
+const BRAND_CONFIG: Record<Brand, {
+  label: string;
+  logo: string;
+  defaultQuoteTitle: string;
+  entityLabel: string;
+  entityPlaceholder: string;
+  emailPlaceholder: string;
+  largeScaleLabel: string;
+  brandMarkCaption: string;
+  railNoticeTitle: string;
+  railNoticeSub: string;
+  railNoticeDetail: string;
+  popupBg: string;
+}> = {
+  photoclinic: {
+    label: "포토클리닉",
+    logo: "/assets/photoclinic-logo.png?v=3",
+    defaultQuoteTitle: "포토클리닉 브랜드사진 견적서",
+    entityLabel: "병원명",
+    entityPlaceholder: "포토클리닉",
+    emailPlaceholder: "photoclnic@gmail.com",
+    largeScaleLabel: "병원급 규모 추가",
+    brandMarkCaption: "제이크이미지연구소 · 병원 전문 브랜드 촬영",
+    railNoticeTitle: "포토클리닉",
+    railNoticeSub: "제이크이미지연구소",
+    railNoticeDetail: "병원 전문 브랜드 촬영",
+    popupBg: "#f0f4f2"
+  },
+  jakeimage: {
+    label: "제이크이미지연구소",
+    logo: "/assets/jakeimage-logo.png",
+    defaultQuoteTitle: "제이크이미지연구소 브랜드사진 견적서",
+    entityLabel: "회사명",
+    entityPlaceholder: "제이크이미지연구소",
+    emailPlaceholder: "contact@jakeimage.com",
+    largeScaleLabel: "대형 규모 촬영 추가",
+    brandMarkCaption: "Jake Image Institute · 기업·브랜드 이미지 디렉션",
+    railNoticeTitle: "제이크이미지연구소",
+    railNoticeSub: "Jake Image Institute",
+    railNoticeDetail: "기업·브랜드 이미지 디렉션",
+    popupBg: "#eef1f5"
+  }
+};
+
 export default function QuoteBuilder() {
   const previewRef = useRef<HTMLDivElement>(null);
   const previewShellRef = useRef<HTMLDivElement>(null);
