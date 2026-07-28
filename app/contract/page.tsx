@@ -25,10 +25,76 @@ interface QuoteData {
   memos: string | null;
 }
 
-const C = {
-  teal: "#155855", orange: "#E85D2C",
-  bg: "#EDF5F3", surface: "#FFFFFF", border: "#C8DDD9",
-  muted: "#5A7470", hint: "#9BB5B0", txt: "#1C2B28", mint: "#EAF4F2",
+type ContractBrand = "photoclinic" | "jakeimage";
+
+const THEME: Record<ContractBrand, {
+  teal: string; orange: string;
+  bg: string; surface: string; border: string;
+  muted: string; hint: string; txt: string; mint: string;
+}> = {
+  photoclinic: {
+    teal: "#155855", orange: "#E85D2C",
+    bg: "#EDF5F3", surface: "#FFFFFF", border: "#C8DDD9",
+    muted: "#5A7470", hint: "#9BB5B0", txt: "#1C2B28", mint: "#EAF4F2",
+  },
+  jakeimage: {
+    teal: "#162238", orange: "#2f4a73",
+    bg: "#EEF1F5", surface: "#FFFFFF", border: "#CDDAEA",
+    muted: "#5A6A80", hint: "#9BA9BB", txt: "#1C2632", mint: "#EEF2F7",
+  },
+};
+
+const CONTRACT_BRAND_CONFIG: Record<ContractBrand, {
+  label: string;
+  logo: string;
+  logoAlt: string;
+  brandSub: string;
+  docTitle: string;
+  headerTitle: string;
+  entityLabel: string;
+  clientPartyTitle: string;
+  directorLabel: string;
+  companyDisplayName: string;
+  footerTagline: string;
+  emailPlaceholder: string;
+  scopeClause: string;
+  copyrightClause: string;
+  confidentialClause: string;
+}> = {
+  photoclinic: {
+    label: "포토클리닉",
+    logo: "/assets/photoclinic-logo.png",
+    logoAlt: "PHOTOCLINIC",
+    brandSub: "제이크이미지연구소 · 병원 전문 브랜드 촬영",
+    docTitle: "포토클리닉 브랜드촬영 계약서",
+    headerTitle: "브랜드촬영 계약서",
+    entityLabel: "병원명",
+    clientPartyTitle: "계약 병원",
+    directorLabel: "대표원장",
+    companyDisplayName: "포토클리닉(제이크이미지연구소)",
+    footerTagline: "PHOTOCLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영 · @photoclinic_kr",
+    emailPlaceholder: "photoclnic@gmail.com",
+    scopeClause: "포토클리닉은 병원 이미지브랜드 구축을 위한,\n전문 촬영 서비스(사진/영상)을 제공합니다.\n촬영 범위는 본 계약서 제2조의 항목에 한합니다.\n납품 결과물은 색보정 완료 JPG와 원본 파일을 제공합니다.\n영상 작업이 포함된 경우 편집 완료 영상(4K, FHD)을 파일로 제공합니다.\n촬영 항목 외 추가 촬영 시 별도 견적을 협의합니다.",
+    copyrightClause: "촬영 결과물의 저작권은 계약 병원에 귀속됩니다.\n포토클리닉은 결과물을 포트폴리오, 홍보 및 마케팅 목적으로 사용할 수 있습니다.\n단, 민감한 의료정보나 얼굴 노출이 있는 부분은 병원의 동의 없이는 사용하지 않습니다.",
+    confidentialClause: "포토클리닉은 촬영 과정에서 취득한 계약 병원의 내부 정보를\n외부에 공개하지 않습니다.\n내부 정보에는 환자 정보, 경영 정보 등이 포함됩니다.\n결과물은 계약 병원의 승인 전 SNS 등 외부 채널에 공개하지 않습니다.\n계약 병원의 승인 후 포토클리닉의 포트폴리오 채널에 게시될 수 있습니다.\n포트폴리오 채널에는 홈페이지, 인스타그램, 블로그 등이 포함됩니다.",
+  },
+  jakeimage: {
+    label: "제이크이미지연구소",
+    logo: "/assets/jakeimage-logo.png",
+    logoAlt: "Jake Image Institute",
+    brandSub: "Jake Image Institute · Brand Image Direction",
+    docTitle: "제이크이미지연구소 브랜드사진 계약서",
+    headerTitle: "브랜드사진 계약서",
+    entityLabel: "회사명",
+    clientPartyTitle: "계약 고객사",
+    directorLabel: "대표자",
+    companyDisplayName: "제이크이미지연구소",
+    footerTagline: "JAKE IMAGE INSTITUTE · Brand Image Direction",
+    emailPlaceholder: "contact@jakeimage.com",
+    scopeClause: "제이크이미지연구소는 기업·개인 브랜드 이미지 구축을 위한,\n전문 촬영 서비스(사진/영상)을 제공합니다.\n촬영 범위는 본 계약서 제2조의 항목에 한합니다.\n납품 결과물은 색보정 완료 JPG와 원본 파일을 제공합니다.\n영상 작업이 포함된 경우 편집 완료 영상(4K, FHD)을 파일로 제공합니다.\n촬영 항목 외 추가 촬영 시 별도 견적을 협의합니다.",
+    copyrightClause: "촬영 결과물의 저작권은 계약 고객사에 귀속됩니다.\n제이크이미지연구소는 결과물을 포트폴리오, 홍보 및 마케팅 목적으로 사용할 수 있습니다.\n단, 민감한 정보나 얼굴 노출이 있는 부분은 고객사의 동의 없이는 사용하지 않습니다.",
+    confidentialClause: "제이크이미지연구소는 촬영 과정에서 취득한 계약 고객사의 내부 정보를\n외부에 공개하지 않습니다.\n내부 정보에는 고객 정보, 경영 정보 등이 포함됩니다.\n결과물은 계약 고객사의 승인 전 SNS 등 외부 채널에 공개하지 않습니다.\n계약 고객사의 승인 후 제이크이미지연구소의 포트폴리오 채널에 게시될 수 있습니다.\n포트폴리오 채널에는 홈페이지, 인스타그램, 블로그 등이 포함됩니다.",
+  },
 };
 
 const fmt = (n: number) => (n || 0).toLocaleString("ko-KR");
