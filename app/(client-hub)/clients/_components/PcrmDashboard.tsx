@@ -250,7 +250,7 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
           <header><h2>최근 문의/메시지</h2><MessageCircle size={17} /></header>
           {!dashboard || dashboard.recentInquiries.length === 0 ? (
             <p className="pcrm-empty-copy">최근 문의가 없습니다.</p>
-          ) : dashboard.recentInquiries.map((item) => (
+          ) : dashboard.recentInquiries.slice(0, 3).map((item) => (
             <button key={item.id} type="button" onClick={() => onOpen(item.clientId)}>
               <span className="pcrm-inquiry-avatar">{item.clientName.slice(0, 1) || "?"}</span>
               <span className="pcrm-inquiry-body"><strong>{item.clientName}</strong><em>{item.preview}</em></span>
