@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, ExternalLink, Plus, X } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, Plus, Sparkles, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { C, R, FS, SP } from "@/lib/theme";
 import { CHANNEL_PRESETS, channelLabel, metricLabel, metricPresetsForChannel } from "@/lib/marketingChannels";
