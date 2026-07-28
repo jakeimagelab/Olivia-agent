@@ -772,7 +772,7 @@ export default function QuoteBuilder() {
         shootDate: data.shootDate || "",
         quoteNumber: data.quoteNumber || createQuoteNumber()
       });
-      setQuoteTitle(data.title || "포토클리닉 브랜드사진 견적서");
+      setQuoteTitle(data.title || cfg.defaultQuoteTitle);
       setSelectedPackageId(null);
       setSelectedSingleItemIds([]);
       setProfileCount(0);
