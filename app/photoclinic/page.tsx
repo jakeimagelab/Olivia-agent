@@ -1734,73 +1734,77 @@ export default function QuoteBuilder() {
 
           <Panel title="추가 옵션">
             <div className="grid gap-3">
-              <QuantityField
-                label="프로필 인원 추가"
-                unit="인"
-                price="1인당 250,000원"
-                value={profileCount}
-                onChange={setProfileCount}
-              />
-              <QuantityField
-                label="연출 인원 추가"
-                unit="인"
-                price="1인당 450,000원"
-                value={stagedCount}
-                onChange={setStagedCount}
-              />
-              <QuantityField
-                label="프로필/연출 추가"
-                unit="인"
-                price="1인당 650,000원"
-                value={combinedProfileStagedCount}
-                onChange={setCombinedProfileStagedCount}
-              />
-              <QuantityField
-                label="인테리어 층수 추가"
-                unit="층"
-                price="1층당 250,000원"
-                value={floorCount}
-                onChange={setFloorCount}
-              />
-              <label className="flex items-center justify-between rounded-lg border border-[#ddd5c9] bg-[#faf7f2] px-4 py-3">
-                <span>
-                  <span className="block text-sm font-bold text-[var(--quote-ink)]">
-                    {cfg.largeScaleLabel}
-                  </span>
-                  <span className="text-xs text-[#6f6961]">750,000원</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={largeHospital}
-                  onChange={(event) => setLargeHospital(event.target.checked)}
-                  className="h-5 w-5 accent-[var(--quote-ink)]"
-                />
-              </label>
-              <QuantityField
-                label="드론촬영"
-                unit="회"
-                price="1회당 500,000원"
-                value={droneCount}
-                onChange={setDroneCount}
-              />
+              {brand === "photoclinic" && (
+                <>
+                  <QuantityField
+                    label="프로필 인원 추가"
+                    unit="인"
+                    price="1인당 250,000원"
+                    value={profileCount}
+                    onChange={setProfileCount}
+                  />
+                  <QuantityField
+                    label="연출 인원 추가"
+                    unit="인"
+                    price="1인당 450,000원"
+                    value={stagedCount}
+                    onChange={setStagedCount}
+                  />
+                  <QuantityField
+                    label="프로필/연출 추가"
+                    unit="인"
+                    price="1인당 650,000원"
+                    value={combinedProfileStagedCount}
+                    onChange={setCombinedProfileStagedCount}
+                  />
+                  <QuantityField
+                    label="인테리어 층수 추가"
+                    unit="층"
+                    price="1층당 250,000원"
+                    value={floorCount}
+                    onChange={setFloorCount}
+                  />
+                  <label className="flex items-center justify-between rounded-lg border border-[#ddd5c9] bg-[#faf7f2] px-4 py-3">
+                    <span>
+                      <span className="block text-sm font-bold text-[var(--quote-ink)]">
+                        {cfg.largeScaleLabel}
+                      </span>
+                      <span className="text-xs text-[#6f6961]">750,000원</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={largeHospital}
+                      onChange={(event) => setLargeHospital(event.target.checked)}
+                      className="h-5 w-5 accent-[var(--quote-ink)]"
+                    />
+                  </label>
+                  <QuantityField
+                    label="드론촬영"
+                    unit="회"
+                    price="1회당 500,000원"
+                    value={droneCount}
+                    onChange={setDroneCount}
+                  />
+                </>
+              )}
               <div className="custom-items-box">
                 <div className="custom-items-head">
                   <div>
-                    <strong>기타 항목</strong>
+                    <strong>{cfg.customItemsLabel}</strong>
                     <span>항목명과 금액을 직접 입력합니다.</span>
                   </div>
                   <button
                     type="button"
                     className="icon-button"
                     onClick={addCustomItem}
-                    aria-label="기타 항목 추가"
-                    title="기타 항목 추가"
+                    aria-label={`${cfg.customItemsLabel} 추가`}
+                    title={`${cfg.customItemsLabel} 추가`}
                   >
                     <Plus size={16} />
                   </button>
                 </div>
                 {customItems.length === 0 ? (
-                  <p className="empty-text">추가된 기타 항목이 없습니다.</p>
+                  <p className="empty-text">추가된 {cfg.customItemsLabel}이 없습니다.</p>
                 ) : (
                   <div className="grid gap-3">
                     {customItems.map((item) => (
