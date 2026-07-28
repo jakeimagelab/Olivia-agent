@@ -516,7 +516,7 @@ export default function QuoteBuilder() {
         visible: floorCount > 0
       },
       {
-        name: "병원급 규모 추가",
+        name: cfg.largeScaleLabel,
         detail: "적용",
         amount: 750000,
         visible: largeHospital
@@ -530,7 +530,7 @@ export default function QuoteBuilder() {
     ];
 
     return items.filter((item) => item.visible);
-  }, [combinedProfileStagedCount, droneCount, floorCount, largeHospital, profileCount, stagedCount]);
+  }, [cfg.largeScaleLabel, combinedProfileStagedCount, droneCount, floorCount, largeHospital, profileCount, stagedCount]);
 
   const packageTotal = selectedPackage?.price ?? 0;
   const singleItemsTotal = selectedSingleItems.reduce((sum, item) => sum + item.price, 0);
