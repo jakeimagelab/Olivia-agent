@@ -353,6 +353,7 @@ export default function QuoteBuilder() {
   const [quoteTitle, setQuoteTitle] = useState(BRAND_CONFIG.photoclinic.defaultQuoteTitle);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(packages[0].id);
   const [selectedSingleItemIds, setSelectedSingleItemIds] = useState<string[]>([]);
+  const [singleItemAmounts, setSingleItemAmounts] = useState<Record<string, number>>({});
   const [profileCount, setProfileCount] = useState(0);
   const [stagedCount, setStagedCount] = useState(0);
   const [combinedProfileStagedCount, setCombinedProfileStagedCount] = useState(0);
