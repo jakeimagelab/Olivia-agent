@@ -2921,12 +2921,12 @@ main:has(> .pc-header) {
 /* 관리자 대시보드 홈 — 노트북 화면(1440x900 안팎)에 스크롤 없이 들어가도록 전체를
    한 단계 더 촘촘하게 축소한다. 다른 PCRM 페이지가 공유하는 .pcrm-project-row 등의
    기본 스타일은 그대로 두고, 이 페이지 안에서만 덮어쓴다. */
-.pcrm-home-dashboard { padding-bottom: 20px; }
-.pcrm-home-dashboard .pcrm-dashboard-title { margin-bottom: 10px; }
-.pcrm-home-dashboard .pcrm-summary-grid { margin-bottom: 10px; }
-.pcrm-home-dashboard .pcrm-summary-grid article { min-height: 74px; padding: 11px 14px; gap: 10px; }
-.pcrm-home-dashboard .pcrm-summary-grid article strong { font-size: 20px; }
-.pcrm-home-dashboard .pcrm-dashboard-grid { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-bottom: 10px; }
+.pcrm-home-dashboard { padding: 14px 0 12px; }
+.pcrm-home-dashboard .pcrm-dashboard-title { margin-bottom: 8px; }
+.pcrm-home-dashboard .pcrm-summary-grid { margin-bottom: 8px; }
+.pcrm-home-dashboard .pcrm-summary-grid article { min-height: 66px; padding: 9px 13px; gap: 9px; }
+.pcrm-home-dashboard .pcrm-summary-grid article strong { font-size: 19px; }
+.pcrm-home-dashboard .pcrm-dashboard-grid { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-bottom: 8px; }
 .pcrm-home-dashboard .pcrm-bottom-grid { gap: 10px; }
 
 .pcrm-home-dashboard .pcrm-project-panel header,
