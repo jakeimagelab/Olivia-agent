@@ -112,11 +112,18 @@ export default function ContractPage() {
   const [mailingNotice, setMailingNotice] = useState("");
   const [contractId, setContractId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [brand, setBrand] = useState<ContractBrand>("photoclinic");
+  const C = THEME[brand];
+  const cfg = CONTRACT_BRAND_CONFIG[brand];
 
   useEffect(() => {
     const params   = new URLSearchParams(window.location.search);
     const clientId = params.get("client_id") || params.get("clientId");
     const raw      = params.get("data");
+    const brandParam = params.get("brand");
+    const activeBrand: ContractBrand = brandParam === "jakeimage" ? "jakeimage" : "photoclinic";
+    setBrand(activeBrand);
+    const activeCfg = CONTRACT_BRAND_CONFIG[activeBrand];
 
     // client_id로 고객 정보를 불러와 최소 견적 데이터 생성
     if (clientId && !raw) {
