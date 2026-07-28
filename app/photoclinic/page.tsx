@@ -505,6 +505,13 @@ export default function QuoteBuilder() {
     [selectedSingleItemIds]
   );
 
+  const singleItemPrice = (item: SingleItem) =>
+    brand === "jakeimage" ? (singleItemAmounts[item.id] || 0) : item.price;
+
+  const updateSingleItemAmount = (id: string, value: string) => {
+    setSingleItemAmounts((current) => ({ ...current, [id]: numberValue(value) }));
+  };
+
   const optionItems = useMemo(() => {
     const items = [
       {
