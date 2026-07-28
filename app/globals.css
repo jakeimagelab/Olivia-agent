@@ -2942,9 +2942,10 @@ main:has(> .pc-header) {
 .pcrm-home-dashboard .pcrm-project-panel header span { display: none; }
 .pcrm-home-dashboard .pcrm-project-tabs { padding: 7px 14px; gap: 5px; }
 .pcrm-home-dashboard .pcrm-project-tabs button { padding: 5px 10px; font-size: 9.5px; }
-.pcrm-home-dashboard .pcrm-project-row { min-height: 40px; padding: 5px 14px; font-size: 10.5px; gap: 8px; }
+.pcrm-home-dashboard .pcrm-project-row { min-height: 36px; padding: 4px 14px; font-size: 10px; gap: 6px; grid-template-columns: 1.25fr .9fr .78fr .68fr .62fr .7fr; }
 .pcrm-home-dashboard .pcrm-project-row small { font-size: 8.5px; }
-.pcrm-home-dashboard .pcrm-project-row i { padding: 3px 7px; font-size: 8.5px; }
+.pcrm-home-dashboard .pcrm-project-row i { padding: 3px 6px; font-size: 8px; }
+.pcrm-home-dashboard .pcrm-row-actions { display: none; }
 .pcrm-home-dashboard .pcrm-side-card > button,
 .pcrm-home-dashboard .pcrm-activity-card > button { padding: 7px 14px; font-size: 10.5px; gap: 8px; }
 .pcrm-home-dashboard .pcrm-activity-row { padding: 6px 14px; }
