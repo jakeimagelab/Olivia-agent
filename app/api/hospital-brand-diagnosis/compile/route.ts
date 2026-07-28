@@ -185,8 +185,11 @@ ${visualComposition.map((v) => `${v.category}: ${v.count}개 (${v.ratio}%)`).joi
     return NextResponse.json({ ok: true, report });
   } catch (error) {
     if (diagnosisId) {
-      await getSupabaseAdmin().from("hospital_brand_diagnoses")
-        .update({ status: "failed" }).eq("id", diagnosisId).then(() => {}, () => {});
+      try {
+        await getSupabaseAdmin().from("hospital_brand_diagnoses").update({ status: "failed" }).eq("id", diagnosisId);
+      } catch {
+        // 상태 업데이트 실패는 원래 오류를 가리지 않도록 무시하고 아래에서 원래 오류를 반환한다.
+      }
     }
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "통합 리포트 생성 실패" }, { status: 500 });
   }
