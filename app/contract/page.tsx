@@ -570,11 +570,17 @@ export default function ContractPage() {
 }
 
 // ── 계약서 HTML 생성 (고정 템플릿 + 데이터 채우기) ──────────
-function buildContractHtml(q: QuoteData, signatureDataUrl = ""): string {
+function buildContractHtml(q: QuoteData, signatureDataUrl = "", brand: ContractBrand = "photoclinic"): string {
+  const cfg = CONTRACT_BRAND_CONFIG[brand];
+  const ink = brand === "jakeimage" ? "#162238" : "#155855";
+  const accent = brand === "jakeimage" ? "#2f4a73" : "#E85D2C";
+  const tint = brand === "jakeimage" ? "#EEF2F7" : "#FFF6F1";
+  const tintBorder = brand === "jakeimage" ? "#CDDAEA" : "#F3C6B1";
+  const quoteNumberPrefix = brand === "jakeimage" ? "JI-" : "PC-";
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
   const baseHref = typeof window !== "undefined" ? window.location.origin : "";
   const signatureHtml = signatureDataUrl
-    ? `<img class="signature-image" src="${signatureDataUrl}" alt="포토클리닉 서명">`
+    ? `<img class="signature-image" src="${signatureDataUrl}" alt="${cfg.label} 서명">`
     : "";
 
   const itemCards = q.items.map((item, i) => `
