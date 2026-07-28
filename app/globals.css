@@ -2781,6 +2781,194 @@ main:has(> .pc-header) {
   font-size: 9px;
 }
 
+/* ============================================================
+   견적서 화면 브랜드 토글 — 포토클리닉 ↔ 제이크이미지연구소
+   .quote-app 이 항상 붙고, 제이크이미지연구소 선택 시 --jakeimage 가 추가된다.
+   ============================================================ */
+.quote-app {
+  --quote-ink: #155855;
+  --quote-accent: #e85d2c;
+  --quote-tint: #eaf4f2;
+  --quote-tint-border: #c8ddd9;
+}
+
+.quote-app--jakeimage {
+  --quote-ink: #162238;
+  --quote-accent: #2f4a73;
+  --quote-tint: #eef2f7;
+  --quote-tint-border: #cddaea;
+}
+
+/* 좌측 입력 폼 */
+.quote-app--jakeimage .field span,
+.quote-app--jakeimage .package-button strong,
+.quote-app--jakeimage .single-item-button span,
+.quote-app--jakeimage .discount-rate-button span,
+.quote-app--jakeimage .quantity-field strong,
+.quote-app--jakeimage .custom-items-head strong,
+.quote-app--jakeimage .stepper button,
+.quote-app--jakeimage .icon-button,
+.quote-app--jakeimage .secondary-button,
+.quote-app--jakeimage .contract-note strong {
+  color: var(--quote-ink);
+}
+
+.quote-app--jakeimage .field input:focus,
+.quote-app--jakeimage .field textarea:focus,
+.quote-app--jakeimage .field select:focus {
+  border-color: var(--quote-ink);
+}
+
+.quote-app--jakeimage .package-button:hover,
+.quote-app--jakeimage .single-item-button:hover,
+.quote-app--jakeimage .discount-rate-button:hover {
+  border-color: rgba(22, 34, 56, 0.42);
+}
+
+.quote-app--jakeimage .package-button-active,
+.quote-app--jakeimage .single-item-button-active,
+.quote-app--jakeimage .discount-rate-button-active {
+  border-color: var(--quote-ink);
+  background: var(--quote-tint);
+  box-shadow: inset 4px 0 0 var(--quote-ink);
+}
+
+.quote-app--jakeimage .discount-rate-button strong {
+  color: var(--quote-accent);
+}
+
+.quote-app--jakeimage .icon-button {
+  border-color: rgba(22, 34, 56, 0.25);
+}
+
+.quote-app--jakeimage .icon-button:hover {
+  border-color: var(--quote-ink);
+  background: var(--quote-ink);
+  color: #ffffff;
+}
+
+.quote-app--jakeimage .primary-button {
+  border-color: var(--quote-ink);
+  background: var(--quote-ink);
+  box-shadow: 0 12px 24px rgba(22, 34, 56, 0.18);
+}
+
+.quote-app--jakeimage .secondary-button {
+  border-color: var(--quote-tint-border);
+}
+
+.quote-app--jakeimage .action-button-bar .primary-button {
+  background: var(--quote-ink);
+}
+
+.quote-app--jakeimage .action-button-bar .secondary-button:hover {
+  border-color: var(--quote-ink);
+  color: var(--quote-ink);
+}
+
+.quote-app--jakeimage .custom-item-discount-toggle input[type="checkbox"] {
+  accent-color: var(--quote-ink);
+}
+
+.quote-app--jakeimage .deposit-btn.active {
+  border-color: var(--quote-ink);
+  background: var(--quote-tint);
+  color: var(--quote-ink);
+}
+.quote-app--jakeimage .deposit-row {
+  color: var(--quote-ink);
+  border-bottom-color: var(--quote-tint-border);
+}
+.quote-app--jakeimage .deposit-summary {
+  background: var(--quote-tint);
+}
+
+/* 우측 미리보기(실제 견적서 문서) */
+.quote-app--jakeimage .preview-shell {
+  background: #dce2ea;
+}
+
+.quote-app--jakeimage .quote-page {
+  border-color: #b5c1cf;
+  box-shadow: 0 0 0 1px rgba(22, 34, 56, 0.08);
+}
+
+.quote-app--jakeimage .brand-rail {
+  background: var(--quote-ink);
+}
+
+.quote-app--jakeimage .rail-slogan {
+  display: grid;
+  place-items: center;
+  padding: 18px 14px 0;
+}
+.quote-app--jakeimage .rail-slogan img {
+  width: 108px;
+  max-height: 108px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.quote-app--jakeimage .rail-address strong {
+  background: #dce8f5;
+  color: var(--quote-ink);
+}
+
+.quote-app--jakeimage .quote-hero h2 {
+  color: var(--quote-ink);
+}
+
+.quote-app--jakeimage .client-strip {
+  border-top-color: #7f91a7;
+  border-left-color: #7f91a7;
+}
+.quote-app--jakeimage .client-strip div {
+  border-right-color: #7f91a7;
+  border-bottom-color: #7f91a7;
+}
+.quote-app--jakeimage .client-strip span {
+  background: #dce8f5;
+  color: var(--quote-ink);
+}
+
+.quote-app--jakeimage .estimate-table-wrap {
+  border-left-color: #dce8f5;
+}
+
+.quote-app--jakeimage .quote-table th {
+  background: var(--quote-ink);
+}
+
+.quote-app--jakeimage .category-row td,
+.quote-app--jakeimage .service-row td,
+.quote-app--jakeimage .vat-row td {
+  background: #dce8f5;
+  color: var(--quote-ink);
+}
+
+.quote-app--jakeimage .discount-row td {
+  color: var(--quote-accent);
+}
+
+.quote-app--jakeimage .quote-bottom {
+  border-top-color: #7f91a7;
+}
+
+.quote-app--jakeimage .payment-box strong {
+  background: var(--quote-ink);
+}
+
+.quote-app--jakeimage .total-box {
+  border-color: #8b97a7;
+}
+.quote-app--jakeimage .total-box .grand-total strong {
+  background: var(--quote-ink);
+}
+
+.quote-app--jakeimage .contract-note strong {
+  color: var(--quote-ink);
+}
+
 /* 고객 상세의 핵심 상태를 하나의 명확한 명령 영역으로 묶는다. */
 .pc-client-overview-shell {
   max-width: 1280px;
