@@ -191,9 +191,9 @@ const addDays = (date: string, days: number) => {
   return toDateInputValue(next);
 };
 
-const createQuoteNumber = (sequence = 1) => {
+const createQuoteNumber = (sequence = 1, prefix = "PC-") => {
   const date = todayValue().replaceAll("-", "");
-  return `PC-${date}-${String(sequence).padStart(3, "0")}`;
+  return `${prefix}${date}-${String(sequence).padStart(3, "0")}`;
 };
 
 const initialCustomer = (): CustomerInfo => {
