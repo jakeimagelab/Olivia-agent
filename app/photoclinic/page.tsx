@@ -297,6 +297,7 @@ const BRAND_CONFIG: Record<Brand, {
   entityPlaceholder: string;
   emailPlaceholder: string;
   largeScaleLabel: string;
+  customItemsLabel: string;
   brandMarkCaption: string;
   railCaptionTitle: string | null;
   railCaptionSub: string | null;
