@@ -208,6 +208,9 @@ export default function StrategyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showActionForm, setShowActionForm] = useState(false);
   const [metricModalAction, setMetricModalAction] = useState<Action | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState("");
 
   const load = () => {
     setLoading(true);
@@ -219,7 +222,39 @@ export default function StrategyDetailPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { if (strategyId) load(); }, [strategyId]);
+  const loadSuggestions = () => {
+    fetch(`/api/marketing/strategies/${strategyId}/suggestions`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json) => setSuggestions(json?.ok ? json.suggestions.filter((s: Suggestion) => s.status === "pending") : []))
+      .catch(() => {});
+  };
+
+  useEffect(() => { if (strategyId) { load(); loadSuggestions(); } }, [strategyId]);
+
+  const requestSuggestions = async () => {
+    setSuggesting(true);
+    setSuggestError("");
+    try {
+      const res = await fetch(`/api/marketing/strategies/${strategyId}/suggestions`, { method: "POST" });
+      const body = await res.json();
+      if (!res.ok || !body.ok) throw new Error(body.error || "제안 생성 실패");
+      loadSuggestions();
+    } catch (e) {
+      setSuggestError(e instanceof Error ? e.message : "제안 생성 실패");
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  const resolveSuggestion = async (suggestion: Suggestion, status: "accepted" | "dismissed") => {
+    setSuggestions((current) => current.filter((s) => s.id !== suggestion.id));
+    await fetch(`/api/marketing/suggestions/${suggestion.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    }).catch(() => {});
+    if (status === "accepted") load();
+  };
 
   const toggleActionDone = async (action: Action) => {
     const nextStatus = action.status === "done" ? "pending" : "done";
