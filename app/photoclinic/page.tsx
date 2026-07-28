@@ -2028,7 +2028,7 @@ export default function QuoteBuilder() {
               className="primary-button"
               type="button"
               onClick={goToContract}
-              style={{ background: "#E85D2C" }}
+              style={{ background: "var(--quote-accent)" }}
             >
               <FileText size={18} />
               고객 승인 후 계약서 생성
