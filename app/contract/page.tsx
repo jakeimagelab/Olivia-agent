@@ -178,8 +178,8 @@ export default function ContractPage() {
 
   useEffect(() => {
     if (!quote) return;
-    setContractHtml(buildContractHtml(quote, signatureDataUrl));
-  }, [quote, signatureDataUrl]);
+    setContractHtml(buildContractHtml(quote, signatureDataUrl, brand));
+  }, [quote, signatureDataUrl, brand]);
 
   const updateQuote = (key: keyof QuoteData, value: string) => {
     setQuote((prev) => (prev ? { ...prev, [key]: value } : prev));
