@@ -85,9 +85,15 @@ function TrendKeywordBrief() {
 }
 
 export default function MarketingDashboardPage() {
+  const router = useRouter();
   return (
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-      <PageHeader title="마케팅 대시보드" />
+      <PageHeader
+        title="마케팅 대시보드"
+        tabs={[{ key: "home", label: "홈" }, { key: "strategy", label: "전략" }]}
+        activeTab="home"
+        onTabChange={(key) => { if (key === "strategy") router.push("/marketing/strategy"); }}
+      />
       <div className="oa-page oa-tools-page">
         <div className="mkt-brief-row">
           <TodayIdeaBrief />
