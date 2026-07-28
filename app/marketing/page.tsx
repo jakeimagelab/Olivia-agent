@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Lightbulb, TrendingUp } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import CategorySection from "@/components/admin/CategorySection";
