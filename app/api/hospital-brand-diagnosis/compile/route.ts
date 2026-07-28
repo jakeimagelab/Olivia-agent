@@ -184,8 +184,10 @@ ${visualComposition.map((v) => `${v.category}: ${v.count}개 (${v.ratio}%)`).joi
 
     return NextResponse.json({ ok: true, report });
   } catch (error) {
-    await getSupabaseAdmin().from("hospital_brand_diagnoses")
-      .update({ status: "failed" }).eq("id", req.nextUrl?.searchParams?.get("diagnosisId") ?? "");
+    if (diagnosisId) {
+      await getSupabaseAdmin().from("hospital_brand_diagnoses")
+        .update({ status: "failed" }).eq("id", diagnosisId).then(() => {}, () => {});
+    }
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "통합 리포트 생성 실패" }, { status: 500 });
   }
 }
