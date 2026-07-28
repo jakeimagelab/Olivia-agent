@@ -392,14 +392,17 @@ export default function ContractPage() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+    <div
+      className={`contract-app${brand === "jakeimage" ? " contract-app--jakeimage" : ""}`}
+      style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}
+    >
 
       {/* NAV */}
       <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">브랜드촬영 계약서</span>
+            <img src={cfg.logo} alt={cfg.label} className="pc-header-logo" />
+            <span className="pc-header-title">{cfg.headerTitle}</span>
           </div>
         </div>
         <div className="pc-header-actions">
