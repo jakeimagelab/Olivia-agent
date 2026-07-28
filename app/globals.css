@@ -3534,10 +3534,13 @@ main:has(> .pc-header) {
   .pcrm-cal-popover__row { grid-template-columns: 1fr; }
 }
 
-/* 모바일 가로 스크롤 힌트 — overflow-x:auto인 표/스테퍼 오른쪽 끝을 옅게 흐려서
-   "옆으로 더 있다"는 걸 시각적으로 알려준다 (스크롤 위치와 무관하게 항상 표시). */
+/* 모바일 가로 스크롤 힌트 — 화면보다 넓은 표/스테퍼만 오른쪽 끝을 옅게 흐려서
+   "옆으로 더 있다"는 걸 시각적으로 알려준다 (실제로 넘치지 않는 일반 패널에는 적용 안 함). */
 @media (max-width: 680px) {
-  .pcrm-project-panel,
+  .pcrm-project-panel:has(.pcrm-roster-table--wide),
+  .pcrm-project-panel:has(.pcrm-gallery-table),
+  .pcrm-project-panel:has(.pcrm-document-table),
+  .pcrm-project-panel:has(.pcrm-report-table),
   .pcrm-stage-stepper {
     -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), rgba(0,0,0,.15) 100%);
     mask-image: linear-gradient(to right, black calc(100% - 28px), rgba(0,0,0,.15) 100%);
