@@ -2817,6 +2817,7 @@ main:has(> .pc-header) {
 .quote-app--jakeimage textarea:focus,
 .quote-app--jakeimage select:focus {
   border-color: var(--quote-ink);
+  box-shadow: 0 0 0 3px rgba(22, 34, 56, 0.12);
 }
 
 .quote-app--jakeimage .package-button:hover,
