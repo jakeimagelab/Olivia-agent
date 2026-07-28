@@ -1090,7 +1090,7 @@ export default function QuoteBuilder() {
         <!doctype html>
         <html lang="ko">
           <head>
-            <title>포토클리닉 견적서 생성 실패</title>
+            <title>${cfg.label} 견적서 생성 실패</title>
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <style>
               body {
@@ -1099,7 +1099,7 @@ export default function QuoteBuilder() {
                 display: grid;
                 place-items: center;
                 font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-                background: #f0f4f2;
+                background: ${cfg.popupBg};
                 color: #222;
               }
               .box {
@@ -1108,9 +1108,9 @@ export default function QuoteBuilder() {
                 padding: 28px;
                 border-radius: 18px;
                 background: #fff;
-                box-shadow: 0 18px 50px rgba(21, 88, 85, 0.12);
+                box-shadow: 0 18px 50px rgba(${popupInkRgb}, 0.12);
               }
-              strong { display: block; margin-bottom: 10px; color: #155855; font-size: 18px; }
+              strong { display: block; margin-bottom: 10px; color: ${popupInk}; font-size: 18px; }
               p { margin: 0 0 10px; color: #6f6961; line-height: 1.6; }
               code { display: block; padding: 12px; border-radius: 10px; background: #faf7f2; color: #e85d2c; white-space: pre-wrap; word-break: break-word; }
             </style>
