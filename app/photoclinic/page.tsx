@@ -484,14 +484,14 @@ export default function QuoteBuilder() {
 
   const createNextQuoteNumber = () => {
     const date = todayValue().replaceAll("-", "");
-    const todayPrefix = `PC-${date}-`;
+    const todayPrefix = `${cfg.quoteNumberPrefix}${date}-`;
     const usedNumbers = todayQuoteNumbers
       .filter((quoteNumber) => quoteNumber.startsWith(todayPrefix))
       .map((quoteNumber) => Number(quoteNumber.replace(todayPrefix, "")))
       .filter((value) => Number.isFinite(value));
     const nextSequence = usedNumbers.length ? Math.max(...usedNumbers) + 1 : 1;
 
-    return createQuoteNumber(nextSequence);
+    return createQuoteNumber(nextSequence, cfg.quoteNumberPrefix);
   };
 
   const selectedPackage = useMemo(
