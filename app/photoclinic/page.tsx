@@ -650,7 +650,7 @@ export default function QuoteBuilder() {
     setBenefitItems([]);
     setDiscountRate(0);
     setExtraDiscount(0);
-    setMemo("");
+    setMemo(cfg.defaultMemo);
   };
 
   const buildContractQuoteData = (): ContractQuoteData => {
