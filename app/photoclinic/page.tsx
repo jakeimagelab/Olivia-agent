@@ -1666,6 +1666,33 @@ export default function QuoteBuilder() {
               {singleItems.map((item) => {
                 const isSelected = selectedSingleItemIds.includes(item.id);
 
+                if (brand === "jakeimage") {
+                  return (
+                    <div key={item.id} className="jake-single-item-row">
+                      <button
+                        type="button"
+                        onClick={() => toggleSingleItem(item.id)}
+                        className={`single-item-button ${isSelected ? "single-item-button-active" : ""}`}
+                        aria-pressed={isSelected}
+                      >
+                        <span>{item.name}</span>
+                        <strong>{isSelected ? "선택됨" : "탭하여 선택"}</strong>
+                      </button>
+                      {isSelected ? (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9,]*"
+                          value={singleItemAmounts[item.id] ? amount(singleItemAmounts[item.id]) : ""}
+                          onChange={(event) => updateSingleItemAmount(item.id, event.target.value)}
+                          placeholder="금액 직접 입력"
+                          className="jake-single-item-amount"
+                        />
+                      ) : null}
+                    </div>
+                  );
+                }
+
                 return (
                   <button
                     key={item.id}
