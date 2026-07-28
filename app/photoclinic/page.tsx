@@ -1879,14 +1879,14 @@ export default function QuoteBuilder() {
                 텍스트 PDF는 바로 읽고, 이미지형 PDF는 OCR로 읽어 최근 견적 목록에 추가합니다.
               </p>
               {pdfImportMessage ? (
-                <div className="rounded-lg border border-[#d8d0c4] bg-white px-4 py-3 text-sm leading-6 text-[#155855]">
+                <div className="rounded-lg border border-[#d8d0c4] bg-white px-4 py-3 text-sm leading-6 text-[var(--quote-ink)]">
                   {pdfImportMessage}
                 </div>
               ) : null}
               {manualPdfQuote ? (
                 <div className="grid gap-3 rounded-xl border border-[#d8d0c4] bg-[#fffdfa] p-4">
                   <div>
-                    <strong className="block text-sm font-extrabold text-[#155855]">
+                    <strong className="block text-sm font-extrabold text-[var(--quote-ink)]">
                       PDF 내용 직접 입력
                     </strong>
                     <span className="mt-1 block text-xs leading-5 text-[#6f6961]">
@@ -1894,11 +1894,11 @@ export default function QuoteBuilder() {
                     </span>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="병원명">
+                    <Field label={cfg.entityLabel}>
                       <input
                         value={manualPdfQuote.hospitalName}
                         onChange={(event) => updateManualPdfQuote("hospitalName", event.target.value)}
-                        placeholder="예: 포토클리닉"
+                        placeholder={`예: ${cfg.entityPlaceholder}`}
                       />
                     </Field>
                     <Field label="견적번호">
