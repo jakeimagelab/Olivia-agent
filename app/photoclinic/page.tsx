@@ -380,14 +380,17 @@ export default function QuoteBuilder() {
   const previewPercent = Math.round(previewZoom * 100);
 
   useEffect(() => {
-    const todayPrefix = `PC-${todayValue().replaceAll("-", "")}-`;
+    const date = todayValue().replaceAll("-", "");
     Promise.all([
       fetch(`/api/quotes?limit=${RECENT_QUOTES_DISPLAY_LIMIT}`).then((res) => res.json()),
-      fetch(`/api/quotes?prefix=${encodeURIComponent(todayPrefix)}`).then((res) => res.json()),
+      fetch(`/api/quotes?prefix=${encodeURIComponent(`PC-${date}-`)}`).then((res) => res.json()),
+      fetch(`/api/quotes?prefix=${encodeURIComponent(`JI-${date}-`)}`).then((res) => res.json()),
     ])
-      .then(([recentRes, todayRes]) => {
+      .then(([recentRes, todayPcRes, todayJiRes]) => {
         if (recentRes?.ok) setRecentQuotes((recentRes.quotes ?? []).map(rowToContractQuoteData));
-        if (todayRes?.ok) setTodayQuoteNumbers(todayRes.quoteNumbers ?? []);
+        const pcNumbers = todayPcRes?.ok ? todayPcRes.quoteNumbers ?? [] : [];
+        const jiNumbers = todayJiRes?.ok ? todayJiRes.quoteNumbers ?? [] : [];
+        setTodayQuoteNumbers([...pcNumbers, ...jiNumbers]);
       })
       .catch(() => {});
   }, []);
