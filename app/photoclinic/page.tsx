@@ -335,6 +335,7 @@ const BRAND_CONFIG: Record<Brand, {
     entityPlaceholder: "제이크이미지연구소",
     emailPlaceholder: "contact@jakeimage.com",
     largeScaleLabel: "대형 규모 촬영 추가",
+    customItemsLabel: "추가항목",
     brandMarkCaption: "Jake Image Institute · Brand Image Direction",
     railCaptionTitle: "BRAND IMAGE DIRECTION",
     railCaptionSub: "Portrait · Brand · Editorial",
