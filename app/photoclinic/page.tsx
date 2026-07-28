@@ -1619,37 +1619,39 @@ export default function QuoteBuilder() {
             </div>
           </Panel>
 
-          <Panel title="패키지 선택" icon={<WalletCards size={18} />}>
-            <div className="grid gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedPackageId(null)}
-                className={`package-button ${selectedPackageId === null ? "package-button-active" : ""}`}
-              >
-                <span>
-                  <strong>패키지 선택 안 함</strong>
-                  <small>단일항목 또는 추가 옵션만으로 견적 구성</small>
-                </span>
-                <b>{won(0)}</b>
-              </button>
-              {packages.map((item) => (
+          {brand === "photoclinic" && (
+            <Panel title="패키지 선택" icon={<WalletCards size={18} />}>
+              <div className="grid gap-3">
                 <button
-                  key={item.id}
                   type="button"
-                  onClick={() => setSelectedPackageId(item.id)}
-                  className={`package-button ${
-                    selectedPackageId === item.id ? "package-button-active" : ""
-                  }`}
+                  onClick={() => setSelectedPackageId(null)}
+                  className={`package-button ${selectedPackageId === null ? "package-button-active" : ""}`}
                 >
                   <span>
-                    <strong>{item.name}</strong>
-                    <small>{item.composition}</small>
+                    <strong>패키지 선택 안 함</strong>
+                    <small>단일항목 또는 추가 옵션만으로 견적 구성</small>
                   </span>
-                  <b>{won(item.price)}</b>
+                  <b>{won(0)}</b>
                 </button>
-              ))}
-            </div>
-          </Panel>
+                {packages.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedPackageId(item.id)}
+                    className={`package-button ${
+                      selectedPackageId === item.id ? "package-button-active" : ""
+                    }`}
+                  >
+                    <span>
+                      <strong>{item.name}</strong>
+                      <small>{item.composition}</small>
+                    </span>
+                    <b>{won(item.price)}</b>
+                  </button>
+                ))}
+              </div>
+            </Panel>
+          )}
 
           <Panel title="단일항목 선택">
             <div className="single-item-grid">
