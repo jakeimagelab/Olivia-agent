@@ -233,17 +233,22 @@ export default function ContractPage() {
       const pdf = await createContractPdf();
       const fileName = contractFileName();
       const pageParams = new URLSearchParams(window.location.search);
-      await uploadWorkflowArtifact({
-        file: pdf.output("blob"),
-        fileName,
-        documentType: "contract",
-        sourceTable: "contracts",
-        sourceId: savedContractId,
-        title: `${quote.hospitalName} 촬영 계약서`,
-        hospitalName: quote.hospitalName,
-        clientId: pageParams.get("client_id") || pageParams.get("clientId"),
-        workflowRunId: pageParams.get("workflowRunId"),
-      });
+      try {
+        // 고객 레코드가 아직 CRM에 없어 연결에 실패해도 로컬 PDF 저장은 막지 않는다.
+        await uploadWorkflowArtifact({
+          file: pdf.output("blob"),
+          fileName,
+          documentType: "contract",
+          sourceTable: "contracts",
+          sourceId: savedContractId,
+          title: `${quote.hospitalName} 촬영 계약서`,
+          hospitalName: quote.hospitalName,
+          clientId: pageParams.get("client_id") || pageParams.get("clientId"),
+          workflowRunId: pageParams.get("workflowRunId"),
+        });
+      } catch (artifactError) {
+        console.error("workflow artifact upload failed (non-blocking)", artifactError);
+      }
       pdf.save(fileName);
     } catch (e: any) {
       setError(e.message || "PDF 생성에 실패했습니다.");
