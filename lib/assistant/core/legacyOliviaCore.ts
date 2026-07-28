@@ -23,6 +23,7 @@ import {
 } from "@/lib/assistant/actions/calendarAvailability";
 import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
 import { createOliviaReviewCampaign } from "@/lib/reviewContent/createOliviaCampaign";
+import { fetchActiveKnowledgePatches, formatKnowledgePatchContext, guessKnowledgeCategory } from "@/lib/olivia/knowledgePatches";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
