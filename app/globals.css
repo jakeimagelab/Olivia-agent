@@ -2918,6 +2918,49 @@ main:has(> .pc-header) {
   gap: 14px;
 }
 
+/* 관리자 대시보드 홈 — 노트북 화면(1440x900 안팎)에 스크롤 없이 들어가도록 전체를
+   한 단계 더 촘촘하게 축소한다. 다른 PCRM 페이지가 공유하는 .pcrm-project-row 등의
+   기본 스타일은 그대로 두고, 이 페이지 안에서만 덮어쓴다. */
+.pcrm-home-dashboard { padding-bottom: 20px; }
+.pcrm-home-dashboard .pcrm-dashboard-title { margin-bottom: 10px; }
+.pcrm-home-dashboard .pcrm-summary-grid { margin-bottom: 10px; }
+.pcrm-home-dashboard .pcrm-summary-grid article { min-height: 74px; padding: 11px 14px; gap: 10px; }
+.pcrm-home-dashboard .pcrm-summary-grid article strong { font-size: 20px; }
+.pcrm-home-dashboard .pcrm-dashboard-grid { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-bottom: 10px; }
+.pcrm-home-dashboard .pcrm-bottom-grid { gap: 10px; }
+
+.pcrm-home-dashboard .pcrm-project-panel header,
+.pcrm-home-dashboard .pcrm-side-card header,
+.pcrm-home-dashboard .pcrm-activity-card header,
+.pcrm-home-dashboard .pcrm-inquiry-card header,
+.pcrm-home-dashboard .pcrm-per-card header { padding: 10px 14px; }
+.pcrm-home-dashboard .pcrm-project-panel header h2,
+.pcrm-home-dashboard .pcrm-side-card header h2,
+.pcrm-home-dashboard .pcrm-activity-card header h2,
+.pcrm-home-dashboard .pcrm-inquiry-card header h2,
+.pcrm-home-dashboard .pcrm-per-card header h2 { font-size: 12.5px; }
+.pcrm-home-dashboard .pcrm-project-panel header span { display: none; }
+.pcrm-home-dashboard .pcrm-project-tabs { padding: 7px 14px; gap: 5px; }
+.pcrm-home-dashboard .pcrm-project-tabs button { padding: 5px 10px; font-size: 9.5px; }
+.pcrm-home-dashboard .pcrm-project-row { min-height: 40px; padding: 5px 14px; font-size: 10.5px; gap: 8px; }
+.pcrm-home-dashboard .pcrm-project-row small { font-size: 8.5px; }
+.pcrm-home-dashboard .pcrm-project-row i { padding: 3px 7px; font-size: 8.5px; }
+.pcrm-home-dashboard .pcrm-side-card > button,
+.pcrm-home-dashboard .pcrm-activity-card > button { padding: 7px 14px; font-size: 10.5px; gap: 8px; }
+.pcrm-home-dashboard .pcrm-activity-row { padding: 6px 14px; }
+.pcrm-home-dashboard .pcrm-inquiry-card > button { padding: 7px 14px; }
+.pcrm-home-dashboard .pcrm-per-card { padding: 14px; }
+.pcrm-home-dashboard .pcrm-per-card > header { padding: 0 0 10px; }
+.pcrm-home-dashboard .pcrm-per-balance strong { font-size: 22px; }
+.pcrm-home-dashboard .pcrm-empty-copy { padding: 14px 16px; font-size: 10.5px; }
+
+@media (max-width: 1400px) {
+  .pcrm-home-dashboard .pcrm-dashboard-grid { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (max-width: 1120px) {
+  .pcrm-home-dashboard .pcrm-dashboard-grid { grid-template-columns: 1fr; }
+}
+
 .pcrm-project-panel,
 .pcrm-side-card,
 .pcrm-activity-card,
