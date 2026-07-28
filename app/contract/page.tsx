@@ -800,17 +800,17 @@ ${section("제10조", "특약사항", special)}
 
 <div class="sign-area">
   <div class="sign-box">
-    <h4>계약 병원</h4>
-    <div class="sl"><span class="sk">병원명</span><span class="sv">${q.hospitalName || ""}</span></div>
+    <h4>${cfg.clientPartyTitle}</h4>
+    <div class="sl"><span class="sk">${cfg.entityLabel}</span><span class="sv">${q.hospitalName || ""}</span></div>
     <div class="sl"><span class="sk">사업자번호</span><span class="sv">${q.businessNumber || ""}</span></div>
-    <div class="sl"><span class="sk">대표원장</span><span class="sv">${q.contactName || ""}</span></div>
+    <div class="sl"><span class="sk">${cfg.directorLabel}</span><span class="sv">${q.contactName || ""}</span></div>
     <div class="sl"><span class="sk">서명일</span><span class="sv"></span></div>
     <div class="sl"><span class="sk">서명</span><span class="sv"></span></div>
     <div class="stamp">직인 / 서명</div>
   </div>
   <div class="sign-box">
-    <h4>포토클리닉(제이크이미지연구소)</h4>
-    <div class="sl"><span class="sk">상호</span><span class="sv">포토클리닉(제이크이미지연구소)</span></div>
+    <h4>${cfg.companyDisplayName}</h4>
+    <div class="sl"><span class="sk">상호</span><span class="sv">${cfg.companyDisplayName}</span></div>
     <div class="sl"><span class="sk">사업자번호</span><span class="sv">190-16-00212</span></div>
     <div class="sl"><span class="sk">대표자</span><span class="sv">정연호</span></div>
     <div class="sl"><span class="sk">서명일</span><span class="sv">${today}</span></div>
@@ -820,7 +820,7 @@ ${section("제10조", "특약사항", special)}
 </div>
 
 <div class="footer">
-  PHOTOCLINIC · 제이크이미지연구소 · 병원 전문 브랜드 촬영 · @photoclinic_kr<br>
+  ${cfg.footerTagline}<br>
   본 계약서는 양 당사자가 서명한 시점부터 법적 효력이 발생합니다.
 </div>
 </div>
