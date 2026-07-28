@@ -732,6 +732,7 @@ export default function QuoteBuilder() {
         quoteTitle,
         selectedPackageId,
         selectedSingleItemIds,
+        singleItemAmounts,
         profileCount,
         stagedCount,
         combinedProfileStagedCount,
@@ -743,7 +744,8 @@ export default function QuoteBuilder() {
         discountRate,
         extraDiscount,
         memo,
-        depositRate
+        depositRate,
+        brand
       }
     };
   };
