@@ -26,9 +26,10 @@ function computeVisualComposition(assets: any[]): VisualComposition[] {
 }
 
 export async function POST(req: NextRequest) {
+  let diagnosisId = "";
   try {
     const body = await req.json();
-    const diagnosisId = String(body.diagnosisId || "");
+    diagnosisId = String(body.diagnosisId || "");
     if (!diagnosisId) return NextResponse.json({ ok: false, error: "diagnosisId가 필요합니다." }, { status: 400 });
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
