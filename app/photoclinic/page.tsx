@@ -98,6 +98,7 @@ type ContractQuoteData = {
     extraDiscount: number;
     memo: string;
     depositRate: number;
+    brand?: Brand;
   };
 };
 
