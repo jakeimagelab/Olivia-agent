@@ -1436,7 +1436,7 @@ export default function QuoteBuilder() {
                       {visibleCustomItems.map((item, index) => (
                         <tr key={item.id}>
                           <td>
-                            {(selectedPackage ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || "기타 항목"}
+                            {(selectedPackage ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || cfg.customItemsLabel}
                             {item.detail ? <small>- {item.detail}</small> : null}
                           </td>
                           <td></td>
