@@ -2070,7 +2070,7 @@ export default function QuoteBuilder() {
       <OliviaChat
         pageContext="견적서 작성 페이지"
         contextData={{
-          병원명: customer.hospitalName || "미입력",
+          [cfg.entityLabel]: customer.hospitalName || "미입력",
           담당자: customer.managerName || "미입력",
         }}
       />
