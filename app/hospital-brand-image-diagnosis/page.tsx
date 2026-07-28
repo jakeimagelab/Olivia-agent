@@ -180,7 +180,7 @@ function AssetUploadZone({ diagnosisId, channel, consent, assets, onUploaded, on
       <input ref={inputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
         style={{ display: "none" }} onChange={(e) => handleFiles(e.target.files)} />
       <button type="button" disabled={uploading} onClick={() => inputRef.current?.click()} style={{
-        ...secondaryBtn, height: 40, padding: "0 16px", opacity: uploading ? 0.6 : 1, opacity: !consent ? 0.5 : 1,
+        ...secondaryBtn, height: 40, padding: "0 16px", opacity: uploading || !consent ? 0.6 : 1,
       }}>{uploading ? "업로드 중…" : "화면 캡처·사진·영상 추가"}</button>
       {error && <p style={{ color: C.danger, fontSize: FS.xs, margin: 0 }}>{error}</p>}
       {assets.length > 0 && (
