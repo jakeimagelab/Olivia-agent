@@ -1303,12 +1303,12 @@ export default function QuoteBuilder() {
                     </div>
                   </div>
                   <h2 style={{fontFamily:"'Nanum Myeongjo', serif", whiteSpace:"pre-line"}}>
-                    {quoteTitle || "포토클리닉 브랜드사진 견적서"}
+                    {quoteTitle || cfg.defaultQuoteTitle}
                   </h2>
                 </header>
 
                 <section className="client-strip">
-                  <Info label="병원명" value={customer.hospitalName || "-"} />
+                  <Info label={cfg.entityLabel} value={customer.hospitalName || "-"} />
                   <Info label="담당자명" value={customer.managerName || "-"} />
                   <Info label="연락처" value={customer.phone || "-"} />
                   <Info label="이메일" value={customer.email || "-"} />
