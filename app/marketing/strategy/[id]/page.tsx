@@ -28,6 +28,15 @@ type Action = {
   metrics: MetricLog[];
 };
 
+type Suggestion = {
+  id: string;
+  strategy_id: string;
+  suggested_title: string;
+  suggested_description: string;
+  rationale: string;
+  status: "pending" | "accepted" | "dismissed";
+};
+
 type Strategy = {
   id: string;
   title: string;
