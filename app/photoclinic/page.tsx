@@ -1227,6 +1227,23 @@ export default function QuoteBuilder() {
       captureRoot.appendChild(captureTarget);
       document.body.appendChild(captureRoot);
 
+      // html2canvas는 CSS filter(제이크이미지연구소 로고를 흰색으로 반전시키는
+      // brightness(0) invert(1))를 제대로 그리지 못해, 화면과 달리 PDF에서는
+      // 원본 색(어두운 잉크색) 로고가 어두운 배경(--quote-ink)에 묻혀버린다.
+      // 캡처 직전에 로고 픽셀 자체를 캔버스로 반전시켜 별도 이미지로 바꿔치기한다.
+      if (brand === "jakeimage") {
+        const logoImg = captureTarget.querySelector<HTMLImageElement>(".rail-slogan img");
+        if (logoImg) {
+          try {
+            const inverted = await invertImageColors(logoImg.src);
+            logoImg.src = inverted;
+            logoImg.style.filter = "none";
+          } catch {
+            // 반전 실패 시 원본 로고라도 그대로 남겨 완전히 안 보이는 상황은 피한다.
+          }
+        }
+      }
+
       if (document.fonts?.ready) {
         await document.fonts.ready;
       }
