@@ -1551,7 +1551,7 @@ export default function QuoteBuilder() {
                   type="email"
                   value={customer.email}
                   onChange={(event) => updateCustomer("email", event.target.value)}
-                  placeholder="photoclnic@gmail.com"
+                  placeholder={cfg.emailPlaceholder}
                 />
               </Field>
               <Field label="견적일">
