@@ -1183,9 +1183,13 @@ export async function processOliviaRequest(body: any, req: NextRequest) {
 
   // 시스템 프롬프트에 페이지 컨텍스트 추가
   const referenceContext = formatWorkItemReferenceContext(recentWorkItems);
+  // Olivia 지식 패치 — 화면 컨텍스트에서 카테고리를 추정해 관련 축적 인사이트를 시스템 프롬프트에 끼워 넣는다.
+  const knowledgePatches = await fetchActiveKnowledgePatches(getSupabaseAdmin(), guessKnowledgeCategory(pageContext));
+  const knowledgeContext = formatKnowledgePatchContext(knowledgePatches);
   const systemWithContext = [
     SYSTEM,
     pageContext ? `현재 사용자가 보고 있는 화면: ${pageContext}\n이 컨텍스트를 참고하여 더 정확하게 도움을 주세요.` : "",
+    knowledgeContext,
     referenceContext,
   ].filter(Boolean).join("\n\n");
 
