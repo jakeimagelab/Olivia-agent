@@ -32,6 +32,10 @@ export default function AdminHeaderActions() {
 
   return (
     <div ref={rootRef} className="oa-header-actions">
+      <Link href="/admin/security" className="oa-header-action-button" aria-label="보안 설정 (패스키)" title="보안 설정 · Face ID / Touch ID">
+        <Fingerprint size={17} strokeWidth={1.8}/>
+      </Link>
+
       <div className="oa-header-action-wrap">
         <button className="oa-header-action-button" type="button" aria-label="알림 보기" aria-expanded={panel === "notifications"} onClick={() => setPanel((current) => current === "notifications" ? null : "notifications")}>
           <Bell size={17} strokeWidth={1.8}/>{notifications.length ? <span className="oa-header-action-button__dot"/> : null}
