@@ -674,9 +674,9 @@ export default function QuoteBuilder() {
       ...selectedSingleItems.map((item) => ({
         name: item.name,
         detail: "단일 촬영 항목",
-        unitPrice: item.price,
+        unitPrice: singleItemPrice(item),
         qty: 1,
-        subtotal: item.price,
+        subtotal: singleItemPrice(item),
         note: "단일항목"
       })),
       ...optionItems.map((item) => ({
