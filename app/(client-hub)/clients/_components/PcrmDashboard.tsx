@@ -164,7 +164,7 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
             </div>
             {tabbedClients.length === 0 ? (
               <p className="pcrm-empty-copy">해당 조건의 프로젝트가 없습니다.</p>
-            ) : tabbedClients.slice(0, 8).map((client) => {
+            ) : tabbedClients.slice(0, 5).map((client) => {
               const run = client.active_run;
               const completedProject = run?.status === "completed";
               const stepLabel = completedProject
