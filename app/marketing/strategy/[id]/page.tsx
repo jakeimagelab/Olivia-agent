@@ -258,7 +258,12 @@ export default function StrategyDetailPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-      <PageHeader title="마케팅 대시보드" />
+      <PageHeader
+        title="마케팅 대시보드"
+        tabs={[{ key: "home", label: "홈" }, { key: "strategy", label: "전략" }]}
+        activeTab="strategy"
+        onTabChange={(key) => { if (key === "home") router.push("/marketing"); }}
+      />
 
       <div className="oa-page" style={{ maxWidth: 880, margin: "0 auto", padding: `${SP.lg}px 20px 60px` }}>
         <button onClick={() => router.push("/marketing/strategy")} style={{
