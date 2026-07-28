@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Bell, CalendarPlus, ChevronDown, NotebookPen, Plus, UserPlus, X } from "lucide-react";
+import { Bell, CalendarPlus, ChevronDown, Fingerprint, NotebookPen, Plus, UserPlus, X } from "lucide-react";
 
 type NotificationItem = { id: string; kind: string; title: string; subtitle: string; href: string };
 
