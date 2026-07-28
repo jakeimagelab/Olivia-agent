@@ -1669,8 +1669,8 @@ export default function QuoteBuilder() {
               />
               <label className="flex items-center justify-between rounded-lg border border-[#ddd5c9] bg-[#faf7f2] px-4 py-3">
                 <span>
-                  <span className="block text-sm font-bold text-[#155855]">
-                    병원급 규모 추가
+                  <span className="block text-sm font-bold text-[var(--quote-ink)]">
+                    {cfg.largeScaleLabel}
                   </span>
                   <span className="text-xs text-[#6f6961]">750,000원</span>
                 </span>
@@ -1678,7 +1678,7 @@ export default function QuoteBuilder() {
                   type="checkbox"
                   checked={largeHospital}
                   onChange={(event) => setLargeHospital(event.target.checked)}
-                  className="h-5 w-5 accent-[#155855]"
+                  className="h-5 w-5 accent-[var(--quote-ink)]"
                 />
               </label>
               <QuantityField
