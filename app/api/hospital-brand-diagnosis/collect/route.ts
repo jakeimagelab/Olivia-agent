@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const diagnosisId = String(body.diagnosisId || "");
-    if (!diagnosisId) return NextResponse.json({ ok: false, error: "diagnosisId가 필요합니다." }, { status: 400 });
+    if (!isUuid(diagnosisId)) return NextResponse.json({ ok: false, error: "diagnosisId가 올바르지 않습니다." }, { status: 400 });
 
     const supabase = getSupabaseAdmin();
     const { data: diagnosis, error: diagnosisError } = await supabase
