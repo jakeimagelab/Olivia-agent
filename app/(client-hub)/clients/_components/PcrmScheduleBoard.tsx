@@ -263,6 +263,7 @@ export default function PcrmScheduleBoard() {
           onClose={() => setSelectedTask(null)}
           onSave={(payload) => saveTask(payload, selectedTask.id)}
           onDelete={() => deleteTask(selectedTask.id)}
+          onCopy={(payload) => saveTask(payload)}
         />
       )}
     </div>
