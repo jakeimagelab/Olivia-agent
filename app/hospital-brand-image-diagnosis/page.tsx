@@ -1359,6 +1359,124 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
           onClose={() => setEvidenceChannel(null)}
         />
       )}
+
+      {showCompare && (
+        <div className="hbd-print-hide" style={{ position: "fixed", inset: 0, zIndex: 200, display: "grid", placeItems: "center", background: "rgba(13,37,35,.5)", padding: 20 }}
+          onMouseDown={(e) => e.target === e.currentTarget && setShowCompare(false)}>
+          <div style={{ width: "min(720px, 100%)", maxHeight: "calc(100vh - 48px)", overflowY: "auto", borderRadius: R.lg, background: C.white, padding: 22 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: FS.lg, fontWeight: 900, color: C.ink }}>이전 진단과 비교</h3>
+              <button onClick={() => setShowCompare(false)} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: R.sm, background: "#fff", color: C.muted, fontSize: 18, cursor: "pointer" }}>×</button>
+            </div>
+
+            {compareError && <p style={{ color: C.danger, fontSize: FS.sm }}>{compareError}</p>}
+            {compareLoading && <p style={{ color: C.muted, fontSize: FS.sm }}>불러오는 중…</p>}
+
+            {!compareLoading && !compareReport && !compareError && (
+              compareCandidates.length === 0 ? (
+                <p style={{ color: C.muted, fontSize: FS.sm }}>같은 병원·진료과로 완료된 이전 진단이 없습니다.</p>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {compareCandidates.map((c) => (
+                    <button key={c.id} onClick={() => pickCompareCandidate(c.id)} style={{ textAlign: "left", padding: 12, border: `1px solid ${C.border}`, borderRadius: R.sm, background: "#fff", cursor: "pointer" }}>
+                      <strong style={{ fontSize: FS.sm, color: C.ink }}>{new Date(c.updated_at).toLocaleDateString("ko-KR")} 진단</strong>
+                    </button>
+                  ))}
+                </div>
+              )
+            )}
+
+            {compareReport && (() => {
+              const oldChannels = new Set(compareReport.channelResults.map((r) => r.channel));
+              const newChannels = new Set(report.channelResults.map((r) => r.channel));
+              const removedChannels = [...oldChannels].filter((c) => !newChannels.has(c));
+              const scopeDiffers = [...newChannels].some((c) => !oldChannels.has(c)) || removedChannels.length > 0;
+
+              const oldMissing = new Set(compareReport.missingInformation);
+              const newMissing = new Set(report.missingInformation);
+              const resolved = [...oldMissing].filter((x) => !newMissing.has(x));
+              const newlyFound = [...newMissing].filter((x) => !oldMissing.has(x));
+              const unresolved = [...oldMissing].filter((x) => newMissing.has(x));
+
+              return (
+                <div style={{ display: "grid", gap: 16 }}>
+                  {scopeDiffers && (
+                    <p style={{ margin: 0, fontSize: FS.xs, color: C.orange, background: "#FFF7EC", padding: 10, borderRadius: R.sm }}>
+                      이전 진단과 현재 진단의 분석 자료 범위가 달라 점수를 직접 비교할 때 주의가 필요합니다.
+                    </p>
+                  )}
+
+                  <div>
+                    <h4 style={{ fontSize: FS.sm, fontWeight: 900, color: C.ink, margin: "0 0 8px" }}>채널별 점수 비교</h4>
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {report.channelResults.map((r) => {
+                        const old = compareReport.channelResults.find((o) => o.channel === r.channel);
+                        if (!old) return (
+                          <div key={r.channel} style={{ fontSize: FS.xs, color: C.teal, fontWeight: 700 }}>· {HBD_CHANNEL_LABEL[r.channel]}: 새로 추가된 채널</div>
+                        );
+                        return (
+                          <div key={r.channel} style={{ border: `1px solid ${C.border}`, borderRadius: R.sm, padding: 10 }}>
+                            <strong style={{ fontSize: FS.sm, color: C.ink }}>{HBD_CHANNEL_LABEL[r.channel]}</strong>
+                            <div style={{ display: "grid", gap: 4, marginTop: 6 }}>
+                              {(Object.keys(SCORE_LABEL) as (keyof ChannelScores)[]).map((k) => {
+                                const oldVal = (old.scores as any)?.[k]?.value;
+                                const newVal = (r.scores as any)?.[k]?.value;
+                                if (oldVal == null && newVal == null) return null;
+                                const diff = (oldVal != null && newVal != null) ? newVal - oldVal : null;
+                                return (
+                                  <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: FS.xs, color: C.muted }}>
+                                    <span>{SCORE_LABEL[k]}</span>
+                                    <span>
+                                      {oldVal ?? "확인 불가"} → {newVal ?? "확인 불가"}
+                                      {diff != null && <b style={{ marginLeft: 6, color: diff > 0 ? C.success : diff < 0 ? C.danger : C.hint }}>{diff > 0 ? `+${diff}` : diff}</b>}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {removedChannels.map((ch) => (
+                        <div key={ch} style={{ fontSize: FS.xs, color: C.hint }}>· {HBD_CHANNEL_LABEL[ch]}: 이번 진단에서 제외된 채널</div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 style={{ fontSize: FS.sm, fontWeight: 900, color: C.ink, margin: "0 0 8px" }}>변화 요약</h4>
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {resolved.length > 0 && (
+                        <div>
+                          <b style={{ fontSize: FS.xs, color: C.success }}>개선된 항목</b>
+                          <ul style={{ margin: "4px 0", paddingLeft: 18, fontSize: FS.xs, color: C.ink, lineHeight: 1.7 }}>{resolved.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                        </div>
+                      )}
+                      {newlyFound.length > 0 && (
+                        <div>
+                          <b style={{ fontSize: FS.xs, color: C.orange }}>새롭게 발견된 문제</b>
+                          <ul style={{ margin: "4px 0", paddingLeft: 18, fontSize: FS.xs, color: C.ink, lineHeight: 1.7 }}>{newlyFound.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                        </div>
+                      )}
+                      {unresolved.length > 0 && (
+                        <div>
+                          <b style={{ fontSize: FS.xs, color: C.hint }}>해결되지 않은 항목</b>
+                          <ul style={{ margin: "4px 0", paddingLeft: 18, fontSize: FS.xs, color: C.ink, lineHeight: 1.7 }}>{unresolved.map((s, i) => <li key={i}>{s}</li>)}</ul>
+                        </div>
+                      )}
+                      {resolved.length === 0 && newlyFound.length === 0 && unresolved.length === 0 && (
+                        <p style={{ margin: 0, fontSize: FS.xs, color: C.muted }}>비교할 변화 항목이 없습니다.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <button onClick={() => setCompareReport(null)} style={{ ...secondaryBtn, height: 36, fontSize: FS.xs, width: "fit-content" }}>다른 진단 선택</button>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
