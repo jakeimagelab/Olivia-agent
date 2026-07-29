@@ -176,6 +176,20 @@ export type VideoAnalysisStatus =
   | "unsupported"
   | "failed";
 
+export type ActionStatus = "todo" | "in_progress" | "completed" | "deferred";
+
+export interface DiagnosisAction {
+  id: string;
+  diagnosisId: string;
+  channel: DiagnosisChannel | null;
+  title: string;
+  description: string;
+  priority: "high" | "medium" | "low";
+  status: ActionStatus;
+  createdAt: string;
+  completedAt?: string | null;
+}
+
 export interface VideoAnalysisSummary {
   status: VideoAnalysisStatus;
   duration?: number;
