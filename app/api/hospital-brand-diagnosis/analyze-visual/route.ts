@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { downloadAssetAsBase64 } from "@/lib/hospitalBrandDiagnosis/storage";
 import { HBD_SYSTEM_PRINCIPLES, stripForbiddenPhrases } from "@/lib/hospitalBrandDiagnosis/config";
 import type { VideoAnalysisSummary, VisualCategory } from "@/lib/hospitalBrandDiagnosis/types";
+import { isUuid } from "@/lib/hospitalBrandDiagnosis/validation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
