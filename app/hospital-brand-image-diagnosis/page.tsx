@@ -1235,6 +1235,8 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
         <button onClick={downloadPdf} disabled={downloading} style={{ ...secondaryBtn, opacity: downloading ? 0.6 : 1 }}>{downloading ? "PDF 생성 중…" : "PDF 다운로드"}</button>
         <button onClick={() => window.print()} style={secondaryBtn}>브라우저 인쇄로 저장</button>
         <button onClick={openCompare} style={secondaryBtn}>이전 진단과 비교</button>
+        {diagnosisId && <button onClick={() => setShowEmailModal(true)} style={secondaryBtn}>이메일로 받기</button>}
+        {diagnosisId && <button onClick={() => setShowShareModal(true)} style={secondaryBtn}>팀원에게 공유</button>}
         <button onClick={() => onBackToStep(4)} style={secondaryBtn}>분석 자료 다시 확인</button>
         <button onClick={() => onBackToStep(3)} style={secondaryBtn}>다른 채널 추가 분석</button>
         <button onClick={onRestart} style={primaryBtn}>재진단 시작</button>
