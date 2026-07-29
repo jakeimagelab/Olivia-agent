@@ -64,13 +64,24 @@ export async function POST(req: NextRequest) {
     for (const asset of assets) {
       const claudeMime = IMAGE_MIME_TO_CLAUDE[asset.mime_type];
       if (!claudeMime) {
-        // 영상은 1차 버전에서 정밀 분석하지 않는다 (섹션 13) — 확인 불가로 명시하고 넘어간다.
-        await supabase.from("hospital_brand_diagnosis_assets").update({
-          analysis_json: { skipped: true, reason: "영상 파일 정밀 분석은 1차 버전에서 지원하지 않습니다." },
-        }).eq("id", asset.id);
+        // 영상 자체는 이 API가 정밀 분석하지 않는다 — 클라이언트가 업로드 직후 브라우저에서
+        // 주요 프레임을 추출해 별도 이미지로 올리고, 그 결과(VideoAnalysisSummary)를 이미
+        // analysis_json에 기록해뒀다면 그대로 존중한다(덮어써서 상태를 잃지 않도록).
+        // 클라이언트 추출이 실패했거나 시도되지 않은 영상만 "unsupported"로 명시한다.
+        const existingSummary = asset.analysis_json as VideoAnalysisSummary | null;
+        if (!existingSummary || !existingSummary.status || existingSummary.status === "not_requested") {
+          const fallback: VideoAnalysisSummary = {
+            status: "unsupported",
+            thumbnailAnalyzed: false,
+            subtitleAnalyzed: false,
+            titleAnalyzed: true,
+            limitations: ["이 영상은 브라우저에서 주요 프레임을 추출하지 못해 참고 자료로만 저장되었습니다. 영상 전체 내용에 대한 AI 분석은 제공하지 않습니다."],
+          };
+          await supabase.from("hospital_brand_diagnosis_assets").update({ analysis_json: fallback }).eq("id", asset.id);
+        }
         await supabase.from("hospital_brand_diagnosis_evidence").insert({
           diagnosis_id: diagnosisId, channel: asset.channel,
-          statement: `${asset.file_name}은 영상 파일로, 이 버전에서는 제목·설명 기반으로만 참고합니다.`,
+          statement: `${asset.file_name}은 영상 파일로, 제목과 추출된 주요 프레임을 기준으로만 참고합니다.`,
           source_type: "uploaded_video", source_id: asset.id, confidence: "low",
         });
         analyzed.push({ assetId: asset.id, ok: true });
