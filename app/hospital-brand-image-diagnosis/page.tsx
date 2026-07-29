@@ -1028,13 +1028,83 @@ const ANALYSIS_METHOD_COLOR: Record<SourceStatus, string> = {
   pending: C.hint, collecting: C.hint, complete: C.success, partial: C.gold, failed: C.hint, manual_required: C.orange,
 };
 
-function ReportView({ report, onRestart, onBackToStep }: {
-  report: HospitalBrandDiagnosisReport; onRestart: () => void; onBackToStep: (n: number) => void;
+const CONFIDENCE_LABEL: Record<string, string> = { high: "신뢰도 높음", medium: "신뢰도 보통", low: "제한된 자료 기반" };
+const CONFIDENCE_COLOR: Record<string, string> = { high: C.success, medium: C.gold, low: C.hint };
+const SOURCE_TYPE_LABEL: Record<string, string> = {
+  html: "페이지 HTML", api: "API 데이터", browser: "브라우저 수집", screenshot: "화면 캡처",
+  uploaded_image: "업로드 이미지", uploaded_video: "업로드 영상",
+};
+
+function EvidencePanel({ channel, evidence, diagnosisId, onClose }: {
+  channel: DiagnosisChannel; evidence: import("@/lib/hospitalBrandDiagnosis/types").EvidenceItem[];
+  diagnosisId: string | null; onClose: () => void;
+}) {
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!diagnosisId) return;
+    const imageIds = evidence
+      .filter((e) => (e.sourceType === "uploaded_image" || e.sourceType === "screenshot") && e.sourceId)
+      .map((e) => e.sourceId!);
+    if (imageIds.length === 0) return;
+    fetch("/api/hospital-brand-diagnosis/asset-url", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ diagnosisId, assetIds: imageIds }),
+    })
+      .then((r) => r.json())
+      .then((body) => { if (body.ok) setSignedUrls(body.urls || {}); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagnosisId, channel]);
+
+  return (
+    <div className="hbd-print-hide" style={{ position: "fixed", inset: 0, zIndex: 200, display: "grid", placeItems: "center", background: "rgba(13,37,35,.5)", padding: 20 }}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ width: "min(640px, 100%)", maxHeight: "calc(100vh - 48px)", overflowY: "auto", borderRadius: R.lg, background: C.white, padding: 22 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <h3 style={{ margin: 0, fontSize: FS.lg, fontWeight: 900, color: C.ink }}>{HBD_CHANNEL_LABEL[channel]} — 근거 자료</h3>
+          <button onClick={onClose} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: R.sm, background: "#fff", color: C.muted, fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        {evidence.length === 0 ? (
+          <p style={{ color: C.muted, fontSize: FS.sm }}>이 채널에 연결된 근거 자료가 없습니다.</p>
+        ) : (
+          <div style={{ display: "grid", gap: 12 }}>
+            {evidence.map((e) => (
+              <div key={e.id} style={{ border: `1px solid ${C.border}`, borderRadius: R.md, padding: 12, display: "grid", gap: 8 }}>
+                <p style={{ margin: 0, fontSize: FS.sm, color: C.ink, lineHeight: 1.6 }}>{e.statement}</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                  <span style={{ fontSize: FS.xs, fontWeight: 800, color: "#fff", background: C.teal, borderRadius: R.full, padding: "2px 9px" }}>
+                    {SOURCE_TYPE_LABEL[e.sourceType] || e.sourceType}
+                  </span>
+                  <span style={{ fontSize: FS.xs, fontWeight: 800, color: "#fff", background: CONFIDENCE_COLOR[e.confidence], borderRadius: R.full, padding: "2px 9px" }}>
+                    {CONFIDENCE_LABEL[e.confidence] || e.confidence}
+                  </span>
+                  {e.reference && (
+                    <a href={e.reference} target="_blank" rel="noreferrer" style={{ fontSize: FS.xs, color: C.teal, fontWeight: 700, wordBreak: "break-all" }}>
+                      {e.reference}
+                    </a>
+                  )}
+                </div>
+                {e.sourceId && signedUrls[e.sourceId] && (
+                  <img src={signedUrls[e.sourceId]} alt="근거 이미지" style={{ maxWidth: "100%", maxHeight: 220, objectFit: "contain", borderRadius: R.sm, border: `1px solid ${C.border}` }} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
+  report: HospitalBrandDiagnosisReport; onRestart: () => void; onBackToStep: (n: number) => void; diagnosisId: string | null;
 }) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [pdfError, setPdfError] = useState("");
   const [pdfSuccess, setPdfSuccess] = useState(false);
+  const [evidenceChannel, setEvidenceChannel] = useState<DiagnosisChannel | null>(null);
 
   const downloadPdf = async () => {
     if (!reportRef.current || downloading) return;
