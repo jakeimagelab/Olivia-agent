@@ -26,7 +26,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "대시보드", icon: Home, href: "/clients" },
   { key: "list", label: "고객 관리", icon: Users, href: "/clients/list" },
-  { key: "projects", label: "프로젝트", icon: FolderKanban, disabled: true },
+  { key: "projects", label: "프로젝트", icon: FolderKanban, href: "/clients/list" },
   { key: "documents", label: "문서 관리", icon: FileText, href: "/clients/documents" },
   { key: "calendar", label: "일정 관리", icon: Calendar, href: "/clients/schedule" },
   { key: "gallery", label: "앨범/갤러리", icon: ImageIcon, href: "/clients/gallery" },
