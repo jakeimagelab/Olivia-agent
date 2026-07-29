@@ -48,6 +48,11 @@ const CURRENT_CONCERN_PRESETS = [
   "채널마다 다른 병원처럼 보임", "콘텐츠가 지나치게 광고처럼 보임", "어떤 문제가 있는지 잘 모르겠음",
 ];
 
+const VIDEO_STATUS_LABEL: Record<string, string> = {
+  not_requested: "분석 대기", metadata_only: "기본 정보만", thumbnail_only: "썸네일만",
+  keyframes: "주요 프레임 분석", full_analysis: "정밀 분석", unsupported: "참고 자료만", failed: "분석 실패",
+};
+
 const SOURCE_STATUS_LABEL: Record<SourceStatus, string> = {
   pending: "대기", collecting: "수집 중", complete: "정밀 분석 완료", partial: "일부 정보 수집",
   failed: "수집 실패", manual_required: "자동 분석 제한",
