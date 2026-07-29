@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ClipboardList, Copy, Download, Eye, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ACTIVE_WORKFLOW_STEPS,
