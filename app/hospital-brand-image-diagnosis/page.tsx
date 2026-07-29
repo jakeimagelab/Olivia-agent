@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { C, R, FS, SP } from "@/lib/theme";
 import type {
-  ActionStatus, ChannelDiagnosisResult, ChannelScores, DiagnosisAction, DiagnosisChannel, DiagnosisProgressStatus,
-  DiagnosisSource, HospitalBrandDiagnosisReport, SourceStatus, UploadedAsset, VideoAnalysisSummary, VisualCategory,
+  ChannelDiagnosisResult, ChannelScores, DiagnosisChannel, DiagnosisProgressStatus,
+  DiagnosisSource, HistoryItem, HospitalBrandDiagnosisReport, UploadedAsset, VideoAnalysisSummary, VisualCategory,
 } from "@/lib/hospitalBrandDiagnosis/types";
 import { HBD_CHANNEL_LABEL, HBD_VISUAL_CATEGORY_LABEL } from "@/lib/hospitalBrandDiagnosis/config";
+import { ReportView } from "@/components/hospital-brand-diagnosis/ReportView";
 
 /* ─────────────────────────── 공통 스타일 토큰 ─────────────────────────── */
 
