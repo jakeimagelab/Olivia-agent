@@ -993,7 +993,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
           animation: "slideUpChat .25s cubic-bezier(.32,.72,0,1)",
         } : {
           // 데스크탑: 기존 방식
-          position: "fixed", bottom: 92, right: 24, zIndex: 999,
+          position: "fixed", bottom: 92, right: 24, zIndex: 10050,
           width: panelSize.width, height: panelSize.height,
           background: C.surface, borderRadius: 20,
           border: `1px solid ${C.border}`,
