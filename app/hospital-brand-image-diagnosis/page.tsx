@@ -629,7 +629,7 @@ export default function HospitalBrandImageDiagnosisPage() {
                   <span style={labelStyle}>병원명 *</span>
                   <input value={hospitalName} onChange={(e) => setHospitalName(e.target.value)} style={inputStyle} />
                 </label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div className="hbd-two-col-grid">
                   <label style={{ display: "grid", gap: 6 }}>
                     <span style={labelStyle}>진료과 *</span>
                     <input value={specialty} onChange={(e) => setSpecialty(e.target.value)} style={inputStyle} />
