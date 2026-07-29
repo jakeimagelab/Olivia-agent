@@ -305,7 +305,14 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
         <div className="pcrm-cal-popover__body">
           <label>제목<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="일정 제목" /></label>
           <div className="pcrm-cal-popover__row">
-            <label>날짜<input type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} /></label>
+            <label>
+              날짜<input type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} />
+              {task && onCopy && taskDate !== date && (
+                <small style={{ display: "block", marginTop: 4, fontSize: 10, color: C.orange, fontWeight: 700 }}>
+                  ‘복사’를 누르면 이 날짜에 새로 만들어지고, 원본({date.slice(5).replace("-", ".")})은 그대로 남습니다.
+                </small>
+              )}
+            </label>
             <label>구분
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
                 {CAT_KEYS.map((key) => <option key={key} value={key}>{CATS[key].label}</option>)}
