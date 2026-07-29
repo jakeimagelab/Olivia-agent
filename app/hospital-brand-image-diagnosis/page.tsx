@@ -1333,11 +1333,34 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
         </section>
 
         {/* 6. 바로 수정할 수 있는 항목 */}
-        <section style={cardStyle}>
+        <section style={cardStyle} className="hbd-actions-section">
           <h3 style={{ margin: "0 0 10px", fontSize: FS.lg, fontWeight: 900, color: C.orange }}>바로 수정할 수 있는 항목</h3>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: FS.sm, color: C.ink, lineHeight: 1.8 }}>
-            {report.immediateActions.map((s, i) => <li key={i}>{s}</li>)}
-          </ul>
+          {actions.length > 0 ? (
+            <div style={{ display: "grid", gap: 8 }}>
+              {actions.map((a) => (
+                <div key={a.id} className="hbd-action-row" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                  <span style={{ flex: 1, fontSize: FS.sm, color: a.status === "completed" ? C.hint : C.ink, textDecoration: a.status === "completed" ? "line-through" : "none" }}>
+                    {a.channel ? `[${HBD_CHANNEL_LABEL[a.channel]}] ` : ""}{a.title}
+                  </span>
+                  <select
+                    className="hbd-print-hide"
+                    value={a.status}
+                    onChange={(e) => updateActionStatus(a.id, e.target.value as ActionStatus)}
+                    style={{ height: 30, borderRadius: R.sm, border: `1px solid ${C.border}`, fontSize: FS.xs, color: C.ink, flexShrink: 0 }}
+                  >
+                    <option value="todo">미완료</option>
+                    <option value="in_progress">진행 중</option>
+                    <option value="completed">완료</option>
+                    <option value="deferred">보류</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: FS.sm, color: C.ink, lineHeight: 1.8 }}>
+              {report.immediateActions.map((s, i) => <li key={i}>{s}</li>)}
+            </ul>
+          )}
         </section>
 
         {/* 7. 콘텐츠 재활용 지도 */}
