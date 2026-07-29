@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { C, FS, R } from "@/lib/theme";
 import type { HospitalBrandDiagnosisReport } from "@/lib/hospitalBrandDiagnosis/types";
-import { ReportView } from "../../page";
+import { ReportView } from "@/components/hospital-brand-diagnosis/ReportView";
 
 // 섹션 14: 팀원 공유 — 로그인 없이 토큰만으로 여는 보기 전용 리포트 화면.
 // 관리자 콘솔 레이아웃(사이드바/헤더)을 감싸지 않는 독립 페이지다.
