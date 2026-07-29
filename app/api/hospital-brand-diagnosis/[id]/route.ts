@@ -55,6 +55,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    if (!isUuid(id)) return NextResponse.json({ ok: false, error: "diagnosisId가 올바르지 않습니다." }, { status: 400 });
     const body = await req.json();
     const supabase = getSupabaseAdmin();
 
@@ -71,9 +72,17 @@ export async function PATCH(
       patch.status = body.status;
     }
     if (body.profilePatch && typeof body.profilePatch === "object") {
-      patch.profile_json = { ...(existing.profile_json as object ?? {}), ...body.profilePatch };
+      const p = body.profilePatch as Record<string, unknown>;
+      const cleanedPatch: Record<string, unknown> = {};
+      if (p.desiredImages !== undefined) cleanedPatch.desiredImages = escapeList(p.desiredImages);
+      if (p.coreStrengths !== undefined) cleanedPatch.coreStrengths = escapeList(p.coreStrengths);
+      if (p.currentConcerns !== undefined) cleanedPatch.currentConcerns = escapeList(p.currentConcerns);
+      if (p.primaryTreatments !== undefined) cleanedPatch.primaryTreatments = escapeList(p.primaryTreatments);
+      if (p.targetPatients !== undefined) cleanedPatch.targetPatients = escapeList(p.targetPatients);
+      if (p.region !== undefined) cleanedPatch.region = escapeText(p.region, 120);
+      patch.profile_json = { ...(existing.profile_json as object ?? {}), ...cleanedPatch };
     }
-    if (body.overallSummary !== undefined) patch.overall_summary = body.overallSummary;
+    if (body.overallSummary !== undefined) patch.overall_summary = escapeText(body.overallSummary, 4000);
     if (body.reportJson !== undefined) patch.report_json = body.reportJson;
 
     if (Object.keys(patch).length > 0) {
@@ -83,7 +92,22 @@ export async function PATCH(
 
     // 채널 선택(STEP3) — 선택한 채널마다 sources row를 없으면 만들고 URL만 갱신한다.
     if (Array.isArray(body.channels)) {
-      const channels: { channel: DiagnosisChannel; url?: string }[] = body.channels;
+      if (body.channels.length > HBD_VALID_CHANNELS_LIMIT) {
+        return NextResponse.json({ ok: false, error: "채널은 최대 6개까지 선택할 수 있습니다." }, { status: 400 });
+      }
+      const channels: { channel: DiagnosisChannel; url?: string }[] = [];
+      for (const raw of body.channels as unknown[]) {
+        const entry = raw as { channel?: unknown; url?: unknown };
+        if (!isValidChannel(entry.channel)) {
+          return NextResponse.json({ ok: false, error: "채널 값이 올바르지 않습니다." }, { status: 400 });
+        }
+        const url = entry.url ? String(entry.url).trim() : "";
+        if (url && !isPlausibleHttpUrl(url)) {
+          return NextResponse.json({ ok: false, error: `${entry.channel} 채널의 URL 형식이 올바르지 않습니다.` }, { status: 400 });
+        }
+        channels.push({ channel: entry.channel, url });
+      }
+
       const { data: currentSources, error: sourcesError } = await supabase
         .from("hospital_brand_diagnosis_sources").select("id, channel").eq("diagnosis_id", id);
       if (sourcesError) throw new Error(sourcesError.message);
