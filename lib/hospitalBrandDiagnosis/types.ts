@@ -166,3 +166,25 @@ export type VisualCategory =
   | "product"
   | "video_thumbnail"
   | "other";
+
+export type VideoAnalysisStatus =
+  | "not_requested"
+  | "metadata_only"
+  | "thumbnail_only"
+  | "keyframes"
+  | "full_analysis"
+  | "unsupported"
+  | "failed";
+
+export interface VideoAnalysisSummary {
+  status: VideoAnalysisStatus;
+  duration?: number;
+  width?: number;
+  height?: number;
+  frameCount?: number;
+  analyzedFrameCount?: number;
+  thumbnailAnalyzed: boolean;
+  subtitleAnalyzed: boolean;
+  titleAnalyzed: boolean;
+  limitations: string[];
+}
