@@ -176,6 +176,11 @@ export type VideoAnalysisStatus =
   | "unsupported"
   | "failed";
 
+export type HistoryItem = {
+  id: string; hospital_name: string; specialty: string;
+  status: DiagnosisProgressStatus; created_at: string; updated_at: string;
+};
+
 export type ActionStatus = "todo" | "in_progress" | "completed" | "deferred";
 
 export interface DiagnosisAction {
