@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const consent = form.get("consent") === "true";
 
     if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "파일이 없습니다." }, { status: 400 });
-    if (!diagnosisId) return NextResponse.json({ ok: false, error: "diagnosisId가 필요합니다." }, { status: 400 });
+    if (!diagnosisId || !UUID_RE.test(diagnosisId)) return NextResponse.json({ ok: false, error: "diagnosisId가 올바르지 않습니다." }, { status: 400 });
     if (!VALID_CHANNELS.includes(channel)) return NextResponse.json({ ok: false, error: "채널 값이 올바르지 않습니다." }, { status: 400 });
     if (!consent) return NextResponse.json({ ok: false, error: "업로드 동의가 필요합니다." }, { status: 400 });
     if (!HBD_ALLOWED_MIME_TYPES.includes(file.type)) {
