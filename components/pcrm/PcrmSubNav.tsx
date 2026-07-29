@@ -46,19 +46,12 @@ export default function PcrmSubNav() {
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         if (item.key === "projects") {
+          const active = inProjectView || pathname.startsWith("/clients/list");
           return (
-            <button
-              key={item.key}
-              type="button"
-              aria-disabled={!inProjectView}
-              data-active={inProjectView}
-              data-muted={!inProjectView}
-              title={inProjectView ? undefined : "준비 중입니다."}
-              onClick={() => { if (!inProjectView) window.alert(`${item.label} 기능은 준비 중입니다.`); }}
-            >
+            <Link key={item.key} href={item.href!} data-active={active}>
               <Icon size={16} strokeWidth={1.8} />
               {item.label}
-            </button>
+            </Link>
           );
         }
         if (item.disabled || !item.href) {
