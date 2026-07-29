@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { C, R, FS, SP } from "@/lib/theme";
 import type {
   ChannelDiagnosisResult, ChannelScores, DiagnosisChannel, DiagnosisProgressStatus,
-  DiagnosisSource, HistoryItem, HospitalBrandDiagnosisReport, UploadedAsset, VideoAnalysisSummary, VisualCategory,
+  DiagnosisSource, HistoryItem, HospitalBrandDiagnosisReport, SourceStatus, UploadedAsset, VideoAnalysisSummary, VisualCategory,
 } from "@/lib/hospitalBrandDiagnosis/types";
 import { HBD_CHANNEL_LABEL, HBD_VISUAL_CATEGORY_LABEL } from "@/lib/hospitalBrandDiagnosis/config";
 import { ReportView } from "@/components/hospital-brand-diagnosis/ReportView";
