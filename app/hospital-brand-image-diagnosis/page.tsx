@@ -60,6 +60,56 @@ function uuid() {
   return typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
 }
 
+// 서버(Vercel)에 ffmpeg를 두지 않고, 브라우저의 <video>+<canvas>로 주요 프레임을 직접 추출한다.
+// 시작 / 25% / 50% / 75% / 종료 직전 지점을 기준으로 하되, 영상이 짧으면 프레임 수를 줄인다(섹션 4-3).
+async function extractVideoKeyframes(file: File): Promise<{ frames: Blob[]; duration: number; width: number; height: number }> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    const cleanup = () => URL.revokeObjectURL(url);
+
+    video.onerror = () => { cleanup(); resolve({ frames: [], duration: 0, width: 0, height: 0 }); };
+
+    video.onloadedmetadata = async () => {
+      const duration = video.duration || 0;
+      const width = video.videoWidth || 0;
+      const height = video.videoHeight || 0;
+      if (!duration || !Number.isFinite(duration)) { cleanup(); resolve({ frames: [], duration: 0, width, height }); return; }
+
+      const fractions = duration < 3 ? [0.5] : duration < 10 ? [0, 0.5, 0.95] : [0, 0.25, 0.5, 0.75, 0.95];
+      const canvas = document.createElement("canvas");
+      canvas.width = width || 640;
+      canvas.height = height || 360;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { cleanup(); resolve({ frames: [], duration, width, height }); return; }
+
+      const seekTo = (t: number) => new Promise<void>((res) => {
+        const onSeeked = () => { video.removeEventListener("seeked", onSeeked); res(); };
+        video.addEventListener("seeked", onSeeked);
+        video.currentTime = Math.min(Math.max(t, 0), Math.max(duration - 0.05, 0));
+      });
+
+      const frames: Blob[] = [];
+      try {
+        for (const frac of fractions) {
+          await seekTo(duration * frac);
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const blob: Blob | null = await new Promise((res) => canvas.toBlob((b) => res(b), "image/jpeg", 0.85));
+          if (blob) frames.push(blob);
+        }
+      } catch {
+        // 일부 프레임 추출에 실패해도 이미 확보한 프레임까지는 그대로 사용한다.
+      }
+      cleanup();
+      resolve({ frames, duration, width, height });
+    };
+  });
+}
+
 /* ─────────────────────────── 재사용 소형 컴포넌트 ─────────────────────────── */
 
 function StepIndicator({ current, maxReached, isMobile }: { current: number; maxReached: number; isMobile: boolean }) {
