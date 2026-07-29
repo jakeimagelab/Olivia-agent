@@ -165,11 +165,32 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
         <section className="pcrm-project-panel" style={cardStyle}>
           <header>
             <div><h2>최근 프로젝트 현황</h2><span>고객과 프로젝트의 현재 단계를 확인하세요.</span></div>
-            <b>{tabbedClients.length}개 고객</b>
+            <div className="pcrm-project-panel-meta">
+              <b>{tabbedClients.length}개 고객</b>
+              {totalProjectPages > 1 && (
+                <div className="pcrm-project-pager">
+                  <button
+                    type="button"
+                    className="is-arrow"
+                    disabled={currentProjectPage <= 1}
+                    aria-label="이전 페이지"
+                    onClick={() => setProjectPage((p) => Math.max(1, p - 1))}
+                  ><ChevronLeft size={14} /></button>
+                  <span>{currentProjectPage} / {totalProjectPages}</span>
+                  <button
+                    type="button"
+                    className="is-arrow"
+                    disabled={currentProjectPage >= totalProjectPages}
+                    aria-label="다음 페이지"
+                    onClick={() => setProjectPage((p) => Math.min(totalProjectPages, p + 1))}
+                  ><ChevronRight size={14} /></button>
+                </div>
+              )}
+            </div>
           </header>
           <div className="pcrm-project-tabs" role="tablist" aria-label="프로젝트 상태 필터">
             {TABS.map((t) => (
-              <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} data-active={tab === t.key} onClick={() => setTab(t.key)}>
+              <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} data-active={tab === t.key} onClick={() => changeTab(t.key)}>
                 {t.label}
               </button>
             ))}
@@ -180,7 +201,7 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
             </div>
             {tabbedClients.length === 0 ? (
               <p className="pcrm-empty-copy">해당 조건의 프로젝트가 없습니다.</p>
-            ) : tabbedClients.slice(0, 4).map((client) => {
+            ) : pagedClients.map((client) => {
               const run = client.active_run;
               const completedProject = run?.status === "completed";
               const stepLabel = completedProject
