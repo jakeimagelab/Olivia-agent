@@ -1599,6 +1599,9 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
         />
       )}
 
+      {showEmailModal && diagnosisId && <EmailModal diagnosisId={diagnosisId} onClose={() => setShowEmailModal(false)} />}
+      {showShareModal && diagnosisId && <ShareModal diagnosisId={diagnosisId} onClose={() => setShowShareModal(false)} />}
+
       {showCompare && (
         <div className="hbd-print-hide" style={{ position: "fixed", inset: 0, zIndex: 200, display: "grid", placeItems: "center", background: "rgba(13,37,35,.5)", padding: 20 }}
           onMouseDown={(e) => e.target === e.currentTarget && setShowCompare(false)}>
