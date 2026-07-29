@@ -609,7 +609,7 @@ export default function HospitalBrandImageDiagnosisPage() {
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
       <PageHeader title="병원브랜드이미지 진단" />
       <div className="oa-page" style={{ maxWidth: 820, margin: "0 auto", padding: `${SP.lg}px 20px 80px` }}>
-        <StepIndicator current={step} maxReached={maxReached} />
+        <StepIndicator current={step} maxReached={maxReached} isMobile={isMobile} />
         {globalError && (
           <div style={{ background: "#FFF0F0", border: `1px solid ${C.danger}`, borderRadius: R.md, padding: 12, marginBottom: 16, color: C.danger, fontSize: FS.sm }}>
             {globalError}
