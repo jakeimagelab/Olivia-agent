@@ -1038,9 +1038,21 @@ function ReportView({ report, onRestart, onBackToStep }: {
         <section style={cardStyle}>
           <h3 style={{ margin: "0 0 12px", fontSize: FS.lg, fontWeight: 900, color: C.ink }}>채널별 상세 결과</h3>
           <div style={{ display: "grid", gap: 14 }}>
-            {report.channelResults.map((r) => (
+            {report.channelResults.map((r) => {
+              const source = report.sources.find((s) => s.channel === r.channel);
+              const methodStatus = source?.status ?? "failed";
+              return (
               <div key={r.channel} style={{ border: `1px solid ${C.border}`, borderRadius: R.md, padding: 14 }}>
-                <strong style={{ fontSize: FS.md, color: C.ink }}>{HBD_CHANNEL_LABEL[r.channel]}</strong>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <strong style={{ fontSize: FS.md, color: C.ink }}>{HBD_CHANNEL_LABEL[r.channel]}</strong>
+                  <span
+                    title={ANALYSIS_METHOD_DESC[methodStatus]}
+                    style={{
+                      fontSize: FS.xs, fontWeight: 800, color: "#fff", background: ANALYSIS_METHOD_COLOR[methodStatus],
+                      borderRadius: R.full, padding: "2px 9px", cursor: "help",
+                    }}
+                  >{ANALYSIS_METHOD_LABEL[methodStatus]}</span>
+                </div>
                 <p style={{ margin: "6px 0 10px", fontSize: FS.sm, color: C.ink, lineHeight: 1.6 }}>{r.summary}</p>
                 {r.strengths.length > 0 && <p style={{ margin: "4px 0", fontSize: FS.xs, color: C.success }}>강점: {r.strengths.join(" · ")}</p>}
                 {r.missingInformation.length > 0 && <p style={{ margin: "4px 0", fontSize: FS.xs, color: C.muted }}>부족한 정보: {r.missingInformation.join(" · ")}</p>}
