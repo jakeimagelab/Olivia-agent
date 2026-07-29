@@ -1263,7 +1263,7 @@ function ShareModal({ diagnosisId, onClose }: { diagnosisId: string; onClose: ()
   );
 }
 
-function ReportView({ report, onRestart, onBackToStep, diagnosisId, readOnly }: {
+export function ReportView({ report, onRestart, onBackToStep, diagnosisId, readOnly }: {
   report: HospitalBrandDiagnosisReport; onRestart: () => void; onBackToStep: (n: number) => void; diagnosisId: string | null;
   readOnly?: boolean;
 }) {
