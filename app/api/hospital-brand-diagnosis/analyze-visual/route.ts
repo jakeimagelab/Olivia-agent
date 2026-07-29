@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { downloadAssetAsBase64 } from "@/lib/hospitalBrandDiagnosis/storage";
 import { HBD_SYSTEM_PRINCIPLES, stripForbiddenPhrases } from "@/lib/hospitalBrandDiagnosis/config";
-import type { VisualCategory } from "@/lib/hospitalBrandDiagnosis/types";
+import type { VideoAnalysisSummary, VisualCategory } from "@/lib/hospitalBrandDiagnosis/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
