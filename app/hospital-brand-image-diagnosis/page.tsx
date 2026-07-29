@@ -1399,15 +1399,20 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId, readOnly }: 
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
+      {readOnly && (
+        <div className="hbd-print-hide" style={{ background: C.mint, borderRadius: R.md, padding: 12, fontSize: FS.xs, color: C.teal, fontWeight: 700 }}>
+          공유된 리포트를 보기 전용으로 열람 중입니다. 수정하거나 다시 진단할 수 없습니다.
+        </div>
+      )}
       <div className="hbd-print-hide" style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "flex-end" }}>
         <button onClick={downloadPdf} disabled={downloading} style={{ ...secondaryBtn, opacity: downloading ? 0.6 : 1 }}>{downloading ? "PDF 생성 중…" : "PDF 다운로드"}</button>
         <button onClick={() => window.print()} style={secondaryBtn}>브라우저 인쇄로 저장</button>
-        <button onClick={openCompare} style={secondaryBtn}>이전 진단과 비교</button>
-        {diagnosisId && <button onClick={() => setShowEmailModal(true)} style={secondaryBtn}>이메일로 받기</button>}
-        {diagnosisId && <button onClick={() => setShowShareModal(true)} style={secondaryBtn}>팀원에게 공유</button>}
-        <button onClick={() => onBackToStep(4)} style={secondaryBtn}>분석 자료 다시 확인</button>
-        <button onClick={() => onBackToStep(3)} style={secondaryBtn}>다른 채널 추가 분석</button>
-        <button onClick={onRestart} style={primaryBtn}>재진단 시작</button>
+        {!readOnly && <button onClick={openCompare} style={secondaryBtn}>이전 진단과 비교</button>}
+        {!readOnly && diagnosisId && <button onClick={() => setShowEmailModal(true)} style={secondaryBtn}>이메일로 받기</button>}
+        {!readOnly && diagnosisId && <button onClick={() => setShowShareModal(true)} style={secondaryBtn}>팀원에게 공유</button>}
+        {!readOnly && <button onClick={() => onBackToStep(4)} style={secondaryBtn}>분석 자료 다시 확인</button>}
+        {!readOnly && <button onClick={() => onBackToStep(3)} style={secondaryBtn}>다른 채널 추가 분석</button>}
+        {!readOnly && <button onClick={onRestart} style={primaryBtn}>재진단 시작</button>}
       </div>
 
       {pdfError && (
