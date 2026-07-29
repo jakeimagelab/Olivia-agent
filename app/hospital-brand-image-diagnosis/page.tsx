@@ -1283,6 +1283,10 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
                       borderRadius: R.full, padding: "2px 9px", cursor: "help",
                     }}
                   >{ANALYSIS_METHOD_LABEL[methodStatus]}</span>
+                  <button
+                    onClick={() => setEvidenceChannel(r.channel)}
+                    style={{ marginLeft: "auto", height: 26, padding: "0 10px", borderRadius: R.full, border: `1px solid ${C.border}`, background: "#fff", color: C.teal, fontSize: FS.xs, fontWeight: 800, cursor: "pointer" }}
+                  >근거 보기</button>
                 </div>
                 <p style={{ margin: "6px 0 10px", fontSize: FS.sm, color: C.ink, lineHeight: 1.6 }}>{r.summary}</p>
                 {r.strengths.length > 0 && <p style={{ margin: "4px 0", fontSize: FS.xs, color: C.success }}>강점: {r.strengths.join(" · ")}</p>}
@@ -1303,6 +1307,15 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
           </ul>
         </section>
       </div>
+
+      {evidenceChannel && (
+        <EvidencePanel
+          channel={evidenceChannel}
+          evidence={report.evidence.filter((e) => e.channel === evidenceChannel)}
+          diagnosisId={diagnosisId}
+          onClose={() => setEvidenceChannel(null)}
+        />
+      )}
     </div>
   );
 }
