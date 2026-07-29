@@ -348,8 +348,6 @@ function AssetUploadZone({ diagnosisId, channel, consent, assets, onUploaded, on
 
 type ClientLookup = { id: string; hospital_name: string; specialty?: string; address?: string; website_url?: string; naver_place_url?: string; instagram_url?: string; contact_name?: string };
 
-type HistoryItem = { id: string; hospital_name: string; specialty: string; status: DiagnosisProgressStatus; created_at: string; updated_at: string };
-
 export default function HospitalBrandImageDiagnosisPage() {
   const [screen, setScreen] = useState<"landing" | "wizard">("landing");
   const [step, setStep] = useState(1);
