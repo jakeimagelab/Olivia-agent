@@ -4,6 +4,7 @@ import { HBD_CHANNEL_LABEL, HBD_CHANNEL_ROLE, HBD_SYSTEM_PRINCIPLES, stripForbid
 import type {
   DiagnosisChannel, HospitalBrandDiagnosisReport, HospitalBrandProfile, VisualComposition,
 } from "@/lib/hospitalBrandDiagnosis/types";
+import { isUuid } from "@/lib/hospitalBrandDiagnosis/validation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
