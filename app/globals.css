@@ -8597,3 +8597,14 @@ main, .pc-console, .pc-page, .pc-page-content {
   .hbd-print-area { position: absolute; left: 0; top: 0; width: 100%; }
   .hbd-print-hide { display: none !important; }
 }
+
+/* 병원브랜드이미지 진단 — 모바일에서 고정 2열이던 영역을 1열로 전환 (STEP1 진료과/지역,
+   결과 리포트의 의도한 이미지/실제 이미지 비교). 데스크톱 레이아웃은 그대로 유지한다. */
+.hbd-two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .hbd-two-col-grid { grid-template-columns: 1fr; }
+}
