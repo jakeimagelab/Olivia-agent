@@ -270,9 +270,10 @@ export default function PcrmScheduleBoard() {
   );
 }
 
-function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete }: {
+function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy }: {
   date: string; task?: Task; saving: boolean;
   onClose: () => void; onSave: (payload: Record<string, unknown>) => void; onDelete?: () => void;
+  onCopy?: (payload: Record<string, unknown>) => void;
 }) {
   const [title, setTitle] = useState(task?.title || "");
   const [category, setCategory] = useState(task?.category || "shooting");
@@ -282,9 +283,16 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete }: {
   const [memo, setMemo] = useState(task?.memo || "");
   const [taskDate, setTaskDate] = useState(date);
 
+  const buildPayload = () => ({ date: taskDate, title: title.trim(), category, time: time || null, end_time: endTime || null, location: location || null, memo });
+
   const submit = () => {
     if (!title.trim()) { alert("일정 제목을 입력해주세요."); return; }
-    onSave({ date: taskDate, title: title.trim(), category, time: time || null, end_time: endTime || null, location: location || null, memo });
+    onSave(buildPayload());
+  };
+
+  const copy = () => {
+    if (!title.trim()) { alert("일정 제목을 입력해주세요."); return; }
+    onCopy?.(buildPayload());
   };
 
   return (
