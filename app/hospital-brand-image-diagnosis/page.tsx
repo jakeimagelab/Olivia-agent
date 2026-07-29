@@ -1282,8 +1282,9 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId, readOnly }: 
   const [compareError, setCompareError] = useState("");
 
   // 즉시 수정 항목의 진행 상태(섹션 15-2) — 최초 진입 시 없으면 리포트의 즉시수정항목으로 1회 시딩한다.
+  // 보기 전용 공유 화면(readOnly)에서는 조회도, 시딩도 하지 않는다 — 외부 뷰어는 수정 권한이 없다.
   useEffect(() => {
-    if (!diagnosisId) return;
+    if (!diagnosisId || readOnly) return;
     let cancelled = false;
     (async () => {
       try {
