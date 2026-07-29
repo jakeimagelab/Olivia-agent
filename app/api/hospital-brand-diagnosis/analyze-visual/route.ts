@@ -52,7 +52,9 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseAdmin();
     let assetQuery = supabase.from("hospital_brand_diagnosis_assets").select("*").eq("diagnosis_id", diagnosisId);
     if (Array.isArray(body.assetIds) && body.assetIds.length > 0) {
-      assetQuery = assetQuery.in("id", body.assetIds);
+      const assetIds = (body.assetIds as unknown[]).filter(isUuid);
+      if (assetIds.length === 0) return NextResponse.json({ ok: false, error: "assetIds 값이 올바르지 않습니다." }, { status: 400 });
+      assetQuery = assetQuery.in("id", assetIds);
     } else {
       assetQuery = assetQuery.is("analysis_json", null);
     }
