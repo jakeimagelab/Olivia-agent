@@ -82,8 +82,11 @@ const CALENDAR_CATEGORY_LABEL: Record<string, string> = {
   shooting: "촬영", client: "고객", admin: "행정", personal: "개인", general: "기타",
 };
 
+const PROJECT_PAGE_SIZE = 4;
+
 export default function PcrmDashboard({ clients, dashboard, search, onSearch, deletingId, onOpen, onDelete, onCreate }: Props) {
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("all");
+  const [projectPage, setProjectPage] = useState(1);
 
   const active = clients.filter((client) => client.active_run?.status === "active");
   const completed = clients.filter((client) => client.active_run?.status === "completed");
