@@ -301,22 +301,38 @@ function AssetUploadZone({ diagnosisId, channel, consent, assets, onUploaded, on
       <button type="button" disabled={uploading} onClick={() => inputRef.current?.click()} style={{
         ...secondaryBtn, height: 40, padding: "0 16px", opacity: uploading || !consent ? 0.6 : 1,
       }}>{uploading ? "업로드 중…" : "화면 캡처·사진·영상 추가"}</button>
+      <p style={{ margin: 0, fontSize: FS.xs, color: C.hint, lineHeight: 1.6 }}>
+        영상은 현재 제목, 썸네일, 첫 장면과 주요 프레임을 중심으로 분석합니다.<br />
+        영상 전체의 대화와 모든 장면을 정밀하게 분석하는 기능은 지원 준비 중입니다.
+      </p>
       {error && <p style={{ color: C.danger, fontSize: FS.xs, margin: 0 }}>{error}</p>}
       {assets.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 8 }}>
-          {assets.map((asset) => (
+          {assets.map((asset) => {
+            const videoSummary = asset.mimeType.startsWith("video/") ? (asset.analysisJson as VideoAnalysisSummary | undefined) : undefined;
+            return (
             <div key={asset.id} style={{ position: "relative", borderRadius: R.sm, overflow: "hidden", border: `1px solid ${C.border}`, aspectRatio: "1", background: C.bg }}>
               {asset.previewUrl && asset.mimeType.startsWith("image/") ? (
                 <img src={asset.previewUrl} alt={asset.fileName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 <div style={{ display: "grid", placeItems: "center", height: "100%", fontSize: FS.xs, color: C.muted, padding: 6, textAlign: "center" }}>{asset.fileName}</div>
               )}
+              {videoSummary && (
+                <span style={{
+                  position: "absolute", left: 4, bottom: 4, fontSize: 9, fontWeight: 800, color: "#fff",
+                  background: videoSummary.status === "keyframes" ? "rgba(21,88,85,.85)" : "rgba(90,116,112,.85)",
+                  borderRadius: R.full, padding: "2px 6px",
+                }}>
+                  {VIDEO_STATUS_LABEL[videoSummary.status]}
+                </span>
+              )}
               <button type="button" onClick={() => removeAsset(asset.id)} style={{
                 position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", border: "none",
                 background: "rgba(0,0,0,.55)", color: "#fff", fontSize: 12, cursor: "pointer", lineHeight: 1,
               }}>×</button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
