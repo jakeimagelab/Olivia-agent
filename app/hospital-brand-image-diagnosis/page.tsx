@@ -998,7 +998,7 @@ export default function HospitalBrandImageDiagnosisPage() {
         )}
 
         {step === 7 && report && (
-          <ReportView report={report} onRestart={resetWizard} onBackToStep={goToStep} />
+          <ReportView report={report} onRestart={resetWizard} onBackToStep={goToStep} diagnosisId={diagnosisId} />
         )}
       </div>
     </main>
