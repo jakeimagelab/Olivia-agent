@@ -219,6 +219,14 @@ export default function HospitalBrandImageDiagnosisPage() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [globalError, setGlobalError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // STEP1
   const [hospitalName, setHospitalName] = useState("");
