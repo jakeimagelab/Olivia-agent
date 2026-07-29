@@ -326,6 +326,9 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           <button onClick={copyPortalLink} disabled={linkCopyBusy} className="pc-btn pc-btn--ghost pc-btn--sm">
             <Copy size={13} /> {linkCopyBusy ? "복사 중..." : "링크 복사"}
           </button>
+          {workflowRun && (
+            <button onClick={() => setShowEditProjectDialog(true)} className="pc-btn pc-btn--secondary pc-btn--sm"><Pencil size={13} /> 프로젝트 수정</button>
+          )}
           <button onClick={() => setShowProjectDialog(true)} className="pc-btn pc-btn--orange pc-btn--sm"><Plus size={13} /> 프로젝트 생성</button>
           <div className="pcrm-row-menu">
             <button type="button" className="pc-btn pc-btn--ghost pc-btn--sm" aria-label="더보기" onClick={() => setHeaderMenuOpen((v) => !v)}>
