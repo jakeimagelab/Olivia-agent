@@ -174,12 +174,25 @@ export async function POST(req: NextRequest) {
         if (upsertError) throw new Error(upsertError.message);
         results.push(row);
       } catch (error) {
+        // 실패를 성공으로 위장하지 않는다 — DB에도 실패가 남긴 흔적을 남기고(빈 0점이 아닌 "확인 불가"),
+        // 응답에도 hasErrors/failedChannels로 명시해 호출한 쪽(클라이언트의 runCompile)이
+        // 반드시 이 실패를 인지하고 사용자에게 보여주도록 한다.
         const message = error instanceof Error ? error.message : "채널 분석 실패";
-        results.push({ diagnosis_id: diagnosisId, channel, error: message });
+        const emptyScores: Record<string, ScoreValue> = {};
+        for (const key of SCORE_KEYS) emptyScores[key] = { value: null, reason: "AI 분석 실패", evidenceIds: [] };
+        const failedRow = {
+          diagnosis_id: diagnosisId, channel,
+          scores_json: emptyScores, summary: `이 채널은 분석 중 오류가 발생해 완료되지 못했습니다: ${message}`,
+          strengths_json: [], missing_information_json: [], immediate_actions_json: [],
+          reusable_assets_json: [], unavailable_checks_json: [`채널 전체 — 분석 오류(${message})`],
+        };
+        await supabase.from("hospital_brand_diagnosis_channel_results").upsert(failedRow, { onConflict: "diagnosis_id,channel" }).select();
+        results.push({ ...failedRow, error: message });
       }
     }
 
-    return NextResponse.json({ ok: true, results });
+    const failedChannels = results.filter((r) => r.error).map((r) => r.channel as DiagnosisChannel);
+    return NextResponse.json({ ok: true, results, hasErrors: failedChannels.length > 0, failedChannels });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "채널 진단 실패" }, { status: 500 });
   }
