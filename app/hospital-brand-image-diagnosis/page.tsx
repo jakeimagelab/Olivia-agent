@@ -62,7 +62,20 @@ function uuid() {
 
 /* ─────────────────────────── 재사용 소형 컴포넌트 ─────────────────────────── */
 
-function StepIndicator({ current, maxReached }: { current: number; maxReached: number }) {
+function StepIndicator({ current, maxReached, isMobile }: { current: number; maxReached: number; isMobile: boolean }) {
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 2px 14px" }}>
+        <span style={{
+          flexShrink: 0, padding: "6px 12px", borderRadius: R.full, background: C.teal, color: "#fff",
+          fontSize: FS.xs, fontWeight: 800, whiteSpace: "nowrap",
+        }}>STEP {current} / {STEP_LABELS.length}</span>
+        <span style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {STEP_LABELS[current - 1]}
+        </span>
+      </div>
+    );
+  }
   return (
     <div style={{ display: "flex", overflowX: "auto", gap: 6, padding: "4px 2px 14px", WebkitOverflowScrolling: "touch" }}>
       {STEP_LABELS.map((label, i) => {
