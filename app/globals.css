@@ -8588,3 +8588,12 @@ main, .pc-console, .pc-page, .pc-page-content {
   white-space: nowrap;
 }
 .olivia-chat-message-attachments small { color: #78908b; font-size: 8px; }
+
+/* 병원브랜드이미지 진단 — 결과 리포트를 브라우저 인쇄(Ctrl/Cmd+P)로 저장할 때
+   사이드바/헤더/버튼 등은 숨기고 리포트 본문만 인쇄되도록 한다 (PDF 생성 실패 시 대체 수단). */
+@media print {
+  body * { visibility: hidden; }
+  .hbd-print-area, .hbd-print-area * { visibility: visible; }
+  .hbd-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  .hbd-print-hide { display: none !important; }
+}
