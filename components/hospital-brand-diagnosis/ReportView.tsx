@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { C, R, FS } from "@/lib/theme";
 import type {
-  ChannelScores, DiagnosisChannel, HistoryItem, HospitalBrandDiagnosisReport, SourceStatus,
+  ActionStatus, ChannelScores, DiagnosisAction, DiagnosisChannel, HistoryItem, HospitalBrandDiagnosisReport, SourceStatus,
 } from "@/lib/hospitalBrandDiagnosis/types";
 import { HBD_CHANNEL_LABEL } from "@/lib/hospitalBrandDiagnosis/config";
 
