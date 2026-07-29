@@ -1059,7 +1059,8 @@ function ReportView({ report, onRestart, onBackToStep }: {
                 {r.immediateActions.length > 0 && <p style={{ margin: "4px 0", fontSize: FS.xs, color: C.orange }}>즉시 수정: {r.immediateActions.join(" · ")}</p>}
                 {r.unavailableChecks.length > 0 && <p style={{ margin: "4px 0", fontSize: FS.xs, color: C.hint }}>확인 불가: {r.unavailableChecks.join(" · ")}</p>}
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
