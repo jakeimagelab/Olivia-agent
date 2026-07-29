@@ -2,20 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { HospitalBrandProfile } from "@/lib/hospitalBrandDiagnosis/types";
 import { HBD_ALGORITHM_VERSION } from "@/lib/hospitalBrandDiagnosis/config";
+import { escapeList, escapeText, isUuid } from "@/lib/hospitalBrandDiagnosis/validation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function escapeText(value: unknown, max = 400): string {
-  return String(value ?? "")
-    .replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .trim().slice(0, max);
-}
-
-function escapeList(value: unknown, max = 20): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((item) => escapeText(item, 120)).filter(Boolean).slice(0, max);
-}
 
 // STEP1(병원 기본정보)+STEP2(브랜드 목표) 저장 후 진단 세션을 생성한다.
 export async function POST(req: NextRequest) {
