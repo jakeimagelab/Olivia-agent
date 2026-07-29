@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { analyzeChannels, assertSafeChannelUrl } from "@/lib/channelAnalysis";
 import type { DiagnosisChannel, SourceStatus } from "@/lib/hospitalBrandDiagnosis/types";
+import { isUuid } from "@/lib/hospitalBrandDiagnosis/validation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
