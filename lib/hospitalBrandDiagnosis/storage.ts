@@ -43,3 +43,11 @@ export async function downloadAssetAsBase64(db: SupabaseClient, storagePath: str
   const buffer = Buffer.from(await data.arrayBuffer());
   return buffer.toString("base64");
 }
+
+// 섹션 11-2: 근거 자료의 원본 이미지는 비공개 버킷에 저장되어 있으므로, 화면에는 만료 시간이
+// 제한된 signed URL로만 노출한다(원본 URL을 영구 공개 URL로 바꾸지 않는다).
+export async function getSignedAssetUrl(db: SupabaseClient, storagePath: string, ttlSeconds = 300): Promise<string | null> {
+  const { data, error } = await db.storage.from(HBD_STORAGE_BUCKET).createSignedUrl(storagePath, ttlSeconds);
+  if (error || !data?.signedUrl) return null;
+  return data.signedUrl;
+}
