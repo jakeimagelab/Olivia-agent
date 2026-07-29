@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ExternalLink, Plus, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, ExternalLink, Plus, Trash2, X } from "lucide-react";
 import { C, R } from "@/lib/theme";
 
 const CATS: Record<string, { label: string; color: string; bg: string }> = {
