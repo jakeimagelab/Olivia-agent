@@ -17,6 +17,7 @@ import NextActionCard from "@/components/NextActionCard";
 import PcrmDashboard from "./_components/PcrmDashboard";
 import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
+import EditPcrmProjectDialog from "./_components/EditPcrmProjectDialog";
 import PcrmActivityTimeline from "./_components/PcrmActivityTimeline";
 import PcrmCollaborationPanel from "./_components/PcrmCollaborationPanel";
 import ClientOverviewTab from "./_components/detail/ClientOverviewTab";
