@@ -950,7 +950,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
             position: "fixed",
             bottom: isMobile ? 20 : 24,
             right: isMobile ? 16 : 24,
-            zIndex: 1000,
+            zIndex: 10050,
             width: isMobile ? 52 : 56,
             height: isMobile ? 52 : 56,
             borderRadius: "50%",
