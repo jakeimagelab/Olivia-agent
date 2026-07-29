@@ -157,17 +157,13 @@ create table if not exists public.per_reports (
 );
 
 -- ── 8. mailing_queue type 확장 ─────────────────────────────────
--- 기존 체크 제약을 삭제하고 per 타입 포함한 새 제약 추가
+-- 기존 체크 제약을 완전히 제거한다. 코드 곳곳(워크플로우 자동화, 올리비아 챗봇, cron 리마인더 등)에서
+-- 이미 다양한 type 값(select_gallery, shoot_reminder 등)으로 직접 insert하고 있어서, 여기서 허용
+-- 목록을 다시 하드코딩하면 목록에 없는 기존 값을 가진 행이 하나만 있어도 마이그레이션 전체가
+-- 롤백되는 문제가 생긴다(실제로 이 문제로 실패한 적이 있다). type은 애플리케이션 레벨에서
+-- 관리하고, DB 제약으로는 강제하지 않는다.
 alter table public.mailing_queue
   drop constraint if exists mailing_queue_type_check;
-
-alter table public.mailing_queue
-  add constraint mailing_queue_type_check
-  check (type in (
-    'quote','contract','conti','proposal','original_files',
-    'gallery','review_form','monthly_report',
-    'per_report','per_order','per_donation'
-  ));
 
 -- ── 9. updated_at 트리거 적용 ──────────────────────────────────
 drop trigger if exists reward_products_updated_at on public.reward_products;
