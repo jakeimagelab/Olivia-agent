@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       currentConcerns: escapeList(body.currentConcerns),
     };
 
-    const clientId = typeof body.clientId === "string" && body.clientId ? body.clientId : null;
+    const clientId = isUuid(body.clientId) ? body.clientId : null;
 
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
