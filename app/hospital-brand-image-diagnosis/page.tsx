@@ -904,7 +904,7 @@ function ReportView({ report, onRestart, onBackToStep }: {
         {/* 2. 의도 vs 실제 */}
         <section style={cardStyle}>
           <h3 style={{ margin: "0 0 12px", fontSize: FS.lg, fontWeight: 900, color: C.ink }}>병원이 의도한 이미지와 실제 이미지</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="hbd-two-col-grid">
             <div>
               <div style={{ fontSize: FS.xs, fontWeight: 800, color: C.teal, marginBottom: 6 }}>의도한 이미지</div>
               <ul style={{ margin: 0, paddingLeft: 18, fontSize: FS.sm, color: C.ink, lineHeight: 1.7 }}>
