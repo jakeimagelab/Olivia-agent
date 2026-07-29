@@ -33,9 +33,13 @@ async function analyzeSingleChannel(
 ) {
   const criteria = HBD_CHANNEL_CRITERIA[channel] ?? HBD_CHANNEL_CRITERIA.other;
   const evidenceList = evidence.map((e, i) => `[${e.id}] ${e.statement} (신뢰도:${e.confidence})`).join("\n") || "(수집된 근거 없음)";
-  const assetSummary = assets.map((a) =>
-    `- ${a.file_name}: 분류=${a.category || a.analysis_json?.category || "미분류"}, 소견=${a.analysis_json?.analysisNote || a.analysis_json?.sceneMeaning || "(분석 없음)"}`
-  ).join("\n") || "(업로드된 이미지 없음)";
+  const assetSummary = assets.map((a) => {
+    if (String(a.mime_type || "").startsWith("video/")) {
+      const v = a.analysis_json || {};
+      return `- ${a.file_name} (영상, 분석범위=${v.status || "unsupported"}): ${(v.limitations || []).join(" ") || "제목 등 기본 정보만 참고"}`;
+    }
+    return `- ${a.file_name}: 분류=${a.category || a.analysis_json?.category || "미분류"}, 소견=${a.analysis_json?.analysisNote || a.analysis_json?.sceneMeaning || "(분석 없음)"}`;
+  }).join("\n") || "(업로드된 이미지 없음)";
 
   const prompt = `${HBD_SYSTEM_PRINCIPLES}
 
