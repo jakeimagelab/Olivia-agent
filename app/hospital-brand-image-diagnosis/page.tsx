@@ -856,10 +856,14 @@ function ReportView({ report, onRestart, onBackToStep }: {
 }) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [pdfError, setPdfError] = useState("");
+  const [pdfSuccess, setPdfSuccess] = useState(false);
 
   const downloadPdf = async () => {
     if (!reportRef.current || downloading) return;
     setDownloading(true);
+    setPdfError("");
+    setPdfSuccess(false);
     try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
       const canvas = await html2canvas(reportRef.current, { scale: 1.5, backgroundColor: "#ffffff", useCORS: true, logging: false });
@@ -878,8 +882,11 @@ function ReportView({ report, onRestart, onBackToStep }: {
         heightLeft -= pageHeight;
       }
       pdf.save(`${report.profile.hospitalName || "병원"}_브랜드이미지진단_${new Date().toISOString().slice(0, 10)}.pdf`);
-    } catch {
-      // PDF 생성 실패해도 화면상의 결과는 그대로 남아있으므로 조용히 실패 처리한다.
+      setPdfSuccess(true);
+      window.setTimeout(() => setPdfSuccess(false), 3000);
+    } catch (error) {
+      console.error("[HospitalBrandDiagnosis] PDF generation failed", error);
+      setPdfError("PDF 생성에 실패했습니다. 잠시 후 다시 시도하거나 브라우저 인쇄 기능을 사용해 주세요.");
     } finally {
       setDownloading(false);
     }
@@ -887,14 +894,27 @@ function ReportView({ report, onRestart, onBackToStep }: {
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "flex-end" }}>
-        <button onClick={downloadPdf} disabled={downloading} style={{ ...secondaryBtn, opacity: downloading ? 0.6 : 1 }}>{downloading ? "생성 중…" : "PDF 다운로드"}</button>
+      <div className="hbd-print-hide" style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "flex-end" }}>
+        <button onClick={downloadPdf} disabled={downloading} style={{ ...secondaryBtn, opacity: downloading ? 0.6 : 1 }}>{downloading ? "PDF 생성 중…" : "PDF 다운로드"}</button>
+        <button onClick={() => window.print()} style={secondaryBtn}>브라우저 인쇄로 저장</button>
         <button onClick={() => onBackToStep(4)} style={secondaryBtn}>분석 자료 다시 확인</button>
         <button onClick={() => onBackToStep(3)} style={secondaryBtn}>다른 채널 추가 분석</button>
         <button onClick={onRestart} style={primaryBtn}>재진단 시작</button>
       </div>
 
-      <div ref={reportRef} style={{ background: C.white, padding: 8, display: "grid", gap: 22 }}>
+      {pdfError && (
+        <div className="hbd-print-hide" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "#FFF0F0", border: `1px solid ${C.danger}`, borderRadius: R.md, padding: 12 }}>
+          <span style={{ color: C.danger, fontSize: FS.sm }}>{pdfError}</span>
+          <button onClick={downloadPdf} style={{ ...secondaryBtn, height: 34, padding: "0 14px", fontSize: FS.xs, flexShrink: 0 }}>다시 시도</button>
+        </div>
+      )}
+      {pdfSuccess && (
+        <div className="hbd-print-hide" style={{ background: C.mint, border: `1px solid ${C.success}`, borderRadius: R.md, padding: 12, color: C.success, fontSize: FS.sm, fontWeight: 700 }}>
+          PDF 리포트가 생성되었습니다.
+        </div>
+      )}
+
+      <div ref={reportRef} className="hbd-print-area" style={{ background: C.white, padding: 8, display: "grid", gap: 22 }}>
         {/* 1. 종합 요약 */}
         <section style={cardStyle}>
           <h2 style={{ margin: "0 0 10px", fontSize: FS.xl, fontWeight: 900, color: C.ink }}>{report.profile.hospitalName} 브랜드이미지 진단 결과</h2>
