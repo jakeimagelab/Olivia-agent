@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock3,
   FolderKanban,
