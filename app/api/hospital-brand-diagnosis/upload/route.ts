@@ -88,21 +88,39 @@ export async function POST(req: NextRequest) {
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 // 섹션 12: AI가 분류한 이미지 카테고리를 사용자가 수정할 수 있어야 한다.
+// 섹션 4-2(보완): 클라이언트에서 영상 키프레임 추출을 마친 뒤, 영상 자산 자체의
+// 분석 범위(VideoAnalysisSummary)를 analysis_json에 기록할 때도 이 엔드포인트를 재사용한다.
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
     const assetId = String(body.assetId || "");
-    const category = String(body.category || "");
-    if (!assetId || !category) return NextResponse.json({ ok: false, error: "assetId와 category가 필요합니다." }, { status: 400 });
+    if (!assetId || !UUID_RE.test(assetId)) {
+      return NextResponse.json({ ok: false, error: "assetId가 올바르지 않습니다." }, { status: 400 });
+    }
+
+    const patch: Record<string, unknown> = {};
+    if (body.category !== undefined) {
+      const category = String(body.category || "");
+      if (!category) return NextResponse.json({ ok: false, error: "category가 필요합니다." }, { status: 400 });
+      patch.category = category;
+    }
+    if (body.videoAnalysisSummary && typeof body.videoAnalysisSummary === "object") {
+      patch.analysis_json = body.videoAnalysisSummary;
+    }
+    if (Object.keys(patch).length === 0) {
+      return NextResponse.json({ ok: false, error: "수정할 내용이 없습니다." }, { status: 400 });
+    }
 
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("hospital_brand_diagnosis_assets").update({ category }).eq("id", assetId);
+    const { error } = await supabase.from("hospital_brand_diagnosis_assets").update(patch).eq("id", assetId);
     if (error) throw error;
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "분류 수정 실패" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "자산 정보 수정 실패" }, { status: 500 });
   }
 }
 
