@@ -1263,8 +1263,9 @@ function ShareModal({ diagnosisId, onClose }: { diagnosisId: string; onClose: ()
   );
 }
 
-function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
+function ReportView({ report, onRestart, onBackToStep, diagnosisId, readOnly }: {
   report: HospitalBrandDiagnosisReport; onRestart: () => void; onBackToStep: (n: number) => void; diagnosisId: string | null;
+  readOnly?: boolean;
 }) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
