@@ -1114,6 +1114,51 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
   const [compareReport, setCompareReport] = useState<HospitalBrandDiagnosisReport | null>(null);
   const [compareError, setCompareError] = useState("");
 
+  // 즉시 수정 항목의 진행 상태(섹션 15-2) — 최초 진입 시 없으면 리포트의 즉시수정항목으로 1회 시딩한다.
+  useEffect(() => {
+    if (!diagnosisId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/actions`);
+        const body = await res.json();
+        if (!res.ok || !body.ok) return;
+        let list: any[] = body.actions || [];
+        if (list.length === 0) {
+          const seedItems = [
+            ...report.immediateActions.map((title) => ({ channel: null, title })),
+            ...report.channelResults.flatMap((r) => r.immediateActions.map((title) => ({ channel: r.channel, title }))),
+          ];
+          if (seedItems.length > 0) {
+            const seedRes = await fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/actions`, {
+              method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: seedItems }),
+            });
+            const seedBody = await seedRes.json();
+            if (seedRes.ok && seedBody.ok) list = seedBody.actions || [];
+          }
+        }
+        if (!cancelled) {
+          setActions(list.map((a: any) => ({
+            id: a.id, diagnosisId: a.diagnosis_id, channel: a.channel, title: a.title, description: a.description || "",
+            priority: a.priority, status: a.status, createdAt: a.created_at, completedAt: a.completed_at,
+          })));
+        }
+      } catch {
+        // 개선 항목 목록은 부가 기능이므로 실패해도 리포트 조회 자체는 막지 않는다.
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagnosisId]);
+
+  const updateActionStatus = async (actionId: string, status: ActionStatus) => {
+    setActions((prev) => prev.map((a) => (a.id === actionId ? { ...a, status } : a)));
+    if (!diagnosisId) return;
+    await fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/actions/${actionId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
+    }).catch(() => {});
+  };
+
   const openCompare = async () => {
     setShowCompare(true);
     setCompareReport(null);
