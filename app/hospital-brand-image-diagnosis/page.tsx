@@ -637,12 +637,25 @@ export default function HospitalBrandImageDiagnosisPage() {
     if (!diagnosisId) return;
     setCompiling(true); setGlobalError("");
     try {
+      // 채널 하나가 실패해도 즉시 중단하지 않고 나머지 채널은 계속 시도한다(섹션 9-2/조건13).
+      // 실패한 채널은 analyze-channel API가 이미 "분석 오류" 상태로 DB에 남기므로,
+      // 여기서는 실패 목록만 모아뒀다가 통합 진단 이후 사용자에게 명확히 안내한다.
+      const failedLabels: string[] = [];
       for (const channel of activeChannels) {
-        const res = await fetch("/api/hospital-brand-diagnosis/analyze-channel", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ diagnosisId, channel }),
-        });
-        const body = await res.json();
-        if (!res.ok || !body.ok) throw new Error(body.error || `${HBD_CHANNEL_LABEL[channel]} 분석 실패`);
+        try {
+          const res = await fetch("/api/hospital-brand-diagnosis/analyze-channel", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ diagnosisId, channel }),
+          });
+          const body = await res.json();
+          if (!res.ok || !body.ok) throw new Error(body.error || `${HBD_CHANNEL_LABEL[channel]} 분석 실패`);
+          if (body.hasErrors) failedLabels.push(HBD_CHANNEL_LABEL[channel]);
+        } catch (channelError) {
+          console.error(`[HospitalBrandDiagnosis] ${channel} 채널 분석 실패`, channelError);
+          failedLabels.push(HBD_CHANNEL_LABEL[channel]);
+        }
+      }
+      if (failedLabels.length > 0) {
+        setGlobalError(`${failedLabels.join(", ")} 채널은 분석 중 오류가 발생했습니다. 나머지 채널 결과로 통합 진단을 계속 진행합니다 — 실패한 채널은 STEP4에서 다시 시도할 수 있습니다.`);
       }
       const refreshedResults = await fetch(`/api/hospital-brand-diagnosis/${diagnosisId}`).then((r) => r.json());
       if (refreshedResults?.ok) {
