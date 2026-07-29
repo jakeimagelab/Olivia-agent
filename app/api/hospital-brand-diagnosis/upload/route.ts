@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const VALID_CHANNELS: DiagnosisChannel[] = ["website", "naver_place", "naver_blog", "instagram", "youtube", "other"];
-const UUID_RE_TOP = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // 사진/영상 업로드 — 섹션 11: 사용자 동의(consent=true) 없이는 저장하지 않는다.
 export async function POST(req: NextRequest) {
