@@ -1105,6 +1105,48 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
   const [pdfError, setPdfError] = useState("");
   const [pdfSuccess, setPdfSuccess] = useState(false);
   const [evidenceChannel, setEvidenceChannel] = useState<DiagnosisChannel | null>(null);
+  const [showCompare, setShowCompare] = useState(false);
+  const [compareCandidates, setCompareCandidates] = useState<HistoryItem[]>([]);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareReport, setCompareReport] = useState<HospitalBrandDiagnosisReport | null>(null);
+  const [compareError, setCompareError] = useState("");
+
+  const openCompare = async () => {
+    setShowCompare(true);
+    setCompareReport(null);
+    setCompareError("");
+    setCompareLoading(true);
+    try {
+      const res = await fetch("/api/hospital-brand-diagnosis/create?limit=50");
+      const body = await res.json();
+      if (!res.ok || !body.ok) throw new Error(body.error || "이전 진단 목록을 불러오지 못했습니다.");
+      const candidates: HistoryItem[] = (body.diagnoses || []).filter((d: HistoryItem) =>
+        d.id !== report.id && d.status === "completed" &&
+        d.hospital_name === report.profile.hospitalName && d.specialty === report.profile.specialty
+      );
+      setCompareCandidates(candidates);
+    } catch (e) {
+      setCompareError(e instanceof Error ? e.message : "이전 진단 목록을 불러오지 못했습니다.");
+    } finally {
+      setCompareLoading(false);
+    }
+  };
+
+  const pickCompareCandidate = async (id: string) => {
+    setCompareLoading(true);
+    setCompareError("");
+    try {
+      const res = await fetch(`/api/hospital-brand-diagnosis/${id}`);
+      const body = await res.json();
+      if (!res.ok || !body.ok) throw new Error(body.error || "이전 진단을 불러오지 못했습니다.");
+      if (!body.diagnosis?.report_json) throw new Error("선택한 진단에는 완료된 리포트가 없습니다.");
+      setCompareReport(body.diagnosis.report_json as HospitalBrandDiagnosisReport);
+    } catch (e) {
+      setCompareError(e instanceof Error ? e.message : "이전 진단을 불러오지 못했습니다.");
+    } finally {
+      setCompareLoading(false);
+    }
+  };
 
   const downloadPdf = async () => {
     if (!reportRef.current || downloading) return;
