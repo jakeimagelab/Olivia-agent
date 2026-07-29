@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { HBD_CHANNEL_CRITERIA } from "@/lib/hospitalBrandDiagnosis/channelCriteria";
 import { HBD_CHANNEL_LABEL, HBD_SYSTEM_PRINCIPLES, stripForbiddenPhrases } from "@/lib/hospitalBrandDiagnosis/config";
 import type { ChannelScores, DiagnosisChannel, ScoreValue } from "@/lib/hospitalBrandDiagnosis/types";
+import { isUuid, isValidChannel } from "@/lib/hospitalBrandDiagnosis/validation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
