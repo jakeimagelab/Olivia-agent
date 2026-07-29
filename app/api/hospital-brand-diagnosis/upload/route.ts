@@ -127,7 +127,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const assetId = searchParams.get("assetId");
-    if (!assetId) return NextResponse.json({ ok: false, error: "assetId가 필요합니다." }, { status: 400 });
+    if (!assetId || !UUID_RE.test(assetId)) return NextResponse.json({ ok: false, error: "assetId가 올바르지 않습니다." }, { status: 400 });
 
     const supabase = getSupabaseAdmin();
     const { data: asset, error: findError } = await supabase
