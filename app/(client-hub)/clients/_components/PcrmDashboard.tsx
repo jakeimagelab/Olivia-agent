@@ -120,6 +120,18 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
     return true;
   });
 
+  const totalProjectPages = Math.max(1, Math.ceil(tabbedClients.length / PROJECT_PAGE_SIZE));
+  const currentProjectPage = Math.min(projectPage, totalProjectPages);
+  const pagedClients = tabbedClients.slice(
+    (currentProjectPage - 1) * PROJECT_PAGE_SIZE,
+    currentProjectPage * PROJECT_PAGE_SIZE,
+  );
+
+  const changeTab = (nextTab: (typeof TABS)[number]["key"]) => {
+    setTab(nextTab);
+    setProjectPage(1);
+  };
+
   return (
     <div className="pcrm-dashboard pcrm-home-dashboard">
       <div className="pcrm-dashboard-title">
