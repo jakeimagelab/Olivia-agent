@@ -108,7 +108,7 @@ export default function ReviewStudioPage() {
       setMessage("리뷰를 저장했습니다.");
       setForm({ hospitalName: "", reviewerName: "", channel: "카카오톡", rating: "5", deliveredAt: "", reviewText: "", permissionToPublish: true });
       await loadReviews();
-      if (isMobile) setMobileTab("list");
+      if (isMobile) setMobileTab("list"); else setShowFormModal(false);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "저장 실패");
     } finally { setSaving(false); }
