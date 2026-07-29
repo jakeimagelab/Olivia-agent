@@ -1097,6 +1097,172 @@ function EvidencePanel({ channel, evidence, diagnosisId, onClose }: {
   );
 }
 
+function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="hbd-print-hide" style={{ position: "fixed", inset: 0, zIndex: 200, display: "grid", placeItems: "center", background: "rgba(13,37,35,.5)", padding: 20 }}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ width: "min(480px, 100%)", maxHeight: "calc(100vh - 48px)", overflowY: "auto", borderRadius: R.lg, background: C.white, padding: 22 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <h3 style={{ margin: 0, fontSize: FS.lg, fontWeight: 900, color: C.ink }}>{title}</h3>
+          <button onClick={onClose} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: R.sm, background: "#fff", color: C.muted, fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function EmailModal({ diagnosisId, onClose }: { diagnosisId: string; onClose: () => void }) {
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    if (!email.trim()) { setError("이메일을 입력해주세요."); return; }
+    setSending(true); setError(""); setMessage("");
+    try {
+      const res = await fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/email`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toEmail: email.trim() }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.ok) throw new Error(body.error || "이메일 준비에 실패했습니다.");
+      setMessage("메일링함에 발송 초안이 저장되었습니다. 메일링 페이지에서 최종 발송해주세요.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "이메일 준비에 실패했습니다.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <ModalShell title="이메일로 받기" onClose={onClose}>
+      <div style={{ display: "grid", gap: 10 }}>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={labelStyle}>받는 사람 이메일</span>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@hospital.com" style={inputStyle} />
+        </label>
+        {error && <p style={{ margin: 0, color: C.danger, fontSize: FS.xs }}>{error}</p>}
+        {message && <p style={{ margin: 0, color: C.success, fontSize: FS.xs }}>{message}</p>}
+        <button onClick={submit} disabled={sending} style={{ ...primaryBtn, opacity: sending ? 0.6 : 1 }}>{sending ? "준비 중…" : "발송 초안 만들기"}</button>
+      </div>
+    </ModalShell>
+  );
+}
+
+type ShareRow = {
+  id: string; recipient_email: string; recipient_memo: string; expires_at: string;
+  revoked_at: string | null; last_accessed_at: string | null; access_count: number; created_at: string;
+};
+
+function ShareModal({ diagnosisId, onClose }: { diagnosisId: string; onClose: () => void }) {
+  const [shares, setShares] = useState<ShareRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [recipientMemo, setRecipientMemo] = useState("");
+  const [newLink, setNewLink] = useState("");
+
+  const load = () => {
+    setLoading(true);
+    fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/shares`)
+      .then((r) => r.json())
+      .then((body) => { if (body.ok) setShares(body.shares || []); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const createShare = async () => {
+    setCreating(true); setError(""); setNewLink("");
+    try {
+      const res = await fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/shares`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientEmail: recipientEmail.trim(), recipientMemo: recipientMemo.trim() }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.ok) throw new Error(body.error || "공유 링크 생성에 실패했습니다.");
+      const link = `${window.location.origin}/hospital-brand-image-diagnosis/shared/${body.token}`;
+      setNewLink(link);
+      setRecipientEmail(""); setRecipientMemo("");
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "공유 링크 생성에 실패했습니다.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const revoke = async (shareId: string) => {
+    await fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/shares/${shareId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "revoke" }),
+    }).catch(() => {});
+    load();
+  };
+
+  return (
+    <ModalShell title="팀원에게 공유" onClose={onClose}>
+      <div style={{ display: "grid", gap: 14 }}>
+        <div style={{ display: "grid", gap: 8 }}>
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={labelStyle}>받는 사람 이메일 (선택)</span>
+            <input value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} placeholder="name@example.com" style={inputStyle} />
+          </label>
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={labelStyle}>메모 (선택)</span>
+            <input value={recipientMemo} onChange={(e) => setRecipientMemo(e.target.value)} placeholder="예: 병원 마케팅 담당자" style={inputStyle} />
+          </label>
+          {error && <p style={{ margin: 0, color: C.danger, fontSize: FS.xs }}>{error}</p>}
+          {newLink && (
+            <div style={{ background: C.mint, borderRadius: R.sm, padding: 10, display: "grid", gap: 6 }}>
+              <span style={{ fontSize: FS.xs, color: C.teal, fontWeight: 800 }}>링크가 생성되었습니다 (다시 확인할 수 없으니 지금 복사해주세요)</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input readOnly value={newLink} style={{ ...inputStyle, height: 34, fontSize: FS.xs }} onFocus={(e) => e.target.select()} />
+                <button onClick={() => navigator.clipboard?.writeText(newLink)} style={{ ...secondaryBtn, height: 34, padding: "0 12px", fontSize: FS.xs }}>복사</button>
+              </div>
+            </div>
+          )}
+          <button onClick={createShare} disabled={creating} style={{ ...primaryBtn, opacity: creating ? 0.6 : 1 }}>{creating ? "생성 중…" : "보기 전용 링크 생성 (14일 유효)"}</button>
+        </div>
+
+        <div>
+          <span style={{ ...labelStyle, display: "block", marginBottom: 8 }}>생성된 공유 링크</span>
+          {loading ? (
+            <p style={{ fontSize: FS.xs, color: C.muted }}>불러오는 중…</p>
+          ) : shares.length === 0 ? (
+            <p style={{ fontSize: FS.xs, color: C.muted }}>아직 생성된 공유 링크가 없습니다.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 6 }}>
+              {shares.map((s) => {
+                const expired = new Date(s.expires_at) < new Date();
+                const inactive = !!s.revoked_at || expired;
+                return (
+                  <div key={s.id} style={{ border: `1px solid ${C.border}`, borderRadius: R.sm, padding: 8, display: "flex", alignItems: "center", gap: 8, opacity: inactive ? 0.55 : 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: FS.xs, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {s.recipient_email || s.recipient_memo || "(받는 사람 미지정)"}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.hint }}>
+                        {s.revoked_at ? "취소됨" : expired ? "만료됨" : `만료 ${new Date(s.expires_at).toLocaleDateString("ko-KR")}`}
+                        {s.access_count > 0 ? ` · 조회 ${s.access_count}회` : ""}
+                      </div>
+                    </div>
+                    {!inactive && (
+                      <button onClick={() => revoke(s.id)} style={{ ...secondaryBtn, height: 28, padding: "0 10px", fontSize: 10 }}>취소</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
 function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
   report: HospitalBrandDiagnosisReport; onRestart: () => void; onBackToStep: (n: number) => void; diagnosisId: string | null;
 }) {
