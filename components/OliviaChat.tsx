@@ -986,7 +986,7 @@ export default function OliviaChat({ pageContext, contextData, contiData, onCont
       {open && (
         <div style={isMobile ? {
           // 모바일: 전체화면 슬라이드업
-          position: "fixed", inset: 0, zIndex: 999,
+          position: "fixed", inset: 0, zIndex: 10050,
           background: C.surface,
           display: "flex", flexDirection: "column",
           overflow: "hidden",
