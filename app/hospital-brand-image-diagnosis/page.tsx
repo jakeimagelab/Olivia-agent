@@ -209,6 +209,66 @@ function AssetUploadZone({ diagnosisId, channel, consent, assets, onUploaded, on
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
+  const uploadOne = async (file: File): Promise<LocalAsset> => {
+    const form = new FormData();
+    form.set("file", file);
+    form.set("diagnosisId", diagnosisId);
+    form.set("channel", channel);
+    form.set("consent", "true");
+    const res = await fetch("/api/hospital-brand-diagnosis/upload", { method: "POST", body: form });
+    const body = await res.json();
+    if (!res.ok || !body.ok) throw new Error(body.error || "업로드 실패");
+    return { ...body.asset, previewUrl: URL.createObjectURL(file) };
+  };
+
+  // 영상은 원본 파일 업로드 후, 브라우저에서 주요 프레임을 추출해 이미지로 추가 업로드하고
+  // 그 결과(VideoAnalysisSummary)를 영상 자산 자체에 기록한다(섹션 4).
+  const handleVideoKeyframes = async (file: File, videoAssetId: string) => {
+    let summary: VideoAnalysisSummary;
+    try {
+      const { frames, duration, width, height } = await extractVideoKeyframes(file);
+      if (frames.length === 0) {
+        summary = {
+          status: duration > 0 ? "metadata_only" : "unsupported",
+          duration: duration || undefined, width: width || undefined, height: height || undefined,
+          thumbnailAnalyzed: false, subtitleAnalyzed: false, titleAnalyzed: true,
+          limitations: ["이 브라우저에서는 영상 프레임을 추출하지 못해 제목 등 최소한의 정보만 확인했습니다."],
+        };
+      } else {
+        let analyzedCount = 0;
+        for (let i = 0; i < frames.length; i++) {
+          try {
+            const frameFile = new File([frames[i]], `${file.name.replace(/\.[^.]+$/, "")}_frame${i + 1}.jpg`, { type: "image/jpeg" });
+            const frameAsset = await uploadOne(frameFile);
+            analyzedCount += 1;
+            onUploaded(frameAsset);
+          } catch {
+            // 프레임 하나가 실패해도 나머지 프레임은 계속 업로드한다.
+          }
+        }
+        summary = {
+          status: analyzedCount > 0 ? "keyframes" : "unsupported",
+          duration: duration || undefined, width: width || undefined, height: height || undefined,
+          frameCount: frames.length, analyzedFrameCount: analyzedCount,
+          thumbnailAnalyzed: analyzedCount > 0, subtitleAnalyzed: false, titleAnalyzed: true,
+          limitations: [
+            "영상은 현재 제목, 썸네일, 첫 장면과 주요 프레임을 중심으로 분석합니다.",
+            "영상 전체의 대화와 모든 장면을 정밀하게 분석하는 기능은 지원 준비 중입니다.",
+          ],
+        };
+      }
+    } catch {
+      summary = {
+        status: "unsupported", thumbnailAnalyzed: false, subtitleAnalyzed: false, titleAnalyzed: true,
+        limitations: ["영상 분석 준비 중 오류가 발생해 참고 자료로만 저장되었습니다."],
+      };
+    }
+    await fetch("/api/hospital-brand-diagnosis/upload", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assetId: videoAssetId, videoAnalysisSummary: summary }),
+    }).catch(() => {});
+  };
+
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     if (!consent) { setError("업로드 동의 체크박스를 먼저 선택해주세요."); return; }
@@ -216,15 +276,11 @@ function AssetUploadZone({ diagnosisId, channel, consent, assets, onUploaded, on
     setError("");
     for (const file of Array.from(files)) {
       try {
-        const form = new FormData();
-        form.set("file", file);
-        form.set("diagnosisId", diagnosisId);
-        form.set("channel", channel);
-        form.set("consent", "true");
-        const res = await fetch("/api/hospital-brand-diagnosis/upload", { method: "POST", body: form });
-        const body = await res.json();
-        if (!res.ok || !body.ok) throw new Error(body.error || "업로드 실패");
-        onUploaded({ ...body.asset, previewUrl: URL.createObjectURL(file) });
+        const asset = await uploadOne(file);
+        onUploaded(asset);
+        if (file.type.startsWith("video/")) {
+          await handleVideoKeyframes(file, asset.id);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "업로드 실패");
       }
