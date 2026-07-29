@@ -92,7 +92,7 @@ export async function PATCH(
 
     // 채널 선택(STEP3) — 선택한 채널마다 sources row를 없으면 만들고 URL만 갱신한다.
     if (Array.isArray(body.channels)) {
-      if (body.channels.length > HBD_VALID_CHANNELS_LIMIT) {
+      if (body.channels.length > HBD_VALID_CHANNELS.length) {
         return NextResponse.json({ ok: false, error: "채널은 최대 6개까지 선택할 수 있습니다." }, { status: 400 });
       }
       const channels: { channel: DiagnosisChannel; url?: string }[] = [];
