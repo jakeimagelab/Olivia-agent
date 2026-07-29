@@ -1105,6 +1105,9 @@ function ReportView({ report, onRestart, onBackToStep, diagnosisId }: {
   const [pdfError, setPdfError] = useState("");
   const [pdfSuccess, setPdfSuccess] = useState(false);
   const [evidenceChannel, setEvidenceChannel] = useState<DiagnosisChannel | null>(null);
+  const [actions, setActions] = useState<DiagnosisAction[]>([]);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const [compareCandidates, setCompareCandidates] = useState<HistoryItem[]>([]);
   const [compareLoading, setCompareLoading] = useState(false);
