@@ -103,3 +103,56 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
   return NextResponse.json({ ok: true, run: data, tasks: taskResult.created });
 }
+
+// 프로젝트(workflow_run) 필드 수정 — 신규 생성 폼과 같은 필드를 재사용한다 (섹션: 고객상세 프로젝트 수정).
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!isPcrmUuid(id)) return NextResponse.json({ ok: false, error: "고객 ID가 올바르지 않습니다." }, { status: 400 });
+  const body = await req.json();
+  const runId = String(body.runId || "");
+  if (!isPcrmUuid(runId)) return NextResponse.json({ ok: false, error: "프로젝트 ID가 올바르지 않습니다." }, { status: 400 });
+
+  const validation = validatePcrmProjectInput(body);
+  if (!validation.ok) return NextResponse.json({ ok: false, error: validation.error }, { status: 400 });
+  const project = validation.value;
+
+  const db = getSupabaseAdmin();
+  const { data: existingRun } = await db.from("workflow_runs").select("id, client_id").eq("id", runId).maybeSingle();
+  if (!existingRun || existingRun.client_id !== id) {
+    return NextResponse.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  const { data, error } = await db
+    .from("workflow_runs")
+    .update({
+      project_name: project.projectName,
+      project_type: project.projectType,
+      shooting_type: project.shootingType,
+      manager_name: project.managerName,
+      owner_name: project.managerName,
+      consultation_date: project.consultationDate,
+      shoot_date: project.shootDate,
+      start_date: project.startDate,
+      expected_completion_date: project.expectedCompletionDate,
+      expected_contract_amount: project.expectedContractAmount,
+      project_memo: project.projectMemo,
+    })
+    .eq("id", runId)
+    .select()
+    .single();
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+  await recordPcrmActivitySafely(db, {
+    clientId: id,
+    workflowRunId: runId,
+    actorType: "admin",
+    actorName: project.managerName,
+    actionType: "project_updated",
+    title: `${project.projectName} 프로젝트 정보 수정`,
+    description: "프로젝트 정보가 수정되었습니다.",
+    relatedType: "workflow_run",
+    relatedId: runId,
+  });
+
+  return NextResponse.json({ ok: true, run: data });
+}
