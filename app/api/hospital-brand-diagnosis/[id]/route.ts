@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { DiagnosisChannel, DiagnosisProgressStatus } from "@/lib/hospitalBrandDiagnosis/types";
-import { escapeList, escapeText, isPlausibleHttpUrl, isUuid, isValidChannel } from "@/lib/hospitalBrandDiagnosis/validation";
+import { HBD_VALID_CHANNELS, escapeList, escapeText, isPlausibleHttpUrl, isUuid, isValidChannel } from "@/lib/hospitalBrandDiagnosis/validation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
