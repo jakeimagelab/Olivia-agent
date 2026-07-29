@@ -45,8 +45,11 @@ export default function PcrmSubNav() {
     <nav className="pcrm-subnav" aria-label="고객관리 메뉴">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
+        const onClientList = pathname.startsWith("/clients/list");
+        const focusProjects = searchParams.get("focus") === "projects";
+
         if (item.key === "projects") {
-          const active = inProjectView || pathname.startsWith("/clients/list");
+          const active = inProjectView || (onClientList && focusProjects);
           return (
             <Link key={item.key} href={item.href!} data-active={active}>
               <Icon size={16} strokeWidth={1.8} />
@@ -67,6 +70,15 @@ export default function PcrmSubNav() {
               <Icon size={16} strokeWidth={1.8} />
               {item.label}
             </button>
+          );
+        }
+        if (item.key === "list") {
+          const active = onClientList && !focusProjects;
+          return (
+            <Link key={item.key} href={item.href} data-active={active}>
+              <Icon size={16} strokeWidth={1.8} />
+              {item.label}
+            </Link>
           );
         }
         const active = item.href === "/clients" ? pathname === "/clients" && !inProjectView : pathname.startsWith(item.href);
