@@ -851,6 +851,22 @@ const SCORE_LABEL: Record<keyof ChannelScores, string> = {
   channelSuitability: "채널 적합성", technicalReadiness: "기술 준비도",
 };
 
+const ANALYSIS_METHOD_LABEL: Record<SourceStatus, string> = {
+  pending: "확인 불가", collecting: "확인 불가", complete: "정밀 분석",
+  partial: "부분 분석", failed: "확인 불가", manual_required: "업로드 자료 기반 분석",
+};
+const ANALYSIS_METHOD_DESC: Record<SourceStatus, string> = {
+  pending: "이 채널은 아직 자료를 수집하지 않았습니다.",
+  collecting: "이 채널은 아직 자료를 수집하지 않았습니다.",
+  complete: "페이지 본문, 제목, 이미지, ALT 텍스트 및 구조 정보를 확인했습니다.",
+  partial: "자동 수집된 정보가 제한적이라 일부만 확인했습니다.",
+  failed: "자동 수집과 업로드 자료가 모두 없어 분석하지 못했습니다.",
+  manual_required: "자동 수집이 제한되어 업로드한 화면·이미지를 기준으로 분석했습니다.",
+};
+const ANALYSIS_METHOD_COLOR: Record<SourceStatus, string> = {
+  pending: C.hint, collecting: C.hint, complete: C.success, partial: C.gold, failed: C.hint, manual_required: C.orange,
+};
+
 function ReportView({ report, onRestart, onBackToStep }: {
   report: HospitalBrandDiagnosisReport; onRestart: () => void; onBackToStep: (n: number) => void;
 }) {
