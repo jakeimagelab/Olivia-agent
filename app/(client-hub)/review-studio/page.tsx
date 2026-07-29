@@ -328,8 +328,13 @@ export default function ReviewStudioPage() {
       {/* ── 데스크탑 레이아웃 ── */}
       {!isMobile && (
         <section style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "260px 1fr", gap: 20, alignItems: "start" }}>
-          <div style={{ gridColumn: "1 / -1", width: "min(100%, 640px)", margin: "0 auto 8px" }}>
-            <ReviewForm />
+          <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onClick={() => setShowFormModal(true)}
+              style={{ height: 44, padding: "0 20px", border: "none", borderRadius: 10, background: C.teal, color: "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              ✏️ 리뷰 수동 등록
+            </button>
           </div>
           <div style={{ position: "sticky", top: 18, display: "grid", gap: 10 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: C.muted }}>📥 워크플로우 접수 후기</div>
@@ -340,13 +345,27 @@ export default function ReviewStudioPage() {
               <ReviewList />
               <div style={{ position: "sticky", top: 18 }}>
                 <GenerateButton />
-                {message && <div style={{ marginTop: 10, color: message.includes("실패") || message.includes("선택") ? C.orange : C.teal, fontSize: 12, fontWeight: 800 }}>{message}</div>}
+                {message && !showFormModal && <div style={{ marginTop: 10, color: message.includes("실패") || message.includes("선택") ? C.orange : C.teal, fontSize: 12, fontWeight: 800 }}>{message}</div>}
               </div>
             </div>
             <ContentResult />
             <ReviewAutomationPanel refreshKey={content?.contentId} />
           </section>
         </section>
+      )}
+
+      {!isMobile && showFormModal && (
+        <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setShowFormModal(false)}>
+          <div style={{ width: "min(640px, 100%)", maxHeight: "calc(100vh - 48px)", overflowY: "auto", borderRadius: 18, position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setShowFormModal(false)}
+              aria-label="닫기"
+              style={{ position: "absolute", top: 14, right: 14, zIndex: 1, width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: 9, background: "#fff", color: C.muted, fontSize: 18, cursor: "pointer" }}
+            >×</button>
+            <ReviewForm />
+          </div>
+        </div>
       )}
     </div>
   );
