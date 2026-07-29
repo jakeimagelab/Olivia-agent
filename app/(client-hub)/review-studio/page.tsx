@@ -90,7 +90,7 @@ export default function ReviewStudioPage() {
       reviewText: r.public_review_text || r.good_points || cur.reviewText,
       permissionToPublish: r.allow_public_use ?? cur.permissionToPublish,
     }));
-    if (isMobile) setMobileTab("form");
+    if (isMobile) setMobileTab("form"); else setShowFormModal(true);
   };
 
   const toggleSelect = (id: string) =>
