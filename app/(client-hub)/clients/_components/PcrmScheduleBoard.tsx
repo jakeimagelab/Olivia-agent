@@ -323,7 +323,14 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
           {task && onDelete ? (
             <button type="button" className="pc-btn pc-btn--ghost pc-btn--sm danger" disabled={saving} onClick={onDelete}><Trash2 size={13} /> 삭제</button>
           ) : <span />}
-          <button type="button" className="pc-btn pc-btn--orange pc-btn--sm" disabled={saving} onClick={submit}>{saving ? "저장 중..." : "저장"}</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {task && onCopy && (
+              <button type="button" className="pc-btn pc-btn--secondary pc-btn--sm" disabled={saving} onClick={copy} title="날짜를 바꾼 뒤 누르면 원본은 그대로 두고 새 날짜에 복사됩니다.">
+                <Copy size={13} /> 복사
+              </button>
+            )}
+            <button type="button" className="pc-btn pc-btn--orange pc-btn--sm" disabled={saving} onClick={submit}>{saving ? "저장 중..." : "저장"}</button>
+          </div>
         </div>
       </div>
     </div>
