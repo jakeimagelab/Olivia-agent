@@ -246,7 +246,7 @@ export default function PcrmDashboard({ clients, dashboard, search, onSearch, de
           {!dashboard || dashboard.pendingApprovalsByType.length === 0 ? (
             <p className="pcrm-empty-copy">현재 승인 대기 항목이 없습니다.</p>
           ) : dashboard.pendingApprovalsByType.slice(0, 4).map((item) => (
-            <button key={item.type} type="button" onClick={() => setTab("waiting")}>
+            <button key={item.type} type="button" onClick={() => changeTab("waiting")}>
               <span>{item.label}</span>
               <b>{item.count}건</b>
             </button>
