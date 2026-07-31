@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Copy, ExternalLink, Plus, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, ExternalLink, Plus, Share2, Trash2, X } from "lucide-react";
 import { C, R } from "@/lib/theme";
 
 const CATS: Record<string, { label: string; color: string; bg: string }> = {
