@@ -33,7 +33,7 @@ export default function ContiStudioLayout({ children }: { children: React.ReactN
 
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <PageHeader title="콘티생성" />
+      <PageHeader title="콘티/초상권 작성" />
 
       <nav className="pc-tabs pc-tabs--global" aria-label="콘티 기능">
         {visibleTabs.map(t => (
