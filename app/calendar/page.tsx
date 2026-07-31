@@ -729,39 +729,55 @@ function EventDetailView({ task, onEdit, onToggle }: { task: CalTask; onEdit: ()
         </button>
       </div>
 
-      {/* 화면에는 안 보이고 공유 이미지 캡처용으로만 쓰이는 카드 — 명언 카드 같은 세로형 안내 카드 */}
+      {/* 화면에는 안 보이고 공유 이미지 캡처용으로만 쓰이는 카드 — 명언 카드 같은 세로형 브랜드 안내 카드 */}
       <div style={{ position: "fixed", left: -9999, top: 0, pointerEvents: "none" }} aria-hidden="true">
         <div
           ref={shareCardRef}
           style={{
-            width: 640, minHeight: 800, background: "#ffffff", padding: "56px 48px",
+            width: 640, minHeight: 820, background: "#ffffff",
             display: "flex", flexDirection: "column", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif",
+            overflow: "hidden",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 40 }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: cat.color }} />
-            <span style={{ fontSize: 16, fontWeight: 900, color: cat.color, letterSpacing: 1 }}>{cat.label} 일정 안내</span>
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.muted, marginBottom: 14 }}>
-            {new Date(task.date + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
-            {task.time ? ` · ${task.time.slice(0, 5)}${task.end_time ? ` ~ ${task.end_time.slice(0, 5)}` : ""}` : ""}
-          </div>
-          <div style={{ fontSize: 40, fontWeight: 900, color: "#1C2B28", lineHeight: 1.4, marginBottom: 28, wordBreak: "keep-all" }}>
-            {task.title || "일정"}
-          </div>
-          {task.location && (
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#1C2B28", marginBottom: 12 }}>
-              📍 {task.location}
+          <div style={{ height: 14, background: `linear-gradient(90deg, ${BRAND_TEAL} 0%, ${BRAND_TEAL} 50%, ${BRAND_ORANGE} 50%, ${BRAND_ORANGE} 100%)` }} />
+          <div style={{ padding: "48px 48px 40px", display: "flex", flexDirection: "column", flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 36 }}>
+              <img src="/assets/photoclinic-mark.png" alt="" style={{ width: 52, height: 52, objectFit: "contain" }} />
+              <span style={{
+                fontSize: 15, fontWeight: 900, color: "#fff", letterSpacing: 0.5,
+                background: cat.color, padding: "7px 16px", borderRadius: 999,
+              }}>{cat.label} 일정 안내</span>
             </div>
-          )}
-          {task.memo && (
-            <div style={{ fontSize: 17, color: C.muted, lineHeight: 1.7, marginTop: 8, whiteSpace: "pre-wrap", wordBreak: "keep-all" }}>
-              {task.memo}
+
+            <div style={{ fontSize: 20, fontWeight: 800, color: BRAND_TEAL, marginBottom: 16, letterSpacing: 0.2 }}>
+              {new Date(task.date + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
+              {task.time ? ` · ${task.time.slice(0, 5)}${task.end_time ? ` ~ ${task.end_time.slice(0, 5)}` : ""}` : ""}
             </div>
-          )}
-          <div style={{ flex: 1 }} />
-          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, fontSize: 14, fontWeight: 800, color: C.hint, letterSpacing: 1 }}>
-            PHOTOCLINIC
+
+            <div style={{ fontSize: 42, fontWeight: 900, color: "#1C2B28", lineHeight: 1.38, marginBottom: 14, wordBreak: "keep-all" }}>
+              {task.title || "일정"}
+            </div>
+            <div style={{ width: 56, height: 6, borderRadius: 3, background: BRAND_ORANGE, marginBottom: 30 }} />
+
+            {task.location && (
+              <div style={{ fontSize: 19, fontWeight: 700, color: "#1C2B28", marginBottom: 12 }}>
+                📍 {task.location}
+              </div>
+            )}
+            {task.memo && (
+              <div style={{
+                fontSize: 16, color: "#3D5C58", lineHeight: 1.75, marginTop: 10, whiteSpace: "pre-wrap", wordBreak: "keep-all",
+                background: "#EAF4F2", border: "1px solid #C8DDD9", borderRadius: 14, padding: "16px 18px",
+              }}>
+                {task.memo}
+              </div>
+            )}
+
+            <div style={{ flex: 1 }} />
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, borderTop: "1px solid #EDE7DB", paddingTop: 28 }}>
+              <img src="/assets/photoclinic-logo.png" alt="PHOTOCLINIC" style={{ height: 34, objectFit: "contain" }} />
+            </div>
           </div>
         </div>
       </div>
