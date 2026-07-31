@@ -58,19 +58,11 @@ export function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
 }
 
-export function escapeText(value: unknown, maxLen = 2000): string {
+// 값은 React JSX로만 렌더링되어 자동 이스케이프되므로, 여기서는 HTML 엔티티 변환 없이
+// 트림/길이 제한만 한다 — 저장 시점에 미리 이스케이프하면 화면에 "&amp;" 같은 문자가 그대로 보인다.
+export function cleanText(value: unknown, maxLen = 2000): string {
   if (typeof value !== "string") return "";
-  const trimmed = value.trim().slice(0, maxLen);
-  return trimmed.replace(/[&<>"']/g, (ch) => {
-    switch (ch) {
-      case "&": return "&amp;";
-      case "<": return "&lt;";
-      case ">": return "&gt;";
-      case '"': return "&quot;";
-      case "'": return "&#39;";
-      default: return ch;
-    }
-  });
+  return value.trim().slice(0, maxLen);
 }
 
 export function sanitizeFieldList(value: unknown, maxItems = 30): PortraitConsentField[] {
@@ -78,8 +70,8 @@ export function sanitizeFieldList(value: unknown, maxItems = 30): PortraitConsen
   return value
     .slice(0, maxItems)
     .map((item) => ({
-      label: escapeText(item?.label, 100),
-      value: escapeText(item?.value, 500),
+      label: cleanText(item?.label, 100),
+      value: cleanText(item?.value, 500),
     }))
     .filter((item) => item.label.length > 0);
 }
