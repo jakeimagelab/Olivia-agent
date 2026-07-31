@@ -375,6 +375,11 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
             <button type="button" className="pc-btn pc-btn--ghost pc-btn--sm danger" disabled={saving} onClick={onDelete}><Trash2 size={13} /> 삭제</button>
           ) : <span />}
           <div style={{ display: "flex", gap: 8 }}>
+            {task && (
+              <button type="button" className="pc-btn pc-btn--secondary pc-btn--sm" disabled={sharing} onClick={shareCard} title="일정을 이미지 카드로 만들어 저장하거나 공유합니다.">
+                <Share2 size={13} /> {sharing ? "생성 중..." : "공유"}
+              </button>
+            )}
             {task && onCopy && (
               <button type="button" className="pc-btn pc-btn--secondary pc-btn--sm" disabled={saving} onClick={copy} title="날짜를 바꾼 뒤 누르면 원본은 그대로 두고 새 날짜에 복사됩니다.">
                 <Copy size={13} /> 복사
