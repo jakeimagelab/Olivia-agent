@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 export type PortraitConsentStatus = "draft" | "sent" | "signed";
 
 export interface PortraitConsentField {
