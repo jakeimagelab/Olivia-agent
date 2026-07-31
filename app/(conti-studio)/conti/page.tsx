@@ -607,6 +607,9 @@ export default function ContiPage() {
   });
 
   const [loading,          setLoading]          = useState(false);
+  const [pageMode,         setPageMode]         = useState<"conti" | "portrait">("conti");
+  const [urlClientId,      setUrlClientId]      = useState<string | null>(null);
+  const [urlWorkflowRunId, setUrlWorkflowRunId] = useState<string | null>(null);
 
   // URL 파라미터로 자동 입력 (올리비아·고객관리 연동)
   useEffect(() => {
@@ -618,6 +621,8 @@ export default function ContiPage() {
     const doctors      = params.get("doctors");
     const extras       = params.get("extras");
     const clientId     = params.get("client_id") || params.get("clientId");
+    setUrlClientId(clientId);
+    setUrlWorkflowRunId(params.get("workflowRunId"));
 
     if (clientId) {
       fetch(`/api/clients/${clientId}`)
