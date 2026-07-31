@@ -291,23 +291,22 @@ export default function PortraitConsentPanel({
                   {c.provider_name && <span style={{ fontSize: FS.xs, color: C.muted, flexShrink: 0 }}>{c.provider_name}</span>}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  {c.status === "signed" ? (
+                  {c.status === "signed" && (
                     <button type="button" onClick={() => openView(c.id)} style={btnGhost}>보기</button>
-                  ) : (
-                    <>
-                      <button type="button" onClick={() => openEdit(c.id)} style={btnGhost}><Pencil size={12} /> 편집</button>
-                      <button
-                        type="button" onClick={() => generateLink(c.id)} disabled={shareBusyId === c.id}
-                        style={{ ...btnGhost, borderColor: C.orange, color: C.orange, opacity: shareBusyId === c.id ? 0.6 : 1 }}
-                      >
-                        {shareBusyId === c.id ? <Loader2 size={12} className="spin-icon" /> : <Link2 size={12} />}
-                        {shareLink?.id === c.id && shareCopied ? "복사됨!" : "포털 링크"}
-                      </button>
-                      <button type="button" onClick={() => remove(c.id)} style={{ ...btnGhost, color: C.danger, borderColor: "rgba(220,38,38,0.3)" }}>
-                        <Trash2 size={12} />
-                      </button>
-                    </>
                   )}
+                  <button type="button" onClick={() => openEdit(c.id)} style={btnGhost}><Pencil size={12} /> 편집</button>
+                  {c.status !== "signed" && (
+                    <button
+                      type="button" onClick={() => generateLink(c.id)} disabled={shareBusyId === c.id}
+                      style={{ ...btnGhost, borderColor: C.orange, color: C.orange, opacity: shareBusyId === c.id ? 0.6 : 1 }}
+                    >
+                      {shareBusyId === c.id ? <Loader2 size={12} className="spin-icon" /> : <Link2 size={12} />}
+                      {shareLink?.id === c.id && shareCopied ? "복사됨!" : "포털 링크"}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => remove(c.id)} style={{ ...btnGhost, color: C.danger, borderColor: "rgba(220,38,38,0.3)" }}>
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               </div>
               {shareLink?.id === c.id && (
