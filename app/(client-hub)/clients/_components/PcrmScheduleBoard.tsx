@@ -311,6 +311,8 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
     setSharing(true);
     try {
       const { default: html2canvas } = await import("html2canvas");
+      const images = Array.from(shareCardRef.current.querySelectorAll("img"));
+      await Promise.all(images.map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => {}))));
       const canvas = await html2canvas(shareCardRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
       const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
       if (!blob) throw new Error("이미지 생성 실패");
