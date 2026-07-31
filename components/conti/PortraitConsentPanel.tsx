@@ -249,7 +249,7 @@ export default function PortraitConsentPanel({
                         type="button" onClick={() => generateLink(c.id)} disabled={shareBusyId === c.id}
                         style={{ ...btnGhost, borderColor: C.orange, color: C.orange, opacity: shareBusyId === c.id ? 0.6 : 1 }}
                       >
-                        {shareBusyId === c.id ? <Loader2 size={12} className="spin" /> : <Link2 size={12} />}
+                        {shareBusyId === c.id ? <Loader2 size={12} className="spin-icon" /> : <Link2 size={12} />}
                         {shareLink?.id === c.id && shareCopied ? "복사됨!" : "포털 링크"}
                       </button>
                       <button type="button" onClick={() => remove(c.id)} style={{ ...btnGhost, color: C.danger, borderColor: "rgba(220,38,38,0.3)" }}>
