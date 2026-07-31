@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileSignature, Link2, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { C, R, FS } from "@/lib/theme";
 import {
@@ -9,6 +9,7 @@ import {
   DEFAULT_USAGE_ITEMS,
   type PortraitConsentField,
 } from "@/lib/portraitConsent";
+import { generatePortraitConsentPdf } from "@/lib/portraitConsentPdf";
 
 interface ConsentListItem {
   id: string;
