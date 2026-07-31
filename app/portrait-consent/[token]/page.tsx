@@ -63,6 +63,8 @@ export default function PortraitConsentPortalPage() {
 
   const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   const isSigningRef = useRef(false);
+  const docRef = useRef<HTMLDivElement>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
     if (!token) return;
