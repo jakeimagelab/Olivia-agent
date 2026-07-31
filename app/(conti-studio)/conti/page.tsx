@@ -2002,7 +2002,7 @@ ${header("타임테이블")}
         )}
 
         {/* ══ 결과 ══ */}
-        {result && !fieldView && (
+        {pageMode === "conti" && result && !fieldView && (
           <section>
             {/* 결과 헤더 */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 20 }}>
