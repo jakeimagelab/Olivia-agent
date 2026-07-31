@@ -15,7 +15,11 @@ async function loadByToken(token: string) {
   if (!token || token.length < 20 || token.length > 128) return { error: "유효하지 않은 링크입니다.", status: 404 as const };
   const tokenHash = hashPortraitConsentToken(token);
   const db = getSupabaseAdmin();
-  const { data, error } = await db.from("portrait_consents").select(SELECT_COLUMNS).eq("token_hash", tokenHash).maybeSingle();
+  const { data, error } = await db
+    .from("portrait_consents")
+    .select(`${SELECT_COLUMNS}, access_count`)
+    .eq("token_hash", tokenHash)
+    .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return { error: "유효하지 않은 링크입니다.", status: 404 as const };
   if (data.token_revoked_at) return { error: "취소된 링크입니다.", status: 410 as const };
@@ -30,11 +34,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     if ("error" in result) return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
 
     const { data, db } = result;
-    if (data.status !== "signed") {
-      await db.from("portrait_consents").update({
-        last_accessed_at: new Date().toISOString(),
-      }).eq("id", data.id).then(() => {});
-    }
+    await db.from("portrait_consents").update({
+      last_accessed_at: new Date().toISOString(),
+      access_count: (data.access_count ?? 0) + 1,
+    }).eq("id", data.id);
 
     return NextResponse.json({ ok: true, consent: data });
   } catch (error) {
