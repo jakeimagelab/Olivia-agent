@@ -238,6 +238,15 @@ export default function PortraitConsentPortalPage() {
             </div>
 
             <div style={{ padding: "24px", marginTop: 8, borderTop: `1px solid ${C.border}` }}>
+              <div style={{ textAlign: "right", color: C.muted, fontSize: FS.sm, marginBottom: 16 }}>작성일 {today}</div>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>포토클리닉</div>
+                <div style={{ border: `1px solid ${C.border}`, borderRadius: R.md, padding: "10px 14px", display: "flex", alignItems: "center", background: "#fafaf9" }}>
+                  <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" style={{ height: 40, objectFit: "contain" }} />
+                </div>
+              </div>
+
               <label style={{ display: "block", fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>초상권 제공자 성명</label>
               <input
                 value={providerName}
@@ -247,24 +256,26 @@ export default function PortraitConsentPortalPage() {
               />
 
               <label style={{ display: "block", fontSize: FS.sm, fontWeight: 800, color: C.ink, margin: "18px 0 6px" }}>서명</label>
-              <canvas
-                ref={signatureCanvasRef}
-                width={520}
-                height={180}
-                onPointerDown={startSignature}
-                onPointerMove={drawSignature}
-                onPointerUp={finishSignature}
-                onPointerLeave={finishSignature}
-                onPointerCancel={finishSignature}
-                style={{
-                  width: "100%", aspectRatio: "520 / 180", border: `1.5px dashed ${C.border}`,
-                  borderRadius: R.md, background: "#fff", touchAction: "none", display: "block",
-                }}
-              />
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
-                <button type="button" onClick={clearSignature} style={{ fontSize: FS.xs, color: C.muted, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-                  서명 지우기
-                </button>
+              <div style={{ maxWidth: 320 }}>
+                <canvas
+                  ref={signatureCanvasRef}
+                  width={360}
+                  height={100}
+                  onPointerDown={startSignature}
+                  onPointerMove={drawSignature}
+                  onPointerUp={finishSignature}
+                  onPointerLeave={finishSignature}
+                  onPointerCancel={finishSignature}
+                  style={{
+                    width: "100%", aspectRatio: "360 / 100", border: `1.5px dashed ${C.border}`,
+                    borderRadius: R.md, background: "#fff", touchAction: "none", display: "block",
+                  }}
+                />
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                  <button type="button" onClick={clearSignature} style={{ fontSize: FS.xs, color: C.muted, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                    서명 지우기
+                  </button>
+                </div>
               </div>
 
               {submitError && <div style={{ color: C.danger, fontSize: FS.sm, marginTop: 12, fontWeight: 700 }}>{submitError}</div>}
