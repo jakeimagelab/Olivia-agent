@@ -440,6 +440,7 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, borderTop: "1px solid #EDE7DB", paddingTop: 28 }}>
               <img src="/assets/photoclinic-logo.png" alt="PHOTOCLINIC" style={{ height: 34, objectFit: "contain" }} />
+            </div>
           </div>
         </div>
       </div>
