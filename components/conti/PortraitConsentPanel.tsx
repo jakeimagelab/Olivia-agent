@@ -31,35 +31,86 @@ interface ConsentDetail extends ConsentListItem {
 const STATUS_LABEL: Record<ConsentListItem["status"], string> = { draft: "초안", sent: "전달됨", signed: "서명 완료" };
 const STATUS_COLOR: Record<ConsentListItem["status"], string> = { draft: C.hint, sent: C.gold, signed: C.success };
 
+const FIELD_TYPE_LABEL: Record<NonNullable<PortraitConsentField["type"]>, string> = {
+  text: "텍스트", date: "날짜", checklist: "체크",
+};
+
+function toggleChecklistValue(current: string, option: string): string {
+  const selected = current.split(",").map((s) => s.trim()).filter(Boolean);
+  const next = selected.includes(option) ? selected.filter((s) => s !== option) : [...selected, option];
+  return next.join(", ");
+}
+
 function FieldListEditor({
   items, onChange, accent,
 }: { items: PortraitConsentField[]; onChange: (next: PortraitConsentField[]) => void; accent: string }) {
   const update = (i: number, patch: Partial<PortraitConsentField>) =>
     onChange(items.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
   const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
-  const add = () => onChange([...items, { label: "", value: "" }]);
+  const add = () => onChange([...items, { label: "", value: "", type: "text" }]);
+
+  const smallInput: React.CSSProperties = { padding: "7px 9px", borderRadius: R.sm, border: `1px solid ${C.border}`, fontSize: FS.sm };
 
   return (
     <div>
-      {items.map((f, i) => (
-        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <input
-            value={f.label}
-            onChange={(e) => update(i, { label: e.target.value })}
-            placeholder="항목명"
-            style={{ width: 130, flexShrink: 0, padding: "7px 9px", borderRadius: R.sm, border: `1px solid ${C.border}`, fontSize: FS.sm, fontWeight: 700 }}
-          />
-          <input
-            value={f.value}
-            onChange={(e) => update(i, { value: e.target.value })}
-            placeholder="내용"
-            style={{ flex: 1, padding: "7px 9px", borderRadius: R.sm, border: `1px solid ${C.border}`, fontSize: FS.sm }}
-          />
-          <button type="button" onClick={() => remove(i)} style={{ background: "none", border: "none", color: C.danger, cursor: "pointer", padding: 4 }}>
-            <Trash2 size={14} />
-          </button>
-        </div>
-      ))}
+      {items.map((f, i) => {
+        const type = f.type ?? "text";
+        const options = f.options && f.options.length ? f.options : ["사진", "영상"];
+        const selected = f.value.split(",").map((s) => s.trim()).filter(Boolean);
+        return (
+          <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
+            <input
+              value={f.label}
+              onChange={(e) => update(i, { label: e.target.value })}
+              placeholder="항목명"
+              style={{ ...smallInput, width: 110, flexShrink: 0, fontWeight: 700 }}
+            />
+            <select
+              value={type}
+              onChange={(e) => {
+                const nextType = e.target.value as NonNullable<PortraitConsentField["type"]>;
+                update(i, { type: nextType, options: nextType === "checklist" ? options : undefined, value: nextType === "checklist" ? "" : f.value });
+              }}
+              style={{ ...smallInput, width: 76, flexShrink: 0 }}
+            >
+              {(Object.keys(FIELD_TYPE_LABEL) as (keyof typeof FIELD_TYPE_LABEL)[]).map((k) => (
+                <option key={k} value={k}>{FIELD_TYPE_LABEL[k]}</option>
+              ))}
+            </select>
+
+            {type === "date" && (
+              <input
+                type="date"
+                value={f.value}
+                onChange={(e) => update(i, { value: e.target.value })}
+                style={{ ...smallInput, flex: 1 }}
+              />
+            )}
+            {type === "checklist" && (
+              <div style={{ flex: 1, display: "flex", gap: 12, alignItems: "center", padding: "7px 2px" }}>
+                {options.map((opt) => (
+                  <label key={opt} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: FS.sm, color: C.ink, cursor: "pointer" }}>
+                    <input type="checkbox" checked={selected.includes(opt)} onChange={() => update(i, { value: toggleChecklistValue(f.value, opt) })} />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+            )}
+            {type === "text" && (
+              <input
+                value={f.value}
+                onChange={(e) => update(i, { value: e.target.value })}
+                placeholder="내용"
+                style={{ ...smallInput, flex: 1 }}
+              />
+            )}
+
+            <button type="button" onClick={() => remove(i)} style={{ background: "none", border: "none", color: C.danger, cursor: "pointer", padding: 4 }}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+        );
+      })}
       <button
         type="button"
         onClick={add}
