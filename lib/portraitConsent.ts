@@ -32,14 +32,14 @@ export interface PortraitConsentDoc {
 // 초상권 동의서 기본 세부 항목 — "오블리브 서울 오리진 초상권 동의서" 참고 양식 기준.
 // 관리자가 콘티 페이지에서 자유롭게 수정/추가/삭제할 수 있는 시작값일 뿐이다.
 export const DEFAULT_DETAIL_FIELDS: PortraitConsentField[] = [
-  { label: "촬영 목적", value: "" },
-  { label: "촬영 의뢰", value: "" },
-  { label: "촬영 일시", value: "" },
-  { label: "촬영 장소", value: "" },
-  { label: "촬영 내용", value: "" },
-  { label: "사용 기간", value: "" },
-  { label: "협의 내용", value: "" },
-  { label: "모델 계좌", value: "" },
+  { label: "촬영 목적", value: "", type: "text" },
+  { label: "촬영 의뢰", value: "", type: "text" },
+  { label: "촬영 일시", value: "", type: "date" },
+  { label: "촬영 장소", value: "", type: "text" },
+  { label: "촬영 내용", value: "", type: "checklist", options: ["사진", "영상"] },
+  { label: "사용 기간", value: "", type: "text" },
+  { label: "협의 내용", value: "", type: "text" },
+  { label: "모델 계좌", value: "", type: "text" },
 ];
 
 export const DEFAULT_USAGE_ITEMS: PortraitConsentField[] = [
