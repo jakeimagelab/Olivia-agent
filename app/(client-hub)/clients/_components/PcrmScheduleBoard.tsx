@@ -389,6 +389,43 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
           </div>
         </div>
       </div>
+
+      {/* 화면에는 안 보이고 공유 이미지 캡처용으로만 쓰이는 카드 — 명언 카드 같은 세로형 안내 카드 */}
+      <div style={{ position: "fixed", left: -9999, top: 0, pointerEvents: "none" }} aria-hidden="true">
+        <div
+          ref={shareCardRef}
+          style={{
+            width: 640, minHeight: 800, background: "#ffffff", padding: "56px 48px",
+            display: "flex", flexDirection: "column", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 40 }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: cat.color }} />
+            <span style={{ fontSize: 16, fontWeight: 900, color: cat.color, letterSpacing: 1 }}>{cat.label} 일정 안내</span>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.muted, marginBottom: 14 }}>
+            {taskDate ? formatKoreanDate(taskDate) : ""}
+            {time ? ` · ${time}${endTime ? ` ~ ${endTime}` : ""}` : ""}
+          </div>
+          <div style={{ fontSize: 40, fontWeight: 900, color: "#1C2B28", lineHeight: 1.4, marginBottom: 28, wordBreak: "keep-all" }}>
+            {title || "일정"}
+          </div>
+          {location && (
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#1C2B28", marginBottom: 12 }}>
+              📍 {location}
+            </div>
+          )}
+          {memo && (
+            <div style={{ fontSize: 17, color: C.muted, lineHeight: 1.7, marginTop: 8, whiteSpace: "pre-wrap", wordBreak: "keep-all" }}>
+              {memo}
+            </div>
+          )}
+          <div style={{ flex: 1 }} />
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, fontSize: 14, fontWeight: 800, color: C.hint, letterSpacing: 1 }}>
+            PHOTOCLINIC
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
