@@ -197,29 +197,64 @@ export default function PortraitConsentPortalPage() {
             <div style={{ background: C.teal, color: "#fff", padding: "16px 20px", fontWeight: 900, fontSize: FS.lg, textAlign: "center" }}>
               서명이 정상적으로 제출되었습니다
             </div>
-            <div style={{ padding: 24 }}>
-              <div style={{ fontSize: FS.xxl, fontWeight: 900, color: C.ink, textAlign: "center", marginBottom: 16 }}>{consent.title}</div>
-              <p style={{ color: C.muted, fontSize: FS.md, lineHeight: 1.7, marginBottom: 20 }}>{consent.intro_text}</p>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontWeight: 900, color: C.ink, fontSize: FS.sm, marginBottom: 4 }}>사진 촬영 동의: {consent.consent_shoot ? "예" : "아니오"}</div>
-                <div style={{ fontWeight: 900, color: C.ink, fontSize: FS.sm }}>홍보 목적 사용 동의: {consent.consent_usage ? "예" : "아니오"}</div>
-              </div>
-              <div style={{ textAlign: "right", color: C.muted, fontSize: FS.sm, marginBottom: 16 }}>작성일 {consent.signed_date || today}</div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 32, flexWrap: "wrap" }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>포토클리닉</div>
-                  <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" style={{ height: 44, objectFit: "contain" }} />
+            <div ref={docRef} style={{ background: "#fff" }}>
+              <div style={{ padding: "28px 24px 8px" }}>
+                <div style={{ fontSize: FS.xxl, fontWeight: 900, color: C.ink, textAlign: "center", marginBottom: 16 }}>{consent.title}</div>
+                <p style={{ color: C.muted, fontSize: FS.md, lineHeight: 1.7, background: C.mint, borderRadius: R.md, padding: 16 }}>{consent.intro_text}</p>
+              </div>
+
+              <div style={{ padding: "0 24px", marginTop: 16 }}>
+                <div style={{ ...sectionHeaderStyle(C.teal), borderRadius: R.sm }}>사진(영상)촬영</div>
+                <div style={{ padding: "12px 4px" }}>{consent.detail_fields.map(fieldRow)}</div>
+              </div>
+
+              <div style={{ padding: "0 24px", marginTop: 8 }}>
+                <div style={{ ...sectionHeaderStyle(C.orange), borderRadius: R.sm }}>영상/사진(이미지) 활용</div>
+                <div style={{ padding: "12px 4px" }}>{consent.usage_items.map(fieldRow)}</div>
+              </div>
+
+              <div style={{ padding: "20px 24px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ fontWeight: 800, color: C.ink, fontSize: FS.sm }}>
+                  위와 같이 사진을 촬영하는 것에 동의합니다: <b style={{ color: C.teal }}>{consent.consent_shoot ? "예" : "아니오"}</b>
                 </div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>
-                    초상권 제공자 &nbsp;<b>{consent.provider_name}</b> (인)
-                  </div>
-                  {consent.signature_data_url && (
-                    <img src={consent.signature_data_url} alt="서명" style={{ height: 44, objectFit: "contain" }} />
-                  )}
+                <div style={{ fontWeight: 800, color: C.ink, fontSize: FS.sm }}>
+                  촬영된 사진(영상)을 기업의 홍보 목적에만 사용하는 것에 동의합니다: <b style={{ color: C.teal }}>{consent.consent_usage ? "예" : "아니오"}</b>
                 </div>
               </div>
+
+              <div style={{ padding: 24 }}>
+                <div style={{ textAlign: "right", color: C.muted, fontSize: FS.sm, marginBottom: 16 }}>작성일 {consent.signed_date || today}</div>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 32, flexWrap: "wrap" }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>포토클리닉</div>
+                    <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" style={{ height: 44, objectFit: "contain" }} />
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>
+                      초상권 제공자 &nbsp;<b>{consent.provider_name}</b> (인)
+                    </div>
+                    {consent.signature_data_url && (
+                      <img src={consent.signature_data_url} alt="서명" style={{ height: 44, objectFit: "contain" }} />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: "0 24px 24px" }}>
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={pdfBusy}
+                style={{
+                  width: "100%", padding: "12px 0", borderRadius: R.md, border: `1.5px solid ${C.teal}`,
+                  background: "#fff", color: C.teal, fontWeight: 800, fontSize: FS.md,
+                  cursor: pdfBusy ? "not-allowed" : "pointer", opacity: pdfBusy ? 0.6 : 1,
+                }}
+              >
+                {pdfBusy ? "PDF 생성 중…" : "PDF 다운로드"}
+              </button>
             </div>
           </div>
         )}
