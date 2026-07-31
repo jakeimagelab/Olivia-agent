@@ -62,13 +62,23 @@ export function cleanText(value: unknown, maxLen = 2000): string {
   return value.trim().slice(0, maxLen);
 }
 
+const FIELD_TYPES: PortraitConsentFieldType[] = ["text", "date", "checklist"];
+
 export function sanitizeFieldList(value: unknown, maxItems = 30): PortraitConsentField[] {
   if (!Array.isArray(value)) return [];
   return value
     .slice(0, maxItems)
-    .map((item) => ({
-      label: cleanText(item?.label, 100),
-      value: cleanText(item?.value, 500),
-    }))
+    .map((item) => {
+      const type = FIELD_TYPES.includes(item?.type) ? (item.type as PortraitConsentFieldType) : "text";
+      const options = Array.isArray(item?.options)
+        ? item.options.slice(0, 10).map((o: unknown) => cleanText(o, 30)).filter(Boolean)
+        : undefined;
+      return {
+        label: cleanText(item?.label, 100),
+        value: cleanText(item?.value, 500),
+        type,
+        ...(options && options.length ? { options } : {}),
+      };
+    })
     .filter((item) => item.label.length > 0);
 }
