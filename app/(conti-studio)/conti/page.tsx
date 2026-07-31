@@ -2523,7 +2523,7 @@ ${header("타임테이블")}
         )}
 
         {/* ══ 아이패드 현장 뷰 ══ */}
-        {result && fieldView && (
+        {pageMode === "conti" && result && fieldView && (
           <div style={{ position: "fixed", inset: 0, background: "#EDF5F3", zIndex: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
             {/* 현장 뷰 헤더 */}
