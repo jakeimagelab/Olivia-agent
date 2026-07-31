@@ -5,10 +5,11 @@ import type { PointerEvent } from "react";
 import { useParams } from "next/navigation";
 import { C, R, FS } from "@/lib/theme";
 import type { PortraitConsentField } from "@/lib/portraitConsent";
+import { generatePortraitConsentPdf } from "@/lib/portraitConsentPdf";
 
 // 초상권 제공자(모델/환자)가 로그인 없이 토큰 링크만으로 여는 서명 포털.
-// 파일로 전달하지 않는다는 요구사항에 따라 PDF 다운로드는 제공하지 않고,
-// 서명은 이 화면에서 바로 캔버스로 받아 DB(portrait_consents)에 저장한다.
+// 전달 방식 자체는 파일이 아닌 이 포털 링크이며, 서명은 화면에서 바로 캔버스로 받아
+// DB(portrait_consents)에 저장한다 — PDF는 서명 완료 후 본인 보관용 다운로드로만 제공한다.
 interface ConsentDoc {
   id: string;
   title: string;
