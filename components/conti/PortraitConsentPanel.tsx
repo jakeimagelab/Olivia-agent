@@ -144,6 +144,21 @@ export default function PortraitConsentPanel({
   const [shareLink, setShareLink] = useState<{ id: string; url: string } | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
 
+  const detailDocRef = useRef<HTMLDivElement>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const downloadPdf = async () => {
+    if (!detailDocRef.current || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const pdf = await generatePortraitConsentPdf(detailDocRef.current);
+      pdf.save(`${detail?.title || "초상권_동의서"}.pdf`);
+    } catch {
+      alert("PDF 생성에 실패했습니다.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const loadList = () => {
     setLoading(true);
     const qs = new URLSearchParams();
