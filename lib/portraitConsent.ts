@@ -47,10 +47,6 @@ export const DEFAULT_USAGE_ITEMS: PortraitConsentField[] = [
 export const DEFAULT_INTRO_TEXT =
   '본 동의서는, "포토클리닉"에서 홍보영상/사진 제작에 필요한 인물촬영(사진/영상)에 대한 초상권 내용입니다. (본 목적 외에 다른 용도로는 사용이 불가)';
 
-export function hashPortraitConsentToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
