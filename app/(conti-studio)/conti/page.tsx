@@ -1742,14 +1742,30 @@ ${header("타임테이블")}
     <div style={{ minHeight: "100vh", background: "rgba(237,247,241,.82)" }}>
       <div style={{
         width: "100%",
-        maxWidth: result && !fieldView ? 1880 : 1100,
+        maxWidth: pageMode === "portrait" ? 1000 : (result && !fieldView ? 1880 : 1100),
         margin: "0 auto",
         padding: "36px 24px",
         boxSizing: "border-box",
       }}>
 
+        {/* ══ 모드 전환: 콘티 작성 / 초상권 작성 ══ */}
+        <div className="pc-tabs" style={{ marginBottom: 24 }}>
+          {([
+            { key: "conti",    label: "촬영 콘티 작성", Icon: ClipboardList },
+            { key: "portrait", label: "초상권 동의서",   Icon: FileSignature },
+          ] as const).map(({ key, label, Icon }) => (
+            <button key={key} onClick={() => setPageMode(key)} className={`pc-tab${pageMode === key ? " pc-tab--active" : ""}`}>
+              <Icon size={13} />{label}
+            </button>
+          ))}
+        </div>
+
+        {pageMode === "portrait" && (
+          <PortraitConsentPanel clientId={urlClientId} workflowRunId={urlWorkflowRunId} hospitalName={form.hospitalName} />
+        )}
+
         {/* ══ 입력 폼 ══ */}
-        {!result && (
+        {pageMode === "conti" && !result && (
           <section>
             <div style={{ marginBottom: 32 }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", flexWrap: "wrap", gap: 12 }}>
