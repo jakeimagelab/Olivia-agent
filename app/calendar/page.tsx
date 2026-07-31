@@ -650,6 +650,40 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
 function EventDetailView({ task, onEdit, onToggle }: { task: CalTask; onEdit: () => void; onToggle: () => void }) {
   const cat = CATS[task.category] ?? CATS.general;
   const [completed, setCompleted] = useState(task.completed); // 팝업 안에서 즉시 반영되도록 로컬로도 관리
+  const [sharing, setSharing] = useState(false);
+  const shareCardRef = useRef<HTMLDivElement>(null);
+
+  // 일정을 링크가 아니라 "명언 카드"처럼 이미지 한 장으로 만들어 바로 저장하거나 공유한다.
+  const shareCard = async () => {
+    if (!shareCardRef.current || sharing) return;
+    setSharing(true);
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const canvas = await html2canvas(shareCardRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+      const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+      if (!blob) throw new Error("이미지 생성 실패");
+
+      const fileName = `${task.title.trim() || "일정"}_${task.date}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: task.title || "일정 안내" });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== "AbortError") {
+        alert("이미지 생성에 실패했습니다. 다시 시도해주세요.");
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
