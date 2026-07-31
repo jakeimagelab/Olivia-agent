@@ -124,6 +124,7 @@ export default function PortraitConsentPortalPage() {
   };
 
   const canSubmit = consentShoot !== null && consentUsage !== null && providerName.trim().length > 0 && signatureDataUrl.length > 0;
+  const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return;
