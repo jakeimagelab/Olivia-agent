@@ -14,6 +14,10 @@ const CATS: Record<string, { label: string; color: string; bg: string }> = {
 };
 const CAT_KEYS = Object.keys(CATS);
 
+// 공유 카드 전용 — 포토클리닉 공식 브랜드 컬러(로고와 동일한 값)를 그대로 고정해서 쓴다.
+const BRAND_TEAL = "#155855";
+const BRAND_ORANGE = "#E85D2C";
+
 type Task = {
   id: string;
   date: string;
