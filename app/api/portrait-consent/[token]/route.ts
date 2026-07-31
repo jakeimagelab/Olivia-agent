@@ -1,9 +1,14 @@
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { cleanText, hashPortraitConsentToken } from "@/lib/portraitConsent";
+import { cleanText } from "@/lib/portraitConsent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function hashPortraitConsentToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 // 의도적으로 /api/conti 접두사 밖에 둔다 — middleware.ts의 protectedApiPrefixes는 /api/conti를
 // 관리자 세션 필수로 막는데, 이 라우트는 로그인하지 않은 초상권 제공자(모델/환자)가 링크만으로
