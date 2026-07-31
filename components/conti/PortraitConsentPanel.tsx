@@ -369,25 +369,77 @@ export default function PortraitConsentPanel({
       {/* ── 서명 완료 상세 보기 ── */}
       {(detailLoading || detail) && (
         <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setDetail(null)}>
-          <div style={{ background: "#fff", borderRadius: R.xl, width: "min(560px, 100%)", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ background: "#fff", borderRadius: R.xl, width: "min(600px, 100%)", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }} onClick={(e) => e.stopPropagation()}>
             {detailLoading || !detail ? (
               <div style={{ padding: 40, textAlign: "center", color: C.hint }}>불러오는 중…</div>
             ) : (
               <>
-                <div style={{ padding: "18px 22px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ padding: "18px 22px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, background: "#fff" }}>
                   <span style={{ fontWeight: 900, fontSize: FS.lg, color: C.ink }}>{detail.title}</span>
                   <button onClick={() => setDetail(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.hint }}><X size={20} /></button>
                 </div>
-                <div style={{ padding: 22 }}>
-                  <div style={{ fontSize: FS.sm, color: C.ink, marginBottom: 6 }}>사진 촬영 동의: <b>{detail.consent_shoot ? "예" : "아니오"}</b></div>
-                  <div style={{ fontSize: FS.sm, color: C.ink, marginBottom: 16 }}>홍보 목적 사용 동의: <b>{detail.consent_usage ? "예" : "아니오"}</b></div>
-                  <div style={{ fontSize: FS.sm, color: C.muted, marginBottom: 4 }}>초상권 제공자: <b style={{ color: C.ink }}>{detail.provider_name}</b></div>
-                  <div style={{ fontSize: FS.sm, color: C.muted, marginBottom: 12 }}>서명일: {detail.signed_date}</div>
-                  {detail.signature_data_url && (
-                    <div style={{ border: `1px solid ${C.border}`, borderRadius: R.md, padding: 12, textAlign: "center" }}>
-                      <img src={detail.signature_data_url} alt="서명" style={{ maxHeight: 100 }} />
+
+                <div ref={detailDocRef} style={{ background: "#fff" }}>
+                  <div style={{ padding: "22px 22px 8px" }}>
+                    <p style={{ color: C.muted, fontSize: FS.sm, lineHeight: 1.7, background: C.mint, borderRadius: R.md, padding: 14, margin: 0 }}>{detail.intro_text}</p>
+                  </div>
+
+                  <div style={{ padding: "16px 22px 0" }}>
+                    <div style={{ background: C.teal, color: "#fff", fontWeight: 900, fontSize: FS.sm, padding: "8px 16px", borderRadius: R.sm }}>사진(영상)촬영</div>
+                    <div style={{ padding: "10px 4px" }}>
+                      {detail.detail_fields.map((f, i) => (
+                        <div key={i} style={{ display: "flex", gap: 8, padding: "6px 0", fontSize: FS.sm }}>
+                          <span style={{ color: C.orange, fontWeight: 900, flexShrink: 0 }}>▷</span>
+                          <span style={{ fontWeight: 800, color: C.ink, minWidth: 90, flexShrink: 0 }}>{f.label}</span>
+                          <span style={{ color: C.muted, flex: 1 }}>{f.value || "-"}</span>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+
+                  <div style={{ padding: "8px 22px 0" }}>
+                    <div style={{ background: C.orange, color: "#fff", fontWeight: 900, fontSize: FS.sm, padding: "8px 16px", borderRadius: R.sm }}>영상/사진(이미지) 활용</div>
+                    <div style={{ padding: "10px 4px" }}>
+                      {detail.usage_items.map((f, i) => (
+                        <div key={i} style={{ display: "flex", gap: 8, padding: "6px 0", fontSize: FS.sm }}>
+                          <span style={{ color: C.orange, fontWeight: 900, flexShrink: 0 }}>▷</span>
+                          <span style={{ fontWeight: 800, color: C.ink, minWidth: 90, flexShrink: 0 }}>{f.label}</span>
+                          <span style={{ color: C.muted, flex: 1 }}>{f.value || "-"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: 22 }}>
+                    <div style={{ fontSize: FS.sm, color: C.ink, marginBottom: 6 }}>사진 촬영 동의: <b>{detail.consent_shoot ? "예" : "아니오"}</b></div>
+                    <div style={{ fontSize: FS.sm, color: C.ink, marginBottom: 16 }}>홍보 목적 사용 동의: <b>{detail.consent_usage ? "예" : "아니오"}</b></div>
+                    <div style={{ textAlign: "right", color: C.muted, fontSize: FS.xs, marginBottom: 10 }}>작성일 {detail.signed_date}</div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 24, flexWrap: "wrap" }}>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: FS.xs, fontWeight: 800, color: C.ink, marginBottom: 4 }}>포토클리닉</div>
+                        <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" style={{ height: 36, objectFit: "contain" }} />
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: FS.xs, fontWeight: 800, color: C.ink, marginBottom: 4 }}>초상권 제공자 &nbsp;<b>{detail.provider_name}</b> (인)</div>
+                        {detail.signature_data_url && (
+                          <img src={detail.signature_data_url} alt="서명" style={{ height: 36, objectFit: "contain" }} />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ padding: "0 22px 22px" }}>
+                  <button
+                    type="button" onClick={downloadPdf} disabled={pdfBusy}
+                    style={{
+                      width: "100%", padding: "10px 0", borderRadius: R.md, border: `1.5px solid ${C.teal}`,
+                      background: "#fff", color: C.teal, fontWeight: 800, fontSize: FS.sm,
+                      cursor: pdfBusy ? "not-allowed" : "pointer", opacity: pdfBusy ? 0.6 : 1,
+                    }}
+                  >
+                    {pdfBusy ? "PDF 생성 중…" : "PDF 다운로드"}
+                  </button>
                 </div>
               </>
             )}
