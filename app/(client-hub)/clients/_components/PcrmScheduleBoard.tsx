@@ -28,6 +28,14 @@ type Task = {
 
 const cardStyle: React.CSSProperties = { background: C.white, border: `1px solid ${C.border}`, borderRadius: R.lg, boxShadow: "0 5px 18px rgba(21,88,85,.055)" };
 
+const WEEKDAY_KR = ["일", "월", "화", "수", "목", "금", "토"];
+
+function formatKoreanDate(dateStr: string) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return `${m}월 ${d}일 (${WEEKDAY_KR[date.getDay()]})`;
+}
+
 function ymd(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
