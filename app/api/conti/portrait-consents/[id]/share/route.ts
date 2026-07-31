@@ -1,12 +1,16 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { hashPortraitConsentToken, isUuid } from "@/lib/portraitConsent";
+import { isUuid } from "@/lib/portraitConsent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const DEFAULT_TTL_DAYS = 30;
+
+function hashPortraitConsentToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 // POST — 초상권 제공자에게 전달할 포털 링크(토큰) 생성/재발급.
 // 원본 토큰은 이 응답에서만 한 번 내려주고, DB에는 해시만 저장한다 (파일이 아닌 포털 전달 요구사항).
