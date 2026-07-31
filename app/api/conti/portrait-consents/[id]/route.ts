@@ -21,7 +21,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-// PATCH — 제목/안내문/세부항목/활용목적 수정. 서명 완료(signed) 후에는 원본 보존을 위해 잠근다.
+// PATCH — 제목/안내문/세부항목/활용목적 수정. 서명 완료 후에도 관리자가 오탈자 등을 고칠 수 있어야
+// 한다는 요청에 따라 상태와 무관하게 허용한다(서명 자체·서명일·동의 여부는 이 라우트로 건드리지 않는다).
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -32,9 +33,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .from("portrait_consents").select("status").eq("id", id).maybeSingle();
     if (fetchError) throw new Error(fetchError.message);
     if (!existing) return NextResponse.json({ ok: false, error: "동의서를 찾을 수 없습니다." }, { status: 404 });
-    if (existing.status === "signed") {
-      return NextResponse.json({ ok: false, error: "서명이 완료된 동의서는 내용을 수정할 수 없습니다." }, { status: 400 });
-    }
 
     const body = await req.json();
     const update: Record<string, unknown> = {};
