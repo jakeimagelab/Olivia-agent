@@ -188,15 +188,22 @@ export default function PortraitConsentPortalPage() {
                 <div style={{ fontWeight: 900, color: C.ink, fontSize: FS.sm, marginBottom: 4 }}>사진 촬영 동의: {consent.consent_shoot ? "예" : "아니오"}</div>
                 <div style={{ fontWeight: 900, color: C.ink, fontSize: FS.sm }}>홍보 목적 사용 동의: {consent.consent_usage ? "예" : "아니오"}</div>
               </div>
-              <div style={{ textAlign: "right", color: C.muted, fontSize: FS.sm, marginBottom: 8 }}>{consent.signed_date}</div>
-              <div style={{ textAlign: "right", fontSize: FS.md, color: C.ink, marginBottom: 12 }}>
-                초상권 제공자 성명 &nbsp;<b>{consent.provider_name}</b> (인)
-              </div>
-              {consent.signature_data_url && (
-                <div style={{ textAlign: "right" }}>
-                  <img src={consent.signature_data_url} alt="서명" style={{ height: 60, objectFit: "contain" }} />
+              <div style={{ textAlign: "right", color: C.muted, fontSize: FS.sm, marginBottom: 16 }}>작성일 {consent.signed_date || today}</div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 32, flexWrap: "wrap" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>포토클리닉</div>
+                  <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" style={{ height: 44, objectFit: "contain" }} />
                 </div>
-              )}
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>
+                    초상권 제공자 &nbsp;<b>{consent.provider_name}</b> (인)
+                  </div>
+                  {consent.signature_data_url && (
+                    <img src={consent.signature_data_url} alt="서명" style={{ height: 44, objectFit: "contain" }} />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
