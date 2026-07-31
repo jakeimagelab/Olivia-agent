@@ -2985,7 +2985,7 @@ ${header("타임테이블")}
     )}
 
     {/* 불러오기 패널 */}
-    {showLoadPanel && (
+    {pageMode === "conti" && showLoadPanel && (
       <div style={{
         position: "fixed", inset: 0, zIndex: 500,
         background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center"
