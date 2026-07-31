@@ -290,6 +290,8 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
   const [location, setLocation] = useState(task?.location || "");
   const [memo, setMemo] = useState(task?.memo || "");
   const [taskDate, setTaskDate] = useState(date);
+  const [sharing, setSharing] = useState(false);
+  const shareCardRef = useRef<HTMLDivElement>(null);
 
   const buildPayload = () => ({ date: taskDate, title: title.trim(), category, time: time || null, end_time: endTime || null, location: location || null, memo });
 
@@ -302,6 +304,40 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
     if (!title.trim()) { alert("일정 제목을 입력해주세요."); return; }
     onCopy?.(buildPayload());
   };
+
+  // 일정을 링크가 아니라 "명언 카드"처럼 이미지 한 장으로 만들어 바로 저장하거나 공유한다.
+  const shareCard = async () => {
+    if (!shareCardRef.current || sharing) return;
+    setSharing(true);
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const canvas = await html2canvas(shareCardRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+      const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/png"));
+      if (!blob) throw new Error("이미지 생성 실패");
+
+      const fileName = `${title.trim() || "일정"}_${taskDate}.png`;
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: title.trim() || "일정 안내" });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== "AbortError") {
+        alert("이미지 생성에 실패했습니다. 다시 시도해주세요.");
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const cat = CATS[category] || CATS.general;
 
   return (
     <div className="pcrm-cal-popover" onClick={onClose}>
