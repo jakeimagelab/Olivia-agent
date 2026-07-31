@@ -129,6 +129,19 @@ export default function PortraitConsentPortalPage() {
   const canSubmit = consentShoot !== null && consentUsage !== null && providerName.trim().length > 0 && signatureDataUrl.length > 0;
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
+  const handleDownloadPdf = async () => {
+    if (!docRef.current || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const pdf = await generatePortraitConsentPdf(docRef.current);
+      pdf.save(`${consent?.title || "초상권_동의서"}.pdf`);
+    } catch {
+      alert("PDF 생성에 실패했습니다.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
