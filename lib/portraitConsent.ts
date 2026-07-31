@@ -1,8 +1,11 @@
 export type PortraitConsentStatus = "draft" | "sent" | "signed";
+export type PortraitConsentFieldType = "text" | "date" | "checklist";
 
 export interface PortraitConsentField {
   label: string;
   value: string;
+  type?: PortraitConsentFieldType;
+  options?: string[];
 }
 
 export interface PortraitConsentDoc {
