@@ -21,6 +21,10 @@
       "schedule": "0 1 * * 1"
     },
     {
+      "path": "/api/cron/library-world-digest",
+      "schedule": "0 1 * * 1"
+    },
+    {
       "path": "/api/cron/trash-cleanup",
       "schedule": "30 3 * * *"
     },
