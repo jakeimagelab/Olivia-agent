@@ -41,7 +41,7 @@ const QUERYABLE_TABLES = [
   "client_portal_access", "client_portal_events", "client_reviews", "client_revision_requests",
   "clients", "consultation_memos", "conti_saves", "conti_shares", "contracts",
   "daily_ideas", "delivery_reviews", "diagnosis_submissions", "donation_campaigns", "donation_records",
-  "galleries", "generated_images", "mailing_logs", "mailing_queue", "meeting_commitments",
+  "galleries", "generated_images", "library_items", "mailing_logs", "mailing_queue", "meeting_commitments",
   "olivia_actions", "olivia_briefings", "olivia_chat_messages", "olivia_events", "olivia_feedback",
   "olivia_insights", "olivia_notification_history", "per_reports", "per_settings",
   "photo_galleries", "photo_gallery_items", "projects", "quotes",
