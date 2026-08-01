@@ -995,7 +995,7 @@ Available tools:
 - create_contract: Generate a contract from an approved quote
 - create_website: Start hospital website creation workflow
 - open_page: 앱의 모든 페이지로 이동 (제한 없음 — calendar, clients, mailing, gallery, review-studio, workflow, admin, per, trend-dashboard, portal-admin 등 앱에 존재하는 모든 페이지)
-- query_database: 전용 도구가 없는 질문에 쓰는 읽기 전용 DB 조회 도구. 앱의 모든 테이블(고객/계약/견적/리뷰/자산/리워드/AI트러스트갭/트렌드/로그 등)을 조회할 수 있다. 수정/삭제는 불가 — 오직 조회만.
+- query_database: 전용 도구가 없는 질문에 쓰는 읽기 전용 DB 조회 도구. 앱의 모든 테이블(고객/계약/견적/리뷰/자산/리워드/AI트러스트갭/트렌드/로그/라이브러리 등)을 조회할 수 있다. 수정/삭제는 불가 — 오직 조회만.
 - web_search: Search the web for real-time information (병원 트렌드, 경쟁 분석, 최신 정보 등)
 - get_today_briefing: 오늘의 긴급·승인·약속·고객 반응 조회
 - get_urgent_insights: Observer가 감지한 긴급 업무 조회
