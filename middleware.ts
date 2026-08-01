@@ -233,6 +233,7 @@ export const config = {
     "/report", "/report/:path*",
     "/video-conti", "/video-conti/:path*",
     "/daily-ideas", "/daily-ideas/:path*",
+    "/library", "/library/:path*",
     "/sns-manager", "/sns-manager/:path*",
     "/review-studio", "/review-studio/:path*",
     "/brand-analysis", "/brand-analysis/:path*",
