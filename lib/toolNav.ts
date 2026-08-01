@@ -53,6 +53,7 @@ export const TOOLS_CONTENT: ToolDef[] = [
   { title: "리얼 이미지 디렉터", desc: "올리비아가 촬영 디렉팅하고 OpenAI gpt-image-1로 실사 병원 이미지를 생성합니다.", href: "/image-generator", icon: Sparkles, meta: "Real Image Director", orange: true, category: "tools" },
   { title: "홈페이지 제작", desc: "병원 홈페이지 제작 요청과 기획 정보를 정리합니다.", href: "/website-builder", icon: Globe2, meta: "Website Builder", orange: false, category: "tools" },
   { title: "AI 검색 최적화", desc: "납품 사진의 SEO 파일명·ALT·캡션·메타데이터를 자동 생성합니다.", href: "/seo-delivery", icon: Search, meta: "SEO Delivery", orange: true, category: "tools" },
+  { title: "라이브러리", desc: "명언·비즈니스 영어·마케팅 사례·컨설팅 프레임워크·세계 이슈를 모아둔 개인 지식창고입니다.", href: "/library", icon: Library, meta: "Reference Library", orange: false, category: "tools" },
 ];
 
 /* 전역 사이드바용 — 대시보드 항목까지 포함한 순서 있는 전체 목록 */
