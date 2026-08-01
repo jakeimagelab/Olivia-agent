@@ -9,6 +9,7 @@ import {
   CircleHelp,
   Grid2X2,
   House,
+  Library,
   Link2,
   Mail,
   Megaphone,
