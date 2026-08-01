@@ -1,0 +1,102 @@
+-- 라이브러리 2차 확장 시드 (library-seed.sql 실행 후 이 파일을 실행하세요 — 기존 58건에 추가되는 내용)
+-- 명언 +30(총 50) · 비즈니스 영어 +30(총 50) · 마케팅 사례 +15(총 25) · 컨설팅 프레임워크 +12(총 20)
+-- 아래 내용은 실제 인물 발언/공개된 캠페인·이론에 대한 요약이며, 원문 그대로의 저작물 전재가 아니라 사실관계 요약입니다.
+
+-- ═══ 명언 30개 추가 ═══
+insert into public.library_items (category, title, content, tags) values
+('quote','사람들은 당신이 무엇을 하는지가 아니라 왜 하는지를 산다', '{"text":"People don''t buy what you do; they buy why you do it.","author":"Simon Sinek","translation_ko":"사람들은 당신이 무엇을 하는지가 아니라 왜 하는지를 산다.","theme":"브랜딩"}', '{브랜딩,목적}'),
+('quote','가격은 지불하는 것이고 가치는 얻는 것이다', '{"text":"Price is what you pay. Value is what you get.","author":"Warren Buffett","translation_ko":"가격은 지불하는 것이고 가치는 얻는 것이다.","theme":"가치"}', '{가치,투자}'),
+('quote','평판을 쌓는 데는 20년, 무너뜨리는 데는 5분이면 충분하다', '{"text":"It takes 20 years to build a reputation and five minutes to ruin it.","author":"Warren Buffett","translation_ko":"평판을 쌓는 데는 20년이 걸리지만 무너뜨리는 데는 5분이면 충분하다.","theme":"신뢰"}', '{신뢰,평판}'),
+('quote','마케팅은 이제 만드는 물건이 아니라 들려주는 이야기에 관한 것이다', '{"text":"Marketing is no longer about the stuff that you make, but about the stories you tell.","author":"Seth Godin","translation_ko":"마케팅은 이제 만드는 물건이 아니라 들려주는 이야기에 관한 것이다.","theme":"마케팅"}', '{마케팅,스토리텔링}'),
+('quote','위대해야 시작할 수 있는 게 아니라 시작해야 위대해질 수 있다', '{"text":"You don''t have to be great to start, but you have to start to be great.","author":"Zig Ziglar","translation_ko":"위대해야 시작할 수 있는 게 아니라, 시작해야 위대해질 수 있다.","theme":"실행력"}', '{실행력,동기부여}'),
+('quote','사업 기회는 버스와 같다, 언제나 다음 버스가 온다', '{"text":"Business opportunities are like buses, there''s always another one coming.","author":"Richard Branson","translation_ko":"사업 기회는 버스와 같다, 언제나 다음 버스가 온다.","theme":"기회"}', '{기회,창업}'),
+('quote','고객이 먼저가 아니다, 직원이 먼저다', '{"text":"Clients do not come first. Employees come first. If you take care of your employees, they will take care of the clients.","author":"Richard Branson","translation_ko":"고객이 먼저가 아니다. 직원이 먼저다. 직원을 돌보면 직원이 고객을 돌본다.","theme":"조직관리"}', '{조직관리,고객경험}'),
+('quote','가장 불만족한 고객이 가장 큰 배움의 원천이다', '{"text":"Your most unhappy customers are your greatest source of learning.","author":"Bill Gates","translation_ko":"가장 불만족한 고객이 가장 큰 배움의 원천이다.","theme":"고객경험"}', '{고객경험,피드백}'),
+('quote','실험 횟수를 두 배로 늘리면 혁신도 두 배가 된다', '{"text":"If you double the number of experiments you do per year, you''re going to double your inventiveness.","author":"Jeff Bezos","translation_ko":"1년에 하는 실험 횟수를 두 배로 늘리면, 혁신성도 두 배가 된다.","theme":"혁신"}', '{혁신,실험}'),
+('quote','제품 첫 버전이 부끄럽지 않다면 이미 너무 늦게 출시한 것이다', '{"text":"If you are not embarrassed by the first version of your product, you''ve launched too late.","author":"Reid Hoffman","translation_ko":"제품 첫 버전이 부끄럽지 않다면, 이미 너무 늦게 출시한 것이다.","theme":"실행력"}', '{실행력,제품}'),
+('quote','가장 큰 리스크는 아무 리스크도 감수하지 않는 것이다', '{"text":"The biggest risk is not taking any risk.","author":"Mark Zuckerberg","translation_ko":"가장 큰 리스크는 아무 리스크도 감수하지 않는 것이다.","theme":"도전"}', '{도전,혁신}'),
+('quote','성공은 나눌 때 가장 좋다', '{"text":"Success is best when it''s shared.","author":"Howard Schultz","translation_ko":"성공은 나눌 때 가장 좋다.","theme":"팀워크"}', '{팀워크,성공}'),
+('quote','중요한 일이라면 실패할 가능성이 높아도 시도해야 한다', '{"text":"If something is important enough, you should try even if the probable outcome is failure.","author":"Elon Musk","translation_ko":"중요한 일이라면 실패할 가능성이 높아도 시도해야 한다.","theme":"도전"}', '{도전,실행력'}),
+('quote','사람들은 당신이 한 말은 잊어도 당신이 준 느낌은 잊지 않는다', '{"text":"People will forget what you said, people will forget what you did, but people will never forget how you made them feel.","author":"Maya Angelou","translation_ko":"사람들은 당신이 한 말과 행동은 잊어도, 당신이 준 느낌은 절대 잊지 않는다.","theme":"고객경험"}', '{고객경험,감성}'),
+('quote','고객서비스는 하나의 부서가 아니라 회사 전체여야 한다', '{"text":"Customer service shouldn''t just be a department, it should be the entire company.","author":"Tony Hsieh","translation_ko":"고객서비스는 하나의 부서가 아니라 회사 전체여야 한다.","theme":"고객경험"}', '{고객경험,조직문화}'),
+('quote','변해야 할 필요가 생기기 전에 변하라', '{"text":"Change before you have to.","author":"Jack Welch","translation_ko":"변해야 할 필요가 생기기 전에 미리 변하라.","theme":"변화관리"}', '{변화관리,경영}'),
+('quote','우리 중 누구도 우리 모두만큼 훌륭하지 않다', '{"text":"None of us is as good as all of us.","author":"Ray Kroc","translation_ko":"우리 중 누구도 우리 모두만큼 훌륭하지는 않다.","theme":"팀워크"}', '{팀워크,협업}'),
+('quote','보스는 오직 하나뿐이다, 바로 고객이다', '{"text":"There is only one boss. The customer.","author":"Sam Walton","translation_ko":"보스는 오직 하나뿐이다. 바로 고객이다.","theme":"고객경험"}', '{고객경험,경영}'),
+('quote','성공을 꿈꾸지 않았다, 그것을 위해 일했을 뿐이다', '{"text":"I never dreamed about success. I worked for it.","author":"Estée Lauder","translation_ko":"성공을 꿈꾸지 않았다, 그것을 위해 일했을 뿐이다.","theme":"실행력"}', '{실행력,커리어}'),
+('quote','대체 불가능해지려면 언제나 남달라야 한다', '{"text":"In order to be irreplaceable one must always be different.","author":"Coco Chanel","translation_ko":"대체 불가능해지려면 언제나 남달라야 한다.","theme":"차별화"}', '{차별화,브랜딩}'),
+('quote','함께 모이는 것은 시작이고, 함께 있는 것은 전진이며, 함께 일하는 것은 성공이다', '{"text":"Coming together is a beginning; keeping together is progress; working together is success.","author":"Henry Ford","translation_ko":"함께 모이는 것은 시작이고, 함께 있는 것은 전진이며, 함께 일하는 것은 성공이다.","theme":"팀워크"}', '{팀워크,협업}'),
+('quote','얼마나 천천히 가는지는 중요하지 않다, 멈추지만 않으면 된다', '{"text":"It does not matter how slowly you go as long as you do not stop.","author":"공자(Confucius)","translation_ko":"얼마나 천천히 가는지는 중요하지 않다, 멈추지만 않으면 된다.","theme":"인내"}', '{인내,지속}'),
+('quote','우리는 반복하는 행동으로 만들어진다, 탁월함은 행위가 아니라 습관이다', '{"text":"We are what we repeatedly do. Excellence, then, is not an act, but a habit.","author":"아리스토텔레스(Aristotle)","translation_ko":"우리는 반복하는 행동으로 만들어진다. 탁월함은 하나의 행위가 아니라 습관이다.","theme":"습관"}', '{습관,자기계발}'),
+('quote','준비에 실패하면 실패를 준비하는 것이다', '{"text":"By failing to prepare, you are preparing to fail.","author":"Benjamin Franklin","translation_ko":"준비에 실패하면, 실패를 준비하는 셈이다.","theme":"준비"}', '{준비,전략}'),
+('quote','당신이 얼마나 아는지는 아무도 신경 쓰지 않는다, 당신이 얼마나 마음을 쓰는지 알기 전까지는', '{"text":"Nobody cares how much you know, until they know how much you care.","author":"Theodore Roosevelt","translation_ko":"당신이 얼마나 아는지는 아무도 신경 쓰지 않는다, 당신이 얼마나 마음을 쓰는지 알기 전까지는.","theme":"고객경험"}', '{고객경험,관계}'),
+('quote','다른 사람에게 관심을 갖는 두 달이 나에게 관심 갖게 만들려는 2년보다 낫다', '{"text":"You can make more friends in two months by becoming interested in other people than you can in two years by trying to get other people interested in you.","author":"Dale Carnegie","translation_ko":"다른 사람에게 관심을 갖는 두 달이, 남이 나에게 관심 갖게 만들려는 2년보다 더 많은 친구를 만든다.","theme":"관계"}', '{관계,네트워킹}'),
+('quote','마음이 품고 믿을 수 있는 것은 무엇이든 이룰 수 있다', '{"text":"Whatever the mind can conceive and believe, it can achieve.","author":"Napoleon Hill","translation_ko":"마음이 품고 믿을 수 있는 것은 무엇이든 이룰 수 있다.","theme":"목표설정"}', '{목표설정,동기부여}'),
+('quote','새로운 것을 시도할 때 어색하고 불편해도 괜찮아야 성장할 수 있다', '{"text":"You can only grow if you''re willing to feel awkward and uncomfortable when you try something new.","author":"Brian Tracy","translation_ko":"새로운 것을 시도할 때 느끼는 어색함과 불편함을 감수해야만 성장할 수 있다.","theme":"성장"}', '{성장,자기계발}'),
+('quote','좋은 리더는 사람들에게 자신이 중요하다고 느끼게 만든다', '{"text":"The best leaders make people feel that they matter.","author":"경영 격언","translation_ko":"좋은 리더는 사람들에게 자신이 중요한 존재라고 느끼게 만든다.","theme":"리더십"}', '{리더십,조직문화}'),
+('quote','전략은 무엇을 하지 않을지 선택하는 것이다', '{"text":"The essence of strategy is choosing what not to do.","author":"Michael Porter","translation_ko":"전략의 본질은 무엇을 하지 않을지 선택하는 것이다.","theme":"전략"}', '{전략,경영}');
+
+-- ═══ 비즈니스 영어 30개 추가 ═══
+insert into public.library_items (category, title, content, tags) values
+('business_english','전화 받을 때', '{"phrase":"Thank you for calling [Company], this is [Name] speaking.","translation_ko":"전화 주셔서 감사합니다, [회사명]의 [이름]입니다.","context":"phone_call","formality":"formal"}', '{전화}'),
+('business_english','화상회의 시작', '{"phrase":"Can everyone hear me okay?","translation_ko":"다들 잘 들리시나요?","context":"video_call","formality":"neutral"}', '{화상회의}'),
+('business_english','화상회의 음소거 요청', '{"phrase":"Could you mute yourself when you''re not speaking?","translation_ko":"말씀 안 하실 때는 음소거 부탁드립니다.","context":"video_call","formality":"neutral"}', '{화상회의}'),
+('business_english','불만 접수', '{"phrase":"I completely understand your frustration, let me look into this right away.","translation_ko":"불편을 끼쳐드려 죄송합니다, 바로 확인해보겠습니다.","context":"complaint","formality":"formal"}', '{불만응대}'),
+('business_english','재발 방지 약속', '{"phrase":"This won''t happen again, and here''s what we''re doing to fix it.","translation_ko":"다시는 이런 일이 없도록 하겠습니다, 이렇게 조치하겠습니다.","context":"complaint","formality":"formal"}', '{불만응대,사과}'),
+('business_english','계약 진행 제안', '{"phrase":"Shall we move forward with this?","translation_ko":"이대로 진행할까요?","context":"closing","formality":"neutral"}', '{협상,클로징}'),
+('business_english','부담 없이 결정 시간 주기', '{"phrase":"Take your time, and let me know if you have any questions.","translation_ko":"천천히 생각해보시고, 궁금한 점 있으면 알려주세요.","context":"closing","formality":"neutral"}', '{클로징}'),
+('business_english','이메일 팔로업', '{"phrase":"Just following up on my previous email.","translation_ko":"지난 메일에 대한 후속 연락입니다.","context":"email","formality":"neutral"}', '{이메일}'),
+('business_english','긍정적으로 피드백 시작', '{"phrase":"Overall this looks great — a few small suggestions.","translation_ko":"전반적으로 좋습니다 — 몇 가지 제안드릴게요.","context":"feedback","formality":"neutral"}', '{피드백}'),
+('business_english','업무 위임', '{"phrase":"Could you take the lead on this one?","translation_ko":"이 건은 맡아서 진행해주실 수 있을까요?","context":"delegation","formality":"neutral"}', '{위임,팀관리}'),
+('business_english','정중히 반대 의견', '{"phrase":"I''m not sure that''s the best approach — can we consider an alternative?","translation_ko":"가장 좋은 방법인지 확신이 안 서는데, 다른 방안도 고려해볼까요?","context":"meeting","formality":"formal"}', '{회의,반대의견}'),
+('business_english','기한 연장 요청', '{"phrase":"Would it be possible to extend the deadline by a few days?","translation_ko":"마감을 며칠 연장할 수 있을까요?","context":"scheduling","formality":"formal"}', '{일정,요청}'),
+('business_english','긴급함 전달', '{"phrase":"This is time-sensitive, so I''d appreciate a quick response.","translation_ko":"시급한 사안이라 빠른 회신 부탁드립니다.","context":"email","formality":"formal"}', '{이메일,긴급}'),
+('business_english','프로젝트 마무리', '{"phrase":"Great work, everyone — let''s wrap this up.","translation_ko":"다들 수고하셨습니다, 마무리하시죠.","context":"meeting","formality":"neutral"}', '{회의,마무리}'),
+('business_english','신규 고객 환영', '{"phrase":"Welcome aboard! We''re excited to work with you.","translation_ko":"함께하게 되어 기쁩니다! 잘 부탁드립니다.","context":"client_relations","formality":"formal"}', '{고객관리,환영}'),
+('business_english','결제 독촉(정중히)', '{"phrase":"This is a friendly reminder that payment is due on [date].","translation_ko":"결제 기한이 [날짜]임을 안내드립니다.","context":"invoice","formality":"formal"}', '{결제,독촉}'),
+('business_english','추천서 요청', '{"phrase":"Would you be willing to serve as a reference for us?","translation_ko":"저희를 위해 추천서를 써주실 수 있을까요?","context":"reference","formality":"formal"}', '{추천서}'),
+('business_english','네트워킹 후 팔로업', '{"phrase":"It was great meeting you at [event] — let''s stay in touch.","translation_ko":"[행사]에서 뵙게 되어 반가웠습니다 — 계속 연락하시죠.","context":"networking","formality":"neutral"}', '{네트워킹,팔로업}'),
+('business_english','회의 안건 공유', '{"phrase":"Here''s the agenda for today''s meeting.","translation_ko":"오늘 회의 안건 공유드립니다.","context":"meeting","formality":"neutral"}', '{회의,안건}'),
+('business_english','브레인스토밍 유도', '{"phrase":"Let''s throw out some ideas, no judgment yet.","translation_ko":"일단 아이디어를 자유롭게 던져보시죠, 평가는 나중에.","context":"meeting","formality":"casual"}', '{회의,브레인스토밍}'),
+('business_english','통화 마무리', '{"phrase":"Thanks for your time today, I''ll send a follow-up email.","translation_ko":"오늘 시간 내주셔서 감사합니다, 후속 메일 보내드릴게요.","context":"phone_call","formality":"formal"}', '{전화,마무리}'),
+('business_english','일정 재조정 요청', '{"phrase":"Something''s come up — can we reschedule?","translation_ko":"일이 생겨서요 — 일정을 조정할 수 있을까요?","context":"scheduling","formality":"neutral"}', '{일정}'),
+('business_english','상대 의견 확인', '{"phrase":"Just to confirm, you''re saying that...?","translation_ko":"확인차 여쭤보는데, 말씀하신 게...?","context":"meeting","formality":"neutral"}', '{회의,확인}'),
+('business_english','자료 요청', '{"phrase":"Could you share the relevant documents when you get a chance?","translation_ko":"시간 되실 때 관련 자료 공유해주실 수 있을까요?","context":"email","formality":"neutral"}', '{이메일,자료요청}'),
+('business_english','고객 니즈 파악', '{"phrase":"We''d love to understand your needs better.","translation_ko":"귀사의 니즈를 더 잘 이해하고 싶습니다.","context":"sales","formality":"formal"}', '{영업,고객니즈}'),
+('business_english','가격 방어', '{"phrase":"The price reflects the quality and service we provide.","translation_ko":"이 가격은 저희가 제공하는 품질과 서비스를 반영한 것입니다.","context":"negotiation","formality":"formal"}', '{협상,가격}'),
+('business_english','계약 갱신 제안', '{"phrase":"We''d love to continue this partnership — shall we discuss renewal terms?","translation_ko":"앞으로도 함께하고 싶습니다 — 갱신 조건을 논의해볼까요?","context":"contract","formality":"formal"}', '{계약,갱신}'),
+('business_english','실수 인정', '{"phrase":"That was my oversight, I''ll correct it immediately.","translation_ko":"제 실수였습니다, 바로 수정하겠습니다.","context":"apology","formality":"formal"}', '{사과}'),
+('business_english','팀 격려', '{"phrase":"I really appreciate everyone''s hard work on this.","translation_ko":"이번 일에 다들 애써주셔서 정말 감사합니다.","context":"internal","formality":"neutral"}', '{팀관리,격려}'),
+('business_english','장기 프로젝트 마무리 인사', '{"phrase":"It''s been a pleasure working with you on this project.","translation_ko":"이 프로젝트를 함께해서 즐거웠습니다.","context":"closing","formality":"formal"}', '{마무리,인사}');
+
+-- ═══ 마케팅 사례 15개 추가 ═══
+insert into public.library_items (category, title, content, tags) values
+('marketing_case','버드와이저 — Whassup', '{"company":"Budweiser","campaign":"Whassup","summary":"2000년 슈퍼볼 광고로 시작된 캐치프레이즈 캠페인. 친구들끼리 전화로 외치는 짧은 유행어 하나로 대중문화 전반에 퍼진 대표적인 바이럴 사례로, 광고 예산보다 화제성이 브랜드 인지도를 견인할 수 있음을 보여줬다.","industry":"주류","year":"2000"}', '{바이럴,대중문화}'),
+('marketing_case','맥도날드 — I''m Lovin'' It', '{"company":"McDonald''s","campaign":"I''m Lovin'' It","summary":"2003년부터 전 세계 모든 시장에서 동일하게 사용한 첫 글로벌 통합 슬로건·징글. 국가마다 제각각이던 브랜드 메시지를 하나로 통일해 일관된 브랜드 자산을 구축한 사례.","industry":"외식/패스트푸드","year":"2003~"}', '{브랜딩,글로벌통합}'),
+('marketing_case','던킨 — 브랜드명 리뉴얼', '{"company":"Dunkin''","campaign":"Donuts를 뺀 리브랜딩","summary":"2019년 공식 브랜드명에서 Donuts를 빼고 Dunkin''으로 축약. 도넛 매장이라는 인식에서 벗어나 커피·음료 중심의 온더고(on-the-go) 브랜드로 포지셔닝을 전환한 사례.","industry":"외식/카페","year":"2019"}', '{리브랜딩,포지셔닝}'),
+('marketing_case','넷플릭스 — 데이터 기반 개인화', '{"company":"Netflix","campaign":"추천 알고리즘 자체를 마케팅 자산으로 활용","summary":"광고가 아니라 시청 데이터 기반 추천 시스템 자체를 제품 경험이자 리텐션 마케팅으로 설계한 사례. 사용자별로 다른 썸네일과 추천을 보여주는 개인화가 곧 마케팅이 된 대표 사례.","industry":"스트리밍","year":"지속적"}', '{데이터마케팅,개인화}'),
+('marketing_case','구글 — Year in Search', '{"company":"Google","campaign":"Year in Search","summary":"매년 연말 한 해 동안 가장 많이 검색된 키워드를 감성적인 영상으로 재구성해 공개하는 캠페인. 자사 제품(검색)을 광고하지 않으면서도 검색 데이터를 활용한 스토리텔링으로 브랜드 호감도를 높인 사례.","industry":"IT/검색","year":"2009~"}', '{스토리텔링,연말캠페인}'),
+('marketing_case','벤앤제리스 — 사회적 이슈 연대', '{"company":"Ben & Jerry''s","campaign":"사회정의 이슈 공개 지지","summary":"기후변화, 인종평등 등 사회적 이슈에 브랜드가 직접 입장을 밝히고 캠페인을 전개. 논쟁의 리스크를 감수하더라도 브랜드 가치관에 공감하는 소비자층과의 유대를 강화한 사례.","industry":"식품(아이스크림)","year":"지속적"}', '{사회적마케팅,브랜드가치}'),
+('marketing_case','슬랙 — 제품주도성장(PLG)', '{"company":"Slack","campaign":"무료 사용 기반 입소문 확산","summary":"초기 전통적 광고 없이 무료 사용자가 직접 동료를 초대하는 구조로 성장한 대표적 PLG(Product-Led Growth) 사례. 제품 자체의 사용 경험이 최고의 마케팅 채널이 될 수 있음을 보여줬다.","industry":"협업툴/SaaS","year":"2013~"}', '{PLG,입소문}'),
+('marketing_case','곰표 — 곰표 밀맥주 콜라보', '{"company":"대한제분(곰표)","campaign":"곰표 밀맥주","summary":"70년 넘은 밀가루 브랜드 IP를 맥주·화장품 등 이종 상품과 콜라보해 젊은 세대에게 뉴트로 감성으로 재소환한 국내 사례. 오래된 브랜드 자산도 협업 방식에 따라 새로운 화제성을 만들 수 있음을 보여줬다.","industry":"식품/유통(한국)","year":"2020"}', '{뉴트로,콜라보}'),
+('marketing_case','배달의민족 — B급 감성 카피', '{"company":"배달의민족","campaign":"옥외광고·카피 캠페인","summary":"진지한 광고 문법 대신 유머러스하고 힘을 뺀 B급 카피로 지하철·버스 광고를 채워 친근한 브랜드 이미지를 구축한 국내 사례. 배달앱이라는 실용적 서비스에 감성적 팬덤을 더했다.","industry":"배달/플랫폼(한국)","year":"2015~"}', '{카피라이팅,브랜드팬덤}'),
+('marketing_case','오뚜기 — 신뢰 기반 브랜드 이미지', '{"company":"오뚜기","campaign":"정직경영 이슈의 자발적 확산","summary":"오너 일가의 상속세 완납, 비정규직 비율 관리 등 경영 방식이 소비자들 사이에서 자발적으로 화제가 되며 별도의 광고 없이 브랜드 신뢰가 형성된 국내 사례. 기업 행동 자체가 마케팅이 될 수 있음을 보여줬다.","industry":"식품(한국)","year":"지속적"}', '{기업신뢰,자발적확산}'),
+('marketing_case','마켓컬리 — 새벽배송 카테고리 개척', '{"company":"마켓컬리","campaign":"샛별배송","summary":"프리미엄 식재료를 다음날 새벽에 받아볼 수 있는 배송 서비스를 처음 상용화해 하나의 소비 카테고리 자체를 만들어낸 국내 사례. 후발주자들이 뒤따라 진입할 만큼 시장을 새로 정의했다.","industry":"이커머스(한국)","year":"2015~"}', '{카테고리창출,프리미엄}'),
+('marketing_case','무신사 — 커뮤니티 기반 성장', '{"company":"무신사","campaign":"패션 커뮤니티에서 플랫폼으로","summary":"패션 정보를 공유하는 온라인 커뮤니티로 시작해 신뢰를 쌓은 뒤 자연스럽게 커머스 플랫폼으로 확장한 국내 사례. 판매보다 커뮤니티가 먼저였기 때문에 초기 충성 고객층을 확보할 수 있었다.","industry":"패션/이커머스(한국)","year":"2001~"}', '{커뮤니티,플랫폼확장}'),
+('marketing_case','오레오 — Dunk in the Dark', '{"company":"Oreo","campaign":"Dunk in the Dark","summary":"2013년 슈퍼볼 중계 중 정전 사태가 발생하자 실시간으로 \"어둠 속에서도 과자는 찍어먹을 수 있다\"는 트윗을 올려 화제가 된 사례. 실시간 상황에 즉각 반응하는 마케팅(newsjacking)의 대표 사례로 꼽힌다.","industry":"식품(과자)","year":"2013"}', '{실시간마케팅,SNS}'),
+('marketing_case','버거킹 — Whopper Detour', '{"company":"Burger King","campaign":"Whopper Detour","summary":"2018년 자사 앱으로 맥도날드 매장 근처 600피트 이내에서 주문하면 와퍼를 1센트에 살 수 있게 한 프로모션. 경쟁사 매장을 활용한 위치 기반 마케팅으로 앱 다운로드를 크게 늘린 사례.","industry":"외식/패스트푸드","year":"2018"}', '{위치기반마케팅,경쟁사활용}'),
+('marketing_case','이니스프리 — 자연주의 스토리텔링', '{"company":"이니스프리","campaign":"제주 원산지 브랜딩","summary":"제주라는 청정 자연 이미지를 원료 원산지 스토리부터 매장 디자인까지 일관되게 연결한 국내 화장품 브랜드 사례. 단일 컨셉을 모든 접점에서 반복해 브랜드 정체성을 명확히 각인시켰다.","industry":"뷰티(한국)","year":"지속적"}', '{브랜드일관성,원산지스토리}');
+
+-- ═══ 컨설팅 프레임워크 12개 추가 ═══
+insert into public.library_items (category, title, content, tags) values
+('consulting_framework','앤소프 매트릭스', '{"firm":"Igor Ansoff","description":"기존/신규 시장과 기존/신규 제품 두 축으로 시장침투·시장개발·제품개발·다각화 4가지 성장 전략을 구분하는 프레임워크.","use_case":"신규 성장 전략 수립, 사업 확장 방향 결정"}', '{성장전략,포트폴리오}'),
+('consulting_framework','PESTEL 분석', '{"firm":"범용(거시환경 분석 기본)","description":"정치(Political)·경제(Economic)·사회(Social)·기술(Technological)·환경(Environmental)·법률(Legal) 6가지 거시환경 요인을 분석하는 프레임워크.","use_case":"신규 시장 진출, 중장기 사업계획 수립 시 외부환경 점검"}', '{거시환경,전략}'),
+('consulting_framework','가치사슬 분석', '{"firm":"Michael Porter (Harvard)","description":"기업 활동을 본원적 활동(구매·생산·물류·마케팅·서비스)과 지원 활동(인프라·인사·기술·조달)으로 나눠 어느 단계에서 가치와 원가가 발생하는지 분석하는 프레임워크.","use_case":"원가 절감 포인트 발굴, 경쟁우위 요소 파악"}', '{가치사슬,경쟁우위}'),
+('consulting_framework','린 스타트업', '{"firm":"Eric Ries","description":"Build-Measure-Learn(구축-측정-학습) 루프를 빠르게 반복해 최소기능제품(MVP)으로 가설을 검증하고, 필요하면 신속히 피벗하는 방법론.","use_case":"신사업/신제품 초기 검증, 불확실성이 큰 시장에서의 빠른 실험"}', '{린스타트업,MVP}'),
+('consulting_framework','Jobs to be Done', '{"firm":"Clayton Christensen (Harvard)","description":"고객이 제품·서비스를 ''고용''하는 근본 이유, 즉 해결하고자 하는 과업(Job) 관점에서 혁신 기회를 찾는 이론.","use_case":"제품 혁신 아이디어 발굴, 진짜 고객 니즈 재정의"}', '{고객니즈,혁신}'),
+('consulting_framework','캐즘 이론', '{"firm":"Geoffrey Moore","description":"혁신 제품이 초기 얼리어답터를 넘어 실용적인 주류 시장으로 확산될 때 겪는 단절(캐즘)을 어떻게 건너는지 설명하는 하이테크 마케팅 이론.","use_case":"신기술/신제품의 대중화 전략 수립"}', '{제품확산,하이테크마케팅}'),
+('consulting_framework','OKR', '{"firm":"Andy Grove(Intel) / John Doerr","description":"Objectives(정성적 목표)와 Key Results(정량적 핵심결과)를 연결해 조직 전체의 목표를 정렬시키는 목표관리 기법.","use_case":"조직/팀 목표 설정, 실리콘밸리식 성과관리 도입"}', '{목표관리,OKR}'),
+('consulting_framework','코터의 8단계 변화관리 모델', '{"firm":"John Kotter (Harvard)","description":"위기감 조성, 변화추진팀 구성, 비전 수립부터 변화의 조직문화 정착까지 8단계로 조직 변화를 성공적으로 이끄는 프레임워크.","use_case":"조직개편, 대규모 변화관리 프로젝트"}', '{변화관리,조직}'),
+('consulting_framework','RACI 매트릭스', '{"firm":"범용(프로젝트관리 기본)","description":"업무별로 담당자를 Responsible(실무 담당)·Accountable(최종 책임)·Consulted(자문)·Informed(공유 대상)로 구분해 역할과 책임을 명확히 하는 도구.","use_case":"프로젝트 역할분담, 협업 시 책임소재 명확화"}', '{프로젝트관리,역할분담}'),
+('consulting_framework','카노 모델', '{"firm":"Noriaki Kano","description":"제품 속성을 기본 품질(당연히 있어야 함)·성과 품질(있을수록 만족도 비례)·매력 품질(없어도 무관하지만 있으면 감동) 3가지로 분류해 개발 우선순위를 정하는 기법.","use_case":"제품 기능 우선순위 결정, 고객만족 요소 분석"}', '{제품기획,고객만족}'),
+('consulting_framework','GE-맥킨지 매트릭스', '{"firm":"GE & McKinsey","description":"시장매력도와 사업경쟁력 두 축으로 사업을 9분면에 배치해 투자·유지·철수를 판단하는 BCG 매트릭스의 확장판 포트폴리오 분석 기법.","use_case":"다각화된 사업 포트폴리오의 투자 우선순위 결정"}', '{포트폴리오,투자판단}'),
+('consulting_framework','스크럼', '{"firm":"Jeff Sutherland & Ken Schwaber","description":"2~4주 단위의 짧은 스프린트로 개발·점검을 반복하며 우선순위가 높은 일부터 처리하는 대표적 애자일 프로젝트 관리 방법론.","use_case":"소프트웨어 개발, 빠른 반복이 필요한 프로젝트 운영"}', '{애자일,프로젝트관리}');
