@@ -304,7 +304,9 @@ const TOOLS: Anthropic.Tool[] = [
       "가능하면 더 구체적인 전용 도구(get_workflow_status, get_gallery, search_client_projects 등)를 먼저 사용하고, 그 도구들로 답할 수 없는 질문에만 이 도구를 사용하세요. " +
       "이 도구는 조회(SELECT)만 가능하며 데이터를 수정/삭제할 수 없습니다. 자주 쓰는 테이블: clients(hospital_name, contact_name, email, phone, status), " +
       "contracts(hospital_name, status, total_amount), quotes(hospital_name, package_id, status), client_reviews(hospital_name, rating, content), " +
-      "photo_galleries/select_galleries(hospital_name, nas_link), workflow_runs(client_name, current_step_key, status), activity_logs(action, target, created_at).",
+      "photo_galleries/select_galleries(hospital_name, nas_link), workflow_runs(client_name, current_step_key, status), activity_logs(action, target, created_at), " +
+      "library_items(category, title, content, tags) — 명언·비즈니스 영어·마케팅 사례·컨설팅 프레임워크·세계 이슈 라이브러리. category 필터값: quote/business_english/marketing_case/consulting_framework/world_issue. " +
+      "'오늘의 명언', '협상 관련 영어 표현' 같은 요청엔 이 테이블을 category로 필터링해 조회한 뒤, 여러 건이 나오면 그중에서 하나를 골라 자연스럽게 답하세요.",
     input_schema: {
       type: "object",
       properties: {
