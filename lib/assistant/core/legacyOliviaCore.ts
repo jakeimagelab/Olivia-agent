@@ -291,7 +291,7 @@ const TOOLS: Anthropic.Tool[] = [
                  "per-orders", "per-products", "per-reports", "per-settings",
                  "photoclinic", "portal-admin", "raw-select", "select-galleries",
                  "select-match", "seo-delivery", "shooting", "sns-design", "trash",
-                 "trend-dashboard", "variation", "video-conti", "video-convert", "video-sorting"],
+                 "trend-dashboard", "variation", "video-conti", "video-convert", "video-sorting", "library"],
         },
       },
       required: ["page"],
