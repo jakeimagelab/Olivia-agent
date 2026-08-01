@@ -65,8 +65,12 @@ const navigation: NavigationSection[] = [
     items: [
       { label: "AI Assistant 홈", href: "/admin/tools", icon: Grid2X2, exact: true, carryContext: true },
       { label: "카카오 AI 비서", href: "/admin/kakao-assistant", icon: MessageCircleMore },
+      { label: "라이브러리", href: "/library", icon: Library, carryContext: true },
       { label: "마케팅 대시보드", href: "/marketing", icon: Megaphone },
-      ...toolItems.map((t) => ({ label: t.title, href: t.href, icon: t.icon, carryContext: true })),
+      /* 라이브러리는 toolNav.ts(단일 소스)에 등록돼 있어 /admin/tools 그리드에는 그대로 노출되지만,
+         사이드바에서는 "카카오 AI비서 아래"라는 고정 위치 요청 때문에 위에서 수동 배치했다 —
+         자동 목록에 섞이면 순서 없이 맨 끝에 붙어버려서 여기서 제외한다. */
+      ...toolItems.filter((t) => t.href !== "/library").map((t) => ({ label: t.title, href: t.href, icon: t.icon, carryContext: true })),
     ],
   },
 ];
