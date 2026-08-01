@@ -45,20 +45,52 @@ function ItemBody({ category, content }: { category: Category; content: Record<s
   }
   if (category === "marketing_case") {
     return (
-      <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, margin: "8px 0 0" }}>
-        <strong style={{ color: C.ink }}>{content.company}</strong> · {content.campaign}
-        <br />
-        {content.summary}
-      </p>
+      <div style={{ marginTop: 8 }}>
+        <p style={{ fontSize: 13, color: C.ink, fontWeight: 700, margin: 0 }}>
+          {content.company} · {content.campaign}
+          <span style={{ fontWeight: 400, color: C.hint }}> ({content.industry} · {content.year})</span>
+        </p>
+        {[
+          { label: "배경", value: content.background },
+          { label: "실행 전략", value: content.strategy },
+          { label: "성과", value: content.result },
+        ].map((row) => row.value ? (
+          <p key={row.label} style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.6, margin: "6px 0 0" }}>
+            <strong style={{ color: C.teal }}>{row.label}</strong> {row.value}
+          </p>
+        ) : null)}
+        {content.lesson && (
+          <div style={{ background: C.mint, borderLeft: `3px solid ${C.orange}`, borderRadius: "0 8px 8px 0", padding: "8px 10px", marginTop: 8 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: C.orange, marginBottom: 2 }}>우리 사업에 적용한다면</div>
+            <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>{content.lesson}</div>
+          </div>
+        )}
+      </div>
     );
   }
   if (category === "consulting_framework") {
     return (
-      <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, margin: "8px 0 0" }}>
-        <strong style={{ color: C.ink }}>{content.firm}</strong>
-        <br />
-        {content.description}
-      </p>
+      <div style={{ marginTop: 8 }}>
+        <p style={{ fontSize: 13, color: C.ink, fontWeight: 700, margin: 0 }}>{content.firm}</p>
+        <p style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.6, margin: "6px 0 0" }}>{content.description}</p>
+        {Array.isArray(content.steps) && content.steps.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: C.teal, marginBottom: 4 }}>적용 단계</div>
+            <ol style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: C.muted, lineHeight: 1.7 }}>
+              {content.steps.map((step: string, i: number) => <li key={i}>{step}</li>)}
+            </ol>
+          </div>
+        )}
+        {content.example && (
+          <div style={{ background: C.mint, borderLeft: `3px solid ${C.orange}`, borderRadius: "0 8px 8px 0", padding: "8px 10px", marginTop: 8 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: C.orange, marginBottom: 2 }}>적용 예시</div>
+            <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.6 }}>{content.example}</div>
+          </div>
+        )}
+        {content.use_case && (
+          <p style={{ fontSize: 11.5, color: C.hint, margin: "8px 0 0" }}>활용처: {content.use_case}</p>
+        )}
+      </div>
     );
   }
   return (
