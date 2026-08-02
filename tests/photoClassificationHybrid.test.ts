@@ -105,12 +105,16 @@ describe("hybrid photo classification", () => {
     ["5분 이내 의료진 변경", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.9, hasPatient: false, hasStaff: true })],
     ["5분 이내 장비 변경", analysis({ equipmentPresent: true, equipmentCategory: "laser_device", equipmentChanged: true, equipmentChangeConfidence: 0.95 })],
     ["5분 이내 장소 변경", analysis({ locationType: "laser_room", locationChanged: true, locationChangeConfidence: 0.95 })],
-    ["상담에서 레이저", analysis({ equipmentPresent: true, beforeSceneType: "consultation", afterSceneType: "laser", sceneType: "laser", sceneTypeChanged: true })],
-    ["상담에서 주사", analysis({ syringePresent: true, beforeSceneType: "consultation", afterSceneType: "injection", sceneType: "injection", sceneTypeChanged: true })],
+    ["상담에서 시술(레이저)", analysis({ equipmentPresent: true, beforeSceneType: "consultation", afterSceneType: "treatment", sceneType: "treatment", sceneTypeChanged: true })],
+    ["상담에서 시술(주사)", analysis({ syringePresent: true, beforeSceneType: "consultation", afterSceneType: "treatment", sceneType: "treatment", sceneTypeChanged: true })],
+    ["상담에서 프로필", analysis({ beforeSceneType: "consultation", afterSceneType: "profile", sceneType: "profile", sceneTypeChanged: true })],
+    ["시술에서 프로필", analysis({ beforeSceneType: "treatment", afterSceneType: "profile", sceneType: "profile", sceneTypeChanged: true })],
+    ["시술에서 인테리어", analysis({ beforeSceneType: "treatment", afterSceneType: "interior", sceneType: "interior", sceneTypeChanged: true })],
+    ["인테리어에서 상담", analysis({ beforeSceneType: "interior", afterSceneType: "consultation", sceneType: "consultation", sceneTypeChanged: true })],
+    ["인테리어에서 프로필", analysis({ beforeSceneType: "interior", afterSceneType: "profile", sceneType: "profile", sceneTypeChanged: true })],
     ["앉음에서 누움과 장비 등장", analysis({ equipmentPresent: true, beforePatientPose: "sitting", afterPatientPose: "lying", patientPose: "lying" })],
     ["다른 환자 같은 장소와 장비", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.94 })],
     ["같은 환자 다른 장소", analysis({ locationChanged: true, locationChangeConfidence: 0.95, locationType: "laser_room" })],
-    ["공간 촬영에서 인물 촬영", analysis({ peopleCount: 2, beforeSceneType: "interior", afterSceneType: "staff", sceneType: "staff", sceneTypeChanged: true })],
   ])("forces a split for %s", (_, frameAnalysis) => {
     const result = decideBoundary({ candidate: candidate(), analysis: frameAnalysis, settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
     expect(result.decision).toBe("split");
