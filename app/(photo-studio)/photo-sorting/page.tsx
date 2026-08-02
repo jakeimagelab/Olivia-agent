@@ -8,11 +8,12 @@ import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 import { buildMergeCandidates } from "@/lib/photo-classifier/scene-merge-candidate";
 import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
 import { getClassificationSettings } from "@/lib/photo-classifier/classification-settings";
-import { buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo-classifier/candidate-builder";
+import { buildCandidateSegments, buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo-classifier/candidate-builder";
 import { decideBoundary } from "@/lib/photo-classifier/boundary-score";
 import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer";
 import { buildFieldScenesFromBoundaries, simpleSceneFolderName } from "@/lib/photo-classifier/scene-builder";
 import { extractFeaturesWithWorkers } from "@/lib/photo-classifier/feature-worker-client";
+import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
 import {
   clearClassificationCheckpoint, featureCacheKey, getCachedFeature,
   getClassificationCheckpoint, setCachedFeature, setClassificationCheckpoint,
@@ -20,7 +21,7 @@ import {
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
 import { evaluateSceneBoundaries } from "@/lib/photo-classifier/evaluation/metrics";
 import type {
-  AccuracyReport, ClassificationJobState, LocalVisualFeatures, SceneBoundaryDecision,
+  AccuracyReport, ClassificationJobState, HybridSceneType, LocalVisualFeatures, SceneBoundaryDecision,
   SceneCorrection, SceneFrameAnalysis, TimestampSource,
 } from "@/lib/photo-classifier/hybrid-types";
 
