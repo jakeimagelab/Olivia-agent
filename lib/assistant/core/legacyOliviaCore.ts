@@ -929,19 +929,6 @@ export async function processOliviaRequest(body: any, req: NextRequest) {
     }
   }
 
-  const lastUserText = [...(messages || [])].reverse().find((m: any) => m.role === "user")?.content || "";
-  const meetingShortcut = typeof lastUserText === "string" ? meetingAssistantShortcutFromText(lastUserText) : null;
-  if (meetingShortcut && !attachments.length) {
-    return NextResponse.json(meetingShortcut);
-  }
-  const calendarShortcut = typeof lastUserText === "string" ? calendarShortcutFromText(lastUserText) : null;
-  if (calendarShortcut && !attachments.length) {
-    return NextResponse.json(calendarShortcut);
-  }
-  const pageShortcut = typeof lastUserText === "string" ? pageShortcutFromText(lastUserText) : null;
-  if (pageShortcut && !attachments.length) {
-    return NextResponse.json(pageShortcut);
-  }
 
   // 시스템 프롬프트에 페이지 컨텍스트 추가
   const referenceContext = formatWorkItemReferenceContext(recentWorkItems);
