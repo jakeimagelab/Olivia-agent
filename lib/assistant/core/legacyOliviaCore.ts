@@ -854,6 +854,11 @@ function calendarShortcutFromText(text: string) {
   const isCalendarText = /(캘린더|일정|할일|메모|기록|저장|촬영|미팅|상담|회의|모임|약속)/.test(text);
   if (!isCalendarText) return null;
 
+  // "~라고 하면 ~게 해줘"처럼 앞으로의 동작 방식을 설명하는 피드백은 실제 일정 등록 요청이
+  // 아니다. 이 shortcut은 문맥을 이해 못 하고 예시 문장을 그대로 제목 삼아 등록해버리므로,
+  // Claude의 전체 tool-use 턴으로 넘겨 올바르게 판단하게 한다.
+  if (/라고\s*(?:하면|할\s*때|하셨|했)/.test(text)) return null;
+
   const date = parseKoreanDate(text);
   const time = parseKoreanTime(text);
   const location = parseLocation(text);
