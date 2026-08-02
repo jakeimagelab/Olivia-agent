@@ -37,7 +37,7 @@ export const COMMON_SYSTEM_PROMPT = `당신은 병원 홍보/홈페이지용 사
   이 씬이 앞뒤 씬과 같은 장면인지 다른 장면인지 구분하는 핵심 단서이므로, 실제 이미지에서
   보이는 대로 정확히 판단하세요 (확실하지 않으면 patientPosture는 "unclear", boolean 값들은
   false로 반환).
-- suggestedFolderName은 진료과 config의 folderName 형식을 따르세요 (예: "임플란트수술", "C-ARM시술").
+- suggestedFolderName은 진료과 config의 folderName 형식을 따르세요 (예: "시술", "상담", "프로필").
 - 응답은 반드시 지정된 JSON Schema를 따르세요.`;
 
 const SCHEMA_BODY: Record<string, unknown> = {
