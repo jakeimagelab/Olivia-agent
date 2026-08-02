@@ -774,6 +774,18 @@ const parseKoreanDate = (text: string) => {
     return formatDate(addDays(today, diff));
   }
 
+  // "4일", "4일 오후"처럼 월 없이 일자만 말한 경우 — 이번 달 그 날짜로, 이미 지난 날짜면 다음 달로.
+  const bareDay = text.match(/(\d{1,2})\s*일(?!\s*(?:간|째|후|뒤|전|동안|마다|요일))/);
+  if (bareDay) {
+    const dayNum = Number(bareDay[1]);
+    if (dayNum >= 1 && dayNum <= 31) {
+      const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      let candidate = new Date(today.getFullYear(), today.getMonth(), dayNum);
+      if (candidate < todayMidnight) candidate = new Date(today.getFullYear(), today.getMonth() + 1, dayNum);
+      return formatDate(candidate);
+    }
+  }
+
   return "";
 };
 
