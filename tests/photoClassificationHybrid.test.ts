@@ -183,8 +183,12 @@ describe("hybrid photo classification", () => {
 });
 
 describe("purpose scan (2차 Scene 분석)", () => {
-  it("samples every photo for small segments", () => {
-    expect(buildPurposeSampleIndices(5)).toEqual([0, 1, 2, 3, 4]);
+  it("samples every photo when interval is 1 for small segments", () => {
+    expect(buildPurposeSampleIndices(5, { interval: 1 })).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("uses the default interval sparsely for a small segment but always includes the last photo", () => {
+    expect(buildPurposeSampleIndices(5)).toEqual([0, 4]);
   });
 
   it("samples by interval and always includes the last photo for mid-size segments", () => {
