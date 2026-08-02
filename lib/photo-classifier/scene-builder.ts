@@ -26,8 +26,8 @@ export function buildFieldScenesFromBoundaries(
     const index = scenes.length + 1;
     const boundaryBefore = splitByIndex.get(starts[part]);
     const sceneType = part === 0
-      ? firstAnalysis?.beforeSceneType ?? "unknown"
-      : boundaryBefore?.aiAnalysis?.afterSceneType ?? "unknown";
+      ? firstAnalysis?.beforeSceneType ?? "etc"
+      : boundaryBefore?.aiAnalysis?.afterSceneType ?? "etc";
     const folderName = simpleSceneFolderName(index, sceneType);
     scenes.push({
       index,
