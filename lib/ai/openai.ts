@@ -123,10 +123,7 @@ export type PhotoSceneAnalysisOutput = {
 };
 
 const NEEDS_HIGH_MODEL_TYPES = new Set([
-  "implant_surgery",
-  "surgery_scene",
-  "c_arm_procedure",
-  "injection_treatment",
+  "treatment",
 ]);
 
 export function needsHighModel(result: PhotoSceneAnalysisOutput): boolean {
