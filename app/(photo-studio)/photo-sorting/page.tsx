@@ -7,6 +7,22 @@ import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 import { buildMergeCandidates } from "@/lib/photo-classifier/scene-merge-candidate";
 import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
+import { getClassificationSettings } from "@/lib/photo-classifier/classification-settings";
+import { buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo-classifier/candidate-builder";
+import { decideBoundary } from "@/lib/photo-classifier/boundary-score";
+import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer";
+import { buildFieldScenesFromBoundaries, simpleSceneFolderName } from "@/lib/photo-classifier/scene-builder";
+import { extractFeaturesWithWorkers } from "@/lib/photo-classifier/feature-worker-client";
+import {
+  clearClassificationCheckpoint, featureCacheKey, getCachedFeature,
+  getClassificationCheckpoint, setCachedFeature, setClassificationCheckpoint,
+} from "@/lib/photo-classifier/scene-cache";
+import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
+import { evaluateSceneBoundaries } from "@/lib/photo-classifier/evaluation/metrics";
+import type {
+  AccuracyReport, ClassificationJobState, LocalVisualFeatures, SceneBoundaryDecision,
+  SceneCorrection, SceneFrameAnalysis, TimestampSource,
+} from "@/lib/photo-classifier/hybrid-types";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -73,6 +89,10 @@ interface PersonGroup {
 ═══════════════════════════════════════════════ */
 const RAW_EXTS = new Set(["arw","cr3","cr2","nef","raf","dng","orf","rw2"]);
 const JPG_EXTS = new Set(["jpg","jpeg"]);
+const EMPTY_BOUNDARY_FEATURES = {
+  timeGapScore: 0, personChangeScore: 0, locationChangeScore: 0, equipmentChangeScore: 0,
+  poseChangeScore: 0, sceneTypeChangeScore: 0, visualChangeScore: 0, shotDistanceChangeScore: 0,
+};
 
 const FIELD_STEPS  = ["설정","파일 분류","씬 검토","분석 중","선택 안내","RAW SELECT","완료"];
 const STUDIO_STEPS       = ["폴더 선택","파일 분류","AI 분석","그룹 검토","그룹 확인","파일 정리","완료"];
@@ -91,7 +111,7 @@ const DEPARTMENTS: { value: MedicalDepartment; label: string }[] = [
   { value:"general",                label:"기타" },
 ];
 
-const GAP_OPTIONS = [3, 5, 7, 10];
+const GAP_OPTIONS = [3, 3.5, 5, 7, 10];
 
 const C = {
   teal:"#155855", orange:"#E85D2C", green:"#22876A",
@@ -135,6 +155,8 @@ async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirecto
     const fh   = await (dest as any).getFileHandle(name, { create: true });
     const wr   = await fh.createWritable();
     await file.stream().pipeTo(wr);
+    const copied = await fh.getFile();
+    if (copied.size !== file.size) throw new Error(`${name} 복사 검증 실패 (${file.size} → ${copied.size})`);
   })(), 120000, `${name} 복사`);
 }
 
@@ -180,6 +202,13 @@ function downloadCSV(content: string, filename: string) {
 function formatTime(ms: number): string {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+
+function estimatedRemaining(completed: number, total: number, startedAt: number) {
+  if (completed <= 0 || completed >= total) return "";
+  const remainingMs = ((Date.now() - startedAt) / completed) * (total - completed);
+  const seconds = Math.max(1, Math.round(remainingMs / 1000));
+  return seconds >= 60 ? ` · 약 ${Math.ceil(seconds / 60)}분 남음` : ` · 약 ${seconds}초 남음`;
 }
 
 /* ════════════════════════════════════════════════
@@ -233,45 +262,39 @@ async function getApiThumb(file: File): Promise<string> {
   });
 }
 
-async function readExifDateTime(file: File): Promise<number | null> {
-  try {
-    const buf = await file.slice(0, 65536).arrayBuffer();
-    const view = new DataView(buf);
-    if (view.getUint16(0) !== 0xFFD8) return null;
-    let offset = 2;
-    while (offset < buf.byteLength - 4) {
-      const marker = view.getUint16(offset);
-      const segLen = view.getUint16(offset + 2);
-      if (marker === 0xFFE1) {
-        const hdr = String.fromCharCode(view.getUint8(offset+4),view.getUint8(offset+5),view.getUint8(offset+6),view.getUint8(offset+7));
-        if (hdr === "Exif") {
-          const ts = offset + 10;
-          const le = view.getUint16(ts) === 0x4949;
-          const g16 = (o:number) => view.getUint16(o, le);
-          const g32 = (o:number) => view.getUint32(o, le);
-          if (g16(ts+2) !== 42) return null;
-          const ifd0 = ts + g32(ts+4);
-          const n0 = g16(ifd0);
-          let exifOff = 0;
-          for (let i=0;i<n0;i++){const e=ifd0+2+i*12;if(g16(e)===0x8769){exifOff=ts+g32(e+8);break;}}
-          if (!exifOff) return null;
-          const ne = g16(exifOff);
-          for (let i=0;i<ne;i++){
-            const e=exifOff+2+i*12;
-            if(g16(e)===0x9003){
-              const vo=ts+g32(e+8);
-              let s="";for(let c=0;c<19;c++)s+=String.fromCharCode(view.getUint8(vo+c));
-              const m=s.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
-              if(m)return new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`).getTime();
-            }
-          }
-        }
-      }
-      if (marker === 0xFFDA) break;
-      offset += 2 + segLen;
+async function getBoundaryApiImage(file: File, maxSize = 1080, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(maxSize / Math.max(image.width, image.height), 1);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      canvas.getContext("2d")!.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`${file.name} 이미지 읽기 실패`)); };
+    image.src = url;
+  });
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const consume = async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await worker(items[index], index);
     }
-  } catch {}
-  return null;
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, items.length || 1)) }, consume));
+  return results;
 }
 
 /* ════════════════════════════════════════════════
@@ -501,7 +524,7 @@ function Toggle({ label, desc, value, onChange }: { label: string; desc?: string
 const SESSION_KEY = "photoclinic-sorting-session-v1";
 
 interface SavedSortingSession {
-  version: 1;
+  version: 1 | 2;
   savedAt: string;
   step: number;
   rootDirName: string;
@@ -515,6 +538,9 @@ interface SavedSortingSession {
   rawSelectMode: "move" | "copy";
   fieldRawCount: number;
   fieldStats: FieldStats | null;
+  classificationJobState?: ClassificationJobState;
+  boundaryDecisions?: SceneBoundaryDecision[];
+  sceneCorrections?: SceneCorrection[];
   sceneSummary: {
     index: number;
     folderName: string;
@@ -526,6 +552,9 @@ interface SavedSortingSession {
     suggestedName: string | null;
     aiConfidence: number | null;
     aiReason: string | null;
+    fileNames?: string[];
+    boundaryBefore?: SceneBoundaryDecision;
+    approved?: boolean;
   }[];
 }
 
@@ -559,7 +588,7 @@ function PhotoSortingInner() {
   /* ── field state ── */
   const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
   const [gapMinutes,                 setGapMinutes]                 = useState(5);
-  const [fastAnalyzeMode,            setFastAnalyzeMode]            = useState(true);
+  const [fastAnalyzeMode,            setFastAnalyzeMode]            = useState(false);
   const [departmentLogicEnabled,     setDepartmentLogicEnabled]     = useState(true);
   const [aiNamingEnabled,            setAiNamingEnabled]            = useState(false);
   const [qualityAnalysisEnabled,     setQualityAnalysisEnabled]     = useState(false);
@@ -572,6 +601,15 @@ function PhotoSortingInner() {
   const [fieldRawBaseDir,            setFieldRawBaseDir]            = useState<FileSystemDirectoryHandle | null>(null);
   const [fieldStats,                 setFieldStats]                 = useState<FieldStats | null>(null);
   const [copyLog,                    setCopyLog]                    = useState<string[]>([]);
+  const [classificationJobState,     setClassificationJobState]     = useState<ClassificationJobState>("IDLE");
+  const [boundaryDecisions,          setBoundaryDecisions]          = useState<SceneBoundaryDecision[]>([]);
+  const [sceneCorrections,           setSceneCorrections]           = useState<SceneCorrection[]>([]);
+  const [splitPositions,             setSplitPositions]             = useState<Record<number, number>>({});
+  const [evaluationMode,             setEvaluationMode]             = useState(false);
+  const [groundTruthBoundaries,      setGroundTruthBoundaries]      = useState<number[]>([]);
+  const [groundTruthSelection,       setGroundTruthSelection]       = useState(1);
+  const [accuracyReport,             setAccuracyReport]             = useState<AccuracyReport | null>(null);
+  const classificationAbortRef = useRef<AbortController | null>(null);
   const [savedSession,               setSavedSession]               = useState<SavedSortingSession | null>(null);
   const [mergeCandidates,            setMergeCandidates]            = useState<SceneMergeCandidate[]>([]);
   const [dismissedCandidates,        setDismissedCandidates]        = useState<Set<string>>(new Set());
@@ -606,7 +644,7 @@ function PhotoSortingInner() {
       const raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return;
       const data = JSON.parse(raw) as SavedSortingSession;
-      if (data.version === 1 && data.step >= 2) setSavedSession(data);
+      if ((data.version === 1 || data.version === 2) && data.step >= 2) setSavedSession(data);
     } catch {}
   }, []);
 
@@ -614,22 +652,23 @@ function PhotoSortingInner() {
     if (step < 2) return;
     try {
       const data: SavedSortingSession = {
-        version: 1, savedAt: new Date().toISOString(),
+        version: 2, savedAt: new Date().toISOString(),
         step, rootDirName: rootDir?.name ?? "",
         department, gapMinutes, fastAnalyzeMode,
         departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled,
         profileClassificationEnabled, rawSelectMode,
-        fieldRawCount, fieldStats,
+        fieldRawCount, fieldStats, classificationJobState, boundaryDecisions, sceneCorrections,
         sceneSummary: fieldScenes.map(s => ({
           index: s.index, folderName: s.folderName, editedName: s.editedName,
           startTime: s.startTime, endTime: s.endTime, fileCount: s.fileCount,
           sceneType: s.sceneType, suggestedName: s.suggestedName,
           aiConfidence: s.aiConfidence, aiReason: s.aiReason,
+          fileNames: s.files.map((file) => file.name), boundaryBefore: s.boundaryBefore, approved: s.approved,
         })),
       };
       localStorage.setItem(SESSION_KEY, JSON.stringify(data));
     } catch {}
-  }, [step, rootDir, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled, rawSelectMode, fieldRawCount, fieldStats, fieldScenes]);
+  }, [step, rootDir, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled, rawSelectMode, fieldRawCount, fieldStats, fieldScenes, classificationJobState, boundaryDecisions, sceneCorrections]);
 
   const clearSession = () => {
     try { localStorage.removeItem(SESSION_KEY); } catch {}
@@ -652,6 +691,9 @@ function PhotoSortingInner() {
       setProfileClassificationEnabled(saved.profileClassificationEnabled);
       setRawSelectMode(saved.rawSelectMode);
       setFieldRawCount(saved.fieldRawCount);
+      setClassificationJobState(saved.classificationJobState ?? "WAITING_REVIEW");
+      setBoundaryDecisions(saved.boundaryDecisions ?? []);
+      setSceneCorrections(saved.sceneCorrections ?? []);
       if (rawBase) setFieldRawBaseDir(rawBase);
       setFieldStats(saved.fieldStats);
 
@@ -681,6 +723,7 @@ function PhotoSortingInner() {
               sceneType: (s.sceneType as any) ?? null, suggestedName: s.suggestedName,
               aiConfidence: s.aiConfidence, aiReason: s.aiReason,
               subScenes: [], profileCount: 0, qualityRejectCount: 0, nameLoading: false,
+              boundaryBefore: s.boundaryBefore, approved: s.approved,
             });
           }
           setFieldScenes(scenes);
@@ -690,9 +733,38 @@ function PhotoSortingInner() {
         const targetStep = saved.step === 3 ? 2 : saved.step;
         setStep(targetStep);
       } else {
-        // JPG/ 폴더 없음 → 아직 파일 분류 전이므로 설정 단계(step 0)로 복원
-        setSavedSession(null);
-        setStep(0);
+        // v2 정밀 분류는 승인 전 파일을 이동하지 않으므로 원본 폴더에서 Scene 계획을 복원한다.
+        if (saved.version === 2 && saved.sceneSummary.every((scene) => Array.isArray(scene.fileNames))) {
+          const handles = new Map<string, { handle: FileSystemFileHandle; file: File }>();
+          const restoredRaw: { name: string; handle: FileSystemFileHandle }[] = [];
+          for await (const [name, entry] of (h as any).entries()) {
+            if (entry.kind !== "file") continue;
+            const extension = String(name).split(".").pop()?.toLowerCase() ?? "";
+            if (RAW_EXTS.has(extension)) restoredRaw.push({ name: String(name), handle: entry as FileSystemFileHandle });
+            if (JPG_EXTS.has(extension)) handles.set(String(name), { handle: entry as FileSystemFileHandle, file: await (entry as FileSystemFileHandle).getFile() });
+          }
+          const restoredScenes: FieldScene[] = saved.sceneSummary.map((scene) => {
+            const files: SceneFile[] = (scene.fileNames ?? []).flatMap((name) => {
+              const found = handles.get(name);
+              return found ? [{ name, basename: name.replace(/\.[^.]+$/, ""), handle: found.handle, mtime: found.file.lastModified, thumbUrl: null }] : [];
+            });
+            return {
+              index: scene.index, folderName: scene.folderName, editedName: scene.editedName,
+              startTime: scene.startTime, endTime: scene.endTime, fileCount: files.length, files, sceneDir: null,
+              sceneType: (scene.sceneType as any) ?? null, suggestedName: scene.suggestedName,
+              aiConfidence: scene.aiConfidence, aiReason: scene.aiReason, subScenes: [], profileCount: 0,
+              qualityRejectCount: 0, nameLoading: false, boundaryBefore: scene.boundaryBefore, approved: scene.approved,
+            };
+          });
+          setFieldRawHandles(restoredRaw);
+          setFieldRawCount(restoredRaw.length);
+          setFieldScenes(restoredScenes);
+          setSavedSession(null);
+          setStep(2);
+        } else {
+          setSavedSession(null);
+          setStep(0);
+        }
       }
     } catch {}
   };
@@ -711,11 +783,19 @@ function PhotoSortingInner() {
   ═══════════════════════════════════════════ */
   const handleFieldSort = useCallback(async () => {
     if (!rootDir) return;
-    setStep(1); cancelRef.current = false; setCopyLog([]);
+    setStep(1); cancelRef.current = false; setCopyLog([]); setBoundaryDecisions([]); setSceneCorrections([]);
+    classificationAbortRef.current?.abort();
+    const abortController = new AbortController();
+    classificationAbortRef.current = abortController;
+    const preciseSettings = {
+      ...getClassificationSettings(department === "dermatology" ? "dermatology" : "default", "precise"),
+      hardGapMinutes: gapMinutes,
+    };
 
     // ① 스캔
     const rawFiles: { name: string; handle: FileSystemFileHandle }[] = [];
-    const jpgEntries: { name: string; handle: FileSystemFileHandle; mtime: number }[] = [];
+    const jpgEntries: { name: string; handle: FileSystemFileHandle; file: File; mtime: number; timestampSource: TimestampSource; warning?: string }[] = [];
+    setClassificationJobState("SCANNING_FILES");
     setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
     let lastUpdate = Date.now();
 
@@ -728,11 +808,19 @@ function PhotoSortingInner() {
         const file = await (handle as FileSystemFileHandle).getFile();
         if (fastAnalyzeMode) {
           // 빠른 모드: lastModified 사용, EXIF 건너뜀
-          jpgEntries.push({ name, handle: handle as FileSystemFileHandle, mtime: file.lastModified });
+          jpgEntries.push({ name, handle: handle as FileSystemFileHandle, file, mtime: file.lastModified, timestampSource: "mtime" });
         } else {
           // 정밀 모드: EXIF 읽기
-          const exifTime = await readExifDateTime(file);
-          jpgEntries.push({ name, handle: handle as FileSystemFileHandle, mtime: exifTime ?? file.lastModified });
+          setClassificationJobState("READING_EXIF");
+          const exif = await readPhotoTimestamp(file);
+          jpgEntries.push({
+            name,
+            handle: handle as FileSystemFileHandle,
+            file,
+            mtime: exif?.timestamp ?? file.lastModified,
+            timestampSource: exif?.source ?? "mtime",
+            warning: exif ? undefined : "EXIF 촬영시간 없음 — mtime 사용",
+          });
         }
         if (Date.now() - lastUpdate > 300) {
           setProgress({ cur:0, total:0, msg:`스캔: ${name}` });
@@ -744,7 +832,8 @@ function PhotoSortingInner() {
     setFieldRawHandles(rawFiles);
 
     // ③ JPG → 시간순 정렬 → Scene 분리
-    jpgEntries.sort((a, b) => a.mtime - b.mtime);
+    const sortedEntries = sortTimestampedFiles(jpgEntries);
+    jpgEntries.splice(0, jpgEntries.length, ...sortedEntries);
     const gapMs = gapMinutes * 60 * 1000;
     const groups: typeof jpgEntries[] = jpgEntries.length > 0 ? [[jpgEntries[0]]] : [];
     for (let i = 1; i < jpgEntries.length; i++) {
@@ -797,80 +886,153 @@ function PhotoSortingInner() {
       ]);
 
     } else {
-      // ═══ 정밀 정리 모드: 실제 파일 이동 ═══
+      // ═══ 정밀 분류 모드: 승인 전에는 파일을 이동하지 않음 ═══
+      setClassificationJobState("EXTRACTING_FEATURES");
+      setProgress({ cur: 0, total, msg: "저비용 시각 특징 추출 준비 중..." });
+      const cacheKeys = jpgEntries.map((entry) => featureCacheKey(rootDir.name, entry.file));
+      const cached = await Promise.all(cacheKeys.map((key) => getCachedFeature(key)));
+      const missingIndices = cached.flatMap((feature, index) => feature ? [] : [index]);
+      const missingFiles = missingIndices.map((index) => jpgEntries[index].file);
+      const featureStartedAt = Date.now();
+      const extracted = await extractFeaturesWithWorkers({
+        files: missingFiles,
+        concurrency: preciseSettings.maxConcurrentJobs,
+        signal: abortController.signal,
+        onProgress: (completed) => setProgress({
+          cur: cached.filter(Boolean).length + completed,
+          total,
+          msg: `시각 특징 추출 ${cached.filter(Boolean).length + completed}/${total}${estimatedRemaining(completed, missingFiles.length, featureStartedAt)}`,
+        }),
+      });
+      const features = [...cached] as Array<LocalVisualFeatures | null>;
+      await Promise.all(extracted.map(async (result, offset) => {
+        const originalIndex = missingIndices[offset];
+        features[originalIndex] = result.features;
+        if (result.features) await setCachedFeature(cacheKeys[originalIndex], result.features);
+      }));
+      const blankFeature: LocalVisualFeatures = { dHash: "0".repeat(64), colorHistogram: new Array(64).fill(0), backgroundGrid: new Array(24).fill(0), compositionGrid: new Array(16).fill(0), brightness: 0 };
+      const firstValid = features.find((feature): feature is LocalVisualFeatures => Boolean(feature)) ?? blankFeature;
+      const safeFeatures = features.map((feature, index) => feature ?? features[index - 1] ?? firstValid);
+      const failedImages = extracted.filter((result) => !result.features).length;
 
-      // ② RAW → RAW/
-      const rawBase = await (rootDir as any).getDirectoryHandle("RAW", { create:true }) as FileSystemDirectoryHandle;
-      setFieldRawBaseDir(rawBase);
-      for (let i = 0; i < rawFiles.length; i++) {
-        if (cancelRef.current) break;
-        if (i % 10 === 0 || Date.now() - lastUpdate > 300) {
-          setProgress({ cur:i, total:rawFiles.length, msg:`RAW 이동: ${rawFiles[i].name}` });
-          lastUpdate = Date.now();
+      if (abortController.signal.aborted || cancelRef.current) {
+        setClassificationJobState("CANCELLED");
+        setCopyLog((previous) => [...previous, "⏸ 정밀 분류가 중단되었습니다. 원본 파일은 이동되지 않았습니다."]);
+        return;
+      }
+
+      setClassificationJobState("DETECTING_BOUNDARIES");
+      const candidates = buildVisualBoundaryCandidates(jpgEntries, safeFeatures, preciseSettings);
+      setProgress({ cur: 0, total: candidates.length, msg: `경계 후보 ${candidates.length}개 분석 준비` });
+
+      const analyzeBoundary = async (boundaryIndex: number, windowSize: number, useHighModel: boolean): Promise<SceneFrameAnalysis> => {
+        const beforeEntries = jpgEntries.slice(Math.max(0, boundaryIndex - windowSize), boundaryIndex);
+        const afterEntries = jpgEntries.slice(boundaryIndex, Math.min(jpgEntries.length, boundaryIndex + windowSize));
+        const [before, after] = await Promise.all([
+          Promise.all(beforeEntries.map(async (entry) => ({ fileName: entry.name, base64: await getBoundaryApiImage(entry.file) }))),
+          Promise.all(afterEntries.map(async (entry) => ({ fileName: entry.name, base64: await getBoundaryApiImage(entry.file) }))),
+        ]);
+        let lastError = "AI 경계 분석 실패";
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const response = await withTimeout(fetch("/api/photo-scene-boundary-analyze", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ department, boundaryIndex, before, after, options: { useHighModel } }),
+              signal: abortController.signal,
+            }), 60_000, "AI 경계 분석");
+            const data = await response.json();
+            if (response.ok && data.ok && data.analysis) return data.analysis as SceneFrameAnalysis;
+            lastError = data.error ?? lastError;
+          } catch (error) {
+            lastError = error instanceof Error ? error.message : String(error);
+          }
+          if (attempt === 0 && !abortController.signal.aborted) await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+        throw new Error(lastError);
+      };
+
+      setClassificationJobState("VERIFYING_BOUNDARIES");
+      const checkpointId = `${rootDir.name}:${department}:${gapMinutes}:precise-v1`;
+      const checkpoint = await getClassificationCheckpoint<{ decisions: Record<string, SceneBoundaryDecision> }>(checkpointId);
+      const checkpointDecisions: Record<string, SceneBoundaryDecision> = { ...(checkpoint?.decisions ?? {}) };
+      const boundaryStartedAt = Date.now();
+      let verified = 0;
+      const rawDecisions = await mapWithConcurrency(candidates, preciseSettings.maxConcurrentAiJobs, async (candidate) => {
+        const beforeFileName = jpgEntries[candidate.boundaryIndex - 1]?.name ?? "";
+        const afterFileName = jpgEntries[candidate.boundaryIndex]?.name ?? "";
+        const checkpointKey = `${beforeFileName}→${afterFileName}`;
+        if (checkpointDecisions[checkpointKey]) {
+          verified += 1;
+          setProgress({ cur: verified, total: candidates.length, msg: `경계 검증 복원 ${verified}/${candidates.length}${estimatedRemaining(verified, candidates.length, boundaryStartedAt)}` });
+          return checkpointDecisions[checkpointKey];
+        }
+        if (candidate.hardGap) {
+          verified += 1;
+          setProgress({ cur: verified, total: candidates.length, msg: `경계 검증 ${verified}/${candidates.length}${estimatedRemaining(verified, candidates.length, boundaryStartedAt)}` });
+          const hardDecision = decideBoundary({ candidate, analysis: null, settings: preciseSettings, beforeFileName, afterFileName });
+          checkpointDecisions[checkpointKey] = hardDecision;
+          await setClassificationCheckpoint(checkpointId, { decisions: checkpointDecisions });
+          return hardDecision;
         }
         try {
-          await copyFileHandle(rawFiles[i].handle, rawBase, rawFiles[i].name);
-          try { await (rootDir as any).removeEntry(rawFiles[i].name); } catch {}
-          if (i % 10 === 0) setCopyLog(prev => [...prev.slice(-50), `📁 ${rawFiles[i].name} → RAW/`]);
+          let analysis = await analyzeBoundary(candidate.boundaryIndex, 3, false);
+          let decision = decideBoundary({ candidate, analysis, settings: preciseSettings, beforeFileName, afterFileName });
+          if (decision.decision === "review") {
+            analysis = await analyzeBoundary(candidate.boundaryIndex, 5, true);
+            decision = decideBoundary({ candidate, analysis, settings: preciseSettings, beforeFileName, afterFileName });
+          }
+          checkpointDecisions[checkpointKey] = decision;
+          await setClassificationCheckpoint(checkpointId, { decisions: checkpointDecisions });
+          return decision;
         } catch {
-          setCopyLog(prev => [...prev.slice(-50), `❌ RAW 이동 실패: ${rawFiles[i].name}`]);
+          const fallbackDecision = decideBoundary({ candidate, analysis: null, settings: preciseSettings, beforeFileName, afterFileName, aiFailed: true });
+          checkpointDecisions[checkpointKey] = fallbackDecision;
+          await setClassificationCheckpoint(checkpointId, { decisions: checkpointDecisions });
+          return fallbackDecision;
+        } finally {
+          verified += 1;
+          setProgress({ cur: verified, total: candidates.length, msg: `경계 검증 ${verified}/${candidates.length}${estimatedRemaining(verified, candidates.length, boundaryStartedAt)}` });
         }
-      }
+      });
+      const stabilized = stabilizeBoundaries(rawDecisions, total, preciseSettings.minimumSceneImages);
+      setBoundaryDecisions(stabilized);
 
-      // ④ JPG → JPG/SceneXX/
-      const jpgBase = await (rootDir as any).getDirectoryHandle("JPG", { create:true }) as FileSystemDirectoryHandle;
-      setFieldJpgBaseDir(jpgBase);
-      try {
-        const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create:true });
-        await (selectDir as any).getDirectoryHandle("JPG_SELECT", { create:true });
-      } catch {}
-
-      for (let si = 0; si < groups.length; si++) {
-        if (cancelRef.current) break;
-        const sceneNum = String(si+1).padStart(2,"0");
-        const folderName = `Scene${sceneNum}`;
-        const sceneDir = await (jpgBase as any).getDirectoryHandle(folderName, { create:true }) as FileSystemDirectoryHandle;
-        const sceneFiles: SceneFile[] = [];
-
-        for (const entry of groups[si]) {
-          if (cancelRef.current) break;
-          if (done % 20 === 0 || Date.now() - lastUpdate > 300) {
-            setProgress({ cur:done, total, msg:`${folderName} / ${entry.name}` });
-            lastUpdate = Date.now();
-          }
-          try {
-            await copyFileHandle(entry.handle, sceneDir, entry.name);
-            const destHandle = await (sceneDir as any).getFileHandle(entry.name) as FileSystemFileHandle;
-            try { await (rootDir as any).removeEntry(entry.name); } catch {}
-            // 썸네일은 앞 4장만 lazy 생성
-            let thumbUrl: string | null = null;
-            if (sceneFiles.length < 4) thumbUrl = await loadThumb(await destHandle.getFile(), 120);
-            sceneFiles.push({ name:entry.name, basename:entry.name.replace(/\.[^.]+$/,""), handle:destHandle, mtime:entry.mtime, thumbUrl });
-            if (done % 20 === 0) setCopyLog(prev => [...prev.slice(-50), `✅ ${entry.name} → JPG/${folderName}/`]);
-          } catch {
-            sceneFiles.push({ name:entry.name, basename:entry.name.replace(/\.[^.]+$/,""), handle:entry.handle, mtime:entry.mtime, thumbUrl:null });
-          }
-          done++;
-        }
-
-        newScenes.push({
-          index: si+1, folderName, editedName: folderName,
-          startTime: groups[si][0].mtime,
-          endTime: groups[si][groups[si].length-1].mtime,
-          fileCount: sceneFiles.length, files: sceneFiles, sceneDir,
-          sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
-          subScenes: [], profileCount: 0, qualityRejectCount: 0,
-          nameLoading: aiNamingEnabled || departmentLogicEnabled,
-        });
-      }
-      setProgress({ cur:total, total, msg:"씬 분류 완료" });
+      setClassificationJobState("CREATING_SCENES");
+      const sceneFiles: SceneFile[] = jpgEntries.map((entry, index) => ({
+        name: entry.name,
+        basename: entry.name.replace(/\.[^.]+$/, ""),
+        handle: entry.handle,
+        mtime: entry.mtime,
+        timestampSource: entry.timestampSource,
+        thumbUrl: null,
+        visualFeatures: safeFeatures[index],
+      }));
+      const preciseScenes = buildFieldScenesFromBoundaries(sceneFiles, stabilized);
+      await mapWithConcurrency(preciseScenes, 3, async (scene) => {
+        const thumbIndexes = Array.from(new Set([0, scene.files.length - 1]));
+        await Promise.all(thumbIndexes.map(async (index) => {
+          try { scene.files[index].thumbUrl = await loadThumb(await scene.files[index].handle.getFile(), 160); } catch {}
+        }));
+        return scene;
+      });
+      newScenes.push(...preciseScenes);
+      const fallbackCount = jpgEntries.filter((entry) => entry.timestampSource === "mtime").length;
+      setCopyLog([
+        `✅ 하이브리드 분류 완료 — JPG ${total}장 / RAW ${rawFiles.length}개 / Scene ${newScenes.length}개`,
+        `🧭 경계 후보 ${candidates.length}개 / AI 검토 필요 ${stabilized.filter((decision) => decision.needsReview).length}개`,
+        `🕒 EXIF 없음·mtime 대체 ${fallbackCount}장 / 손상·특징 실패 ${failedImages}장`,
+        `🔒 승인 전 파일 이동 없음 — 씬 검토 후 폴더 정리를 실행하세요`,
+      ]);
+      setProgress({ cur: total, total, msg: "하이브리드 Scene 계획 생성 완료" });
+      setClassificationJobState("WAITING_REVIEW");
     }
 
     setFieldScenes(newScenes);
     setStep(2);
 
     // ⑤ 백그라운드: AI 씬 분석 (옵션)
-    if ((aiNamingEnabled || departmentLogicEnabled) && newScenes.length > 0) {
+    if (fastAnalyzeMode && (aiNamingEnabled || departmentLogicEnabled) && newScenes.length > 0) {
       runSceneAiAnalysis(newScenes);
     }
   }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode]);
@@ -1029,8 +1191,23 @@ function PhotoSortingInner() {
       return next;
     });
 
-    if (fastAnalyzeMode) {
-      // 빠른 분석 모드: 메모리상 파일 배열만 합침 (파일 이동 없음)
+    if (!si.sceneDir || !sj.sceneDir) {
+      // 승인 전 검토 모드: 메모리상 Scene 계획만 변경
+      if (sj.boundaryBefore) {
+        setSceneCorrections((previous) => [...previous, {
+          projectId: rootDir?.name ?? "local",
+          boundaryIndex: sj.boundaryBefore!.boundaryIndex,
+          boundaryFileName: sj.boundaryBefore!.afterFileName,
+          previousDecision: "split",
+          correctedDecision: "merge",
+          action: "merge",
+          features: sj.boundaryBefore!.features,
+          createdAt: new Date().toISOString(),
+        }]);
+        setBoundaryDecisions((previous) => previous.map((decision) => decision.boundaryIndex === sj.boundaryBefore!.boundaryIndex
+          ? { ...decision, decision: "merge", source: "user", needsReview: false, reasons: [...decision.reasons, "사용자가 병합함"] }
+          : decision));
+      }
       setFieldScenes(prev => {
         const copy = [...prev];
         copy[i] = {
@@ -1038,8 +1215,9 @@ function PhotoSortingInner() {
           files: [...si.files, ...sj.files],
           fileCount: si.fileCount + sj.fileCount,
           endTime: sj.endTime,
+          approved: false,
         };
-        return copy.filter((_, idx) => idx !== j);
+        return copy.filter((_, idx) => idx !== j).map((scene, index) => ({ ...scene, index: index + 1 }));
       });
       return;
     }
@@ -1063,18 +1241,115 @@ function PhotoSortingInner() {
       };
       return copy.filter((_, idx) => idx !== j);
     });
-  }, [fieldScenes, fieldJpgBaseDir, fastAnalyzeMode, mergeCandidates]);
+  }, [fieldScenes, fieldJpgBaseDir, mergeCandidates, rootDir]);
+
+  const splitFieldScene = useCallback((sceneIndex: number, offset: number) => {
+    setFieldScenes((previous) => {
+      const scene = previous[sceneIndex];
+      if (!scene || scene.sceneDir || offset <= 0 || offset >= scene.files.length) return previous;
+      const boundaryIndex = previous.slice(0, sceneIndex).reduce((sum, item) => sum + item.files.length, 0) + offset;
+      const beforeFile = scene.files[offset - 1];
+      const afterFile = scene.files[offset];
+      const decision: SceneBoundaryDecision = {
+        boundaryIndex,
+        beforeFileName: beforeFile.name,
+        afterFileName: afterFile.name,
+        score: 1,
+        decision: "split",
+        forced: false,
+        source: "user",
+        reasons: ["사용자가 직접 경계를 추가함"],
+        features: EMPTY_BOUNDARY_FEATURES,
+        needsReview: false,
+      };
+      setBoundaryDecisions((items) => [...items.filter((item) => item.boundaryIndex !== boundaryIndex), decision].sort((a, b) => a.boundaryIndex - b.boundaryIndex));
+      setSceneCorrections((items) => [...items, {
+        projectId: rootDir?.name ?? "local",
+        boundaryIndex,
+        boundaryFileName: afterFile.name,
+        previousDecision: "merge",
+        correctedDecision: "split",
+        action: "split",
+        features: EMPTY_BOUNDARY_FEATURES,
+        createdAt: new Date().toISOString(),
+      }]);
+      const left: FieldScene = {
+        ...scene,
+        files: scene.files.slice(0, offset),
+        fileCount: offset,
+        endTime: beforeFile.mtime,
+        approved: false,
+      };
+      const rightIndex = sceneIndex + 2;
+      const rightName = simpleSceneFolderName(rightIndex);
+      const right: FieldScene = {
+        ...scene,
+        index: rightIndex,
+        folderName: rightName,
+        editedName: rightName,
+        suggestedName: rightName,
+        files: scene.files.slice(offset),
+        fileCount: scene.files.length - offset,
+        startTime: afterFile.mtime,
+        boundaryBefore: decision,
+        approved: false,
+      };
+      return [...previous.slice(0, sceneIndex), left, right, ...previous.slice(sceneIndex + 1)]
+        .map((item, index) => ({ ...item, index: index + 1 }));
+    });
+  }, [rootDir]);
+
+  const approveFieldScene = useCallback((sceneIndex: number) => {
+    setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, approved: true } : scene));
+    const scene = fieldScenes[sceneIndex];
+    if (!scene || scene.approved) return;
+    setSceneCorrections((previous) => [...previous, {
+      projectId: rootDir?.name ?? "local",
+      boundaryIndex: scene.boundaryBefore?.boundaryIndex ?? 0,
+      boundaryFileName: scene.files[0]?.name ?? "",
+      previousDecision: scene.boundaryBefore?.decision === "merge" ? "merge" : "split",
+      correctedDecision: scene.boundaryBefore?.decision === "merge" ? "merge" : "split",
+      action: "approve",
+      features: scene.boundaryBefore?.features ?? EMPTY_BOUNDARY_FEATURES,
+      createdAt: new Date().toISOString(),
+    }]);
+  }, [fieldScenes, rootDir]);
+
+  const approveAllFieldScenes = useCallback(() => {
+    const pending = fieldScenes.filter((scene) => !scene.approved);
+    setFieldScenes((previous) => previous.map((scene) => ({ ...scene, approved: true })));
+    setSceneCorrections((previous) => [...previous, ...pending.map((scene) => ({
+      projectId: rootDir?.name ?? "local",
+      boundaryIndex: scene.boundaryBefore?.boundaryIndex ?? 0,
+      boundaryFileName: scene.files[0]?.name ?? "",
+      previousDecision: (scene.boundaryBefore?.decision === "merge" ? "merge" : "split") as "split" | "merge",
+      correctedDecision: (scene.boundaryBefore?.decision === "merge" ? "merge" : "split") as "split" | "merge",
+      action: "approve" as const,
+      features: scene.boundaryBefore?.features ?? EMPTY_BOUNDARY_FEATURES,
+      createdAt: new Date().toISOString(),
+    }))]);
+  }, [fieldScenes, rootDir]);
 
   const handleConfirmScenes = useCallback(async () => {
     if (!rootDir) return;
     setStep(3);
+    setClassificationJobState("APPROVED");
     let lastUpdate = Date.now();
 
-    if (fastAnalyzeMode) {
-      // 빠른 분석 모드: 씬 검토 확정 후 실제 파일 이동 실행
+    if (fastAnalyzeMode || fieldScenes.some((scene) => !scene.sceneDir)) {
+      // 승인 전 계획 모드: 씬 검토 확정 후에만 실제 파일 이동 실행
       setProgress({ cur:0, total:0, msg:"폴더 정리 중..." });
       const totalFiles = fieldScenes.reduce((s,sc)=>s+sc.fileCount,0);
       let done = 0;
+      const reportDir = await (rootDir as any).getDirectoryHandle("REPORT", { create: true }) as FileSystemDirectoryHandle;
+      const operations: Array<{ type: "copy_remove"; category: "RAW" | "JPG"; source: string; destination: string; status: "completed" | "failed"; error?: string; at: string }> = [];
+      const writeReport = async (name: string, content: string) => {
+        const handle = await (reportDir as any).getFileHandle(name, { create: true });
+        const writer = await handle.createWritable();
+        await writer.write("﻿" + content);
+        await writer.close();
+      };
+      const flushJournal = async () => writeReport("file_operation_journal.json", JSON.stringify({ version: 1, root: rootDir.name, operations, updatedAt: new Date().toISOString() }, null, 2));
 
       // RAW → RAW/
       const rawBase = await (rootDir as any).getDirectoryHandle("RAW", { create:true }) as FileSystemDirectoryHandle;
@@ -1088,7 +1363,11 @@ function PhotoSortingInner() {
         try {
           await copyFileHandle(fieldRawHandles[i].handle, rawBase, fieldRawHandles[i].name);
           try { await (rootDir as any).removeEntry(fieldRawHandles[i].name); } catch {}
-        } catch {}
+          operations.push({ type: "copy_remove", category: "RAW", source: fieldRawHandles[i].name, destination: `RAW/${fieldRawHandles[i].name}`, status: "completed", at: new Date().toISOString() });
+        } catch (error) {
+          operations.push({ type: "copy_remove", category: "RAW", source: fieldRawHandles[i].name, destination: `RAW/${fieldRawHandles[i].name}`, status: "failed", error: error instanceof Error ? error.message : String(error), at: new Date().toISOString() });
+        }
+        if (i % 10 === 0) await flushJournal();
       }
 
       // JPG → 씬별 폴더로 이동
@@ -1121,14 +1400,28 @@ function PhotoSortingInner() {
             let thumbUrl: string | null = null;
             if (newFiles.length < 4) thumbUrl = await loadThumb(await destHandle.getFile(), 120);
             newFiles.push({ ...entry, handle: destHandle, thumbUrl });
-          } catch {
+            operations.push({ type: "copy_remove", category: "JPG", source: entry.name, destination: `JPG/${targetName}/${entry.name}`, status: "completed", at: new Date().toISOString() });
+          } catch (error) {
             newFiles.push(entry);
+            operations.push({ type: "copy_remove", category: "JPG", source: entry.name, destination: `JPG/${targetName}/${entry.name}`, status: "failed", error: error instanceof Error ? error.message : String(error), at: new Date().toISOString() });
           }
           done++;
+          if (done % 10 === 0) await flushJournal();
         }
         updated[si] = { ...sc, folderName: targetName, sceneDir, files: newFiles };
       }
       setFieldScenes(updated);
+      await flushJournal();
+      await clearClassificationCheckpoint(`${rootDir.name}:${department}:${gapMinutes}:precise-v1`);
+      await Promise.all([
+        writeReport("scene_boundaries.json", JSON.stringify({ version: 1, boundaries: boundaryDecisions, createdAt: new Date().toISOString() }, null, 2)),
+        writeReport("scene_corrections.json", JSON.stringify({ version: 1, corrections: sceneCorrections, createdAt: new Date().toISOString() }, null, 2)),
+        writeReport("scene_corrections.csv", makeCSV(
+          ["project_id", "boundary_index", "boundary_file", "previous_decision", "corrected_decision", "action", "reason", "created_at"],
+          sceneCorrections.map((item) => [item.projectId, String(item.boundaryIndex), item.boundaryFileName, item.previousDecision, item.correctedDecision, item.action, item.reason ?? "", item.createdAt]),
+        )),
+        ...(accuracyReport ? [writeReport("scene_accuracy_report.json", JSON.stringify({ ...accuracyReport, createdAt: new Date().toISOString() }, null, 2))] : []),
+      ]);
 
       if (qualityAnalysisEnabled || profileClassificationEnabled) {
         await runSecondaryAnalysis(updated);
@@ -1174,7 +1467,7 @@ function PhotoSortingInner() {
         selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
       });
     }
-  }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir]);
+  }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir, boundaryDecisions, sceneCorrections, accuracyReport, department, gapMinutes]);
 
   // 프로필 제외 장면 타입 (이 타입이면 절대 프로필로 보내지 않음)
   const PROFILE_EXCLUDE_TYPES = new Set([
@@ -1358,7 +1651,8 @@ function PhotoSortingInner() {
       const summary = {
         mode: "field",
         fastAnalyzeMode,
-        rawInitialMoveEnabled: !fastAnalyzeMode,
+        classificationMode: fastAnalyzeMode ? "fast" : "precise",
+        rawInitialMoveEnabled: false,
         exifMode: fastAnalyzeMode ? "fast" : "precise",
         thumbnailMode: "lazy",
         profileStrictMode: true,
@@ -1366,7 +1660,7 @@ function PhotoSortingInner() {
         department,
         departmentDisplayName: DEPARTMENT_DISPLAY[department],
         gapMinutes,
-        timeGapIsInitialOnly: true,
+        timeGapBuildsCandidatesOnly: !fastAnalyzeMode,
         departmentLogicEnabled,
         aiNamingEnabled,
         qualityAnalysisEnabled,
@@ -1399,6 +1693,7 @@ function PhotoSortingInner() {
 
   const runRawSelect = useCallback(async () => {
     if (!rootDir || !fieldRawBaseDir) return;
+    setClassificationJobState("RAW_MATCHING");
     setStep(5); cancelRef.current = false;
     const log: string[] = [];
 
@@ -1487,6 +1782,7 @@ function PhotoSortingInner() {
     } catch {}
 
     setFieldStats(prev => prev ? { ...prev, selectedJpg:selectedBasenames.size, selectedRawMoved:rawMoved, rawMissing } : null);
+    setClassificationJobState("COMPLETED");
     setStep(6);
   }, [rootDir, fieldRawBaseDir, rawSelectMode, fieldStats, fieldRawCount, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled]);
 
@@ -1966,7 +2262,7 @@ function PhotoSortingInner() {
         <Card>
           <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>촬영 모드</div>
           <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
-            {([["field","병원 현장촬영","시간 간격 기준으로 Scene을 분류합니다."],["studio","스튜디오 프로필촬영","의상·포즈·조명 기준으로 분류합니다."]] as const).map(([m,title,desc])=>(
+            {([["field","병원 현장촬영","사람·장비·장소·시간 변화로 Scene을 분류합니다."],["studio","스튜디오 프로필촬영","의상·포즈·조명 기준으로 분류합니다."]] as const).map(([m,title,desc])=>(
               <button key={m} onClick={()=>setPhotoMode(m)} style={{padding:"16px 20px",textAlign:"left",border:"none",borderRight:m==="field"?`1px solid ${C.border}`:"none",background:photoMode===m?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
                 <div style={{fontSize:13,fontWeight:900,color:photoMode===m?C.teal:C.muted,marginBottom:4}}>{title}{photoMode===m&&" ✓"}</div>
                 <div style={{fontSize:11,color:C.hint,lineHeight:1.6}}>{desc}</div>
@@ -2006,9 +2302,9 @@ function PhotoSortingInner() {
               </div>
             </Card>
 
-            {/* Scene 구분 시간 */}
+            {/* 강제 Scene 경계 시간 */}
             <Card>
-              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>Scene 구분 시간</div>
+              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>강제 Scene 경계 시간</div>
               <div style={{padding:"14px 20px"}}>
                 <div style={{display:"flex",gap:8,marginBottom:10}}>
                   {GAP_OPTIONS.map(g => (
@@ -2017,7 +2313,7 @@ function PhotoSortingInner() {
                     </button>
                   ))}
                 </div>
-                <div style={{fontSize:11,color:C.hint}}>이전 JPG와 다음 JPG의 촬영 시간 차이가 설정 시간 이상이면 새 Scene으로 분리합니다.</div>
+                <div style={{fontSize:11,color:C.hint}}>설정 시간을 넘으면 강제 분리합니다. 그 이내에서도 사람·장비·장소가 바뀌면 새 Scene으로 분리합니다.</div>
               </div>
             </Card>
 
@@ -2027,7 +2323,7 @@ function PhotoSortingInner() {
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
                 {([
                   ["fast",  "⚡ 빠른 분석",    "파일을 이동하지 않고 Scene 계획만 생성합니다.\nRAW는 원본 위치 유지. EXIF 생략. 10~30초 목표."],
-                  ["precise","🔍 정밀 정리",   "즉시 파일 이동 + EXIF 기반 정밀 정렬.\n파일이 많으면 시간이 걸릴 수 있습니다."],
+                  ["precise","🔍 정밀 분류",   "EXIF + 사람·장비·장소 변화 분석.\n검토·승인 전에는 파일을 이동하지 않습니다."],
                 ] as const).map(([val, title, desc]) => (
                   <button key={val} onClick={()=>setFastAnalyzeMode(val==="fast")}
                     style={{padding:"14px 18px",textAlign:"left",border:"none",borderRight:val==="fast"?`1px solid ${C.border}`:"none",background:fastAnalyzeMode===(val==="fast")?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
@@ -2069,7 +2365,7 @@ function PhotoSortingInner() {
                   <strong>결과 폴더 구조</strong><br/>
                   {fastAnalyzeMode
                     ? <>⚡ 빠른 분석 모드: 씬 계획 생성 → 검토 → [폴더 정리 실행] 시 실제 이동<br/></>
-                    : <>🔍 정밀 정리 모드: 분류 즉시 파일 이동<br/></>
+                    : <>🔍 정밀 분류 모드: 하이브리드 Scene 계획 → 검토 → 승인 후 이동<br/></>
                   }
                   RAW/ — 전체 RAW 파일{fastAnalyzeMode ? " (정리 실행 후 이동)" : " (이동)"}<br/>
                   JPG/Scene01/, Scene02/... — JPG 씬별 분류<br/>
@@ -2193,27 +2489,70 @@ function PhotoSortingInner() {
   const FieldStep1 = () => (
     <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
       <div style={{fontSize:14,fontWeight:800,color:C.teal}}>
-        {fastAnalyzeMode ? "⚡ 빠른 분석 중 (파일 이동 없음)..." : "파일 분류 중..."}
+        {fastAnalyzeMode ? "⚡ 빠른 분석 중 (파일 이동 없음)..." : "🔍 하이브리드 Scene 분석 중..."}
       </div>
+      {!fastAnalyzeMode && <div style={{fontSize:11,color:C.muted}}>현재 단계: {classificationJobState}</div>}
       {progress.total > 0 && <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>}
       {progress.total === 0 && <div style={{fontSize:12,color:C.hint}}>{progress.msg || "스캔 중..."}</div>}
       <div style={{maxHeight:200,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
         {copyLog.slice(-20).map((l,i)=><div key={i} style={{color:C.green}}>{l}</div>)}
       </div>
+      {!fastAnalyzeMode && (
+        <button onClick={()=>{ cancelRef.current=true; classificationAbortRef.current?.abort(); setClassificationJobState("CANCELLED"); }} style={{padding:"8px 16px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,fontSize:12,cursor:"pointer",color:C.muted,fontFamily:"inherit",alignSelf:"flex-start"}}>
+          분석 중단
+        </button>
+      )}
     </div>
   );
 
   const FieldStep2 = () => {
     const allLoaded = fieldScenes.every(s=>!s.nameLoading);
+    const allApproved = fieldScenes.length > 0 && fieldScenes.every((scene) => scene.approved);
+    const boundaryReviewCount = boundaryDecisions.filter((decision) => decision.needsReview).length;
     const totalJpg = fieldScenes.reduce((s,sc)=>s+sc.fileCount,0);
+    const allFieldFiles = fieldScenes.flatMap((scene) => scene.files);
     return (
       <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:860}}>
-        <div style={{padding:14,background: fastAnalyzeMode ? "#E8F0F5" : "#FEF3C7",borderRadius:10,fontSize:12,color: fastAnalyzeMode ? "#103A62" : "#92400E",border:`1px solid ${fastAnalyzeMode ? "#B8CBD8" : "#FCD34D"}`}}>
+        <div style={{padding:14,background: fastAnalyzeMode ? "#E8F0F5" : "#ECFDF5",borderRadius:10,fontSize:12,color: fastAnalyzeMode ? "#103A62" : "#166534",border:`1px solid ${fastAnalyzeMode ? "#B8CBD8" : "#A7F3D0"}`}}>
           {fastAnalyzeMode
             ? <><strong>⚡ 빠른 분석 완료</strong> — 파일이 이동되지 않았습니다. 씬 이름을 확인·수정하고 <strong>폴더 정리 실행</strong>을 눌러 실제로 파일을 이동하세요.</>
-            : <>Scene 분류가 완료됐습니다. 이름을 확인·수정하고 <strong>확정</strong>을 눌러주세요.</>
+            : <><strong>🔍 하이브리드 분류 완료</strong> — 원본은 아직 이동되지 않았습니다. 경계 이유를 검토하고 Scene을 승인한 뒤 폴더 정리를 실행하세요. {boundaryReviewCount > 0 && <span style={{color:"#B45309"}}>검토 필요 {boundaryReviewCount}건</span>}</>
           }
           {(aiNamingEnabled||departmentLogicEnabled)&&!allLoaded&&<span style={{marginLeft:8,color:C.teal}}>AI 분석 중...</span>}
+        </div>
+
+        <div style={{display:"flex",gap:8,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
+          <div style={{fontSize:11,color:C.muted}}>승인 {fieldScenes.filter((scene) => scene.approved).length}/{fieldScenes.length}</div>
+          <button onClick={approveAllFieldScenes} style={{padding:"7px 14px",borderRadius:7,border:"none",background:C.teal,color:"#fff",fontSize:11,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}>전체 승인</button>
+        </div>
+
+        <div style={{border:`1px solid ${C.border}`,borderRadius:10,background:C.white,overflow:"hidden"}}>
+          <button onClick={()=>setEvaluationMode((value)=>!value)} style={{width:"100%",padding:"10px 14px",border:"none",background:"transparent",display:"flex",justifyContent:"space-between",fontSize:11,fontWeight:900,color:C.teal,cursor:"pointer",fontFamily:"inherit"}}>
+            <span>정확도 평가 모드</span><span>{evaluationMode?"접기 ▴":"열기 ▾"}</span>
+          </button>
+          {evaluationMode && (
+            <div style={{padding:"12px 14px",borderTop:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{fontSize:10,color:C.muted,lineHeight:1.6}}>실제 Scene이 시작되는 사진을 정답 경계로 추가하세요. 자동 경계와 ±1장 허용으로 비교합니다.</div>
+              {allFieldFiles.length > 1 && (
+                <div style={{display:"flex",gap:6}}>
+                  <select value={groundTruthSelection} onChange={(event)=>setGroundTruthSelection(Number(event.target.value))} style={{flex:1,minWidth:0,height:30,border:`1px solid ${C.border}`,borderRadius:6,fontSize:10,fontFamily:"inherit"}}>
+                    {allFieldFiles.slice(1).map((file,index)=><option key={`${file.name}-${index}`} value={index+1}>{file.name}부터 새 Scene</option>)}
+                  </select>
+                  <button onClick={()=>setGroundTruthBoundaries((previous)=>Array.from(new Set([...previous,groundTruthSelection])).sort((a,b)=>a-b))} style={{padding:"0 10px",border:"none",borderRadius:6,background:C.teal,color:"#fff",fontSize:10,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>정답 추가</button>
+                </div>
+              )}
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                {groundTruthBoundaries.map((boundary)=><button key={boundary} onClick={()=>setGroundTruthBoundaries((previous)=>previous.filter((item)=>item!==boundary))} style={{border:"1px solid #BBF7D0",borderRadius:5,background:"#F0FDF4",color:"#166534",fontSize:9,padding:"3px 6px",cursor:"pointer"}}>{allFieldFiles[boundary]?.name ?? boundary} ×</button>)}
+                {groundTruthBoundaries.length===0&&<span style={{fontSize:10,color:C.hint}}>정답 경계가 아직 없습니다.</span>}
+              </div>
+              <button disabled={groundTruthBoundaries.length===0} onClick={()=>setAccuracyReport(evaluateSceneBoundaries({predictedBoundaries:boundaryDecisions.filter((decision)=>decision.decision!=="merge").map((decision)=>decision.boundaryIndex),groundTruthBoundaries,totalImages:allFieldFiles.length,tolerance:1}))} style={{alignSelf:"flex-start",padding:"6px 10px",border:"none",borderRadius:6,background:groundTruthBoundaries.length?"#103A62":"#D1D5DB",color:"#fff",fontSize:10,fontWeight:800,cursor:groundTruthBoundaries.length?"pointer":"default",fontFamily:"inherit"}}>평가 계산</button>
+              {accuracyReport && (
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:6}}>
+                  {[["Precision",accuracyReport.boundaryPrecision],["Recall",accuracyReport.boundaryRecall],["Boundary F1",accuracyReport.boundaryF1],["Scene Purity",accuracyReport.scenePurity],["과분할률",accuracyReport.overSegmentationRate],["미분할률",accuracyReport.underSegmentationRate]].map(([label,value])=><div key={String(label)} style={{padding:8,borderRadius:6,background:C.bg,fontSize:9,color:C.muted}}><strong style={{display:"block",fontSize:13,color:C.teal}}>{Math.round(Number(value)*100)}%</strong>{label}</div>)}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 병합/분리 후보 요약 */}
@@ -2271,14 +2610,28 @@ function PhotoSortingInner() {
 
               return (
                 <div key={i}>
+                  {sc.boundaryBefore && (
+                    <div style={{margin:"8px 12px 0",padding:"9px 12px",borderRadius:8,background:sc.boundaryBefore.needsReview?"#FFF7ED":"#F0FDF4",border:`1px solid ${sc.boundaryBefore.needsReview?"#FED7AA":"#BBF7D0"}`}}>
+                      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",fontSize:10}}>
+                        <strong style={{color:sc.boundaryBefore.needsReview?"#C2410C":"#166534"}}>경계 {Math.round(sc.boundaryBefore.score*100)}%</strong>
+                        <span style={{color:C.muted}}>{sc.boundaryBefore.source}</span>
+                        {sc.boundaryBefore.forced && <span style={{padding:"1px 5px",borderRadius:4,background:"#FEE2E2",color:"#B91C1C",fontWeight:800}}>강제 분리</span>}
+                        {sc.boundaryBefore.needsReview && <span style={{padding:"1px 5px",borderRadius:4,background:"#FFEDD5",color:"#C2410C",fontWeight:800}}>검토 필요</span>}
+                      </div>
+                      <div style={{fontSize:10,color:C.muted,lineHeight:1.6,marginTop:3}}>{sc.boundaryBefore.reasons.join(" · ")}</div>
+                      <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:5}}>
+                        {[["인물",sc.boundaryBefore.features.personChangeScore],["장소",sc.boundaryBefore.features.locationChangeScore],["장비",sc.boundaryBefore.features.equipmentChangeScore],["의미",sc.boundaryBefore.features.sceneTypeChangeScore],["시각",sc.boundaryBefore.features.visualChangeScore],["자세",sc.boundaryBefore.features.poseChangeScore]].map(([label,value])=><span key={String(label)} style={{fontSize:8,padding:"1px 5px",borderRadius:4,background:"rgba(255,255,255,.7)",color:C.muted}}>{label} {Math.round(Number(value)*100)}</span>)}
+                      </div>
+                    </div>
+                  )}
                   {/* Scene card */}
                   <div style={{borderBottom:`1px solid ${C.border}`,padding:"12px 20px"}}>
                     <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"100px auto 1fr auto",gap:12,alignItems:"start"}}>
                       {/* 썸네일 */}
                       <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-                        {sc.files.slice(0,3).map((f,fi)=>f.thumbUrl
-                          ?<img key={fi} src={f.thumbUrl} style={{width:30,height:22,objectFit:"cover",borderRadius:3}} alt=""/>
-                          :<div key={fi} style={{width:30,height:22,background:C.border,borderRadius:3}}/>
+                        {Array.from(new Set([0, sc.files.length-1])).map((fileIndex,fi)=>sc.files[fileIndex]?.thumbUrl
+                          ?<img key={fi} src={sc.files[fileIndex].thumbUrl!} style={{width:44,height:32,objectFit:"cover",borderRadius:3}} alt={fi===0?"Scene 시작":"Scene 마지막"}/>
+                          :<div key={fi} style={{width:44,height:32,background:C.border,borderRadius:3}}/>
                         )}
                       </div>
                       {/* 정보 */}
@@ -2291,7 +2644,10 @@ function PhotoSortingInner() {
                       <div style={{display:"flex",flexDirection:"column",gap:4}}>
                         {sc.nameLoading
                           ? <div style={{height:34,display:"flex",alignItems:"center",fontSize:12,color:C.hint}}>AI 분석 중...</div>
-                          : <input value={sc.editedName} onChange={e=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:e.target.value}:s))} style={{width:"100%",height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+                          : <input value={sc.editedName} onChange={e=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:e.target.value}:s))} onBlur={()=>{
+                              if (sc.editedName === sc.folderName) return;
+                              setSceneCorrections((previous)=>[...previous,{projectId:rootDir?.name??"local",boundaryIndex:sc.boundaryBefore?.boundaryIndex??0,boundaryFileName:sc.files[0]?.name??"",previousDecision:"split",correctedDecision:"split",action:"rename",features:sc.boundaryBefore?.features??EMPTY_BOUNDARY_FEATURES,reason:`${sc.folderName} → ${sc.editedName}`,createdAt:new Date().toISOString()}]);
+                            }} style={{width:"100%",height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
                         }
                         {sc.suggestedName && !sc.nameLoading && (
                           <div style={{fontSize:10,color:C.muted}}>
@@ -2304,11 +2660,20 @@ function PhotoSortingInner() {
                             {sc.sceneType}{sc.aiReason&&<span style={{color:C.muted,marginLeft:4}}>{sc.aiReason}</span>}
                           </div>
                         )}
+                        {!sc.sceneDir && sc.files.length > 1 && (
+                          <div style={{display:"flex",gap:6,alignItems:"center",marginTop:4}}>
+                            <select value={splitPositions[sc.index] ?? 1} onChange={(event)=>setSplitPositions((previous)=>({...previous,[sc.index]:Number(event.target.value)}))} style={{minWidth:0,flex:1,height:28,border:`1px solid ${C.border}`,borderRadius:6,fontSize:9,fontFamily:"inherit"}}>
+                              {sc.files.slice(1).map((file,offset)=><option key={file.name} value={offset+1}>{file.name} 앞에서 분할</option>)}
+                            </select>
+                            <button onClick={()=>splitFieldScene(i,splitPositions[sc.index]??1)} style={{height:28,padding:"0 8px",borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.teal,fontSize:9,fontWeight:800,cursor:"pointer",fontFamily:"inherit"}}>분할</button>
+                          </div>
+                        )}
                       </div>
                       {/* 합치기 버튼 */}
                       <div style={{display:"flex",flexDirection:"column",gap:4}}>
                         {i > 0 && <button onClick={()=>mergeFieldScenes(i-1,i)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↑ 합치기</button>}
                         {i < fieldScenes.length-1 && <button onClick={()=>mergeFieldScenes(i,i+1)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↓ 합치기</button>}
+                        <button onClick={()=>approveFieldScene(i)} disabled={sc.approved} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${sc.approved?"#BBF7D0":C.teal}`,background:sc.approved?"#F0FDF4":C.teal,cursor:sc.approved?"default":"pointer",color:sc.approved?"#166534":"#fff",fontFamily:"inherit",whiteSpace:"nowrap"}}>{sc.approved?"승인됨":"승인"}</button>
                       </div>
                     </div>
                   </div>
@@ -2441,8 +2806,8 @@ function PhotoSortingInner() {
 
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
-          <Btn onClick={handleConfirmScenes} disabled={!allLoaded}>
-            {!allLoaded ? "AI 분석 중..." : fastAnalyzeMode ? "📁 폴더 정리 실행 →" : "✅ 확정 →"}
+          <Btn onClick={handleConfirmScenes} disabled={!allLoaded || !allApproved}>
+            {!allLoaded ? "AI 분석 중..." : !allApproved ? "Scene 승인 필요" : "📁 승인 결과로 폴더 정리 →"}
           </Btn>
         </div>
       </div>
