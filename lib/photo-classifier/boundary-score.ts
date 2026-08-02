@@ -79,11 +79,8 @@ function forcedReasons(analysis: SceneFrameAnalysis | null): string[] {
   if (person && location) reasons.push("주요 인물과 장소가 함께 변경됨");
   if (person && equipment) reasons.push("주요 인물과 장비가 함께 변경됨");
   if (location && equipment) reasons.push("장소와 장비가 함께 변경됨");
-  if (analysis.beforeSceneType === "consultation" && ["treatment", "laser", "injection", "skin_care"].includes(analysis.afterSceneType)) {
-    reasons.push("상담에서 시술 장면으로 전환됨");
-  }
-  if (analysis.beforeSceneType === "interior" && analysis.afterSceneType !== "interior" && analysis.afterSceneType !== "unknown") {
-    reasons.push("공간 촬영에서 인물·업무 장면으로 전환됨");
+  if (isStrongTransition(analysis.beforeSceneType, analysis.afterSceneType)) {
+    reasons.push(`촬영목적 전환(${analysis.beforeSceneType} → ${analysis.afterSceneType})으로 강한 Scene 변경`);
   }
   if (analysis.beforePatientPose === "sitting" && analysis.afterPatientPose === "lying" && analysis.equipmentPresent) {
     reasons.push("환자가 앉은 자세에서 누운 자세로 바뀌고 장비가 등장함");
