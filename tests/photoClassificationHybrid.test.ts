@@ -174,4 +174,52 @@ describe("hybrid photo classification", () => {
   it("returns null for damaged or unsupported EXIF data", () => {
     expect(parseExifTimestamp(new Uint8Array([1, 2, 3]).buffer)).toBeNull();
   });
+
+  it("names scenes in occurrence order, not by fixed category number", () => {
+    expect(simpleSceneFolderName(1, "consultation")).toBe("01_상담");
+    expect(simpleSceneFolderName(2, "treatment")).toBe("02_시술");
+    expect(simpleSceneFolderName(3, "profile")).toBe("03_프로필");
+  });
+});
+
+describe("purpose scan (2차 Scene 분석)", () => {
+  it("samples every photo for small segments", () => {
+    expect(buildPurposeSampleIndices(5)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("samples by interval and always includes the last photo for mid-size segments", () => {
+    const indices = buildPurposeSampleIndices(23, { interval: 5, maxSamples: 24 });
+    expect(indices).toEqual([0, 5, 10, 15, 20, 22]);
+  });
+
+  it("caps sample count for very large segments instead of scanning every photo", () => {
+    const indices = buildPurposeSampleIndices(500, { interval: 5, maxSamples: 24 });
+    expect(indices.length).toBeLessThanOrEqual(24);
+    expect(indices[0]).toBe(0);
+    expect(indices[indices.length - 1]).toBe(499);
+  });
+
+  it("finds the transition point between consultation and treatment blocks", () => {
+    const samples = [
+      { index: 0, purpose: "consultation" as HybridSceneType },
+      { index: 5, purpose: "consultation" as HybridSceneType },
+      { index: 10, purpose: "consultation" as HybridSceneType },
+      { index: 15, purpose: "treatment" as HybridSceneType },
+      { index: 20, purpose: "treatment" as HybridSceneType },
+      { index: 25, purpose: "treatment" as HybridSceneType },
+      { index: 30, purpose: "profile" as HybridSceneType },
+      { index: 34, purpose: "profile" as HybridSceneType },
+    ];
+    const transitions = findPurposeTransitions(samples);
+    expect(transitions).toEqual([13, 28]);
+  });
+
+  it("finds no transitions when the whole segment is one purpose", () => {
+    const samples = [
+      { index: 0, purpose: "treatment" as HybridSceneType },
+      { index: 10, purpose: "treatment" as HybridSceneType },
+      { index: 20, purpose: "treatment" as HybridSceneType },
+    ];
+    expect(findPurposeTransitions(samples)).toEqual([]);
+  });
 });
