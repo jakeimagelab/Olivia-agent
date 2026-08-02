@@ -328,12 +328,12 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "calendar_add",
-    description: "캘린더에 새 할일/일정을 추가합니다. '오늘', '내일' 등은 오늘 날짜 기준으로 YYYY-MM-DD로 변환하세요. 구체적인 날짜/시간이 없는 일반 메모는 이 도구 대신 memo_add를 사용하세요.",
+    description: "캘린더에 새 할일/일정을 추가합니다. '오늘', '내일', 'N일'(월 없이 일자만 말한 경우 이번 달 기준, 이미 지난 날짜면 다음 달) 등은 오늘 날짜 기준으로 YYYY-MM-DD로 변환하세요. 구체적인 날짜/시간이 없는 일반 메모는 이 도구 대신 memo_add를 사용하세요. 사용자가 '~라고 하면 ~게 해줘'처럼 앞으로의 동작 방식을 설명하는 피드백을 줄 때는 그 예시 문장을 실제 일정으로 등록하지 마세요 — 규칙을 이해했다는 응답만 하세요.",
     input_schema: {
       type: "object",
       properties: {
         date:     { type: "string",  description: "날짜 YYYY-MM-DD" },
-        title:    { type: "string",  description: "할일 제목" },
+        title:    { type: "string",  description: "일정 제목만 — 날짜·시간·요청 동사(등록해줘, 추가해줘 등)는 절대 포함하지 말 것. 예: '4일 오후 2시 르셀청담 촬영 등록해줘' → title은 '르셀청담 촬영' (날짜는 date, 시간은 time 필드에 따로 넣는다)." },
         time:     { type: "string",  description: "시간 HH:MM 24시간제 (선택)" },
         location: { type: "string",  description: "장소 (선택)" },
         category: { type: "string",  enum: ["shooting","client","admin","personal","general"], description: "촬영|고객미팅|행정|개인|기타" },
