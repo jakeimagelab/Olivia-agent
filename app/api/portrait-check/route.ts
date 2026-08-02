@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-// "프로필" 자동 분류는 반드시 아래를 모두 만족해야 한다 (절대 기준):
-// 1) 사람이 정확히 1명
-// 2) 정면을 응시하거나, 팔짱/손깍지 등 의도된 정지 포즈
-// 이전엔 픽셀 대칭성/중앙 정렬만 보는 휴리스틱이라 인원수·시선·포즈를 전혀 판단하지 못했다.
+// "프로필" 자동 분류 기준 (절대 기준):
+// 1) 사람이 1명 이상 (단독이든 여러 명이든 무관 — 의료진 단체사진도 프로필로 인정)
+// 2) 환자가 없음
+// 3) 카메라를 의식한 포즈 (정면 응시, 또는 팔짱/손깍지 등 의도된 정지 포즈)
+// 4) 시술/상담/의료행위 행동이 없음
+// 예전엔 "정확히 1명 + 정면"만 봐서 의료진 2명 이상, 단체 프로필이 전부 걸러졌다.
 export async function POST(req: NextRequest) {
   const { thumbnail } = await req.json();
   if (!thumbnail) return NextResponse.json({ ok: false, error: "thumbnail required" }, { status: 400 });
@@ -17,15 +19,22 @@ export async function POST(req: NextRequest) {
   const prompt = `이 사진이 병원 프로필(인물) 사진인지 판단하세요. 반드시 아래 기준을 그대로 적용하세요.
 
 1. personCount: 사진에 보이는 사람 수를 정확히 세세요 (0, 1, 2, 3 이상 중 하나).
-2. facingForward: 그 사람이 얼굴을 카메라 쪽으로 향하고 있으면 true (완전 정면이 아니어도 얼굴이 카메라를 보고 있으면 true). 옆모습·뒷모습·고개를 숙이고 있으면 false.
-3. intentionalPose: 팔짱을 끼거나, 손을 맞잡거나(손깍지), 가슴 앞에 손을 모으는 등 명확히 의도되고 정지된 포즈를 취하고 있으면 true. 걷는 중이거나, 무언가 작업/진료/대화 중이거나, 자연스러운 동작 중이면 false.
-4. isProfile: personCount가 정확히 1이고, (facingForward가 true 이거나 intentionalPose가 true)일 때만 true. 그 외에는 모두 false — 사람이 0명이거나 2명 이상이면 무조건 false.
+2. hasPatient: 환자로 보이는 사람이 있으면 true (진료복이 아닌 일반 방문객/환자 자세인 사람). 의료진뿐이면 false.
+3. facingForward: 주요 인물(들)이 얼굴을 카메라 쪽으로 향하고 있으면 true (완전 정면이 아니어도 얼굴이 카메라를 보고 있으면 true). 옆모습·뒷모습·고개를 숙이고 있으면 false.
+4. intentionalPose: 팔짱을 끼거나, 손을 맞잡거나(손깍지), 가슴 앞에 손을 모으는 등 명확히 의도되고 정지된 포즈를 취하고 있으면 true. 걷는 중이거나, 무언가 작업/진료/대화 중이거나, 자연스러운 동작 중이면 false.
+5. hasTreatmentAction: 주사기/핸드피스/장비 등으로 실제 시술·처치 중이면 true.
+6. hasConsultationAction: 환자에게 설명 중이거나 차트/펜을 들고 상담 중이면 true.
+7. isProfile: personCount가 1 이상이고, hasPatient가 false이고, (facingForward 또는 intentionalPose)가 true이고, hasTreatmentAction과 hasConsultationAction이 모두 false일 때만 true.
+   사람이 여러 명이어도 전부 의료진이고 카메라를 보고 정지 포즈라면 true입니다 — 인원수만으로 제외하지 마세요.
 
 반드시 아래 JSON 형식으로만 응답하세요:
 {
-  "personCount": 1,
+  "personCount": 2,
+  "hasPatient": false,
   "facingForward": true,
   "intentionalPose": false,
+  "hasTreatmentAction": false,
+  "hasConsultationAction": false,
   "isProfile": true,
   "confidence": 0.9
 }`;
@@ -41,7 +50,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 150,
+        max_tokens: 200,
         messages: [{
           role: "user",
           content: [
@@ -60,15 +69,25 @@ export async function POST(req: NextRequest) {
 
     // 모델이 isProfile 판단을 어겼을 경우를 대비해 서버에서 기준을 한 번 더 강제한다.
     const personCount = Number(result.personCount ?? 0);
+    const hasPatient = result.hasPatient === true;
     const facingForward = result.facingForward === true;
     const intentionalPose = result.intentionalPose === true;
-    const isProfile = personCount === 1 && (facingForward || intentionalPose);
+    const hasTreatmentAction = result.hasTreatmentAction === true;
+    const hasConsultationAction = result.hasConsultationAction === true;
+    const isProfile = personCount >= 1
+      && !hasPatient
+      && (facingForward || intentionalPose)
+      && !hasTreatmentAction
+      && !hasConsultationAction;
 
     return NextResponse.json({
       ok: true,
       personCount,
+      hasPatient,
       facingForward,
       intentionalPose,
+      hasTreatmentAction,
+      hasConsultationAction,
       isProfile,
       confidence: result.confidence ?? 0.5,
     });
