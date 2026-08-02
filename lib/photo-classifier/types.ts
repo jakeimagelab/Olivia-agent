@@ -10,61 +10,12 @@ export type MedicalDepartment =
   | "internal_medicine_checkup"
   | "general";
 
-export type DermatologySceneType =
-  | "manager_consultation"
-  | "skin_care"
-  | "doctor_consultation"
-  | "laser_treatment"
-  | "device_treatment"
-  | "injection_treatment"
-  | "profile"
-  | "interior"
-  | "reception"
-  | "etc";
-
-export type OrthoNeuroRehabSceneType =
-  | "xray"
-  | "c_arm_procedure"
-  | "ultrasound_procedure"
-  | "doctor_consultation"
-  | "physical_therapy"
-  | "shockwave_manual_therapy"
-  | "harmony"
-  | "profile"
-  | "interior"
-  | "reception"
-  | "etc";
-
-export type DentistrySceneType =
-  | "info_desk"
-  | "manager_consultation"
-  | "doctor_consultation"
-  | "harmony"
-  | "dental_treatment"
-  | "implant_surgery"
-  | "profile"
-  | "interior"
-  | "etc";
-
-export type PlasticSurgerySceneType =
-  | "manager_consultation"
-  | "doctor_consultation"
-  | "surgery_scene"
-  | "injection_treatment"
-  | "lifting_laser_treatment"
-  | "harmony"
-  | "doctor_treatment"
-  | "profile"
-  | "interior"
-  | "reception"
-  | "etc";
-
+// 6종 통일 카테고리 — 모든 진료과가 공유한다 (hybrid-types.ts의 HybridSceneType과 동일한 값).
+// 세부 시술/상담 구분은 departments/*.ts 안의 시각 단서(visualCues)로만 남기고,
+// 실제 분류 출력값은 이 6개로 단순화했다.
 export type SceneType =
-  | DermatologySceneType
-  | OrthoNeuroRehabSceneType
-  | DentistrySceneType
-  | PlasticSurgerySceneType
-  | "unknown";
+  | "profile" | "consultation" | "treatment"
+  | "skin_care" | "interior" | "etc";
 
 export type PatientPosture = "seated" | "lying_down" | "standing" | "unclear";
 
@@ -155,8 +106,10 @@ export interface SceneFile {
   basename: string;
   handle: FileSystemFileHandle;
   mtime: number;          // EXIF time or lastModified
+  timestampSource?: import("./hybrid-types").TimestampSource;
   thumbUrl?: string | null;
   visualVec?: number[];
+  visualFeatures?: import("./hybrid-types").LocalVisualFeatures;
 }
 
 export interface SubScene {
@@ -194,6 +147,8 @@ export interface FieldScene {
   aiHasTreatmentDevice?: boolean | null;
   aiHasTreatmentBed?: boolean | null;
   aiHasConsultationDesk?: boolean | null;
+  boundaryBefore?: import("./hybrid-types").SceneBoundaryDecision;
+  approved?: boolean;
 }
 
 export interface FieldStats {
