@@ -558,7 +558,7 @@ const TOOLS: Anthropic.Tool[] = [
             type: "object",
             properties: {
               date:     { type: "string", description: "날짜 YYYY-MM-DD" },
-              title:    { type: "string", description: "할일 제목" },
+              title:    { type: "string", description: "일정 제목만 — 날짜·시간·요청 동사(등록해줘, 추가해줘 등)는 절대 포함하지 말 것. 날짜·시간은 date/time 필드에 따로 넣는다." },
               time:     { type: "string", description: "시간 또는 시간범위 (예: 10:00 또는 10:00~13:00)" },
               location: { type: "string", description: "장소 (선택)" },
               category: { type: "string", enum: ["shooting","client","admin","personal","general"] },
