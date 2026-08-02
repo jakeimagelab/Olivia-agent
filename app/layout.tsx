@@ -22,8 +22,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://olivia.photoclinic.kr"),
-  title: "포토클리닉 구독 콘텐츠 운영",
-  description: "월간 포토클리닉 구독 병원의 홍보 콘텐츠 운영 시스템입니다.",
+  title: "포토클리닉 AI 에이전트",
+  description: "포토클리닉 AI 에이전트 올리비아가 함께하는 병원 브랜딩·콘텐츠 운영 시스템입니다.",
   robots: { index: false, follow: false },
   icons: {
     icon: "/assets/photoclinic-logo.png",
@@ -31,6 +31,12 @@ export const metadata: Metadata = {
     apple: [
       { url: "/assets/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
+  },
+  openGraph: {
+    title: "포토클리닉 AI 에이전트",
+    description: "포토클리닉 AI 에이전트 올리비아가 함께하는 병원 브랜딩·콘텐츠 운영 시스템입니다.",
+    siteName: "포토클리닉 AI 에이전트",
+    images: ["/assets/photoclinic-logo.png"],
   },
 };
 
