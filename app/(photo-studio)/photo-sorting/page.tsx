@@ -587,7 +587,7 @@ function PhotoSortingInner() {
 
   /* ── field state ── */
   const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
-  const [gapMinutes,                 setGapMinutes]                 = useState(5);
+  const [gapMinutes,                 setGapMinutes]                 = useState(3.5);
   const [fastAnalyzeMode,            setFastAnalyzeMode]            = useState(false);
   const [departmentLogicEnabled,     setDepartmentLogicEnabled]     = useState(true);
   const [aiNamingEnabled,            setAiNamingEnabled]            = useState(false);
