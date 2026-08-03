@@ -99,9 +99,10 @@ export async function GET(req: NextRequest) {
   };
   const tasksByRun = groupByRunId(tasksRes.data ?? []);
   const approvalsByRun = groupByRunId(approvalsRes.data ?? []);
-  const mailingByRun = groupByRunId(mailingRes.data ?? []);
-  const mailingByHospital = new Map<string, typeof mailingRes.data extends (infer U)[] | null ? U[] : never>();
-  for (const mail of mailingRes.data ?? []) {
+  const mailingRows = mailingRes.data ?? [];
+  const mailingByRun = groupByRunId(mailingRows);
+  const mailingByHospital = new Map<string, typeof mailingRows>();
+  for (const mail of mailingRows) {
     if (mail.workflow_run_id || !mail.hospital_name) continue;
     const bucket = mailingByHospital.get(mail.hospital_name);
     if (bucket) bucket.push(mail); else mailingByHospital.set(mail.hospital_name, [mail]);
