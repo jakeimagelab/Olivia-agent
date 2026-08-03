@@ -88,11 +88,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         .select()
         .single();
       if (runError) throw new Error(runError.message);
-      workflowRunId = run.id;
-      await ensureStepRun(db, workflowRunId, "quote", "in_progress");
-      await createStepTasks(db, workflowRunId, "quote");
+      const newRunId = run.id as string;
+      workflowRunId = newRunId;
+      await ensureStepRun(db, newRunId, "quote", "in_progress");
+      await createStepTasks(db, newRunId, "quote");
       await logAgent(db, {
-        workflow_run_id: workflowRunId,
+        workflow_run_id: newRunId,
         log_type: "workflow_started",
         message: `${projectName} 워크플로우가 견적서 공개로 자동 시작되었습니다.`,
       });
