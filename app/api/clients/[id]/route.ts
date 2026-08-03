@@ -82,21 +82,23 @@ export async function GET(
     ?? workflowRuns[0]
     ?? null;
 
-  const activitiesRes = workflowRun?.id
-    ? await supabase.from("pcrm_activity_logs")
-        .select("*")
-        .eq("client_id", id)
-        .eq("workflow_run_id", workflowRun.id)
-        .order("created_at", { ascending: false })
-        .limit(20)
-    : { data: [], error: null };
-
-  const { data: mailings } = await supabase
-    .from("mailing_queue")
-    .select("id, type, status, subject, to_email, created_at")
-    .eq("client_id", id)
-    .order("created_at", { ascending: false })
-    .limit(10);
+  // 서로 의존관계 없는 두 조회를 순차 await하던 걸 병렬로 — 매 라운드트립이 버퍼링을 키웠다.
+  const [activitiesRes, mailingsRes] = await Promise.all([
+    workflowRun?.id
+      ? supabase.from("pcrm_activity_logs")
+          .select("*")
+          .eq("client_id", id)
+          .eq("workflow_run_id", workflowRun.id)
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from("mailing_queue")
+      .select("id, type, status, subject, to_email, created_at")
+      .eq("client_id", id)
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
+  const mailings = mailingsRes.data;
 
   // 프론트가 기대하는 필드명으로 정규화
   const client = {
