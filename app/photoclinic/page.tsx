@@ -80,6 +80,8 @@ type ContractQuoteData = {
   balanceAmount: number;
   depositRate: number;
   memos: string | null;
+  status?: string;
+  portalUrl?: string;
   formState?: {
     customer: CustomerInfo;
     quoteTitle: string;
