@@ -112,6 +112,7 @@ export default function ContractPage() {
   const [mailingNotice, setMailingNotice] = useState("");
   const [contractId, setContractId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [publishState, setPublishState] = useState<"idle" | "publishing" | "done" | "error">("idle");
   const [brand, setBrand] = useState<ContractBrand>("photoclinic");
   const C = THEME[brand];
   const cfg = CONTRACT_BRAND_CONFIG[brand];
