@@ -167,6 +167,32 @@ export async function createPortalAccess(params: {
   return { token: data.access_token, expiresAt: data.token_expires_at };
 }
 
+// 포털 토큰은 프로젝트(워크플로우) 단위로 하나만 존재 — 견적 공개 때 만든 링크를 계약/콘티
+// 등 이후 문서 공개 때도 그대로 재사용해야 고객이 받은 링크가 중간에 끊기지 않는다.
+// createPortalAccess()를 다시 호출하면 기존 토큰을 즉시 무효화하므로, 이미 유효한 토큰이
+// 있으면 그것을 재사용하고 없을 때만 새로 발급한다.
+export async function ensurePortalAccess(params: {
+  clientId: string;
+  workflowRunId?: string | null;
+  email?: string;
+  expiresInDays?: number;
+}): Promise<{ token: string; expiresAt: string | null }> {
+  const db = getSupabaseAdmin();
+  let query = db
+    .from("client_portal_access")
+    .select("access_token, token_expires_at")
+    .eq("client_id", params.clientId)
+    .eq("is_active", true);
+  query = params.workflowRunId ? query.eq("workflow_run_id", params.workflowRunId) : query.is("workflow_run_id", null);
+  const { data: existing } = await query.order("created_at", { ascending: false }).limit(1).maybeSingle();
+
+  const isExpired = existing?.token_expires_at ? new Date(existing.token_expires_at).getTime() < Date.now() : false;
+  if (existing && !isExpired) {
+    return { token: existing.access_token, expiresAt: existing.token_expires_at };
+  }
+  return createPortalAccess(params);
+}
+
 export async function revokePortalAccess(clientId: string, workflowRunId?: string | null) {
   const db = getSupabaseAdmin();
   let query = db.from("client_portal_access").update({ is_active: false }).eq("client_id", clientId);
