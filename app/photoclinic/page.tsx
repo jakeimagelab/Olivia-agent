@@ -2179,6 +2179,14 @@ export default function QuoteBuilder() {
                         <FileText size={15} />
                         계약서
                       </button>
+                      <button
+                        type="button"
+                        disabled={publishingQuoteId === item.id}
+                        className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[#155855] bg-white px-3 text-sm font-extrabold text-[#155855] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                        onClick={() => void publishQuoteToPortal(item)}
+                      >
+                        {publishingQuoteId === item.id ? "공개 중..." : item.status === "published" ? "포털 다시 공개" : "포털 공개"}
+                      </button>
                     </div>
                   </div>
                 ))}
