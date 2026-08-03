@@ -5301,6 +5301,25 @@ main:has(> .pc-header) {
 .pcrm-publication-revision { display: inline-flex; align-items: center; gap: 5px; color: #15803d; font-size: 9px; font-weight: 900; }
 .pcrm-publication-revision { color: #e85d2c; }
 
+.pcrm-publication-signature { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: min(360px, 90vw); border: 1px solid rgba(21,88,85,.15); border-radius: 10px; padding: 10px; background: #fff; box-shadow: 0 12px 30px rgba(21,88,85,.14); }
+.pcrm-publication-signature__canvas { width: 100%; aspect-ratio: 420 / 140; border: 1px dashed rgba(21,88,85,.3); border-radius: 8px; background: #fff; touch-action: none; display: block; }
+.pcrm-publication-signature > div { display: flex; justify-content: flex-end; gap: 6px; margin-top: 7px; }
+.pcrm-publication-signature > div > button {
+  min-height: 32px;
+  border: 1px solid rgba(21,88,85,.15);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: #155855;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.pcrm-publication-signature > div > button.is-primary { border-color: #155855; background: #155855; color: #fff; }
+.pcrm-publication-signature > div > button:disabled { cursor: not-allowed; opacity: .55; }
+.pcrm-publication-signature > small { display: block; margin-top: 6px; color: #e85d2c; font-size: 9px; text-align: right; }
+
 .pcrm-preparation-form { padding: 18px; }
 .pcrm-preparation-form > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
 .pcrm-preparation-form h2 { margin: 0; color: #1c2b28; font-size: 14px; }
