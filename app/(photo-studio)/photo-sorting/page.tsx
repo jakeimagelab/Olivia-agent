@@ -998,7 +998,7 @@ function PhotoSortingInner() {
       };
 
       setClassificationJobState("VERIFYING_BOUNDARIES");
-      const checkpointId = `${rootDir.name}:${department}:${gapMinutes}:precise-v1`;
+      const checkpointId = `${rootDir.name}:${department}:${gapMinutes}:precise-v2`;
       const checkpoint = await getClassificationCheckpoint<{ decisions: Record<string, SceneBoundaryDecision> }>(checkpointId);
       const checkpointDecisions: Record<string, SceneBoundaryDecision> = { ...(checkpoint?.decisions ?? {}) };
       const boundaryStartedAt = Date.now();
@@ -1457,7 +1457,7 @@ function PhotoSortingInner() {
       }
       setFieldScenes(updated);
       await flushJournal();
-      await clearClassificationCheckpoint(`${rootDir.name}:${department}:${gapMinutes}:precise-v1`);
+      await clearClassificationCheckpoint(`${rootDir.name}:${department}:${gapMinutes}:precise-v2`);
       await Promise.all([
         writeReport("scene_boundaries.json", JSON.stringify({ version: 1, boundaries: boundaryDecisions, createdAt: new Date().toISOString() }, null, 2)),
         writeReport("scene_corrections.json", JSON.stringify({ version: 1, corrections: sceneCorrections, createdAt: new Date().toISOString() }, null, 2)),
