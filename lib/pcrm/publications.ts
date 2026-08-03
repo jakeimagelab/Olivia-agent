@@ -70,5 +70,29 @@ export async function applyPortalPublicationAction(
     relatedType: publication.related_type,
     relatedId: publication.related_id,
   });
+
+  const stepKey = WORKFLOW_STEP_BY_RELATED_TYPE[publication.related_type];
+  if (stepKey && session.workflowRunId) {
+    if (action === "approve") {
+      // 고객이 견적/계약을 승인하면 그 단계의 내부 검토 업무가 이미 끝났다는 전제 하에
+      // 곧바로 다음 단계로 전환을 시도한다 (내부 업무가 남아있으면 maybeAdvanceWorkflow가 대기시킨다).
+      await maybeAdvanceWorkflow(db, session.workflowRunId, stepKey);
+    } else if (action === "request_revision") {
+      // 단계는 유지하고, 관리자가 놓치지 않도록 업무를 하나 만들어 둔다.
+      await db.from("agent_tasks").insert({
+        client_id: session.clientId,
+        workflow_run_id: session.workflowRunId,
+        workflow_step_key: stepKey,
+        workflow_step_name: session.currentStepName,
+        task_type: "revision_review",
+        title: `${publication.title} 수정 요청 검토`,
+        description: feedback,
+        input_data: { publicationId: publication.id, relatedType: publication.related_type, relatedId: publication.related_id },
+        priority: "high",
+        status: "pending",
+      });
+    }
+  }
+
   return { ok: true as const, publication: data };
 }
