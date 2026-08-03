@@ -170,9 +170,6 @@ export default function NextActionCard({
     if (action.primaryAction === "send_ready_mail") {
       return <Link href={`/mailing?clientId=${client.id}&workflowRunId=${workflowRun.id}&stepKey=${action.currentStepKey}`} className="pc-btn pc-btn--orange pc-btn--sm">{action.primaryActionLabel}</Link>;
     }
-    if (action.primaryAction === "advance_step") {
-      return <button onClick={advance} disabled={busy} className="pc-btn pc-btn--orange pc-btn--sm">{busy ? "이동 중..." : action.primaryActionLabel}</button>;
-    }
     if (action.primaryAction === "fix_failed_task") {
       return <Link href="/workflow/tasks?status=failed" className="pc-btn pc-btn--orange pc-btn--sm">{action.primaryActionLabel}</Link>;
     }
