@@ -448,6 +448,13 @@ export default function ContractPage() {
           <button onClick={downloadPdf} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
             {pdfGenerating ? "PDF 생성 중..." : "PDF 저장"}
           </button>
+          <button onClick={publishToPortal} disabled={publishState === "publishing"} className="pc-btn pc-btn--secondary pc-btn--sm"
+            style={{
+              borderColor: publishState === "done" ? "#22C55E" : publishState === "error" ? C.orange : undefined,
+              color: publishState === "done" ? "#16a34a" : publishState === "error" ? C.orange : undefined,
+            }}>
+            {publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨(링크 복사됨)" : publishState === "error" ? "✕ 공개 실패" : "포털 공개"}
+          </button>
         </div>
       </header>
 
