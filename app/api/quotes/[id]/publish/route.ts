@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { matchClient } from "@/lib/clientMatching";
-import { createPortalAccess } from "@/lib/clientPortal";
+import { ensurePortalAccess } from "@/lib/clientPortal";
 import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
 import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 
