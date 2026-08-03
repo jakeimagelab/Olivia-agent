@@ -223,7 +223,7 @@ export default function NextActionCard({
           {checklistOpen && (
             <>
               <div className="pcrm-step-checklist__list">
-                {checklistItems.map(({ task, approval }) => {
+                {checklistItems.map(({ task }) => {
                   const done = task.status === "completed" || task.status === "canceled";
                   const tone = done ? "done" : task.status === "waiting_approval" ? "wait" : task.status === "failed" ? "failed" : "pending";
                   return (
