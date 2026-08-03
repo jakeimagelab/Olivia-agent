@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { MoreVertical } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, MoreVertical } from "lucide-react";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { C } from "@/lib/theme";
+
+const TASK_STATUS_LABEL: Record<string, string> = {
+  pending: "대기", running: "처리 중", waiting_approval: "승인 대기",
+  completed: "완료", failed: "오류", canceled: "생략됨",
+};
 
 export default function NextActionCard({
   client,
