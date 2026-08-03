@@ -894,6 +894,47 @@ export default function QuoteBuilder() {
     window.open(`/contract?data=${encoded}&brand=${contractBrand}`, "_blank");
   };
 
+  const publishQuoteToPortal = async (
+    item: ContractQuoteData,
+    overrides?: { forceClientId?: string; forceCreateNew?: boolean },
+  ) => {
+    setPublishingQuoteId(item.id);
+    setRecentQuoteMessage("");
+    try {
+      const response = await fetch(`/api/quotes/${item.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(overrides ?? {}),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) {
+        if (json.needsConfirmation && json.candidate) {
+          const useExisting = window.confirm(
+            `비슷한 이름의 기존 고객 "${json.candidate.hospital_name}"이(가) 있습니다.\n이 고객에 연결할까요? (취소하면 새 고객으로 생성합니다)`,
+          );
+          setPublishingQuoteId(null);
+          await publishQuoteToPortal(item, useExisting ? { forceClientId: json.candidate.id } : { forceCreateNew: true });
+          return;
+        }
+        setRecentQuoteMessage(json.error || "포털 공개에 실패했습니다.");
+        return;
+      }
+      setRecentQuotes((prev) =>
+        prev.map((quote) => (quote.id === item.id ? { ...quote, status: "published", portalUrl: json.portalUrl } : quote)),
+      );
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(json.portalUrl).catch(() => {});
+        setRecentQuoteMessage("포털에 공개했습니다. 포털 링크를 클립보드에 복사했습니다.");
+      } else {
+        setRecentQuoteMessage(`포털에 공개했습니다: ${json.portalUrl}`);
+      }
+    } catch (error) {
+      setRecentQuoteMessage(error instanceof Error ? error.message : "포털 공개 중 오류가 발생했습니다.");
+    } finally {
+      setPublishingQuoteId(null);
+    }
+  };
+
   // 계약서 생성 페이지로 이동 (견적 데이터 전달)
   const goToContract = () => {
     const data = buildContractQuoteData();
