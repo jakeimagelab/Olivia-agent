@@ -252,6 +252,7 @@ const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => 
   balanceAmount: row.balance_amount ?? 0,
   depositRate: row.deposit_rate ?? 50,
   memos: row.memos ?? null,
+  status: row.status ?? "draft",
   formState: row.form_state ?? undefined,
 });
 
