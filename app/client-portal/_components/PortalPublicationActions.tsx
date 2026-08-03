@@ -126,26 +126,28 @@ export default function PortalPublicationActions({
   }
   if (mode === "sign") {
     return (
-      <div className="pcrm-publication-signature">
-        <canvas
-          ref={signatureCanvasRef}
-          width={420}
-          height={140}
-          onPointerDown={startSignature}
-          onPointerMove={drawSignature}
-          onPointerUp={finishSignature}
-          onPointerLeave={finishSignature}
-          onPointerCancel={finishSignature}
-          className="pcrm-publication-signature__canvas"
-        />
-        <div>
-          <button type="button" onClick={clearSignature}>지우기</button>
-          <button type="button" onClick={() => setMode("idle")}>취소</button>
-          <button type="button" disabled={!hasSignature || Boolean(busy)} className="is-primary" onClick={() => void submitSignature()}>
-            {busy ? "저장 중" : "서명 완료"}
-          </button>
+      <div className="pcrm-publication-actions">
+        <div className="pcrm-publication-signature">
+          <canvas
+            ref={signatureCanvasRef}
+            width={420}
+            height={140}
+            onPointerDown={startSignature}
+            onPointerMove={drawSignature}
+            onPointerUp={finishSignature}
+            onPointerLeave={finishSignature}
+            onPointerCancel={finishSignature}
+            className="pcrm-publication-signature__canvas"
+          />
+          <div>
+            <button type="button" onClick={clearSignature}>지우기</button>
+            <button type="button" onClick={() => setMode("idle")}>취소</button>
+            <button type="button" disabled={!hasSignature || Boolean(busy)} className="is-primary" onClick={() => void submitSignature()}>
+              {busy ? "저장 중" : "서명 완료"}
+            </button>
+          </div>
+          {error && <small>{error}</small>}
         </div>
-        {error && <small>{error}</small>}
       </div>
     );
   }
