@@ -214,6 +214,51 @@ export default function NextActionCard({
           </div>
         </div>
       )}
+      {!isCompleted && checklistItems.length > 0 && (
+        <div className="pcrm-step-checklist">
+          <button type="button" className="pcrm-step-checklist__toggle" onClick={() => setChecklistOpen((v) => !v)}>
+            {checklistOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            업무 프로세스 ({actionableItems.length}/{checklistItems.length} 남음)
+          </button>
+          {checklistOpen && (
+            <>
+              <div className="pcrm-step-checklist__list">
+                {checklistItems.map(({ task, approval }) => {
+                  const done = task.status === "completed" || task.status === "canceled";
+                  const tone = done ? "done" : task.status === "waiting_approval" ? "wait" : task.status === "failed" ? "failed" : "pending";
+                  return (
+                    <div key={task.id} className="pcrm-step-checklist__item" data-done={done}>
+                      <input
+                        type="checkbox"
+                        checked={done || isChecked(task.id)}
+                        disabled={done}
+                        onChange={() => toggleChecked(task.id)}
+                        id={`step-task-${task.id}`}
+                      />
+                      <label htmlFor={`step-task-${task.id}`}>{task.title}</label>
+                      <span className="pcrm-step-checklist__badge" data-tone={tone}>
+                        {TASK_STATUS_LABEL[task.status] || task.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {actionableItems.length > 0 && (
+                <div className="pcrm-step-checklist__footer">
+                  <button
+                    type="button"
+                    className="pc-btn pc-btn--secondary pc-btn--sm"
+                    disabled={bulkBusy || selectedActionableItems.length === 0}
+                    onClick={bulkProcessSelected}
+                  >
+                    {bulkBusy ? "처리 중..." : `선택한 ${selectedActionableItems.length}건 한번에 처리`}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </section>
   );
 }
