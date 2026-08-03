@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, MoreVertical } from "lucide-react";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { C } from "@/lib/theme";
