@@ -140,7 +140,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
-    const portal = await createPortalAccess({ clientId, workflowRunId, email: quote.email || undefined, expiresInDays: 90 });
+    const portal = await ensurePortalAccess({ clientId, workflowRunId, email: quote.email || undefined, expiresInDays: 90 });
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://olivia.photoclinic.kr";
     const portalUrl = `${baseUrl}/client-portal/access/${portal.token}`;
 
