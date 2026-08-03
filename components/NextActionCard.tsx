@@ -208,6 +208,9 @@ export default function NextActionCard({
                       {additionalBusy ? "생성 중..." : "+ 추가 촬영 시작"}
                     </button>
                   )}
+                  <button type="button" disabled={busy} onClick={() => { setMenuOpen(false); void advance(); }}>
+                    {busy ? "이동 중..." : "관리자 예외 처리 — 수동으로 다음 단계 이동"}
+                  </button>
                 </div>
               </>
             )}
