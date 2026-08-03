@@ -173,6 +173,9 @@ export default function NextActionCard({
     if (action.primaryAction === "fix_failed_task") {
       return <Link href="/workflow/tasks?status=failed" className="pc-btn pc-btn--orange pc-btn--sm">{action.primaryActionLabel}</Link>;
     }
+    // advance_step: 고객/자동화가 처리할 일은 다 끝난 상태 — 수동 이동은 더보기 메뉴의
+    // "관리자 예외 처리"로만 제공하고, 여기서는 별도 primary 버튼을 두지 않는다.
+    if (action.primaryAction === "advance_step") return null;
     return <Link href={appHref} className="pc-btn pc-btn--orange pc-btn--sm">{action.primaryActionLabel || "관련 앱 열기"}</Link>;
   };
 
