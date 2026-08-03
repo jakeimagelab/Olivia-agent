@@ -86,24 +86,39 @@ export async function GET(req: NextRequest) {
     else if (!portalStatusMap.has(access.client_id)) portalStatusMap.set(access.client_id, "inactive");
   }
 
+  // 고객마다 tasks/approvals/mailing(최대 300건씩)을 매번 .filter()로 훑으면 O(고객수 × 300)이 되어
+  // 고객이 많아질수록 느려진다 — workflow_run_id 기준으로 한 번만 그룹핑해 O(1) 조회로 바꾼다.
+  const groupByRunId = <T extends { workflow_run_id?: string | null }>(rows: T[]) => {
+    const map = new Map<string, T[]>();
+    for (const row of rows) {
+      if (!row.workflow_run_id) continue;
+      const bucket = map.get(row.workflow_run_id);
+      if (bucket) bucket.push(row); else map.set(row.workflow_run_id, [row]);
+    }
+    return map;
+  };
+  const tasksByRun = groupByRunId(tasksRes.data ?? []);
+  const approvalsByRun = groupByRunId(approvalsRes.data ?? []);
+  const mailingByRun = groupByRunId(mailingRes.data ?? []);
+  const mailingByHospital = new Map<string, typeof mailingRes.data extends (infer U)[] | null ? U[] : never>();
+  for (const mail of mailingRes.data ?? []) {
+    if (mail.workflow_run_id || !mail.hospital_name) continue;
+    const bucket = mailingByHospital.get(mail.hospital_name);
+    if (bucket) bucket.push(mail); else mailingByHospital.set(mail.hospital_name, [mail]);
+  }
+
   const clients = (clientsRes.data ?? []).map((c) => {
     const run = runMap[c.id] ?? null;
     const normalized = normalizeClient(c, run);
-    const nextAction = run ? buildWorkflowNextAction({
-      run,
-      tasks: (tasksRes.data ?? []).filter((task) => task.workflow_run_id === run.id),
-      approvals: (approvalsRes.data ?? []).filter((approval) => approval.workflow_run_id === run.id),
-      mailing: (mailingRes.data ?? []).filter((mail) => mail.workflow_run_id === run.id || mail.hospital_name === c.hospital_name),
-    }) : null;
+    const runTasks = run ? tasksByRun.get(run.id) ?? [] : [];
+    const runApprovals = run ? approvalsByRun.get(run.id) ?? [] : [];
+    const runMailing = run ? [...(mailingByRun.get(run.id) ?? []), ...(mailingByHospital.get(c.hospital_name) ?? [])] : [];
+    const nextAction = run ? buildWorkflowNextAction({ run, tasks: runTasks, approvals: runApprovals, mailing: runMailing }) : null;
     return {
       ...normalized,
       next_action: nextAction,
-      waiting_approval_count: run
-        ? (approvalsRes.data ?? []).filter((approval) => approval.workflow_run_id === run.id && approval.status === "pending").length
-        : 0,
-      open_task_count: run
-        ? (tasksRes.data ?? []).filter((task) => task.workflow_run_id === run.id && ["pending", "running", "waiting_approval", "failed"].includes(task.status)).length
-        : 0,
+      waiting_approval_count: runApprovals.filter((approval) => approval.status === "pending").length,
+      open_task_count: runTasks.filter((task) => ["pending", "running", "waiting_approval", "failed"].includes(task.status)).length,
       active_project_count: activeProjectCountMap.get(c.id) ?? 0,
       portal_status: portalStatusMap.get(c.id) ?? "none",
     };
