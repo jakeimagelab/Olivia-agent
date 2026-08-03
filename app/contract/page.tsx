@@ -331,6 +331,34 @@ export default function ContractPage() {
     }
   };
 
+  const publishToPortal = async () => {
+    setPublishState("publishing"); setError("");
+    try {
+      const savedContractId = await handleSave();
+      if (!savedContractId) throw new Error("계약 DB 저장에 실패했습니다.");
+      const pageParams = new URLSearchParams(window.location.search);
+      const r = await fetch(`/api/contracts/${savedContractId}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: pageParams.get("client_id") || pageParams.get("clientId") || undefined,
+          workflowRunId: pageParams.get("workflowRunId") || undefined,
+        }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error);
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(d.portalUrl).catch(() => {});
+      }
+      setPublishState("done");
+      setTimeout(() => setPublishState("idle"), 3000);
+    } catch (e: any) {
+      setError(e.message || "포털 공개에 실패했습니다.");
+      setPublishState("error");
+      setTimeout(() => setPublishState("idle"), 3000);
+    }
+  };
+
   const handleSave = async (): Promise<string | null> => {
     if (!quote) return null;
     setSaveState("saving");
