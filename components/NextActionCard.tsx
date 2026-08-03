@@ -30,6 +30,9 @@ export default function NextActionCard({
   const [additionalBusy, setAdditionalBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = async () => {
     if (!workflowRun?.id) return;
