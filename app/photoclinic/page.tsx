@@ -411,6 +411,7 @@ export default function QuoteBuilder() {
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(false);
   const [fullscreenPreviewScale, setFullscreenPreviewScale] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
+  const [publishingQuoteId, setPublishingQuoteId] = useState<string | null>(null);
   const [todayQuoteNumbers, setTodayQuoteNumbers] = useState<string[]>([]);
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
   const previewPercent = Math.round(previewZoom * 100);
