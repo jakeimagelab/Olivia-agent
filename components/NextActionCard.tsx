@@ -31,7 +31,9 @@ export default function NextActionCard({
   const [msg, setMsg] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
-  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  // 완료되지 않은 항목은 기본적으로 전부 체크된 것으로 취급하고, 사용자가 명시적으로
+  // 해제한 항목만 이 Set에 담는다 — 매 로드마다 다시 체크해줄 필요가 없다.
+  const [uncheckedIds, setUncheckedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = async () => {
@@ -44,6 +46,7 @@ export default function NextActionCard({
   };
 
   useEffect(() => { load(); }, [workflowRun?.id]);
+  useEffect(() => { setUncheckedIds(new Set()); }, [workflowRun?.id, data?.currentStepKey]);
 
   if (!workflowRun?.id) {
     return (
