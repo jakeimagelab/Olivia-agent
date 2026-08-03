@@ -3659,6 +3659,24 @@ main:has(> .pc-header) {
 .pcrm-current-step-card__desc { color: #5a7470; font-size: 11.5px; }
 .pcrm-current-step-card__actions { display: flex; flex: none; align-items: center; gap: 8px; flex-wrap: wrap; }
 
+/* 현재 단계 카드 하단 — 업무 프로세스 미니 체크리스트 + 일괄 처리 */
+.pcrm-step-checklist { flex-basis: 100%; margin-top: 4px; padding-top: 12px; border-top: 1px dashed rgba(232,93,44,.25); }
+.pcrm-step-checklist__toggle {
+  display: flex; align-items: center; gap: 5px; border: 0; background: none; cursor: pointer;
+  color: #c9581a; font: inherit; font-size: 10.5px; font-weight: 900; padding: 0;
+}
+.pcrm-step-checklist__list { display: grid; gap: 6px; margin-top: 10px; }
+.pcrm-step-checklist__item { display: flex; align-items: center; gap: 8px; }
+.pcrm-step-checklist__item input[type="checkbox"] { flex: none; width: 15px; height: 15px; accent-color: #e85d2c; cursor: pointer; }
+.pcrm-step-checklist__item label { flex: 1; min-width: 0; overflow: hidden; color: #1c2b28; font-size: 11.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.pcrm-step-checklist__item[data-done="true"] label { color: #9bb5b0; text-decoration: line-through; }
+.pcrm-step-checklist__badge { flex: none; border-radius: 999px; padding: 2px 8px; font-size: 9px; font-weight: 900; white-space: nowrap; }
+.pcrm-step-checklist__badge[data-tone="wait"] { background: #f1e9fb; color: #7c3aed; }
+.pcrm-step-checklist__badge[data-tone="pending"] { background: rgba(155,181,176,.15); color: #5a7470; }
+.pcrm-step-checklist__badge[data-tone="done"] { background: #e6f7ea; color: #1f9254; }
+.pcrm-step-checklist__badge[data-tone="failed"] { background: #fde5e5; color: #c0392b; }
+.pcrm-step-checklist__footer { margin-top: 10px; }
+
 /* 개요 탭 — 4패널 + 2행 그리드 */
 .pcrm-overview-grid-v2 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .pcrm-overview-row2 { display: grid; grid-template-columns: .8fr 1.6fr; gap: 14px; margin-top: 14px; }
