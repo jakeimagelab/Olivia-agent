@@ -45,7 +45,7 @@ export async function performTaskAction(input: {
   const patch: Record<string, unknown> = { status: rule.to, updated_at: now };
   if (input.action === "start") patch.start_date = access.row.start_date ?? now.slice(0, 10);
   if (input.action === "submit") patch.submitted_at = now;
-  if (input.action === "approve") {
+  if (input.action === "approve" || input.action === "complete") {
     patch.approved_by = input.context.actor.id;
     patch.approved_at = now;
     patch.completed_at = now;
@@ -57,7 +57,7 @@ export async function performTaskAction(input: {
     patch.approved_at = null;
     patch.completed_at = null;
   }
-  if (input.action === "reopen") {
+  if (input.action === "reopen" || input.action === "uncomplete") {
     patch.approved_by = null;
     patch.approved_at = null;
     patch.completed_at = null;
