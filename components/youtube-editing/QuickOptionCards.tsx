@@ -24,15 +24,15 @@ function CategoryCard({ icon, title, badge, children }: { icon: React.ReactNode;
   );
 }
 
-function OptionButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function OptionButton({ active, onClick, inline, children }: { active: boolean; onClick: () => void; inline?: boolean; children: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
       style={{
-        textAlign: "left", width: "100%", minHeight: 28, padding: "5px 8px", borderRadius: 7,
+        textAlign: "left", width: inline ? "auto" : "100%", minHeight: 28, padding: "5px 8px", borderRadius: 7,
         border: `1px solid ${active ? "#2563EB" : C.border}`, background: active ? "#EEF3FF" : "#fff",
-        color: active ? "#2563EB" : C.ink, fontSize: 11, fontWeight: active ? 800 : 600, cursor: "pointer",
+        color: active ? "#2563EB" : C.ink, fontSize: 11, fontWeight: active ? 800 : 600, cursor: "pointer", whiteSpace: "nowrap",
       }}
     >
       {children}
