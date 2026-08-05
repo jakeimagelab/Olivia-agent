@@ -49,8 +49,10 @@ export type TeamTaskChecklistItem = {
   content: string;
   completed: boolean;
   sort_order: number;
+  assignee_id: string | null;
   created_at: string;
   updated_at: string;
+  assignee?: TeamMember | null;
 };
 
 export type TeamTaskAttachment = {
