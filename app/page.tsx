@@ -970,6 +970,9 @@ function DashboardPanel({data,loading,onRefresh}:{data:DashboardData|null; loadi
       {/* today tasks */}
       {data && <TodayTasks tasks={data.todayTasks ?? []} onRefresh={onRefresh}/>}
 
+      {/* workspace today tasks */}
+      {data && <WorkspaceTodayTasks tasks={data.workspaceTodayTasks ?? []}/>}
+
       {/* daily quote */}
       <DailyQuoteWidget/>
 
