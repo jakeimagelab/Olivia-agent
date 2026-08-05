@@ -6,7 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import { C, R } from "@/lib/theme";
 
 const FIXED_STYLE_SUFFIX =
-  "photorealistic, natural clinical lighting, high detail, realistic medical photography style, " +
+  "realistic editorial photography, natural clinical lighting, high detail, " +
   "no text, no watermark, non-graphic, no real identifiable people";
 
 type GeneratedPrompt = { id: string; snippet: string; prompt: string; createdAt: number };
