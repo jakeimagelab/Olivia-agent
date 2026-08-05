@@ -41,9 +41,15 @@ export default function TaskCard({
         </div>
         <h3 style={{ fontSize: 14, margin: 0, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</h3>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginTop: 9, color: C.muted, fontSize: 11 }}>
-          {task.calendar_task_id ? <span style={{ color: C.teal, fontWeight: 700 }}><CalendarCheck size={12} style={{ verticalAlign: -2, marginRight: 4 }} />캘린더 연동됨</span> : null}
+          {task.calendar_task_id ? (
+            <span style={{ color: C.teal, fontWeight: 700 }}>
+              <CalendarCheck size={12} style={{ verticalAlign: -2, marginRight: 4 }} />
+              {task.due_date ? formatKoreanDate(task.due_date) : "캘린더 연동됨"}
+            </span>
+          ) : (
+            <span><CalendarDays size={12} style={{ verticalAlign: -2, marginRight: 4 }} />{task.due_date ? formatKoreanDate(task.due_date) : "마감일 없음"}</span>
+          )}
           {task.project ? <span><FolderKanban size={12} style={{ verticalAlign: -2, marginRight: 4 }} />{task.project.name}</span> : null}
-          <span><CalendarDays size={12} style={{ verticalAlign: -2, marginRight: 4 }} />{task.due_date ?? "마감일 없음"}</span>
           {task.checklistProgress ? <span><ListChecks size={12} style={{ verticalAlign: -2, marginRight: 4 }} />{task.checklistProgress.done}/{task.checklistProgress.total}</span> : null}
         </div>
       </button>
