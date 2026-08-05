@@ -11,9 +11,9 @@ type BrollStylePreset = "PHOTO" | "MEDICAL_ILLUSTRATION" | "INFOGRAPHIC" | "DIAG
 
 const UNIVERSAL_GUARDRAILS = "no text, no watermark, non-graphic, no real identifiable people";
 
-// 자료 유형별 스타일 프리셋 — 유튜브 편집 콘티의 "자료/화면" 스타일 선택과 1:1로 대응된다.
-// 기본값은 PHOTO(기존 photorealistic 고정 동작과 동일)라 이 필드를 안 보내는 기존 호출부는 그대로 동작한다.
-// 프리셋 키 목록은 lib/youtube-editing/constants.ts의 BROLL_STYLE_PRESET_KEYS와 동일하게 유지한다.
+// 자료 유형별 스타일 프리셋 — 유튜브 편집 콘티의 "자료/화면" 스타일 선택(VISUAL_STYLE_TO_PROMPT_PRESET,
+// lib/youtube-editing/constants.ts)과 키가 1:1로 대응된다. 기본값은 PHOTO(기존 photorealistic 고정
+// 동작과 동일)라 이 필드를 안 보내는 기존 호출부는 그대로 동작한다.
 const BROLL_STYLE_PRESETS: Record<BrollStylePreset, string> = {
   PHOTO: "realistic editorial photography, natural clinical lighting, high detail",
   MEDICAL_ILLUSTRATION: "clean educational medical illustration, anatomically simplified",
