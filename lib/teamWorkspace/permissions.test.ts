@@ -48,4 +48,41 @@ describe("team task permissions", () => {
       status: "review",
     })).toBe(true);
   });
+
+  it("캘린더 연동 업무는 담당자·생성자가 아닌 직원도 볼 수 있다", () => {
+    expect(canViewTask(stranger, {
+      assignee_id: null,
+      created_by: creator.id,
+      calendarLinked: true,
+    })).toBe(true);
+  });
+
+  it("캘린더 연동이 아닌 업무는 관계 없는 직원이 볼 수 없다", () => {
+    expect(canViewTask(stranger, {
+      assignee_id: null,
+      created_by: creator.id,
+      calendarLinked: false,
+    })).toBe(false);
+  });
+
+  it("체크리스트 항목의 담당자는 업무 편집 권한이 없어도 그 항목은 체크할 수 있다", () => {
+    expect(canToggleChecklistItem(employee, {
+      assignee_id: null,
+      created_by: creator.id,
+    }, employee.id)).toBe(true);
+  });
+
+  it("체크리스트 항목의 담당자가 아니고 업무 편집 권한도 없으면 체크할 수 없다", () => {
+    expect(canToggleChecklistItem(stranger, {
+      assignee_id: null,
+      created_by: creator.id,
+    }, employee.id)).toBe(false);
+  });
+
+  it("업무 편집 권한이 있으면 담당자가 아닌 체크리스트 항목도 체크할 수 있다", () => {
+    expect(canToggleChecklistItem(creator, {
+      assignee_id: null,
+      created_by: creator.id,
+    }, employee.id)).toBe(true);
+  });
 });
