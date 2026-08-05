@@ -6,6 +6,7 @@ import { HomeDashboardDataProvider } from "@/components/dashboard/HomeDashboardD
 import MarketingBriefing from "@/components/dashboard/MarketingBriefing";
 import QuickActions from "@/components/dashboard/QuickActions";
 import WorkBriefing from "@/components/dashboard/WorkBriefing";
+import WorkspaceTodoCard from "@/components/dashboard/WorkspaceTodoCard";
 
 export default function AdminDashboardHomePage() {
   const openBriefing = () => {
@@ -20,6 +21,8 @@ export default function AdminDashboardHomePage() {
           <TodayScheduleCard/>
           <DailyQuoteWidget/>
         </div>
+
+        <div style={{ marginBottom: 14 }}><WorkspaceTodoCard/></div>
 
         <QuickActions/>
 
