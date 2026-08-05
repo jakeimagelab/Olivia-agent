@@ -5,7 +5,7 @@ import { loadTaskPermission, type TeamWorkspaceContext } from "./server";
 import { recordTaskEvent, type TaskEventType } from "./taskEvents";
 import { postTaskEventToRoom } from "./taskNotifications";
 
-type TaskAction = "start" | "submit" | "approve" | "request_revision" | "hold" | "reopen";
+type TaskAction = "start" | "submit" | "approve" | "request_revision" | "hold" | "reopen" | "complete" | "uncomplete";
 
 const RULES: Record<TaskAction, { from: string[]; to: string; event: TaskEventType }> = {
   start: { from: ["todo"], to: "in_progress", event: "status_changed" },
@@ -14,6 +14,9 @@ const RULES: Record<TaskAction, { from: string[]; to: string; event: TaskEventTy
   request_revision: { from: ["review"], to: "in_progress", event: "revision_requested" },
   hold: { from: ["todo", "in_progress"], to: "on_hold", event: "status_changed" },
   reopen: { from: ["completed", "on_hold"], to: "in_progress", event: "status_changed" },
+  // 심플 할일 목록의 체크박스용 — 검토 단계 없이 바로 완료/완료 취소한다.
+  complete: { from: ["todo", "in_progress", "review", "on_hold"], to: "completed", event: "status_changed" },
+  uncomplete: { from: ["completed"], to: "todo", event: "status_changed" },
 };
 
 export async function performTaskAction(input: {
