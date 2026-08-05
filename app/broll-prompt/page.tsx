@@ -85,18 +85,18 @@ export default function BrollPromptPage() {
     const targets = queue;
     const results = await Promise.allSettled(targets.map((item) => requestPrompt(fullScript, item.snippet)));
     const created: GeneratedPrompt[] = [];
-    const failedSnippets: string[] = [];
+    const failedIds = new Set<string>();
     results.forEach((result, index) => {
-      const snippet = targets[index].snippet;
+      const target = targets[index];
       if (result.status === "fulfilled") {
-        created.push({ id: crypto.randomUUID(), snippet, prompt: result.value, createdAt: Date.now() });
+        created.push({ id: crypto.randomUUID(), snippet: target.snippet, prompt: result.value, createdAt: Date.now() });
       } else {
-        failedSnippets.push(snippet);
+        failedIds.add(target.id);
       }
     });
     if (created.length) setPrompts((prev) => [...created.reverse(), ...prev]);
-    setQueue((prev) => prev.filter((item) => failedSnippets.includes(item.snippet)));
-    if (failedSnippets.length) setError(`${failedSnippets.length}개 구간 생성에 실패했습니다. 대기 목록에 남겨뒀어요.`);
+    setQueue((prev) => prev.filter((item) => failedIds.has(item.id)));
+    if (failedIds.size) setError(`${failedIds.size}개 구간 생성에 실패했습니다. 대기 목록에 남겨뒀어요.`);
     setGenerating(false);
   };
 
