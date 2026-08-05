@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, FolderKanban, UserRound } from "lucide-react";
+import { CalendarCheck, CalendarDays, FolderKanban, ListChecks } from "lucide-react";
 import { C } from "@/lib/theme";
 import type { TeamTask } from "../types";
 import TaskStatusBadge from "./TaskStatusBadge";
