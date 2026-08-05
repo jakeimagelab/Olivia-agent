@@ -35,6 +35,7 @@ export const TOOLS_WORK: ToolDef[] = [
   { title: "통합 메일링", desc: "견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.", href: "/mailing", icon: Mail, meta: "Unified Mailing", orange: false, category: "dashboard" },
   { title: "사진 작업실", desc: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.", href: "/photo-sorting", icon: Wand2, meta: "Photo Studio", orange: false, category: "tools" },
   { title: "B롤 이미지 프롬프트", desc: "유튜브 대본에서 구간을 골라 이미지 생성 AI에 바로 쓸 영문 프롬프트를 만듭니다.", href: "/broll-prompt", icon: ImagePlus, meta: "B-roll Prompt", orange: false, category: "tools" },
+  { title: "유튜브 편집 콘티", desc: "대본을 장면별로 나누고 손글씨로 카메라, 자막, 자료화면과 편집 효과를 설계합니다.", href: "/youtube-editing-conti", icon: PenTool, meta: "Editing Storyboard", orange: false, category: "tools" },
   { title: "프롬프터", desc: "대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다.", href: "/prompter", icon: Mic, meta: "Teleprompter", orange: false, category: "tools" },
   { title: "업무 리포트", desc: "AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.", href: "/report", icon: BarChart2, meta: "Weekly Report", orange: false, category: "tools" },
   { title: "외부 공유 링크", desc: "비밀번호 없는 외부인에게 특정 기능 하나만 열어주는 링크를 생성·관리합니다.", href: "/link-generator", icon: Share2, meta: "Share Links", orange: false, category: "dashboard" },
