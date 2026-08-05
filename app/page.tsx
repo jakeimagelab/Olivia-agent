@@ -34,6 +34,7 @@ interface DashboardData {
   todayIdea: { date:string; marketing_idea:{ title:string }; mission:{ title:string } }|null;
   recentMemos: { id:string; raw_memo:string; created_at:string }[];
   todayTasks: CalTask[];
+  workspaceTodayTasks: WorkspaceTask[];
 }
 
 const TYPE_LABELS: Record<MailType,string> = {
