@@ -46,6 +46,40 @@ export async function GET() {
     (approvalsRes.data ?? []).map((a: { workflow_run_id: string }) => a.workflow_run_id)
   );
 
+  // 워크스페이스 할일 중 오늘 마감이거나(due_date) 오늘 캘린더 일정(calendar_task_id)에 연동된 것만
+  // 요약해서 보여준다. 팀채팅 로그인 여부와 무관하게 관리자 세션만으로 조회 가능해야 하므로
+  // /api/team/tasks가 아닌 이 라우트에서 직접 team_tasks를 조회한다.
+  const todayCalendarTaskIds = todayTasks.map((row) => row.id);
+  const [dueTodayRes, calendarLinkedRes] = await Promise.all([
+    db.from("team_tasks")
+      .select("id, title, status, due_date, calendar_task_id")
+      .eq("due_date", todayStr)
+      .not("status", "in", "(completed,canceled)"),
+    todayCalendarTaskIds.length
+      ? db.from("team_tasks")
+          .select("id, title, status, due_date, calendar_task_id")
+          .in("calendar_task_id", todayCalendarTaskIds)
+          .not("status", "in", "(completed,canceled)")
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+  const workspaceTaskById = new Map<string, { id: string; title: string; status: string; due_date: string | null; calendar_task_id: string | null }>();
+  for (const row of [...(dueTodayRes.data ?? []), ...(calendarLinkedRes.data ?? [])]) workspaceTaskById.set(row.id, row);
+  const workspaceTaskIds = Array.from(workspaceTaskById.keys());
+  const { data: workspaceChecklists } = workspaceTaskIds.length
+    ? await db.from("team_task_checklists").select("task_id, completed").in("task_id", workspaceTaskIds)
+    : { data: [] as any[] };
+  const checklistProgressByTask = new Map<string, { total: number; done: number }>();
+  for (const item of workspaceChecklists ?? []) {
+    const current = checklistProgressByTask.get(item.task_id) ?? { total: 0, done: 0 };
+    current.total += 1;
+    if (item.completed) current.done += 1;
+    checklistProgressByTask.set(item.task_id, current);
+  }
+  const workspaceTodayTasks = workspaceTaskIds.map((id) => ({
+    ...workspaceTaskById.get(id)!,
+    checklistProgress: checklistProgressByTask.get(id) ?? null,
+  }));
+
   const toItem = (run: { id: string; client_id: string; client_name: string; current_step_key: string; updated_at: string }) => ({
     id: run.client_id,
     name: run.client_name,
