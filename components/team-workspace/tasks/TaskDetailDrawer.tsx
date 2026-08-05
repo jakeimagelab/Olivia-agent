@@ -125,9 +125,9 @@ export default function TaskDetailDrawer({
       setBusy("");
     }
   };
-  const toggleChecklist = async (item: NonNullable<TeamTask["checklists"]>[number]) => {
+  const toggleChecklist = async (item: TeamTaskChecklistItem) => {
     if (!task || busy) return;
-    setBusy(`checklist-${item.id}`);
+    setBusy(item.id);
     setError("");
     try {
       const response = await fetch(`/api/team/tasks/${task.id}/checklists/${item.id}`, {
@@ -140,6 +140,59 @@ export default function TaskDetailDrawer({
       await load();
     } catch (checklistError) {
       setError(checklistError instanceof Error ? checklistError.message : "체크리스트 변경에 실패했습니다.");
+    } finally {
+      setBusy("");
+    }
+  };
+  const reassignChecklist = async (item: TeamTaskChecklistItem, assigneeId: string | null) => {
+    if (!task || busy) return;
+    setBusy(item.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/team/tasks/${task.id}/checklists/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      await load();
+    } catch (checklistError) {
+      setError(checklistError instanceof Error ? checklistError.message : "담당자 변경에 실패했습니다.");
+    } finally {
+      setBusy("");
+    }
+  };
+  const addChecklist = async (content: string, assigneeId: string | null) => {
+    if (!task || busy) return;
+    setBusy("add");
+    setError("");
+    try {
+      const response = await fetch(`/api/team/tasks/${task.id}/checklists`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, assigneeId }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      await load();
+    } catch (checklistError) {
+      setError(checklistError instanceof Error ? checklistError.message : "세부 업무 추가에 실패했습니다.");
+    } finally {
+      setBusy("");
+    }
+  };
+  const deleteChecklist = async (item: TeamTaskChecklistItem) => {
+    if (!task || busy) return;
+    setBusy(item.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/team/tasks/${task.id}/checklists/${item.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      await load();
+    } catch (checklistError) {
+      setError(checklistError instanceof Error ? checklistError.message : "세부 업무 삭제에 실패했습니다.");
     } finally {
       setBusy("");
     }
