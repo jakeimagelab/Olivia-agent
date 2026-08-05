@@ -11,6 +11,7 @@ export type TaskPermissionRecord = {
   project?: ProjectPermissionRecord | null;
   projectMember?: boolean;
   roomMember?: boolean;
+  calendarLinked?: boolean;
 };
 
 export function canViewProject(actor: TeamActor, project: ProjectPermissionRecord): boolean {
