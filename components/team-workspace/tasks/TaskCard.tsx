@@ -7,7 +7,7 @@ import TaskStatusBadge from "./TaskStatusBadge";
 
 const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
 function formatKoreanDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const [, month, day] = dateStr.split("-").map(Number);
   const weekday = WEEKDAY[new Date(`${dateStr}T00:00:00+09:00`).getDay()];
   return `${month}/${day}(${weekday})`;
 }
