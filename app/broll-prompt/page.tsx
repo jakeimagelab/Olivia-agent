@@ -166,7 +166,7 @@ export default function BrollPromptPage() {
             </Panel>
           </div>
 
-          <div style={{ flex: "0 0 600px", minWidth: 0 }}>
+          <div style={{ flex: "0.6 1 360px", minWidth: 0 }}>
             <Panel number={3} title="생성된 프롬프트">
               {prompts.length === 0 ? (
                 <p style={{ fontSize: 12.5, color: C.hint }}>아직 생성된 프롬프트가 없습니다. ②번에서 구간을 고르고 프롬프트를 생성해보세요.</p>
