@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, Paperclip, X } from "lucide-react";
 import { C } from "@/lib/theme";
-import type { TeamTask } from "../types";
+import type { TeamMember, TeamTask, TeamTaskChecklistItem } from "../types";
 import TaskChecklist from "./TaskChecklist";
 import TaskStatusBadge from "./TaskStatusBadge";
 
@@ -20,6 +20,8 @@ export default function TaskDetailDrawer({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [self, setSelf] = useState<{ id: string; isAdmin: boolean } | null>(null);
   const load = async () => {
     if (!taskId) return;
     setLoading(true);
@@ -35,7 +37,21 @@ export default function TaskDetailDrawer({
     }
   };
   useEffect(() => { load(); }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!taskId) return;
+    Promise.all([
+      fetch("/api/team-chat/members").then((response) => response.json()),
+      fetch("/api/team-chat/session").then((response) => response.json()),
+    ]).then(([memberData, sessionData]) => {
+      if (memberData.ok) setMembers(memberData.members);
+      if (sessionData.ok) setSelf({ id: sessionData.member?.id ?? "", isAdmin: sessionData.isAdmin });
+    });
+  }, [taskId]);
   if (!taskId) return null;
+
+  const canManage = Boolean(
+    task && self && (self.isAdmin || task.created_by === self.id || task.assignee_id === self.id || task.project?.owner_id === self.id),
+  );
 
   const action = async (name: string) => {
     if (busy || !task) return;
