@@ -36,7 +36,9 @@ export function canViewTask(actor: TeamActor, task: TaskPermissionRecord): boole
     || task.created_by === actor.id
     || Boolean(task.projectMember)
     || Boolean(task.roomMember)
-    || Boolean(task.project && canViewProject(actor, task.project));
+    || Boolean(task.project && canViewProject(actor, task.project))
+    // 캘린더 연동 프로젝트는 원본 캘린더 일정처럼 팀 전체에 공개된 정보이므로 모두가 볼 수 있다.
+    || Boolean(task.calendarLinked);
 }
 
 export function canEditTask(actor: TeamActor, task: TaskPermissionRecord): boolean {
