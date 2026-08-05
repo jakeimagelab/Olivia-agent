@@ -23,6 +23,7 @@ type MailStatus = "draft"|"ready"|"sent"|"failed";
 interface MailItem   { id:string; type:MailType; hospital_name:string; status:MailStatus; created_at:string; }
 interface ClientItem { id:string; name:string; workflow_status:string; updated_at:string; }
 type CalTask = { id:string; title:string; category:string; completed:boolean; date:string; time?:string|null; location?:string|null; memo?:string|null; };
+type WorkspaceTask = { id:string; title:string; status:string; due_date:string|null; calendar_task_id:string|null; checklistProgress:{total:number;done:number}|null; };
 
 interface DashboardData {
   mailing: { pending:MailItem[]; failed:MailItem[]; recent:MailItem[] };
