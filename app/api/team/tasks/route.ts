@@ -18,12 +18,18 @@ import { isUuid, validateTaskInput } from "@/lib/teamWorkspace/validation";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// 캘린더 자동 연동은 목록이 한꺼번에 너무 많아진다는 피드백으로 잠시 꺼둔 상태.
+// 다시 켤 때는 이 값만 true로 바꾸면 된다(연동 로직 자체는 lib/teamWorkspace/calendarSync.ts에 그대로 있음).
+const CALENDAR_SYNC_ENABLED = false;
+
 export async function GET(req: NextRequest) {
   const context = await getTeamWorkspaceContext(req);
   if (!context) return apiError("로그인이 필요합니다.", 401);
   const params = new URL(req.url).searchParams;
   const db = getSupabaseAdmin();
-  await syncCalendarProjects(db, context.actor.id).catch((error) => console.error("[team/tasks] 캘린더 동기화 실패", error));
+  if (CALENDAR_SYNC_ENABLED) {
+    await syncCalendarProjects(db, context.actor.id).catch((error) => console.error("[team/tasks] 캘린더 동기화 실패", error));
+  }
   let query = db.from("team_tasks").select("*").order("due_date", { ascending: true, nullsFirst: false });
   if (params.get("includeCanceled") !== "true") query = query.neq("status", "canceled");
   const status = params.get("status");
