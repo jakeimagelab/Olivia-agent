@@ -250,6 +250,7 @@ export const config = {
     "/seo-delivery", "/seo-delivery/:path*",
     "/photo-sorting", "/photo-sorting/:path*",
     "/broll-prompt", "/broll-prompt/:path*",
+    "/youtube-editing-conti", "/youtube-editing-conti/:path*",
     "/prompter", "/prompter/:path*",
     "/video-sorting", "/video-sorting/:path*",
     "/video-convert", "/video-convert/:path*",
