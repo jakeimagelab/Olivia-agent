@@ -27,7 +27,7 @@ export default function WorkspacePage({
   const [linkedTaskId, setLinkedTaskId] = useState(initialTaskId);
 
   const changeTab = (key: string) => {
-    const nextTab: WorkspaceTab = key === "tasks" ? "tasks" : "chat";
+    const nextTab: WorkspaceTab = key === "chat" ? "chat" : "tasks";
     setActiveTab(nextTab);
     setLinkedTaskId(null);
     window.history.replaceState({ ...window.history.state }, "", `/team?tab=${nextTab}`);
@@ -38,8 +38,8 @@ export default function WorkspacePage({
       <PageHeader
         title="워크스페이스"
         tabs={[
-          { key: "chat", label: "팀채팅", icon: <MessageCircle size={15} /> },
           { key: "tasks", label: "할 일", icon: <CheckSquare2 size={15} /> },
+          { key: "chat", label: "팀채팅", icon: <MessageCircle size={15} /> },
         ]}
         activeTab={activeTab}
         onTabChange={changeTab}
