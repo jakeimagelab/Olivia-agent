@@ -148,9 +148,13 @@ async function resolveShareScope(token: string): Promise<string | null> {
   }
 }
 
+// 로컬 개발(`next dev`)에서는 매번 로그인 화면을 거치지 않도록 관리자 세션을 우회한다.
+// Vercel/프로덕션 빌드는 NODE_ENV가 항상 "production"이라 이 분기를 절대 타지 않는다.
+const IS_LOCAL_DEV = process.env.NODE_ENV !== "production";
+
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
-  const isAdminSession = req.cookies.get("pc_admin_session")?.value === "active";
+  const isAdminSession = IS_LOCAL_DEV || req.cookies.get("pc_admin_session")?.value === "active";
   const shareToken = req.cookies.get("pc_share_token")?.value;
 
   // ── 팀 채팅 데이터 API — pc_admin_session이 아니라 팀원 개인 Supabase 세션이 있어야 한다 ──
