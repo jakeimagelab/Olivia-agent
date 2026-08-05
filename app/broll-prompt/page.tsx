@@ -159,25 +159,62 @@ export default function BrollPromptPage() {
                 onChange={(e) => setTargetSnippet(e.target.value)}
                 placeholder="① 대본에서 드래그로 구간을 선택하거나, 여기에 직접 입력/붙여넣기 하세요."
                 style={{
-                  minHeight: 180, width: "100%", resize: "vertical", boxSizing: "border-box",
+                  minHeight: 120, width: "100%", resize: "vertical", boxSizing: "border-box",
                   border: `1px solid ${C.sage}`, borderRadius: R.sm, padding: 12,
                   fontSize: 13, lineHeight: 1.7, color: C.ink, background: C.mint, outline: "none", fontFamily: "inherit",
                 }}
               />
+              <button
+                type="button"
+                onClick={addToQueue}
+                disabled={!targetSnippet.trim()}
+                style={{
+                  marginTop: 8, width: "100%", height: 36, borderRadius: R.sm,
+                  border: `1px solid ${C.border}`, background: "#fff", color: C.teal, fontSize: 12, fontWeight: 800,
+                  cursor: !targetSnippet.trim() ? "not-allowed" : "pointer", opacity: !targetSnippet.trim() ? 0.55 : 1,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
+                }}
+              >
+                <Plus size={14} />대기 목록에 추가
+              </button>
+
+              {queue.length > 0 ? (
+                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>대기 중인 구간 ({queue.length}개)</div>
+                  {queue.map((item) => (
+                    <div key={item.id} style={{
+                      display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
+                      background: C.bg, border: `1px solid ${C.border}`, borderRadius: R.sm,
+                    }}>
+                      <span style={{ flex: 1, fontSize: 11.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {item.snippet}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFromQueue(item.id)}
+                        aria-label="대기 목록에서 제거"
+                        style={{ border: 0, background: "transparent", color: C.hint, cursor: "pointer", padding: 2, flexShrink: 0 }}
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               <button
                 type="button"
-                onClick={generate}
-                disabled={!targetSnippet.trim() || generating}
+                onClick={generateAll}
+                disabled={!queue.length || generating}
                 style={{
                   marginTop: 14, width: "100%", height: 42, border: 0, borderRadius: R.md,
                   background: C.orange, color: "#fff", fontSize: 13, fontWeight: 800,
-                  cursor: !targetSnippet.trim() || generating ? "not-allowed" : "pointer",
-                  opacity: !targetSnippet.trim() || generating ? 0.55 : 1,
+                  cursor: !queue.length || generating ? "not-allowed" : "pointer",
+                  opacity: !queue.length || generating ? 0.55 : 1,
                   display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                 }}
               >
-                <Sparkles size={15} />{generating ? "생성 중..." : "프롬프트 생성"}
+                <Sparkles size={15} />{generating ? "생성 중..." : queue.length > 1 ? `선택한 ${queue.length}개 프롬프트 생성` : "프롬프트 생성"}
               </button>
               {error ? <p style={{ marginTop: 8, fontSize: 11.5, color: C.danger, fontWeight: 700 }}>{error}</p> : null}
 
