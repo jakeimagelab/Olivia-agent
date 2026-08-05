@@ -220,7 +220,19 @@ export default function TaskDetailDrawer({
               <Info label="우선순위" value={task.priority} />
               <Info label="기간" value={`${task.start_date ?? "-"} ~ ${task.due_date ?? "-"}`} />
             </section>
-            <section><h3 style={sectionTitle}>체크리스트</h3><TaskChecklist items={task.checklists ?? []} onToggle={toggleChecklist} disabled={Boolean(busy)} /></section>
+            <section>
+              <h3 style={sectionTitle}>세부 업무</h3>
+              <TaskChecklist
+                items={task.checklists ?? []}
+                members={members}
+                canManage={canManage}
+                busyId={busy}
+                onToggle={toggleChecklist}
+                onReassign={canManage ? reassignChecklist : undefined}
+                onAdd={canManage ? addChecklist : undefined}
+                onDelete={canManage ? deleteChecklist : undefined}
+              />
+            </section>
             <section>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <h3 style={{ ...sectionTitle, margin: 0 }}>결과물 첨부</h3>
