@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, Copy, RefreshCw, Sparkles } from "lucide-react";
+import { Check, Copy, Plus, RefreshCw, Sparkles, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { C, R } from "@/lib/theme";
 
@@ -10,6 +10,7 @@ const FIXED_STYLE_SUFFIX =
   "anatomically simplified, educational tone, non-graphic, no real identifiable people";
 
 type GeneratedPrompt = { id: string; snippet: string; prompt: string; createdAt: number };
+type QueuedSnippet = { id: string; snippet: string };
 
 function relativeTime(ts: number): string {
   const diffSec = Math.floor((Date.now() - ts) / 1000);
