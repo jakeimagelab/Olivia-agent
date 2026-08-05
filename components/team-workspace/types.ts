@@ -96,12 +96,14 @@ export type TeamTask = {
   approved_by: string | null;
   approved_at: string | null;
   revision_note: string | null;
+  calendar_task_id: string | null;
   created_at: string;
   updated_at: string;
   assignee?: TeamMember | null;
   creator?: TeamMember | null;
   project?: Pick<TeamProject, "id" | "name" | "owner_id" | "progress" | "status"> | null;
   checklists?: TeamTaskChecklistItem[];
+  checklistProgress?: { total: number; done: number } | null;
   attachments?: TeamTaskAttachment[];
   events?: TeamTaskEvent[];
   sourceMessage?: {
