@@ -13,9 +13,19 @@ export type HomeCalendarTask = {
   memo?: string | null;
 };
 
+export type HomeWorkspaceTask = {
+  id: string;
+  title: string;
+  status: string;
+  due_date: string | null;
+  calendar_task_id: string | null;
+  checklistProgress: { total: number; done: number } | null;
+};
+
 export type HomeDashboardPayload = {
   ok: boolean;
   todayTasks: HomeCalendarTask[];
+  workspaceTodayTasks?: HomeWorkspaceTask[];
   mailing?: { pending?: unknown[]; failed?: unknown[]; recent?: unknown[] };
   clients?: {
     quoteFollowUp?: unknown[];
