@@ -30,6 +30,14 @@ function useDebouncedSaver() {
 }
 
 export default function YoutubeEditingContiPage() {
+  return (
+    <Suspense fallback={<main className="pc-page" style={{ display: "grid", placeItems: "center", minHeight: "60vh", color: C.muted }}>불러오는 중...</main>}>
+      <YoutubeEditingContiInner />
+    </Suspense>
+  );
+}
+
+function YoutubeEditingContiInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectIdParam = searchParams.get("project");
