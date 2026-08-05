@@ -129,7 +129,7 @@ export default function BrollPromptPage() {
             </Panel>
           </div>
 
-          <div style={{ flex: "0 0 420px", minWidth: 0 }}>
+          <div style={{ flex: "0.42 1 300px", minWidth: 0 }}>
             <Panel number={2} title="이미지화할 구간">
               <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 700 }}>드래그 선택 또는 직접 입력</div>
               <textarea
