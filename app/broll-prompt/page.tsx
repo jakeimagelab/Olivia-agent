@@ -37,9 +37,21 @@ function Panel({ number, title, children }: { number: number; title: string; chi
   );
 }
 
+async function requestPrompt(fullScript: string, targetSnippet: string): Promise<string> {
+  const response = await fetch("/api/broll-prompt-generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fullScript, targetSnippet }),
+  });
+  const data = await response.json();
+  if (!data.ok) throw new Error(data.error);
+  return data.prompt as string;
+}
+
 export default function BrollPromptPage() {
   const [fullScript, setFullScript] = useState("");
   const [targetSnippet, setTargetSnippet] = useState("");
+  const [queue, setQueue] = useState<QueuedSnippet[]>([]);
   const [prompts, setPrompts] = useState<GeneratedPrompt[]>([]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
@@ -53,24 +65,39 @@ export default function BrollPromptPage() {
     if (selected) setTargetSnippet(selected);
   };
 
-  const generate = async () => {
-    if (!targetSnippet.trim() || generating) return;
+  const addToQueue = () => {
+    const snippet = targetSnippet.trim();
+    if (!snippet) return;
+    setQueue((prev) => [...prev, { id: crypto.randomUUID(), snippet }]);
+    setTargetSnippet("");
+  };
+
+  const removeFromQueue = (id: string) => {
+    setQueue((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  // 대기 목록에 쌓인 구간을 한 번에 병렬로 생성한다 — 하나씩 생성 버튼을 누르는 흐름은
+  // 유튜브 대본 하나에서 여러 장면을 뽑아 쓰는 실제 작업 방식과 안 맞아서 배치로 바꿨다.
+  const generateAll = async () => {
+    if (!queue.length || generating) return;
     setGenerating(true);
     setError("");
-    try {
-      const response = await fetch("/api/broll-prompt-generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullScript, targetSnippet }),
-      });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.error);
-      setPrompts((prev) => [{ id: crypto.randomUUID(), snippet: targetSnippet, prompt: data.prompt, createdAt: Date.now() }, ...prev]);
-    } catch (generateError) {
-      setError(generateError instanceof Error ? generateError.message : "프롬프트 생성에 실패했습니다.");
-    } finally {
-      setGenerating(false);
-    }
+    const targets = queue;
+    const results = await Promise.allSettled(targets.map((item) => requestPrompt(fullScript, item.snippet)));
+    const created: GeneratedPrompt[] = [];
+    const failedSnippets: string[] = [];
+    results.forEach((result, index) => {
+      const snippet = targets[index].snippet;
+      if (result.status === "fulfilled") {
+        created.push({ id: crypto.randomUUID(), snippet, prompt: result.value, createdAt: Date.now() });
+      } else {
+        failedSnippets.push(snippet);
+      }
+    });
+    if (created.length) setPrompts((prev) => [...created.reverse(), ...prev]);
+    setQueue((prev) => prev.filter((item) => failedSnippets.includes(item.snippet)));
+    if (failedSnippets.length) setError(`${failedSnippets.length}개 구간 생성에 실패했습니다. 대기 목록에 남겨뒀어요.`);
+    setGenerating(false);
   };
 
   const regenerate = async (snippet: string) => {
@@ -78,14 +105,8 @@ export default function BrollPromptPage() {
     setGenerating(true);
     setError("");
     try {
-      const response = await fetch("/api/broll-prompt-generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullScript, targetSnippet: snippet }),
-      });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.error);
-      setPrompts((prev) => [{ id: crypto.randomUUID(), snippet, prompt: data.prompt, createdAt: Date.now() }, ...prev]);
+      const prompt = await requestPrompt(fullScript, snippet);
+      setPrompts((prev) => [{ id: crypto.randomUUID(), snippet, prompt, createdAt: Date.now() }, ...prev]);
     } catch (regenerateError) {
       setError(regenerateError instanceof Error ? regenerateError.message : "재생성에 실패했습니다.");
     } finally {
