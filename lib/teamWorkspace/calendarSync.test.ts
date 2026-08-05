@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { syncCalendarProjects } from "./calendarSync";
 
+function dateOffset(days: number): string {
+  return new Date(Date.now() + days * 86400000).toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+}
+
 function makeFakeDb({ calendarRows, linkedRows }: { calendarRows: any[]; linkedRows: any[] }) {
   const inserted: any[] = [];
-  const updated: { id: string; title: string }[] = [];
+  const updated: { id: string; title: string; due_date: string }[] = [];
   let teamTasksSelectCalled = false;
 
   const db: any = {
@@ -33,7 +37,7 @@ function makeFakeDb({ calendarRows, linkedRows }: { calendarRows: any[]; linkedR
           },
           update: (patch: any) => ({
             eq: (_col: string, id: string) => {
-              updated.push({ id, title: patch.title });
+              updated.push({ id, title: patch.title, due_date: patch.due_date });
               return Promise.resolve({ data: null, error: null });
             },
           }),
@@ -46,9 +50,10 @@ function makeFakeDb({ calendarRows, linkedRows }: { calendarRows: any[]; linkedR
 }
 
 describe("syncCalendarProjects", () => {
-  it("아직 연동되지 않은 캘린더 항목을 워크스페이스 할일로 생성한다", async () => {
+  it("가까운 일정(3주 이내)은 아직 연동되지 않았으면 워크스페이스 할일로 생성한다", async () => {
+    const date = dateOffset(10);
     const { db, inserted } = makeFakeDb({
-      calendarRows: [{ id: "cal-1", title: "미소로한의원 영상편집", date: "2026-08-12", time: "14:00", location: "스튜디오", category: "client" }],
+      calendarRows: [{ id: "cal-1", title: "미소로한의원 영상편집", date, time: "14:00", location: "스튜디오", category: "client" }],
       linkedRows: [],
     });
     await syncCalendarProjects(db, "actor-1");
@@ -56,34 +61,57 @@ describe("syncCalendarProjects", () => {
     expect(inserted[0]).toMatchObject({
       title: "미소로한의원 영상편집",
       calendar_task_id: "cal-1",
+      due_date: date,
       created_by: "actor-1",
       status: "todo",
     });
-    expect(inserted[0].description).toContain("2026-08-12");
+    expect(inserted[0].description).toContain(date);
+  });
+
+  it("3주보다 먼 미래 일정은 아직 생성하지 않는다", async () => {
+    const { db, inserted } = makeFakeDb({
+      calendarRows: [{ id: "cal-1", title: "먼 미래 촬영", date: dateOffset(60), time: null, location: null, category: "shooting" }],
+      linkedRows: [],
+    });
+    await syncCalendarProjects(db, "actor-1");
+    expect(inserted).toHaveLength(0);
   });
 
   it("이미 연동된 캘린더 항목은 다시 생성하지 않는다", async () => {
+    const date = dateOffset(5);
     const { db, inserted } = makeFakeDb({
-      calendarRows: [{ id: "cal-1", title: "미소로한의원 영상편집", date: "2026-08-12", time: null, location: null, category: "client" }],
-      linkedRows: [{ id: "task-1", calendar_task_id: "cal-1", title: "미소로한의원 영상편집" }],
+      calendarRows: [{ id: "cal-1", title: "미소로한의원 영상편집", date, time: null, location: null, category: "client" }],
+      linkedRows: [{ id: "task-1", calendar_task_id: "cal-1", title: "미소로한의원 영상편집", due_date: date }],
     });
     await syncCalendarProjects(db, "actor-1");
     expect(inserted).toHaveLength(0);
   });
 
   it("연동된 항목의 캘린더 제목이 바뀌면 워크스페이스 할일 제목도 갱신한다", async () => {
+    const date = dateOffset(5);
     const { db, updated } = makeFakeDb({
-      calendarRows: [{ id: "cal-1", title: "새 제목으로 변경됨", date: "2026-08-12", time: null, location: null, category: "shooting" }],
-      linkedRows: [{ id: "task-1", calendar_task_id: "cal-1", title: "예전 제목" }],
+      calendarRows: [{ id: "cal-1", title: "새 제목으로 변경됨", date, time: null, location: null, category: "shooting" }],
+      linkedRows: [{ id: "task-1", calendar_task_id: "cal-1", title: "예전 제목", due_date: date }],
     });
     await syncCalendarProjects(db, "actor-1");
-    expect(updated).toEqual([{ id: "task-1", title: "새 제목으로 변경됨" }]);
+    expect(updated).toEqual([{ id: "task-1", title: "새 제목으로 변경됨", due_date: date }]);
   });
 
-  it("제목이 같으면 갱신하지 않는다", async () => {
+  it("멀리 있던 일정이라도 이미 연동된 항목이면 날짜가 바뀌면 due_date를 갱신한다", async () => {
+    const newDate = dateOffset(60);
     const { db, updated } = makeFakeDb({
-      calendarRows: [{ id: "cal-1", title: "동일 제목", date: "2026-08-12", time: null, location: null, category: "shooting" }],
-      linkedRows: [{ id: "task-1", calendar_task_id: "cal-1", title: "동일 제목" }],
+      calendarRows: [{ id: "cal-1", title: "미소로한의원 영상편집", date: newDate, time: null, location: null, category: "client" }],
+      linkedRows: [{ id: "task-1", calendar_task_id: "cal-1", title: "미소로한의원 영상편집", due_date: null }],
+    });
+    await syncCalendarProjects(db, "actor-1");
+    expect(updated).toEqual([{ id: "task-1", title: "미소로한의원 영상편집", due_date: newDate }]);
+  });
+
+  it("제목과 날짜가 모두 같으면 갱신하지 않는다", async () => {
+    const date = dateOffset(5);
+    const { db, updated } = makeFakeDb({
+      calendarRows: [{ id: "cal-1", title: "동일 제목", date, time: null, location: null, category: "shooting" }],
+      linkedRows: [{ id: "task-1", calendar_task_id: "cal-1", title: "동일 제목", due_date: date }],
     });
     await syncCalendarProjects(db, "actor-1");
     expect(updated).toHaveLength(0);
