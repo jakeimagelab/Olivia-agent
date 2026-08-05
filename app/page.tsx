@@ -260,6 +260,45 @@ function TodayTasks({ tasks, onRefresh }:{ tasks:CalTask[]; onRefresh:()=>void }
   );
 }
 
+function WorkspaceTodayTasks({ tasks }:{ tasks:WorkspaceTask[] }) {
+  if (!tasks.length) return null;
+  return (
+    <div style={{ background:"#fff", borderRadius:12, border:"1px solid rgba(21,88,85,.1)", overflow:"hidden", boxShadow:"0 1px 8px rgba(21,88,85,.05)" }}>
+      <div style={{ padding:"10px 14px", borderBottom:"1px solid rgba(21,88,85,.07)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <ClipboardList size={13} color="#155855"/>
+          <span style={{ fontSize:10, fontWeight:900, color:"#155855", letterSpacing:".08em", textTransform:"uppercase" }}>직원 업무 · 오늘의 할일</span>
+        </div>
+        <Link href="/team?tab=tasks" style={{ fontSize:10, fontWeight:800, color:"#155855", textDecoration:"none" }}>워크스페이스 →</Link>
+      </div>
+      <div style={{ padding:"6px 8px", display:"flex", flexDirection:"column", gap:1 }}>
+        {tasks.map(task => (
+          <Link key={task.id} href={`/team?tab=tasks&task=${task.id}`} style={{
+            display:"flex", alignItems:"center", gap:8, padding:"7px 8px", borderRadius:7,
+            textDecoration:"none", color:"inherit",
+          }}>
+            {task.calendar_task_id && (
+              <span style={{ fontSize:9, fontWeight:800, color:"#155855", background:"#EAF4F2",
+                padding:"1px 5px", borderRadius:4, flexShrink:0 }}>
+                📅
+              </span>
+            )}
+            <span style={{ fontSize:12, fontWeight:700, color:"#1C2B28", flex:1,
+              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+              {task.title}
+            </span>
+            {task.checklistProgress && task.checklistProgress.total>0 && (
+              <span style={{ fontSize:9, fontWeight:800, color:"#5A7470", flexShrink:0 }}>
+                {task.checklistProgress.done}/{task.checklistProgress.total}
+              </span>
+            )}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── olivia greeting (compact) ─────────────────────────── */
 
 function TodayAlertBanner({tasks, totalPending}:{tasks:CalTask[]; totalPending:number}) {
