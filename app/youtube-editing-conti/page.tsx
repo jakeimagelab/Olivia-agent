@@ -598,9 +598,18 @@ function YoutubeEditingContiInner() {
       </div>
 
       <style jsx global>{`
+        /* 기본값(1181px 이상, 아이패드 12.9인치 가로 1366px 포함)은 21/53/26 비율 3열을 유지한다. */
         @media (max-width: 1180px) {
+          /* 아이패드 가로보다 좁은 화면 — 3열은 유지하되 오른쪽 도구 패널 폭만 줄인다. */
+          .yec-layout { grid-template-columns: minmax(200px,0.7fr) minmax(340px,1.3fr) minmax(210px,0.6fr) !important; }
+        }
+        @media (max-width: 900px) {
+          /* 아이패드 세로 이하 — 캔버스를 가장 크게 유지하며 세로로 쌓는다. */
           .yec-layout { grid-template-columns: 1fr !important; }
           .yec-panel { min-height: 420px !important; }
+        }
+        @media (max-width: 640px) {
+          .yec-mobile-hint { display: block !important; }
         }
       `}</style>
     </main>
