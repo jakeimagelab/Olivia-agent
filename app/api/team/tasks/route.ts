@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
         members: membersByProject.get(project.id) ?? [],
       })),
       roomMember: Boolean(row.room_id && joinedRooms.has(row.room_id)),
+      calendarLinked: Boolean(row.calendar_task_id),
     });
   });
   const memberIds = Array.from(new Set(visible.flatMap((row) => [row.assignee_id, row.created_by].filter(Boolean))));
