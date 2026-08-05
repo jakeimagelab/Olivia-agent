@@ -73,16 +73,30 @@ export async function GET(req: NextRequest) {
     });
   });
   const memberIds = Array.from(new Set(visible.flatMap((row) => [row.assignee_id, row.created_by].filter(Boolean))));
-  const { data: members } = memberIds.length
-    ? await db.from("chat_members").select("id,email,display_name,avatar_url").in("id", memberIds)
-    : { data: [] };
+  const taskIds = visible.map((row) => row.id);
+  const [{ data: members }, { data: checklists }] = await Promise.all([
+    memberIds.length
+      ? db.from("chat_members").select("id,email,display_name,avatar_url").in("id", memberIds)
+      : Promise.resolve({ data: [] }),
+    taskIds.length
+      ? db.from("team_task_checklists").select("id,task_id,completed").in("task_id", taskIds)
+      : Promise.resolve({ data: [] }),
+  ]);
   const memberById = new Map((members ?? []).map((member) => [member.id, member]));
+  const checklistsByTask = new Map<string, { total: number; done: number }>();
+  for (const item of checklists ?? []) {
+    const current = checklistsByTask.get(item.task_id) ?? { total: 0, done: 0 };
+    current.total += 1;
+    if (item.completed) current.done += 1;
+    checklistsByTask.set(item.task_id, current);
+  }
   return apiOk({
     tasks: visible.map((task) => ({
       ...task,
       assignee: task.assignee_id ? memberById.get(task.assignee_id) ?? null : null,
       creator: memberById.get(task.created_by) ?? null,
       project: task.project_id ? projectById.get(task.project_id) ?? null : null,
+      checklistProgress: checklistsByTask.get(task.id) ?? null,
     })),
   });
 }
