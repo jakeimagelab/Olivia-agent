@@ -46,14 +46,22 @@ export default function TeamWorkspaceShell({
       <style jsx global>{`
         .workspace-page{min-height:calc(100dvh - 112px);background:var(--mesh-bg);color:${C.ink};font-family:'NanumSquare','Noto Sans KR',sans-serif}
         .workspace-content{width:min(1380px,calc(100% - 40px));margin:0 auto;padding:24px 0 54px}
-        .workspace-chat-panel{height:calc(100dvh - 172px);min-height:560px;overflow:hidden;border:1px solid ${C.border};border-radius:18px;background:#fff;box-shadow:0 12px 34px rgba(21,88,85,.06)}
-        .team-page-heading{margin-bottom:18px}.team-page-heading h2{font-size:22px;color:${C.teal};margin:0 0 6px}.team-page-heading p{font-size:12px;color:${C.muted};margin:0;line-height:1.6}
-        .team-card{background:#fff;border:1px solid ${C.border};border-radius:16px;box-shadow:0 10px 28px rgba(21,88,85,.05)}
-        .team-card-header{padding:17px 18px;border-bottom:1px solid ${C.border};display:flex;align-items:center;justify-content:space-between;gap:12px}.team-card-header h3{font-size:15px;color:${C.teal};margin:0}.team-card-body{padding:18px}
+        .workspace-chat-panel{height:calc(100dvh - 172px);min-height:560px;overflow:hidden;border:1px solid var(--liquid-border);border-radius:14px;background:var(--liquid-panel-strong);backdrop-filter:blur(20px) saturate(1.45);-webkit-backdrop-filter:blur(20px) saturate(1.45);box-shadow:var(--liquid-shadow)}
+        .team-page-heading{margin-bottom:18px}.team-page-heading h2{font-size:24px;color:var(--deep-green);margin:0 0 6px}.team-page-heading p{font-size:12px;color:${C.muted};margin:0;line-height:1.6}
+        /* 다른 페이지의 .pc-card와 동일한 반투명 유리 카드 톤으로 맞춘다 */
+        .team-card{background:var(--liquid-panel-strong);border:1px solid var(--liquid-border);border-radius:14px;backdrop-filter:blur(20px) saturate(1.45);-webkit-backdrop-filter:blur(20px) saturate(1.45);box-shadow:var(--liquid-shadow);overflow:hidden}
+        .team-card-header{padding:16px 20px;border-bottom:1px solid rgba(21,88,85,.08);background:rgba(255,255,255,.34);display:flex;align-items:center;justify-content:space-between;gap:12px}.team-card-header h3{font-size:14px;font-weight:900;color:var(--deep-green);margin:0}.team-card-body{padding:18px}
         .team-empty{padding:30px 18px;border-radius:12px;background:${C.mint};color:${C.muted};font-size:12px;text-align:center}
         .team-error{padding:11px 13px;border-radius:10px;background:#fef2f2;color:${C.danger};font-size:12px;font-weight:700}
-        .team-button{border:0;border-radius:9px;min-height:36px;padding:0 13px;background:${C.teal};color:white;font-size:12px;font-weight:900;cursor:pointer}.team-button:disabled{opacity:.48;cursor:not-allowed}.team-button.secondary{background:white;color:${C.teal};border:1px solid ${C.border}}.team-button.orange{background:${C.orange}}
-        .team-field{display:flex;flex-direction:column;gap:5px}.team-field label{font-size:11px;font-weight:800;color:${C.muted}}.team-input,.team-select,.team-textarea{width:100%;border:1px solid ${C.border};border-radius:9px;padding:9px 11px;font:inherit;font-size:12px;color:${C.ink};background:white;outline:none}.team-textarea{resize:vertical;min-height:88px}.team-input:focus,.team-select:focus,.team-textarea:focus{border-color:${C.sage};box-shadow:0 0 0 3px rgba(86,144,130,.12)}
+        /* .pc-btn--sm과 동일한 사이즈·톤으로 맞춘다 */
+        .team-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;height:34px;padding:0 13px;border-radius:8px;background:var(--deep-green);color:#fff;font-size:12px;font-weight:800;font-family:inherit;cursor:pointer;transition:all 150ms ease;white-space:nowrap;box-shadow:0 4px 14px rgba(21,88,85,.2)}
+        .team-button:hover{filter:brightness(.9)}
+        .team-button:disabled{opacity:.48;cursor:not-allowed;filter:none}
+        .team-button.secondary{background:rgba(255,255,255,.72);color:var(--deep-green);border:1px solid rgba(255,255,255,.78);box-shadow:0 2px 8px rgba(21,88,85,.07),0 1px 0 rgba(255,255,255,.7) inset}
+        .team-button.secondary:hover{border-color:rgba(21,88,85,.24);background:rgba(255,255,255,.88)}
+        .team-button.orange{background:var(--orange);box-shadow:none}
+        .team-button.orange:hover{filter:brightness(.9)}
+        .team-field{display:flex;flex-direction:column;gap:5px}.team-field label{font-size:11px;font-weight:800;color:${C.muted}}.team-input,.team-select,.team-textarea{width:100%;border:1px solid rgba(21,88,85,.15);border-radius:9px;padding:9px 11px;font:inherit;font-size:12px;color:${C.ink};background:rgba(255,255,255,.72);outline:none}.team-textarea{resize:vertical;min-height:88px}.team-input:focus,.team-select:focus,.team-textarea:focus{border-color:${C.sage};box-shadow:0 0 0 3px rgba(86,144,130,.12);background:#fff}
         .team-grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.team-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
         @media(max-width:800px){.workspace-content{width:min(100% - 24px,1380px);padding-top:16px}.workspace-chat-panel{height:calc(100dvh - 158px);min-height:480px;border-radius:14px}.team-grid-2,.team-grid-3{grid-template-columns:1fr}}
       `}</style>
