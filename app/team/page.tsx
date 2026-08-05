@@ -8,7 +8,7 @@ export default async function TeamPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = await searchParams;
-  const tab = query.tab === "tasks" ? "tasks" : "chat";
+  const tab = query.tab === "chat" ? "chat" : "tasks";
   const taskId = typeof query.task === "string" ? query.task : null;
 
   return <WorkspacePage initialTab={tab} initialTaskId={taskId} />;
