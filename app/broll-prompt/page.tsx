@@ -6,8 +6,8 @@ import PageHeader from "@/components/PageHeader";
 import { C, R } from "@/lib/theme";
 
 const FIXED_STYLE_SUFFIX =
-  "flat illustration, sky blue and charcoal color palette, minimal medical diagram style, no text, no watermark, " +
-  "anatomically simplified, educational tone, non-graphic, no real identifiable people";
+  "photorealistic, natural clinical lighting, high detail, realistic medical photography style, " +
+  "no text, no watermark, non-graphic, no real identifiable people";
 
 type GeneratedPrompt = { id: string; snippet: string; prompt: string; createdAt: number };
 type QueuedSnippet = { id: string; snippet: string };
