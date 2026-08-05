@@ -104,5 +104,6 @@ export async function GET() {
     todayIdea:   idea,
     recentMemos: memos,
     todayTasks,
+    workspaceTodayTasks,
   });
 }
