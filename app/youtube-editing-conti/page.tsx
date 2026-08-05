@@ -529,6 +529,9 @@ function YoutubeEditingContiInner() {
                 </div>
               ) : null}
 
+              <div className="yec-mobile-hint" style={{ display: "none", marginTop: 12, padding: 10, borderRadius: R.sm, background: "#FFF7ED", color: C.orange, fontSize: 11.5, fontWeight: 700 }}>
+                손글씨 편집은 태블릿 또는 데스크톱에서 이용해주세요. 이 화면에서는 읽기와 간단한 선택만 지원합니다.
+              </div>
               <div style={{ marginTop: 12, flex: 1, minHeight: 320, display: "flex", flexDirection: "column" }}>
                 <DrawingToolbar
                   tool={tool} onToolChange={setTool}
