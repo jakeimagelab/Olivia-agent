@@ -1,0 +1,618 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { MoreVertical, Sparkles } from "lucide-react";
+import { C, R } from "@/lib/theme";
+import CanvasObject from "@/components/youtube-editing/CanvasObject";
+import CurrentSegmentHeader from "@/components/youtube-editing/CurrentSegmentHeader";
+import DrawingToolbar from "@/components/youtube-editing/DrawingToolbar";
+import EditToolsPanel from "@/components/youtube-editing/EditToolsPanel";
+import QuickOptionCards from "@/components/youtube-editing/QuickOptionCards";
+import SaveStatus from "@/components/youtube-editing/SaveStatus";
+import ScriptPanel from "@/components/youtube-editing/ScriptPanel";
+import SegmentTimeline from "@/components/youtube-editing/SegmentTimeline";
+import StoryboardCanvas from "@/components/youtube-editing/StoryboardCanvas";
+import { splitScriptIntoSentences, VISUAL_STYLE_TO_PROMPT_PRESET } from "@/lib/youtube-editing/constants";
+import { exportProjectJson, printProjectSummary } from "@/lib/youtube-editing/export";
+import type {
+  CanvasObject as CanvasObjectData, CanvasObjectType, DrawTool, SaveState,
+  Segment, SegmentAnnotation, Stroke, YoutubeEditingProject,
+} from "@/lib/youtube-editing/types";
+
+function useDebouncedSaver() {
+  const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  return useCallback((key: string, fn: () => void, delay = 800) => {
+    const existing = timers.current.get(key);
+    if (existing) clearTimeout(existing);
+    timers.current.set(key, setTimeout(fn, delay));
+  }, []);
+}
+
+export default function YoutubeEditingContiPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectIdParam = searchParams.get("project");
+
+  const [project, setProject] = useState<YoutubeEditingProject | null>(null);
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [annotationsBySegment, setAnnotationsBySegment] = useState<Record<string, SegmentAnnotation>>({});
+  const [canvasObjectsBySegment, setCanvasObjectsBySegment] = useState<Record<string, CanvasObjectData[]>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [bootstrapError, setBootstrapError] = useState("");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [generatingPrompt, setGeneratingPrompt] = useState(false);
+  const [promptResult, setPromptResult] = useState("");
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const [tool, setTool] = useState<DrawTool>("pen");
+  const [color, setColor] = useState("#111111");
+  const [strokeWidth, setStrokeWidth] = useState(3);
+  const [undoStack, setUndoStack] = useState<Stroke[][]>([]);
+  const [redoStack, setRedoStack] = useState<Stroke[][]>([]);
+
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const scheduleSave = useDebouncedSaver();
+
+  // 새 프로젝트 시작 화면(대본이 아직 없을 때)에서 쓰는 입력
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftScript, setDraftScript] = useState("");
+  const [starting, setStarting] = useState(false);
+
+  const loadBundle = useCallback(async (projectId: string) => {
+    setLoading(true);
+    setBootstrapError("");
+    try {
+      const response = await fetch(`/api/youtube-editing/projects/${projectId}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      setProject(data.project);
+      setSegments(data.segments);
+      setAnnotationsBySegment(data.annotationsBySegment ?? {});
+      setCanvasObjectsBySegment(data.canvasObjectsBySegment ?? {});
+      setSelectedId((current) => current && data.segments.some((s: Segment) => s.id === current) ? current : (data.segments[0]?.id ?? null));
+    } catch (error) {
+      setBootstrapError(error instanceof Error ? error.message : "프로젝트를 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (projectIdParam) {
+      void loadBundle(projectIdParam);
+      return;
+    }
+    setLoading(true);
+    fetch("/api/youtube-editing/projects?latest=true", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok && data.project) {
+          router.replace(`/youtube-editing-conti?project=${data.project.id}`);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(() => setLoading(false));
+  }, [projectIdParam, loadBundle, router]);
+
+  useEffect(() => { setUndoStack([]); setRedoStack([]); setSelectedObjectId(null); }, [selectedId]);
+
+  const selectedSegment = useMemo(() => segments.find((s) => s.id === selectedId) ?? null, [segments, selectedId]);
+  const selectedIndex = useMemo(() => segments.findIndex((s) => s.id === selectedId), [segments, selectedId]);
+  const currentStrokes = selectedId ? (annotationsBySegment[selectedId]?.strokes ?? []) : [];
+  const currentCanvasObjects = selectedId ? (canvasObjectsBySegment[selectedId] ?? []) : [];
+  const selectedObject = currentCanvasObjects.find((o) => o.id === selectedObjectId) ?? null;
+
+  const startProject = async () => {
+    if (!draftScript.trim() || starting) return;
+    setStarting(true);
+    try {
+      const response = await fetch("/api/youtube-editing/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: draftTitle || "제목 없음", fullScript: draftScript, videoRatio: "16:9" }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      router.replace(`/youtube-editing-conti?project=${data.project.id}`);
+      setProject(data.project);
+      setSegments(data.segments);
+      setSelectedId(data.segments[0]?.id ?? null);
+      setLoading(false);
+    } catch (error) {
+      setBootstrapError(error instanceof Error ? error.message : "프로젝트 생성에 실패했습니다.");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // ── 문장 편집 ──────────────────────────────────────────
+  const updateSegment = (id: string, patch: Partial<Segment>) => {
+    setSegments((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    setSaveState("saving");
+    scheduleSave(`segment:${id}`, async () => {
+      try {
+        const response = await fetch(`/api/youtube-editing/segments/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...patch, userModified: true }),
+        });
+        const data = await response.json();
+        if (!data.ok) throw new Error(data.error);
+        setSaveState("saved");
+      } catch {
+        setSaveState("error");
+      }
+    });
+  };
+
+  const addSegment = async (afterId?: string) => {
+    if (!project) return;
+    const response = await fetch(`/api/youtube-editing/projects/${project.id}/segments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scriptText: "", afterSegmentId: afterId }),
+    });
+    const data = await response.json();
+    if (!data.ok) return;
+    await loadBundle(project.id);
+    setSelectedId(data.segment.id);
+  };
+
+  const deleteSegment = async (id: string) => {
+    if (!project || segments.length <= 1) return;
+    const index = segments.findIndex((s) => s.id === id);
+    await fetch(`/api/youtube-editing/segments/${id}`, { method: "DELETE" });
+    const next = segments.filter((s) => s.id !== id);
+    setSegments(next);
+    if (selectedId === id) setSelectedId(next[Math.max(0, index - 1)]?.id ?? next[0]?.id ?? null);
+  };
+
+  const reorderSegments = async (nextOrder: Segment[]) => {
+    if (!project) return;
+    setSegments(nextOrder);
+    await fetch(`/api/youtube-editing/projects/${project.id}/segments`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: nextOrder.map((s) => s.id) }),
+    });
+  };
+
+  const moveSegment = (id: string, direction: "up" | "down") => {
+    const index = segments.findIndex((s) => s.id === id);
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (index < 0 || target < 0 || target >= segments.length) return;
+    const next = [...segments];
+    [next[index], next[target]] = [next[target], next[index]];
+    void reorderSegments(next);
+  };
+
+  const duplicateSegment = async (id: string) => {
+    if (!project) return;
+    const original = segments.find((s) => s.id === id);
+    if (!original) return;
+    const response = await fetch(`/api/youtube-editing/projects/${project.id}/segments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scriptText: original.scriptText, afterSegmentId: id }),
+    });
+    const data = await response.json();
+    if (!data.ok) return;
+    await fetch(`/api/youtube-editing/segments/${data.segment.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        camera: original.camera, caption: original.caption, visual: original.visual,
+        soundEffect: original.soundEffect, transition: original.transition, template: original.template,
+        estimatedDurationSec: original.estimatedDurationSec,
+      }),
+    });
+    await loadBundle(project.id);
+    setSelectedId(data.segment.id);
+  };
+
+  const splitSegment = async (id: string) => {
+    if (!project) return;
+    const segment = segments.find((s) => s.id === id);
+    if (!segment) return;
+    const parts = splitScriptIntoSentences(segment.scriptText);
+    if (parts.length < 2) return;
+    const [first, ...rest] = parts;
+    updateSegment(id, { scriptText: first });
+    const response = await fetch(`/api/youtube-editing/projects/${project.id}/segments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scriptText: rest.join(" "), afterSegmentId: id }),
+    });
+    const data = await response.json();
+    if (data.ok) await loadBundle(project.id);
+  };
+
+  const mergeNext = async (id: string) => {
+    const index = segments.findIndex((s) => s.id === id);
+    const next = segments[index + 1];
+    if (!next) return;
+    const current = segments[index];
+    updateSegment(id, { scriptText: `${current.scriptText} ${next.scriptText}`.trim() });
+    await fetch(`/api/youtube-editing/segments/${next.id}`, { method: "DELETE" });
+    setSegments((prev) => prev.filter((s) => s.id !== next.id));
+  };
+
+  // ── 손글씨 캔버스 ──────────────────────────────────────
+  const saveAnnotation = (segmentId: string, strokes: Stroke[]) => {
+    if (!project) return;
+    setSaveState("saving");
+    scheduleSave(`annotation:${segmentId}`, async () => {
+      try {
+        const canvas = canvasContainerRef.current;
+        const response = await fetch(`/api/youtube-editing/segments/${segmentId}/annotation`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: project.id, strokes,
+            canvasWidth: canvas?.clientWidth ?? null, canvasHeight: canvas?.clientHeight ?? null,
+          }),
+        });
+        const data = await response.json();
+        if (!data.ok) throw new Error(data.error);
+        setSaveState("saved");
+      } catch {
+        setSaveState("error");
+      }
+    });
+  };
+
+  const applyStrokes = (next: Stroke[], pushUndo: boolean) => {
+    if (!selectedId) return;
+    if (pushUndo) {
+      setUndoStack((prev) => [...prev, currentStrokes]);
+      setRedoStack([]);
+    }
+    setAnnotationsBySegment((prev) => ({
+      ...prev,
+      [selectedId]: {
+        segmentId: selectedId, strokes: next,
+        canvasWidth: prev[selectedId]?.canvasWidth ?? null, canvasHeight: prev[selectedId]?.canvasHeight ?? null,
+      },
+    }));
+    saveAnnotation(selectedId, next);
+  };
+
+  const handleStrokeCommit = (stroke: Stroke) => applyStrokes([...currentStrokes, stroke], true);
+  const handleEraseStrokes = (ids: string[]) => applyStrokes(currentStrokes.filter((s) => !ids.includes(s.id)), true);
+  const handleUndo = () => {
+    if (!undoStack.length) return;
+    const previous = undoStack[undoStack.length - 1];
+    setUndoStack((s) => s.slice(0, -1));
+    setRedoStack((s) => [...s, currentStrokes]);
+    applyStrokes(previous, false);
+  };
+  const handleRedo = () => {
+    if (!redoStack.length) return;
+    const next = redoStack[redoStack.length - 1];
+    setRedoStack((s) => s.slice(0, -1));
+    setUndoStack((s) => [...s, currentStrokes]);
+    applyStrokes(next, false);
+  };
+  const handleClearAll = () => applyStrokes([], true);
+
+  // ── 캔버스 오브젝트 ────────────────────────────────────
+  const addCanvasObject = async (type: CanvasObjectType, label: string) => {
+    if (!project || !selectedId) return;
+    const offset = currentCanvasObjects.length * 0.03;
+    const response = await fetch(`/api/youtube-editing/segments/${selectedId}/canvas-objects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId: project.id, type, label, x: 0.08 + offset, y: 0.08 + offset }),
+    });
+    const data = await response.json();
+    if (!data.ok) return;
+    setCanvasObjectsBySegment((prev) => ({ ...prev, [selectedId]: [...(prev[selectedId] ?? []), data.canvasObject] }));
+    setSelectedObjectId(data.canvasObject.id);
+  };
+
+  const updateCanvasObject = (id: string, patch: Partial<CanvasObjectData>) => {
+    if (!selectedId) return;
+    setCanvasObjectsBySegment((prev) => ({
+      ...prev,
+      [selectedId]: (prev[selectedId] ?? []).map((o) => (o.id === id ? { ...o, ...patch } : o)),
+    }));
+    scheduleSave(`canvas-object:${id}`, () => {
+      void fetch(`/api/youtube-editing/canvas-objects/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    });
+  };
+
+  const deleteCanvasObject = (id: string) => {
+    if (!selectedId) return;
+    setCanvasObjectsBySegment((prev) => ({ ...prev, [selectedId]: (prev[selectedId] ?? []).filter((o) => o.id !== id) }));
+    if (selectedObjectId === id) setSelectedObjectId(null);
+    void fetch(`/api/youtube-editing/canvas-objects/${id}`, { method: "DELETE" });
+  };
+
+  // ── 이미지 프롬프트 생성 (기존 B-roll API 연결) ─────────
+  const generatePrompt = async () => {
+    if (!selectedSegment || !project || generatingPrompt) return;
+    const targetSnippet = selectedSegment.visual.description.trim();
+    if (!targetSnippet) return;
+    setGeneratingPrompt(true);
+    setPromptResult("");
+    try {
+      const response = await fetch("/api/broll-prompt-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullScript: project.fullScript,
+          targetSnippet,
+          style: VISUAL_STYLE_TO_PROMPT_PRESET[selectedSegment.visual.style],
+        }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      setPromptResult(data.prompt);
+      await navigator.clipboard.writeText(data.prompt).catch(() => {});
+    } catch (error) {
+      setPromptResult(error instanceof Error ? `오류: ${error.message}` : "프롬프트 생성에 실패했습니다.");
+    } finally {
+      setGeneratingPrompt(false);
+    }
+  };
+
+  // ── AI 전체 분석 ───────────────────────────────────────
+  const runAiAnalysis = async () => {
+    if (!project || analyzing) return;
+    setAnalyzing(true);
+    try {
+      const response = await fetch("/api/youtube-editing-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: project.title, hospitalName: project.hospitalName ?? undefined,
+          fullScript: project.fullScript, videoRatio: project.videoRatio, preferredTone: project.preferredTone ?? undefined,
+        }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      // 사용자가 이미 손댄(userModified) 문장은 절대 덮어쓰지 않는다 — 아직 손대지 않은 빈 문장에만
+      // AI 추천을 초안으로 채워 넣는다. 손댄 문장은 추천 이유만 참고용으로 저장한다.
+      await Promise.all(data.segments.map(async (suggestion: any, index: number) => {
+        const target = segments[index];
+        if (!target) return;
+        const patch: Partial<Segment> = { aiReason: suggestion.aiReason ?? null, confidence: suggestion.confidence ?? null };
+        if (!target.userModified) {
+          Object.assign(patch, {
+            camera: suggestion.camera, caption: suggestion.caption, visual: suggestion.visual,
+            soundEffect: suggestion.soundEffect, transition: suggestion.transition, template: suggestion.template,
+            editingNote: suggestion.editingNote, estimatedDurationSec: suggestion.estimatedDurationSec,
+          });
+        }
+        setSegments((prev) => prev.map((s) => (s.id === target.id ? { ...s, ...patch } : s)));
+        await fetch(`/api/youtube-editing/segments/${target.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+      }));
+    } catch (error) {
+      setBootstrapError(error instanceof Error ? error.message : "AI 분석에 실패했습니다.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  if (loading) {
+    return <main className="pc-page" style={{ display: "grid", placeItems: "center", minHeight: "60vh", color: C.muted }}>불러오는 중...</main>;
+  }
+
+  if (!project) {
+    return (
+      <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+        <div className="pc-content" style={{ maxWidth: 640 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>유튜브 편집 콘티 분석기</h1>
+          <p style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>대본을 장면별로 나누고 손글씨로 카메라, 자막, 자료화면과 편집 효과를 설계합니다.</p>
+          <div className="pc-card pc-card--padded" style={{ display: "grid", gap: 12 }}>
+            <input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              placeholder="프로젝트 제목 (예: 비염 원인 영상)"
+              style={{ height: 40, borderRadius: R.sm, border: `1px solid ${C.border}`, padding: "0 12px", fontSize: 13 }}
+            />
+            <textarea
+              value={draftScript}
+              onChange={(e) => setDraftScript(e.target.value)}
+              placeholder="유튜브 대본 전체를 붙여넣으세요. 문장 단위로 자동 분리됩니다."
+              rows={10}
+              style={{ borderRadius: R.sm, border: `1px solid ${C.border}`, padding: 12, fontSize: 13, lineHeight: 1.7, resize: "vertical", fontFamily: "inherit" }}
+            />
+            {bootstrapError ? <p style={{ color: C.danger, fontSize: 12 }}>{bootstrapError}</p> : null}
+            <button
+              type="button"
+              onClick={startProject}
+              disabled={!draftScript.trim() || starting}
+              style={{
+                height: 44, borderRadius: R.md, border: 0, background: C.orange, color: "#fff", fontSize: 13, fontWeight: 800,
+                cursor: !draftScript.trim() || starting ? "not-allowed" : "pointer", opacity: !draftScript.trim() || starting ? 0.55 : 1,
+              }}
+            >
+              {starting ? "시작하는 중..." : "콘티 시작하기"}
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+      {/* 헤더 */}
+      <header style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px",
+        background: "#fff", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 20,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 900, color: C.teal, flexShrink: 0 }}>유튜브 편집 콘티 분석기</span>
+          <SaveStatus state={saveState} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, position: "relative" }}>
+          <HeaderButton onClick={runAiAnalysis} disabled={analyzing} primary>
+            <Sparkles size={13} />{analyzing ? "분석 중..." : "AI 전체 분석"}
+          </HeaderButton>
+          <HeaderButton onClick={() => exportProjectJson(project, segments)}>JSON 내보내기</HeaderButton>
+          <HeaderButton onClick={() => printProjectSummary(project, segments)}>PDF 내보내기</HeaderButton>
+          <button type="button" onClick={() => setMoreOpen((v) => !v)} aria-label="더보기"
+            style={{ width: 32, height: 32, borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, cursor: "pointer" }}>
+            <MoreVertical size={15} />
+          </button>
+          {moreOpen ? (
+            <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", border: `1px solid ${C.border}`, borderRadius: R.md, boxShadow: "0 8px 24px rgba(21,88,85,.12)", zIndex: 30, minWidth: 160 }}>
+              <button type="button" onClick={() => { setMoreOpen(false); router.push("/youtube-editing-conti"); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", border: 0, background: "transparent", fontSize: 12, color: C.ink, cursor: "pointer" }}>
+                + 새 프로젝트 시작
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </header>
+
+      {/* 3열 본문 */}
+      <div className="yec-layout" style={{ display: "grid", gridTemplateColumns: "minmax(240px,0.8fr) minmax(390px,1.2fr) minmax(300px,1fr)", gap: 16, padding: 16, alignItems: "stretch" }}>
+        <div className="pc-card pc-card--padded yec-panel" style={{ minHeight: 0 }}>
+          <ScriptPanel
+            segments={segments}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onAddSegment={addSegment}
+            onDeleteSegment={deleteSegment}
+            onMoveSegment={moveSegment}
+            onDuplicateSegment={duplicateSegment}
+            onSplitSegment={splitSegment}
+            onMergeNext={mergeNext}
+            hasAnnotation={(id) => (annotationsBySegment[id]?.strokes.length ?? 0) > 0}
+          />
+        </div>
+
+        <div className="pc-card pc-card--padded yec-panel" style={{ minHeight: 0, display: "flex", flexDirection: "column" }}>
+          {selectedSegment ? (
+            <>
+              <CurrentSegmentHeader
+                segment={selectedSegment}
+                index={selectedIndex}
+                total={segments.length}
+                onTextChange={(text) => updateSegment(selectedSegment.id, { scriptText: text })}
+                onSplit={() => splitSegment(selectedSegment.id)}
+                onDelete={() => deleteSegment(selectedSegment.id)}
+              />
+              <QuickOptionCards
+                segment={selectedSegment}
+                onUpdate={(patch) => updateSegment(selectedSegment.id, patch)}
+                onGeneratePrompt={generatePrompt}
+                generatingPrompt={generatingPrompt}
+              />
+              {promptResult ? (
+                <div style={{ marginTop: 10, padding: 10, borderRadius: R.sm, background: C.ink, color: "#EAF4F2", fontFamily: "monospace", fontSize: 11, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                  {promptResult}
+                </div>
+              ) : null}
+
+              <div style={{ marginTop: 12, flex: 1, minHeight: 320, display: "flex", flexDirection: "column" }}>
+                <DrawingToolbar
+                  tool={tool} onToolChange={setTool}
+                  color={color} onColorChange={setColor}
+                  width={strokeWidth} onWidthChange={setStrokeWidth}
+                  canUndo={undoStack.length > 0} canRedo={redoStack.length > 0}
+                  onUndo={handleUndo} onRedo={handleRedo} onClear={handleClearAll}
+                />
+                <div
+                  ref={canvasContainerRef}
+                  style={{
+                    flex: 1, minHeight: 280, borderRadius: R.md, border: `1px solid ${C.border}`,
+                    background: "repeating-linear-gradient(0deg, #fff, #fff 23px, #F3F1EC 24px), repeating-linear-gradient(90deg, #fff, #fff 23px, #F3F1EC 24px)",
+                    position: "relative", overflow: "hidden",
+                  }}
+                >
+                  <StoryboardCanvas
+                    key={selectedSegment.id}
+                    strokes={currentStrokes}
+                    tool={tool} color={color} width={strokeWidth}
+                    onStrokeCommit={handleStrokeCommit}
+                    onEraseStrokes={handleEraseStrokes}
+                  >
+                    {currentCanvasObjects.map((object) => (
+                      <CanvasObject
+                        key={object.id}
+                        object={object}
+                        containerRef={canvasContainerRef}
+                        selected={object.id === selectedObjectId}
+                        onSelect={setSelectedObjectId}
+                        onMove={(id, x, y) => updateCanvasObject(id, { x, y })}
+                        onDelete={deleteCanvasObject}
+                      />
+                    ))}
+                  </StoryboardCanvas>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p style={{ fontSize: 12, color: C.hint }}>왼쪽에서 문장을 선택하세요.</p>
+          )}
+        </div>
+
+        <div className="pc-card pc-card--padded yec-panel" style={{ minHeight: 0 }}>
+          {selectedSegment ? (
+            <EditToolsPanel
+              segment={selectedSegment}
+              onUpdate={(patch) => updateSegment(selectedSegment.id, patch)}
+              onAddCanvasObject={addCanvasObject}
+              selectedObject={selectedObject}
+              onUpdateObject={updateCanvasObject}
+              onDeleteObject={deleteCanvasObject}
+              onGeneratePrompt={generatePrompt}
+              generatingPrompt={generatingPrompt}
+            />
+          ) : (
+            <p style={{ fontSize: 12, color: C.hint }}>문장을 선택하면 편집 도구가 활성화됩니다.</p>
+          )}
+        </div>
+      </div>
+
+      {/* 하단 타임라인 */}
+      <div style={{ padding: "0 16px 16px" }}>
+        <div className="pc-card pc-card--padded">
+          <SegmentTimeline segments={segments} selectedId={selectedId} onSelect={setSelectedId} />
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @media (max-width: 1180px) {
+          .yec-layout { grid-template-columns: 1fr !important; }
+          .yec-panel { min-height: 420px !important; }
+        }
+      `}</style>
+    </main>
+  );
+}
+
+function HeaderButton({ children, onClick, disabled, primary }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; primary?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5, height: 32, padding: "0 12px", borderRadius: R.sm,
+        border: `1px solid ${primary ? "#2563EB" : C.border}`, background: primary ? "#EEF3FF" : "#fff",
+        color: primary ? "#2563EB" : C.ink, fontSize: 11.5, fontWeight: 800,
+        cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1, whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
