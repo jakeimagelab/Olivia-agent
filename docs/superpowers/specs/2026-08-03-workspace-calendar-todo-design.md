@@ -26,7 +26,7 @@
 
 ### 동기화 규칙
 
-`calendar_tasks`에서 `category in ('shooting','client')`이고 아직 연동된 `team_tasks` 행이 없는 것을 찾아 1:1로 `team_tasks`를 생성한다(`title`, 참고용 `description`에 날짜/장소/메모 요약, `calendar_task_id` 연결, `status='todo'`, `assignee_id=null`). 캘린더 쪽 제목이 바뀌면 다음 동기화 때 연동된 할일 제목도 갱신한다(다른 필드는 관리자가 손댄 값이므로 덮어쓰지 않음). 캘린더 항목이 삭제(휴지통 이동)되면 연동된 할일은 남기되 더 이상 갱신하지 않는다(휴지통 이동은 `calendar_tasks`를 지우지 않고 별도 처리이므로 FK는 유지된다).
+`calendar_tasks`에서 `category in ('shooting','client')`이고 아직 연동된 `team_tasks` 행이 없는 것을 찾아 1:1로 `team_tasks`를 생성한다(`title`, 참고용 `description`에 날짜/장소/메모 요약, `calendar_task_id` 연결, `status='todo'`, `assignee_id=null`). 캘린더 쪽 제목이 바뀌면 다음 동기화 때 연동된 할일 제목도 갱신한다(다른 필드는 관리자가 손댄 값이므로 덮어쓰지 않음). 캘린더 항목이 휴지통으로 이동되면 `calendar_tasks` 원본 행이 실제로 삭제되므로(`lib/trash.ts`의 `moveRecordToTrash`), FK가 `on delete set null`로 걸려 있어 연동된 워크스페이스 할일은 그대로 남고 `calendar_task_id`만 비워진다(할일 자체나 이미 작성된 세부 업무는 삭제되지 않는다).
 
 동기화는 워크스페이스 할일 목록을 불러올 때(`GET /api/team/tasks`) 서버에서 먼저 한 번 실행한다. 별도 크론은 두지 않는다.
 
