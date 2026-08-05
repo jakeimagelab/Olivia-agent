@@ -41,6 +41,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     access.row.created_by,
     access.row.approved_by,
     ...(events ?? []).map((event) => event.actor_id),
+    ...(checklists ?? []).map((item) => item.assignee_id),
   ].filter(Boolean)));
   const [{ data: members }, project] = await Promise.all([
     memberIds.length
@@ -56,7 +57,10 @@ export async function GET(req: NextRequest, { params }: Params) {
       creator: memberById.get(access.row.created_by) ?? null,
       approver: access.row.approved_by ? memberById.get(access.row.approved_by) ?? null : null,
       project: project?.row ?? null,
-      checklists: checklists ?? [],
+      checklists: (checklists ?? []).map((item) => ({
+        ...item,
+        assignee: item.assignee_id ? memberById.get(item.assignee_id) ?? null : null,
+      })),
       attachments: attachments ?? [],
       events: (events ?? []).map((event) => ({ ...event, actor: event.actor_id ? memberById.get(event.actor_id) ?? null : null })),
       sourceMessage,
