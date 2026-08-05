@@ -62,3 +62,14 @@ export function canApproveTask(actor: TeamActor, task: TaskPermissionRecord): bo
 export function canRequestRevision(actor: TeamActor, task: TaskPermissionRecord): boolean {
   return canApproveTask(actor, task);
 }
+
+// 체크리스트 항목의 완료 체크는 그 항목 담당자 본인도 할 수 있다 — 캘린더 연동 프로젝트처럼
+// 태스크 자체엔 담당자가 없고 항목별로만 담당자가 있는 경우, canEditTask만으로는 정작 그 업무를
+// 맡은 직원이 체크할 수 없기 때문이다. 내용/담당자 변경은 여전히 canEditTask로만 허용한다.
+export function canToggleChecklistItem(
+  actor: TeamActor,
+  task: TaskPermissionRecord,
+  checklistItemAssigneeId: string | null,
+): boolean {
+  return canEditTask(actor, task) || (checklistItemAssigneeId !== null && checklistItemAssigneeId === actor.id);
+}
