@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { syncCalendarProjects } from "@/lib/teamWorkspace/calendarSync";
 import { canViewProject, canViewTask } from "@/lib/teamWorkspace/permissions";
 import { recalculateProjectProgress } from "@/lib/teamWorkspace/projectProgress";
 import {
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
   if (!context) return apiError("로그인이 필요합니다.", 401);
   const params = new URL(req.url).searchParams;
   const db = getSupabaseAdmin();
+  await syncCalendarProjects(db, context.actor.id).catch((error) => console.error("[team/tasks] 캘린더 동기화 실패", error));
   let query = db.from("team_tasks").select("*").order("due_date", { ascending: true, nullsFirst: false });
   if (params.get("includeCanceled") !== "true") query = query.neq("status", "canceled");
   const status = params.get("status");
