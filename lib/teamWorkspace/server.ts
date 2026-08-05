@@ -110,6 +110,7 @@ export async function loadTaskPermission(taskId: string, actorId: string): Promi
       project: projectAccess?.permission ?? null,
       projectMember: Boolean(projectAccess?.permission.members?.some((member) => member.member_id === actorId)),
       roomMember: roomMembership,
+      calendarLinked: Boolean(row.calendar_task_id),
     },
   };
 }
