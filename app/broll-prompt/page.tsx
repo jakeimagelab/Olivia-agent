@@ -101,13 +101,13 @@ export default function BrollPromptPage() {
   return (
     <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       <PageHeader title="B롤 이미지 프롬프트 생성기" />
-      <div className="pc-content">
+      <div className="pc-content pc-content--wide">
         <p style={{ fontSize: 13, color: C.muted, marginBottom: 18 }}>
           유튜브 대본에서 이미지화할 구간을 골라, 이미지 생성 AI에 바로 붙여넣을 영문 프롬프트를 만듭니다. 이미지 생성 자체는 하지 않습니다.
         </p>
 
-        <div style={{ display: "flex", gap: 24, alignItems: "stretch" }}>
-          <div style={{ flex: "0 0 540px", minWidth: 0 }}>
+        <div style={{ display: "flex", gap: 24, alignItems: "stretch", flexWrap: "wrap" }}>
+          <div style={{ flex: "0.54 1 340px", minWidth: 0 }}>
             <Panel number={1} title="전체 대본">
               <textarea
                 ref={scriptRef}
