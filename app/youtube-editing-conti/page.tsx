@@ -572,6 +572,10 @@ function YoutubeEditingContiInner() {
           </HeaderButton>
           <HeaderButton onClick={() => exportProjectJson(project, segments)}>JSON 내보내기</HeaderButton>
           <HeaderButton onClick={() => printProjectSummary(project, segments)}>PDF 내보내기</HeaderButton>
+          <button type="button" onClick={toggleZenMode} aria-label="전체화면"
+            style={{ width: 32, height: 32, borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <Maximize2 size={15} />
+          </button>
           <button type="button" onClick={() => setMoreOpen((v) => !v)} aria-label="더보기"
             style={{ width: 32, height: 32, borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, cursor: "pointer" }}>
             <MoreVertical size={15} />
