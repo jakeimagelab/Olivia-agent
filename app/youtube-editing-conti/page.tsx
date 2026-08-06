@@ -542,8 +542,22 @@ function YoutubeEditingContiInner() {
   }
 
   return (
-    <main style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      {/* 헤더 */}
+    <main ref={mainRef} style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+      {/* 헤더 — 전체화면 모드에서는 숨기고 캔버스 위에 떠 있는 종료 버튼만 보여준다 */}
+      {zenMode ? (
+        <button
+          type="button"
+          onClick={toggleZenMode}
+          aria-label="전체화면 종료"
+          style={{
+            position: "fixed", top: 10, right: 10, zIndex: 250, display: "inline-flex", alignItems: "center", gap: 6,
+            height: 34, padding: "0 12px", borderRadius: R.md, border: `1px solid ${C.border}`, background: "rgba(255,255,255,.96)",
+            color: C.ink, fontSize: 11.5, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 20px rgba(0,0,0,.18)",
+          }}
+        >
+          <Minimize2 size={14} />전체화면 종료
+        </button>
+      ) : (
       <header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px",
         background: "#fff", borderBottom: `1px solid ${C.border}`, flexShrink: 0,
