@@ -312,18 +312,29 @@ function YoutubeEditingContiInner() {
   const handleClearAll = () => applyStrokes([], true);
 
   // ── 캔버스 오브젝트 ────────────────────────────────────
-  const addCanvasObject = async (type: CanvasObjectType, label: string) => {
+  const addCanvasObject = async (type: CanvasObjectType, label: string, extra?: { poseKey?: DoctorPoseKey; width?: number; height?: number }) => {
     if (!project || !selectedId) return;
     const offset = currentCanvasObjects.length * 0.03;
     const response = await fetch(`/api/youtube-editing/segments/${selectedId}/canvas-objects`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectId: project.id, type, label, x: 0.08 + offset, y: 0.08 + offset }),
+      body: JSON.stringify({
+        projectId: project.id, type, label, x: 0.08 + offset, y: 0.08 + offset,
+        width: extra?.width, height: extra?.height, poseKey: extra?.poseKey,
+      }),
     });
     const data = await response.json();
     if (!data.ok) return;
     setCanvasObjectsBySegment((prev) => ({ ...prev, [selectedId]: [...(prev[selectedId] ?? []), data.canvasObject] }));
     setSelectedObjectId(data.canvasObject.id);
+  };
+
+  const insertShape = () => addCanvasObject("rect", "도형");
+  const insertText = () => addCanvasObject("text", "텍스트");
+  const insertImage = () => addCanvasObject("image_thumb", "이미지 자료");
+  const selectDoctorPose = (poseKey: DoctorPoseKey) => {
+    void addCanvasObject("doctor_pose", "원장 포즈", { poseKey, width: 0.16, height: 0.28 });
+    setPosePopupOpen(false);
   };
 
   const updateCanvasObject = (id: string, patch: Partial<CanvasObjectData>) => {
