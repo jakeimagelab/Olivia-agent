@@ -542,17 +542,19 @@ function YoutubeEditingContiInner() {
                   onDelete={() => deleteSegment(selectedSegment.id)}
                 />
               </div>
-              <div style={{ flexShrink: 0, position: "relative", zIndex: 15 }}>
+              <div ref={optionsBarRef} style={{ flexShrink: 0 }}>
                 <OptionsSummaryBar
                   segment={selectedSegment}
                   expanded={optionsExpanded}
                   onToggle={() => setOptionsExpanded((v) => !v)}
                 />
-                {optionsExpanded ? (
+                {/* 부모(.pc-card)가 overflow:hidden이라 absolute로 띄우면 잘리므로 body에 포털로 렌더링하고
+                    fixed 좌표로 직접 위치를 잡는다. */}
+                {optionsExpanded && optionsBarRect ? createPortal(
                   <>
-                    <div onClick={() => setOptionsExpanded(false)} style={{ position: "fixed", inset: 0, zIndex: 14 }} />
+                    <div onClick={() => setOptionsExpanded(false)} style={{ position: "fixed", inset: 0, zIndex: 140 }} />
                     <div style={{
-                      position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 16,
+                      position: "fixed", top: optionsBarRect.bottom + 6, left: optionsBarRect.left, width: optionsBarRect.width, zIndex: 141,
                       background: "#fff", border: `1px solid ${C.border}`, borderRadius: R.md,
                       boxShadow: "0 16px 40px rgba(21,88,85,.16)", padding: 12, maxHeight: "60vh", overflowY: "auto",
                     }}>
@@ -563,7 +565,8 @@ function YoutubeEditingContiInner() {
                         generatingPrompt={generatingPrompt}
                       />
                     </div>
-                  </>
+                  </>,
+                  document.body,
                 ) : null}
                 {promptResult ? (
                   <div style={{ marginTop: 8, padding: 10, borderRadius: R.sm, background: C.ink, color: "#EAF4F2", fontFamily: "monospace", fontSize: 11, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
