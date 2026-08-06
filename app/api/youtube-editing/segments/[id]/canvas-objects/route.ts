@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, { params }: Params) {
   const { id: segmentId } = await params;
   const body = await req.json().catch(() => null) as {
-    projectId?: string; type?: string; x?: number; y?: number; width?: number; height?: number; label?: string; color?: string;
+    projectId?: string; type?: string; x?: number; y?: number; width?: number; height?: number; label?: string; color?: string; poseKey?: string;
   } | null;
   if (!body?.projectId || !body?.type) return NextResponse.json({ ok: false, error: "projectId/type이 필요합니다." }, { status: 400 });
 
