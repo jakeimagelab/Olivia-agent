@@ -90,11 +90,6 @@ function YoutubeEditingContiInner() {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const scheduleSave = useDebouncedSaver();
 
-  // 새 프로젝트 시작 화면(대본이 아직 없을 때)에서 쓰는 입력
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftScript, setDraftScript] = useState("");
-  const [starting, setStarting] = useState(false);
-
   const loadBundle = useCallback(async (projectId: string) => {
     setLoading(true);
     setBootstrapError("");
