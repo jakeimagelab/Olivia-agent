@@ -66,6 +66,11 @@ function YoutubeEditingContiInner() {
   const [redoStack, setRedoStack] = useState<Stroke[][]>([]);
   const [posePopupOpen, setPosePopupOpen] = useState(false);
   const [optionsExpanded, setOptionsExpanded] = useState(false);
+  const optionsBarRef = useRef<HTMLDivElement>(null);
+  const [optionsBarRect, setOptionsBarRect] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    if (optionsExpanded && optionsBarRef.current) setOptionsBarRect(optionsBarRef.current.getBoundingClientRect());
+  }, [optionsExpanded]);
   const [zoom, setZoom] = useState(100);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
