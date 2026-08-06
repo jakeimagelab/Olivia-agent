@@ -628,8 +628,9 @@ function YoutubeEditingContiInner() {
           )}
         </div>
 
-        {/* 하단 통합 툴바 — 가운데+도구 패널 아래에 걸쳐 있고, 원장 포즈 팝업이 이 바로 위에 뜬다 */}
-        <div className="pc-card" style={{ gridArea: "toolbar", position: "relative", minHeight: 0 }}>
+        {/* 하단 통합 툴바 — 가운데+도구 패널 아래에 걸쳐 있고, 원장 포즈 팝업이 이 바로 위에 뜬다.
+            .pc-card 기본값이 overflow:hidden이라 카드 위로 튀어나오는 팝업이 잘리므로 visible로 덮어쓴다. */}
+        <div className="pc-card" style={{ gridArea: "toolbar", position: "relative", minHeight: 0, overflow: "visible" }}>
           <DoctorPosePopup
             open={posePopupOpen}
             onClose={() => setPosePopupOpen(false)}
