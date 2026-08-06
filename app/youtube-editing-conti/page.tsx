@@ -809,20 +809,33 @@ function YoutubeEditingContiInner() {
       ) : null}
 
       <style jsx global>{`
-        /* 기본값(1181px 이상, 아이패드 12.9인치 가로 1366px 포함)은 21/53/26 비율을 유지한다. */
+        /* 기본값(1181px 이상, 아이패드 12.9인치 가로 1366px 포함)은 21/53/26 비율의 3열을 유지한다. */
         @media (max-width: 1180px) {
-          /* 아이패드 가로보다 좁은 화면 — 3열은 유지하되 오른쪽 도구 패널 폭만 줄인다. */
-          .yec-layout { grid-template-columns: 24% 50% 26% !important; }
-        }
-        @media (max-width: 900px) {
-          /* 아이패드 세로 이하 — 캔버스를 가장 크게 유지하며 세로로 쌓는다. */
+          /* 아이패드를 포함한 좁은 화면 — 문장 목록/편집 도구는 서랍으로 접어 캔버스(메모 공간)에
+             화면 대부분을 내준다. 뷰포트 전체를 100dvh로 고정해 페이지 스크롤 없이 캔버스가 항상
+             남은 세로 공간을 꽉 채우도록 한다. */
           .yec-layout {
             grid-template-columns: 1fr !important;
-            grid-template-rows: auto auto auto auto !important;
-            grid-template-areas: "script" "center" "tools" "toolbar" !important;
-            overflow-y: auto !important;
+            grid-template-rows: 1fr auto !important;
+            grid-template-areas: "center" "toolbar" !important;
           }
-          .yec-panel { min-height: 320px !important; }
+          .yec-panel--script, .yec-panel--tools {
+            position: fixed !important;
+            top: 0; bottom: 0;
+            width: min(88vw, 360px);
+            z-index: 200;
+            border-radius: 0 !important;
+            box-shadow: 0 0 32px rgba(0,0,0,.28);
+            transition: transform .22s ease;
+          }
+          .yec-panel--script { left: 0; transform: translateX(-100%); }
+          .yec-panel--script.yec-drawer-open { transform: translateX(0); }
+          .yec-panel--tools { right: 0; transform: translateX(100%); }
+          .yec-panel--tools.yec-drawer-open { transform: translateX(0); }
+          .yec-drawer-header { display: flex !important; }
+          .yec-edge-tab { display: flex !important; }
+          .yec-drawer-backdrop { display: block !important; }
+          .yec-footer-row { display: none !important; }
         }
         @media (max-width: 640px) {
           .yec-mobile-hint { display: block !important; }
