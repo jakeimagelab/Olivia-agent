@@ -1,0 +1,317 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import PageHeader from "@/components/PageHeader";
+import MiniCalendar from "@/components/work-journal/MiniCalendar";
+import TaskListColumn from "@/components/work-journal/TaskListColumn";
+import TaskDetailPanel from "@/components/work-journal/TaskDetailPanel";
+import { C } from "@/lib/theme";
+import type { Task, TaskDetail, TaskListItem, TaskPriority, TaskStatus } from "@/lib/work-journal/types";
+
+const STATUS_CYCLE: Record<TaskStatus, TaskStatus> = { todo: "in_progress", in_progress: "done", done: "todo" };
+
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function dateHeaderLabel(date: string): string {
+  const d = new Date(`${date}T00:00:00`);
+  const weekday = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${weekday})`;
+}
+
+export default function WorkJournalPage() {
+  const [selectedDate, setSelectedDate] = useState(todayStr());
+  const [currentMonth, setCurrentMonth] = useState(todayStr().slice(0, 7));
+  const [dayCounts, setDayCounts] = useState<Map<string, { total: number; done: number }>>(new Map());
+  const [tasks, setTasks] = useState<TaskListItem[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [taskDetail, setTaskDetail] = useState<TaskDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [upcoming, setUpcoming] = useState<Task[]>([]);
+  const [assignees, setAssignees] = useState<string[]>([]);
+  const [error, setError] = useState("");
+
+  const loadMonth = useCallback(async (month: string) => {
+    try {
+      const response = await fetch(`/api/work-journal/tasks?month=${month}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      const next = new Map<string, { total: number; done: number }>();
+      for (const day of data.days as { dueDate: string; total: number; done: number }[]) next.set(day.dueDate, { total: day.total, done: day.done });
+      setDayCounts(next);
+    } catch {
+      /* 캘린더 점 표시는 부가 정보라 실패해도 조용히 무시한다 */
+    }
+  }, []);
+
+  const loadTasks = useCallback(async (date: string) => {
+    setTasksLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/work-journal/tasks?date=${date}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      setTasks(data.tasks);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "업무 목록을 불러오지 못했습니다.");
+    } finally {
+      setTasksLoading(false);
+    }
+  }, []);
+
+  const loadUpcoming = useCallback(async () => {
+    try {
+      const response = await fetch("/api/work-journal/upcoming?limit=6", { cache: "no-store" });
+      const data = await response.json();
+      if (data.ok) setUpcoming(data.tasks);
+    } catch {
+      /* 다가오는 일정 위젯도 부가 정보라 조용히 무시한다 */
+    }
+  }, []);
+
+  const loadAssignees = useCallback(async () => {
+    try {
+      const response = await fetch("/api/work-journal/assignees", { cache: "no-store" });
+      const data = await response.json();
+      if (data.ok) setAssignees(data.assignees);
+    } catch {
+      /* 자동완성 후보 로드 실패는 무시 — 직접 입력은 그대로 가능 */
+    }
+  }, []);
+
+  const loadDetail = useCallback(async (id: string) => {
+    setDetailLoading(true);
+    try {
+      const response = await fetch(`/api/work-journal/tasks/${id}`, { cache: "no-store" });
+      const data = await response.json();
+      if (data.ok) setTaskDetail(data.task);
+    } catch {
+      /* 상세 로드 실패 — 패널은 로딩 상태에서 빠져나온다 */
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void loadMonth(currentMonth); }, [currentMonth, loadMonth]);
+  useEffect(() => { void loadTasks(selectedDate); setSelectedTaskId(null); setTaskDetail(null); }, [selectedDate, loadTasks]);
+  useEffect(() => { void loadUpcoming(); void loadAssignees(); }, [loadUpcoming, loadAssignees]);
+  useEffect(() => {
+    if (!selectedTaskId) { setTaskDetail(null); return; }
+    void loadDetail(selectedTaskId);
+  }, [selectedTaskId, loadDetail]);
+
+  const handleSelectDate = (date: string) => {
+    setSelectedDate(date);
+    if (date.slice(0, 7) !== currentMonth) setCurrentMonth(date.slice(0, 7));
+  };
+
+  const handleSelectUpcoming = (task: Task) => {
+    handleSelectDate(task.dueDate);
+    setSelectedTaskId(task.id);
+  };
+
+  const handleAddTask = async (input: { title: string; assigneeName: string; priority: TaskPriority }) => {
+    const response = await fetch("/api/work-journal/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dueDate: selectedDate, title: input.title, assigneeName: input.assigneeName || undefined, priority: input.priority }),
+    });
+    const data = await response.json();
+    if (!data.ok) { setError(data.error ?? "업무 추가에 실패했습니다."); return; }
+    setTasks((prev) => [...prev, data.task]);
+    void loadMonth(currentMonth);
+    void loadUpcoming();
+    if (input.assigneeName && !assignees.includes(input.assigneeName)) setAssignees((prev) => [...prev, input.assigneeName].sort());
+  };
+
+  const handleCycleStatus = async (task: TaskListItem) => {
+    const nextStatus = STATUS_CYCLE[task.status];
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)));
+    if (taskDetail?.id === task.id) setTaskDetail((prev) => (prev ? { ...prev, status: nextStatus } : prev));
+    const response = await fetch(`/api/work-journal/tasks/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    const data = await response.json();
+    if (!data.ok) { setError(data.error ?? "상태 변경에 실패했습니다."); return; }
+    void loadMonth(currentMonth);
+    void loadUpcoming();
+  };
+
+  const handleUpdateDetail = async (patch: Partial<TaskDetail>) => {
+    if (!taskDetail) return;
+    const taskId = taskDetail.id;
+    setTaskDetail((prev) => (prev ? { ...prev, ...patch } : prev));
+    const { checklist: _checklist, files: _files, ...taskPatch } = patch as Partial<TaskDetail> & Record<string, unknown>;
+    const response = await fetch(`/api/work-journal/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(taskPatch),
+    });
+    const data = await response.json();
+    if (!data.ok) { setError(data.error ?? "저장에 실패했습니다."); return; }
+
+    if (typeof taskPatch.dueDate === "string" && taskPatch.dueDate !== selectedDate) {
+      // 마감일이 다른 날짜로 바뀌면 오늘 목록에서는 사라진다.
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      setSelectedTaskId(null);
+      setTaskDetail(null);
+    } else {
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...data.task } : t)));
+    }
+    void loadMonth(currentMonth);
+    void loadUpcoming();
+    if (typeof taskPatch.assigneeName === "string" && taskPatch.assigneeName && !assignees.includes(taskPatch.assigneeName)) {
+      setAssignees((prev) => [...prev, taskPatch.assigneeName as string].sort());
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!taskDetail) return;
+    const taskId = taskDetail.id;
+    if (!window.confirm("이 업무를 삭제할까요? 세부 체크리스트와 첨부파일도 함께 삭제됩니다.")) return;
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setSelectedTaskId(null);
+    setTaskDetail(null);
+    const response = await fetch(`/api/work-journal/tasks/${taskId}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!data.ok) setError(data.error ?? "삭제에 실패했습니다.");
+    void loadMonth(currentMonth);
+    void loadUpcoming();
+  };
+
+  const patchChecklistCount = (taskId: string, deltaTotal: number, deltaDone: number) => {
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, checklistTotal: t.checklistTotal + deltaTotal, checklistDone: t.checklistDone + deltaDone } : t)));
+  };
+
+  const handleAddChecklistItem = async (label: string) => {
+    if (!taskDetail) return;
+    const taskId = taskDetail.id;
+    const response = await fetch(`/api/work-journal/tasks/${taskId}/checklist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label }),
+    });
+    const data = await response.json();
+    if (!data.ok) { setError(data.error ?? "세부 업무 추가에 실패했습니다."); return; }
+    setTaskDetail((prev) => (prev ? { ...prev, checklist: [...prev.checklist, data.item] } : prev));
+    patchChecklistCount(taskId, 1, 0);
+  };
+
+  const handleToggleChecklistItem = async (itemId: string, done: boolean) => {
+    if (!taskDetail) return;
+    const taskId = taskDetail.id;
+    setTaskDetail((prev) => (prev ? { ...prev, checklist: prev.checklist.map((item) => (item.id === itemId ? { ...item, done } : item)) } : prev));
+    patchChecklistCount(taskId, 0, done ? 1 : -1);
+    const response = await fetch(`/api/work-journal/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ done }),
+    });
+    const data = await response.json();
+    if (!data.ok) setError(data.error ?? "변경에 실패했습니다.");
+  };
+
+  const handleDeleteChecklistItem = async (itemId: string) => {
+    if (!taskDetail) return;
+    const taskId = taskDetail.id;
+    const removed = taskDetail.checklist.find((item) => item.id === itemId);
+    setTaskDetail((prev) => (prev ? { ...prev, checklist: prev.checklist.filter((item) => item.id !== itemId) } : prev));
+    if (removed) patchChecklistCount(taskId, -1, removed.done ? -1 : 0);
+    const response = await fetch(`/api/work-journal/checklist/${itemId}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!data.ok) setError(data.error ?? "삭제에 실패했습니다.");
+  };
+
+  const handleUploadFile = async (file: File) => {
+    if (!taskDetail) return;
+    const taskId = taskDetail.id;
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(`/api/work-journal/tasks/${taskId}/files`, { method: "POST", body: formData });
+    const data = await response.json();
+    if (!data.ok) { setError(data.error ?? "파일 업로드에 실패했습니다."); return; }
+    setTaskDetail((prev) => (prev && prev.id === taskId ? { ...prev, files: [...prev.files, data.file] } : prev));
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    if (!taskDetail) return;
+    setTaskDetail((prev) => (prev ? { ...prev, files: prev.files.filter((f) => f.id !== fileId) } : prev));
+    const response = await fetch(`/api/work-journal/files/${fileId}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!data.ok) setError(data.error ?? "삭제에 실패했습니다.");
+  };
+
+  return (
+    <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+      <PageHeader title="업무일지" />
+      <div className="pc-content pc-content--wide">
+        <p style={{ fontSize: 13, color: C.muted, margin: "-8px 0 20px" }}>
+          공유 업무일지를 통해 팀의 일정을 확인하고 업무 진행 현황을 함께 관리하세요.
+        </p>
+        {error ? <p style={{ fontSize: 12, color: C.danger, marginBottom: 12 }}>{error}</p> : null}
+
+        <div
+          className="wj-columns"
+          style={{ display: "grid", gridTemplateColumns: "280px 1fr 360px", gap: 16, height: "calc(100vh - 260px)", minHeight: 560 }}
+        >
+          <MiniCalendar
+            currentMonth={currentMonth}
+            selectedDate={selectedDate}
+            dayCounts={dayCounts}
+            onSelectDate={handleSelectDate}
+            onMonthChange={setCurrentMonth}
+            upcoming={upcoming}
+            onSelectUpcoming={handleSelectUpcoming}
+          />
+
+          <div className="pc-card pc-card--padded" style={{ minHeight: 0, overflow: "hidden" }}>
+            {tasksLoading ? (
+              <p style={{ fontSize: 12, color: C.hint }}>불러오는 중...</p>
+            ) : (
+              <TaskListColumn
+                dateLabel={dateHeaderLabel(selectedDate)}
+                tasks={tasks}
+                selectedTaskId={selectedTaskId}
+                onSelectTask={setSelectedTaskId}
+                onAddTask={handleAddTask}
+                onCycleStatus={handleCycleStatus}
+                assigneeOptions={assignees}
+              />
+            )}
+          </div>
+
+          <div className="pc-card pc-card--padded" style={{ minHeight: 0, overflow: "hidden" }}>
+            <TaskDetailPanel
+              detail={taskDetail}
+              loading={detailLoading}
+              onUpdate={handleUpdateDetail}
+              onDelete={handleDeleteTask}
+              onAddChecklistItem={handleAddChecklistItem}
+              onToggleChecklistItem={handleToggleChecklistItem}
+              onDeleteChecklistItem={handleDeleteChecklistItem}
+              onUploadFile={handleUploadFile}
+              onDeleteFile={handleDeleteFile}
+              assigneeOptions={assignees}
+            />
+          </div>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @media (max-width: 1100px) {
+          .wj-columns {
+            grid-template-columns: 1fr !important;
+            grid-template-rows: auto auto auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+          .wj-columns > div { height: 480px; }
+        }
+      `}</style>
+    </main>
+  );
+}
