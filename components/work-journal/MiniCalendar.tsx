@@ -1,0 +1,146 @@
+"use client";
+
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { C, R } from "@/lib/theme";
+import type { Task } from "@/lib/work-journal/types";
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function shiftMonth(month: string, delta: number): string {
+  const [year, m] = month.split("-").map(Number);
+  const date = new Date(year, m - 1 + delta, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// 달력 그리드에 채울 날짜 셀 — 이전/다음 달의 겹치는 날짜도 흐리게 채워 6주 격자를 맞춘다.
+function buildGrid(month: string): { date: string; day: number; inMonth: boolean }[] {
+  const [year, m] = month.split("-").map(Number);
+  const first = new Date(year, m - 1, 1);
+  const startOffset = first.getDay();
+  const gridStart = new Date(year, m - 1, 1 - startOffset);
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(gridStart);
+    d.setDate(gridStart.getDate() + i);
+    return {
+      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      day: d.getDate(),
+      inMonth: d.getMonth() === m - 1,
+    };
+  });
+}
+
+function relativeDayLabel(date: string): string {
+  const d = new Date(`${date}T00:00:00`);
+  const weekday = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  return `${d.getMonth() + 1}/${d.getDate()}(${weekday})`;
+}
+
+export default function MiniCalendar({
+  currentMonth,
+  selectedDate,
+  dayCounts,
+  onSelectDate,
+  onMonthChange,
+  upcoming,
+  onSelectUpcoming,
+}: {
+  currentMonth: string;
+  selectedDate: string;
+  dayCounts: Map<string, { total: number; done: number }>;
+  onSelectDate: (date: string) => void;
+  onMonthChange: (month: string) => void;
+  upcoming: Task[];
+  onSelectUpcoming: (task: Task) => void;
+}) {
+  const grid = buildGrid(currentMonth);
+  const [year, month] = currentMonth.split("-").map(Number);
+  const today = todayStr();
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%" }}>
+      <div className="pc-card pc-card--padded">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 900, color: C.ink }}>📅 캘린더</span>
+          <button
+            type="button"
+            onClick={() => { onMonthChange(today.slice(0, 7)); onSelectDate(today); }}
+            style={{ height: 28, padding: "0 10px", borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.teal, fontSize: 11, fontWeight: 800, cursor: "pointer" }}
+          >
+            오늘
+          </button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <button type="button" onClick={() => onMonthChange(shiftMonth(currentMonth, -1))} aria-label="이전 달"
+            style={{ width: 24, height: 24, border: "none", background: "transparent", color: C.muted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ChevronLeft size={16} />
+          </button>
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: C.ink }}>{year}년 {month}월</span>
+          <button type="button" onClick={() => onMonthChange(shiftMonth(currentMonth, 1))} aria-label="다음 달"
+            style={{ width: 24, height: 24, border: "none", background: "transparent", color: C.muted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+          {WEEKDAYS.map((w) => (
+            <div key={w} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 700, color: C.hint, padding: "2px 0" }}>{w}</div>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+          {grid.map((cell) => {
+            const counts = dayCounts.get(cell.date);
+            const active = cell.date === selectedDate;
+            const isToday = cell.date === today;
+            const allDone = counts && counts.total > 0 && counts.done === counts.total;
+            return (
+              <button
+                key={cell.date}
+                type="button"
+                onClick={() => onSelectDate(cell.date)}
+                style={{
+                  position: "relative", height: 32, borderRadius: R.sm, border: isToday && !active ? `1px solid ${C.teal}` : "1px solid transparent",
+                  background: active ? C.teal : "transparent", color: active ? "#fff" : cell.inMonth ? C.ink : C.hint,
+                  fontSize: 11.5, fontWeight: active ? 800 : 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                {cell.day}
+                {counts ? (
+                  <span style={{
+                    position: "absolute", bottom: 3, width: 4, height: 4, borderRadius: "50%",
+                    background: active ? "#fff" : allDone ? C.success : C.orange,
+                  }} />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="pc-card pc-card--padded" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: C.ink, marginBottom: 10 }}>다가오는 일정</div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+          {upcoming.length === 0 ? (
+            <p style={{ fontSize: 11.5, color: C.hint }}>예정된 업무가 없습니다.</p>
+          ) : upcoming.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              onClick={() => onSelectUpcoming(task)}
+              style={{ display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", padding: 0, cursor: "pointer", textAlign: "left" }}
+            >
+              <span style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, flexShrink: 0, width: 56 }}>{relativeDayLabel(task.dueDate)}</span>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: task.status === "done" ? C.success : C.orange, flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</span>
+              {task.dueTime ? <span style={{ fontSize: 10, color: C.hint, flexShrink: 0 }}>{task.dueTime}</span> : null}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
