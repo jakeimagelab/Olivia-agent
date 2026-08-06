@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { CanvasObject as CanvasObjectData } from "@/lib/youtube-editing/types";
+import DoctorPoseIcon from "./DoctorPoseIcon";
 
 const LABEL_BY_TYPE: Record<string, string> = {
   sketch_placeholder: "원장 스케치",
