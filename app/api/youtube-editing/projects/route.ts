@@ -22,12 +22,24 @@ export async function GET(req: NextRequest) {
   }
   const { data, error } = await db
     .from("youtube_editing_projects")
-    .select("id, title, status, updated_at")
+    .select("id, title, status, updated_at, created_at")
     .neq("status", "archived")
     .order("updated_at", { ascending: false })
     .limit(30);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, projects: data ?? [] });
+  const projects = data ?? [];
+
+  const projectIds = projects.map((p) => p.id);
+  const { data: segmentCounts } = projectIds.length
+    ? await db.from("youtube_editing_segments").select("project_id").in("project_id", projectIds)
+    : { data: [] as { project_id: string }[] };
+  const countByProject = new Map<string, number>();
+  for (const row of segmentCounts ?? []) countByProject.set(row.project_id, (countByProject.get(row.project_id) ?? 0) + 1);
+
+  return NextResponse.json({
+    ok: true,
+    projects: projects.map((p) => ({ ...p, segmentCount: countByProject.get(p.id) ?? 0 })),
+  });
 }
 
 export async function POST(req: NextRequest) {
