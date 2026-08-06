@@ -1,11 +1,20 @@
 import type {
-  CameraOption, CaptionAppear, CaptionConfig, CaptionPosition, CaptionType,
+  CameraOption, CaptionAppear, CaptionConfig, CaptionPosition, CaptionType, DoctorPoseKey,
   SoundEffectOption, TemplateOption, TransitionOption,
   VisualConfig, VisualLayout, VisualStyle, VisualType,
 } from "./types";
 
 export const CAMERA_OPTIONS: CameraOption[] = [
   "A캠 정면", "B캠 측면", "A → B 전환", "B → A 전환", "원장 화면 미사용", "디지털 줌인", "디지털 줌아웃",
+];
+
+export const DOCTOR_POSE_OPTIONS: { key: DoctorPoseKey; label: string }[] = [
+  { key: "front_basic", label: "정면 기본" },
+  { key: "front_explain_both_hands", label: "양손 설명" },
+  { key: "front_one_finger", label: "손가락 하나" },
+  { key: "front_x", label: "양손 X" },
+  { key: "left_45", label: "왼쪽 45도" },
+  { key: "right_45", label: "오른쪽 45도" },
 ];
 
 export const CAPTION_TYPES: CaptionType[] = ["기본 자막", "효과 자막", "키워드 강조", "자막 없음"];
