@@ -261,5 +261,6 @@ export const config = {
     "/clients", "/clients/:path*",
     "/portal-admin", "/portal-admin/:path*",
     "/link-generator", "/link-generator/:path*",
+    "/work-journal", "/work-journal/:path*",
   ],
 };
