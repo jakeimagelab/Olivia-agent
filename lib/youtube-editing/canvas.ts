@@ -59,3 +59,21 @@ export function strokeIntersectsPoint(stroke: Stroke, ratioX: number, ratioY: nu
   }
   return false;
 }
+
+// 표준 ray-casting 다각형 내부 판정 — 올가미(lasso)로 그린 폐곡선 안에 점이 있는지 검사한다.
+export function polygonContainsPoint(polygon: StrokePoint[], x: number, y: number): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x, yi = polygon[i].y;
+    const xj = polygon[j].x, yj = polygon[j].y;
+    const intersects = (yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+// 올가미 폐곡선과 획이 겹치는지 — 획의 점 중 하나라도 폐곡선 안에 있으면 겹친 것으로 본다.
+export function strokeIntersectsPolygon(stroke: Stroke, polygon: StrokePoint[]): boolean {
+  if (polygon.length < 3) return false;
+  return stroke.points.some((point) => polygonContainsPoint(polygon, point.x, point.y));
+}
