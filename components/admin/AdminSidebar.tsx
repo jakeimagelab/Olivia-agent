@@ -53,6 +53,7 @@ const navigation: NavigationSection[] = [
       { label: "홈", href: "/admin/dashboard/home", icon: House, accent: "orange" },
       { label: "캘린더", href: "/calendar", icon: CalendarDays, accent: "orange" },
       { label: "메모", href: "/memo", icon: NotebookPen },
+      { label: "업무일지", href: "/work-journal", icon: ClipboardList, accent: "orange" },
       { label: "메일링", href: "/mailing", icon: Mail, accent: "orange" },
       { label: "고객관리", href: "/clients", icon: UsersRound },
       { label: "워크스페이스", href: "/team", icon: MessageCircle },
