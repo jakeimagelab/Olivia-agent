@@ -79,15 +79,20 @@ export default function CanvasObject({
         top: `${pos.y * 100}%`,
         width: `${object.width * 100}%`,
         height: `${object.height * 100}%`,
-        background: object.color,
-        border: `1.5px ${selected ? "solid #2563EB" : "dashed rgba(21,88,85,.35)"}`,
+        background: object.type === "doctor_pose" ? "transparent" : object.color,
+        border: object.type === "doctor_pose" ? "none" : `1.5px ${selected ? "solid #2563EB" : "dashed rgba(21,88,85,.35)"}`,
+        outline: object.type === "doctor_pose" && selected ? "2px solid #2563EB" : "none",
         borderRadius: 8,
         display: "flex", alignItems: "center", justifyContent: "center",
         cursor: "grab", touchAction: "none", userSelect: "none",
         fontSize: 11, fontWeight: 700, color: "#155855", textAlign: "center", padding: 4, boxSizing: "border-box",
       }}
     >
-      {object.label || LABEL_BY_TYPE[object.type] || object.type}
+      {object.type === "doctor_pose" && object.poseKey ? (
+        <DoctorPoseIcon poseKey={object.poseKey} size={64} />
+      ) : (
+        object.label || LABEL_BY_TYPE[object.type] || object.type
+      )}
       {selected ? (
         <button
           type="button"
