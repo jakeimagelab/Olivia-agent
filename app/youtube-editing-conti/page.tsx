@@ -58,6 +58,8 @@ function YoutubeEditingContiInner() {
   const [generatingPrompt, setGeneratingPrompt] = useState(false);
   const [promptResult, setPromptResult] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [generatingPoses, setGeneratingPoses] = useState(false);
+  const [poseGenMessage, setPoseGenMessage] = useState("");
 
   const [tool, setTool] = useState<DrawTool>("pen");
   const [color, setColor] = useState("#111111");
