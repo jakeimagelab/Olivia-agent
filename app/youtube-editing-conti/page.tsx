@@ -461,6 +461,24 @@ function YoutubeEditingContiInner() {
     }
   };
 
+  // 전체화면 — 가능하면 브라우저 전체화면 API도 함께 요청하지만(iPad Safari 등 미지원 환경에서는
+  // 조용히 무시된다), 핵심은 헤더/하단 장면 미리보기를 감춰 캔버스에 화면을 최대한 내주는 것이다.
+  const toggleZenMode = async () => {
+    const next = !zenMode;
+    setZenMode(next);
+    setScriptDrawerOpen(false);
+    setToolsDrawerOpen(false);
+    try {
+      if (next && mainRef.current && !document.fullscreenElement) {
+        await mainRef.current.requestFullscreen?.();
+      } else if (!next && document.fullscreenElement) {
+        await document.exitFullscreen?.();
+      }
+    } catch {
+      // 전체화면 API 미지원 브라우저 — 인앱 전체화면 모드만 적용된 채로 계속 진행한다.
+    }
+  };
+
   if (loading) {
     return <main className="pc-page" style={{ display: "grid", placeItems: "center", minHeight: "60vh", color: C.muted }}>불러오는 중...</main>;
   }
