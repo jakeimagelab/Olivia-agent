@@ -614,7 +614,28 @@ function YoutubeEditingContiInner() {
         gridTemplateAreas: `"script center tools" "script toolbar toolbar"`,
         gap: 12, padding: "12px 16px 0",
       }}>
-        <div className="pc-card pc-card--padded yec-panel" style={{ gridArea: "script", minHeight: 0, overflow: "hidden" }}>
+        {/* 좁은 화면(아이패드 등)에서만 보이는 엣지 탭 — 문장 목록/편집 도구를 서랍으로 열고 닫는다 */}
+        <button type="button" className="yec-edge-tab yec-edge-tab--left" onClick={() => setScriptDrawerOpen((v) => !v)} aria-label="문장 목록 열기"
+          style={{ display: "none", position: "fixed", top: "50%", left: 0, transform: "translateY(-50%)", zIndex: 150, width: 28, height: 60, border: `1px solid ${C.border}`, borderLeft: "none", borderRadius: "0 10px 10px 0", background: "#fff", color: C.teal, alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 14px rgba(21,88,85,.14)" }}>
+          <List size={15} />
+        </button>
+        <button type="button" className="yec-edge-tab yec-edge-tab--right" onClick={() => setToolsDrawerOpen((v) => !v)} aria-label="편집 도구 열기"
+          style={{ display: "none", position: "fixed", top: "50%", right: 0, transform: "translateY(-50%)", zIndex: 150, width: 28, height: 60, border: `1px solid ${C.border}`, borderRight: "none", borderRadius: "10px 0 0 10px", background: "#fff", color: C.teal, alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 14px rgba(21,88,85,.14)" }}>
+          <Wrench size={15} />
+        </button>
+        {scriptDrawerOpen || toolsDrawerOpen ? (
+          <div className="yec-drawer-backdrop" onClick={() => { setScriptDrawerOpen(false); setToolsDrawerOpen(false); }}
+            style={{ display: "none", position: "fixed", inset: 0, background: "rgba(0,0,0,.35)", zIndex: 190 }} />
+        ) : null}
+
+        <div className={`pc-card pc-card--padded yec-panel yec-panel--script${scriptDrawerOpen ? " yec-drawer-open" : ""}`} style={{ gridArea: "script", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div className="yec-drawer-header" style={{ display: "none", alignItems: "center", justifyContent: "space-between", paddingBottom: 8, marginBottom: 8, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: C.ink }}>문장 목록</span>
+            <button type="button" onClick={() => setScriptDrawerOpen(false)} aria-label="닫기" style={{ width: 26, height: 26, borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              <X size={14} />
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
           <ScriptPanel
             segments={segments}
             selectedId={selectedId}
