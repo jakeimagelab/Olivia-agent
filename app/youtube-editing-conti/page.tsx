@@ -783,8 +783,10 @@ function YoutubeEditingContiInner() {
         </div>
       </div>
 
-      {/* 하단 전체 장면 미리보기 + 보기 옵션 */}
-      <div style={{ flexShrink: 0, display: "flex", gap: 12, alignItems: "stretch", padding: "10px 16px 14px" }}>
+      {/* 하단 전체 장면 미리보기 + 보기 옵션 — 좁은 화면(아이패드 등)과 전체화면 모드에서는 감춰
+          캔버스(메모 공간)에 그만큼의 세로 공간을 더 준다. 장면 이동은 좌측 서랍(문장 목록)으로 대체된다. */}
+      {!zenMode ? (
+      <div className="yec-footer-row" style={{ flexShrink: 0, display: "flex", gap: 12, alignItems: "stretch", padding: "10px 16px 14px" }}>
         <div className="pc-card pc-card--padded" style={{ flex: 1, minWidth: 0 }}>
           <SegmentTimeline segments={segments} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
