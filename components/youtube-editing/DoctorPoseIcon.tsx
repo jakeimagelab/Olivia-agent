@@ -76,13 +76,14 @@ function Arms({ poseKey }: { poseKey: DoctorPoseKey }) {
   }
 }
 
-export default function DoctorPoseIcon({ poseKey, size = 56 }: { poseKey: DoctorPoseKey; size?: number }) {
+export default function DoctorPoseIcon({ poseKey, size }: { poseKey: DoctorPoseKey; size?: number }) {
   const rotate = poseKey === "left_45" ? -10 : poseKey === "right_45" ? 10 : 0;
   return (
     <svg
-      width={size}
-      height={size * 1.4}
+      width={size ?? "100%"}
+      height={size ? size * 1.4 : "100%"}
       viewBox="0 0 100 140"
+      preserveAspectRatio="xMidYMid meet"
       fill="none"
       stroke="#1C2B28"
       strokeWidth={3}
