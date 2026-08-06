@@ -87,6 +87,10 @@ function YoutubeEditingContiInner() {
     if (optionsExpanded && optionsBarRef.current) setOptionsBarRect(optionsBarRef.current.getBoundingClientRect());
   }, [optionsExpanded]);
   const [zoom, setZoom] = useState(100);
+  const [zenMode, setZenMode] = useState(false);
+  const [scriptDrawerOpen, setScriptDrawerOpen] = useState(false);
+  const [toolsDrawerOpen, setToolsDrawerOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const scheduleSave = useDebouncedSaver();
