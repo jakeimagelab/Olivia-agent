@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { strokeIntersectsPoint } from "./canvas";
+import { polygonContainsPoint, strokeIntersectsPoint, strokeIntersectsPolygon } from "./canvas";
 import type { Stroke } from "./types";
 
 const horizontalStroke: Stroke = {
