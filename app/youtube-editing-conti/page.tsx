@@ -806,6 +806,7 @@ function YoutubeEditingContiInner() {
           </div>
         </div>
       </div>
+      ) : null}
 
       <style jsx global>{`
         /* 기본값(1181px 이상, 아이패드 12.9인치 가로 1366px 포함)은 21/53/26 비율을 유지한다. */
