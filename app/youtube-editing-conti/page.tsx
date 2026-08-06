@@ -143,29 +143,6 @@ function YoutubeEditingContiInner() {
   const currentCanvasObjects = selectedId ? (canvasObjectsBySegment[selectedId] ?? []) : [];
   const selectedObject = currentCanvasObjects.find((o) => o.id === selectedObjectId) ?? null;
 
-  const startProject = async () => {
-    if (!draftScript.trim() || starting) return;
-    setStarting(true);
-    try {
-      const response = await fetch("/api/youtube-editing/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: draftTitle || "제목 없음", fullScript: draftScript, videoRatio: "16:9" }),
-      });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.error);
-      router.replace(`/youtube-editing-conti?project=${data.project.id}`);
-      setProject(data.project);
-      setSegments(data.segments);
-      setSelectedId(data.segments[0]?.id ?? null);
-      setLoading(false);
-    } catch (error) {
-      setBootstrapError(error instanceof Error ? error.message : "프로젝트 생성에 실패했습니다.");
-    } finally {
-      setStarting(false);
-    }
-  };
-
   // ── 문장 편집 ──────────────────────────────────────────
   const updateSegment = (id: string, patch: Partial<Segment>) => {
     setSegments((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
