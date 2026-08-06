@@ -102,23 +102,31 @@ function YoutubeEditingContiInner() {
     }
   }, []);
 
+  const loadProjectList = useCallback(async () => {
+    setLoading(true);
+    setBootstrapError("");
+    try {
+      const response = await fetch("/api/youtube-editing/projects", { cache: "no-store" });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      setProjectList(data.projects ?? []);
+    } catch (error) {
+      setBootstrapError(error instanceof Error ? error.message : "문서 목록을 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 쿼리에 프로젝트가 지정되면 그 문서를 열고, 없으면(첫 진입) 저장된 문서 목록을 보여준다 —
+  // 예전처럼 가장 최근 문서로 자동 이동하지 않는다.
   useEffect(() => {
     if (projectIdParam) {
       void loadBundle(projectIdParam);
-      return;
+    } else {
+      setProject(null);
+      void loadProjectList();
     }
-    setLoading(true);
-    fetch("/api/youtube-editing/projects?latest=true", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.ok && data.project) {
-          router.replace(`/youtube-editing-conti?project=${data.project.id}`);
-        } else {
-          setLoading(false);
-        }
-      })
-      .catch(() => setLoading(false));
-  }, [projectIdParam, loadBundle, router]);
+  }, [projectIdParam, loadBundle, loadProjectList]);
 
   useEffect(() => { setUndoStack([]); setRedoStack([]); setSelectedObjectId(null); setOptionsExpanded(false); }, [selectedId]);
 
