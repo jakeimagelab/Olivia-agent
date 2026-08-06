@@ -7,6 +7,7 @@ import {
   Archive,
   CalendarDays,
   CircleHelp,
+  ClipboardList,
   Grid2X2,
   House,
   Library,
