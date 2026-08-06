@@ -37,6 +37,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         height: body.height ?? 0.16,
         label: body.label ?? "",
         color: body.color ?? "#EAF4F2",
+        poseKey: body.poseKey,
       },
       sort_order: sortOrder,
     })
