@@ -24,6 +24,7 @@ function dueDateLabel(dueDate: string): string {
 
 export default function TaskDetailPanel({
   detail,
+  loading,
   onUpdate,
   onDelete,
   onAddChecklistItem,
@@ -34,6 +35,7 @@ export default function TaskDetailPanel({
   assigneeOptions,
 }: {
   detail: TaskDetail | null;
+  loading?: boolean;
   onUpdate: (patch: Partial<TaskDetail>) => void;
   onDelete: () => void;
   onAddChecklistItem: (label: string) => void;
@@ -51,7 +53,7 @@ export default function TaskDetailPanel({
   if (!detail) {
     return (
       <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: C.hint, fontSize: 12.5, textAlign: "center", padding: 20 }}>
-        업무를 선택하면<br />세부 내용을 확인할 수 있습니다.
+        {loading ? "불러오는 중..." : <>업무를 선택하면<br />세부 내용을 확인할 수 있습니다.</>}
       </div>
     );
   }
