@@ -70,20 +70,30 @@ export type YoutubeEditingProject = {
 };
 
 // 손글씨 획 — 좌표는 캔버스 크기와 무관하게 0~1 비율로 저장해 반응형/확대에도 어긋나지 않는다.
-export type DrawTool = "pen" | "highlighter" | "eraser";
+// "lasso"는 획을 만들지 않는 선택 도구라 Stroke.tool에는 포함하지 않는다.
+export type DrawTool = "pen" | "highlighter" | "eraser" | "lasso";
 export type StrokePoint = { x: number; y: number; pressure?: number };
 export type Stroke = {
   id: string;
-  tool: Exclude<DrawTool, "eraser">;
+  tool: "pen" | "highlighter";
   color: string;
   width: number;
   points: StrokePoint[];
 };
 
+// 캔버스에 즉시 삽입되는 도구(도형/텍스트/이미지/원장 포즈) — 그리기 모드가 아니라
+// 클릭 한 번으로 기본값 오브젝트를 만들어 넣는 액션이다.
+export type InsertTool = "shape" | "text" | "image" | "doctor_pose";
+export type EditorTool = DrawTool | InsertTool;
+
+export type DoctorPoseKey =
+  | "front_basic" | "front_explain_both_hands" | "front_one_finger"
+  | "front_x" | "left_45" | "right_45";
+
 export type CanvasObjectType =
   | "sketch_placeholder" | "image_thumb" | "diagram_thumb" | "infographic_thumb"
   | "template_thumb" | "broll_thumb" | "hospital_thumb" | "icon_thumb" | "calendar_thumb"
-  | "text" | "memo" | "arrow" | "rect" | "circle" | "frame";
+  | "text" | "memo" | "arrow" | "rect" | "circle" | "frame" | "doctor_pose";
 
 export type CanvasObject = {
   id: string;
@@ -95,6 +105,7 @@ export type CanvasObject = {
   label: string;
   color: string;
   zIndex: number;
+  poseKey?: DoctorPoseKey;
 };
 
 export type SegmentAnnotation = {
