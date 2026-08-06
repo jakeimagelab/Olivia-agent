@@ -185,7 +185,7 @@ export default function StoryboardCanvas({
         onPointerUp={finishPointer}
         onPointerLeave={finishPointer}
         onPointerCancel={finishPointer}
-        style={{ display: "block", width: "100%", height: "100%", touchAction: "none", cursor: tool === "eraser" ? "cell" : tool === "lasso" ? "crosshair" : "crosshair" }}
+        style={{ display: "block", width: "100%", height: "100%", touchAction: "none", cursor: tool === "eraser" ? "cell" : "crosshair" }}
       />
       {children}
     </div>
