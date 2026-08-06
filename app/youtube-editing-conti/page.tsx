@@ -648,6 +648,7 @@ function YoutubeEditingContiInner() {
             onMergeNext={mergeNext}
             hasAnnotation={(id) => (annotationsBySegment[id]?.strokes.length ?? 0) > 0}
           />
+          </div>
         </div>
 
         <div className="pc-card pc-card--padded yec-panel" style={{ gridArea: "center", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
