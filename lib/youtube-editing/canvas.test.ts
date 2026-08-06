@@ -29,3 +29,30 @@ describe("strokeIntersectsPoint", () => {
     expect(strokeIntersectsPoint(singlePoint, 0.5, 0.5, 1000, 1000, 10)).toBe(false);
   });
 });
+
+const square = [{ x: 0.2, y: 0.2 }, { x: 0.6, y: 0.2 }, { x: 0.6, y: 0.6 }, { x: 0.2, y: 0.6 }];
+
+describe("polygonContainsPoint", () => {
+  it("사각형 내부의 점을 포함으로 판정한다", () => {
+    expect(polygonContainsPoint(square, 0.4, 0.4)).toBe(true);
+  });
+
+  it("사각형 밖의 점은 포함하지 않는다", () => {
+    expect(polygonContainsPoint(square, 0.9, 0.9)).toBe(false);
+  });
+});
+
+describe("strokeIntersectsPolygon", () => {
+  it("올가미 폐곡선 안에 획의 점이 있으면 겹친 것으로 본다", () => {
+    expect(strokeIntersectsPolygon(horizontalStroke, square)).toBe(true);
+  });
+
+  it("점이 3개 미만인 폐곡선은 겹치지 않는 것으로 본다", () => {
+    expect(strokeIntersectsPolygon(horizontalStroke, [{ x: 0.2, y: 0.2 }, { x: 0.6, y: 0.6 }])).toBe(false);
+  });
+
+  it("폐곡선과 완전히 떨어진 획은 겹치지 않는다", () => {
+    const farStroke: Stroke = { id: "s3", tool: "pen", color: "#000", width: 3, points: [{ x: 0.9, y: 0.9 }, { x: 0.95, y: 0.95 }] };
+    expect(strokeIntersectsPolygon(farStroke, square)).toBe(false);
+  });
+});
