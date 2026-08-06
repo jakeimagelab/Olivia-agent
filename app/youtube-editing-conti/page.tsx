@@ -112,7 +112,7 @@ function YoutubeEditingContiInner() {
       .catch(() => setLoading(false));
   }, [projectIdParam, loadBundle, router]);
 
-  useEffect(() => { setUndoStack([]); setRedoStack([]); setSelectedObjectId(null); }, [selectedId]);
+  useEffect(() => { setUndoStack([]); setRedoStack([]); setSelectedObjectId(null); setOptionsExpanded(false); }, [selectedId]);
 
   const selectedSegment = useMemo(() => segments.find((s) => s.id === selectedId) ?? null, [segments, selectedId]);
   const selectedIndex = useMemo(() => segments.findIndex((s) => s.id === selectedId), [segments, selectedId]);
