@@ -121,6 +121,7 @@ const SHARE_SCOPED_PAGE_PATHS = [
   "/clients",
   "/portal-admin",
   "/link-generator",
+  "/work-journal",
 ];
 
 // 토큰 → feature_path 조회 결과를 짧게 캐싱해 페이지 이동/연속 API 호출마다
