@@ -65,5 +65,6 @@ export function rowToCanvasObject(row: any): CanvasObject {
     label: data.label ?? "",
     color: data.color ?? "#EAF4F2",
     zIndex: row.sort_order ?? 0,
+    poseKey: data.poseKey,
   };
 }
