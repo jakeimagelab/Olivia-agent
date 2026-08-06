@@ -140,7 +140,14 @@ function YoutubeEditingContiInner() {
     }
   }, [projectIdParam, loadBundle, loadProjectList]);
 
-  useEffect(() => { setUndoStack([]); setRedoStack([]); setSelectedObjectId(null); setOptionsExpanded(false); }, [selectedId]);
+  useEffect(() => { setUndoStack([]); setRedoStack([]); setSelectedObjectId(null); setOptionsExpanded(false); setScriptDrawerOpen(false); }, [selectedId]);
+
+  // 실제 브라우저 전체화면(예: 데스크톱 ESC 키)이 바깥에서 종료되면 인앱 상태도 같이 되돌린다.
+  useEffect(() => {
+    const onFsChange = () => { if (!document.fullscreenElement) setZenMode(false); };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
   const selectedSegment = useMemo(() => segments.find((s) => s.id === selectedId) ?? null, [segments, selectedId]);
   const selectedIndex = useMemo(() => segments.findIndex((s) => s.id === selectedId), [segments, selectedId]);
