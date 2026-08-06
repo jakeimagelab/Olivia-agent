@@ -89,7 +89,7 @@ export default function CanvasObject({
       }}
     >
       {object.type === "doctor_pose" && object.poseKey ? (
-        <DoctorPoseIcon poseKey={object.poseKey} size={64} />
+        <DoctorPoseIcon poseKey={object.poseKey} />
       ) : (
         object.label || LABEL_BY_TYPE[object.type] || object.type
       )}
