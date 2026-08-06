@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight, MoreVertical, Plus, Sparkles } from "lucide-react";
+import { ChevronRight, List, Maximize2, Minimize2, MoreVertical, Plus, Sparkles, Wrench, X } from "lucide-react";
 import { C, R } from "@/lib/theme";
 import CanvasObject from "@/components/youtube-editing/CanvasObject";
 import CurrentSegmentHeader from "@/components/youtube-editing/CurrentSegmentHeader";
