@@ -736,7 +736,14 @@ function YoutubeEditingContiInner() {
           )}
         </div>
 
-        <div className="pc-card pc-card--padded yec-panel" style={{ gridArea: "tools", minHeight: 0, overflow: "hidden" }}>
+        <div className={`pc-card pc-card--padded yec-panel yec-panel--tools${toolsDrawerOpen ? " yec-drawer-open" : ""}`} style={{ gridArea: "tools", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div className="yec-drawer-header" style={{ display: "none", alignItems: "center", justifyContent: "space-between", paddingBottom: 8, marginBottom: 8, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 800, color: C.ink }}>편집 도구</span>
+            <button type="button" onClick={() => setToolsDrawerOpen(false)} aria-label="닫기" style={{ width: 26, height: 26, borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              <X size={14} />
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {selectedSegment ? (
             <EditToolsPanel
               segment={selectedSegment}
@@ -751,6 +758,7 @@ function YoutubeEditingContiInner() {
           ) : (
             <p style={{ fontSize: 12, color: C.hint }}>문장을 선택하면 편집 도구가 활성화됩니다.</p>
           )}
+          </div>
         </div>
 
         {/* 하단 통합 툴바 — 가운데+도구 패널 아래에 걸쳐 있고, 원장 포즈 팝업이 이 바로 위에 뜬다.
