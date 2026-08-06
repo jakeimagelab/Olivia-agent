@@ -472,11 +472,11 @@ function YoutubeEditingContiInner() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+    <main style={{ height: "100dvh", display: "flex", flexDirection: "column", overflow: "hidden", background: C.bg, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       {/* 헤더 */}
       <header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px",
-        background: "#fff", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 20,
+        background: "#fff", borderBottom: `1px solid ${C.border}`, flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
           <span style={{ fontSize: 14, fontWeight: 900, color: C.teal, flexShrink: 0 }}>유튜브 편집 콘티 분석기</span>
@@ -503,9 +503,16 @@ function YoutubeEditingContiInner() {
         </div>
       </header>
 
-      {/* 3열 본문 */}
-      <div className="yec-layout" style={{ display: "grid", gridTemplateColumns: "minmax(240px,0.8fr) minmax(390px,1.2fr) minmax(300px,1fr)", gap: 16, padding: 16, alignItems: "stretch" }}>
-        <div className="pc-card pc-card--padded yec-panel" style={{ minHeight: 0 }}>
+      {/* 본문 — 좌측 대본은 위아래 전체를 차지하고, 우측 상단(가운데+도구)과 우측 하단(툴바)으로 나뉜다.
+          전체가 뷰포트 안에 고정되고 각 패널 내부만 스크롤된다. */}
+      <div className="yec-layout" style={{
+        flex: 1, minHeight: 0, display: "grid",
+        gridTemplateColumns: "21% 53% 26%",
+        gridTemplateRows: "1fr auto",
+        gridTemplateAreas: `"script center tools" "script toolbar toolbar"`,
+        gap: 12, padding: "12px 16px 0",
+      }}>
+        <div className="pc-card pc-card--padded yec-panel" style={{ gridArea: "script", minHeight: 0, overflow: "hidden" }}>
           <ScriptPanel
             segments={segments}
             selectedId={selectedId}
@@ -520,68 +527,65 @@ function YoutubeEditingContiInner() {
           />
         </div>
 
-        <div className="pc-card pc-card--padded yec-panel" style={{ minHeight: 0, display: "flex", flexDirection: "column" }}>
+        <div className="pc-card pc-card--padded yec-panel" style={{ gridArea: "center", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {selectedSegment ? (
             <>
-              <CurrentSegmentHeader
-                segment={selectedSegment}
-                index={selectedIndex}
-                total={segments.length}
-                onTextChange={(text) => updateSegment(selectedSegment.id, { scriptText: text })}
-                onSplit={() => splitSegment(selectedSegment.id)}
-                onDelete={() => deleteSegment(selectedSegment.id)}
-              />
-              <QuickOptionCards
-                segment={selectedSegment}
-                onUpdate={(patch) => updateSegment(selectedSegment.id, patch)}
-                onGeneratePrompt={generatePrompt}
-                generatingPrompt={generatingPrompt}
-              />
-              {promptResult ? (
-                <div style={{ marginTop: 10, padding: 10, borderRadius: R.sm, background: C.ink, color: "#EAF4F2", fontFamily: "monospace", fontSize: 11, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-                  {promptResult}
-                </div>
-              ) : null}
+              <div style={{ flexShrink: 0 }}>
+                <CurrentSegmentHeader
+                  segment={selectedSegment}
+                  index={selectedIndex}
+                  total={segments.length}
+                  onTextChange={(text) => updateSegment(selectedSegment.id, { scriptText: text })}
+                  onSplit={() => splitSegment(selectedSegment.id)}
+                  onDelete={() => deleteSegment(selectedSegment.id)}
+                />
+              </div>
+              <div style={{ flexShrink: 0, maxHeight: "40%", overflowY: "auto" }}>
+                <QuickOptionCards
+                  segment={selectedSegment}
+                  onUpdate={(patch) => updateSegment(selectedSegment.id, patch)}
+                  onGeneratePrompt={generatePrompt}
+                  generatingPrompt={generatingPrompt}
+                />
+                {promptResult ? (
+                  <div style={{ marginTop: 10, padding: 10, borderRadius: R.sm, background: C.ink, color: "#EAF4F2", fontFamily: "monospace", fontSize: 11, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {promptResult}
+                  </div>
+                ) : null}
+              </div>
 
-              <div className="yec-mobile-hint" style={{ display: "none", marginTop: 12, padding: 10, borderRadius: R.sm, background: "#FFF7ED", color: C.orange, fontSize: 11.5, fontWeight: 700 }}>
+              <div className="yec-mobile-hint" style={{ display: "none", flexShrink: 0, marginTop: 10, padding: 10, borderRadius: R.sm, background: "#FFF7ED", color: C.orange, fontSize: 11.5, fontWeight: 700 }}>
                 손글씨 편집은 태블릿 또는 데스크톱에서 이용해주세요. 이 화면에서는 읽기와 간단한 선택만 지원합니다.
               </div>
-              <div style={{ marginTop: 12, flex: 1, minHeight: 320, display: "flex", flexDirection: "column" }}>
-                <DrawingToolbar
-                  tool={tool} onToolChange={setTool}
-                  color={color} onColorChange={setColor}
-                  width={strokeWidth} onWidthChange={setStrokeWidth}
-                  canUndo={undoStack.length > 0} canRedo={redoStack.length > 0}
-                  onUndo={handleUndo} onRedo={handleRedo} onClear={handleClearAll}
-                />
-                <div
-                  ref={canvasContainerRef}
-                  style={{
-                    flex: 1, minHeight: 280, borderRadius: R.md, border: `1px solid ${C.border}`,
-                    background: "repeating-linear-gradient(0deg, #fff, #fff 23px, #F3F1EC 24px), repeating-linear-gradient(90deg, #fff, #fff 23px, #F3F1EC 24px)",
-                    position: "relative", overflow: "hidden",
-                  }}
+
+              {/* 손글씨 콘티 캔버스 — 항상 가장 넓은 공간을 차지하도록 flex:1 */}
+              <div
+                ref={canvasContainerRef}
+                style={{
+                  flex: 1, minHeight: 140, marginTop: 10, borderRadius: R.md, border: `1px solid ${C.border}`,
+                  background: "repeating-linear-gradient(0deg, #fff, #fff 23px, #F3F1EC 24px), repeating-linear-gradient(90deg, #fff, #fff 23px, #F3F1EC 24px)",
+                  position: "relative", overflow: "hidden", transform: `scale(${zoom / 100})`, transformOrigin: "center center",
+                }}
+              >
+                <StoryboardCanvas
+                  key={selectedSegment.id}
+                  strokes={currentStrokes}
+                  tool={tool} color={color} width={strokeWidth}
+                  onStrokeCommit={handleStrokeCommit}
+                  onEraseStrokes={handleEraseStrokes}
                 >
-                  <StoryboardCanvas
-                    key={selectedSegment.id}
-                    strokes={currentStrokes}
-                    tool={tool} color={color} width={strokeWidth}
-                    onStrokeCommit={handleStrokeCommit}
-                    onEraseStrokes={handleEraseStrokes}
-                  >
-                    {currentCanvasObjects.map((object) => (
-                      <CanvasObject
-                        key={object.id}
-                        object={object}
-                        containerRef={canvasContainerRef}
-                        selected={object.id === selectedObjectId}
-                        onSelect={setSelectedObjectId}
-                        onMove={(id, x, y) => updateCanvasObject(id, { x, y })}
-                        onDelete={deleteCanvasObject}
-                      />
-                    ))}
-                  </StoryboardCanvas>
-                </div>
+                  {currentCanvasObjects.map((object) => (
+                    <CanvasObject
+                      key={object.id}
+                      object={object}
+                      containerRef={canvasContainerRef}
+                      selected={object.id === selectedObjectId}
+                      onSelect={setSelectedObjectId}
+                      onMove={(id, x, y) => updateCanvasObject(id, { x, y })}
+                      onDelete={deleteCanvasObject}
+                    />
+                  ))}
+                </StoryboardCanvas>
               </div>
             </>
           ) : (
@@ -589,7 +593,7 @@ function YoutubeEditingContiInner() {
           )}
         </div>
 
-        <div className="pc-card pc-card--padded yec-panel" style={{ minHeight: 0 }}>
+        <div className="pc-card pc-card--padded yec-panel" style={{ gridArea: "tools", minHeight: 0, overflow: "hidden" }}>
           {selectedSegment ? (
             <EditToolsPanel
               segment={selectedSegment}
@@ -605,25 +609,65 @@ function YoutubeEditingContiInner() {
             <p style={{ fontSize: 12, color: C.hint }}>문장을 선택하면 편집 도구가 활성화됩니다.</p>
           )}
         </div>
+
+        {/* 하단 통합 툴바 — 가운데+도구 패널 아래에 걸쳐 있고, 원장 포즈 팝업이 이 바로 위에 뜬다 */}
+        <div className="pc-card" style={{ gridArea: "toolbar", position: "relative", minHeight: 0 }}>
+          <DoctorPosePopup
+            open={posePopupOpen}
+            onClose={() => setPosePopupOpen(false)}
+            onSelect={selectDoctorPose}
+            selectedPoseKey={selectedObject?.poseKey}
+          />
+          <DrawingToolbar
+            tool={tool} onToolChange={(next) => { setTool(next); setPosePopupOpen(false); }}
+            color={color} onColorChange={setColor}
+            width={strokeWidth} onWidthChange={setStrokeWidth}
+            canUndo={undoStack.length > 0} canRedo={redoStack.length > 0}
+            onUndo={handleUndo} onRedo={handleRedo} onClear={handleClearAll}
+            onInsertShape={insertShape} onInsertText={insertText} onInsertImage={insertImage}
+            onOpenPosePopup={() => setPosePopupOpen((v) => !v)} posePopupOpen={posePopupOpen}
+            onExportPdf={() => printProjectSummary(project, segments)}
+          />
+        </div>
       </div>
 
-      {/* 하단 타임라인 */}
-      <div style={{ padding: "0 16px 16px" }}>
-        <div className="pc-card pc-card--padded">
+      {/* 하단 전체 장면 미리보기 + 보기 옵션 */}
+      <div style={{ flexShrink: 0, display: "flex", gap: 12, alignItems: "stretch", padding: "10px 16px 14px" }}>
+        <div className="pc-card pc-card--padded" style={{ flex: 1, minWidth: 0 }}>
           <SegmentTimeline segments={segments} selectedId={selectedId} onSelect={setSelectedId} />
+        </div>
+        <div className="pc-card pc-card--padded" style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 9.5, color: C.hint, fontWeight: 700, marginBottom: 3 }}>보기 옵션</div>
+            <select defaultValue="simple" style={{ height: 30, borderRadius: R.sm, border: `1px solid ${C.border}`, fontSize: 11.5, padding: "0 8px" }}>
+              <option value="simple">간단 모드</option>
+            </select>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button type="button" onClick={() => setZoom((z) => Math.max(50, z - 10))} aria-label="축소"
+              style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: "#fff", cursor: "pointer" }}>-</button>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: C.ink, width: 38, textAlign: "center" }}>{zoom}%</span>
+            <button type="button" onClick={() => setZoom((z) => Math.min(150, z + 10))} aria-label="확대"
+              style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: "#fff", cursor: "pointer" }}>+</button>
+          </div>
         </div>
       </div>
 
       <style jsx global>{`
-        /* 기본값(1181px 이상, 아이패드 12.9인치 가로 1366px 포함)은 21/53/26 비율 3열을 유지한다. */
+        /* 기본값(1181px 이상, 아이패드 12.9인치 가로 1366px 포함)은 21/53/26 비율을 유지한다. */
         @media (max-width: 1180px) {
           /* 아이패드 가로보다 좁은 화면 — 3열은 유지하되 오른쪽 도구 패널 폭만 줄인다. */
-          .yec-layout { grid-template-columns: minmax(200px,0.7fr) minmax(340px,1.3fr) minmax(210px,0.6fr) !important; }
+          .yec-layout { grid-template-columns: 24% 50% 26% !important; }
         }
         @media (max-width: 900px) {
           /* 아이패드 세로 이하 — 캔버스를 가장 크게 유지하며 세로로 쌓는다. */
-          .yec-layout { grid-template-columns: 1fr !important; }
-          .yec-panel { min-height: 420px !important; }
+          .yec-layout {
+            grid-template-columns: 1fr !important;
+            grid-template-rows: auto auto auto auto !important;
+            grid-template-areas: "script" "center" "tools" "toolbar" !important;
+            overflow-y: auto !important;
+          }
+          .yec-panel { min-height: 320px !important; }
         }
         @media (max-width: 640px) {
           .yec-mobile-hint { display: block !important; }
