@@ -454,38 +454,58 @@ function YoutubeEditingContiInner() {
   }
 
   if (!project) {
+    // ?project= 로 특정 문서를 열려다 실패한 경우
+    if (projectIdParam) {
+      return (
+        <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+          <div className="pc-content" style={{ maxWidth: 480 }}>
+            <p style={{ color: C.danger, fontSize: 13, marginBottom: 14 }}>{bootstrapError || "문서를 불러오지 못했습니다."}</p>
+            <Link href="/youtube-editing-conti" className="pc-btn pc-btn--secondary pc-btn--sm">문서 목록으로</Link>
+          </div>
+        </main>
+      );
+    }
+    // 첫 진입 — 저장된 문서 목록 (예전처럼 최근 문서로 자동 이동하지 않는다)
     return (
       <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-        <div className="pc-content" style={{ maxWidth: 640 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>유튜브 편집 콘티 분석기</h1>
-          <p style={{ fontSize: 13, color: C.muted, marginBottom: 20 }}>대본을 장면별로 나누고 손글씨로 카메라, 자막, 자료화면과 편집 효과를 설계합니다.</p>
-          <div className="pc-card pc-card--padded" style={{ display: "grid", gap: 12 }}>
-            <input
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              placeholder="프로젝트 제목 (예: 비염 원인 영상)"
-              style={{ height: 40, borderRadius: R.sm, border: `1px solid ${C.border}`, padding: "0 12px", fontSize: 13 }}
-            />
-            <textarea
-              value={draftScript}
-              onChange={(e) => setDraftScript(e.target.value)}
-              placeholder="유튜브 대본 전체를 붙여넣으세요. 문장 단위로 자동 분리됩니다."
-              rows={10}
-              style={{ borderRadius: R.sm, border: `1px solid ${C.border}`, padding: 12, fontSize: 13, lineHeight: 1.7, resize: "vertical", fontFamily: "inherit" }}
-            />
-            {bootstrapError ? <p style={{ color: C.danger, fontSize: 12 }}>{bootstrapError}</p> : null}
-            <button
-              type="button"
-              onClick={startProject}
-              disabled={!draftScript.trim() || starting}
-              style={{
-                height: 44, borderRadius: R.md, border: 0, background: C.orange, color: "#fff", fontSize: 13, fontWeight: 800,
-                cursor: !draftScript.trim() || starting ? "not-allowed" : "pointer", opacity: !draftScript.trim() || starting ? 0.55 : 1,
-              }}
+        <div className="pc-content">
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 18 }}>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>유튜브 편집 콘티</h1>
+              <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>저장된 문서를 열거나 새 문서를 시작하세요.</p>
+            </div>
+            <Link
+              href="/youtube-editing-conti/new"
+              className="pc-btn pc-btn--primary pc-btn--sm"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 16px", height: 38, borderRadius: R.md, background: C.orange, color: "#fff", fontSize: 13, fontWeight: 800, textDecoration: "none" }}
             >
-              {starting ? "시작하는 중..." : "콘티 시작하기"}
-            </button>
+              <Plus size={15} />새 프로젝트
+            </Link>
           </div>
+          {bootstrapError ? <p style={{ color: C.danger, fontSize: 12, marginBottom: 14 }}>{bootstrapError}</p> : null}
+          {projectList.length === 0 ? (
+            <div className="pc-card pc-card--padded" style={{ textAlign: "center", padding: 36 }}>
+              <p style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>아직 저장된 문서가 없습니다.</p>
+              <Link href="/youtube-editing-conti/new" style={{ fontSize: 13, fontWeight: 800, color: C.orange }}>+ 새 프로젝트 시작하기</Link>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {projectList.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/youtube-editing-conti?project=${item.id}`}
+                  className="pc-card pc-card--padded"
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", textDecoration: "none", color: "inherit" }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: 14, color: C.ink, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</strong>
+                    <span style={{ fontSize: 11, color: C.hint }}>{item.segmentCount}문장 · {relativeTime(item.updated_at)} 저장됨</span>
+                  </div>
+                  <ChevronRight size={16} color={C.hint} style={{ flexShrink: 0 }} />
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     );
