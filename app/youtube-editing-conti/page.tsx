@@ -9,6 +9,7 @@ import CurrentSegmentHeader from "@/components/youtube-editing/CurrentSegmentHea
 import DoctorPosePopup from "@/components/youtube-editing/DoctorPosePopup";
 import DrawingToolbar from "@/components/youtube-editing/DrawingToolbar";
 import EditToolsPanel from "@/components/youtube-editing/EditToolsPanel";
+import OptionsSummaryBar from "@/components/youtube-editing/OptionsSummaryBar";
 import QuickOptionCards from "@/components/youtube-editing/QuickOptionCards";
 import SaveStatus from "@/components/youtube-editing/SaveStatus";
 import ScriptPanel from "@/components/youtube-editing/ScriptPanel";
