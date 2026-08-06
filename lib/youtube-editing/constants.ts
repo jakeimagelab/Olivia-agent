@@ -17,6 +17,14 @@ export const DOCTOR_POSE_OPTIONS: { key: DoctorPoseKey; label: string }[] = [
   { key: "right_45", label: "오른쪽 45도" },
 ];
 
+// /api/youtube-editing/doctor-poses/generate가 이 고정 경로로 업로드하므로, 재생성해도
+// 프론트엔드는 URL을 바꿀 필요 없이 항상 같은 경로를 참조한다.
+export function getDoctorPoseImageUrl(poseKey: DoctorPoseKey): string | null {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  return `${base}/storage/v1/object/public/youtube-editing-assets/doctor-poses/${poseKey}.png`;
+}
+
 export const CAPTION_TYPES: CaptionType[] = ["기본 자막", "효과 자막", "키워드 강조", "자막 없음"];
 export const CAPTION_APPEARS: CaptionAppear[] = ["기본", "팝업", "확대", "페이드"];
 export const CAPTION_POSITIONS: CaptionPosition[] = ["상단", "중앙", "하단"];
