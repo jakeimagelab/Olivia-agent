@@ -80,6 +80,7 @@ const protectedApiPrefixes = [
   "/api/prompter-proofread",
   "/api/broll-prompt-generate",
   "/api/youtube-editing", // /api/youtube-editing/* 와 /api/youtube-editing-analyze 를 모두 포함한다
+  "/api/work-journal",
 ];
 
 // 외부 공유 링크가 허용하는 기능 페이지 → 그 기능에 실제로 필요한 API prefix만 나열.
