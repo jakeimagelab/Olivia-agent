@@ -18,11 +18,13 @@ export async function GET(req: NextRequest) {
     if (!/^\d{4}-\d{2}$/.test(month)) {
       return NextResponse.json({ ok: false, error: "month 형식이 올바르지 않습니다." }, { status: 400 });
     }
+    const [year, monthNum] = month.split("-").map(Number);
+    const nextMonth = monthNum === 12 ? `${year + 1}-01-01` : `${year}-${String(monthNum + 1).padStart(2, "0")}-01`;
     const { data, error } = await db
       .from("work_journal_tasks")
       .select("due_date, status")
       .gte("due_date", `${month}-01`)
-      .lte("due_date", `${month}-31`);
+      .lt("due_date", nextMonth);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     const byDate = new Map<string, { total: number; done: number }>();
     for (const row of data ?? []) {
