@@ -46,6 +46,7 @@ function YoutubeEditingContiInner() {
   const projectIdParam = searchParams.get("project");
 
   const [project, setProject] = useState<YoutubeEditingProject | null>(null);
+  const [projectList, setProjectList] = useState<ProjectListItem[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [annotationsBySegment, setAnnotationsBySegment] = useState<Record<string, SegmentAnnotation>>({});
   const [canvasObjectsBySegment, setCanvasObjectsBySegment] = useState<Record<string, CanvasObjectData[]>>({});
