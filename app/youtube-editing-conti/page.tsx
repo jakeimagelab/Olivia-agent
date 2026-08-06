@@ -6,6 +6,7 @@ import { MoreVertical, Sparkles } from "lucide-react";
 import { C, R } from "@/lib/theme";
 import CanvasObject from "@/components/youtube-editing/CanvasObject";
 import CurrentSegmentHeader from "@/components/youtube-editing/CurrentSegmentHeader";
+import DoctorPosePopup from "@/components/youtube-editing/DoctorPosePopup";
 import DrawingToolbar from "@/components/youtube-editing/DrawingToolbar";
 import EditToolsPanel from "@/components/youtube-editing/EditToolsPanel";
 import QuickOptionCards from "@/components/youtube-editing/QuickOptionCards";
@@ -16,7 +17,7 @@ import StoryboardCanvas from "@/components/youtube-editing/StoryboardCanvas";
 import { splitScriptIntoSentences, VISUAL_STYLE_TO_PROMPT_PRESET } from "@/lib/youtube-editing/constants";
 import { exportProjectJson, printProjectSummary } from "@/lib/youtube-editing/export";
 import type {
-  CanvasObject as CanvasObjectData, CanvasObjectType, DrawTool, SaveState,
+  CanvasObject as CanvasObjectData, CanvasObjectType, DoctorPoseKey, DrawTool, SaveState,
   Segment, SegmentAnnotation, Stroke, YoutubeEditingProject,
 } from "@/lib/youtube-editing/types";
 
