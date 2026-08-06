@@ -521,11 +521,24 @@ function YoutubeEditingContiInner() {
             <MoreVertical size={15} />
           </button>
           {moreOpen ? (
-            <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", border: `1px solid ${C.border}`, borderRadius: R.md, boxShadow: "0 8px 24px rgba(21,88,85,.12)", zIndex: 30, minWidth: 160 }}>
+            <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", border: `1px solid ${C.border}`, borderRadius: R.md, boxShadow: "0 8px 24px rgba(21,88,85,.12)", zIndex: 30, minWidth: 200 }}>
               <button type="button" onClick={() => { setMoreOpen(false); router.push("/youtube-editing-conti"); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", border: 0, background: "transparent", fontSize: 12, color: C.ink, cursor: "pointer" }}>
+                📄 저장된 문서 목록
+              </button>
+              <button type="button" onClick={() => { setMoreOpen(false); router.push("/youtube-editing-conti/new"); }}
                 style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", border: 0, background: "transparent", fontSize: 12, color: C.ink, cursor: "pointer" }}>
                 + 새 프로젝트 시작
               </button>
+              <button type="button" disabled={generatingPoses} onClick={() => { setMoreOpen(false); void generateDoctorPoseImages(); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", border: 0, borderTop: `1px solid ${C.border}`, background: "transparent", fontSize: 12, color: C.muted, cursor: generatingPoses ? "not-allowed" : "pointer" }}>
+                {generatingPoses ? "포즈 이미지 생성 중..." : "🩺 원장 포즈 이미지 생성/재생성"}
+              </button>
+            </div>
+          ) : null}
+          {poseGenMessage ? (
+            <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: C.ink, color: "#fff", borderRadius: R.sm, padding: "8px 12px", fontSize: 11, zIndex: 31, whiteSpace: "nowrap" }}>
+              {poseGenMessage}
             </div>
           ) : null}
         </div>
