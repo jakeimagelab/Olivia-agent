@@ -439,6 +439,24 @@ function YoutubeEditingContiInner() {
     }
   };
 
+  // 원장 포즈 6종 선화 이미지를 한 번 생성해 고정 경로에 저장한다(재실행하면 같은 경로에 덮어씀).
+  const generateDoctorPoseImages = async () => {
+    if (generatingPoses) return;
+    setGeneratingPoses(true);
+    setPoseGenMessage("포즈 이미지 생성 중... (1분 정도 걸릴 수 있어요)");
+    try {
+      const response = await fetch("/api/youtube-editing/doctor-poses/generate", { method: "POST" });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || "일부 포즈 생성에 실패했습니다.");
+      setPoseGenMessage("포즈 이미지 생성 완료!");
+    } catch (error) {
+      setPoseGenMessage(error instanceof Error ? error.message : "포즈 이미지 생성에 실패했습니다.");
+    } finally {
+      setGeneratingPoses(false);
+      setTimeout(() => setPoseGenMessage(""), 4000);
+    }
+  };
+
   if (loading) {
     return <main className="pc-page" style={{ display: "grid", placeItems: "center", minHeight: "60vh", color: C.muted }}>불러오는 중...</main>;
   }
