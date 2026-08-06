@@ -44,7 +44,8 @@ describe("polygonContainsPoint", () => {
 
 describe("strokeIntersectsPolygon", () => {
   it("올가미 폐곡선 안에 획의 점이 있으면 겹친 것으로 본다", () => {
-    expect(strokeIntersectsPolygon(horizontalStroke, square)).toBe(true);
+    const insideStroke: Stroke = { id: "s4", tool: "pen", color: "#000", width: 3, points: [{ x: 0.3, y: 0.3 }, { x: 0.4, y: 0.4 }] };
+    expect(strokeIntersectsPolygon(insideStroke, square)).toBe(true);
   });
 
   it("점이 3개 미만인 폐곡선은 겹치지 않는 것으로 본다", () => {
