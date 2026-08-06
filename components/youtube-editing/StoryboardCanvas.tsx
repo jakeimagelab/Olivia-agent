@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import type { DrawTool, Stroke, StrokePoint } from "@/lib/youtube-editing/types";
-import { renderStrokes, strokeIntersectsPoint } from "@/lib/youtube-editing/canvas";
+import { renderStrokes, strokeIntersectsPoint, strokeIntersectsPolygon } from "@/lib/youtube-editing/canvas";
 
 const ERASER_RADIUS_PX = 14;
 
@@ -29,6 +29,7 @@ export default function StoryboardCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef<{ points: StrokePoint[] } | null>(null);
+  const lassoRef = useRef<{ points: StrokePoint[] } | null>(null);
   const erasedIdsRef = useRef<Set<string>>(new Set());
   const pointerIdRef = useRef<number | null>(null);
   const strokesRef = useRef(strokes);
@@ -88,6 +89,26 @@ export default function StoryboardCanvas({
     if (ctx) renderStrokes(ctx, strokesRef.current.filter((s) => !erasedIdsRef.current.has(s.id)), canvas.width, canvas.height);
   };
 
+  const drawLassoPreview = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    const loop = lassoRef.current;
+    if (!canvas || !ctx || !loop || loop.points.length < 2) return;
+    renderStrokes(ctx, strokesRef.current, canvas.width, canvas.height);
+    ctx.save();
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = "#2563EB";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    loop.points.forEach((point, index) => {
+      const x = point.x * canvas.width;
+      const y = point.y * canvas.height;
+      if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.restore();
+  };
+
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -97,6 +118,8 @@ export default function StoryboardCanvas({
     if (tool === "eraser") {
       erasedIdsRef.current = new Set();
       eraseAt(point);
+    } else if (tool === "lasso") {
+      lassoRef.current = { points: [point] };
     } else {
       drawingRef.current = { points: [point] };
     }
@@ -109,12 +132,18 @@ export default function StoryboardCanvas({
       eraseAt(point);
       return;
     }
+    if (tool === "lasso") {
+      if (!lassoRef.current) return;
+      lassoRef.current.points.push(point);
+      drawLassoPreview();
+      return;
+    }
     if (!drawingRef.current) return;
     drawingRef.current.points.push(point);
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (canvas && ctx) {
-      const preview: Stroke = { id: "__preview__", tool: tool as Exclude<DrawTool, "eraser">, color, width, points: drawingRef.current.points };
+      const preview: Stroke = { id: "__preview__", tool: tool === "highlighter" ? "highlighter" : "pen", color, width, points: drawingRef.current.points };
       renderStrokes(ctx, [...strokesRef.current, preview], canvas.width, canvas.height);
     }
   };
@@ -128,10 +157,20 @@ export default function StoryboardCanvas({
       redraw();
       return;
     }
+    if (tool === "lasso") {
+      const loop = lassoRef.current;
+      lassoRef.current = null;
+      if (loop && loop.points.length >= 3) {
+        const captured = strokesRef.current.filter((s) => strokeIntersectsPolygon(s, loop.points)).map((s) => s.id);
+        if (captured.length) onEraseStrokes(captured);
+      }
+      redraw();
+      return;
+    }
     const drawing = drawingRef.current;
     drawingRef.current = null;
     if (drawing && drawing.points.length >= 2) {
-      onStrokeCommit({ id: crypto.randomUUID(), tool: tool as Exclude<DrawTool, "eraser">, color, width, points: drawing.points });
+      onStrokeCommit({ id: crypto.randomUUID(), tool: tool === "highlighter" ? "highlighter" : "pen", color, width, points: drawing.points });
     } else {
       redraw();
     }
@@ -146,7 +185,7 @@ export default function StoryboardCanvas({
         onPointerUp={finishPointer}
         onPointerLeave={finishPointer}
         onPointerCancel={finishPointer}
-        style={{ display: "block", width: "100%", height: "100%", touchAction: "none", cursor: tool === "eraser" ? "cell" : "crosshair" }}
+        style={{ display: "block", width: "100%", height: "100%", touchAction: "none", cursor: tool === "eraser" ? "cell" : tool === "lasso" ? "crosshair" : "crosshair" }}
       />
       {children}
     </div>
