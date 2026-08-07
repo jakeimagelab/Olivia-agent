@@ -73,9 +73,8 @@ export default function WorkJournalPage() {
 
   const loadUpcoming = useCallback(async () => {
     try {
-      const response = await fetch("/api/work-journal/upcoming?limit=6", { cache: "no-store" });
-      const data = await response.json();
-      if (data.ok) setUpcoming(data.tasks);
+      const data = await fetchJson("/api/work-journal/upcoming?limit=6", { cache: "no-store" });
+      setUpcoming(data.tasks);
     } catch {
       /* 다가오는 일정 위젯도 부가 정보라 조용히 무시한다 */
     }
@@ -83,9 +82,8 @@ export default function WorkJournalPage() {
 
   const loadAssignees = useCallback(async () => {
     try {
-      const response = await fetch("/api/work-journal/assignees", { cache: "no-store" });
-      const data = await response.json();
-      if (data.ok) setAssignees(data.assignees);
+      const data = await fetchJson("/api/work-journal/assignees", { cache: "no-store" });
+      setAssignees(data.assignees);
     } catch {
       /* 자동완성 후보 로드 실패는 무시 — 직접 입력은 그대로 가능 */
     }
@@ -94,9 +92,8 @@ export default function WorkJournalPage() {
   const loadDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
     try {
-      const response = await fetch(`/api/work-journal/tasks/${id}`, { cache: "no-store" });
-      const data = await response.json();
-      if (data.ok) setTaskDetail(data.task);
+      const data = await fetchJson(`/api/work-journal/tasks/${id}`, { cache: "no-store" });
+      setTaskDetail(data.task);
     } catch {
       /* 상세 로드 실패 — 패널은 로딩 상태에서 빠져나온다 */
     } finally {
