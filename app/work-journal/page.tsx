@@ -162,14 +162,29 @@ export default function WorkJournalPage() {
     void loadDetail(selectedTaskId);
   }, [selectedTaskId, loadDetail]);
 
+  const eventDates = useMemo(() => new Set(calendarEventsByDate.keys()), [calendarEventsByDate]);
+  const selectedDateEvents = calendarEventsByDate.get(selectedDate) ?? [];
+
+  const mergedUpcoming = useMemo<UpcomingEntry[]>(() => {
+    const taskEntries: UpcomingEntry[] = upcoming.map((task) => ({
+      kind: "task", id: task.id, date: task.dueDate, time: task.dueTime, title: task.title, done: task.status === "done",
+    }));
+    const eventEntries: UpcomingEntry[] = upcomingEvents.map((event) => ({
+      kind: "event", id: event.id, date: event.date, time: event.time, title: event.title, done: event.completed,
+    }));
+    return [...taskEntries, ...eventEntries]
+      .sort((a, b) => (a.date === b.date ? (a.time ?? "").localeCompare(b.time ?? "") : a.date.localeCompare(b.date)))
+      .slice(0, 8);
+  }, [upcoming, upcomingEvents]);
+
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);
     if (date.slice(0, 7) !== currentMonth) setCurrentMonth(date.slice(0, 7));
   };
 
-  const handleSelectUpcoming = (task: Task) => {
-    handleSelectDate(task.dueDate);
-    setSelectedTaskId(task.id);
+  const handleSelectUpcoming = (entry: UpcomingEntry) => {
+    handleSelectDate(entry.date);
+    setSelectedTaskId(entry.kind === "task" ? entry.id : null);
   };
 
   const handleAddTask = async (input: { title: string; assigneeName: string; priority: TaskPriority }) => {
