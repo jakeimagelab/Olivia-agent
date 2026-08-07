@@ -74,6 +74,43 @@ export default function WorkJournalPage() {
     }
   }, []);
 
+  // 기존 "캘린더"(calendar_tasks) 연동 — 업무일지는 여기 쓰지 않고 읽기 전용으로만 가져와 보여준다.
+  // 실제 일정 등록/수정은 그대로 /calendar에서 한다.
+  const loadCalendarMonth = useCallback(async (month: string) => {
+    try {
+      const data = await fetchJson(`/api/calendar?month=${month}`, { cache: "no-store" });
+      const byDate = new Map<string, CalendarEvent[]>();
+      for (const row of data.tasks as Record<string, any>[]) {
+        const event = rowToCalendarEvent(row);
+        byDate.set(event.date, [...(byDate.get(event.date) ?? []), event]);
+      }
+      setCalendarEventsByDate(byDate);
+    } catch {
+      /* 캘린더 연동은 부가 정보라 실패해도 조용히 무시한다 */
+    }
+  }, []);
+
+  const loadUpcomingCalendarEvents = useCallback(async () => {
+    try {
+      const thisMonth = todayStr().slice(0, 7);
+      const [year, m] = thisMonth.split("-").map(Number);
+      const nextMonth = m === 12 ? `${year + 1}-01` : `${year}-${String(m + 1).padStart(2, "0")}`;
+      const [a, b] = await Promise.all([
+        fetchJson(`/api/calendar?month=${thisMonth}`, { cache: "no-store" }),
+        fetchJson(`/api/calendar?month=${nextMonth}`, { cache: "no-store" }),
+      ]);
+      const today = todayStr();
+      const merged = [...a.tasks, ...b.tasks]
+        .map(rowToCalendarEvent)
+        .filter((event) => event.date >= today && !event.completed)
+        .sort((x, y) => (x.date === y.date ? (x.time ?? "").localeCompare(y.time ?? "") : x.date.localeCompare(y.date)))
+        .slice(0, 10);
+      setUpcomingEvents(merged);
+    } catch {
+      /* 다가오는 일정 위젯도 부가 정보라 조용히 무시한다 */
+    }
+  }, []);
+
   const loadTasks = useCallback(async (date: string) => {
     setTasksLoading(true);
     setError("");
