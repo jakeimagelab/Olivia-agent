@@ -154,9 +154,9 @@ export default function WorkJournalPage() {
     }
   }, []);
 
-  useEffect(() => { void loadMonth(currentMonth); }, [currentMonth, loadMonth]);
+  useEffect(() => { void loadMonth(currentMonth); void loadCalendarMonth(currentMonth); }, [currentMonth, loadMonth, loadCalendarMonth]);
   useEffect(() => { void loadTasks(selectedDate); setSelectedTaskId(null); setTaskDetail(null); }, [selectedDate, loadTasks]);
-  useEffect(() => { void loadUpcoming(); void loadAssignees(); }, [loadUpcoming, loadAssignees]);
+  useEffect(() => { void loadUpcoming(); void loadUpcomingCalendarEvents(); void loadAssignees(); }, [loadUpcoming, loadUpcomingCalendarEvents, loadAssignees]);
   useEffect(() => {
     if (!selectedTaskId) { setTaskDetail(null); return; }
     void loadDetail(selectedTaskId);
