@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { CalendarDays } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import MiniCalendar from "@/components/work-journal/MiniCalendar";
 import TaskListColumn from "@/components/work-journal/TaskListColumn";
 import TaskDetailPanel from "@/components/work-journal/TaskDetailPanel";
-import { C } from "@/lib/theme";
-import type { Task, TaskDetail, TaskListItem, TaskPriority, TaskStatus } from "@/lib/work-journal/types";
+import { C, R } from "@/lib/theme";
+import type { CalendarEvent, Task, TaskDetail, TaskListItem, TaskPriority, TaskStatus, UpcomingEntry } from "@/lib/work-journal/types";
 
 const STATUS_CYCLE: Record<TaskStatus, TaskStatus> = { todo: "in_progress", in_progress: "done", done: "todo" };
 
