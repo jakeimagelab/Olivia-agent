@@ -363,13 +363,32 @@ export default function WorkJournalPage() {
             currentMonth={currentMonth}
             selectedDate={selectedDate}
             dayCounts={dayCounts}
+            eventDates={eventDates}
             onSelectDate={handleSelectDate}
             onMonthChange={setCurrentMonth}
-            upcoming={upcoming}
+            upcoming={mergedUpcoming}
             onSelectUpcoming={handleSelectUpcoming}
           />
 
-          <div className="pc-card pc-card--padded" style={{ minHeight: 0, overflow: "hidden" }}>
+          <div className="pc-card pc-card--padded" style={{ minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            {selectedDateEvents.length > 0 ? (
+              <div style={{ flexShrink: 0, marginBottom: 12, padding: 10, borderRadius: R.md, background: C.mint, border: `1px solid ${C.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 800, color: C.teal }}>
+                    <CalendarDays size={12} />이 날의 캘린더 일정
+                  </span>
+                  <Link href="/calendar" style={{ fontSize: 10, fontWeight: 700, color: C.muted, textDecoration: "none" }}>캘린더에서 보기 →</Link>
+                </div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  {selectedDateEvents.map((event) => (
+                    <div key={event.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.ink }}>
+                      {event.time ? <span style={{ fontSize: 10, color: C.hint, flexShrink: 0, width: 40 }}>{event.time}</span> : <span style={{ width: 40, flexShrink: 0 }} />}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{event.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {tasksLoading ? (
               <p style={{ fontSize: 12, color: C.hint }}>불러오는 중...</p>
             ) : (
