@@ -209,13 +209,17 @@ export default function WorkJournalPage() {
   const handleAddChecklistItem = async (label: string) => {
     if (!taskDetail) return;
     const taskId = taskDetail.id;
-    const response = await fetch(`/api/work-journal/tasks/${taskId}/checklist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label }),
-    });
-    const data = await response.json();
-    if (!data.ok) { setError(data.error ?? "세부 업무 추가에 실패했습니다."); return; }
+    let data: any;
+    try {
+      data = await fetchJson(`/api/work-journal/tasks/${taskId}/checklist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label }),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "세부 업무 추가에 실패했습니다.");
+      return;
+    }
     setTaskDetail((prev) => (prev ? { ...prev, checklist: [...prev.checklist, data.item] } : prev));
     patchChecklistCount(taskId, 1, 0);
   };
@@ -225,13 +229,15 @@ export default function WorkJournalPage() {
     const taskId = taskDetail.id;
     setTaskDetail((prev) => (prev ? { ...prev, checklist: prev.checklist.map((item) => (item.id === itemId ? { ...item, done } : item)) } : prev));
     patchChecklistCount(taskId, 0, done ? 1 : -1);
-    const response = await fetch(`/api/work-journal/checklist/${itemId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ done }),
-    });
-    const data = await response.json();
-    if (!data.ok) setError(data.error ?? "변경에 실패했습니다.");
+    try {
+      await fetchJson(`/api/work-journal/checklist/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ done }),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "변경에 실패했습니다.");
+    }
   };
 
   const handleDeleteChecklistItem = async (itemId: string) => {
@@ -240,9 +246,11 @@ export default function WorkJournalPage() {
     const removed = taskDetail.checklist.find((item) => item.id === itemId);
     setTaskDetail((prev) => (prev ? { ...prev, checklist: prev.checklist.filter((item) => item.id !== itemId) } : prev));
     if (removed) patchChecklistCount(taskId, -1, removed.done ? -1 : 0);
-    const response = await fetch(`/api/work-journal/checklist/${itemId}`, { method: "DELETE" });
-    const data = await response.json();
-    if (!data.ok) setError(data.error ?? "삭제에 실패했습니다.");
+    try {
+      await fetchJson(`/api/work-journal/checklist/${itemId}`, { method: "DELETE" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "삭제에 실패했습니다.");
+    }
   };
 
   const handleUploadFile = async (file: File) => {
@@ -250,18 +258,24 @@ export default function WorkJournalPage() {
     const taskId = taskDetail.id;
     const formData = new FormData();
     formData.append("file", file);
-    const response = await fetch(`/api/work-journal/tasks/${taskId}/files`, { method: "POST", body: formData });
-    const data = await response.json();
-    if (!data.ok) { setError(data.error ?? "파일 업로드에 실패했습니다."); return; }
+    let data: any;
+    try {
+      data = await fetchJson(`/api/work-journal/tasks/${taskId}/files`, { method: "POST", body: formData });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "파일 업로드에 실패했습니다.");
+      return;
+    }
     setTaskDetail((prev) => (prev && prev.id === taskId ? { ...prev, files: [...prev.files, data.file] } : prev));
   };
 
   const handleDeleteFile = async (fileId: string) => {
     if (!taskDetail) return;
     setTaskDetail((prev) => (prev ? { ...prev, files: prev.files.filter((f) => f.id !== fileId) } : prev));
-    const response = await fetch(`/api/work-journal/files/${fileId}`, { method: "DELETE" });
-    const data = await response.json();
-    if (!data.ok) setError(data.error ?? "삭제에 실패했습니다.");
+    try {
+      await fetchJson(`/api/work-journal/files/${fileId}`, { method: "DELETE" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "삭제에 실패했습니다.");
+    }
   };
 
   return (
