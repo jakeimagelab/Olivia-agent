@@ -62,9 +62,7 @@ export default function WorkJournalPage() {
     setTasksLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/work-journal/tasks?date=${date}`, { cache: "no-store" });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.error);
+      const data = await fetchJson(`/api/work-journal/tasks?date=${date}`, { cache: "no-store" });
       setTasks(data.tasks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "업무 목록을 불러오지 못했습니다.");
