@@ -141,20 +141,19 @@ export default function WorkJournalPage() {
     void loadUpcoming();
   };
 
-  const handleUpdateDetail = async (patch: Partial<TaskDetail>) => {
+  const handleUpdateDetail = async (patch: Partial<Task>) => {
     if (!taskDetail) return;
     const taskId = taskDetail.id;
     setTaskDetail((prev) => (prev ? { ...prev, ...patch } : prev));
-    const { checklist: _checklist, files: _files, ...taskPatch } = patch as Partial<TaskDetail> & Record<string, unknown>;
     const response = await fetch(`/api/work-journal/tasks/${taskId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(taskPatch),
+      body: JSON.stringify(patch),
     });
     const data = await response.json();
     if (!data.ok) { setError(data.error ?? "저장에 실패했습니다."); return; }
 
-    if (typeof taskPatch.dueDate === "string" && taskPatch.dueDate !== selectedDate) {
+    if (typeof patch.dueDate === "string" && patch.dueDate !== selectedDate) {
       // 마감일이 다른 날짜로 바뀌면 오늘 목록에서는 사라진다.
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
       setSelectedTaskId(null);
@@ -164,8 +163,8 @@ export default function WorkJournalPage() {
     }
     void loadMonth(currentMonth);
     void loadUpcoming();
-    if (typeof taskPatch.assigneeName === "string" && taskPatch.assigneeName && !assignees.includes(taskPatch.assigneeName)) {
-      setAssignees((prev) => [...prev, taskPatch.assigneeName as string].sort());
+    if (typeof patch.assigneeName === "string" && patch.assigneeName && !assignees.includes(patch.assigneeName)) {
+      setAssignees((prev) => [...prev, patch.assigneeName as string].sort());
     }
   };
 
