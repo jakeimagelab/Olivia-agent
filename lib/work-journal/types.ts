@@ -37,3 +37,18 @@ export type Task = {
 export type TaskListItem = Task & { checklistTotal: number; checklistDone: number };
 
 export type TaskDetail = Task & { checklist: ChecklistItem[]; files: TaskFile[] };
+
+// 기존 "캘린더"(calendar_tasks) 연동용 — 업무일지는 이 테이블에 쓰지 않고 읽기 전용으로만 보여준다.
+export type CalendarEvent = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  time: string | null;
+  title: string;
+  category: string;
+  completed: boolean;
+  location: string | null;
+};
+
+export type UpcomingEntry =
+  | { kind: "task"; id: string; date: string; time: string | null; title: string; done: boolean }
+  | { kind: "event"; id: string; date: string; time: string | null; title: string; done: boolean };
