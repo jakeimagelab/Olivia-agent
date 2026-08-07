@@ -49,9 +49,7 @@ export default function WorkJournalPage() {
 
   const loadMonth = useCallback(async (month: string) => {
     try {
-      const response = await fetch(`/api/work-journal/tasks?month=${month}`, { cache: "no-store" });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.error);
+      const data = await fetchJson(`/api/work-journal/tasks?month=${month}`, { cache: "no-store" });
       const next = new Map<string, { total: number; done: number }>();
       for (const day of data.days as { dueDate: string; total: number; done: number }[]) next.set(day.dueDate, { total: day.total, done: day.done });
       setDayCounts(next);
