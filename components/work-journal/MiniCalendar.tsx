@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { C, R } from "@/lib/theme";
-import type { Task } from "@/lib/work-journal/types";
+import type { UpcomingEntry } from "@/lib/work-journal/types";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -43,6 +43,7 @@ export default function MiniCalendar({
   currentMonth,
   selectedDate,
   dayCounts,
+  eventDates,
   onSelectDate,
   onMonthChange,
   upcoming,
@@ -51,10 +52,11 @@ export default function MiniCalendar({
   currentMonth: string;
   selectedDate: string;
   dayCounts: Map<string, { total: number; done: number }>;
+  eventDates: Set<string>;
   onSelectDate: (date: string) => void;
   onMonthChange: (month: string) => void;
-  upcoming: Task[];
-  onSelectUpcoming: (task: Task) => void;
+  upcoming: UpcomingEntry[];
+  onSelectUpcoming: (entry: UpcomingEntry) => void;
 }) {
   const grid = buildGrid(currentMonth);
   const [year, month] = currentMonth.split("-").map(Number);
@@ -94,6 +96,7 @@ export default function MiniCalendar({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
           {grid.map((cell) => {
             const counts = dayCounts.get(cell.date);
+            const hasEvent = eventDates.has(cell.date);
             const active = cell.date === selectedDate;
             const isToday = cell.date === today;
             const allDone = counts && counts.total > 0 && counts.done === counts.total;
@@ -109,34 +112,48 @@ export default function MiniCalendar({
                 }}
               >
                 {cell.day}
-                {counts ? (
-                  <span style={{
-                    position: "absolute", bottom: 3, width: 4, height: 4, borderRadius: "50%",
-                    background: active ? "#fff" : allDone ? C.success : C.orange,
-                  }} />
+                {counts || hasEvent ? (
+                  <span style={{ position: "absolute", bottom: 3, display: "flex", gap: 2 }}>
+                    {counts ? (
+                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: active ? "#fff" : allDone ? C.success : C.orange }} />
+                    ) : null}
+                    {hasEvent ? (
+                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: active ? "#fff" : "#2563EB" }} />
+                    ) : null}
+                  </span>
                 ) : null}
               </button>
             );
           })}
         </div>
+        {eventDates.size > 0 ? (
+          <div style={{ display: "flex", gap: 12, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, color: C.muted, fontWeight: 700 }}>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.orange }} />업무
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, color: C.muted, fontWeight: 700 }}>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#2563EB" }} />캘린더 일정
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className="pc-card pc-card--padded" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         <div style={{ fontSize: 12, fontWeight: 800, color: C.ink, marginBottom: 10 }}>다가오는 일정</div>
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
           {upcoming.length === 0 ? (
-            <p style={{ fontSize: 11.5, color: C.hint }}>예정된 업무가 없습니다.</p>
-          ) : upcoming.map((task) => (
+            <p style={{ fontSize: 11.5, color: C.hint }}>예정된 일정이 없습니다.</p>
+          ) : upcoming.map((entry) => (
             <button
-              key={task.id}
+              key={`${entry.kind}-${entry.id}`}
               type="button"
-              onClick={() => onSelectUpcoming(task)}
+              onClick={() => onSelectUpcoming(entry)}
               style={{ display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", padding: 0, cursor: "pointer", textAlign: "left" }}
             >
-              <span style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, flexShrink: 0, width: 56 }}>{relativeDayLabel(task.dueDate)}</span>
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: task.status === "done" ? C.success : C.orange, flexShrink: 0 }} />
-              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</span>
-              {task.dueTime ? <span style={{ fontSize: 10, color: C.hint, flexShrink: 0 }}>{task.dueTime}</span> : null}
+              <span style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, flexShrink: 0, width: 56 }}>{relativeDayLabel(entry.date)}</span>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: entry.kind === "event" ? "#2563EB" : entry.done ? C.success : C.orange, flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</span>
+              {entry.time ? <span style={{ fontSize: 10, color: C.hint, flexShrink: 0 }}>{entry.time}</span> : null}
             </button>
           ))}
         </div>
