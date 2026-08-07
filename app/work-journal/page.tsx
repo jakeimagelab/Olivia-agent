@@ -120,13 +120,17 @@ export default function WorkJournalPage() {
   };
 
   const handleAddTask = async (input: { title: string; assigneeName: string; priority: TaskPriority }) => {
-    const response = await fetch("/api/work-journal/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dueDate: selectedDate, title: input.title, assigneeName: input.assigneeName || undefined, priority: input.priority }),
-    });
-    const data = await response.json();
-    if (!data.ok) { setError(data.error ?? "업무 추가에 실패했습니다."); return; }
+    let data: any;
+    try {
+      data = await fetchJson("/api/work-journal/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueDate: selectedDate, title: input.title, assigneeName: input.assigneeName || undefined, priority: input.priority }),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "업무 추가에 실패했습니다.");
+      return;
+    }
     setTasks((prev) => [...prev, data.task]);
     void loadMonth(currentMonth);
     void loadUpcoming();
@@ -137,13 +141,16 @@ export default function WorkJournalPage() {
     const nextStatus = STATUS_CYCLE[task.status];
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)));
     if (taskDetail?.id === task.id) setTaskDetail((prev) => (prev ? { ...prev, status: nextStatus } : prev));
-    const response = await fetch(`/api/work-journal/tasks/${task.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-    const data = await response.json();
-    if (!data.ok) { setError(data.error ?? "상태 변경에 실패했습니다."); return; }
+    try {
+      await fetchJson(`/api/work-journal/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "상태 변경에 실패했습니다.");
+      return;
+    }
     void loadMonth(currentMonth);
     void loadUpcoming();
   };
@@ -152,13 +159,17 @@ export default function WorkJournalPage() {
     if (!taskDetail) return;
     const taskId = taskDetail.id;
     setTaskDetail((prev) => (prev ? { ...prev, ...patch } : prev));
-    const response = await fetch(`/api/work-journal/tasks/${taskId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
-    });
-    const data = await response.json();
-    if (!data.ok) { setError(data.error ?? "저장에 실패했습니다."); return; }
+    let data: any;
+    try {
+      data = await fetchJson(`/api/work-journal/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "저장에 실패했습니다.");
+      return;
+    }
 
     if (typeof patch.dueDate === "string" && patch.dueDate !== selectedDate) {
       // 마감일이 다른 날짜로 바뀌면 오늘 목록에서는 사라진다.
