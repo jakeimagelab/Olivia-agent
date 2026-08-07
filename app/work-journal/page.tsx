@@ -389,19 +389,21 @@ export default function WorkJournalPage() {
                 </div>
               </div>
             ) : null}
-            {tasksLoading ? (
-              <p style={{ fontSize: 12, color: C.hint }}>불러오는 중...</p>
-            ) : (
-              <TaskListColumn
-                dateLabel={dateHeaderLabel(selectedDate)}
-                tasks={tasks}
-                selectedTaskId={selectedTaskId}
-                onSelectTask={setSelectedTaskId}
-                onAddTask={handleAddTask}
-                onCycleStatus={handleCycleStatus}
-                assigneeOptions={assignees}
-              />
-            )}
+            <div style={{ flex: 1, minHeight: 0 }}>
+              {tasksLoading ? (
+                <p style={{ fontSize: 12, color: C.hint }}>불러오는 중...</p>
+              ) : (
+                <TaskListColumn
+                  dateLabel={dateHeaderLabel(selectedDate)}
+                  tasks={tasks}
+                  selectedTaskId={selectedTaskId}
+                  onSelectTask={setSelectedTaskId}
+                  onAddTask={handleAddTask}
+                  onCycleStatus={handleCycleStatus}
+                  assigneeOptions={assignees}
+                />
+              )}
+            </div>
           </div>
 
           <div className="pc-card pc-card--padded" style={{ minHeight: 0, overflow: "hidden" }}>
