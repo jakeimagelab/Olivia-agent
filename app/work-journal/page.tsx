@@ -193,9 +193,11 @@ export default function WorkJournalPage() {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
     setSelectedTaskId(null);
     setTaskDetail(null);
-    const response = await fetch(`/api/work-journal/tasks/${taskId}`, { method: "DELETE" });
-    const data = await response.json();
-    if (!data.ok) setError(data.error ?? "삭제에 실패했습니다.");
+    try {
+      await fetchJson(`/api/work-journal/tasks/${taskId}`, { method: "DELETE" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "삭제에 실패했습니다.");
+    }
     void loadMonth(currentMonth);
     void loadUpcoming();
   };
