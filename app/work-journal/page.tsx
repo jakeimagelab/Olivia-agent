@@ -10,6 +10,20 @@ import type { Task, TaskDetail, TaskListItem, TaskPriority, TaskStatus } from "@
 
 const STATUS_CYCLE: Record<TaskStatus, TaskStatus> = { todo: "in_progress", in_progress: "done", done: "todo" };
 
+// 서버가 500 등으로 죽으면 응답 본문이 JSON이 아닐 수 있다(response.json()이 그대로 예외를 던지면
+// 브라우저의 날 것 그대로의 파싱 에러 문구가 화면에 노출된다) — 항상 사람이 읽을 수 있는 메시지로 바꾼다.
+async function fetchJson(url: string, init?: RequestInit): Promise<any> {
+  const response = await fetch(url, init);
+  let data: any = null;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(`요청에 실패했습니다. (${response.status})`);
+  }
+  if (!data?.ok) throw new Error(data?.error || `요청에 실패했습니다. (${response.status})`);
+  return data;
+}
+
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
