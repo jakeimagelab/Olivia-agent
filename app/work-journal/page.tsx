@@ -46,6 +46,8 @@ export default function WorkJournalPage() {
   const [taskDetail, setTaskDetail] = useState<TaskDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [upcoming, setUpcoming] = useState<Task[]>([]);
+  const [calendarEventsByDate, setCalendarEventsByDate] = useState<Map<string, CalendarEvent[]>>(new Map());
+  const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
   const [assignees, setAssignees] = useState<string[]>([]);
   const [error, setError] = useState("");
 
