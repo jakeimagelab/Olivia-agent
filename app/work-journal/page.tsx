@@ -30,6 +30,18 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function rowToCalendarEvent(row: Record<string, any>): CalendarEvent {
+  return {
+    id: row.id,
+    date: row.date,
+    time: row.time ?? null,
+    title: row.title ?? "",
+    category: row.category ?? "general",
+    completed: !!row.completed,
+    location: row.location ?? null,
+  };
+}
+
 function dateHeaderLabel(date: string): string {
   const d = new Date(`${date}T00:00:00`);
   const weekday = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
