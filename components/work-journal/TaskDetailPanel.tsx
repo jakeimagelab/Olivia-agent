@@ -36,7 +36,7 @@ export default function TaskDetailPanel({
 }: {
   detail: TaskDetail | null;
   loading?: boolean;
-  onUpdate: (patch: Partial<TaskDetail>) => void;
+  onUpdate: (patch: Partial<Task>) => void;
   onDelete: () => void;
   onAddChecklistItem: (label: string) => void;
   onToggleChecklistItem: (itemId: string, done: boolean) => void;
