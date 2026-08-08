@@ -52,7 +52,7 @@ export default function PublicationManagementPanel({
     try {
       if (type === "quote") await fetchJson(`/api/quotes/${relatedId}/publish`, { method: "POST" });
       else if (type === "contract") await fetchJson(`/api/contracts/${relatedId}/publish`, { method: "POST" });
-      else await fetchJson(`/api/publications/${type}/${relatedId}/publish`, {
+      else await fetchJson(`/api/publications/by-type/${type}/${relatedId}/publish`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientId, workflowRunId }),
       });
