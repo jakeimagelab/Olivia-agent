@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .maybeSingle();
 
     if (existingPub && existingPub.status === "draft") {
-      await db.from("pcrm_publications").update({ status: "published", published_at: now, updated_at: now }).eq("id", existingPub.id);
+      await db.from("pcrm_publications").update({ status: "published", published_at: now, published_by: "admin", updated_at: now }).eq("id", existingPub.id);
     } else if (existingPub) {
       await db.from("pcrm_publications").insert({
         client_id: clientId,
@@ -55,6 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         version: existingPub.version + 1,
         status: "published",
         published_at: now,
+        published_by: "admin",
         created_by: "admin",
       });
     } else {
@@ -66,11 +67,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         title: "계약서",
         status: "published",
         published_at: now,
+        published_by: "admin",
         created_by: "admin",
       });
     }
 
-    const portal = await ensurePortalAccess({ clientId, workflowRunId, email: contract.email || undefined, expiresInDays: 90 });
+    // 포털은 고객 단위 1개만 재사용, 만료일 없음(위 quote publish 라우트와 동일 방침).
+    const portal = await ensurePortalAccess({ clientId, email: contract.email || undefined });
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://olivia.photoclinic.kr";
     const portalUrl = `${baseUrl}/client-portal/access/${portal.token}`;
 
