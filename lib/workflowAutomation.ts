@@ -168,7 +168,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "review_summarize",
       title: "후기 요약 및 콘텐츠 후보 생성",
       description: "후기를 요약하고 공개 가능한 SNS 콘텐츠 후보를 생성합니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: false,
       approval_type: "content",
     },
