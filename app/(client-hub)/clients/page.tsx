@@ -21,7 +21,6 @@ import ProjectMemoPanel from "@/components/client-workspace/ProjectMemoPanel";
 import PublicationManagementPanel from "@/components/client-workspace/PublicationManagementPanel";
 import PortalManagementPanel from "@/components/client-workspace/PortalManagementPanel";
 import type { ClientWorkspaceData } from "@/lib/clientWorkspace/types";
-import PcrmDashboard from "./_components/PcrmDashboard";
 import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
 import EditPcrmProjectDialog from "./_components/EditPcrmProjectDialog";
