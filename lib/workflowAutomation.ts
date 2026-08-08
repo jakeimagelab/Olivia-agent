@@ -227,7 +227,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "per_notice_mailing_draft",
       title: "PER 포인트 적립 안내 메일 초안 생성",
       description: "PER 적립 안내 메일 초안을 메일링함에 저장합니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: true,
       approval_type: "mailing",
       mailing_type: "proposal",
