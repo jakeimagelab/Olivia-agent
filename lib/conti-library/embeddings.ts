@@ -1,5 +1,5 @@
 import { EMBEDDING_MODEL } from "./config";
-import type { ContiCaseScene, ExtractedCaseDocument, ExtractedCaseScene } from "./types";
+import type { ExtractedCaseDocument, ExtractedCaseScene } from "./types";
 
 // OPENAI_API_KEY가 없거나 호출이 실패하면 예외를 던지지 않고 null을 반환한다 — 호출부(특히
 // /api/conti의 참고사례 조회)가 이 기능 없이도 기존처럼 동작해야 하기 때문이다.
