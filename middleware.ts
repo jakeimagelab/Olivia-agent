@@ -264,5 +264,6 @@ export const config = {
     "/portal-admin", "/portal-admin/:path*",
     "/link-generator", "/link-generator/:path*",
     "/work-journal", "/work-journal/:path*",
+    "/conti-library", "/conti-library/:path*",
   ],
 };
