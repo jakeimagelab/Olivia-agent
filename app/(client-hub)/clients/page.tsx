@@ -103,41 +103,168 @@ function ClientsInner() {
   const router = useRouter();
   const id = searchParams.get("id");
   const workflowRunId = searchParams.get("workflowRunId");
+  // 기존 8탭 상세 화면은 그대로 둔다(?id=) — 이번 개편으로 아직 안 옮긴 기능(문서/갤러리 상세관리 등)의
+  // 도피처. 새 3단 워크스페이스는 기본 진입(/clients, ?clientId=) 경로로 붙인다.
   if (id) return <DetailView clientId={id} workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
   if (workflowRunId) return <DetailView clientId="_by-workflow" workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
-  return <ListView openNewOnLoad={searchParams.get("new") === "1"} />;
+  return <ClientWorkspaceView openNewOnLoad={searchParams.get("new") === "1"} initialClientId={searchParams.get("clientId")} />;
 }
 
-/* ── LIST VIEW (대시보드 탭) ── */
-function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
+/* ── 3단 워크스페이스 (고객관리 개편 2026-08-09) — 왼쪽 리스트 | 가운데 프로젝트 | 오른쪽 공개+포털관리 ── */
+function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openNewOnLoad?: boolean; initialClientId: string | null }) {
   const router = useRouter();
   const {
-    filtered, dashboard, loading, search, setSearch,
+    filtered, loading, search, setSearch,
     formModal, openCreate, closeForm,
-    projectDialogFor, setProjectDialogFor,
     deletingId, deleteClient, load,
   } = useClientRoster();
+
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(initialClientId);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [workspace, setWorkspace] = useState<ClientWorkspaceData | null>(null);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState("");
 
   useEffect(() => {
     if (openNewOnLoad) openCreate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openNewOnLoad]);
 
+  const loadWorkspace = useCallback(async (clientId: string, projectId?: string | null) => {
+    setWorkspaceLoading(true);
+    setWorkspaceError("");
+    try {
+      const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+      const response = await fetch(`/api/clients/${clientId}/workspace${qs}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      setWorkspace(data);
+    } catch (error) {
+      setWorkspace(null);
+      setWorkspaceError(error instanceof Error ? error.message : "고객 정보를 불러오지 못했습니다.");
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedClientId) void loadWorkspace(selectedClientId, selectedProjectId);
+    else setWorkspace(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClientId, selectedProjectId]);
+
+  // 고객을 눌러도 전체 페이지를 새로고침하지 않는다 — URL만(뒤로가기/새로고침 대비) 얕게 갱신하고
+  // 가운데·오른쪽 패널만 다시 불러온다.
+  const selectClient = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setSelectedProjectId(null);
+    router.replace(`/clients?clientId=${clientId}`, { scroll: false });
+  };
+
+  const refreshWorkspace = () => { if (selectedClientId) void loadWorkspace(selectedClientId, selectedProjectId); };
+
   return (
     <div style={{ color: C.txt }}>
-      <div style={{ maxWidth: 1500, margin: "0 auto", padding: "0 0 80px" }}>
-        {loading ? <SpinBox /> : (
-          <PcrmDashboard
-            clients={filtered}
-            dashboard={dashboard}
-            search={search}
-            onSearch={setSearch}
-            deletingId={deletingId}
-            onOpen={(clientId) => router.push(`/clients?id=${clientId}`)}
-            onDelete={deleteClient}
-            onCreate={openCreate}
-          />
-        )}
+      <div
+        className="pcrm-workspace-grid"
+        style={{ display: "grid", gridTemplateColumns: "minmax(300px, 0.85fr) minmax(520px, 1.45fr) minmax(360px, 0.95fr)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
+      >
+        <ClientListPanel
+          clients={filtered}
+          loading={loading}
+          search={search}
+          onSearch={setSearch}
+          selectedClientId={selectedClientId}
+          onSelect={selectClient}
+          onCreate={openCreate}
+          deletingId={deletingId}
+          onDelete={deleteClient}
+        />
+
+        <div style={{ minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
+          {!selectedClientId ? (
+            <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
+              <p style={{ fontSize: 13, color: C.hint }}>왼쪽 목록에서 고객을 선택해주세요.</p>
+            </div>
+          ) : workspaceLoading && !workspace ? (
+            <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
+              <p style={{ fontSize: 13, color: C.hint }}>불러오는 중...</p>
+            </div>
+          ) : workspaceError ? (
+            <div className="pc-card pc-card--padded"><p style={{ fontSize: 12.5, color: C.danger }}>{workspaceError}</p></div>
+          ) : workspace ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <span style={{ width: 34, height: 34, borderRadius: R.sm, flexShrink: 0, background: avatarColor(workspace.client.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800 }}>
+                    {avatarInitial(workspace.client.name)}
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <h1 style={{ fontSize: 16, fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{workspace.client.name}</h1>
+                    <span style={{ fontSize: 11, color: C.hint }}>{workspace.client.department || "진료과 미입력"} · 프로젝트 {workspace.projects.length}개</span>
+                  </div>
+                </div>
+                <Link href={`/clients?id=${selectedClientId}`} style={{ fontSize: 11, fontWeight: 700, color: C.muted, textDecoration: "none", flexShrink: 0, border: `1px solid ${C.border}`, borderRadius: R.sm, padding: "6px 10px" }}>
+                  상세 관리 →
+                </Link>
+              </div>
+
+              {workspace.projects.length > 1 ? (
+                <select
+                  value={workspace.activeProject?.id ?? ""}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  style={{ height: 34, borderRadius: R.md, border: `1px solid ${C.border}`, padding: "0 10px", fontSize: 12.5, fontWeight: 700, color: C.teal, background: "#fff", alignSelf: "flex-start" }}
+                >
+                  {workspace.projects.map((project) => (
+                    <option key={project.id} value={project.id}>{project.project_name || "제목 없는 프로젝트"}{project.status === "completed" ? " (완료)" : ""}</option>
+                  ))}
+                </select>
+              ) : null}
+
+              {!workspace.activeProject ? (
+                <div className="pc-card pc-card--padded" style={{ textAlign: "center", padding: 32 }}>
+                  <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>진행 중인 프로젝트가 없습니다.</p>
+                  <Link href={`/quote?clientId=${selectedClientId}`} className="pc-btn pc-btn--orange pc-btn--sm" style={{ textDecoration: "none", display: "inline-flex" }}>견적서 작성</Link>
+                </div>
+              ) : (
+                <>
+                  <ProjectSummaryCard
+                    activeProject={workspace.activeProject}
+                    workflowSummary={workspace.workflowSummary}
+                    recentActivityAt={workspace.recentActivity[0]?.created_at}
+                  />
+                  {workspace.workflowSummary ? (
+                    <div className="pc-card pc-card--padded">
+                      <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} />
+                    </div>
+                  ) : null}
+                  <div className="pc-card pc-card--padded">
+                    <div style={{ fontSize: 12.5, fontWeight: 800, color: C.ink, marginBottom: 8 }}>최근 활동</div>
+                    <PcrmActivityTimeline activities={workspace.recentActivity} variant="compact" />
+                  </div>
+                  <ProjectMemoPanel clientId={selectedClientId} activeProject={workspace.activeProject} memo={workspace.memo} onRefresh={refreshWorkspace} />
+                </>
+              )}
+            </>
+          ) : null}
+        </div>
+
+        <div style={{ minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
+          {workspace?.activeProject ? (
+            <>
+              <PublicationManagementPanel
+                clientId={workspace.client.id}
+                workflowRunId={workspace.activeProject.id}
+                publications={workspace.publications}
+                resourceIds={workspace.resourceIds}
+                onRefresh={refreshWorkspace}
+              />
+              <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
+            </>
+          ) : workspace ? (
+            <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
+          ) : null}
+        </div>
       </div>
 
       <ClientFormModal
@@ -145,25 +272,16 @@ function ListView({ openNewOnLoad = false }: { openNewOnLoad?: boolean }) {
         mode={formModal?.mode ?? "create"}
         client={formModal?.client}
         onClose={closeForm}
-        onSaved={(id) => { closeForm(); void load(false); router.push(`/clients?id=${id}`); }}
-        onSavedAndNewProject={(id) => {
-          closeForm();
-          void load(false);
-          const created = filtered.find((c) => c.id === id);
-          setProjectDialogFor({ id, name: created?.name || "" });
-        }}
+        onSaved={(id) => { closeForm(); void load(false); selectClient(id); }}
+        onSavedAndNewProject={(id) => { closeForm(); void load(false); router.push(`/quote?clientId=${id}`); }}
       />
-      {projectDialogFor && (
-        <NewPcrmProjectDialog
-          clientId={projectDialogFor.id}
-          clientName={projectDialogFor.name}
-          onClose={() => setProjectDialogFor(null)}
-          onCreated={(workflowRunId) => {
-            setProjectDialogFor(null);
-            router.push(`/clients?id=${encodeURIComponent(projectDialogFor.id)}&workflowRunId=${encodeURIComponent(workflowRunId)}`);
-          }}
-        />
-      )}
+
+      <style jsx global>{`
+        @media (max-width: 1180px) {
+          .pcrm-workspace-grid { grid-template-columns: 1fr !important; height: auto !important; min-height: 0 !important; }
+          .pcrm-workspace-grid > div { height: auto !important; max-height: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
