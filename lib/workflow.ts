@@ -203,6 +203,50 @@ export function getWorkflowStepProgress(stepKey: string, workflowStatus?: string
 // 기존 컴포넌트 import를 깨지 않기 위한 호환 alias.
 export const PRIMARY_WORKFLOW_STEPS = ACTIVE_WORKFLOW_STEPS;
 
+/* 7단계 — 고객관리 3단 워크스페이스 개편(2026-08-09)에서 쓰는 화면 표시용 상위 그룹.
+   기존 WORKFLOW_STAGES(4단계)는 다른 화면이 이미 참조 중이라 그대로 두고, 이 7단계는
+   완전히 추가로 얹는다 — ACTIVE_WORKFLOW_STEP_KEYS 12개를 정확히 1번씩만 포함한다. */
+export type WorkflowPhaseKey =
+  | "consult_quote" | "contract_schedule" | "shoot_prep" | "shooting_phase"
+  | "select_retouch" | "revision_delivery" | "wrap_up";
+
+export const WORKFLOW_PHASES: { key: WorkflowPhaseKey; name: string; order: number; steps: ActiveWorkflowStepKey[] }[] = [
+  { key: "consult_quote",     name: "상담·견적",   order: 1, steps: ["consult_meeting", "quote"] },
+  { key: "contract_schedule", name: "계약·일정",   order: 2, steps: ["contract"] },
+  { key: "shoot_prep",        name: "촬영 준비",   order: 3, steps: ["conti"] },
+  { key: "shooting_phase",    name: "촬영",       order: 4, steps: ["shooting", "payment_confirm"] },
+  { key: "select_retouch",    name: "셀렉·보정",   order: 5, steps: ["backup_sorting", "client_selection", "retouching"] },
+  { key: "revision_delivery", name: "수정·납품",   order: 6, steps: ["revision", "final_delivery"] },
+  { key: "wrap_up",           name: "완료·관리",   order: 7, steps: ["reward"] },
+];
+
+const STEP_TO_PHASE: Record<ActiveWorkflowStepKey, WorkflowPhaseKey> = Object.fromEntries(
+  WORKFLOW_PHASES.flatMap((phase) => phase.steps.map((step) => [step, phase.key])),
+) as Record<ActiveWorkflowStepKey, WorkflowPhaseKey>;
+
+export function getWorkflowPhase(stepKey: string): WorkflowPhaseKey | null {
+  const displayKey = getWorkflowDisplayStepKey(stepKey);
+  return displayKey ? STEP_TO_PHASE[displayKey] : null;
+}
+
+/** 7단계 각각의 completed/active/pending 상태 + 전체 진행률(%)을 계산한다. */
+export function getWorkflowPhaseProgress(stepKey?: string | null, workflowStatus?: string | null) {
+  const phases = WORKFLOW_PHASES.map((phase) => ({ ...phase, status: "pending" as "completed" | "active" | "pending" }));
+  if (workflowStatus === "completed") {
+    return { phases: phases.map((p) => ({ ...p, status: "completed" as const })), progressPercent: 100 };
+  }
+  const currentPhaseKey = stepKey ? getWorkflowPhase(stepKey) : null;
+  const currentPhaseOrder = currentPhaseKey ? WORKFLOW_PHASES.find((p) => p.key === currentPhaseKey)?.order ?? 0 : 0;
+  const result = phases.map((phase) => ({
+    ...phase,
+    status: phase.order < currentPhaseOrder ? "completed" as const
+      : phase.order === currentPhaseOrder ? "active" as const
+      : "pending" as const,
+  }));
+  const progressPercent = currentPhaseOrder > 0 ? Math.round((currentPhaseOrder / WORKFLOW_PHASES.length) * 100) : 0;
+  return { phases: result, progressPercent };
+}
+
 export const STEP_NAME: Record<string, string> = Object.fromEntries(WORKFLOW_STEPS.map((step) => [step.key, step.name]));
 
 export const MOCK_WORKFLOW_RUNS = [
