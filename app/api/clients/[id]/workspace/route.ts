@@ -11,12 +11,14 @@ export const runtime = "nodejs";
 
 const EXTENDED_CLIENT_COLUMNS = "director_name, address, website_url, instagram_url, naver_place_url, manager_staff, referral_source, notes";
 
-type Params = { params: Promise<{ clientId: string }> };
+type Params = { params: Promise<{ id: string }> };
 
 // 고객 워크스페이스 통합 조회 — 3단 화면(리스트|프로젝트|공개+포털관리)이 고객을 바꿀 때마다
 // 여러 API를 따로 호출하지 않고 이 엔드포인트 하나로 필요한 데이터를 다 받는다.
+// 폴더명은 app/api/clients/[id]/... 기존 관례(다른 형제 라우트와 동적 세그먼트 이름이
+// 같아야 함)를 따르되, 내부적으로는 읽기 쉽게 clientId로 바꿔서 쓴다.
 export async function GET(req: NextRequest, { params }: Params) {
-  const { clientId } = await params;
+  const { id: clientId } = await params;
   const requestedProjectId = new URL(req.url).searchParams.get("projectId");
   const db = getSupabaseAdmin();
 
