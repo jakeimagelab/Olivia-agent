@@ -135,13 +135,27 @@ export default function PortalDashboard() {
                 <div className="pcrm-client-empty">현재 확인이 필요한 공개 자료가 없습니다.</div>
               ) : (
                 <div className="pcrm-client-list">
-                  {data.publications.slice(0, 4).map((item) => (
-                    <article key={item.id}>
-                      <FileText size={17} />
-                      <div><strong>{item.title || item.related_type}</strong><span>{item.description || "프로젝트 자료를 확인해 주세요."}</span></div>
-                      <StatusBadge status={publicationLabel(item.status)} />
-                    </article>
-                  ))}
+                  {data.publications.slice(0, 4).map((item) => {
+                    // RAW 다운로드/1차 보정본/최종사진은 전용 화면 없이 이 카드에서 바로 원본/보정본
+                    // 링크로 연결한다(고객관리 3단 워크스페이스 개편 2026-08-09 — 공개 전엔 이 항목
+                    // 자체가 목록에 없다가, 대표가 "공개"를 눌러야 여기 나타난다).
+                    const downloadUrl = item.related_type === "raw_download"
+                      ? data.client?.original_photos_link
+                      : item.related_type === "retouched_gallery" || item.related_type === "final_delivery"
+                        ? data.client?.retouched_photos_link
+                        : null;
+                    return (
+                      <article key={item.id}>
+                        <FileText size={17} />
+                        <div><strong>{item.title || item.related_type}</strong><span>{item.description || "프로젝트 자료를 확인해 주세요."}</span></div>
+                        {downloadUrl ? (
+                          <a href={downloadUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 700 }}>다운로드</a>
+                        ) : (
+                          <StatusBadge status={publicationLabel(item.status)} />
+                        )}
+                      </article>
+                    );
+                  })}
                   {data.approvedSteps.slice(0, 4).map((item) => (
                     <article key={item.id}>
                       <CircleCheck size={17} />
