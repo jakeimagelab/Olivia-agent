@@ -280,7 +280,7 @@ export default function ClientFormModal({ open, mode, client, onClose, onSaved, 
         <form onSubmit={onSubmit} className="pcrm-form-modal__body">
           <section className="pcrm-form-section">
             <div className="pcrm-form-section__head">
-              <strong>필수 정보</strong>
+              <strong>기본 정보</strong>
               {contactSupported && (
                 <button type="button" className="pcrm-form-contact-pick" onClick={pickContact}>
                   <Contact size={13} /> 연락처에서 가져오기
@@ -290,7 +290,7 @@ export default function ClientFormModal({ open, mode, client, onClose, onSaved, 
             <div className="pcrm-form-grid">
               {REQUIRED_INPUTS.map(({ key, label, placeholder, type }) => (
                 <label key={key} className="pcrm-form-field">
-                  <span>{label} *</span>
+                  <span>{label}{key === "name" ? " *" : ""}</span>
                   <input type={type || "text"} value={form[key]} onChange={set(key)} placeholder={placeholder} />
                   {errors[key] && <em>{errors[key]}</em>}
                 </label>
@@ -298,22 +298,35 @@ export default function ClientFormModal({ open, mode, client, onClose, onSaved, 
             </div>
           </section>
 
-          <section className="pcrm-form-section">
-            <div className="pcrm-form-section__head"><strong>선택 정보</strong></div>
-            <div className="pcrm-form-grid">
-              {OPTIONAL_INPUTS.map(({ key, label, placeholder, type }) => (
-                <label key={key} className="pcrm-form-field">
-                  <span>{label}</span>
-                  <input type={type || "text"} value={form[key]} onChange={set(key)} placeholder={placeholder} />
-                  {errors[key] && <em>{errors[key]}</em>}
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((v) => !v)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5, border: "none", background: "transparent",
+              color: C.teal, fontSize: 12.5, fontWeight: 800, cursor: "pointer", padding: "4px 0",
+            }}
+          >
+            {detailsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            상세 정보 {detailsOpen ? "접기" : "펼치기"}
+          </button>
+
+          {detailsOpen && (
+            <section className="pcrm-form-section">
+              <div className="pcrm-form-grid">
+                {OPTIONAL_INPUTS.map(({ key, label, placeholder, type }) => (
+                  <label key={key} className="pcrm-form-field">
+                    <span>{label}</span>
+                    <input type={type || "text"} value={form[key]} onChange={set(key)} placeholder={placeholder} />
+                    {errors[key] && <em>{errors[key]}</em>}
+                  </label>
+                ))}
+                <label className="pcrm-form-field pcrm-form-field--wide">
+                  <span>비고</span>
+                  <input value={form.notes} onChange={set("notes")} placeholder="기타 참고사항" />
                 </label>
-              ))}
-              <label className="pcrm-form-field pcrm-form-field--wide">
-                <span>비고</span>
-                <input value={form.notes} onChange={set("notes")} placeholder="기타 참고사항" />
-              </label>
-            </div>
-          </section>
+              </div>
+            </section>
+          )}
 
           <section className="pcrm-form-section">
             <div className="pcrm-form-section__head"><strong>내부 메모 (AI 자동 추출)</strong></div>
