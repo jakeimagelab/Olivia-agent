@@ -44,11 +44,3 @@ export function buildDocumentEmbeddingText(doc: ExtractedCaseDocument, scenes: E
     .filter((v): v is string => Boolean(v && v.trim()))
     .join(" · ");
 }
-
-// /api/conti에서 신규 요청 조건으로 검색 쿼리 텍스트를 만들 때도 같은 스타일을 쓴다
-// (사례 저장 시 임베딩한 텍스트와 결이 비슷해야 유사도 검색이 잘 맞는다).
-export function buildQueryEmbeddingText(input: { specialties: string; purpose?: string; notes?: string }): string {
-  return [input.specialties, input.purpose, input.notes].filter((v): v is string => Boolean(v && v.trim())).join(" · ");
-}
-
-export type { ContiCaseScene };
