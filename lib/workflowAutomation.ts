@@ -36,7 +36,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "quote_draft",
       title: "견적서 초안 생성",
       description: "상담 메모와 촬영 정보를 바탕으로 견적 초안을 만듭니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: false,
       approval_type: "quote",
       priority: "high",
