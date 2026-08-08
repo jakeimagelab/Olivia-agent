@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -14,6 +14,13 @@ import {
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import NextActionCard from "@/components/NextActionCard";
+import ClientListPanel from "@/components/client-workspace/ClientListPanel";
+import ProjectSummaryCard from "@/components/client-workspace/ProjectSummaryCard";
+import ProjectWorkflowStepper from "@/components/client-workspace/ProjectWorkflowStepper";
+import ProjectMemoPanel from "@/components/client-workspace/ProjectMemoPanel";
+import PublicationManagementPanel from "@/components/client-workspace/PublicationManagementPanel";
+import PortalManagementPanel from "@/components/client-workspace/PortalManagementPanel";
+import type { ClientWorkspaceData } from "@/lib/clientWorkspace/types";
 import PcrmDashboard from "./_components/PcrmDashboard";
 import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
@@ -24,7 +31,7 @@ import ClientOverviewTab from "./_components/detail/ClientOverviewTab";
 import ClientScheduleTab from "./_components/detail/ClientScheduleTab";
 import ClientRevisionsTab from "./_components/detail/ClientRevisionsTab";
 import ClientPortalTab from "./_components/detail/ClientPortalTab";
-import { C } from "@/lib/theme";
+import { C, R } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "./_hooks/useClientRoster";
 
