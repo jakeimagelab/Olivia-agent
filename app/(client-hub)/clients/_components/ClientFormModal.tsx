@@ -98,6 +98,7 @@ export default function ClientFormModal({ open, mode, client, onClose, onSaved, 
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [contactSupported, setContactSupported] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
