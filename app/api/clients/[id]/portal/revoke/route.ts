@@ -6,11 +6,11 @@ import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-type Params = { params: Promise<{ clientId: string }> };
+type Params = { params: Promise<{ id: string }> };
 
 // 고객 단위 포털 토큰(workflow_run_id가 null인 것)만 끊는다 — 프로젝트별 구형 토큰은 건드리지 않는다.
 export async function POST(_req: Request, { params }: Params) {
-  const { clientId } = await params;
+  const { id: clientId } = await params;
   await revokePortalAccess(clientId);
   const db = getSupabaseAdmin();
   await recordPcrmActivitySafely(db, {
