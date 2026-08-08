@@ -57,7 +57,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "contract_draft",
       title: "계약서 초안 생성",
       description: "확정된 견적 정보를 바탕으로 계약서 초안을 만듭니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: false,
       approval_type: "contract",
       priority: "high",
