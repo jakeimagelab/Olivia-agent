@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { MAX_REFERENCE_DOCUMENTS, MAX_REFERENCE_SCENES } from "@/lib/conti-library/config";
+import { embedTexts } from "@/lib/conti-library/embeddings";
+import { buildLibraryQueryText, buildReferenceBlock, toReferenceSummary } from "@/lib/conti-library/promptBuilder";
+import { capByDistinctDocument, matchContiCaseScenes } from "@/lib/conti-library/search";
+import type { ContiCaseReference } from "@/lib/conti-library/types";
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.OPENAI_API_KEY;
