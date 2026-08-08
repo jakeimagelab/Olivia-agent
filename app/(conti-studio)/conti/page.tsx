@@ -1771,6 +1771,18 @@ ${header("타임테이블")}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", flexWrap: "wrap", gap: 12 }}>
                 {/* 불러오기 버튼 */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Link
+                    href="/conti-library"
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 7,
+                      padding: "0 18px", minHeight: 42,
+                      border: "1.5px solid #155855",
+                      borderRadius: 8, background: "#fff", color: "#155855",
+                      fontWeight: 800, fontSize: 14, textDecoration: "none",
+                    }}
+                  >
+                    <Library size={16} /> 사례 라이브러리
+                  </Link>
                   <button
                     type="button"
                     onClick={openLoadPanel}
