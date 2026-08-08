@@ -98,7 +98,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "shooting_reminder",
       title: "촬영 리마인드 메일 초안 생성",
       description: "촬영 D-7/D-3/D-1 안내용 리마인드 초안을 생성합니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: true,
       approval_type: "mailing",
       mailing_type: "proposal",
