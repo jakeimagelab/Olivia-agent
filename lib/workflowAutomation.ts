@@ -87,7 +87,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "conti_mailing_draft",
       title: "콘티 확인 메일 초안 생성",
       description: "콘티 확인 요청 메일 초안을 메일링함에 저장합니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: true,
       approval_type: "mailing",
       mailing_type: "conti",
