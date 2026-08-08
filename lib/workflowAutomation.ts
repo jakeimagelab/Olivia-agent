@@ -187,7 +187,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "gallery_delivery_mailing_draft",
       title: "최종 갤러리 전달 메일 초안 생성",
       description: "최종 파일/NAS 링크와 리뷰 링크를 포함한 전달 메일 초안입니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: true,
       approval_type: "mailing",
       mailing_type: "gallery",
