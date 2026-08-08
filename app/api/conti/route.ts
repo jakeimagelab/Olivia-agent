@@ -439,7 +439,7 @@ ${hasPainSpec ? "4. C-ARM 시술, 초음파 주사치료 장면 반드시 포함
 
   try {
     const result = JSON.parse(raw);
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, references });
   } catch {
     console.error("파싱 실패, raw:", raw.slice(0, 200));
     return NextResponse.json(
