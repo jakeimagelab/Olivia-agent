@@ -78,7 +78,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "conti_draft",
       title: "촬영 콘티 초안 생성",
       description: "촬영 목적, 장면, 동선을 기준으로 콘티 초안을 만듭니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: false,
       approval_type: "conti",
       priority: "high",
