@@ -24,7 +24,7 @@ export default function ContiLibraryDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const [document, setDocument] = useState<ContiCaseDocument | null>(null);
+  const [caseDoc, setCaseDoc] = useState<ContiCaseDocument | null>(null);
   const [scenes, setScenes] = useState<ContiCaseScene[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,7 +41,7 @@ export default function ContiLibraryDetailPage() {
     setError("");
     try {
       const data = await fetchJson(`/api/conti-library/${id}`, { cache: "no-store" });
-      setDocument(data.document);
+      setCaseDoc(data.document);
       setScenes(data.scenes);
       setClinicName(data.document.clinicName ?? "");
       setDepartmentsText((data.document.departments ?? []).join(", "));
@@ -70,7 +70,7 @@ export default function ContiLibraryDetailPage() {
           doctorCount: doctorCount ? Number(doctorCount) : undefined,
         }),
       });
-      setDocument(data.document);
+      setCaseDoc(data.document);
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장에 실패했습니다.");
     } finally {
@@ -82,8 +82,7 @@ export default function ContiLibraryDetailPage() {
     setReanalyzing(true);
     setError("");
     try {
-      const data = await fetchJson(`/api/conti-library/${id}/analyze`, { method: "POST" });
-      setDocument(data.document);
+      await fetchJson(`/api/conti-library/${id}/analyze`, { method: "POST" });
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "재분석에 실패했습니다.");
@@ -93,7 +92,7 @@ export default function ContiLibraryDetailPage() {
   };
 
   if (loading) return <><PageHeader title="콘티 사례 라이브러리" /><div className="pc-content"><p style={{ fontSize: 13, color: C.hint }}>불러오는 중...</p></div></>;
-  if (!document) return <><PageHeader title="콘티 사례 라이브러리" /><div className="pc-content"><p style={{ fontSize: 13, color: C.danger }}>{error || "사례를 찾을 수 없습니다."}</p></div></>;
+  if (!caseDoc) return <><PageHeader title="콘티 사례 라이브러리" /><div className="pc-content"><p style={{ fontSize: 13, color: C.danger }}>{error || "사례를 찾을 수 없습니다."}</p></div></>;
 
   return (
     <>
@@ -105,13 +104,13 @@ export default function ContiLibraryDetailPage() {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, marginBottom: 4 }}>{document.fileName}</h1>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 800, color: STATUS_COLOR[document.status] }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: STATUS_COLOR[document.status] }} />
-              {STATUS_LABEL[document.status]}
+            <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, marginBottom: 4 }}>{caseDoc.fileName}</h1>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 800, color: STATUS_COLOR[caseDoc.status] }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: STATUS_COLOR[caseDoc.status] }} />
+              {STATUS_LABEL[caseDoc.status]}
             </span>
           </div>
-          {document.status === "failed" || document.status === "uploaded" ? (
+          {caseDoc.status === "failed" || caseDoc.status === "uploaded" ? (
             <button type="button" onClick={handleReanalyze} disabled={reanalyzing}
               style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 36, padding: "0 14px", borderRadius: R.md, border: `1px solid ${C.teal}`, background: C.mint, color: C.teal, fontSize: 12.5, fontWeight: 800, cursor: reanalyzing ? "not-allowed" : "pointer" }}>
               <RefreshCw size={13} />{reanalyzing ? "재분석 중..." : "재분석"}
@@ -120,8 +119,8 @@ export default function ContiLibraryDetailPage() {
         </div>
 
         {error ? <p style={{ fontSize: 12, color: C.danger, marginBottom: 12 }}>{error}</p> : null}
-        {document.status === "failed" && document.errorMessage ? (
-          <p style={{ fontSize: 12, color: C.danger, marginBottom: 12, padding: 10, background: "#FEF2F2", borderRadius: R.sm }}>{document.errorMessage}</p>
+        {caseDoc.status === "failed" && caseDoc.errorMessage ? (
+          <p style={{ fontSize: 12, color: C.danger, marginBottom: 12, padding: 10, background: "#FEF2F2", borderRadius: R.sm }}>{caseDoc.errorMessage}</p>
         ) : null}
 
         <div className="pc-card pc-card--padded" style={{ marginBottom: 16, display: "grid", gap: 12, maxWidth: 640 }}>
