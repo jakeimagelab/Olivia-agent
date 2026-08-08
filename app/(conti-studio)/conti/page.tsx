@@ -10,7 +10,7 @@ import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS, ERASER_SIZE
 import PortraitConsentPanel from "@/components/conti/PortraitConsentPanel";
 import {
   ArrowLeft, CheckSquare, ChevronDown, ClipboardList, Copy, FileSignature, Image as ImageIcon,
-  Clock, Download, FileSpreadsheet, FileText, FileUp, GripVertical,
+  Clock, Download, FileSpreadsheet, FileText, FileUp, GripVertical, Library,
   Link2, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X, Zap
 } from "lucide-react";
 
