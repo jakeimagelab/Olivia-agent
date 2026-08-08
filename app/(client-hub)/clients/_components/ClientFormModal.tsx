@@ -249,13 +249,13 @@ export default function ClientFormModal({ open, mode, client, onClose, onSaved, 
   };
 
   const REQUIRED_INPUTS: { key: keyof FormState; label: string; placeholder: string; type?: string }[] = [
-    { key: "name", label: "병원명", placeholder: "포토클리닉" },
-    { key: "director_name", label: "원장명", placeholder: "정연호 원장" },
-    { key: "manager_name", label: "담당자명", placeholder: "정연호 실장" },
+    { key: "name", label: "병원명/기관명", placeholder: "포토클리닉" },
     { key: "phone", label: "연락처", placeholder: "010-1234-5678", type: "tel" },
-    { key: "department", label: "진료과", placeholder: "피부과, 성형외과" },
+    { key: "manager_name", label: "담당자", placeholder: "정연호 실장" },
   ];
   const OPTIONAL_INPUTS: { key: keyof FormState; label: string; placeholder: string; type?: string }[] = [
+    { key: "director_name", label: "원장명", placeholder: "정연호 원장" },
+    { key: "department", label: "진료과", placeholder: "피부과, 성형외과" },
     { key: "email", label: "이메일", placeholder: "contact@clinic.com", type: "email" },
     { key: "address", label: "병원 주소", placeholder: "서울시 강남구 ..." },
     { key: "website_url", label: "홈페이지", placeholder: "https://" },
