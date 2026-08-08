@@ -383,6 +383,29 @@ ${hasPainSpec ? "4. C-ARM 시술, 초음파 주사치료 장면 반드시 포함
   }
 
   /* ══════════════════════════════════════════
+     콘티 사례 라이브러리 — 유사 사례 참고 (있으면 프롬프트에 추가)
+     사례가 없거나 임베딩/검색이 실패해도 절대 생성 자체를 막지 않는다 —
+     실패 시 userPrompt는 오늘과 100% 동일하게 유지된다.
+  ══════════════════════════════════════════ */
+  let references: ContiCaseReference[] = [];
+  try {
+    const queryText = buildLibraryQueryText({ specialties: specialties ?? "", purpose, notes });
+    const queryEmbedding = (await embedTexts([queryText]))?.[0];
+    if (queryEmbedding) {
+      const departmentFilter = specList.map(normalizeSpec);
+      const db = getSupabaseAdmin();
+      const hits = await matchContiCaseScenes(db, queryEmbedding, departmentFilter, MAX_REFERENCE_SCENES);
+      const capped = capByDistinctDocument(hits, MAX_REFERENCE_DOCUMENTS);
+      if (capped.length > 0) {
+        userPrompt += buildReferenceBlock(capped);
+        references = capped.map(toReferenceSummary);
+      }
+    }
+  } catch (error) {
+    console.error("[conti-library] 참고 사례 조회 실패 (생성은 계속 진행):", error);
+  }
+
+  /* ══════════════════════════════════════════
      Anthropic API 호출
   ══════════════════════════════════════════ */
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
