@@ -232,6 +232,13 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                     workflowSummary={workspace.workflowSummary}
                     recentActivityAt={workspace.recentActivity[0]?.created_at}
                   />
+                  <NextActionCard
+                    client={workspace.client}
+                    workflowRun={workspace.activeProject}
+                    stepIcon={STEP_INFO[getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) || ""]?.icon}
+                    stepDescription={STEP_INFO[getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) || ""]?.desc}
+                    onRefresh={refreshWorkspace}
+                  />
                   {workspace.workflowSummary ? (
                     <div className="pc-card pc-card--padded">
                       <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} />
