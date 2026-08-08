@@ -145,6 +145,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     publications,
     portal,
     recentActivity,
+    resourceIds,
     memo: activeProject?.project_memo ?? client.memo ?? "",
   });
 }
