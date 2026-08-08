@@ -66,7 +66,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "contract_mailing_draft",
       title: "계약 안내 메일 초안 생성",
       description: "계약서 확인 안내 메일 초안을 메일링함에 저장합니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: true,
       approval_type: "mailing",
       mailing_type: "contract",
