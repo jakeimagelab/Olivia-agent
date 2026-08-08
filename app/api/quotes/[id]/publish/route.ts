@@ -113,7 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .maybeSingle();
 
     if (existingPub && existingPub.status === "draft") {
-      await db.from("pcrm_publications").update({ status: "published", published_at: now, updated_at: now }).eq("id", existingPub.id);
+      await db.from("pcrm_publications").update({ status: "published", published_at: now, published_by: "admin", updated_at: now }).eq("id", existingPub.id);
     } else if (existingPub) {
       // 고객이 이미 열람/승인/수정요청한 뒤 다시 공개하는 경우 — 새 버전으로 남겨 이력을 보존한다.
       await db.from("pcrm_publications").insert({
@@ -125,6 +125,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         version: existingPub.version + 1,
         status: "published",
         published_at: now,
+        published_by: "admin",
         created_by: "admin",
       });
     } else {
@@ -136,11 +137,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         title: quote.title || quote.quote_number || "견적서",
         status: "published",
         published_at: now,
+        published_by: "admin",
         created_by: "admin",
       });
     }
 
-    const portal = await ensurePortalAccess({ clientId, workflowRunId, email: quote.email || undefined, expiresInDays: 90 });
+    // 포털 토큰은 고객 1명당 1개만 재사용한다(workflowRunId를 넘기지 않으면 client_portal_access가
+    // 프로젝트 단위가 아니라 고객 단위로 토큰을 찾거나 새로 만든다 — lib/clientPortal.ts 참고).
+    // 만료일도 더 이상 두지 않는다(고객이 [공유 끊기]를 누르기 전까지 유지).
+    const portal = await ensurePortalAccess({ clientId, email: quote.email || undefined });
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://olivia.photoclinic.kr";
     const portalUrl = `${baseUrl}/client-portal/access/${portal.token}`;
 
