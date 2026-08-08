@@ -1682,18 +1682,25 @@ ${header("타임테이블")}
 
       const fileName = `${hospitalName}_포토클리닉_촬영콘티_${new Date().toISOString().slice(0, 10)}.pdf`;
       const pageParams = new URLSearchParams(window.location.search);
-      await uploadWorkflowArtifact({
-        file: pdf.output("blob"),
-        fileName,
-        documentType: "conti",
-        sourceTable: "conti_saves",
-        sourceId,
-        title: resultTitle || `${hospitalName} 촬영 콘티`,
-        hospitalName,
-        clientId: pageParams.get("client_id") || pageParams.get("clientId"),
-        workflowRunId: pageParams.get("workflowRunId"),
-      });
+      const artifactBlob = pdf.output("blob");
+      // 실제 다운로드가 핵심 동작이라 먼저 처리한다 — 워크플로우 문서함 백업 저장(아래)은
+      // 고객 연결에 실패해도(고객관리에 없는 병원명 등) 다운로드 자체를 막으면 안 된다.
       pdf.save(fileName);
+      try {
+        await uploadWorkflowArtifact({
+          file: artifactBlob,
+          fileName,
+          documentType: "conti",
+          sourceTable: "conti_saves",
+          sourceId,
+          title: resultTitle || `${hospitalName} 촬영 콘티`,
+          hospitalName,
+          clientId: pageParams.get("client_id") || pageParams.get("clientId"),
+          workflowRunId: pageParams.get("workflowRunId"),
+        });
+      } catch (artifactError) {
+        console.warn("[conti] 워크플로우 문서함 백업 저장 실패(다운로드는 완료됨):", artifactError);
+      }
     } catch (error) {
       alert(error instanceof Error ? error.message : "콘티 PDF 생성에 실패했습니다.");
     } finally {
