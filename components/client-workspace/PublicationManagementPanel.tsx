@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { C } from "@/lib/theme";
-import { ALL_PUBLICATION_TYPES, isGenericPublicationType, type PublicationType } from "@/lib/clientWorkspace/publications";
+import { ALL_PUBLICATION_TYPES, type PublicationType } from "@/lib/clientWorkspace/publications";
 import type { WorkspacePublication } from "@/lib/clientWorkspace/types";
 import PublicationRow from "./PublicationRow";
 
