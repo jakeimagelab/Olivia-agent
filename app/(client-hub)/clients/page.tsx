@@ -163,10 +163,10 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
   const refreshWorkspace = () => { if (selectedClientId) void loadWorkspace(selectedClientId, selectedProjectId); };
 
   return (
-    <div style={{ color: C.txt }}>
+    <div className="pcrm-dashboard" style={{ color: C.txt }}>
       <div
         className="pcrm-workspace-grid"
-        style={{ display: "grid", gridTemplateColumns: "minmax(300px, 0.85fr) minmax(520px, 1.45fr) minmax(360px, 0.95fr)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
+        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(300px, 0.85fr) minmax(520px, 1.45fr) minmax(360px, 0.95fr)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
       >
         <ClientListPanel
           clients={filtered}
