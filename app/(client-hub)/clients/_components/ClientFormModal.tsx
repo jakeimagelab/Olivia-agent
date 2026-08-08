@@ -65,7 +65,10 @@ type Props = {
   onSavedAndNewProject?: (clientId: string) => void;
 };
 
-const REQUIRED_FIELDS: (keyof FormState)[] = ["name", "director_name", "manager_name", "phone", "department"];
+// 간소화(2026-08-09) — 기본 화면엔 병원명/연락처/담당자만 보여주고 나머지는 "상세 정보
+// 펼치기"로 옮긴다. DB상 실제로 필수인 값은 병원명뿐이라(lib/clients/createClientWithWorkflow.ts
+// 참고) 나머지는 폼 검증에서도 필수 해제한다 — 등록 마찰을 줄이는 게 목적.
+const REQUIRED_FIELDS: (keyof FormState)[] = ["name"];
 
 function toFormState(client?: ClientEditSource | null): FormState {
   if (!client) return { ...EMPTY };
