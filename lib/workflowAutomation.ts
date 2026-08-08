@@ -178,7 +178,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "seo_delivery_prepare",
       title: "AI 검색 최적화 납품 생성",
       description: "최종 이미지와 프로젝트 정보를 바탕으로 검색 최적화 납품 자료를 준비합니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: false,
       approval_type: "other",
       priority: "high",
