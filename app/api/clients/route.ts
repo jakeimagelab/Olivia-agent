@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
-import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { isMissingColumnError } from "@/lib/dbErrors";
+import { createClientWithWorkflow } from "@/lib/clients/createClientWithWorkflow";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
