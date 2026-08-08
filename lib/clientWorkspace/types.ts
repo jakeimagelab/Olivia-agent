@@ -43,5 +43,6 @@ export type ClientWorkspaceData = {
   publications: WorkspacePublication[];
   portal: WorkspacePortal | null;
   recentActivity: Record<string, any>[];
+  resourceIds: Record<string, string | null>;
   memo: string;
 };
