@@ -148,7 +148,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       task_type: "raw_matching",
       title: "선택 사진 RAW 자동 매칭",
       description: "고객이 선택한 JPG와 원본 RAW 파일을 매칭합니다.",
-      requires_approval: true,
+      requires_approval: false,
       creates_mailing_draft: false,
       approval_type: "other",
       priority: "high",
