@@ -85,27 +85,6 @@ language sql stable as $$
   limit match_count;
 $$;
 
-create or replace function public.match_conti_case_documents(
-  query_embedding    vector(1536),
-  department_filter  text[] default null,
-  match_count        int default 5
-)
-returns table (
-  id uuid, file_name text, clinic_name text, departments text[], shooting_type text,
-  scene_count int, similarity float
-)
-language sql stable as $$
-  select
-    d.id, d.file_name, d.clinic_name, d.departments, d.shooting_type, d.scene_count,
-    1 - (d.embedding <=> query_embedding) as similarity
-  from public.conti_case_documents d
-  where d.embedding is not null
-    and d.status = 'analyzed'
-    and (department_filter is null or d.departments && department_filter)
-  order by d.embedding <=> query_embedding
-  limit match_count;
-$$;
-
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('conti-case-library', 'conti-case-library', false, 52428800, array['application/pdf'])
 on conflict (id) do update set
