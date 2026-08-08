@@ -20,11 +20,15 @@ export function useClientRoster() {
     if (showSpinner) setLoading(true);
     try {
       const res = await fetch("/api/clients", { cache: "no-store" });
-      const d = await res.json();
-      if (requestId === loadRequestRef.current && d.ok) {
+      // 서버가 500 등으로 죽으면 응답 본문이 JSON이 아닐 수 있다 — res.json()이 그대로 던지면
+      // 처리되지 않은 예외로 화면에 노출된다.
+      const d = await res.json().catch(() => null);
+      if (requestId === loadRequestRef.current && d?.ok) {
         setClients(d.clients || []);
         setDashboard(d.dashboard || null);
       }
+    } catch {
+      /* 목록 로드 실패 — 목록은 빈 상태로 유지되고 로딩만 풀린다 */
     } finally {
       if (requestId === loadRequestRef.current) setLoading(false);
     }
