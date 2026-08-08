@@ -2,31 +2,13 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { toAsciiStorageSegment } from "@/lib/storageKey";
+import { rowToDocument } from "@/lib/conti-library/serialize";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const BUCKET = "conti-case-library";
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
-
-function rowToDocument(row: Record<string, any>) {
-  return {
-    id: row.id,
-    fileName: row.file_name,
-    storagePath: row.storage_path,
-    fileHash: row.file_hash,
-    clinicName: row.clinic_name ?? null,
-    departments: row.departments ?? [],
-    shootingType: row.shooting_type ?? null,
-    doctorCount: row.doctor_count ?? null,
-    sceneCount: row.scene_count ?? 0,
-    status: row.status,
-    metadata: row.metadata ?? {},
-    errorMessage: row.error_message ?? null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData().catch(() => null);
