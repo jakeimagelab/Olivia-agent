@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Contact, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Contact, X } from "lucide-react";
 import { C } from "@/lib/theme";
 
 type ContactPickerProperty = "name" | "tel" | "email";
