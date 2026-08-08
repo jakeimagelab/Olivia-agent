@@ -209,24 +209,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const normalizedName = String(hospitalName).trim();
-    const { data: existing } = await supabase
-      .from("clients")
-      .select("id,hospital_name")
-      .ilike("hospital_name", normalizedName)
-      .limit(1)
-      .maybeSingle();
-    if (existing) {
-      return NextResponse.json({ ok: true, id: existing.id, workflowRunId: null, created: false });
-    }
 
-    const basePayload = {
-      hospital_name: normalizedName,
-      contact_name: body.contact_name || body.manager_name || null,
+    // 고객 등록 = client + 활성 workflow_run + 포털 생성(중복 방지 포함)을 한 번에 처리한다
+    // — 확장 필드(director_name 등)는 이 함수가 모르는 값이라 아래에서 별도로 채운다.
+    const result = await createClientWithWorkflow(supabase, {
+      hospitalName: normalizedName,
+      contactName: body.contact_name || body.manager_name || null,
       phone: body.phone || null,
       email: body.email || null,
       specialty: body.department || body.specialty || null,
       memo: body.memo || null,
-    };
+      eventSource: "clients_api",
+    });
+
     const extendedPayload = {
       director_name: body.director_name || null,
       address: body.address || null,
@@ -237,27 +232,12 @@ export async function POST(req: NextRequest) {
       referral_source: body.referral_source || null,
       notes: body.notes || null,
     };
-
-    let { data: client, error } = await supabase.from("clients").insert({ ...basePayload, ...extendedPayload }).select("id,hospital_name").single();
-    if (isMissingColumnError(error)) {
-      ({ data: client, error } = await supabase.from("clients").insert(basePayload).select("id,hospital_name").single());
+    if (result.created && Object.values(extendedPayload).some(Boolean)) {
+      const { error: updateError } = await supabase.from("clients").update(extendedPayload).eq("id", result.client.id);
+      if (updateError && !isMissingColumnError(updateError)) throw new Error(updateError.message);
     }
-    if (error || !client) throw new Error(error?.message || "고객 등록 실패");
 
-    await emitOliviaEventSafely(supabase, {
-      eventType: "customer.created",
-      eventSource: "clients_api",
-      clientId: client.id,
-      actorType: "admin",
-      payload: {
-        name: normalizedName,
-        managerName: body.director_name || body.contact_name || body.manager_name || "",
-        department: body.department || body.specialty || "",
-      },
-      deduplicationKey: createEventDeduplicationKey("customer.created", client.id),
-    });
-
-    return NextResponse.json({ ok: true, id: client.id, workflowRunId: null, created: true });
+    return NextResponse.json({ ok: true, id: result.client.id, workflowRunId: result.run?.id ?? null, created: result.created });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "고객 등록 실패" }, { status: 500 });
   }
