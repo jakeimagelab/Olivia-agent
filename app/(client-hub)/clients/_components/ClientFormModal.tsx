@@ -350,7 +350,7 @@ export default function ClientFormModal({ open, mode, client, onClose, onSaved, 
             <button type="button" className="pc-btn pc-btn--ghost" onClick={onClose}>취소</button>
             {mode === "create" && onSavedAndNewProject && (
               <button type="button" className="pc-btn pc-btn--secondary" disabled={saving !== null} onClick={() => void save(true)}>
-                {saving === "save_project" ? "저장 중..." : "저장 후 새 프로젝트 생성"}
+                {saving === "save_project" ? "저장 중..." : "등록 후 바로 견적서 작성"}
               </button>
             )}
             <button type="submit" className="pc-btn pc-btn--orange" disabled={saving !== null}>
