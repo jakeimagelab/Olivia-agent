@@ -262,7 +262,11 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
             </>
           ) : workspace ? (
             <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
-          ) : null}
+          ) : (
+            <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
+              <p style={{ fontSize: 12.5, color: C.hint, textAlign: "center" }}>고객을 선택하면<br />공개/포털 관리를 볼 수 있습니다.</p>
+            </div>
+          )}
         </div>
       </div>
 
