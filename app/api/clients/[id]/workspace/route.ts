@@ -111,6 +111,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       publishedBy: row.published_by,
       revokedAt: row.revoked_at,
       updatedAt: row.updated_at,
+      createdAt: row.created_at,
     }));
     recentActivity = activityRes.data ?? [];
   }
