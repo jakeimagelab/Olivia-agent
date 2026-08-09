@@ -49,6 +49,11 @@ export async function POST(req: NextRequest) {
         after(() => registerClientCandidate(db, { hospitalName, sourceType: "conti", sourceRecordId: existing.id })
           .catch((candidateError) => console.error("[conti] 신규 고객 감지 실패", candidateError)));
       }
+      if (workflowRunId) {
+        await maybeAdvanceWorkflow(db, workflowRunId, "conti").catch((err) => {
+          console.error("[conti] maybeAdvanceWorkflow 실패", err);
+        });
+      }
       return NextResponse.json({ ok: true, id: existing.id });
     }
 
