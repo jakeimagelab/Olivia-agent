@@ -33,5 +33,10 @@ export async function POST(req: NextRequest) {
   if (clientId) {
     await logPortalEvent({ clientId, eventType: "contract_ready", targetType: "contracts", targetId: data.id }).catch(() => {});
   }
+  if (workflowRunId) {
+    await maybeAdvanceWorkflow(supabase, workflowRunId, "contract").catch((err) => {
+      console.error("[contracts] maybeAdvanceWorkflow 실패", err);
+    });
+  }
   return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at });
 }
