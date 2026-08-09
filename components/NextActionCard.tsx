@@ -39,9 +39,11 @@ export default function NextActionCard({
   const load = async () => {
     if (!workflowRun?.id) return;
     setLoading(true);
+    // 서버가 500 등으로 죽으면 응답 본문이 JSON이 아닐 수 있다 — res.json()이 그대로 던지면
+    // 로딩 상태에 영구히 갇힌다.
     const res = await fetch(`/api/workflow/next-action?workflowRunId=${workflowRun.id}`, { cache: "no-store" });
-    const json = await res.json();
-    if (json.ok) setData(json);
+    const json = await res.json().catch(() => null);
+    if (json?.ok) setData(json);
     setLoading(false);
   };
 
