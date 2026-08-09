@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
     // 견적서를 실제 도구에서 직접 작성/저장하는 것 자체를 업무 이벤트로 보고
     // 워크플로우를 자동으로 다음 단계(계약)로 진행시킨다 — 열린 작업/승인이 없을 때만 전진한다.
     if (workflowRunId) {
+      await completeOpenStepTasksForManualSave(supabase, workflowRunId, "quote").catch(() => {});
       await maybeAdvanceWorkflow(supabase, workflowRunId, "quote").catch((err) => {
         console.error("[quotes] maybeAdvanceWorkflow 실패", err);
       });
