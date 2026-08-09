@@ -1,5 +1,6 @@
 import type { WorkflowPhaseKey } from "@/lib/workflow";
 import type { DisplayPublicationStatus, PublicationType } from "./publications";
+import type { ClientWorkspaceNextAction } from "./nextAction";
 
 export type WorkspacePhase = { key: WorkflowPhaseKey; name: string; order: number; status: "completed" | "active" | "pending" };
 
