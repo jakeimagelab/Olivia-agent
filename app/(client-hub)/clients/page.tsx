@@ -13,12 +13,13 @@ import {
 } from "@/lib/workflow";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
-import NextActionCard from "@/components/NextActionCard";
 import ClientListPanel from "@/components/client-workspace/ClientListPanel";
-import ProjectSummaryCard from "@/components/client-workspace/ProjectSummaryCard";
+import NextActionHero from "@/components/client-workspace/NextActionHero";
 import ProjectWorkflowStepper from "@/components/client-workspace/ProjectWorkflowStepper";
 import ProjectMemoPanel from "@/components/client-workspace/ProjectMemoPanel";
-import PublicationManagementPanel from "@/components/client-workspace/PublicationManagementPanel";
+import PendingPublicationsList from "@/components/client-workspace/PendingPublicationsList";
+import PublicationHistoryModal from "@/components/client-workspace/PublicationHistoryModal";
+import ProgressDetailModal from "@/components/client-workspace/ProgressDetailModal";
 import PortalManagementPanel from "@/components/client-workspace/PortalManagementPanel";
 import type { ClientWorkspaceData } from "@/lib/clientWorkspace/types";
 import ClientFormModal from "./_components/ClientFormModal";
