@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     await logPortalEvent({ clientId, eventType: "contract_ready", targetType: "contracts", targetId: data.id }).catch(() => {});
   }
   if (workflowRunId) {
+    await completeOpenStepTasksForManualSave(supabase, workflowRunId, "contract").catch(() => {});
     await maybeAdvanceWorkflow(supabase, workflowRunId, "contract").catch((err) => {
       console.error("[contracts] maybeAdvanceWorkflow 실패", err);
     });
