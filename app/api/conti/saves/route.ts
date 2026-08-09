@@ -4,6 +4,8 @@ import { moveRecordToTrash } from "@/lib/trash";
 import { resolveClientId } from "@/lib/clientLookup";
 import { logPortalEvent } from "@/lib/clientPortal";
 import { registerClientCandidate } from "@/lib/olivia/clientCandidate";
+import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
+import { maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
