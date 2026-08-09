@@ -5,6 +5,7 @@ import { isMissingColumnError } from "@/lib/dbErrors";
 import { getWorkflowPhaseProgress, STEP_NAME } from "@/lib/workflow";
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
 import { toDisplayStatus } from "@/lib/clientWorkspace/publications";
+import { computeClientWorkspaceNextAction } from "@/lib/clientWorkspace/nextAction";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
