@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { resolveClientId } from "@/lib/clientLookup";
 import { logPortalEvent } from "@/lib/clientPortal";
+import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
+import { maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,11 +12,7 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const body = await req.json();
   const clientId = await resolveClientId(supabase, body.hospitalName);
-  const workflowRunId = typeof body.workflowRunId === "string" && body.workflowRunId
-    ? body.workflowRunId
-    : clientId
-      ? (await supabase.from("workflow_runs").select("id").eq("client_id", clientId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle()).data?.id ?? null
-      : null;
+  const workflowRunId = await resolveWorkflowRunId(supabase, body.workflowRunId, clientId);
 
   const { data, error } = await supabase
     .from("contracts")
