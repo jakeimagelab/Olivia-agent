@@ -56,12 +56,14 @@ export async function POST(req: NextRequest) {
     }
 
     const clientId = await resolveClientId(supabase, body.hospitalName);
+    const workflowRunId = await resolveWorkflowRunId(supabase, body.workflowRunId, clientId);
 
     const payload = {
       quote_number:    body.quoteNumber,
       title:           body.title ?? "",
       hospital_name:   body.hospitalName ?? "",
       client_id:       clientId,
+      workflow_run_id: workflowRunId,
       contact_name:    body.contactName ?? "",
       phone:           body.phone ?? "",
       email:           body.email ?? "",
