@@ -31,9 +31,7 @@ export async function POST(req: NextRequest) {
     const { hospitalName, specialties, title, result, clientId: requestedClientId, workflowRunId: requestedRunId } = await req.json();
     const db = getSupabaseAdmin();
     const clientId = requestedClientId || await resolveClientId(db, hospitalName);
-    const workflowRunId = requestedRunId || (clientId
-      ? (await db.from("workflow_runs").select("id").eq("client_id", clientId).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle()).data?.id ?? null
-      : null);
+    const workflowRunId = await resolveWorkflowRunId(db, requestedRunId, clientId);
 
     const { data: existing } = await db
       .from("conti_saves")
