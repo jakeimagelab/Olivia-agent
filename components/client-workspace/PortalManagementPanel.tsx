@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { Check, Copy, ExternalLink, MoreVertical } from "lucide-react";
 import { C, R } from "@/lib/theme";
-import { PUBLICATION_TYPE_LABEL, type PublicationType } from "@/lib/clientWorkspace/publications";
 import type { WorkspacePortal } from "@/lib/clientWorkspace/types";
 
 export default function PortalManagementPanel({
