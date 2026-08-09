@@ -47,4 +47,5 @@ export type ClientWorkspaceData = {
   recentActivity: Record<string, any>[];
   resourceIds: Record<string, string | null>;
   memo: string;
+  nextAction: ClientWorkspaceNextAction;
 };
