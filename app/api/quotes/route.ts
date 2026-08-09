@@ -4,7 +4,7 @@ import { resolveClientId } from "@/lib/clientLookup";
 import { logPortalEvent } from "@/lib/clientPortal";
 import { registerClientCandidate } from "@/lib/olivia/clientCandidate";
 import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
-import { maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
+import { completeOpenStepTasksForManualSave, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
