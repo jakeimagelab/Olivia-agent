@@ -169,7 +169,8 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
 
   const refreshWorkspace = () => { if (selectedClientId) void loadWorkspace(selectedClientId, selectedProjectId); };
 
-  const previewPublication = (relatedType: string, relatedId: string | null) => {
+  // 미리보기 = 고객이 실제로 보게 될 포털 화면을 그대로 새 탭으로 연다.
+  const previewPublication = () => {
     if (workspace?.portal?.url) window.open(workspace.portal.url, "_blank", "noopener");
   };
 
