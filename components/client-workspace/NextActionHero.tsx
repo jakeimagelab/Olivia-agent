@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { C, R } from "@/lib/theme";
+import { C } from "@/lib/theme";
 import type { ClientWorkspaceNextAction } from "@/lib/clientWorkspace/nextAction";
 import { publishPublicationType, relatedIdForPublicationType } from "@/lib/clientWorkspace/publishActions";
 import type { PublicationType } from "@/lib/clientWorkspace/publications";
