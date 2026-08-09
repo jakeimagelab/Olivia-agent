@@ -26,6 +26,7 @@ export type WorkspacePublication = {
   publishedBy: string | null;
   revokedAt: string | null;
   updatedAt: string;
+  createdAt: string;
 };
 
 export type WorkspacePortal = {
