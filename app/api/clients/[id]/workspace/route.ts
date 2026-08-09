@@ -140,6 +140,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     currentStepName: workflowSummary?.currentStepName ?? null,
   } : null;
 
+  const nextAction = computeClientWorkspaceNextAction({ activeProject, publications, clientId });
+
   return NextResponse.json({
     ok: true,
     client,
@@ -151,5 +153,6 @@ export async function GET(req: NextRequest, { params }: Params) {
     recentActivity,
     resourceIds,
     memo: activeProject?.project_memo ?? client.memo ?? "",
+    nextAction,
   });
 }
