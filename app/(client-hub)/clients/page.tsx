@@ -14,6 +14,7 @@ import {
 } from "@/lib/workflow";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
+import NextActionCard from "@/components/NextActionCard";
 import ClientListPanel from "@/components/client-workspace/ClientListPanel";
 import NextActionHero from "@/components/client-workspace/NextActionHero";
 import ProjectWorkflowStepper from "@/components/client-workspace/ProjectWorkflowStepper";
