@@ -17,6 +17,7 @@ export default function PortalManagementPanel({
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const copyUrl = async () => {
     if (!portal) return;
