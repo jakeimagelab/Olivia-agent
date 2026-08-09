@@ -110,7 +110,7 @@ function ClientsInner() {
   return <ClientWorkspaceView openNewOnLoad={searchParams.get("new") === "1"} initialClientId={searchParams.get("clientId")} />;
 }
 
-/* ── 3단 워크스페이스 (고객관리 개편 2026-08-09) — 왼쪽 리스트 | 가운데 프로젝트 | 오른쪽 공개+포털관리 ── */
+/* ── 2열 워크스페이스 (고객관리 2열 단순화 2026-08-09) — 왼쪽 리스트(30%) | 오른쪽 고객 업무(70%) ── */
 function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openNewOnLoad?: boolean; initialClientId: string | null }) {
   const router = useRouter();
   const {
@@ -124,6 +124,9 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
   const [workspace, setWorkspace] = useState<ClientWorkspaceData | null>(null);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaceError, setWorkspaceError] = useState("");
+  const [progressModalOpen, setProgressModalOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [memoOpen, setMemoOpen] = useState(false);
 
   useEffect(() => {
     if (openNewOnLoad) openCreate();
@@ -154,20 +157,27 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
   }, [selectedClientId, selectedProjectId]);
 
   // 고객을 눌러도 전체 페이지를 새로고침하지 않는다 — URL만(뒤로가기/새로고침 대비) 얕게 갱신하고
-  // 가운데·오른쪽 패널만 다시 불러온다.
+  // 오른쪽 패널만 다시 불러온다.
   const selectClient = (clientId: string) => {
     setSelectedClientId(clientId);
     setSelectedProjectId(null);
+    setMemoOpen(false);
     router.replace(`/clients?clientId=${clientId}`, { scroll: false });
   };
 
   const refreshWorkspace = () => { if (selectedClientId) void loadWorkspace(selectedClientId, selectedProjectId); };
 
+  const previewPublication = (relatedType: string, relatedId: string | null) => {
+    if (workspace?.portal?.url) window.open(workspace.portal.url, "_blank", "noopener");
+  };
+
+  const displayStepKey = workspace?.activeProject ? getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) : null;
+
   return (
     <div className="pcrm-dashboard" style={{ color: C.txt }}>
       <div
         className="pcrm-workspace-grid"
-        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(300px, 0.85fr) minmax(520px, 1.45fr) minmax(360px, 0.95fr)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
+        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(280px, 30%) minmax(0, 70%)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
       >
         <ClientListPanel
           clients={filtered}
@@ -201,12 +211,18 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                   </span>
                   <div style={{ minWidth: 0 }}>
                     <h1 style={{ fontSize: 16, fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{workspace.client.name}</h1>
-                    <span style={{ fontSize: 11, color: C.hint }}>{workspace.client.department || "진료과 미입력"} · 프로젝트 {workspace.projects.length}개</span>
+                    <span style={{ fontSize: 11, color: C.hint }}>
+                      {workspace.client.department || "진료과 미입력"} · 프로젝트 {workspace.projects.length}개
+                      {workspace.memo ? <> · <button type="button" onClick={() => setMemoOpen(true)} style={{ border: "none", background: "none", padding: 0, color: C.hint, fontSize: 11, cursor: "pointer" }}>📌 중요 메모 1건</button></> : null}
+                    </span>
                   </div>
                 </div>
-                <Link href={`/clients?id=${selectedClientId}`} style={{ fontSize: 11, fontWeight: 700, color: C.muted, textDecoration: "none", flexShrink: 0, border: `1px solid ${C.border}`, borderRadius: R.sm, padding: "6px 10px" }}>
-                  상세 관리 →
-                </Link>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <Link href="/quote" className="pc-btn pc-btn--orange pc-btn--sm" style={{ textDecoration: "none" }}>+ 견적서 작성</Link>
+                  <Link href={`/clients?id=${selectedClientId}`} style={{ fontSize: 11, fontWeight: 700, color: C.muted, textDecoration: "none", border: `1px solid ${C.border}`, borderRadius: R.sm, padding: "6px 10px" }}>
+                    상세 관리 →
+                  </Link>
+                </div>
               </div>
 
               {workspace.projects.length > 1 ? (
@@ -228,55 +244,70 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                 </div>
               ) : (
                 <>
-                  <ProjectSummaryCard
-                    activeProject={workspace.activeProject}
-                    workflowSummary={workspace.workflowSummary}
-                    recentActivityAt={workspace.recentActivity[0]?.created_at}
-                  />
-                  <NextActionCard
+                  <NextActionHero
                     client={workspace.client}
-                    workflowRun={workspace.activeProject}
-                    stepIcon={STEP_INFO[getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) || ""]?.icon}
-                    stepDescription={STEP_INFO[getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) || ""]?.desc}
+                    activeProject={workspace.activeProject}
+                    nextAction={workspace.nextAction}
+                    stepIcon={STEP_INFO[displayStepKey || ""]?.icon}
+                    stepDescription={STEP_INFO[displayStepKey || ""]?.desc}
+                    clientId={workspace.client.id}
+                    workflowRunId={workspace.activeProject.id}
+                    resourceIds={workspace.resourceIds}
                     onRefresh={refreshWorkspace}
+                    onPreviewPublication={previewPublication}
                   />
                   {workspace.workflowSummary ? (
                     <div className="pc-card pc-card--padded">
-                      <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} />
+                      <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} compact />
+                      <button type="button" onClick={() => setProgressModalOpen(true)} style={{ marginTop: 8, border: "none", background: "none", padding: 0, color: C.teal, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                        전체 과정 보기 →
+                      </button>
                     </div>
                   ) : null}
+                  <PendingPublicationsList
+                    clientId={workspace.client.id}
+                    workflowRunId={workspace.activeProject.id}
+                    publications={workspace.publications}
+                    resourceIds={workspace.resourceIds}
+                    onRefresh={refreshWorkspace}
+                    onViewAll={() => setHistoryModalOpen(true)}
+                    onPreview={previewPublication}
+                  />
                   <div className="pc-card pc-card--padded">
                     <div style={{ fontSize: 12.5, fontWeight: 800, color: C.ink, marginBottom: 8 }}>최근 활동</div>
-                    <PcrmActivityTimeline activities={workspace.recentActivity} variant="compact" />
+                    <PcrmActivityTimeline activities={workspace.recentActivity.slice(0, 4)} variant="compact" />
                   </div>
-                  <ProjectMemoPanel clientId={selectedClientId} activeProject={workspace.activeProject} memo={workspace.memo} onRefresh={refreshWorkspace} />
+                  <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
+                  {memoOpen ? (
+                    <MemoModal onClose={() => setMemoOpen(false)}>
+                      <ProjectMemoPanel clientId={selectedClientId!} activeProject={workspace.activeProject} memo={workspace.memo} onRefresh={refreshWorkspace} />
+                    </MemoModal>
+                  ) : null}
                 </>
               )}
             </>
           ) : null}
         </div>
-
-        <div style={{ minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          {workspace?.activeProject ? (
-            <>
-              <PublicationManagementPanel
-                clientId={workspace.client.id}
-                workflowRunId={workspace.activeProject.id}
-                publications={workspace.publications}
-                resourceIds={workspace.resourceIds}
-                onRefresh={refreshWorkspace}
-              />
-              <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
-            </>
-          ) : workspace ? (
-            <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
-          ) : (
-            <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
-              <p style={{ fontSize: 12.5, color: C.hint, textAlign: "center" }}>고객을 선택하면<br />공개/포털 관리를 볼 수 있습니다.</p>
-            </div>
-          )}
-        </div>
       </div>
+
+      {workspace?.activeProject && workspace.workflowSummary ? (
+        <ProgressDetailModal
+          open={progressModalOpen}
+          onClose={() => setProgressModalOpen(false)}
+          phases={workspace.workflowSummary.phases}
+          progressPercent={workspace.workflowSummary.progressPercent}
+        />
+      ) : null}
+      {workspace?.activeProject ? (
+        <PublicationHistoryModal
+          open={historyModalOpen}
+          onClose={() => setHistoryModalOpen(false)}
+          clientId={workspace.client.id}
+          workflowRunId={workspace.activeProject.id}
+          publications={workspace.publications}
+          onRefresh={refreshWorkspace}
+        />
+      ) : null}
 
       <ClientFormModal
         open={formModal !== null}
@@ -294,6 +325,17 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
         }
       `}</style>
     </div>
+  );
+}
+
+// 메모는 기본 화면에서 숨겨두고, 헤더의 "📌 중요 메모" 클릭 시에만 기존 모달 패턴으로 보여준다.
+function MemoModal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div style={{ width: "min(480px, calc(100vw - 24px))" }}>{children}</div>
+    </div>,
+    document.body,
   );
 }
 
