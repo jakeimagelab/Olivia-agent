@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { C, R } from "@/lib/theme";
+import { C } from "@/lib/theme";
 import { DISPLAY_STATUS_LABEL, PUBLICATION_TYPE_LABEL, type PublicationType } from "@/lib/clientWorkspace/publications";
 import type { WorkspacePublication } from "@/lib/clientWorkspace/types";
 import { publishPublicationType } from "@/lib/clientWorkspace/publishActions";
