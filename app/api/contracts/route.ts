@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { resolveClientId } from "@/lib/clientLookup";
 import { logPortalEvent } from "@/lib/clientPortal";
 import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
-import { maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
+import { completeOpenStepTasksForManualSave, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
