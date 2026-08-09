@@ -62,6 +62,8 @@ Olivia 사이드바는 그대로 유지한다. 좌측 목록에서 고객을 선
 - `app/api/contracts/route.ts` (POST 성공 후)
 - `app/api/conti/saves/route.ts` (POST/PATCH 성공 후)
 
+이 세 라우트는 현재 저장 시점에 `workflow_run_id`를 직접 다루지 않는다. `clientId`(요청에 이미 포함됨)로 해당 고객의 활성 `workflow_run`을 조회하는 로직이 필요한데, 이미 `/api/quotes/[id]/publish`·`/api/contracts/[id]/publish`가 동일한 조회를 하고 있으므로 그 패턴을 그대로 가져다 쓴다 (새 조회 로직을 만들지 않는다). 활성 workflow_run이 없으면(예: 아직 고객 등록 전에 견적만 먼저 만드는 경우) `maybeAdvanceWorkflow` 호출을 건너뛴다 — 에러로 취급하지 않는다.
+
 ### 4.3 공개 대기가 있을 때 — 히어로 완전 교체 (확정)
 
 `pcrm_publications`에 `status`가 발행 전 대기 상태인 항목이 하나라도 있으면, 히어로는 workflow next-action 대신 **"[문서명] 고객 공개"** CTA로 완전히 교체된다. 워크플로우 next-action은 이 순간 히어로에서 숨겨지고, 아래 진행 상황/공개 대기 섹션에서만 확인 가능하다.
