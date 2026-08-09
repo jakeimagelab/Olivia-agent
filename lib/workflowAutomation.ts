@@ -606,6 +606,20 @@ export async function completeWorkflowRetroactively(
   return { completed: true, workflow_run_id: run.id, final_step_key: lastStepKey };
 }
 
+// 고객관리 2열 단순화(2026-08-09) — 견적/계약/콘티를 사람이 실제 도구에서 직접 작성/저장하면,
+// 그 스텝의 AI 초안 자동화 작업(quote_draft 등)이 "대기" 상태로 이미 만들어져 있어도 그건
+// 더 이상 필요 없다(사람이 이미 만들었으므로). maybeAdvanceWorkflow를 부르기 전에 이 함수로
+// 남아있는 pending/failed 작업을 완료 처리해서 전진을 막지 않게 한다.
+export async function completeOpenStepTasksForManualSave(db: SupabaseClient, workflowRunId: string, stepKey: string) {
+  const now = new Date().toISOString();
+  await db
+    .from("agent_tasks")
+    .update({ status: "completed", completed_at: now, updated_at: now })
+    .eq("workflow_run_id", workflowRunId)
+    .eq("workflow_step_key", stepKey)
+    .in("status", ["pending", "failed"]);
+}
+
 export async function maybeAdvanceWorkflow(db: SupabaseClient, workflowRunId: string, stepKey: string) {
   const [tasksRes, approvalsRes] = await Promise.all([
     db.from("agent_tasks").select("*").eq("workflow_run_id", workflowRunId).eq("workflow_step_key", stepKey),
