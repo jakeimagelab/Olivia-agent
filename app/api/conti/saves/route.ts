@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
           .catch((candidateError) => console.error("[conti] 신규 고객 감지 실패", candidateError)));
       }
       if (workflowRunId) {
+        await completeOpenStepTasksForManualSave(db, workflowRunId, "conti").catch(() => {});
         await maybeAdvanceWorkflow(db, workflowRunId, "conti").catch((err) => {
           console.error("[conti] maybeAdvanceWorkflow 실패", err);
         });
