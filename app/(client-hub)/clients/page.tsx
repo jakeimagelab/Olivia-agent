@@ -358,17 +358,6 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
   );
 }
 
-// 메모는 기본 화면에서 숨겨두고, 헤더의 "📌 중요 메모" 클릭 시에만 기존 모달 패턴으로 보여준다.
-function MemoModal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div style={{ width: "min(480px, calc(100vw - 24px))" }}>{children}</div>
-    </div>,
-    document.body,
-  );
-}
-
 /* ── DETAIL VIEW ── */
 function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; workflowRunId: string | null; onBack: () => void }) {
   const router = useRouter();
