@@ -7,7 +7,8 @@ import type { WorkspacePublication } from "@/lib/clientWorkspace/types";
 import { publishPublicationType, revokePublication } from "@/lib/clientWorkspace/publishActions";
 import PublicationRow from "./PublicationRow";
 
-const MODAL_TOOL_TYPES = new Set(["quote", "contract", "conti"]);
+// conti는 아직 Workspace Modal이 없어 기존처럼 페이지 이동으로 남겨둔다(다음 차수에 추가).
+const MODAL_TOOL_TYPES = new Set(["quote", "contract"]);
 
 // 고객관리 3열 복귀(2026-08-10) — 7개 공개 항목을 항상 전부 보여준다(2열 때의 "공개 대기만"
 // 방식과 다름). quote/contract/conti의 "공개"는 Workspace Modal을 열고(모달 안에서 발행 확인/
