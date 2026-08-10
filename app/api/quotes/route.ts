@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "견적번호를 입력해주세요." }, { status: 400 });
     }
 
-    const clientId = await resolveClientId(supabase, body.hospitalName);
+    const clientId = body.clientId || await resolveClientId(supabase, body.hospitalName);
     const workflowRunId = await resolveWorkflowRunId(supabase, body.workflowRunId, clientId);
 
     const payload = {
