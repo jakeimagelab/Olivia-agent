@@ -172,9 +172,11 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
 
   const refreshWorkspace = () => { if (selectedClientId) void loadWorkspace(selectedClientId, selectedProjectId); };
 
+  // 진행 중인 프로젝트가 아직 없어도(예: 고객 등록 직후) 열 수 있다 — workflowRunId 없이 저장하면
+  // 서버(resolveWorkflowRunId)가 그 고객의 활성 프로젝트를 알아서 찾아 연결한다.
   const openQuoteModal = () => {
-    if (!workspace?.activeProject) return;
-    setWorkspaceModalState({ type: "quote", clientId: workspace.client.id, workflowRunId: workspace.activeProject.id });
+    if (!workspace?.client) return;
+    setWorkspaceModalState({ type: "quote", clientId: workspace.client.id, workflowRunId: workspace.activeProject?.id });
   };
 
   const displayStepKey = workspace?.activeProject ? getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) : null;
