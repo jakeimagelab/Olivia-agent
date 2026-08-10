@@ -1750,8 +1750,8 @@ export default function QuoteBuilder({
                 <footer className="quote-bottom">
                   <div className="payment-box">
                     <div>
-                      <strong>선금{depositRate}%</strong>
-                      <span>{amount(Math.round(finalAmount * depositRate / 100))}</span>
+                      {depositRate > 0 && <><strong>선금{depositRate}%</strong>
+                      <span>{amount(Math.round(finalAmount * depositRate / 100))}</span></>}
                     </div>
                     <div>
                       {depositRate < 100 && <><strong>잔금{100-depositRate}%</strong>
