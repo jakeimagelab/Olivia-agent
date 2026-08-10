@@ -245,7 +245,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
               {!workspace.activeProject ? (
                 <div className="pc-card pc-card--padded" style={{ textAlign: "center", padding: 32 }}>
                   <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>진행 중인 프로젝트가 없습니다.</p>
-                  <Link href={`/quote?clientId=${selectedClientId}`} className="pc-btn pc-btn--orange pc-btn--sm" style={{ textDecoration: "none", display: "inline-flex" }}>견적서 작성</Link>
+                  <button type="button" onClick={openQuoteModal} className="pc-btn pc-btn--orange pc-btn--sm" style={{ display: "inline-flex" }}>견적서 작성</button>
                 </div>
               ) : (
                 <>
