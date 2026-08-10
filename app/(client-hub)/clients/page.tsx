@@ -225,7 +225,14 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                  <button type="button" onClick={openQuoteModal} className="pc-btn pc-btn--orange pc-btn--sm">+ 견적서 작성</button>
+                  {/* 헤더의 빠른 실행 버튼은 항상 "견적서"로 고정돼 있으면 이미 다른 단계(백업/셀렉 등)로
+                      넘어간 고객에게도 엉뚱하게 뜬다 — 현재 단계에 맞는 도구(견적/계약)일 때만 보여주고,
+                      그 외 단계는 아래 "현재 단계" 카드의 버튼이 이미 있으니 중복 노출하지 않는다. */}
+                  {!workspace.activeProject || workspace.nextAction.kind === "tool_link" ? (
+                    <button type="button" onClick={() => openToolModal(workspace.activeProject && workspace.nextAction.kind === "tool_link" ? workspace.nextAction.stepKey : "quote")} className="pc-btn pc-btn--orange pc-btn--sm">
+                      + {workspace.activeProject && workspace.nextAction.kind === "tool_link" ? workspace.nextAction.title : "견적서 작성"}
+                    </button>
+                  ) : null}
                   <Link href={`/clients?id=${selectedClientId}`} style={{ fontSize: 11, fontWeight: 700, color: C.muted, textDecoration: "none", border: `1px solid ${C.border}`, borderRadius: R.sm, padding: "6px 10px" }}>
                     상세 관리 →
                   </Link>
