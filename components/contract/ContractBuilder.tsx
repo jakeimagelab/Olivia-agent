@@ -410,8 +410,8 @@ export default function ContractBuilder({
           sourceId: savedContractId,
           title: `${quote.hospitalName} 촬영 계약서`,
           hospitalName: quote.hospitalName,
-          clientId: pageParams.get("client_id") || pageParams.get("clientId"),
-          workflowRunId: pageParams.get("workflowRunId"),
+          clientId: effectiveClientId(pageParams),
+          workflowRunId: effectiveWorkflowRunId(pageParams),
         });
       } catch (artifactError) {
         console.error("workflow artifact upload failed (non-blocking)", artifactError);
@@ -434,8 +434,8 @@ export default function ContractBuilder({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clientId: pageParams.get("client_id") || pageParams.get("clientId") || undefined,
-          workflowRunId: pageParams.get("workflowRunId") || undefined,
+          clientId: effectiveClientId(pageParams) || undefined,
+          workflowRunId: effectiveWorkflowRunId(pageParams) || undefined,
         }),
       });
       const d = await r.json();
@@ -445,6 +445,7 @@ export default function ContractBuilder({
       }
       setPublishState("done");
       setTimeout(() => setPublishState("idle"), 3000);
+      if (isModal) setTimeout(() => { onPublished?.(); onClose?.(); }, 700);
     } catch (e: any) {
       setError(e.message || "포털 공개에 실패했습니다.");
       setPublishState("error");
@@ -452,10 +453,22 @@ export default function ContractBuilder({
     }
   };
 
+  // 페이지 모드는 URL 쿼리(client_id/workflowRunId)에서, 모달 모드는 props에서 읽는다.
+  const effectiveClientId = (pageParams: URLSearchParams) =>
+    isModal ? modalClientId : (pageParams.get("client_id") || pageParams.get("clientId"));
+  const effectiveWorkflowRunId = (pageParams: URLSearchParams) =>
+    isModal ? modalWorkflowRunId : pageParams.get("workflowRunId");
+
   const handleSave = async (): Promise<string | null> => {
     if (!quote) return null;
     setSaveState("saving");
+    const pageParams = new URLSearchParams(isModal ? "" : window.location.search);
+    const linkIds = isModal ? { clientId: modalClientId, workflowRunId: modalWorkflowRunId } : {
+      clientId: effectiveClientId(pageParams) ?? undefined,
+      workflowRunId: effectiveWorkflowRunId(pageParams) ?? undefined,
+    };
     try {
+      let savedId: string | null;
       if (contractId) {
         const r = await fetch(`/api/contracts/${contractId}`, {
           method: "PATCH",
@@ -463,13 +476,12 @@ export default function ContractBuilder({
           body: JSON.stringify({
             quoteData: quote, signatureDataUrl: signatureDataUrl || null,
             hospitalName: quote.hospitalName, contactName: quote.contactName, email: quote.email,
+            ...linkIds,
           }),
         });
         const d = await r.json();
         if (!d.ok) throw new Error(d.error);
-        setSaveState("saved");
-        setTimeout(() => setSaveState("idle"), 2000);
-        return contractId;
+        savedId = contractId;
       } else {
         const r = await fetch("/api/contracts", {
           method: "POST",
@@ -478,15 +490,21 @@ export default function ContractBuilder({
             quoteNumber: quote.quoteNumber, hospitalName: quote.hospitalName,
             contactName: quote.contactName, email: quote.email,
             quoteData: quote, signatureDataUrl: signatureDataUrl || null,
+            ...linkIds,
           }),
         });
         const d = await r.json();
         if (!d.ok) throw new Error(d.error);
         setContractId(d.id);
-        setSaveState("saved");
-        setTimeout(() => setSaveState("idle"), 2000);
-        return d.id;
+        savedId = d.id;
       }
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
+      if (isModal) {
+        lastSavedSnapshotRef.current = JSON.stringify({ quote, signatureDataUrl });
+        setDirty(false);
+      }
+      return savedId;
     } catch {
       setSaveState("error");
       setTimeout(() => setSaveState("idle"), 3000);
@@ -495,6 +513,45 @@ export default function ContractBuilder({
   };
 
   useSaveShortcut(handleSave);
+
+  // ── Workspace Modal 전용 동작 (mode==="modal"일 때만 개입) ──
+
+  // dirty 추적: quote/signatureDataUrl 스냅샷을 마지막 저장본과 비교한다.
+  useEffect(() => {
+    if (!isModal) return;
+    const snapshot = JSON.stringify({ quote, signatureDataUrl });
+    setDirty(snapshot !== lastSavedSnapshotRef.current);
+  }, [isModal, quote, signatureDataUrl]);
+
+  // 자동저장: dirty가 1000ms 유지되면 handleSave()를 그대로 재사용해 저장한다.
+  useEffect(() => {
+    if (!isModal || !dirty || !quote) return;
+    const timer = setTimeout(() => {
+      setAutosaveStatus("saving");
+      const savePromise = handleSave().then((saved) => {
+        setAutosaveStatus(saved ? "saved" : "error");
+        return saved;
+      });
+      pendingSaveRef.current = savePromise;
+    }, 1000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal, dirty, quote, signatureDataUrl]);
+
+  // 닫기 정책: 진행 중인 자동저장이 있으면 먼저 기다리고, 저장 안 된 변경사항이 남아있으면
+  // 확인창을, 없으면 바로 닫는다.
+  const handleModalClose = async () => {
+    if (!isModal) return;
+    if (pendingSaveRef.current) await pendingSaveRef.current;
+    const stillDirty = JSON.stringify({ quote, signatureDataUrl }) !== lastSavedSnapshotRef.current;
+    if (!stillDirty) { onClose?.(); return; }
+    setCloseConfirmOpen(true);
+  };
+  useEffect(() => {
+    if (!isModal) return;
+    registerRequestClose?.(() => handleModalClose);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal, registerRequestClose, dirty]);
 
   const iS: React.CSSProperties = {
     width: "100%", border: `1px solid ${C.border}`, borderRadius: 8,
