@@ -825,7 +825,9 @@ export default function QuoteBuilder({
       const response = await fetch("/api/quotes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        // Workspace Modal 모드에서는 병원명 문자열매칭이 아니라 이미 알고 있는 정확한
+        // clientId/workflowRunId로 연결한다(app/api/quotes/route.ts가 body.clientId를 우선한다).
+        body: JSON.stringify(isModal ? { ...data, clientId, workflowRunId } : data),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok || !body?.ok) throw new Error(body?.error ?? "서버 오류");
@@ -839,6 +841,10 @@ export default function QuoteBuilder({
       const todayPrefix = `PC-${todayValue().replaceAll("-", "")}-`;
       if (data.quoteNumber.startsWith(todayPrefix)) {
         setTodayQuoteNumbers((prev) => Array.from(new Set([...prev, data.quoteNumber])));
+      }
+      if (isModal) {
+        lastSavedFormStateRef.current = JSON.stringify(savedData.formState ?? null);
+        setDirty(false);
       }
       return savedData;
     } catch (error) {
