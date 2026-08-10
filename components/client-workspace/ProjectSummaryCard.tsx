@@ -35,8 +35,7 @@ function Row({ icon, label, value, highlight }: { icon: React.ReactNode; label: 
 
 const linkStyle: React.CSSProperties = { color: C.orange, fontWeight: 800, cursor: "pointer", background: "none", border: "none", padding: 0, font: "inherit", textDecoration: "none" };
 
-// conti는 아직 Workspace Modal이 없어 기존처럼 페이지 이동으로 남겨둔다(다음 차수에 추가).
-const MODAL_TOOL_STEPS = new Set(["quote", "contract"]);
+const MODAL_TOOL_STEPS = new Set(["quote", "contract", "conti"]);
 
 // 고객관리 3열 복귀(2026-08-10) — "다음 할 일" row만 액션 인지형으로 바뀐다.
 // 견적서/계약서/콘티(tool_link/publish_pending)면 페이지 이동 대신 Workspace Modal을 연다.
