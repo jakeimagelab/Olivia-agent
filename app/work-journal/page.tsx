@@ -344,7 +344,7 @@ function WorkJournalInner() {
               onDeleteTodo={handleDeleteTodo}
             />
           ) : (
-            <ScheduleDetailCard schedule={null} />
+            <ScheduleDetailCard />
           )}
 
           {isShooting ? (
