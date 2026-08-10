@@ -38,7 +38,17 @@ export async function POST(req: NextRequest) {
       .eq("workflow_step_key", stepKey)
       .eq("status", "pending");
 
-    const advanceResult = (approvals || []).length ? { advanced: false, reason: "waiting_approval" } : await maybeAdvanceWorkflow(db, workflowRunId, stepKey);
+    // executeWorkflowTask는 작업이 끝날 때마다 내부적으로 이미 maybeAdvanceWorkflow를 호출한다 —
+    // 그래서 이 시점엔 이미 다음 단계로 넘어가 있을 수 있다. 그 상태에서 아래처럼 같은(오래된)
+    // stepKey로 다시 advance를 시도하면 "현재 단계가 바뀌었다"는 가드에 걸려 advanced:false로
+    // 잘못 보고된다(실제로는 성공했는데 실패한 것처럼 보이는 버그) — 먼저 최신 상태를 다시 읽어서
+    // 이미 넘어갔는지 확인한다.
+    const latestRun = await getWorkflowRun(db, workflowRunId);
+    const advanceResult = latestRun.current_step_key !== stepKey
+      ? { advanced: true as const, result: { to_step_key: latestRun.current_step_key } }
+      : (approvals || []).length
+        ? { advanced: false as const, reason: "waiting_approval" }
+        : await maybeAdvanceWorkflow(db, workflowRunId, stepKey);
     const nextStepKey = advanceResult.advanced && "result" in advanceResult
       ? advanceResult.result?.to_step_key ?? null
       : null;
