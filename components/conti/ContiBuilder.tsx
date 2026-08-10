@@ -1288,6 +1288,9 @@ ${contiSummary}
       specialties: form.specialties,
       title: resultTitle,
       result,
+      // 모달 모드에서는 이미 알고 있는 정확한 clientId/id로 연결한다 — 병원명만으로 "기존 것
+      // 찾기"에 의존하면 다른 고객의 콘티와 뒤섞일 위험이 있다(견적번호 충돌 버그와 동일 클래스).
+      ...(isModal ? { clientId: modalClientId, workflowRunId: modalWorkflowRunId, id: savedContiId ?? undefined } : {}),
     };
 
     try {
@@ -1300,6 +1303,7 @@ ${contiSummary}
       if (!data.ok) throw new Error(data.error);
       setSavedContiId(data.id);
       lastAutoSavedSignatureRef.current = JSON.stringify(payload);
+      if (isModal) setDirty(false);
       if (silent) {
         setAutoSaveState("saved");
       } else {
@@ -1322,26 +1326,53 @@ ${contiSummary}
   useEffect(() => {
     if (!result) return;
 
-    const payloadSignature = JSON.stringify({
+    const payload = {
       hospitalName: form.hospitalName || "병원명 없음",
       specialties: form.specialties,
       title: resultTitle,
       result,
-    });
+      ...(isModal ? { clientId: modalClientId, workflowRunId: modalWorkflowRunId, id: savedContiId ?? undefined } : {}),
+    };
+    const payloadSignature = JSON.stringify(payload);
 
-    if (payloadSignature === lastAutoSavedSignatureRef.current) return;
+    if (payloadSignature === lastAutoSavedSignatureRef.current) {
+      if (isModal) setDirty(false);
+      return;
+    }
+    if (isModal) setDirty(true);
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     setAutoSaveState("idle");
 
     autoSaveTimerRef.current = setTimeout(() => {
-      saveConti({ silent: true });
+      const savePromise = saveConti({ silent: true });
+      if (isModal) pendingSaveRef.current = savePromise;
     }, 2500);
 
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [result, resultTitle, form.hospitalName, form.specialties]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, resultTitle, form.hospitalName, form.specialties, isModal, modalClientId, modalWorkflowRunId, savedContiId]);
+
+  // ── Workspace Modal 전용 닫기 정책 ──
+  const pendingSaveRef = useRef<Promise<string | null> | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const handleModalClose = async () => {
+    if (!isModal) return;
+    if (pendingSaveRef.current) await pendingSaveRef.current;
+    const stillDirty = JSON.stringify({
+      hospitalName: form.hospitalName || "병원명 없음", specialties: form.specialties, title: resultTitle, result,
+      clientId: modalClientId, workflowRunId: modalWorkflowRunId, id: savedContiId ?? undefined,
+    }) !== lastAutoSavedSignatureRef.current;
+    if (!result || !stillDirty) { onClose?.(); return; }
+    setCloseConfirmOpen(true);
+  };
+  useEffect(() => {
+    if (!isModal) return;
+    registerRequestClose?.(() => handleModalClose);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal, registerRequestClose, dirty]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
