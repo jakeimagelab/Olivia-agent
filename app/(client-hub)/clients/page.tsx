@@ -131,9 +131,9 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
   const [progressModalOpen, setProgressModalOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [workspaceModalState, setWorkspaceModalState] = useState<
-    { type: "quote"; clientId: string; workflowRunId?: string; resourceId?: string } | null
+    { type: "quote" | "contract"; clientId: string; workflowRunId?: string; resourceId?: string } | null
   >(null);
-  const [quoteBuilderRequestClose, setQuoteBuilderRequestClose] = useState<(() => void) | null>(null);
+  const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
 
   useEffect(() => {
     if (openNewOnLoad) openCreate();
