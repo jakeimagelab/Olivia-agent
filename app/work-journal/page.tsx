@@ -182,20 +182,21 @@ function WorkJournalInner() {
     return () => { cancelled = true; };
   }, [selectedScheduleId, schedulesForDate, schedulesLoading, selectedDate]);
 
-  // 촬영 일정일 때만 To-do/준비사항/렌탈을 병렬로 불러온다.
+  // To-do는 일정 카테고리와 무관하게 불러온다 — 준비사항(장비/렌탈)만 촬영 일정 전용.
   useEffect(() => {
-    if (!selectedSchedule || selectedSchedule.category !== "shooting") {
+    if (!selectedSchedule) {
       setTodos([]); setPrepItems([]); setRentals([]);
       return;
     }
+    const isShooting = selectedSchedule.category === "shooting";
     let cancelled = false;
     setPrepLoading(true);
     (async () => {
       try {
         const [todosData, equipData, rentalsData] = await Promise.all([
           fetchJson(`/api/work-journal/schedule-todos?scheduleId=${selectedSchedule.id}`),
-          fetchJson(`/api/work-journal/schedule-equipment?scheduleId=${selectedSchedule.id}`),
-          fetchJson(`/api/work-journal/schedule-rentals?scheduleId=${selectedSchedule.id}`),
+          isShooting ? fetchJson(`/api/work-journal/schedule-equipment?scheduleId=${selectedSchedule.id}`) : Promise.resolve({ items: [] }),
+          isShooting ? fetchJson(`/api/work-journal/schedule-rentals?scheduleId=${selectedSchedule.id}`) : Promise.resolve({ rentals: [] }),
         ]);
         if (cancelled) return;
         setTodos(todosData.todos ?? []);
