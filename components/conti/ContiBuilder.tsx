@@ -1198,6 +1198,44 @@ ${contiSummary}
   const [editingId,     setEditingId]     = useState<string | null>(null);
   const [editingName,   setEditingName]   = useState("");
   const [savedContiId,  setSavedContiId]  = useState<string | null>(null);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+
+  // Workspace Modal 전용 프리필 — resourceId(기존 콘티)가 있으면 그대로 불러오고, 없으면
+  // clientId로 고객 기본 정보만 채운다(콘티 자체는 사용자가 폼 입력 후 직접 생성해야 한다 —
+  // 견적/계약과 달리 AI 생성 버튼을 눌러야 result가 생기므로 자동으로 채울 콘텐츠가 없다).
+  useEffect(() => {
+    if (!isModal) return;
+    setUrlClientId(modalClientId ?? null);
+    setUrlWorkflowRunId(modalWorkflowRunId ?? null);
+    if (resourceId) {
+      fetch(`/api/conti/saves/${resourceId}`)
+        .then((r) => r.json())
+        .then((json) => {
+          if (!json.ok) return;
+          const entry = json.data;
+          setResult(entry.result);
+          setResultTitle(entry.title || entry.hospital_name);
+          setForm((prev) => ({ ...prev, hospitalName: entry.hospital_name, specialties: entry.specialties || prev.specialties }));
+          setSavedContiId(resourceId);
+        })
+        .catch(() => {});
+      return;
+    }
+    if (!modalClientId) return;
+    fetch(`/api/clients/${modalClientId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.ok || !d.client) return;
+        const c = d.client;
+        setForm((prev) => ({
+          ...prev,
+          hospitalName: c.name || c.hospital_name || prev.hospitalName,
+          specialties: c.department ? [c.department] : prev.specialties,
+        }));
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal, modalClientId, resourceId]);
 
   useEffect(() => {
     if (!result) return;
