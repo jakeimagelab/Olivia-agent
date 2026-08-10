@@ -433,6 +433,12 @@ export default function QuoteBuilder({
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
   const previewPercent = Math.round(previewZoom * 100);
 
+  // Workspace Modal 모드 전용 — dirty 추적/자동저장/닫기 확인 (mode="page"일 땐 전부 미사용).
+  const lastSavedFormStateRef = useRef<string>("");
+  const [dirty, setDirty] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+
   useEffect(() => {
     const date = todayValue().replaceAll("-", "");
     Promise.all([
