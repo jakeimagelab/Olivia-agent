@@ -378,7 +378,24 @@ const BRAND_CONFIG: Record<Brand, {
   }
 };
 
-export default function QuoteBuilder() {
+export default function QuoteBuilder({
+  mode = "page",
+  clientId,
+  workflowRunId,
+  resourceId,
+  onClose,
+  onPublished,
+  registerRequestClose,
+}: {
+  mode?: "page" | "modal";
+  clientId?: string;
+  workflowRunId?: string;
+  resourceId?: string;
+  onClose?: () => void;
+  onPublished?: () => void;
+  registerRequestClose?: (fn: () => void) => void;
+} = {}) {
+  const isModal = mode === "modal";
   const previewRef = useRef<HTMLDivElement>(null);
   const previewShellRef = useRef<HTMLDivElement>(null);
   const quotePdfInputRef = useRef<HTMLInputElement>(null);
