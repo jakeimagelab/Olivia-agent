@@ -2421,11 +2421,6 @@ export default function QuoteBuilder({
   );
 }
 
-// /photoclinic, /quote 라우트의 실제 page.tsx 진입점 — 항상 mode="page"(기존 동작 그대로).
-export default function QuoteBuilderPage() {
-  return <QuoteBuilder />;
-}
-
 function Panel({
   title,
   icon,
