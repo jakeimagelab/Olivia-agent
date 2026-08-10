@@ -3196,23 +3196,48 @@ ${header("타임테이블")}
       </div>
     )}
 
-    {/* 올리비아 채팅 - 콘티 페이지 컨텍스트 */}
-    <OliviaChat
-      pageContext="촬영 콘티 생성 페이지"
-      contextData={result ? {
-        병원명: form.hospitalName || "미입력",
-        진료과: form.specialties.join(", ") || "미입력",
-        상태: "콘티 생성 완료",
-      } : {
-        상태: "콘티 입력 중",
-      }}
-      contiData={result ?? null}
-      onContiUpdate={(updated: any) => {
-        if (updated?.conti)     setResult(prev => prev ? { ...prev, conti: updated.conti } : prev);
-        if (updated?.checklist) setResult(prev => prev ? { ...prev, checklist: updated.checklist } : prev);
-        if (updated?.schedule)  setResult(prev => prev ? { ...prev, schedule: updated.schedule } : prev);
-      }}
-    />
+    {/* 올리비아 채팅 - 콘티 페이지 컨텍스트 (모달 모드에선 루트 레이아웃이 이미 전역 렌더링 중) */}
+    {isModal ? null : (
+      <OliviaChat
+        pageContext="촬영 콘티 생성 페이지"
+        contextData={result ? {
+          병원명: form.hospitalName || "미입력",
+          진료과: form.specialties.join(", ") || "미입력",
+          상태: "콘티 생성 완료",
+        } : {
+          상태: "콘티 입력 중",
+        }}
+        contiData={result ?? null}
+        onContiUpdate={(updated: any) => {
+          if (updated?.conti)     setResult(prev => prev ? { ...prev, conti: updated.conti } : prev);
+          if (updated?.checklist) setResult(prev => prev ? { ...prev, checklist: updated.checklist } : prev);
+          if (updated?.schedule)  setResult(prev => prev ? { ...prev, schedule: updated.schedule } : prev);
+        }}
+      />
+    )}
+    {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
+      <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
+        <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24 }}>
+          <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800, color: "#155855" }}>저장하지 않은 변경사항이 있습니다.</h3>
+          <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "#5a7470" }}>계속 작성하시겠습니까, 아니면 저장 후 닫으시겠습니까?</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <button type="button" onClick={() => setCloseConfirmOpen(false)}
+              style={{ height: 40, borderRadius: 9, border: "1px solid rgba(21,88,85,.12)", background: "#fff", color: "#155855", fontWeight: 800, cursor: "pointer" }}>
+              계속 작성
+            </button>
+            <button type="button" onClick={async () => { await saveConti({ silent: false }); setCloseConfirmOpen(false); onClose?.(); }}
+              style={{ height: 40, borderRadius: 9, border: "none", background: "#155855", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
+              임시 저장 후 닫기
+            </button>
+            <button type="button" onClick={() => { setCloseConfirmOpen(false); onClose?.(); }}
+              style={{ height: 40, borderRadius: 9, border: "1px solid rgba(216,70,52,.3)", background: "#fff", color: "#D84634", fontWeight: 800, cursor: "pointer" }}>
+              저장하지 않고 닫기
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    ) : null}
     </>
   );
 }
