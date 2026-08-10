@@ -7,6 +7,16 @@ import { dateHeaderLabel, timeRangeLabel } from "@/lib/work-journal/dateLabel";
 import type { CalendarEvent } from "@/lib/work-journal/types";
 import type { ScheduleTodo } from "@/lib/work-journal/scheduleTypes";
 
+// app/calendar/page.tsx의 카테고리 색상표와 동일 — ScheduleColumn.tsx/ScheduleDetailCard.tsx와 같은
+// 이유로 여기서도 다시 쓴다.
+const CATEGORY: Record<string, { label: string; color: string; bg: string }> = {
+  shooting: { label: "촬영", color: "#E85D2C", bg: "#FFF0EB" },
+  client:   { label: "고객", color: "#155855", bg: "#EAF4F2" },
+  admin:    { label: "행정", color: "#EB8F22", bg: "#FFF3E0" },
+  personal: { label: "개인", color: "#000000", bg: "#ECECEC" },
+  general:  { label: "기타", color: "#5A7470", bg: "#F3F4F6" },
+};
+
 export default function TodoColumn({
   schedule,
   todos,
