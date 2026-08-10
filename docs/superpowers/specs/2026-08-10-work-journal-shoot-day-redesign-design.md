@@ -86,6 +86,7 @@ components/work-journal/
   ScheduleDetailCard.tsx            — category !== 'shooting'일 때 가운데에 보이는 단순 카드(제목/시간/메모)
 ```
 
+- **일정이 `category !== 'shooting'`일 때**: 가운데 칼럼엔 `ScheduleDetailCard`(제목/시간/메모)만 보이고, 오른쪽 칼럼(PreparationColumn)은 렌더하지 않는다 — 그 자리엔 "촬영 일정에서만 준비사항을 관리합니다" 같은 안내만 남긴 빈 카드를 둔다(레이아웃 폭이 갑자기 바뀌지 않게).
 - **ScheduleColumn**: 기존 `MiniCalendar`를 그대로 재사용(날짜별 개수 점 표시 이미 구현됨). 일정 리스트만 새로 그린다.
 - **TodoColumn**: 체크 토글은 클릭 즉시 PATCH(디바운스 없음 — 항목 수가 적어 quote/contract식 debounce autosave가 불필요). 순서 변경은 위/아래 화살표 버튼.
 - **PreparationColumn**: 카테고리 탭 클릭 시 해당 카테고리 장비만 표시, 상단에 `조명 6/17` 형태로 선택 현황. 체크는 클릭 즉시 저장 + 작은 "저장 중.../저장 완료" 텍스트 상태.
