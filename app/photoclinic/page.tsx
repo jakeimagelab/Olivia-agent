@@ -958,6 +958,9 @@ export default function QuoteBuilder({
       } else {
         setRecentQuoteMessage(`포털에 공개했습니다: ${json.portalUrl}`);
       }
+      if (isModal) {
+        setTimeout(() => { onPublished?.(); onClose?.(); }, 700);
+      }
     } catch (error) {
       setRecentQuoteMessage(error instanceof Error ? error.message : "포털 공개 중 오류가 발생했습니다.");
     } finally {
