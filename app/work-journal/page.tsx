@@ -35,10 +35,12 @@ function rowToCalendarEvent(row: Record<string, any>): CalendarEvent {
     id: row.id,
     date: row.date,
     time: row.time ?? null,
+    endTime: row.end_time ?? null,
     title: row.title ?? "",
     category: row.category ?? "general",
     completed: !!row.completed,
     location: row.location ?? null,
+    memo: row.memo ?? "",
   };
 }
 
