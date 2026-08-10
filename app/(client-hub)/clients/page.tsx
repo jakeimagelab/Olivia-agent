@@ -183,6 +183,24 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
 
   const displayStepKey = workspace?.activeProject ? getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) : null;
 
+  // 헤더의 빠른 실행 버튼은 항상 "견적서 작성"으로 고정돼 있으면, 이미 다른 단계(백업/셀렉 등)로
+  // 넘어간 고객에게도 엉뚱하게 뜬다 — 현재 단계에 맞는 도구(견적/계약)일 때만 보여주고, 콘티처럼
+  // 아직 모달이 없는 단계나 그 외 단계는 아래 "현재 단계" 카드의 버튼과 중복되니 숨긴다.
+  const headerQuickAction = (() => {
+    if (!workspace?.activeProject) {
+      return <button type="button" onClick={openQuoteModal} className="pc-btn pc-btn--orange pc-btn--sm">+ 견적서 작성</button>;
+    }
+    const nextAction = workspace.nextAction;
+    if (nextAction.kind === "tool_link" && (nextAction.stepKey === "quote" || nextAction.stepKey === "contract")) {
+      return (
+        <button type="button" onClick={() => openToolModal(nextAction.stepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
+          + {nextAction.title}
+        </button>
+      );
+    }
+    return null;
+  })();
+
   return (
     <div className="pcrm-dashboard" style={{ color: C.txt }}>
       <div
