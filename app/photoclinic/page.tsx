@@ -378,7 +378,11 @@ const BRAND_CONFIG: Record<Brand, {
   }
 };
 
-export default function QuoteBuilder({
+// Next.js는 이 파일이 /photoclinic 라우트의 page.tsx이기도 하므로 default export의 타입을
+// PageProps로 강제한다(빌드 타임에만 검사됨, tsc --noEmit으로는 안 잡힘) — 그래서 실제 구현은
+// named export로 두고, default export는 mode="page"로 호출하는 얇은 래퍼로 분리한다.
+// app/(client-hub)/clients/page.tsx의 Workspace Modal은 이 named export를 가져다 쓴다.
+export function QuoteBuilder({
   mode = "page",
   clientId,
   workflowRunId,
