@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import OliviaChat from "@/components/OliviaChat";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
