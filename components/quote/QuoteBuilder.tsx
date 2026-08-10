@@ -9,6 +9,8 @@ import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import {
+  ChevronDown,
+  ChevronUp,
   Download,
   Maximize2,
   Plus,
