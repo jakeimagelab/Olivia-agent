@@ -1044,6 +1044,12 @@ export default function QuoteBuilder({
   ]);
 
   // 3) 자동저장: dirty가 1000ms 유지되면 기존 saveRecentQuote()를 그대로 재사용해 저장한다.
+  // dirty는 한 번 true가 되면(예: 프리필로 인한 변경) 값이 안 바뀌는 한 계속 true라서, deps를
+  // [isModal, dirty]로만 두면 프리필 이후의 입력이 이 effect를 다시 안 태우고 — setTimeout
+  // 콜백이 effect가 처음 걸렸을 때(즉 마운트 시점, customer가 비어있을 때)의 클로저를 그대로
+  // 들고 있어서 매번 "그 시점"의 오래된 값을 저장하는 버그가 있었다(실제 배포 후 재현 테스트에서
+  // 발견 — 자동저장은 성공했지만 병원명/담당자가 빈 값으로 저장됨). dirty 판단에 쓰는 것과
+  // 동일한 필드 전체를 deps에 넣어서, 값이 바뀔 때마다 항상 최신 클로저로 타이머를 다시 건다.
   useEffect(() => {
     if (!isModal || !dirty) return;
     const timer = setTimeout(async () => {
@@ -1054,7 +1060,11 @@ export default function QuoteBuilder({
     }, 1000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModal, dirty]);
+  }, [
+    isModal, dirty, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemAmounts,
+    profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
+    customItems, benefitItems, discountRate, extraDiscount, memo, depositRate, brand,
+  ]);
 
   // 4) 닫기 정책: 저장 안 된 변경사항이 있으면 확인창, 없으면 바로 닫는다.
   const handleModalClose = () => {
