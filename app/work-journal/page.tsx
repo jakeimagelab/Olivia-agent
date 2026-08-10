@@ -333,7 +333,7 @@ function WorkJournalInner() {
             onSelectUpcoming={handleSelectUpcoming}
           />
 
-          {isShooting && selectedSchedule ? (
+          {selectedSchedule ? (
             <TodoColumn
               schedule={selectedSchedule}
               todos={todos}
@@ -344,7 +344,7 @@ function WorkJournalInner() {
               onDeleteTodo={handleDeleteTodo}
             />
           ) : (
-            <ScheduleDetailCard schedule={selectedSchedule} />
+            <ScheduleDetailCard schedule={null} />
           )}
 
           {isShooting ? (
