@@ -2070,9 +2070,31 @@ export default function QuoteBuilder({
                   <p className="empty-text">추가된 {cfg.customItemsLabel}이 없습니다.</p>
                 ) : (
                   <div className="grid gap-3">
-                    {customItems.map((item) => (
+                    {customItems.map((item, index) => (
                       <div key={item.id} className="custom-item-editor">
                         <div className="item-row">
+                          <div className="item-reorder-buttons">
+                            <button
+                              type="button"
+                              className="icon-button"
+                              onClick={() => moveCustomItem(item.id, "up")}
+                              disabled={index === 0}
+                              aria-label="위로 이동"
+                              title="위로 이동"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-button"
+                              onClick={() => moveCustomItem(item.id, "down")}
+                              disabled={index === customItems.length - 1}
+                              aria-label="아래로 이동"
+                              title="아래로 이동"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
                           <input
                             value={item.name}
                             onChange={(event) =>
