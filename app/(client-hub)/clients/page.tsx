@@ -82,6 +82,13 @@ const MAIL_LABELS: Record<string, string> = {
   quote: "견적서", contract: "계약서", conti: "콘티", gallery: "갤러리",
   original_files: "원본파일", review_form: "후기폼", monthly_report: "리포트", shoot_reminder: "촬영알림",
 };
+
+// quote/contract/conti는 실제 문서를 팝업(QuoteBuilder 등)에서 작성해야 하므로, 이 단계에서는
+// AI 자동화 카드(NextActionCard, "올리비아가 현재 단계 처리하기")를 노출하지 않는다 — 그 버튼은
+// 실제 견적/계약 데이터 없이 AI 초안만으로 다음 단계로 넘겨버린다(재현 확인됨).
+const TOOL_STEP_TITLE: Record<string, string> = {
+  quote: "견적서 작성하기", contract: "계약서 작성하기", conti: "콘티 작성하기",
+};
 const MAIL_COLOR: Record<string, string> = {
   draft: C.hint, ready: C.orange, sent: C.green, failed: "#DC2626",
 };
