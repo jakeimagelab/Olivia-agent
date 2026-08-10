@@ -2148,6 +2148,28 @@ main:has(> .pc-header) {
   gap: 8px;
 }
 
+.custom-item-editor .item-row {
+  grid-template-columns: auto 1fr 140px 38px;
+}
+
+.item-reorder-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+}
+
+.item-reorder-buttons .icon-button {
+  width: 24px;
+  height: 17px;
+  border-radius: 4px;
+}
+
+.item-reorder-buttons .icon-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 .custom-item-discount-toggle {
   display: flex;
   align-items: center;
