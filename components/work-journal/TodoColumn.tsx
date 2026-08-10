@@ -40,6 +40,7 @@ export default function TodoColumn({
   const [submitting, setSubmitting] = useState(false);
 
   const done = todos.filter((t) => t.completed).length;
+  const cat = CATEGORY[schedule.category] ?? CATEGORY.general;
 
   const submit = async () => {
     if (!title.trim() || submitting) return;
