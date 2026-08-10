@@ -992,6 +992,77 @@ export default function QuoteBuilder({
   };
   useSaveShortcut(handleManualSave);
 
+  // ── Workspace Modal 전용 동작 (mode==="modal"일 때만 개입, mode==="page"는 전부 no-op) ──
+
+  // 1) 프리필: resourceId가 있으면 기존 견적서를 불러오고, clientId만 있으면 고객 정보만 채운다.
+  useEffect(() => {
+    if (!isModal) return;
+    if (resourceId) {
+      fetch(`/api/quotes/${resourceId}`)
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.ok) loadRecentQuote(rowToContractQuoteData(json.quote));
+        })
+        .catch(() => {});
+      return;
+    }
+    if (clientId) {
+      fetch(`/api/clients/${clientId}/workspace`)
+        .then((res) => res.json())
+        .then((json) => {
+          if (!json.ok) return;
+          setCustomer((prev) => ({
+            ...prev,
+            hospitalName: json.client?.name || prev.hospitalName,
+            managerName: json.client?.manager_name || prev.managerName,
+            phone: json.client?.phone || prev.phone,
+            email: json.client?.email || prev.email,
+            shootDate: json.activeProject?.shoot_date || prev.shootDate,
+          }));
+        })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal, clientId, resourceId]);
+
+  // 2) dirty 추적: formState 스냅샷을 마지막 저장본과 비교한다(id/savedAt은 매번 달라 formState만 비교).
+  useEffect(() => {
+    if (!isModal) return;
+    const data = buildContractQuoteData();
+    const snapshot = JSON.stringify(data.formState ?? null);
+    setDirty(snapshot !== lastSavedFormStateRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isModal, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemAmounts,
+    profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
+    customItems, benefitItems, discountRate, extraDiscount, memo, depositRate, brand,
+  ]);
+
+  // 3) 자동저장: dirty가 1000ms 유지되면 기존 saveRecentQuote()를 그대로 재사용해 저장한다.
+  useEffect(() => {
+    if (!isModal || !dirty) return;
+    const timer = setTimeout(async () => {
+      setAutosaveStatus("saving");
+      const data = buildContractQuoteData();
+      const saved = await saveRecentQuote(data);
+      setAutosaveStatus(saved ? "saved" : "error");
+    }, 1000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal, dirty]);
+
+  // 4) 닫기 정책: 저장 안 된 변경사항이 있으면 확인창, 없으면 바로 닫는다.
+  const handleModalClose = () => {
+    if (!isModal) return;
+    if (!dirty) { onClose?.(); return; }
+    setCloseConfirmOpen(true);
+  };
+  useEffect(() => {
+    if (!isModal) return;
+    registerRequestClose?.(() => handleModalClose);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal, registerRequestClose, dirty]);
+
   const createContractQuoteFromImportedPdf = (parsed: ImportedPdfQuote): ContractQuoteData => {
     const supply = Math.round(parsed.totalAmount / 1.1);
     const vatAmount = Math.max(parsed.totalAmount - supply, 0);
