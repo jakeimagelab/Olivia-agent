@@ -23,7 +23,7 @@ import PublicationHistoryModal from "@/components/client-workspace/PublicationHi
 import ProgressDetailModal from "@/components/client-workspace/ProgressDetailModal";
 import PortalManagementPanel from "@/components/client-workspace/PortalManagementPanel";
 import WorkspaceModal from "@/components/client-workspace/WorkspaceModal";
-import { QuoteBuilder } from "@/app/photoclinic/page";
+import QuoteBuilder from "@/components/quote/QuoteBuilder";
 import type { ClientWorkspaceData } from "@/lib/clientWorkspace/types";
 import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
