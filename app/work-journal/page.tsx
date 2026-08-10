@@ -310,7 +310,7 @@ function WorkJournalInner() {
       <PageHeader title="업무일지" />
       <div className="pc-content pc-content--wide">
         <p style={{ fontSize: 13, color: C.muted, margin: "-8px 0 20px" }}>
-          촬영 일정을 선택하면 To-do와 준비사항을 한 화면에서 관리할 수 있습니다.
+          일정을 선택하면 To-do를 관리할 수 있고, 촬영 일정은 준비사항(장비·렌탈)도 함께 관리할 수 있습니다.
         </p>
         {error ? <p style={{ fontSize: 12, color: C.danger, marginBottom: 12 }}>{error}</p> : null}
 
