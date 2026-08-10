@@ -331,7 +331,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
             clientId={workspaceModalState.clientId}
             workflowRunId={workspaceModalState.workflowRunId}
             resourceId={workspaceModalState.resourceId}
-            onClose={() => setWorkspaceModalState(null)}
+            onClose={() => { setWorkspaceModalState(null); refreshWorkspace(); }}
             onPublished={refreshWorkspace}
             registerRequestClose={setQuoteBuilderRequestClose}
           />
