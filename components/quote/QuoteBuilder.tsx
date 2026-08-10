@@ -446,6 +446,7 @@ export default function QuoteBuilder({
 
   useEffect(() => {
     const date = todayValue().replaceAll("-", "");
+    const defaultQuoteNumber = createQuoteNumber();
     Promise.all([
       fetch(`/api/quotes?limit=${RECENT_QUOTES_DISPLAY_LIMIT}`).then((res) => res.json()),
       fetch(`/api/quotes?prefix=${encodeURIComponent(`PC-${date}-`)}`).then((res) => res.json()),
@@ -455,9 +456,25 @@ export default function QuoteBuilder({
         if (recentRes?.ok) setRecentQuotes((recentRes.quotes ?? []).map(rowToContractQuoteData));
         const pcNumbers = todayPcRes?.ok ? todayPcRes.quoteNumbers ?? [] : [];
         const jiNumbers = todayJiRes?.ok ? todayJiRes.quoteNumbers ?? [] : [];
-        setTodayQuoteNumbers([...pcNumbers, ...jiNumbers]);
+        const allTodayNumbers = [...pcNumbers, ...jiNumbers];
+        setTodayQuoteNumbers(allTodayNumbers);
+
+        // 마운트 시 quoteNumber는 항상 순번 "-001"로 초기화되는데, 오늘 이미 그 번호로 저장된
+        // 견적이 있으면(다른 고객 세션 등) 저장/자동저장이 번호 충돌로 그 견적을 덮어써 다른
+        // 고객에게 재할당해버린다. 사용자가 번호를 아직 직접 건드리지 않았을 때만 보정한다.
+        if (allTodayNumbers.includes(defaultQuoteNumber)) {
+          const prefix = `${cfg.quoteNumberPrefix}${date}-`;
+          const usedNumbers = allTodayNumbers
+            .filter((num) => num.startsWith(prefix))
+            .map((num) => Number(num.replace(prefix, "")))
+            .filter((value) => Number.isFinite(value));
+          const nextSequence = usedNumbers.length ? Math.max(...usedNumbers) + 1 : 1;
+          const safeNumber = createQuoteNumber(nextSequence, cfg.quoteNumberPrefix);
+          setCustomer((prev) => (prev.quoteNumber === defaultQuoteNumber ? { ...prev, quoteNumber: safeNumber } : prev));
+        }
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
