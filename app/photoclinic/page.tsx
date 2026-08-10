@@ -1757,8 +1757,15 @@ export default function QuoteBuilder({
 
   return (
     <>
-    <PageHeader title="Quote Builder" />
-    <main className={`min-h-screen text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`} style={{ background: "var(--mesh-bg)" }}>
+    {isModal ? null : <PageHeader title="Quote Builder" />}
+    <main className={`${isModal ? "" : "min-h-screen"} text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`} style={isModal ? undefined : { background: "var(--mesh-bg)" }}>
+      {isModal ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px", borderBottom: "1px solid rgba(21,88,85,.1)", background: "#fafaf8" }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: autosaveStatus === "error" ? "#DC2626" : "#5a7470" }}>
+            {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
+          </span>
+        </div>
+      ) : null}
       <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8">
         <div className="min-w-0 space-y-5">
           <header className="rounded-lg border border-[var(--quote-ink)]/15 bg-white px-5 py-5 shadow-sm">
