@@ -1278,6 +1278,10 @@ ${contiSummary}
     setTimeout(() => setHistoryToast(""), 1600);
   };
 
+  // ── Workspace Modal 전용 닫기 정책(dirty 추적/진행 중 저장 참조) ──
+  const pendingSaveRef = useRef<Promise<string | null> | null>(null);
+  const [dirty, setDirty] = useState(false);
+
   const saveConti = async ({ silent = false }: { silent?: boolean } = {}): Promise<string | null> => {
     if (!result) return null;
     if (silent) setAutoSaveState("saving");
