@@ -25,6 +25,7 @@ import PortalManagementPanel from "@/components/client-workspace/PortalManagemen
 import WorkspaceModal from "@/components/client-workspace/WorkspaceModal";
 import QuoteBuilder from "@/components/quote/QuoteBuilder";
 import ContractBuilder from "@/components/contract/ContractBuilder";
+import ContiBuilder from "@/components/conti/ContiBuilder";
 import type { ClientWorkspaceData } from "@/lib/clientWorkspace/types";
 import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
