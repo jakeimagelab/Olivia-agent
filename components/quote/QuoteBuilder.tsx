@@ -2387,10 +2387,10 @@ export default function QuoteBuilder({
           <Panel title="선금 / 잔금 비율">
             <div className="grid gap-3">
               <div className="flex gap-2">
-                {([100, 70, 50, 30] as number[]).map((rate) => (
+                {([100, 70, 50, 30, 0] as number[]).map((rate) => (
                   <button key={rate} type="button" onClick={() => setDepositRate(rate)}
                     className={depositRate === rate ? "deposit-btn active" : "deposit-btn"}>
-                    {rate}%
+                    {rate === 0 ? "잔금 100%" : `${rate}%`}
                   </button>
                 ))}
               </div>
