@@ -696,6 +696,17 @@ export default function QuoteBuilder({
     setCustomItems((items) => items.filter((item) => item.id !== id));
   };
 
+  const moveCustomItem = (id: string, direction: "up" | "down") => {
+    setCustomItems((items) => {
+      const index = items.findIndex((item) => item.id === id);
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (index === -1 || targetIndex < 0 || targetIndex >= items.length) return items;
+      const next = [...items];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
+  };
+
   const updateBenefitItem = (id: string, value: string) => {
     setBenefitItems((items) =>
       items.map((item) => (item.id === id ? { ...item, name: value } : item))
