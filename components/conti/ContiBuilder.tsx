@@ -1835,7 +1835,12 @@ ${header("타임테이블")}
   ════════════════════════════════ */
   return (
     <>
-    <div style={{ minHeight: "100vh", background: "rgba(237,247,241,.82)" }}>
+    <div style={isModal ? { background: "rgba(237,247,241,.82)" } : { minHeight: "100vh", background: "rgba(237,247,241,.82)" }}>
+      {isModal ? (
+        <div style={{ padding: "8px 24px 0", fontSize: 11.5, fontWeight: 700, color: autoSaveState === "error" ? "#DC2626" : "#5a7470" }}>
+          {autoSaveState === "saving" ? "저장 중..." : autoSaveState === "saved" ? "저장됨" : dirty ? "저장 안 된 변경사항 있음" : ""}
+        </div>
+      ) : null}
       <div style={{
         width: "100%",
         maxWidth: pageMode === "portrait" ? 1000 : (result && !fieldView ? 1880 : 1100),
