@@ -29,7 +29,7 @@ export default function PreparationColumn({
   onAddRental: (name: string) => Promise<void>;
   onToggleRental: (id: string, checked: boolean) => void;
   onDeleteRental: (id: string) => void;
-  }) {
+}) {
   const [activeTab, setActiveTab] = useState<EquipmentCategory>("LIGHT");
   const [savingLabel, setSavingLabel] = useState<"idle" | "saving" | "saved">("idle");
   const [rentalName, setRentalName] = useState("");
