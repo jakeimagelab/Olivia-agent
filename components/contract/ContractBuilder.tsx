@@ -573,8 +573,14 @@ export default function ContractBuilder({
   return (
     <div
       className={`contract-app${brand === "jakeimage" ? " contract-app--jakeimage" : ""}`}
-      style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}
+      style={isModal ? { background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" } : { minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}
     >
+
+      {isModal ? (
+        <div style={{ padding: "8px 20px", fontSize: 11.5, fontWeight: 700, color: autosaveStatus === "error" ? "#DC2626" : "#5a7470" }}>
+          {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
+        </div>
+      ) : null}
 
       {/* NAV */}
       <header className="pc-header">
@@ -585,9 +591,11 @@ export default function ContractBuilder({
           </div>
         </div>
         <div className="pc-header-actions">
-          <button onClick={() => window.history.back()} className="pc-header-back">
-            ← 견적서로
-          </button>
+          {isModal ? null : (
+            <button onClick={() => window.history.back()} className="pc-header-back">
+              ← 견적서로
+            </button>
+          )}
           <button onClick={handleSave} disabled={saveState === "saving"} className="pc-btn pc-btn--sm"
             style={{
               borderColor: saveState === "saved" ? "#22C55E" : saveState === "error" ? C.orange : undefined,
