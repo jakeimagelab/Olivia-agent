@@ -168,15 +168,14 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
   const selectClient = (clientId: string) => {
     setSelectedClientId(clientId);
     setSelectedProjectId(null);
-    setMemoOpen(false);
     router.replace(`/clients?clientId=${clientId}`, { scroll: false });
   };
 
   const refreshWorkspace = () => { if (selectedClientId) void loadWorkspace(selectedClientId, selectedProjectId); };
 
-  // 미리보기 = 고객이 실제로 보게 될 포털 화면을 그대로 새 탭으로 연다.
-  const previewPublication = () => {
-    if (workspace?.portal?.url) window.open(workspace.portal.url, "_blank", "noopener");
+  const openQuoteModal = () => {
+    if (!workspace?.activeProject) return;
+    setWorkspaceModalState({ type: "quote", clientId: workspace.client.id, workflowRunId: workspace.activeProject.id });
   };
 
   const displayStepKey = workspace?.activeProject ? getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) : null;
@@ -185,7 +184,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
     <div className="pcrm-dashboard" style={{ color: C.txt }}>
       <div
         className="pcrm-workspace-grid"
-        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(280px, 30%) minmax(0, 70%)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
+        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(300px, 30%) minmax(420px, 45%) minmax(320px, 25%)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
       >
         <ClientListPanel
           clients={filtered}
@@ -219,10 +218,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                   </span>
                   <div style={{ minWidth: 0 }}>
                     <h1 style={{ fontSize: 16, fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{workspace.client.name}</h1>
-                    <span style={{ fontSize: 11, color: C.hint }}>
-                      {workspace.client.department || "진료과 미입력"} · 프로젝트 {workspace.projects.length}개
-                      {workspace.memo ? <> · <button type="button" onClick={() => setMemoOpen(true)} style={{ border: "none", background: "none", padding: 0, color: C.hint, fontSize: 11, cursor: "pointer" }}>📌 중요 메모 1건</button></> : null}
-                    </span>
+                    <span style={{ fontSize: 11, color: C.hint }}>{workspace.client.department || "진료과 미입력"} · 프로젝트 {workspace.projects.length}개</span>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -252,49 +248,57 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                 </div>
               ) : (
                 <>
-                  <NextActionHero
-                    client={workspace.client}
+                  <ProjectSummaryCard
                     activeProject={workspace.activeProject}
+                    workflowSummary={workspace.workflowSummary}
+                    recentActivityAt={workspace.recentActivity[0]?.created_at}
                     nextAction={workspace.nextAction}
-                    stepIcon={STEP_INFO[displayStepKey || ""]?.icon}
-                    stepDescription={STEP_INFO[displayStepKey || ""]?.desc}
-                    clientId={workspace.client.id}
-                    workflowRunId={workspace.activeProject.id}
-                    resourceIds={workspace.resourceIds}
-                    onRefresh={refreshWorkspace}
-                    onPreviewPublication={previewPublication}
+                    onOpenQuoteModal={openQuoteModal}
                   />
+                  {workspace.nextAction.kind === "legacy_card" ? (
+                    <NextActionCard
+                      client={workspace.client}
+                      workflowRun={workspace.activeProject}
+                      stepIcon={STEP_INFO[displayStepKey || ""]?.icon}
+                      stepDescription={STEP_INFO[displayStepKey || ""]?.desc}
+                      onRefresh={refreshWorkspace}
+                    />
+                  ) : null}
                   {workspace.workflowSummary ? (
                     <div className="pc-card pc-card--padded">
-                      <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} compact />
+                      <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} />
                       <button type="button" onClick={() => setProgressModalOpen(true)} style={{ marginTop: 8, border: "none", background: "none", padding: 0, color: C.teal, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                         전체 과정 보기 →
                       </button>
                     </div>
                   ) : null}
-                  <PendingPublicationsList
-                    clientId={workspace.client.id}
-                    workflowRunId={workspace.activeProject.id}
-                    publications={workspace.publications}
-                    resourceIds={workspace.resourceIds}
-                    onRefresh={refreshWorkspace}
-                    onViewAll={() => setHistoryModalOpen(true)}
-                    onPreview={previewPublication}
-                  />
-                  <div className="pc-card pc-card--padded">
-                    <div style={{ fontSize: 12.5, fontWeight: 800, color: C.ink, marginBottom: 8 }}>최근 활동</div>
-                    <PcrmActivityTimeline activities={workspace.recentActivity.slice(0, 4)} variant="compact" />
-                  </div>
-                  <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
-                  {memoOpen ? (
-                    <MemoModal onClose={() => setMemoOpen(false)}>
-                      <ProjectMemoPanel clientId={selectedClientId!} activeProject={workspace.activeProject} memo={workspace.memo} onRefresh={refreshWorkspace} />
-                    </MemoModal>
-                  ) : null}
+                  <ProjectMemoPanel clientId={selectedClientId!} activeProject={workspace.activeProject} memo={workspace.memo} onRefresh={refreshWorkspace} />
                 </>
               )}
             </>
           ) : null}
+        </div>
+
+        <div style={{ minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
+          {workspace?.activeProject ? (
+            <>
+              <PublicationManagementPanel
+                clientId={workspace.client.id}
+                workflowRunId={workspace.activeProject.id}
+                publications={workspace.publications}
+                resourceIds={workspace.resourceIds}
+                onRefresh={refreshWorkspace}
+                onOpenQuoteModal={openQuoteModal}
+              />
+              <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
+            </>
+          ) : workspace ? (
+            <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
+          ) : (
+            <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
+              <p style={{ fontSize: 12.5, color: C.hint, textAlign: "center" }}>고객을 선택하면<br />공개/포털 관리를 볼 수 있습니다.</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -315,6 +319,24 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
           publications={workspace.publications}
           onRefresh={refreshWorkspace}
         />
+      ) : null}
+
+      {workspaceModalState?.type === "quote" ? (
+        <WorkspaceModal
+          open
+          onClose={() => quoteBuilderRequestClose?.()}
+          title={`${workspace?.client.name ?? ""} · 견적서 작성`}
+        >
+          <QuoteBuilder
+            mode="modal"
+            clientId={workspaceModalState.clientId}
+            workflowRunId={workspaceModalState.workflowRunId}
+            resourceId={workspaceModalState.resourceId}
+            onClose={() => setWorkspaceModalState(null)}
+            onPublished={refreshWorkspace}
+            registerRequestClose={setQuoteBuilderRequestClose}
+          />
+        </WorkspaceModal>
       ) : null}
 
       <ClientFormModal
