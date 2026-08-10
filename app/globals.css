@@ -4498,6 +4498,57 @@ main:has(> .pc-header) {
   .pcrm-subnav a, .pcrm-subnav button { height: 46px; padding: 0 10px; font-size: 11px; }
 }
 
+/* 고객관리 3열 복귀 + Workspace Modal(2026-08-10) — 견적서 등 업무용 대형 모달.
+   기존 .pcrm-dialog-backdrop(작은 폼 다이얼로그용)과 별개, z-index를 그 위에 둔다. */
+.workspace-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, .35);
+}
+.workspace-modal {
+  width: min(94vw, 1800px);
+  height: 92vh;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 32px 96px rgba(0, 0, 0, .28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.workspace-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(21, 88, 85, .1);
+  flex-shrink: 0;
+}
+.workspace-modal__header h2 { margin: 0; font-size: 18px; font-weight: 800; color: #155855; }
+.workspace-modal__header p { margin: 4px 0 0; font-size: 12px; color: #5a7470; }
+.workspace-modal__close {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(21, 88, 85, .12);
+  background: #fff;
+  color: #5a7470;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.workspace-modal__body { flex: 1; min-height: 0; overflow-y: auto; }
+.workspace-modal__footer { flex-shrink: 0; border-top: 1px solid rgba(21, 88, 85, .1); padding: 14px 24px; }
+
+@media (max-width: 900px) {
+  .workspace-modal { width: 100vw; height: 100vh; border-radius: 0; }
+}
+
 .pcrm-dialog-backdrop {
   position: fixed;
   inset: 0;
