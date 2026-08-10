@@ -256,7 +256,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                     workflowSummary={workspace.workflowSummary}
                     recentActivityAt={workspace.recentActivity[0]?.created_at}
                     nextAction={workspace.nextAction}
-                    onOpenQuoteModal={openQuoteModal}
+                    onOpenToolModal={openToolModal}
                   />
                   {workspace.nextAction.kind === "legacy_card" ? (
                     <NextActionCard
