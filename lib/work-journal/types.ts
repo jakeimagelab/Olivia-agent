@@ -43,10 +43,12 @@ export type CalendarEvent = {
   id: string;
   date: string; // YYYY-MM-DD
   time: string | null;
+  endTime: string | null;
   title: string;
   category: string;
   completed: boolean;
   location: string | null;
+  memo: string;
 };
 
 export type UpcomingEntry =
