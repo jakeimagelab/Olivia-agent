@@ -1067,13 +1067,22 @@ export default function QuoteBuilder({
   // 들고 있어서 매번 "그 시점"의 오래된 값을 저장하는 버그가 있었다(실제 배포 후 재현 테스트에서
   // 발견 — 자동저장은 성공했지만 병원명/담당자가 빈 값으로 저장됨). dirty 판단에 쓰는 것과
   // 동일한 필드 전체를 deps에 넣어서, 값이 바뀔 때마다 항상 최신 클로저로 타이머를 다시 건다.
+  // 닫기 시점에 아직 진행 중인 자동저장이 있으면 그 완료를 기다렸다가 판단하기 위한 참조 —
+  // dirty는 저장이 끝나야(=fetch 응답 이후) false가 되므로, "저장 중" 상태에서 곧바로 닫으면
+  // 워크플로우 자동 전진(서버의 completeOpenStepTasksForManualSave/maybeAdvanceWorkflow)이
+  // 아직 반영되기 전에 부모 화면이 새로고침되어 "다음 할 일"이 낡은 값으로 보일 수 있다.
+  const pendingSaveRef = useRef<Promise<ContractQuoteData | null> | null>(null);
+
   useEffect(() => {
     if (!isModal || !dirty) return;
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       setAutosaveStatus("saving");
       const data = buildContractQuoteData();
-      const saved = await saveRecentQuote(data);
-      setAutosaveStatus(saved ? "saved" : "error");
+      const savePromise = saveRecentQuote(data).then((saved) => {
+        setAutosaveStatus(saved ? "saved" : "error");
+        return saved;
+      });
+      pendingSaveRef.current = savePromise;
     }, 1000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1083,10 +1092,14 @@ export default function QuoteBuilder({
     customItems, benefitItems, discountRate, extraDiscount, memo, depositRate, brand,
   ]);
 
-  // 4) 닫기 정책: 저장 안 된 변경사항이 있으면 확인창, 없으면 바로 닫는다.
-  const handleModalClose = () => {
+  // 4) 닫기 정책: 진행 중인 자동저장이 있으면 먼저 기다리고, 저장 안 된 변경사항이 남아있으면
+  // 확인창을, 없으면 바로 닫는다. dirty state가 아니라 lastSavedFormStateRef(ref라 항상 최신)와
+  // 직접 비교해서 판단한다 — dirty는 이 함수가 등록된 시점의 클로저 값이라 대기 후에는 낡을 수 있다.
+  const handleModalClose = async () => {
     if (!isModal) return;
-    if (!dirty) { onClose?.(); return; }
+    if (pendingSaveRef.current) await pendingSaveRef.current;
+    const stillDirty = JSON.stringify(buildContractQuoteData().formState ?? null) !== lastSavedFormStateRef.current;
+    if (!stillDirty) { onClose?.(); return; }
     setCloseConfirmOpen(true);
   };
   useEffect(() => {
