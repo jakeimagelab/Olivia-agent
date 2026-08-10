@@ -56,6 +56,11 @@ export default function TodoColumn({
   return (
     <div className="pc-card pc-card--padded" style={{ minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ flexShrink: 0, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+          <span style={{ fontSize: 10.5, fontWeight: 800, color: cat.color, background: cat.bg, borderRadius: R.xs, padding: "3px 8px", flexShrink: 0 }}>
+            {cat.label}
+          </span>
+        </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
           <span style={{ fontSize: 14, fontWeight: 900, color: C.ink }}>{schedule.title}</span>
           <button
@@ -66,12 +71,16 @@ export default function TodoColumn({
             <Plus size={13} />추가
           </button>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11.5, color: C.muted }}>{dateHeaderLabel(schedule.date)} · {timeRangeLabel(schedule.time, schedule.endTime)}</span>
+          {schedule.location ? <span style={{ fontSize: 11.5, color: C.muted }}>· {schedule.location}</span> : null}
           <span style={{ fontSize: 11, fontWeight: 800, color: C.teal, background: C.mint, borderRadius: R.full, padding: "2px 8px" }}>
             진행률 {done} / {todos.length}
           </span>
         </div>
+        {schedule.memo ? (
+          <p style={{ margin: "8px 0 0", fontSize: 12, color: C.ink, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{schedule.memo}</p>
+        ) : null}
       </div>
 
       {adding ? (
