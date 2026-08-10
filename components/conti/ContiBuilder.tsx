@@ -1359,9 +1359,6 @@ ${contiSummary}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, resultTitle, form.hospitalName, form.specialties, isModal, modalClientId, modalWorkflowRunId, savedContiId]);
 
-  // ── Workspace Modal 전용 닫기 정책 ──
-  const pendingSaveRef = useRef<Promise<string | null> | null>(null);
-  const [dirty, setDirty] = useState(false);
   const handleModalClose = async () => {
     if (!isModal) return;
     if (pendingSaveRef.current) await pendingSaveRef.current;
