@@ -327,7 +327,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
       {workspaceModalState?.type === "quote" ? (
         <WorkspaceModal
           open
-          onClose={() => quoteBuilderRequestClose?.()}
+          onClose={() => toolBuilderRequestClose?.()}
           title={`${workspace?.client.name ?? ""} · 견적서 작성`}
         >
           <QuoteBuilder
@@ -337,7 +337,25 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
             resourceId={workspaceModalState.resourceId}
             onClose={() => { setWorkspaceModalState(null); refreshWorkspace(); }}
             onPublished={refreshWorkspace}
-            registerRequestClose={setQuoteBuilderRequestClose}
+            registerRequestClose={setToolBuilderRequestClose}
+          />
+        </WorkspaceModal>
+      ) : null}
+
+      {workspaceModalState?.type === "contract" ? (
+        <WorkspaceModal
+          open
+          onClose={() => toolBuilderRequestClose?.()}
+          title={`${workspace?.client.name ?? ""} · 계약서 작성`}
+        >
+          <ContractBuilder
+            mode="modal"
+            clientId={workspaceModalState.clientId}
+            workflowRunId={workspaceModalState.workflowRunId}
+            resourceId={workspaceModalState.resourceId}
+            onClose={() => { setWorkspaceModalState(null); refreshWorkspace(); }}
+            onPublished={refreshWorkspace}
+            registerRequestClose={setToolBuilderRequestClose}
           />
         </WorkspaceModal>
       ) : null}
