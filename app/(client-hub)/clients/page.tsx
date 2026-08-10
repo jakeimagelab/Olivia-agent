@@ -716,6 +716,45 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         {activeTab === "portal" && <ClientPortalTab clientId={clientId} workflowRunId={workflowRun?.id} />}
 
       </div>
+
+      {toolModalType === "quote" ? (
+        <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 견적서 작성`}>
+          <QuoteBuilder
+            mode="modal"
+            clientId={clientId}
+            workflowRunId={workflowRun?.id}
+            onClose={() => { setToolModalType(null); load(); }}
+            onPublished={load}
+            registerRequestClose={setToolBuilderRequestClose}
+          />
+        </WorkspaceModal>
+      ) : null}
+
+      {toolModalType === "contract" ? (
+        <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 계약서 작성`}>
+          <ContractBuilder
+            mode="modal"
+            clientId={clientId}
+            workflowRunId={workflowRun?.id}
+            onClose={() => { setToolModalType(null); load(); }}
+            onPublished={load}
+            registerRequestClose={setToolBuilderRequestClose}
+          />
+        </WorkspaceModal>
+      ) : null}
+
+      {toolModalType === "conti" ? (
+        <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 콘티 작성`}>
+          <ContiBuilder
+            mode="modal"
+            clientId={clientId}
+            workflowRunId={workflowRun?.id}
+            onClose={() => { setToolModalType(null); load(); }}
+            onPublished={load}
+            registerRequestClose={setToolBuilderRequestClose}
+          />
+        </WorkspaceModal>
+      ) : null}
     </div>
   );
 }
