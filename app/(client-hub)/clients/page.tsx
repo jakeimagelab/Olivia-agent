@@ -379,6 +379,24 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
         </WorkspaceModal>
       ) : null}
 
+      {workspaceModalState?.type === "conti" ? (
+        <WorkspaceModal
+          open
+          onClose={() => toolBuilderRequestClose?.()}
+          title={`${workspace?.client.name ?? ""} · 콘티 작성`}
+        >
+          <ContiBuilder
+            mode="modal"
+            clientId={workspaceModalState.clientId}
+            workflowRunId={workspaceModalState.workflowRunId}
+            resourceId={workspaceModalState.resourceId}
+            onClose={() => { setWorkspaceModalState(null); refreshWorkspace(); }}
+            onPublished={refreshWorkspace}
+            registerRequestClose={setToolBuilderRequestClose}
+          />
+        </WorkspaceModal>
+      ) : null}
+
       <ClientFormModal
         open={formModal !== null}
         mode={formModal?.mode ?? "create"}
