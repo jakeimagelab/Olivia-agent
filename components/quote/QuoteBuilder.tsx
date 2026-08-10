@@ -1596,6 +1596,8 @@ export default function QuoteBuilder({
                   <strong>결제 조건</strong>
                   <span>선금 50%, 잔금 50% 기준</span>
                   <span>세부 조건은 상호 협의 가능</span>
+                  <span>1002-754-988962 우리은행</span>
+                  <span>제이크이미지연구소(정연호)</span>
                 </div>
                 <div className="rail-notice">
                   <strong>{cfg.railNoticeTitle}</strong>
