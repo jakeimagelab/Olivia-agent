@@ -291,7 +291,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                 publications={workspace.publications}
                 resourceIds={workspace.resourceIds}
                 onRefresh={refreshWorkspace}
-                onOpenQuoteModal={openQuoteModal}
+                onOpenToolModal={openToolModal}
               />
               <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
             </>
