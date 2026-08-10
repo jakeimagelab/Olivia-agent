@@ -9,9 +9,11 @@ export const runtime = "nodejs";
 
 // GET  /api/calendar?month=2026-06          → 해당 월 전체 태스크
 // GET  /api/calendar?date=2026-06-17        → 특정 날짜 태스크
+// GET  /api/calendar?id=xxx                 → 단건 조회(날짜를 모를 때 URL 복원용)
 export async function GET(req: NextRequest) {
   const db = getSupabaseAdmin();
   const { searchParams } = new URL(req.url);
+  const id    = searchParams.get("id");
   const month = searchParams.get("month"); // "2026-06"
   const date  = searchParams.get("date");  // "2026-06-17"
 
@@ -19,7 +21,8 @@ export async function GET(req: NextRequest) {
 
   let query = db.from("calendar_tasks").select("*").order("time", { ascending: true, nullsFirst: false });
 
-  if (date)       query = query.eq("date", date);
+  if (id)         query = query.eq("id", id);
+  else if (date)  query = query.eq("date", date);
   else if (month) query = query.like("date", `${month}%`);
   else if (year)  query = query.like("date", `${year}%`);
 
