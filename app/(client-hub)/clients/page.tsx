@@ -223,7 +223,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                  <Link href="/quote" className="pc-btn pc-btn--orange pc-btn--sm" style={{ textDecoration: "none" }}>+ 견적서 작성</Link>
+                  <button type="button" onClick={openQuoteModal} className="pc-btn pc-btn--orange pc-btn--sm">+ 견적서 작성</button>
                   <Link href={`/clients?id=${selectedClientId}`} style={{ fontSize: 11, fontWeight: 700, color: C.muted, textDecoration: "none", border: `1px solid ${C.border}`, borderRadius: R.sm, padding: "6px 10px" }}>
                     상세 관리 →
                   </Link>
