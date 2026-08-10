@@ -2379,14 +2379,39 @@ export default function QuoteBuilder({
             : quotePreviewShellNode}
         </aside>
       </section>
-      <OliviaChat
-        pageContext="견적서 작성 페이지"
-        contextData={{
-          [cfg.entityLabel]: customer.hospitalName || "미입력",
-          담당자: customer.managerName || "미입력",
-        }}
-      />
+      {isModal ? null : (
+        <OliviaChat
+          pageContext="견적서 작성 페이지"
+          contextData={{
+            [cfg.entityLabel]: customer.hospitalName || "미입력",
+            담당자: customer.managerName || "미입력",
+          }}
+        />
+      )}
     </main>
+    {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
+      <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
+        <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24 }}>
+          <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800, color: "#155855" }}>저장하지 않은 변경사항이 있습니다.</h3>
+          <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "#5a7470" }}>계속 작성하시겠습니까, 아니면 저장 후 닫으시겠습니까?</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <button type="button" onClick={() => setCloseConfirmOpen(false)}
+              style={{ height: 40, borderRadius: 9, border: "1px solid rgba(21,88,85,.12)", background: "#fff", color: "#155855", fontWeight: 800, cursor: "pointer" }}>
+              계속 작성
+            </button>
+            <button type="button" onClick={async () => { await handleManualSave(); setCloseConfirmOpen(false); onClose?.(); }}
+              style={{ height: 40, borderRadius: 9, border: "none", background: "#155855", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
+              임시 저장 후 닫기
+            </button>
+            <button type="button" onClick={() => { setCloseConfirmOpen(false); onClose?.(); }}
+              style={{ height: 40, borderRadius: 9, border: "1px solid #DC2626", background: "#FEF2F2", color: "#DC2626", fontWeight: 800, cursor: "pointer" }}>
+              저장하지 않고 닫기
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    ) : null}
     </>
   );
 }
