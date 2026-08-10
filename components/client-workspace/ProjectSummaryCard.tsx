@@ -35,32 +35,33 @@ function Row({ icon, label, value, highlight }: { icon: React.ReactNode; label: 
 
 const linkStyle: React.CSSProperties = { color: C.orange, fontWeight: 800, cursor: "pointer", background: "none", border: "none", padding: 0, font: "inherit", textDecoration: "none" };
 
+const MODAL_TOOL_STEPS = new Set(["quote", "contract", "conti"]);
+
 // 고객관리 3열 복귀(2026-08-10) — "다음 할 일" row만 액션 인지형으로 바뀐다.
-// 견적서 관련(tool_link/publish_pending)이면 페이지 이동 대신 Workspace Modal을 연다.
-// 계약/콘티는 아직 모달이 없어 기존처럼 페이지 이동(ctaHref)을 유지한다.
+// 견적서/계약서/콘티(tool_link/publish_pending)면 페이지 이동 대신 Workspace Modal을 연다.
 export default function ProjectSummaryCard({
   activeProject,
   workflowSummary,
   recentActivityAt,
   nextAction,
-  onOpenQuoteModal,
+  onOpenToolModal,
 }: {
   activeProject: Record<string, any>;
   workflowSummary: WorkspaceWorkflowSummary | null;
   recentActivityAt?: string | null;
   nextAction: ClientWorkspaceNextAction;
-  onOpenQuoteModal: () => void;
+  onOpenToolModal: (stepKey: "quote" | "contract" | "conti") => void;
 }) {
   const nextActionValue: React.ReactNode = (() => {
-    if (nextAction.kind === "tool_link" && nextAction.stepKey === "quote") {
-      return <button type="button" onClick={onOpenQuoteModal} style={linkStyle}>{nextAction.title}</button>;
+    if (nextAction.kind === "tool_link" && MODAL_TOOL_STEPS.has(nextAction.stepKey)) {
+      return <button type="button" onClick={() => onOpenToolModal(nextAction.stepKey)} style={linkStyle}>{nextAction.title}</button>;
     }
     if (nextAction.kind === "tool_link") {
       return <Link href={nextAction.ctaHref} style={linkStyle}>{nextAction.title}</Link>;
     }
     if (nextAction.kind === "publish_pending") {
-      if (nextAction.relatedType === "quote") {
-        return <button type="button" onClick={onOpenQuoteModal} style={linkStyle}>{nextAction.title}</button>;
+      if (MODAL_TOOL_STEPS.has(nextAction.relatedType)) {
+        return <button type="button" onClick={() => onOpenToolModal(nextAction.relatedType as "quote" | "contract" | "conti")} style={linkStyle}>{nextAction.title}</button>;
       }
       return <span>{nextAction.title}</span>;
     }
