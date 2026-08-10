@@ -28,16 +28,22 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { hospitalName, specialties, title, result, clientId: requestedClientId, workflowRunId: requestedRunId } = await req.json();
+    const { hospitalName, specialties, title, result, clientId: requestedClientId, workflowRunId: requestedRunId, id: requestedId } = await req.json();
     const db = getSupabaseAdmin();
     const clientId = requestedClientId || await resolveClientId(db, hospitalName);
     const workflowRunId = await resolveWorkflowRunId(db, requestedRunId, clientId);
 
-    const { data: existing } = await db
-      .from("conti_saves")
-      .select("id")
-      .eq("hospital_name", hospitalName || "병원명 없음")
-      .single();
+    // 이미 저장한 레코드의 id를 알고 있으면(모달 자동저장 등 반복 저장) 그 id로 바로 업데이트한다
+    // — 병원명만으로 "기존 것 찾기"를 매번 반복하면, 병원명이 같거나 비어있는(기본값 "병원명
+    // 없음") 서로 다른 고객의 콘티가 같은 행으로 합쳐질 위험이 있다(견적번호 충돌 버그와 동일한
+    // 종류의 문제).
+    const { data: existing } = requestedId
+      ? await db.from("conti_saves").select("id").eq("id", requestedId).maybeSingle()
+      : await db
+          .from("conti_saves")
+          .select("id")
+          .eq("hospital_name", hospitalName || "병원명 없음")
+          .single();
 
     if (existing?.id) {
       const { error } = await db
