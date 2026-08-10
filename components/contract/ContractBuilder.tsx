@@ -572,6 +572,7 @@ export default function ContractBuilder({
   );
 
   return (
+    <>
     <div
       className={`contract-app${brand === "jakeimage" ? " contract-app--jakeimage" : ""}`}
       style={isModal ? { background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" } : { minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}
