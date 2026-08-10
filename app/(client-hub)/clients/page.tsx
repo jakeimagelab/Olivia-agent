@@ -130,7 +130,10 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
   const [workspaceError, setWorkspaceError] = useState("");
   const [progressModalOpen, setProgressModalOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
-  const [memoOpen, setMemoOpen] = useState(false);
+  const [workspaceModalState, setWorkspaceModalState] = useState<
+    { type: "quote"; clientId: string; workflowRunId: string; resourceId?: string } | null
+  >(null);
+  const [quoteBuilderRequestClose, setQuoteBuilderRequestClose] = useState<(() => void) | null>(null);
 
   useEffect(() => {
     if (openNewOnLoad) openCreate();
