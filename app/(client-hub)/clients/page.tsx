@@ -436,6 +436,8 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   const [activeTab, setActiveTab] = useState("overview");
   const [linkCopyBusy, setLinkCopyBusy] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [toolModalType, setToolModalType] = useState<"quote" | "contract" | "conti" | null>(null);
+  const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
 
   const deleteClient = async (clientName: string) => {
     if (!window.confirm(`'${clientName}' 고객을 삭제할까요? 휴지통으로 이동되며 30일 안에 복원할 수 있습니다.`)) return;
