@@ -32,11 +32,6 @@ export async function POST(req: NextRequest) {
   if (clientId) {
     await logPortalEvent({ clientId, eventType: "contract_ready", targetType: "contracts", targetId: data.id }).catch(() => {});
   }
-  if (workflowRunId) {
-    await completeOpenStepTasksForManualSave(supabase, workflowRunId, "contract").catch(() => {});
-    await maybeAdvanceWorkflow(supabase, workflowRunId, "contract").catch((err) => {
-      console.error("[contracts] maybeAdvanceWorkflow 실패", err);
-    });
-  }
+  // 최초 생성도 임시저장일 뿐 — 워크플로우 전진은 /api/contracts/[id]/publish("포털 공개")에서만.
   return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at });
 }
