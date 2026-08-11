@@ -1,4 +1,5 @@
-import type { OliviaChatAttachment, OliviaChatWorkItem } from "@/lib/olivia/chatAttachments";
+import type { OliviaChatAttachment } from "@/lib/olivia/chatAttachments";
+import type { OliviaChatWorkItem } from "@/lib/olivia/chatTypes";
 
 // components/OliviaChat.tsx(플로팅 위젯)와 components/home/OliviaHeroChat.tsx(홈 임베드 채팅)가
 // 공유하는 /api/olivia 프로토콜 관련 타입·상수·순수 함수 — 두 컴포넌트가 같은 대화 스레드와 같은
