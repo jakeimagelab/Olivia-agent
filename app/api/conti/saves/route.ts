@@ -54,12 +54,8 @@ export async function POST(req: NextRequest) {
         after(() => registerClientCandidate(db, { hospitalName, sourceType: "conti", sourceRecordId: existing.id })
           .catch((candidateError) => console.error("[conti] 신규 고객 감지 실패", candidateError)));
       }
-      if (workflowRunId) {
-        await completeOpenStepTasksForManualSave(db, workflowRunId, "conti").catch(() => {});
-        await maybeAdvanceWorkflow(db, workflowRunId, "conti").catch((err) => {
-          console.error("[conti] maybeAdvanceWorkflow 실패", err);
-        });
-      }
+      // 저장(자동저장 포함)은 임시저장일 뿐 — 워크플로우 전진은 "공개" 버튼
+      // (/api/publications/by-type/conti/[id]/publish)에서만 일어난다.
       return NextResponse.json({ ok: true, id: existing.id });
     }
 
