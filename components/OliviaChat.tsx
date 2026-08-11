@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Sparkles } from "lucide-react";
+import { Paperclip } from "lucide-react";
 import { C } from "@/lib/theme";
+import { CodeBlock, MarkdownText, OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import OliviaChatWorkItemCard from "@/components/olivia/OliviaChatWorkItemCard";
 import { compactWorkItemReferences, type OliviaChatWorkItem, type OliviaChatWorkItemAction } from "@/lib/olivia/chatTypes";
 import { mergeChatMessages } from "@/lib/olivia/chatMessageMerge";
