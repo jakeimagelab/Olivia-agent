@@ -420,6 +420,27 @@
   }
 }
 
+/* 빠른실행(QuickActions)은 원래 전체 폭 6열 그리드로 설계됐다 — 이 3분할 카드 자리에 들어올 때만
+   2열로 좁히고, RecentProjects/IntegratedCalendar와 같은 유리 카드 껍데기를 입힌다(다른 곳에서
+   쓰는 QuickActions 자체는 그대로 둔다, 이 페이지 안에서만 스코프된 오버라이드). */
+.pc-dash-quickrow .home-quick {
+  height: 100%;
+  margin: 0;
+  padding: 16px 16px 14px;
+  border-radius: 22px;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(21,88,85,0.08);
+  box-shadow: 0 12px 40px rgba(20,60,55,0.06);
+  display: flex;
+  flex-direction: column;
+}
+.pc-dash-quickrow .home-quick__grid {
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  flex: 1;
+}
+
 .pc-dash-olivia {
   min-width: 0;
   margin-bottom: 14px;
