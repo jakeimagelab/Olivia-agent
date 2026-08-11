@@ -630,6 +630,51 @@ function MarketingSummaryCard() {
   );
 }
 
+type StalledWorkItem = {
+  workflowRunId: string;
+  clientId: string;
+  clientName: string;
+  projectName: string;
+  stepKey: string;
+  stepName: string;
+  daysStalled: number;
+};
+
+function StalledWorkCard() {
+  const [items, setItems] = useState<StalledWorkItem[]|null>(null);
+
+  useEffect(() => {
+    fetch("/api/dashboard/stalled-work", { cache:"no-store" })
+      .then(r=>r.json())
+      .then(json=>{ if(json?.ok) setItems(json.items); })
+      .catch(()=>{});
+  }, []);
+
+  if (!items || items.length === 0) return null;
+
+  return (
+    <div style={{background:"#fff",borderRadius:12,border:"1px solid rgba(232,93,44,.25)",overflow:"hidden",boxShadow:"0 1px 8px rgba(21,88,85,.05)"}}>
+      <div style={{padding:"10px 14px",borderBottom:"1px solid rgba(21,88,85,.07)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span style={{display:"flex",alignItems:"center",gap:5,fontSize:10,fontWeight:900,color:"#E85D2C",letterSpacing:".08em",textTransform:"uppercase"}}>
+          <Clock size={12}/> 올리비아가 확인한 정체된 업무
+        </span>
+        <span style={{fontSize:9,fontWeight:900,color:"#E85D2C",background:"#FFF0EB",borderRadius:99,padding:"2px 8px"}}>
+          {items.length}건
+        </span>
+      </div>
+      {items.slice(0,5).map((item)=>(
+        <Link key={item.workflowRunId} href={`/clients?clientId=${item.clientId}`} style={{textDecoration:"none",display:"flex",alignItems:"center",gap:8,padding:"8px 14px",borderBottom:"1px solid rgba(21,88,85,.05)"}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:12,fontWeight:800,color:"#1C2B28",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.clientName}</div>
+            <div style={{fontSize:9,color:"#9BB5B0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.stepName} 단계에 머무는 중</div>
+          </div>
+          <div style={{fontSize:10,fontWeight:900,color:"#E85D2C",flexShrink:0}}>{item.daysStalled}일째</div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 /* ─── tool grid (right 70%) ──────────────────────────────── */
 /* TOOLS_WORK / TOOLS_CONTENT는 lib/toolNav.ts가 단일 소스 — 전역 사이드바(GlobalFeatureSidebar)와 공유 */
 
