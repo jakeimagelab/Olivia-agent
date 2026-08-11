@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { ensurePortalAccess } from "@/lib/clientPortal";
 import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
+import { completeOpenStepTasksForManualSave, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
