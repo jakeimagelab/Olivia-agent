@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Paperclip } from "lucide-react";
+import { Paperclip, Sparkles } from "lucide-react";
 import { C } from "@/lib/theme";
 import { MarkdownText, OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import OliviaChatWorkItemCard from "@/components/olivia/OliviaChatWorkItemCard";
