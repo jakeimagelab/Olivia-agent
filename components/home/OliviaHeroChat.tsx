@@ -209,7 +209,11 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
       WebkitBackdropFilter: "blur(18px)" as any, border: "1px solid rgba(21,88,85,0.08)",
       boxShadow: "0 12px 40px rgba(20,60,55,0.06)", overflow: "hidden",
     }}>
-      {isEmpty ? (
+      {isEmpty && compact ? (
+        <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", padding: "0 20px" }}>
+          <span style={{ fontSize: 12.5, color: "#6F7E7A" }}>Olivia에게 무엇이든 물어보세요.</span>
+        </div>
+      ) : isEmpty ? (
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 24px 8px", textAlign: "center" }}>
           <div style={{
             width: 52, height: 52, borderRadius: "50%", marginBottom: 18,
