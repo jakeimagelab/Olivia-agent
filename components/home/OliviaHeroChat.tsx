@@ -26,7 +26,6 @@ const SUGGESTED_PROMPTS = [
 
 export default function OliviaHeroChat() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
