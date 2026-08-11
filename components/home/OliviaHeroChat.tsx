@@ -35,6 +35,7 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
   const [loading, setLoading] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const openWorkspace = useWorkspaceStore((s) => s.openWorkspace);
 
   const deviceIdRef = useRef<string>("");
   if (!deviceIdRef.current) {
