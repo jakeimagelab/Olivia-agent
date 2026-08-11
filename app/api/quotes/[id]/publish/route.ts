@@ -167,6 +167,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       relatedId: id,
     });
 
+    // "포털 공개"를 실제로 눌렀을 때만 워크플로우를 다음 단계로 진행시킨다(임시저장/자동저장은
+    // 저장만 하고 전진시키지 않음).
+    await completeOpenStepTasksForManualSave(db, workflowRunId, "quote").catch(() => {});
+    await maybeAdvanceWorkflow(db, workflowRunId, "quote").catch((err) => {
+      console.error("[quotes] maybeAdvanceWorkflow 실패", err);
+    });
+
     return NextResponse.json({ ok: true, clientId, workflowRunId, portalUrl });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "견적서 공개 실패" }, { status: 500 });
