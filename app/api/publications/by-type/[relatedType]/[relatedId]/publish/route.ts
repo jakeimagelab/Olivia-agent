@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { ensurePortalAccess } from "@/lib/clientPortal";
 import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 import { isGenericPublicationType, PUBLICATION_TYPE_LABEL } from "@/lib/clientWorkspace/publications";
+import { completeOpenStepTasksForManualSave, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
