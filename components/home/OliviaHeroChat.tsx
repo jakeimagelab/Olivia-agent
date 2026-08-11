@@ -24,7 +24,7 @@ const SUGGESTED_PROMPTS = [
   "최근 프로젝트 진행 현황 요약해줘",
 ];
 
-export default function OliviaHeroChat() {
+export default function OliviaHeroChat({ compact = false }: { compact?: boolean } = {}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
