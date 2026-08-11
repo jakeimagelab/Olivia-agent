@@ -380,6 +380,46 @@
   height: 100%;
 }
 
+/* Olivia Agent 2.0 — 채팅 히어로 + 빠른실행/최근프로젝트/통합캘린더 3장. .pc-dash-brief와 같은
+   "강제 height 없이 자연 스크롤" 원칙을 그대로 따른다. */
+.pc-dash-hero {
+  min-height: 520px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.pc-dash-quickrow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 12px;
+  margin-bottom: 22px;
+  flex-shrink: 0;
+}
+
+.pc-dash-quickrow > * {
+  min-width: 0;
+  min-height: 320px;
+}
+
+.pc-dash-legacy-label {
+  font-size: 10px;
+  font-weight: 900;
+  color: #9BB5B0;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin: 0 0 10px 2px;
+}
+
+@media (max-width: 1080px) {
+  .pc-dash-quickrow {
+    grid-template-columns: 1fr;
+  }
+  .pc-dash-hero {
+    min-height: 420px;
+  }
+}
+
 .pc-dash-olivia {
   min-width: 0;
   margin-bottom: 14px;
