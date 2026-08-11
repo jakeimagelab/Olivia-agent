@@ -1018,6 +1018,9 @@ function DashboardPanel({data,loading,onRefresh}:{data:DashboardData|null; loadi
       {/* workspace today tasks */}
       {data && <WorkspaceTodayTasks tasks={data.workspaceTodayTasks ?? []}/>}
 
+      {/* stalled work — 올리비아가 3일 이상 같은 단계에 머문 워크플로우를 자동 감지 */}
+      <StalledWorkCard/>
+
       {/* daily quote */}
       <DailyQuoteWidget/>
 
