@@ -11,12 +11,17 @@ import {
   type OliviaMessage as Message,
 } from "@/lib/olivia/chatShared";
 import { isAutoExecutableClientCreate } from "@/lib/olivia/crud/autoExecution";
+import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 
 // 홈 화면 최상단에 임베드되는 큰 Olivia 채팅 — 오른쪽 하단 플로팅 위젯(components/OliviaChat.tsx)과
 // 완전히 같은 /api/olivia + /api/olivia/messages 프로토콜을 쓰고 같은 대화 스레드를 공유한다
 // (그래서 홈에서 나눈 대화가 다른 페이지의 플로팅 챗에도 그대로 이어진다).
-// 다만 여기서는 첨부/드래그리사이즈/기기 간 실시간 폴링처럼 플로팅 위젯 전용 기능은 아직 생략했다
-// — Phase 1 스코프는 "채팅 UI"까지이고, 채팅 → 워크스페이스 패널 연동은 Phase 2/3에서 다룬다.
+// 다만 여기서는 첨부/드래그리사이즈/기기 간 실시간 폴링처럼 플로팅 위젯 전용 기능은 아직 생략했다.
+//
+// Phase 3(최소 스코프): create_quote 도구가 요청되면, 기존처럼 /quote?... 페이지로 보내는 대신
+// 고객을 검색해서 찾으면 DynamicWorkspace(견적서)를 채팅 아래에 바로 연다 — /api/olivia의
+// create_quote 툴 자체(app/api/olivia 백엔드)는 플로팅 위젯도 그대로 쓰고 있어서 손대지 않고,
+// 여기 프론트에서만 그 결과 해석을 가로챈다(찾는 고객이 없으면 기존 동작으로 그대로 폴백).
 
 const SUGGESTED_PROMPTS = [
   "이번 촬영 일정과 필요한 장비 리스트 확인해줘",
