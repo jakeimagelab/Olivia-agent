@@ -3,7 +3,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { matchClient } from "@/lib/clientMatching";
 import { ensurePortalAccess } from "@/lib/clientPortal";
-import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
+import {
+  buildNextAction,
+  completeOpenStepTasksForManualSave,
+  createStepTasks,
+  ensureStepRun,
+  logAgent,
+  maybeAdvanceWorkflow,
+} from "@/lib/workflowAutomation";
 import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 
 export const runtime = "nodejs";
