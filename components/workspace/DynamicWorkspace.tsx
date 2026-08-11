@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Clapperboard, FileSignature, FileText, Maximize2, Minimize2, X } from "lucide-react";
 import QuoteBuilder from "@/components/quote/QuoteBuilder";
 import ContractBuilder from "@/components/contract/ContractBuilder";
@@ -12,17 +14,23 @@ const WORKSPACE_META: Record<string, { label: string; icon: React.ComponentType<
   conti: { label: "콘티 작성", icon: Clapperboard },
 };
 
-// 채팅 아래(split) 혹은 전체화면(fullscreen)으로 뜨는 기능 화면 셸. 기존
-// components/client-workspace/WorkspaceModal.tsx(포털 오버레이)와 같은 구성을 쓰되, 포털이
-// 아니라 페이지 레이아웃 안에 그대로 그려진다 — split에서는 채팅 아래 칸을 채우고, fullscreen
-// 에서는 부모가 뷰포트 전체 높이를 준다.
+// 채팅 아래(split) 혹은 전체화면(fullscreen)으로 뜨는 기능 화면 셸.
+// split: 페이지 레이아웃 안에 그대로 그려져 부모가 준 높이를 채운다.
+// fullscreen: 사이드바까지 덮도록 body에 포털로 빠져나가 뷰포트 전체를 차지한다(ESC로도 종료).
 export default function DynamicWorkspace() {
   const { type, mode, clientId, workflowRunId, resourceId, clientName, closeWorkspace, enterFullscreen, exitFullscreen } = useWorkspaceStore();
+  const isFullscreen = mode === "fullscreen";
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") exitFullscreen(); };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isFullscreen, exitFullscreen]);
 
   if (!type) return null;
   const meta = WORKSPACE_META[type];
   const Icon = meta.icon;
-  const isFullscreen = mode === "fullscreen";
 
   const builderProps = {
     mode: "modal" as const,
@@ -33,7 +41,7 @@ export default function DynamicWorkspace() {
     onPublished: () => {},
   };
 
-  return (
+  const body = (
     <div style={{
       display: "flex", flexDirection: "column", height: "100%", minHeight: 0,
       borderRadius: isFullscreen ? 0 : 22,
@@ -84,4 +92,12 @@ export default function DynamicWorkspace() {
       </div>
     </div>
   );
+
+  if (isFullscreen && typeof document !== "undefined") {
+    return createPortal(
+      <div style={{ position: "fixed", inset: 0, zIndex: 10040, background: "#fff" }}>{body}</div>,
+      document.body,
+    );
+  }
+  return body;
 }
