@@ -53,8 +53,7 @@ export default function OliviaHeroChat() {
           })));
         }
       })
-      .catch(() => {})
-      .finally(() => setHistoryLoaded(true));
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
