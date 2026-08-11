@@ -64,6 +64,17 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const portal = await ensurePortalAccess({ clientId }).catch(() => null);
 
+  // conti는 quote/contract와 같은 워크플로우 스텝 키(conti)를 그대로 쓰는 유일한 범용 공개
+  // 유형이라 "공개" 눌렀을 때만 여기서 워크플로우를 전진시킨다. 나머지 유형(셀렉갤러리/원본
+  // 다운로드/1차보정/최종전달)은 이 relatedType 문자열이 워크플로우 스텝 키와 일치하지 않고
+  // 각자 다른 방식으로 전진하므로 건드리지 않는다.
+  if (relatedType === "conti") {
+    await completeOpenStepTasksForManualSave(db, workflowRunId, "conti").catch(() => {});
+    await maybeAdvanceWorkflow(db, workflowRunId, "conti").catch((err) => {
+      console.error("[publications] maybeAdvanceWorkflow(conti) 실패", err);
+    });
+  }
+
   await recordPcrmActivitySafely(db, {
     clientId,
     workflowRunId,
