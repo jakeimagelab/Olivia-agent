@@ -205,7 +205,7 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
   return (
     <div style={{
       display: "flex", flexDirection: "column", height: "100%", minHeight: 0,
-      borderRadius: 24, background: "rgba(255,255,255,0.72)", backdropFilter: "blur(18px)",
+      borderRadius: compact ? 18 : 24, background: "rgba(255,255,255,0.72)", backdropFilter: "blur(18px)",
       WebkitBackdropFilter: "blur(18px)" as any, border: "1px solid rgba(21,88,85,0.08)",
       boxShadow: "0 12px 40px rgba(20,60,55,0.06)", overflow: "hidden",
     }}>
