@@ -402,6 +402,25 @@
   min-height: 320px;
 }
 
+/* Olivia Agent 2.0 Phase 2 — 채팅에서 워크스페이스를 열었을 때(split): 압축된 채팅이 위,
+   기능 화면(DynamicWorkspace)이 그 아래 나머지를 채운다. AdminHeader 높이(72~84px) +
+   페이지 상하 패딩을 감안한 대략치라 실기기에서 살짝 다를 수 있다 — 실제 화면으로 확인 필요. */
+.pc-dash-split {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: calc(100vh - 150px);
+  min-height: 520px;
+}
+.pc-dash-split__chat {
+  flex-shrink: 0;
+  height: 190px;
+}
+.pc-dash-split__workspace {
+  flex: 1;
+  min-height: 0;
+}
+
 .pc-dash-legacy-label {
   font-size: 10px;
   font-weight: 900;
