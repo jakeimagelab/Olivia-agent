@@ -199,7 +199,10 @@ export default function OliviaHeroChat() {
     }
   };
 
-  const isEmpty = historyLoaded && messages.length === 0;
+  // historyLoaded를 기다렸다가 empty를 판정하면, 서버 렌더/클라이언트 fetch 완료 전까지
+  // 잠깐 빈 화면이 보였다가 인사말로 바뀌는 깜빡임이 생긴다 — 메시지가 없으면 항상 인사말부터
+  // 보여주고, 히스토리가 로드되면 자연스럽게 실제 대화 목록으로 바뀌게 한다.
+  const isEmpty = messages.length === 0;
 
   return (
     <div style={{
