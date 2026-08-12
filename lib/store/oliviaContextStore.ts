@@ -1,9 +1,13 @@
 import { create } from "zustand";
 
-// Olivia Agent 2.0 — 사용자가 자연어로 고객/프로젝트를 한 번 지정하면("히어산부인과 프로젝트
-// 열어줘") 이후 요청("견적 만들어줘")에서 그 대상을 다시 말하지 않아도 되게 하는 "지금 무엇을
-// 보고 있는지" 상태. workspaceStore(화면이 split/fullscreen인지, 어떤 워크스페이스가 열려
-// 있는지)와는 별개 — 이쪽은 워크스페이스가 닫혀 있어도(홈 화면에서도) 유지되는 "대화 컨텍스트"다.
+export type OliviaRecentAction = {
+  type: string;
+  at: string;
+  entityId?: string;
+  before?: unknown;
+  after?: unknown;
+};
+
 export type OliviaContextState = {
   activeClientId?: string;
   activeClientName?: string;
@@ -13,51 +17,150 @@ export type OliviaContextState = {
   activeResourceId?: string;
   selectedEntityId?: string;
   selectedEntityType?: string;
+  selectedScheduleId?: string;
+  recentActions: OliviaRecentAction[];
+  revision: number;
   lastAction?: string;
 
   setClient: (id?: string, name?: string) => void;
   setProject: (id?: string, name?: string) => void;
   setWorkspace: (workspace?: string, resourceId?: string) => void;
   setResource: (resourceId?: string) => void;
+  setSelection: (type?: string, id?: string) => void;
   setSelectedEntity: (id?: string, type?: string) => void;
+  setSelectedSchedule: (id?: string) => void;
+  pushRecentAction: (action: OliviaRecentAction | string) => void;
+  recordAction: (action: string) => void;
+  clearSelection: () => void;
   clearContext: () => void;
 };
 
-export const useOliviaContextStore = create<OliviaContextState>((set) => ({
-  activeClientId: undefined,
-  activeClientName: undefined,
-  activeProjectId: undefined,
-  activeProjectName: undefined,
-  activeWorkspace: undefined,
-  activeResourceId: undefined,
-  selectedEntityId: undefined,
-  selectedEntityType: undefined,
-  lastAction: undefined,
+function normalizeAction(action: OliviaRecentAction | string): OliviaRecentAction {
+  return typeof action === "string"
+    ? { type: action, at: new Date().toISOString() }
+    : { ...action, at: action.at || new Date().toISOString() };
+}
 
-  setClient: (id, name) => set({ activeClientId: id, activeClientName: name, lastAction: "setClient" }),
-  setProject: (id, name) => set({ activeProjectId: id, activeProjectName: name, lastAction: "setProject" }),
-  setWorkspace: (workspace, resourceId) => set({ activeWorkspace: workspace, activeResourceId: resourceId, lastAction: "setWorkspace" }),
-  setResource: (resourceId) => set({ activeResourceId: resourceId, lastAction: "setResource" }),
-  setSelectedEntity: (id, type) => set({ selectedEntityId: id, selectedEntityType: type, lastAction: "setSelectedEntity" }),
-  clearContext: () => set({
-    activeClientId: undefined, activeClientName: undefined,
-    activeProjectId: undefined, activeProjectName: undefined,
-    activeWorkspace: undefined, activeResourceId: undefined,
-    selectedEntityId: undefined, selectedEntityType: undefined,
-    lastAction: "clearContext",
+export const useOliviaContextStore = create<OliviaContextState>((set) => ({
+  recentActions: [],
+  revision: 0,
+
+  setClient: (id, name) => set((state) => ({
+    activeClientId: id,
+    activeClientName: name,
+    lastAction: "setClient",
+    revision: state.revision + 1,
+  })),
+  setProject: (id, name) => set((state) => ({
+    activeProjectId: id,
+    activeProjectName: name,
+    lastAction: "setProject",
+    revision: state.revision + 1,
+  })),
+  setWorkspace: (workspace, resourceId) => set((state) => ({
+    activeWorkspace: workspace,
+    activeResourceId: resourceId,
+    selectedEntityId: workspace === state.activeWorkspace ? state.selectedEntityId : undefined,
+    selectedEntityType: workspace === state.activeWorkspace ? state.selectedEntityType : undefined,
+    lastAction: "setWorkspace",
+    revision: state.revision + 1,
+  })),
+  setResource: (resourceId) => set((state) => ({
+    activeResourceId: resourceId,
+    lastAction: "setResource",
+    revision: state.revision + 1,
+  })),
+  setSelection: (type, id) => set((state) => ({
+    selectedEntityType: type,
+    selectedEntityId: id,
+    lastAction: "setSelection",
+    revision: state.revision + 1,
+  })),
+  setSelectedEntity: (id, type) => set((state) => ({
+    selectedEntityType: type,
+    selectedEntityId: id,
+    lastAction: "setSelection",
+    revision: state.revision + 1,
+  })),
+  setSelectedSchedule: (id) => set((state) => ({
+    selectedScheduleId: id,
+    selectedEntityType: id ? "schedule" : state.selectedEntityType,
+    selectedEntityId: id || state.selectedEntityId,
+    lastAction: "setSelectedSchedule",
+    revision: state.revision + 1,
+  })),
+  pushRecentAction: (action) => set((state) => {
+    const normalized = normalizeAction(action);
+    return {
+      recentActions: [...state.recentActions, normalized].slice(-8),
+      lastAction: normalized.type,
+      revision: state.revision + 1,
+    };
   }),
+  recordAction: (action) => set((state) => ({
+    recentActions: [...state.recentActions, normalizeAction(action)].slice(-8),
+    lastAction: action,
+    revision: state.revision + 1,
+  })),
+  clearSelection: () => set((state) => ({
+    selectedEntityId: undefined,
+    selectedEntityType: undefined,
+    selectedScheduleId: undefined,
+    lastAction: "clearSelection",
+    revision: state.revision + 1,
+  })),
+  clearContext: () => set((state) => ({
+    activeClientId: undefined,
+    activeClientName: undefined,
+    activeProjectId: undefined,
+    activeProjectName: undefined,
+    activeWorkspace: undefined,
+    activeResourceId: undefined,
+    selectedEntityId: undefined,
+    selectedEntityType: undefined,
+    selectedScheduleId: undefined,
+    recentActions: [],
+    revision: state.revision + 1,
+    lastAction: "clearContext",
+  })),
 }));
 
-// 채팅 API 호출마다 함께 보내는 pageContext 문자열 — Olivia가 "지금 뭘 보고 있는지" 알게 한다
-// (요청서 20절). 값이 없는 필드는 줄 자체를 생략해서 프롬프트에 잡음을 안 넣는다.
-export function buildOliviaPageContext(): string {
-  const s = useOliviaContextStore.getState();
-  const lines = [
-    s.activeWorkspace ? `현재 화면: ${s.activeWorkspace}` : null,
-    s.activeClientName ? `현재 고객: ${s.activeClientName}` : null,
-    s.activeProjectName ? `현재 프로젝트: ${s.activeProjectName}` : null,
-    s.activeResourceId ? `현재 resource: ${s.activeResourceId}` : null,
-    s.selectedEntityId ? `현재 선택 항목: ${s.selectedEntityType ?? ""} ${s.selectedEntityId}`.trim() : null,
-  ].filter((line): line is string => Boolean(line));
-  return lines.length ? `[Olivia Context]\n${lines.join("\n")}` : "[현재 페이지: 홈]";
+export function getOliviaContextSnapshot(pathname?: string) {
+  const state = useOliviaContextStore.getState();
+  return {
+    pathname,
+    activeClientId: state.activeClientId,
+    activeClientName: state.activeClientName,
+    activeProjectId: state.activeProjectId,
+    activeProjectName: state.activeProjectName,
+    activeWorkspace: state.activeWorkspace,
+    activeResourceId: state.activeResourceId,
+    selectedEntityType: state.selectedEntityType,
+    selectedEntityId: state.selectedEntityId,
+    selectedScheduleId: state.selectedScheduleId,
+    recentActions: state.recentActions,
+    revision: state.revision,
+  };
+}
+
+export function buildOliviaPageContext(pathname?: string): string {
+  const context = getOliviaContextSnapshot(pathname);
+  const pageContext = {
+    page: context.pathname || "home",
+    client: context.activeClientId || context.activeClientName
+      ? { id: context.activeClientId, name: context.activeClientName }
+      : undefined,
+    project: context.activeProjectId || context.activeProjectName
+      ? { id: context.activeProjectId, name: context.activeProjectName }
+      : undefined,
+    workspace: context.activeWorkspace
+      ? { type: context.activeWorkspace, resourceId: context.activeResourceId }
+      : undefined,
+    selection: context.selectedEntityType || context.selectedEntityId
+      ? { type: context.selectedEntityType, id: context.selectedEntityId }
+      : undefined,
+    scheduleId: context.selectedScheduleId,
+    recentActions: context.recentActions.slice(-4).map((action) => action.type),
+  };
+  return JSON.stringify(pageContext);
 }

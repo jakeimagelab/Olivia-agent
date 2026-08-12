@@ -1,47 +1,123 @@
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
+import type { OliviaContextSnapshot, OliviaToolCall, OliviaToolResult } from "@/lib/olivia/v2/types";
 
-// Olivia Agent 2.0 — /api/olivia의 create_quote 같은 도구는 "navigate" 결과만 돌려주도록 이미
-// 만들어져 있고, 플로팅 위젯(components/OliviaChat.tsx)도 그 응답 형태 그대로 쓰고 있어서
-// 백엔드 도구 자체는 건드리지 않는다(요청서 18절이 원하는 "tool이 uiActions를 같이 반환"하는
-// 형태로 백엔드를 바꾸는 건 대화 없이 검증 못 하는 리스크가 커서 보류 — 대신 프론트에서 도구
-// 이름별로 "이 도구가 오면 이런 UI 액션으로 바꿔라"를 여기 한 곳에 등록해 둔다.
-// if(tool.name==='create_quote') if(tool.name==='create_conti') 식으로 채팅 컴포넌트 안에
-// 계속 늘어놓지 않기 위한 지점 — 새 도구를 워크스페이스에 연결하고 싶으면 여기 한 줄만 추가한다.
-export type UiActionResolver = (input: any) => Promise<OliviaUiAction | null>;
+export type UiActionResolverArgs = {
+  input: Record<string, unknown>;
+  result: OliviaToolResult;
+  context: OliviaContextSnapshot;
+};
 
-async function resolveClientWorkspaceContext(hospitalName: string): Promise<{ clientId: string; clientName: string; workflowRunId?: string } | null> {
-  const name = String(hospitalName || "").trim();
-  if (!name) return null;
-  try {
-    const searchRes = await fetch(`/api/clients?q=${encodeURIComponent(name)}`);
-    const searchData = await searchRes.json();
-    const client = Array.isArray(searchData?.clients) ? searchData.clients[0] : null;
-    if (!client?.id) return null;
+export type UiActionResolver = (args: UiActionResolverArgs) => Promise<OliviaUiAction[] | OliviaUiAction | null>;
 
-    const workspaceRes = await fetch(`/api/clients/${client.id}/workspace`);
-    const workspaceData = await workspaceRes.json();
-    if (!workspaceData?.ok) return null;
+function value(data: Record<string, unknown> | undefined, key: string) {
+  const current = data?.[key];
+  return typeof current === "string" && current ? current : undefined;
+}
 
-    return { clientId: client.id, clientName: client.hospital_name, workflowRunId: workspaceData.activeProject?.id };
-  } catch {
-    return null;
-  }
+function workspaceAction(
+  workspace: "quote" | "contract" | "conti",
+  args: UiActionResolverArgs,
+): OliviaUiAction[] {
+  if (!args.result.success) return [];
+  const data = args.result.data;
+  const resourceId = value(data, "resourceId") || value(data, `${workspace}Id`);
+  if (!resourceId) return [];
+  return [{
+    type: "OPEN_WORKSPACE",
+    workspace,
+    resourceId,
+    clientId: value(data, "clientId") || args.context.activeClientId,
+    workflowRunId: value(data, "workflowRunId") || args.context.activeProjectId,
+    clientName: value(data, "hospitalName") || args.context.activeClientName,
+    projectName: args.context.activeProjectName,
+  }];
 }
 
 export const uiActionResolvers: Record<string, UiActionResolver> = {
-  create_quote: async (input) => {
-    const ctx = await resolveClientWorkspaceContext(input?.hospitalName);
-    if (!ctx) return null; // 등록된 고객을 못 찾으면 null — 호출부가 기존 navigate 방식으로 폴백한다.
-    return { type: "OPEN_WORKSPACE", workspace: "quote", ...ctx };
+  select_project: async ({ result }) => {
+    if (!result.success) return [];
+    return [{
+      type: "UPDATE_CONTEXT",
+      clientId: value(result.data, "clientId"),
+      clientName: value(result.data, "clientName"),
+      projectId: value(result.data, "projectId"),
+      projectName: value(result.data, "projectName"),
+    }];
   },
-  create_contract: async (input) => {
-    const ctx = await resolveClientWorkspaceContext(input?.hospitalName);
-    if (!ctx) return null;
-    return { type: "OPEN_WORKSPACE", workspace: "contract", ...ctx };
+  create_quote: async (args) => workspaceAction("quote", args),
+  create_contract: async (args) => workspaceAction("contract", args),
+  create_conti: async (args) => workspaceAction("conti", args),
+  update_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
+  add_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
+  remove_quote_item: async ({ result }) => mutationActions("quote", result),
+  update_quote_note: async ({ result }) => mutationActions("quote", result),
+  apply_quote_discount: async ({ result }) => mutationActions("quote", result),
+  update_quote_vat_mode: async ({ result }) => mutationActions("quote", result),
+  rebalance_quote_total: async ({ result }) => {
+    if (!result.success) return [];
+    const resourceId = value(result.data, "resourceId");
+    const discountAmount = result.data?.proposedDiscountAmount;
+    if (!resourceId || typeof discountAmount !== "number") return [];
+    return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "견적 조정안을 적용할까요?"), confirmLabel: "적용", toolName: "apply_quote_rebalance", toolInput: { discountAmount } }];
   },
-  create_conti: async (input) => {
-    const ctx = await resolveClientWorkspaceContext(input?.hospitalName);
-    if (!ctx) return null;
-    return { type: "OPEN_WORKSPACE", workspace: "conti", ...ctx };
+  preview_quote: async ({ result }) => {
+    const resourceId = value(result.data, "resourceId");
+    return result.success && resourceId ? [{ type: "PREVIEW_QUOTE", resourceId }] : [];
+  },
+  request_quote_publish: async ({ result }) => {
+    if (!result.success) return [];
+    return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "견적서를 고객 포털에 공개할까요?"), confirmLabel: "공개", toolName: "publish_quote", toolInput: {} }];
+  },
+  apply_quote_rebalance: async ({ result }) => mutationActions("quote", result),
+  publish_quote: async ({ result }) => mutationActions("quote", result),
+  add_conti_shots: async ({ result }) => mutationActions("conti", result, "conti-shot"),
+  update_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
+  reorder_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
+  duplicate_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
+  remove_conti_shot: async ({ result }) => {
+    if (!result.success) return [];
+    return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "이 컷을 삭제할까요?"), confirmLabel: "삭제", toolName: "apply_remove_conti_shot", toolInput: { selector: null, position: result.data?.targetIndex == null ? null : Number(result.data.targetIndex) + 1 } }];
+  },
+  apply_remove_conti_shot: async ({ result }) => mutationActions("conti", result),
+  show_workspace: async ({ result, context }) => {
+    if (!result.success) return [];
+    const workspace = value(result.data, "workspace") as "quote" | "contract" | "conti" | undefined;
+    const resourceId = value(result.data, "resourceId");
+    if (!workspace || !resourceId) return [];
+    return [context.activeWorkspace
+      ? { type: "SWITCH_WORKSPACE", workspace, resourceId }
+      : {
+          type: "OPEN_WORKSPACE",
+          workspace,
+          resourceId,
+          clientId: context.activeClientId,
+          workflowRunId: context.activeProjectId,
+          clientName: context.activeClientName,
+          projectName: context.activeProjectName,
+        }];
   },
 };
+
+function mutationActions(resource: "quote" | "conti", result: OliviaToolResult, entityType?: string): OliviaUiAction[] {
+  if (!result.success) return [];
+  const resourceId = value(result.data, "resourceId");
+  if (!resourceId) return [];
+  const changedEntityId = value(result.data, "changedEntityId");
+  const actions: OliviaUiAction[] = [{ type: "REFRESH_RESOURCE", resource, resourceId, changedEntityId, before: result.data?.before, after: result.data?.updatedResource }];
+  if (entityType && changedEntityId) actions.push({ type: "SET_SELECTION", entityType, entityId: changedEntityId });
+  return actions;
+}
+
+export async function resolveUiActions(args: {
+  toolCall: OliviaToolCall;
+  input: Record<string, unknown>;
+  result: OliviaToolResult;
+  context: OliviaContextSnapshot;
+}): Promise<OliviaUiAction[]> {
+  if (!args.result.success) return [];
+  const resolver = uiActionResolvers[args.toolCall.name];
+  if (!resolver) return [];
+  const resolved = await resolver({ input: args.input, result: args.result, context: args.context });
+  if (!resolved) return [];
+  return Array.isArray(resolved) ? resolved : [resolved];
+}

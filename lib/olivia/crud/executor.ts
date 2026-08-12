@@ -233,9 +233,10 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
       deposit_rate: data.depositRate ?? 50,
       memos: data.memos || null,
       form_state: data.formState || null,
+      workflow_run_id: data.workflowRunId || null,
     }).select("*").single();
     if (error || !row) dbError(error, "견적서 생성에 실패했습니다.");
-    return { row: row as Row, clientId: row.client_id };
+    return { row: row as Row, clientId: row.client_id, workflowRunId: row.workflow_run_id };
   }
 
   if (domain === "contract") {
@@ -248,9 +249,10 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
       email: data.email || client?.email || "",
       quote_data: data.quoteData || {},
       signature_data_url: data.signatureDataUrl || null,
+      workflow_run_id: data.workflowRunId || null,
     }).select("*").single();
     if (error || !row) dbError(error, "계약서 생성에 실패했습니다.");
-    return { row: row as Row, clientId: row.client_id };
+    return { row: row as Row, clientId: row.client_id, workflowRunId: row.workflow_run_id };
   }
 
   if (domain === "conti") {
@@ -259,9 +261,11 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
       specialties: data.specialties || [],
       title: data.title || `${data.hospitalName} 촬영 콘티`,
       result: data.result || {},
+      client_id: data.clientId || null,
+      workflow_run_id: data.workflowRunId || null,
     }).select("*").single();
     if (error || !row) dbError(error, "콘티 생성에 실패했습니다.");
-    return { row: row as Row };
+    return { row: row as Row, clientId: row.client_id, workflowRunId: row.workflow_run_id };
   }
 
   if (domain === "photo_gallery") {
@@ -378,9 +382,9 @@ function updatePatch(domain: OliviaCrudDomain, data: Row) {
     workflow: { clientId: "client_id", clientName: "client_name", projectId: "project_id", projectName: "project_name", managerName: "manager_name", contactName: "contact_name", contactEmail: "contact_email", shootDate: "shoot_date", nextAction: "next_action", status: "status" },
     memo: { clientId: "hospital_id", title: "title", rawMemo: "raw_memo", summary: "summary", recommendedPackage: "recommended_package", nextAction: "next_action", templateType: "template_type", templateData: "template_data" },
     calendar: { date: "date", title: "title", memo: "memo", category: "category", time: "time", endTime: "end_time", location: "location", completed: "completed" },
-    quote: { quoteNumber: "quote_number", title: "title", hospitalName: "hospital_name", contactName: "contact_name", phone: "phone", email: "email", quoteDate: "quote_date", shootDate: "shoot_date", validUntil: "valid_until", items: "items", supplyAmount: "supply_amount", discountAmount: "discount_amount", vat: "vat", totalAmount: "total_amount", depositAmount: "deposit_amount", balanceAmount: "balance_amount", depositRate: "deposit_rate", memos: "memos", formState: "form_state" },
-    contract: { quoteNumber: "quote_number", hospitalName: "hospital_name", contactName: "contact_name", email: "email", quoteData: "quote_data", signatureDataUrl: "signature_data_url" },
-    conti: { hospitalName: "hospital_name", specialties: "specialties", title: "title", result: "result" },
+    quote: { quoteNumber: "quote_number", title: "title", hospitalName: "hospital_name", contactName: "contact_name", phone: "phone", email: "email", quoteDate: "quote_date", shootDate: "shoot_date", validUntil: "valid_until", items: "items", supplyAmount: "supply_amount", discountAmount: "discount_amount", vat: "vat", totalAmount: "total_amount", depositAmount: "deposit_amount", balanceAmount: "balance_amount", depositRate: "deposit_rate", memos: "memos", formState: "form_state", workflowRunId: "workflow_run_id" },
+    contract: { quoteNumber: "quote_number", hospitalName: "hospital_name", contactName: "contact_name", email: "email", quoteData: "quote_data", signatureDataUrl: "signature_data_url", workflowRunId: "workflow_run_id" },
+    conti: { hospitalName: "hospital_name", specialties: "specialties", title: "title", result: "result", clientId: "client_id", workflowRunId: "workflow_run_id" },
     photo_gallery: { hospitalName: "hospital_name", contactName: "contact_name", contactEmail: "contact_email", shootDate: "shoot_date", nasLink: "nas_link", description: "description", clientId: "client_id", workflowRunId: "workflow_run_id", galleryType: "gallery_type" },
     select_gallery: { title: "title", hospitalName: "hospital_name", shootingName: "shooting_name", shootingDate: "shooting_date", clientId: "client_id", workflowRunId: "workflow_run_id", status: "status", allowWebSelect: "allow_web_select", allowDownloadUpload: "allow_download_upload", allowDownloadZip: "allow_download_zip", allowResubmit: "allow_resubmit" },
     review: { clientId: "client_id", overallRating: "overall_rating", shootingRating: "shooting_rating", resultRating: "result_rating", goodPoints: "good_points", improvementPoints: "improvement_points", publicReviewText: "public_review_text", allowPublicUse: "allow_public_use", allowHospitalName: "allow_hospital_name", writerName: "writer_name" },

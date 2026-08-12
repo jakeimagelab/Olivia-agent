@@ -8,6 +8,7 @@ import PageHeader from "@/components/PageHeader";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import {
   ChevronDown,
   ChevronUp,
@@ -53,6 +54,7 @@ type BenefitItem = {
 };
 
 type ContractQuoteItem = {
+  id?: string;
   name: string;
   detail: string;
   unitPrice: number;
@@ -103,6 +105,7 @@ type ContractQuoteData = {
     memo: string;
     depositRate: number;
     brand?: Brand;
+    agentOverrideItems?: boolean;
   };
 };
 
@@ -423,6 +426,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   registerRequestClose,
 }, ref) {
   const isModal = mode === "modal";
+  const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
+  const setOliviaClient = useOliviaContextStore((state) => state.setClient);
+  const setOliviaProject = useOliviaContextStore((state) => state.setProject);
+  const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
+  const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
   const previewRef = useRef<HTMLDivElement>(null);
   const previewShellRef = useRef<HTMLDivElement>(null);
   const quotePdfInputRef = useRef<HTMLInputElement>(null);
@@ -453,6 +461,17 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const [basePreviewScale, setBasePreviewScale] = useState(0.48);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(false);
+
+  useEffect(() => {
+    setOliviaWorkspace("quote", resourceId);
+    if (workflowRunId) setOliviaProject(workflowRunId);
+    return () => {
+      const current = useOliviaContextStore.getState();
+      if (current.activeWorkspace === "quote" && current.activeResourceId === resourceId) {
+        current.setWorkspace(undefined, undefined);
+      }
+    };
+  }, [resourceId, setOliviaProject, setOliviaWorkspace, workflowRunId]);
   const [fullscreenPreviewScale, setFullscreenPreviewScale] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
   const [publishingQuoteId, setPublishingQuoteId] = useState<string | null>(null);
@@ -790,6 +809,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const buildContractQuoteData = (): ContractQuoteData => {
     const visibleItems: ContractQuoteItem[] = [
       ...(selectedPackage && selectedPackage.price > 0 ? [{
+        id: `package:${selectedPackage.id}`,
         name: `${selectedPackage.name} 패키지`,
         detail: selectedPackage.composition,
         unitPrice: selectedPackage.price,
@@ -798,6 +818,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         note: "촬영 패키지"
       }] : []),
       ...selectedSingleItems.map((item) => ({
+        id: item.id,
         name: item.name,
         detail: "단일 촬영 항목",
         unitPrice: singleItemPrice(item),
@@ -806,6 +827,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         note: "단일항목"
       })),
       ...optionItems.map((item) => ({
+        id: item.name === "프로필 인원 추가" ? "profile_shoot" : item.name === "연출 인원 추가" ? "staged_shoot" : item.name === "프로필/연출 추가" ? "combined_profile_staged" : item.name === "인테리어 층수 추가" ? "floor_shoot" : item.name === "드론촬영" ? "drone_shoot" : `option:${item.name}`,
         name: item.name,
         detail: item.detail,
         unitPrice: item.amount,
@@ -814,6 +836,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         note: "추가 옵션"
       })),
       ...visibleCustomItems.map((item) => ({
+        id: item.id,
         name: item.name,
         detail: item.detail,
         unitPrice: item.amount,
@@ -822,6 +845,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         note: item.discountable === false ? "기타 · 할인 제외" : "기타"
       })),
       ...visibleBenefitItems.map((item) => ({
+        id: item.id,
         name: item.name,
         detail: "서비스 및 혜택",
         unitPrice: 0,
@@ -909,7 +933,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   };
 
   const loadRecentQuote = (data: ContractQuoteData) => {
-    if (data.formState) {
+    if (data.formState && !data.formState.agentOverrideItems) {
       setBrand(data.formState.brand ?? "photoclinic");
       setCustomer(data.formState.customer);
       setQuoteTitle(data.formState.quoteTitle);
@@ -953,7 +977,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         data.items
           .filter((item) => item.subtotal > 0)
           .map((item) => ({
-            id: crypto.randomUUID(),
+            id: item.id || crypto.randomUUID(),
             name: item.name,
             detail: item.detail,
             amount: item.subtotal
@@ -962,7 +986,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setBenefitItems(
         data.items
           .filter((item) => item.subtotal === 0)
-          .map((item) => ({ id: crypto.randomUUID(), name: item.name }))
+          .map((item) => ({ id: item.id || crypto.randomUUID(), name: item.name }))
       );
       setDiscountRate(0);
       setExtraDiscount(data.discountAmount || 0);
@@ -1052,14 +1076,35 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   // 1) 프리필: resourceId가 있으면 기존 견적서를 불러오고, clientId만 있으면 고객 정보만 채운다.
   useEffect(() => {
     if (!isModal) return;
-    if (resourceId) {
+    const loadResource = () => {
+      if (!resourceId) return;
       fetch(`/api/quotes/${resourceId}`)
         .then((res) => res.json())
         .then((json) => {
-          if (json.ok) loadRecentQuote(rowToContractQuoteData(json.quote));
+          if (json.ok) {
+            loadRecentQuote(rowToContractQuoteData(json.quote));
+            setOliviaClient(json.quote?.client_id, json.quote?.hospital_name);
+            if (json.quote?.workflow_run_id) setOliviaProject(json.quote.workflow_run_id);
+          }
         })
         .catch(() => {});
-      return;
+    };
+    if (resourceId) {
+      loadResource();
+      const onRefresh = (event: Event) => {
+        const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
+        if ((!detail?.resource || detail.resource === "quote") && (!detail?.resourceId || detail.resourceId === resourceId)) loadResource();
+      };
+      window.addEventListener("olivia-resource-refresh", onRefresh);
+      const onPreview = (event: Event) => {
+        const detail = (event as CustomEvent<{ resourceId?: string }>).detail;
+        if (!detail?.resourceId || detail.resourceId === resourceId) setShowFullscreenPreview(true);
+      };
+      window.addEventListener("olivia-quote-preview", onPreview);
+      return () => {
+        window.removeEventListener("olivia-resource-refresh", onRefresh);
+        window.removeEventListener("olivia-quote-preview", onPreview);
+      };
     }
     if (clientId) {
       fetch(`/api/clients/${clientId}/workspace`)
@@ -1985,10 +2030,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setSelectedPackageId(item.id)}
+                    onClick={() => {
+                      setOliviaSelection("quote-item", `package:${item.id}`);
+                      setSelectedPackageId(item.id);
+                    }}
                     className={`package-button ${
                       selectedPackageId === item.id ? "package-button-active" : ""
                     }`}
+                    style={{ outline: selectedOliviaEntityId === `package:${item.id}` ? "2px solid rgba(21,88,85,.45)" : undefined }}
                   >
                     <span>
                       <strong>{item.name}</strong>
@@ -2011,8 +2060,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                     <div key={item.id} className="jake-single-item-row">
                       <button
                         type="button"
-                        onClick={() => toggleSingleItem(item.id)}
+                        onClick={() => {
+                          setOliviaSelection("quote-item", item.id);
+                          toggleSingleItem(item.id);
+                        }}
                         className={`single-item-button ${isSelected ? "single-item-button-active" : ""}`}
+                        style={{ outline: selectedOliviaEntityId === item.id ? "2px solid rgba(21,88,85,.45)" : undefined }}
                         aria-pressed={isSelected}
                       >
                         <span>{item.name}</span>
@@ -2037,8 +2090,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => toggleSingleItem(item.id)}
+                    onClick={() => {
+                      setOliviaSelection("quote-item", item.id);
+                      toggleSingleItem(item.id);
+                    }}
                     className={`single-item-button ${isSelected ? "single-item-button-active" : ""}`}
+                    style={{ outline: selectedOliviaEntityId === item.id ? "2px solid rgba(21,88,85,.45)" : undefined }}
                     aria-pressed={isSelected}
                   >
                     <span>{item.name}</span>
@@ -2053,20 +2110,24 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             <div className="grid gap-3">
               {brand === "photoclinic" && (
                 <>
-                  <QuantityField
-                    label="프로필 인원 추가"
-                    unit="인"
-                    price="1인당 250,000원"
-                    value={profileCount}
-                    onChange={setProfileCount}
-                  />
-                  <QuantityField
-                    label="연출 인원 추가"
-                    unit="인"
-                    price="1인당 450,000원"
-                    value={stagedCount}
-                    onChange={setStagedCount}
-                  />
+                  <div onPointerDown={() => setOliviaSelection("quote-item", "profile_shoot")}>
+                    <QuantityField
+                      label="프로필 인원 추가"
+                      unit="인"
+                      price="1인당 250,000원"
+                      value={profileCount}
+                      onChange={setProfileCount}
+                    />
+                  </div>
+                  <div onPointerDown={() => setOliviaSelection("quote-item", "staged_shoot")}>
+                    <QuantityField
+                      label="연출 인원 추가"
+                      unit="인"
+                      price="1인당 450,000원"
+                      value={stagedCount}
+                      onChange={setStagedCount}
+                    />
+                  </div>
                   <QuantityField
                     label="프로필/연출 추가"
                     unit="인"

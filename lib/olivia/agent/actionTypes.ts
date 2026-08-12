@@ -29,4 +29,14 @@ export type OliviaUiAction =
       projectId?: string;
       projectName?: string;
     }
-  | { type: "REFRESH_RESOURCE"; resource: string };
+  | { type: "REFRESH_RESOURCE"; resourceId: string; resource?: string; changedEntityId?: string; before?: unknown; after?: unknown }
+  | { type: "SET_SELECTION"; entityType: string; entityId: string }
+  | { type: "PREVIEW_QUOTE"; resourceId: string }
+  | {
+      type: "REQUEST_APPROVAL";
+      approvalId: string;
+      summary: string;
+      confirmLabel: string;
+      toolName: string;
+      toolInput: Record<string, unknown>;
+    };

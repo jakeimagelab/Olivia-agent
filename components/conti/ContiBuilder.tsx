@@ -7,6 +7,8 @@ import OliviaChat from "@/components/OliviaChat";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { C } from "@/lib/theme";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { addContiShots as addContiShotsShared, duplicateContiShot as duplicateContiShotShared, removeContiShot as removeContiShotShared, reorderContiShot as reorderContiShotShared, updateContiShot as updateContiShotShared } from "@/lib/conti/contiMutationService";
 import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
 import PortraitConsentPanel from "@/components/conti/PortraitConsentPanel";
 import {
@@ -49,7 +51,7 @@ const PATIENT_TYPE_PRESETS = [
 interface StaffItem    { role: string; count: number; detail: string; }
 interface PatientItem  { type: string; count: number; detail: string; }
 interface LocationItem { floor: string; spaces: string; notes: string; }
-interface ContiRow     { category: string; duration: string; location: string; cameraAngle: string; keyword: string; description: string; personnel: string; notes: string; color?: string; }
+interface ContiRow     { id?: string; category: string; duration: string; location: string; cameraAngle: string; keyword: string; description: string; personnel: string; notes: string; color?: string; }
 interface ChecklistRow { number: number; category: string; item: string; notes: string; color?: string; }
 interface ScheduleRow  { time: string; duration?: string; activity: string; type: string; requirements: string; notes: string; }
 interface ContiResult  { conti: ContiRow[]; checklist: ChecklistRow[]; schedule: ScheduleRow[]; }
@@ -612,6 +614,11 @@ export default function ContiBuilder({
   registerRequestClose?: (fn: () => void) => void;
 } = {}) {
   const isModal = mode === "modal";
+  const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
+  const setOliviaClient = useOliviaContextStore((state) => state.setClient);
+  const setOliviaProject = useOliviaContextStore((state) => state.setProject);
+  const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
+  const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
   const [form, setForm] = useState({
     hospitalName:  "",
     specialties:   [] as string[],
@@ -628,6 +635,17 @@ export default function ContiBuilder({
   const [pageMode,         setPageMode]         = useState<"conti" | "portrait">("conti");
   const [urlClientId,      setUrlClientId]      = useState<string | null>(null);
   const [urlWorkflowRunId, setUrlWorkflowRunId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOliviaWorkspace("conti", resourceId);
+    if (modalWorkflowRunId) setOliviaProject(modalWorkflowRunId);
+    return () => {
+      const current = useOliviaContextStore.getState();
+      if (current.activeWorkspace === "conti" && current.activeResourceId === resourceId) {
+        current.setWorkspace(undefined, undefined);
+      }
+    };
+  }, [modalWorkflowRunId, resourceId, setOliviaProject, setOliviaWorkspace]);
 
   // URL 파라미터로 자동 입력 (올리비아·고객관리 연동) — 페이지 모드 전용.
   useEffect(() => {
@@ -820,9 +838,7 @@ export default function ContiBuilder({
   const updateConti = (i: number, field: keyof ContiRow, v: string) =>
     setResult(prev => {
       if (!prev) return prev;
-      const rows = [...prev.conti];
-      rows[i] = { ...rows[i], [field]: v };
-      return { ...prev, conti: rows };
+      return updateContiShotShared(prev, i, { [field]: v }).result as ContiResult;
     });
 
   const updateContiColor = (i: number, bg: string, text: string) =>
@@ -866,24 +882,17 @@ export default function ContiBuilder({
     });
 
   /* ── 결과 행 추가/삭제 ── */
-  const addContiRow = () => setResult(prev => prev ? {
-    ...prev, conti: [...prev.conti, { category: "", duration: "", location: "", cameraAngle: "", keyword: "", description: "", personnel: "", notes: "" }]
-  } : prev);
+  const addContiRow = () => setResult(prev => prev ? addContiShotsShared(prev, { count: 1, shotType: "", description: "" }).result as ContiResult : prev);
 
-  const delContiRow = (i: number) => setResult(prev => prev ? { ...prev, conti: prev.conti.filter((_, idx) => idx !== i) } : prev);
+  const delContiRow = (i: number) => setResult(prev => prev ? removeContiShotShared(prev, i).result as ContiResult : prev);
   const dupContiRow = (i: number) => setResult(prev => {
     if (!prev) return prev;
-    const newConti = [...prev.conti];
-    newConti.splice(i + 1, 0, { ...prev.conti[i] });
-    return { ...prev, conti: newConti };
+    return duplicateContiShotShared(prev, i).result as ContiResult;
   });
 
   const moveContiRow = (from: number, to: number) => setResult(prev => {
     if (!prev) return prev;
-    const rows = [...prev.conti];
-    const [moved] = rows.splice(from, 1);
-    rows.splice(to, 0, moved);
-    return { ...prev, conti: rows };
+    return reorderContiShotShared(prev, from, to).result as ContiResult;
   });
 
   const moveChecklistRow = (from: number, to: number) => setResult(prev => {
@@ -1209,18 +1218,26 @@ ${contiSummary}
     setUrlClientId(modalClientId ?? null);
     setUrlWorkflowRunId(modalWorkflowRunId ?? null);
     if (resourceId) {
-      fetch(`/api/conti/saves/${resourceId}`)
+      const loadResource = () => fetch(`/api/conti/saves/${resourceId}`)
         .then((r) => r.json())
         .then((json) => {
           if (!json.ok) return;
           const entry = json.data;
+          if (entry.client_id || entry.hospital_name) setOliviaClient(entry.client_id, entry.hospital_name);
+          if (entry.workflow_run_id) setOliviaProject(entry.workflow_run_id);
           setResult(entry.result);
           setResultTitle(entry.title || entry.hospital_name);
           setForm((prev) => ({ ...prev, hospitalName: entry.hospital_name, specialties: entry.specialties || prev.specialties }));
           setSavedContiId(resourceId);
         })
         .catch(() => {});
-      return;
+      void loadResource();
+      const onRefresh = (event: Event) => {
+        const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
+        if ((!detail?.resource || detail.resource === "conti") && (!detail?.resourceId || detail.resourceId === resourceId)) void loadResource();
+      };
+      window.addEventListener("olivia-resource-refresh", onRefresh);
+      return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
     }
     if (!modalClientId) return;
     fetch(`/api/clients/${modalClientId}`)
@@ -2301,11 +2318,15 @@ ${header("타임테이블")}
                         return (
                           <tr key={i}
                             draggable
+                            onPointerDown={() => setOliviaSelection("conti-shot", row.id || `shot:${i + 1}`)}
                             onDragStart={() => handleDragStart("conti", i)}
                             onDragOver={e => handleDragOver(e, "conti", i)}
                             onDrop={() => handleDrop("conti", i)}
                             onDragEnd={handleDragEnd}
-                            style={{ outline: isDragOver ? "2px solid #155855" : "none", background: isDragOver ? "rgba(21,88,85,0.06)" : undefined }}
+                            style={{
+                              outline: isDragOver || selectedOliviaEntityId === (row.id || `shot:${i + 1}`) ? "2px solid #155855" : "none",
+                              background: isDragOver ? "rgba(21,88,85,0.06)" : undefined,
+                            }}
                           >
                             <td style={{ ...TD, width: 36, padding: "6px 4px", cursor: "grab" }}>
                               <DragHandle />
@@ -2889,6 +2910,7 @@ ${header("타임테이블")}
                           <div key={i}
                             draggable
                             data-conti-index={i}
+                            onPointerDown={() => setOliviaSelection("conti-shot", row.id || `shot:${i + 1}`)}
                             onDragStart={() => handleDragStart("conti", i)}
                             onDragOver={e => handleDragOver(e, "conti", i)}
                             onDrop={() => handleDrop("conti", i)}
@@ -2918,7 +2940,11 @@ ${header("타임테이블")}
                             style={{
                               background: isDone ? "#F0FDF4" : "#fff",
                               borderRadius: 16,
-                              border: isDraggingOver ? "2px dashed #155855" : isDone ? "1px solid #86EFAC" : "1px solid #C8DDD9",
+                              border: isDraggingOver
+                                ? "2px dashed #155855"
+                                : selectedOliviaEntityId === (row.id || `shot:${i + 1}`)
+                                  ? "2px solid #155855"
+                                  : isDone ? "1px solid #86EFAC" : "1px solid #C8DDD9",
                               overflow: "hidden",
                               boxShadow: isDraggingOver ? "0 0 0 3px rgba(21,88,85,0.15)" : "0 2px 14px rgba(21,88,85,0.08)",
                               cursor: "grab", opacity: isDraggingOver ? 0.7 : isDone ? 0.72 : 1,
@@ -3135,7 +3161,12 @@ ${header("타임테이블")}
               }}
                 onMouseEnter={e => { if (editingId !== entry.id) e.currentTarget.style.background = "rgba(21,88,85,0.05)"; }}
                 onMouseLeave={e => (e.currentTarget.style.background = "#fafaf9")}
-                onClick={() => { if (editingId !== entry.id) loadConti(entry); }}
+                onClick={() => {
+                  if (editingId !== entry.id) {
+                    setOliviaWorkspace("conti", entry.id);
+                    loadConti(entry);
+                  }
+                }}
               >
                 <div style={{ fontSize: 28, flexShrink: 0 }}>🎬</div>
                 <div style={{ flex: 1, minWidth: 0 }}>

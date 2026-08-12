@@ -370,10 +370,7 @@
   height: calc(100dvh - 72px);
   min-height: 520px;
 }
-.pc-dash-split__chat {
-  flex-shrink: 0;
-  height: 190px;
-}
+.pc-dash-split__chat { min-height: 0; flex: 34 1 0; }
 .pc-dash-split__workspace {
   flex: 1;
   min-height: 0;
@@ -510,7 +507,7 @@
 }
 
 .oa-shell {
-  grid-template-columns: 68px minmax(0, 1fr);
+  grid-template-columns: 188px minmax(0, 1fr);
   background:
     radial-gradient(circle at 82% 8%, rgba(232, 93, 44, .055), transparent 25%),
     radial-gradient(circle at 18% 72%, rgba(21, 88, 85, .065), transparent 30%),
@@ -519,17 +516,15 @@
   font-family: var(--font-sans);
 }
 
-/* 왼쪽 네비게이터를 아이콘만 보이는 폭으로 최대한 줄인다 — 모바일(드로어로 전체폭 열림)은
-   건드리지 않는다. 라벨은 DOM엔 남겨서(접근성) title 툴팁으로만 보여준다. */
+/* Desktop navigation keeps readable text labels. Mobile continues to use the full drawer. */
 @media (min-width: 901px) {
-  .oa-sidebar__brand { justify-content: center; padding: 0; }
-  .oa-sidebar__brand-copy { display: none; }
-  .oa-sidebar__section-label { display: none; }
-  .oa-sidebar__navigation { padding: 12px 10px; }
-  .oa-sidebar__link { justify-content: center; padding: 0; gap: 0; }
-  .oa-sidebar__link span { display: none; }
-  .oa-sidebar__footer { grid-template-columns: 1fr; padding: 8px; }
-  .oa-sidebar__footer-link span { display: none; }
+  .oa-sidebar__brand { justify-content: space-between; padding: 0 14px; }
+  .oa-sidebar__brand-copy { display: grid; }
+  .oa-sidebar__navigation { padding: 15px 11px; }
+  .oa-sidebar__link { justify-content: flex-start; padding: 0 11px; gap: 9px; }
+  .oa-sidebar__link span { display: inline; }
+  .oa-sidebar__footer { grid-template-columns: 1fr 1fr; padding: 10px; }
+  .oa-sidebar__footer-link span { display: inline; }
 }
 
 .oa-shell svg,
@@ -1520,7 +1515,7 @@
   height: calc(100dvh - var(--admin-header-height, 72px));
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 7.4fr) minmax(365px, 2.6fr);
+  grid-template-rows: minmax(0, 1fr) clamp(180px, 23vh, 230px);
   gap: 12px;
   padding: 12px 14px;
   box-sizing: border-box;
@@ -1841,4 +1836,335 @@
   .pc-schedule-panel {
     grid-column: 1 / -1;
   }
+}
+
+/* Olivia Agent 2.0 adaptive stage */
+:root {
+  --olivia-green: #155855;
+  --olivia-orange: #E85D2C;
+  --olivia-mint: #EAF4F2;
+  --olivia-bg: #F8FAF9;
+  --glass-bg: rgba(255,255,255,.56);
+  --glass-bg-strong: rgba(255,255,255,.74);
+  --glass-border: rgba(255,255,255,.72);
+  --glass-shadow: 0 12px 42px rgba(21,88,85,.08);
+  --glass-blur: 26px;
+}
+
+.olivia-adaptive-stage {
+  height: calc(100dvh - var(--admin-header-height, 72px));
+  min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% -10%, rgba(234,244,242,.9), transparent 34%),
+    var(--olivia-bg);
+}
+
+.olivia-adaptive-stage__chat,
+.olivia-adaptive-stage__workspace { min-height: 0; overflow: hidden; }
+.olivia-adaptive-stage__chat { flex-basis: 0; }
+.olivia-adaptive-stage__workspace {
+  flex-basis: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(30px);
+}
+.olivia-adaptive-stage__workspace.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.olivia-home-context {
+  flex: 0 0 clamp(150px, 19vh, 190px);
+  min-height: 0;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    flex-basis 420ms cubic-bezier(.32,.72,0,1),
+    opacity 300ms cubic-bezier(.32,.72,0,1),
+    transform 420ms cubic-bezier(.32,.72,0,1);
+}
+.olivia-home-context.is-dock { flex-basis: 64px; }
+.olivia-home-context.is-hidden { flex-basis: 0; opacity: 0; transform: translateY(18px); pointer-events: none; }
+.olivia-home-context__expanded {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 210px 340px minmax(0,1fr);
+  gap: 12px;
+  opacity: 1;
+  transform: scale(1);
+  transform-origin: bottom center;
+  transition: opacity 220ms cubic-bezier(.32,.72,0,1), transform 360ms cubic-bezier(.32,.72,0,1);
+}
+.olivia-home-context.is-dock .olivia-home-context__expanded { opacity: 0; transform: scale(.985) translateY(10px); pointer-events: none; }
+.olivia-context-dock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  background: var(--glass-bg-strong);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  opacity: 0;
+  transform: translateY(12px) scale(.98);
+  pointer-events: none;
+  transition: opacity 260ms cubic-bezier(.32,.72,0,1), transform 380ms cubic-bezier(.32,.72,0,1);
+}
+.olivia-home-context { position: relative; }
+.olivia-home-context.is-dock .olivia-context-dock { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.olivia-context-dock button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(234,244,242,.76);
+  color: #47605b;
+  font: 750 11px/1 inherit;
+  cursor: pointer;
+  transition: transform 260ms cubic-bezier(.32,.72,0,1), background 260ms cubic-bezier(.32,.72,0,1);
+}
+.olivia-context-dock button:hover { transform: translateY(-2px); background: #fff; }
+.olivia-context-dock strong { color: var(--olivia-green); }
+
+.olivia-home-context .pc-panel {
+  border: 1px solid rgba(21,88,85,.07);
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 8px 28px rgba(21,88,85,.045);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 18px;
+}
+.olivia-home-context .pc-quick-action { min-height: 46px; border-radius: 14px; }
+
+.olivia-conversation {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.84);
+  border-radius: 28px;
+  background: linear-gradient(155deg, rgba(255,255,255,.86), rgba(247,251,250,.72));
+  box-shadow: 0 20px 55px rgba(21,88,85,.075), inset 0 1px 0 rgba(255,255,255,.92);
+}
+.olivia-conversation--workspace { border-radius: 22px; }
+.olivia-conversation--drawer { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.olivia-conversation__stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 176px minmax(0,1fr) 42px;
+  overflow: hidden;
+}
+.olivia-conversation__main { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.olivia-history-nav {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(21,88,85,.07);
+  background: rgba(239,246,244,.58);
+}
+.olivia-history-nav__title { min-height: 42px; display: flex; align-items: center; gap: 7px; padding: 0 13px; color: #315f59; }
+.olivia-history-nav__title strong { font-size: 10px; letter-spacing: -.01em; }
+.olivia-history-nav__groups { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 8px 12px; scrollbar-width: thin; scrollbar-color: rgba(21,88,85,.16) transparent; }
+.olivia-history-nav__groups section + section { margin-top: 13px; }
+.olivia-history-nav__groups h3 { margin: 8px 5px 5px; color: #879893; font-size: 8px; font-weight: 850; letter-spacing: .08em; }
+.olivia-history-nav__groups p { margin: 12px 6px; color: #8b9c98; font-size: 9px; line-height: 1.55; }
+.olivia-history-nav__groups button { width: 100%; min-height: 38px; display: grid; grid-template-columns: 35px minmax(0,1fr) 11px; align-items: center; gap: 4px; border: 0; border-radius: 10px; padding: 5px 6px; background: transparent; color: #536c67; text-align: left; cursor: pointer; transition: background 180ms ease,color 180ms ease; }
+.olivia-history-nav__groups button:hover { background: rgba(255,255,255,.8); }
+.olivia-history-nav__groups button.is-active { background: #fff; color: var(--olivia-green); box-shadow: 0 6px 18px rgba(21,88,85,.07); }
+.olivia-history-nav__groups time { color: #98a7a3; font-size: 7px; font-variant-numeric: tabular-nums; }
+.olivia-history-nav__groups span { overflow: hidden; font-size: 8.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.olivia-message-guide { position: relative; z-index: 5; min-height: 0; padding: 10px 7px; background: #102d2a; }
+.olivia-message-guide__ticks { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(3px,.55vh,7px); overflow-y: auto; scrollbar-width: none; }
+.olivia-message-guide__ticks::-webkit-scrollbar { display: none; }
+.olivia-message-guide__ticks > button { width: 26px; min-height: 4px; flex: 0 0 4px; border: 0; border-radius: 99px; padding: 0; background: rgba(255,255,255,.35); cursor: pointer; transition: background 160ms ease,transform 160ms ease; }
+.olivia-message-guide__ticks > button:hover,.olivia-message-guide__ticks > button[aria-pressed="true"] { background: rgba(255,255,255,.7); transform: scaleX(1.08); }
+.olivia-message-guide__ticks > button.is-active { background: #fff; transform: scaleX(1.08); }
+.olivia-message-guide__popover { position: absolute; right: 35px; top: 50%; width: 260px; transform: translateY(-50%); border: 1px solid rgba(255,255,255,.8); border-radius: 16px; padding: 15px; background: rgba(255,255,255,.96); color: #29423d; box-shadow: 0 18px 48px rgba(9,35,31,.22); backdrop-filter: blur(20px); }
+.olivia-message-guide__popover time { display: flex; align-items: center; gap: 5px; color: #899894; font-size: 8px; }
+.olivia-message-guide__popover strong { display: block; margin-top: 9px; padding-right: 18px; font-size: 11px; line-height: 1.45; }
+.olivia-message-guide__popover p { margin: 7px 0 12px; color: #667a76; font-size: 9px; line-height: 1.55; }
+.olivia-message-guide__close { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 50%; background: #edf4f2; color: #56706a; cursor: pointer; }
+.olivia-message-guide__jump { min-height: 30px; border: 0; border-radius: 999px; padding: 0 12px; background: var(--olivia-green); color: #fff; font-size: 8.5px; font-weight: 800; cursor: pointer; }
+.olivia-conversation--workspace .olivia-conversation__stage,
+.olivia-conversation--drawer .olivia-conversation__stage { grid-template-columns: minmax(0,1fr) 34px; }
+.olivia-conversation--workspace .olivia-history-nav,
+.olivia-conversation--drawer .olivia-history-nav { display: none; }
+.olivia-conversation--workspace .olivia-message-guide,
+.olivia-conversation--drawer .olivia-message-guide { padding-inline: 5px; }
+.olivia-conversation--workspace .olivia-message-guide__ticks > button,
+.olivia-conversation--drawer .olivia-message-guide__ticks > button { width: 22px; }
+.olivia-conversation__header {
+  flex: 0 0 auto;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(21,88,85,.07);
+}
+.olivia-conversation__identity { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.olivia-conversation__identity > div { display: flex; flex-direction: column; min-width: 0; }
+.olivia-conversation__identity strong { color: #183d38; font-size: 10px; letter-spacing: .12em; }
+.olivia-conversation__identity small { color: #7d8e8a; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.olivia-core-mark,
+.olivia-floating-core {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #f58961, var(--olivia-orange));
+  box-shadow: 0 7px 22px rgba(232,93,44,.28), inset 0 1px 1px rgba(255,255,255,.45);
+}
+.olivia-floating-core--global { z-index: 10020; }
+.olivia-chat-drawer--global { z-index: 10021; }
+.olivia-core-mark { width: 30px; height: 30px; }
+.olivia-core-mark.is-thinking::after {
+  content: "";
+  position: absolute;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  border: 1px solid rgba(232,93,44,.4);
+  border-top-color: transparent;
+  animation: olivia-core-spin 1.4s cubic-bezier(.65,0,.35,1) infinite;
+}
+.olivia-core-mark { position: relative; }
+@keyframes olivia-core-spin { to { transform: rotate(360deg); } }
+.olivia-conversation__controls { display: flex; gap: 6px; }
+.olivia-conversation__controls button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid rgba(21,88,85,.09);
+  border-radius: 999px;
+  background: rgba(255,255,255,.62);
+  color: #58716c;
+  font: 700 9px/1 inherit;
+  cursor: pointer;
+}
+.olivia-conversation__messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px clamp(14px,3vw,30px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overscroll-behavior: contain;
+}
+.olivia-conversation__welcome { margin: auto; text-align: center; padding: 18px; }
+.olivia-conversation__welcome > span { display: inline-flex; padding: 5px 9px; border-radius: 999px; background: var(--olivia-mint); color: var(--olivia-green); font-size: 8px; font-weight: 850; letter-spacing: .16em; }
+.olivia-conversation__welcome h1 { margin: 12px 0 5px; color: #1b302c; font-size: clamp(20px,2.3vw,30px); letter-spacing: -.035em; }
+.olivia-conversation__welcome p { margin: 0; color: #758681; font-size: 11px; }
+.olivia-conversation__suggestions { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
+.olivia-conversation__suggestions button { min-height: 32px; padding: 0 12px; border: 1px solid rgba(21,88,85,.08); border-radius: 999px; background: #fff; color: #536b66; font-size: 9px; cursor: pointer; }
+.olivia-message { max-width: 82%; display: flex; align-items: flex-start; gap: 7px; }
+.olivia-message.is-user { align-self: flex-end; flex-direction: row-reverse; }
+.olivia-message__avatar { width: 22px; height: 22px; flex: 0 0 22px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg,#f58961,var(--olivia-orange)); color: #fff; }
+.olivia-message__body { min-width: 20px; padding: 9px 12px; border-radius: 15px 15px 15px 5px; background: rgba(255,255,255,.9); color: #243a36; box-shadow: 0 5px 18px rgba(21,88,85,.05); font-size: 11px; line-height: 1.6; }
+.olivia-message.is-user .olivia-message__body { border-radius: 15px 15px 5px 15px; background: var(--olivia-green); color: #fff; box-shadow: 0 7px 20px rgba(21,88,85,.16); }
+.olivia-message__body p { margin: 0; }
+.olivia-message__error { color: #9e4327; }
+.olivia-message__error button { margin-left: 8px; border: 0; border-radius: 999px; padding: 5px 8px; background: #fff0ea; color: var(--olivia-orange); font-size: 9px; cursor: pointer; }
+.olivia-agent-status { display: flex; align-items: center; gap: 7px; color: #6e817c; font-size: 9px; padding-left: 30px; }
+.olivia-agent-status span { width: 6px; height: 6px; border-radius: 50%; background: var(--olivia-orange); box-shadow: 0 0 0 5px rgba(232,93,44,.09); }
+.olivia-typing { display: inline-flex; gap: 3px; padding: 5px 2px; }
+.olivia-typing i { width: 4px; height: 4px; border-radius: 50%; background: #8da19c; animation: olivia-dot 1.1s infinite alternate; }
+.olivia-typing i:nth-child(2) { animation-delay: .15s; }.olivia-typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes olivia-dot { to { transform: translateY(-3px); opacity: .45; } }
+.olivia-composer-shell { flex: 0 0 auto; padding: 8px clamp(12px,2.3vw,24px) 13px; }
+.olivia-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 7px 8px 7px 15px;
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  background: var(--glass-bg-strong);
+  box-shadow: 0 10px 34px rgba(21,88,85,.1), inset 0 1px 0 rgba(255,255,255,.88);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+}
+.olivia-composer textarea { flex: 1; min-width: 0; max-height: 152px; resize: none; border: 0; outline: 0; background: transparent; color: #223a35; font: 500 12px/1.55 inherit; padding: 5px 0; }
+.olivia-composer textarea::placeholder { color: #91a09d; }
+.olivia-composer > button { width: 32px; height: 32px; flex: 0 0 32px; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer; transition: transform 260ms cubic-bezier(.32,.72,0,1), opacity 260ms cubic-bezier(.32,.72,0,1); }
+.olivia-composer > button:active { transform: scale(.94); }
+.olivia-composer > button:disabled { opacity: .35; cursor: default; }
+.olivia-composer > button.is-send { background: var(--olivia-green); color: #fff; }
+.olivia-composer > button.is-stop { background: #fff0ea; color: var(--olivia-orange); }
+
+.olivia-fullscreen-stage { position: fixed; inset: 0; z-index: 10040; display: flex; background: #fff; }
+.olivia-fullscreen-stage__workspace { flex: 1; min-width: 0; }
+.olivia-floating-core {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 10042;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255,255,255,.76);
+  cursor: pointer;
+  animation: olivia-core-pulse 3.2s cubic-bezier(.32,.72,0,1) infinite;
+}
+@keyframes olivia-core-pulse { 50% { box-shadow: 0 9px 30px rgba(232,93,44,.36),0 0 0 9px rgba(232,93,44,.06); } }
+.olivia-chat-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10043;
+  width: clamp(420px,32vw,480px);
+  padding-top: 40px;
+  border-left: 1px solid rgba(255,255,255,.75);
+  background: rgba(248,250,249,.88);
+  box-shadow: -24px 0 70px rgba(21,88,85,.13);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  transform: translateX(104%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 430ms cubic-bezier(.32,.72,0,1), opacity 260ms cubic-bezier(.32,.72,0,1);
+}
+.olivia-chat-drawer.is-open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+.olivia-chat-drawer__close { position: absolute; top: 10px; right: 12px; min-height: 27px; padding: 0 10px; border: 1px solid rgba(21,88,85,.09); border-radius: 999px; background: rgba(255,255,255,.72); color: #58716c; font-size: 9px; cursor: pointer; }
+
+@media (max-width: 1200px) {
+  .olivia-home-context__expanded { grid-template-columns: 190px 300px minmax(0,1fr); }
+  .olivia-conversation__stage { grid-template-columns: 148px minmax(0,1fr) 38px; }
+}
+@media (max-width: 900px) {
+  .olivia-adaptive-stage { height: auto; min-height: calc(100dvh - var(--admin-header-height,72px)); overflow: visible; padding: 8px; }
+  .olivia-adaptive-stage__chat { min-height: 62dvh; }
+  .olivia-home-context { flex-basis: auto; max-height: none; overflow: visible; }
+  .olivia-home-context__expanded { height: auto; grid-template-columns: 1fr; }
+  .olivia-home-context.is-dock { flex-basis: 60px; overflow: hidden; }
+  .olivia-context-dock { justify-content: flex-start; overflow-x: auto; }
+  .olivia-adaptive-stage__workspace.is-visible { min-height: 62dvh; }
+  .olivia-message { max-width: 92%; }
+  .olivia-conversation__controls button { font-size: 0; width: 30px; padding: 0; justify-content: center; }
+  .olivia-chat-drawer { width: min(100%,480px); }
+  .olivia-conversation__stage { grid-template-columns: minmax(0,1fr) 30px; }
+  .olivia-history-nav { display: none; }
+  .olivia-message-guide { padding-inline: 4px; }
+  .olivia-message-guide__ticks > button { width: 20px; }
+  .olivia-message-guide__popover { position: fixed; left: 12px; right: 12px; top: auto; bottom: 88px; width: auto; transform: none; }
 }

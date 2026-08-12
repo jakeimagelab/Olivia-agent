@@ -1,6 +1,7 @@
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
+import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 
 // Olivia Agent 2.0 — OliviaUiAction 하나를 실제 store 변경으로 옮긴다. 채팅 컴포넌트는
 // executeOliviaAction(action)만 부르면 되고, 어떤 store를 어떻게 바꾸는지는 여기 한 곳에만
@@ -8,6 +9,7 @@ import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 export function executeOliviaAction(action: OliviaUiAction) {
   const workspace = useWorkspaceStore.getState();
   const context = useOliviaContextStore.getState();
+  const layout = useOliviaLayoutStore.getState();
 
   switch (action.type) {
     case "OPEN_WORKSPACE": {
@@ -20,37 +22,63 @@ export function executeOliviaAction(action: OliviaUiAction) {
       });
       context.setWorkspace(action.workspace, action.resourceId);
       if (action.clientId) context.setClient(action.clientId, action.clientName);
+      if (action.workflowRunId || action.projectName) context.setProject(action.workflowRunId, action.projectName);
+      context.recordAction(`open:${action.workspace}`);
+      layout.openWorkspaceMode();
       return;
     }
     case "SWITCH_WORKSPACE": {
       workspace.switchWorkspace(action.workspace, { resourceId: action.resourceId });
       context.setWorkspace(action.workspace, action.resourceId);
+      context.recordAction(`switch:${action.workspace}`);
+      layout.openWorkspaceMode();
       return;
     }
     case "CLOSE_WORKSPACE": {
       workspace.closeWorkspace();
       context.setWorkspace(undefined, undefined);
+      context.clearSelection();
+      layout.closeWorkspaceMode();
       return;
     }
     case "ENTER_FULLSCREEN": {
       workspace.enterFullscreen();
+      layout.enterFullscreen();
       return;
     }
     case "EXIT_FULLSCREEN": {
       workspace.exitFullscreen();
+      layout.exitFullscreen();
       return;
     }
     case "UPDATE_CONTEXT": {
       if (action.clientId !== undefined || action.clientName !== undefined) context.setClient(action.clientId, action.clientName);
       if (action.projectId !== undefined || action.projectName !== undefined) context.setProject(action.projectId, action.projectName);
+      context.recordAction("context:update");
       return;
     }
     case "REFRESH_RESOURCE": {
+      context.setResource(action.resourceId);
+      context.pushRecentAction({ type: `refresh:${action.resource || "resource"}`, at: new Date().toISOString(), entityId: action.changedEntityId || action.resourceId, before: action.before, after: action.after });
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("olivia-resource-refresh", { detail: { resource: action.resource } }));
+        window.dispatchEvent(new CustomEvent("olivia-resource-refresh", { detail: { resource: action.resource, resourceId: action.resourceId } }));
       }
       return;
     }
+    case "SET_SELECTION": {
+      context.setSelection(action.entityType, action.entityId);
+      context.recordAction(`select:${action.entityType}:${action.entityId}`);
+      return;
+    }
+    case "PREVIEW_QUOTE": {
+      context.setResource(action.resourceId);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("olivia-quote-preview", { detail: { resourceId: action.resourceId } }));
+      }
+      return;
+    }
+    case "REQUEST_APPROVAL":
+      return;
   }
 }
 

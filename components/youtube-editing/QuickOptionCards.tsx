@@ -117,12 +117,12 @@ export default function QuickOptionCards({
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <FieldGroup label="등장 방식">
               {CAPTION_APPEARS.map((appear: CaptionAppear) => (
-                <OptionButton key={appear} active={segment.caption.appear === appear} onClick={() => setCaptionField("appear", appear)}>{appear}</OptionButton>
+                <OptionButton key={appear} inline active={segment.caption.appear === appear} onClick={() => setCaptionField("appear", appear)}>{appear}</OptionButton>
               ))}
             </FieldGroup>
             <FieldGroup label="위치">
               {CAPTION_POSITIONS.map((position: CaptionPosition) => (
-                <OptionButton key={position} active={segment.caption.position === position} onClick={() => setCaptionField("position", position)}>{position}</OptionButton>
+                <OptionButton key={position} inline active={segment.caption.position === position} onClick={() => setCaptionField("position", position)}>{position}</OptionButton>
               ))}
             </FieldGroup>
             <FieldGroup label="강조 색상">
@@ -151,12 +151,12 @@ export default function QuickOptionCards({
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
             <FieldGroup label="화면 배치">
               {VISUAL_LAYOUTS.map((layout: VisualLayout) => (
-                <OptionButton key={layout} active={segment.visual.layout === layout} onClick={() => setVisualField("layout", layout)}>{layout}</OptionButton>
+                <OptionButton key={layout} inline active={segment.visual.layout === layout} onClick={() => setVisualField("layout", layout)}>{layout}</OptionButton>
               ))}
             </FieldGroup>
             <FieldGroup label="스타일">
               {VISUAL_STYLES.map((style: VisualStyle) => (
-                <OptionButton key={style} active={segment.visual.style === style} onClick={() => setVisualField("style", style)}>{style}</OptionButton>
+                <OptionButton key={style} inline active={segment.visual.style === style} onClick={() => setVisualField("style", style)}>{style}</OptionButton>
               ))}
             </FieldGroup>
           </div>

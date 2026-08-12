@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import MiniCalendar from "@/components/work-journal/MiniCalendar";
 import { dateHeaderLabel, todayStr } from "@/lib/work-journal/dateLabel";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 
 // 통합 스케줄 — 미니 캘린더(왼쪽, 작게) + 선택한 날짜의 일정(오른쪽, 넓게)을 가로로 배치.
 // 오늘 할 일은 캘린더 아래에 "3/5" 요약만 보여준다(체크리스트 전체는 /calendar에서).
@@ -12,8 +13,20 @@ export default function IntegratedCalendar() {
   const [currentMonth, setCurrentMonth] = useState(() => todayStr().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(() => todayStr());
   const [eventDates, setEventDates] = useState<Set<string>>(new Set());
-  const [daySchedules, setDaySchedules] = useState<{ id: string; time: string | null; title: string }[]>([]);
+  const [daySchedules, setDaySchedules] = useState<{
+    id: string;
+    time: string | null;
+    title: string;
+    clientId?: string;
+    clientName?: string;
+    projectId?: string;
+    projectName?: string;
+  }[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
+  const setSelectedSchedule = useOliviaContextStore((state) => state.setSelectedSchedule);
+  const setClient = useOliviaContextStore((state) => state.setClient);
+  const setProject = useOliviaContextStore((state) => state.setProject);
+  const recordAction = useOliviaContextStore((state) => state.recordAction);
 
   const { data } = useHomeDashboardData();
   const todos = data?.todayTasks ?? [];
@@ -35,7 +48,15 @@ export default function IntegratedCalendar() {
       .then((r) => r.json())
       .then((json) => {
         if (!json?.ok) return;
-        setDaySchedules((json.tasks ?? []).map((t: any) => ({ id: t.id, time: t.time, title: t.title })));
+        setDaySchedules((json.tasks ?? []).map((t: Record<string, unknown>) => ({
+          id: String(t.id),
+          time: typeof t.time === "string" ? t.time : null,
+          title: String(t.title || "일정"),
+          clientId: typeof t.client_id === "string" ? t.client_id : undefined,
+          clientName: typeof t.client_name === "string" ? t.client_name : typeof t.hospital_name === "string" ? t.hospital_name : undefined,
+          projectId: typeof t.workflow_run_id === "string" ? t.workflow_run_id : typeof t.project_id === "string" ? t.project_id : undefined,
+          projectName: typeof t.project_name === "string" ? t.project_name : undefined,
+        })));
       })
       .catch(() => {})
       .finally(() => setScheduleLoading(false));
@@ -91,7 +112,12 @@ export default function IntegratedCalendar() {
             <div className="pc-panel__empty">등록된 일정이 없어요.</div>
           ) : (
             daySchedules.slice(0, 5).map((s) => (
-              <button key={s.id} type="button" className="pc-schedule-row">
+              <button key={s.id} type="button" className="pc-schedule-row" onClick={() => {
+                if (s.clientId || s.clientName) setClient(s.clientId, s.clientName);
+                if (s.projectId || s.projectName) setProject(s.projectId, s.projectName);
+                setSelectedSchedule(s.id);
+                recordAction(`schedule:selected:${s.id}`);
+              }}>
                 <time>{s.time || "종일"}</time>
                 <span>{s.title}</span>
               </button>

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 
 // app/(client-hub)/clients/page.tsx의 STEP_INFO와 같은 취지의 "다음 업무" 설명 — 그 파일은 export를
 // 안 해서 여기서는 홈 카드에 필요한 만큼만 작게 다시 쓴다.
@@ -49,6 +51,10 @@ function relativeTime(iso: string): string {
 
 export default function RecentProjects() {
   const [runs, setRuns] = useState<WorkflowRun[] | null>(null);
+  const setClient = useOliviaContextStore((state) => state.setClient);
+  const setProject = useOliviaContextStore((state) => state.setProject);
+  const recordAction = useOliviaContextStore((state) => state.recordAction);
+  const sendMessage = useOliviaConversationStore((state) => state.sendMessage);
 
   useEffect(() => {
     fetch("/api/workflow/summary", { cache: "no-store" })
@@ -78,10 +84,16 @@ export default function RecentProjects() {
           <div className="pc-panel__empty">진행 중인 프로젝트가 없어요.</div>
         ) : (
           runs.map((run) => (
-            <Link
+            <button
               key={run.id}
-              href={run.client_id ? `/clients?clientId=${run.client_id}` : "/clients"}
+              type="button"
               className="pc-project-row"
+              onClick={() => {
+                setClient(run.client_id || undefined, run.client_name);
+                setProject(run.id, run.client_name ? `${run.client_name} 프로젝트` : undefined);
+                recordAction(`project:selected:${run.id}`);
+                void sendMessage(`${run.client_name} 프로젝트 보여줘`);
+              }}
             >
               <div className="pc-project-row__main">
                 <strong>{run.client_name || "이름 없는 고객"}</strong>
@@ -89,7 +101,7 @@ export default function RecentProjects() {
                 <small>다음 · {STEP_NEXT_ACTION[run.display_step_key] || run.current_step_name}</small>
               </div>
               <span className="pc-project-row__time">{relativeTime(run.updated_at)}</span>
-            </Link>
+            </button>
           ))
         )}
       </div>

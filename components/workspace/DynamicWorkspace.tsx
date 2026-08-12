@@ -5,6 +5,10 @@ import { createPortal } from "react-dom";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
+import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
+import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
+import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
+import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 
 // 채팅 아래(split) 혹은 전체화면(fullscreen)으로 뜨는 기능 화면 셸. 어떤 워크스페이스를 보여줄지는
 // 하드코딩된 if(type==='quote') 체인이 아니라 WorkspaceRegistry에서 찾는다 — 새 워크스페이스를
@@ -12,15 +16,17 @@ import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
 // split: 페이지 레이아웃 안에 그대로 그려져 부모가 준 높이를 채운다.
 // fullscreen: 사이드바까지 덮도록 body에 포털로 빠져나가 뷰포트 전체를 차지한다(ESC로도 종료).
 export default function DynamicWorkspace() {
-  const { type, mode, clientId, workflowRunId, resourceId, clientName, closeWorkspace, enterFullscreen, exitFullscreen } = useWorkspaceStore();
+  const { type, mode, clientId, workflowRunId, resourceId, clientName } = useWorkspaceStore();
   const isFullscreen = mode === "fullscreen";
+  const drawerOpen = useOliviaLayoutStore((state) => state.drawerOpen);
+  const setDrawerOpen = useOliviaLayoutStore((state) => state.setDrawerOpen);
 
   useEffect(() => {
     if (!isFullscreen) return;
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") exitFullscreen(); };
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") executeOliviaAction({ type: "EXIT_FULLSCREEN" }); };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [isFullscreen, exitFullscreen]);
+  }, [isFullscreen]);
 
   const entry = type ? workspaceRegistry[type] : undefined;
   if (!type || !entry) return null;
@@ -32,7 +38,7 @@ export default function DynamicWorkspace() {
     clientId,
     workflowRunId,
     resourceId,
-    onClose: closeWorkspace,
+    onClose: () => executeOliviaAction({ type: "CLOSE_WORKSPACE" }),
     onPublished: () => {},
   };
 
@@ -66,7 +72,7 @@ export default function DynamicWorkspace() {
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
           <button
             type="button"
-            onClick={isFullscreen ? exitFullscreen : enterFullscreen}
+            onClick={() => executeOliviaAction({ type: isFullscreen ? "EXIT_FULLSCREEN" : "ENTER_FULLSCREEN" })}
             aria-label={isFullscreen ? "전체화면 종료" : "전체화면"}
             title={isFullscreen ? "전체화면 종료" : "전체화면"}
             style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(21,88,85,0.12)", background: "#fff", color: "#5A7470", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -75,7 +81,7 @@ export default function DynamicWorkspace() {
           </button>
           <button
             type="button"
-            onClick={closeWorkspace}
+            onClick={() => executeOliviaAction({ type: "CLOSE_WORKSPACE" })}
             aria-label="닫기"
             title="닫기"
             style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(21,88,85,0.12)", background: "#fff", color: "#5A7470", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -93,7 +99,14 @@ export default function DynamicWorkspace() {
 
   if (isFullscreen && typeof document !== "undefined") {
     return createPortal(
-      <div style={{ position: "fixed", inset: 0, zIndex: 10040, background: "#fff" }}>{body}</div>,
+      <div className="olivia-fullscreen-stage">
+        <div className="olivia-fullscreen-stage__workspace">{body}</div>
+        <button type="button" className="olivia-floating-core" onClick={() => setDrawerOpen(!drawerOpen)} aria-label="Olivia 대화 열기"><OliviaIcon size={18} /></button>
+        <aside className={`olivia-chat-drawer${drawerOpen ? " is-open" : ""}`} aria-hidden={!drawerOpen}>
+          <button type="button" className="olivia-chat-drawer__close" onClick={() => setDrawerOpen(false)}>닫기</button>
+          <OliviaConversation variant="drawer" />
+        </aside>
+      </div>,
       document.body,
     );
   }

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 
 // Olivia Agent 2.0 — 채팅에서 연 "기능 화면"이 홈 페이지 레이아웃(split)이나 전체화면
 // (fullscreen)으로 떠 있는 상태를 앱 전역에서 공유한다. GlobalOliviaChat(루트 레이아웃, 페이지
@@ -64,24 +65,41 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   mode: "home",
   ...EMPTY_CONTEXT,
 
-  openWorkspace: (type, ctx = {}) => set({ type, mode: "split", ...EMPTY_CONTEXT, ...ctx }),
+  openWorkspace: (type, ctx = {}) => {
+    set({ type, mode: "split", ...EMPTY_CONTEXT, ...ctx });
+    useOliviaLayoutStore.getState().openWorkspaceMode();
+  },
 
   // 같은 고객/프로젝트 컨텍스트를 유지한 채로 다른 워크스페이스로만 전환한다("콘티 보여줘") —
   // clientId/workflowRunId/clientName처럼 ctx에서 안 넘어온 필드는 기존 값을 그대로 이어간다.
-  switchWorkspace: (type, ctx = {}) => set((state) => ({
-    type, mode: state.mode === "home" ? "split" : state.mode,
-    clientId: ctx.clientId ?? state.clientId,
-    workflowRunId: ctx.workflowRunId ?? state.workflowRunId,
-    resourceId: ctx.resourceId,
-    clientName: ctx.clientName ?? state.clientName,
-    projectName: ctx.projectName ?? state.projectName,
-    workspaceTitle: ctx.workspaceTitle,
-    source: ctx.source ?? state.source,
-    openedBy: ctx.openedBy ?? state.openedBy,
-  })),
+  switchWorkspace: (type, ctx = {}) => {
+    set((state) => ({
+      type, mode: state.mode === "home" ? "split" : state.mode,
+      clientId: ctx.clientId ?? state.clientId,
+      workflowRunId: ctx.workflowRunId ?? state.workflowRunId,
+      resourceId: ctx.resourceId,
+      clientName: ctx.clientName ?? state.clientName,
+      projectName: ctx.projectName ?? state.projectName,
+      workspaceTitle: ctx.workspaceTitle,
+      source: ctx.source ?? state.source,
+      openedBy: ctx.openedBy ?? state.openedBy,
+    }));
+    useOliviaLayoutStore.getState().openWorkspaceMode();
+  },
 
-  closeWorkspace: () => set({ type: null, mode: "home", ...EMPTY_CONTEXT }),
+  closeWorkspace: () => {
+    set({ type: null, mode: "home", ...EMPTY_CONTEXT });
+    useOliviaLayoutStore.getState().closeWorkspaceMode();
+  },
 
-  enterFullscreen: () => { if (get().type) set({ mode: "fullscreen" }); },
-  exitFullscreen: () => { if (get().type) set({ mode: "split" }); },
+  enterFullscreen: () => {
+    if (!get().type) return;
+    set({ mode: "fullscreen" });
+    useOliviaLayoutStore.getState().enterFullscreen();
+  },
+  exitFullscreen: () => {
+    if (!get().type) return;
+    set({ mode: "split" });
+    useOliviaLayoutStore.getState().exitFullscreen();
+  },
 }));
