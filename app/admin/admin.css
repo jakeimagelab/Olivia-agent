@@ -591,13 +591,26 @@
 }
 
 .oa-shell {
-  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-columns: 68px minmax(0, 1fr);
   background:
     radial-gradient(circle at 82% 8%, rgba(232, 93, 44, .055), transparent 25%),
     radial-gradient(circle at 18% 72%, rgba(21, 88, 85, .065), transparent 30%),
     var(--command-bg);
   color: var(--command-text);
   font-family: var(--font-sans);
+}
+
+/* 왼쪽 네비게이터를 아이콘만 보이는 폭으로 최대한 줄인다 — 모바일(드로어로 전체폭 열림)은
+   건드리지 않는다. 라벨은 DOM엔 남겨서(접근성) title 툴팁으로만 보여준다. */
+@media (min-width: 901px) {
+  .oa-sidebar__brand { justify-content: center; padding: 0; }
+  .oa-sidebar__brand-copy { display: none; }
+  .oa-sidebar__section-label { display: none; }
+  .oa-sidebar__navigation { padding: 12px 10px; }
+  .oa-sidebar__link { justify-content: center; padding: 0; gap: 0; }
+  .oa-sidebar__link span { display: none; }
+  .oa-sidebar__footer { grid-template-columns: 1fr; padding: 8px; }
+  .oa-sidebar__footer-link span { display: none; }
 }
 
 .oa-shell svg,
