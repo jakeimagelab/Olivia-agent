@@ -11,9 +11,11 @@ const STEP_LABELS: Record<string, string> = {
   review_content: "14. 후기 콘텐츠", reward: "15. 리워드", customer_care: "16. 고객 케어", content_planning: "17. 콘텐츠 기획",
 };
 
-function resolveOrigin(req: NextRequest) {
+// req는 레거시(Claude) 경로에서만 넘어온다 — v2(OpenAI) 경로는 NextRequest 없이 runTool을
+// 호출하므로, req가 없으면 요청 헤더 대신 env var/publish_quote와 동일한 fallback만 쓴다.
+function resolveOrigin(req?: NextRequest | null) {
   return (
-    req.headers.get("x-base-url") || req.headers.get("origin") ||
+    req?.headers.get("x-base-url") || req?.headers.get("origin") ||
     process.env.NEXT_PUBLIC_BASE_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
     "http://localhost:3000"
