@@ -436,19 +436,34 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
               style={{ width: 28, height: 28, flexShrink: 0, border: "none", background: "transparent", color: "#9BB5B0", cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Mic size={16} />
             </button>
-            <button
-              type="button"
-              onClick={() => void send()}
-              disabled={!input.trim() || loading}
-              style={{
-                width: 32, height: 32, flexShrink: 0, borderRadius: "50%", border: "none",
-                background: input.trim() && !loading ? C.teal : "#D5E4E1",
-                color: "#fff", cursor: input.trim() && !loading ? "pointer" : "not-allowed",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-            >
-              <ArrowUp size={15} />
-            </button>
+            {loading ? (
+              <button
+                type="button"
+                onClick={stop}
+                title="정지"
+                style={{
+                  width: 32, height: 32, flexShrink: 0, borderRadius: "50%", border: "none",
+                  background: C.teal, color: "#fff", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Square size={12} fill="#fff" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void send()}
+                disabled={!input.trim()}
+                style={{
+                  width: 32, height: 32, flexShrink: 0, borderRadius: "50%", border: "none",
+                  background: input.trim() ? C.teal : "#D5E4E1",
+                  color: "#fff", cursor: input.trim() ? "pointer" : "not-allowed",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <ArrowUp size={15} />
+              </button>
+            )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(21,88,85,0.06)" }}>
             <span style={{ width: 15, height: 15, borderRadius: "50%", background: "linear-gradient(135deg, #E85D2C, #EB8F22)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
