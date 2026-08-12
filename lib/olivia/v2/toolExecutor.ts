@@ -602,9 +602,16 @@ export async function runTool(
     return { tool: name, success: true, data: { date: text(input, "date"), tasks } };
   }
   if (name === "calendar_add") {
-    const conflicts = await findCalendarConflicts(text(input, "date"), (input.time as string | null) || null);
+    if (input.time) {
+      const existing = await listCalendarTasks(text(input, "date"));
+      const conflicts = findCalendarConflicts(existing, input.time as string, 60);
+      if (conflicts.length > 0) {
+        const labels = conflicts.slice(0, 3).map((task: any) => `${task.time} ${task.title}`).join(", ");
+        throw new Error(`같은 시간대에 등록된 일정이 있습니다: ${labels}. 시간을 변경하거나 기존 일정을 먼저 확인해 주세요.`);
+      }
+    }
     const id = await addCalendarTask(input);
-    return { tool: name, success: true, data: { taskId: id, conflicts, summary: `"${text(input, "title")}" 일정을 추가했어요.` } };
+    return { tool: name, success: true, data: { taskId: id, summary: `"${text(input, "title")}" 일정을 추가했어요.` } };
   }
   if (name === "calendar_add_bulk") {
     const tasks = Array.isArray(input.tasks) ? input.tasks as any[] : [];
