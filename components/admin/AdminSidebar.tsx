@@ -92,31 +92,26 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
       </div>
 
       <nav className="oa-sidebar__navigation" aria-label="주요 메뉴">
-        {navigation.map((section) => (
-          <section className="oa-sidebar__section" key={section.key} aria-labelledby={`oa-nav-${section.key}`}>
-            <h2 className="oa-sidebar__section-label" id={`oa-nav-${section.key}`}>{section.label}</h2>
-            <ul className="oa-sidebar__list">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const active = item.exact ? pathname === item.href : isActiveRoute(pathname, item.href);
-                return (
-                  <li className="oa-sidebar__list-item" key={item.href}>
-                    <Link
-                      className={`oa-sidebar__link${item.accent === "orange" ? " oa-sidebar__link--orange" : ""}${active ? " oa-sidebar__link--active" : ""}`}
-                      href={`${item.href}${item.carryContext ? contextSuffix : ""}`}
-                      aria-current={active ? "page" : undefined}
-                      title={item.label}
-                      onClick={onClose}
-                    >
-                      <Icon className="oa-sidebar__link-icon" size={17} aria-hidden="true" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
+        <ul className="oa-sidebar__list">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            const active = item.exact ? pathname === item.href : isActiveRoute(pathname, item.href);
+            return (
+              <li className="oa-sidebar__list-item" key={item.href}>
+                <Link
+                  className={`oa-sidebar__link${item.accent === "orange" ? " oa-sidebar__link--orange" : ""}${active ? " oa-sidebar__link--active" : ""}`}
+                  href={`${item.href}${item.carryContext ? contextSuffix : ""}`}
+                  aria-current={active ? "page" : undefined}
+                  title={item.label}
+                  onClick={onClose}
+                >
+                  <Icon className="oa-sidebar__link-icon" size={17} aria-hidden="true" />
+                  <span>{item.label}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
 
       <div className="oa-sidebar__footer">
