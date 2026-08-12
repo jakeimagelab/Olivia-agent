@@ -83,7 +83,7 @@ export default function MiniCalendar({
           </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: compact ? 6 : 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: compact ? 2 : 10 }}>
           <button type="button" onClick={() => onMonthChange(shiftMonth(currentMonth, -1))} aria-label="이전 달"
             style={{ width: 24, height: 24, border: "none", background: "transparent", color: C.muted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <ChevronLeft size={16} />
