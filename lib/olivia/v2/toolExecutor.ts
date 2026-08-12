@@ -714,6 +714,38 @@ export async function runTool(
     return fromLegacyResult(name, result);
   }
 
+  // ── 병원 채널 진단 — lib/channelAnalysis.ts의 /channel-analyzer 로직을 그대로 재사용 ──
+  if (name === "run_brand_diagnosis") {
+    const clientName = text(input, "clientName");
+    const client = await fuzzyNameSearchOne<any>({
+      db, table: "clients", nameColumn: "hospital_name",
+      select: "id, hospital_name, specialty, website_url, instagram_url, naver_place_url",
+      query: clientName,
+    });
+    const urls = {
+      web: text(input, "websiteUrl") || client?.website_url || undefined,
+      naver: text(input, "naverPlaceUrl") || client?.naver_place_url || undefined,
+      insta: text(input, "instagramUrl") || client?.instagram_url || undefined,
+    };
+    if (!urls.web && !urls.naver && !urls.insta) {
+      throw new Error(`${client?.hospital_name || clientName}의 등록된 채널 URL이 없어요. 홈페이지·네이버플레이스·인스타그램 중 하나라도 알려주세요.`);
+    }
+    const { result } = await analyzeChannels({ hospitalName: client?.hospital_name || clientName, specialty: client?.specialty, urls });
+    return {
+      tool: name,
+      success: true,
+      data: {
+        clientId: client?.id,
+        clientName: client?.hospital_name || clientName,
+        overallScore: result.overall_score,
+        summary: result.overall_summary,
+        coverage: result.coverage_summary,
+        issues: result.seo_insights,
+        packageRecommendation: result.package_recommendation,
+      },
+    };
+  }
+
   // ── 메모 ──
   if (name === "memo_add") {
     const client = await fuzzyNameSearchOne<any>({ db, table: "clients", nameColumn: "hospital_name", select: "id, hospital_name", query: text(input, "clientName") });
