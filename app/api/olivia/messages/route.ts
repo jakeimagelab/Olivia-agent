@@ -8,12 +8,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// GET /api/olivia/messages?limit=60&since=ISO&source=telegram
+// GET /api/olivia/messages?limit=60&since=ISO&before=ISO&source=telegram
 export async function GET(req: NextRequest) {
   const db = getSupabaseAdmin();
   const { searchParams } = new URL(req.url);
   const limit  = Math.min(parseInt(searchParams.get("limit") || "60"), 200);
   const since  = searchParams.get("since");
+  const before = searchParams.get("before");
   const source = searchParams.get("source");
 
   const buildQuery = (includeMetadata: boolean) => {
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
     .limit(limit);
 
     if (since)  q = q.gt("created_at", since);
+    if (before) q = q.lt("created_at", before);
     if (source) q = q.eq("source", source);
     return q;
   };
