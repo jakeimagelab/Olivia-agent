@@ -24,6 +24,13 @@ import {
 import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
 import { createOliviaReviewCampaign } from "@/lib/reviewContent/createOliviaCampaign";
 import { fetchActiveKnowledgePatches, formatKnowledgePatchContext, guessKnowledgeCategory } from "@/lib/olivia/knowledgePatches";
+import {
+  addCalendarTask,
+  deleteCalendarTask,
+  listCalendarTasks,
+  resolveCalendarTaskId,
+  updateCalendarTask,
+} from "@/lib/olivia/tools/calendar";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
