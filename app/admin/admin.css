@@ -380,28 +380,6 @@
   height: 100%;
 }
 
-/* Olivia Agent 2.0 — 채팅 히어로 + 빠른실행/최근프로젝트/통합캘린더 3장. .pc-dash-brief와 같은
-   "강제 height 없이 자연 스크롤" 원칙을 그대로 따른다. */
-.pc-dash-hero {
-  min-height: 680px;
-  margin-bottom: 14px;
-  flex-shrink: 0;
-}
-
-.pc-dash-quickrow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
-  gap: 12px;
-  margin-bottom: 22px;
-  flex-shrink: 0;
-}
-
-.pc-dash-quickrow > * {
-  min-width: 0;
-  min-height: 220px;
-}
-
 /* Olivia Agent 2.0 Phase 2 — 채팅에서 워크스페이스를 열었을 때(split): 압축된 채팅이 위,
    기능 화면(DynamicWorkspace)이 그 아래 나머지를 채운다. AdminHeader 높이(72~84px) +
    페이지 상하 패딩을 감안한 대략치라 실기기에서 살짝 다를 수 있다 — 실제 화면으로 확인 필요. */
@@ -409,7 +387,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: calc(100vh - 150px);
+  height: calc(100dvh - 72px);
   min-height: 520px;
 }
 .pc-dash-split__chat {
@@ -419,36 +397,6 @@
 .pc-dash-split__workspace {
   flex: 1;
   min-height: 0;
-}
-
-@media (max-width: 1080px) {
-  .pc-dash-quickrow {
-    grid-template-columns: 1fr;
-  }
-  .pc-dash-hero {
-    min-height: 480px;
-  }
-}
-
-/* 빠른실행(QuickActions)은 원래 전체 폭 6열 그리드로 설계됐다 — 이 3분할 카드 자리에 들어올 때만
-   2열로 좁히고, RecentProjects/IntegratedCalendar와 같은 유리 카드 껍데기를 입힌다(다른 곳에서
-   쓰는 QuickActions 자체는 그대로 둔다, 이 페이지 안에서만 스코프된 오버라이드). */
-.pc-dash-quickrow .home-quick {
-  height: 100%;
-  margin: 0;
-  padding: 16px 16px 14px;
-  border-radius: 22px;
-  background: rgba(255,255,255,0.72);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(21,88,85,0.08);
-  box-shadow: 0 12px 40px rgba(20,60,55,0.06);
-  display: flex;
-  flex-direction: column;
-}
-.pc-dash-quickrow .home-quick__grid {
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  flex: 1;
 }
 
 .pc-dash-olivia {
