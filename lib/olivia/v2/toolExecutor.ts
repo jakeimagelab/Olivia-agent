@@ -186,6 +186,8 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   { type: "function", name: "complete_meeting", description: "[WRITE] 미팅을 완료 처리합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { meetingId: { type: "string" } }, required: ["meetingId"] } },
   { type: "function", name: "get_meeting_followups", description: "[READ] 미팅 후속 조치 목록을 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { meetingId: { type: ["string", "null"] } }, required: ["meetingId"] } },
   { type: "function", name: "link_meeting_client", description: "[WRITE] 미팅을 실제 고객과 연결합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { meetingId: { type: "string" }, clientName: { type: "string" } }, required: ["meetingId", "clientName"] } },
+  // ── 병원 채널 진단 ──
+  { type: "function", name: "run_brand_diagnosis", description: "[READ] 고객의 홈페이지·네이버플레이스·블로그·인스타그램 채널을 분석해 브랜드 진단 점수와 개선점을 제공합니다. URL을 안 주면 등록된 고객 정보의 채널 URL을 사용합니다. 채널 URL이 하나도 없으면 실패합니다. 시간이 걸릴 수 있어요.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientName: { type: "string" }, websiteUrl: { type: ["string", "null"] }, naverPlaceUrl: { type: ["string", "null"] }, instagramUrl: { type: ["string", "null"] } }, required: ["clientName", "websiteUrl", "naverPlaceUrl", "instagramUrl"] } },
   // ── 메모 ──
   { type: "function", name: "memo_add", description: "[WRITE] 고객 상담 메모를 실제로 저장합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientName: { type: "string" }, content: { type: "string" } }, required: ["clientName", "content"] } },
 ];
