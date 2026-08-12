@@ -355,29 +355,9 @@
 .oa-crm-shortcuts a:hover { color: var(--oa-blue); }
 .oa-shell__scrim { display: none; }
 
-/* ── 대시보드 홈 — 브리핑(시계+명언)을 맨 위로, 카드/여백을 압축해서 되도록 한 화면에
-   들어오게 한다. 예전엔 height 고정 + overflow:hidden으로 "강제로" 안 스크롤되게 했더니
-   내용이 넘칠 때 아래쪽이 그냥 잘려서 안 보이는 버그가 있었다 — 압축은 하되 넘치면
-   페이지 자체가 자연스럽게 스크롤되도록 높이 강제를 없앴다. */
 .pc-dash-home {
   display: flex;
   flex-direction: column;
-  padding-top: 18px;
-  padding-bottom: 18px;
-}
-
-.pc-dash-brief {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
-  gap: 12px;
-  margin-bottom: 14px;
-  flex-shrink: 0;
-}
-
-.pc-dash-brief > * {
-  min-width: 0;
-  height: 100%;
 }
 
 /* Olivia Agent 2.0 Phase 2 — 채팅에서 워크스페이스를 열었을 때(split): 압축된 채팅이 위,
