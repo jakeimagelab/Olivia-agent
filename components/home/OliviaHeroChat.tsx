@@ -24,9 +24,9 @@ import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 // 여기 프론트에서만 그 결과 해석을 가로챈다(찾는 고객이 없으면 기존 동작으로 그대로 폴백).
 
 const SUGGESTED_PROMPTS = [
-  "이번 촬영 일정과 필요한 장비 리스트 확인해줘",
-  "히어산부인과 견적서 초안 만들어줘",
-  "최근 프로젝트 진행 현황 요약해줘",
+  { icon: Sun, text: "이번 촬영 일정과\n필요한 장비 리스트 확인해줘", accent: "#EB8F22" },
+  { icon: Camera, text: "히어산부인과 견적서\n초안 만들어줘", accent: "#155855" },
+  { icon: BarChart3, text: "최근 프로젝트 진행 현황\n요약해줘", accent: "#155855" },
 ];
 
 export default function OliviaHeroChat({ compact = false }: { compact?: boolean } = {}) {
