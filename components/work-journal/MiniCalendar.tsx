@@ -48,6 +48,8 @@ export default function MiniCalendar({
   onMonthChange,
   upcoming,
   onSelectUpcoming,
+  compact = false,
+  hideUpcoming = false,
 }: {
   currentMonth: string;
   selectedDate: string;
@@ -57,15 +59,20 @@ export default function MiniCalendar({
   onMonthChange: (month: string) => void;
   upcoming: UpcomingEntry[];
   onSelectUpcoming: (entry: UpcomingEntry) => void;
+  /* 좁은 카드(홈 대시보드 통합 캘린더)에 넣을 때 셀 높이·여백을 줄인 축소판 */
+  compact?: boolean;
+  /* "다가오는 일정" 카드 자체를 렌더하지 않음 — 호출부가 그 자리를 다른 걸로 채울 때 */
+  hideUpcoming?: boolean;
 }) {
   const grid = buildGrid(currentMonth);
   const [year, month] = currentMonth.split("-").map(Number);
   const today = todayStr();
+  const cellHeight = compact ? 24 : 32;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, height: "100%" }}>
-      <div className="pc-card pc-card--padded">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: hideUpcoming ? 0 : 12, height: "100%" }}>
+      <div className="pc-card pc-card--padded" style={compact ? { padding: 12 } : undefined}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: compact ? 8 : 12 }}>
           <span style={{ fontSize: 13, fontWeight: 900, color: C.ink }}>📅 캘린더</span>
           <button
             type="button"
@@ -76,7 +83,7 @@ export default function MiniCalendar({
           </button>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: compact ? 6 : 10 }}>
           <button type="button" onClick={() => onMonthChange(shiftMonth(currentMonth, -1))} aria-label="이전 달"
             style={{ width: 24, height: 24, border: "none", background: "transparent", color: C.muted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <ChevronLeft size={16} />
@@ -106,9 +113,9 @@ export default function MiniCalendar({
                 type="button"
                 onClick={() => onSelectDate(cell.date)}
                 style={{
-                  position: "relative", height: 32, borderRadius: R.sm, border: isToday && !active ? `1px solid ${C.teal}` : "1px solid transparent",
+                  position: "relative", height: cellHeight, borderRadius: R.sm, border: isToday && !active ? `1px solid ${C.teal}` : "1px solid transparent",
                   background: active ? C.teal : "transparent", color: active ? "#fff" : cell.inMonth ? C.ink : C.hint,
-                  fontSize: 11.5, fontWeight: active ? 800 : 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: compact ? 10.5 : 11.5, fontWeight: active ? 800 : 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
                 {cell.day}
@@ -126,7 +133,7 @@ export default function MiniCalendar({
             );
           })}
         </div>
-        {eventDates.size > 0 ? (
+        {!compact && eventDates.size > 0 ? (
           <div style={{ display: "flex", gap: 12, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, color: C.muted, fontWeight: 700 }}>
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.orange }} />업무
@@ -138,26 +145,28 @@ export default function MiniCalendar({
         ) : null}
       </div>
 
-      <div className="pc-card pc-card--padded" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-        <div style={{ fontSize: 12, fontWeight: 800, color: C.ink, marginBottom: 10 }}>다가오는 일정</div>
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
-          {upcoming.length === 0 ? (
-            <p style={{ fontSize: 11.5, color: C.hint }}>예정된 일정이 없습니다.</p>
-          ) : upcoming.map((entry) => (
-            <button
-              key={`${entry.kind}-${entry.id}`}
-              type="button"
-              onClick={() => onSelectUpcoming(entry)}
-              style={{ display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", padding: 0, cursor: "pointer", textAlign: "left" }}
-            >
-              <span style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, flexShrink: 0, width: 56 }}>{relativeDayLabel(entry.date)}</span>
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: entry.kind === "event" ? "#2563EB" : entry.done ? C.success : C.orange, flexShrink: 0 }} />
-              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</span>
-              {entry.time ? <span style={{ fontSize: 10, color: C.hint, flexShrink: 0 }}>{entry.time}</span> : null}
-            </button>
-          ))}
+      {hideUpcoming ? null : (
+        <div className="pc-card pc-card--padded" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: C.ink, marginBottom: 10 }}>다가오는 일정</div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+            {upcoming.length === 0 ? (
+              <p style={{ fontSize: 11.5, color: C.hint }}>예정된 일정이 없습니다.</p>
+            ) : upcoming.map((entry) => (
+              <button
+                key={`${entry.kind}-${entry.id}`}
+                type="button"
+                onClick={() => onSelectUpcoming(entry)}
+                style={{ display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", padding: 0, cursor: "pointer", textAlign: "left" }}
+              >
+                <span style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, flexShrink: 0, width: 56 }}>{relativeDayLabel(entry.date)}</span>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: entry.kind === "event" ? "#2563EB" : entry.done ? C.success : C.orange, flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</span>
+                {entry.time ? <span style={{ fontSize: 10, color: C.hint, flexShrink: 0 }}>{entry.time}</span> : null}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
