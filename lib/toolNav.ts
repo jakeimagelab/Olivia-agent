@@ -28,6 +28,8 @@ export const TOOLS_WORK: ToolDef[] = [
   { title: "업무 캘린더", desc: "날짜별 촬영·미팅·행정 할일을 한 화면에서 관리합니다.", href: "/calendar", icon: Calendar, meta: "Task Calendar", orange: false, category: "dashboard" },
   { title: "업무일지", desc: "촬영 일정별 To-do와 장비·렌탈 준비사항을 관리합니다.", href: "/work-journal", icon: ClipboardList, meta: "Shoot Log", orange: false, category: "dashboard" },
   { title: "워크스페이스", desc: "팀 채팅·목표·프로젝트·리포트를 한 곳에서 관리합니다.", href: "/team", icon: LayoutGrid, meta: "Workspace", orange: false, category: "dashboard" },
+  { title: "마케팅 대시보드", desc: "채널별 마케팅 전략과 지식 베이스를 관리합니다.", href: "/marketing", icon: Megaphone, meta: "Marketing", orange: false, category: "tools" },
+  { title: "카카오 AI 비서", desc: "카카오톡으로 올리비아와 대화하는 채널을 관리합니다.", href: "/admin/kakao-assistant", icon: MessageCircleMore, meta: "Kakao Assistant", orange: false, category: "tools" },
   { title: "견적서 생성", desc: "촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.", href: "/quote", icon: ClipboardList, meta: "Quote Builder", orange: false, category: "tools" },
   { title: "콘티/초상권 작성", desc: "사진 콘티(체크리스트·타임테이블)와 영상 콘티(씬·컷·손그림 스토리보드), 초상권 동의서를 한 화면에서 생성합니다.", href: "/conti", icon: FileVideo, meta: "Storyboard Studio", orange: false, category: "tools" },
   { title: "고객 관리", desc: "병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다.", href: "/clients", icon: Users, meta: "Client Management", orange: true, category: "crm" },
