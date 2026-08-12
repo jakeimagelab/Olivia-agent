@@ -31,6 +31,9 @@ import {
   resolveCalendarTaskId,
   updateCalendarTask,
 } from "@/lib/olivia/tools/calendar";
+import { advanceWorkflowStep, completeWorkflowRetroactively, getWorkflowStatus } from "@/lib/olivia/tools/workflow";
+import { listMailingQueue, sendMailing } from "@/lib/olivia/tools/mailing";
+import { createGallery, getGallery } from "@/lib/olivia/tools/gallery";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
