@@ -31,6 +31,7 @@ import {
 } from "@/lib/assistant/actions/email";
 import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
 import { executeOliviaChatWorkTool, OLIVIA_CHAT_WORK_TOOL_NAMES } from "@/lib/olivia/chatWorkTools";
+import { fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 
 // calendar.ts/workflow.ts/mailing.ts/gallery.ts, chatWorkTools.ts는 전부 레거시(Claude) 경로와
 // 공유하는 {action:"done", message, ...} 모양으로 결과를 돌려준다 — v2가 기대하는
