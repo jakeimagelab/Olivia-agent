@@ -1607,36 +1607,50 @@
   color: #9BB5B0;
 }
 
-/* 빠른 실행 — 2x2 소형 리모컨 버튼 */
+/* 빠른 실행 — 패널 안에 딱 맞게 2x2로 늘어나는 리퀴드 글라스 버튼 */
 .pc-quick-actions {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
   flex: 1;
   min-height: 0;
 }
 .pc-quick-action {
   min-width: 0;
-  height: 66px;
-  border: 1px solid rgba(21,88,85,.07);
-  border-radius: 14px;
-  background: rgba(255,255,255,.65);
+  height: 100%;
+  border: 1px solid rgba(255,255,255,.6);
+  border-radius: 18px;
+  background: linear-gradient(165deg, rgba(255,255,255,.78), rgba(255,255,255,.42));
+  box-shadow: 0 1px 0 rgba(255,255,255,.75) inset, 0 6px 16px rgba(20,60,55,.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   color: #155855;
   cursor: pointer;
   text-decoration: none;
-  transition: transform .15s ease, background .15s ease;
+  transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.pc-quick-action svg {
+  width: 26%;
+  height: 26%;
+  min-width: 20px;
+  min-height: 20px;
+  max-width: 30px;
+  max-height: 30px;
 }
 .pc-quick-action:hover {
-  background: #fff;
+  background: linear-gradient(165deg, rgba(255,255,255,.92), rgba(255,255,255,.6));
   transform: translateY(-1px);
+  box-shadow: 0 1px 0 rgba(255,255,255,.85) inset, 0 10px 22px rgba(20,60,55,.08);
 }
 .pc-quick-action span {
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
   color: #344743;
 }
 
