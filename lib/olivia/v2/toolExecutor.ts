@@ -12,6 +12,33 @@ import type {
   OliviaToolCall,
   OliviaToolResult,
 } from "@/lib/olivia/v2/types";
+import {
+  addCalendarTask,
+  deleteCalendarTask,
+  listCalendarTasks,
+  resolveCalendarTaskId,
+  updateCalendarTask,
+} from "@/lib/olivia/tools/calendar";
+import { advanceWorkflowStep, completeWorkflowRetroactively, getWorkflowStatus } from "@/lib/olivia/tools/workflow";
+import { listMailingQueue, sendMailing } from "@/lib/olivia/tools/mailing";
+import { createGallery, getGallery } from "@/lib/olivia/tools/gallery";
+import { findCalendarConflicts } from "@/lib/assistant/actions/calendarAvailability";
+import {
+  createAssistantEmailDraft,
+  readAssistantEmail,
+  searchAssistantEmail,
+  summarizeAssistantEmail,
+} from "@/lib/assistant/actions/email";
+import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
+import { executeOliviaChatWorkTool, OLIVIA_CHAT_WORK_TOOL_NAMES } from "@/lib/olivia/chatWorkTools";
+
+// calendar.ts/workflow.ts/mailing.ts/gallery.ts, chatWorkTools.ts는 전부 레거시(Claude) 경로와
+// 공유하는 {action:"done", message, ...} 모양으로 결과를 돌려준다 — v2가 기대하는
+// {tool, success, data} 모양으로 한 곳에서만 변환한다.
+function fromLegacyResult(name: string, result: { action?: string; message: string; [key: string]: unknown }): OliviaToolResult {
+  const { message, action, ...rest } = result;
+  return { tool: name, success: true, data: { message, ...rest } };
+}
 
 export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   {
