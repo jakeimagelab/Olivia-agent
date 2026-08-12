@@ -95,9 +95,9 @@ export default function MiniCalendar({
           </button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: compact ? 1 : 4 }}>
           {WEEKDAYS.map((w) => (
-            <div key={w} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 700, color: C.hint, padding: "2px 0" }}>{w}</div>
+            <div key={w} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 700, color: C.hint, padding: compact ? "0" : "2px 0" }}>{w}</div>
           ))}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
