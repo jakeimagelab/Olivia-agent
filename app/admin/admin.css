@@ -1724,7 +1724,7 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(200px, .82fr) minmax(0, 1.55fr);
+  grid-template-columns: minmax(280px, 1.3fr) minmax(220px, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 16px;
 }
