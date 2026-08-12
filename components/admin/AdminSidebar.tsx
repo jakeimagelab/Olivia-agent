@@ -4,24 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
-  Archive,
   CalendarDays,
   CircleHelp,
-  ClipboardList,
   Grid2X2,
   House,
-  Library,
-  Link2,
-  Mail,
-  Megaphone,
-  MessageCircle,
-  MessageCircleMore,
-  NotebookPen,
+  MessagesSquare,
   Settings,
   UsersRound,
   X,
 } from "lucide-react";
-import { groupToolsByCategory } from "@/lib/toolNav";
 
 type NavigationItem = {
   label: string;
@@ -39,40 +30,20 @@ type NavigationSection = {
   items: NavigationItem[];
 };
 
-const toolItems = groupToolsByCategory().find((g) => g.category === "tools")?.items ?? [];
-
-/* 대시보드/CRM 두 섹션은 소규모라 그대로 유지하고, 개별 기능만 lib/toolNav.ts(전역 사이드바와
-   같은 소스)에서 끌어와 실제 존재하는 페이지 전체가 빠짐없이 나오게 한다 — 예전엔 이 목록이
-   따로 하드코딩돼 있어서(11개, 그마저 절반은 실제 라우트가 아닌 가상 경로) 실제 15개 기능 중
-   여러 개가 메뉴에서 아예 빠져 있었다. */
+/* 사이드바를 5개 핵심 항목으로 최소화 — 그 외 모든 기능(메모/업무일지/메일링/워크스페이스/
+   외부링크/휴지통/카카오 AI비서/라이브러리/마케팅 등 lib/toolNav.ts의 ALL_TOOLS 전체)은
+   "더보기"(/admin/tools)에서 카테고리별로 찾아 들어간다 — 각 항목이 사라진 게 아니라
+   한 단계 안쪽으로 옮겨졌을 뿐이다. */
 const navigation: NavigationSection[] = [
   {
-    key: "dashboard",
-    label: "메인 메뉴",
+    key: "main",
+    label: "",
     items: [
       { label: "홈", href: "/admin/dashboard/home", icon: House, accent: "orange" },
       { label: "캘린더", href: "/calendar", icon: CalendarDays, accent: "orange" },
-      { label: "메모", href: "/memo", icon: NotebookPen },
-      { label: "업무일지", href: "/work-journal", icon: ClipboardList, accent: "orange" },
-      { label: "메일링", href: "/mailing", icon: Mail, accent: "orange" },
-      { label: "고객관리", href: "/clients", icon: UsersRound },
-      { label: "워크스페이스", href: "/team", icon: MessageCircle },
-      { label: "외부링크", href: "/link-generator", icon: Link2 },
-      { label: "휴지통", href: "/trash", icon: Archive },
-    ],
-  },
-  {
-    key: "tools",
-    label: "AI Assistant",
-    items: [
-      { label: "AI Assistant 홈", href: "/admin/tools", icon: Grid2X2, exact: true, carryContext: true },
-      { label: "카카오 AI 비서", href: "/admin/kakao-assistant", icon: MessageCircleMore },
-      { label: "라이브러리", href: "/library", icon: Library, carryContext: true },
-      { label: "마케팅 대시보드", href: "/marketing", icon: Megaphone },
-      /* 라이브러리는 toolNav.ts(단일 소스)에 등록돼 있어 /admin/tools 그리드에는 그대로 노출되지만,
-         사이드바에서는 "카카오 AI비서 아래"라는 고정 위치 요청 때문에 위에서 수동 배치했다 —
-         자동 목록에 섞이면 순서 없이 맨 끝에 붙어버려서 여기서 제외한다. */
-      ...toolItems.filter((t) => t.href !== "/library").map((t) => ({ label: t.title, href: t.href, icon: t.icon, carryContext: true })),
+      { label: "프로젝트", href: "/clients", icon: UsersRound, carryContext: true },
+      { label: "대화", href: "/admin/dashboard/conversations", icon: MessagesSquare },
+      { label: "더보기", href: "/admin/tools", icon: Grid2X2, carryContext: true },
     ],
   },
 ];
