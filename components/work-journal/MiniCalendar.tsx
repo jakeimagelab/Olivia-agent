@@ -67,17 +67,17 @@ export default function MiniCalendar({
   const grid = buildGrid(currentMonth);
   const [year, month] = currentMonth.split("-").map(Number);
   const today = todayStr();
-  const cellHeight = compact ? 24 : 32;
+  const cellHeight = compact ? 28 : 32;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: hideUpcoming ? 0 : 12, height: "100%" }}>
-      <div className="pc-card pc-card--padded" style={compact ? { padding: "9px 10px" } : undefined}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: compact ? 4 : 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 900, color: C.ink }}>📅 캘린더</span>
+      <div className="pc-card pc-card--padded" style={compact ? { padding: "10px 12px" } : undefined}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: compact ? 6 : 12 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 900, color: C.ink }}>📅 캘린더</span>
           <button
             type="button"
             onClick={() => { onMonthChange(today.slice(0, 7)); onSelectDate(today); }}
-            style={{ height: compact ? 22 : 28, padding: "0 10px", borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.teal, fontSize: 11, fontWeight: 800, cursor: "pointer" }}
+            style={{ height: compact ? 24 : 28, padding: "0 10px", borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.teal, fontSize: 11, fontWeight: 800, cursor: "pointer" }}
           >
             오늘
           </button>
