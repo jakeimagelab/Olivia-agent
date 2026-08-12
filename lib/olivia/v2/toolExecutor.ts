@@ -644,6 +644,17 @@ export async function runTool(
     const conflicts = input.time ? findCalendarConflicts(existing, input.time as string, 60) : [];
     return { tool: name, success: true, data: { date: text(input, "date"), conflicts, hasConflict: conflicts.length > 0 } };
   }
+  if (name === "calendar_list_month") {
+    const { data: tasks, error } = await db
+      .from("calendar_tasks")
+      .select("*")
+      .gte("date", `${text(input, "month")}-01`)
+      .lt("date", `${text(input, "month")}-32`)
+      .order("date", { ascending: true })
+      .order("time", { ascending: true, nullsFirst: false });
+    if (error) throw new Error(error.message);
+    return { tool: name, success: true, data: { month: text(input, "month"), tasks: tasks ?? [] } };
+  }
 
   // ── 워크플로우 ──
   if (name === "get_workflow_status") return fromLegacyResult(name, await getWorkflowStatus(input));
