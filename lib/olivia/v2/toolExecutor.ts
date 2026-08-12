@@ -682,9 +682,7 @@ export async function runTool(
 
   // ── 메모 ──
   if (name === "memo_add") {
-    const client = await import("@/lib/olivia/nameSearch").then(({ fuzzyNameSearchOne }) =>
-      fuzzyNameSearchOne<any>({ db, table: "clients", nameColumn: "hospital_name", select: "id, hospital_name", query: text(input, "clientName") }),
-    );
+    const client = await fuzzyNameSearchOne<any>({ db, table: "clients", nameColumn: "hospital_name", select: "id, hospital_name", query: text(input, "clientName") });
     await db.from("consultation_memos").insert({
       hospital_id: client?.id ?? null,
       raw_memo: text(input, "content"),
