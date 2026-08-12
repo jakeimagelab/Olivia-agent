@@ -2,18 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ChevronRight, NotebookPen } from "lucide-react";
 import MiniCalendar from "@/components/work-journal/MiniCalendar";
-import { todayStr } from "@/lib/work-journal/dateLabel";
+import { dateHeaderLabel, todayStr } from "@/lib/work-journal/dateLabel";
+import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 
-// 캘린더 + 오늘 일정을 한 카드에 통합 — 미니 캘린더는 work-journal에서 이미 만든 컴포넌트를
-// compact 모드로 재사용하고, 오늘 일정은 그 옆에 작게 나열한다.
+// 통합 스케줄 — 미니 캘린더(왼쪽, 작게) + 선택한 날짜의 일정(오른쪽, 넓게)을 가로로 배치.
+// 오늘 할 일은 캘린더 아래에 "3/5" 요약만 보여준다(체크리스트 전체는 /calendar에서).
 export default function IntegratedCalendar() {
   const [currentMonth, setCurrentMonth] = useState(() => todayStr().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(() => todayStr());
   const [eventDates, setEventDates] = useState<Set<string>>(new Set());
   const [daySchedules, setDaySchedules] = useState<{ id: string; time: string | null; title: string }[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
+
+  const { data } = useHomeDashboardData();
+  const todos = data?.todayTasks ?? [];
+  const doneCount = todos.filter((t) => t.completed).length;
 
   useEffect(() => {
     fetch(`/api/calendar?month=${currentMonth}`)
@@ -42,58 +46,61 @@ export default function IntegratedCalendar() {
     setCurrentMonth(date.slice(0, 7));
   };
 
-  return (
-    <section style={{
-      display: "flex", flexDirection: "column", height: "100%", minHeight: 0,
-      borderRadius: 22, background: "rgba(255,255,255,0.72)", backdropFilter: "blur(18px)",
-      WebkitBackdropFilter: "blur(18px)" as any, border: "1px solid rgba(21,88,85,0.08)",
-      boxShadow: "0 12px 40px rgba(20,60,55,0.06)", overflow: "hidden", padding: "12px 12px 10px",
-      gap: 8,
-    }}>
-      <div style={{ flex: 1, minHeight: 0, display: "flex", gap: 10 }}>
-        <div style={{ width: "58%", flexShrink: 0 }}>
-          <MiniCalendar
-            currentMonth={currentMonth}
-            selectedDate={selectedDate}
-            dayCounts={new Map()}
-            eventDates={eventDates}
-            onSelectDate={handleSelectDate}
-            onMonthChange={setCurrentMonth}
-            upcoming={[]}
-            onSelectUpcoming={() => {}}
-            compact
-            hideUpcoming
-          />
-        </div>
+  const isToday = selectedDate === todayStr();
 
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ fontSize: 10.5, fontWeight: 800, color: "#6F7E7A", marginBottom: 8, letterSpacing: ".02em" }}>
-            {selectedDate === todayStr() ? "오늘 일정" : `${selectedDate} 일정`}
-          </div>
-          {scheduleLoading ? (
-            <div style={{ fontSize: 11.5, color: "#9BB5B0" }}>불러오는 중...</div>
-          ) : daySchedules.length === 0 ? (
-            <div style={{ fontSize: 11.5, color: "#9BB5B0" }}>등록된 일정이 없어요.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, overflow: "hidden" }}>
-              {daySchedules.slice(0, 6).map((s) => (
-                <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: 1, fontSize: 12 }}>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: "#155855" }}>{s.time || "종일"}</span>
-                  <span style={{ color: "#1C2B28", fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</span>
-                </div>
-              ))}
-            </div>
-          )}
+  return (
+    <section className="pc-panel pc-schedule-panel">
+      <div className="pc-panel__header">
+        <h3>통합 스케줄</h3>
+        <div className="pc-panel__actions">
+          <button type="button" onClick={() => handleSelectDate(todayStr())}>오늘</button>
+          <Link href="/calendar">전체 일정</Link>
         </div>
       </div>
 
-      <Link href="/work-journal" style={{
-        flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-        height: 34, borderRadius: 12, background: "#155855", color: "#fff", fontSize: 12, fontWeight: 800,
-        textDecoration: "none",
-      }}>
-        <NotebookPen size={13} /> 업무일지 작성하기 <ChevronRight size={13} />
-      </Link>
+      <div className="pc-schedule-panel__body">
+        <div className="pc-mini-calendar-wrap">
+          <div className="pc-mini-calendar">
+            <MiniCalendar
+              currentMonth={currentMonth}
+              selectedDate={selectedDate}
+              dayCounts={new Map()}
+              eventDates={eventDates}
+              onSelectDate={handleSelectDate}
+              onMonthChange={setCurrentMonth}
+              upcoming={[]}
+              onSelectUpcoming={() => {}}
+              compact
+              hideUpcoming
+            />
+          </div>
+          <div className="pc-today-task-summary">
+            <span>오늘 할 일</span>
+            <strong>{doneCount}/{todos.length}</strong>
+          </div>
+        </div>
+
+        <div className="pc-today-schedule">
+          <div className="pc-today-schedule__date">
+            {isToday ? "오늘" : dateHeaderLabel(selectedDate)}
+          </div>
+
+          {scheduleLoading ? (
+            <div className="pc-panel__empty">불러오는 중...</div>
+          ) : daySchedules.length === 0 ? (
+            <div className="pc-panel__empty">등록된 일정이 없어요.</div>
+          ) : (
+            daySchedules.slice(0, 5).map((s) => (
+              <button key={s.id} type="button" className="pc-schedule-row">
+                <time>{s.time || "종일"}</time>
+                <span>{s.title}</span>
+              </button>
+            ))
+          )}
+
+          <Link href="/calendar" className="pc-schedule-more">일정 전체 보기</Link>
+        </div>
+      </div>
     </section>
   );
 }
