@@ -242,14 +242,28 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
             }]);
           }
         }
-      } else {
-        appendAndSave({ role: "assistant", content: data.text || "", source: "web" });
+      } else if (streamMsg) {
+        // 일반 메시지 — 스트리밍된 최종 텍스트를 기존 appendAndSave와 같은 지점에서 저장한다.
+        const finalContent = data.text || streamBuffer;
+        saveToDb([{ ...(streamMsg as Message), content: finalContent }]);
+      } else if (data.text) {
+        // 첫 delta도 없이 done만 온 경우(사실상 없음) — 안전망으로 기존 방식대로 처리.
+        appendAndSave({ role: "assistant", content: data.text, source: "web" });
       }
     } catch (e: any) {
-      setMessages((prev) => [...prev, { role: "assistant", content: "⚠ 오류가 발생했어요: " + e.message, source: "web" }]);
+      if (e?.name !== "AbortError") {
+        setMessages((prev) => [...prev, { role: "assistant", content: "⚠ 오류가 발생했어요: " + e.message, source: "web" }]);
+      }
+      // AbortError(정지 버튼) — 지금까지 스트리밍된 텍스트는 그대로 두고 조용히 종료한다.
     } finally {
       setLoading(false);
+      setStreamingId(null);
+      abortControllerRef.current = null;
     }
+  };
+
+  const stop = () => {
+    abortControllerRef.current?.abort();
   };
 
   const approveTool = async (msgIdx: number) => {
