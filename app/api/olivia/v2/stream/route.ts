@@ -22,7 +22,10 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MAX_TOOL_ROUNDS = 4;
+// 도구가 20여 개(견적/콘티) → 45개 이상(캘린더/워크플로우/메일링/갤러리/이메일/브리핑/미팅/진단 추가)으로
+// 늘면서 "이번달 일정 보여주고 계약 안 된 곳 견적 다시 보내줘" 같은 복합 요청이 한 라운드로 안 끝날
+// 수 있어 4 → 6으로 올렸다.
+const MAX_TOOL_ROUNDS = 6;
 
 const SYSTEM_PROMPT = `당신은 포토클리닉 운영 AI Agent Olivia다. 사용자는 대표자다.
 
