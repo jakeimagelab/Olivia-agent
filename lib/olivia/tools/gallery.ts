@@ -50,7 +50,8 @@ export async function getGallery(input: any) {
   };
 }
 
-export async function createGallery(input: any, req: NextRequest) {
+// req는 레거시(Claude) 경로에서만 넘어온다 — v2(OpenAI) 경로는 NextRequest 없이 runTool을 호출한다.
+export async function createGallery(input: any, req?: NextRequest | null) {
   const db = getSupabaseAdmin();
   const client = await fuzzyNameSearchOne<any>({
     db, table: "clients", nameColumn: "hospital_name",
@@ -71,7 +72,7 @@ export async function createGallery(input: any, req: NextRequest) {
   }
 
   const origin =
-    req.headers.get("x-base-url") || req.headers.get("origin") ||
+    req?.headers.get("x-base-url") || req?.headers.get("origin") ||
     process.env.NEXT_PUBLIC_BASE_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
     "http://localhost:3000";
