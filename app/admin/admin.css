@@ -1520,7 +1520,7 @@
   height: calc(100dvh - var(--admin-header-height, 72px));
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 7.4fr) minmax(352px, 2.6fr);
+  grid-template-rows: minmax(0, 7.4fr) minmax(300px, 2.6fr);
   gap: 12px;
   padding: 12px 14px;
   box-sizing: border-box;
