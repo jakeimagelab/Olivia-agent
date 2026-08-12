@@ -396,7 +396,7 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
             </div>
           ))}
 
-          {loading && (
+          {loading && !streamingId && (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 22, height: 22, borderRadius: "50%", background: "linear-gradient(135deg, #E85D2C, #EB8F22)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Sparkles size={13} color="#fff" fill="#fff" strokeWidth={1} />
