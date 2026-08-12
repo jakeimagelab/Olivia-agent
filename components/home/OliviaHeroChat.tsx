@@ -44,23 +44,9 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
       : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
 
-  useEffect(() => {
-    fetch("/api/olivia/messages?limit=80")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.ok && Array.isArray(data.messages) && data.messages.length > 0) {
-          setMessages(data.messages.map((m: any) => ({
-            id: m.id,
-            createdAt: m.created_at,
-            clientRequestId: m.metadata?.clientRequestId,
-            role: m.role as "user" | "assistant",
-            content: m.content,
-            source: m.source as "web" | "telegram" | undefined,
-          })));
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // 홈에 새로 들어올 때마다 과거 대화를 전부 불러와 보여주지는 않는다 — 매번 인사말로 시작한다.
+  // 다만 메시지는 계속 /api/olivia/messages에 저장되므로(saveToDb) 기록 자체는 유지된다 — 플로팅
+  // 위젯 등 다른 곳에서 이어서 볼 수 있고, 나중에 "대화 기록 보기" 같은 진입점을 따로 만들 수도 있다.
 
   useEffect(() => {
     const el = messagesRef.current;
