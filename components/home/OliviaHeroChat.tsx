@@ -335,44 +335,52 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
 
       <div style={{ flexShrink: 0, padding: "14px 20px 20px" }}>
         <div style={{
-          display: "flex", alignItems: "flex-end", gap: 8, padding: "10px 12px",
           borderRadius: 20, background: "#fff", border: "1px solid rgba(21,88,85,0.12)",
-          boxShadow: "0 4px 16px rgba(20,60,55,0.06)",
+          boxShadow: "0 4px 16px rgba(20,60,55,0.06)", padding: "12px 14px 10px",
         }}>
-          <button type="button" title="첨부(준비 중)" disabled
-            style={{ width: 30, height: 30, flexShrink: 0, border: "none", background: "transparent", color: "#9BB5B0", cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Paperclip size={17} />
-          </button>
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="메시지를 입력하거나 / 로 명령어를 시작하세요"
-            rows={1}
-            style={{
-              flex: 1, resize: "none", border: "none", outline: "none", background: "transparent",
-              fontSize: 13.5, lineHeight: 1.5, fontFamily: "inherit", color: "#1C2B28",
-              maxHeight: 120, padding: "6px 0",
-            }}
-          />
-          <button type="button" title="음성 입력(준비 중)" disabled
-            style={{ width: 30, height: 30, flexShrink: 0, border: "none", background: "transparent", color: "#9BB5B0", cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Mic size={17} />
-          </button>
-          <button
-            type="button"
-            onClick={() => void send()}
-            disabled={!input.trim() || loading}
-            style={{
-              width: 34, height: 34, flexShrink: 0, borderRadius: "50%", border: "none",
-              background: input.trim() && !loading ? C.teal : "#D5E4E1",
-              color: "#fff", cursor: input.trim() && !loading ? "pointer" : "not-allowed",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
-            <ArrowUp size={16} />
-          </button>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="메시지를 입력하거나 / 로 명령어를 시작하세요"
+              rows={1}
+              style={{
+                flex: 1, resize: "none", border: "none", outline: "none", background: "transparent",
+                fontSize: 13.5, lineHeight: 1.5, fontFamily: "inherit", color: "#1C2B28",
+                maxHeight: 120, padding: "4px 0",
+              }}
+            />
+            <button type="button" title="첨부(준비 중)" disabled
+              style={{ width: 28, height: 28, flexShrink: 0, border: "none", background: "transparent", color: "#9BB5B0", cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Paperclip size={16} />
+            </button>
+            <button type="button" title="음성 입력(준비 중)" disabled
+              style={{ width: 28, height: 28, flexShrink: 0, border: "none", background: "transparent", color: "#9BB5B0", cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Mic size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => void send()}
+              disabled={!input.trim() || loading}
+              style={{
+                width: 32, height: 32, flexShrink: 0, borderRadius: "50%", border: "none",
+                background: input.trim() && !loading ? C.teal : "#D5E4E1",
+                color: "#fff", cursor: input.trim() && !loading ? "pointer" : "not-allowed",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <ArrowUp size={15} />
+            </button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(21,88,85,0.06)" }}>
+            <span style={{ width: 15, height: 15, borderRadius: "50%", background: "linear-gradient(135deg, #E85D2C, #EB8F22)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <OliviaIcon size={9} />
+            </span>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "#3F4E4B" }}>Olivia AI</span>
+            <ChevronDown size={12} color="#9BB5B0" />
+          </div>
         </div>
       </div>
     </div>
