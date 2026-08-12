@@ -383,7 +383,7 @@
 /* Olivia Agent 2.0 — 채팅 히어로 + 빠른실행/최근프로젝트/통합캘린더 3장. .pc-dash-brief와 같은
    "강제 height 없이 자연 스크롤" 원칙을 그대로 따른다. */
 .pc-dash-hero {
-  min-height: 520px;
+  min-height: 680px;
   margin-bottom: 14px;
   flex-shrink: 0;
 }
@@ -399,7 +399,7 @@
 
 .pc-dash-quickrow > * {
   min-width: 0;
-  min-height: 320px;
+  min-height: 220px;
 }
 
 /* Olivia Agent 2.0 Phase 2 — 채팅에서 워크스페이스를 열었을 때(split): 압축된 채팅이 위,
