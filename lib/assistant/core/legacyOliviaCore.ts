@@ -910,7 +910,7 @@ export { client as anthropicClient };
 // pendingTool 없는 "일반 대화" 요청 하나를 client.messages.create/stream에 그대로 넘길 수 있는
 // 파라미터로 변환 — 기존 processOliviaRequest와 새 스트리밍 라우트(app/api/olivia/stream)가
 // 시스템 프롬프트 구성·지식 패치·멀티모달 첨부 변환 로직을 중복 없이 공유하기 위해 분리했다.
-export async function buildOliviaModelRequest(body: any): Promise<Anthropic.MessageCreateParams> {
+export async function buildOliviaModelRequest(body: any): Promise<Anthropic.MessageCreateParamsNonStreaming> {
   const { messages, pageContext, imageBase64, imageMime } = body;
   const attachments = sanitizeOliviaAttachments(body.attachments);
   const recentWorkItems = Array.isArray(body.recentWorkItems)
