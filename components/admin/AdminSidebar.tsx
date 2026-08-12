@@ -146,6 +146,7 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
                       className={`oa-sidebar__link${item.accent === "orange" ? " oa-sidebar__link--orange" : ""}${active ? " oa-sidebar__link--active" : ""}`}
                       href={`${item.href}${item.carryContext ? contextSuffix : ""}`}
                       aria-current={active ? "page" : undefined}
+                      title={item.label}
                       onClick={onClose}
                     >
                       <Icon className="oa-sidebar__link-icon" size={17} aria-hidden="true" />
