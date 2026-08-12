@@ -2516,7 +2516,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     ) : null}
     </>
   );
-}
+});
+
+export default QuoteBuilder;
 
 function Panel({
   title,
