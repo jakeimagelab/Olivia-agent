@@ -11,17 +11,19 @@ import {
   type OliviaMessage as Message,
 } from "@/lib/olivia/chatShared";
 import { isAutoExecutableClientCreate } from "@/lib/olivia/crud/autoExecution";
-import { useWorkspaceStore } from "@/lib/store/workspaceStore";
+import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
+import { uiActionResolvers } from "@/lib/olivia/agent/uiActionResolvers";
+import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
 
 // 홈 화면 최상단에 임베드되는 큰 Olivia 채팅 — 오른쪽 하단 플로팅 위젯(components/OliviaChat.tsx)과
 // 완전히 같은 /api/olivia + /api/olivia/messages 프로토콜을 쓰고 같은 대화 스레드를 공유한다
 // (그래서 홈에서 나눈 대화가 다른 페이지의 플로팅 챗에도 그대로 이어진다).
 // 다만 여기서는 첨부/드래그리사이즈/기기 간 실시간 폴링처럼 플로팅 위젯 전용 기능은 아직 생략했다.
 //
-// Phase 3(최소 스코프): create_quote 도구가 요청되면, 기존처럼 /quote?... 페이지로 보내는 대신
-// 고객을 검색해서 찾으면 DynamicWorkspace(견적서)를 채팅 아래에 바로 연다 — /api/olivia의
-// create_quote 툴 자체(app/api/olivia 백엔드)는 플로팅 위젯도 그대로 쓰고 있어서 손대지 않고,
-// 여기 프론트에서만 그 결과 해석을 가로챈다(찾는 고객이 없으면 기존 동작으로 그대로 폴백).
+// Agent Action Protocol — 도구별 if문을 여기 늘어놓지 않는다. 도구 이름이 lib/olivia/agent/
+// uiActionResolvers.ts에 등록돼 있으면 그 도구의 결과를 OliviaUiAction으로 바꿔서
+// executeOliviaAction에 넘기고(워크스페이스를 여는 등 실제 처리는 그쪽 책임), 등록 안 됐거나
+// 리졸버가 null을 반환하면(예: 등록 안 된 신규 고객) 기존 도구 실행 경로로 그대로 폴백한다.
 
 const SUGGESTED_PROMPTS = [
   { icon: Sun, text: "이번 촬영 일정과\n필요한 장비 리스트 확인해줘", accent: "#EB8F22" },
