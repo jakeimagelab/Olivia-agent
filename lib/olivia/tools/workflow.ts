@@ -45,7 +45,7 @@ export async function getWorkflowStatus(input: any) {
   };
 }
 
-export async function advanceWorkflowStep(input: any, req: NextRequest) {
+export async function advanceWorkflowStep(input: any, req?: NextRequest | null) {
   const db = getSupabaseAdmin();
   const run = await fuzzyNameSearchOne<any>({
     db, table: "workflow_runs", nameColumn: "client_name",
@@ -73,7 +73,7 @@ export async function advanceWorkflowStep(input: any, req: NextRequest) {
   };
 }
 
-export async function completeWorkflowRetroactively(input: any, req: NextRequest) {
+export async function completeWorkflowRetroactively(input: any, req?: NextRequest | null) {
   const db = getSupabaseAdmin();
   const run = await fuzzyNameSearchOne<any>({
     db, table: "workflow_runs", nameColumn: "client_name",
