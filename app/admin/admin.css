@@ -1500,39 +1500,319 @@
   .home-work-item__actions > *, .home-marketing-item__actions > * { flex: 1 1 0; min-width: 0; }
 }
 
-/* Olivia Agent 2.0 — 홈 화면을 뷰포트에 딱 맞춰서 페이지 스크롤 없이. 헤더(72px)+.oa-page
-   상하 패딩(20/42px, 이 파일 위쪽 "Dense Command" 블록 기준)을 뺀 나머지를 히어로 채팅이
-   flex:1로 채우고, 빠른실행/최근프로젝트/통합캘린더 3장 줄은 고정 높이로 아래 붙는다.
-   각 카드 내부는 이미 자체 overflowY:auto를 갖고 있어서(RecentProjects/IntegratedCalendar)
-   내용이 넘치면 카드 안에서만 스크롤된다. 모바일(≤900px)은 .oa-shell이 통째로 block(자연
-   스크롤)로 바뀌므로 여기서는 건드리지 않는다. */
+/* Olivia Agent 2.0 — 홈 화면을 뷰포트에 딱 맞춰서 페이지 스크롤 없이. .pc-home이 자체적으로
+   calc(100dvh - 헤더높이)로 높이를 잡으므로, 감싸는 .oa-page/.crm-dashboard-page가 자기 패딩과
+   min-height:100dvh 바닥값으로 방해하지 않도록 여기서 풀어준다(이 두 클래스는 다른 페이지와
+   공유되는 전역 클래스라 .pc-dash-home과 결합된 선택자로만 좁혀서 오버라이드). */
 @media (min-width: 901px) {
-  /* .crm-dashboard-page(min-height:100dvh)가 이 아래 height 계산과 충돌해서 min-height가
-     이겨버리면 결국 풀 100dvh로 되돌아간다 — 여기서 그 바닥값을 0으로 풀어줘야 실제로 줄어든다. */
   .pc-dash-home.crm-dashboard-page {
     min-height: 0;
   }
-  .pc-dash-home {
-    display: flex;
-    flex-direction: column;
-    height: calc(100dvh - 72px - 20px - 42px);
-    overflow: hidden;
+  .pc-dash-home.oa-page {
+    padding: 0;
   }
-  .pc-dash-home .pc-dash-hero {
-    flex: 1;
-    min-height: 320px;
-    margin-bottom: 12px;
+}
+
+/* Olivia Agent 2.0 — 홈 레이아웃: Olivia Chat이 압도적 메인(~74%), 하단은 빠른실행(0.72fr) |
+   최근 프로젝트(1.08fr) | 통합 스케줄(2.2fr) 비대칭 3분할. 실측 헤더 높이는 72px(admin.css
+   "Dense Command" 블록 기준). */
+.pc-home {
+  height: calc(100dvh - var(--admin-header-height, 72px));
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 7.4fr) minmax(210px, 2.6fr);
+  gap: 12px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.pc-home__chat {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pc-home__bottom {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 0.72fr)
+    minmax(300px, 1.08fr)
+    minmax(560px, 2.2fr);
+  gap: 12px;
+}
+
+.pc-panel {
+  min-width: 0;
+  min-height: 0;
+  border-radius: 20px;
+  background: rgba(255,255,255,.68);
+  border: 1px solid rgba(21,88,85,.06);
+  box-shadow: 0 8px 24px rgba(20,60,55,.035);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow: hidden;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pc-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 26px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+.pc-panel__header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1C2B28;
+}
+.pc-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pc-panel__actions button,
+.pc-panel__actions a {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(21,88,85,.06);
+  color: #155855;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+.pc-text-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #6F7E7A;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.pc-panel__empty {
+  font-size: 11.5px;
+  color: #9BB5B0;
+}
+
+/* 빠른 실행 — 2x2 소형 리모컨 버튼 */
+.pc-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+.pc-quick-action {
+  min-width: 0;
+  height: 66px;
+  border: 1px solid rgba(21,88,85,.07);
+  border-radius: 14px;
+  background: rgba(255,255,255,.65);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #155855;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform .15s ease, background .15s ease;
+}
+.pc-quick-action:hover {
+  background: #fff;
+  transform: translateY(-1px);
+}
+.pc-quick-action span {
+  font-size: 12px;
+  color: #344743;
+}
+
+/* 최근 프로젝트 — compact row list, 최대 3개 */
+.pc-recent-projects__list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.pc-project-row {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255,255,255,.54);
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+}
+.pc-project-row__main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 7px;
+  row-gap: 2px;
+  align-items: center;
+}
+.pc-project-row__main strong {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: #1C2B28;
+}
+.pc-project-row__status {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #155855;
+  background: rgba(21,88,85,.08);
+}
+.pc-project-row__main small {
+  grid-column: 1 / -1;
+  color: #788682;
+  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pc-project-row__time {
+  flex: none;
+  margin-left: 8px;
+  font-size: 10px;
+  color: #94A09D;
+}
+
+/* 통합 스케줄 — 가장 넓은 패널, 미니 캘린더 | 오늘 일정 가로 배치 */
+.pc-schedule-panel {
+  position: relative;
+}
+.pc-schedule-panel__body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(200px, .82fr) minmax(0, 1.55fr);
+  gap: 16px;
+}
+.pc-mini-calendar-wrap {
+  min-width: 0;
+  padding-right: 14px;
+  border-right: 1px solid rgba(21,88,85,.06);
+  display: flex;
+  flex-direction: column;
+}
+.pc-mini-calendar {
+  width: 100%;
+}
+.pc-today-task-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(21,88,85,.06);
+  font-size: 11px;
+  color: #6F7E7A;
+}
+.pc-today-task-summary strong {
+  color: #155855;
+}
+.pc-today-schedule {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+}
+.pc-today-schedule__date {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1C2B28;
+}
+.pc-schedule-row {
+  width: 100%;
+  min-height: 28px;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.pc-schedule-row:hover {
+  background: rgba(21,88,85,.04);
+}
+.pc-schedule-row time {
+  font-size: 11px;
+  font-weight: 600;
+  color: #E85D2C;
+}
+.pc-schedule-row span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: #344743;
+}
+.pc-schedule-more {
+  margin-top: auto;
+  min-height: 28px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(21,88,85,.05);
+  color: #155855;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (min-width: 1800px) {
+  .pc-home__bottom {
+    grid-template-columns: 220px 360px minmax(0, 1fr);
   }
-  .pc-dash-home .pc-dash-quickrow {
-    flex-shrink: 0;
-    height: 340px;
-    margin-bottom: 0;
+}
+@media (max-width: 1440px) {
+  .pc-home__bottom {
+    grid-template-columns: 190px 300px minmax(480px, 1fr);
   }
-  .pc-dash-home .pc-dash-quickrow > * {
-    min-height: 0;
+}
+@media (max-width: 1200px) {
+  .pc-home {
+    overflow: auto;
+    height: auto;
   }
-  .pc-dash-home .pc-dash-split {
-    height: 100%;
-    min-height: 0;
+  .pc-home__bottom {
+    grid-template-columns: 1fr 1.5fr;
+    height: auto;
+  }
+  .pc-schedule-panel {
+    grid-column: 1 / -1;
   }
 }
