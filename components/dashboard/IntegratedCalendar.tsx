@@ -2,24 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Check, ChevronRight, NotebookPen } from "lucide-react";
+import { ChevronRight, NotebookPen } from "lucide-react";
 import MiniCalendar from "@/components/work-journal/MiniCalendar";
 import { todayStr } from "@/lib/work-journal/dateLabel";
-import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 
-// 캘린더 + 오늘 일정 + 오늘 할 일을 한 카드에 통합 — 미니 캘린더는 work-journal에서 이미 만든
-// 컴포넌트를 그대로 재사용하고, "오늘 할 일"은 홈 전체가 공유하는 HomeDashboardData를 그대로
-// 쓴다(중복 fetch 없이).
+// 캘린더 + 오늘 일정을 한 카드에 통합 — 미니 캘린더는 work-journal에서 이미 만든 컴포넌트를
+// compact 모드로 재사용하고, 오늘 일정은 그 옆에 작게 나열한다.
 export default function IntegratedCalendar() {
   const [currentMonth, setCurrentMonth] = useState(() => todayStr().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(() => todayStr());
   const [eventDates, setEventDates] = useState<Set<string>>(new Set());
   const [daySchedules, setDaySchedules] = useState<{ id: string; time: string | null; title: string }[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
-
-  const { data, state, savingTaskIds, setTaskCompleted } = useHomeDashboardData();
-  const todos = data?.todayTasks ?? [];
-  const doneCount = todos.filter((t) => t.completed).length;
 
   useEffect(() => {
     fetch(`/api/calendar?month=${currentMonth}`)
