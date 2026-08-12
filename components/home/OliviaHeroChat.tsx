@@ -239,34 +239,32 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
           <span style={{ fontSize: 12.5, color: "#6F7E7A" }}>Olivia에게 무엇이든 물어보세요.</span>
         </div>
       ) : isEmpty ? (
-        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 24px 8px", textAlign: "center" }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: "50%", marginBottom: 18,
-            background: "linear-gradient(135deg, #E85D2C, #EB8F22)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 6px 20px rgba(232,93,44,0.28)",
-          }}>
-            <OliviaIcon size={26} />
-          </div>
-          <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 900, color: "#1C2B28" }}>
-            안녕하세요, 정연호 대표님! 👋
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 32px 8px", textAlign: "center" }}>
+          <h1 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: "#1C2B28" }}>
+            무엇이든 물어보세요.
           </h1>
-          <p style={{ margin: "0 0 22px", fontSize: 14, color: "#6F7E7A", lineHeight: 1.6 }}>
-            무엇이든 물어보세요.<br />업무, 아이디어, 일정까지 Olivia가 도와드릴게요.
+          <p style={{ margin: "0 0 24px", fontSize: 13, color: "#6F7E7A" }}>
+            업무, 아이디어, 일정까지 Olivia가 도와드릴게요.
           </p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", maxWidth: 720 }}>
-            {SUGGESTED_PROMPTS.map((prompt) => (
+          <div style={{ display: "flex", gap: 12, width: "100%", maxWidth: 760 }}>
+            {SUGGESTED_PROMPTS.map(({ icon: Icon, text, accent }) => (
               <button
-                key={prompt}
+                key={text}
                 type="button"
-                onClick={() => void send(prompt)}
+                onClick={() => void send(text.replace(/\n/g, " "))}
                 style={{
-                  padding: "10px 16px", borderRadius: 14, border: "1px solid rgba(21,88,85,0.12)",
-                  background: "rgba(255,255,255,0.85)", color: "#155855", fontSize: 12.5, fontWeight: 700,
-                  cursor: "pointer", fontFamily: "inherit", textAlign: "left", maxWidth: 260,
+                  flex: 1, minWidth: 0, padding: "14px 16px", borderRadius: 16, border: "1px solid rgba(21,88,85,0.1)",
+                  background: "#fff", cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+                  display: "flex", flexDirection: "column", gap: 10,
                 }}
               >
-                {prompt}
+                <span style={{
+                  width: 28, height: 28, borderRadius: 9, background: `${accent}14`, color: accent,
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  <Icon size={15} />
+                </span>
+                <span style={{ fontSize: 12, color: "#3F4E4B", lineHeight: 1.5, whiteSpace: "pre-line" }}>{text}</span>
               </button>
             ))}
           </div>
