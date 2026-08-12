@@ -638,7 +638,8 @@ export async function runTool(
     return { tool: name, success: true, data: { taskId: id, summary: "일정을 삭제했어요(휴지통에서 복원 가능)." } };
   }
   if (name === "calendar_availability") {
-    const conflicts = await findCalendarConflicts(text(input, "date"), (input.time as string | null) || null);
+    const existing = await listCalendarTasks(text(input, "date"));
+    const conflicts = input.time ? findCalendarConflicts(existing, input.time as string, 60) : [];
     return { tool: name, success: true, data: { date: text(input, "date"), conflicts, hasConflict: conflicts.length > 0 } };
   }
 
