@@ -126,8 +126,16 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
         if (data.text) setMessages((prev) => [...prev, { role: "assistant", content: data.text }]);
 
         for (const tool of tools) {
-          if (tool.name === "create_quote" && await tryOpenQuoteWorkspace(tool.input)) {
-            const openedMessage = createLocalMessage({ role: "assistant", content: `${tool.input.hospitalName} 견적서 작성 화면을 열었어요. 항목이나 금액을 말씀해주시면 바로 반영할게요.`, source: "web" });
+          const resolver = uiActionResolvers[tool.name];
+          const uiAction = resolver ? await resolver(tool.input) : null;
+          if (uiAction) {
+            executeOliviaAction(uiAction);
+            const workspaceLabel = uiAction.type === "OPEN_WORKSPACE" ? workspaceRegistry[uiAction.workspace]?.label : undefined;
+            const openedMessage = createLocalMessage({
+              role: "assistant",
+              content: workspaceLabel ? `${workspaceLabel} 화면을 열었어요. 필요한 내용을 말씀해주시면 바로 반영할게요.` : "화면을 준비했어요.",
+              source: "web",
+            });
             setMessages((prev) => [...prev, openedMessage]);
             saveToDb([openedMessage]);
             continue;
