@@ -153,24 +153,57 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
     setLoading(true);
     saveToDb([newMsg]);
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    // 스트리밍 중인 assistant 메시지 자리 — 첫 delta가 오기 전엔 아직 만들지 않아서 "생각 중..."
+    // 버블만 보이다가, 첫 토큰이 오는 순간 실제 메시지로 자연스럽게 이어진다.
+    let streamMsg: Message | null = null;
+    let streamBuffer = "";
+    let flushScheduled = false;
+    const flush = () => {
+      flushScheduled = false;
+      if (!streamMsg) return;
+      const content = streamBuffer;
+      setMessages((prev) => prev.map((m) => (m.clientRequestId === streamMsg!.clientRequestId ? { ...m, content } : m)));
+    };
+    const scheduleFlush = () => {
+      if (flushScheduled) return;
+      flushScheduled = true;
+      requestAnimationFrame(flush);
+    };
+
     try {
       const apiMessages = updated
         .filter((m) => !m.toolRequest || m.isApproved !== undefined)
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const res = await fetch("/api/olivia", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, pageContext: "[현재 페이지: 홈]" }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error);
+      const data = await streamOliviaChat(
+        { messages: apiMessages, pageContext: "[현재 페이지: 홈]" },
+        (delta) => {
+          streamBuffer += delta;
+          if (!streamMsg) {
+            streamMsg = createLocalMessage({ role: "assistant", content: "", source: "web" });
+            setStreamingId(streamMsg.clientRequestId!);
+            setMessages((prev) => [...prev, streamMsg!]);
+          }
+          scheduleFlush();
+        },
+        abortController.signal,
+      );
+      if (streamMsg) flush(); // done 이벤트까지 rAF로 못 넘긴 마지막 delta 즉시 반영
 
       if (data.type === "tool_request") {
         const tools: { name: string; input: any; id: string }[] =
           Array.isArray(data.tools) && data.tools.length ? data.tools : [data.tool];
 
-        if (data.text) setMessages((prev) => [...prev, { role: "assistant", content: data.text }]);
+        // 스트리밍으로 이미 화면에 반영된 텍스트 = data.text — 기존 코드가 이 텍스트를 DB에
+        // 저장하지 않던 것과 동일하게 여기서도 별도 저장은 안 한다. 텍스트 없이 도구만 바로
+        // 호출된 경우엔 빈 placeholder 메시지를 지운다.
+        if (streamMsg && !streamBuffer) {
+          const emptyId = (streamMsg as Message).clientRequestId;
+          setMessages((prev) => prev.filter((m) => m.clientRequestId !== emptyId));
+        }
 
         for (const tool of tools) {
           const resolver = uiActionResolvers[tool.name];
