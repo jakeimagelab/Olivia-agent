@@ -380,20 +380,25 @@ const BRAND_CONFIG: Record<Brand, {
   }
 };
 
-// mode="page"(기본값)면 /photoclinic, /quote 라우트에서 그대로 쓰던 것과 100% 동일하게 동작한다.
-// mode="modal"이면 고객관리의 Workspace Modal 안에서 clientId 프리필/자동저장/닫기확인/발행콜백이
-// 추가로 개입한다. Next.js page.tsx의 default export는 PageProps 타입 제약을 받기 때문에
-// 이 컴포넌트는 일반 컴포넌트 파일로 두고, app/photoclinic/page.tsx·app/quote/page.tsx는
-// 이걸 mode="page"로 감싸는 얇은 래퍼로만 존재한다.
-export default function QuoteBuilder({
-  mode = "page",
-  clientId,
-  workflowRunId,
-  resourceId,
-  onClose,
-  onPublished,
-  registerRequestClose,
-}: {
+// Olivia Agent 2.0 — DynamicWorkspace가 견적서를 채팅 아래에 열어둔 상태에서, 채팅으로
+// "프로필 촬영 50만원으로 바꿔줘" 같은 편집 명령을 받아 이 견적서에 바로 반영하기 위한
+// 명령형 핸들. ref를 안 넘기면(기존 모든 사용처: /quote, /photoclinic, 고객관리 WorkspaceModal)
+// 완전히 기존과 동일하게 동작한다 — 순수 추가라 기존 동작을 바꾸지 않는다.
+export type QuoteBuilderHandle = {
+  getSnapshot: () => {
+    singleItems: { id: string; name: string; price: number; selected: boolean; amount: number }[];
+    customItems: { id: string; name: string; detail: string; amount: number }[];
+    totalAmount: number;
+    depositRate: number;
+  };
+  setSingleItemSelected: (id: string, selected: boolean) => void;
+  setSingleItemAmount: (id: string, amount: number) => void;
+  addCustomItem: (name: string, amount: number, detail?: string) => void;
+  removeCustomItem: (id: string) => void;
+  setDepositRate: (rate: number) => void;
+};
+
+type QuoteBuilderProps = {
   mode?: "page" | "modal";
   clientId?: string;
   workflowRunId?: string;
@@ -401,7 +406,22 @@ export default function QuoteBuilder({
   onClose?: () => void;
   onPublished?: () => void;
   registerRequestClose?: (fn: () => void) => void;
-} = {}) {
+};
+
+// mode="page"(기본값)면 /photoclinic, /quote 라우트에서 그대로 쓰던 것과 100% 동일하게 동작한다.
+// mode="modal"이면 고객관리의 Workspace Modal 안에서 clientId 프리필/자동저장/닫기확인/발행콜백이
+// 추가로 개입한다. Next.js page.tsx의 default export는 PageProps 타입 제약을 받기 때문에
+// 이 컴포넌트는 일반 컴포넌트 파일로 두고, app/photoclinic/page.tsx·app/quote/page.tsx는
+// 이걸 mode="page"로 감싸는 얇은 래퍼로만 존재한다.
+const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function QuoteBuilder({
+  mode = "page",
+  clientId,
+  workflowRunId,
+  resourceId,
+  onClose,
+  onPublished,
+  registerRequestClose,
+}, ref) {
   const isModal = mode === "modal";
   const previewRef = useRef<HTMLDivElement>(null);
   const previewShellRef = useRef<HTMLDivElement>(null);
