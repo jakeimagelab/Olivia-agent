@@ -95,33 +95,6 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
     return data.toolResult;
   };
 
-  // create_quote 백엔드 도구 자체는 손대지 않고(플로팅 위젯도 같이 쓰므로), 이미 등록된 고객이면
-  // /quote 페이지 이동 대신 채팅 아래에 견적서 워크스페이스를 바로 연다. 못 찾으면 false를 반환해
-  // 호출부가 기존 runTool(navigate) 경로로 폴백하게 한다.
-  const tryOpenQuoteWorkspace = async (input: any): Promise<boolean> => {
-    const hospitalName = String(input?.hospitalName || "").trim();
-    if (!hospitalName) return false;
-    try {
-      const searchRes = await fetch(`/api/clients?q=${encodeURIComponent(hospitalName)}`);
-      const searchData = await searchRes.json();
-      const client = Array.isArray(searchData?.clients) ? searchData.clients[0] : null;
-      if (!client?.id) return false;
-
-      const workspaceRes = await fetch(`/api/clients/${client.id}/workspace`);
-      const workspaceData = await workspaceRes.json();
-      if (!workspaceData?.ok) return false;
-
-      openWorkspace("quote", {
-        clientId: client.id,
-        workflowRunId: workspaceData.activeProject?.id,
-        clientName: client.hospital_name,
-      });
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   const send = async (overrideText?: string) => {
     const text = (overrideText ?? input).trim();
     if (!text || loading) return;
