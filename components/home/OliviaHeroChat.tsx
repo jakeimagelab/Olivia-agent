@@ -25,6 +25,50 @@ import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
 // executeOliviaAction에 넘기고(워크스페이스를 여는 등 실제 처리는 그쪽 책임), 등록 안 됐거나
 // 리졸버가 null을 반환하면(예: 등록 안 된 신규 고객) 기존 도구 실행 경로로 그대로 폴백한다.
 
+type OliviaStreamDone = { ok: boolean; type?: "message" | "tool_request"; text?: string; tool?: any; tools?: any[]; error?: string };
+
+// /api/olivia/stream의 SSE 응답을 읽어 text_delta마다 onDelta를 호출하고, done 이벤트의
+// payload(기존 /api/olivia 논스트리밍 응답과 동일한 {ok,type,text,tool?,tools?} 모양)를 반환한다.
+async function streamOliviaChat(
+  payload: { messages: { role: string; content: any }[]; pageContext?: string },
+  onDelta: (delta: string) => void,
+  signal: AbortSignal,
+): Promise<OliviaStreamDone> {
+  const res = await fetch("/api/olivia/stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal,
+  });
+  if (!res.body) throw new Error("스트리밍 응답을 받지 못했어요.");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalPayload: OliviaStreamDone | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sepIndex: number;
+    while ((sepIndex = buffer.indexOf("\n\n")) !== -1) {
+      const rawEvent = buffer.slice(0, sepIndex);
+      buffer = buffer.slice(sepIndex + 2);
+      const eventMatch = /^event: (.+)$/m.exec(rawEvent);
+      const dataMatch = /^data: (.+)$/m.exec(rawEvent);
+      if (!eventMatch || !dataMatch) continue;
+      const data = JSON.parse(dataMatch[1]);
+      if (eventMatch[1] === "text_delta") onDelta(data.delta as string);
+      else if (eventMatch[1] === "done") finalPayload = data;
+      else if (eventMatch[1] === "error") throw new Error(data.error || "스트리밍 중 오류가 발생했어요.");
+    }
+  }
+
+  if (!finalPayload) throw new Error("응답을 완료하지 못했어요.");
+  return finalPayload;
+}
+
 const SUGGESTED_PROMPTS = [
   { icon: Sun, text: "이번 촬영 일정과\n필요한 장비 리스트 확인해줘", accent: "#EB8F22" },
   { icon: Camera, text: "히어산부인과 견적서\n초안 만들어줘", accent: "#155855" },
