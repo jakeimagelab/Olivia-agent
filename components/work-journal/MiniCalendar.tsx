@@ -71,8 +71,8 @@ export default function MiniCalendar({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: hideUpcoming ? 0 : 12, height: "100%" }}>
-      <div className="pc-card pc-card--padded" style={compact ? { padding: 12 } : undefined}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: compact ? 8 : 12 }}>
+      <div className="pc-card pc-card--padded" style={compact ? { padding: "9px 10px" } : undefined}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: compact ? 4 : 12 }}>
           <span style={{ fontSize: 13, fontWeight: 900, color: C.ink }}>📅 캘린더</span>
           <button
             type="button"
