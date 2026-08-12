@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import OliviaChat from "@/components/OliviaChat";
 import PageHeader from "@/components/PageHeader";
