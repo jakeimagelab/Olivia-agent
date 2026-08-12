@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, Clapperboard, FileText, UploadCloud } from "lucide-react";
+import { CalendarDays, FileSignature, Grid2X2, Users } from "lucide-react";
 
 const ACTIONS = [
-  { label: "견적", href: "/quote", icon: FileText },
-  { label: "콘티", href: "/conti", icon: Clapperboard },
-  { label: "촬영 준비", href: "/work-journal", icon: Camera },
-  { label: "자료 업로드", href: "/select-galleries", icon: UploadCloud },
+  { label: "캘린더", href: "/calendar", icon: CalendarDays },
+  { label: "계약서", href: "/contract", icon: FileSignature },
+  { label: "고객관리", href: "/clients", icon: Users },
+  { label: "전체보기", href: "/admin/tools", icon: Grid2X2 },
 ] as const;
 
 export default function QuickActions() {
@@ -21,7 +21,7 @@ export default function QuickActions() {
       <div className="pc-quick-actions">
         {ACTIONS.map(({ label, href, icon: Icon }) => (
           <Link key={href} href={href} className="pc-quick-action">
-            <Icon size={21} aria-hidden="true" />
+            <Icon aria-hidden="true" />
             <span>{label}</span>
           </Link>
         ))}
