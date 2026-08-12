@@ -79,6 +79,9 @@ export default function OliviaHeroChat({ compact = false }: { compact?: boolean 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // 첫 text_delta가 도착한 뒤부터는 "생각 중..." 대신 이 메시지가 실시간으로 자라는 걸 보여준다.
+  const [streamingId, setStreamingId] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
