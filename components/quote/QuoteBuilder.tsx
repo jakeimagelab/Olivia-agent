@@ -1835,6 +1835,38 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           </div>
   );
 
+  useImperativeHandle(ref, () => ({
+    getSnapshot: () => ({
+      singleItems: singleItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        selected: selectedSingleItemIds.includes(item.id),
+        amount: singleItemAmounts[item.id] ?? item.price,
+      })),
+      customItems: customItems.map(({ id, name, detail, amount }) => ({ id, name, detail, amount })),
+      totalAmount: finalAmount,
+      depositRate,
+    }),
+    setSingleItemSelected: (id, selected) => {
+      setSelectedSingleItemIds((ids) => {
+        if (selected) return ids.includes(id) ? ids : [...ids, id];
+        return ids.filter((existing) => existing !== id);
+      });
+    },
+    setSingleItemAmount: (id, amount) => {
+      setSingleItemAmounts((amounts) => ({ ...amounts, [id]: amount }));
+    },
+    addCustomItem: (name, amount, detail) => {
+      setCustomItems((items) => [
+        ...items,
+        { id: crypto.randomUUID(), name, detail: detail ?? "", amount, discountable: true },
+      ]);
+    },
+    removeCustomItem,
+    setDepositRate,
+  }), [selectedSingleItemIds, singleItemAmounts, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemAmounts]);
+
   return (
     <>
     {isModal ? null : <PageHeader title="Quote Builder" />}
