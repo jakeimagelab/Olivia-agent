@@ -1,14 +1,39 @@
 import { create } from "zustand";
 
-// Olivia Agent 2.0 Phase 2 — 채팅에서 연 "기능 화면"이 홈 페이지 레이아웃(split)이나 전체화면
+// Olivia Agent 2.0 — 채팅에서 연 "기능 화면"이 홈 페이지 레이아웃(split)이나 전체화면
 // (fullscreen)으로 떠 있는 상태를 앱 전역에서 공유한다. GlobalOliviaChat(루트 레이아웃, 페이지
 // 트리 바깥)도 이 store를 읽어서 전체화면일 때만 플로팅 챗 버튼을 다시 보여준다 — 그래서 React
 // Context가 아니라 Zustand로 뒀다(페이지별 Provider 트리 밖에서도 읽어야 하므로).
 //
-// Phase 2 스코프: 우선 "quote" 워크스페이스 하나만 실제로 연결돼 있다(채팅에서 "OO 견적서
-// 만들어줘" 했을 때). 다른 타입(contract/storyboard/...)은 이후 단계에서 하나씩 연결한다.
-export type WorkspaceType = "quote" | "contract" | "conti" | null;
+// 타입 목록은 개편 요청서(16절 Workspace Registry)의 전체 목록을 그대로 두되, 실제로
+// components/workspace/WorkspaceRegistry.ts에 컴포넌트가 등록된 건 quote/contract/conti
+// 셋뿐이다 — 나머지(shoot-prep/calendar/project/gallery/files/photo-sort/analysis)는 이후
+// 단계에서 화면이 생기면 그대로 등록만 추가하면 되도록 타입만 미리 열어둔 것.
+export type WorkspaceType =
+  | "quote"
+  | "contract"
+  | "conti"
+  | "shoot-prep"
+  | "calendar"
+  | "project"
+  | "gallery"
+  | "files"
+  | "photo-sort"
+  | "analysis"
+  | null;
+
 export type WorkspaceMode = "home" | "split" | "fullscreen";
+
+export type OpenWorkspaceContext = {
+  clientId?: string;
+  workflowRunId?: string;
+  resourceId?: string;
+  clientName?: string;
+  projectName?: string;
+  workspaceTitle?: string;
+  source?: string;
+  openedBy?: string;
+};
 
 export type WorkspaceState = {
   type: WorkspaceType;
@@ -17,27 +42,45 @@ export type WorkspaceState = {
   workflowRunId?: string;
   resourceId?: string;
   clientName?: string;
+  projectName?: string;
+  workspaceTitle?: string;
+  source?: string;
+  openedBy?: string;
 
-  openWorkspace: (type: Exclude<WorkspaceType, null>, ctx: { clientId?: string; workflowRunId?: string; resourceId?: string; clientName?: string }) => void;
+  openWorkspace: (type: Exclude<WorkspaceType, null>, ctx?: OpenWorkspaceContext) => void;
+  switchWorkspace: (type: Exclude<WorkspaceType, null>, ctx?: OpenWorkspaceContext) => void;
   closeWorkspace: () => void;
   enterFullscreen: () => void;
   exitFullscreen: () => void;
 };
 
+const EMPTY_CONTEXT = {
+  clientId: undefined, workflowRunId: undefined, resourceId: undefined, clientName: undefined,
+  projectName: undefined, workspaceTitle: undefined, source: undefined, openedBy: undefined,
+};
+
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   type: null,
   mode: "home",
-  clientId: undefined,
-  workflowRunId: undefined,
-  resourceId: undefined,
-  clientName: undefined,
+  ...EMPTY_CONTEXT,
 
-  openWorkspace: (type, ctx) => set({
-    type, mode: "split",
-    clientId: ctx.clientId, workflowRunId: ctx.workflowRunId, resourceId: ctx.resourceId, clientName: ctx.clientName,
-  }),
+  openWorkspace: (type, ctx = {}) => set({ type, mode: "split", ...EMPTY_CONTEXT, ...ctx }),
 
-  closeWorkspace: () => set({ type: null, mode: "home", clientId: undefined, workflowRunId: undefined, resourceId: undefined, clientName: undefined }),
+  // 같은 고객/프로젝트 컨텍스트를 유지한 채로 다른 워크스페이스로만 전환한다("콘티 보여줘") —
+  // clientId/workflowRunId/clientName처럼 ctx에서 안 넘어온 필드는 기존 값을 그대로 이어간다.
+  switchWorkspace: (type, ctx = {}) => set((state) => ({
+    type, mode: state.mode === "home" ? "split" : state.mode,
+    clientId: ctx.clientId ?? state.clientId,
+    workflowRunId: ctx.workflowRunId ?? state.workflowRunId,
+    resourceId: ctx.resourceId,
+    clientName: ctx.clientName ?? state.clientName,
+    projectName: ctx.projectName ?? state.projectName,
+    workspaceTitle: ctx.workspaceTitle,
+    source: ctx.source ?? state.source,
+    openedBy: ctx.openedBy ?? state.openedBy,
+  })),
+
+  closeWorkspace: () => set({ type: null, mode: "home", ...EMPTY_CONTEXT }),
 
   enterFullscreen: () => { if (get().type) set({ mode: "fullscreen" }); },
   exitFullscreen: () => { if (get().type) set({ mode: "split" }); },
