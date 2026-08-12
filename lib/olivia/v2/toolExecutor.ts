@@ -595,6 +595,104 @@ export async function runTool(
     };
   }
 
+  // ── 캘린더 ──
+  if (name === "calendar_list") {
+    const tasks = await listCalendarTasks(text(input, "date"));
+    return { tool: name, success: true, data: { date: text(input, "date"), tasks } };
+  }
+  if (name === "calendar_add") {
+    const conflicts = await findCalendarConflicts(text(input, "date"), (input.time as string | null) || null);
+    const id = await addCalendarTask(input);
+    return { tool: name, success: true, data: { taskId: id, conflicts, summary: `"${text(input, "title")}" 일정을 추가했어요.` } };
+  }
+  if (name === "calendar_add_bulk") {
+    const tasks = Array.isArray(input.tasks) ? input.tasks as any[] : [];
+    const created: string[] = [];
+    for (const task of tasks) {
+      const id = await addCalendarTask(task);
+      if (id) created.push(id);
+    }
+    return { tool: name, success: true, data: { createdCount: created.length, taskIds: created, summary: `일정 ${created.length}건을 추가했어요.` } };
+  }
+  if (name === "calendar_update") {
+    const id = await resolveCalendarTaskId(input);
+    await updateCalendarTask({ ...input, id });
+    return { tool: name, success: true, data: { taskId: id, summary: "일정을 수정했어요." } };
+  }
+  if (name === "calendar_complete") {
+    const id = await resolveCalendarTaskId(input);
+    await updateCalendarTask({ id, completed: true });
+    return { tool: name, success: true, data: { taskId: id, summary: "일정을 완료 처리했어요." } };
+  }
+  if (name === "calendar_delete") {
+    const id = await resolveCalendarTaskId(input);
+    await deleteCalendarTask(id);
+    return { tool: name, success: true, data: { taskId: id, summary: "일정을 삭제했어요(휴지통에서 복원 가능)." } };
+  }
+  if (name === "calendar_availability") {
+    const conflicts = await findCalendarConflicts(text(input, "date"), (input.time as string | null) || null);
+    return { tool: name, success: true, data: { date: text(input, "date"), conflicts, hasConflict: conflicts.length > 0 } };
+  }
+
+  // ── 워크플로우 ──
+  if (name === "get_workflow_status") return fromLegacyResult(name, await getWorkflowStatus(input));
+  if (name === "advance_workflow_step") return fromLegacyResult(name, await advanceWorkflowStep(input));
+  if (name === "complete_workflow_retroactively") return fromLegacyResult(name, await completeWorkflowRetroactively(input));
+
+  // ── 메일링 (발송은 승인 필요 — send_mailing은 미리보기만, apply_send_mailing이 실제 발송) ──
+  if (name === "list_mailing_queue") return fromLegacyResult(name, await listMailingQueue(input));
+  if (name === "send_mailing") {
+    const mailingId = text(input, "mailingId");
+    if (!mailingId) throw new Error("발송할 메일 ID를 확인해주세요.");
+    return { tool: name, success: true, data: { mailingId, approvalRequired: true, summary: `메일(ID: ${mailingId})을 발송할까요? 실제 고객에게 전송됩니다.` } };
+  }
+  if (name === "apply_send_mailing") {
+    return fromLegacyResult(name, await sendMailing({ mailingId: text(input, "mailingId") }));
+  }
+
+  // ── 갤러리 ──
+  if (name === "get_gallery") return fromLegacyResult(name, await getGallery(input));
+  if (name === "create_gallery") return fromLegacyResult(name, await createGallery(input));
+
+  // ── 이메일 (Gmail) ──
+  if (["email_search", "email_read", "email_summarize", "email_create_draft"].includes(name)) {
+    const owner = await ensurePrimaryAssistantOwner(db);
+    if (name === "email_search") {
+      const result = await searchAssistantEmail(db, owner.id, input);
+      return { tool: name, success: true, data: result };
+    }
+    if (name === "email_read") {
+      const result = await readAssistantEmail(db, owner.id, input);
+      return { tool: name, success: true, data: result };
+    }
+    if (name === "email_summarize") {
+      const result = await summarizeAssistantEmail(db, owner.id, input);
+      return { tool: name, success: true, data: result };
+    }
+    const result = await createAssistantEmailDraft(db, owner.id, input);
+    return { tool: name, success: true, data: result };
+  }
+
+  // ── 브리핑/인사이트/검색/미팅 — 기존 chatWorkTools.ts 디스패처를 그대로 재사용 ──
+  if (OLIVIA_CHAT_WORK_TOOL_NAMES.has(name) || ["list_upcoming_meetings", "prepare_meeting_brief", "analyze_meeting_memo", "complete_meeting", "get_meeting_followups", "link_meeting_client"].includes(name)) {
+    const result = await executeOliviaChatWorkTool(db, name, input, {});
+    return fromLegacyResult(name, result);
+  }
+
+  // ── 메모 ──
+  if (name === "memo_add") {
+    const client = await import("@/lib/olivia/nameSearch").then(({ fuzzyNameSearchOne }) =>
+      fuzzyNameSearchOne<any>({ db, table: "clients", nameColumn: "hospital_name", select: "id, hospital_name", query: text(input, "clientName") }),
+    );
+    await db.from("consultation_memos").insert({
+      hospital_id: client?.id ?? null,
+      raw_memo: text(input, "content"),
+      summary: text(input, "content").slice(0, 200),
+      extracted_data: {},
+    });
+    return { tool: name, success: true, data: { clientName: client?.hospital_name || text(input, "clientName"), summary: "메모를 저장했어요." } };
+  }
+
   throw new Error("지원하지 않는 Olivia 작업이에요.");
 }
 
