@@ -115,7 +115,7 @@ export default function MiniCalendar({
                 style={{
                   position: "relative", height: cellHeight, borderRadius: R.sm, border: isToday && !active ? `1px solid ${C.teal}` : "1px solid transparent",
                   background: active ? C.teal : "transparent", color: active ? "#fff" : cell.inMonth ? C.ink : C.hint,
-                  fontSize: compact ? 10.5 : 11.5, fontWeight: active ? 800 : 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: compact ? 11.5 : 11.5, fontWeight: active ? 800 : 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
                 {cell.day}
