@@ -1579,6 +1579,11 @@
    내용이 넘치면 카드 안에서만 스크롤된다. 모바일(≤900px)은 .oa-shell이 통째로 block(자연
    스크롤)로 바뀌므로 여기서는 건드리지 않는다. */
 @media (min-width: 901px) {
+  /* .crm-dashboard-page(min-height:100dvh)가 이 아래 height 계산과 충돌해서 min-height가
+     이겨버리면 결국 풀 100dvh로 되돌아간다 — 여기서 그 바닥값을 0으로 풀어줘야 실제로 줄어든다. */
+  .pc-dash-home.crm-dashboard-page {
+    min-height: 0;
+  }
   .pc-dash-home {
     display: flex;
     flex-direction: column;
