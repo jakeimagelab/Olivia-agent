@@ -904,31 +904,18 @@ Packages (use exact packageId):
 - premium-plus-1: 프리미엄 플러스1 360만원 - 프로필 + 연출사진 + 인테리어 + 포인트영상
 - premium-plus-2: 프리미엄 플러스2 450만원 - 프로필 + 연출사진 + 인테리어 + 브랜드필름`;
 
-// 웹·텔레그램·카카오 채널이 동일한 Olivia Core를 호출하기 위한 서버 공통 진입점.
-// 기존 route 동작을 그대로 유지하면서 채널 어댑터가 별도 AI 로직을 만들지 않게 한다.
-export async function processOliviaRequest(body: any, req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ ok: false, error: "ANTHROPIC_API_KEY 미설정" }, { status: 500 });
-  }
+// Anthropic 클라이언트 — /api/olivia/stream(SSE 스트리밍 경로)도 같은 인스턴스를 재사용한다.
+export { client as anthropicClient };
 
-  const { messages, pendingTool, pageContext, imageBase64, imageMime } = body;
+// pendingTool 없는 "일반 대화" 요청 하나를 client.messages.create/stream에 그대로 넘길 수 있는
+// 파라미터로 변환 — 기존 processOliviaRequest와 새 스트리밍 라우트(app/api/olivia/stream)가
+// 시스템 프롬프트 구성·지식 패치·멀티모달 첨부 변환 로직을 중복 없이 공유하기 위해 분리했다.
+export async function buildOliviaModelRequest(body: any): Promise<Anthropic.MessageCreateParams> {
+  const { messages, pageContext, imageBase64, imageMime } = body;
   const attachments = sanitizeOliviaAttachments(body.attachments);
   const recentWorkItems = Array.isArray(body.recentWorkItems)
     ? body.recentWorkItems.slice(0, 12) as OliviaChatReference[]
     : [];
-
-  // 도구 실행 요청
-  if (pendingTool) {
-    try {
-      await logActivity("olivia_chat", undefined, { tool: pendingTool.name });
-      const result = await executeTool(pendingTool.name, pendingTool.input, req, { recentWorkItems });
-      return NextResponse.json({ ok: true, toolResult: result });
-    } catch (e: any) {
-      return NextResponse.json({ ok: false, error: e?.message ?? "도구 실행 중 오류가 발생했어요." }, { status: 200 });
-    }
-  }
-
 
   // 시스템 프롬프트에 페이지 컨텍스트 추가
   const referenceContext = formatWorkItemReferenceContext(recentWorkItems);
@@ -975,7 +962,7 @@ export async function processOliviaRequest(body: any, req: NextRequest) {
     }
   }
 
-  const response = await client.messages.create({
+  return {
     model: "claude-sonnet-4-6",
     max_tokens: 4096,
     system: systemWithContext,
@@ -988,8 +975,13 @@ export async function processOliviaRequest(body: any, req: NextRequest) {
       WEB_SEARCH_TOOL,
     ],
     messages: anthropicMessages,
-  });
+  };
+}
 
+// client.messages.create/stream 응답(Anthropic.Message)을 프론트가 오늘 받는 것과 동일한
+// {ok, type, text, tool?, tools?} 페이로드로 변환 — 논스트리밍 경로와 스트리밍 최종 이벤트가
+// 이 로직을 공유해서 두 경로의 tool_request 판정이 어긋나지 않게 한다.
+export function buildOliviaResponsePayload(response: Anthropic.Message) {
   // 모든 text 블록 수집 (웹 검색 결과 포함)
   const allText = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
@@ -1010,20 +1002,39 @@ export async function processOliviaRequest(body: any, req: NextRequest) {
       input: b.input,
       id: b.id,
     }));
-    return NextResponse.json({
-      ok: true,
-      type: "tool_request",
-      text: allText,
-      tool: tools[0],
-      tools,
-    });
+    return { ok: true as const, type: "tool_request" as const, text: allText, tool: tools[0], tools };
   }
 
-  return NextResponse.json({
-    ok: true,
-    type: "message",
-    text: allText || "",
-  });
+  return { ok: true as const, type: "message" as const, text: allText || "" };
+}
+
+// 웹·텔레그램·카카오 채널이 동일한 Olivia Core를 호출하기 위한 서버 공통 진입점.
+// 기존 route 동작을 그대로 유지하면서 채널 어댑터가 별도 AI 로직을 만들지 않게 한다.
+export async function processOliviaRequest(body: any, req: NextRequest) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ ok: false, error: "ANTHROPIC_API_KEY 미설정" }, { status: 500 });
+  }
+
+  const { pendingTool } = body;
+  const recentWorkItems = Array.isArray(body.recentWorkItems)
+    ? body.recentWorkItems.slice(0, 12) as OliviaChatReference[]
+    : [];
+
+  // 도구 실행 요청
+  if (pendingTool) {
+    try {
+      await logActivity("olivia_chat", undefined, { tool: pendingTool.name });
+      const result = await executeTool(pendingTool.name, pendingTool.input, req, { recentWorkItems });
+      return NextResponse.json({ ok: true, toolResult: result });
+    } catch (e: any) {
+      return NextResponse.json({ ok: false, error: e?.message ?? "도구 실행 중 오류가 발생했어요." }, { status: 200 });
+    }
+  }
+
+  const params = await buildOliviaModelRequest(body);
+  const response = await client.messages.create(params);
+  return NextResponse.json(buildOliviaResponsePayload(response));
 }
 
 async function listCalendarTasks(date: string) {
