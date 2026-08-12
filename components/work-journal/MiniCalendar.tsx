@@ -77,7 +77,7 @@ export default function MiniCalendar({
           <button
             type="button"
             onClick={() => { onMonthChange(today.slice(0, 7)); onSelectDate(today); }}
-            style={{ height: 28, padding: "0 10px", borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.teal, fontSize: 11, fontWeight: 800, cursor: "pointer" }}
+            style={{ height: compact ? 22 : 28, padding: "0 10px", borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.teal, fontSize: 11, fontWeight: 800, cursor: "pointer" }}
           >
             오늘
           </button>
