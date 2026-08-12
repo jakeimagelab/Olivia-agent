@@ -1571,3 +1571,35 @@
   .home-work-item__actions, .home-marketing-item__actions { justify-content: stretch; }
   .home-work-item__actions > *, .home-marketing-item__actions > * { flex: 1 1 0; min-width: 0; }
 }
+
+/* Olivia Agent 2.0 — 홈 화면을 뷰포트에 딱 맞춰서 페이지 스크롤 없이. 헤더(72px)+.oa-page
+   상하 패딩(20/42px, 이 파일 위쪽 "Dense Command" 블록 기준)을 뺀 나머지를 히어로 채팅이
+   flex:1로 채우고, 빠른실행/최근프로젝트/통합캘린더 3장 줄은 고정 높이로 아래 붙는다.
+   각 카드 내부는 이미 자체 overflowY:auto를 갖고 있어서(RecentProjects/IntegratedCalendar)
+   내용이 넘치면 카드 안에서만 스크롤된다. 모바일(≤900px)은 .oa-shell이 통째로 block(자연
+   스크롤)로 바뀌므로 여기서는 건드리지 않는다. */
+@media (min-width: 901px) {
+  .pc-dash-home {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 72px - 20px - 42px);
+    overflow: hidden;
+  }
+  .pc-dash-home .pc-dash-hero {
+    flex: 1;
+    min-height: 320px;
+    margin-bottom: 12px;
+  }
+  .pc-dash-home .pc-dash-quickrow {
+    flex-shrink: 0;
+    height: 232px;
+    margin-bottom: 0;
+  }
+  .pc-dash-home .pc-dash-quickrow > * {
+    min-height: 0;
+  }
+  .pc-dash-home .pc-dash-split {
+    height: 100%;
+    min-height: 0;
+  }
+}
