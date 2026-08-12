@@ -161,11 +161,11 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
       </nav>
 
       <div className="oa-sidebar__footer">
-        <button className="oa-sidebar__footer-link" type="button" disabled title="2차 UI에서 제공 예정">
-          <Settings size={17} aria-hidden="true" /> 설정
+        <button className="oa-sidebar__footer-link" type="button" disabled title="설정 · 2차 UI에서 제공 예정">
+          <Settings size={17} aria-hidden="true" /> <span>설정</span>
         </button>
-        <button className="oa-sidebar__footer-link" type="button" disabled title="2차 UI에서 제공 예정">
-          <CircleHelp size={17} aria-hidden="true" /> 도움말
+        <button className="oa-sidebar__footer-link" type="button" disabled title="도움말 · 2차 UI에서 제공 예정">
+          <CircleHelp size={17} aria-hidden="true" /> <span>도움말</span>
         </button>
       </div>
     </aside>
