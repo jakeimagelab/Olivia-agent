@@ -2,19 +2,13 @@
 
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Clapperboard, FileSignature, FileText, Maximize2, Minimize2, X } from "lucide-react";
-import QuoteBuilder from "@/components/quote/QuoteBuilder";
-import ContractBuilder from "@/components/contract/ContractBuilder";
-import ContiBuilder from "@/components/conti/ContiBuilder";
+import { Maximize2, Minimize2, X } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
+import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
 
-const WORKSPACE_META: Record<string, { label: string; icon: React.ComponentType<{ size?: number }> }> = {
-  quote: { label: "견적서 작성", icon: FileText },
-  contract: { label: "계약서 작성", icon: FileSignature },
-  conti: { label: "콘티 작성", icon: Clapperboard },
-};
-
-// 채팅 아래(split) 혹은 전체화면(fullscreen)으로 뜨는 기능 화면 셸.
+// 채팅 아래(split) 혹은 전체화면(fullscreen)으로 뜨는 기능 화면 셸. 어떤 워크스페이스를 보여줄지는
+// 하드코딩된 if(type==='quote') 체인이 아니라 WorkspaceRegistry에서 찾는다 — 새 워크스페이스를
+// 추가할 땐 화면 컴포넌트를 만들고 레지스트리에 한 줄만 추가하면 이 파일은 그대로 둔다.
 // split: 페이지 레이아웃 안에 그대로 그려져 부모가 준 높이를 채운다.
 // fullscreen: 사이드바까지 덮도록 body에 포털로 빠져나가 뷰포트 전체를 차지한다(ESC로도 종료).
 export default function DynamicWorkspace() {
@@ -28,9 +22,10 @@ export default function DynamicWorkspace() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [isFullscreen, exitFullscreen]);
 
-  if (!type) return null;
-  const meta = WORKSPACE_META[type];
-  const Icon = meta.icon;
+  const entry = type ? workspaceRegistry[type] : undefined;
+  if (!type || !entry) return null;
+  const Icon = entry.icon;
+  const Builder = entry.component;
 
   const builderProps = {
     mode: "modal" as const,
@@ -59,8 +54,13 @@ export default function DynamicWorkspace() {
             <Icon size={16} />
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#155855" }}>{meta.label}</div>
-            {clientName ? <div style={{ fontSize: 11, color: "#6F7E7A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clientName}</div> : null}
+            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 9, fontWeight: 800, color: "#155855", letterSpacing: ".04em", marginBottom: 1 }}>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22876A", flexShrink: 0 }} />
+              OLIVIA CONTEXT ACTIVE
+            </div>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#1C2B28" }}>
+              {clientName ? `${clientName} · ` : ""}{entry.label}
+            </div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -86,9 +86,7 @@ export default function DynamicWorkspace() {
       </header>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-        {type === "quote" ? <QuoteBuilder {...builderProps} /> : null}
-        {type === "contract" ? <ContractBuilder {...builderProps} /> : null}
-        {type === "conti" ? <ContiBuilder {...builderProps} /> : null}
+        <Builder {...builderProps} />
       </div>
     </div>
   );
