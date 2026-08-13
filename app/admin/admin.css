@@ -2178,6 +2178,16 @@
   transition: transform 430ms cubic-bezier(.32,.72,0,1), opacity 260ms cubic-bezier(.32,.72,0,1);
 }
 .olivia-chat-drawer.is-open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+.olivia-chat-drawer__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10041;
+  background: rgba(9,35,31,.32);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms cubic-bezier(.32,.72,0,1);
+}
+.olivia-chat-drawer__scrim.is-open { opacity: 1; pointer-events: auto; }
 .olivia-chat-drawer__close { position: absolute; top: 10px; right: 12px; min-height: 27px; padding: 0 10px; border: 1px solid rgba(21,88,85,.09); border-radius: 999px; background: rgba(255,255,255,.72); color: #58716c; font-size: 9px; cursor: pointer; }
 
 @media (max-width: 1200px) {
