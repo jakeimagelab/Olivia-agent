@@ -19,47 +19,50 @@ export type ToolDef = {
   title: string; desc: string; href: string;
   icon: ComponentType<{ size?: number }>; meta: string; orange: boolean;
   category: NavCategory;
+  /* Olivia가 자연어 요청을 이 기능과 매칭할 때 쓰는 대체 표현들 — 없으면 title/meta로만 매칭.
+     lib/olivia/features/resolver.ts가 소비한다. */
+  aliases?: string[];
 };
 
-/* 업무 도구 — 대시보드 왼쪽 그리드 & 전역 사이드바가 공유하는 단일 소스 */
+/* 업무 도구 — 대시보드 왼쪽 그리드 & 전역 사이드바 & Olivia 기능 실행이 공유하는 단일 소스 */
 export const TOOLS_WORK: ToolDef[] = [
-  { title: "메모", desc: "일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다.", href: "/memo", icon: NotebookPen, meta: "Memo", orange: true, category: "dashboard" },
-  { title: "팀 채팅", desc: "스튜디오 팀원들과 채팅방을 만들어 대화하고 파일을 주고받습니다.", href: "/team-chat", icon: MessageCircle, meta: "Team Chat", orange: false, category: "dashboard" },
-  { title: "업무 캘린더", desc: "날짜별 촬영·미팅·행정 할일을 한 화면에서 관리합니다.", href: "/calendar", icon: Calendar, meta: "Task Calendar", orange: false, category: "dashboard" },
-  { title: "업무일지", desc: "촬영 일정별 To-do와 장비·렌탈 준비사항을 관리합니다.", href: "/work-journal", icon: ClipboardList, meta: "Shoot Log", orange: false, category: "dashboard" },
-  { title: "워크스페이스", desc: "팀 채팅·목표·프로젝트·리포트를 한 곳에서 관리합니다.", href: "/team", icon: LayoutGrid, meta: "Workspace", orange: false, category: "dashboard" },
-  { title: "마케팅 대시보드", desc: "채널별 마케팅 전략과 지식 베이스를 관리합니다.", href: "/marketing", icon: Megaphone, meta: "Marketing", orange: false, category: "tools" },
-  { title: "카카오 AI 비서", desc: "카카오톡으로 올리비아와 대화하는 채널을 관리합니다.", href: "/admin/kakao-assistant", icon: MessageCircleMore, meta: "Kakao Assistant", orange: false, category: "tools" },
-  { title: "견적서 생성", desc: "촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.", href: "/quote", icon: ClipboardList, meta: "Quote Builder", orange: false, category: "tools" },
-  { title: "콘티/초상권 작성", desc: "사진 콘티(체크리스트·타임테이블)와 영상 콘티(씬·컷·손그림 스토리보드), 초상권 동의서를 한 화면에서 생성합니다.", href: "/conti", icon: FileVideo, meta: "Storyboard Studio", orange: false, category: "tools" },
-  { title: "고객 관리", desc: "병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다.", href: "/clients", icon: Users, meta: "Client Management", orange: true, category: "crm" },
-  { title: "셀렉 갤러리", desc: "고객에게 촬영본을 전달하고 셀렉을 받는 갤러리를 관리합니다.", href: "/select-galleries", icon: Images, meta: "Select Gallery", orange: false, category: "crm" },
-  { title: "PER 리워드", desc: "고객 추천 리워드 적립·신청·후속 관리를 처리합니다.", href: "/per", icon: Trophy, meta: "PER Reward", orange: false, category: "crm" },
-  { title: "고객 포털 관리", desc: "병원 고객에게 전달할 고객 전용 포털 링크를 생성하고 수정 요청·리뷰를 관리합니다.", href: "/portal-admin", icon: Link2, meta: "Client Portal", orange: false, category: "crm" },
-  { title: "통합 메일링", desc: "견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.", href: "/mailing", icon: Mail, meta: "Unified Mailing", orange: false, category: "dashboard" },
-  { title: "사진 작업실", desc: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.", href: "/photo-sorting", icon: Wand2, meta: "Photo Studio", orange: false, category: "tools" },
-  { title: "B롤 이미지 프롬프트", desc: "유튜브 대본에서 구간을 골라 이미지 생성 AI에 바로 쓸 영문 프롬프트를 만듭니다.", href: "/broll-prompt", icon: ImagePlus, meta: "B-roll Prompt", orange: false, category: "tools" },
-  { title: "유튜브 편집 콘티", desc: "대본을 장면별로 나누고 손글씨로 카메라, 자막, 자료화면과 편집 효과를 설계합니다.", href: "/youtube-editing-conti", icon: PenTool, meta: "Editing Storyboard", orange: false, category: "tools" },
-  { title: "프롬프터", desc: "대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다.", href: "/prompter", icon: Mic, meta: "Teleprompter", orange: false, category: "tools" },
-  { title: "업무 리포트", desc: "AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.", href: "/report", icon: BarChart2, meta: "Weekly Report", orange: false, category: "tools" },
-  { title: "외부 공유 링크", desc: "비밀번호 없는 외부인에게 특정 기능 하나만 열어주는 링크를 생성·관리합니다.", href: "/link-generator", icon: Share2, meta: "Share Links", orange: false, category: "dashboard" },
-  { title: "휴지통", desc: "삭제한 상담·일정·고객·콘티를 30일 동안 확인하고 복원합니다.", href: "/trash", icon: Trash2, meta: "Recovery Bin", orange: false, category: "dashboard" },
+  { title: "메모", desc: "일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다.", href: "/memo", icon: NotebookPen, meta: "Memo", orange: true, category: "dashboard", aliases: ["메모", "메모장", "노트"] },
+  { title: "팀 채팅", desc: "스튜디오 팀원들과 채팅방을 만들어 대화하고 파일을 주고받습니다.", href: "/team-chat", icon: MessageCircle, meta: "Team Chat", orange: false, category: "dashboard", aliases: ["팀채팅", "팀 채팅", "팀 대화"] },
+  { title: "업무 캘린더", desc: "날짜별 촬영·미팅·행정 할일을 한 화면에서 관리합니다.", href: "/calendar", icon: Calendar, meta: "Task Calendar", orange: false, category: "dashboard", aliases: ["캘린더", "일정", "달력", "스케줄"] },
+  { title: "업무일지", desc: "촬영 일정별 To-do와 장비·렌탈 준비사항을 관리합니다.", href: "/work-journal", icon: ClipboardList, meta: "Shoot Log", orange: false, category: "dashboard", aliases: ["업무일지", "촬영 준비"] },
+  { title: "워크스페이스", desc: "팀 채팅·목표·프로젝트·리포트를 한 곳에서 관리합니다.", href: "/team", icon: LayoutGrid, meta: "Workspace", orange: false, category: "dashboard", aliases: ["워크스페이스"] },
+  { title: "마케팅 대시보드", desc: "채널별 마케팅 전략과 지식 베이스를 관리합니다.", href: "/marketing", icon: Megaphone, meta: "Marketing", orange: false, category: "tools", aliases: ["마케팅", "마케팅 대시보드"] },
+  { title: "카카오 AI 비서", desc: "카카오톡으로 올리비아와 대화하는 채널을 관리합니다.", href: "/admin/kakao-assistant", icon: MessageCircleMore, meta: "Kakao Assistant", orange: false, category: "tools", aliases: ["카카오", "카카오 AI 비서"] },
+  { title: "견적서 생성", desc: "촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.", href: "/quote", icon: ClipboardList, meta: "Quote Builder", orange: false, category: "tools", aliases: ["견적서", "견적", "견적서 생성", "견적 만들어줘"] },
+  { title: "콘티/초상권 작성", desc: "사진 콘티(체크리스트·타임테이블)와 영상 콘티(씬·컷·손그림 스토리보드), 초상권 동의서를 한 화면에서 생성합니다.", href: "/conti", icon: FileVideo, meta: "Storyboard Studio", orange: false, category: "tools", aliases: ["콘티", "콘티/초상권", "초상권"] },
+  { title: "고객 관리", desc: "병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다.", href: "/clients", icon: Users, meta: "Client Management", orange: true, category: "crm", aliases: ["고객관리", "고객 관리", "고객", "고객 목록", "고객리스트", "CRM", "클라이언트"] },
+  { title: "셀렉 갤러리", desc: "고객에게 촬영본을 전달하고 셀렉을 받는 갤러리를 관리합니다.", href: "/select-galleries", icon: Images, meta: "Select Gallery", orange: false, category: "crm", aliases: ["셀렉갤러리", "셀렉 갤러리", "갤러리"] },
+  { title: "PER 리워드", desc: "고객 추천 리워드 적립·신청·후속 관리를 처리합니다.", href: "/per", icon: Trophy, meta: "PER Reward", orange: false, category: "crm", aliases: ["PER", "리워드"] },
+  { title: "고객 포털 관리", desc: "병원 고객에게 전달할 고객 전용 포털 링크를 생성하고 수정 요청·리뷰를 관리합니다.", href: "/portal-admin", icon: Link2, meta: "Client Portal", orange: false, category: "crm", aliases: ["고객포털", "고객 포털"] },
+  { title: "통합 메일링", desc: "견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.", href: "/mailing", icon: Mail, meta: "Unified Mailing", orange: false, category: "dashboard", aliases: ["메일링", "메일함"] },
+  { title: "사진 작업실", desc: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다.", href: "/photo-sorting", icon: Wand2, meta: "Photo Studio", orange: false, category: "tools", aliases: ["사진 작업실", "사진분류", "사진 분류"] },
+  { title: "B롤 이미지 프롬프트", desc: "유튜브 대본에서 구간을 골라 이미지 생성 AI에 바로 쓸 영문 프롬프트를 만듭니다.", href: "/broll-prompt", icon: ImagePlus, meta: "B-roll Prompt", orange: false, category: "tools", aliases: ["B롤", "비롤"] },
+  { title: "유튜브 편집 콘티", desc: "대본을 장면별로 나누고 손글씨로 카메라, 자막, 자료화면과 편집 효과를 설계합니다.", href: "/youtube-editing-conti", icon: PenTool, meta: "Editing Storyboard", orange: false, category: "tools", aliases: ["유튜브 편집 콘티", "편집 콘티"] },
+  { title: "프롬프터", desc: "대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다.", href: "/prompter", icon: Mic, meta: "Teleprompter", orange: false, category: "tools", aliases: ["프롬프터", "텔레프롬프터", "대본 띄워줘", "대본 화면", "프롬프터 실행", "프롬프터 열어줘"] },
+  { title: "업무 리포트", desc: "AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다.", href: "/report", icon: BarChart2, meta: "Weekly Report", orange: false, category: "tools", aliases: ["업무 리포트", "리포트", "주간 리포트"] },
+  { title: "외부 공유 링크", desc: "비밀번호 없는 외부인에게 특정 기능 하나만 열어주는 링크를 생성·관리합니다.", href: "/link-generator", icon: Share2, meta: "Share Links", orange: false, category: "dashboard", aliases: ["공유 링크", "외부 공유"] },
+  { title: "휴지통", desc: "삭제한 상담·일정·고객·콘티를 30일 동안 확인하고 복원합니다.", href: "/trash", icon: Trash2, meta: "Recovery Bin", orange: false, category: "dashboard", aliases: ["휴지통"] },
 ];
 
 export const TOOLS_CONTENT: ToolDef[] = [
-  { title: "아이디어 제안", desc: "오늘 제작할 클라이언트 홍보 콘텐츠 아이디어를 AI가 매일 제안합니다.", href: "/daily-ideas", icon: Lightbulb, meta: "Idea Proposal", orange: true, category: "tools" },
-  { title: "홍보 콘텐츠 제작", desc: "블로그·인스타·네이버 플레이스 홍보 콘텐츠를 클라이언트별로 제작합니다.", href: "/sns-manager", icon: CalendarCheck, meta: "Content Production", orange: false, category: "tools" },
-  { title: "리뷰컨텐츠", desc: "클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다.", href: "/review-studio", icon: Sparkles, meta: "Review Content", orange: false, category: "tools" },
-  { title: "홈페이지 브랜드 분석", desc: "병원 홈페이지 URL만 입력하면 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 자동 분석합니다.", href: "/brand-analysis", icon: ScanSearch, meta: "Brand Analysis", orange: true, category: "tools" },
-  { title: "AI 추천 병원 역분석", desc: "AI가 반복 추천하는 병원군의 증거와 패턴을 분석해 신뢰 격차와 촬영 기획으로 연결합니다.", href: "/ai-trust-gap", icon: ShieldCheck, meta: "AI Trust Gap", orange: true, category: "tools" },
-  { title: "병원이미지 진단", desc: "병원 현황에 맞는 사진 콘텐츠 방향을 AI가 진단합니다.", href: "/diagnosis", icon: ImageDown, meta: "Clinic Diagnosis", orange: false, category: "tools" },
-  { title: "병원브랜드이미지 진단", desc: "홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다.", href: "/hospital-brand-image-diagnosis", icon: Fingerprint, meta: "Brand Image Diagnosis", orange: false, category: "tools" },
-  { title: "병원 채널 분석", desc: "인스타그램·홈페이지·네이버 플레이스·블로그를 함께 분석합니다.", href: "/channel-analyzer", icon: Activity, meta: "Channel Analysis", orange: false, category: "tools" },
-  { title: "병원 트렌드 분석", desc: "SNS·키워드 검색량·경쟁사 현황을 업종별로 수집해 AI 인사이트와 함께 보여줍니다.", href: "/trend-dashboard", icon: TrendingUp, meta: "Trend Dashboard", orange: true, category: "tools" },
-  { title: "리얼 이미지 디렉터", desc: "올리비아가 촬영 디렉팅하고 OpenAI gpt-image-1로 실사 병원 이미지를 생성합니다.", href: "/image-generator", icon: Sparkles, meta: "Real Image Director", orange: true, category: "tools" },
-  { title: "홈페이지 제작", desc: "병원 홈페이지 제작 요청과 기획 정보를 정리합니다.", href: "/website-builder", icon: Globe2, meta: "Website Builder", orange: false, category: "tools" },
-  { title: "AI 검색 최적화", desc: "납품 사진의 SEO 파일명·ALT·캡션·메타데이터를 자동 생성합니다.", href: "/seo-delivery", icon: Search, meta: "SEO Delivery", orange: true, category: "tools" },
-  { title: "라이브러리", desc: "명언·비즈니스 영어·마케팅 사례·컨설팅 프레임워크·세계 이슈를 모아둔 개인 지식창고입니다.", href: "/library", icon: Library, meta: "Reference Library", orange: false, category: "tools" },
+  { title: "아이디어 제안", desc: "오늘 제작할 클라이언트 홍보 콘텐츠 아이디어를 AI가 매일 제안합니다.", href: "/daily-ideas", icon: Lightbulb, meta: "Idea Proposal", orange: true, category: "tools", aliases: ["아이디어 제안", "콘텐츠 아이디어"] },
+  { title: "홍보 콘텐츠 제작", desc: "블로그·인스타·네이버 플레이스 홍보 콘텐츠를 클라이언트별로 제작합니다.", href: "/sns-manager", icon: CalendarCheck, meta: "Content Production", orange: false, category: "tools", aliases: ["홍보 콘텐츠", "SNS 관리"] },
+  { title: "리뷰컨텐츠", desc: "클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다.", href: "/review-studio", icon: Sparkles, meta: "Review Content", orange: false, category: "tools", aliases: ["리뷰 콘텐츠", "리뷰컨텐츠"] },
+  { title: "홈페이지 브랜드 분석", desc: "병원 홈페이지 URL만 입력하면 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 자동 분석합니다.", href: "/brand-analysis", icon: ScanSearch, meta: "Brand Analysis", orange: true, category: "tools", aliases: ["브랜드 분석", "홈페이지 브랜드 분석"] },
+  { title: "AI 추천 병원 역분석", desc: "AI가 반복 추천하는 병원군의 증거와 패턴을 분석해 신뢰 격차와 촬영 기획으로 연결합니다.", href: "/ai-trust-gap", icon: ShieldCheck, meta: "AI Trust Gap", orange: true, category: "tools", aliases: ["AI 추천 병원 역분석", "신뢰 격차"] },
+  { title: "병원이미지 진단", desc: "병원 현황에 맞는 사진 콘텐츠 방향을 AI가 진단합니다.", href: "/diagnosis", icon: ImageDown, meta: "Clinic Diagnosis", orange: false, category: "tools", aliases: ["병원이미지 진단", "이미지 진단"] },
+  { title: "병원브랜드이미지 진단", desc: "홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다.", href: "/hospital-brand-image-diagnosis", icon: Fingerprint, meta: "Brand Image Diagnosis", orange: false, category: "tools", aliases: ["병원브랜드이미지 진단", "브랜드 이미지 진단"] },
+  { title: "병원 채널 분석", desc: "인스타그램·홈페이지·네이버 플레이스·블로그를 함께 분석합니다.", href: "/channel-analyzer", icon: Activity, meta: "Channel Analysis", orange: false, category: "tools", aliases: ["채널 분석", "병원 채널 분석"] },
+  { title: "병원 트렌드 분석", desc: "SNS·키워드 검색량·경쟁사 현황을 업종별로 수집해 AI 인사이트와 함께 보여줍니다.", href: "/trend-dashboard", icon: TrendingUp, meta: "Trend Dashboard", orange: true, category: "tools", aliases: ["트렌드 분석", "트렌드 대시보드"] },
+  { title: "리얼 이미지 디렉터", desc: "올리비아가 촬영 디렉팅하고 OpenAI gpt-image-1로 실사 병원 이미지를 생성합니다.", href: "/image-generator", icon: Sparkles, meta: "Real Image Director", orange: true, category: "tools", aliases: ["이미지 디렉터", "이미지 생성"] },
+  { title: "홈페이지 제작", desc: "병원 홈페이지 제작 요청과 기획 정보를 정리합니다.", href: "/website-builder", icon: Globe2, meta: "Website Builder", orange: false, category: "tools", aliases: ["홈페이지 제작", "웹사이트 제작"] },
+  { title: "AI 검색 최적화", desc: "납품 사진의 SEO 파일명·ALT·캡션·메타데이터를 자동 생성합니다.", href: "/seo-delivery", icon: Search, meta: "SEO Delivery", orange: true, category: "tools", aliases: ["SEO", "검색 최적화"] },
+  { title: "라이브러리", desc: "명언·비즈니스 영어·마케팅 사례·컨설팅 프레임워크·세계 이슈를 모아둔 개인 지식창고입니다.", href: "/library", icon: Library, meta: "Reference Library", orange: false, category: "tools", aliases: ["라이브러리"] },
 ];
 
 /* 전역 사이드바용 — 대시보드 항목까지 포함한 순서 있는 전체 목록 */
