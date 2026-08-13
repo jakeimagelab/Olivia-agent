@@ -57,8 +57,9 @@ export const OliviaConversationGuide = memo(function OliviaConversationGuide({ e
           <button
             key={exchange.id}
             type="button"
+            data-topic={exchange.topicKey}
             className={activeId === exchange.userMessageId ? "is-active" : ""}
-            aria-label={`${exchange.timeLabel} ${exchange.userText}`}
+            aria-label={`${exchange.timeLabel} ${exchange.topicLabel} · ${exchange.userText}`}
             aria-pressed={selectedId === exchange.userMessageId}
             onClick={() => onSelect(selectedId === exchange.userMessageId ? undefined : exchange.userMessageId)}
           />
