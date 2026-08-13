@@ -139,34 +139,45 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             </div>
           </div>
         ) : null}
-        {messages.map((message) => (
-          <article
-            key={message.id}
-            ref={(element) => { if (element) messageRefs.current.set(message.id, element); else messageRefs.current.delete(message.id); }}
-            data-message-id={message.id}
-            className={`olivia-message is-${message.role}`}
-          >
-            {message.role === "assistant" ? <span className="olivia-message__avatar"><OliviaIcon size={12} /></span> : null}
-            <div className="olivia-message__body">
-              {message.blocks.map((block, index) => {
-                if (block.type === "text") return <MarkdownText key={index} text={block.text} isUser={message.role === "user"} />;
-                if (block.type === "status") return <div key={index} className="olivia-message__status">{block.text}</div>;
-                if (block.type === "resource_card") return <div key={index} className="olivia-resource-card"><strong>{block.title || block.resourceType}</strong><span>{block.summary || block.resourceId}</span></div>;
-                if (block.type === "error") return <div key={index} className="olivia-message__error">{block.message}<button type="button" onClick={() => void retryLast()}>다시 시도</button></div>;
-                if (block.type === "approval") return <div key={index} className="olivia-approval-card">
-                  <strong>{block.state === "approved" ? "처리했어요" : block.state === "cancelled" ? "취소했어요" : block.state === "error" ? "처리하지 못했어요" : "확인이 필요해요"}</strong>
-                  <span>{block.summary}</span>
-                  {(!block.state || block.state === "pending") ? <div className="olivia-approval-card__actions">
-                    <button type="button" onClick={() => void approveAction(block.approvalId, block.toolName, block.toolInput)}>{block.confirmLabel}</button>
-                    <button type="button" onClick={() => cancelApproval(block.approvalId)}>취소</button>
-                  </div> : null}
-                </div>;
-                return null;
-              })}
-              {message.status === "streaming" && !messageText(message) ? <span className="olivia-typing"><i /><i /><i /></span> : null}
-            </div>
-          </article>
-        ))}
+        {messages.map((message) => {
+          const exchange = message.role === "user" ? exchangeByUserMessageId.get(message.id) : undefined;
+          return (
+            <Fragment key={message.id}>
+              {exchange?.topicChanged ? (
+                <div className="olivia-topic-divider" data-topic={exchange.topicKey}>
+                  <span className="olivia-topic-divider__line" />
+                  <span className="olivia-topic-divider__chip">{exchange.previousTopicLabel} → {exchange.topicLabel}</span>
+                  <span className="olivia-topic-divider__line" />
+                </div>
+              ) : null}
+              <article
+                ref={(element) => { if (element) messageRefs.current.set(message.id, element); else messageRefs.current.delete(message.id); }}
+                data-message-id={message.id}
+                className={`olivia-message is-${message.role}`}
+              >
+                {message.role === "assistant" ? <span className="olivia-message__avatar"><OliviaIcon size={12} /></span> : null}
+                <div className="olivia-message__body">
+                  {message.blocks.map((block, index) => {
+                    if (block.type === "text") return <MarkdownText key={index} text={block.text} isUser={message.role === "user"} />;
+                    if (block.type === "status") return <div key={index} className="olivia-message__status">{block.text}</div>;
+                    if (block.type === "resource_card") return <div key={index} className="olivia-resource-card"><strong>{block.title || block.resourceType}</strong><span>{block.summary || block.resourceId}</span></div>;
+                    if (block.type === "error") return <div key={index} className="olivia-message__error">{block.message}<button type="button" onClick={() => void retryLast()}>다시 시도</button></div>;
+                    if (block.type === "approval") return <div key={index} className="olivia-approval-card">
+                      <strong>{block.state === "approved" ? "처리했어요" : block.state === "cancelled" ? "취소했어요" : block.state === "error" ? "처리하지 못했어요" : "확인이 필요해요"}</strong>
+                      <span>{block.summary}</span>
+                      {(!block.state || block.state === "pending") ? <div className="olivia-approval-card__actions">
+                        <button type="button" onClick={() => void approveAction(block.approvalId, block.toolName, block.toolInput)}>{block.confirmLabel}</button>
+                        <button type="button" onClick={() => cancelApproval(block.approvalId)}>취소</button>
+                      </div> : null}
+                    </div>;
+                    return null;
+                  })}
+                  {message.status === "streaming" && !messageText(message) ? <span className="olivia-typing"><i /><i /><i /></span> : null}
+                </div>
+              </article>
+            </Fragment>
+          );
+        })}
         {agentStatus && isStreaming ? <div className="olivia-agent-status"><span />{agentStatus}</div> : null}
       </div>
 
