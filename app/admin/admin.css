@@ -2214,7 +2214,7 @@
   width: clamp(420px,32vw,480px);
   padding-top: 40px;
   border-left: 1px solid transparent;
-  background: var(--glass-highlight) padding-box, rgba(248,250,249,.88) padding-box, var(--glass-edge) border-box;
+  background: var(--glass-highlight) padding-box, linear-gradient(rgba(248,250,249,.88), rgba(248,250,249,.88)) padding-box, var(--glass-edge) border-box;
   background-position: 0 -14%, 0 0, 0 0;
   box-shadow: -24px 0 70px rgba(21,88,85,.13);
   backdrop-filter: blur(var(--glass-blur-deep)) saturate(160%);
