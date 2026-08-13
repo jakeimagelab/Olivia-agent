@@ -44,6 +44,11 @@ let cacheTimer: ReturnType<typeof setTimeout> | null = null;
 
 const CONVERSATION_CACHE_KEY = "olivia:conversation:v2";
 
+// 이 도구들이 실행되면(성공 시) OPEN_WORKSPACE/SWITCH_WORKSPACE ui_action이 뒤따른다 —
+// lib/olivia/agent/uiActionResolvers.ts의 실제 매핑과 반드시 함께 유지. 결과가 오기 전
+// tool_start 시점에 미리 알아서 워크스페이스 자리에 스켈레톤을 보여주기 위한 용도(Phase 4).
+const WORKSPACE_OPENING_TOOLS = new Set(["create_quote", "create_contract", "create_conti", "show_workspace"]);
+
 type ConversationCache = {
   version: 2;
   conversationId?: string;
