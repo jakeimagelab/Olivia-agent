@@ -2110,7 +2110,8 @@
 .olivia-conversation__welcome p { margin: 0; color: #758681; font-size: 11px; }
 .olivia-conversation__suggestions { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
 .olivia-conversation__suggestions button { min-height: 32px; padding: 0 12px; border: 1px solid rgba(21,88,85,.08); border-radius: 999px; background: #fff; color: #536b66; font-size: 9px; cursor: pointer; }
-.olivia-message { max-width: 82%; display: flex; align-items: flex-start; gap: 7px; }
+.olivia-message { max-width: 82%; display: flex; align-items: flex-start; gap: 7px; animation: olivia-message-in 200ms cubic-bezier(.32,.72,0,1) both; }
+@keyframes olivia-message-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .olivia-message.is-user { align-self: flex-end; flex-direction: row-reverse; }
 .olivia-message__avatar { width: 22px; height: 22px; flex: 0 0 22px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg,#f58961,var(--olivia-orange)); color: #fff; }
 .olivia-message__body { min-width: 20px; padding: 9px 12px; border-radius: 15px 15px 15px 5px; background: rgba(255,255,255,.9); color: #243a36; box-shadow: 0 5px 18px rgba(21,88,85,.05); font-size: 11px; line-height: 1.6; }
