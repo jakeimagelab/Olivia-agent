@@ -19,17 +19,22 @@ export const OliviaConversationNavigator = memo(function OliviaConversationNavig
         {groups.length ? groups.map((group) => (
           <section key={group.dateKey}>
             <h3>{group.dateLabel}</h3>
-            {group.exchanges.map((exchange) => (
-              <button
-                key={exchange.id}
-                type="button"
-                className={activeId === exchange.userMessageId ? "is-active" : ""}
-                onClick={() => onNavigate(exchange.userMessageId)}
-              >
-                <time>{exchange.timeLabel}</time>
-                <span>{exchange.userText}</span>
-                <ChevronRight size={11} />
-              </button>
+            {group.topicGroups.map((topicGroup, topicIndex) => (
+              <div key={`${group.dateKey}:${topicGroup.topicKey}:${topicIndex}`}>
+                {group.topicGroups.length > 1 ? <h4 data-topic={topicGroup.topicKey}>{topicGroup.topicLabel}</h4> : null}
+                {topicGroup.exchanges.map((exchange) => (
+                  <button
+                    key={exchange.id}
+                    type="button"
+                    className={activeId === exchange.userMessageId ? "is-active" : ""}
+                    onClick={() => onNavigate(exchange.userMessageId)}
+                  >
+                    <time>{exchange.timeLabel}</time>
+                    <span>{exchange.userText}</span>
+                    <ChevronRight size={11} />
+                  </button>
+                ))}
+              </div>
             ))}
           </section>
         )) : <p>대화를 시작하면 여기에 기록돼요.</p>}
