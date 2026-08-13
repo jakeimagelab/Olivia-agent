@@ -1997,6 +1997,21 @@
 .olivia-history-nav__groups { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 8px 12px; scrollbar-width: thin; scrollbar-color: rgba(21,88,85,.16) transparent; }
 .olivia-history-nav__groups section + section { margin-top: 13px; }
 .olivia-history-nav__groups h3 { margin: 8px 5px 5px; color: #879893; font-size: 8px; font-weight: 850; letter-spacing: .08em; }
+/* 토픽 색상 매핑 — 히스토리 레일 소제목/메시지 가이드 틱/구분선 칩/팝오버 태그가 공유 */
+[data-topic="quote"] { --topic-color: var(--topic-quote); }
+[data-topic="contract"] { --topic-color: var(--topic-contract); }
+[data-topic="conti"] { --topic-color: var(--topic-conti); }
+[data-topic="diagnosis"] { --topic-color: var(--topic-diagnosis); }
+[data-topic="briefing"] { --topic-color: var(--topic-briefing); }
+[data-topic="meeting"] { --topic-color: var(--topic-meeting); }
+[data-topic="gallery"] { --topic-color: var(--topic-gallery); }
+[data-topic="mailing"] { --topic-color: var(--topic-mailing); }
+[data-topic="email"] { --topic-color: var(--topic-email); }
+[data-topic="calendar"] { --topic-color: var(--topic-calendar); }
+[data-topic="workflow"] { --topic-color: var(--topic-workflow); }
+[data-topic="general"] { --topic-color: var(--topic-general); }
+.olivia-history-nav__groups h4 { display: flex; align-items: center; gap: 5px; margin: 10px 5px 3px; color: var(--topic-color); font-size: 8px; font-weight: 800; }
+.olivia-history-nav__groups h4::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--topic-color); }
 .olivia-history-nav__groups p { margin: 12px 6px; color: #8b9c98; font-size: 9px; line-height: 1.55; }
 .olivia-history-nav__groups button { width: 100%; min-height: 38px; display: grid; grid-template-columns: 35px minmax(0,1fr) 11px; align-items: center; gap: 4px; border: 0; border-radius: 10px; padding: 5px 6px; background: transparent; color: #536c67; text-align: left; cursor: pointer; transition: background 180ms ease,color 180ms ease; }
 .olivia-history-nav__groups button:hover { background: rgba(255,255,255,.8); }
