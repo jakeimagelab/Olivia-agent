@@ -7220,9 +7220,9 @@ main:has(> .pc-header) {
 }
 
 .pc-btn--primary {
-  background: var(--deep-green);
+  background: linear-gradient(135deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%), var(--deep-green);
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(21,88,85,.25);
+  box-shadow: 0 4px 14px rgba(21,88,85,.25), inset 0 1px 0 rgba(255,255,255,.4);
 }
 .pc-btn--primary:hover { filter: brightness(.9); }
 
