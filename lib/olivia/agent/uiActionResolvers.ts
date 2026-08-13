@@ -79,6 +79,12 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "이 컷을 삭제할까요?"), confirmLabel: "삭제", toolName: "apply_remove_conti_shot", toolInput: { selector: null, position: result.data?.targetIndex == null ? null : Number(result.data.targetIndex) + 1 } }];
   },
   apply_remove_conti_shot: async ({ result }) => mutationActions("conti", result),
+  open_feature: async ({ result }) => {
+    if (!result.success) return [];
+    const href = value(result.data, "href");
+    if (!href) return [];
+    return [{ type: "OPEN_FEATURE", href }];
+  },
   show_workspace: async ({ result, context }) => {
     if (!result.success) return [];
     const workspace = value(result.data, "workspace") as "quote" | "contract" | "conti" | undefined;
