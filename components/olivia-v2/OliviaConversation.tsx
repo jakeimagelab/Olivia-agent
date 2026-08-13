@@ -44,7 +44,11 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   useEffect(() => { void hydrate(); }, [hydrate]);
   useEffect(() => {
     const list = listRef.current;
-    if (list) list.scrollTo({ top: list.scrollHeight, behavior: isStreaming ? "auto" : "smooth" });
+    if (!list) return;
+    // 사용자가 위로 스크롤해서 이전 대화를 읽고 있으면, 스트리밍 중이라도 바닥으로 끌어당기지 않는다.
+    const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+    if (distanceFromBottom > 80) return;
+    list.scrollTo({ top: list.scrollHeight, behavior: isStreaming ? "auto" : "smooth" });
   }, [messages, isStreaming, agentStatus]);
   useEffect(() => () => { if (blurTimerRef.current) clearTimeout(blurTimerRef.current); }, []);
   useEffect(() => {
