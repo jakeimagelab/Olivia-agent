@@ -113,12 +113,19 @@ export default function IntegratedCalendar() {
             <div className="pc-panel__empty">등록된 일정이 없어요.</div>
           ) : (
             daySchedules.slice(0, 5).map((s) => (
-              <button key={s.id} type="button" className="pc-schedule-row" onClick={() => {
-                if (s.clientId || s.clientName) setClient(s.clientId, s.clientName);
-                if (s.projectId || s.projectName) setProject(s.projectId, s.projectName);
-                setSelectedSchedule(s.id);
-                recordAction(`schedule:selected:${s.id}`);
-              }}>
+              <button
+                key={s.id}
+                type="button"
+                className={`pc-schedule-row${selectedRowId === s.id ? " pc-schedule-row--selected" : ""}`}
+                aria-pressed={selectedRowId === s.id}
+                onClick={() => {
+                  if (s.clientId || s.clientName) setClient(s.clientId, s.clientName);
+                  if (s.projectId || s.projectName) setProject(s.projectId, s.projectName);
+                  setSelectedSchedule(s.id);
+                  setSelectedRowId(s.id);
+                  recordAction(`schedule:selected:${s.id}`);
+                }}
+              >
                 <time>{s.time || "종일"}</time>
                 <span>{s.title}</span>
               </button>
