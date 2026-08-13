@@ -178,6 +178,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
   isStreaming: false,
   activeResponseId: undefined,
   agentStatus: undefined,
+  pendingWorkspaceOpen: false,
   lastFailedContent: undefined,
 
   appendMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
