@@ -2175,7 +2175,7 @@
   padding: 7px 8px 7px 15px;
   border: 1px solid transparent;
   border-radius: 24px;
-  background: var(--glass-highlight) padding-box, var(--glass-bg-strong) padding-box, var(--glass-edge) border-box;
+  background: var(--glass-highlight) padding-box, linear-gradient(var(--glass-bg-strong), var(--glass-bg-strong)) padding-box, var(--glass-edge) border-box;
   background-position: 0 -10%, 0 0, 0 0;
   box-shadow: 0 10px 34px rgba(21,88,85,.1), inset 0 1px 0 rgba(255,255,255,.88);
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
