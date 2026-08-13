@@ -1988,7 +1988,33 @@
   grid-template-columns: 176px minmax(0,1fr) 42px;
   overflow: hidden;
 }
-.olivia-conversation__main { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.olivia-conversation__main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+/* AI 엔진 배경 모티프 — Phase 6. 포토클리닉 로고의 조리개 링/셔터 블레이드를 아주 옅게, 배경 최하단에 */
+.olivia-engine-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; color: var(--olivia-green); }
+.olivia-engine-bg__svg {
+  position: absolute;
+  right: -8%;
+  bottom: -10%;
+  width: min(64vh, 520px);
+  height: min(64vh, 520px);
+  opacity: .05;
+  mask-image: radial-gradient(circle at 68% 68%, rgba(0,0,0,.9), rgba(0,0,0,.25) 60%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle at 68% 68%, rgba(0,0,0,.9), rgba(0,0,0,.25) 60%, transparent 100%);
+  transition: opacity 600ms ease;
+}
+.olivia-engine-bg[data-active="true"] .olivia-engine-bg__svg { opacity: .08; }
+.olivia-engine-bg__blades, .olivia-engine-bg__ring-outer, .olivia-engine-bg__ring-inner { transform-origin: 100px 100px; }
+.olivia-engine-bg__blades { animation: olivia-engine-spin 70s linear infinite; }
+.olivia-engine-bg__ring-outer { animation: olivia-engine-spin-reverse 100s linear infinite; }
+.olivia-engine-bg__ring-inner { animation: olivia-engine-spin 130s linear infinite; }
+.olivia-engine-bg[data-active="true"] .olivia-engine-bg__blades { animation-duration: 26s; }
+.olivia-engine-bg[data-active="true"] .olivia-engine-bg__ring-outer { animation-duration: 40s; }
+.olivia-engine-bg[data-active="true"] .olivia-engine-bg__ring-inner { animation-duration: 55s; }
+@keyframes olivia-engine-spin { to { transform: rotate(360deg); } }
+@keyframes olivia-engine-spin-reverse { to { transform: rotate(-360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .olivia-engine-bg__blades, .olivia-engine-bg__ring-outer, .olivia-engine-bg__ring-inner { animation: none; }
+}
 .olivia-history-nav {
   min-width: 0;
   min-height: 0;
