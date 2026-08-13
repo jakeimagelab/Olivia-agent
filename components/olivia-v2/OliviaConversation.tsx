@@ -42,15 +42,33 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   }, [exchanges]);
   const [activeMessageId, setActiveMessageId] = useState<string>();
   const [selectedGuideId, setSelectedGuideId] = useState<string>();
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const lastMessageCountRef = useRef(0);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const list = listRef.current;
+    if (!list) return;
+    list.scrollTo({ top: list.scrollHeight, behavior });
+    setShowJumpToBottom(false);
+  }, []);
 
   useEffect(() => { void hydrate(); }, [hydrate]);
   useEffect(() => {
     const list = listRef.current;
     if (!list) return;
-    // 사용자가 위로 스크롤해서 이전 대화를 읽고 있으면, 스트리밍 중이라도 바닥으로 끌어당기지 않는다.
+    const lastMessage = messages.at(-1);
+    // 사용자가 방금 직접 보낸 메시지는 현재 스크롤 위치와 무관하게 무조건 하단으로 이동한다.
+    const justSentOwnMessage = messages.length > lastMessageCountRef.current && lastMessage?.role === "user";
+    lastMessageCountRef.current = messages.length;
+
     const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
-    if (distanceFromBottom > 80) return;
+    // 사용자가 위로 스크롤해서 이전 대화를 읽고 있으면, 스트리밍 중이라도 바닥으로 끌어당기지 않는다.
+    if (!justSentOwnMessage && distanceFromBottom > 120) {
+      setShowJumpToBottom(true);
+      return;
+    }
     list.scrollTo({ top: list.scrollHeight, behavior: isStreaming ? "auto" : "smooth" });
+    setShowJumpToBottom(false);
   }, [messages, isStreaming, agentStatus]);
   useEffect(() => () => { if (blurTimerRef.current) clearTimeout(blurTimerRef.current); }, []);
   useEffect(() => {
