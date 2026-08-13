@@ -8,6 +8,7 @@ import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationSto
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { buildConversationExchanges } from "@/lib/olivia/conversationTimeline";
 import { OliviaConversationGuide, OliviaConversationNavigator } from "@/components/olivia-v2/OliviaConversationNavigation";
+import OliviaEngineBackground from "@/components/olivia-v2/OliviaEngineBackground";
 
 export default function OliviaConversation({ variant = "main", showExpandToggle = false }: { variant?: "main" | "workspace" | "drawer"; showExpandToggle?: boolean }) {
   const messages = useOliviaConversationStore((state) => state.messages);
