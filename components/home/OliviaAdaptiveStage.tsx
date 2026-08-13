@@ -21,9 +21,14 @@ export default function OliviaAdaptiveStage() {
   const setWorkspaceFocused = useOliviaLayoutStore((state) => state.setWorkspaceFocused);
   const openWorkspaceMode = useOliviaLayoutStore((state) => state.openWorkspaceMode);
   const isStreaming = useOliviaConversationStore((state) => state.isStreaming);
+  const pendingWorkspaceOpen = useOliviaConversationStore((state) => state.pendingWorkspaceOpen);
+  const agentStatus = useOliviaConversationStore((state) => state.agentStatus);
   const { data } = useHomeDashboardData();
   const hasWorkspace = useWorkspaceStore((state) => state.type !== null);
-  const isWorkspaceMode = hasWorkspace && (mode === "workspace" || mode === "workspace-chat-expanded" || mode === "fullscreen");
+  // 실제 워크스페이스가 열리기 전, 도구가 그걸 열 것으로 보이면(pendingWorkspaceOpen) 결과가
+  // 오기 전에도 미리 패널을 펼쳐서 스켈레톤을 보여준다(Phase 4) — mode는 OPEN_WORKSPACE가 와야
+  // "workspace"로 바뀌므로 건드리지 않는다.
+  const isWorkspaceMode = (hasWorkspace && (mode === "workspace" || mode === "workspace-chat-expanded" || mode === "fullscreen")) || (pendingWorkspaceOpen && !hasWorkspace);
   const weights = getWorkspaceLayoutWeight({ mode, chatFocused, workspaceFocused, streaming: isStreaming });
   const todayCount = data?.todayTasks.length ?? 0;
 
