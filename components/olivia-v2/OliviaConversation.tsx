@@ -208,6 +208,12 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         {agentStatus && isStreaming ? <div className="olivia-agent-status"><span />{agentStatus}</div> : null}
       </div>
 
+      {showJumpToBottom ? (
+        <button type="button" className="olivia-jump-to-bottom" onClick={() => scrollToBottom()}>
+          새 메시지 ↓
+        </button>
+      ) : null}
+
       <div className="olivia-composer-shell">
         <div className="olivia-composer">
           <textarea
