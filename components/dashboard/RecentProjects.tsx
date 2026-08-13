@@ -54,7 +54,6 @@ export default function RecentProjects() {
   const setClient = useOliviaContextStore((state) => state.setClient);
   const setProject = useOliviaContextStore((state) => state.setProject);
   const recordAction = useOliviaContextStore((state) => state.recordAction);
-  const sendMessage = useOliviaConversationStore((state) => state.sendMessage);
 
   useEffect(() => {
     fetch("/api/workflow/summary", { cache: "no-store" })
