@@ -277,6 +277,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
       isStreaming: true,
       activeResponseId: responseId,
       agentStatus: "생각 중…",
+      pendingWorkspaceOpen: false,
       lastFailedContent: undefined,
     }));
     useOliviaLayoutStore.getState().startConversation();
