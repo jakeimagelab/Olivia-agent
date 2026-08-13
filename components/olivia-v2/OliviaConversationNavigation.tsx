@@ -69,6 +69,7 @@ export const OliviaConversationGuide = memo(function OliviaConversationGuide({ e
         <div className="olivia-message-guide__popover" role="dialog" aria-label="대화 내용 미리보기">
           <button className="olivia-message-guide__close" type="button" onClick={() => onSelect(undefined)} aria-label="닫기"><X size={13} /></button>
           <time><Clock3 size={11} /> {selected.dateLabel} {selected.timeLabel}</time>
+          <span className="olivia-message-guide__topic" data-topic={selected.topicKey}>{selected.topicLabel}</span>
           <strong>{selected.userText}</strong>
           <p>{selected.assistantText}</p>
           <button className="olivia-message-guide__jump" type="button" onClick={() => { onNavigate(selected.userMessageId); onSelect(undefined); }}>이 대화로 이동</button>
