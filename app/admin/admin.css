@@ -2158,7 +2158,7 @@
 .olivia-typing i { width: 4px; height: 4px; border-radius: 50%; background: #8da19c; animation: olivia-dot 1.1s infinite alternate; }
 .olivia-typing i:nth-child(2) { animation-delay: .15s; }.olivia-typing i:nth-child(3) { animation-delay: .3s; }
 @keyframes olivia-dot { to { transform: translateY(-3px); opacity: .45; } }
-.olivia-composer-shell { flex: 0 0 auto; padding: 8px clamp(12px,2.3vw,24px) 13px; }
+.olivia-composer-shell { position: relative; z-index: 1; flex: 0 0 auto; padding: 8px clamp(12px,2.3vw,24px) 13px; }
 .olivia-composer {
   display: flex;
   align-items: flex-end;
