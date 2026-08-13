@@ -1942,9 +1942,8 @@
   pointer-events: none;
   transition: opacity 260ms cubic-bezier(.32,.72,0,1), transform 380ms cubic-bezier(.32,.72,0,1), background-position 500ms cubic-bezier(.32,.72,0,1);
 }
-.olivia-home-context.is-dock .olivia-context-dock { background-position: 0 0, 0 0, 0 0; }
 .olivia-home-context { position: relative; }
-.olivia-home-context.is-dock .olivia-context-dock { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.olivia-home-context.is-dock .olivia-context-dock { opacity: 1; transform: translateY(0) scale(1) ; background-position: 0 0, 0 0, 0 0; pointer-events: auto; }
 .olivia-context-dock button {
   min-height: 42px;
   padding: 0 16px;
