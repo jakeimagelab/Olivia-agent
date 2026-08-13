@@ -197,7 +197,15 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             onChange={(event) => onInput(event.target.value)}
             onFocus={() => { if (blurTimerRef.current) clearTimeout(blurTimerRef.current); setChatFocused(true); }}
             onBlur={() => { blurTimerRef.current = setTimeout(() => setChatFocused(false), 450); }}
-            onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } }}
+            onCompositionStart={() => { isComposingRef.current = true; }}
+            onCompositionEnd={() => { isComposingRef.current = false; }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.shiftKey) return;
+              // 한글 조합 중 Enter는 글자 확정용일 수 있다 — 이때 보내면 마지막 글자가 입력창에 남는다.
+              if (isComposingRef.current || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              submit();
+            }}
           />
           <button
             type="button"
