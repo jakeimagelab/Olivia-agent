@@ -2101,6 +2101,9 @@
   gap: 12px;
   overscroll-behavior: contain;
 }
+.olivia-topic-divider { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.olivia-topic-divider__line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(21,88,85,.14), transparent); }
+.olivia-topic-divider__chip { flex: 0 0 auto; padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--topic-color) 12%, #fff); color: var(--topic-color); font-size: 8.5px; font-weight: 800; white-space: nowrap; }
 .olivia-conversation__welcome { margin: auto; text-align: center; padding: 18px; }
 .olivia-conversation__welcome > span { display: inline-flex; padding: 5px 9px; border-radius: 999px; background: var(--olivia-mint); color: var(--olivia-green); font-size: 8px; font-weight: 850; letter-spacing: .16em; }
 .olivia-conversation__welcome h1 { margin: 12px 0 5px; color: #1b302c; font-size: clamp(20px,2.3vw,30px); letter-spacing: -.035em; }
