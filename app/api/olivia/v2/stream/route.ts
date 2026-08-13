@@ -224,6 +224,7 @@ function toolStatus(name: string) {
   if (name === "rebalance_quote_total") return "견적 조정안을 계산하는 중…";
   if (name === "add_conti_shots") return "콘티 컷을 구성하는 중…";
   if (["update_conti_shot", "remove_conti_shot", "reorder_conti_shot", "duplicate_conti_shot"].includes(name)) return "콘티를 수정하는 중…";
+  if (name === "open_feature") return "화면을 찾는 중…";
   return "화면을 준비하는 중…";
 }
 
