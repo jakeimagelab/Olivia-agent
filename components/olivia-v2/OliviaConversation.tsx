@@ -130,6 +130,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       <div className="olivia-conversation__stage">
         <OliviaConversationNavigator exchanges={exchanges} activeId={activeMessageId} onNavigate={scrollToMessage} />
         <div className="olivia-conversation__main">
+      <OliviaEngineBackground active={isStreaming} />
       <div ref={listRef} className="olivia-conversation__messages" aria-live="polite">
         {!isHydrated ? <div className="olivia-conversation__empty">대화를 불러오는 중…</div> : null}
         {isHydrated && messages.length === 0 ? (
