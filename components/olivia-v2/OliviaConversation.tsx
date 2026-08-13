@@ -89,6 +89,8 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         if (distance < closestDistance) { closestDistance = distance; closestId = exchange.userMessageId; }
       }
       if (closestId) setActiveMessageId((current) => current === closestId ? current : closestId);
+      const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+      if (distanceFromBottom < 120) setShowJumpToBottom(false);
     };
     const onScroll = () => {
       if (scrollFrameRef.current == null) scrollFrameRef.current = requestAnimationFrame(updateActive);
