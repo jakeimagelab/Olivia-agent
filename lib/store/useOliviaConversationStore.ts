@@ -308,6 +308,8 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           scheduleDeltaFlush(set);
         } else if (event.type === "agent_status") {
           set({ agentStatus: event.status });
+        } else if (event.type === "tool_start") {
+          if (WORKSPACE_OPENING_TOOLS.has(event.tool)) set({ pendingWorkspaceOpen: true });
         } else if (event.type === "ui_action") {
           if (event.action.type === "REQUEST_APPROVAL") {
             const approval = event.action;
@@ -316,6 +318,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
               blocks: [...message.blocks, { type: "approval", approvalId: approval.approvalId, summary: approval.summary, toolName: approval.toolName, toolInput: approval.toolInput, confirmLabel: approval.confirmLabel, state: "pending" }],
             } : message) }));
           } else {
+            if (event.action.type === "OPEN_WORKSPACE" || event.action.type === "SWITCH_WORKSPACE") set({ pendingWorkspaceOpen: false });
             executeOliviaAction(event.action);
           }
         } else if (event.type === "message_complete") {
