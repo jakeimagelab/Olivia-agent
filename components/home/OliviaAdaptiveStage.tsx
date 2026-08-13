@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
-import DynamicWorkspace from "@/components/workspace/DynamicWorkspace";
+import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTransition";
 import QuickActions from "@/components/dashboard/QuickActions";
 import RecentProjects from "@/components/dashboard/RecentProjects";
 import IntegratedCalendar from "@/components/dashboard/IntegratedCalendar";
