@@ -1890,13 +1890,22 @@
   flex-basis: 0;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(30px);
+  transform: translateY(30px) scale(.97);
+  transition: opacity 420ms cubic-bezier(.32,.72,0,1), transform 460ms cubic-bezier(.32,.72,0,1);
 }
 .olivia-adaptive-stage__workspace.is-visible {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
+/* 워크스페이스 스켈레톤(Phase 4) — 실제 데이터 도착 전 자리채움 */
+.olivia-workspace-skeleton__pulse {
+  display: block;
+  background: linear-gradient(90deg, rgba(21,88,85,.06) 25%, rgba(21,88,85,.12) 37%, rgba(21,88,85,.06) 63%);
+  background-size: 400% 100%;
+  animation: olivia-skeleton-pulse 1.6s ease-in-out infinite;
+}
+@keyframes olivia-skeleton-pulse { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 
 .olivia-home-context {
   flex: 0 0 clamp(150px, 19vh, 190px);
