@@ -32,6 +32,7 @@ export type OliviaUiAction =
   | { type: "REFRESH_RESOURCE"; resourceId: string; resource?: string; changedEntityId?: string; before?: unknown; after?: unknown }
   | { type: "SET_SELECTION"; entityType: string; entityId: string }
   | { type: "PREVIEW_QUOTE"; resourceId: string }
+  | { type: "OPEN_FEATURE"; href: string }
   | {
       type: "REQUEST_APPROVAL";
       approvalId: string;
