@@ -531,8 +531,7 @@
 .pc-gs-shell svg { stroke-width: 1.7; }
 
 .oa-sidebar {
-  border-right: 0;
-  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
   /* 사이드바는 다크 티얼 브랜드 컬러를 유지하면서 유리 재질만 얹는다 — 흰 하이라이트/엣지는
      밝은 유리와 동일한 원리로 어두운 유리에도 그대로 통한다(빛은 표면 색과 무관하게 반사됨). */
   background:
