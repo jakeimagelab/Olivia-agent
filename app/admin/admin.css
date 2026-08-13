@@ -2175,7 +2175,7 @@
 .olivia-jump-to-bottom {
   position: absolute;
   left: 50%;
-  bottom: 78px;
+  bottom: 104px;
   z-index: 2;
   transform: translateX(-50%);
   display: inline-flex;
