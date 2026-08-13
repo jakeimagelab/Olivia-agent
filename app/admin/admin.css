@@ -1849,6 +1849,20 @@
   --glass-border: rgba(255,255,255,.72);
   --glass-shadow: 0 12px 42px rgba(21,88,85,.08);
   --glass-blur: 26px;
+
+  /* 대화 토픽 마커 색상 — Phase 3 */
+  --topic-quote: #E85D2C;
+  --topic-contract: #B24BD1;
+  --topic-conti: #2F8FD1;
+  --topic-diagnosis: #E24C4C;
+  --topic-briefing: #D1A63D;
+  --topic-meeting: #8A5CF6;
+  --topic-gallery: #2FAF8E;
+  --topic-mailing: #D14B7A;
+  --topic-email: #3D6BE8;
+  --topic-calendar: #155855;
+  --topic-workflow: #5A7470;
+  --topic-general: #98A7A3;
 }
 
 .olivia-adaptive-stage {
