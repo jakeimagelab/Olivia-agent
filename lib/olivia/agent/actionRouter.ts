@@ -80,6 +80,11 @@ export function executeOliviaAction(action: OliviaUiAction) {
     }
     case "REQUEST_APPROVAL":
       return;
+    case "OPEN_FEATURE": {
+      context.recordAction(`feature:open:${action.href}`);
+      navigateToFeature(action.href);
+      return;
+    }
   }
 }
 
