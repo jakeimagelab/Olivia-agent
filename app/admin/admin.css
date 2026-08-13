@@ -1785,6 +1785,10 @@
 .pc-schedule-row:hover {
   background: rgba(21,88,85,.04);
 }
+.pc-schedule-row--selected {
+  background: rgba(21,88,85,.09);
+  box-shadow: inset 2px 0 0 var(--olivia-green, #155855);
+}
 .pc-schedule-row time {
   font-size: 11px;
   font-weight: 600;
