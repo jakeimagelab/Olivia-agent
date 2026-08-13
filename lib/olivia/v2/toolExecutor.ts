@@ -760,6 +760,22 @@ export async function runTool(
     return { tool: name, success: true, data: { clientName: client?.hospital_name || text(input, "clientName"), summary: "메모를 저장했어요." } };
   }
 
+  if (name === "open_feature") {
+    const query = text(input, "featureQuery");
+    const resolution = resolveFeatureIntent(query);
+    if (resolution.kind === "match") {
+      return { tool: name, success: true, data: { matched: true, featureName: resolution.tool.title, href: resolution.tool.href } };
+    }
+    if (resolution.kind === "ambiguous") {
+      return {
+        tool: name,
+        success: true,
+        data: { matched: false, ambiguous: true, candidates: resolution.candidates.map((candidate) => candidate.title) },
+      };
+    }
+    return { tool: name, success: false, error: `"${query}"에 해당하는 기능을 찾지 못했어요. 앱에 존재하지 않는 기능이거나 다른 이름으로 불리고 있을 수 있어요.` };
+  }
+
   throw new Error("지원하지 않는 Olivia 작업이에요.");
 }
 
