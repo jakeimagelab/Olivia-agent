@@ -33,6 +33,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const messageRefs = useRef(new Map<string, HTMLElement>());
   const scrollFrameRef = useRef<number | null>(null);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isComposingRef = useRef(false);
   const exchanges = useMemo(() => buildConversationExchanges(messages), [messages]);
   const exchangeByUserMessageId = useMemo(() => {
     const map = new Map<string, (typeof exchanges)[number]>();
