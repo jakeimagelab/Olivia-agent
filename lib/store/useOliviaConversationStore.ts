@@ -17,6 +17,7 @@ export type OliviaConversationState = {
   isStreaming: boolean;
   activeResponseId?: string;
   agentStatus?: string;
+  pendingWorkspaceOpen: boolean;
   lastFailedContent?: string;
   appendMessage: (message: OliviaV2Message) => void;
   updateMessage: (id: string, updates: Partial<OliviaV2Message>) => void;
