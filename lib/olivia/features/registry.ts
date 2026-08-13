@@ -1,3 +1,4 @@
+import { House } from "lucide-react";
 import { ALL_TOOLS, type ToolDef } from "@/lib/toolNav";
 
 // lib/toolNav.ts의 ALL_TOOLS가 Olivia 기능 실행의 단일 진실 공급원 — 사이드바/대시보드가 쓰는
@@ -5,7 +6,7 @@ import { ALL_TOOLS, type ToolDef } from "@/lib/toolNav";
 // 홈은 시각적 그리드 타일이 아니라서 ALL_TOOLS에 없다 — 여기서만 별도로 얹는다.
 export const OLIVIA_HOME_FEATURE: ToolDef = {
   title: "홈", desc: "홈 대시보드로 이동합니다.", href: "/admin/dashboard/home",
-  icon: ALL_TOOLS[0].icon, meta: "Home", orange: false, category: "dashboard",
+  icon: House, meta: "Home", orange: false, category: "dashboard",
   aliases: ["홈", "메인", "처음", "대시보드"],
 };
 
