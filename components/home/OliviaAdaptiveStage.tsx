@@ -65,11 +65,11 @@ export default function OliviaAdaptiveStage() {
         layout
         transition={spring}
         className={`olivia-adaptive-stage__workspace${isWorkspaceMode ? " is-visible" : ""}`}
-        style={{ flexGrow: isWorkspaceMode ? weights.workspace : 0 }}
+        style={{ flexGrow: isWorkspaceMode ? weights.workspace : 0, position: "relative" }}
         onPointerDown={() => setWorkspaceFocused(true)}
         onPointerLeave={() => setTimeout(() => setWorkspaceFocused(false), 450)}
       >
-        <DynamicWorkspace />
+        <WorkspaceMorphTransition hasWorkspace={hasWorkspace} pendingWorkspaceOpen={pendingWorkspaceOpen} pendingLabel={agentStatus} />
       </motion.section>
     </main>
   );
