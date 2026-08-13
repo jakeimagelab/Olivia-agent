@@ -23,6 +23,7 @@ export default function IntegratedCalendar() {
     projectName?: string;
   }[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [selectedRowId, setSelectedRowId] = useState<string | undefined>(undefined);
   const setSelectedSchedule = useOliviaContextStore((state) => state.setSelectedSchedule);
   const setClient = useOliviaContextStore((state) => state.setClient);
   const setProject = useOliviaContextStore((state) => state.setProject);
