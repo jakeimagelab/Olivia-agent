@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
-import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
+import { navigateToFeature } from "@/lib/olivia/features/navigationBridge";
 
 // app/(client-hub)/clients/page.tsx의 STEP_INFO와 같은 취지의 "다음 업무" 설명 — 그 파일은 export를
 // 안 해서 여기서는 홈 카드에 필요한 만큼만 작게 다시 쓴다.
