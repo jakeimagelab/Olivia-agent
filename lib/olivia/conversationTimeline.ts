@@ -87,12 +87,18 @@ function compactText(value: string, max = 54) {
 
 export function buildConversationExchanges(messages: OliviaV2Message[]): OliviaExchange[] {
   const exchanges: OliviaExchange[] = [];
+  let previousTopicKey: OliviaTopicKey | null = null;
+  let previousTopicLabel: string | undefined;
   for (let index = 0; index < messages.length; index += 1) {
     const user = messages[index];
     if (user.role !== "user") continue;
     const assistant = messages.slice(index + 1).find((message) => message.role === "assistant");
     const created = validDate(user.createdAt);
     const key = dateKey(created);
+    const topicKey = classifyOliviaTopic(user.content || "");
+    const topicLabel = TOPIC_LABELS[topicKey];
+    // 첫 교환은 "이전 화제"가 없으니 change로 치지 않는다 — 실제 전환(A화제 → B화제)만 표시.
+    const topicChanged = previousTopicKey !== null && previousTopicKey !== topicKey;
     exchanges.push({
       id: `exchange:${user.id}`,
       userMessageId: user.id,
@@ -102,17 +108,31 @@ export function buildConversationExchanges(messages: OliviaV2Message[]): OliviaE
       dateKey: key,
       dateLabel: key === dateKey(new Date()) ? "오늘" : dateFormatter.format(created),
       timeLabel: timeFormatter.format(created),
+      topicKey,
+      topicLabel,
+      topicChanged,
+      previousTopicLabel: topicChanged ? previousTopicLabel : undefined,
     });
+    previousTopicKey = topicKey;
+    previousTopicLabel = topicLabel;
   }
   return exchanges;
 }
 
-export function groupExchangesByDate(exchanges: OliviaExchange[]) {
-  const groups: Array<{ dateKey: string; dateLabel: string; exchanges: OliviaExchange[] }> = [];
+export type OliviaTopicGroup = { topicKey: OliviaTopicKey; topicLabel: string; exchanges: OliviaExchange[] };
+export type OliviaDateGroup = { dateKey: string; dateLabel: string; topicGroups: OliviaTopicGroup[] };
+
+export function groupExchangesByDate(exchanges: OliviaExchange[]): OliviaDateGroup[] {
+  const groups: OliviaDateGroup[] = [];
   for (const exchange of exchanges) {
-    const current = groups.at(-1);
-    if (current?.dateKey === exchange.dateKey) current.exchanges.push(exchange);
-    else groups.push({ dateKey: exchange.dateKey, dateLabel: exchange.dateLabel, exchanges: [exchange] });
+    let dateGroup = groups.at(-1);
+    if (dateGroup?.dateKey !== exchange.dateKey) {
+      dateGroup = { dateKey: exchange.dateKey, dateLabel: exchange.dateLabel, topicGroups: [] };
+      groups.push(dateGroup);
+    }
+    const topicGroup = dateGroup.topicGroups.at(-1);
+    if (topicGroup?.topicKey === exchange.topicKey) topicGroup.exchanges.push(exchange);
+    else dateGroup.topicGroups.push({ topicKey: exchange.topicKey, topicLabel: exchange.topicLabel, exchanges: [exchange] });
   }
   return groups;
 }
