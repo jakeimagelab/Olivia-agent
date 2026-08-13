@@ -620,11 +620,14 @@ main:has(> .pc-header) {
 
 /* ── 전역 사이드바 (대시보드 홈 / /admin 제외 모든 페이지) ───────
    /admin 콘솔과 똑같은 AdminSidebar를 그대로 재사용한다 — 예전엔 이 파일이 자체 아이콘 레일을
-   따로 그려서 두 개의 서로 다른 내비게이션이 존재했다. */
+   따로 그려서 두 개의 서로 다른 내비게이션이 존재했다. 그 시절 아이콘 레일 폭(68px)이 그대로
+   남아있었는데, AdminSidebar는 라벨까지 있는 260px 폭 사이드바라 grid 컬럼과 실제 렌더 폭이
+   어긋나 있었다(admin.css의 .oa-shell과 동일하게 260px로 맞춘다) — 다른 페이지로 이동하면
+   본문이 사이드바를 침범하거나 밀리는 것처럼 보이던 원인. */
 .pc-gs-shell {
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
 }
 
 .pc-gs-workspace {
