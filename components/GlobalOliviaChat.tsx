@@ -1,8 +1,10 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import OliviaFloatingConversation from "@/components/olivia-v2/OliviaFloatingConversation";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
+import { registerOliviaRouter } from "@/lib/olivia/features/navigationBridge";
 
 // 홈(/admin/dashboard/home)은 자체 큰 임베드 채팅을 쓰므로 플로팅 위젯을 겹쳐 띄우지 않는다.
 // 두 표면은 DB 재조회가 아니라 같은 useOliviaConversationStore.messages 배열을 직접 구독한다.
@@ -13,8 +15,13 @@ const localContextPages = ["/photoclinic", "/client-portal", "/admin/dashboard/h
 
 export default function GlobalOliviaChat() {
   const pathname = usePathname();
+  const router = useRouter();
   const isFullscreenWorkspace = useWorkspaceStore((s) => s.mode === "fullscreen");
   const hasLocalOlivia = localContextPages.some((path) => pathname?.startsWith(path)) || isFullscreenWorkspace;
+
+  // 이 컴포넌트는 루트 레이아웃에 항상 마운트되어 있으므로, 훅이 아닌 Olivia 기능 실행
+  // 코드(executor.ts, actionRouter.ts)가 쓸 수 있는 유일한 useRouter() 출처가 된다.
+  useEffect(() => { registerOliviaRouter(router); }, [router]);
 
   if (hasLocalOlivia) return null;
 
