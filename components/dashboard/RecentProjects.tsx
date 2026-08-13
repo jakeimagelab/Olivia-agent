@@ -91,7 +91,9 @@ export default function RecentProjects() {
                 setClient(run.client_id || undefined, run.client_name);
                 setProject(run.id, run.client_name ? `${run.client_name} 프로젝트` : undefined);
                 recordAction(`project:selected:${run.id}`);
-                void sendMessage(`${run.client_name} 프로젝트 보여줘`);
+                // 자연어 채팅에 해석을 맡기지 않고 실제 고객 화면으로 바로 이동한다 —
+                // 클릭했는데 아무 화면도 안 열리는 것처럼 보이는 문제를 없앤다.
+                navigateToFeature(run.client_id ? `/clients?clientId=${run.client_id}` : "/clients");
               }}
             >
               <div className="pc-project-row__main">
