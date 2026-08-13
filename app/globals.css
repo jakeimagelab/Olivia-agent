@@ -638,6 +638,10 @@ main:has(> .pc-header) {
   display: none;
 }
 
+@media (max-width: 1380px) {
+  .pc-gs-shell { grid-template-columns: 238px minmax(0, 1fr); }
+}
+
 @media (max-width: 900px) {
   .pc-gs-shell {
     display: block;
