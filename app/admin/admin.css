@@ -2205,6 +2205,7 @@
   .olivia-adaptive-stage__workspace.is-visible { min-height: 62dvh; }
   .olivia-message { max-width: 92%; }
   .olivia-conversation__controls button { font-size: 0; width: 30px; padding: 0; justify-content: center; }
+  .olivia-composer > button { width: 44px; height: 44px; flex: 0 0 44px; }
   .olivia-chat-drawer { width: min(100%,480px); }
   .olivia-conversation__stage { grid-template-columns: minmax(0,1fr) 30px; }
   .olivia-history-nav { display: none; }
