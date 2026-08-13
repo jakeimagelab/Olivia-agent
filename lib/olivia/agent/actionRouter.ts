@@ -2,6 +2,7 @@ import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
+import { navigateToFeature } from "@/lib/olivia/features/navigationBridge";
 
 // Olivia Agent 2.0 — OliviaUiAction 하나를 실제 store 변경으로 옮긴다. 채팅 컴포넌트는
 // executeOliviaAction(action)만 부르면 되고, 어떤 store를 어떻게 바꾸는지는 여기 한 곳에만
