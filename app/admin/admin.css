@@ -2136,13 +2136,16 @@
   align-items: flex-end;
   gap: 8px;
   padding: 7px 8px 7px 15px;
-  border: 1px solid var(--glass-border);
+  border: 1px solid transparent;
   border-radius: 24px;
-  background: var(--glass-bg-strong);
+  background: var(--glass-highlight) padding-box, var(--glass-bg-strong) padding-box, var(--glass-edge) border-box;
+  background-position: 0 -10%, 0 0, 0 0;
   box-shadow: 0 10px 34px rgba(21,88,85,.1), inset 0 1px 0 rgba(255,255,255,.88);
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  transition: background-position 500ms cubic-bezier(.32,.72,0,1), box-shadow 300ms cubic-bezier(.32,.72,0,1);
 }
+.olivia-composer:focus-within { background-position: 0 0, 0 0, 0 0; box-shadow: 0 12px 38px rgba(21,88,85,.14), inset 0 1px 0 rgba(255,255,255,.92); }
 .olivia-composer textarea { flex: 1; min-width: 0; max-height: 152px; resize: none; border: 0; outline: 0; background: transparent; color: #223a35; font: 500 12px/1.55 inherit; padding: 5px 0; }
 .olivia-composer textarea::placeholder { color: #91a09d; }
 .olivia-composer > button { width: 32px; height: 32px; flex: 0 0 32px; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer; transition: transform 260ms cubic-bezier(.32,.72,0,1), opacity 260ms cubic-bezier(.32,.72,0,1); }
