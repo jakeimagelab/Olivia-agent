@@ -6970,9 +6970,7 @@ main:has(> .pc-header) {
   display: flex;
   justify-content: safe center;
   gap: 4px;
-  background: rgba(244,247,249,.88);
-  backdrop-filter: blur(24px) saturate(1.6);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  background: #f4f7f9;
   border-bottom: 1px solid rgba(255,255,255,.65);
   padding: 8px 28px;
   position: sticky;
