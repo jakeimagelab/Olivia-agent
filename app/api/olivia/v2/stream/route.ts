@@ -36,13 +36,13 @@ const MAX_TOOL_ROUNDS = 6;
 // 직접 박아 넣는데, v2(OpenAI) 경로는 이 프롬프트가 빠져 있어서 모델이 학습 데이터의 연도를 그대로
 // 추측해 답했다("지금이 2025년" 등, 2026-08-14 사용자 리포트로 발견) — 매 요청마다 새로 계산해서
 // 콜드/웜 스타트 시점에 관계없이 항상 실제 오늘 날짜를 쓰게 한다.
-function buildSystemPrompt(): string {
-  const today = new Date().toLocaleDateString("ko-KR", {
-    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", weekday: "long",
-  });
+// 진짜 source of truth는 lib/olivia/runtime/buildRuntimeContext.ts가 계산한 OliviaRuntimeContext다
+// — 이 프롬프트의 "오늘 날짜" 문구는 그 값을 GPT에게 설명해주는 보조 수단일 뿐이다(런타임 질문
+// 자체는 GPT를 거치지 않고 orchestrator가 직접 답한다. 아래 handleRequest 참고).
+function buildSystemPrompt(runtime: OliviaRuntimeContext): string {
   return `당신은 포토클리닉 운영 AI Agent Olivia다. 사용자는 대표자다.
 
-오늘 날짜: ${today} (한국 시간 기준 — 절대 학습 데이터의 연도로 추측하지 말고 이 날짜를 기준으로 답한다. '오늘'/'내일'/'이번주 금요일' 등을 YYYY-MM-DD로 변환할 때도 이 날짜를 쓴다.)
+오늘 날짜: ${runtime.todayISO} ${runtime.weekdayKo} (한국 시간 기준 — 절대 학습 데이터의 연도로 추측하지 말고 이 날짜를 기준으로 답한다. '오늘'/'내일'/'이번주 금요일' 등을 YYYY-MM-DD로 변환할 때도 이 날짜를 쓴다.)
 
 <operating_rules>
 - 현재 Context를 먼저 사용한다. 이미 선택된 고객/프로젝트를 다시 묻지 않는다.
