@@ -565,6 +565,10 @@
   border-bottom: 1px solid transparent;
   background: #fff;
   box-shadow: 0 12px 34px rgba(26,63,58,.1);
+  /* 위쪽(64행)의 첫 .oa-header 정의가 blur(18px)를 이미 갖고 있어서, 이 규칙에서 그냥
+     속성을 지우기만 하면 캐스케이드상 그 값이 그대로 새어나온다 — 반드시 명시적으로 none. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .oa-header__title { font-size: clamp(22px,2vw,29px); color: var(--command-text); }
 .oa-header__title--compact { color: #155855; font-size: clamp(15px,1.4vw,20px); }
