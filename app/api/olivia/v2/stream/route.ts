@@ -110,8 +110,9 @@ function normalizeContext(value: unknown): OliviaContextSnapshot {
   };
 }
 
-function contextPrompt(context: OliviaContextSnapshot, pageContext?: string) {
+function contextPrompt(context: OliviaContextSnapshot, pageContext?: string, temporalHint?: string) {
   const lines = [
+    temporalHint ? `해석된 날짜(코드가 계산함 — 이 값을 그대로 쓴다): ${temporalHint}` : null,
     context.pathname ? `현재 경로: ${context.pathname}` : null,
     context.activeClientName || context.activeClientId
       ? `현재 고객: ${context.activeClientName || "이름 없음"} (${context.activeClientId || "ID 없음"})`
