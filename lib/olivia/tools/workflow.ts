@@ -93,6 +93,15 @@ export async function advanceWorkflowStep(input: any, req?: NextRequest | null) 
   if (!run) {
     return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
   }
+  // 화면 버튼과 같은 보호: 지금 있는 단계가 quote/contract/conti인데 그 단계의 실제 문서가
+  // 하나도 없으면, 다른 단계로 건너뛰지 못하게 막는다(재현된 버그 — 설계 문서 참고).
+  const currentDisplayStep = getWorkflowDisplayStepKey(run.current_step_key) || run.current_step_key;
+  if (isToolOnlyStep(currentDisplayStep) && currentDisplayStep !== input.toStepKey) {
+    const hasDocument = await hasRealDocumentForStep(run.id, currentDisplayStep);
+    if (!hasDocument) {
+      return { action: "done", message: TOOL_STEP_BUILDER_HINT[currentDisplayStep], clientName: run.client_name, currentStepKey: run.current_step_key };
+    }
+  }
   const origin = resolveOrigin(req);
   const res = await fetch(`${origin}/api/workflow/advance`, {
     method: "POST",
