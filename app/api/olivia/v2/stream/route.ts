@@ -139,6 +139,7 @@ function toInputMessages(
   message: string,
   context: OliviaContextSnapshot,
   pageContext?: string,
+  temporalHint?: string,
 ): ResponseInputItem[] {
   const history: ResponseInputItem[] = rows.slice(-30).map((row) => ({
     role: row.role === "assistant" ? "assistant" : "user",
@@ -148,7 +149,7 @@ function toInputMessages(
     ...history,
     {
       role: "user",
-      content: `[Dynamic Context]\n${contextPrompt(context, pageContext)}\n\n[User Request]\n${message}`,
+      content: `[Dynamic Context]\n${contextPrompt(context, pageContext, temporalHint)}\n\n[User Request]\n${message}`,
     },
   ];
 }
