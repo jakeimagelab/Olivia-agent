@@ -1924,7 +1924,10 @@
 @keyframes olivia-skeleton-pulse { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 
 .olivia-home-context {
-  flex: 0 0 clamp(150px, 19vh, 190px);
+  /* 접힌 상태(is-dock)는 아래에서 64px로 고정 override — 이 기본값은 펼친 상태의 높이다.
+     예전엔 dock/expanded가 같은 clamp(최대 190px)를 써서, 캘린더 전체 주(week) 행이 다 안
+     들어가고 잘려 보였다(2026-08-14 사용자 리포트) — 펼친 상태만 훨씬 넉넉하게 키운다. */
+  flex: 0 0 clamp(260px, 34vh, 380px);
   min-height: 0;
   overflow: hidden;
   opacity: 1;
@@ -1937,6 +1940,7 @@
 .olivia-home-context.is-dock { flex-basis: 64px; }
 .olivia-home-context.is-hidden { flex-basis: 0; opacity: 0; transform: translateY(18px); pointer-events: none; }
 .olivia-home-context__expanded {
+  position: relative;
   height: 100%;
   display: grid;
   grid-template-columns: 210px 340px minmax(0,1fr);
@@ -1947,6 +1951,27 @@
   transition: opacity 220ms cubic-bezier(.32,.72,0,1), transform 360ms cubic-bezier(.32,.72,0,1);
 }
 .olivia-home-context.is-dock .olivia-home-context__expanded { opacity: 0; transform: scale(.985) translateY(10px); pointer-events: none; }
+.olivia-home-context__expanded > * { min-height: 0; overflow-y: auto; }
+.olivia-home-context__collapse {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: 30px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(21,88,85,.12);
+  border-radius: 0 0 10px 10px;
+  border-top: none;
+  background: #fff;
+  color: #5a716c;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(21,88,85,.08);
+}
+.olivia-home-context__collapse:hover { color: var(--olivia-green); background: #EAF4F2; }
 .olivia-context-dock {
   position: absolute;
   inset: 0;
