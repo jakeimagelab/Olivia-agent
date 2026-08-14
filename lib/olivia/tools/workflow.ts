@@ -140,3 +140,136 @@ export async function completeWorkflowRetroactively(input: any, req?: NextReques
   if (!d.ok) return { action: "done", message: `⚠️ 완료 처리 실패: ${d.error}` };
   return { action: "done", message: `✅ **${input.clientName}** 워크플로우를 전체 완료 처리했어요.`, clientName: input.clientName };
 }
+
+// components/NextActionCard.tsx의 "업무 프로세스" 체크리스트를 채팅으로 조회한다(읽기 전용).
+export async function listWorkflowStepTasks(input: any, req?: NextRequest | null) {
+  const run = await resolveActiveRun(input.clientName);
+  if (!run) {
+    return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
+  }
+  const origin = resolveOrigin(req);
+  const res = await fetch(`${origin}/api/workflow/next-action?workflowRunId=${run.id}`);
+  const d = await res.json();
+  if (!d.ok) return { action: "done", message: `❌ 업무 목록을 불러오지 못했어요: ${d.error}` };
+
+  const stepLabel = STEP_LABELS[run.current_step_key] ?? run.current_step_key;
+  const tasks = (d.tasks || []) as any[];
+  if (!tasks.length) {
+    return {
+      action: "done",
+      message: `✅ **${run.client_name}** — ${stepLabel} 단계엔 업무 프로세스 항목이 없어요.`,
+      clientName: run.client_name,
+      currentStepKey: run.current_step_key,
+    };
+  }
+  const lines = tasks.map((t) => `- ${t.title} (${TASK_STATUS_LABEL[t.status] ?? t.status})`).join("\n");
+  return {
+    action: "done",
+    message: `📋 **${run.client_name}** — ${stepLabel} 업무 프로세스\n\n${lines}`,
+    clientName: run.client_name,
+    currentStepKey: run.current_step_key,
+    tasks: tasks.map((t) => ({ id: t.id, title: t.title, status: t.status })),
+  };
+}
+
+// components/NextActionCard.tsx의 "올리비아가 현재 단계 처리하기" 버튼과 완전히 동일하게
+// 동작한다 — /api/workflow/run-current-step 하나만 호출한다.
+export async function processWorkflowStep(input: any, req?: NextRequest | null) {
+  const run = await resolveActiveRun(input.clientName);
+  if (!run) {
+    return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
+  }
+  const displayStepKey = getWorkflowDisplayStepKey(run.current_step_key) || run.current_step_key;
+  if (isToolOnlyStep(displayStepKey)) {
+    return {
+      action: "done",
+      message: TOOL_STEP_BUILDER_HINT[displayStepKey],
+      clientName: run.client_name,
+      currentStepKey: run.current_step_key,
+      blocked: true,
+    };
+  }
+  const origin = resolveOrigin(req);
+  const res = await fetch(`${origin}/api/workflow/run-current-step`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+    body: JSON.stringify({ workflowRunId: run.id }),
+  });
+  const d = await res.json();
+  if (!d.ok) return { action: "done", message: `❌ 처리 실패: ${d.error}` };
+  await logActivity("process_workflow_step", run.client_name, {
+    stepKey: run.current_step_key, executedTasks: d.executedTasks, advanced: d.advanced,
+  });
+  const nextStepLabel = d.nextStepKey ? (STEP_LABELS[d.nextStepKey] ?? d.nextStepKey) : null;
+  return {
+    action: "done",
+    message: d.advanced
+      ? `✅ **${run.client_name}** — ${d.message} 다음 단계(${nextStepLabel})로 넘어갔어요.`
+      : `✅ **${run.client_name}** — ${d.message}`,
+    clientName: run.client_name,
+    currentStepKey: run.current_step_key,
+    advanced: Boolean(d.advanced),
+    nextStepKey: d.nextStepKey ?? null,
+  };
+}
+
+// components/NextActionCard.tsx의 체크리스트에서 항목 하나를 골라 처리하는 것과 동일 — 제목으로
+// 정확히 하나만 식별되면 승인 대기 중인 항목은 승인, 아니면 작업을 바로 실행한다.
+export async function approveWorkflowTask(input: any, req?: NextRequest | null) {
+  const run = await resolveActiveRun(input.clientName);
+  if (!run) {
+    return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
+  }
+  const displayStepKey = getWorkflowDisplayStepKey(run.current_step_key) || run.current_step_key;
+  if (isToolOnlyStep(displayStepKey)) {
+    return {
+      action: "done",
+      message: TOOL_STEP_BUILDER_HINT[displayStepKey],
+      clientName: run.client_name,
+      currentStepKey: run.current_step_key,
+      blocked: true,
+    };
+  }
+
+  const origin = resolveOrigin(req);
+  const listRes = await fetch(`${origin}/api/workflow/next-action?workflowRunId=${run.id}`);
+  const listData = await listRes.json();
+  if (!listData.ok) return { action: "done", message: `❌ 업무 목록을 불러오지 못했어요: ${listData.error}` };
+
+  const tasks = (listData.tasks || []) as any[];
+  const actionable = tasks.filter((t) => t.status !== "completed" && t.status !== "canceled");
+  const selector = String(input.taskSelector || "").trim().toLowerCase();
+  const matches = selector ? actionable.filter((t) => String(t.title || "").toLowerCase().includes(selector)) : actionable;
+
+  if (matches.length === 0) {
+    const list = actionable.map((t) => `- ${t.title}`).join("\n") || "(남은 업무 없음)";
+    return { action: "done", message: `"${input.taskSelector}"와(과) 일치하는 업무를 못 찾았어요. 지금 남은 업무는:\n${list}` };
+  }
+  if (matches.length > 1) {
+    const list = matches.map((t) => `- ${t.title}`).join("\n");
+    return { action: "done", message: `어떤 업무를 말씀하시는지 콕 집어 알려주세요:\n${list}` };
+  }
+
+  const task = matches[0];
+  const approvals = (listData.approvals || []) as any[];
+  const pendingApproval = approvals.find((a) => a.agent_task_id === task.id && a.status === "pending");
+  const endpoint = task.status === "waiting_approval" && pendingApproval
+    ? `${origin}/api/agent/approvals/${pendingApproval.id}/approve`
+    : `${origin}/api/agent/tasks/${task.id}/run`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+    body: JSON.stringify({}),
+  });
+  const d = await res.json();
+  if (!d.ok) return { action: "done", message: `❌ "${task.title}" 처리 실패: ${d.error}` };
+  await logActivity("approve_workflow_task", run.client_name, { stepKey: run.current_step_key, taskTitle: task.title });
+  return {
+    action: "done",
+    message: `✅ **${run.client_name}** — "${task.title}" 처리했어요.`,
+    clientName: run.client_name,
+    currentStepKey: run.current_step_key,
+    taskTitle: task.title,
+  };
+}
