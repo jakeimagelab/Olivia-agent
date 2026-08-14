@@ -1540,17 +1540,13 @@
   gap: 12px;
 }
 
-/* Liquid Glass — 반투명 그라디언트 + 안쪽 하이라이트 라인 + 소프트 블러로 "유리판" 느낌.
-   톤앤매너(티얼/민트/아이보리)는 그대로 유지하고 표면 재질만 유리로 바꾼다. */
 .pc-panel {
   min-width: 0;
   min-height: 0;
   border-radius: 22px;
-  background: linear-gradient(165deg, rgba(255,255,255,.8), rgba(255,255,255,.5));
-  border: 1px solid rgba(255,255,255,.55);
-  box-shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 10px 30px rgba(20,60,55,.06);
-  backdrop-filter: blur(22px) saturate(1.4);
-  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(21,88,85,.07);
+  box-shadow: 0 8px 28px rgba(21,88,85,.045);
   overflow: hidden;
   padding: 14px;
   display: flex;
