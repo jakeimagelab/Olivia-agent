@@ -10,6 +10,7 @@ import {
   WORKFLOW_STAGES,
   WORKFLOW_STEPS,
   getWorkflowDisplayStepKey,
+  isToolOnlyStep,
   type ToolOnlyStepKey,
 } from "@/lib/workflow";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
