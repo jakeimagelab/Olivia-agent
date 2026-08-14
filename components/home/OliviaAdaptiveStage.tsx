@@ -20,6 +20,7 @@ export default function OliviaAdaptiveStage() {
   const workspaceFocused = useOliviaLayoutStore((state) => state.workspaceFocused);
   const setWorkspaceFocused = useOliviaLayoutStore((state) => state.setWorkspaceFocused);
   const openWorkspaceMode = useOliviaLayoutStore((state) => state.openWorkspaceMode);
+  const resetToIdle = useOliviaLayoutStore((state) => state.resetToIdle);
   const isStreaming = useOliviaConversationStore((state) => state.isStreaming);
   const pendingWorkspaceOpen = useOliviaConversationStore((state) => state.pendingWorkspaceOpen);
   const agentStatus = useOliviaConversationStore((state) => state.agentStatus);
