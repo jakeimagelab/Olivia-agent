@@ -7166,12 +7166,10 @@ main:has(> .pc-header) {
 
 /* ── 카드 ──────────────────────────────────────────────── */
 .pc-card {
-  background: var(--liquid-highlight) padding-box, linear-gradient(var(--liquid-panel-strong), var(--liquid-panel-strong)) padding-box, var(--liquid-edge) border-box;
-  border: 1px solid transparent;
+  background: #fff;
+  border: 1px solid rgba(21,88,85,.08);
   border-radius: 14px;
-  backdrop-filter: blur(var(--liquid-blur-strong)) saturate(1.6);
-  -webkit-backdrop-filter: blur(var(--liquid-blur-strong)) saturate(1.6);
-  box-shadow: var(--liquid-shadow-strong);
+  box-shadow: 0 8px 28px rgba(21,88,85,.06);
   overflow: hidden;
 }
 
