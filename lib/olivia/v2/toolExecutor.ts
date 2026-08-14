@@ -100,8 +100,20 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   },
   {
     type: "function",
+    name: "get_conti_status",
+    description: "[READ] 병원명으로 저장된 콘티가 있는지 conti_saves에서 실제로 조회합니다. '콘티 찾아줘'/'콘티 있어?'/'콘티 저장됐어?' 같은 요청에는 반드시 이 도구를 먼저 쓴다 — 도구 없이 있다/없다를 추측하지 않는다.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: { hospitalName: { type: "string" } },
+      required: ["hospitalName"],
+    },
+  },
+  {
+    type: "function",
     name: "create_conti",
-    description: "현재 고객의 실제 촬영 콘티 초안을 DB에 생성합니다.",
+    description: "현재 고객의 실제 촬영 콘티 초안을 DB에 생성합니다. 이미 저장된 콘티가 있는지 먼저 확인하고 싶으면 get_conti_status를 쓴다.",
     strict: true,
     parameters: {
       type: "object",
