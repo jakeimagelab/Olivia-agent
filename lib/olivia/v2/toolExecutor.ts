@@ -28,6 +28,7 @@ import {
   processWorkflowStep,
 } from "@/lib/olivia/tools/workflow";
 import { listMailingQueue, sendMailing } from "@/lib/olivia/tools/mailing";
+import { getContiStatus } from "@/lib/olivia/tools/conti";
 import { createGallery, getGallery } from "@/lib/olivia/tools/gallery";
 import { findCalendarConflicts } from "@/lib/assistant/actions/calendarAvailability";
 import {
