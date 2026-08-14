@@ -182,10 +182,13 @@ describe("Ambiguity — 임의 실행 금지", () => {
 });
 
 describe("Unknown feature — 지어내지 않는다", () => {
+  // orchestrator 레벨에서는 "모른다"고 단정하지 않는다 — Registry에 없으면 그냥 null을 반환해
+  // 기존 GPT+open_feature 경로가 "그런 기능은 없다"고 정확히 답하게 둔다(18, 44절).
   it("우주선 제어판 열어줘 → 결정적으로 처리하지 않고 GPT(open_feature 도구)로 넘긴다", () => {
-    // orchestrator 레벨에서는 "모른다"고 단정하지 않는다 — Registry에 없으면 그냥 null을 반환해
-    // 기존 GPT+open_feature 경로가 "그런 기능은 없다"고 정확히 답하게 둔다(18, 44절).
     expect(resolveDeterministicResponse("우주선 제어판 열어줘", runtime, emptyContext)).toBeNull();
+  });
+  it("타임머신 실행 → 마찬가지로 GPT로 위임", () => {
+    expect(resolveDeterministicResponse("타임머신 실행", runtime, emptyContext)).toBeNull();
   });
 });
 
