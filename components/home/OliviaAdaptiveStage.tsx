@@ -56,7 +56,14 @@ export default function OliviaAdaptiveStage() {
         aria-hidden={mode !== "idle" && mode !== "conversation"}
         className={`olivia-home-context${mode === "conversation" ? " is-dock" : ""}${isWorkspaceMode ? " is-hidden" : ""}`}
       >
-        <div className="olivia-home-context__expanded"><QuickActions /><RecentProjects /><IntegratedCalendar /></div>
+        <div className="olivia-home-context__expanded">
+          {/* 펼친 상태를 다시 접는 버튼 — 빠른실행/최근 프로젝트/오늘 일정 dock 버튼의 반대 동작
+              (startConversation이 resetToIdle의 역방향: idle → conversation). */}
+          <button type="button" className="olivia-home-context__collapse" onClick={startConversation} aria-label="패널 접기" title="패널 접기">
+            <ChevronDown size={14} />
+          </button>
+          <QuickActions /><RecentProjects /><IntegratedCalendar />
+        </div>
         <div className="olivia-context-dock">
           {/* 채팅 중엔 빠른 실행/최근 프로젝트/오늘 일정 패널이 이 요약 버튼들로 접힌다(is-dock,
               admin.css) — 클릭하면 채팅을 유지한 채로 패널을 다시 펼친다(resetToIdle). */}
