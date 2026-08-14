@@ -51,12 +51,16 @@ async function hasRealDocumentForStep(workflowRunId: string, stepKey: ToolOnlySt
 // req는 레거시(Claude) 경로에서만 넘어온다 — v2(OpenAI) 경로는 NextRequest 없이 runTool을
 // 호출하므로, req가 없으면 요청 헤더 대신 env var/publish_quote와 동일한 fallback만 쓴다.
 function resolveOrigin(req?: NextRequest | null) {
-  return (
-    req?.headers.get("x-base-url") || req?.headers.get("origin") ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-    "http://localhost:3000"
-  );
+  const fromReq = req?.headers.get("x-base-url") || req?.headers.get("origin");
+  if (fromReq) return fromReq;
+  if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
+  // VERCEL_URL은 배포별 URL이라 이 프로젝트의 Vercel SSO 보호(커스텀 도메인 제외 전체 배포에 적용)에
+  // 걸린다 — 서버 쪽에서 이 값으로 자체 fetch하면 로그인 필요 응답을 받아 실패한다(2026-08-14,
+  // process_workflow_step 채팅 도구 실제 테스트 중 재현). 프로덕션에서는 보호 대상이 아닌 커스텀
+  // 도메인을 직접 쓴다.
+  if (process.env.VERCEL_ENV === "production") return "https://olivia.photoclinic.kr";
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
 }
 
 // lib/assistant/core/legacyOliviaCore.ts의 executeTool()에서 그대로 옮긴 워크플로우
