@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 import { logActivity } from "@/lib/activityLogger";
+import { getWorkflowDisplayStepKey, isToolOnlyStep, type ToolOnlyStepKey } from "@/lib/workflow";
 
 const STEP_LABELS: Record<string, string> = {
   consult_meeting: "1. 상담/미팅", quote: "2. 견적서", contract: "3. 계약서", conti: "4. 콘티",
@@ -10,6 +11,42 @@ const STEP_LABELS: Record<string, string> = {
   revision: "11. 수정 접수", seo_delivery: "12. SEO 납품", final_delivery: "13. 최종 전달",
   review_content: "14. 후기 콘텐츠", reward: "15. 리워드", customer_care: "16. 고객 케어", content_planning: "17. 콘텐츠 기획",
 };
+
+const TASK_STATUS_LABEL: Record<string, string> = {
+  pending: "대기", running: "처리 중", waiting_approval: "승인 대기",
+  completed: "완료", failed: "오류", canceled: "생략됨",
+};
+
+// components/NextActionCard.tsx/app/(client-hub)/clients/page.tsx가 quote/contract/conti
+// 단계에서 "올리비아가 현재 단계 처리하기" 버튼 대신 보여주는 것과 같은 안내 — 채팅 경로도
+// 실제 문서 없이 이 단계를 건너뛰지 않도록 lib/workflow.ts의 TOOL_ONLY_STEP_KEYS를 그대로 쓴다.
+const TOOL_STEP_BUILDER_HINT: Record<ToolOnlyStepKey, string> = {
+  quote: "이 단계는 실제 견적서가 있어야 넘어갈 수 있어요. 고객 프로젝트 페이지에서 \"+ 견적서 작성하기\"로 실제 견적서를 만들어주세요.",
+  contract: "이 단계는 실제 계약서가 있어야 넘어갈 수 있어요. 고객 프로젝트 페이지에서 \"+ 계약서 작성하기\"로 실제 계약서를 만들어주세요.",
+  conti: "이 단계는 실제 콘티가 있어야 넘어갈 수 있어요. 고객 프로젝트 페이지에서 \"+ 콘티 작성하기\"로 실제 콘티를 만들어주세요.",
+};
+
+const REAL_DOCUMENT_TABLE: Record<ToolOnlyStepKey, string> = {
+  quote: "quotes",
+  contract: "contracts",
+  conti: "conti_saves",
+};
+
+async function resolveActiveRun(clientName: string) {
+  const db = getSupabaseAdmin();
+  return fuzzyNameSearchOne<any>({
+    db, table: "workflow_runs", nameColumn: "client_name",
+    select: "id, client_name, current_step_key, status",
+    query: clientName,
+    filter: (q: any) => q.eq("status", "active").order("updated_at", { ascending: false }),
+  });
+}
+
+async function hasRealDocumentForStep(workflowRunId: string, stepKey: ToolOnlyStepKey) {
+  const db = getSupabaseAdmin();
+  const { data } = await db.from(REAL_DOCUMENT_TABLE[stepKey]).select("id").eq("workflow_run_id", workflowRunId).limit(1);
+  return Boolean(data && data.length);
+}
 
 // req는 레거시(Claude) 경로에서만 넘어온다 — v2(OpenAI) 경로는 NextRequest 없이 runTool을
 // 호출하므로, req가 없으면 요청 헤더 대신 env var/publish_quote와 동일한 fallback만 쓴다.
