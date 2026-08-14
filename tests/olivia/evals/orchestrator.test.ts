@@ -156,6 +156,16 @@ describe("Deterministic Router — Navigation (N1-N5, GPT 미호출)", () => {
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
     expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/memo" }]);
   });
+  it("일정 열어줘 → /calendar open(짧은 별칭이라도 여는 동사 뒤 완전일치면 허용)", () => {
+    const result = resolveDeterministicResponse("일정 열어줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/calendar" }]);
+  });
+  it("여는 동사 없이 기능 이름만(고객관리) → 완전일치면 허용", () => {
+    const result = resolveDeterministicResponse("고객관리", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/clients" }]);
+  });
 });
 
 describe("Ambiguity — 임의 실행 금지", () => {
