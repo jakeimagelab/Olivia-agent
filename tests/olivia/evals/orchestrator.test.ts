@@ -120,6 +120,21 @@ describe("Deterministic Router — Runtime Query (T1-T5, GPT 미호출)", () => 
     expect(resolveDeterministicResponse("오늘 일정 몇 개야?", runtime, emptyContext)).toBeNull();
     expect(resolveDeterministicResponse("내일 미팅 몇 시야?", runtime, emptyContext)).toBeNull();
   });
+  it("모레 날짜 뭐야? → 직접 응답", () => {
+    const result = resolveDeterministicResponse("모레 날짜 뭐야?", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("RUNTIME_QUERY");
+    expect(result?.text).toContain("2026년 8월 16일");
+  });
+  it("어제 며칠이었어? → 직접 응답", () => {
+    const result = resolveDeterministicResponse("어제 며칠이었어?", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("RUNTIME_QUERY");
+    expect(result?.text).toContain("2026년 8월 13일");
+  });
+  it("다음주 월요일 무슨 요일이야? → 명시적 재확인이면 요일도 답한다", () => {
+    const result = resolveDeterministicResponse("다음주 월요일 무슨 요일이야?", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("RUNTIME_QUERY");
+    expect(result?.text).toContain("월요일");
+  });
 });
 
 describe("Deterministic Router — Navigation (N1-N5, GPT 미호출)", () => {
