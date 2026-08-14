@@ -1880,7 +1880,7 @@ main:has(> .pc-header) {
   gap: 18px;
   height: 56px;
   border-bottom: 1px solid rgba(21,88,85,.12);
-  background: var(--liquid-bg);
+  background: #f0f4f2;
   padding: 0 24px;
   box-shadow: 0 1px 8px rgba(21,88,85,.06);
 }
