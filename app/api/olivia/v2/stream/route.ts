@@ -413,6 +413,7 @@ export async function POST(req: NextRequest) {
 
           send({ type: "agent_status", status: "결과를 정리하는 중…" });
           request = {
+            instructions,
             previous_response_id: response.responseId,
             input: outputs,
             tools: OLIVIA_V2_TOOLS,
