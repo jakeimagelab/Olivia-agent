@@ -14,9 +14,17 @@ Live testing on 2026-08-13 confirmed the UI already guards against a known bug: 
 
 Added to `OLIVIA_V2_TOOLS` in `lib/olivia/v2/toolExecutor.ts`:
 
-- **`list_workflow_step_tasks`** `[READ]` — takes `clientName`, resolves the active workflow run, calls `/api/workflow/next-action`, and returns the current step's checklist (title, status, whether an approval is attached) so Olivia can describe what's left or ask which item to approve.
-- **`process_workflow_step`** `[WRITE]` — takes `clientName`. Mirrors the "올리비아가 현재 단계 처리하기" button exactly by calling `/api/workflow/run-current-step`. Runs immediately, no confirmation step (matches current button behavior; it only creates AI drafts, never sends anything external).
-- **`approve_workflow_task`** `[WRITE]` — takes `clientName` and `taskSelector` (a title or partial title, matched the same way conti shot selectors are resolved). Finds the one checklist item it identifies and calls `/api/agent/approvals/{id}/approve` if it has a pending approval, otherwise `/api/agent/tasks/{id}/run`. Runs immediately. Returns a clarifying question (no action taken) if the selector matches zero or more than one item.
+- **`list_workflow_step_tasks`** `[READ]` — takes `clientName`, resolves the active workflow run, and returns the current step's checklist (title, status, whether an approval is attached) so Olivia can describe what's left or ask which item to approve.
+- **`process_workflow_step`** `[WRITE]` — takes `clientName`. Mirrors the "올리비아가 현재 단계 처리하기" button exactly (same task-creation/execution/advance sequence as `/api/workflow/run-current-step`). Runs immediately, no confirmation step (matches current button behavior; it only creates AI drafts, never sends anything external).
+- **`approve_workflow_task`** `[WRITE]` — takes `clientName` and `taskSelector` (a title or partial title, matched the same way conti shot selectors are resolved). Finds the one checklist item it identifies and approves it if it has a pending approval, otherwise runs it. Runs immediately. Returns a clarifying question (no action taken) if the selector matches zero or more than one item.
+
+All three call the shared `lib/workflowAutomation.ts` functions (`createStepTasks`, `executeWorkflowTask`, `maybeAdvanceWorkflow`, `approveWorkflowItem`, `getWorkflowRun`) directly in-process — see "Self-fetch bug" below for why this matters.
+
+## Self-fetch bug found during live testing (2026-08-14)
+
+The original implementation of these tools (and the pre-existing `advance_workflow_step`/`complete_workflow_retroactively`) called their own API routes over HTTP from the server (`fetch(origin + "/api/workflow/...")`). Live chat testing found this always failed in production: `/api/workflow/*` and `/api/agent/*` are behind `middleware.ts`'s `protectedApiPrefixes`, which requires either the `pc_admin_session` cookie (not present on a server-to-server fetch) or a matching `x-internal-key` header — and `INTERNAL_API_KEY` is not set in the production environment, so that bypass silently did nothing. The user-visible symptom was Olivia replying "관리자 로그인 권한이 필요해 불러오지 못했습니다" to every workflow-step request. This means `advance_workflow_step` had likely never worked when invoked via chat in production.
+
+Fixed by removing the HTTP round-trip entirely: `lib/olivia/tools/workflow.ts` now calls the underlying `lib/workflowAutomation.ts` functions directly (same process, no auth boundary to cross), for all five functions in the file (`getWorkflowStatus` was already DB-only and unaffected). The `req?: NextRequest | null` parameter is kept on each exported function purely for call-signature compatibility with the legacy Claude path (`lib/assistant/core/legacyOliviaCore.ts`), but is no longer used internally.
 
 ## Guard: quote/contract/conti steps
 
