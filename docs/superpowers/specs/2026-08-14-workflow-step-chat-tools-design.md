@@ -26,7 +26,7 @@ When the current step is in `TOOL_ONLY_STEP_KEYS`, the three new tools do not ca
 
 ## `advance_workflow_step` hardening
 
-Before calling `/api/workflow/advance`, `advanceWorkflowStep` (`lib/olivia/tools/workflow.ts`) now checks: if the run's **current** step is in `TOOL_ONLY_STEP_KEYS`, look up whether a real record exists for it (a row in `quotes`/`contracts`/`contis` linked to this `workflow_run_id`). If none exists, refuse with a message pointing at the right builder, the same way the three new tools do. This only blocks the "no real document yet" case — an admin who already has a quote/contract/conti on file can still ask Olivia to jump the run to any step, same as the "관리자 예외 처리" menu item allows today.
+Before calling `/api/workflow/advance`, `advanceWorkflowStep` (`lib/olivia/tools/workflow.ts`) now checks: if the run's **current** step is in `TOOL_ONLY_STEP_KEYS`, look up whether a real record exists for it (a row in `quotes`, `contracts`, or `conti_saves` linked to this `workflow_run_id`). If none exists, refuse with a message pointing at the right builder, the same way the three new tools do. This only blocks the "no real document yet" case — an admin who already has a quote/contract/conti on file can still ask Olivia to jump the run to any step, same as the "관리자 예외 처리" menu item allows today.
 
 ## Data flow
 
