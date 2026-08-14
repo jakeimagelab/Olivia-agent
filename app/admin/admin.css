@@ -1843,17 +1843,6 @@
   --olivia-orange: #E85D2C;
   --olivia-mint: #EAF4F2;
   --olivia-bg: #F8FAF9;
-  --glass-bg: rgba(255,255,255,.56);
-  /* 앱 전체 리퀴드 글래스(globals.css --liquid-panel-strong)와 강도를 맞춤 — 채움을 낮춰서
-     블러가 더 비치게 하고 나머지는 하이라이트/엣지 레이어로 형태를 잡는다. */
-  --glass-bg-strong: rgba(255,255,255,.46);
-  --glass-border: rgba(255,255,255,.72);
-  --glass-shadow: 0 12px 42px rgba(21,88,85,.08);
-  --glass-blur: 44px;
-  --glass-blur-deep: 44px;
-  /* 리퀴드 글래스 — Phase 5. 유리 위쪽에서 빛이 들어오는 하이라이트 + 굴절 엣지(그라디언트 보더) */
-  --glass-highlight: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0) 42%);
-  --glass-edge: linear-gradient(135deg, rgba(255,255,255,.95), rgba(255,255,255,.22) 45%, rgba(21,88,85,.16) 100%);
 
   /* 대화 토픽 마커 색상 — Phase 3 */
   --topic-quote: #E85D2C;
