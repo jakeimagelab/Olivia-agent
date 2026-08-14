@@ -319,16 +319,46 @@ export async function POST(req: NextRequest) {
           content: message,
           channel: "web",
           externalMessageId: optionalString(body.clientRequestId) || crypto.randomUUID(),
-          metadata: { context, pageContext, requestClass },
+          metadata: { context, pageContext, requestClass, requestKind, routeDecision: deterministic?.routeDecision ?? "GPT_FALLBACK" },
         });
 
         send({ type: "message_start", messageId, conversationId: conversation.id });
+
+        // ── Deterministic bypass: 오늘/지금 질문이나 고신뢰 화면 이동은 GPT를 거치지 않는다 ──
+        if (deterministic) {
+          send({ type: "text_delta", messageId, delta: deterministic.text });
+          for (const action of deterministic.uiActions) send({ type: "ui_action", action });
+          await saveAssistantMessage(db, {
+            ownerId: owner.id,
+            conversationId: conversation.id,
+            role: "assistant",
+            content: deterministic.text,
+            channel: "web",
+            parentMessageId: undefined,
+            metadata: { blocks: [{ type: "text", text: deterministic.text }], routeDecision: deterministic.routeDecision },
+          });
+          send({ type: "message_complete", messageId, conversationId: conversation.id });
+          return;
+        }
+
+        if (!model) throw new Error("Olivia GPT 모델을 확인해주세요.");
+
         send({ type: "agent_status", status: "요청을 이해하는 중…" });
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const temporal = resolveTemporalExpression(message, oliviaRuntime);
+        const temporalHint = temporal
+          ? temporal.kind === "date"
+            ? `${temporal.label} = ${temporal.date}`
+            : `${temporal.label} = ${temporal.start} ~ ${temporal.end}`
+          : undefined;
+        // Responses API는 previous_response_id로 input은 이어주지만 instructions는 자동으로
+        // 이어주지 않는다 — 매 라운드 같은 instructions를 다시 넣지 않으면 도구 실행 후속 응답에서
+        // 오늘 날짜/운영 규칙이 통째로 빠진다(설계 문서 5절, 2026-08-14 확인된 버그).
+        const instructions = buildSystemPrompt(oliviaRuntime);
         let request: StreamingRequest = {
-          instructions: buildSystemPrompt(),
-          input: toInputMessages(history, message, context, pageContext),
+          instructions,
+          input: toInputMessages(history, message, context, pageContext, temporalHint),
           tools: OLIVIA_V2_TOOLS,
           parallel_tool_calls: false,
         };
