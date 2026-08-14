@@ -60,7 +60,7 @@ export function computeClientWorkspaceNextAction({
   }
 
   const stepKey = getWorkflowDisplayStepKey(activeProject.current_step_key) || activeProject.current_step_key;
-  if (stepKey === "quote" || stepKey === "contract" || stepKey === "conti") {
+  if (isToolOnlyStep(stepKey)) {
     return {
       kind: "tool_link",
       stepKey,
