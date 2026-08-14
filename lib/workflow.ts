@@ -193,6 +193,16 @@ export function getWorkflowDisplayStepKey(stepKey: string): ActiveWorkflowStepKe
   return LEGACY_STEP_PARENT[stepKey] ?? null;
 }
 
+/** 실제 문서(견적서/계약서/콘티)를 팝업 빌더에서 작성해야만 다음 단계로 넘어갈 수 있는 단계.
+ * AI 자동화 카드나 채팅 도구로 실제 데이터 없이 건너뛰면 안 된다 — 재현된 버그(2026-08-09 패치,
+ * 2026-08-13 채팅 도구 경로에서 재확인) 참고: app/(client-hub)/clients/page.tsx,
+ * lib/clientWorkspace/nextAction.ts, lib/olivia/tools/workflow.ts가 모두 이 상수를 공유한다. */
+export const TOOL_ONLY_STEP_KEYS = ["quote", "contract", "conti"] as const;
+export type ToolOnlyStepKey = (typeof TOOL_ONLY_STEP_KEYS)[number];
+export function isToolOnlyStep(stepKey: string): stepKey is ToolOnlyStepKey {
+  return (TOOL_ONLY_STEP_KEYS as readonly string[]).includes(stepKey);
+}
+
 export function getWorkflowStepProgress(stepKey: string, workflowStatus?: string | null) {
   if (workflowStatus === "completed") return 100;
   const displayKey = getWorkflowDisplayStepKey(stepKey);
