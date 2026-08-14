@@ -308,7 +308,7 @@ export async function POST(req: NextRequest) {
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         let request: StreamingRequest = {
-          instructions: SYSTEM_PROMPT,
+          instructions: buildSystemPrompt(),
           input: toInputMessages(history, message, context, pageContext),
           tools: OLIVIA_V2_TOOLS,
           parallel_tool_calls: false,
