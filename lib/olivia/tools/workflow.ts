@@ -3,6 +3,17 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 import { logActivity } from "@/lib/activityLogger";
 import { getWorkflowDisplayStepKey, isToolOnlyStep, type ToolOnlyStepKey } from "@/lib/workflow";
+import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
+import { getErrorMessage } from "@/lib/errors";
+import {
+  advanceWorkflow,
+  approveWorkflowItem,
+  completeWorkflowRetroactively as completeWorkflowRunRetroactively,
+  createStepTasks,
+  executeWorkflowTask,
+  getWorkflowRun,
+  maybeAdvanceWorkflow,
+} from "@/lib/workflowAutomation";
 
 const STEP_LABELS: Record<string, string> = {
   consult_meeting: "1. 상담/미팅", quote: "2. 견적서", contract: "3. 계약서", conti: "4. 콘티",
@@ -48,20 +59,13 @@ async function hasRealDocumentForStep(workflowRunId: string, stepKey: ToolOnlySt
   return Boolean(data && data.length);
 }
 
-// req는 레거시(Claude) 경로에서만 넘어온다 — v2(OpenAI) 경로는 NextRequest 없이 runTool을
-// 호출하므로, req가 없으면 요청 헤더 대신 env var/publish_quote와 동일한 fallback만 쓴다.
-function resolveOrigin(req?: NextRequest | null) {
-  const fromReq = req?.headers.get("x-base-url") || req?.headers.get("origin");
-  if (fromReq) return fromReq;
-  if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
-  // VERCEL_URL은 배포별 URL이라 이 프로젝트의 Vercel SSO 보호(커스텀 도메인 제외 전체 배포에 적용)에
-  // 걸린다 — 서버 쪽에서 이 값으로 자체 fetch하면 로그인 필요 응답을 받아 실패한다(2026-08-14,
-  // process_workflow_step 채팅 도구 실제 테스트 중 재현). 프로덕션에서는 보호 대상이 아닌 커스텀
-  // 도메인을 직접 쓴다.
-  if (process.env.VERCEL_ENV === "production") return "https://olivia.photoclinic.kr";
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
-}
+// 이 파일의 모든 도구는 자기 자신의 /api/workflow, /api/agent 라우트를 HTTP로 다시 호출하지 않고
+// lib/workflowAutomation.ts의 로직을 같은 프로세스 안에서 직접 호출한다. 예전에는 fetch(origin + ...)로
+// 자체 API를 불렀는데, 그 라우트들이 middleware.ts의 protectedApiPrefixes에 걸려 있어(관리자 세션
+// 쿠키 필요) 브라우저 쿠키 없는 서버 쪽 자체 호출은 항상 401("관리자 로그인이 필요합니다")로 실패했다
+// — x-internal-key 우회가 있긴 하지만 INTERNAL_API_KEY가 프로덕션에 설정돼 있지 않아 무력화된
+// 상태였다. 채팅으로 실제 재현하기 전까진 발견되지 않았던 버그(2026-08-14, advance_workflow_step도
+// 동일하게 영향받고 있었다) — 근본적으로 HTTP 왕복 자체를 없애는 쪽으로 고쳤다.
 
 // lib/assistant/core/legacyOliviaCore.ts의 executeTool()에서 그대로 옮긴 워크플로우
 // 조회/전진/소급완료 — 레거시 Claude 경로와 v2 OpenAI 경로가 같은 구현을 공유한다.
@@ -86,7 +90,9 @@ export async function getWorkflowStatus(input: any) {
   };
 }
 
-export async function advanceWorkflowStep(input: any, req?: NextRequest | null) {
+// req 파라미터는 레거시(Claude) 경로 호출부(lib/assistant/core/legacyOliviaCore.ts)와의 시그니처
+// 호환을 위해 남겨둔다 — 이제 HTTP 자체 호출을 안 하므로 내부에서는 쓰지 않는다.
+export async function advanceWorkflowStep(input: any, _req?: NextRequest | null) {
   const db = getSupabaseAdmin();
   const run = await fuzzyNameSearchOne<any>({
     db, table: "workflow_runs", nameColumn: "client_name",
@@ -106,14 +112,11 @@ export async function advanceWorkflowStep(input: any, req?: NextRequest | null) 
       return { action: "done", message: TOOL_STEP_BUILDER_HINT[currentDisplayStep], clientName: run.client_name, currentStepKey: run.current_step_key };
     }
   }
-  const origin = resolveOrigin(req);
-  const res = await fetch(`${origin}/api/workflow/advance`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
-    body: JSON.stringify({ workflow_run_id: run.id, to_step_key: input.toStepKey, reason: "올리비아 요청" }),
-  });
-  const d = await res.json();
-  if (!d.ok) return { action: "done", message: `❌ 단계 이동 실패: ${d.error}` };
+  try {
+    await advanceWorkflow(db, { workflow_run_id: run.id, to_step_key: input.toStepKey, reason: "올리비아 요청" });
+  } catch (error) {
+    return { action: "done", message: `❌ 단계 이동 실패: ${getErrorMessage(error)}` };
+  }
   await logActivity("advance_workflow_step", run.client_name, { from: run.current_step_key, to: input.toStepKey });
   return {
     action: "done",
@@ -123,7 +126,7 @@ export async function advanceWorkflowStep(input: any, req?: NextRequest | null) 
   };
 }
 
-export async function completeWorkflowRetroactively(input: any, req?: NextRequest | null) {
+export async function completeWorkflowRetroactively(input: any, _req?: NextRequest | null) {
   const db = getSupabaseAdmin();
   const run = await fuzzyNameSearchOne<any>({
     db, table: "workflow_runs", nameColumn: "client_name",
@@ -134,30 +137,38 @@ export async function completeWorkflowRetroactively(input: any, req?: NextReques
   if (!run) {
     return { action: "done", message: `⚠️ **${input.clientName}**의 진행 중인 워크플로우를 찾을 수 없어요. 먼저 고객/워크플로우를 등록해주세요.` };
   }
-  const origin = resolveOrigin(req);
-  const res = await fetch(`${origin}/api/workflow/complete-retroactively`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
-    body: JSON.stringify({ workflow_run_id: run.id, reason: input.reason || "소급 등록" }),
-  });
-  const d = await res.json();
-  if (!d.ok) return { action: "done", message: `⚠️ 완료 처리 실패: ${d.error}` };
+  try {
+    await completeWorkflowRunRetroactively(db, { workflow_run_id: run.id, reason: input.reason || "소급 등록" });
+  } catch (error) {
+    return { action: "done", message: `⚠️ 완료 처리 실패: ${getErrorMessage(error)}` };
+  }
   return { action: "done", message: `✅ **${input.clientName}** 워크플로우를 전체 완료 처리했어요.`, clientName: input.clientName };
 }
 
+async function loadStepChecklist(workflowRunId: string) {
+  const db = getSupabaseAdmin();
+  const [run, tasksRes, approvalsRes, mailingRes] = await Promise.all([
+    getWorkflowRun(db, workflowRunId),
+    db.from("agent_tasks").select("*").eq("workflow_run_id", workflowRunId).order("created_at", { ascending: false }),
+    db.from("agent_approvals").select("*").eq("workflow_run_id", workflowRunId).order("created_at", { ascending: false }),
+    db.from("mailing_queue").select("*").eq("workflow_run_id", workflowRunId).order("created_at", { ascending: false }),
+  ]);
+  if (tasksRes.error) throw new Error(tasksRes.error.message);
+  if (approvalsRes.error) throw new Error(approvalsRes.error.message);
+  const action = buildWorkflowNextAction({
+    run, tasks: tasksRes.data || [], approvals: approvalsRes.data || [], mailing: mailingRes.data || [],
+  });
+  return { run, tasks: action.tasks, approvals: action.approvals };
+}
+
 // components/NextActionCard.tsx의 "업무 프로세스" 체크리스트를 채팅으로 조회한다(읽기 전용).
-export async function listWorkflowStepTasks(input: any, req?: NextRequest | null) {
-  const run = await resolveActiveRun(input.clientName);
-  if (!run) {
+export async function listWorkflowStepTasks(input: any, _req?: NextRequest | null) {
+  const activeRun = await resolveActiveRun(input.clientName);
+  if (!activeRun) {
     return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
   }
-  const origin = resolveOrigin(req);
-  const res = await fetch(`${origin}/api/workflow/next-action?workflowRunId=${run.id}`);
-  const d = await res.json();
-  if (!d.ok) return { action: "done", message: `❌ 업무 목록을 불러오지 못했어요: ${d.error}` };
-
+  const { run, tasks } = await loadStepChecklist(activeRun.id);
   const stepLabel = STEP_LABELS[run.current_step_key] ?? run.current_step_key;
-  const tasks = (d.tasks || []) as any[];
   if (!tasks.length) {
     return {
       action: "done",
@@ -166,114 +177,140 @@ export async function listWorkflowStepTasks(input: any, req?: NextRequest | null
       currentStepKey: run.current_step_key,
     };
   }
-  const lines = tasks.map((t) => `- ${t.title} (${TASK_STATUS_LABEL[t.status] ?? t.status})`).join("\n");
+  const lines = tasks.map((t: any) => `- ${t.title} (${TASK_STATUS_LABEL[t.status] ?? t.status})`).join("\n");
   return {
     action: "done",
     message: `📋 **${run.client_name}** — ${stepLabel} 업무 프로세스\n\n${lines}`,
     clientName: run.client_name,
     currentStepKey: run.current_step_key,
-    tasks: tasks.map((t) => ({ id: t.id, title: t.title, status: t.status })),
+    tasks: tasks.map((t: any) => ({ id: t.id, title: t.title, status: t.status })),
   };
 }
 
-// components/NextActionCard.tsx의 "올리비아가 현재 단계 처리하기" 버튼과 완전히 동일하게
-// 동작한다 — /api/workflow/run-current-step 하나만 호출한다.
-export async function processWorkflowStep(input: any, req?: NextRequest | null) {
-  const run = await resolveActiveRun(input.clientName);
-  if (!run) {
+// components/NextActionCard.tsx의 "올리비아가 현재 단계 처리하기" 버튼과 완전히 동일하게 동작한다
+// (app/api/workflow/run-current-step/route.ts와 같은 순서로 처리한다).
+export async function processWorkflowStep(input: any, _req?: NextRequest | null) {
+  const activeRun = await resolveActiveRun(input.clientName);
+  if (!activeRun) {
     return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
   }
-  const displayStepKey = getWorkflowDisplayStepKey(run.current_step_key) || run.current_step_key;
+  const displayStepKey = getWorkflowDisplayStepKey(activeRun.current_step_key) || activeRun.current_step_key;
   if (isToolOnlyStep(displayStepKey)) {
     return {
       action: "done",
       message: TOOL_STEP_BUILDER_HINT[displayStepKey],
-      clientName: run.client_name,
-      currentStepKey: run.current_step_key,
+      clientName: activeRun.client_name,
+      currentStepKey: activeRun.current_step_key,
       blocked: true,
     };
   }
-  const origin = resolveOrigin(req);
-  const res = await fetch(`${origin}/api/workflow/run-current-step`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
-    body: JSON.stringify({ workflowRunId: run.id }),
-  });
-  const d = await res.json();
-  if (!d.ok) return { action: "done", message: `❌ 처리 실패: ${d.error}` };
-  await logActivity("process_workflow_step", run.client_name, {
-    stepKey: run.current_step_key, executedTasks: d.executedTasks, advanced: d.advanced,
-  });
-  const nextStepLabel = d.nextStepKey ? (STEP_LABELS[d.nextStepKey] ?? d.nextStepKey) : null;
-  return {
-    action: "done",
-    message: d.advanced
-      ? `✅ **${run.client_name}** — ${d.message} 다음 단계(${nextStepLabel})로 넘어갔어요.`
-      : `✅ **${run.client_name}** — ${d.message}`,
-    clientName: run.client_name,
-    currentStepKey: run.current_step_key,
-    advanced: Boolean(d.advanced),
-    nextStepKey: d.nextStepKey ?? null,
-  };
+
+  const db = getSupabaseAdmin();
+  const stepKey = activeRun.current_step_key;
+  try {
+    await createStepTasks(db, activeRun.id, stepKey);
+
+    const { data: pendingTasks, error: pendingError } = await db
+      .from("agent_tasks").select("*")
+      .eq("workflow_run_id", activeRun.id).eq("workflow_step_key", stepKey)
+      .in("status", ["pending", "failed"]).order("created_at", { ascending: true });
+    if (pendingError) throw new Error(pendingError.message);
+
+    let executedCount = 0;
+    for (const task of pendingTasks || []) {
+      await executeWorkflowTask(db, task.id);
+      executedCount += 1;
+    }
+
+    const { data: pendingApprovals } = await db
+      .from("agent_approvals").select("id")
+      .eq("workflow_run_id", activeRun.id).eq("workflow_step_key", stepKey).eq("status", "pending");
+
+    const latestRun = await getWorkflowRun(db, activeRun.id);
+    let advanced = false;
+    let nextStepKey: string | null = null;
+    if (latestRun.current_step_key !== stepKey) {
+      advanced = true;
+      nextStepKey = latestRun.current_step_key;
+    } else if (!(pendingApprovals || []).length) {
+      const advanceResult = await maybeAdvanceWorkflow(db, activeRun.id, stepKey);
+      advanced = Boolean(advanceResult.advanced);
+      nextStepKey = advanced && "result" in advanceResult ? (advanceResult.result?.to_step_key ?? null) : null;
+    }
+
+    await logActivity("process_workflow_step", activeRun.client_name, { stepKey, executedTasks: executedCount, advanced });
+
+    const approvalsCount = pendingApprovals?.length || 0;
+    const summary = approvalsCount > 0
+      ? `${executedCount}개 작업을 처리했고 승인 대기 ${approvalsCount}개가 생성되었습니다.`
+      : advanced
+        ? `${executedCount}개 작업을 처리하고 다음 단계로 이동했습니다.`
+        : `${executedCount}개 작업을 처리했습니다.`;
+    const nextStepLabel = nextStepKey ? (STEP_LABELS[nextStepKey] ?? nextStepKey) : null;
+
+    return {
+      action: "done",
+      message: advanced ? `✅ **${activeRun.client_name}** — ${summary} 다음 단계(${nextStepLabel})로 넘어갔어요.` : `✅ **${activeRun.client_name}** — ${summary}`,
+      clientName: activeRun.client_name,
+      currentStepKey: activeRun.current_step_key,
+      advanced,
+      nextStepKey,
+    };
+  } catch (error) {
+    return { action: "done", message: `❌ 처리 실패: ${getErrorMessage(error)}` };
+  }
 }
 
 // components/NextActionCard.tsx의 체크리스트에서 항목 하나를 골라 처리하는 것과 동일 — 제목으로
 // 정확히 하나만 식별되면 승인 대기 중인 항목은 승인, 아니면 작업을 바로 실행한다.
-export async function approveWorkflowTask(input: any, req?: NextRequest | null) {
-  const run = await resolveActiveRun(input.clientName);
-  if (!run) {
+export async function approveWorkflowTask(input: any, _req?: NextRequest | null) {
+  const activeRun = await resolveActiveRun(input.clientName);
+  if (!activeRun) {
     return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.` };
   }
-  const displayStepKey = getWorkflowDisplayStepKey(run.current_step_key) || run.current_step_key;
+  const displayStepKey = getWorkflowDisplayStepKey(activeRun.current_step_key) || activeRun.current_step_key;
   if (isToolOnlyStep(displayStepKey)) {
     return {
       action: "done",
       message: TOOL_STEP_BUILDER_HINT[displayStepKey],
-      clientName: run.client_name,
-      currentStepKey: run.current_step_key,
+      clientName: activeRun.client_name,
+      currentStepKey: activeRun.current_step_key,
       blocked: true,
     };
   }
 
-  const origin = resolveOrigin(req);
-  const listRes = await fetch(`${origin}/api/workflow/next-action?workflowRunId=${run.id}`);
-  const listData = await listRes.json();
-  if (!listData.ok) return { action: "done", message: `❌ 업무 목록을 불러오지 못했어요: ${listData.error}` };
-
-  const tasks = (listData.tasks || []) as any[];
-  const actionable = tasks.filter((t) => t.status !== "completed" && t.status !== "canceled");
+  const { tasks, approvals } = await loadStepChecklist(activeRun.id);
+  const actionable = tasks.filter((t: any) => t.status !== "completed" && t.status !== "canceled");
   const selector = String(input.taskSelector || "").trim().toLowerCase();
-  const matches = selector ? actionable.filter((t) => String(t.title || "").toLowerCase().includes(selector)) : actionable;
+  const matches = selector ? actionable.filter((t: any) => String(t.title || "").toLowerCase().includes(selector)) : actionable;
 
   if (matches.length === 0) {
-    const list = actionable.map((t) => `- ${t.title}`).join("\n") || "(남은 업무 없음)";
+    const list = actionable.map((t: any) => `- ${t.title}`).join("\n") || "(남은 업무 없음)";
     return { action: "done", message: `"${input.taskSelector}"와(과) 일치하는 업무를 못 찾았어요. 지금 남은 업무는:\n${list}` };
   }
   if (matches.length > 1) {
-    const list = matches.map((t) => `- ${t.title}`).join("\n");
+    const list = matches.map((t: any) => `- ${t.title}`).join("\n");
     return { action: "done", message: `어떤 업무를 말씀하시는지 콕 집어 알려주세요:\n${list}` };
   }
 
   const task = matches[0];
-  const approvals = (listData.approvals || []) as any[];
-  const pendingApproval = approvals.find((a) => a.agent_task_id === task.id && a.status === "pending");
-  const endpoint = task.status === "waiting_approval" && pendingApproval
-    ? `${origin}/api/agent/approvals/${pendingApproval.id}/approve`
-    : `${origin}/api/agent/tasks/${task.id}/run`;
-
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
-    body: JSON.stringify({}),
-  });
-  const d = await res.json();
-  if (!d.ok) return { action: "done", message: `❌ "${task.title}" 처리 실패: ${d.error}` };
-  await logActivity("approve_workflow_task", run.client_name, { stepKey: run.current_step_key, taskTitle: task.title });
+  const pendingApproval = approvals.find((a: any) => a.agent_task_id === task.id && a.status === "pending");
+  const db = getSupabaseAdmin();
+  try {
+    if (task.status === "waiting_approval" && pendingApproval) {
+      await approveWorkflowItem(db, pendingApproval.id, "");
+    } else {
+      await executeWorkflowTask(db, task.id);
+    }
+  } catch (error) {
+    return { action: "done", message: `❌ "${task.title}" 처리 실패: ${getErrorMessage(error)}` };
+  }
+  await logActivity("approve_workflow_task", activeRun.client_name, { stepKey: activeRun.current_step_key, taskTitle: task.title });
   return {
     action: "done",
-    message: `✅ **${run.client_name}** — "${task.title}" 처리했어요.`,
-    clientName: run.client_name,
-    currentStepKey: run.current_step_key,
+    message: `✅ **${activeRun.client_name}** — "${task.title}" 처리했어요.`,
+    clientName: activeRun.client_name,
+    currentStepKey: activeRun.current_step_key,
     taskTitle: task.title,
   };
 }
