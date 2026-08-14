@@ -46,11 +46,11 @@ export default function TeamWorkspaceShell({
       <style jsx global>{`
         .workspace-page{min-height:calc(100dvh - 112px);background:var(--mesh-bg);color:${C.ink};font-family:'NanumSquare','Noto Sans KR',sans-serif}
         .workspace-content{width:min(1380px,calc(100% - 40px));margin:0 auto;padding:24px 0 54px}
-        .workspace-chat-panel{height:calc(100dvh - 172px);min-height:560px;overflow:hidden;border:1px solid var(--liquid-border);border-radius:14px;background:var(--liquid-panel-strong);backdrop-filter:blur(20px) saturate(1.45);-webkit-backdrop-filter:blur(20px) saturate(1.45);box-shadow:var(--liquid-shadow)}
+        .workspace-chat-panel{height:calc(100dvh - 172px);min-height:560px;overflow:hidden;border:1px solid rgba(21,88,85,.08);border-radius:14px;background:#fff;box-shadow:0 8px 28px rgba(21,88,85,.06)}
         .team-page-heading{margin-bottom:18px}.team-page-heading h2{font-size:24px;color:var(--deep-green);margin:0 0 6px}.team-page-heading p{font-size:12px;color:${C.muted};margin:0;line-height:1.6}
-        /* 다른 페이지의 .pc-card와 동일한 반투명 유리 카드 톤으로 맞춘다 */
-        .team-card{background:var(--liquid-panel-strong);border:1px solid var(--liquid-border);border-radius:14px;backdrop-filter:blur(20px) saturate(1.45);-webkit-backdrop-filter:blur(20px) saturate(1.45);box-shadow:var(--liquid-shadow);overflow:hidden}
-        .team-card-header{padding:16px 20px;border-bottom:1px solid rgba(21,88,85,.08);background:rgba(255,255,255,.34);display:flex;align-items:center;justify-content:space-between;gap:12px}.team-card-header h3{font-size:14px;font-weight:900;color:var(--deep-green);margin:0}.team-card-body{padding:18px}
+        /* 다른 페이지의 .pc-card와 동일한 톤으로 맞춘다 */
+        .team-card{background:#fff;border:1px solid rgba(21,88,85,.08);border-radius:14px;box-shadow:0 8px 28px rgba(21,88,85,.06);overflow:hidden}
+        .team-card-header{padding:16px 20px;border-bottom:1px solid rgba(21,88,85,.08);background:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}.team-card-header h3{font-size:14px;font-weight:900;color:var(--deep-green);margin:0}.team-card-body{padding:18px}
         .team-empty{padding:30px 18px;border-radius:12px;background:${C.mint};color:${C.muted};font-size:12px;text-align:center}
         .team-error{padding:11px 13px;border-radius:10px;background:#fef2f2;color:${C.danger};font-size:12px;font-weight:700}
         /* .pc-btn--sm과 동일한 사이즈·톤으로 맞춘다 */
