@@ -63,6 +63,7 @@ function buildSystemPrompt(): string {
 - 내부 reasoning은 노출하지 않고 사용자에게 필요한 진행 상태만 짧게 알린다.
 - 한국어로 간결하고 자연스럽게 답한다.
 </operating_rules>`;
+}
 
 type ConversationMessage = Awaited<ReturnType<typeof listAssistantMessages>>[number];
 type StreamingRequest = Omit<ResponseCreateParamsStreaming, "model" | "stream">;
