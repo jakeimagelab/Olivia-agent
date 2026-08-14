@@ -46,13 +46,9 @@ export default function DynamicWorkspace() {
     <div style={{
       display: "flex", flexDirection: "column", height: "100%", minHeight: 0,
       borderRadius: isFullscreen ? 0 : 22,
-      background: isFullscreen
-        ? "#fff"
-        : "var(--liquid-highlight) padding-box, linear-gradient(var(--liquid-panel-strong), var(--liquid-panel-strong)) padding-box, var(--liquid-edge) border-box",
-      border: isFullscreen ? "none" : "1px solid transparent",
-      boxShadow: isFullscreen ? "none" : "var(--liquid-shadow-strong)",
-      backdropFilter: isFullscreen ? undefined : "blur(var(--liquid-blur-strong)) saturate(1.6)",
-      WebkitBackdropFilter: isFullscreen ? undefined : "blur(var(--liquid-blur-strong)) saturate(1.6)",
+      background: "#fff",
+      border: isFullscreen ? "none" : "1px solid rgba(21,88,85,.08)",
+      boxShadow: isFullscreen ? "none" : "0 8px 28px rgba(21,88,85,.06)",
       overflow: "hidden",
     }}>
       <header style={{
