@@ -14,6 +14,8 @@ export type ActionType =
   | "create_memo"
   | "send_workflow_mail"
   | "advance_workflow_step"
+  | "process_workflow_step"
+  | "approve_workflow_task"
   | "query_database"
   | "generate_document";
 
