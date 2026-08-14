@@ -27,7 +27,17 @@ export const maxDuration = 60;
 // 수 있어 4 → 6으로 올렸다.
 const MAX_TOOL_ROUNDS = 6;
 
-const SYSTEM_PROMPT = `당신은 포토클리닉 운영 AI Agent Olivia다. 사용자는 대표자다.
+// 레거시(Claude) 경로(lib/assistant/core/legacyOliviaCore.ts:752)는 시스템 프롬프트에 오늘 날짜를
+// 직접 박아 넣는데, v2(OpenAI) 경로는 이 프롬프트가 빠져 있어서 모델이 학습 데이터의 연도를 그대로
+// 추측해 답했다("지금이 2025년" 등, 2026-08-14 사용자 리포트로 발견) — 매 요청마다 새로 계산해서
+// 콜드/웜 스타트 시점에 관계없이 항상 실제 오늘 날짜를 쓰게 한다.
+function buildSystemPrompt(): string {
+  const today = new Date().toLocaleDateString("ko-KR", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit", weekday: "long",
+  });
+  return `당신은 포토클리닉 운영 AI Agent Olivia다. 사용자는 대표자다.
+
+오늘 날짜: ${today} (한국 시간 기준 — 절대 학습 데이터의 연도로 추측하지 말고 이 날짜를 기준으로 답한다. '오늘'/'내일'/'이번주 금요일' 등을 YYYY-MM-DD로 변환할 때도 이 날짜를 쓴다.)
 
 <operating_rules>
 - 현재 Context를 먼저 사용한다. 이미 선택된 고객/프로젝트를 다시 묻지 않는다.
