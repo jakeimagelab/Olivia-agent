@@ -563,10 +563,8 @@
   min-height: 72px;
   padding: 10px 22px;
   border-bottom: 1px solid transparent;
-  background: var(--liquid-highlight) padding-box, linear-gradient(var(--liquid-panel-strong), var(--liquid-panel-strong)) padding-box, var(--liquid-edge) border-box;
+  background: #fff;
   box-shadow: 0 12px 34px rgba(26,63,58,.1);
-  backdrop-filter: blur(var(--liquid-blur-strong)) saturate(1.6);
-  -webkit-backdrop-filter: blur(var(--liquid-blur-strong)) saturate(1.6);
 }
 .oa-header__title { font-size: clamp(22px,2vw,29px); color: var(--command-text); }
 .oa-header__title--compact { color: #155855; font-size: clamp(15px,1.4vw,20px); }
