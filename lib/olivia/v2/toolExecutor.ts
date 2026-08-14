@@ -408,6 +408,10 @@ export async function runTool(
     };
   }
 
+  if (name === "get_conti_status") {
+    return fromLegacyResult(name, await getContiStatus({ hospitalName: text(input, "hospitalName") || context.activeClientName }));
+  }
+
   if (name === "create_conti") {
     const hospitalName = text(input, "hospitalName") || context.activeClientName;
     if (!hospitalName) throw new Error("콘티를 만들 고객을 먼저 알려주세요.");
