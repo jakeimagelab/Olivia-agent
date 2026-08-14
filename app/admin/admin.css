@@ -1611,12 +1611,10 @@
 .pc-quick-action {
   min-width: 0;
   height: 100%;
-  border: 1px solid rgba(255,255,255,.6);
+  border: 1px solid rgba(21,88,85,.08);
   border-radius: 18px;
-  background: linear-gradient(165deg, rgba(255,255,255,.78), rgba(255,255,255,.42));
-  box-shadow: 0 1px 0 rgba(255,255,255,.75) inset, 0 6px 16px rgba(20,60,55,.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(20,60,55,.05);
   display: flex;
   flex-direction: column;
   align-items: center;
