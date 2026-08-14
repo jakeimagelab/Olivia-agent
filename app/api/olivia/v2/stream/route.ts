@@ -263,14 +263,24 @@ export async function POST(req: NextRequest) {
 
   const context = normalizeContext(body.context);
   const pageContext = optionalString(body.pageContext);
+
+  // Olivia Orchestrator: GPT를 부르기 전에 먼저 "코드가 사실을 확실히 아는" 두 가지 경우
+  // (오늘/지금이 언제인지, 존재가 확실한 화면을 여는 것)를 결정적으로 처리할 수 있는지 확인한다.
+  // 여기서 처리되면 OpenAI를 아예 호출하지 않는다 — 그래서 OPENAI_API_KEY 없이도 동작한다.
+  const oliviaRuntime = buildOliviaRuntimeContext();
+  const requestKind = classifyRequestKind(message);
+  const deterministic = resolveDeterministicResponse(message, oliviaRuntime, context);
+
   const requestClass = classifyOliviaRequest(message, context);
   const model = routeOliviaModel(requestClass);
-  if (!process.env.OPENAI_API_KEY || !model) {
+  if (!deterministic && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
   }
 
-  console.info("[olivia-v2] request", {
-    model,
+  console.info("[OliviaRouter]", {
+    requestKind,
+    routeDecision: deterministic?.routeDecision ?? "GPT_FALLBACK",
+    model: deterministic ? null : model,
     requestClass,
     clientId: context.activeClientId,
     projectId: context.activeProjectId,
