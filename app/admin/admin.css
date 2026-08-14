@@ -1953,19 +1953,20 @@
 .olivia-home-context.is-dock .olivia-home-context__expanded { opacity: 0; transform: scale(.985) translateY(10px); pointer-events: none; }
 .olivia-home-context__expanded > * { min-height: 0; overflow-y: auto; }
 .olivia-home-context__collapse {
+  /* top:-11px 였던 예전 값은 부모 .olivia-home-context의 overflow:hidden 클리핑 영역
+     밖으로 튀어나가서 클릭이 씹히는 사고가 있었다(2026-08-14) — 컨테이너 안쪽에 완전히
+     들어오도록 top을 양수로 바꾼다. */
   position: absolute;
-  top: -11px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 6px;
+  right: 10px;
   z-index: 5;
-  width: 30px;
+  width: 26px;
   height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(21,88,85,.12);
-  border-radius: 0 0 10px 10px;
-  border-top: none;
+  border-radius: 8px;
   background: #fff;
   color: #5a716c;
   cursor: pointer;
