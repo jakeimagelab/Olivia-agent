@@ -225,6 +225,9 @@ function toolStatus(name: string) {
   if (name === "add_conti_shots") return "콘티 컷을 구성하는 중…";
   if (["update_conti_shot", "remove_conti_shot", "reorder_conti_shot", "duplicate_conti_shot"].includes(name)) return "콘티를 수정하는 중…";
   if (name === "open_feature") return "화면을 찾는 중…";
+  if (name === "list_workflow_step_tasks") return "업무 프로세스를 확인하는 중…";
+  if (name === "process_workflow_step") return "현재 단계 업무를 처리하는 중…";
+  if (name === "approve_workflow_task") return "업무를 처리하는 중…";
   return "화면을 준비하는 중…";
 }
 
