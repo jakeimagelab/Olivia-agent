@@ -10,6 +10,7 @@ import {
   WORKFLOW_STAGES,
   WORKFLOW_STEPS,
   getWorkflowDisplayStepKey,
+  type ToolOnlyStepKey,
 } from "@/lib/workflow";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
