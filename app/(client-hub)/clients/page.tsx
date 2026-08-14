@@ -632,7 +632,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         })}
       </div>
 
-      {TOOL_STEP_TITLE[displayStepKey] ? (
+      {isToolOnlyStep(displayStepKey) ? (
         <section className="pcrm-current-step-card">
           <div className="pcrm-current-step-card__left">
             <div className="pcrm-current-step-card__icon">{STEP_INFO[displayStepKey]?.icon || "🟠"}</div>
@@ -643,7 +643,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
             </div>
           </div>
           <div className="pcrm-current-step-card__actions">
-            <button type="button" onClick={() => setToolModalType(displayStepKey as "quote" | "contract" | "conti")} className="pc-btn pc-btn--orange pc-btn--sm">
+            <button type="button" onClick={() => setToolModalType(displayStepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
               + {TOOL_STEP_TITLE[displayStepKey]}
             </button>
           </div>
