@@ -19,7 +19,14 @@ import {
   resolveCalendarTaskId,
   updateCalendarTask,
 } from "@/lib/olivia/tools/calendar";
-import { advanceWorkflowStep, completeWorkflowRetroactively, getWorkflowStatus } from "@/lib/olivia/tools/workflow";
+import {
+  advanceWorkflowStep,
+  approveWorkflowTask,
+  completeWorkflowRetroactively,
+  getWorkflowStatus,
+  listWorkflowStepTasks,
+  processWorkflowStep,
+} from "@/lib/olivia/tools/workflow";
 import { listMailingQueue, sendMailing } from "@/lib/olivia/tools/mailing";
 import { createGallery, getGallery } from "@/lib/olivia/tools/gallery";
 import { findCalendarConflicts } from "@/lib/assistant/actions/calendarAvailability";
