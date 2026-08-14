@@ -32,7 +32,9 @@ export const TOOLS_WORK: ToolDef[] = [
   { title: "업무일지", desc: "촬영 일정별 To-do와 장비·렌탈 준비사항을 관리합니다.", href: "/work-journal", icon: ClipboardList, meta: "Shoot Log", orange: false, category: "dashboard", aliases: ["업무일지", "촬영 준비"] },
   { title: "워크스페이스", desc: "팀 채팅·목표·프로젝트·리포트를 한 곳에서 관리합니다.", href: "/team", icon: LayoutGrid, meta: "Workspace", orange: false, category: "dashboard", aliases: ["워크스페이스"] },
   { title: "마케팅 대시보드", desc: "채널별 마케팅 전략과 지식 베이스를 관리합니다.", href: "/marketing", icon: Megaphone, meta: "Marketing", orange: false, category: "tools", aliases: ["마케팅", "마케팅 대시보드"] },
-  { title: "카카오 AI 비서", desc: "카카오톡으로 올리비아와 대화하는 채널을 관리합니다.", href: "/admin/kakao-assistant", icon: MessageCircleMore, meta: "Kakao Assistant", orange: false, category: "tools", aliases: ["카카오", "카카오 AI 비서"] },
+  // 카카오 AI 비서(/admin/kakao-assistant)는 2026-08-14 요청으로 앱 내 네비게이션(사이드바/더보기/
+  // 빠른실행/Olivia open_feature)에서만 숨겼다 — 웹훅·백엔드는 그대로 동작하니 실제 카카오 채널
+  // 사용에는 영향 없다. 필요해지면 이 줄만 다시 추가하면 된다.
   { title: "견적서 생성", desc: "촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다.", href: "/quote", icon: ClipboardList, meta: "Quote Builder", orange: false, category: "tools", aliases: ["견적서", "견적", "견적서 생성", "견적 만들어줘"] },
   { title: "콘티/초상권 작성", desc: "사진 콘티(체크리스트·타임테이블)와 영상 콘티(씬·컷·손그림 스토리보드), 초상권 동의서를 한 화면에서 생성합니다.", href: "/conti", icon: FileVideo, meta: "Storyboard Studio", orange: false, category: "tools", aliases: ["콘티", "콘티/초상권", "초상권"] },
   { title: "고객 관리", desc: "병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다.", href: "/clients", icon: Users, meta: "Client Management", orange: true, category: "crm", aliases: ["고객관리", "고객 관리", "고객", "고객 목록", "고객리스트", "CRM", "클라이언트"] },
