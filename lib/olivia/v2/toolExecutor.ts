@@ -686,6 +686,9 @@ export async function runTool(
   }
   if (name === "advance_workflow_step") return fromLegacyResult(name, await advanceWorkflowStep(input));
   if (name === "complete_workflow_retroactively") return fromLegacyResult(name, await completeWorkflowRetroactively(input));
+  if (name === "list_workflow_step_tasks") return fromLegacyResult(name, await listWorkflowStepTasks(input));
+  if (name === "process_workflow_step") return fromLegacyResult(name, await processWorkflowStep(input));
+  if (name === "approve_workflow_task") return fromLegacyResult(name, await approveWorkflowTask(input));
 
   // ── 메일링 (발송은 승인 필요 — send_mailing은 미리보기만, apply_send_mailing이 실제 발송) ──
   if (name === "list_mailing_queue") return fromLegacyResult(name, await listMailingQueue(input));
