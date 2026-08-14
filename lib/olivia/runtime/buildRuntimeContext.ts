@@ -33,3 +33,12 @@ export function buildOliviaRuntimeContext(now: Date = new Date()): OliviaRuntime
     timezone: TIMEZONE,
   };
 }
+
+// "내일 무슨 요일이야?"처럼 오늘이 아닌 날짜의 요일을 물을 때 쓴다. dateISO는 이미 Asia/Seoul
+// 기준으로 확정된 달력 날짜라 정오(UTC) 고정 산술로 요일을 뽑아도 어긋나지 않는다.
+export function weekdayKoForDate(dateISO: string): string {
+  const d = new Date(`${dateISO}T12:00:00Z`);
+  const idx = d.getUTCDay();
+  const order = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  return order[idx];
+}
