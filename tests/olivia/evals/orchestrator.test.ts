@@ -74,6 +74,13 @@ describe("Temporal Resolver — 절대 날짜/범위 변환", () => {
     expect(resolveTemporalExpression("견적서 만들어줘", runtime)).toBeNull();
     expect(resolveTemporalExpression("프로필 50으로", runtime)).toBeNull();
   });
+  it("문장 속에 섞여 있어도 부분 문자열로 잡아낸다", () => {
+    expect(resolveTemporalExpression("내일 일정 보여줘", runtime)).toMatchObject({ kind: "date", date: "2026-08-15" });
+    expect(resolveTemporalExpression("다음주 일정 알려줘", runtime)).toMatchObject({ kind: "range", start: "2026-08-17", end: "2026-08-23" });
+  });
+  it("지난달 15일 → 절대 날짜", () => {
+    expect(resolveTemporalExpression("지난달 15일", runtime)).toMatchObject({ kind: "date", date: "2026-07-15" });
+  });
 });
 
 describe("Deterministic Router — Runtime Query (T1-T5, GPT 미호출)", () => {
