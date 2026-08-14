@@ -41,13 +41,13 @@ Before calling `/api/workflow/advance`, `advanceWorkflowStep` (`lib/olivia/tools
 ```
 User: "미소로한의원 지금 단계 뭐 남았어?"
   -> list_workflow_step_tasks(clientName="미소로한의원")
-  -> fuzzy-match client -> active workflow_run -> GET /api/workflow/next-action
+  -> fuzzy-match client -> active workflow_run -> buildWorkflowNextAction() in-process
   -> Olivia lists checklist items + statuses
 
 User: "그거 다 처리해줘"
   -> process_workflow_step(clientName="미소로한의원")
   -> guard check (current_step_key not in TOOL_ONLY_STEP_KEYS) -> proceed
-  -> POST /api/workflow/run-current-step
+  -> createStepTasks + executeWorkflowTask + maybeAdvanceWorkflow in-process
   -> Olivia reports what ran and whether the step advanced
 
 User: "계약서 초안 승인해줘" (on a non-tool step with an approval-gated item)
