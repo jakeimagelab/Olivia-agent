@@ -1,7 +1,7 @@
 import type { WorkspacePublication } from "./types";
 import { PUBLICATION_TYPE_LABEL, type PublicationType } from "./publications";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
-import { getWorkflowDisplayStepKey } from "@/lib/workflow";
+import { getWorkflowDisplayStepKey, isToolOnlyStep, type ToolOnlyStepKey } from "@/lib/workflow";
 
 export type ClientWorkspaceNextAction =
   | {
@@ -13,7 +13,7 @@ export type ClientWorkspaceNextAction =
     }
   | {
       kind: "tool_link";
-      stepKey: "quote" | "contract" | "conti";
+      stepKey: ToolOnlyStepKey;
       title: string;
       ctaHref: string;
     }
@@ -25,7 +25,7 @@ export type ClientWorkspaceNextAction =
       kind: "none";
     };
 
-const TOOL_LINK_STEPS: Record<string, { title: string }> = {
+const TOOL_LINK_STEPS: Record<ToolOnlyStepKey, { title: string }> = {
   quote: { title: "견적서 작성하기" },
   contract: { title: "계약서 작성하기" },
   conti: { title: "콘티 작성하기" },
