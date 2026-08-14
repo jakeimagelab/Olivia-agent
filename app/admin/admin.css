@@ -1998,11 +1998,6 @@
 .olivia-context-dock strong { color: var(--olivia-green); }
 
 .olivia-home-context .pc-panel {
-  border: 1px solid rgba(21,88,85,.07);
-  background: rgba(255,255,255,.92);
-  box-shadow: 0 8px 28px rgba(21,88,85,.045);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border-radius: 18px;
 }
 .olivia-home-context .pc-quick-action { min-height: 46px; border-radius: 14px; }
