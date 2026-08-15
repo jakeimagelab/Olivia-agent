@@ -44,7 +44,7 @@ export default function MoveWorkflowStepDialog({ clientName, workflowRunId, curr
   if (typeof document === "undefined") return null;
   return createPortal(
     <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div className="pcrm-project-dialog" style={{ maxWidth: 440 }}>
+      <form className="pcrm-project-dialog" style={{ maxWidth: 440 }} onSubmit={submit}>
         <header>
           <div><span>PCRM · WORKFLOW</span><h2>단계 이동</h2><p>{clientName} — 목표 단계를 골라 한 번에 이동합니다. 중간 단계를 하나씩 거치지 않아요.</p></div>
           <button type="button" onClick={onClose} aria-label="닫기">×</button>
