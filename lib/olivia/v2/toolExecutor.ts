@@ -238,6 +238,40 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   { type: "function", name: "memo_add", description: "[WRITE] 고객 상담 메모를 실제로 저장합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientName: { type: "string" }, content: { type: "string" } }, required: ["clientName", "content"] } },
   // ── 화면 전환 ──
   { type: "function", name: "open_feature", description: "[READ] 사용자가 앱의 특정 기능/화면을 열어달라고 요청할 때 사용합니다(예: \"프롬프터 실행해줘\", \"고객관리 열어줘\", \"콘티 보여줘\", \"일정 열어줘\"). featureQuery에 사용자가 말한 기능 이름을 그대로 넣으면 실제 존재하는 기능과 매칭해서 화면을 엽니다. 다른 도구로 처리되는 요청(예: 특정 고객의 견적서 생성처럼 데이터가 필요한 작업)에는 쓰지 않습니다 — 순수하게 '화면을 연다'는 의도일 때만 씁니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { featureQuery: { type: "string" } }, required: ["featureQuery"] } },
+  // ── 범용 기능 데이터 생성/수정 (코드 요청서 3번 항목, 2026-08-15) ──
+  {
+    type: "function",
+    name: "create_feature_record",
+    description: buildFeatureRecordDescription("생성"),
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        domain: { type: "string", enum: [...OPEN_FEATURE_RECORD_DOMAINS] },
+        data: { type: "string", description: "생성할 필드를 담은 JSON 객체 문자열. 예: {\"hospitalName\":\"...\",\"rawMemo\":\"...\"}" },
+        requestText: { type: ["string", "null"] },
+      },
+      required: ["domain", "data", "requestText"],
+    },
+  },
+  {
+    type: "function",
+    name: "update_feature_record",
+    description: buildFeatureRecordDescription("수정"),
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        domain: { type: "string", enum: [...OPEN_FEATURE_RECORD_DOMAINS] },
+        data: { type: "string", description: "수정할 필드만 담은 JSON 객체 문자열" },
+        target: { type: "string", description: "수정할 대상의 이름(병원명·제목 등) 또는 ID" },
+        requestText: { type: ["string", "null"] },
+      },
+      required: ["domain", "data", "target", "requestText"],
+    },
+  },
 ];
 
 function text(input: Record<string, unknown>, key: string) {
