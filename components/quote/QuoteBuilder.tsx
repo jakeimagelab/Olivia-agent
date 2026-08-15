@@ -2622,8 +2622,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               <Save size={18} />
               {manualSaving ? "저장 중…" : "임시저장 (⌘S)"}
             </button>
-            <div style={{ position: "relative" }}>
-              <button className="primary-button" type="button" onClick={() => setShowDownloadMenu((v) => !v)}>
+            <div style={{ position: "relative", flex: 1, minWidth: 140 }}>
+              <button className="primary-button" type="button" onClick={() => setShowDownloadMenu((v) => !v)} style={{ width: "100%" }}>
                 <Download size={18} />
                 {isGenerating ? "PDF 생성 중" : "다운로드"}
                 <ChevronDown size={14} />
