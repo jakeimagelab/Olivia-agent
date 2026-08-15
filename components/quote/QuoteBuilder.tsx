@@ -1073,6 +1073,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   };
   useSaveShortcut(handleManualSave);
 
+  // 다운로드 — PDF/Excel 선택 팝오버(코드 요청서 3차 2번 항목, 2026-08-16). 콘티의
+  // handlePDF/handleSpreadsheetDownload 팝오버 패턴을 그대로 견적서에 적용한다.
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+
   // "최종완료" — 코드 요청서 2차(2026-08-16) 2번 항목. 저장 → 워크플로우 quote 단계 완료 처리 →
   // 다음 단계로 진행까지 승인 없이 즉시 처리한다. 포털 공개(publishQuoteToPortal)와는 완전히
   // 분리된 동작 — 고객에게 아직 안 보여줬어도(포털 미공개) 대표가 직접 만든 것 자체가 승인이다.
