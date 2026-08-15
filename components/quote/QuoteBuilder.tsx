@@ -1658,6 +1658,47 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     }
   };
 
+  /* ── Excel 다운로드 (열너비 적용, 2시트) — 코드 요청서 3차 2번 항목, 콘티의
+     handleSpreadsheetDownload과 같은 패턴(xlsx 패키지, aoa_to_sheet) ── */
+  const downloadExcel = async () => {
+    const snapshot = buildContractQuoteData();
+    const XLSX = await import("xlsx");
+    const hospitalName = snapshot.hospitalName || "병원";
+
+    const styleSheet = (ws: any, colWidths: number[]) => {
+      ws["!cols"] = colWidths.map((w) => ({ wch: w }));
+      return ws;
+    };
+
+    const infoWs = styleSheet(XLSX.utils.aoa_to_sheet([
+      ["병원명", snapshot.hospitalName],
+      ["담당자", snapshot.contactName],
+      ["연락처", snapshot.phone],
+      ["이메일", snapshot.email],
+      ["견적번호", snapshot.quoteNumber],
+      ["견적일", snapshot.quoteDate],
+      ["촬영예정일", snapshot.shootDate || ""],
+      ["유효기간", snapshot.validUntil],
+    ]), [14, 30]);
+
+    const itemsWs = styleSheet(XLSX.utils.aoa_to_sheet([
+      ["항목명", "상세", "단가", "수량", "소계", "비고"],
+      ...snapshot.items.map((item) => [item.name, item.detail || "", item.unitPrice, item.qty, item.subtotal, item.note || ""]),
+      [],
+      ["공급가액", "", "", "", snapshot.supplyAmount, ""],
+      ["할인", "", "", "", -snapshot.discountAmount, ""],
+      ["부가세", "", "", "", snapshot.vat, ""],
+      ["합계", "", "", "", snapshot.totalAmount, ""],
+      [`선금 (${snapshot.depositRate}%)`, "", "", "", snapshot.depositAmount, ""],
+      [`잔금 (${100 - snapshot.depositRate}%)`, "", "", "", snapshot.balanceAmount, ""],
+    ]), [24, 22, 12, 8, 14, 16]);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, infoWs, "기본정보");
+    XLSX.utils.book_append_sheet(wb, itemsWs, "견적내역");
+    XLSX.writeFile(wb, `${hospitalName}_견적서.xlsx`);
+  };
+
   const quotePreviewShellNode = (
           <div
             className={`quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""} ${showFullscreenPreview ? "preview-shell preview-shell--fullscreen" : "preview-shell"}`}
