@@ -427,6 +427,47 @@ export default function ContractBuilder({
     }
   };
 
+  /* ── Excel 다운로드 (열너비 적용, 2시트) — 코드 요청서 3차 2번 항목, 견적서/콘티와
+     같은 패턴(xlsx 패키지, aoa_to_sheet) ── */
+  const downloadExcel = async () => {
+    if (!quote) return;
+    const XLSX = await import("xlsx");
+    const hospitalName = quote.hospitalName || "병원";
+
+    const styleSheet = (ws: any, colWidths: number[]) => {
+      ws["!cols"] = colWidths.map((w) => ({ wch: w }));
+      return ws;
+    };
+
+    const infoWs = styleSheet(XLSX.utils.aoa_to_sheet([
+      ["병원명", quote.hospitalName],
+      ["담당자", quote.contactName],
+      ["연락처", quote.phone],
+      ["이메일", quote.email],
+      ["견적번호", quote.quoteNumber],
+      ["견적일", quote.quoteDate],
+      ["촬영예정일", quote.shootDate || ""],
+      ["유효기간", quote.validUntil],
+    ]), [14, 30]);
+
+    const itemsWs = styleSheet(XLSX.utils.aoa_to_sheet([
+      ["항목명", "상세", "단가", "수량", "소계", "비고"],
+      ...quote.items.map((item) => [item.name, item.detail || "", item.unitPrice, item.qty, item.subtotal, item.note || ""]),
+      [],
+      ["공급가액", "", "", "", quote.supplyAmount, ""],
+      ["할인", "", "", "", -quote.discountAmount, ""],
+      ["부가세", "", "", "", quote.vat, ""],
+      ["합계", "", "", "", quote.totalAmount, ""],
+      ["선금", "", "", "", quote.depositAmount, ""],
+      ["잔금", "", "", "", quote.balanceAmount, ""],
+    ]), [24, 22, 12, 8, 14, 16]);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, infoWs, "기본정보");
+    XLSX.utils.book_append_sheet(wb, itemsWs, "계약내역");
+    XLSX.writeFile(wb, `${hospitalName}_계약서.xlsx`);
+  };
+
   const publishToPortal = async () => {
     setPublishState("publishing"); setError("");
     try {
