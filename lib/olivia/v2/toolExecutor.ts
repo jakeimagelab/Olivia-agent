@@ -1,6 +1,10 @@
 import type { FunctionTool } from "openai/resources/responses/responses";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
+import { validateOliviaCrudRequest } from "@/lib/olivia/crud/validation";
+import { getOliviaCrudCapabilities } from "@/lib/olivia/crud/registry";
+import type { OliviaCrudDomain, OliviaCrudRequest, OliviaCrudTarget } from "@/lib/olivia/crud/types";
+import { isUuid } from "@/lib/assistant/validation";
 import { resolveUiActions } from "@/lib/olivia/agent/uiActionResolvers";
 import { buildAgentQuoteData } from "@/lib/quote/agentQuote";
 import { parseKoreanCount, parseKoreanMoney, parseShotPosition } from "@/lib/olivia/naturalLanguageNumbers";
