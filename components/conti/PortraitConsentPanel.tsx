@@ -144,6 +144,32 @@ export default function PortraitConsentPanel({
   const [shareLink, setShareLink] = useState<{ id: string; url: string } | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
 
+  // 초상권동의서는 워크플로우 12단계 카탈로그에 전용 단계가 없다 — 콘티 단계(conti)의 부속
+  // 문서로 취급해 "최종완료"도 conti 단계를 완료 처리한다(코드 요청서 2차 2번 항목, 구현 전
+  // 확인 완료 — 별도 승인 절차 신설하지 않음). 개별 동의서가 아니라 이 화면 전체("초상권 동의서
+  // 준비가 끝났다")에 대한 단일 완료 버튼이다.
+  const [completeState, setCompleteState] = useState<"idle" | "completing" | "done" | "error">("idle");
+  const [completeError, setCompleteError] = useState("");
+  const completeConsentStep = async () => {
+    if (!workflowRunId) { setCompleteError("연결된 프로젝트가 없습니다."); setCompleteState("error"); return; }
+    setCompleteState("completing"); setCompleteError("");
+    try {
+      const res = await fetch(`/api/workflow-runs/${workflowRunId}/complete-step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepKey: "conti" }),
+      });
+      const body = await res.json();
+      if (!body.ok) throw new Error(body.error || "최종완료 처리 실패");
+      setCompleteState("done");
+      setTimeout(() => setCompleteState("idle"), 3000);
+    } catch (err) {
+      setCompleteError(err instanceof Error ? err.message : "최종완료 처리 실패");
+      setCompleteState("error");
+      setTimeout(() => setCompleteState("idle"), 3000);
+    }
+  };
+
   const detailDocRef = useRef<HTMLDivElement>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const downloadPdf = async () => {
