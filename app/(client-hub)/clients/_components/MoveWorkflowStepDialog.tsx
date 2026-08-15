@@ -3,19 +3,19 @@
 import { FormEvent, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
-import { ACTIVE_WORKFLOW_STEPS, type ActiveWorkflowStepKey } from "@/lib/workflow";
+import { ACTIVE_WORKFLOW_STEPS } from "@/lib/workflow";
 import { C, R } from "@/lib/theme";
 
 type Props = {
   clientName: string;
   workflowRunId: string;
-  currentStepKey: ActiveWorkflowStepKey;
+  currentStepKey: string;
   onClose: () => void;
   onMoved: () => void;
 };
 
 export default function MoveWorkflowStepDialog({ clientName, workflowRunId, currentStepKey, onClose, onMoved }: Props) {
-  const [selected, setSelected] = useState<ActiveWorkflowStepKey | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
