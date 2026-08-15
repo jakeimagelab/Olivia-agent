@@ -80,27 +80,11 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       priority: "high",
     },
   ],
-  original_delivery: [
-    {
-      task_type: "original_delivery",
-      title: "원본 전달 메일 초안 생성",
-      description: "NAS 원본 링크를 포함한 원본 전달 메일 초안을 생성합니다.",
-      requires_approval: false,
-      creates_mailing_draft: true,
-      approval_type: "mailing",
-      mailing_type: "original_files",
-    },
-  ],
+  // original_delivery는 ACTIVE_WORKFLOW_STEP_KEYS(lib/workflow.ts)에 없는 레거시 단계 키다 —
+  // client_selection으로 folded_into 돼 있어 새 실행 건은 이 단계에 진입하지 않는다. 메일 자동화만
+  // 제거하고(코드 요청서 2차 1번), 옛 실행 건이 이 단계에 머물러 있을 경우를 대비해 키 자체는 남긴다.
+  original_delivery: [],
   client_selection: [
-    {
-      task_type: "original_delivery",
-      title: "원본 전달 메일 초안 생성",
-      description: "NAS 원본 링크를 포함한 원본 전달 메일 초안을 생성합니다.",
-      requires_approval: false,
-      creates_mailing_draft: true,
-      approval_type: "mailing",
-      mailing_type: "original_files",
-    },
     {
       task_type: "selection_gallery_prepare",
       title: "고객 셀렉 갤러리 준비",
