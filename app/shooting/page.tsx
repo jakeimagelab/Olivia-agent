@@ -206,7 +206,57 @@ function ShootingInner() {
             )}
           </div>
         </div>
+
+        {/* 촬영 현장 도구 4종 — 현장공유/태블릿메모/메디컬이미지(준비중)/프롬프터 */}
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: C.teal, marginBottom: 10 }}>촬영 현장 도구</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+            <div className="pc-card pc-card--padded" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: C.txt }}>현장공유</div>
+              <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6, flex: 1 }}>
+                {conti ? "이 고객의 촬영 콘티를 현장뷰(읽기 전용)로 엽니다." : clientId ? "이 고객의 콘티가 아직 없습니다." : "client_id가 필요합니다."}
+              </div>
+              <button onClick={openContiSiteView} disabled={!conti || shareLoading} className="pc-btn pc-btn--secondary pc-btn--sm">
+                {shareLoading ? "여는 중..." : "콘티 현장뷰 열기"}
+              </button>
+            </div>
+
+            <div className="pc-card pc-card--padded" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: C.txt }}>태블릿 메모</div>
+              <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6, flex: 1 }}>
+                펜으로 백지·코넬·모눈·콘티 양식 위에 촬영 현장 메모를 남깁니다.
+              </div>
+              <button onClick={() => setShowMemoPanel(true)} disabled={!clientId} className="pc-btn pc-btn--secondary pc-btn--sm">
+                태블릿 메모 열기
+              </button>
+            </div>
+
+            <div className="pc-card pc-card--padded" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: C.txt }}>메디컬 이미지 공유</div>
+              <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6, flex: 1 }}>
+                진료과별 이미지 공유 기능은 준비 중입니다.
+              </div>
+              <button disabled className="pc-btn pc-btn--secondary pc-btn--sm" style={{ opacity: 0.5, cursor: "not-allowed" }}>
+                준비 중
+              </button>
+            </div>
+
+            <div className="pc-card pc-card--padded" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: C.txt }}>프롬프터</div>
+              <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6, flex: 1 }}>
+                인터뷰·멘트 촬영 시 대본을 띄웁니다.
+              </div>
+              <Link href="/prompter" target="_blank" className="pc-btn pc-btn--secondary pc-btn--sm" style={{ textDecoration: "none", textAlign: "center" }}>
+                프롬프터 열기
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {showMemoPanel && clientId && client && (
+        <ShootingMemoPanel clientId={clientId} clientName={client.name} onClose={() => setShowMemoPanel(false)} />
+      )}
     </main>
   );
 }
