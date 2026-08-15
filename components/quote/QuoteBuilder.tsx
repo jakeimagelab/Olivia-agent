@@ -2622,10 +2622,35 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               <Save size={18} />
               {manualSaving ? "저장 중…" : "임시저장 (⌘S)"}
             </button>
-            <button className="primary-button" type="button" onClick={downloadPdf}>
-              <Download size={18} />
-              {isGenerating ? "PDF 생성 중" : "PDF 다운로드"}
-            </button>
+            <div style={{ position: "relative" }}>
+              <button className="primary-button" type="button" onClick={() => setShowDownloadMenu((v) => !v)}>
+                <Download size={18} />
+                {isGenerating ? "PDF 생성 중" : "다운로드"}
+                <ChevronDown size={14} />
+              </button>
+              {showDownloadMenu && (
+                <div style={{
+                  position: "absolute", bottom: "100%", left: 0, marginBottom: 4, zIndex: 30,
+                  background: "#fff", border: "1px solid rgba(21,88,85,.14)", borderRadius: 10,
+                  boxShadow: "0 12px 30px rgba(21,88,85,.14)", minWidth: 140, overflow: "hidden",
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
+                  >
+                    <Download size={14} /> PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, borderTop: "1px solid rgba(21,88,85,.08)", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
+                  >
+                    <FileSpreadsheet size={14} /> Excel
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               className="primary-button"
               type="button"
