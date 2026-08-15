@@ -100,9 +100,9 @@ export default function MoveWorkflowStepDialog({ clientName, workflowRunId, curr
         {error && <p className="pcrm-dialog-error">{error}</p>}
         <footer>
           <button type="button" onClick={onClose}>취소</button>
-          <button type="button" onClick={submit} disabled={!selected || saving}>{saving ? "이동 중..." : "이동"}</button>
+          <button type="submit" disabled={!selected || saving}>{saving ? "이동 중..." : "이동"}</button>
         </footer>
-      </div>
+      </form>
     </div>,
     document.body,
   );
