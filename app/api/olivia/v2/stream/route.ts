@@ -136,6 +136,21 @@ function contextPrompt(context: OliviaContextSnapshot, pageContext?: string, tem
   return lines.length ? lines.join("\n") : "선택된 고객, 프로젝트, Workspace가 없습니다.";
 }
 
+// 30턴 넘게 대화가 길어지면 그 이전 메시지는 toInputMessages()가 통째로 버린다(코드 요청서 5번
+// 항목) — LLM으로 다시 요약하면 비용/지연이 들고 왜곡 위험도 있어서(문서에서 명시적으로 경고),
+// 1차는 최소 버전으로 실제 assistant 응답 원문을 짧게 잘라 그대로 남긴다(지어내지 않음). assistant
+// 응답은 운영 규칙상 "도구 성공 결과를 받은 뒤에만" 나오므로 사실상 이전 도구 실행 결과 요약이다.
+function summarizeOlderMessages(rows: ConversationMessage[]): string | undefined {
+  if (rows.length <= 30) return undefined;
+  const lines = rows
+    .slice(0, -30)
+    .filter((row) => row.role === "assistant")
+    .slice(-20)
+    .map((row) => String(row.content || "").split("\n")[0].slice(0, 90))
+    .filter(Boolean);
+  return lines.length ? lines.join("\n") : undefined;
+}
+
 function toInputMessages(
   rows: ConversationMessage[],
   message: string,
