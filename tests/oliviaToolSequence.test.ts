@@ -43,20 +43,35 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 vi.mock("@/lib/olivia/crud/executor", () => ({
-  executeOliviaCrud: vi.fn(async (_db: unknown, request: { domain: string }) => {
+  executeOliviaCrud: vi.fn(async (_db: unknown, request: { domain: string; operation: string }) => {
     executionLog.push(`db:${request.domain}`);
     if (request.domain === "quote") {
-      return { recordId: "quote-real-123", record: quoteRow };
+      return { recordId: "quote-real-123", record: quoteRow, domain: request.domain, operation: request.operation, message: "견적서 생성이 완료되었습니다." };
     }
     if (request.domain === "contract") {
       return {
         recordId: "contract-real-456",
         record: { id: "contract-real-456", hospital_name: "히어산부인과", client_id: "client-1" },
+        domain: request.domain,
+        operation: request.operation,
+        message: "계약서 생성이 완료되었습니다.",
+      };
+    }
+    if (request.domain === "conti") {
+      return {
+        recordId: "conti-real-789",
+        record: { id: "conti-real-789", hospital_name: "히어산부인과" },
+        domain: request.domain,
+        operation: request.operation,
+        message: "콘티 생성이 완료되었습니다.",
       };
     }
     return {
-      recordId: "conti-real-789",
-      record: { id: "conti-real-789", hospital_name: "히어산부인과" },
+      recordId: "record-real-999",
+      record: { id: "record-real-999" },
+      domain: request.domain,
+      operation: request.operation,
+      message: `${request.domain} ${request.operation === "create" ? "생성" : "수정"}이 완료되었습니다.`,
     };
   }),
 }));
