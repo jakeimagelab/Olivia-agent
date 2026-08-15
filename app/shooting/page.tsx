@@ -32,13 +32,48 @@ function ShootingInner() {
   const [notes, setNotes] = useState("");
   const [advancing, setAdvancing] = useState(false);
   const [doneMsg, setDoneMsg] = useState("");
+  // 촬영 현장 도구 4종(코드 요청서 3차 4번 항목, 2026-08-16) — 현장공유(conti 현장뷰)/
+  // 태블릿메모/메디컬이미지(placeholder)/프롬프터. 이 단계는 여전히 자동 완료 트리거가
+  // 없고(위 completeShooting처럼 대표가 직접 눌러야만 다음 단계로 진행) 순수 진입점 추가다.
+  const [conti, setConti] = useState<any>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [showMemoPanel, setShowMemoPanel] = useState(false);
 
   useEffect(() => {
     if (!clientId) return;
     fetch(`/api/clients/${clientId}`).then(r => r.json()).then(d => {
       if (d.ok) { setClient(d.client); setWorkflowRun(d.workflowRun); }
     });
+    fetch(`/api/conti/saves`).then(r => r.json()).then(d => {
+      if (d.ok) setConti((d.data || []).find((row: any) => row.client_id === clientId) || null);
+    });
   }, [clientId]);
+
+  // 콘티 페이지의 "현장뷰 공유"(components/conti/ContiBuilder.tsx handleShare)와 완전히 같은
+  // API·데이터 흐름 — 콘티 쪽엔 그대로 남겨(미리보기 용도) 두고, 촬영 현장에서 바로 열 수 있는
+  // 진입점만 여기 새로 만든다.
+  const openContiSiteView = async () => {
+    if (!conti) return;
+    setShareLoading(true);
+    try {
+      const res = await fetch("/api/conti/share", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: conti.title || conti.hospital_name,
+          hospital: conti.hospital_name,
+          specialties: Array.isArray(conti.specialties) ? conti.specialties.join(", ") : conti.specialties,
+          result: conti.result,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "공유 링크 생성 실패");
+      window.open(`${window.location.origin}/conti/view/${data.token}`, "_blank", "noopener,noreferrer");
+    } catch (err: any) {
+      alert("현장뷰 링크 생성 실패: " + err.message);
+    } finally {
+      setShareLoading(false);
+    }
+  };
 
   const toggle = (idx: number) =>
     setChecklist(prev => prev.map((c, i) => i === idx ? { ...c, done: !c.done } : c));
