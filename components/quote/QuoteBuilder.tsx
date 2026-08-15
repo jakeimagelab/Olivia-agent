@@ -10,6 +10,7 @@ import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import {
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Download,
