@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  FileSpreadsheet,
   Maximize2,
   Plus,
   RefreshCcw,
