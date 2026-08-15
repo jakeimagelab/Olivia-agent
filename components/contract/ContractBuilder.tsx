@@ -455,6 +455,32 @@ export default function ContractBuilder({
     }
   };
 
+  // "최종완료" — 코드 요청서 2차(2026-08-16) 2번 항목. 저장 → 워크플로우 contract 단계 완료 처리 →
+  // 다음 단계로 진행까지 승인 없이 즉시 처리한다. 포털 공개와 완전히 분리된 동작.
+  const completeContractStep = async () => {
+    setCompleteState("completing"); setError("");
+    try {
+      const savedContractId = await handleSave();
+      if (!savedContractId) throw new Error("계약 DB 저장에 실패했습니다.");
+      const pageParams = new URLSearchParams(isModal ? "" : window.location.search);
+      const workflowRunId = effectiveWorkflowRunId(pageParams);
+      if (!workflowRunId) throw new Error("계약서에 연결된 프로젝트가 없습니다. 먼저 견적서를 완료해 프로젝트를 생성해주세요.");
+      const r = await fetch(`/api/workflow-runs/${workflowRunId}/complete-step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepKey: "contract" }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error);
+      setCompleteState("done");
+      setTimeout(() => setCompleteState("idle"), 3000);
+    } catch (e: any) {
+      setError(e.message || "최종완료 처리에 실패했습니다.");
+      setCompleteState("error");
+      setTimeout(() => setCompleteState("idle"), 3000);
+    }
+  };
+
   // 페이지 모드는 URL 쿼리(client_id/workflowRunId)에서, 모달 모드는 props에서 읽는다.
   const effectiveClientId = (pageParams: URLSearchParams) =>
     isModal ? modalClientId : (pageParams.get("client_id") || pageParams.get("clientId"));
