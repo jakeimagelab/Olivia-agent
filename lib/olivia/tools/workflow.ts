@@ -46,12 +46,6 @@ async function resolveActiveRun(clientName: string) {
   });
 }
 
-async function hasRealDocumentForStep(workflowRunId: string, stepKey: ToolOnlyStepKey) {
-  const db = getSupabaseAdmin();
-  const { data } = await db.from(REAL_DOCUMENT_TABLE[stepKey]).select("id").eq("workflow_run_id", workflowRunId).limit(1);
-  return Boolean(data && data.length);
-}
-
 // 이 파일의 모든 도구는 자기 자신의 /api/workflow, /api/agent 라우트를 HTTP로 다시 호출하지 않고
 // lib/workflowAutomation.ts의 로직을 같은 프로세스 안에서 직접 호출한다. 예전에는 fetch(origin + ...)로
 // 자체 API를 불렀는데, 그 라우트들이 middleware.ts의 protectedApiPrefixes에 걸려 있어(관리자 세션
