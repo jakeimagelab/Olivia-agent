@@ -3,7 +3,10 @@ import {
   ACTIVE_WORKFLOW_STEP_KEYS,
   LEGACY_NEXT_STEP,
   STEP_NAME,
+  getWorkflowDisplayStepKey,
   isActiveWorkflowStep,
+  isToolOnlyStep,
+  type ToolOnlyStepKey,
 } from "@/lib/workflow";
 import { addYearsIso } from "@/lib/dataRetention";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
