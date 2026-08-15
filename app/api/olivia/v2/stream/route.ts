@@ -314,7 +314,10 @@ export async function POST(req: NextRequest) {
           if (requestedConversation) conversation = requestedConversation as { id: string; owner_id: string };
         }
 
-        const history = await listAssistantMessages(db, owner.id, conversation.id, 50);
+        // toInputMessages는 최근 30개만 온전히 모델 입력에 넣는다 — 30턴을 넘는 대화의 앞부분은
+        // 통째로 사라지던 문제(코드 요청서 5번 항목)를 최소 버전으로 완화하려고 150개까지 더
+        // 끌어와서, 잘려나가는 구간의 assistant 응답(=도구 실행 결과 요약)만 짧게 남긴다.
+        const history = await listAssistantMessages(db, owner.id, conversation.id, 150);
         await saveAssistantMessage(db, {
           ownerId: owner.id,
           conversationId: conversation.id,
