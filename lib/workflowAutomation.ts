@@ -408,6 +408,42 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
   return { completed: false, from_step_key: fromStep, to_step_key: toStep, created: taskResult.created };
 }
 
+// 실제 문서(견적서/계약서/콘티)가 있어야 넘어갈 수 있는 단계에 머물러 있을 때, 그 문서 없이
+// 다른 단계로 건너뛰지 못하게 막는다 — 챗 도구(advanceWorkflowStep, lib/olivia/tools/workflow.ts)와
+// 고객 상세 화면의 수동 "단계 이동" 메뉴(app/api/workflow-runs/[id]/move-step/route.ts)가
+// 동일한 기준으로 판단하도록 여기 한 곳에만 둔다(코드 요청서 3차 4번 항목, 2026-08-16).
+const REAL_DOCUMENT_TABLE: Record<ToolOnlyStepKey, string> = {
+  quote: "quotes",
+  contract: "contracts",
+  conti: "conti_saves",
+};
+
+export const TOOL_STEP_BUILDER_HINT: Record<ToolOnlyStepKey, string> = {
+  quote: "이 단계는 실제 견적서가 있어야 넘어갈 수 있어요. 고객 프로젝트 페이지에서 \"+ 견적서 작성하기\"로 실제 견적서를 만들어주세요.",
+  contract: "이 단계는 실제 계약서가 있어야 넘어갈 수 있어요. 고객 프로젝트 페이지에서 \"+ 계약서 작성하기\"로 실제 계약서를 만들어주세요.",
+  conti: "이 단계는 실제 콘티가 있어야 넘어갈 수 있어요. 고객 프로젝트 페이지에서 \"+ 콘티 작성하기\"로 실제 콘티를 만들어주세요.",
+};
+
+export async function hasRealDocumentForStep(db: SupabaseClient, workflowRunId: string, stepKey: ToolOnlyStepKey) {
+  const { data } = await db.from(REAL_DOCUMENT_TABLE[stepKey]).select("id").eq("workflow_run_id", workflowRunId).limit(1);
+  return Boolean(data && data.length);
+}
+
+export async function guardWorkflowStepJump(
+  db: SupabaseClient,
+  run: { id: string; current_step_key: string },
+  toStepKey: string,
+): Promise<{ blocked: true; hint: string; blockedStepKey: ToolOnlyStepKey } | { blocked: false }> {
+  const currentDisplayStep = getWorkflowDisplayStepKey(run.current_step_key) || run.current_step_key;
+  if (isToolOnlyStep(currentDisplayStep) && currentDisplayStep !== toStepKey) {
+    const hasDocument = await hasRealDocumentForStep(db, run.id, currentDisplayStep);
+    if (!hasDocument) {
+      return { blocked: true, hint: TOOL_STEP_BUILDER_HINT[currentDisplayStep], blockedStepKey: currentDisplayStep };
+    }
+  }
+  return { blocked: false };
+}
+
 /**
  * 이전 단계에서 실수가 있었을 때, 관리자가 수동으로 워크플로우를 그 단계로 되돌린다.
  * advanceWorkflow와 달리 "완료 처리"가 아니라 "재작업"이므로 되돌아갈 단계의 workflow_step_runs를
