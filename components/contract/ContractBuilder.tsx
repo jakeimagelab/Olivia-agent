@@ -633,7 +633,15 @@ export default function ContractBuilder({
             {saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : saveState === "error" ? "✕ 저장 실패" : "저장 (⌘S)"}
           </button>
           <button onClick={downloadPdf} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
-            {pdfGenerating ? "PDF 생성 중..." : "PDF 저장"}
+            {pdfGenerating ? "PDF 생성 중..." : "다운로드"}
+          </button>
+          <button onClick={completeContractStep} disabled={completeState === "completing"} className="pc-btn pc-btn--sm"
+            style={{
+              background: completeState === "done" ? undefined : "#155855",
+              color: completeState === "done" ? "#16a34a" : "#fff",
+              borderColor: completeState === "error" ? C.orange : undefined,
+            }}>
+            {completeState === "completing" ? "최종완료 처리 중..." : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "✕ 완료 실패" : "최종완료"}
           </button>
           <button onClick={publishToPortal} disabled={publishState === "publishing"} className="pc-btn pc-btn--secondary pc-btn--sm"
             style={{
