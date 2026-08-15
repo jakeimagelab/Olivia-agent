@@ -500,6 +500,98 @@ export async function runTool(
     };
   }
 
+  // ── 범용 기능 데이터 생성/수정 (코드 요청서 3·4번 항목, 2026-08-15) ──
+  if (name === "create_feature_record" || name === "update_feature_record") {
+    const domain = text(input, "domain") as OliviaCrudDomain;
+    if (!OPEN_FEATURE_RECORD_DOMAINS.includes(domain)) {
+      throw new Error(`"${domain}"은(는) 아직 챗에서 직접 생성·수정할 수 없는 기능이에요.`);
+    }
+    let data: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(text(input, "data") || "{}");
+      data = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      throw new Error("data 형식(JSON 객체 문자열)이 올바르지 않아요.");
+    }
+    const operation = name === "create_feature_record" ? "create" as const : "update" as const;
+    let target: OliviaCrudTarget | undefined;
+    if (operation === "update") {
+      const targetRaw = text(input, "target");
+      if (!targetRaw) throw new Error("수정할 대상의 이름이나 ID가 필요해요.");
+      target = isUuid(targetRaw) ? { id: targetRaw } : { name: targetRaw };
+    }
+
+    const crudRequest: OliviaCrudRequest = {
+      operation,
+      domain,
+      data,
+      target,
+      requestText: text(input, "requestText") || undefined,
+    };
+    const validated = validateOliviaCrudRequest(crudRequest);
+
+    // owner_only 필드가 섞이면 바로 실행하지 않고 승인 카드를 띄운다(코드 요청서 4번 항목) —
+    // 실제 실행은 uiActionResolvers의 create_feature_record/update_feature_record 리졸버가
+    // 만드는 REQUEST_APPROVAL 카드를 사용자가 확인해야 apply_feature_record_write로만 이뤄진다.
+    if (validated.permission === "owner_only") {
+      const fieldsSummary = Object.entries(validated.data)
+        .slice(0, 6)
+        .map(([key, value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : String(value)}`)
+        .join(", ");
+      return {
+        tool: name,
+        success: true,
+        data: {
+          approvalRequired: true,
+          domain,
+          operation,
+          crudData: validated.data,
+          target,
+          summary: `${validated.definition.label} ${operation === "create" ? "생성" : "수정"} — ${fieldsSummary}. 승인이 필요한 항목(${validated.ownerOnlyChanged.join(", ")})이 포함돼 있어요. 진행할까요?`,
+        },
+      };
+    }
+
+    const execution = await executeOliviaCrud(db, crudRequest);
+    const reviewNote = validated.permission === "review_required" ? " (검토가 필요한 변경입니다.)" : "";
+    return {
+      tool: name,
+      success: true,
+      data: {
+        recordId: execution.recordId,
+        domain: execution.domain,
+        operation: execution.operation,
+        url: execution.url,
+        summary: `${execution.message}${reviewNote}`,
+      },
+    };
+  }
+
+  // apply_feature_record_write는 모델에게 노출되지 않는다 — /api/olivia/v2/approve가 승인 카드의
+  // toolInput(operation/domain/crudData/target)을 그대로 실어 호출할 때만 실제로 DB에 쓴다.
+  if (name === "apply_feature_record_write") {
+    const operation = text(input, "operation") === "update" ? "update" as const : "create" as const;
+    const domain = text(input, "domain") as OliviaCrudDomain;
+    const data = input.crudData && typeof input.crudData === "object" && !Array.isArray(input.crudData)
+      ? input.crudData as Record<string, unknown>
+      : {};
+    const target = input.target && typeof input.target === "object" && !Array.isArray(input.target)
+      ? input.target as OliviaCrudTarget
+      : undefined;
+    const execution = await executeOliviaCrud(db, { operation, domain, data, target });
+    return {
+      tool: name,
+      success: true,
+      data: {
+        recordId: execution.recordId,
+        domain: execution.domain,
+        operation: execution.operation,
+        url: execution.url,
+        summary: execution.message,
+      },
+    };
+  }
+
   if (name === "update_quote_item") {
     const resourceId = activeResource(context, "quote");
     const quote = await loadQuote(resourceId);
