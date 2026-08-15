@@ -88,8 +88,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       relatedId: id,
     });
 
-    // "포털 공개"를 실제로 눌렀을 때만 워크플로우를 다음 단계로 진행시킨다(임시저장/자동저장은
-    // 저장만 하고 전진시키지 않음).
+    // 워크플로우 전진의 주 트리거는 이제 "최종완료"(app/api/quotes/[id]/complete/route.ts,
+    // 코드 요청서 2차 2번 항목)다 — 포털 공개와 워크플로우 진행은 분리됐다. 다만 최종완료를
+    // 안 누르고 바로 포털 공개부터 누른 경우를 대비해 여기서도 한 번 더 완료 처리한다
+    // (maybeAdvanceWorkflow는 현재 단계가 이미 지나갔으면 안전하게 건너뛴다 — 중복 전진 없음).
     await completeOpenStepTasksForManualSave(db, workflowRunId, "quote").catch(() => {});
     await maybeAdvanceWorkflow(db, workflowRunId, "quote").catch((err) => {
       console.error("[quotes] maybeAdvanceWorkflow 실패", err);
