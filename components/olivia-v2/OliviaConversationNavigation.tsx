@@ -42,7 +42,7 @@ export const OliviaConversationNavigator = memo(function OliviaConversationNavig
               </div>
             ))}
           </section>
-        )) : <p>대화를 시작하면 여기에 기록돼요.</p>}
+        )) : exchanges.length ? <p>오늘은 아직 대화가 없어요. 이전 기록은 사이드바 "대화" 메뉴에서 볼 수 있어요.</p> : <p>대화를 시작하면 여기에 기록돼요.</p>}
       </div>
     </nav>
   );
