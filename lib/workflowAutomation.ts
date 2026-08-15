@@ -142,6 +142,9 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       approval_type: "content",
     },
   ],
+  // per_notice_mailing_draft(PER 적립 안내 메일)도 코드 요청서에 명시된 7개 목록엔 없었지만
+  // creates_mailing_draft:true라 같은 원칙("어떤 단계도 메일 발송 여부로 완료가 막히지 않는다")에
+  // 따라 함께 제거했다(2026-08-16, grep으로 재확인).
   reward: [
     {
       task_type: "per_points_calculate",
@@ -150,15 +153,6 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       requires_approval: false,
       creates_mailing_draft: false,
       approval_type: "per",
-    },
-    {
-      task_type: "per_notice_mailing_draft",
-      title: "PER 포인트 적립 안내 메일 초안 생성",
-      description: "PER 적립 안내 메일 초안을 메일링함에 저장합니다.",
-      requires_approval: false,
-      creates_mailing_draft: true,
-      approval_type: "mailing",
-      mailing_type: "proposal",
     },
   ],
 };
