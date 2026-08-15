@@ -33,17 +33,8 @@ const TASK_STATUS_LABEL: Record<string, string> = {
 // components/NextActionCard.tsx/app/(client-hub)/clients/page.tsx가 quote/contract/conti
 // 단계에서 "올리비아가 현재 단계 처리하기" 버튼 대신 보여주는 것과 같은 안내 — 채팅 경로도
 // 실제 문서 없이 이 단계를 건너뛰지 않도록 lib/workflow.ts의 TOOL_ONLY_STEP_KEYS를 그대로 쓴다.
-const TOOL_STEP_BUILDER_HINT: Record<ToolOnlyStepKey, string> = {
-  quote: "이 단계는 실제 견적서가 있어야 넘어갈 수 있어요. 고객 프로젝트 페이지에서 \"+ 견적서 작성하기\"로 실제 견적서를 만들어주세요.",
-  contract: "이 단계는 실제 계약서가 있어야 넘어갈 수 있어요. 고객 프로젝트 페이지에서 \"+ 계약서 작성하기\"로 실제 계약서를 만들어주세요.",
-  conti: "이 단계는 실제 콘티가 있어야 넘어갈 수 있어요. 고객 프로젝트 페이지에서 \"+ 콘티 작성하기\"로 실제 콘티를 만들어주세요.",
-};
-
-const REAL_DOCUMENT_TABLE: Record<ToolOnlyStepKey, string> = {
-  quote: "quotes",
-  contract: "contracts",
-  conti: "conti_saves",
-};
+// 안내 문구/가드 판단 로직 자체는 lib/workflowAutomation.ts의 TOOL_STEP_BUILDER_HINT/
+// guardWorkflowStepJump에 한 곳에만 있다 — 화면의 "단계 이동" 메뉴도 같은 함수를 쓴다.
 
 async function resolveActiveRun(clientName: string) {
   const db = getSupabaseAdmin();
