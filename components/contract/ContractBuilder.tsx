@@ -132,6 +132,7 @@ export default function ContractBuilder({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [publishState, setPublishState] = useState<"idle" | "publishing" | "done" | "error">("idle");
   const [completeState, setCompleteState] = useState<"idle" | "completing" | "done" | "error">("idle");
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [brand, setBrand] = useState<ContractBrand>("photoclinic");
   const C = THEME[brand];
   const cfg = CONTRACT_BRAND_CONFIG[brand];
