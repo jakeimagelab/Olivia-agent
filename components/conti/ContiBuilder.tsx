@@ -1209,6 +1209,34 @@ ${contiSummary}
   const [editingName,   setEditingName]   = useState("");
   const [savedContiId,  setSavedContiId]  = useState<string | null>(null);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [completeState, setCompleteState] = useState<"idle" | "completing" | "done" | "error">("idle");
+  const [completeError, setCompleteError] = useState("");
+
+  // "최종완료" — 코드 요청서 2차(2026-08-16) 2번 항목. 저장 → 워크플로우 conti 단계 완료 처리 →
+  // 다음 단계로 진행까지 승인 없이 즉시 처리한다. 포털 공개(고객 상세 화면의 "공개 관리" 패널,
+  // lib/clientWorkspace/publishActions.ts)와 완전히 분리된 동작이다.
+  const completeContiStep = async () => {
+    setCompleteState("completing"); setCompleteError("");
+    try {
+      const sourceId = savedContiId || await saveConti({ silent: true });
+      if (!sourceId) throw new Error("콘티 DB 저장에 실패했습니다.");
+      if (!urlWorkflowRunId) throw new Error("콘티에 연결된 프로젝트가 없습니다. 먼저 견적서·계약서를 완료해 프로젝트를 생성해주세요.");
+      const r = await fetch(`/api/workflow-runs/${urlWorkflowRunId}/complete-step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepKey: "conti" }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error);
+      setCompleteState("done");
+      setTimeout(() => setCompleteState("idle"), 3000);
+    } catch (error: any) {
+      setCompleteError(error?.message || "최종완료 처리에 실패했습니다.");
+      setCompleteState("error");
+      setTimeout(() => setCompleteState("idle"), 3000);
+    }
+  };
 
   // Workspace Modal 전용 프리필 — resourceId(기존 콘티)가 있으면 그대로 불러오고, 없으면
   // clientId로 고객 기본 정보만 채운다(콘티 자체는 사용자가 폼 입력 후 직접 생성해야 한다 —
