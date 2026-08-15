@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import ShootingMemoPanel from "@/components/shooting/ShootingMemoPanel";
 
 const C = {
   teal: "#155855", orange: "#E85D2C", bg: "#F0F9F8",
