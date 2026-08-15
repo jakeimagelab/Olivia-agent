@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { advanceWorkflow } from "@/lib/workflowAutomation";
+import { completeOpenStepTasksForManualSave, getWorkflowRun, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 import { getErrorMessage } from "@/lib/errors";
 import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
 import { logPortalEvent } from "@/lib/clientPortal";
