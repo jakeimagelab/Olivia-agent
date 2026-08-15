@@ -674,9 +674,27 @@ export default function ContractBuilder({
             }}>
             {saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : saveState === "error" ? "✕ 저장 실패" : "저장 (⌘S)"}
           </button>
-          <button onClick={downloadPdf} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
-            {pdfGenerating ? "PDF 생성 중..." : "다운로드"}
-          </button>
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setShowDownloadMenu((v) => !v)} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
+              {pdfGenerating ? "PDF 생성 중..." : "다운로드 ▾"}
+            </button>
+            {showDownloadMenu && (
+              <div style={{
+                position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 30,
+                background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10,
+                boxShadow: "0 12px 30px rgba(21,88,85,.14)", minWidth: 120, overflow: "hidden",
+              }}>
+                <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}
+                  style={{ display: "block", width: "100%", padding: "10px 14px", border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: C.teal, textAlign: "left" }}>
+                  PDF
+                </button>
+                <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}
+                  style={{ display: "block", width: "100%", padding: "10px 14px", border: 0, borderTop: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: C.teal, textAlign: "left" }}>
+                  Excel
+                </button>
+              </div>
+            )}
+          </div>
           <button onClick={completeContractStep} disabled={completeState === "completing"} className="pc-btn pc-btn--sm"
             style={{
               background: completeState === "done" ? undefined : "#155855",
