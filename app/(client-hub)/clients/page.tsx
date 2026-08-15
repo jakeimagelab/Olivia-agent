@@ -691,6 +691,19 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         />
       )}
 
+      {showMoveStepDialog && workflowRun && (
+        <MoveWorkflowStepDialog
+          clientName={client.name}
+          workflowRunId={workflowRun.id}
+          currentStepKey={displayStepKey}
+          onClose={() => setShowMoveStepDialog(false)}
+          onMoved={() => {
+            setShowMoveStepDialog(false);
+            load();
+          }}
+        />
+      )}
+
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
 
         {activeTab === "overview" && (
