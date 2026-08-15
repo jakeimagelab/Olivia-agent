@@ -608,6 +608,11 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
               <>
                 <div className="pcrm-row-menu__scrim" onClick={() => setHeaderMenuOpen(false)} />
                 <div className="pcrm-row-menu__panel">
+                  {workflowRun && (
+                    <button type="button" onClick={() => { setHeaderMenuOpen(false); setShowMoveStepDialog(true); }}>
+                      <ArrowRightLeft size={13} /> 단계 이동
+                    </button>
+                  )}
                   <button type="button" className="is-danger" disabled={deleting} onClick={() => { setHeaderMenuOpen(false); deleteClient(client.name); }}>
                     <Trash2 size={13} /> {deleting ? "삭제 중..." : "고객 삭제"}
                   </button>
