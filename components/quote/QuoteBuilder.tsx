@@ -1072,6 +1072,54 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   };
   useSaveShortcut(handleManualSave);
 
+  // "최종완료" — 코드 요청서 2차(2026-08-16) 2번 항목. 저장 → 워크플로우 quote 단계 완료 처리 →
+  // 다음 단계로 진행까지 승인 없이 즉시 처리한다. 포털 공개(publishQuoteToPortal)와는 완전히
+  // 분리된 동작 — 고객에게 아직 안 보여줬어도(포털 미공개) 대표가 직접 만든 것 자체가 승인이다.
+  const [completingQuote, setCompletingQuote] = useState(false);
+  const completeQuoteStep = async (
+    quoteId: string,
+    overrides?: { forceClientId?: string; forceCreateNew?: boolean },
+  ) => {
+    setCompletingQuote(true);
+    setRecentQuoteMessage("");
+    try {
+      const response = await fetch(`/api/quotes/${quoteId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(overrides ?? {}),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) {
+        if (json.needsConfirmation && json.candidate) {
+          const useExisting = window.confirm(
+            `비슷한 이름의 기존 고객 "${json.candidate.hospital_name}"이(가) 있습니다.\n이 고객에 연결할까요? (취소하면 새 고객으로 생성합니다)`,
+          );
+          setCompletingQuote(false);
+          await completeQuoteStep(quoteId, useExisting ? { forceClientId: json.candidate.id } : { forceCreateNew: true });
+          return;
+        }
+        setRecentQuoteMessage(json.error || "최종완료 처리에 실패했습니다.");
+        return;
+      }
+      setRecentQuoteMessage(json.advanced ? "견적서 단계를 최종완료 처리하고 다음 단계(계약서)로 진행했습니다." : "견적서 단계를 최종완료 처리했습니다.");
+    } catch (error) {
+      setRecentQuoteMessage(error instanceof Error ? error.message : "최종완료 처리 중 오류가 발생했습니다.");
+    } finally {
+      setCompletingQuote(false);
+    }
+  };
+  const handleFinalComplete = async () => {
+    setCompletingQuote(true);
+    setRecentQuoteMessage("");
+    const data = buildContractQuoteData();
+    const saved = await saveRecentQuote(data);
+    if (!saved?.id) {
+      setCompletingQuote(false);
+      return;
+    }
+    await completeQuoteStep(saved.id);
+  };
+
   // ── Workspace Modal 전용 동작 (mode==="modal"일 때만 개입, mode==="page"는 전부 no-op) ──
 
   // 1) 프리필: resourceId가 있으면 기존 견적서를 불러오고, clientId만 있으면 고객 정보만 채운다.
