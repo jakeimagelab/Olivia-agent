@@ -421,7 +421,7 @@ export async function POST(req: NextRequest) {
             previous_response_id: response.responseId,
             input: outputs,
             tools: OLIVIA_V2_TOOLS,
-            parallel_tool_calls: false,
+            parallel_tool_calls: true,
           };
         }
 
