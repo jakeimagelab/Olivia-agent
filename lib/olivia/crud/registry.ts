@@ -146,7 +146,9 @@ export const OLIVIA_CRUD_REGISTRY: Readonly<Record<OliviaCrudDomain, OliviaCrudD
       description: string(10_000),
       clientId: string(80),
       workflowRunId: string(80),
-      galleryType: { type: "string", enum: ["original", "retouched"] },
+      // 코드 요청서 2차 3번 항목(2026-08-16) — 원본사진/원본영상/완료사진/완료영상 4종류로 확장.
+      // 구값 original/retouched는 DB 제약(하위호환)엔 남아있지만 신규 생성은 4종류만 쓴다.
+      galleryType: { type: "string", enum: ["original_photo", "original_video", "final_photo", "final_video"] },
     },
   },
   select_gallery: {
