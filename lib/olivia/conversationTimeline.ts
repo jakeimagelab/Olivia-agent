@@ -80,6 +80,12 @@ function dateKey(date: Date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(date);
 }
 
+// 홈 채팅 좌측 "대화 기록"이 오늘 자만 남기고 걸러낼 때(2026-08-16) 쓰는 기준값 —
+// dateKey()와 동일한 계산이어야 exchange.dateKey와 정확히 비교된다.
+export function getTodayDateKey(): string {
+  return dateKey(new Date());
+}
+
 function compactText(value: string, max = 54) {
   const text = value.replace(/\s+/g, " ").trim();
   return text.length > max ? `${text.slice(0, max).trim()}…` : text;
