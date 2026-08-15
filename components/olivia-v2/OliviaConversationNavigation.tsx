@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { CalendarDays, ChevronRight, Clock3, X } from "lucide-react";
-import { groupExchangesByDate, type OliviaExchange } from "@/lib/olivia/conversationTimeline";
+import { getTodayDateKey, groupExchangesByDate, type OliviaExchange } from "@/lib/olivia/conversationTimeline";
 
 type NavigationProps = {
   exchanges: OliviaExchange[];
@@ -10,11 +10,16 @@ type NavigationProps = {
   onNavigate: (messageId: string) => void;
 };
 
+// 홈 채팅은 아이디어 회의가 아니라 "오늘 무슨 업무를 지시·실행했는지" 확인하는 용도라서
+// 좌측 대화 기록은 오늘 하루만 보여준다(2026-08-16) — 그 이전 기록은 사이드바 "대화" 메뉴
+// (/admin/dashboard/conversations)에서 날짜별로 전체를 본다. DB/서버는 그대로, 화면 표시만 제한.
 export const OliviaConversationNavigator = memo(function OliviaConversationNavigator({ exchanges, activeId, onNavigate }: NavigationProps) {
-  const groups = groupExchangesByDate(exchanges);
+  const todayKey = getTodayDateKey();
+  const todayExchanges = exchanges.filter((exchange) => exchange.dateKey === todayKey);
+  const groups = groupExchangesByDate(todayExchanges);
   return (
-    <nav className="olivia-history-nav" aria-label="날짜별 대화 기록">
-      <div className="olivia-history-nav__title"><CalendarDays size={13} /><strong>대화 기록</strong></div>
+    <nav className="olivia-history-nav" aria-label="오늘 대화 기록">
+      <div className="olivia-history-nav__title"><CalendarDays size={13} /><strong>오늘 대화 기록</strong></div>
       <div className="olivia-history-nav__groups">
         {groups.length ? groups.map((group) => (
           <section key={group.dateKey}>
