@@ -181,8 +181,10 @@ export default function GalleryFormModal({ open, editSource, onClose, onSaved }:
               <label className="pcrm-form-field"><span>촬영일</span><input type="date" value={form.shootDate} onChange={(e) => set("shootDate", e.target.value)} /></label>
               <label className="pcrm-form-field"><span>유형</span>
                 <select value={form.galleryType} onChange={(e) => set("galleryType", e.target.value)}>
-                  <option value="retouched">보정본</option>
-                  <option value="original">원본</option>
+                  <option value="original_photo">원본사진</option>
+                  <option value="original_video">원본영상</option>
+                  <option value="final_photo">완료사진</option>
+                  <option value="final_video">완료영상</option>
                 </select>
               </label>
               <label className="pcrm-form-field" style={{ position: "relative" }}>
