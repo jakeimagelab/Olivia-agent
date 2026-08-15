@@ -131,26 +131,6 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       approval_type: "other",
       priority: "high",
     },
-    {
-      task_type: "gallery_delivery_mailing_draft",
-      title: "최종 갤러리 전달 메일 초안 생성",
-      description: "최종 파일/NAS 링크와 리뷰 링크를 포함한 전달 메일 초안입니다.",
-      requires_approval: false,
-      creates_mailing_draft: true,
-      approval_type: "mailing",
-      mailing_type: "gallery",
-      priority: "urgent",
-    },
-    {
-      task_type: "review_request_mailing_draft",
-      title: "리뷰 요청 메일 초안 생성",
-      description: "고객 포털 리뷰 링크를 포함한 리뷰 요청 메일 초안입니다.",
-      requires_approval: false,
-      creates_mailing_draft: true,
-      approval_type: "mailing",
-      mailing_type: "review_form",
-      priority: "high",
-    },
   ],
   review_content: [
     {
