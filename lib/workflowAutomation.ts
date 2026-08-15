@@ -41,16 +41,6 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       approval_type: "quote",
       priority: "high",
     },
-    {
-      task_type: "quote_mailing_draft",
-      title: "견적 안내 메일 초안 생성",
-      description: "견적서를 안내하는 메일 초안을 메일링함에 저장합니다.",
-      requires_approval: false,
-      creates_mailing_draft: true,
-      approval_type: "mailing",
-      mailing_type: "quote",
-      priority: "high",
-    },
   ],
   contract: [
     {
@@ -60,16 +50,6 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       requires_approval: false,
       creates_mailing_draft: false,
       approval_type: "contract",
-      priority: "high",
-    },
-    {
-      task_type: "contract_mailing_draft",
-      title: "계약 안내 메일 초안 생성",
-      description: "계약서 확인 안내 메일 초안을 메일링함에 저장합니다.",
-      requires_approval: false,
-      creates_mailing_draft: true,
-      approval_type: "mailing",
-      mailing_type: "contract",
       priority: "high",
     },
   ],
@@ -83,27 +63,11 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
       approval_type: "conti",
       priority: "high",
     },
-    {
-      task_type: "conti_mailing_draft",
-      title: "콘티 확인 메일 초안 생성",
-      description: "콘티 확인 요청 메일 초안을 메일링함에 저장합니다.",
-      requires_approval: false,
-      creates_mailing_draft: true,
-      approval_type: "mailing",
-      mailing_type: "conti",
-    },
   ],
-  shooting: [
-    {
-      task_type: "shooting_reminder",
-      title: "촬영 리마인드 메일 초안 생성",
-      description: "촬영 D-7/D-3/D-1 안내용 리마인드 초안을 생성합니다.",
-      requires_approval: false,
-      creates_mailing_draft: true,
-      approval_type: "mailing",
-      mailing_type: "proposal",
-    },
-  ],
+  // 촬영 리마인드 메일 자동화(shooting_reminder)는 코드 요청서 2차 1번 항목으로 제거됐다 — 메일
+  // 발송은 워크플로우 진행 조건에서 완전히 빠지고 메일링 페이지에서 수동으로만 다룬다. 촬영 단계는
+  // 자동 완료 트리거 없이 대표가 직접 다음 단계로 넘긴다(4번 항목 배경 설명과 동일한 원칙).
+  shooting: [],
   // 대표가 입금 및 계산서 처리를 확인한 뒤 수동으로 다음 단계로 진행한다.
   payment_confirm: [],
   backup_sorting: [
