@@ -829,16 +829,22 @@ export default function ContractBuilder({
             </button>
           </div>
 
-          {/* PDF 다운로드 */}
+          {/* PDF/Excel 다운로드 */}
           <div className="pc-card pc-card--padded">
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 8 }}>📄 PDF 저장</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 8 }}>📄 다운로드</div>
             <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.7, marginBottom: 12 }}>
-              계약서 미리보기 내용 그대로<br/>PDF 파일을 생성합니다.
+              계약서 미리보기 내용 그대로 PDF,<br/>계약 내역은 Excel로 받을 수 있습니다.
             </div>
-            <button onClick={downloadPdf} disabled={pdfGenerating}
-              className="pc-btn pc-btn--primary" style={{ width: "100%" }}>
-              {pdfGenerating ? "PDF 생성 중..." : "계약서 PDF 다운로드"}
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={downloadPdf} disabled={pdfGenerating}
+                className="pc-btn pc-btn--primary" style={{ flex: 1 }}>
+                {pdfGenerating ? "PDF 생성 중..." : "PDF"}
+              </button>
+              <button onClick={downloadExcel}
+                className="pc-btn pc-btn--secondary" style={{ flex: 1 }}>
+                Excel
+              </button>
+            </div>
           </div>
 
           {/* 올리비아 메일링 자동 저장 안내 */}
