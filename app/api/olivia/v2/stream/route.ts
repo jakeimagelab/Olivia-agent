@@ -356,11 +356,15 @@ export async function POST(req: NextRequest) {
         // 이어주지 않는다 — 매 라운드 같은 instructions를 다시 넣지 않으면 도구 실행 후속 응답에서
         // 오늘 날짜/운영 규칙이 통째로 빠진다(설계 문서 5절, 2026-08-14 확인된 버그).
         const instructions = buildSystemPrompt(oliviaRuntime);
+        // 서로 무관한 조회 도구들(예: "오늘 일정 보여주고 이번주 미결 견적도 알려줘")을 모델이 한
+        // 라운드에 같이 요청할 수 있게 허용한다 — 실제 실행은 아래 for(toolCall of response.toolCalls)
+        // 루프가 여전히 순차(await 직렬)로 처리하므로, 같은 라운드에 mutation 도구 2개가 와도
+        // 실행 순서 자체는 항상 모델이 나열한 순서 그대로 보장된다(2026-08-15, 코드 요청서 1번 항목).
         let request: StreamingRequest = {
           instructions,
           input: toInputMessages(history, message, context, pageContext, temporalHint),
           tools: OLIVIA_V2_TOOLS,
-          parallel_tool_calls: false,
+          parallel_tool_calls: true,
         };
         let workingContext = context;
         let finalText = "";
