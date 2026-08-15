@@ -6,12 +6,14 @@ import { getWorkflowDisplayStepKey, isToolOnlyStep, type ToolOnlyStepKey } from 
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
 import { getErrorMessage } from "@/lib/errors";
 import {
+  TOOL_STEP_BUILDER_HINT,
   advanceWorkflow,
   approveWorkflowItem,
   completeWorkflowRetroactively as completeWorkflowRunRetroactively,
   createStepTasks,
   executeWorkflowTask,
   getWorkflowRun,
+  guardWorkflowStepJump,
   maybeAdvanceWorkflow,
 } from "@/lib/workflowAutomation";
 
