@@ -83,7 +83,7 @@ export default function GalleryFormModal({ open, editSource, onClose, onSaved }:
         shootDate: editSource.shoot_date || "",
         nasLink: editSource.nas_link || "",
         description: editSource.description || "",
-        galleryType: editSource.gallery_type || "retouched",
+        galleryType: normalizeGalleryType(editSource.gallery_type),
         thumbnailUrl: editSource.items?.[0]?.thumbnail_url || "",
       });
       setSelectedClientId(editSource.client_id || "");
