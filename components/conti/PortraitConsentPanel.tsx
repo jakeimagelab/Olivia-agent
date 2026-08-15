@@ -309,9 +309,28 @@ export default function PortraitConsentPanel({
             제공자에게 포털 링크를 전달하면, 링크를 연 사람이 직접 서명해 DB에 저장됩니다. 파일로 전달하지 않습니다.
           </p>
         </div>
-        <button type="button" onClick={openCreate} style={btnPrimary}>
-          <Plus size={15} /> 새 동의서 작성
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            type="button"
+            onClick={completeConsentStep}
+            disabled={completeState === "completing"}
+            title={completeState === "error" ? completeError : undefined}
+            style={{
+              ...btnPrimary,
+              background: completeState === "error" ? "#fff" : C.teal,
+              color: completeState === "error" ? "#c9581a" : "#fff",
+              borderColor: completeState === "error" ? "#E85D2C" : C.teal,
+              opacity: completeState === "completing" ? 0.7 : 1,
+              cursor: completeState === "completing" ? "not-allowed" : "pointer",
+            }}
+          >
+            <CheckCircle2 size={15} />
+            {completeState === "completing" ? "최종완료 처리 중..." : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "✕ 완료 실패" : "최종완료"}
+          </button>
+          <button type="button" onClick={openCreate} style={btnPrimary}>
+            <Plus size={15} /> 새 동의서 작성
+          </button>
+        </div>
       </div>
 
       {loading ? (
