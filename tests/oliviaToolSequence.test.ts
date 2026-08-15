@@ -164,3 +164,61 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
     expect(execution.uiActions[0]).toMatchObject({ type: "REFRESH_RESOURCE", resource: "conti", resourceId: contiRow.id });
   });
 });
+
+// 코드 요청서(2026-08-15) 3·4번 항목 — create_feature_record/update_feature_record는 열린 7개
+// 도메인만 실행하고, 나머지(quote/contract/client/workflow 등)는 executeOliviaCrud를 아예 안 부르고
+// 막는다. owner_only 필드는 열린 7개 도메인 어디에도 없어서(전부 client/quote/contract 전용) 이
+// 단계에서는 review_required 즉시 실행 경로만 실제로 도달 가능 — owner_only 분기 자체는
+// tests/olivia/crudValidation.test.ts가 validateOliviaCrudRequest 단에서 이미 검증한다.
+describe("Olivia 범용 기능 생성/수정 도구", () => {
+  beforeEach(() => {
+    executionLog.length = 0;
+    vi.mocked(executeOliviaCrud).mockClear();
+  });
+
+  it("열린 도메인(memo)은 즉시 실행되고 검토 안내 문구가 붙는다", async () => {
+    const execution = await call("create_feature_record", {
+      domain: "memo",
+      data: JSON.stringify({ rawMemo: "고객이 따뜻한 톤을 원함" }),
+      requestText: null,
+    });
+    expect(executionLog).toEqual(["db:memo"]);
+    expect(execution.result.success).toBe(true);
+    expect(execution.result.data?.summary).toMatch(/검토가 필요한 변경입니다/);
+  });
+
+  it("아직 열지 않은 도메인(quote)은 executeOliviaCrud를 부르지 않고 막는다", async () => {
+    const execution = await call("update_feature_record", {
+      domain: "quote",
+      data: JSON.stringify({ totalAmount: 1_000_000 }),
+      target: "PC-123",
+      requestText: null,
+    });
+    expect(executionLog).toEqual([]);
+    expect(execution.result.success).toBe(false);
+    expect(execution.result.error).toMatch(/아직 챗에서/);
+  });
+
+  it("data가 JSON이 아니면 실행 전에 막는다", async () => {
+    const execution = await call("create_feature_record", { domain: "memo", data: "이거 JSON 아님", requestText: null });
+    expect(executionLog).toEqual([]);
+    expect(execution.result.success).toBe(false);
+  });
+
+  it("update는 target이 없으면 대상을 찾기 전에 막는다", async () => {
+    const execution = await call("update_feature_record", { domain: "calendar", data: JSON.stringify({ title: "촬영" }), target: "", requestText: null });
+    expect(executionLog).toEqual([]);
+    expect(execution.result.success).toBe(false);
+  });
+
+  it("apply_feature_record_write는 승인 카드의 toolInput을 그대로 재생해서 실행한다", async () => {
+    const execution = await call("apply_feature_record_write", {
+      operation: "create",
+      domain: "agent_task",
+      crudData: { title: "테스트 업무" },
+      target: undefined,
+    });
+    expect(executionLog).toEqual(["db:agent_task"]);
+    expect(execution.result.success).toBe(true);
+  });
+});
