@@ -280,7 +280,7 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
       description: data.description || "",
       client_id: client?.id || data.clientId || null,
       workflow_run_id: data.workflowRunId || run?.id || null,
-      gallery_type: data.galleryType || "retouched",
+      gallery_type: data.galleryType || "final_photo",
     }).select("*").single();
     if (error || !row) dbError(error, "사진 갤러리 생성에 실패했습니다.");
     // clients.original_photos_link / retouched_photos_link 반영은 DB 트리거(trg_sync_gallery_to_client)가 처리한다.
