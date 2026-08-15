@@ -21,7 +21,10 @@ type Gallery = {
 };
 
 const cardStyle: React.CSSProperties = { background: C.white, border: `1px solid ${C.border}`, borderRadius: R.lg, boxShadow: "0 5px 18px rgba(21,88,85,.055)" };
-const TYPE_LABEL: Record<string, string> = { retouched: "보정본", original: "원본" };
+const TYPE_LABEL: Record<string, string> = {
+  retouched: "보정본", original: "원본",
+  final_photo: "완료사진", final_video: "완료영상", original_photo: "원본사진", original_video: "원본영상",
+};
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
