@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 import { ACTIVE_WORKFLOW_STEPS, type ActiveWorkflowStepKey } from "@/lib/workflow";
@@ -20,7 +20,8 @@ export default function MoveWorkflowStepDialog({ clientName, workflowRunId, curr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const submit = async () => {
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
     if (!selected || saving) return;
     setSaving(true);
     setError("");
