@@ -2235,7 +2235,7 @@ ${header("타임테이블")}
                   fontWeight: 800, fontSize: 14, cursor: saveLoading ? "not-allowed" : "pointer",
                   opacity: saveLoading ? 0.7 : 1,
                 }}>
-                  <FileText size={16} /> {saveLoading ? "저장 중..." : "콘티 저장"}
+                  <FileText size={16} /> {saveLoading ? "저장 중..." : "저장하기"}
                 </button>
                 <div style={{
                   minHeight: 42, display: "flex", flexDirection: "column", justifyContent: "center",
@@ -2249,16 +2249,50 @@ ${header("타임테이블")}
                     ⌘S · ⌘Z · ⇧⌘Z
                   </div>
                 </div>
-                <button onClick={handleSpreadsheetDownload} style={{
+                {/* 다운로드 — PDF/Excel 선택 팝오버(코드 요청서 2차 2번 항목). 기존 handlePDF/
+                    handleSpreadsheetDownload 로직은 그대로 재사용, 버튼만 하나로 합쳤다. */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    className="admin-primary-button"
+                    onClick={() => setShowDownloadMenu((v) => !v)}
+                    style={{ padding: "0 20px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 7 }}
+                  >
+                    <Download size={16} /> 다운로드 <ChevronDown size={14} />
+                  </button>
+                  {showDownloadMenu && (
+                    <div style={{
+                      position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 30,
+                      background: "#fff", border: "1px solid rgba(21,88,85,.14)", borderRadius: 10,
+                      boxShadow: "0 12px 30px rgba(21,88,85,.14)", minWidth: 140, overflow: "hidden",
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => { setShowDownloadMenu(false); handlePDF(); }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
+                      >
+                        <Download size={14} /> PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowDownloadMenu(false); handleSpreadsheetDownload(); }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, borderTop: "1px solid rgba(21,88,85,.08)", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
+                      >
+                        <FileSpreadsheet size={14} /> Excel
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button onClick={completeContiStep} disabled={completeState === "completing"} style={{
                   display: "inline-flex", alignItems: "center", gap: 7,
-                  padding: "0 18px", minHeight: 42, border: "1px solid rgba(21,88,85,0.25)",
-                  borderRadius: 8, background: "#fff", color: "#155855",
-                  fontWeight: 800, fontSize: 14, cursor: "pointer"
-                }}>
-                  <FileSpreadsheet size={16} /> Excel
-                </button>
-                <button className="admin-primary-button" onClick={handlePDF} style={{ padding: "0 20px", cursor: "pointer" }}>
-                  <Download size={16} /> PDF 다운로드
+                  padding: "0 18px", minHeight: 42, border: "1px solid transparent",
+                  borderRadius: 8, background: completeState === "error" ? "#fff" : "#155855",
+                  color: completeState === "error" ? "#c9581a" : "#fff",
+                  borderColor: completeState === "error" ? "#E85D2C" : undefined,
+                  fontWeight: 800, fontSize: 14, cursor: completeState === "completing" ? "not-allowed" : "pointer",
+                  opacity: completeState === "completing" ? 0.7 : 1,
+                }} title={completeState === "error" ? completeError : undefined}>
+                  <CheckCircle2 size={16} />
+                  {completeState === "completing" ? "최종완료 처리 중..." : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "✕ 완료 실패" : "최종완료"}
                 </button>
               </div>
             </div>
