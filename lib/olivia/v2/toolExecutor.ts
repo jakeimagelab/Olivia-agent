@@ -55,6 +55,23 @@ function fromLegacyResult(name: string, result: { action?: string; message: stri
   return { tool: name, success: true, data: { message, ...rest } };
 }
 
+// 코드 요청서(2026-08-15) 3번 항목 — CRUD 엔진(lib/olivia/crud)은 12개 도메인을 지원하지만
+// 챗 도구로는 quote/contract/conti 3개만 노출돼 있었다. client/workflow는 위험도가 높아
+// (고객 원장 정보 직접 변경, 단계 강제 이동) 4번 항목(승인 게이트)이 실제로 막는 걸 확인한 뒤
+// 2차로 열기로 하고, 1차는 나머지 7개 도메인만 연다.
+const OPEN_FEATURE_RECORD_DOMAINS: readonly OliviaCrudDomain[] = [
+  "memo", "calendar", "photo_gallery", "select_gallery", "review", "mail_draft", "agent_task",
+];
+
+// 새 도메인이 OLIVIA_CRUD_REGISTRY에 추가돼도 이 설명을 손으로 안 고치도록 registry에서 자동 생성한다.
+function buildFeatureRecordDescription(verb: "생성" | "수정") {
+  const lines = getOliviaCrudCapabilities()
+    .filter((cap) => OPEN_FEATURE_RECORD_DOMAINS.includes(cap.domain))
+    .map((cap) => `${cap.domain}(${cap.label}): ${cap.fields.join(", ")}`);
+  return `[WRITE] 메모/일정/사진갤러리/셀렉갤러리/후기/메일초안/올리비아업무 데이터를 실제 DB에 ${verb}합니다. `
+    + `domain은 다음 중 하나, data는 해당 도메인 필드를 담은 JSON 객체 문자열입니다:\n${lines.join("\n")}`;
+}
+
 export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   {
     type: "function",
