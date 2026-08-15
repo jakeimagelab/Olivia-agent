@@ -128,8 +128,12 @@ export default function PcrmGalleryTable() {
           <span>유형</span>
           <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}>
             <option value="">전체</option>
-            <option value="retouched">보정본</option>
-            <option value="original">원본</option>
+            <option value="original_photo">원본사진</option>
+            <option value="original_video">원본영상</option>
+            <option value="final_photo">완료사진</option>
+            <option value="final_video">완료영상</option>
+            <option value="retouched">보정본 (구값)</option>
+            <option value="original">원본 (구값)</option>
           </select>
         </div>
         <div className="pcrm-filter-field">
