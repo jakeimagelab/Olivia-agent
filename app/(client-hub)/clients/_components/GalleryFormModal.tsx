@@ -21,8 +21,17 @@ type ClientOption = { id: string; hospital_name?: string; name?: string };
 
 const EMPTY = {
   hospitalName: "", contactName: "", contactEmail: "", shootDate: "",
-  nasLink: "", description: "", galleryType: "retouched", thumbnailUrl: "",
+  nasLink: "", description: "", galleryType: "final_photo", thumbnailUrl: "",
 };
+
+// 코드 요청서 2차 3번 항목(2026-08-16) — 예전 2종류(original/retouched)로 등록된 갤러리를 수정
+// 화면에 불러올 때, 새 4종류 선택지 중 하나로 매핑해서 보여준다(사진/영상 구분 정보가 없던
+// 과거 데이터라 기본은 "사진"으로 취급). DB에는 원래 값이 그대로 있고, 다시 저장해야 새 값으로 바뀐다.
+function normalizeGalleryType(value: string | undefined): string {
+  if (value === "original") return "original_photo";
+  if (value === "retouched") return "final_photo";
+  return value || "final_photo";
+}
 
 const compressImage = (file: File) =>
   new Promise<Blob>((resolve, reject) => {
