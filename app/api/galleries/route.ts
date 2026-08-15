@@ -343,51 +343,34 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 자동 후처리 (client_id가 있을 때만) ───────────────────
-    if (gallery && client_id) {
-      // ① mailing_queue에 "gallery" 타입 draft 자동 생성
-      // 실패해도 갤러리 저장은 성공으로 처리
-      try {
-        await supabase.from("mailing_queue").insert({
-          type: "gallery",
-          source_module: "gallery",
-          source_id: gallery.id,
-          workflow_run_id: workflow_run_id || null,
-          mailing_type: "gallery",
-          approval_status: "pending",
-          status: "draft",
-          hospital_name: hospitalName,
-          client_id,
-          contact_name: contactName || "",
-          to_email: contactEmail || "",
-          subject: `[포토클리닉] ${hospitalName} 촬영 사진 전달드립니다`,
-          body: [
-            `안녕하세요. 병원이야기를 전하는 포토클리닉입니다.`,
-            `${contactName || "담당자"}님,`,
-            ``,
-            `${hospitalName} 촬영 보정본이 완성되었습니다.`,
-            `아래 링크에서 확인하실 수 있습니다.`,
-            ``,
-            nasLink,
-            ``,
-            `감사합니다. 포토클리닉 드림`,
-          ].join("\n"),
-          links: nasLink ? [{ label: "갤러리 확인하기", url: nasLink }] : [],
-        });
-      } catch {}
-
-      // ② 워크플로우 retouching 단계이면 final_delivery로 자동 전진
-      if (workflow_run_id) {
+    // 코드 요청서 2차(2026-08-16) 1·3번 항목 — 메일 초안 자동 생성은 워크플로우 진행 조건에서
+    // 완전히 제외됐다(메일링은 앞으로 독립 기능으로만 존재). 대신 gallery_type에 맞춰 실제
+    // 워크플로우 단계를 자동 완료·전진시킨다: 원본(원본사진/원본영상) 등록 → client_selection
+    // 완료, 완료본(완료사진/완료영상) 등록 → 지금 단계가 retouching이면 final_delivery로,
+    // final_delivery면 revision으로. 두 단계를 한 번에 건너뛰지 않도록 현재 단계를 먼저 확인한 뒤
+    // 그 단계만 완료 처리한다(completeOpenStepTasksForManualSave/maybeAdvanceWorkflow는 현재
+    // 단계와 다르면 안전하게 아무 것도 안 한다 — 중복/오전진 걱정 없음).
+    if (gallery && client_id && workflow_run_id) {
+      const isOriginalType = galleryTypeValue === "original" || galleryTypeValue === "original_photo" || galleryTypeValue === "original_video";
+      const isFinalType = galleryTypeValue === "retouched" || galleryTypeValue === "final_photo" || galleryTypeValue === "final_video";
+      if (isOriginalType || isFinalType) {
         try {
-          await advanceWorkflow(supabase, {
-            workflow_run_id,
-            from_step_key: "retouching",
-            to_step_key: "final_delivery",
-            reason: "갤러리 등록으로 보정 완료 처리",
-          });
-        } catch {}
+          const run = await getWorkflowRun(supabase, workflow_run_id);
+          let targetStep: string | null = null;
+          if (isOriginalType && run.current_step_key === "client_selection") targetStep = "client_selection";
+          else if (isFinalType && (run.current_step_key === "retouching" || run.current_step_key === "final_delivery")) targetStep = run.current_step_key;
+          if (targetStep) {
+            await completeOpenStepTasksForManualSave(supabase, workflow_run_id, targetStep);
+            await maybeAdvanceWorkflow(supabase, workflow_run_id, targetStep);
+          }
+        } catch (err) {
+          console.error("[galleries-api] 워크플로우 자동 완료 실패", err);
+        }
       }
+    }
 
-      // ③ 고객 포털에 "새 소식" 기록 (실제 발송 채널은 아직 미확정 — 로그인 시 포털에서 확인 가능)
+    // 고객 포털에 "새 소식" 기록 (실제 발송 채널은 아직 미확정 — 로그인 시 포털에서 확인 가능)
+    if (gallery && client_id) {
       await logPortalEvent({ clientId: client_id, eventType: "gallery_ready", targetType: "photo_galleries", targetId: gallery.id, workflowRunId: workflow_run_id || null }).catch(() => {});
     }
 
