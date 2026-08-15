@@ -33,6 +33,27 @@ function workspaceAction(
   }];
 }
 
+function resolveFeatureRecordAction(result: OliviaToolResult): OliviaUiAction[] {
+  if (!result.success) return [];
+  if (result.data?.approvalRequired) {
+    return [{
+      type: "REQUEST_APPROVAL",
+      approvalId: crypto.randomUUID(),
+      summary: String(result.data?.summary || "이 변경에는 승인이 필요해요. 진행할까요?"),
+      confirmLabel: "진행",
+      toolName: "apply_feature_record_write",
+      toolInput: {
+        operation: result.data?.operation,
+        domain: result.data?.domain,
+        crudData: result.data?.crudData,
+        target: result.data?.target,
+      },
+    }];
+  }
+  const href = value(result.data, "url");
+  return href ? [{ type: "OPEN_FEATURE", href }] : [];
+}
+
 export const uiActionResolvers: Record<string, UiActionResolver> = {
   select_project: async ({ result }) => {
     if (!result.success) return [];
