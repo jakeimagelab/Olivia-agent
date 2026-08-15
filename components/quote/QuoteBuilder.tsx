@@ -2583,6 +2583,16 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             <button
               className="primary-button"
               type="button"
+              onClick={handleFinalComplete}
+              disabled={completingQuote}
+              style={{ background: "#155855" }}
+            >
+              <CheckCircle2 size={18} />
+              {completingQuote ? "최종완료 처리 중…" : "최종완료"}
+            </button>
+            <button
+              className="primary-button"
+              type="button"
               onClick={goToContract}
               style={{ background: "var(--quote-accent)" }}
             >
