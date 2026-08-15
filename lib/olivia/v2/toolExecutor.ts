@@ -553,7 +553,8 @@ export async function runTool(
     }
 
     const execution = await executeOliviaCrud(db, crudRequest);
-    const reviewNote = validated.permission === "review_required" ? " (검토가 필요한 변경입니다.)" : "";
+    const reviewRequired = validated.permission === "review_required";
+    const reviewNote = reviewRequired ? " (검토가 필요한 변경입니다.)" : "";
     return {
       tool: name,
       success: true,
@@ -562,6 +563,10 @@ export async function runTool(
         domain: execution.domain,
         operation: execution.operation,
         url: execution.url,
+        // reviewRequired가 true면 모델이 summary를 재구성하며 이 안내를 누락할 수 있어
+        // 별도 필드로도 노출한다 — operating_rules에서 이 필드를 그대로 전달하라고 명시한다.
+        reviewRequired,
+        reviewNotice: reviewRequired ? "검토가 필요한 변경입니다." : undefined,
         summary: `${execution.message}${reviewNote}`,
       },
     };
