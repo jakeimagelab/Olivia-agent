@@ -947,7 +947,18 @@ export async function runTool(
     const query = text(input, "featureQuery");
     const resolution = resolveFeatureIntent(query);
     if (resolution.kind === "match") {
-      return { tool: name, success: true, data: { matched: true, featureName: resolution.tool.title, href: resolution.tool.href } };
+      let href = resolution.tool.href;
+      // "OO병원 고객관리 페이지 열어줘"처럼 고객명이 함께 오면, 고객 목록만 여는 게 아니라 그
+      // 고객이 바로 선택된 화면으로 딥링크한다 — /clients?clientId=만 이 방식을 지원 확인됨
+      // (다른 화면은 고객별 진입점이 없어 아직 못 한다, 2026-08-16 사용자 리포트).
+      const hospitalName = text(input, "hospitalName");
+      if (hospitalName && href === "/clients") {
+        const client = await fuzzyNameSearchOne<{ id: string; hospital_name: string }>({
+          db, table: "clients", nameColumn: "hospital_name", select: "id, hospital_name", query: hospitalName,
+        });
+        if (client) href = `/clients?clientId=${encodeURIComponent(client.id)}`;
+      }
+      return { tool: name, success: true, data: { matched: true, featureName: resolution.tool.title, href } };
     }
     if (resolution.kind === "ambiguous") {
       return {
