@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileSignature, Link2, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { CheckCircle2, FileSignature, Link2, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { C, R, FS } from "@/lib/theme";
 import {
   DEFAULT_DETAIL_FIELDS,
