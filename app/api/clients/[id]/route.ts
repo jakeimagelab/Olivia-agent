@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
 import { isOptionalClientDetailColumnMissing, withClientDetailDefaults } from "@/lib/clientDetailFallback";
 import { isMissingColumnError } from "@/lib/dbErrors";
+import { getWorkflowPhaseProgress } from "@/lib/workflow";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
