@@ -2305,6 +2305,9 @@
   overflow: hidden;
   border-left: 1px solid rgba(21,88,85,.08);
   background: #f8faf9;
+  /* 견적/계약/콘티 WorkspaceModal(z-index 10001)이 열리면 패널은 rail로 강제 최소화되지만
+     (useOliviaChatModeStore.registerModalOpen), 그 60px rail 자체는 모달 뒤로 숨지 않게 위에 둔다. */
+  z-index: 10010;
 }
 .olivia-persistent-chat.is-minimized { width: 60px; }
 .olivia-chat-dock {
