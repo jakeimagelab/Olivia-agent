@@ -429,6 +429,16 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   registerRequestClose,
 }, ref) {
   const isModal = mode === "modal";
+  // 이 모달은 94vw짜리 대형 오버레이라 영구 채팅 패널(OliviaPersistentChat)과 겹친다 — 열려있는
+  // 동안만 패널을 rail로 접어두고 닫히면 원래 모드로 되돌린다(useOliviaChatModeStore 참고).
+  const registerModalOpen = useOliviaChatModeStore((state) => state.registerModalOpen);
+  const registerModalClose = useOliviaChatModeStore((state) => state.registerModalClose);
+  useEffect(() => {
+    if (!isModal) return;
+    registerModalOpen();
+    return () => registerModalClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal]);
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
   const setOliviaClient = useOliviaContextStore((state) => state.setClient);
   const setOliviaProject = useOliviaContextStore((state) => state.setProject);
