@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { completeOpenStepTasksForManualSave, getWorkflowRun, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
+import { STEP_NAME } from "@/lib/workflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,10 @@ export const dynamic = "force-dynamic";
 // 이미 workflowRunId가 있는 화면(계약서·콘티·초상권동의서)만 대상으로 한다.
 // 초상권동의서는 워크플로우 카탈로그에 전용 단계가 없어 콘티 단계의 부속 문서로 취급하고
 // stepKey="conti"로 완료 처리한다(구현 전 확인 완료 — 별도 승인 절차를 새로 만들지 않는다).
-const COMPLETABLE_STEP_KEYS = new Set(["contract", "conti"]);
+// client_selection/retouching/final_delivery는 코드 요청서 7차(2026-08-16)의 정합성 점검
+// "지금 완료 처리" 버튼이 쓴다 — 갤러리 등록 시 자동완료(2차 3번 항목)와 같은 함수 쌍을
+// 그대로 재사용하므로 이 라우트에 새 로직 없이 허용 단계만 넓히면 된다.
+const COMPLETABLE_STEP_KEYS = new Set(["contract", "conti", "client_selection", "retouching", "final_delivery"]);
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: workflowRunId } = await params;
