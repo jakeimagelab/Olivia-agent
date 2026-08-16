@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import GlobalOliviaChat from "@/components/GlobalOliviaChat";
+import OliviaPersistentChat from "@/components/olivia/OliviaPersistentChat";
+import OliviaPageTransition from "@/components/olivia/OliviaPageTransition";
 import GlobalClientContextBridge from "@/components/GlobalClientContextBridge";
 import GlobalFeatureSidebar from "@/components/GlobalFeatureSidebar";
 import CursorEffect from "@/components/CursorEffect";
