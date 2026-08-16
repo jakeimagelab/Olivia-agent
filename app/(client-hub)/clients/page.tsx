@@ -1070,13 +1070,14 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
           nasLink: form.nasLink,
           shootDate: form.shootDate,
           description: form.description,
+          galleryType: form.galleryType,
           client_id: clientId || null,
           workflow_run_id: workflowRunId || null,
         }),
       });
       const d = await res.json();
       if (!d.ok) throw new Error(d.error);
-      setForm({ nasLink: "", shootDate: "", description: "" });
+      setForm({ nasLink: "", shootDate: "", description: "", galleryType: "final_photo" });
       setShowForm(false);
       await load();
     } catch (e) { setMsg(e instanceof Error ? e.message : "저장 실패"); }
