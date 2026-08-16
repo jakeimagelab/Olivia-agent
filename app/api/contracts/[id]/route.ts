@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { resolveClientId } from "@/lib/clientLookup";
+import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -33,6 +34,14 @@ export async function PATCH(req: NextRequest, ctx: any) {
   }
   if (body.contactName !== undefined) update.contact_name = body.contactName;
   if (body.email !== undefined) update.email = body.email;
+
+  // ContractBuilder는 모달/URL에서 이미 아는 workflowRunId를 매 저장마다 body.workflowRunId로
+  // 보내는데 여기서 계속 무시하고 있었다 — client_id가 확정되는 순간(위에서 계산됨)엔 그 값이
+  // 없어도 조회해서 채운다. 콘티/견적서와 같은 이유(정합성 점검·업무완료 체크가 workflow_run_id로
+  // 찾음)로 비어 있으면 안 된다.
+  if (update.client_id) {
+    update.workflow_run_id = await resolveWorkflowRunId(supabase, body.workflowRunId, update.client_id as string);
+  }
 
   const { error } = await supabase.from("contracts").update(update).eq("id", id);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
