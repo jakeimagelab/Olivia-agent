@@ -3347,6 +3347,50 @@ ${header("타임테이블")}
       </div>
     )}
 
+    {/* 고객 연결 — 병원명 오타 등으로 client_id 없이 저장된 콘티를 실제 고객에 연결한다 */}
+    {linkTarget && (
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 600,
+        background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center"
+      }} onClick={() => setLinkTarget(null)}>
+        <div style={{
+          background: "#fff", borderRadius: 16, width: "min(420px, 90vw)",
+          overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.25)"
+        }} onClick={e => e.stopPropagation()}>
+          <div style={{ padding: "18px 20px", borderBottom: "1px solid rgba(21,88,85,0.1)" }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: "#155855" }}>고객에 연결</div>
+            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+              "{linkTarget.hospital_name}" 콘티를 연결할 실제 고객을 검색해서 선택해주세요.
+            </div>
+          </div>
+          <div style={{ padding: 16 }}>
+            <input
+              autoFocus
+              value={linkQuery}
+              onChange={e => setLinkQuery(e.target.value)}
+              placeholder="고객명·병원명 검색..."
+              style={{ width: "100%", border: "1px solid rgba(21,88,85,0.16)", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none" }}
+            />
+            <div style={{ maxHeight: 240, overflowY: "auto", marginTop: 8 }}>
+              {linkResults.length === 0 ? (
+                <div style={{ padding: 10, textAlign: "center", fontSize: 12, color: "#9ca3af" }}>검색 결과 없음</div>
+              ) : linkResults.map(c => (
+                <div
+                  key={c.id}
+                  onClick={() => !linkBusy && linkContiToClient(c)}
+                  style={{ padding: "8px 10px", borderRadius: 8, cursor: linkBusy ? "default" : "pointer", fontSize: 13, fontWeight: 700, color: "#1f2937", opacity: linkBusy ? 0.5 : 1 }}
+                  onMouseEnter={e => { if (!linkBusy) e.currentTarget.style.background = "rgba(21,88,85,0.06)"; }}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  {c.hospital_name || c.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* 올리비아 채팅 - 콘티 페이지 컨텍스트 (모달 모드에선 루트 레이아웃이 이미 전역 렌더링 중) */}
     {isModal ? null : (
       <OliviaChat
