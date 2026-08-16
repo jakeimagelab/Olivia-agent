@@ -194,7 +194,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
       return <button type="button" onClick={openQuoteModal} className="pc-btn pc-btn--orange pc-btn--sm">+ 견적서 작성</button>;
     }
     const nextAction = workspace.nextAction;
-    if (nextAction.kind === "tool_link" && (nextAction.stepKey === "quote" || nextAction.stepKey === "contract" || nextAction.stepKey === "conti")) {
+    if (nextAction.kind === "step_ready" && (nextAction.stepKey === "quote" || nextAction.stepKey === "contract" || nextAction.stepKey === "conti")) {
       return (
         <button type="button" onClick={() => openToolModal(nextAction.stepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
           + {nextAction.title}
