@@ -2,18 +2,17 @@
 
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { ArrowRightLeft, CalendarDays, Check, ChevronLeft, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ACTIVE_WORKFLOW_STEPS,
   STEP_NAME,
-  WORKFLOW_STAGES,
-  WORKFLOW_STEPS,
   getWorkflowDisplayStepKey,
   resolvePhaseTargetStep,
 } from "@/lib/workflow";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { tryMoveWorkflowStep } from "@/lib/clientWorkspace/stepNavigation";
+import { TOOL_LINK_TITLES } from "@/lib/clientWorkspace/nextAction";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
