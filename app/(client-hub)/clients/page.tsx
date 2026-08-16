@@ -639,25 +639,13 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         })}
       </div>
 
-      {isToolOnlyStep(displayStepKey) ? (
-        <section className="pcrm-current-step-card">
-          <div className="pcrm-current-step-card__left">
-            <div className="pcrm-current-step-card__icon">{STEP_INFO[displayStepKey]?.icon || "🟠"}</div>
-            <div className="pcrm-current-step-card__body">
-              <span className="pcrm-current-step-card__label">현재 단계</span>
-              <h2 className="pcrm-current-step-card__title">{TOOL_STEP_TITLE[displayStepKey]}</h2>
-              <p className="pcrm-current-step-card__desc">{STEP_INFO[displayStepKey]?.desc}</p>
-            </div>
-          </div>
-          <div className="pcrm-current-step-card__actions">
-            <button type="button" onClick={() => setToolModalType(displayStepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
-              + {TOOL_STEP_TITLE[displayStepKey]}
-            </button>
-          </div>
-        </section>
-      ) : (
-        <NextActionCard client={client} workflowRun={workflowRun} stepIcon={STEP_INFO[displayStepKey]?.icon} stepDescription={STEP_INFO[displayStepKey]?.desc} onRefresh={load} />
-      )}
+      <CurrentStepCard
+        client={client}
+        workflowRun={workflowRun}
+        stepIcon={STEP_INFO[displayStepKey]?.icon}
+        stepDescription={STEP_INFO[displayStepKey]?.desc}
+        onOpenToolModal={setToolModalType}
+      />
 
       <nav className="pcrm-detail-tabs" aria-label="고객 상세 탭" style={{ marginTop: 14 }}>
         {DETAIL_TABS.map((tab) => (
