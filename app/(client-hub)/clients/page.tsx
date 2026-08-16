@@ -32,7 +32,6 @@ import type { ClientWorkspaceData, WorkspacePhase } from "@/lib/clientWorkspace/
 import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
 import EditPcrmProjectDialog from "./_components/EditPcrmProjectDialog";
-import MoveWorkflowStepDialog from "./_components/MoveWorkflowStepDialog";
 import PcrmActivityTimeline from "./_components/PcrmActivityTimeline";
 import PcrmCollaborationPanel from "./_components/PcrmCollaborationPanel";
 import ClientOverviewTab from "./_components/detail/ClientOverviewTab";
