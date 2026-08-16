@@ -307,7 +307,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                   />
                   {workspace.workflowSummary ? (
                     <div className="pc-card pc-card--padded">
-                      <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} />
+                      <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} onSelectPhase={handlePhaseClick} />
                       <button type="button" onClick={() => setProgressModalOpen(true)} style={{ marginTop: 8, border: "none", background: "none", padding: 0, color: C.teal, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                         전체 과정 보기 →
                       </button>
