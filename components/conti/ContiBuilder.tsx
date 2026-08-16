@@ -3304,6 +3304,19 @@ ${header("타임테이블")}
                   <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
                     {entry.result.conti.length}컷 · 체크 {entry.result.checklist.length}개
                   </div>
+                  {!entry.client_id && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#c2410c", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 6, padding: "2px 8px" }}>
+                        고객 미연결 — 업무 완료 처리에서 안 잡혀요
+                      </span>
+                      <button
+                        onClick={e => { e.stopPropagation(); setLinkTarget(entry); setLinkQuery(entry.hospital_name || ""); setLinkResults([]); }}
+                        style={{ display: "flex", alignItems: "center", gap: 3, background: "none", border: "none", color: "#155855", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: 0 }}
+                      >
+                        <Link2 size={11} /> 고객에 연결
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={e => {
