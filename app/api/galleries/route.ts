@@ -251,7 +251,7 @@ export async function POST(req: NextRequest) {
     galleryType?: string;
     gallery_type?: string;
   };
-  const galleryTypeValue = galleryType || gallery_type || "retouched";
+  const galleryTypeValue = galleryType || gallery_type || "final_photo";
 
   if (!hospitalName || !nasLink) {
     return NextResponse.json({ ok: false, error: "병원명과 NAS 링크는 필수입니다." }, { status: 400 });
