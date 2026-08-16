@@ -159,8 +159,11 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
           onDelete={deleteClient}
         />
 
-        <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
-          <p style={{ fontSize: 13, color: C.hint }}>왼쪽 목록에서 고객을 선택해주세요.</p>
+        <div style={{ minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+          <WorkflowConsistencyWidget />
+          <div className="pc-card pc-card--padded" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}>
+            <p style={{ fontSize: 13, color: C.hint }}>왼쪽 목록에서 고객을 선택해주세요.</p>
+          </div>
         </div>
       </div>
 
