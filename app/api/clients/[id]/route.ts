@@ -109,11 +109,19 @@ export async function GET(
     department:   c.specialty    ?? "",
   };
 
+  // 코드 요청서 6차(2026-08-16) — DetailView가 ClientWorkspaceView와 같은 클릭형 7단계
+  // 진행바(ProjectWorkflowStepper)를 쓰려면 이 phase 진행률이 필요하다. workspace/route.ts와
+  // 계산 로직을 중복 구현하지 않고 같은 lib/workflow.ts 함수를 그대로 재사용한다.
+  const workflowSummary = workflowRun
+    ? getWorkflowPhaseProgress(workflowRun.current_step_key, workflowRun.status)
+    : null;
+
   return NextResponse.json({
     ok: true,
     client,
     workflowRun,
     workflowRuns,
+    workflowSummary,
     mailingQueue: mailings ?? [],
     quotes: quotesRes.error ? [] : quotesRes.data ?? [],
     contracts: contractsRes.error ? [] : contractsRes.data ?? [],
