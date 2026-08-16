@@ -1106,9 +1106,16 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <input type="date" value={form.shootDate} onChange={e => setForm(f => ({ ...f, shootDate: e.target.value }))}
               style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.txt, background: C.white }} />
-            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="촬영 내용 메모" style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.txt, background: C.white }} />
+            <select value={form.galleryType} onChange={e => setForm(f => ({ ...f, galleryType: e.target.value }))}
+              style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.txt, background: C.white }}>
+              <option value="original_photo">원본사진</option>
+              <option value="original_video">원본영상</option>
+              <option value="final_photo">완료사진</option>
+              <option value="final_video">완료영상</option>
+            </select>
           </div>
+          <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            placeholder="촬영 내용 메모" style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.txt, background: C.white, boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button onClick={save} disabled={saving} style={{ height: 34, padding: "0 18px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
               {saving ? "저장 중..." : "저장"}
