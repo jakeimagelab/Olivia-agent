@@ -20,10 +20,12 @@ export default function OliviaCore({ isStreaming, hasUnread, size = 18 }: { isSt
     wasStreamingRef.current = isStreaming;
   }, [isStreaming]);
 
-  const state = isStreaming ? "working" : justFinished ? "done" : "idle";
+  // is-thinking은 기존 olivia-core-mark CSS(admin.css)에 이미 있는 회전 링 애니메이션 —
+  // 헤더의 다른 OliviaConversation 마크와 동일한 시각 언어를 쓴다.
+  const stateClass = isStreaming ? "is-thinking" : justFinished ? "is-done" : "is-idle";
 
   return (
-    <span className={`olivia-core-mark olivia-core-mark--${state}`}>
+    <span className={`olivia-core-mark ${stateClass}`}>
       <OliviaIcon size={size} />
       {hasUnread ? <span className="olivia-core-mark__dot" aria-hidden="true" /> : null}
     </span>
