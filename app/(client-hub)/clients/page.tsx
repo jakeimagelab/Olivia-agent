@@ -195,8 +195,9 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
     }
     const nextAction = workspace.nextAction;
     if (nextAction.kind === "step_ready" && (nextAction.stepKey === "quote" || nextAction.stepKey === "contract" || nextAction.stepKey === "conti")) {
+      const modalStepKey = nextAction.stepKey;
       return (
-        <button type="button" onClick={() => openToolModal(nextAction.stepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
+        <button type="button" onClick={() => openToolModal(modalStepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
           + {nextAction.title}
         </button>
       );
