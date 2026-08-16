@@ -3,11 +3,11 @@
 export const oliviaMotion = {
   quick: {
     duration: 0.16,
-    ease: [0.22, 1, 0.36, 1],
+    ease: [0.22, 1, 0.36, 1] as const,
   },
   page: {
     duration: 0.22,
-    ease: [0.22, 1, 0.36, 1],
+    ease: [0.22, 1, 0.36, 1] as const,
   },
   panel: {
     type: "spring" as const,
@@ -16,7 +16,7 @@ export const oliviaMotion = {
   },
   modal: {
     duration: 0.26,
-    ease: [0.22, 1, 0.36, 1],
+    ease: [0.22, 1, 0.36, 1] as const,
   },
 };
 
