@@ -16,7 +16,7 @@ export default function CurrentStepCard({
   stepDescription,
   onOpenToolModal,
 }: {
-  client: { id: string; name: string };
+  client: Record<string, any>;
   workflowRun: any;
   stepIcon?: string;
   stepDescription?: string;
