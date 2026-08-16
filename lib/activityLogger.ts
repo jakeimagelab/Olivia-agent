@@ -16,6 +16,7 @@ export type ActionType =
   | "advance_workflow_step"
   | "process_workflow_step"
   | "approve_workflow_task"
+  | "link_document_to_client"
   | "query_database"
   | "generate_document";
 
