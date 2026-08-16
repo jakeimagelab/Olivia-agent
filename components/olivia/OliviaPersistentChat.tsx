@@ -42,7 +42,33 @@ export default function OliviaPersistentChat() {
     wasStreamingRef.current = isStreaming;
   }, [isStreaming, messageCount, markUnread]);
 
+  // 이번 phase는 데스크톱 우선(스펙 39번) — 모바일/태블릿에서 항상 폭을 차지하는 패널을 두면
+  // 화면을 다 잡아먹으므로, 그 구간에서는 예전 OliviaFloatingConversation과 동일한 방식(플로팅
+  // 버튼 → 전체 오버레이 드로어)으로 폴백한다. 채팅을 아예 못 쓰게 만드는 것보다는 낫다.
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 900px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
   if (hasLocalOlivia) return null;
+
+  if (isMobile) {
+    return (
+      <>
+        <button type="button" className="olivia-floating-core olivia-floating-core--global" onClick={() => setMobileOpen((value) => !value)} aria-label="Olivia 대화 열기"><OliviaIcon size={18} /></button>
+        <div className={`olivia-chat-drawer__scrim${mobileOpen ? " is-open" : ""}`} aria-hidden="true" onClick={() => setMobileOpen(false)} />
+        <aside className={`olivia-chat-drawer olivia-chat-drawer--global${mobileOpen ? " is-open" : ""}`} aria-hidden={!mobileOpen}>
+          <button type="button" className="olivia-chat-drawer__close" onClick={() => setMobileOpen(false)}>닫기</button>
+          <OliviaConversation variant="drawer" />
+        </aside>
+      </>
+    );
+  }
 
   const isMinimized = chatMode === "minimized";
   const width = OLIVIA_CHAT_MODE_WIDTH[chatMode];
