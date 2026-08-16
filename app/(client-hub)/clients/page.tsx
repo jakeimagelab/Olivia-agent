@@ -465,7 +465,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           onClose={() => setProgressModalOpen(false)}
           client={client}
           workflowRun={workflowRun}
-          onOpenToolModal={setToolModalType}
+          onOpenToolModal={openToolModal}
           onRefresh={load}
         />
       ) : null}
