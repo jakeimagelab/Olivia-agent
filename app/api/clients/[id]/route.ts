@@ -83,8 +83,8 @@ export async function GET(
     ?? workflowRuns[0]
     ?? null;
 
-  // 서로 의존관계 없는 두 조회를 순차 await하던 걸 병렬로 — 매 라운드트립이 버퍼링을 키웠다.
-  const [activitiesRes, mailingsRes] = await Promise.all([
+  // 서로 의존관계 없는 조회들을 병렬로 — 매 라운드트립이 버퍼링을 키웠다.
+  const [activitiesRes, mailingsRes, quoteRes, contractRes, contiRes] = await Promise.all([
     workflowRun?.id
       ? supabase.from("pcrm_activity_logs")
           .select("*")
@@ -98,8 +98,25 @@ export async function GET(
       .eq("client_id", id)
       .order("created_at", { ascending: false })
       .limit(10),
+    // 코드 요청서 7차(2026-08-16) — 이 workflow_run에 이미 문서가 있으면 그 id를 모달에 넘겨줘야
+    // "관련 앱 열기"/"콘티 작성하기"를 눌렀을 때 빈 문서가 아니라 기존 문서를 불러온다
+    // (재현된 버그: 더힐피부과신사점, resourceId 없이 ContiBuilder를 열면 항상 빈 콘티로 시작함).
+    workflowRun?.id
+      ? supabase.from("quotes").select("id").eq("workflow_run_id", workflowRun.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    workflowRun?.id
+      ? supabase.from("contracts").select("id").eq("workflow_run_id", workflowRun.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    workflowRun?.id
+      ? supabase.from("conti_saves").select("id").eq("workflow_run_id", workflowRun.id).order("saved_at", { ascending: false }).limit(1).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
   const mailings = mailingsRes.data;
+  const resourceIds = {
+    quote: quoteRes.data?.id ?? null,
+    contract: contractRes.data?.id ?? null,
+    conti: contiRes.data?.id ?? null,
+  };
 
   // 프론트가 기대하는 필드명으로 정규화
   const client = {
