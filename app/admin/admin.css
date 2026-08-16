@@ -2288,6 +2288,62 @@
 .olivia-chat-drawer__scrim.is-open { opacity: 1; pointer-events: auto; }
 .olivia-chat-drawer__close { position: absolute; top: 10px; right: 12px; min-height: 27px; padding: 0 10px; border: 1px solid rgba(21,88,85,.09); border-radius: 999px; background: rgba(255,255,255,.72); color: #58716c; font-size: 9px; cursor: pointer; }
 
+/* 코드 요청서 — Olivia UX/Motion Core(2026-08-16). 영구 채팅 패널 — olivia-chat-drawer와 달리
+   position:fixed 오버레이가 아니라 .olivia-app-row(app/layout.tsx)의 flex row 안에서 실제 폭을
+   차지하는 참여자다. 폭 자체는 OliviaPersistentChat.tsx가 framer-motion으로 애니메이션한다 —
+   여기 width는 JS 하이드레이션 전 기본값일 뿐이다. */
+.olivia-persistent-chat {
+  flex-shrink: 0;
+  width: clamp(360px, 28vw, 460px);
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid rgba(21,88,85,.08);
+  background: #f8faf9;
+}
+.olivia-persistent-chat.is-minimized { width: 60px; }
+.olivia-chat-dock {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-top: 18px;
+}
+.olivia-chat-dock__expand {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(21,88,85,.1);
+  border-radius: 50%;
+  background: #fff;
+  color: #58716c;
+  cursor: pointer;
+}
+.olivia-chat-dock__expand:hover { background: var(--olivia-mint); color: var(--olivia-green); }
+.olivia-chat-dock__peek {
+  position: absolute;
+  top: 56px;
+  right: 68px;
+  width: 300px;
+  padding: 12px 14px;
+  border: 1px solid rgba(21,88,85,.08);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(9,35,31,.18);
+  z-index: 10030;
+}
+.olivia-chat-dock__peek strong { display: block; margin-bottom: 4px; color: #183d38; font-size: 9px; letter-spacing: .1em; }
+.olivia-chat-dock__peek p { margin: 0; color: #3d524d; font-size: 11px; line-height: 1.55; max-height: 96px; overflow: hidden; }
+@media (max-width: 900px) {
+  .olivia-persistent-chat { display: none; }
+}
+
 @media (max-width: 1200px) {
   .olivia-home-context__expanded { grid-template-columns: 190px 300px minmax(0,1fr); }
   .olivia-conversation__stage { grid-template-columns: 148px minmax(0,1fr) 38px; }
