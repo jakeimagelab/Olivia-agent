@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import OliviaChat from "@/components/OliviaChat";
-import { useOliviaChatModeStore } from "@/lib/store/useOliviaChatModeStore";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { C } from "@/lib/theme";
