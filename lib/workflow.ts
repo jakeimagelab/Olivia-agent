@@ -257,6 +257,18 @@ export function getWorkflowPhaseProgress(stepKey?: string | null, workflowStatus
   return { phases: result, progressPercent };
 }
 
+/** 7단계 압축 진행바에서 phase 하나를 클릭했을 때 실제로 열어야 할 단일 스텝을 정한다
+ * (코드 요청서 4차, 2026-08-16) — phase는 최대 3개 실제 스텝을 묶고 있어 그대로는 클릭 타겟이
+ * 모호하다. 지금 진행 중인 phase를 클릭하면 정확히 지금 있는 스텝을 열고, 그 외(이미 지난/아직
+ * 안 온) phase를 클릭하면 그 phase의 첫 스텝을 연다. */
+export function resolvePhaseTargetStep(phaseKey: WorkflowPhaseKey, currentStepKey: string): ActiveWorkflowStepKey {
+  const phase = WORKFLOW_PHASES.find((p) => p.key === phaseKey);
+  const displayCurrent = getWorkflowDisplayStepKey(currentStepKey) || ACTIVE_WORKFLOW_STEP_KEYS[0];
+  if (!phase) return displayCurrent;
+  const isActivePhase = getWorkflowPhase(displayCurrent) === phaseKey;
+  return isActivePhase ? displayCurrent : phase.steps[0];
+}
+
 export const STEP_NAME: Record<string, string> = Object.fromEntries(WORKFLOW_STEPS.map((step) => [step.key, step.name]));
 
 export const MOCK_WORKFLOW_RUNS = [
