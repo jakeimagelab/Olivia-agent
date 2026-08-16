@@ -532,20 +532,46 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
     </div>
   );
 
-  const { client, workflowRun, quotes = [], contracts = [], artifacts = [], activities = [] } = pageData;
+  const { client, workflowRun, quotes = [], contracts = [], artifacts = [], activities = [], workflowSummary } = pageData;
   const workflowCompleted = workflowRun?.status === "completed";
   const currentStepKey = workflowCompleted
     ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
     : workflowRun?.current_step_key || ACTIVE_WORKFLOW_STEPS[0].key;
   const displayStepKey = getWorkflowDisplayStepKey(currentStepKey) || ACTIVE_WORKFLOW_STEPS[0].key;
-  const currentIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === displayStepKey);
-  const progressStep = workflowCompleted ? ACTIVE_WORKFLOW_STEPS.length : Math.max(currentIdx + 1, 1);
-
-  const workflowStepDef = WORKFLOW_STEPS.find((s) => s.key === displayStepKey);
-  const currentStageKey = workflowCompleted ? WORKFLOW_STAGES[WORKFLOW_STAGES.length - 1].key : (workflowStepDef?.stage || WORKFLOW_STAGES[0].key);
-  const currentStageIdx = Math.max(0, WORKFLOW_STAGES.findIndex((s) => s.key === currentStageKey));
-  const stageDisplayName: Record<string, string> = { data_sharing: "데이터·보정", feedback_done: "납품·완료" };
   const activeTabLabel = DETAIL_TABS.find((t) => t.key === activeTab)?.label || "개요";
+
+  // 진행바 phase 클릭 → 즉시 처리 화면 진입(코드 요청서 4차·6차, 2026-08-16) —
+  // ClientWorkspaceView의 handlePhaseClick과 완전히 같은 패턴. 지금 단계가 아니어도 항상
+  // 클릭 가능하고, 이동이 가드에 막히면(문서 없는 quote/contract/conti) 조용히 무시되고
+  // 화면은 그대로 열린다(tryMoveWorkflowStep 참고).
+  const handlePhaseClick = async (phase: WorkspacePhase) => {
+    if (!workflowRun) return;
+    const targetStep = resolvePhaseTargetStep(phase.key, workflowRun.current_step_key);
+    await tryMoveWorkflowStep(workflowRun.id, targetStep);
+    load();
+    if (targetStep === "quote" || targetStep === "contract" || targetStep === "conti") {
+      setToolModalType(targetStep);
+    } else {
+      router.push(buildStepAppLink({ stepKey: targetStep, clientId, workflowRunId: workflowRun.id }));
+    }
+  };
+
+  // 헤더 빠른 실행 버튼 — ClientWorkspaceView의 headerQuickAction과 동일한 규칙(코드 요청서
+  // 6차 4-1번 항목). 항상 진행바가 가리키는 현재 단계를 따라가고, 정적 문구를 하드코딩하지 않는다.
+  const headerQuickAction = (() => {
+    if (!workflowRun) {
+      return <button type="button" onClick={() => setToolModalType("quote")} className="pc-btn pc-btn--orange pc-btn--sm">+ 견적서 작성</button>;
+    }
+    if (workflowCompleted) return null;
+    if (displayStepKey === "quote" || displayStepKey === "contract" || displayStepKey === "conti") {
+      return (
+        <button type="button" onClick={() => setToolModalType(displayStepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
+          + {TOOL_LINK_TITLES[displayStepKey]}
+        </button>
+      );
+    }
+    return null;
+  })();
 
   const copyPortalLink = async () => {
     if (!workflowRun?.id) { alert("먼저 프로젝트를 생성해야 링크를 복사할 수 있습니다."); return; }
