@@ -34,6 +34,7 @@ import {
 import { listMailingQueue, sendMailing } from "@/lib/olivia/tools/mailing";
 import { getContiStatus } from "@/lib/olivia/tools/conti";
 import { createGallery, getGallery } from "@/lib/olivia/tools/gallery";
+import { linkDocumentToClient } from "@/lib/olivia/tools/documentLink";
 import { findCalendarConflicts } from "@/lib/assistant/actions/calendarAvailability";
 import {
   createAssistantEmailDraft,
