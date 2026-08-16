@@ -8,14 +8,18 @@ import type { WorkspacePhase } from "@/lib/clientWorkspace/types";
 // (고객관리 3단 워크스페이스 개편 2026-08-09, lib/workflow.ts의 WORKFLOW_PHASES).
 // compact=true는 메인 화면의 줄어든 진행바용(라벨 숨김, 원 크기 축소) — 모달에서는
 // compact=false(기본값)로 기존 그대로의 라벨 붙은 전체 버전을 보여준다.
+// onSelectPhase가 있으면 원을 클릭 가능하게 만든다(코드 요청서 4차, 2026-08-16) — 현재
+// 단계가 아닌 phase도 항상 클릭할 수 있다. 실제로 어느 스텝을 열지는 호출자가 정한다.
 export default function ProjectWorkflowStepper({
   phases,
   progressPercent,
   compact = false,
+  onSelectPhase,
 }: {
   phases: WorkspacePhase[];
   progressPercent: number;
   compact?: boolean;
+  onSelectPhase?: (phase: WorkspacePhase) => void;
 }) {
   const circleSize = compact ? 20 : 30;
   return (
@@ -23,7 +27,16 @@ export default function ProjectWorkflowStepper({
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4 }}>
         {phases.map((phase, index) => (
           <div key={phase.key} style={{ display: "flex", alignItems: "center", flex: index < phases.length - 1 ? 1 : "0 0 auto" }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              disabled={!onSelectPhase}
+              onClick={() => onSelectPhase?.(phase)}
+              style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0,
+                border: "none", background: "none", padding: 0, font: "inherit",
+                cursor: onSelectPhase ? "pointer" : "default",
+              }}
+            >
               <div style={{
                 width: circleSize, height: circleSize, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: compact ? 9 : 12, fontWeight: 800,
@@ -41,7 +54,7 @@ export default function ProjectWorkflowStepper({
                   {phase.name}
                 </span>
               )}
-            </div>
+            </button>
             {index < phases.length - 1 ? (
               <div style={{ flex: 1, height: 2, background: phase.status === "completed" ? C.teal : C.border, margin: compact ? "0 4px" : "0 4px 16px" }} />
             ) : null}
