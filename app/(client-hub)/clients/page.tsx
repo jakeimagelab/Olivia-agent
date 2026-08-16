@@ -16,6 +16,7 @@ import { TOOL_LINK_TITLES } from "@/lib/clientWorkspace/nextAction";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
+import WorkflowConsistencyWidget from "@/components/dashboard/WorkflowConsistencyWidget";
 import ClientListPanel from "@/components/client-workspace/ClientListPanel";
 import ProjectWorkflowStepper from "@/components/client-workspace/ProjectWorkflowStepper";
 import ProgressDetailModal from "@/components/client-workspace/ProgressDetailModal";
