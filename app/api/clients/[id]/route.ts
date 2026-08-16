@@ -139,6 +139,7 @@ export async function GET(
     workflowRun,
     workflowRuns,
     workflowSummary,
+    resourceIds,
     mailingQueue: mailings ?? [],
     quotes: quotesRes.error ? [] : quotesRes.data ?? [],
     contracts: contractsRes.error ? [] : contractsRes.data ?? [],
