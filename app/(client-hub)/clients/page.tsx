@@ -10,7 +10,10 @@ import {
   WORKFLOW_STAGES,
   WORKFLOW_STEPS,
   getWorkflowDisplayStepKey,
+  resolvePhaseTargetStep,
 } from "@/lib/workflow";
+import { buildStepAppLink } from "@/lib/clientAppLinks";
+import { tryMoveWorkflowStep } from "@/lib/clientWorkspace/stepNavigation";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
