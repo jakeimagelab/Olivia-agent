@@ -259,7 +259,7 @@ function GalleryPageInner() {
   };
 
   const resetForm = () => {
-    setForm({ hospitalName: "", contactName: "", contactEmail: "", shootDate: "", nasLink: "", description: "", thumbnailUrl: "" });
+    setForm({ hospitalName: "", contactName: "", contactEmail: "", shootDate: "", nasLink: "", description: "", thumbnailUrl: "", galleryType: "final_photo" });
     setEditingId("");
     setThumbnailFile(null);
     setThumbnailPreview((current) => {
