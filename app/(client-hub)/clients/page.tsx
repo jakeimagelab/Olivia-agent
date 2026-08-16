@@ -189,6 +189,21 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
 
   const displayStepKey = workspace?.activeProject ? getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) : null;
 
+  // 진행바 phase 클릭 → 즉시 처리 화면 진입(코드 요청서 4차, 2026-08-16). 지금 단계가 아니어도
+  // 항상 클릭 가능 — 이동이 가드에 막히면(문서 없는 quote/contract/conti) 조용히 무시되고
+  // 화면은 그대로 열린다(tryMoveWorkflowStep 참고).
+  const handlePhaseClick = async (phase: WorkspacePhase) => {
+    if (!workspace?.activeProject || !workspace.client) return;
+    const targetStep = resolvePhaseTargetStep(phase.key, workspace.activeProject.current_step_key);
+    await tryMoveWorkflowStep(workspace.activeProject.id, targetStep);
+    refreshWorkspace();
+    if (targetStep === "quote" || targetStep === "contract" || targetStep === "conti") {
+      openToolModal(targetStep);
+    } else {
+      router.push(buildStepAppLink({ stepKey: targetStep, clientId: workspace.client.id, workflowRunId: workspace.activeProject.id }));
+    }
+  };
+
   // 헤더의 빠른 실행 버튼은 항상 "견적서 작성"으로 고정돼 있으면, 이미 다른 단계(백업/셀렉 등)로
   // 넘어간 고객에게도 엉뚱하게 뜬다 — 현재 단계에 맞는 도구(견적/계약/콘티)일 때만 보여주고,
   // 그 외 단계는 아래 "현재 단계" 카드의 버튼과 중복되니 숨긴다.
