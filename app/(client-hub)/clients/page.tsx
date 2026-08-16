@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { CalendarDays, ChevronLeft, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -17,18 +17,13 @@ import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
 import ClientListPanel from "@/components/client-workspace/ClientListPanel";
-import ProjectSummaryCard from "@/components/client-workspace/ProjectSummaryCard";
 import ProjectWorkflowStepper from "@/components/client-workspace/ProjectWorkflowStepper";
-import ProjectMemoPanel from "@/components/client-workspace/ProjectMemoPanel";
-import PublicationManagementPanel from "@/components/client-workspace/PublicationManagementPanel";
-import PublicationHistoryModal from "@/components/client-workspace/PublicationHistoryModal";
 import ProgressDetailModal from "@/components/client-workspace/ProgressDetailModal";
-import PortalManagementPanel from "@/components/client-workspace/PortalManagementPanel";
 import WorkspaceModal from "@/components/client-workspace/WorkspaceModal";
 import QuoteBuilder from "@/components/quote/QuoteBuilder";
 import ContractBuilder from "@/components/contract/ContractBuilder";
 import ContiBuilder from "@/components/conti/ContiBuilder";
-import type { ClientWorkspaceData, WorkspacePhase } from "@/lib/clientWorkspace/types";
+import type { WorkspacePhase } from "@/lib/clientWorkspace/types";
 import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
 import EditPcrmProjectDialog from "./_components/EditPcrmProjectDialog";
@@ -38,7 +33,7 @@ import ClientOverviewTab from "./_components/detail/ClientOverviewTab";
 import ClientScheduleTab from "./_components/detail/ClientScheduleTab";
 import ClientRevisionsTab from "./_components/detail/ClientRevisionsTab";
 import ClientPortalTab from "./_components/detail/ClientPortalTab";
-import { C, R } from "@/lib/theme";
+import { C } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "./_hooks/useClientRoster";
 
