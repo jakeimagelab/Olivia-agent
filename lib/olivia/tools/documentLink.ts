@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { fuzzyNameSearch, fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
+import { fuzzyIncludes, fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
 import { logActivity } from "@/lib/activityLogger";
 
