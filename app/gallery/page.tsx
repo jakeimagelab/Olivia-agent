@@ -123,7 +123,8 @@ function GalleryPageInner() {
     shootDate: "",
     nasLink: "",
     description: "",
-    thumbnailUrl: ""
+    thumbnailUrl: "",
+    galleryType: "final_photo",
   });
 
   // 고객 연결 — URL의 client_id 없이 이 페이지에 바로 들어오면 갤러리가 어느 고객과도
