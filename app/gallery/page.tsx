@@ -333,7 +333,7 @@ function GalleryPageInner() {
           links: form.nasLink ? [{ label: "갤러리 확인하기", url: form.nasLink }] : [],
         }).then(() => setMessage(prev => prev + " · 올리비아 메일링함에 자동 저장되었습니다."));
       } else if (!editingId && clientId) {
-        setMessage(prev => prev + " · 메일링함에 draft 저장 + 워크플로우 자동 전진됩니다.");
+        setMessage(prev => prev + " · 해당 단계라면 워크플로우가 자동으로 진행됩니다.");
       }
       resetForm();
       await loadGalleries();
