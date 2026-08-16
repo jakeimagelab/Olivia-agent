@@ -282,13 +282,19 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
     </div>
   );
 
-  const { client, workflowRun, quotes = [], contracts = [], artifacts = [], activities = [], workflowSummary } = pageData;
+  const { client, workflowRun, quotes = [], contracts = [], artifacts = [], activities = [], workflowSummary, resourceIds } = pageData;
   const workflowCompleted = workflowRun?.status === "completed";
   const currentStepKey = workflowCompleted
     ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
     : workflowRun?.current_step_key || ACTIVE_WORKFLOW_STEPS[0].key;
   const displayStepKey = getWorkflowDisplayStepKey(currentStepKey) || ACTIVE_WORKFLOW_STEPS[0].key;
   const activeTabLabel = DETAIL_TABS.find((t) => t.key === activeTab)?.label || "개요";
+
+  // resourceIds(pageData, 코드 요청서 7차)에서 이 workflow_run에 이미 있는 문서 id를 찾아
+  // 같이 넘긴다 — 없으면(아직 문서를 안 만든 단계) undefined라 빌더가 빈 문서로 시작한다.
+  const openToolModal = (type: "quote" | "contract" | "conti") => {
+    setToolModal({ type, resourceId: resourceIds?.[type] ?? undefined });
+  };
 
   // 진행바 phase 클릭 → 즉시 처리 화면 진입(코드 요청서 4차·6차, 2026-08-16) —
   // ClientWorkspaceView의 handlePhaseClick과 완전히 같은 패턴. 지금 단계가 아니어도 항상
@@ -300,7 +306,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
     await tryMoveWorkflowStep(workflowRun.id, targetStep);
     load();
     if (targetStep === "quote" || targetStep === "contract" || targetStep === "conti") {
-      setToolModalType(targetStep);
+      openToolModal(targetStep);
     } else {
       router.push(buildStepAppLink({ stepKey: targetStep, clientId, workflowRunId: workflowRun.id }));
     }
@@ -310,12 +316,12 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   // 6차 4-1번 항목). 항상 진행바가 가리키는 현재 단계를 따라가고, 정적 문구를 하드코딩하지 않는다.
   const headerQuickAction = (() => {
     if (!workflowRun) {
-      return <button type="button" onClick={() => setToolModalType("quote")} className="pc-btn pc-btn--orange pc-btn--sm">+ 견적서 작성</button>;
+      return <button type="button" onClick={() => openToolModal("quote")} className="pc-btn pc-btn--orange pc-btn--sm">+ 견적서 작성</button>;
     }
     if (workflowCompleted) return null;
     if (displayStepKey === "quote" || displayStepKey === "contract" || displayStepKey === "conti") {
       return (
-        <button type="button" onClick={() => setToolModalType(displayStepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
+        <button type="button" onClick={() => openToolModal(displayStepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
           + {TOOL_LINK_TITLES[displayStepKey]}
         </button>
       );
