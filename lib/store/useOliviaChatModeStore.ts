@@ -38,6 +38,7 @@ export const useOliviaChatModeStore = create<OliviaChatModeState>((set, get) => 
   isChatFocused: false,
   isWorkspaceFocused: false,
   hasUnread: false,
+  modalOpenCount: 0,
   expandChat: () => set(setMode(get, "expanded")),
   normalizeChat: () => set(setMode(get, "normal")),
   compactChat: () => set(setMode(get, "compact")),
@@ -53,6 +54,23 @@ export const useOliviaChatModeStore = create<OliviaChatModeState>((set, get) => 
   setWorkspaceFocused: (focused) => set({ isWorkspaceFocused: focused, ...(focused ? { isChatFocused: false } : {}) }),
   markUnread: () => set((state) => state.chatMode === "minimized" ? { hasUnread: true } : {}),
   clearUnread: () => set({ hasUnread: false }),
+  // 견적서/콘티 빌더가 모달로 열리면(width:94vw) 화면 대부분을 덮는다 — 패널이 열려있으면
+  // 모달 오른쪽 끝과 겹친다. 모달이 떠 있는 동안만 자동으로 rail까지 접고, 모달이 전부
+  // 닫히면(중첩 가능하므로 카운트가 0이 될 때만) 원래 모드로 되돌린다.
+  registerModalOpen: () => set((state) => {
+    const modalOpenCount = state.modalOpenCount + 1;
+    if (modalOpenCount === 1 && state.chatMode !== "minimized") {
+      return { modalOpenCount, chatMode: "minimized", previousChatMode: state.chatMode };
+    }
+    return { modalOpenCount };
+  }),
+  registerModalClose: () => set((state) => {
+    const modalOpenCount = Math.max(0, state.modalOpenCount - 1);
+    if (modalOpenCount === 0 && state.chatMode === "minimized") {
+      return { modalOpenCount, chatMode: state.previousChatMode === "minimized" ? "normal" : state.previousChatMode };
+    }
+    return { modalOpenCount };
+  }),
 }));
 
 export const OLIVIA_CHAT_MODE_WIDTH: Record<OliviaChatMode, string> = {
