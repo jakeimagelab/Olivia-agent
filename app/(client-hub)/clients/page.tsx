@@ -424,7 +424,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         workflowRun={workflowRun}
         stepIcon={STEP_INFO[displayStepKey]?.icon}
         stepDescription={STEP_INFO[displayStepKey]?.desc}
-        onOpenToolModal={setToolModalType}
+        onOpenToolModal={openToolModal}
       />
 
       <nav className="pcrm-detail-tabs" aria-label="고객 상세 탭" style={{ marginTop: 14 }}>
