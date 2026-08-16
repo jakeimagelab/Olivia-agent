@@ -55,11 +55,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${nanumSquare.variable} min-h-screen font-sans antialiased`}>
         <SplashScreen />
         <CursorEffect />
-        <GlobalFeatureSidebar>
-          <GlobalClientContextBridge />
-          {children}
-        </GlobalFeatureSidebar>
-        <GlobalOliviaChat />
+        <div className="olivia-app-row">
+          <div className="olivia-app-main">
+            <GlobalFeatureSidebar>
+              <GlobalClientContextBridge />
+              <OliviaPageTransition>{children}</OliviaPageTransition>
+            </GlobalFeatureSidebar>
+          </div>
+          <OliviaPersistentChat />
+        </div>
         <script dangerouslySetInnerHTML={{ __html: `
           document.addEventListener("click", function(e) {
             var btn = e.target.closest("button");
