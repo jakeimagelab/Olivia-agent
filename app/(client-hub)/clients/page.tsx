@@ -279,15 +279,13 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
                     nextAction={workspace.nextAction}
                     onOpenToolModal={openToolModal}
                   />
-                  {workspace.nextAction.kind === "legacy_card" ? (
-                    <NextActionCard
-                      client={workspace.client}
-                      workflowRun={workspace.activeProject}
-                      stepIcon={STEP_INFO[displayStepKey || ""]?.icon}
-                      stepDescription={STEP_INFO[displayStepKey || ""]?.desc}
-                      onRefresh={refreshWorkspace}
-                    />
-                  ) : null}
+                  <CurrentStepCard
+                    client={workspace.client}
+                    workflowRun={workspace.activeProject}
+                    stepIcon={STEP_INFO[displayStepKey || ""]?.icon}
+                    stepDescription={STEP_INFO[displayStepKey || ""]?.desc}
+                    onOpenToolModal={openToolModal}
+                  />
                   {workspace.workflowSummary ? (
                     <div className="pc-card pc-card--padded">
                       <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} />
