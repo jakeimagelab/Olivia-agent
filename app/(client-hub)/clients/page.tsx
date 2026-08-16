@@ -10,12 +10,10 @@ import {
   WORKFLOW_STAGES,
   WORKFLOW_STEPS,
   getWorkflowDisplayStepKey,
-  isToolOnlyStep,
-  type ToolOnlyStepKey,
 } from "@/lib/workflow";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
-import NextActionCard from "@/components/NextActionCard";
+import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
 import ClientListPanel from "@/components/client-workspace/ClientListPanel";
 import ProjectSummaryCard from "@/components/client-workspace/ProjectSummaryCard";
 import ProjectWorkflowStepper from "@/components/client-workspace/ProjectWorkflowStepper";
