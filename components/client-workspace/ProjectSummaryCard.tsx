@@ -53,10 +53,10 @@ export default function ProjectSummaryCard({
   onOpenToolModal: (stepKey: "quote" | "contract" | "conti") => void;
 }) {
   const nextActionValue: React.ReactNode = (() => {
-    if (nextAction.kind === "tool_link" && MODAL_TOOL_STEPS.has(nextAction.stepKey)) {
-      return <button type="button" onClick={() => onOpenToolModal(nextAction.stepKey)} style={linkStyle}>{nextAction.title}</button>;
+    if (nextAction.kind === "step_ready" && MODAL_TOOL_STEPS.has(nextAction.stepKey)) {
+      return <button type="button" onClick={() => onOpenToolModal(nextAction.stepKey as "quote" | "contract" | "conti")} style={linkStyle}>{nextAction.title}</button>;
     }
-    if (nextAction.kind === "tool_link") {
+    if (nextAction.kind === "step_ready") {
       return <Link href={nextAction.ctaHref} style={linkStyle}>{nextAction.title}</Link>;
     }
     if (nextAction.kind === "publish_pending") {
@@ -65,7 +65,7 @@ export default function ProjectSummaryCard({
       }
       return <span>{nextAction.title}</span>;
     }
-    return workflowSummary?.nextActionLabel ?? "-";
+    return "-";
   })();
 
   return (
