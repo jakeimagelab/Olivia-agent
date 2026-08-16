@@ -197,7 +197,11 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   const [activeTab, setActiveTab] = useState("overview");
   const [linkCopyBusy, setLinkCopyBusy] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const [toolModalType, setToolModalType] = useState<"quote" | "contract" | "conti" | null>(null);
+  // 코드 요청서 7차(2026-08-16) — resourceId까지 같이 들고 있어야 이미 있는 문서를 그대로
+  // 불러온다(버그: resourceId 없이 빌더를 열면 QuoteBuilder/ContractBuilder/ContiBuilder가
+  // 전부 빈 문서로 시작함 — 재현: 더힐피부과신사점, 콘티가 이미 있는데 "콘티 작성하기"를 누르면
+  // 빈 콘티가 또 열림).
+  const [toolModal, setToolModal] = useState<{ type: "quote" | "contract" | "conti"; resourceId?: string } | null>(null);
   const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
 
   const deleteClient = async (clientName: string) => {
