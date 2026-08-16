@@ -2340,9 +2340,6 @@
 }
 .olivia-chat-dock__peek strong { display: block; margin-bottom: 4px; color: #183d38; font-size: 9px; letter-spacing: .1em; }
 .olivia-chat-dock__peek p { margin: 0; color: #3d524d; font-size: 11px; line-height: 1.55; max-height: 96px; overflow: hidden; }
-@media (max-width: 900px) {
-  .olivia-persistent-chat { display: none; }
-}
 
 @media (max-width: 1200px) {
   .olivia-home-context__expanded { grid-template-columns: 190px 300px minmax(0,1fr); }
