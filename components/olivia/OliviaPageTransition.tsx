@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useSearchParams } from "next/navigation";
 import { oliviaMotion, prefersReducedMotion } from "@/lib/motion/presets";
@@ -13,6 +14,16 @@ const RESOURCE_IDENTITY_PARAMS: Record<string, string[]> = {
 };
 
 export default function OliviaPageTransition({ children }: { children: React.ReactNode }) {
+  // useSearchParams()는 Suspense 경계가 필요하다 — 여기서 감싸서 호출부(app/layout.tsx)가
+  // 신경 쓰지 않게 한다. fallback은 children을 애니메이션 없이 그대로 보여준다(첫 렌더 한정).
+  return (
+    <Suspense fallback={<div>{children}</div>}>
+      <OliviaPageTransitionInner>{children}</OliviaPageTransitionInner>
+    </Suspense>
+  );
+}
+
+function OliviaPageTransitionInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const reduceMotion = prefersReducedMotion();
