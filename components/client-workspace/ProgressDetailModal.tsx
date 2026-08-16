@@ -26,8 +26,8 @@ export default function ProgressDetailModal({
 }: {
   open: boolean;
   onClose: () => void;
-  client: { id: string; name?: string };
-  workflowRun: { id: string; current_step_key: string } | null;
+  client: Record<string, any>;
+  workflowRun: Record<string, any> | null;
   onOpenToolModal: (stepKey: "quote" | "contract" | "conti") => void;
   onRefresh: () => void;
 }) {
