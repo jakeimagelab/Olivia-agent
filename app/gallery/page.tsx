@@ -372,6 +372,13 @@ function GalleryPageInner() {
                 <label className="field"><span>병원명 *</span><input style={fieldStyle} value={form.hospitalName} onChange={(e) => set("hospitalName", e.target.value)} placeholder="포토클리닉" /></label>
                 <label className="field"><span>촬영일</span><input style={fieldStyle} type="date" value={form.shootDate} onChange={(e) => set("shootDate", e.target.value)} /></label>
               </div>
+              <label className="field">
+                <span>유형</span>
+                <select style={fieldStyle} value={form.galleryType} onChange={(e) => set("galleryType", e.target.value)}>
+                  {GALLERY_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+                <small style={{ color: C.muted, lineHeight: 1.6 }}>원본사진/원본영상 등록 시 원본 전달 단계, 완료사진/완료영상 등록 시 최종납품 단계가 자동으로 완료 처리됩니다.</small>
+              </label>
               <div className="field" style={{ position: "relative" }}>
                 <span>고객 연결</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
