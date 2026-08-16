@@ -119,6 +119,12 @@ function ClientsInner() {
 }
 
 /* ── 2열 워크스페이스 (고객관리 2열 단순화 2026-08-09) — 왼쪽 리스트(30%) | 오른쪽 고객 업무(70%) ── */
+// 코드 요청서 6차(2026-08-16) — 예전엔 이 화면(2열 워크스페이스)이 고객을 선택하면 오른쪽에
+// 프로젝트/워크플로우 요약을 직접 그렸는데, 그 결과 같은 고객인데도 어느 경로로 들어왔는지에 따라
+// DetailView(?id=)와 완전히 다른 UI가 뜨는 문제가 있었다. 지금은 고객을 클릭하면 곧바로
+// DetailView(/clients?id=)로 이동시키기만 하는 얇은 진입 화면으로 축소했다 — 실제 프로젝트/
+// 워크플로우 표시는 DetailView 하나로 모인다. ?clientId=로 들어오는 다른 진입 경로들(홈 대시보드,
+// select-galleries 뒤로가기, 챗 open_feature 등)도 아래 리다이렉트로 자동으로 통일된다.
 function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openNewOnLoad?: boolean; initialClientId: string | null }) {
   const router = useRouter();
   const {
@@ -127,294 +133,41 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
     deletingId, deleteClient, load,
   } = useClientRoster();
 
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(initialClientId);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [workspace, setWorkspace] = useState<ClientWorkspaceData | null>(null);
-  const [workspaceLoading, setWorkspaceLoading] = useState(false);
-  const [workspaceError, setWorkspaceError] = useState("");
-  const [progressModalOpen, setProgressModalOpen] = useState(false);
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
-  const [workspaceModalState, setWorkspaceModalState] = useState<
-    { type: "quote" | "contract" | "conti"; clientId: string; workflowRunId?: string; resourceId?: string } | null
-  >(null);
-  const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
-
   useEffect(() => {
     if (openNewOnLoad) openCreate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openNewOnLoad]);
 
-  const loadWorkspace = useCallback(async (clientId: string, projectId?: string | null) => {
-    setWorkspaceLoading(true);
-    setWorkspaceError("");
-    try {
-      const qs = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
-      const response = await fetch(`/api/clients/${clientId}/workspace${qs}`, { cache: "no-store" });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.error);
-      setWorkspace(data);
-    } catch (error) {
-      setWorkspace(null);
-      setWorkspaceError(error instanceof Error ? error.message : "고객 정보를 불러오지 못했습니다.");
-    } finally {
-      setWorkspaceLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    if (selectedClientId) void loadWorkspace(selectedClientId, selectedProjectId);
-    else setWorkspace(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedClientId, selectedProjectId]);
+    if (initialClientId) router.replace(`/clients?id=${initialClientId}`);
+  }, [initialClientId, router]);
 
-  // 고객을 눌러도 전체 페이지를 새로고침하지 않는다 — URL만(뒤로가기/새로고침 대비) 얕게 갱신하고
-  // 오른쪽 패널만 다시 불러온다.
   const selectClient = (clientId: string) => {
-    setSelectedClientId(clientId);
-    setSelectedProjectId(null);
-    router.replace(`/clients?clientId=${clientId}`, { scroll: false });
+    router.push(`/clients?id=${clientId}`);
   };
-
-  const refreshWorkspace = () => { if (selectedClientId) void loadWorkspace(selectedClientId, selectedProjectId); };
-
-  // 진행 중인 프로젝트가 아직 없어도(예: 고객 등록 직후) 열 수 있다 — workflowRunId 없이 저장하면
-  // 서버(resolveWorkflowRunId)가 그 고객의 활성 프로젝트를 알아서 찾아 연결한다.
-  const openQuoteModal = () => openToolModal("quote");
-  const openToolModal = (type: "quote" | "contract" | "conti") => {
-    if (!workspace?.client) return;
-    setWorkspaceModalState({ type, clientId: workspace.client.id, workflowRunId: workspace.activeProject?.id });
-  };
-
-  const displayStepKey = workspace?.activeProject ? getWorkflowDisplayStepKey(workspace.activeProject.current_step_key) : null;
-
-  // 진행바 phase 클릭 → 즉시 처리 화면 진입(코드 요청서 4차, 2026-08-16). 지금 단계가 아니어도
-  // 항상 클릭 가능 — 이동이 가드에 막히면(문서 없는 quote/contract/conti) 조용히 무시되고
-  // 화면은 그대로 열린다(tryMoveWorkflowStep 참고).
-  const handlePhaseClick = async (phase: WorkspacePhase) => {
-    if (!workspace?.activeProject || !workspace.client) return;
-    const targetStep = resolvePhaseTargetStep(phase.key, workspace.activeProject.current_step_key);
-    await tryMoveWorkflowStep(workspace.activeProject.id, targetStep);
-    refreshWorkspace();
-    if (targetStep === "quote" || targetStep === "contract" || targetStep === "conti") {
-      openToolModal(targetStep);
-    } else {
-      router.push(buildStepAppLink({ stepKey: targetStep, clientId: workspace.client.id, workflowRunId: workspace.activeProject.id }));
-    }
-  };
-
-  // 헤더의 빠른 실행 버튼은 항상 "견적서 작성"으로 고정돼 있으면, 이미 다른 단계(백업/셀렉 등)로
-  // 넘어간 고객에게도 엉뚱하게 뜬다 — 현재 단계에 맞는 도구(견적/계약/콘티)일 때만 보여주고,
-  // 그 외 단계는 아래 "현재 단계" 카드의 버튼과 중복되니 숨긴다.
-  const headerQuickAction = (() => {
-    if (!workspace?.activeProject) {
-      return <button type="button" onClick={openQuoteModal} className="pc-btn pc-btn--orange pc-btn--sm">+ 견적서 작성</button>;
-    }
-    const nextAction = workspace.nextAction;
-    if (nextAction.kind === "step_ready" && (nextAction.stepKey === "quote" || nextAction.stepKey === "contract" || nextAction.stepKey === "conti")) {
-      const modalStepKey = nextAction.stepKey;
-      return (
-        <button type="button" onClick={() => openToolModal(modalStepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
-          + {nextAction.title}
-        </button>
-      );
-    }
-    return null;
-  })();
 
   return (
     <div className="pcrm-dashboard" style={{ color: C.txt }}>
       <div
         className="pcrm-workspace-grid"
-        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(300px, 30%) minmax(420px, 45%) minmax(320px, 25%)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
+        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(300px, 40%) 1fr", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
       >
         <ClientListPanel
           clients={filtered}
           loading={loading}
           search={search}
           onSearch={setSearch}
-          selectedClientId={selectedClientId}
+          selectedClientId={null}
           onSelect={selectClient}
           onCreate={openCreate}
           deletingId={deletingId}
           onDelete={deleteClient}
         />
 
-        <div style={{ minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          {!selectedClientId ? (
-            <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
-              <p style={{ fontSize: 13, color: C.hint }}>왼쪽 목록에서 고객을 선택해주세요.</p>
-            </div>
-          ) : workspaceLoading && !workspace ? (
-            <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
-              <p style={{ fontSize: 13, color: C.hint }}>불러오는 중...</p>
-            </div>
-          ) : workspaceError ? (
-            <div className="pc-card pc-card--padded"><p style={{ fontSize: 12.5, color: C.danger }}>{workspaceError}</p></div>
-          ) : workspace ? (
-            <>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <span style={{ width: 34, height: 34, borderRadius: R.sm, flexShrink: 0, background: avatarColor(workspace.client.name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800 }}>
-                    {avatarInitial(workspace.client.name)}
-                  </span>
-                  <div style={{ minWidth: 0 }}>
-                    <h1 style={{ fontSize: 16, fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{workspace.client.name}</h1>
-                    <span style={{ fontSize: 11, color: C.hint }}>{workspace.client.department || "진료과 미입력"} · 프로젝트 {workspace.projects.length}개</span>
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                  {headerQuickAction}
-                  <Link href={`/clients?id=${selectedClientId}`} style={{ fontSize: 11, fontWeight: 700, color: C.muted, textDecoration: "none", border: `1px solid ${C.border}`, borderRadius: R.sm, padding: "6px 10px" }}>
-                    상세 관리 →
-                  </Link>
-                </div>
-              </div>
-
-              {workspace.projects.length > 1 ? (
-                <select
-                  value={workspace.activeProject?.id ?? ""}
-                  onChange={(e) => setSelectedProjectId(e.target.value)}
-                  style={{ height: 34, borderRadius: R.md, border: `1px solid ${C.border}`, padding: "0 10px", fontSize: 12.5, fontWeight: 700, color: C.teal, background: "#fff", alignSelf: "flex-start" }}
-                >
-                  {workspace.projects.map((project) => (
-                    <option key={project.id} value={project.id}>{project.project_name || "제목 없는 프로젝트"}{project.status === "completed" ? " (완료)" : ""}</option>
-                  ))}
-                </select>
-              ) : null}
-
-              {!workspace.activeProject ? (
-                <div className="pc-card pc-card--padded" style={{ textAlign: "center", padding: 32 }}>
-                  <p style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>진행 중인 프로젝트가 없습니다.</p>
-                  <button type="button" onClick={openQuoteModal} className="pc-btn pc-btn--orange pc-btn--sm" style={{ display: "inline-flex" }}>견적서 작성</button>
-                </div>
-              ) : (
-                <>
-                  <ProjectSummaryCard
-                    activeProject={workspace.activeProject}
-                    workflowSummary={workspace.workflowSummary}
-                    recentActivityAt={workspace.recentActivity[0]?.created_at}
-                    nextAction={workspace.nextAction}
-                    onOpenToolModal={openToolModal}
-                  />
-                  <CurrentStepCard
-                    client={workspace.client}
-                    workflowRun={workspace.activeProject}
-                    stepIcon={STEP_INFO[displayStepKey || ""]?.icon}
-                    stepDescription={STEP_INFO[displayStepKey || ""]?.desc}
-                    onOpenToolModal={openToolModal}
-                  />
-                  {workspace.workflowSummary ? (
-                    <div className="pc-card pc-card--padded">
-                      <ProjectWorkflowStepper phases={workspace.workflowSummary.phases} progressPercent={workspace.workflowSummary.progressPercent} onSelectPhase={handlePhaseClick} />
-                      <button type="button" onClick={() => setProgressModalOpen(true)} style={{ marginTop: 8, border: "none", background: "none", padding: 0, color: C.teal, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                        전체 과정 보기 →
-                      </button>
-                    </div>
-                  ) : null}
-                  <ProjectMemoPanel clientId={selectedClientId!} activeProject={workspace.activeProject} memo={workspace.memo} onRefresh={refreshWorkspace} />
-                </>
-              )}
-            </>
-          ) : null}
-        </div>
-
-        <div style={{ minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          {workspace?.activeProject ? (
-            <>
-              <PublicationManagementPanel
-                clientId={workspace.client.id}
-                workflowRunId={workspace.activeProject.id}
-                publications={workspace.publications}
-                resourceIds={workspace.resourceIds}
-                onRefresh={refreshWorkspace}
-                onOpenToolModal={openToolModal}
-              />
-              <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
-            </>
-          ) : workspace ? (
-            <PortalManagementPanel clientId={workspace.client.id} portal={workspace.portal} onRefresh={refreshWorkspace} />
-          ) : (
-            <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
-              <p style={{ fontSize: 12.5, color: C.hint, textAlign: "center" }}>고객을 선택하면<br />공개/포털 관리를 볼 수 있습니다.</p>
-            </div>
-          )}
+        <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
+          <p style={{ fontSize: 13, color: C.hint }}>왼쪽 목록에서 고객을 선택해주세요.</p>
         </div>
       </div>
-
-      {workspace?.activeProject && workspace.client ? (
-        <ProgressDetailModal
-          open={progressModalOpen}
-          onClose={() => setProgressModalOpen(false)}
-          client={workspace.client}
-          workflowRun={workspace.activeProject}
-          onOpenToolModal={openToolModal}
-          onRefresh={refreshWorkspace}
-        />
-      ) : null}
-      {workspace?.activeProject ? (
-        <PublicationHistoryModal
-          open={historyModalOpen}
-          onClose={() => setHistoryModalOpen(false)}
-          clientId={workspace.client.id}
-          workflowRunId={workspace.activeProject.id}
-          publications={workspace.publications}
-          onRefresh={refreshWorkspace}
-        />
-      ) : null}
-
-      {workspaceModalState?.type === "quote" ? (
-        <WorkspaceModal
-          open
-          onClose={() => toolBuilderRequestClose?.()}
-          title={`${workspace?.client.name ?? ""} · 견적서 작성`}
-        >
-          <QuoteBuilder
-            mode="modal"
-            clientId={workspaceModalState.clientId}
-            workflowRunId={workspaceModalState.workflowRunId}
-            resourceId={workspaceModalState.resourceId}
-            onClose={() => { setWorkspaceModalState(null); refreshWorkspace(); }}
-            onPublished={refreshWorkspace}
-            registerRequestClose={setToolBuilderRequestClose}
-          />
-        </WorkspaceModal>
-      ) : null}
-
-      {workspaceModalState?.type === "contract" ? (
-        <WorkspaceModal
-          open
-          onClose={() => toolBuilderRequestClose?.()}
-          title={`${workspace?.client.name ?? ""} · 계약서 작성`}
-        >
-          <ContractBuilder
-            mode="modal"
-            clientId={workspaceModalState.clientId}
-            workflowRunId={workspaceModalState.workflowRunId}
-            resourceId={workspaceModalState.resourceId}
-            onClose={() => { setWorkspaceModalState(null); refreshWorkspace(); }}
-            onPublished={refreshWorkspace}
-            registerRequestClose={setToolBuilderRequestClose}
-          />
-        </WorkspaceModal>
-      ) : null}
-
-      {workspaceModalState?.type === "conti" ? (
-        <WorkspaceModal
-          open
-          onClose={() => toolBuilderRequestClose?.()}
-          title={`${workspace?.client.name ?? ""} · 콘티 작성`}
-        >
-          <ContiBuilder
-            mode="modal"
-            clientId={workspaceModalState.clientId}
-            workflowRunId={workspaceModalState.workflowRunId}
-            resourceId={workspaceModalState.resourceId}
-            onClose={() => { setWorkspaceModalState(null); refreshWorkspace(); }}
-            onPublished={refreshWorkspace}
-            registerRequestClose={setToolBuilderRequestClose}
-          />
-        </WorkspaceModal>
-      ) : null}
 
       <ClientFormModal
         open={formModal !== null}
