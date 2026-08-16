@@ -343,12 +343,14 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
         </div>
       </div>
 
-      {workspace?.activeProject && workspace.workflowSummary ? (
+      {workspace?.activeProject && workspace.client ? (
         <ProgressDetailModal
           open={progressModalOpen}
           onClose={() => setProgressModalOpen(false)}
-          phases={workspace.workflowSummary.phases}
-          progressPercent={workspace.workflowSummary.progressPercent}
+          client={workspace.client}
+          workflowRun={workspace.activeProject}
+          onOpenToolModal={openToolModal}
+          onRefresh={refreshWorkspace}
         />
       ) : null}
       {workspace?.activeProject ? (
