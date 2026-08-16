@@ -1003,7 +1003,7 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
-  const [form, setForm] = useState({ nasLink: "", shootDate: "", description: "" });
+  const [form, setForm] = useState({ nasLink: "", shootDate: "", description: "", galleryType: "final_photo" });
   const [publications, setPublications] = useState<any[]>([]);
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
