@@ -145,6 +145,9 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             </button>
           ) : null}
           <button type="button" onClick={() => void startNewConversation()}><Plus size={13} /> 새 대화</button>
+          {onMinimize ? (
+            <button type="button" onClick={onMinimize} aria-label="Olivia 대화 최소화"><Minus size={13} /></button>
+          ) : null}
         </div>
       </header>
 
