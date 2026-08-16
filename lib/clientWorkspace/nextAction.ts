@@ -23,7 +23,7 @@ export type ClientWorkspaceNextAction =
 
 // 문서형 단계(견적/계약/콘티)는 팝업 빌더를 여는 액션 문구, 그 외 단계는 상태명 그대로
 // "OOO 열기"로 통일한다 — 코드 요청서 4차: 단계별로 다른 카드/문구를 쓰지 않는다.
-const TOOL_LINK_TITLES: Record<ToolOnlyStepKey, string> = {
+export const TOOL_LINK_TITLES: Record<ToolOnlyStepKey, string> = {
   quote: "견적서 작성하기",
   contract: "계약서 작성하기",
   conti: "콘티 작성하기",
