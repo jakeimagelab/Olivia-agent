@@ -1054,3 +1054,117 @@ function buildMailLinks(taskType: string, hospitalName: string, output: any) {
   }
   return [{ label: "고객 포털 확인", url: `${baseUrl}/client-portal` }];
 }
+
+export type WorkflowConsistencyIssue = {
+  workflowRunId: string;
+  clientId: string | null;
+  clientName: string;
+  currentStepKey: string;
+  currentStepName: string;
+  foundStepKey: string;
+  foundStepName: string;
+  resourceType: "quote" | "contract" | "conti" | "gallery";
+  resourceId: string | null;
+};
+
+// 코드 요청서 7차(2026-08-16) — "문서/갤러리는 이미 있는데 워크플로우 단계 표시가 그만큼
+// 안 넘어간" 경우를 사람이 우연히 발견하기 전에 찾아낸다(재현: 더힐피부과신사점, 콘티는
+// 이미 있는데 current_step_key가 여전히 conti에 머물러 있던 사례). "완료 인정 기준"은 새로
+// 만들지 않고 2차 요청서의 "최종완료"가 이미 참조하는 조건(문서 row 존재 여부)을 그대로 쓴다.
+// 자동으로 단계를 바꾸지 않는다 — 여기서는 순수하게 "발견"만 하고, 실제 처리는 화면에서
+// 관리자가 "지금 완료 처리"를 눌러야 한다(app/api/workflow-runs/[id]/complete-step,
+// app/api/quotes/[id]/complete 재사용).
+export async function findWorkflowConsistencyIssues(db: SupabaseClient): Promise<WorkflowConsistencyIssue[]> {
+  const { data: runs, error } = await db
+    .from("workflow_runs")
+    .select("id, client_id, client_name, current_step_key, status")
+    .eq("status", "active");
+  if (error || !runs?.length) return [];
+
+  const runIds = runs.map((run) => run.id);
+  const [quotesRes, contractsRes, contisRes, galleriesRes] = await Promise.all([
+    db.from("quotes").select("id, workflow_run_id").in("workflow_run_id", runIds),
+    db.from("contracts").select("id, workflow_run_id").in("workflow_run_id", runIds),
+    db.from("conti_saves").select("id, workflow_run_id").in("workflow_run_id", runIds),
+    db.from("photo_galleries").select("id, workflow_run_id, gallery_type").in("workflow_run_id", runIds),
+  ]);
+
+  // workflow_run_id별로 "가장 최근에 저장된 문서 1건의 id"만 있으면 되므로(오래된 순서는 관심 없음),
+  // 각 배열을 workflow_run_id → id 맵으로 접는다. 여러 건이어도 아무거나 하나면 충분하다
+  // (지금완료 처리 버튼은 그 workflow_run의 "지금 열려있는" 문서를 가리키기만 하면 된다).
+  const byRun = (rows: { id: string; workflow_run_id: string }[] | null) => {
+    const map = new Map<string, string>();
+    for (const row of rows ?? []) if (row.workflow_run_id) map.set(row.workflow_run_id, row.id);
+    return map;
+  };
+  const quoteByRun = byRun(quotesRes.data);
+  const contractByRun = byRun(contractsRes.data);
+  const contiByRun = byRun(contisRes.data);
+
+  const originalTypes = new Set(["original", "original_photo", "original_video"]);
+  const finalTypes = new Set(["retouched", "final_photo", "final_video"]);
+  const originalGalleryRuns = new Set<string>();
+  const finalGalleryRuns = new Set<string>();
+  for (const row of galleriesRes.data ?? []) {
+    if (!row.workflow_run_id) continue;
+    if (originalTypes.has(row.gallery_type)) originalGalleryRuns.add(row.workflow_run_id);
+    if (finalTypes.has(row.gallery_type)) finalGalleryRuns.add(row.workflow_run_id);
+  }
+
+  const issues: WorkflowConsistencyIssue[] = [];
+  for (const run of runs) {
+    const displayCurrentKey = getWorkflowDisplayStepKey(run.current_step_key) || run.current_step_key;
+    const currentIdx = ACTIVE_WORKFLOW_STEP_KEYS.indexOf(displayCurrentKey as any);
+    if (currentIdx === -1) continue;
+
+    // ACTIVE_WORKFLOW_STEP_KEYS 순서대로 훑으면서, 증거가 있는 가장 뒤(=가장 진행된) 단계를 찾는다.
+    let foundIdx = -1;
+    let foundStepKey = "";
+    let resourceType: WorkflowConsistencyIssue["resourceType"] = "quote";
+    let resourceId: string | null = null;
+
+    ACTIVE_WORKFLOW_STEP_KEYS.forEach((stepKey, idx) => {
+      let hasEvidence = false;
+      let stepResourceType: WorkflowConsistencyIssue["resourceType"] = "quote";
+      let stepResourceId: string | null = null;
+
+      if (stepKey === "quote" && quoteByRun.has(run.id)) {
+        hasEvidence = true; stepResourceType = "quote"; stepResourceId = quoteByRun.get(run.id) ?? null;
+      } else if (stepKey === "contract" && contractByRun.has(run.id)) {
+        hasEvidence = true; stepResourceType = "contract"; stepResourceId = contractByRun.get(run.id) ?? null;
+      } else if (stepKey === "conti" && contiByRun.has(run.id)) {
+        hasEvidence = true; stepResourceType = "conti"; stepResourceId = contiByRun.get(run.id) ?? null;
+      } else if (stepKey === "client_selection" && originalGalleryRuns.has(run.id)) {
+        hasEvidence = true; stepResourceType = "gallery"; stepResourceId = null;
+      } else if ((stepKey === "retouching" || stepKey === "final_delivery") && finalGalleryRuns.has(run.id)) {
+        hasEvidence = true; stepResourceType = "gallery"; stepResourceId = null;
+      }
+
+      if (hasEvidence) {
+        foundIdx = idx;
+        foundStepKey = stepKey;
+        resourceType = stepResourceType;
+        resourceId = stepResourceId;
+      }
+    });
+
+    // 증거가 하나도 없거나(아직 아무 단계도 완료 안 됨), 지금 단계가 증거보다 이미 뒤에 있으면
+    // (=단계 표시가 정상적으로 앞서 있으면) 불일치가 아니다. 증거 단계가 지금 단계와 같거나
+    // 더 뒤에 있을 때만(문서는 완료됐는데 단계 표시가 그만큼 안 넘어갔을 때만) 불일치로 본다.
+    if (foundIdx === -1 || currentIdx > foundIdx) continue;
+
+    issues.push({
+      workflowRunId: run.id,
+      clientId: run.client_id ?? null,
+      clientName: run.client_name || "",
+      currentStepKey: run.current_step_key,
+      currentStepName: STEP_NAME[displayCurrentKey] || displayCurrentKey,
+      foundStepKey,
+      foundStepName: STEP_NAME[foundStepKey] || foundStepKey,
+      resourceType,
+      resourceId,
+    });
+  }
+
+  return issues;
+}
