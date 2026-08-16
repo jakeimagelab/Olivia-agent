@@ -654,21 +654,14 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         </div>
       </div>
 
-      <div className="pcrm-stage-stepper" aria-label="프로젝트 진행 단계">
-        {WORKFLOW_STAGES.map((stage, i) => {
-          const state = i < currentStageIdx ? "done" : i === currentStageIdx ? "current" : "pending";
-          return (
-            <div className="pcrm-stage-stepper__step" key={stage.key}>
-              <span className="pcrm-stage-stepper__circle" data-state={state}>{state === "pending" ? stage.order : <Check size={16} />}</span>
-              <div className="pcrm-stage-stepper__text">
-                <b>{stage.order} {stageDisplayName[stage.key] || stage.name}</b>
-                <small data-state={state}>{state === "done" ? "완료" : state === "current" ? "현재 단계" : "대기"}</small>
-              </div>
-              {i < WORKFLOW_STAGES.length - 1 && <span className="pcrm-stage-stepper__line" data-filled={i < currentStageIdx} />}
-            </div>
-          );
-        })}
-      </div>
+      {workflowRun && workflowSummary ? (
+        <div className="pc-card pc-card--padded" style={{ marginBottom: 14 }}>
+          <ProjectWorkflowStepper phases={workflowSummary.phases} progressPercent={workflowSummary.progressPercent} onSelectPhase={handlePhaseClick} />
+          <button type="button" onClick={() => setProgressModalOpen(true)} style={{ marginTop: 8, border: "none", background: "none", padding: 0, color: C.teal, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            전체 과정 보기 →
+          </button>
+        </div>
+      ) : null}
 
       <CurrentStepCard
         client={client}
