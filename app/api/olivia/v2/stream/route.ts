@@ -268,6 +268,7 @@ function toolStatus(name: string) {
   if (name === "list_workflow_step_tasks") return "업무 프로세스를 확인하는 중…";
   if (name === "process_workflow_step") return "현재 단계 업무를 처리하는 중…";
   if (name === "approve_workflow_task") return "업무를 처리하는 중…";
+  if (name === "link_document_to_client") return "고객에 연결하는 중…";
   if (name === "create_feature_record") return "데이터를 생성하는 중…";
   if (name === "update_feature_record") return "데이터를 수정하는 중…";
   return "화면을 준비하는 중…";
