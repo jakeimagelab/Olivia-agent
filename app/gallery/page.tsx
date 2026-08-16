@@ -286,7 +286,8 @@ function GalleryPageInner() {
       shootDate: gallery.shoot_date || "",
       nasLink: gallery.nas_link || "",
       description: gallery.description || "",
-      thumbnailUrl
+      thumbnailUrl,
+      galleryType: normalizeGalleryType(gallery.gallery_type),
     });
     setSelectedClientId(gallery.client_id || "");
     setSelectedClientName(gallery.client_id ? gallery.hospital_name || "" : "");
