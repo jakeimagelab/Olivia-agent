@@ -2133,6 +2133,25 @@
 }
 .olivia-core-mark { position: relative; }
 @keyframes olivia-core-spin { to { transform: rotate(360deg); } }
+/* 코드 요청서 — Olivia UX/Motion Core(2026-08-16). idle은 아주 느린 펄스, done은 스트리밍이
+   막 끝난 순간의 짧은 글로우(OliviaCore.tsx가 1.5초 후 스스로 is-done을 뗀다). */
+.olivia-core-mark.is-idle { animation: olivia-core-idle-pulse 4.2s cubic-bezier(.45,0,.55,1) infinite; }
+@keyframes olivia-core-idle-pulse { 50% { box-shadow: 0 7px 22px rgba(232,93,44,.4), inset 0 1px 1px rgba(255,255,255,.5); } }
+.olivia-core-mark.is-done { box-shadow: 0 0 0 6px rgba(232,93,44,.16), 0 7px 22px rgba(232,93,44,.28), inset 0 1px 1px rgba(255,255,255,.45); transition: box-shadow 320ms ease; }
+.olivia-core-mark__dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--olivia-orange);
+  border: 1.5px solid #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .olivia-core-mark.is-idle { animation: none; }
+  .olivia-core-mark.is-thinking::after { animation: none; }
+}
 .olivia-conversation__controls { display: flex; gap: 6px; }
 .olivia-conversation__controls button {
   min-height: 30px;
