@@ -625,6 +625,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         </div>
 
         <div className="pcrm-detail-header__actions">
+          {headerQuickAction}
           <button onClick={openClientPreview} disabled={previewLoading} className="pc-btn pc-btn--secondary pc-btn--sm">
             <Eye size={13} /> {previewLoading ? "준비 중..." : "고객 포털 보기"}
           </button>
