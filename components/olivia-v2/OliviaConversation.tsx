@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, Maximize2, Minimize2, Plus, Square } from "lucide-react";
+import { ArrowUp, Maximize2, Minimize2, Minus, Plus, Square } from "lucide-react";
 import { MarkdownText, OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { messageText } from "@/lib/olivia/v2/types";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
