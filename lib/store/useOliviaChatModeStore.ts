@@ -11,6 +11,7 @@ type OliviaChatModeState = {
   isChatFocused: boolean;
   isWorkspaceFocused: boolean;
   hasUnread: boolean;
+  modalOpenCount: number;
   expandChat: () => void;
   normalizeChat: () => void;
   compactChat: () => void;
@@ -21,6 +22,8 @@ type OliviaChatModeState = {
   setWorkspaceFocused: (focused: boolean) => void;
   markUnread: () => void;
   clearUnread: () => void;
+  registerModalOpen: () => void;
+  registerModalClose: () => void;
 };
 
 function setMode(get: () => OliviaChatModeState, mode: OliviaChatMode) {
