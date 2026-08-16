@@ -38,14 +38,19 @@ export async function linkDocumentToClient(input: any) {
 
   const db = getSupabaseAdmin();
 
-  const candidates = await fuzzyNameSearch<{ id: string; hospital_name: string }>({
-    db,
-    table,
-    nameColumn: "hospital_name",
-    select: "id, hospital_name, created_at",
-    query,
-    filter: (q: any) => q.is("client_id", null),
-  });
+  // fuzzyNameSearch(ilike)는 "저장된 값이 query를 포함"하는 방향만 본다 — 채팅에서 사용자가
+  // "OOO 콘티를 OOO에 연결해줘"처럼 documentQuery에 "콘티"/"견적서" 같은 군더더기 단어를
+  // 함께 넘기면(모델이 그대로 옮겨 적는 경우가 흔함) 정작 저장된 병원명(예: "페이버요양병원")엔
+  // 없는 단어가 섞여 한쪽 방향 ilike로는 아예 안 걸린다 — 양방향(포함하거나 포함되거나)으로 본다.
+  const { data: unlinked } = await db
+    .from(table)
+    .select("id, hospital_name, created_at")
+    .is("client_id", null)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const candidates = (unlinked ?? []).filter(
+    (row: { hospital_name: string }) => fuzzyIncludes(row.hospital_name, query) || fuzzyIncludes(query, row.hospital_name)
+  ) as { id: string; hospital_name: string }[];
 
   if (candidates.length === 0) {
     return {
