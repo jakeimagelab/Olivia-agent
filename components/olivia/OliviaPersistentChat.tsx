@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
 import OliviaChatDock from "@/components/olivia/OliviaChatDock";
+import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { useOliviaChatModeStore, OLIVIA_CHAT_MODE_WIDTH } from "@/lib/store/useOliviaChatModeStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
