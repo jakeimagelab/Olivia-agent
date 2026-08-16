@@ -84,9 +84,28 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { id, hospitalName } = await req.json();
+    const { id, hospitalName, clientId } = await req.json();
     if (!id) return NextResponse.json({ ok: false, error: "id 필요" }, { status: 400 });
     const db = getSupabaseAdmin();
+
+    // "저장된 콘티" 목록에서 사용자가 고객을 직접 골라 연결하는 경우 — resolveClientId의
+    // "정확히 일치 + 후보 유일"이라는 자동매칭 제약은 병원명 오타(예: "신사본점" vs "신사점")로
+    // client_id/workflow_run_id가 비어 저장된 콘티를 워크플로우가 영영 못 찾는 문제를 만든다.
+    // 여기는 사람이 명시적으로 선택한 값이라 그 제약 없이 그대로 신뢰한다.
+    if (clientId) {
+      const { data: client, error: clientError } = await db
+        .from("clients").select("id, hospital_name").eq("id", clientId).maybeSingle();
+      if (clientError) return NextResponse.json({ ok: false, error: clientError.message }, { status: 500 });
+      if (!client) return NextResponse.json({ ok: false, error: "고객을 찾을 수 없습니다." }, { status: 404 });
+      const workflowRunId = await resolveWorkflowRunId(db, undefined, clientId);
+      const { error } = await db
+        .from("conti_saves")
+        .update({ hospital_name: hospitalName || client.hospital_name, client_id: clientId, workflow_run_id: workflowRunId })
+        .eq("id", id);
+      if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, clientId, workflowRunId, hospitalName: hospitalName || client.hospital_name });
+    }
+
     const { error } = await db
       .from("conti_saves")
       .update({ hospital_name: hospitalName })
