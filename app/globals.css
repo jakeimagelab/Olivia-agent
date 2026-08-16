@@ -612,6 +612,18 @@ main:has(> .pc-header) {
   min-height: calc(100dvh - 58px);
 }
 
+/* ── 코드 요청서 — Olivia UX/Motion Core(2026-08-16) ──────────────
+   body 바로 아래 flex row. OliviaPersistentChat(app/layout.tsx)이 여기서 진짜 폭을 차지해야
+   채팅이 접히고 펴질 때 본문이 밀려나거나 넓어진다(오버레이 드로어가 아니라 flex 참여자). */
+.olivia-app-row {
+  display: flex;
+  min-height: 100dvh;
+}
+.olivia-app-main {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ── 전역 사이드바 (대시보드 홈 / /admin 제외 모든 페이지) ───────
    /admin 콘솔과 똑같은 AdminSidebar를 그대로 재사용한다 — 예전엔 이 파일이 자체 아이콘 레일을
    따로 그려서 두 개의 서로 다른 내비게이션이 존재했다. 그 시절 아이콘 레일 폭(68px)이 그대로
