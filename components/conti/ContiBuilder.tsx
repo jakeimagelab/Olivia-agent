@@ -1488,6 +1488,50 @@ ${contiSummary}
     setEditingId(null);
   };
 
+  // "저장된 콘티" 목록에서 client_id가 비어있는(고객 미연결) 항목을 발견했을 때 — 병원명을
+  // 직접 타이핑해서 저장한 콘티는 병원명이 실제 고객명과 한 글자만 달라도(오타) 자동 연결이
+  // 안 된다(app/api/conti/saves/route.ts의 resolveClientId, 정확히 일치+유일할 때만 연결).
+  // 그 결과 화면엔 저장된 것처럼 보이는데 워크플로우 완료 처리는 영영 그 콘티를 못 찾는 문제가
+  // 생긴다 — 여기서 사용자가 직접 고객을 골라 연결하면 즉시 워크플로우에서도 인식된다.
+  const [linkTarget, setLinkTarget] = useState<SavedConti | null>(null);
+  const [linkQuery,  setLinkQuery]  = useState("");
+  const [linkResults, setLinkResults] = useState<{ id: string; hospital_name?: string; name?: string }[]>([]);
+  const [linkBusy,   setLinkBusy]   = useState(false);
+
+  useEffect(() => {
+    if (!linkTarget) return;
+    const timer = setTimeout(() => {
+      fetch(`/api/clients?q=${encodeURIComponent(linkQuery)}`)
+        .then(r => r.json())
+        .then(d => { if (d.ok) setLinkResults((d.clients || []).slice(0, 8)); })
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [linkQuery, linkTarget]);
+
+  const linkContiToClient = async (client: { id: string; hospital_name?: string; name?: string }) => {
+    if (!linkTarget) return;
+    setLinkBusy(true);
+    try {
+      const name = client.hospital_name || client.name || linkTarget.hospital_name;
+      const res = await fetch("/api/conti/saves", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: linkTarget.id, clientId: client.id, hospitalName: name }),
+      });
+      const data = await res.json();
+      if (!data.ok) { window.alert(data.error || "고객 연결 실패"); return; }
+      setSavedList(prev => prev.map(s => s.id === linkTarget.id
+        ? { ...s, client_id: data.clientId, workflow_run_id: data.workflowRunId, hospital_name: data.hospitalName }
+        : s));
+      setLinkTarget(null);
+      setLinkQuery("");
+      setLinkResults([]);
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
 
   /* ── PDF 인쇄 (브라우저 print, 한글 완벽 지원, 3섹션 1파일) ── */
   const handlePDF = async () => {
