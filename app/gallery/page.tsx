@@ -23,6 +23,22 @@ type Gallery = {
   created_at?: string;
   items?: GalleryItem[];
   client_id?: string | null;
+  gallery_type?: string;
+};
+
+const GALLERY_TYPE_OPTIONS = [
+  { value: "original_photo", label: "원본사진" },
+  { value: "original_video", label: "원본영상" },
+  { value: "final_photo", label: "완료사진" },
+  { value: "final_video", label: "완료영상" },
+];
+
+// 구값(원본/보정본)으로 저장된 갤러리를 편집할 때도 4종류 드롭다운에서 자연스럽게 선택되도록 매핑.
+const normalizeGalleryType = (value?: string) => {
+  if (value === "original") return "original_photo";
+  if (value === "retouched") return "final_photo";
+  if (value === "original_photo" || value === "original_video" || value === "final_photo" || value === "final_video") return value;
+  return "final_photo";
 };
 
 type ClientOption = { id: string; hospital_name?: string; name?: string };
