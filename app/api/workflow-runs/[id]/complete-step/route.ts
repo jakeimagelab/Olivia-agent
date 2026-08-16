@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       actorType: "admin",
       actorName: "관리자",
       actionType: `${stepKey}_completed`,
-      title: `${stepKey === "contract" ? "계약서" : "콘티"} 단계가 최종완료 처리됨`,
+      title: `${STEP_NAME[stepKey] || stepKey} 단계가 최종완료 처리됨`,
       relatedType: stepKey,
       relatedId: workflowRunId,
     });
