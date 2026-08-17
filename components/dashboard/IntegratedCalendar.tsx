@@ -73,7 +73,7 @@ export default function IntegratedCalendar() {
   return (
     <section className="pc-panel pc-schedule-panel">
       <div className="pc-panel__header">
-        <h3>통합 스케줄</h3>
+        <h3>오늘의 일정</h3>
         <div className="pc-panel__actions">
           <button type="button" onClick={() => handleSelectDate(todayStr())}>오늘</button>
           <Link href="/calendar">전체 일정</Link>
