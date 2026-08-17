@@ -1,15 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
-import { computeTaskList, type TaskSessionType } from "@/lib/olivia/taskSession/nextAction";
-
-const SESSION_TYPE_LABEL: Record<TaskSessionType, string> = {
-  "shoot-prep": "촬영 준비",
-  "quote-prep": "견적 준비",
-  "contract-prep": "계약 준비",
-  "delivery": "납품",
-  "general": "업무",
-};
+import { computeTaskList, SESSION_TYPE_LABEL, type TaskSessionType } from "@/lib/olivia/taskSession/nextAction";
 
 async function resolveActiveRun(clientName: string) {
   const db = getSupabaseAdmin();
