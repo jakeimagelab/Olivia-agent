@@ -160,10 +160,10 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         {isHydrated && messages.length === 0 ? (
           <div className="olivia-conversation__welcome">
             <span>OLIVIA AGENT</span>
-            <h1>무엇이든 말해보세요.</h1>
-            <p>대화에 맞춰 고객, 프로젝트와 작업 화면을 함께 준비할게요.</p>
+            <h1>무엇을 도와드릴까요?</h1>
+            <p>업무 질문, 요약, 계획, 문서 작성까지 무엇이든 물어보세요.</p>
             <div className="olivia-conversation__suggestions">
-              {["오늘 일정 알려줘", "히어산부인과 견적 만들어줘", "최근 프로젝트 보여줘"].map((prompt) => (
+              {["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"].map((prompt) => (
                 <button key={prompt} type="button" onClick={() => void sendMessage(prompt)}>{prompt}</button>
               ))}
             </div>
