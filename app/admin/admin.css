@@ -1968,7 +1968,7 @@
   position: relative;
   height: 100%;
   display: grid;
-  grid-template-columns: 210px 340px minmax(0,1fr);
+  grid-template-columns: 210px 280px 280px minmax(0,1fr);
   gap: 12px;
   opacity: 1;
   transform: scale(1);
