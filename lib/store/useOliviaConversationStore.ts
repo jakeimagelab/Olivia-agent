@@ -186,6 +186,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
   agentStatus: undefined,
   pendingWorkspaceOpen: false,
   lastFailedContent: undefined,
+  activeTaskSessionId: undefined,
 
   appendMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
   updateMessage: (id, updates) => set((state) => ({
@@ -195,6 +196,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
   setSending: (isSending) => set({ isSending }),
   setStreaming: (isStreaming) => set({ isStreaming }),
   setAgentStatus: (agentStatus) => set({ agentStatus }),
+  setActiveTaskSessionId: (activeTaskSessionId) => set({ activeTaskSessionId }),
   clearConversation: () => {
     activeController?.abort();
     flushPendingDelta(set);
@@ -207,6 +209,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
       agentStatus: undefined,
       pendingWorkspaceOpen: false,
       lastFailedContent: undefined,
+      activeTaskSessionId: undefined,
     });
     useOliviaLayoutStore.getState().resetToIdle();
     removeConversationCache();
