@@ -415,6 +415,19 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
         </div>
       </div>
 
+      {workflowRun ? (
+        <div style={{ marginBottom: 14 }}>
+          <MissionStatusBar
+            title={`${client.name} ${workflowRun.project_name || "프로젝트"}`}
+            status={workflowCompleted ? "완료" : "진행 중"}
+            currentStage={ACTIVE_WORKFLOW_STEPS.find((step) => step.key === displayStepKey)?.name}
+            nextScheduleLabel={workflowRun.shoot_date ? `${fmtDot(workflowRun.shoot_date)} 촬영` : undefined}
+            owner={workflowRun.manager_name || undefined}
+            progress={workflowSummary?.progressPercent}
+          />
+        </div>
+      ) : null}
+
       {workflowRun && workflowSummary ? (
         <div className="pc-card pc-card--padded" style={{ marginBottom: 14 }}>
           <ProjectWorkflowStepper phases={workflowSummary.phases} progressPercent={workflowSummary.progressPercent} onSelectPhase={handlePhaseClick} />
