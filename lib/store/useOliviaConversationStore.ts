@@ -19,12 +19,18 @@ export type OliviaConversationState = {
   agentStatus?: string;
   pendingWorkspaceOpen: boolean;
   lastFailedContent?: string;
+  // Task Session(코드 요청서 2026-08-17) — start_task_session/continue_task_session 도구가
+  // 성공하면 여기 채워진다. components/olivia/OliviaTaskStrip.tsx가 이 값이 있을 때만 자기
+  // 자신을 렌더링한다(61절 "어느 페이지에서도 Task Session 유지" — Persistent Chat과 같은
+  // 컴포넌트 트리라 route 이동에도 그대로 남는다).
+  activeTaskSessionId?: string;
   appendMessage: (message: OliviaV2Message) => void;
   updateMessage: (id: string, updates: Partial<OliviaV2Message>) => void;
   setMessages: (messages: OliviaV2Message[]) => void;
   setSending: (value: boolean) => void;
   setStreaming: (value: boolean) => void;
   setAgentStatus: (status?: string) => void;
+  setActiveTaskSessionId: (id?: string) => void;
   clearConversation: () => void;
   hydrate: () => Promise<void>;
   startNewConversation: () => Promise<void>;
