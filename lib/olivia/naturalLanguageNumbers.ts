@@ -70,3 +70,18 @@ export function parseShotPosition(value: string | number): number | undefined {
   const amount = parseKoreanCount(value);
   return amount === undefined ? undefined : amount - 1;
 }
+
+const LAST_POSITION_PATTERN = /(마지막|맨\s*아래|맨\s*뒤|끝)/;
+const FIRST_POSITION_PATTERN = /(처음|첫\s*번째|맨\s*위)/;
+
+// 목록 길이를 알아야만 "마지막"을 실제 인덱스로 바꿀 수 있어 parseShotPosition과 분리했다.
+// 숫자 표현("2번")을 먼저 시도하고, 실패하면 "마지막"/"처음" 계열 키워드를 본다.
+export function resolveOrdinalReference(value: string | number, count: number): number | undefined {
+  const numeric = parseShotPosition(value);
+  if (numeric !== undefined) return numeric;
+  if (typeof value !== "string" || count <= 0) return undefined;
+  const source = value.trim();
+  if (LAST_POSITION_PATTERN.test(source)) return count - 1;
+  if (FIRST_POSITION_PATTERN.test(source)) return 0;
+  return undefined;
+}
