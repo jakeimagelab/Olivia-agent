@@ -34,6 +34,7 @@ import ClientOverviewTab from "./_components/detail/ClientOverviewTab";
 import ClientScheduleTab from "./_components/detail/ClientScheduleTab";
 import ClientRevisionsTab from "./_components/detail/ClientRevisionsTab";
 import ClientPortalTab from "./_components/detail/ClientPortalTab";
+import MissionStatusBar from "@/components/olivia/ui/MissionStatusBar";
 import { C } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "./_hooks/useClientRoster";
