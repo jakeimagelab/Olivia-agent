@@ -46,6 +46,8 @@ const C = {
 const BRAND_TEAL = "#155855";
 const BRAND_ORANGE = "#E85D2C";
 
+// 이 키(shooting/client/admin/personal/general)는 app/api/olivia/v2/stream/route.ts의
+// 시스템 프롬프트 캘린더 카테고리 안내와 동기화돼야 한다 — 값을 추가/변경하면 거기도 같이 고친다.
 const CATS: Record<string, { label: string; color: string; bg: string }> = {
   shooting: { label: "촬영",    color: "#E85D2C", bg: "#FFF0EB" },
   client:   { label: "고객",    color: "#155855", bg: "#EAF4F2" },
