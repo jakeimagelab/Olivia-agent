@@ -330,7 +330,7 @@ export async function POST(req: NextRequest) {
   const referentRewrite = applyReferentRewrite(aliasRewrite.text, context);
   const message = referentRewrite.text;
   const resolutionApplied = [...aliasRewrite.applied, ...referentRewrite.applied];
-  if (resolutionApplied.length && process.env.NODE_ENV !== "production") {
+  if (resolutionApplied.length) {
     console.info("[OliviaContext] resolved", { rawMessage, message, resolutionApplied });
   }
 
