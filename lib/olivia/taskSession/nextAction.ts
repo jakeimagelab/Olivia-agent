@@ -5,6 +5,14 @@ export type TaskSessionType = "shoot-prep" | "quote-prep" | "contract-prep" | "d
 export type OliviaTaskStatus = "todo" | "in_progress" | "done";
 export type OliviaTask = { key: string; title: string; status: OliviaTaskStatus };
 
+export const SESSION_TYPE_LABEL: Record<TaskSessionType, string> = {
+  "shoot-prep": "촬영 준비",
+  "quote-prep": "견적 준비",
+  "contract-prep": "계약 준비",
+  "delivery": "납품",
+  "general": "업무",
+};
+
 // Task Session은 Workflow의 상위 개념이 아니라 그 일부 구간을 사용자 업무 단위로 잘라 보여주는
 // 창이다(18절 "기존 Workflow 데이터를 재사용, 새 시스템 안 만듦") — 세션 타입별로 어느 구간을
 // 보여줄지만 정의하고, 완료 여부는 오직 workflow_runs.current_step_key로만 판단한다. 별도
