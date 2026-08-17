@@ -66,7 +66,7 @@ export default function OliviaAdaptiveStage() {
           <button type="button" className="olivia-home-context__collapse" onClick={startConversation} aria-label="패널 접기" title="패널 접기">
             <ChevronDown size={14} />
           </button>
-          <QuickActions /><RecentProjects /><IntegratedCalendar />
+          <QuickActions /><RecentWork /><SmartSuggestions /><IntegratedCalendar />
         </div>
         <div className="olivia-context-dock">
           {/* 채팅 중엔 빠른 실행/최근 프로젝트/오늘 일정 패널이 이 요약 버튼들로 접힌다(is-dock,
