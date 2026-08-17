@@ -9,7 +9,7 @@ import QuickActions from "@/components/dashboard/QuickActions";
 import RecentWork from "@/components/dashboard/RecentWork";
 import SmartSuggestions from "@/components/dashboard/SmartSuggestions";
 import IntegratedCalendar from "@/components/dashboard/IntegratedCalendar";
-import HomeMissionBar from "@/components/dashboard/HomeMissionBar";
+import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { getWorkspaceLayoutWeight, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
