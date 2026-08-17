@@ -83,13 +83,25 @@ export async function linkDocumentToClient(input: any) {
     };
   }
 
+  // 문서 쪽(candidates)은 여러 개면 되묻는데 고객 쪽은 fuzzyNameSearchOne으로 하나만 뽑아
+  // 조용히 확정하고 있었다 — "더힐피부과"처럼 짧게 말하면 실제로 비슷한 이름의 다른 고객이
+  // 있을 때 엉뚱한 고객에 연결될 위험이 있다(문서를 잘못 고르는 것보다 더 나쁘다: 자료가
+  // 통째로 다른 병원 소유가 됨). 고객 쪽도 똑같이 유일할 때만 확정한다.
   const clientName = String(input?.clientName || "").trim();
-  const client = await fuzzyNameSearchOne<{ id: string; hospital_name: string }>({
-    db, table: "clients", nameColumn: "hospital_name", select: "id, hospital_name", query: clientName,
+  const clientMatches = await fuzzyNameSearch<{ id: string; hospital_name: string }>({
+    db, table: "clients", nameColumn: "hospital_name", select: "id, hospital_name", query: clientName, limit: 5,
   });
-  if (!client) {
+  if (clientMatches.length === 0) {
     return { action: "done", message: `"${clientName}" 고객을 찾을 수 없어요. 고객관리에 등록된 정확한 병원명으로 다시 말씀해주세요.` };
   }
+  if (clientMatches.length > 1) {
+    const list = clientMatches.map((c) => `- ${c.hospital_name}`).join("\n");
+    return {
+      action: "done",
+      message: `"${clientName}"와(과) 일치하는 고객이 여러 명이에요. 어떤 고객인지 정확한 이름으로 다시 알려주세요:\n${list}`,
+    };
+  }
+  const client = clientMatches[0];
 
   const document = candidates[0];
   const workflowRunId = await resolveWorkflowRunId(db, undefined, client.id);
