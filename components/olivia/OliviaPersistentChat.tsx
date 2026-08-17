@@ -84,7 +84,10 @@ export default function OliviaPersistentChat() {
       {isMinimized ? (
         <OliviaChatDock />
       ) : (
-        <OliviaConversation variant="drawer" onMinimize={minimizeChat} />
+        <>
+          <OliviaTaskStrip />
+          <OliviaConversation variant="drawer" onMinimize={minimizeChat} />
+        </>
       )}
     </motion.aside>
   );
