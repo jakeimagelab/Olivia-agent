@@ -66,24 +66,6 @@ function rememberEntityIn(recentEntities: ConversationEntity[], entity: Omit<Con
   return [...withoutDuplicate, { ...entity, lastMentionedAt: new Date().toISOString() }].slice(-10);
 }
 
-// "히어산부인과" → "히어" 처럼 흔한 병원명 접미사를 떼어 짧은 별칭 후보를 만든다. 2글자
-// 미만이면(접미사를 떼도 너무 짧으면) 별칭을 만들지 않는다 — 오히려 다른 이름과 헷갈릴 위험.
-const HOSPITAL_NAME_SUFFIXES = [
-  "한방병원", "성형외과", "정형외과", "피부과", "산부인과", "비뇨기과", "안과", "치과",
-  "한의원", "의원", "병원", "클리닉",
-];
-
-export function deriveAlias(fullName: string): string | null {
-  const trimmed = fullName.trim();
-  for (const suffix of HOSPITAL_NAME_SUFFIXES) {
-    if (trimmed.endsWith(suffix) && trimmed.length > suffix.length) {
-      const alias = trimmed.slice(0, -suffix.length).trim();
-      if (alias.length >= 2) return alias;
-    }
-  }
-  return null;
-}
-
 export const useOliviaContextStore = create<OliviaContextState>((set) => ({
   recentActions: [],
   recentEntities: [],
