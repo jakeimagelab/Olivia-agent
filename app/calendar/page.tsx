@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { BarChart3, ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, Share2, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import HomeMissionBar from "@/components/dashboard/HomeMissionBar";
+import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { CALENDAR_REMINDER_LABEL, CALENDAR_REMINDER_MINUTES, reminderTimingPhrase, type CalendarReminderMinutes } from "@/lib/calendarReminders";
 import { parseClipboardTasks } from "@/lib/calendarPaste";
 
