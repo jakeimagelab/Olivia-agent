@@ -5,6 +5,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { createPortal } from "react-dom";
 import OliviaChat from "@/components/OliviaChat";
 import PageHeader from "@/components/PageHeader";
+import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
