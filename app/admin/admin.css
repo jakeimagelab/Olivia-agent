@@ -1902,10 +1902,19 @@
   gap: 12px;
   padding: 12px 14px;
   overflow: hidden;
+  /* UI/UX 통일 개편(2026-08-18) — 시안의 "플로팅 + 살짝 투명한" 느낌은 카드 자체보다 배경이
+     만든다: 카드는 거의 불투명한 흰색이고, 옅은 다방향 그라디언트 배경 위에 소프트 섀도로만
+     떠 보이게 한다. 기존엔 좌상단 한 곳에만 옅게 깔려 화면 대부분이 --olivia-bg 단색으로
+     밋밋했다 — 우하단에도 민트 톤을 하나 더 깔아 은은하게 감싸는 느낌을 준다. */
   background:
-    radial-gradient(circle at 12% -10%, rgba(234,244,242,.9), transparent 34%),
+    radial-gradient(circle at 10% -12%, rgba(234,244,242,.95), transparent 42%),
+    radial-gradient(circle at 96% 108%, rgba(234,244,242,.65), transparent 46%),
     var(--olivia-bg);
 }
+
+.olivia-home-greeting { flex: 0 0 auto; padding: 4px 6px 0; }
+.olivia-home-greeting h1 { margin: 0; color: var(--olivia-text); font-size: clamp(20px, 2vw, 26px); font-weight: 900; letter-spacing: -.02em; }
+.olivia-home-greeting p { margin: 6px 0 0; color: var(--olivia-muted); font-size: 12.5px; }
 
 .olivia-adaptive-stage__chat,
 .olivia-adaptive-stage__workspace { min-height: 0; overflow: hidden; }
