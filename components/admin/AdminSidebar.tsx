@@ -149,6 +149,29 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
             );
           })}
         </ul>
+
+        {favorites.length > 0 ? (
+          <div className="oa-sidebar__section">
+            <p className="oa-sidebar__section-label">즐겨찾기</p>
+            <ul className="oa-sidebar__list">
+              {favorites.map((client, index) => (
+                <li className="oa-sidebar__list-item" key={client.clientId}>
+                  <Link
+                    className={`oa-sidebar__link oa-sidebar__favorite${isActiveRoute(pathname, "/clients") && contextSuffix.includes(client.clientId) ? " oa-sidebar__link--active" : ""}`}
+                    href={`/clients?clientId=${client.clientId}`}
+                    title={client.name}
+                    onClick={onClose}
+                  >
+                    <span className="oa-sidebar__favorite-swatch" style={{ background: FAVORITE_SWATCHES[index % FAVORITE_SWATCHES.length] }} aria-hidden="true">
+                      {client.name.slice(0, 1)}
+                    </span>
+                    <span>{client.name}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </nav>
 
       <div className="oa-sidebar__footer">
