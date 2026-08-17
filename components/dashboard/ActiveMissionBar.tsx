@@ -24,9 +24,10 @@ function formatShootDate(value?: string | null) {
   return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}. (${weekday}) 촬영`;
 }
 
-// 홈 화면 전용 MissionStatusBar 데이터 래퍼 — 가장 최근에 업데이트된 활성 워크플로우를
-// "현재 미션"으로 노출한다(기존 RecentProjects가 쓰는 /api/workflow/summary 그대로 재사용).
-export default function HomeMissionBar() {
+// 홈/캘린더/견적/콘티가 함께 쓰는 MissionStatusBar 데이터 래퍼 — 가장 최근에 업데이트된
+// 활성 워크플로우를 "현재 미션"으로 노출한다(기존 RecentProjects가 쓰는 /api/workflow/summary
+// 그대로 재사용, 페이지별로 새로 데이터를 만들지 않는다 — 40절).
+export default function ActiveMissionBar() {
   const [run, setRun] = useState<WorkflowRun | null | undefined>(undefined);
 
   useEffect(() => {
