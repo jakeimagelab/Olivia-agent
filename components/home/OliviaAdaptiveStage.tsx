@@ -8,6 +8,7 @@ import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTrans
 import QuickActions from "@/components/dashboard/QuickActions";
 import RecentProjects from "@/components/dashboard/RecentProjects";
 import IntegratedCalendar from "@/components/dashboard/IntegratedCalendar";
+import HomeMissionBar from "@/components/dashboard/HomeMissionBar";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { getWorkspaceLayoutWeight, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
