@@ -2310,6 +2310,44 @@
   z-index: 10010;
 }
 .olivia-persistent-chat.is-minimized { width: 60px; }
+/* olivia-conversation은 기본 height:100%인데, 패널 안에 OliviaTaskStrip이 같이 들어오면
+   그만큼 넘친다 — 패널이 flex column이니 남는 공간만 차지하게 바꾼다. */
+.olivia-persistent-chat > .olivia-conversation { height: auto; flex: 1; min-height: 0; }
+
+/* Task Session(코드 요청서 2026-08-17) — "히어산부인과 · 촬영 준비 · 3/5 완료 · 다음: 장비 체크"
+   한 줄 + [계속] 버튼만(60절 크기 제약). */
+.olivia-task-strip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(21,88,85,.08);
+  background: var(--olivia-mint, #eaf4f2);
+}
+.olivia-task-strip__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: #3d524d;
+}
+.olivia-task-strip__text strong { color: #183d38; }
+.olivia-task-strip button {
+  flex-shrink: 0;
+  min-height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: var(--olivia-green, #155855);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.olivia-task-strip button:disabled { opacity: .5; cursor: default; }
 .olivia-chat-dock {
   position: relative;
   flex: 1;
