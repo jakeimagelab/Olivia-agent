@@ -1877,8 +1877,8 @@
   --olivia-radius-sm: 10px;
   --olivia-radius-md: 16px;
   --olivia-radius-lg: 22px;
-  --olivia-shadow-card: 0 10px 30px rgba(21,88,85,.06);
-  --olivia-shadow-floating: 0 18px 44px rgba(21,88,85,.12);
+  --olivia-shadow-card: 0 16px 38px rgba(21,88,85,.08);
+  --olivia-shadow-floating: 0 20px 48px rgba(21,88,85,.14);
 
   /* 대화 토픽 마커 색상 — Phase 3 */
   --topic-quote: #E85D2C;
