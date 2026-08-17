@@ -1845,8 +1845,20 @@
 :root {
   --olivia-green: #155855;
   --olivia-orange: #E85D2C;
+  --olivia-secondary: #569082;
   --olivia-mint: #EAF4F2;
   --olivia-bg: #F8FAF9;
+  --olivia-surface: rgba(255,255,255,.94);
+  --olivia-border: rgba(21,88,85,.1);
+  --olivia-text: #1c2b28;
+  --olivia-muted: #7c8f8b;
+
+  /* UI/UX 통일 개편(2026-08-18) 공통 토큰 — MissionStatusBar 등 신규 공유 컴포넌트가 사용 */
+  --olivia-radius-sm: 10px;
+  --olivia-radius-md: 16px;
+  --olivia-radius-lg: 22px;
+  --olivia-shadow-card: 0 10px 30px rgba(21,88,85,.06);
+  --olivia-shadow-floating: 0 18px 44px rgba(21,88,85,.12);
 
   /* 대화 토픽 마커 색상 — Phase 3 */
   --topic-quote: #E85D2C;
