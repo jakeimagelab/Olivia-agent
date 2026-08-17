@@ -51,14 +51,42 @@ type AdminSidebarProps = {
   onClose?: () => void;
 };
 
+type FavoriteClient = { clientId: string; name: string };
+
 function isActiveRoute(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+const FAVORITE_SWATCHES = ["#155855", "#E85D2C", "#569082", "#EB8F22"];
 
 export function AdminSidebar({ open = false, inert = false, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const asideRef = useRef<HTMLElement>(null);
   const [contextSuffix, setContextSuffix] = useState("");
+  // "즐겨찾기"는 아직 사용자가 직접 고르는 별도 pin 기능이 없어서(3절: "즐겨찾기 고객 유지
+  // 가능" — 새 즐겨찾기 기능을 만들라는 요구는 아님), 가장 최근에 다룬 활성 프로젝트 상위
+  // 3개를 실제 데이터로 대신 보여준다.
+  const [favorites, setFavorites] = useState<FavoriteClient[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/workflow/summary", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !Array.isArray(data?.workflowRuns)) return;
+        const seen = new Set<string>();
+        const list: FavoriteClient[] = [];
+        for (const run of data.workflowRuns as { status: string; client_id: string | null; client_name: string; updated_at: string }[]) {
+          if (run.status !== "active" || !run.client_id || seen.has(run.client_id)) continue;
+          seen.add(run.client_id);
+          list.push({ clientId: run.client_id, name: run.client_name || "이름 없는 고객" });
+          if (list.length >= 3) break;
+        }
+        setFavorites(list);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const incoming = new URLSearchParams(window.location.search);
