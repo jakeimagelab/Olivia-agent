@@ -106,6 +106,16 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     if (!href) return [];
     return [{ type: "OPEN_FEATURE", href }];
   },
+  start_task_session: async ({ result }) => {
+    if (!result.success) return [];
+    const href = value(result.data, "href");
+    return href ? [{ type: "OPEN_FEATURE", href }] : [];
+  },
+  continue_task_session: async ({ result }) => {
+    if (!result.success) return [];
+    const href = value(result.data, "href");
+    return href ? [{ type: "OPEN_FEATURE", href }] : [];
+  },
   // owner_only 필드가 섞이면 create_feature_record/update_feature_record 자체는 DB에 쓰지 않고
   // approvalRequired:true만 돌려준다(코드 요청서 4번 항목) — 여기서 그 표시를 보고 승인 카드로
   // 바꾼다. review_required(즉시 실행됨)나 일반 성공 건은 approvalRequired가 없으니 그대로 통과.
