@@ -62,7 +62,7 @@ export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProp
   return (
     <MissionStatusBar
       title={`${run.client_name || "이름 없는 고객"} ${run.project_name || "프로젝트"}`}
-      status="진행 중"
+      status={run.status === "completed" ? "완료" : run.status === "paused" ? "보류" : "진행 중"}
       currentStage={run.current_step_name}
       nextScheduleLabel={formatShootDate(run.shoot_date)}
       owner={run.manager_name || undefined}
