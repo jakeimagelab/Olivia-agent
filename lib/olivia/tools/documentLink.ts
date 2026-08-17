@@ -51,18 +51,22 @@ export async function linkDocumentToClient(input: any) {
   // "OOO 콘티를 OOO에 연결해줘"처럼 documentQuery에 "콘티"/"견적서" 같은 군더더기 단어를
   // 함께 넘기면(모델이 그대로 옮겨 적는 경우가 흔함) 정작 저장된 병원명(예: "페이버요양병원")엔
   // 없는 단어가 섞여 한쪽 방향 ilike로는 아예 안 걸린다 — 양방향(포함하거나 포함되거나)으로 본다.
+  // select("*")를 쓰고 정렬은 JS에서 한다 — 테이블마다 타임스탬프 컬럼명이 달라(quotes/
+  // contracts는 created_at, conti_saves는 saved_at) 동적 문자열을 .select()/.order()에
+  // 그대로 넣으면 supabase-js의 정적 타입 추론이 깨진다.
   const timestampColumn = DOCUMENT_TIMESTAMP_COLUMN[documentType];
   const { data: unlinked, error: fetchError } = await db
     .from(table)
-    .select(`id, hospital_name, ${timestampColumn}`)
+    .select("*")
     .is("client_id", null)
-    .order(timestampColumn, { ascending: false })
     .limit(200);
   if (fetchError) {
     return { action: "done", message: `자료를 조회하다 오류가 났어요: ${fetchError.message}` };
   }
-  const candidates = (unlinked ?? []).filter(
-    (row: { hospital_name: string }) => fuzzyIncludes(row.hospital_name, query) || fuzzyIncludes(query, row.hospital_name)
+  const rows = (unlinked ?? []) as Record<string, any>[];
+  rows.sort((a, b) => new Date(b[timestampColumn] ?? 0).getTime() - new Date(a[timestampColumn] ?? 0).getTime());
+  const candidates = rows.filter(
+    (row) => fuzzyIncludes(row.hospital_name, query) || fuzzyIncludes(query, row.hospital_name)
   ) as { id: string; hospital_name: string }[];
 
   if (candidates.length === 0) {
