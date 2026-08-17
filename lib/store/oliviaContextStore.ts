@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { deriveAlias } from "@/lib/olivia/intelligence/aliasResolver";
 
 export type OliviaRecentAction = {
   type: string;
