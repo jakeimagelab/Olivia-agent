@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseKoreanCount, parseKoreanMoney, parseShotPosition } from "@/lib/olivia/naturalLanguageNumbers";
+import { parseKoreanCount, parseKoreanMoney, parseShotPosition, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
 
 describe("Olivia Korean number normalization", () => {
   it.each([
