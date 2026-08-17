@@ -8,7 +8,7 @@ import { isUuid } from "@/lib/assistant/validation";
 import { resolveUiActions } from "@/lib/olivia/agent/uiActionResolvers";
 import { buildAgentQuoteData } from "@/lib/quote/agentQuote";
 import { parseKoreanCount, parseKoreanMoney, parseShotPosition, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
-import { addQuoteItem, recalculateQuote, removeQuoteItem, resolveQuoteItem, updateQuoteItem, type QuoteItem } from "@/lib/quote/quoteMutationService";
+import { addQuoteItem, quoteItems, recalculateQuote, removeQuoteItem, resolveQuoteItem, updateQuoteItem, type QuoteItem } from "@/lib/quote/quoteMutationService";
 import { addContiShots, duplicateContiShot, estimateContiDuration, normalizeContiResult, removeContiShot, reorderContiShot, resolveContiShot, updateContiShot } from "@/lib/conti/contiMutationService";
 import type {
   OliviaAgentToolExecution,
