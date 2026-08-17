@@ -314,11 +314,25 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json() as Record<string, unknown>;
-  const message = String(body.message || "").trim();
-  if (!message) return Response.json({ ok: false, error: "메시지를 입력해주세요." }, { status: 400 });
+  const rawMessage = String(body.message || "").trim();
+  if (!rawMessage) return Response.json({ ok: false, error: "메시지를 입력해주세요." }, { status: 400 });
 
   const context = normalizeContext(body.context);
   const pageContext = optionalString(body.pageContext);
+
+  // Context Intelligence(코드 요청서 2026-08-17) — "히어" 같은 별칭이나 "그 병원"/"이거"/
+  // "아까 거" 같은 지시어를, LLM을 부르기도 전에 결정론적으로(비용 없이) 실명으로 풀 수
+  // 있으면 미리 풀어둔다. 이렇게 하면 이 아래의 orchestrator/GPT/도구 30여 개가 전부 코드
+  // 수정 없이 그 혜택을 받는다(도구는 여전히 기존처럼 clientName 문자열을 받아 fuzzy 검색만
+  // 한다 — 여기서 하는 일은 "히어"를 "히어산부인과"로 바꿔주는 것뿐). 애매하면(별칭/지시어
+  // 자체가 없거나, 풀 수 있는 대상이 없으면) 원문을 그대로 두고 기존처럼 LLM이 처리한다.
+  const aliasRewrite = applyAliasRewrite(context.aliases, rawMessage);
+  const referentRewrite = applyReferentRewrite(aliasRewrite.text, context);
+  const message = referentRewrite.text;
+  const resolutionApplied = [...aliasRewrite.applied, ...referentRewrite.applied];
+  if (resolutionApplied.length && process.env.NODE_ENV !== "production") {
+    console.info("[OliviaContext] resolved", { rawMessage, message, resolutionApplied });
+  }
 
   // Olivia Orchestrator: GPT를 부르기 전에 먼저 "코드가 사실을 확실히 아는" 두 가지 경우
   // (오늘/지금이 언제인지, 존재가 확실한 화면을 여는 것)를 결정적으로 처리할 수 있는지 확인한다.
