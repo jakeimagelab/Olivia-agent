@@ -1,5 +1,5 @@
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
-import type { OliviaRecentAction } from "@/lib/store/oliviaContextStore";
+import type { ConversationEntity, EntityAlias, OliviaRecentAction } from "@/lib/store/oliviaContextStore";
 
 export type OliviaLayoutMode =
   | "idle"
