@@ -52,6 +52,8 @@ export async function linkDocumentToClient(input: any) {
     (row: { hospital_name: string }) => fuzzyIncludes(row.hospital_name, query) || fuzzyIncludes(query, row.hospital_name)
   ) as { id: string; hospital_name: string }[];
 
+  console.log("[link_document_to_client]", { documentType, table, query, unlinkedCount: unlinked?.length ?? 0, unlinkedNames: (unlinked ?? []).map((r: any) => r.hospital_name), candidateCount: candidates.length });
+
   if (candidates.length === 0) {
     return {
       action: "done",
