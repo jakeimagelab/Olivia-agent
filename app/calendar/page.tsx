@@ -2612,6 +2612,12 @@ export default function CalendarPage() {
           </button>
       </>} />
 
+      {!isMobile ? (
+        <div style={{ maxWidth: 1440, margin: "0 auto 10px", width: "100%", padding: "0 20px" }}>
+          <ActiveMissionBar />
+        </div>
+      ) : null}
+
       <div style={{
         maxWidth: isMobile ? undefined : 1440, margin: "0 auto", width: "100%",
         height: "calc(100vh - 110px)", display: "flex", overflow: "hidden",
