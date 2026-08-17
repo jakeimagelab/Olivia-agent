@@ -398,7 +398,8 @@ function quoteTarget(quote: Record<string, unknown>, input: Record<string, unkno
 
 function contiTarget(conti: Record<string, unknown>, input: Record<string, unknown>, context: OliviaContextSnapshot) {
   const rawPosition = input.position;
-  const position = rawPosition == null ? undefined : parseShotPosition(String(rawPosition));
+  const shotCount = normalizeContiResult(conti.result).conti.length;
+  const position = rawPosition == null ? undefined : resolveOrdinalReference(String(rawPosition), shotCount);
   const selected = context.selectedEntityType === "conti-shot" ? context.selectedEntityId : undefined;
   const matches = resolveContiShot(conti.result, { shotId: selected, selector: text(input, "selector"), position });
   if (matches.length !== 1) {
