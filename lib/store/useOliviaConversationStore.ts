@@ -319,6 +319,13 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           set({ agentStatus: event.status });
         } else if (event.type === "tool_start") {
           if (WORKSPACE_OPENING_TOOLS.has(event.tool)) set({ pendingWorkspaceOpen: true });
+        } else if (event.type === "tool_result") {
+          if (event.success && (event.tool === "start_task_session" || event.tool === "continue_task_session")) {
+            const sessionId = (event.result as { sessionId?: string } | undefined)?.sessionId;
+            if (sessionId) set({ activeTaskSessionId: sessionId });
+          } else if (event.success && event.tool === "pause_task_session") {
+            set({ activeTaskSessionId: undefined });
+          }
         } else if (event.type === "ui_action") {
           if (event.action.type === "REQUEST_APPROVAL") {
             const approval = event.action;
