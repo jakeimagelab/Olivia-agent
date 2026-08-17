@@ -1932,6 +1932,11 @@ ${header("타임테이블")}
           {autoSaveState === "saving" ? "저장 중..." : autoSaveState === "saved" ? "저장됨" : dirty ? "저장 안 된 변경사항 있음" : ""}
         </div>
       ) : null}
+      {isModal && modalWorkflowRunId ? (
+        <div style={{ padding: "10px 24px 0" }}>
+          <ActiveMissionBar workflowRunId={modalWorkflowRunId} />
+        </div>
+      ) : null}
       <div style={{
         width: "100%",
         maxWidth: pageMode === "portrait" ? 1000 : (result && !fieldView ? 1880 : 1100),
