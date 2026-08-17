@@ -159,6 +159,14 @@ function contextPrompt(context: OliviaContextSnapshot, pageContext?: string, tem
     context.recentActions.length
       ? `최근 UI Action: ${context.recentActions.slice(-4).map((action) => action.type).join(" → ")}`
       : null,
+    context.recentEntities?.length
+      // 별칭/지시어 전처리(applyAliasRewrite/applyReferentRewrite)가 못 잡은 애매한 경우의
+      // 마지막 안전망 — LLM이 참고해서 스스로 해석하거나, 그래도 애매하면 되묻는다.
+      ? `최근 언급된 대상: ${context.recentEntities.slice(-5).map((e) => `${e.type}${e.name ? `(${e.name})` : ""}`).join(", ")}`
+      : null,
+    context.aliases && Object.keys(context.aliases).length
+      ? `등록된 별칭: ${Object.entries(context.aliases).map(([alias, ref]) => `${alias}=${ref.name}`).join(", ")}`
+      : null,
   ].filter((line): line is string => Boolean(line));
   if (pageContext) lines.unshift(`클라이언트 Page Context: ${pageContext}`);
   return lines.length ? lines.join("\n") : "선택된 고객, 프로젝트, Workspace가 없습니다.";
