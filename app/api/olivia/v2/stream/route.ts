@@ -22,6 +22,8 @@ import type { OliviaRuntimeContext } from "@/lib/olivia/runtime/types";
 import { resolveTemporalExpression } from "@/lib/olivia/runtime/temporalResolver";
 import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRequest";
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
+import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
+import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
