@@ -1716,6 +1716,22 @@
   color: #94A09D;
 }
 
+/* 최근 작업 — 콘티/견적/계약 저장 이력을 한 줄씩 */
+.pc-recent-work__list { display: flex; flex-direction: column; gap: 7px; min-height: 0; overflow-y: auto; }
+.pc-recent-work__row { display: flex; align-items: flex-start; gap: 9px; padding: 7px 8px; border-radius: 13px; }
+.pc-recent-work__icon { flex: 0 0 auto; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 9px; background: rgba(21,88,85,.08); color: #155855; }
+.pc-recent-work__icon--견적 { background: rgba(232,93,44,.1); color: #E85D2C; }
+.pc-recent-work__icon--계약 { background: rgba(86,144,130,.14); color: #569082; }
+.pc-recent-work__main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pc-recent-work__main strong { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; font-weight: 700; color: #1C2B28; }
+.pc-recent-work__main small { color: #94A09D; font-size: 10.5px; }
+
+/* 스마트 제안 — 기존 대시보드 집계(견적 후속/계약 대기 등)를 문장 카드로 */
+.pc-smart-suggestions__list { display: flex; flex-direction: column; gap: 7px; min-height: 0; overflow-y: auto; }
+.pc-smart-suggestions__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 11px; border-radius: 13px; background: linear-gradient(165deg, rgba(234,244,242,.7), rgba(255,255,255,.4)); color: #1C2B28; font-size: 11.5px; line-height: 1.4; text-decoration: none; transition: background .15s ease, transform .15s ease; }
+.pc-smart-suggestions__row:hover { background: linear-gradient(165deg, rgba(234,244,242,.95), rgba(255,255,255,.6)); transform: translateY(-1px); }
+.pc-smart-suggestions__row svg { flex: 0 0 auto; color: #569082; }
+
 /* 통합 스케줄 — 가장 넓은 패널, 미니 캘린더 | 오늘 일정 가로 배치 */
 .pc-schedule-panel {
   position: relative;
