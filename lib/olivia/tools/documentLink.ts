@@ -17,6 +17,15 @@ const DOCUMENT_TABLE: Record<string, string> = {
   conti: "conti_saves",
 };
 
+// quotes/contracts는 created_at을 쓰는데 conti_saves만 saved_at이다 — 처음에 created_at으로
+// 통일해서 짰다가 conti_saves에서 컬럼이 없어 조회 자체가 조용히 빈 배열로 실패했다(2026-08-17,
+// "페이버요양병원 콘티를 연결해줘"가 실제 재현된 데이터인데도 못 찾는 버그로 발견).
+const DOCUMENT_TIMESTAMP_COLUMN: Record<string, string> = {
+  quote: "created_at",
+  contract: "created_at",
+  conti: "saved_at",
+};
+
 const DOCUMENT_LABEL: Record<string, string> = {
   quote: "견적서",
   contract: "계약서",
