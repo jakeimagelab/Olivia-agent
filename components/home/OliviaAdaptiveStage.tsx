@@ -43,6 +43,13 @@ export default function OliviaAdaptiveStage() {
 
   return (
     <main className={`olivia-adaptive-stage is-${mode}`} data-layout-mode={mode}>
+      {!isWorkspaceMode ? (
+        <div className="olivia-home-greeting">
+          <h1>안녕하세요, Olivia입니다 <span aria-hidden="true">👋</span></h1>
+          <p>오늘도 함께 일의 흐름을 정리하고, 더 나은 성과를 만들어볼까요?</p>
+        </div>
+      ) : null}
+
       <motion.section
         layout
         transition={spring}
