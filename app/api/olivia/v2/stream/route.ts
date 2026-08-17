@@ -389,10 +389,12 @@ export async function POST(req: NextRequest) {
           ownerId: owner.id,
           conversationId: conversation.id,
           role: "user",
-          content: message,
+          // 사용자가 실제로 타이핑한 원문을 저장한다(화면에도 이게 그대로 보임) — 별칭/지시어를
+          // 실명으로 치환한 message는 이 요청의 LLM 처리에만 쓰고 기록에는 안 남긴다.
+          content: rawMessage,
           channel: "web",
           externalMessageId: optionalString(body.clientRequestId) || crypto.randomUUID(),
-          metadata: { context, pageContext, requestClass, requestKind, routeDecision: deterministic?.routeDecision ?? "GPT_FALLBACK" },
+          metadata: { context, pageContext, requestClass, requestKind, routeDecision: deterministic?.routeDecision ?? "GPT_FALLBACK", resolvedMessage: message !== rawMessage ? message : undefined },
         });
 
         send({ type: "message_start", messageId, conversationId: conversation.id });
