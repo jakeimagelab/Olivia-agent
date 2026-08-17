@@ -2433,7 +2433,8 @@
 .olivia-chat-dock__peek p { margin: 0; color: #3d524d; font-size: 11px; line-height: 1.55; max-height: 96px; overflow: hidden; }
 
 @media (max-width: 1200px) {
-  .olivia-home-context__expanded { grid-template-columns: 190px 300px minmax(0,1fr); }
+  .olivia-home-context__expanded { grid-template-columns: 170px 1fr 1fr; grid-template-rows: auto auto; }
+  .olivia-home-context__expanded > :last-child { grid-column: 1 / -1; }
   .olivia-conversation__stage { grid-template-columns: 148px minmax(0,1fr) 38px; }
 }
 @media (max-width: 900px) {
