@@ -870,6 +870,18 @@ export async function runTool(
   if (name === "process_workflow_step") return fromLegacyResult(name, await processWorkflowStep(input));
   if (name === "approve_workflow_task") return fromLegacyResult(name, await approveWorkflowTask(input));
   if (name === "link_document_to_client") return fromLegacyResult(name, await linkDocumentToClient(input));
+  if (name === "start_task_session") {
+    return fromLegacyResult(name, await startTaskSession({ ...input, clientName: text(input, "clientName") || context.activeClientName }));
+  }
+  if (name === "get_task_session_status") {
+    return fromLegacyResult(name, await getTaskSessionStatus({ clientName: text(input, "clientName") || context.activeClientName }));
+  }
+  if (name === "continue_task_session") {
+    return fromLegacyResult(name, await continueTaskSession({ clientName: text(input, "clientName") || context.activeClientName }));
+  }
+  if (name === "pause_task_session") {
+    return fromLegacyResult(name, await pauseTaskSession({ clientName: text(input, "clientName") || context.activeClientName }));
+  }
 
   // ── 메일링 (발송은 승인 필요 — send_mailing은 미리보기만, apply_send_mailing이 실제 발송) ──
   if (name === "list_mailing_queue") return fromLegacyResult(name, await listMailingQueue(input));
