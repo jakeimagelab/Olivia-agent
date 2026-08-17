@@ -51,6 +51,8 @@ export default function OliviaAdaptiveStage() {
         <OliviaConversation variant={isWorkspaceMode ? "workspace" : "main"} showExpandToggle={isWorkspaceMode} />
       </motion.section>
 
+      {!isWorkspaceMode ? <HomeMissionBar /> : null}
+
       <motion.section
         layout
         transition={spring}
