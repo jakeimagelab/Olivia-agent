@@ -1913,6 +1913,41 @@
 }
 @keyframes olivia-skeleton-pulse { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 
+/* MissionStatusBar — UI/UX 통일 개편(2026-08-18) 공유 컴포넌트. Home/고객관리/캘린더/견적/콘티 공용. */
+.olivia-mission-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  border: 1px solid var(--olivia-border);
+  border-radius: var(--olivia-radius-md);
+  background: var(--olivia-surface);
+  box-shadow: var(--olivia-shadow-card);
+  padding: 13px 18px;
+  flex: 0 0 auto;
+}
+.olivia-mission-bar--loading { min-height: 54px; }
+.olivia-mission-bar__skeleton { display: block; height: 20px; width: 60%; border-radius: 999px; background: linear-gradient(90deg, rgba(21,88,85,.06) 25%, rgba(21,88,85,.12) 37%, rgba(21,88,85,.06) 63%); background-size: 400% 100%; animation: olivia-skeleton-pulse 1.6s ease-in-out infinite; }
+.olivia-mission-bar__title { display: flex; align-items: center; gap: 9px; flex: 0 1 auto; min-width: 0; }
+.olivia-mission-bar__label { flex: 0 0 auto; color: var(--olivia-muted); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.olivia-mission-bar__title strong { color: var(--olivia-text); font-size: 13.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.olivia-mission-bar__badge { flex: 0 0 auto; border-radius: 999px; padding: 3px 10px; background: var(--olivia-mint); color: var(--olivia-green); font-size: 10.5px; font-weight: 800; }
+.olivia-mission-bar__metrics { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; flex: 1 1 auto; min-width: 0; }
+.olivia-mission-bar__metric { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.olivia-mission-bar__metric-label { display: inline-flex; align-items: center; gap: 4px; color: var(--olivia-muted); font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.olivia-mission-bar__metric-value { color: var(--olivia-text); font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.olivia-mission-bar__metric--progress { min-width: 140px; }
+.olivia-mission-bar__progress { display: inline-flex; align-items: center; gap: 8px; }
+.olivia-mission-bar__progress-track { width: 88px; height: 6px; border-radius: 999px; background: var(--olivia-mint); overflow: hidden; }
+.olivia-mission-bar__progress-fill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--olivia-green), var(--olivia-secondary)); }
+.olivia-mission-bar__progress strong { color: var(--olivia-green); font-size: 12px; font-weight: 900; }
+.olivia-mission-bar__detail { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--olivia-border); border-radius: 999px; padding: 7px 13px; background: #fff; color: var(--olivia-green); font-size: 11.5px; font-weight: 800; text-decoration: none; white-space: nowrap; transition: background .15s ease, transform .15s ease; }
+.olivia-mission-bar__detail:hover { background: var(--olivia-mint); transform: translateX(1px); }
+@media (max-width: 860px) {
+  .olivia-mission-bar { gap: 8px 14px; }
+  .olivia-mission-bar__metrics { gap: 12px; }
+}
+
 .olivia-home-context {
   /* 접힌 상태(is-dock)는 아래에서 64px로 고정 override — 이 기본값은 펼친 상태의 높이다.
      예전엔 dock/expanded가 같은 clamp(최대 190px)를 써서, 캘린더 전체 주(week) 행이 다 안
