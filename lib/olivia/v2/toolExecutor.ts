@@ -826,7 +826,8 @@ export async function runTool(
   }
   if (name === "calendar_update") {
     const id = await resolveCalendarTaskId(input);
-    await updateCalendarTask({ ...input, id });
+    const { matchTitle: _matchTitle, ...fields } = input;
+    await updateCalendarTask({ ...fields, id });
     return { tool: name, success: true, data: { taskId: id, summary: "일정을 수정했어요." } };
   }
   if (name === "calendar_complete") {
