@@ -388,7 +388,9 @@ async function saveConti(id: string, result: unknown) {
 
 function quoteTarget(quote: Record<string, unknown>, input: Record<string, unknown>, context: OliviaContextSnapshot) {
   const selected = context.selectedEntityType === "quote-item" ? context.selectedEntityId : undefined;
-  const matches = resolveQuoteItem(quote.items, text(input, "selector"), selected);
+  const rawPosition = input.position;
+  const position = rawPosition == null ? undefined : resolveOrdinalReference(String(rawPosition), quoteItems(quote.items).length);
+  const matches = resolveQuoteItem(quote.items, text(input, "selector"), selected, position);
   if (matches.length !== 1) {
     const choices = matches.map(({ item }) => item.name).join(", ");
     throw new Error(choices ? `대상 항목이 여러 개예요: ${choices}` : "수정할 견적 항목을 찾지 못했어요.");
