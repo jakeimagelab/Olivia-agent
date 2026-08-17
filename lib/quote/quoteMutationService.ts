@@ -18,12 +18,13 @@ export function quoteItems(value: unknown): QuoteItem[] {
   return Array.isArray(value) ? value.map((item) => ({ ...(item as QuoteItem) })) : [];
 }
 
-export function resolveQuoteItem(value: unknown, selector?: string, selectedId?: string): QuoteItemMatch[] {
+export function resolveQuoteItem(value: unknown, selector?: string, selectedId?: string, position?: number): QuoteItemMatch[] {
   const items = quoteItems(value);
   if (selectedId) {
     const exact = items.flatMap((item, index) => item.id === selectedId ? [{ item, index }] : []);
     if (exact.length) return exact;
   }
+  if (position !== undefined && items[position]) return [{ item: items[position], index: position }];
   const query = normalized(selector);
   if (!query) return [];
   const exact = items.flatMap((item, index) => {
