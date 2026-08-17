@@ -188,6 +188,8 @@ export function getOliviaContextSnapshot(pathname?: string) {
     selectedEntityId: state.selectedEntityId,
     selectedScheduleId: state.selectedScheduleId,
     recentActions: state.recentActions,
+    recentEntities: state.recentEntities,
+    aliases: state.aliases,
     revision: state.revision,
   };
 }
