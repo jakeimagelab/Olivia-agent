@@ -40,6 +40,8 @@ export type OliviaContextSnapshot = {
   selectedEntityId?: string;
   selectedScheduleId?: string;
   recentActions: OliviaRecentAction[];
+  recentEntities?: ConversationEntity[];
+  aliases?: Record<string, EntityAlias>;
   revision: number;
 };
 
