@@ -100,6 +100,28 @@ function normalizeContext(value: unknown): OliviaContextSnapshot {
         return type ? [{ type, at: optionalString(row.at) || new Date(0).toISOString(), entityId: optionalString(row.entityId) }] : [];
       }).slice(-8)
     : [];
+  const recentEntities = Array.isArray(input.recentEntities)
+    ? input.recentEntities.flatMap((entity) => {
+        if (!entity || typeof entity !== "object" || Array.isArray(entity)) return [];
+        const row = entity as Record<string, unknown>;
+        const type = optionalString(row.type);
+        const id = optionalString(row.id);
+        if (!type || !id) return [];
+        return [{ type, id, name: optionalString(row.name), lastMentionedAt: optionalString(row.lastMentionedAt) || new Date(0).toISOString() }];
+      }).slice(-10)
+    : [];
+  const aliasesInput = input.aliases && typeof input.aliases === "object" && !Array.isArray(input.aliases)
+    ? input.aliases as Record<string, unknown>
+    : {};
+  const aliases: Record<string, { type: string; id: string; name: string }> = {};
+  for (const [alias, ref] of Object.entries(aliasesInput)) {
+    if (!ref || typeof ref !== "object" || Array.isArray(ref)) continue;
+    const row = ref as Record<string, unknown>;
+    const type = optionalString(row.type);
+    const id = optionalString(row.id);
+    const name = optionalString(row.name);
+    if (type && id && name) aliases[alias] = { type, id, name };
+  }
   return {
     pathname: optionalString(input.pathname),
     activeClientId: optionalString(input.activeClientId),
@@ -112,6 +134,8 @@ function normalizeContext(value: unknown): OliviaContextSnapshot {
     selectedEntityId: optionalString(input.selectedEntityId),
     selectedScheduleId: optionalString(input.selectedScheduleId),
     recentActions: actions,
+    recentEntities,
+    aliases,
     revision: typeof input.revision === "number" ? input.revision : 0,
   };
 }
