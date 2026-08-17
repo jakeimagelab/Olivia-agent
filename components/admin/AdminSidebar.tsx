@@ -24,16 +24,20 @@ type NavigationItem = {
   carryContext?: boolean;
 };
 
-/* 사이드바를 5개 핵심 항목으로 최소화 — 그 외 모든 기능(메모/업무일지/메일링/워크스페이스/
+/* 사이드바를 핵심 항목으로 최소화 — 그 외 모든 기능(메모/업무일지/메일링/워크스페이스/
    외부링크/휴지통/카카오 AI비서/라이브러리/마케팅 등 lib/toolNav.ts의 ALL_TOOLS 전체)은
    "더보기"(/admin/tools)에서 카테고리별로 찾아 들어간다 — 각 항목이 사라진 게 아니라
-   한 단계 안쪽으로 옮겨졌을 뿐이다. */
+   한 단계 안쪽으로 옮겨졌을 뿐이다. 문서/일정/고객 관리/보고서는 기존 견적(/quote)·캘린더
+   (/calendar)·프로젝트(/clients)·통계(/admin/tools?category=report) 화면을 그대로 가리킨다
+   (UI/UX 통일 개편 3절 — "필요한 기존 메뉴가 있다면 하위 메뉴로 유지 가능"). */
 const navigation: NavigationItem[] = [
   { label: "홈", href: "/admin/dashboard/home", icon: House, accent: "orange" },
-  { label: "캘린더", href: "/calendar", icon: CalendarDays, accent: "orange" },
-  { label: "프로젝트", href: "/clients", icon: UsersRound, carryContext: true },
-  { label: "대화", href: "/admin/dashboard/conversations", icon: MessagesSquare },
-  { label: "더보기", href: "/admin/tools", icon: Grid2X2, carryContext: true },
+  { label: "채팅", href: "/admin/dashboard/conversations", icon: MessagesSquare },
+  { label: "프로젝트", href: "/clients", icon: FolderKanban, carryContext: true },
+  { label: "문서", href: "/quote", icon: FileText, carryContext: true },
+  { label: "일정", href: "/calendar", icon: CalendarDays, accent: "orange" },
+  { label: "고객 관리", href: "/clients", icon: UsersRound, carryContext: true },
+  { label: "보고서", href: "/admin/tools?category=report", icon: BarChart3 },
 ];
 
 type AdminSidebarProps = {
