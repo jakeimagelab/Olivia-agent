@@ -1986,8 +1986,9 @@
   position: relative;
   height: 100%;
   display: grid;
-  grid-template-columns: 210px 280px 280px minmax(0,1fr);
-  gap: 12px;
+  /* 최근작업/스마트제안/오늘일정 3장 — 오늘일정이 미니캘린더+일정목록을 다 담아야 해서 제일 넓다. */
+  grid-template-columns: minmax(240px,.9fr) minmax(240px,.9fr) minmax(380px,1.4fr);
+  gap: 18px;
   opacity: 1;
   transform: scale(1);
   transform-origin: bottom center;
