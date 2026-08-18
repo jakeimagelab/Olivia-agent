@@ -1889,8 +1889,8 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: var(--space-lg, 20px);
+  padding: 20px 36px;
   overflow: hidden;
   /* UI/UX 통일 개편(2026-08-18) — 시안의 "플로팅 + 살짝 투명한" 느낌은 카드 자체보다 배경이
      만든다: 카드는 거의 불투명한 흰색이고, 옅은 다방향 그라디언트 배경 위에 소프트 섀도로만
