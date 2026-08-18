@@ -2091,7 +2091,11 @@
 .olivia-conversation--home .olivia-conversation__welcome h1 { font-size: clamp(24px,2.6vw,30px); letter-spacing: -.025em; font-weight: 800; }
 .olivia-conversation--home .olivia-conversation__welcome p { font-size: 14px; margin-top: 4px; }
 .olivia-conversation--home .olivia-composer-shell { padding: 18px clamp(20px,4vw,42px) 26px; }
-.olivia-conversation--home .olivia-composer { border-radius: 21px; box-shadow: 0 10px 30px rgba(21,88,85,.06); }
+.olivia-conversation--home .olivia-composer { min-height: 56px; border-radius: 21px; box-shadow: 0 10px 30px rgba(21,88,85,.06); padding: 6px 8px 6px 18px; }
+.olivia-conversation--home .olivia-composer textarea { font-size: 13.5px; padding: 10px 0; }
+.olivia-conversation--home .olivia-composer > button { width: 42px; height: 42px; flex: 0 0 42px; }
+.olivia-conversation--home .olivia-conversation__suggestions { gap: 10px; margin-top: 18px; }
+.olivia-conversation--home .olivia-conversation__suggestions button { min-height: 38px; padding: 0 16px; font-size: 13px; font-weight: 700; color: var(--olivia-green); }
 .olivia-conversation__stage {
   flex: 1;
   min-height: 0;
