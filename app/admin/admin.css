@@ -512,10 +512,10 @@
 }
 
 .oa-shell {
-  /* 260px — 실제 AdminSidebar가 라벨까지 렌더링하는 폭(위쪽 기본 .oa-shell 규칙, .pc-gs-shell과
+  /* 228px — 실제 AdminSidebar가 라벨까지 렌더링하는 폭(위쪽 기본 .oa-shell 규칙, .pc-gs-shell과
      동일)과 반드시 맞춰야 한다. 예전엔 여기 188px가 남아있어서 홈(.oa-shell)과 캘린더/프로젝트
-     (.pc-gs-shell) 사이드바 폭이 서로 달라 보이는 버그가 있었다. */
-  grid-template-columns: 260px minmax(0, 1fr);
+     (.pc-gs-shell) 사이드바 폭이 서로 달라 보이는 버그가 있었다(2026-08-18 228px로 재조정). */
+  grid-template-columns: 228px minmax(0, 1fr);
   background:
     radial-gradient(circle at 82% 8%, rgba(232, 93, 44, .055), transparent 25%),
     radial-gradient(circle at 18% 72%, rgba(21, 88, 85, .065), transparent 30%),
