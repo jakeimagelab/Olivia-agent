@@ -52,15 +52,19 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
 
   return (
     <>
-      <header className={`oa-header${enhanced ? " oa-header--enhanced" : ""}`}>
+      <header className={`oa-header${enhanced ? " oa-header--enhanced" : ""}${dashboardHome ? " oa-header--home" : ""}`}>
         <div className="oa-header__brand">
           <img src="/assets/photoclinic-logo.png" alt="포토클리닉" />
-          <h1 className={`oa-header__title${compactTitle ? " oa-header__title--compact" : ""}`}>{meta.title}</h1>
+          {/* 홈에서는 "안녕하세요, Olivia입니다"가 유일한 큰 제목이어야 한다(레퍼런스 최종
+              요청서 2절) — "포토클리닉 AI 비서" 중복 헤딩은 홈에서만 숨긴다. */}
+          {dashboardHome ? null : <h1 className={`oa-header__title${compactTitle ? " oa-header__title--compact" : ""}`}>{meta.title}</h1>}
         </div>
         {enhanced ? <div className="oa-header__command-area">
-          <Suspense fallback={<div className="oa-header-search oa-header-search--loading" aria-label="검색 준비 중"/>}>
-            <AdminHeaderSearch mode={toolsHome ? "tools" : "global"}/>
-          </Suspense>
+          {dashboardHome ? null : (
+            <Suspense fallback={<div className="oa-header-search oa-header-search--loading" aria-label="검색 준비 중"/>}>
+              <AdminHeaderSearch mode={toolsHome ? "tools" : "global"}/>
+            </Suspense>
+          )}
           {dashboardHome ? <AdminHeaderActions/> : null}
         </div> : null}
       </header>
