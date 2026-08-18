@@ -258,7 +258,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         </div>
       </div>
         </div>
-        <OliviaConversationGuide exchanges={exchanges} activeId={activeMessageId} selectedId={selectedGuideId} onNavigate={scrollToMessage} onSelect={setSelectedGuideId} />
+        {isHome ? null : <OliviaConversationGuide exchanges={exchanges} activeId={activeMessageId} selectedId={selectedGuideId} onNavigate={scrollToMessage} onSelect={setSelectedGuideId} />}
       </div>
     </section>
   );
