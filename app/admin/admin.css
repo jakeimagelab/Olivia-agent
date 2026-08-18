@@ -1928,9 +1928,9 @@
 .olivia-adaptive-stage.is-idle,
 .olivia-adaptive-stage.is-conversation { overflow-y: auto; max-width: 1360px; margin: 0 auto; width: 100%; }
 
-.olivia-home-greeting { flex: 0 0 auto; padding: 4px 6px 0; }
-.olivia-home-greeting h1 { margin: 0; color: var(--olivia-text); font-size: clamp(24px, 2.4vw, 34px); font-weight: 800; letter-spacing: -.02em; }
-.olivia-home-greeting p { margin: 8px 0 0; color: var(--olivia-muted); font-size: 14.5px; }
+.olivia-home-greeting { flex: 0 0 auto; padding: 0 4px; min-height: 80px; }
+.olivia-home-greeting h1 { margin: 0; color: var(--text-main); font-size: 32px; font-weight: 700; line-height: 1.25; letter-spacing: -.03em; }
+.olivia-home-greeting p { margin: 8px 0 0; color: var(--text-sub); font-size: 15px; font-weight: 500; line-height: 1.6; letter-spacing: -.01em; }
 
 .olivia-adaptive-stage__chat,
 .olivia-adaptive-stage__workspace { min-height: 0; overflow: hidden; }
