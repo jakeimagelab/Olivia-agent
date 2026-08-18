@@ -41,7 +41,7 @@ export default function RecentWork() {
         ) : items.length === 0 ? (
           <div className="pc-panel__empty">최근 작업이 없어요.</div>
         ) : (
-          items.map((item) => {
+          items.slice(0, 4).map((item) => {
             const Icon = KIND_ICON[item.kind];
             return (
               <div key={item.id} className="pc-recent-work__row">
