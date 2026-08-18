@@ -51,6 +51,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&family=Nanum+Myeongjo:wght@400;700;800&family=Black+Han+Sans&family=Do+Hyeon&family=Gothic+A1:wght@400;700;900&family=Song+Myung&display=swap"
           rel="stylesheet"
         />
+        {/* UI/UX 통일 개편 V2(2026-08-18) — 시안 지정 폰트. --font-sans 체인의 첫 순위로 넣고
+            NanumSquare/Noto Sans KR은 폴백으로 남긴다(로드 실패해도 전체가 깨지지 않게). */}
+        <link
+          rel="stylesheet"
+          as="style"
+          crossOrigin="anonymous"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css"
+        />
       </head>
       <body className={`${nanumSquare.variable} min-h-screen font-sans antialiased`}>
         <SplashScreen />
