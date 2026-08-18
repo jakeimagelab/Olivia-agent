@@ -1771,23 +1771,23 @@
 }
 .pc-today-schedule__date {
   margin-bottom: 4px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  color: #1C2B28;
+  color: #243632;
 }
 .pc-schedule-row {
   width: 100%;
-  min-height: 28px;
+  min-height: 46px;
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  padding: 3px 4px;
+  padding: 4px 6px;
   border: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-xs);
 }
 .pc-schedule-row:hover {
   background: rgba(21,88,85,.04);
@@ -1797,7 +1797,7 @@
   box-shadow: inset 2px 0 0 var(--olivia-green, #155855);
 }
 .pc-schedule-row time {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #E85D2C;
 }
