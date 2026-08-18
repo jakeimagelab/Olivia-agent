@@ -56,7 +56,7 @@ export default function OliviaAdaptiveStage() {
         className="olivia-adaptive-stage__chat"
         style={{ flexGrow: isWorkspaceMode ? weights.chat : 1 }}
       >
-        <OliviaConversation variant={isWorkspaceMode ? "workspace" : "main"} showExpandToggle={isWorkspaceMode} />
+        <OliviaConversation variant={isWorkspaceMode ? "workspace" : "home"} showExpandToggle={isWorkspaceMode} />
       </motion.section>
 
       {!isWorkspaceMode ? <ActiveMissionBar /> : null}
