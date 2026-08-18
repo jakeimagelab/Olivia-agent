@@ -1554,9 +1554,10 @@
 }
 .pc-panel__header h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 700;
-  color: #1C2B28;
+  letter-spacing: -.02em;
+  color: #243632;
 }
 .pc-panel__actions {
   display: flex;
