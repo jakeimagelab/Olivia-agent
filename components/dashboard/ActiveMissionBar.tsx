@@ -59,9 +59,15 @@ export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProp
   if (run === undefined) return <MissionStatusBar title="" loading />;
   if (!run) return null;
 
+  // project_name이 이미 client_name으로 시작하는 경우가 많다(예: "더힐피부과신사점 브랜드 촬영") —
+  // 그대로 이어붙이면 "더힐피부과신사점 더힐피부과신사점 브랜드 촬영"처럼 중복 표시된다.
+  const clientName = run.client_name || "이름 없는 고객";
+  const projectName = run.project_name || "프로젝트";
+  const title = projectName.trim().startsWith(clientName.trim()) ? projectName : `${clientName} ${projectName}`;
+
   return (
     <MissionStatusBar
-      title={`${run.client_name || "이름 없는 고객"} ${run.project_name || "프로젝트"}`}
+      title={title}
       status={run.status === "completed" ? "완료" : run.status === "paused" ? "보류" : "진행 중"}
       currentStage={run.current_step_name}
       nextScheduleLabel={formatShootDate(run.shoot_date)}
