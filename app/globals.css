@@ -3,7 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: var(--font-nanum-square), "NanumSquare", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+  /* --font-nanum-square는 next/font가 <body> 클래스에만 붙이는 변수라 :root에선 아직 안 보인다 —
+     var()에 폴백을 안 주면 여기서 통째로 invalid가 돼 버려서(값이 하나라도 못 풀리면 전체
+     font-family 목록이 무효화됨) 이 --font-sans를 상속받는 모든 곳이 브라우저 기본 serif(Times)로
+     떨어지는 사고가 났다(2026-08-18) — var()에 명시적 폴백을 줘서 :root에서부터 항상 유효한
+     값이 되게 고정한다. */
+  --font-sans: var(--font-nanum-square, "NanumSquare"), "NanumSquare", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
   --deep-green: #155855;
   --ui-teal: #103A62;
   --ui-teal-soft: #E8F0F5;
