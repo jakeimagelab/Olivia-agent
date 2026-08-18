@@ -31,7 +31,7 @@ function buildSuggestions(data: ReturnType<typeof useHomeDashboardData>["data"])
   if (mailingPending > 0) list.push({ id: "mailing", text: `발송 대기 중인 메일이 ${mailingPending}건 있어요.`, href: "/mailing", icon: Mail });
 
   if (list.length < 3) {
-    const todayCount = data.todayTasks?.length ?? 0;
+    const todayCount = data?.todayTasks?.length ?? 0;
     if (todayCount > 0) list.push({ id: "today", text: `오늘 일정이 ${todayCount}건 있어요. 확인해보세요.`, href: "/calendar", icon: CalendarCheck2 });
     if (list.length < 3) list.push({ id: "browse-clients", text: "진행 중인 프로젝트 현황을 살펴보세요.", href: "/clients", icon: FolderSearch });
     if (list.length < 3) list.push({ id: "browse-calendar", text: "이번 주 일정을 캘린더에서 정리해보세요.", href: "/calendar", icon: CalendarCheck2 });
