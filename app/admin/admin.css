@@ -1581,8 +1581,9 @@
   appearance: none;
   border: 0;
   background: transparent;
-  color: #6F7E7A;
-  font-size: 11px;
+  color: #81928D;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   text-decoration: none;
 }
