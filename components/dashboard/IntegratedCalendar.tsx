@@ -2,10 +2,21 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { FilePlus2, FolderUp, CalendarPlus, UsersRound } from "lucide-react";
 import MiniCalendar from "@/components/work-journal/MiniCalendar";
 import { dateHeaderLabel, todayStr } from "@/lib/work-journal/dateLabel";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { navigateToFeature } from "@/lib/olivia/features/navigationBridge";
+
+// UI/UX 통일 개편(2026-08-18) 23절 — Quick Action은 더 이상 별도 카드가 아니라 Today Schedule
+// 카드 하단에 붙는다(하단 그리드를 3카드로 줄이기 위함). QuickActions.tsx와 같은 4개 액션.
+const QUICK_LINKS = [
+  { label: "새 프로젝트", href: "/clients", icon: FilePlus2 },
+  { label: "문서 업로드", href: "/quote", icon: FolderUp },
+  { label: "일정 등록", href: "/calendar", icon: CalendarPlus },
+  { label: "고객 검색", href: "/clients", icon: UsersRound },
+] as const;
 
 // 통합 스케줄 — 미니 캘린더(왼쪽, 작게) + 선택한 날짜의 일정(오른쪽, 넓게)을 가로로 배치.
 // 오늘 할 일은 캘린더 아래에 "3/5" 요약만 보여준다(체크리스트 전체는 /calendar에서).
