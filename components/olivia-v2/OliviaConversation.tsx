@@ -261,6 +261,13 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
           </button>
         </div>
       </div>
+      {isHome && isEmpty ? (
+        <div className="olivia-conversation__suggestions olivia-conversation__suggestions--below-composer">
+          {["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"].map((prompt) => (
+            <button key={prompt} type="button" onClick={() => void sendMessage(prompt)}>{prompt}</button>
+          ))}
+        </div>
+      ) : null}
         </div>
         {isHome ? null : <OliviaConversationGuide exchanges={exchanges} activeId={activeMessageId} selectedId={selectedGuideId} onNavigate={scrollToMessage} onSelect={setSelectedGuideId} />}
       </div>
