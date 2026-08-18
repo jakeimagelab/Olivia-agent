@@ -1532,14 +1532,14 @@
 .pc-panel {
   min-width: 0;
   min-height: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: rgba(255,255,255,.92);
-  border: 1px solid rgba(255,255,255,.7);
-  box-shadow: 0 16px 38px rgba(21,88,85,.075);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(21,88,85,.08);
+  box-shadow: 0 10px 26px rgba(21,88,85,.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   overflow: hidden;
-  padding: 14px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
 }
