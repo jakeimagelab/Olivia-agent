@@ -1731,9 +1731,10 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(280px, 1.3fr) minmax(220px, 1fr);
+  /* 시안 28절 — 42% 미니캘린더 / 58% 오늘 일정 목록 */
+  grid-template-columns: minmax(190px, 42fr) minmax(220px, 58fr);
   grid-template-rows: minmax(0, 1fr);
-  gap: 16px;
+  gap: 14px;
 }
 .pc-mini-calendar-wrap {
   min-width: 0;
