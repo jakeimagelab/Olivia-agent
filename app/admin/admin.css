@@ -1905,7 +1905,7 @@
    채우는 flex-grow 캔버스가 아니라, 컨텐츠 높이만큼만 차지하고 세로 가운데는 비워둔다.
    화면이 넘치면(작은 창) stage 전체가 스크롤된다 — 억지로 다 우겨넣지 않는다. */
 .olivia-adaptive-stage.is-idle,
-.olivia-adaptive-stage.is-conversation { overflow-y: auto; max-width: 1260px; margin: 0 auto; width: 100%; }
+.olivia-adaptive-stage.is-conversation { overflow-y: auto; max-width: 1360px; margin: 0 auto; width: 100%; }
 
 .olivia-home-greeting { flex: 0 0 auto; padding: 4px 6px 0; }
 .olivia-home-greeting h1 { margin: 0; color: var(--olivia-text); font-size: clamp(24px, 2.4vw, 34px); font-weight: 800; letter-spacing: -.02em; }
