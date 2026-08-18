@@ -163,8 +163,12 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       <div ref={listRef} className="olivia-conversation__messages" aria-live="polite">
         {!isHydrated ? <div className="olivia-conversation__empty">대화를 불러오는 중…</div> : null}
         {isHydrated && messages.length === 0 ? (
-          <div className="olivia-conversation__welcome">
-            <span>OLIVIA AGENT</span>
+          <div className={`olivia-conversation__welcome${isHome ? " is-home" : ""}`}>
+            {isHome ? (
+              <span className="olivia-conversation__welcome-icon"><OliviaIcon size={20} /></span>
+            ) : (
+              <span>OLIVIA AGENT</span>
+            )}
             <h1>무엇을 도와드릴까요?</h1>
             <p>업무 질문, 요약, 계획, 문서 작성까지 무엇이든 물어보세요.</p>
             <div className="olivia-conversation__suggestions">
