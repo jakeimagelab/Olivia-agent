@@ -1919,22 +1919,25 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-lg, 20px);
-  padding: 20px 36px;
+  padding: 20px 40px 18px;
   overflow: hidden;
   /* UI/UX 통일 개편(2026-08-18) — 시안의 "플로팅 + 살짝 투명한" 느낌은 카드 자체보다 배경이
      만든다: 카드는 거의 불투명한 흰색이고, 옅은 다방향 그라디언트 배경 위에 소프트 섀도로만
      떠 보이게 한다. 기존엔 좌상단 한 곳에만 옅게 깔려 화면 대부분이 --olivia-bg 단색으로
      밋밋했다 — 우하단에도 민트 톤을 하나 더 깔아 은은하게 감싸는 느낌을 준다. */
   background:
-    radial-gradient(circle at 10% -12%, rgba(234,244,242,.95), transparent 42%),
-    radial-gradient(circle at 96% 108%, rgba(234,244,242,.65), transparent 46%),
-    var(--olivia-bg);
+    radial-gradient(circle at 70% 6%, rgba(213,240,235,.30), transparent 30%),
+    linear-gradient(180deg, #FBFDFC 0%, #F8FBFA 100%);
 }
-/* 레퍼런스 강제 재현 요청(2026-08-18) — idle/conversation 모드는 workspace처럼 뷰포트를 꽉
-   채우는 flex-grow 캔버스가 아니라, 컨텐츠 높이만큼만 차지하고 세로 가운데는 비워둔다.
-   화면이 넘치면(작은 창) stage 전체가 스크롤된다 — 억지로 다 우겨넣지 않는다. */
+/* 레퍼런스 최종 강제 재현(2026-08-18) — margin:0 auto로 가운데 정렬하면 넓은 모니터에서
+   사이드바 바로 옆에 큰 빈 공백이 생긴다("왜 이렇게 작게 떠 있지" 원인). 가운데 정렬을 버리고
+   사이드바 바로 옆에서 시작해 뷰포트가 넓어질수록 실제로 커지게 한다. */
 .olivia-adaptive-stage.is-idle,
-.olivia-adaptive-stage.is-conversation { overflow-y: auto; max-width: 1360px; margin: 0 auto; width: 100%; }
+.olivia-adaptive-stage.is-conversation { overflow-y: auto; overflow-x: hidden; width: 100%; max-width: 1420px; margin: 0; }
+@media (min-width: 1800px) {
+  .olivia-adaptive-stage.is-idle,
+  .olivia-adaptive-stage.is-conversation { max-width: 1580px; }
+}
 
 .olivia-home-greeting { flex: 0 0 auto; padding: 0 4px; min-height: 80px; }
 .olivia-home-greeting h1 { margin: 0; color: var(--text-main); font-size: 32px; font-weight: 700; line-height: 1.25; letter-spacing: -.03em; }
