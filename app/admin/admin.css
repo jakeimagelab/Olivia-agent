@@ -1718,7 +1718,7 @@
 .pc-recent-work__main small { color: #92A09C; font-size: 12px; font-weight: 500; }
 
 /* 스마트 제안 — 기존 대시보드 집계(견적 후속/계약 대기 등)를 문장 카드로. 27절: 절대 빈 카드 금지 */
-.pc-smart-suggestions__list { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
+.pc-smart-suggestions__list { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden; }
 .pc-smart-suggestions__row { display: flex; align-items: center; gap: 11px; min-height: 54px; padding: 10px 12px; border-radius: var(--radius-sm); background: linear-gradient(165deg, rgba(234,244,242,.7), rgba(255,255,255,.4)); color: #243632; font-size: 13px; font-weight: 500; line-height: 1.45; text-decoration: none; transition: background .15s ease, transform .15s ease; }
 .pc-smart-suggestions__row:hover { background: linear-gradient(165deg, rgba(234,244,242,.95), rgba(255,255,255,.6)); transform: translateY(-1px); }
 .pc-smart-suggestions__row-icon { flex: 0 0 auto; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-xs); background: var(--olivia-mint); color: var(--olivia-green); }
