@@ -123,7 +123,7 @@ export default function IntegratedCalendar() {
           ) : daySchedules.length === 0 ? (
             <div className="pc-panel__empty">등록된 일정이 없어요.</div>
           ) : (
-            daySchedules.slice(0, 5).map((s) => (
+            daySchedules.slice(0, 4).map((s) => (
               <button
                 key={s.id}
                 type="button"
