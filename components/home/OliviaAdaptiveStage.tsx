@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
 import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTransition";
-import QuickActions from "@/components/dashboard/QuickActions";
 import RecentWork from "@/components/dashboard/RecentWork";
 import SmartSuggestions from "@/components/dashboard/SmartSuggestions";
 import IntegratedCalendar from "@/components/dashboard/IntegratedCalendar";
