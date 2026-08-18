@@ -2001,9 +2001,8 @@
 
 .olivia-home-context {
   /* 접힌 상태(is-dock)는 아래에서 64px로 고정 override — 이 기본값은 펼친 상태의 높이다.
-     예전엔 dock/expanded가 같은 clamp(최대 190px)를 써서, 캘린더 전체 주(week) 행이 다 안
-     들어가고 잘려 보였다(2026-08-14 사용자 리포트) — 펼친 상태만 훨씬 넉넉하게 키운다. */
-  flex: 0 0 clamp(260px, 34vh, 380px);
+     시안 22절 — Bottom Grid 카드 높이를 300~320px(310px)로 명시. */
+  flex: 0 0 310px;
   min-height: 0;
   overflow: hidden;
   opacity: 1;
