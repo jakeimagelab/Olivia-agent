@@ -42,7 +42,7 @@ function buildSuggestions(data: ReturnType<typeof useHomeDashboardData>["data"])
 
 export default function SmartSuggestions() {
   const { data, state } = useHomeDashboardData();
-  const suggestions = buildSuggestions(data);
+  const suggestions = buildSuggestions(data).slice(0, 4);
 
   return (
     <section className="pc-panel">
