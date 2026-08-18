@@ -171,11 +171,15 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             )}
             <h1>무엇을 도와드릴까요?</h1>
             <p>업무 질문, 요약, 계획, 문서 작성까지 무엇이든 물어보세요.</p>
-            <div className="olivia-conversation__suggestions">
-              {["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"].map((prompt) => (
-                <button key={prompt} type="button" onClick={() => void sendMessage(prompt)}>{prompt}</button>
-              ))}
-            </div>
+            {/* home variant는 칩을 컴포저 "아래"로 옮긴다(레퍼런스 순서: 제목→입력창→칩) —
+                다른 variant(drawer/workspace)는 기존 순서(제목→칩→입력창) 그대로 유지. */}
+            {!isHome ? (
+              <div className="olivia-conversation__suggestions">
+                {["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"].map((prompt) => (
+                  <button key={prompt} type="button" onClick={() => void sendMessage(prompt)}>{prompt}</button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
         {messages.map((message) => {
