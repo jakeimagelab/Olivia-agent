@@ -12,9 +12,8 @@ type Suggestion = { id: string; text: string; href: string; icon: ComponentType<
 // 27절: 절대 빈 카드로 두지 않는다 — 챙길 항목이 없으면 오늘 일정 등 실제 데이터 기반 대체
 // 제안으로 최소 개수를 채운다(가짜 수치는 만들지 않는다).
 function buildSuggestions(data: ReturnType<typeof useHomeDashboardData>["data"]): Suggestion[] {
-  if (!data) return [];
-  const clients = data.clients ?? {};
-  const mailingPending = data.mailing?.pending?.length ?? 0;
+  const clients = data?.clients ?? {};
+  const mailingPending = data?.mailing?.pending?.length ?? 0;
   const list: Suggestion[] = [];
 
   const quoteCount = clients.quoteFollowUp?.length ?? 0;
