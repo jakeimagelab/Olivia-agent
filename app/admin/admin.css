@@ -1893,14 +1893,21 @@
     radial-gradient(circle at 96% 108%, rgba(234,244,242,.65), transparent 46%),
     var(--olivia-bg);
 }
+/* 레퍼런스 강제 재현 요청(2026-08-18) — idle/conversation 모드는 workspace처럼 뷰포트를 꽉
+   채우는 flex-grow 캔버스가 아니라, 컨텐츠 높이만큼만 차지하고 세로 가운데는 비워둔다.
+   화면이 넘치면(작은 창) stage 전체가 스크롤된다 — 억지로 다 우겨넣지 않는다. */
+.olivia-adaptive-stage.is-idle,
+.olivia-adaptive-stage.is-conversation { overflow-y: auto; max-width: 1260px; margin: 0 auto; width: 100%; }
 
 .olivia-home-greeting { flex: 0 0 auto; padding: 4px 6px 0; }
-.olivia-home-greeting h1 { margin: 0; color: var(--olivia-text); font-size: clamp(20px, 2vw, 26px); font-weight: 900; letter-spacing: -.02em; }
-.olivia-home-greeting p { margin: 6px 0 0; color: var(--olivia-muted); font-size: 12.5px; }
+.olivia-home-greeting h1 { margin: 0; color: var(--olivia-text); font-size: clamp(24px, 2.4vw, 34px); font-weight: 800; letter-spacing: -.02em; }
+.olivia-home-greeting p { margin: 8px 0 0; color: var(--olivia-muted); font-size: 14.5px; }
 
 .olivia-adaptive-stage__chat,
 .olivia-adaptive-stage__workspace { min-height: 0; overflow: hidden; }
 .olivia-adaptive-stage__chat { flex-basis: 0; }
+.olivia-adaptive-stage.is-idle .olivia-adaptive-stage__chat,
+.olivia-adaptive-stage.is-conversation .olivia-adaptive-stage__chat { flex: 0 0 auto; overflow: visible; }
 .olivia-adaptive-stage__workspace {
   flex-basis: 0;
   opacity: 0;
