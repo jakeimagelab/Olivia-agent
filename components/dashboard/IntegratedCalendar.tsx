@@ -146,6 +146,15 @@ export default function IntegratedCalendar() {
           <Link href="/calendar" className="pc-schedule-more">일정 전체 보기</Link>
         </div>
       </div>
+
+      <div className="pc-schedule-panel__quick-actions">
+        {QUICK_LINKS.map(({ label, href, icon: Icon }) => (
+          <button key={label} type="button" onClick={() => navigateToFeature(href)}>
+            <Icon size={14} aria-hidden="true" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
