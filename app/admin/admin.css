@@ -1828,7 +1828,8 @@
 
 /* Today Schedule 카드 하단 Quick Action 4개(23절) — 카드 내부지만 일정 목록과는 시각적으로 분리 */
 .pc-schedule-panel__quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(21,88,85,.07); flex-shrink: 0; }
-.pc-schedule-panel__quick-actions button { display: flex; flex-direction: column; align-items: center; gap: 5px; min-height: 52px; border: 1px solid rgba(21,88,85,.08); border-radius: 12px; background: #fff; color: #155855; font-size: 10px; font-weight: 700; cursor: pointer; transition: background .15s ease, transform .15s ease; }
+.pc-schedule-panel__quick-actions button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; height: 50px; border: 1px solid rgba(21,88,85,.08); border-radius: var(--radius-sm); background: rgba(255,255,255,.88); color: #155855; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s ease, transform .15s ease; }
+.pc-schedule-panel__quick-actions button svg { color: #155855; }
 .pc-schedule-panel__quick-actions button:hover { background: var(--olivia-mint); transform: translateY(-1px); }
 
 @media (min-width: 1800px) {
