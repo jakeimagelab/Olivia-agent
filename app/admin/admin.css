@@ -1868,6 +1868,27 @@
   --olivia-shadow-card: 0 16px 38px rgba(21,88,85,.08);
   --olivia-shadow-floating: 0 20px 48px rgba(21,88,85,.14);
 
+  /* UI/UX 통일 개편 V2(2026-08-18) — 레퍼런스 요청서가 지정한 정식 토큰 이름. 위 --olivia-*
+     토큰과 값 계열은 같되(중복 유지보수 최소화를 위해 유사 값 재사용), 요청서가 명시한
+     이름으로도 참조 가능하게 별도로 둔다. */
+  --radius-xs: 10px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --shadow-soft: 0 8px 24px rgba(21,88,85,.045);
+  --shadow-card: 0 10px 28px rgba(21,88,85,.055);
+  --shadow-floating: 0 18px 50px rgba(21,88,85,.07);
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 16px;
+  --space-lg: 20px;
+  --space-xl: 28px;
+  --space-2xl: 36px;
+  --text-main: #1E302C;
+  --text-sub: #7A8D87;
+  --text-meta: #95A39F;
+
   /* 대화 토픽 마커 색상 — Phase 3 */
   --topic-quote: #E85D2C;
   --topic-contract: #B24BD1;
