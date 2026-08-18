@@ -2072,6 +2072,26 @@
 }
 .olivia-conversation--workspace { border-radius: 22px; }
 .olivia-conversation--drawer { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+/* 레퍼런스 강제 재현(2026-08-18) — 홈의 Main Chat Card는 뷰포트를 채우는 캔버스가 아니라
+   고정 높이 카드다. 비어있을 땐 ~380px, 대화가 시작되면 조금 더 커지되(내부 메시지 목록만
+   스크롤) 여전히 유한한 높이를 유지한다 — 그래야 아래 Mission Bar/Bottom Grid가 항상 보인다. */
+.olivia-conversation--home {
+  border-radius: 30px;
+  background: rgba(255,255,255,.84);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 55px rgba(21,88,85,.07);
+  padding: 0 6px;
+}
+.olivia-conversation--home[data-message-count="0"] { height: 380px; }
+.olivia-conversation--home:not([data-message-count="0"]) { height: 460px; }
+.olivia-conversation--home .olivia-conversation__stage { grid-template-columns: minmax(0,1fr); }
+.olivia-conversation--home .olivia-conversation__welcome { padding: 0 24px; }
+.olivia-conversation--home .olivia-conversation__welcome-icon { display: grid; place-items: center; width: 46px; height: 46px; margin: 0 auto; border-radius: 16px; background: var(--olivia-mint); color: var(--olivia-green); }
+.olivia-conversation--home .olivia-conversation__welcome h1 { font-size: clamp(24px,2.6vw,30px); letter-spacing: -.025em; font-weight: 800; }
+.olivia-conversation--home .olivia-conversation__welcome p { font-size: 14px; margin-top: 4px; }
+.olivia-conversation--home .olivia-composer-shell { padding: 18px clamp(20px,4vw,42px) 26px; }
+.olivia-conversation--home .olivia-composer { border-radius: 21px; box-shadow: 0 10px 30px rgba(21,88,85,.06); }
 .olivia-conversation__stage {
   flex: 1;
   min-height: 0;
