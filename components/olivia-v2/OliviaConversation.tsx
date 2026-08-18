@@ -135,27 +135,29 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       data-olivia-surface={variant}
       data-message-count={messages.length}
     >
-      <header className="olivia-conversation__header">
-        <div className="olivia-conversation__identity">
-          <span className={`olivia-core-mark${isStreaming ? " is-thinking" : ""}`}><OliviaIcon size={15} /></span>
-          <div><strong>OLIVIA</strong><small>{isStreaming ? agentStatus || "답변 작성 중…" : "Context-aware agent"}</small></div>
-        </div>
-        <div className="olivia-conversation__controls">
-          {showExpandToggle ? (
-            <button type="button" onClick={layoutMode === "workspace-chat-expanded" ? collapseWorkspaceChat : expandWorkspaceChat}>
-              {layoutMode === "workspace-chat-expanded" ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-              {layoutMode === "workspace-chat-expanded" ? "작업 크게" : "대화 크게"}
-            </button>
-          ) : null}
-          <button type="button" onClick={() => void startNewConversation()}><Plus size={13} /> 새 대화</button>
-          {onMinimize ? (
-            <button type="button" onClick={onMinimize} aria-label="Olivia 대화 최소화"><Minus size={13} /></button>
-          ) : null}
-        </div>
-      </header>
+      {isHome && isEmpty ? null : (
+        <header className="olivia-conversation__header">
+          <div className="olivia-conversation__identity">
+            <span className={`olivia-core-mark${isStreaming ? " is-thinking" : ""}`}><OliviaIcon size={15} /></span>
+            <div><strong>OLIVIA</strong><small>{isStreaming ? agentStatus || "답변 작성 중…" : "Context-aware agent"}</small></div>
+          </div>
+          <div className="olivia-conversation__controls">
+            {showExpandToggle ? (
+              <button type="button" onClick={layoutMode === "workspace-chat-expanded" ? collapseWorkspaceChat : expandWorkspaceChat}>
+                {layoutMode === "workspace-chat-expanded" ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                {layoutMode === "workspace-chat-expanded" ? "작업 크게" : "대화 크게"}
+              </button>
+            ) : null}
+            <button type="button" onClick={() => void startNewConversation()}><Plus size={13} /> 새 대화</button>
+            {onMinimize ? (
+              <button type="button" onClick={onMinimize} aria-label="Olivia 대화 최소화"><Minus size={13} /></button>
+            ) : null}
+          </div>
+        </header>
+      )}
 
       <div className="olivia-conversation__stage">
-        <OliviaConversationNavigator exchanges={exchanges} activeId={activeMessageId} onNavigate={scrollToMessage} />
+        {isHome ? null : <OliviaConversationNavigator exchanges={exchanges} activeId={activeMessageId} onNavigate={scrollToMessage} />}
         <div className="olivia-conversation__main">
       <OliviaEngineBackground active={isStreaming} />
       <div ref={listRef} className="olivia-conversation__messages" aria-live="polite">
