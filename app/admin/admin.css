@@ -1707,7 +1707,8 @@
 }
 
 /* 최근 작업 — 콘티/견적/계약 저장 이력을 한 줄씩 */
-.pc-recent-work__list { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
+/* 48절 — Home 카드 내부에 scrollbar를 노출하지 않는다. 항목 수를 4개로 제한해서 표시한다. */
+.pc-recent-work__list { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: hidden; }
 .pc-recent-work__row { display: flex; align-items: center; gap: 11px; min-height: 52px; padding: 7px 8px; border-radius: var(--radius-sm); }
 .pc-recent-work__icon { flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--radius-xs); background: rgba(21,88,85,.08); color: #155855; }
 .pc-recent-work__icon--견적 { background: rgba(232,93,44,.1); color: #E85D2C; }
