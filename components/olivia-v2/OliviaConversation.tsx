@@ -10,7 +10,7 @@ import { buildConversationExchanges } from "@/lib/olivia/conversationTimeline";
 import { OliviaConversationGuide, OliviaConversationNavigator } from "@/components/olivia-v2/OliviaConversationNavigation";
 import OliviaEngineBackground from "@/components/olivia-v2/OliviaEngineBackground";
 
-export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer"; showExpandToggle?: boolean; onMinimize?: () => void }) {
+export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer" | "home"; showExpandToggle?: boolean; onMinimize?: () => void }) {
   const messages = useOliviaConversationStore((state) => state.messages);
   const isHydrated = useOliviaConversationStore((state) => state.isHydrated);
   const isSending = useOliviaConversationStore((state) => state.isSending);
