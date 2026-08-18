@@ -29,6 +29,8 @@ export default function MissionStatusBar({ title, status, currentStage, nextSche
     );
   }
 
+  // 시안 18절 — grid-template-columns: 1.3fr 1fr 1fr 1fr 1.2fr auto 6칸을 그대로 맞추려면
+  // 각 항목이 래퍼 없이 grid의 직계 자식이어야 한다(예전엔 metrics 하나로 묶여있었음).
   return (
     <div className="olivia-mission-bar">
       <div className="olivia-mission-bar__title">
@@ -37,27 +39,21 @@ export default function MissionStatusBar({ title, status, currentStage, nextSche
         {status ? <span className="olivia-mission-bar__badge">{status}</span> : null}
       </div>
 
-      <div className="olivia-mission-bar__metrics">
-        {currentStage ? (
-          <div className="olivia-mission-bar__metric">
-            <span className="olivia-mission-bar__metric-label">현재 단계</span>
-            <span className="olivia-mission-bar__metric-value">{currentStage}</span>
-          </div>
-        ) : null}
-        {nextScheduleLabel ? (
-          <div className="olivia-mission-bar__metric">
-            <span className="olivia-mission-bar__metric-label"><Calendar size={12} aria-hidden="true" /> 다음 일정</span>
-            <span className="olivia-mission-bar__metric-value">{nextScheduleLabel}</span>
-          </div>
-        ) : null}
-        {owner ? (
-          <div className="olivia-mission-bar__metric">
-            <span className="olivia-mission-bar__metric-label"><User size={12} aria-hidden="true" /> 담당자</span>
-            <span className="olivia-mission-bar__metric-value">{owner}</span>
-          </div>
-        ) : null}
+      <div className="olivia-mission-bar__metric">
+        {currentStage ? (<><span className="olivia-mission-bar__metric-label">현재 단계</span><span className="olivia-mission-bar__metric-value olivia-mission-bar__metric-value--stage">{currentStage}</span></>) : null}
+      </div>
+
+      <div className="olivia-mission-bar__metric">
+        {nextScheduleLabel ? (<><span className="olivia-mission-bar__metric-label"><Calendar size={12} aria-hidden="true" /> 다음 일정</span><span className="olivia-mission-bar__metric-value">{nextScheduleLabel}</span></>) : null}
+      </div>
+
+      <div className="olivia-mission-bar__metric">
+        {owner ? (<><span className="olivia-mission-bar__metric-label"><User size={12} aria-hidden="true" /> 담당자</span><span className="olivia-mission-bar__metric-value">{owner}</span></>) : null}
+      </div>
+
+      <div className="olivia-mission-bar__metric olivia-mission-bar__metric--progress">
         {progress !== undefined ? (
-          <div className="olivia-mission-bar__metric olivia-mission-bar__metric--progress">
+          <>
             <span className="olivia-mission-bar__metric-label">전체 진행률</span>
             <span className="olivia-mission-bar__progress">
               <span className="olivia-mission-bar__progress-track">
@@ -65,7 +61,7 @@ export default function MissionStatusBar({ title, status, currentStage, nextSche
               </span>
               <strong>{Math.round(progress)}%</strong>
             </span>
-          </div>
+          </>
         ) : null}
       </div>
 
@@ -73,7 +69,7 @@ export default function MissionStatusBar({ title, status, currentStage, nextSche
         <Link href={detailHref} className="olivia-mission-bar__detail">
           미션 상세 보기 <ChevronRight size={13} aria-hidden="true" />
         </Link>
-      ) : null}
+      ) : <span />}
     </div>
   );
 }
