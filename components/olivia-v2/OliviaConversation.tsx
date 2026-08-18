@@ -108,6 +108,9 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
     setActiveMessageId(messageId);
   }, []);
 
+  const isHome = variant === "home";
+  const isEmpty = messages.length === 0;
+
   const submit = () => {
     const content = input.trim();
     if (!content || isSending) return;
