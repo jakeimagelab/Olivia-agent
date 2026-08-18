@@ -1503,7 +1503,7 @@
    최근 프로젝트(1.08fr) | 통합 스케줄(2.2fr) 비대칭 3분할. 실측 헤더 높이는 72px(admin.css
    "Dense Command" 블록 기준). */
 .pc-home {
-  height: calc(100dvh - var(--admin-header-height, 72px));
+  height: calc(100dvh - var(--admin-header-height, 64px));
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr) clamp(180px, 23vh, 230px);
@@ -1913,7 +1913,7 @@
 }
 
 .olivia-adaptive-stage {
-  height: calc(100dvh - var(--admin-header-height, 72px));
+  height: calc(100dvh - var(--admin-header-height, 64px));
   min-height: 0;
   box-sizing: border-box;
   display: flex;
@@ -2525,7 +2525,7 @@
   .olivia-conversation__stage { grid-template-columns: 148px minmax(0,1fr) 38px; }
 }
 @media (max-width: 900px) {
-  .olivia-adaptive-stage { height: auto; min-height: calc(100dvh - var(--admin-header-height,72px)); overflow: visible; padding: 8px; }
+  .olivia-adaptive-stage { height: auto; min-height: calc(100dvh - var(--admin-header-height,64px)); overflow: visible; padding: 8px; }
   .olivia-adaptive-stage__chat { min-height: 62dvh; }
   .olivia-home-context { flex-basis: auto; max-height: none; overflow: visible; }
   .olivia-home-context__expanded { height: auto; grid-template-columns: 1fr; }
