@@ -53,7 +53,7 @@ export default function OliviaAdaptiveStage() {
         layout
         transition={spring}
         className="olivia-adaptive-stage__chat"
-        style={{ flexGrow: isWorkspaceMode ? weights.chat : 1 }}
+        style={isWorkspaceMode ? { flexGrow: weights.chat } : undefined}
       >
         <OliviaConversation variant={isWorkspaceMode ? "workspace" : "home"} showExpandToggle={isWorkspaceMode} />
       </motion.section>
@@ -67,17 +67,16 @@ export default function OliviaAdaptiveStage() {
         className={`olivia-home-context${mode === "conversation" ? " is-dock" : ""}${isWorkspaceMode ? " is-hidden" : ""}`}
       >
         <div className="olivia-home-context__expanded">
-          {/* 펼친 상태를 다시 접는 버튼 — 빠른실행/최근 프로젝트/오늘 일정 dock 버튼의 반대 동작
+          {/* 펼친 상태를 다시 접는 버튼 — 최근작업/스마트제안/오늘일정 dock 버튼의 반대 동작
               (startConversation이 resetToIdle의 역방향: idle → conversation). */}
           <button type="button" className="olivia-home-context__collapse" onClick={startConversation} aria-label="패널 접기" title="패널 접기">
             <ChevronDown size={14} />
           </button>
-          <QuickActions /><RecentWork /><SmartSuggestions /><IntegratedCalendar />
+          <RecentWork /><SmartSuggestions /><IntegratedCalendar />
         </div>
         <div className="olivia-context-dock">
-          {/* 채팅 중엔 빠른 실행/최근 작업/스마트 제안/오늘 일정 패널이 이 요약 버튼들로 접힌다
+          {/* 채팅 중엔 최근 작업/스마트 제안/오늘 일정 패널이 이 요약 버튼들로 접힌다
               (is-dock, admin.css) — 클릭하면 채팅을 유지한 채로 패널을 다시 펼친다(resetToIdle). */}
-          <button type="button" onClick={resetToIdle}>⚡ 빠른 실행</button>
           <button type="button" onClick={resetToIdle}>최근 작업</button>
           <button type="button" onClick={resetToIdle}>스마트 제안</button>
           <button type="button" onClick={resetToIdle}>오늘 일정 <strong>{todayCount}</strong></button>
