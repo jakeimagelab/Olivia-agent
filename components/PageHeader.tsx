@@ -8,6 +8,7 @@ export type TabDef = {
 
 interface PageHeaderProps {
   title: string;
+  description?: string;
   actions?: React.ReactNode;
   /* 탭 */
   tabs?: TabDef[];
@@ -18,6 +19,7 @@ interface PageHeaderProps {
 
 export default function PageHeader({
   title,
+  description,
   actions,
   tabs,
   activeTab,
@@ -42,18 +44,15 @@ export default function PageHeader({
 
   return (
     <>
-      <header className="pc-header">
-        <div className="pc-header-brand">
-          <img
-            src="/assets/photoclinic-logo.png"
-            alt="포토클리닉"
-            className="pc-header-logo"
-          />
-          <span className="pc-header-title">{title}</span>
+      <header className="pc-header pc-header--page-heading">
+        <div className="pc-header-page-copy">
+          <h1 className="pc-header-title">{title}</h1>
+          {description ? <p>{description}</p> : null}
         </div>
+        {actionsAfterTabs ? null : actionRow}
       </header>
 
-      {actionsAfterTabs ? tabRow : actionRow}
+      {actionsAfterTabs ? tabRow : null}
       {actionsAfterTabs ? actionRow : tabRow}
     </>
   );

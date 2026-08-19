@@ -32,7 +32,7 @@ export default function ContiStudioLayout({ children }: { children: React.ReactN
   const visibleTabs = shareScope ? CONTI_TABS.filter((t) => t.matches.includes(shareScope)) : CONTI_TABS;
 
   return (
-    <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)" }}>
       <PageHeader title="콘티/초상권 작성" />
 
       <nav className="pc-tabs pc-tabs--global" aria-label="콘티 기능">

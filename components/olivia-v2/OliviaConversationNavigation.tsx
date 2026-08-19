@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useRef, type WheelEvent } from "react";
 import { CalendarDays, ChevronRight, Clock3, X } from "lucide-react";
 import { getTodayDateKey, groupExchangesByDate, type OliviaExchange } from "@/lib/olivia/conversationTimeline";
 
@@ -55,8 +55,37 @@ type GuideProps = NavigationProps & {
 
 export const OliviaConversationGuide = memo(function OliviaConversationGuide({ exchanges, activeId, selectedId, onNavigate, onSelect }: GuideProps) {
   const selected = exchanges.find((exchange) => exchange.userMessageId === selectedId);
+  const lastWheelAtRef = useRef(0);
+
+  const handleWheel = (event: WheelEvent<HTMLElement>) => {
+    if (exchanges.length < 2) return;
+    event.preventDefault();
+
+    const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (delta === 0) return;
+
+    const now = Date.now();
+    if (now - lastWheelAtRef.current < 160) return;
+    lastWheelAtRef.current = now;
+
+    const currentId = selectedId ?? activeId;
+    const currentIndex = Math.max(0, exchanges.findIndex((exchange) => exchange.userMessageId === currentId));
+    const nextIndex = Math.min(exchanges.length - 1, Math.max(0, currentIndex + (delta > 0 ? 1 : -1)));
+    const next = exchanges[nextIndex];
+    if (!next || next.userMessageId === currentId) return;
+
+    onSelect(next.userMessageId);
+    onNavigate(next.userMessageId);
+  };
+
   return (
-    <aside className="olivia-message-guide" aria-label="긴 대화 위치 가이드">
+    <aside
+      className="olivia-message-guide"
+      aria-label="긴 대화 위치 가이드"
+      title="마우스를 올려 내용을 보고, 휠로 대화 위치를 이동하세요"
+      onMouseLeave={() => onSelect(undefined)}
+      onWheel={handleWheel}
+    >
       <div className="olivia-message-guide__ticks">
         {exchanges.map((exchange) => (
           <button
@@ -67,6 +96,8 @@ export const OliviaConversationGuide = memo(function OliviaConversationGuide({ e
             aria-label={`${exchange.timeLabel} ${exchange.topicLabel} · ${exchange.userText}`}
             aria-pressed={selectedId === exchange.userMessageId}
             aria-haspopup="dialog"
+            onMouseEnter={() => onSelect(exchange.userMessageId)}
+            onFocus={() => onSelect(exchange.userMessageId)}
             onClick={() => onSelect(selectedId === exchange.userMessageId ? undefined : exchange.userMessageId)}
           ><span aria-hidden="true" /></button>
         ))}

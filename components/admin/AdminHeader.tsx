@@ -45,10 +45,8 @@ function getPageMeta(pathname: string): PageMeta {
 export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const pathname = usePathname();
   const meta = getPageMeta(pathname);
-  const compactTitle = pathname === "/admin/dashboard" || pathname === "/admin/dashboard/home" || pathname === "/admin/dashboard/conversations" || pathname === "/admin/tools";
   const dashboardHome = pathname === "/admin/dashboard" || pathname === "/admin/dashboard/home";
   const toolsHome = pathname === "/admin/tools";
-  const enhanced = dashboardHome || toolsHome;
 
   if (dashboardHome) {
     return (
@@ -60,18 +58,18 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
 
   return (
     <>
-      <header className={`oa-header${enhanced ? " oa-header--enhanced" : ""}${dashboardHome ? " oa-header--home" : ""}`}>
-        <div className="oa-header__brand">
-          <img src="/assets/photoclinic-logo.png" alt="포토클리닉" />
-          <h1 className={`oa-header__title${compactTitle ? " oa-header__title--compact" : ""}`}>{meta.title}</h1>
+      <header className="oa-header oa-header--enhanced oa-header--page">
+        <div className="oa-header__page-copy">
+          <h1 className="oa-header__title">{meta.title}</h1>
+          <p className="oa-header__description">{meta.description}</p>
         </div>
-        {enhanced ? <div className="oa-header__command-area">
-          {dashboardHome ? null : (
+        <div className="oa-header__command-area">
+          {toolsHome ? (
             <Suspense fallback={<div className="oa-header-search oa-header-search--loading" aria-label="검색 준비 중"/>}>
-              <AdminHeaderSearch mode={toolsHome ? "tools" : "global"}/>
+              <AdminHeaderSearch mode="tools"/>
             </Suspense>
-          )}
-        </div> : null}
+          ) : null}
+        </div>
       </header>
       <button className="oa-header__menu-dock" type="button" onClick={onMenuToggle} aria-label="관리자 메뉴 열기">
         <Menu size={20} aria-hidden="true" /> 메뉴
