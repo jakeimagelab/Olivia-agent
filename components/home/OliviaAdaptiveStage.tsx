@@ -116,7 +116,7 @@ export default function OliviaAdaptiveStage() {
               <div className="olivia-home-quick-tools__grid">
                 {quickTools.map(({ title, desc, href, icon: Icon }) => (
                   <Link key={title} href={href} className="olivia-home-quick-tools__card">
-                    <Icon size={17} strokeWidth={1.7} />
+                    <Icon size={17} />
                     <strong>{title}</strong>
                     <small>{desc}</small>
                   </Link>
