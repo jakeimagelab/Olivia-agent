@@ -6,12 +6,18 @@ import { CalendarDays, FileText, ListChecks, Search, Sparkles } from "lucide-rea
 import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
 import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTransition";
 import OliviaHomeContextDrawer from "@/components/home/OliviaHomeContextDrawer";
+import OliviaCore from "@/components/olivia/OliviaCore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
+import { TOOLS_WORK } from "@/lib/toolNav";
+import Link from "next/link";
 import { getWorkspaceLayoutWeight, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 
 const spring = { type: "spring" as const, stiffness: 230, damping: 28, mass: 0.85 };
+// UIUX 제안서 2차 목업의 "자주 쓰는 기능" 4칸 — lib/toolNav.ts(전역 기능 목록의 단일 소스)에서
+// 그대로 골라 쓴다. 새 아이콘/설명을 새로 만들지 않고 기존 등록 정보를 재사용.
+const QUICK_TOOL_TITLES = ["견적서 생성", "고객 관리", "셀렉 갤러리", "업무 캘린더"] as const;
 const QUICK_PROMPTS = [
   { title: "업무 요청하기", description: "작업을 Olivia에게 맡기기", icon: Sparkles, prompt: "새 업무를 요청하고 싶어요. 필요한 내용을 물어봐줘." },
   { title: "정보 찾아보기", description: "필요한 정보 빠르게 찾기", icon: Search, prompt: "업무에 필요한 정보를 찾고 싶어요. 무엇을 찾을지 물어봐줘." },
@@ -39,6 +45,20 @@ export default function OliviaAdaptiveStage() {
   const isWorkspaceMode = (hasWorkspace && (mode === "workspace" || mode === "workspace-chat-expanded" || mode === "fullscreen")) || (pendingWorkspaceOpen && !hasWorkspace);
   const weights = getWorkspaceLayoutWeight({ mode, chatFocused, workspaceFocused, streaming: isStreaming });
   const todayCount = data?.todayTasks.length ?? 0;
+  // 오늘 브리핑 한 줄 — 이미 불러와 둔 대시보드 데이터(useHomeDashboardData)에서 대기 건수를
+  // 뽑아 그대로 보여준다. 새 API를 만들지 않고 기존 데이터만 재사용.
+  const galleryPending = data?.clients?.galleryPending?.length ?? 0;
+  const mailingPending = data?.mailing?.pending?.length ?? 0;
+  const briefText = galleryPending > 0
+    ? `셀렉 대기 ${galleryPending}건이 있어요. 리마인드 메일 보내드릴까요?`
+    : mailingPending > 0
+      ? `발송 대기 메일이 ${mailingPending}건 있어요. 확인해드릴까요?`
+      : todayCount > 0
+        ? `오늘 할 일이 ${todayCount}건 있어요.`
+        : null;
+  const quickTools = QUICK_TOOL_TITLES
+    .map((title) => TOOLS_WORK.find((tool) => tool.title === title))
+    .filter((tool): tool is (typeof TOOLS_WORK)[number] => Boolean(tool));
 
   useEffect(() => {
     if (hasWorkspace && (mode === "idle" || mode === "conversation")) openWorkspaceMode();
@@ -59,9 +79,18 @@ export default function OliviaAdaptiveStage() {
               </button>
               <div className="olivia-home-greeting">
                 <span className="olivia-home-greeting__badge"><Sparkles size={14} strokeWidth={1.7} /> AI가 함께하는 하루</span>
-                <h1>안녕하세요, <em>정연호 대표님</em></h1>
+                <div className="olivia-home-greeting__title-row">
+                  <OliviaCore isStreaming={isStreaming} size={30} />
+                  <h1>안녕하세요, <em>정연호 대표님</em></h1>
+                </div>
                 <p>오늘도 스마트한 업무를 시작해볼까요?</p>
               </div>
+              {briefText ? (
+                <div className="olivia-home-brief">
+                  <OliviaCore isStreaming={false} size={18} />
+                  <span><strong>오늘 브리핑.</strong> {briefText}</span>
+                </div>
+              ) : null}
             </>
           ) : null}
 
@@ -78,6 +107,21 @@ export default function OliviaAdaptiveStage() {
                   <small>{description}</small>
                 </button>
               ))}
+            </div>
+          ) : null}
+
+          {!isWorkspaceMode && quickTools.length ? (
+            <div className="olivia-home-quick-tools" aria-label="자주 쓰는 기능">
+              <span className="olivia-home-quick-tools__label">자주 쓰는 기능</span>
+              <div className="olivia-home-quick-tools__grid">
+                {quickTools.map(({ title, desc, href, icon: Icon }) => (
+                  <Link key={title} href={href} className="olivia-home-quick-tools__card">
+                    <Icon size={17} strokeWidth={1.7} />
+                    <strong>{title}</strong>
+                    <small>{desc}</small>
+                  </Link>
+                ))}
+              </div>
             </div>
           ) : null}
         </section>
