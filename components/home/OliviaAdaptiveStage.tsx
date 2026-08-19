@@ -54,7 +54,7 @@ export default function OliviaAdaptiveStage() {
         <section className="olivia-agent-home__main">
           {!isWorkspaceMode ? (
             <>
-              <button className="olivia-agent-home__drawer-trigger" type="button" onClick={() => setDrawerOpen(true)} aria-expanded={drawerOpen}>
+              <button className="olivia-agent-home__drawer-trigger" type="button" onClick={() => setDrawerOpen(true)} aria-label="오늘 할 일과 최근 작업 열기" aria-expanded={drawerOpen}>
                 <ListChecks size={17} strokeWidth={1.7} /> 할 일 <strong>{todayCount}</strong><span>· 최근 작업</span>
               </button>
               <div className="olivia-home-greeting">

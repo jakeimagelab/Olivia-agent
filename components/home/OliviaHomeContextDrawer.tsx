@@ -44,10 +44,12 @@ export default function OliviaHomeContextDrawer({ onClose }: { onClose: () => vo
 
   return (
     <aside className="olivia-home-drawer" aria-label="오늘 할 일과 최근 작업">
+      <button type="button" className="olivia-home-drawer__close" onClick={onClose} aria-label="홈 정보 패널 닫기">
+        <X size={18} strokeWidth={1.7} />
+      </button>
       <section className="olivia-home-drawer__card">
         <header className="olivia-home-drawer__header">
           <div><h2>오늘의 할 일</h2><span>{tasks.length}</span></div>
-          <button type="button" onClick={onClose} aria-label="홈 정보 패널 닫기"><X size={18} strokeWidth={1.7} /></button>
         </header>
         <div className="olivia-home-drawer__list">
           {state === "loading" ? <p className="olivia-home-drawer__empty">오늘 일정을 확인하고 있어요.</p> : null}
