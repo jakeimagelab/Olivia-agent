@@ -44,7 +44,7 @@ export default function PageHeader({
 
   return (
     <>
-      <header className="pc-header pc-header--page-heading app-page-header">
+      <header className="pc-header pc-header--page-heading">
         <div className="pc-header-page-copy">
           <h1 className="pc-header-title">{title}</h1>
           {description ? <p>{description}</p> : null}

@@ -83,7 +83,7 @@ export default function PortalAdminPage() {
 
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header app-page-header">
+      <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
             <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />

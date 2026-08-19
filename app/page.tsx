@@ -10,12 +10,10 @@ import {
   FileVideo, Fingerprint, Globe2, ImageDown, Images, LockKeyhole, LogOut, Mail,
   NotebookPen, ShieldCheck, Sparkles, Users, Wand2, Lightbulb,
   AlertCircle, CheckCircle2, Clock, RefreshCw, Calendar, Check,
-  FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2,
+  FileText, Image, Star, Smartphone, CircleDollarSign, Pipette, Link2, Bell,
   ScanSearch, Search, Share2, TrendingUp, Megaphone,
 } from "lucide-react";
 import SharedDailyQuoteWidget from "@/components/dashboard/DailyQuoteWidget";
-import OliviaCore from "@/components/olivia/OliviaCore";
-import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 
 /* ─── types ─────────────────────────────────────────────── */
 
@@ -311,14 +309,11 @@ function TodayAlertBanner({tasks, totalPending}:{tasks:CalTask[]; totalPending:n
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-  // UIUX 제안서 2차(에이전트 프레즌스) — 홈 인사말 카드를 "디지털 시계가 있는 대시보드 위젯"에서
-  // "올리비아가 직접 말을 거는 카드"로 바꾼다. isStreaming을 전역 스토어에서 그대로 받아써서,
-  // 다른 화면에서 챗이 작업 중이어도 홈의 프레즌스 마크가 같은 상태를 보여준다.
-  const isStreaming = useOliviaConversationStore((state) => state.isStreaming);
 
   const hour = now ? now.getHours() : null;
   const greeting = hour === null ? "안녕하세요" : hour < 12 ? "좋은 아침이에요" : hour < 18 ? "수고하고 계세요" : "오늘도 고생많으셨어요";
   const today = now ? now.toLocaleDateString("ko-KR",{month:"long",day:"numeric",weekday:"short"}) : "";
+  const clock = now ? now.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}) : "--:--:--";
 
   const remaining = tasks.filter(t=>!t.completed);
   const done = tasks.filter(t=>t.completed).length;
@@ -328,46 +323,63 @@ function TodayAlertBanner({tasks, totalPending}:{tasks:CalTask[]; totalPending:n
     return ta.localeCompare(tb);
   })[0];
 
-  const attention = totalPending>0;
-
   return(
-    <div style={{background:"#fff",borderRadius:14,padding:"16px",border:"1px solid rgba(21,88,85,.08)",boxShadow:"0 4px 20px rgba(21,88,85,.06)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10}}>
-        <OliviaCore isStreaming={isStreaming} hasUnread={attention} size={26}/>
-        <div style={{minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:800,color:"#155855",lineHeight:1.3}}>{greeting}, 정연호 대표님</div>
-          <div style={{fontSize:10,color:"#7A9490"}}>{today}</div>
+    <div style={{background:"linear-gradient(135deg,#155855 0%,#0d3e3b 100%)",borderRadius:14,padding:"14px 16px",boxShadow:"0 4px 20px rgba(21,88,85,.18)"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:28,height:28,borderRadius:8,background:"rgba(232,93,44,.85)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <Bell size={13} color="#fff"/>
+          </div>
+          <div>
+            <div style={{fontSize:9,fontWeight:900,color:"rgba(255,255,255,.45)",letterSpacing:".1em",textTransform:"uppercase"}}>OLIVIA DAILY BRIEF</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,.5)"}}>{today}</div>
+          </div>
         </div>
+        {totalPending>0&&(
+          <div style={{background:"#E85D2C",borderRadius:99,padding:"2px 10px",fontSize:11,fontWeight:900,color:"#fff"}}>
+            대기 {totalPending}건
+          </div>
+        )}
       </div>
 
-      <div style={{display:"flex",alignItems:"flex-start",gap:6,padding:"8px 0 12px 36px"}}>
-        <span style={{width:6,height:6,borderRadius:"50%",marginTop:4,flexShrink:0,background:attention?"#E85D2C":"#569082",boxShadow:attention?"0 0 0 5px rgba(232,93,44,.09)":"0 0 0 5px rgba(86,155,140,.09)"}}/>
-        <span style={{fontSize:11,color:"#5A7470",lineHeight:1.5}}>
-          {remaining.length>0
-            ? <>오늘 할일 <strong style={{color:"#EB8F22"}}>{remaining.length}개</strong> 남았어요{attention?<>, 확인할 일도 <strong style={{color:"#E85D2C"}}>{totalPending}건</strong> 있어요</>:null}.</>
-            : tasks.length>0
-              ? <>오늘 할일 <strong style={{color:"#22876A"}}>모두 완료</strong>했어요!</>
-              : <>오늘 등록된 일정이 없어요.</>
-          }
-        </span>
+      <div style={{
+        textAlign:"center", padding:"10px 0", marginBottom:10,
+        borderTop:"1px solid rgba(255,255,255,.1)", borderBottom:"1px solid rgba(255,255,255,.1)",
+      }}>
+        <div style={{
+          fontSize:26, fontWeight:800, color:"#6EE7B7",
+          fontVariantNumeric:"tabular-nums", letterSpacing:".08em",
+          fontFamily:"'SF Mono','Menlo','Consolas',monospace",
+        }}>{clock}</div>
       </div>
+
+      <p style={{fontSize:13,fontWeight:700,color:"#fff",margin:"0 0 10px",lineHeight:1.5}}>
+        {greeting}, 정연호 대표님.
+        {remaining.length>0
+          ? <> 오늘 할일 <span style={{color:"#EB8F22",fontWeight:900}}>{remaining.length}개</span> 남았어요.</>
+          : tasks.length>0
+            ? <> 오늘 할일 <span style={{color:"#6EE7B7",fontWeight:900}}>모두 완료</span>했어요!</>
+            : <> 오늘 등록된 일정이 없어요.</>
+        }
+      </p>
 
       {nextTask&&(
         <Link href="/calendar" style={{textDecoration:"none"}}>
-          <div style={{background:"#EAF4F2",borderRadius:9,padding:"8px 12px",display:"flex",alignItems:"center",gap:8}}>
-            <Clock size={11} color="#569082"/>
-            <span style={{fontSize:11,color:"#5A7470",flexShrink:0}}>다음:</span>
-            {nextTask.time&&<span style={{fontSize:10,fontWeight:800,color:"#155855",background:"rgba(21,88,85,.1)",padding:"1px 6px",borderRadius:4,flexShrink:0}}>{nextTask.time}</span>}
-            <span style={{fontSize:11,fontWeight:700,color:"#1C2B28",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nextTask.title}</span>
+          <div style={{background:"rgba(255,255,255,.1)",borderRadius:9,padding:"8px 12px",display:"flex",alignItems:"center",gap:8,border:"1px solid rgba(255,255,255,.12)"}}>
+            <Clock size={11} color="rgba(255,255,255,.6)"/>
+            <span style={{fontSize:11,color:"rgba(255,255,255,.7)",flexShrink:0}}>다음:</span>
+            {nextTask.time&&<span style={{fontSize:10,fontWeight:800,color:"#EB8F22",background:"rgba(235,143,34,.2)",padding:"1px 6px",borderRadius:4,flexShrink:0}}>{nextTask.time}</span>}
+            <span style={{fontSize:11,fontWeight:700,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nextTask.title}</span>
           </div>
         </Link>
       )}
 
       {tasks.length>0&&done>0&&(
-        <div style={{marginTop:8,height:3,background:"#EAF4F2",borderRadius:99}}>
-          <div style={{height:"100%",background:"#569082",width:`${(done/tasks.length)*100}%`,borderRadius:99,transition:"width .4s"}}/>
+        <div style={{marginTop:8,height:3,background:"rgba(255,255,255,.1)",borderRadius:99}}>
+          <div style={{height:"100%",background:"#6EE7B7",width:`${(done/tasks.length)*100}%`,borderRadius:99,transition:"width .4s"}}/>
         </div>
       )}
+      <style>{`@keyframes blink{50%{opacity:0}}`}</style>
     </div>
   );
 }

@@ -654,7 +654,7 @@ export default function ContractBuilder({
       ) : null}
 
       {/* NAV */}
-      <header className="pc-header app-page-header">
+      <header className="pc-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
             <img src={cfg.logo} alt={cfg.label} className="pc-header-logo" />
