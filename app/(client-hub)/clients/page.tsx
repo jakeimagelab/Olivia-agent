@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { CalendarDays, ChevronLeft, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Building2, CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Search, Settings, Trash2, UserRound } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ACTIVE_WORKFLOW_STEPS,
-  STEP_NAME,
   getWorkflowDisplayStepKey,
   resolvePhaseTargetStep,
 } from "@/lib/workflow";
@@ -16,7 +15,6 @@ import { TOOL_LINK_TITLES } from "@/lib/clientWorkspace/nextAction";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
-import WorkflowConsistencyWidget from "@/components/dashboard/WorkflowConsistencyWidget";
 import ClientListPanel from "@/components/client-workspace/ClientListPanel";
 import ProjectWorkflowStepper from "@/components/client-workspace/ProjectWorkflowStepper";
 import ProgressDetailModal from "@/components/client-workspace/ProgressDetailModal";
@@ -29,7 +27,6 @@ import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
 import EditPcrmProjectDialog from "./_components/EditPcrmProjectDialog";
 import PcrmActivityTimeline from "./_components/PcrmActivityTimeline";
-import PcrmCollaborationPanel from "./_components/PcrmCollaborationPanel";
 import ClientOverviewTab from "./_components/detail/ClientOverviewTab";
 import ClientScheduleTab from "./_components/detail/ClientScheduleTab";
 import ClientRevisionsTab from "./_components/detail/ClientRevisionsTab";
@@ -159,9 +156,27 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
 
   return (
     <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt }}>
+      <header className="pcrm-workspace-page-header">
+        <div>
+          <h1>고객관리</h1>
+          <p>고객과 진행 중인 프로젝트를 관리합니다.</p>
+        </div>
+        <div className="pcrm-workspace-page-header__actions">
+          <label>
+            <Search size={17} aria-hidden="true" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="고객명, 병원명 검색"
+              aria-label="고객명 또는 병원명 검색"
+            />
+          </label>
+          <button type="button" onClick={openCreate}><Plus size={17} /> 고객 등록</button>
+        </div>
+      </header>
       <div
         className="pcrm-workspace-grid"
-        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(280px, 36%) minmax(0, 1fr)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
+        style={{ display: "grid", width: "100%", gridTemplateColumns: "310px minmax(0, 1fr)", gap: 18, height: "calc(100vh - 250px)", minHeight: 560, padding: "0 0 16px" }}
       >
         <ClientListPanel
           clients={filtered}
@@ -170,13 +185,11 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
           onSearch={setSearch}
           selectedClientId={selectedClientId}
           onSelect={selectClient}
-          onCreate={openCreate}
           deletingId={deletingId}
           onDelete={deleteClient}
         />
 
         <div className="pcrm-inline-project-column">
-          <WorkflowConsistencyWidget />
           {selectedClientId ? (
             <InlineClientProjectPanel clientId={selectedClientId} />
           ) : (
@@ -198,7 +211,10 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
       />
 
       <style jsx global>{`
-        @media (max-width: 1180px) {
+        @media (max-width: 1180px) and (min-width: 761px) {
+          .pcrm-workspace-grid { grid-template-columns: 280px minmax(0, 1fr) !important; }
+        }
+        @media (max-width: 760px) {
           .pcrm-workspace-grid { grid-template-columns: 1fr !important; height: auto !important; min-height: 0 !important; }
           .pcrm-workspace-grid > div { height: auto !important; max-height: none !important; }
         }
@@ -255,7 +271,7 @@ function InlineClientProjectPanel({ clientId }: { clientId: string }) {
     </div>
   );
 
-  const { client, workflowRun, workflowSummary, resourceIds } = pageData;
+  const { client, workflowRun, workflowSummary, resourceIds, activities = [] } = pageData;
   const workflowCompleted = workflowRun?.status === "completed";
   const currentStepKey = workflowCompleted
     ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
@@ -276,41 +292,59 @@ function InlineClientProjectPanel({ clientId }: { clientId: string }) {
   };
 
   return (
-    <section className="pcrm-inline-project pc-card">
-      <header className="pcrm-inline-project__header">
+    <section className="pcrm-inline-project">
+      <header className="pcrm-inline-project__header pc-card">
         <div className="pcrm-inline-project__identity">
-          <span style={{ background: avatarColor(client.name) }}>{avatarInitial(client.name)}</span>
+          <span><Building2 size={25} strokeWidth={1.7} /></span>
           <div>
-            <small>SELECTED CLIENT</small>
             <h2>{client.name}</h2>
-            <p>{client.contact_name || client.manager_name || "담당자 미지정"}{client.phone ? ` · ${client.phone}` : ""}</p>
+            <p>{client.contact_name || "원장 정보 미등록"} · {workflowRun?.manager_name || client.manager_name || "담당자 미지정"} 담당</p>
+            <small>최근 작업일: {fmtDot(workflowRun?.updated_at || client.updated_at || client.created_at)}</small>
           </div>
         </div>
-        <Link href={`/clients?id=${encodeURIComponent(clientId)}`} className="pc-btn pc-btn--secondary pc-btn--sm">전체 상세 보기</Link>
+        <div className="pcrm-inline-project__header-actions">
+          <Link href={`/clients?id=${encodeURIComponent(clientId)}`}><UserRound size={15} /> 고객 정보</Link>
+          <Link href={`/clients?id=${encodeURIComponent(clientId)}#settings`}><Settings size={15} /> 관리 설정</Link>
+        </div>
       </header>
 
       {workflowRun ? (
         <>
-          <MissionStatusBar
-            title={workflowRun.project_name || `${client.name} 프로젝트`}
-            status={workflowCompleted ? "완료" : "진행 중"}
-            currentStage={ACTIVE_WORKFLOW_STEPS.find((step) => step.key === displayStepKey)?.name}
-            nextScheduleLabel={workflowRun.shoot_date ? `${fmtDot(workflowRun.shoot_date)} 촬영` : undefined}
-            owner={workflowRun.manager_name || undefined}
-            progress={workflowSummary?.progressPercent}
-          />
-          {workflowSummary ? (
-            <div className="pcrm-inline-project__workflow">
-              <ProjectWorkflowStepper phases={workflowSummary.phases} progressPercent={workflowSummary.progressPercent} compact onSelectPhase={handlePhaseClick} />
+          <section className="pcrm-inline-project__overview pc-card">
+            <div className="pcrm-inline-project__project-heading">
+              <div>
+                <span>현재 프로젝트</span>
+                <div><h3>{workflowRun.project_name || `${client.name} 프로젝트`}</h3><b>{workflowCompleted ? "완료" : "진행 중"}</b></div>
+                <p>{workflowRun.started_at || workflowRun.created_at ? `시작 ${fmtDot(workflowRun.started_at || workflowRun.created_at)}` : "시작일 미정"}{workflowRun.shoot_date ? ` · 촬영 ${fmtDot(workflowRun.shoot_date)}` : ""}</p>
+              </div>
+              <Link href={`/clients?id=${encodeURIComponent(clientId)}`}>
+                프로젝트 상세 보기 <ChevronRight size={16} />
+              </Link>
             </div>
-          ) : null}
-          <CurrentStepCard
-            client={client}
-            workflowRun={workflowRun}
-            stepIcon={STEP_INFO[displayStepKey]?.icon}
-            stepDescription={STEP_INFO[displayStepKey]?.desc}
-            onOpenToolModal={openToolModal}
-          />
+            {workflowSummary ? (
+              <div className="pcrm-inline-project__workflow">
+                <ProjectWorkflowStepper phases={workflowSummary.phases} progressPercent={workflowSummary.progressPercent} light onSelectPhase={handlePhaseClick} />
+              </div>
+            ) : null}
+          </section>
+
+          <div className="pcrm-inline-project__bottom-grid">
+            <section className="pcrm-inline-project__next-action pc-card">
+              <h2>지금 할 일</h2>
+              <CurrentStepCard
+                client={client}
+                workflowRun={workflowRun}
+                stepIcon={STEP_INFO[displayStepKey]?.icon}
+                stepDescription={STEP_INFO[displayStepKey]?.desc}
+                onOpenToolModal={openToolModal}
+              />
+            </section>
+            <PcrmActivityTimeline
+              activities={activities}
+              variant="row"
+              onViewAll={() => router.push(`/clients?id=${encodeURIComponent(clientId)}`)}
+            />
+          </div>
         </>
       ) : (
         <div className="pcrm-inline-project__no-project">

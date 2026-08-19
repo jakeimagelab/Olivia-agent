@@ -1,8 +1,7 @@
 "use client";
 
-import { Plus, Search, Trash2 } from "lucide-react";
+import { ChevronRight, Search, Trash2 } from "lucide-react";
 import { C, R } from "@/lib/theme";
-import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 
 function relativeTime(iso?: string | null): string {
   if (!iso) return "";
@@ -23,7 +22,6 @@ export default function ClientListPanel({
   onSearch,
   selectedClientId,
   onSelect,
-  onCreate,
   deletingId,
   onDelete,
 }: {
@@ -33,7 +31,6 @@ export default function ClientListPanel({
   onSearch: (value: string) => void;
   selectedClientId: string | null;
   onSelect: (clientId: string) => void;
-  onCreate: () => void;
   deletingId: string | null;
   onDelete: (event: React.MouseEvent, id: string, name: string) => void;
 }) {
@@ -49,17 +46,6 @@ export default function ClientListPanel({
         />
       </div>
 
-      <button
-        type="button"
-        onClick={onCreate}
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 36, marginBottom: 10, flexShrink: 0,
-          borderRadius: R.md, border: `1px dashed ${C.border}`, background: "transparent", color: C.teal, fontSize: 12, fontWeight: 800, cursor: "pointer",
-        }}
-      >
-        <Plus size={14} />고객 등록
-      </button>
-
       <div style={{ fontSize: 10.5, color: C.hint, marginBottom: 6, flexShrink: 0 }}>전체 {clients.length}건</div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
@@ -74,38 +60,30 @@ export default function ClientListPanel({
             return (
               <div
                 key={client.id}
+                className="pcrm-customer-list-row"
+                data-active={active}
                 onClick={() => onSelect(client.id)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onSelect(client.id); }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 10, padding: "10px", borderRadius: R.md, cursor: "pointer",
-                  border: `1.5px solid ${active ? C.teal : "transparent"}`, background: active ? C.mint : "#fff",
-                }}
               >
-                <span style={{
-                  width: 32, height: 32, borderRadius: R.sm, flexShrink: 0, background: avatarColor(client.name),
-                  color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800,
-                }}>
-                  {avatarInitial(client.name)}
-                </span>
+                <i className="pcrm-customer-list-row__status" data-has-project={Boolean(client.active_project_count)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.name}</div>
-                  <div style={{ fontSize: 10.5, color: C.hint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {managerName ? `${managerName} · ` : ""}프로젝트 {client.active_project_count ?? 0}개
-                  </div>
+                  <strong>{client.name}</strong>
+                  <small>{client.contact_name || managerName || "담당자 미지정"}</small>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                  <span style={{ fontSize: 10, color: C.hint }}>{relativeTime(client.active_run?.updated_at || client.created_at)}</span>
+                <div className="pcrm-customer-list-row__actions">
+                  <span>{relativeTime(client.active_run?.updated_at || client.created_at)}</span>
                   <button
                     type="button"
                     onClick={(e) => onDelete(e, client.id, client.name)}
                     disabled={deletingId === client.id}
                     aria-label="삭제"
-                    style={{ border: "none", background: "transparent", color: C.hint, cursor: "pointer", padding: 2, display: "flex" }}
+                    className="pcrm-customer-list-row__delete"
                   >
                     <Trash2 size={12} />
                   </button>
+                  <ChevronRight className="pcrm-customer-list-row__arrow" size={16} aria-hidden="true" />
                 </div>
               </div>
             );

@@ -14,16 +14,18 @@ export default function ProjectWorkflowStepper({
   phases,
   progressPercent,
   compact = false,
+  light = false,
   onSelectPhase,
 }: {
   phases: WorkspacePhase[];
   progressPercent: number;
   compact?: boolean;
+  light?: boolean;
   onSelectPhase?: (phase: WorkspacePhase) => void;
 }) {
   const circleSize = compact ? 20 : 30;
   return (
-    <div>
+    <div className={`pcrm-project-stepper${light ? " pcrm-project-stepper--light" : ""}`}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4 }}>
         {phases.map((phase, index) => (
           <div key={phase.key} style={{ display: "flex", alignItems: "center", flex: index < phases.length - 1 ? 1 : "0 0 auto" }}>
@@ -40,9 +42,15 @@ export default function ProjectWorkflowStepper({
               <div style={{
                 width: circleSize, height: circleSize, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: compact ? 9 : 12, fontWeight: 800,
-                background: phase.status === "completed" ? C.teal : phase.status === "active" ? C.orange : "#fff",
-                color: phase.status === "pending" ? C.hint : "#fff",
-                border: phase.status === "pending" ? `1.5px solid ${C.border}` : "none",
+                background: light
+                  ? phase.status === "completed" ? C.mint : "#fff"
+                  : phase.status === "completed" ? C.teal : phase.status === "active" ? C.orange : "#fff",
+                color: light
+                  ? phase.status === "pending" ? C.hint : C.teal
+                  : phase.status === "pending" ? C.hint : "#fff",
+                border: light
+                  ? `1.5px solid ${phase.status === "active" ? C.teal : phase.status === "completed" ? "rgba(21,88,85,.22)" : C.border}`
+                  : phase.status === "pending" ? `1.5px solid ${C.border}` : "none",
               }}>
                 {phase.status === "completed" ? <Check size={compact ? 11 : 14} /> : phase.order}
               </div>
@@ -56,7 +64,7 @@ export default function ProjectWorkflowStepper({
               )}
             </button>
             {index < phases.length - 1 ? (
-              <div style={{ flex: 1, height: 2, background: phase.status === "completed" ? C.teal : C.border, margin: compact ? "0 4px" : "0 4px 16px" }} />
+              <div style={{ flex: 1, height: light ? 1 : 2, background: phase.status === "completed" ? (light ? "rgba(21,88,85,.25)" : C.teal) : C.border, margin: compact ? "0 4px" : "0 4px 16px" }} />
             ) : null}
           </div>
         ))}
