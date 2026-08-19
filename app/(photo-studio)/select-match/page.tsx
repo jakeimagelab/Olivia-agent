@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  collectJpgFolderGroups,
+  SELECT_MATCH_JPG_EXTENSIONS as JPG_EXTS,
+  type SelectMatchFolderGroup,
+} from "@/lib/selectMatch/folderScanner";
 
 /* ── 색상 ── */
 const C = {
@@ -10,7 +15,6 @@ const C = {
 };
 
 const RAW_EXTS = new Set(["arw","cr2","cr3","nef","orf","raf","rw2","dng","pef","srw","x3f","3fr","mef","mrw"]);
-const JPG_EXTS = new Set(["jpg","jpeg","heic","heif","tif","tiff","webp","png"]);
 const MOBILE_CONVERT_DOWNLOAD = "/assets/tools/mobile-convert/PhotoClinicMobile1500_fixed.zip";
 const PROGRAM_ARCHIVE_ITEMS = [
   {
@@ -22,18 +26,7 @@ const PROGRAM_ARCHIVE_ITEMS = [
 ];
 
 /* ── Types ── */
-interface ScenePhoto {
-  name: string;
-  basename: string;
-  handle: FileSystemFileHandle;
-  thumbUrl: string | null;
-  rating: number | null;   // Bridge XMP 별점 (1-5, null=없음)
-}
-interface SceneFolder {
-  name: string;
-  dirHandle: FileSystemDirectoryHandle;
-  photos: ScenePhoto[];
-}
+type SceneFolder = SelectMatchFolderGroup;
 
 type Step = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick";
 
@@ -316,7 +309,7 @@ export default function SelectMatchPage() {
     }
   }, []);
 
-  /* ── 폴더 로드: JPG/SceneXX/ 구조 스캔 ── */
+  /* ── 폴더 로드: 이름 규칙 없이 JPG 폴더 재귀 스캔 ── */
   const loadFolder = useCallback(async () => {
     try {
       const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
@@ -330,31 +323,7 @@ export default function SelectMatchPage() {
 
       // JPG/ 없으면 루트 직접 사용
       const scanDir = jpgBase ?? dir;
-      const sceneList: SceneFolder[] = [];
-
-      for await (const [name, handle] of (scanDir as any).entries()) {
-        if (handle.kind !== "directory") continue;
-        if (!name.toLowerCase().startsWith("scene") && !name.toLowerCase().startsWith("씬")) continue;
-        const sceneDir = handle as FileSystemDirectoryHandle;
-        const photos: ScenePhoto[] = [];
-
-        for await (const [fname, fhandle] of (sceneDir as any).entries()) {
-          if (fhandle.kind !== "file") continue;
-          const ext = fname.split(".").pop()?.toLowerCase() ?? "";
-          if (!JPG_EXTS.has(ext)) continue;
-          photos.push({
-            name: fname,
-            basename: fname.replace(/\.[^.]+$/, ""),
-            handle: fhandle as FileSystemFileHandle,
-            thumbUrl: null,
-            rating: null,
-          });
-        }
-        photos.sort((a, b) => a.name.localeCompare(b.name));
-        if (photos.length > 0) sceneList.push({ name, dirHandle: sceneDir, photos });
-      }
-
-      sceneList.sort((a, b) => a.name.localeCompare(b.name));
+      const sceneList = await collectJpgFolderGroups(scanDir);
       setScenes(sceneList);
       setSelected(new Set());
       setExpanded(new Set());
@@ -1010,8 +979,8 @@ export default function SelectMatchPage() {
       {inputMode === "folder" && (
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.8, marginBottom: 18, textAlign: "center" }}>
-            분류된 폴더(JPG/SceneXX/ 구조)를 선택하면<br />
-            씬별 사진을 보면서 베스트컷을 클릭으로 선택할 수 있습니다.
+            분류된 JPG 폴더를 선택하면 폴더 이름과 관계없이<br />
+            하위 사진을 찾아 그룹별로 베스트컷을 선택할 수 있습니다.
           </div>
           {!hasFS ? (
             <div style={{ fontSize: 12, color: C.red, textAlign: "center" }}>Chrome 또는 Edge를 사용해주세요.</div>
@@ -1020,7 +989,7 @@ export default function SelectMatchPage() {
           )}
           <div style={{ marginTop: 16, background: C.light, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
             촬영폴더/<br />
-            &nbsp;&nbsp;├ <strong>JPG/Scene01/, Scene02/, ...</strong> ← 여기 선택<br />
+            &nbsp;&nbsp;├ <strong>JPG/분류폴더들/</strong> ← JPG 또는 촬영폴더 선택<br />
             &nbsp;&nbsp;├ <strong>RAW/</strong> — 전체 RAW<br />
             &nbsp;&nbsp;└ <strong>Selected_RAW/</strong> — 결과물 자동 생성
           </div>
@@ -1331,8 +1300,7 @@ export default function SelectMatchPage() {
       {/* 씬별 패널 */}
       {scenes.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0", color: C.hint, fontSize: 13 }}>
-          JPG/SceneXX/ 구조의 폴더를 찾지 못했습니다.<br />
-          <span style={{ fontSize: 11 }}>사진 분류 후 생성된 폴더를 선택해주세요.</span>
+          JPG 파일을 찾지 못했습니다. 폴더를 다시 확인해주세요.
         </div>
       ) : (
         scenes.map((scene, si) => {
