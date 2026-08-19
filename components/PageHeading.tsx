@@ -18,11 +18,7 @@ type PageHeadingProps = {
 
 export function PageHeading({ title, desc, kicker, backHref, actions }: PageHeadingProps) {
   return (
-    <div style={{
-      display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-      gap: SP.lg, padding: `${SP.lg}px ${SP.xl}px`,
-      background: C.white, borderBottom: `1px solid ${C.border}`,
-    }}>
+    <header className="app-page-header app-page-header--embedded">
       <div style={{ display: "flex", alignItems: "flex-start", gap: SP.md, minWidth: 0 }}>
         {backHref && (
           <Link href={backHref} aria-label="뒤로가기" style={{
@@ -41,22 +37,20 @@ export function PageHeading({ title, desc, kicker, backHref, actions }: PageHead
               letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4,
             }}>{kicker}</div>
           )}
-          <h1 style={{ margin: 0, fontSize: FS.xxl, fontWeight: 900, color: C.ink, letterSpacing: "-0.3px" }}>
+          <h1 style={{ margin: 0, color: C.ink }}>
             {title}
           </h1>
           {desc && (
-            <p style={{ margin: "6px 0 0", fontSize: FS.sm, color: C.muted, lineHeight: 1.5 }}>
-              {desc}
-            </p>
+            <p>{desc}</p>
           )}
         </div>
       </div>
       {actions && (
-        <div style={{ display: "flex", alignItems: "center", gap: SP.sm, flexShrink: 0 }}>
+        <div className="app-page-header__actions" style={{ gap: SP.sm }}>
           {actions}
         </div>
       )}
-    </div>
+    </header>
   );
 }
 

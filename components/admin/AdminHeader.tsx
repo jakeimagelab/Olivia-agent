@@ -58,7 +58,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
 
   return (
     <>
-      <header className="oa-header oa-header--enhanced oa-header--page">
+      <header className="oa-header oa-header--enhanced oa-header--page app-page-header">
         <div className="oa-header__page-copy">
           <h1 className="oa-header__title">{meta.title}</h1>
           <p className="oa-header__description">{meta.description}</p>

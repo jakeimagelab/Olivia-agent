@@ -351,7 +351,7 @@ function GalleryPageInner() {
           📎 워크플로우 연결됨 — 저장 시 메일 draft 자동 생성 + 보정완료 단계 전진
         </div>
       )}
-      <header className="pc-header">
+      <header className="pc-header app-page-header">
         <div className="pc-header-left">
           <div className="pc-header-brand">
             <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />

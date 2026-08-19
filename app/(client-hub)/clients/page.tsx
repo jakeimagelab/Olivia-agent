@@ -156,7 +156,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
 
   return (
     <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt }}>
-      <header className="pcrm-workspace-page-header">
+      <header className="pcrm-workspace-page-header app-page-header">
         <div>
           <h1>고객관리</h1>
           <p>고객과 진행 중인 프로젝트를 관리합니다.</p>
