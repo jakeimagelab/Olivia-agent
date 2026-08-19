@@ -38,6 +38,7 @@ import MissionStatusBar from "@/components/olivia/ui/MissionStatusBar";
 import { C } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "./_hooks/useClientRoster";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 
 const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = {
   consult_meeting:   { icon: "🤝", desc: "병원 기본 정보 등록, 상담 내용 AI 분析",  href: "/consultation" },
@@ -115,13 +116,7 @@ function ClientsInner() {
   return <ClientWorkspaceView openNewOnLoad={searchParams.get("new") === "1"} initialClientId={searchParams.get("clientId")} />;
 }
 
-/* ── 2열 워크스페이스 (고객관리 2열 단순화 2026-08-09) — 왼쪽 리스트(30%) | 오른쪽 고객 업무(70%) ── */
-// 코드 요청서 6차(2026-08-16) — 예전엔 이 화면(2열 워크스페이스)이 고객을 선택하면 오른쪽에
-// 프로젝트/워크플로우 요약을 직접 그렸는데, 그 결과 같은 고객인데도 어느 경로로 들어왔는지에 따라
-// DetailView(?id=)와 완전히 다른 UI가 뜨는 문제가 있었다. 지금은 고객을 클릭하면 곧바로
-// DetailView(/clients?id=)로 이동시키기만 하는 얇은 진입 화면으로 축소했다 — 실제 프로젝트/
-// 워크플로우 표시는 DetailView 하나로 모인다. ?clientId=로 들어오는 다른 진입 경로들(홈 대시보드,
-// select-galleries 뒤로가기, 챗 open_feature 등)도 아래 리다이렉트로 자동으로 통일된다.
+/* ── 2열 워크스페이스 — 왼쪽 고객 목록 | 오른쪽 선택 고객 프로젝트 ── */
 function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openNewOnLoad?: boolean; initialClientId: string | null }) {
   const router = useRouter();
   const {
@@ -129,6 +124,8 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
     formModal, openCreate, closeForm,
     deletingId, deleteClient, load,
   } = useClientRoster();
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(initialClientId);
+  const filteredClientIds = filtered.map((client) => client.id).join("|");
 
   useEffect(() => {
     if (openNewOnLoad) openCreate();
@@ -136,36 +133,58 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
   }, [openNewOnLoad]);
 
   useEffect(() => {
-    if (initialClientId) router.replace(`/clients?id=${initialClientId}`);
-  }, [initialClientId, router]);
+    if (loading) return;
+    const requestedId = initialClientId && filtered.some((client) => client.id === initialClientId) ? initialClientId : null;
+    const retainedId = selectedClientId && filtered.some((client) => client.id === selectedClientId) ? selectedClientId : null;
+    const nextId = requestedId || retainedId || filtered[0]?.id || null;
+    if (nextId === selectedClientId) return;
+    setSelectedClientId(nextId);
+    const selected = filtered.find((client) => client.id === nextId);
+    const contextStore = useOliviaContextStore.getState();
+    contextStore.setClient(selected?.id, selected?.name);
+    contextStore.setProject(undefined, undefined);
+    if (nextId && initialClientId !== nextId) router.replace(`/clients?clientId=${encodeURIComponent(nextId)}`, { scroll: false });
+  // filteredClientIds는 선택 가능한 id 집합만 추적해 검색 입력 중 불필요한 effect 재실행을 막는다.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredClientIds, initialClientId, loading, router, selectedClientId]);
 
   const selectClient = (clientId: string) => {
-    router.push(`/clients?id=${clientId}`);
+    setSelectedClientId(clientId);
+    const selected = filtered.find((client) => client.id === clientId);
+    const contextStore = useOliviaContextStore.getState();
+    contextStore.setClient(clientId, selected?.name);
+    contextStore.setProject(undefined, undefined);
+    router.replace(`/clients?clientId=${encodeURIComponent(clientId)}`, { scroll: false });
   };
 
   return (
-    <div className="pcrm-dashboard" style={{ color: C.txt }}>
+    <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt }}>
       <div
         className="pcrm-workspace-grid"
-        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(300px, 40%) 1fr", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
+        style={{ display: "grid", width: "100%", gridTemplateColumns: "minmax(280px, 36%) minmax(0, 1fr)", gap: 16, height: "calc(100vh - 200px)", minHeight: 560, padding: "0 0 16px" }}
       >
         <ClientListPanel
           clients={filtered}
           loading={loading}
           search={search}
           onSearch={setSearch}
-          selectedClientId={null}
+          selectedClientId={selectedClientId}
           onSelect={selectClient}
           onCreate={openCreate}
           deletingId={deletingId}
           onDelete={deleteClient}
         />
 
-        <div style={{ minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+        <div className="pcrm-inline-project-column">
           <WorkflowConsistencyWidget />
-          <div className="pc-card pc-card--padded" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}>
-            <p style={{ fontSize: 13, color: C.hint }}>왼쪽 목록에서 고객을 선택해주세요.</p>
-          </div>
+          {selectedClientId ? (
+            <InlineClientProjectPanel clientId={selectedClientId} />
+          ) : (
+            <div className="pc-card pc-card--padded pcrm-inline-project-empty">
+              <p>등록된 고객이 없습니다.</p>
+              <button type="button" onClick={openCreate} className="pc-btn pc-btn--orange pc-btn--sm"><Plus size={13} /> 고객 등록</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -185,6 +204,142 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
         }
       `}</style>
     </div>
+  );
+}
+
+function InlineClientProjectPanel({ clientId }: { clientId: string }) {
+  const router = useRouter();
+  const [pageData, setPageData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const [showProjectDialog, setShowProjectDialog] = useState(false);
+  const [toolModal, setToolModal] = useState<{ type: "quote" | "contract" | "conti"; resourceId?: string } | null>(null);
+  const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
+
+  const refresh = () => setReloadKey((value) => value + 1);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setLoadError("");
+    setPageData(null);
+    void (async () => {
+      try {
+        let response = await fetch(`/api/clients/${clientId}`, { cache: "no-store", signal: controller.signal });
+        let payload = await response.json().catch(() => null);
+        if (response.status === 409 && payload?.healedClientId) {
+          response = await fetch(`/api/clients/${payload.healedClientId}`, { cache: "no-store", signal: controller.signal });
+          payload = await response.json().catch(() => null);
+        }
+        if (!response.ok || !payload?.ok) throw new Error(payload?.error || "고객 프로젝트를 불러오지 못했습니다.");
+        setPageData(payload);
+        useOliviaContextStore.getState().setClient(payload.client.id, payload.client.name);
+        useOliviaContextStore.getState().setProject(payload.workflowRun?.id, payload.workflowRun?.project_name);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setLoadError(error instanceof Error ? error.message : "고객 프로젝트를 불러오지 못했습니다.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [clientId, reloadKey]);
+
+  if (loading) return <div className="pc-card pc-card--padded pcrm-inline-project-state"><span className="pcrm-inline-project-spinner" /><p>프로젝트를 불러오는 중...</p></div>;
+  if (!pageData?.client) return (
+    <div className="pc-card pc-card--padded pcrm-inline-project-state is-error">
+      <strong>프로젝트를 불러오지 못했어요.</strong>
+      <p>{loadError}</p>
+      <button type="button" onClick={refresh} className="pc-btn pc-btn--secondary pc-btn--sm">다시 시도</button>
+    </div>
+  );
+
+  const { client, workflowRun, workflowSummary, resourceIds } = pageData;
+  const workflowCompleted = workflowRun?.status === "completed";
+  const currentStepKey = workflowCompleted
+    ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
+    : workflowRun?.current_step_key || ACTIVE_WORKFLOW_STEPS[0].key;
+  const displayStepKey = getWorkflowDisplayStepKey(currentStepKey) || ACTIVE_WORKFLOW_STEPS[0].key;
+
+  const openToolModal = (type: "quote" | "contract" | "conti") => {
+    setToolModal({ type, resourceId: resourceIds?.[type] ?? undefined });
+  };
+
+  const handlePhaseClick = async (phase: WorkspacePhase) => {
+    if (!workflowRun) return;
+    const targetStep = resolvePhaseTargetStep(phase.key, workflowRun.current_step_key);
+    await tryMoveWorkflowStep(workflowRun.id, targetStep);
+    refresh();
+    if (targetStep === "quote" || targetStep === "contract" || targetStep === "conti") openToolModal(targetStep);
+    else router.push(buildStepAppLink({ stepKey: targetStep, clientId, workflowRunId: workflowRun.id }));
+  };
+
+  return (
+    <section className="pcrm-inline-project pc-card">
+      <header className="pcrm-inline-project__header">
+        <div className="pcrm-inline-project__identity">
+          <span style={{ background: avatarColor(client.name) }}>{avatarInitial(client.name)}</span>
+          <div>
+            <small>SELECTED CLIENT</small>
+            <h2>{client.name}</h2>
+            <p>{client.contact_name || client.manager_name || "담당자 미지정"}{client.phone ? ` · ${client.phone}` : ""}</p>
+          </div>
+        </div>
+        <Link href={`/clients?id=${encodeURIComponent(clientId)}`} className="pc-btn pc-btn--secondary pc-btn--sm">전체 상세 보기</Link>
+      </header>
+
+      {workflowRun ? (
+        <>
+          <MissionStatusBar
+            title={workflowRun.project_name || `${client.name} 프로젝트`}
+            status={workflowCompleted ? "완료" : "진행 중"}
+            currentStage={ACTIVE_WORKFLOW_STEPS.find((step) => step.key === displayStepKey)?.name}
+            nextScheduleLabel={workflowRun.shoot_date ? `${fmtDot(workflowRun.shoot_date)} 촬영` : undefined}
+            owner={workflowRun.manager_name || undefined}
+            progress={workflowSummary?.progressPercent}
+          />
+          {workflowSummary ? (
+            <div className="pcrm-inline-project__workflow">
+              <ProjectWorkflowStepper phases={workflowSummary.phases} progressPercent={workflowSummary.progressPercent} compact onSelectPhase={handlePhaseClick} />
+            </div>
+          ) : null}
+          <CurrentStepCard
+            client={client}
+            workflowRun={workflowRun}
+            stepIcon={STEP_INFO[displayStepKey]?.icon}
+            stepDescription={STEP_INFO[displayStepKey]?.desc}
+            onOpenToolModal={openToolModal}
+          />
+        </>
+      ) : (
+        <div className="pcrm-inline-project__no-project">
+          <span><ClipboardList size={22} strokeWidth={1.5} /></span>
+          <div><strong>아직 연결된 프로젝트가 없어요.</strong><p>고객 정보를 유지한 채 첫 프로젝트를 만들어 업무를 시작하세요.</p></div>
+          <button type="button" onClick={() => setShowProjectDialog(true)} className="pc-btn pc-btn--orange pc-btn--sm"><Plus size={13} /> 새 프로젝트 생성</button>
+        </div>
+      )}
+
+      {showProjectDialog ? (
+        <NewPcrmProjectDialog clientId={clientId} clientName={client.name} onClose={() => setShowProjectDialog(false)} onCreated={() => { setShowProjectDialog(false); refresh(); }} />
+      ) : null}
+
+      {toolModal?.type === "quote" ? (
+        <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 견적서 작성`}>
+          <QuoteBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={setToolBuilderRequestClose} />
+        </WorkspaceModal>
+      ) : null}
+      {toolModal?.type === "contract" ? (
+        <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 계약서 작성`}>
+          <ContractBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={setToolBuilderRequestClose} />
+        </WorkspaceModal>
+      ) : null}
+      {toolModal?.type === "conti" ? (
+        <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 콘티 작성`}>
+          <ContiBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={setToolBuilderRequestClose} />
+        </WorkspaceModal>
+      ) : null}
+    </section>
   );
 }
 
@@ -1095,4 +1250,3 @@ function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) 
     </div>
   );
 }
-
