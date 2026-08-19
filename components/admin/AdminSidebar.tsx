@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
-  BarChart3,
   CalendarDays,
-  CircleHelp,
-  FileText,
+  ChevronDown,
   Grid2X2,
   House,
+  LogOut,
   MessagesSquare,
+  ShieldCheck,
   Settings,
   UsersRound,
   X,
@@ -37,12 +37,10 @@ type NavigationItem = {
    합쳐서 부른다(기능은 그대로, 이름만 시안 기준으로 통일). */
 const navigation: NavigationItem[] = [
   { label: "홈", href: "/admin/dashboard/home", icon: House, accent: "orange" },
-  { label: "채팅", href: "/admin/dashboard/conversations", icon: MessagesSquare },
-  { label: "고객 관리", href: "/clients", icon: UsersRound, carryContext: true },
-  { label: "문서", href: "/quote", icon: FileText, carryContext: true },
   { label: "일정", href: "/calendar", icon: CalendarDays, accent: "orange" },
-  { label: "보고서", href: "/admin/tools?category=report", icon: BarChart3 },
-  { label: "더보기", href: "/admin/tools", icon: Grid2X2, carryContext: true },
+  { label: "고객 관리", href: "/clients", icon: UsersRound, carryContext: true },
+  { label: "기록 (대화)", href: "/admin/dashboard/conversations", icon: MessagesSquare },
+  { label: "전체보기 (기능)", href: "/admin/tools", icon: Grid2X2, carryContext: true },
 ];
 
 type AdminSidebarProps = {
@@ -51,42 +49,15 @@ type AdminSidebarProps = {
   onClose?: () => void;
 };
 
-type FavoriteClient = { clientId: string; name: string };
-
 function isActiveRoute(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
-
-const FAVORITE_SWATCHES = ["#155855", "#E85D2C", "#569082", "#EB8F22"];
 
 export function AdminSidebar({ open = false, inert = false, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const asideRef = useRef<HTMLElement>(null);
   const [contextSuffix, setContextSuffix] = useState("");
-  // "즐겨찾기"는 아직 사용자가 직접 고르는 별도 pin 기능이 없어서(3절: "즐겨찾기 고객 유지
-  // 가능" — 새 즐겨찾기 기능을 만들라는 요구는 아님), 가장 최근에 다룬 활성 프로젝트 상위
-  // 3개를 실제 데이터로 대신 보여준다.
-  const [favorites, setFavorites] = useState<FavoriteClient[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/workflow/summary", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled || !Array.isArray(data?.workflowRuns)) return;
-        const seen = new Set<string>();
-        const list: FavoriteClient[] = [];
-        for (const run of data.workflowRuns as { status: string; client_id: string | null; client_name: string; updated_at: string }[]) {
-          if (run.status !== "active" || !run.client_id || seen.has(run.client_id)) continue;
-          seen.add(run.client_id);
-          list.push({ clientId: run.client_id, name: run.client_name || "이름 없는 고객" });
-          if (list.length >= 3) break;
-        }
-        setFavorites(list);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     const incoming = new URLSearchParams(window.location.search);
@@ -120,7 +91,7 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
           <span className="oa-sidebar__brand-mark" aria-hidden="true"><img src="/assets/photoclinic-mark.png" alt="" /></span>
           <span className="oa-sidebar__brand-copy">
             <strong>Olivia</strong>
-            <small>Admin</small>
+            <small>Agent</small>
           </span>
         </Link>
         <button className="oa-sidebar__close" type="button" onClick={onClose} aria-label="메뉴 닫기">
@@ -150,36 +121,20 @@ export function AdminSidebar({ open = false, inert = false, onClose }: AdminSide
           })}
         </ul>
 
-        {favorites.length > 0 ? (
-          <div className="oa-sidebar__section">
-            <p className="oa-sidebar__section-label">즐겨찾기</p>
-            <ul className="oa-sidebar__list">
-              {favorites.map((client, index) => (
-                <li className="oa-sidebar__list-item" key={client.clientId}>
-                  <Link
-                    className={`oa-sidebar__link oa-sidebar__favorite${isActiveRoute(pathname, "/clients") && contextSuffix.includes(client.clientId) ? " oa-sidebar__link--active" : ""}`}
-                    href={`/clients?clientId=${client.clientId}`}
-                    title={client.name}
-                    onClick={onClose}
-                  >
-                    <span className="oa-sidebar__favorite-swatch" style={{ background: FAVORITE_SWATCHES[index % FAVORITE_SWATCHES.length] }} aria-hidden="true">
-                      {client.name.slice(0, 1)}
-                    </span>
-                    <span>{client.name}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </nav>
 
       <div className="oa-sidebar__footer">
-        <button className="oa-sidebar__footer-link" type="button" disabled title="설정 · 2차 UI에서 제공 예정">
-          <Settings size={17} aria-hidden="true" /> <span>설정</span>
-        </button>
-        <button className="oa-sidebar__footer-link" type="button" disabled title="도움말 · 2차 UI에서 제공 예정">
-          <CircleHelp size={17} aria-hidden="true" /> <span>도움말</span>
+        {profileOpen ? (
+          <div className="oa-sidebar__profile-menu">
+            <Link href="/admin/security" onClick={() => { setProfileOpen(false); onClose?.(); }}><ShieldCheck size={16} /> 계정 및 보안</Link>
+            <Link href="/admin/team-chat-settings" onClick={() => { setProfileOpen(false); onClose?.(); }}><Settings size={16} /> 설정</Link>
+            <a href="/api/auth/signout"><LogOut size={16} /> 로그아웃</a>
+          </div>
+        ) : null}
+        <button className="oa-sidebar__profile-card" type="button" aria-label="현재 사용자 정연호 대표" aria-expanded={profileOpen} onClick={() => setProfileOpen((value) => !value)}>
+          <span className="oa-sidebar__profile-mark"><img src="/assets/photoclinic-mark.png" alt="" /></span>
+          <span className="oa-sidebar__profile-copy"><strong>정연호 대표</strong><small>포토클리닉</small><em><i /> 온라인</em></span>
+          <ChevronDown className={profileOpen ? "is-open" : ""} size={16} aria-hidden="true" />
         </button>
       </div>
     </aside>

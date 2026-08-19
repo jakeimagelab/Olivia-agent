@@ -6,7 +6,11 @@ import { Bell, CalendarPlus, ChevronDown, Fingerprint, NotebookPen, Plus, UserPl
 
 type NotificationItem = { id: string; kind: string; title: string; subtitle: string; href: string };
 
-export default function AdminHeaderActions() {
+type AdminHeaderActionsProps = {
+  home?: boolean;
+};
+
+export default function AdminHeaderActions({ home = false }: AdminHeaderActionsProps) {
   const [panel, setPanel] = useState<"notifications" | "quick" | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,9 +36,11 @@ export default function AdminHeaderActions() {
 
   return (
     <div ref={rootRef} className="oa-header-actions">
-      <Link href="/admin/security" className="oa-header-action-button" aria-label="보안 설정 (패스키)" title="보안 설정 · Face ID / Touch ID">
-        <Fingerprint size={17} strokeWidth={1.8}/>
-      </Link>
+      {home ? null : (
+        <Link href="/admin/security" className="oa-header-action-button" aria-label="보안 설정 (패스키)" title="보안 설정 · Face ID / Touch ID">
+          <Fingerprint size={17} strokeWidth={1.8}/>
+        </Link>
+      )}
 
       <div className="oa-header-action-wrap">
         <button className="oa-header-action-button" type="button" aria-label="알림 보기" aria-expanded={panel === "notifications"} onClick={() => setPanel((current) => current === "notifications" ? null : "notifications")}>
@@ -51,7 +57,7 @@ export default function AdminHeaderActions() {
 
       <div className="oa-header-action-wrap">
         <button className="oa-header-quick-trigger" type="button" aria-expanded={panel === "quick"} onClick={() => setPanel((current) => current === "quick" ? null : "quick")}>
-          <Plus size={15} strokeWidth={1.9}/><span>빠른 실행</span><ChevronDown size={13} strokeWidth={1.7}/>
+          <Plus size={15} strokeWidth={1.9}/><span>{home ? "새로 만들기" : "빠른 실행"}</span><ChevronDown size={13} strokeWidth={1.7}/>
         </button>
         {panel === "quick" ? <div className="oa-header-popover oa-header-popover--quick">
           <span className="oa-header-popover__eyebrow">QUICK START</span>
@@ -61,9 +67,11 @@ export default function AdminHeaderActions() {
         </div> : null}
       </div>
 
-      <div className="oa-header-profile" aria-label="현재 사용자 정연호 대표">
-        <span><img src="/assets/photoclinic-mark.png" alt=""/></span><div><strong>정연호 대표</strong><small>Photo Clinic</small></div>
-      </div>
+      {home ? null : (
+        <div className="oa-header-profile" aria-label="현재 사용자 정연호 대표">
+          <span><img src="/assets/photoclinic-mark.png" alt=""/></span><div><strong>정연호 대표</strong><small>Photo Clinic</small></div>
+        </div>
+      )}
     </div>
   );
 }

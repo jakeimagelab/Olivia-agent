@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, Maximize2, Minimize2, Minus, Plus, Square } from "lucide-react";
+import { ArrowUp, Maximize2, Minimize2, Minus, Paperclip, Plus, Search, Square } from "lucide-react";
 import { MarkdownText, OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { messageText } from "@/lib/olivia/v2/types";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
@@ -129,6 +129,11 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
     });
   };
 
+  const prefillHomePrompt = (prefix: string) => {
+    onInput(prefix);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  };
+
   return (
     <section
       className={`olivia-conversation olivia-conversation--${variant}`}
@@ -165,12 +170,15 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         {isHydrated && messages.length === 0 ? (
           <div className={`olivia-conversation__welcome${isHome ? " is-home" : ""}`}>
             {isHome ? (
-              <span className="olivia-conversation__welcome-icon"><OliviaIcon size={20} /></span>
+              <div className="olivia-conversation__home-identity">
+                <span className="olivia-conversation__welcome-icon"><OliviaIcon size={18} /></span>
+                <strong>Olivia Agent</strong>
+                <small>업무 파트너</small>
+              </div>
             ) : (
               <span>OLIVIA AGENT</span>
             )}
-            <h1>무엇을 도와드릴까요?</h1>
-            <p>업무 질문, 요약, 계획, 문서 작성까지 무엇이든 물어보세요.</p>
+            {isHome ? null : <><h1>무엇을 도와드릴까요?</h1><p>업무 질문, 요약, 계획, 문서 작성까지 무엇이든 물어보세요.</p></>}
             {/* home variant는 칩을 컴포저 "아래"로 옮긴다(레퍼런스 순서: 제목→입력창→칩) —
                 다른 variant(drawer/workspace)는 기존 순서(제목→칩→입력창) 그대로 유지. */}
             {!isHome ? (
@@ -236,7 +244,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             ref={textareaRef}
             value={input}
             rows={1}
-            placeholder="Olivia에게 무엇이든 말해보세요…"
+            placeholder={isHome ? "무엇을 도와드릴까요?" : "Olivia에게 무엇이든 말해보세요…"}
             onChange={(event) => onInput(event.target.value)}
             onFocus={() => { if (blurTimerRef.current) clearTimeout(blurTimerRef.current); setChatFocused(true); }}
             onBlur={() => { blurTimerRef.current = setTimeout(() => setChatFocused(false), 450); }}
@@ -263,9 +271,8 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       </div>
       {isHome && isEmpty ? (
         <div className="olivia-conversation__suggestions olivia-conversation__suggestions--below-composer">
-          {["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"].map((prompt) => (
-            <button key={prompt} type="button" onClick={() => void sendMessage(prompt)}>{prompt}</button>
-          ))}
+          <button type="button" onClick={() => prefillHomePrompt("업무 요청: ")}><Paperclip size={15} strokeWidth={1.7} /> 업무 요청</button>
+          <button type="button" onClick={() => prefillHomePrompt("정보 검색: ")}><Search size={15} strokeWidth={1.7} /> 정보 검색</button>
         </div>
       ) : null}
         </div>
