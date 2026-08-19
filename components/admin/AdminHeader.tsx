@@ -10,6 +10,7 @@ type PageMeta = { title: string; description: string };
 const pageMeta: Record<string, PageMeta> = {
   "/admin/dashboard": { title: "포토클리닉 AI 비서", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
   "/admin/dashboard/home": { title: "포토클리닉 AI 비서", description: "포토클리닉 촬영 운영과 고객 관리를 한눈에 확인하세요." },
+  "/admin/dashboard/conversations": { title: "대화 기록", description: "Olivia와 나눈 대화를 날짜별로 확인합니다." },
   "/admin/dashboard/memo": { title: "메모", description: "일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다." },
   "/admin/dashboard/calendar": { title: "캘린더", description: "촬영과 운영 일정을 한눈에 관리합니다." },
   "/admin/dashboard/mailing": { title: "메일링", description: "발송 대기 메일과 발송 이력을 관리합니다." },
@@ -44,7 +45,7 @@ function getPageMeta(pathname: string): PageMeta {
 export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const pathname = usePathname();
   const meta = getPageMeta(pathname);
-  const compactTitle = pathname === "/admin/dashboard" || pathname === "/admin/dashboard/home" || pathname === "/admin/tools";
+  const compactTitle = pathname === "/admin/dashboard" || pathname === "/admin/dashboard/home" || pathname === "/admin/dashboard/conversations" || pathname === "/admin/tools";
   const dashboardHome = pathname === "/admin/dashboard" || pathname === "/admin/dashboard/home";
   const toolsHome = pathname === "/admin/tools";
   const enhanced = dashboardHome || toolsHome;

@@ -50,7 +50,7 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
             const Icon = tool.icon;
             return (
               <Link key={tool.href} href={`${tool.href}${suffix}`} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
-                <div className="admin-menu-icon"><Icon size={26}/></div>
+                <div className={`admin-menu-icon admin-menu-icon--${tool.category}`}><Icon size={24}/></div>
                 <div className="admin-menu-copy">
                   <span>{tool.meta}</span>
                   <h2>{tool.title}</h2>

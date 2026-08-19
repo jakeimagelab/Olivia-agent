@@ -2873,3 +2873,81 @@
   .olivia-agent-quick-actions { grid-template-columns: 1fr; }
   .olivia-agent-home .olivia-conversation--home .olivia-composer textarea { font-size: 16px; }
 }
+
+/* 2026-08-19 density pass — viewport는 고정하고 실제 콘텐츠 영역만 내부 스크롤한다. */
+.olivia-agent-home__row { padding-block: 20px; }
+.olivia-agent-home .olivia-home-greeting { margin-bottom: 24px; }
+.olivia-agent-home .olivia-conversation--home,
+.olivia-agent-home .olivia-conversation--home[data-message-count="0"] {
+  height: clamp(300px,calc(100dvh - 300px),380px);
+}
+.olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) {
+  height: min(70dvh,676px);
+}
+.olivia-agent-quick-actions { margin-top: 18px; }
+
+.oa-conversations-page {
+  width: min(100%,980px);
+  margin-inline: auto;
+  padding: 24px 24px 56px;
+  color: #263a36;
+  font-family: var(--font-sans);
+}
+
+.oa-tools-page .admin-menu-grid { gap: 10px; }
+.oa-tools-page .admin-menu-card {
+  min-height: 187px;
+  gap: 12px;
+  border-radius: 17px;
+  padding: 17px;
+}
+.oa-tools-page .admin-menu-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 17px;
+  background: #155855;
+  box-shadow: 0 8px 20px rgba(21,88,85,.22);
+}
+.oa-tools-page .admin-menu-icon--crm,
+.oa-tools-page .admin-menu-card.orange .admin-menu-icon {
+  background: #e85d2c;
+  box-shadow: 0 8px 20px rgba(232,93,44,.22);
+}
+.oa-tools-page .admin-menu-icon--tools:not(.admin-menu-icon--crm) { background: #0d6b63; }
+.oa-tools-page .admin-menu-icon svg { width: 30px; height: 30px; stroke-width: 1.8; }
+.oa-tools-page .admin-menu-copy h2 { font-size: 13px; }
+.oa-tools-page .admin-menu-copy p { font-size: 9px; line-height: 1.55; }
+
+@media (max-width: 900px) {
+  .home-simple-dashboard,
+  .home-simple-dashboard .olivia-adaptive-stage.olivia-agent-home {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .olivia-agent-home__row {
+    height: 100dvh;
+    min-height: 0;
+    padding-bottom: 18px;
+    overflow: hidden;
+  }
+  .olivia-agent-home__main {
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .olivia-agent-home__main::-webkit-scrollbar { display: none; }
+  .olivia-agent-home .olivia-conversation--home,
+  .olivia-agent-home .olivia-conversation--home[data-message-count="0"] { height: clamp(320px,46dvh,380px); }
+  .olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) { height: min(62dvh,560px); }
+}
+
+@media (max-width: 560px) {
+  .oa-tools-page .admin-menu-icon {
+    width: 54px !important;
+    height: 54px !important;
+    flex-basis: 54px;
+    border-radius: 17px !important;
+  }
+  .oa-tools-page .admin-menu-icon svg { width: 24px; height: 24px; }
+}

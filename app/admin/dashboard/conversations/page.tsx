@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessagesSquare } from "lucide-react";
 
 type ChatMessage = {
   id: string;
@@ -91,14 +90,7 @@ export default function ConversationsPage() {
   };
 
   return (
-    <div className="oa-page" style={{ maxWidth: 980, margin: "0 auto", padding: "28px 20px 60px" }}>
-      <header style={{ marginBottom: 20 }}>
-        <h1 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 20, fontWeight: 900, color: "#1C2B28", margin: 0 }}>
-          <MessagesSquare size={20} color="#155855" /> 대화 기록
-        </h1>
-        <p style={{ fontSize: 12.5, color: "#6F7E7A", marginTop: 4 }}>올리비아와 나눈 대화를 날짜별로 확인합니다.</p>
-      </header>
-
+    <div className="oa-page oa-conversations-page">
       {loading ? (
         <div style={{ textAlign: "center", padding: "60px 0", color: "#9BB5B0", fontSize: 13 }}>불러오는 중...</div>
       ) : groups.length === 0 ? (

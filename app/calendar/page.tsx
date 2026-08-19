@@ -1149,8 +1149,8 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
           데일리 루틴 패널이 flex:1로 흡수한다(예전엔 이 div가 flex:1이라 그리드 밑에 빈
           배경색만 남았다). */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)",
-        gridAutoRows: "124px", gap: "1px", background: "rgba(21,88,85,.08)",
-        flexShrink: 0, overflow: "hidden" }}>
+        gridAutoRows: "minmax(0,1fr)", gap: "1px", background: "rgba(21,88,85,.08)",
+        flex: "1 1 0", minHeight: 0, overflow: "hidden" }}>
         {cells.map((cell, idx) => {
           const dateStr    = `${cell.year}-${String(cell.month+1).padStart(2,"0")}-${String(cell.day).padStart(2,"0")}`;
           const isToday    = dateStr === todayStr;
@@ -1299,7 +1299,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
       </div>
 
       {/* ── 데일리 루틴 — 그리드 밑에 남는 공간을 채우는 매일 반복 일정 안내 */}
-      <div style={{ flex: 1, minHeight: 56, overflowY: "auto", background: C.surface,
+      <div style={{ flex: "0 0 auto", minHeight: 56, maxHeight: 92, overflowY: "auto", background: C.surface,
         borderTop: `1px solid ${C.border}`, padding: "12px 20px" }}>
         <div style={{ fontSize: 10, fontWeight: 900, color: C.hint, letterSpacing: ".06em",
           textTransform: "uppercase", marginBottom: 10 }}>⏰ 데일리 루틴</div>
@@ -2592,7 +2592,7 @@ export default function CalendarPage() {
   const VIEW_LABELS: Record<ViewMode, string> = { day: "일", week: "주", month: "월", year: "년" };
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
+    <main className="calendar-page-shell" style={{ background: C.bg, color: C.txt }}>
 
       <PageHeader title="업무 캘린더" actions={<>
           {/* view mode tabs — 모바일에서는 숨기고 연/월/일 드릴다운 내비게이션으로 대체 */}
@@ -2613,14 +2613,14 @@ export default function CalendarPage() {
       </>} />
 
       {!isMobile ? (
-        <div style={{ maxWidth: 1440, margin: "0 auto 10px", width: "100%", padding: "0 20px" }}>
+        <div className="calendar-mission-shell" style={{ maxWidth: 1440, margin: "0 auto 10px", width: "100%", padding: "0 20px" }}>
           <ActiveMissionBar />
         </div>
       ) : null}
 
-      <div style={{
+      <div className="calendar-page-content" style={{
         maxWidth: isMobile ? undefined : 1440, margin: "0 auto", width: "100%",
-        height: "calc(100vh - 110px)", display: "flex", overflow: "hidden",
+        display: "flex", overflow: "hidden",
       }}>
         {/* 전체화면 캘린더 — 사이드 패널 없이 그리드가 화면 전체를 씀. 셀/일정 클릭은 팝업으로 처리 */}
         {viewMode === "month" && (
@@ -2650,8 +2650,7 @@ export default function CalendarPage() {
         )}
 
         {viewMode === "day" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
-            minHeight: "calc(100vh - 56px)" }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
             <DayView dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
               onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}
               onUpdateTask={updateTaskFields} isMobile={isMobile}
