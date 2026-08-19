@@ -35,6 +35,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isComposingRef = useRef(false);
   const exchanges = useMemo(() => buildConversationExchanges(messages), [messages]);
+  const showConversationGuide = variant !== "home" && exchanges.length >= 4;
   const exchangeByUserMessageId = useMemo(() => {
     const map = new Map<string, (typeof exchanges)[number]>();
     for (const exchange of exchanges) map.set(exchange.userMessageId, exchange);
@@ -74,6 +75,19 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   useEffect(() => {
     if (!activeMessageId && exchanges.length) setActiveMessageId(exchanges.at(-1)?.userMessageId);
   }, [activeMessageId, exchanges]);
+  useEffect(() => {
+    if (selectedGuideId && !exchanges.some((exchange) => exchange.userMessageId === selectedGuideId)) {
+      setSelectedGuideId(undefined);
+    }
+  }, [exchanges, selectedGuideId]);
+  useEffect(() => {
+    if (!selectedGuideId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedGuideId(undefined);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedGuideId]);
   useEffect(() => {
     const list = listRef.current;
     if (!list) return;
@@ -161,7 +175,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         </header>
       )}
 
-      <div className="olivia-conversation__stage">
+      <div className={`olivia-conversation__stage${showConversationGuide ? " has-guide" : ""}`}>
         {isHome ? null : <OliviaConversationNavigator exchanges={exchanges} activeId={activeMessageId} onNavigate={scrollToMessage} />}
         <div className="olivia-conversation__main">
       <OliviaEngineBackground active={isStreaming} />
@@ -276,7 +290,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         </div>
       ) : null}
         </div>
-        {isHome ? null : <OliviaConversationGuide exchanges={exchanges} activeId={activeMessageId} selectedId={selectedGuideId} onNavigate={scrollToMessage} onSelect={setSelectedGuideId} />}
+        {showConversationGuide ? <OliviaConversationGuide exchanges={exchanges} activeId={activeMessageId} selectedId={selectedGuideId} onNavigate={scrollToMessage} onSelect={setSelectedGuideId} /> : null}
       </div>
     </section>
   );

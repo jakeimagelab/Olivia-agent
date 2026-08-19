@@ -2951,3 +2951,161 @@
   }
   .oa-tools-page .admin-menu-icon svg { width: 24px; height: 24px; }
 }
+
+/* 2026-08-19 Olivia chat surface unification */
+.olivia-agent-home .olivia-adaptive-stage__chat {
+  width: 94%;
+  max-width: none;
+}
+.olivia-agent-home .olivia-conversation--home .olivia-conversation__messages,
+.olivia-agent-home .olivia-conversation--home .olivia-composer-shell {
+  width: 100%;
+}
+.olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) .olivia-conversation__messages {
+  padding-inline: clamp(22px,3vw,52px);
+}
+.olivia-agent-quick-actions {
+  width: min(1080px,90%);
+}
+
+/* 홈 밖에서는 Olivia가 본문을 밀지 않고 원형 아이콘에서 호출되는 오버레이로 열린다. */
+.olivia-chat-drawer--global {
+  width: clamp(440px,31vw,480px);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border-left-color: rgba(21,88,85,.09);
+  background: #fbfdfc;
+  box-shadow: -24px 0 72px rgba(10,40,35,.15);
+  font-family: var(--font-sans);
+  overflow: visible;
+}
+.olivia-chat-drawer--global > .olivia-conversation {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.olivia-chat-drawer--global .olivia-conversation__header {
+  min-height: 64px;
+  padding: 10px 16px;
+  background: #fff;
+}
+.olivia-chat-drawer--global .olivia-conversation__identity strong { font-size: 11px; }
+.olivia-chat-drawer--global .olivia-conversation__identity small { font-size: 10.5px; }
+.olivia-chat-drawer--global .olivia-conversation__controls button {
+  min-height: 34px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+}
+.olivia-chat-drawer--global .olivia-conversation__messages {
+  padding: 22px 20px;
+  gap: 14px;
+}
+.olivia-chat-drawer--global .olivia-message { max-width: 88%; }
+.olivia-chat-drawer--global .olivia-message__body,
+.olivia-conversation--home .olivia-message__body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.olivia-chat-drawer--global .olivia-message__body { padding: 11px 14px; }
+.olivia-chat-drawer--global .olivia-composer-shell { padding: 12px 16px 18px; }
+.olivia-chat-drawer--global .olivia-composer {
+  min-height: 58px;
+  border-color: rgba(21,88,85,.11);
+  border-radius: 20px;
+  padding: 9px 10px 9px 16px;
+  box-shadow: 0 10px 30px rgba(21,88,85,.085);
+}
+.olivia-chat-drawer--global .olivia-composer textarea {
+  color: #263d38;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.olivia-chat-drawer--global .olivia-composer > button {
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+}
+.olivia-floating-core--global {
+  right: 24px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  box-shadow: 0 12px 34px rgba(232,93,44,.3), inset 0 1px 1px rgba(255,255,255,.5);
+}
+
+/* 긴 대화 가이드: 4개 이상 교환일 때만 DOM에 생기며 각 틱 전체가 터치 영역이다. */
+.olivia-conversation--workspace .olivia-conversation__stage,
+.olivia-conversation--drawer .olivia-conversation__stage {
+  grid-template-columns: minmax(0,1fr);
+}
+.olivia-conversation--workspace .olivia-conversation__stage.has-guide,
+.olivia-conversation--drawer .olivia-conversation__stage.has-guide {
+  grid-template-columns: minmax(0,1fr) 44px;
+}
+.olivia-message-guide {
+  z-index: 8;
+  width: 44px;
+  padding: 12px 6px;
+  overflow: visible;
+  background: #123a35;
+}
+.olivia-message-guide__ticks {
+  justify-content: flex-start;
+  gap: 1px;
+  padding-block: 4px;
+}
+.olivia-message-guide__ticks > button,
+.olivia-conversation--workspace .olivia-message-guide__ticks > button,
+.olivia-conversation--drawer .olivia-message-guide__ticks > button {
+  width: 32px;
+  min-height: 26px;
+  flex: 0 0 26px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  opacity: .7;
+}
+.olivia-message-guide__ticks > button > span {
+  width: 24px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--topic-color,rgba(255,255,255,.42));
+  transition: width 180ms cubic-bezier(.32,.72,0,1),opacity 180ms cubic-bezier(.32,.72,0,1);
+}
+.olivia-message-guide__ticks > button:hover,
+.olivia-message-guide__ticks > button[aria-pressed="true"],
+.olivia-message-guide__ticks > button.is-active {
+  transform: none;
+  opacity: 1;
+  box-shadow: none;
+}
+.olivia-message-guide__ticks > button:hover > span,
+.olivia-message-guide__ticks > button[aria-pressed="true"] > span,
+.olivia-message-guide__ticks > button.is-active > span { width: 30px; }
+.olivia-message-guide__ticks > button.is-active > span {
+  box-shadow: 0 0 0 1px rgba(255,255,255,.92);
+}
+.olivia-message-guide__popover {
+  right: 52px;
+  top: clamp(124px,42%,360px);
+  width: min(300px,calc(100vw - 96px));
+  z-index: 12;
+  padding: 18px;
+  border-color: rgba(21,88,85,.1);
+  border-radius: 18px;
+  box-shadow: 0 22px 58px rgba(9,35,31,.24);
+}
+.olivia-message-guide__popover time { font-size: 10px; }
+.olivia-message-guide__topic { font-size: 9px; }
+.olivia-message-guide__popover strong { font-size: 13px; }
+.olivia-message-guide__popover p { font-size: 11.5px; }
+.olivia-message-guide__jump { min-height: 34px; font-size: 10.5px; }
+
+@media (max-width: 900px) {
+  .olivia-agent-home .olivia-adaptive-stage__chat { width: 100%; }
+  .olivia-agent-quick-actions { width: 100%; }
+  .olivia-chat-drawer--global { width: min(100%,480px); }
+}

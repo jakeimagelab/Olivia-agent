@@ -66,12 +66,13 @@ export const OliviaConversationGuide = memo(function OliviaConversationGuide({ e
             className={activeId === exchange.userMessageId ? "is-active" : ""}
             aria-label={`${exchange.timeLabel} ${exchange.topicLabel} · ${exchange.userText}`}
             aria-pressed={selectedId === exchange.userMessageId}
+            aria-haspopup="dialog"
             onClick={() => onSelect(selectedId === exchange.userMessageId ? undefined : exchange.userMessageId)}
-          />
+          ><span aria-hidden="true" /></button>
         ))}
       </div>
       {selected ? (
-        <div className="olivia-message-guide__popover" role="dialog" aria-label="대화 내용 미리보기">
+        <div className="olivia-message-guide__popover" role="dialog" aria-modal="false" aria-label="대화 내용 미리보기">
           <button className="olivia-message-guide__close" type="button" onClick={() => onSelect(undefined)} aria-label="닫기"><X size={13} /></button>
           <time><Clock3 size={11} /> {selected.dateLabel} {selected.timeLabel}</time>
           <span className="olivia-message-guide__topic" data-topic={selected.topicKey}>{selected.topicLabel}</span>
