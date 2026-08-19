@@ -2,8 +2,7 @@
 
 import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { Suspense } from "react";
-import AdminHeaderSearch from "./AdminHeaderSearch";
+import AppHeader from "@/components/AppHeader";
 
 type PageMeta = { title: string; description: string };
 
@@ -48,6 +47,9 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const dashboardHome = pathname === "/admin/dashboard" || pathname === "/admin/dashboard/home";
   const toolsHome = pathname === "/admin/tools";
 
+  // /admin/dashboard(/home)는 Agent-first Home(OliviaAdaptiveStage)이 화면 전체를 쓰는 전용
+  // 레이아웃이라 전통적인 헤더를 얹지 않는다 — 버그가 아니라 의도된 설계(app/admin/dashboard/home/page.tsx
+  // 주석 참고). 이번 헤더 통일 작업에서도 이 분기는 그대로 유지한다.
   if (dashboardHome) {
     return (
       <button className="oa-header__menu-dock" type="button" onClick={onMenuToggle} aria-label="관리자 메뉴 열기">
@@ -58,19 +60,12 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
 
   return (
     <>
-      <header className="oa-header oa-header--enhanced oa-header--page app-page-header">
-        <div className="oa-header__page-copy">
-          <h1 className="oa-header__title">{meta.title}</h1>
-          <p className="oa-header__description">{meta.description}</p>
-        </div>
-        <div className="oa-header__command-area">
-          {toolsHome ? (
-            <Suspense fallback={<div className="oa-header-search oa-header-search--loading" aria-label="검색 준비 중"/>}>
-              <AdminHeaderSearch mode="tools"/>
-            </Suspense>
-          ) : null}
-        </div>
-      </header>
+      <AppHeader
+        title={meta.title}
+        description={meta.description}
+        searchMode={toolsHome ? "tools" : "none"}
+        className="oa-header--page app-page-header"
+      />
       <button className="oa-header__menu-dock" type="button" onClick={onMenuToggle} aria-label="관리자 메뉴 열기">
         <Menu size={20} aria-hidden="true" /> 메뉴
       </button>
