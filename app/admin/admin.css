@@ -785,7 +785,7 @@
   .oa-sidebar--open { transition: transform 520ms var(--command-ease), visibility 0ms; }
   .oa-header { min-height: 72px; padding: 10px 14px; }
   .oa-header__brand img { height: 25px; }
-  .oa-header__menu-dock { position: fixed; left: max(14px,env(safe-area-inset-left)); bottom: max(16px,env(safe-area-inset-bottom)); z-index: 60; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin: 0; border: 1px solid rgba(255,255,255,.28); border-radius: 14px; padding: 0 14px; background: #155855; color: #fff; font: inherit; font-size: 11px; font-weight: 900; box-shadow: 0 12px 28px rgba(21,88,85,.28); }
+  .oa-header__menu-dock { position: fixed; left: max(14px,env(safe-area-inset-left)); bottom: max(16px,env(safe-area-inset-bottom)); z-index: 60; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin: 0; border: 1px solid rgba(255,255,255,.28); border-radius: 14px; padding: 0 14px; background: #155855; color: #fff; font: inherit; font-size: 11px; font-weight: 600; box-shadow: 0 12px 28px rgba(21,88,85,.28); }
   .oa-page { padding: 16px 14px 34px; }
   .oa-tool-toolbar { align-items: flex-start; flex-direction: column; }
   .oa-tool-search { width: 100%; }
