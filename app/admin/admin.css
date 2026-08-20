@@ -2820,25 +2820,24 @@
 .olivia-agent-home .olivia-home-greeting p { margin: 9px 0 0; color: #74847f; font-size: 14px; font-weight: 500; }
 .olivia-agent-home .olivia-home-greeting p em { color: #E85D2C; font-style: normal; font-weight: 600; }
 
-/* 채팅 위 "몽환적인" 큰 오브 — 글로시한 3D 구슬 하이라이트 + 흐린 글로우 halo. 브랜드 톤(딥그린)을
-   기본으로 하되, 이 세션에서 이미 쓴 바이올렛 액센트(채팅창 글로우와 동일 계열)를 살짝 섞어
-   "AI가 빛나는 느낌"을 준다. 4.2초 숨쉬듯 펄스는 기존 올리비아 프레즌스 애니메이션과 같은 리듬. */
+/* 채팅 위 로고 — 큰 사이즈 + 뒤에 흐린 글로우 halo로 "몽환적인" 떠 있는 느낌을 준다.
+   브랜드 톤(딥그린)에 이 세션에서 이미 쓴 바이올렛 액센트(채팅창 글로우와 동일 계열)를
+   살짝 섞었다. 4.2초 숨쉬듯 펄스는 기존 올리비아 프레즌스 애니메이션과 같은 리듬. */
 .olivia-home-orb {
   position: relative;
   width: 108px;
   height: 108px;
   margin: 0 0 22px;
-  border-radius: 50%;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
-  background:
-    radial-gradient(circle at 30% 26%, rgba(255,255,255,.9), rgba(255,255,255,0) 42%),
-    radial-gradient(circle at 72% 78%, rgba(124,58,237,.5), transparent 60%),
-    linear-gradient(150deg, #1d8f7e 0%, #155855 48%, #0c2e2b 100%);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.35) inset,
-    0 20px 54px rgba(21,88,85,.34),
-    0 0 64px rgba(124,58,237,.24);
   animation: olivia-home-orb-breathe 4.2s cubic-bezier(.45,0,.55,1) infinite;
+}
+.olivia-home-orb img {
+  width: 68%;
+  height: 68%;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 26px rgba(21,88,85,.32));
 }
 .olivia-home-orb::after {
   content: "";
@@ -2851,13 +2850,7 @@
 }
 .olivia-home-orb.is-thinking { animation-duration: 1.8s; }
 @keyframes olivia-home-orb-breathe {
-  50% {
-    transform: scale(1.04);
-    box-shadow:
-      0 0 0 1px rgba(255,255,255,.42) inset,
-      0 24px 64px rgba(21,88,85,.4),
-      0 0 78px rgba(124,58,237,.32);
-  }
+  50% { transform: scale(1.05); }
 }
 @media (max-width: 900px) {
   .olivia-home-orb { width: 84px; height: 84px; margin-bottom: 18px; }
