@@ -14,7 +14,10 @@ export type OliviaMessageBlock =
   | { type: "resource_card"; resourceType: string; resourceId: string; title?: string; summary?: string }
   | { type: "approval"; approvalId: string; summary: string; toolName: string; toolInput: Record<string, unknown>; confirmLabel: string; state?: "pending" | "approved" | "cancelled" | "error" }
   | { type: "action"; label: string; action: OliviaUiAction }
-  | { type: "error"; message: string; retryable: boolean };
+  | { type: "error"; message: string; retryable: boolean }
+  // 촬영일이 지났는데 워크플로우가 아직 "촬영" 단계에 머물러 있는 고객을 홈 채팅에서 먼저
+  // 물어보는 카드 — /api/olivia/shoot-confirmations가 감지해서 만든 insight 1건과 대응된다.
+  | { type: "shoot_confirm"; insightId: string; workflowRunId: string; clientName: string; shootDate: string; state?: "pending" | "confirmed" | "snoozed" | "error" };
 
 export type OliviaMessage = {
   id: string;
