@@ -36,6 +36,7 @@ import { C } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "./_hooks/useClientRoster";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { usePcrmHeaderActions } from "@/components/pcrm/PcrmHeaderActionsSlot";
 
 const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = {
   consult_meeting:   { icon: "🤝", desc: "병원 기본 정보 등록, 상담 내용 AI 분析",  href: "/consultation" },
