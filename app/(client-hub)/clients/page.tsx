@@ -155,26 +155,31 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
     router.replace(`/clients?clientId=${encodeURIComponent(clientId)}`, { scroll: false });
   };
 
+  // openCreate는 useClientRoster가 매 렌더마다 새로 만드는 함수라 deps에 넣으면 헤더 슬롯이
+  // 계속 갱신되는 루프가 생긴다 — ref로 "최신 함수"만 따라가고 deps에서는 뺀다.
+  const openCreateRef = useRef(openCreate);
+  openCreateRef.current = openCreate;
+  const headerActions = useMemo(() => (
+    <>
+      <label className="oa-header__client-search">
+        <Search size={15} aria-hidden="true" />
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="고객명, 병원명 검색"
+          aria-label="고객명 또는 병원명 검색"
+        />
+      </label>
+      <button type="button" className="oa-header__client-create" onClick={() => openCreateRef.current()}>
+        <Plus size={15} /> 고객 등록
+      </button>
+    </>
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [search, setSearch]);
+  usePcrmHeaderActions(headerActions, [headerActions]);
+
   return (
     <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt }}>
-      <header className="pcrm-workspace-page-header">
-        <div>
-          <h1>고객관리</h1>
-          <p>고객과 진행 중인 프로젝트를 관리합니다.</p>
-        </div>
-        <div className="pcrm-workspace-page-header__actions">
-          <label>
-            <Search size={17} aria-hidden="true" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="고객명, 병원명 검색"
-              aria-label="고객명 또는 병원명 검색"
-            />
-          </label>
-          <button type="button" onClick={openCreate}><Plus size={17} /> 고객 등록</button>
-        </div>
-      </header>
       <div
         className="pcrm-workspace-grid"
         style={{ display: "grid", width: "100%", gridTemplateColumns: "310px minmax(0, 1fr)", gap: 18, height: "calc(100vh - 250px)", minHeight: 560, padding: "0 0 16px" }}
