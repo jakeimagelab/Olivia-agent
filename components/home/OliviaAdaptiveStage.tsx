@@ -61,7 +61,7 @@ export default function OliviaAdaptiveStage() {
               <div className="olivia-home-greeting">
                 <span className="olivia-home-greeting__badge"><Sparkles size={14} strokeWidth={1.7} /> AI가 함께하는 하루</span>
                 <div className="olivia-home-greeting__title-row">
-                  <OliviaCore isStreaming={isStreaming} size={30} />
+                  <OliviaCore isStreaming={isStreaming} size={20} />
                   <h1>안녕하세요, <em>정연호 대표님</em></h1>
                 </div>
                 <p>오늘도 스마트한 업무를 시작해볼까요?</p>
