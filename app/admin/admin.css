@@ -982,6 +982,7 @@
 .oa-header--enhanced .oa-header__brand img { height: 27px; }
 .oa-header--enhanced .oa-header__title--compact { color: #155855; font-size: clamp(12px,1.1vw,16px); letter-spacing: -.04em; }
 .oa-header__command-area { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.oa-header__page-actions { display: flex; align-items: center; gap: 8px; padding-right: 8px; border-right: 1px solid rgba(21,88,85,.1); margin-right: 2px; }
 
 .oa-header-search { position: relative; width: min(320px,28vw); }
 .oa-header-search--loading { height: 38px; border-radius: 12px; background: #f0f5f4; box-shadow: inset 0 0 0 1px rgba(21,88,85,.06); }
