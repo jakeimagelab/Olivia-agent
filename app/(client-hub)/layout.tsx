@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import GlobalHeader from "@/components/GlobalHeader";
 import PcrmSubNav from "@/components/pcrm/PcrmSubNav";
+import { PcrmHeaderActionsProvider, usePcrmHeaderActionsSlot } from "@/components/pcrm/PcrmHeaderActionsSlot";
 
 const TITLE: Record<string, string> = {
   "/clients":          "고객관리",
