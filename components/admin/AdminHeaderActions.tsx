@@ -66,12 +66,6 @@ export default function AdminHeaderActions({ home = false }: AdminHeaderActionsP
           <Link href="/clients" onClick={() => setPanel(null)}><i><UserPlus size={16}/></i><div><strong>고객 등록</strong><small>신규 고객과 워크플로우를 시작합니다.</small></div></Link>
         </div> : null}
       </div>
-
-      {home ? null : (
-        <div className="oa-header-profile" aria-label="현재 사용자 정연호 대표">
-          <span><img src="/assets/photoclinic-mark.png" alt=""/></span><div><strong>정연호 대표</strong><small>Photo Clinic</small></div>
-        </div>
-      )}
     </div>
   );
 }
