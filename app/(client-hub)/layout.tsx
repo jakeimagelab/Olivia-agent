@@ -40,13 +40,35 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
     setInIframe(isEmbed);
   }, []);
 
+  if (isPcrmSection) {
+    return (
+      <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
+        <PcrmHeaderActionsProvider>
+          {!inIframe && <PcrmSectionHeader />}
+          {!inIframe && <Suspense fallback={null}><PcrmSubNav /></Suspense>}
+          <div className="pc-page-content">
+            {children}
+          </div>
+        </PcrmHeaderActionsProvider>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
-      {!inIframe && (isPcrmSection ? <><GlobalHeader title="고객관리" /><Suspense fallback={null}><PcrmSubNav /></Suspense></> : <PageHeader title={title} />)}
+      {!inIframe && <PageHeader title={title} />}
 
       <div className="pc-page-content">
         {children}
       </div>
     </div>
   );
+}
+
+// /clients 페이지가 검색창/등록 버튼을 PcrmHeaderActionsSlot으로 꽂아 넣으면 여기서 받아
+// GlobalHeader 오른쪽에 그대로 얹는다 — /per, /review-studio처럼 꽂아 넣는 페이지가 없으면
+// 그냥 빈 슬롯이라 기본 헤더와 동일하게 보인다.
+function PcrmSectionHeader() {
+  const pageActions = usePcrmHeaderActionsSlot();
+  return <GlobalHeader title="고객관리" pageActions={pageActions} />;
 }
