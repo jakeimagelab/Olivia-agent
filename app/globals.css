@@ -1087,6 +1087,7 @@ main:has(> .pc-header) {
   font-family: var(--font-sans);
 }
 .calendar-page-shell > .pc-header,
+.calendar-page-shell > .oa-header,
 .calendar-page-shell > .pc-page-actions,
 .calendar-page-shell > .calendar-mission-shell { flex: 0 0 auto; }
 .calendar-page-content { flex: 1 1 0; min-height: 0; }
