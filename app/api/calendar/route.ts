@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
 import { calendarReminderDueAt, isCalendarReminderMinutes } from "@/lib/calendarReminders";
 import { registerCalendarAwareness } from "@/lib/olivia/calendarAwareness";
+import { syncShootDateToWorkflow } from "@/lib/calendarWorkflowSync";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
