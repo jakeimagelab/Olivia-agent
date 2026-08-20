@@ -44,29 +44,15 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
       </section>
 
       {filteredTools.length ? groupedTools.map((group) => (
-        <CategorySection
+        <ToolCategoryPanel
           key={group.category}
-          eyebrow={group.category.toUpperCase()}
-          title={group.label}
-          action={<StatusBadge tone="blue">{group.items.length}개 기능</StatusBadge>}
-        >
-          <div className="admin-menu-grid">
-            {group.items.map(tool => {
-              const Icon = tool.icon;
-              return (
-                <Link key={tool.href} href={`${tool.href}${suffix}`} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
-                  <div className={`admin-menu-icon admin-menu-icon--${tool.category}`}><Icon size={19}/></div>
-                  <div className="admin-menu-copy">
-                    <span>{tool.meta}</span>
-                    <h2>{tool.title}</h2>
-                    <p>{tool.desc}</p>
-                  </div>
-                  <div className="admin-menu-action" aria-hidden="true"><ArrowRight size={17}/></div>
-                </Link>
-              );
-            })}
-          </div>
-        </CategorySection>
+          category={group.category}
+          label={group.label}
+          items={group.items}
+          suffix={suffix}
+          // 검색 중일 땐 카테고리를 눌러야 보이면 검색 의미가 없어지니 바로 펼쳐서 보여준다.
+          defaultOpen={Boolean(query)}
+        />
       )) : (
         <CategorySection eyebrow="WORK TOOLS" title="실제 작업 도구">
           <div className="oa-tool-search-empty"><strong>“{rawQuery}”에 해당하는 기능이 없습니다.</strong><p>다른 기능명이나 설명 키워드로 검색해보세요.</p><Link href={`/admin/tools${suffix}`}>검색 초기화</Link></div>
