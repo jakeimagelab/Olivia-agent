@@ -3516,16 +3516,11 @@
     height: auto !important;
     max-height: none !important;
   }
-  .pcrm-workspace-page-header { align-items: stretch; flex-direction: column; }
-  .pcrm-workspace-page-header__actions label { width: 100%; }
   .pcrm-inline-project__bottom-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
   .pcrm-dashboard--workspace { width: calc(100% - 24px); padding-top: 18px; }
-  .pcrm-workspace-page-header__actions { align-items: stretch; flex-direction: column; }
-  .pcrm-workspace-page-header__actions label,
-  .pcrm-workspace-page-header__actions button { width: 100%; }
   .pcrm-inline-project__header,
   .pcrm-inline-project__project-heading { align-items: flex-start; flex-direction: column; }
   .pcrm-inline-project__header-actions { width: 100%; }
