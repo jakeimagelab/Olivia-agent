@@ -2594,8 +2594,7 @@ export default function CalendarPage() {
   return (
     <main className="calendar-page-shell" style={{ background: C.bg, color: C.txt }}>
 
-      <GlobalHeader title="일정" />
-      <div className="pc-page-actions">
+      <GlobalHeader title="일정" className="oa-header--calendar" pageActions={<>
           {/* view mode tabs — 모바일에서는 숨기고 연/월/일 드릴다운 내비게이션으로 대체 */}
           {!isMobile && (
             <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,
@@ -2611,7 +2610,7 @@ export default function CalendarPage() {
           <button onClick={() => setShowStatsModal(v => !v)} className="pc-btn pc-btn--stats pc-btn--sm">
             <BarChart3 size={15} strokeWidth={2} />{!isMobile && " 일정 분석"}
           </button>
-      </div>
+      </>} />
 
       {!isMobile ? (
         <div className="calendar-mission-shell" style={{ maxWidth: 1440, margin: "0 auto 10px", width: "100%", padding: "0 20px" }}>
