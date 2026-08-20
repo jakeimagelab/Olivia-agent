@@ -96,6 +96,17 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
     const list = listRef.current;
     if (!list) return;
     const lastMessage = messages.at(-1);
+
+    // 캐시/서버 기록을 처음 채우는 순간(0 → N)은 "방금 보낸 메시지"나 "위로 스크롤해서
+    // 읽는 중" 판단 없이 무조건 바닥으로 스냅한다 — 대화 진입 시 항상 최신 메시지부터 보여야 한다.
+    if (!hasDoneInitialScrollRef.current && messages.length > 0) {
+      hasDoneInitialScrollRef.current = true;
+      lastMessageCountRef.current = messages.length;
+      list.scrollTo({ top: list.scrollHeight, behavior: "auto" });
+      setShowJumpToBottom(false);
+      return;
+    }
+
     // 사용자가 방금 직접 보낸 메시지는 현재 스크롤 위치와 무관하게 무조건 하단으로 이동한다.
     const justSentOwnMessage = messages.length > lastMessageCountRef.current && lastMessage?.role === "user";
     lastMessageCountRef.current = messages.length;
