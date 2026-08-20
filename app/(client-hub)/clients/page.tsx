@@ -182,7 +182,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
     <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt }}>
       <div
         className="pcrm-workspace-grid"
-        style={{ display: "grid", width: "100%", gridTemplateColumns: "310px minmax(0, 1fr)", gap: 18, height: "calc(100vh - 250px)", minHeight: 560, padding: "0 0 16px" }}
+        style={{ display: "grid", width: "100%", gridTemplateColumns: "310px minmax(0, 1fr)", gap: 18, height: "calc(100vh - 160px)", minHeight: 560, padding: "0 0 16px" }}
       >
         <ClientListPanel
           clients={filtered}
