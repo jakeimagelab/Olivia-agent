@@ -3661,7 +3661,7 @@
   margin: 0;
   color: #172a26;
   font-size: clamp(26px, 2.1vw, 29px);
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.18;
   letter-spacing: -.035em;
 }
