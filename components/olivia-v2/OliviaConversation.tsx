@@ -242,6 +242,16 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                         <button type="button" onClick={() => cancelApproval(block.approvalId)}>취소</button>
                       </div> : null}
                     </div>;
+                    if (block.type === "shoot_confirm") return <div key={index} className="olivia-approval-card">
+                      <strong>
+                        {block.state === "confirmed" ? "다음 단계로 넘겼어요" : block.state === "snoozed" ? "알겠어요, 나중에 다시 물어볼게요" : block.state === "error" ? "처리하지 못했어요" : "촬영 확인이 필요해요"}
+                      </strong>
+                      <span>{block.clientName} 촬영 예정일({block.shootDate})이 지났어요. 어제(또는 그 이전) {block.clientName} 촬영하셨나요?</span>
+                      {(!block.state || block.state === "pending") ? <div className="olivia-approval-card__actions">
+                        <button type="button" onClick={() => void confirmShootConfirmation(block.insightId)}>네, 다음 단계로</button>
+                        <button type="button" onClick={() => void snoozeShootConfirmation(block.insightId)}>아직이에요</button>
+                      </div> : null}
+                    </div>;
                     return null;
                   })}
                   {message.status === "streaming" && !messageText(message) ? <span className="olivia-typing"><i /><i /><i /></span> : null}
