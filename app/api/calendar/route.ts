@@ -85,6 +85,9 @@ export async function POST(req: NextRequest) {
   }).catch((awarenessError) => {
     console.error("[calendar] 올리비아 일정 인지 실패:", awarenessError instanceof Error ? awarenessError.message : awarenessError);
   });
+  await syncShootDateToWorkflow(db, { category, location, date }).catch((syncError) => {
+    console.error("[calendar] 프로젝트 촬영일 연동 실패:", syncError instanceof Error ? syncError.message : syncError);
+  });
   return NextResponse.json({ ok: true, id: data!.id, reminder_enabled: reminderEnabled, reminder_minutes_before: reminderMinutes, reminder_due_at: base.reminder_due_at });
 }
 
