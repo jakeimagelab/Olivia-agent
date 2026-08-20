@@ -1950,7 +1950,11 @@
 }
 
 .olivia-home-greeting { flex: 0 0 auto; padding: 0 4px; min-height: 80px; }
-.olivia-home-greeting__title-row { display: flex; align-items: center; gap: 12px; }
+.olivia-home-greeting__title-row { display: flex; align-items: flex-start; gap: 10px; }
+.olivia-home-greeting__title-row .olivia-core-mark { margin-top: 3px; flex-shrink: 0; }
+@media (max-width: 560px) {
+  .olivia-home-greeting__title-row .olivia-core-mark { width: 24px; height: 24px; margin-top: 2px; }
+}
 .olivia-home-greeting h1 { margin: 0; color: var(--text-main); font-size: 32px; font-weight: 700; line-height: 1.25; letter-spacing: -.03em; }
 .olivia-home-greeting p { margin: 8px 0 0; color: var(--text-sub); font-size: 15px; font-weight: 500; line-height: 1.6; letter-spacing: -.01em; }
 
