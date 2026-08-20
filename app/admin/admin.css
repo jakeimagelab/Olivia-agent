@@ -140,6 +140,7 @@
 
 /* 전체보기 카테고리 아코디언 — 헤더를 버튼으로 눌러 부드럽게 펼치고 접는다(요청).
    기존 oa-category-section__header의 시각적 모양은 그대로 두고 버튼 기본 스타일만 지운다. */
+.oa-tool-category-panel { margin-bottom: 16px; }
 .oa-tool-category-panel__trigger {
   width: 100%;
   border: 0;
