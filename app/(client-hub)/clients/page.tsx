@@ -171,7 +171,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
         />
       </label>
       <button type="button" className="oa-header__client-create" onClick={() => openCreateRef.current()}>
-        <Plus size={15} /> 고객 등록
+        <Plus size={15} /> <span>고객 등록</span>
       </button>
     </>
   // eslint-disable-next-line react-hooks/exhaustive-deps
