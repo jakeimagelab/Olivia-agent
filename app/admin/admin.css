@@ -2871,6 +2871,7 @@
   border-radius: 50%;
   background: radial-gradient(circle, rgba(21,88,85,.2), rgba(124,58,237,.13) 45%, transparent 72%);
   filter: blur(22px);
+  transition: inset 560ms cubic-bezier(.32,.72,0,1), filter 560ms cubic-bezier(.32,.72,0,1);
 }
 .olivia-home-orb.is-thinking { animation-duration: 1.8s; }
 @keyframes olivia-home-orb-breathe {
