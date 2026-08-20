@@ -2823,7 +2823,10 @@
 .olivia-home-greeting {
   --olivia-home-rainbow: linear-gradient(120deg, #155855, #569082 30%, #7C3AED 55%, #E85D2C 78%, #EB8F22);
 }
-.olivia-home-greeting__rainbow {
+/* .olivia-home-greeting h1/p(색상 지정 없음)보다 확실히 이기도록 .olivia-agent-home까지
+   같이 스코프 — 안 그러면 element-selector 명시도 때문에 다른 곳의 h1/p color 규칙에
+   가려서 그라데이션이 투명 글자 뒤로 숨어버린다. */
+.olivia-agent-home .olivia-home-greeting__rainbow {
   background: var(--olivia-home-rainbow);
   background-clip: text;
   -webkit-background-clip: text;
