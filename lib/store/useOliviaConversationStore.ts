@@ -39,6 +39,8 @@ export type OliviaConversationState = {
   retryLast: () => Promise<void>;
   approveAction: (approvalId: string, toolName: string, toolInput: Record<string, unknown>) => Promise<void>;
   cancelApproval: (approvalId: string) => void;
+  confirmShootConfirmation: (insightId: string) => Promise<void>;
+  snoozeShootConfirmation: (insightId: string) => Promise<void>;
 };
 
 let activeController: AbortController | null = null;
