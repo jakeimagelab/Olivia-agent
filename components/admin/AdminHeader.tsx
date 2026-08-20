@@ -55,9 +55,10 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
     );
   }
 
+  const meta = getPageMeta(pathname);
   return (
     <>
-      <GlobalHeader title={getPageTitle(pathname)} />
+      <GlobalHeader title={meta.title} description={meta.description} />
       <button className="oa-header__menu-dock" type="button" onClick={onMenuToggle} aria-label="관리자 메뉴 열기">
         <Menu size={20} aria-hidden="true" /> 메뉴
       </button>
