@@ -2930,6 +2930,31 @@
     linear-gradient(180deg, #FBFDFC 0%, #F8FBFA 100%);
 }
 
+.oa-conv-layout { display: flex; gap: 24px; align-items: flex-start; }
+.oa-conv-rail {
+  width: 132px; flex-shrink: 0; position: sticky; top: 20px;
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: calc(100dvh - 100px); overflow-y: auto;
+}
+.oa-conv-rail__item {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; text-align: left;
+}
+.oa-conv-main { flex: 1; min-width: 0; }
+
+@media (max-width: 760px) {
+  .oa-conversations-page { padding: 16px 14px 40px; border-radius: 20px; }
+  /* 좁은 화면에서는 왼쪽 세로 날짜 레일을 둘 공간이 없다 — 상단 가로 스크롤 스트립으로 바꾼다. */
+  .oa-conv-layout { flex-direction: column; gap: 12px; }
+  .oa-conv-rail {
+    width: 100%; position: static; flex-direction: row; overflow-x: auto; overflow-y: visible;
+    max-height: none; gap: 6px; padding-bottom: 4px; scrollbar-width: none;
+  }
+  .oa-conv-rail::-webkit-scrollbar { display: none; }
+  .oa-conv-rail__item { flex-shrink: 0; }
+}
+
 .oa-tools-page .admin-menu-grid { gap: 10px; }
 .oa-tools-page .admin-menu-card {
   min-height: 187px;
