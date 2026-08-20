@@ -5120,8 +5120,8 @@ main:has(> .pc-header) {
   background: #eaf4f2;
   cursor: pointer;
 }
-.pcrm-photo-preview img { width: 100%; height: 100%; object-fit: cover; transition: transform .2s ease; }
-.pcrm-photo-preview:hover img { transform: scale(1.02); }
+.pcrm-photo-preview img { width: 100%; height: 100%; object-fit: cover; transition: opacity .2s ease; }
+.pcrm-photo-preview:hover img { opacity: .92; }
 .pcrm-photo-preview > svg { position: absolute; right: 8px; bottom: 8px; border-radius: 6px; padding: 4px; box-sizing: content-box; background: rgba(28,43,40,.72); color: #fff; }
 .pcrm-photo-grid footer {
   overflow: hidden;
