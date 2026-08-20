@@ -88,9 +88,9 @@ export async function GET(req: NextRequest) {
   const runIds = (runsRes.data ?? []).map((r) => r.id);
   const [tasksRes, approvalsRes, mailingRes] = runIds.length
     ? await Promise.all([
-        supabase.from("agent_tasks").select("id, workflow_run_id, status, created_at").in("workflow_run_id", runIds),
-        supabase.from("agent_approvals").select("id, workflow_run_id, status, approval_type, created_at").in("workflow_run_id", runIds),
-        supabase.from("mailing_queue").select("id, workflow_run_id, hospital_name, created_at").order("created_at", { ascending: false }).limit(300),
+        supabase.from("agent_tasks").select("id, workflow_run_id, workflow_step_key, status, error_message, created_at").in("workflow_run_id", runIds),
+        supabase.from("agent_approvals").select("id, workflow_run_id, workflow_step_key, status, approval_type, created_at").in("workflow_run_id", runIds),
+        supabase.from("mailing_queue").select("id, workflow_run_id, workflow_step_key, hospital_name, status, created_at").order("created_at", { ascending: false }).limit(300),
       ])
     : [{ data: [] as any[], error: null }, { data: [] as any[], error: null }, { data: [] as any[], error: null }];
 
