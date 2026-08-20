@@ -1026,7 +1026,7 @@
 .oa-header-profile > span { width: 30px; height: 30px; display: grid; place-items: center; overflow: hidden; border-radius: 10px; background: #edf5f3; }
 .oa-header-profile img { width: 23px; height: 23px; object-fit: contain; }
 .oa-header-profile div { display: grid; gap: 1px; line-height: 1.2; }
-.oa-header-profile strong { color: #29413d; font-size: 9px; }
+.oa-header-profile strong { color: #29413d; font-size: 9px; font-weight: 600; }
 .oa-header-profile small { color: #96a5a1; font-size: 7px; }
 
 .oa-header-popover { right: 0; width: min(360px,calc(100vw - 28px)); }
