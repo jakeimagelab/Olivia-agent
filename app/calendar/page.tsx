@@ -2594,7 +2594,7 @@ export default function CalendarPage() {
   return (
     <main className="calendar-page-shell" style={{ background: C.bg, color: C.txt }}>
 
-      <GlobalHeader title="일정" className="oa-header--calendar" pageActions={<>
+      <GlobalHeader title="Schedule" description="촬영과 미팅 일정을 관리합니다." className="oa-header--calendar" pageActions={<>
           {/* view mode tabs — 모바일에서는 숨기고 연/월/일 드릴다운 내비게이션으로 대체 */}
           {!isMobile && (
             <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,
