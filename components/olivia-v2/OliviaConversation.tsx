@@ -23,6 +23,9 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const startNewConversation = useOliviaConversationStore((state) => state.startNewConversation);
   const approveAction = useOliviaConversationStore((state) => state.approveAction);
   const cancelApproval = useOliviaConversationStore((state) => state.cancelApproval);
+  const confirmShootConfirmation = useOliviaConversationStore((state) => state.confirmShootConfirmation);
+  const snoozeShootConfirmation = useOliviaConversationStore((state) => state.snoozeShootConfirmation);
+  const appendMessage = useOliviaConversationStore((state) => state.appendMessage);
   const layoutMode = useOliviaLayoutStore((state) => state.mode);
   const setChatFocused = useOliviaLayoutStore((state) => state.setChatFocused);
   const expandWorkspaceChat = useOliviaLayoutStore((state) => state.expandWorkspaceChat);
