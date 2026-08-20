@@ -96,25 +96,21 @@ export default function ConversationsPage() {
       ) : groups.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0", color: "#9BB5B0", fontSize: 13 }}>아직 대화 기록이 없어요.</div>
       ) : (
-        <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+        <div className="oa-conv-layout">
           {/* 왼쪽 날짜 레일 — 홈 채팅의 좌측 "대화 기록" 내비게이션과 같은 패턴(2026-08-16).
-              날짜 클릭 시 오른쪽 본문에서 그 날짜 섹션으로 스크롤 이동한다. */}
-          <aside style={{
-            width: 132, flexShrink: 0, position: "sticky", top: 20,
-            display: "flex", flexDirection: "column", gap: 3, maxHeight: "calc(100dvh - 100px)", overflowY: "auto",
-          }}>
+              날짜 클릭 시 오른쪽 본문에서 그 날짜 섹션으로 스크롤 이동한다. 좁은 화면에서는
+              CSS(.oa-conv-rail)가 세로 사이드바 대신 상단 가로 스크롤 스트립으로 바꾼다. */}
+          <aside className="oa-conv-rail">
             {groups.map((group) => (
               <button
                 key={group.key}
                 type="button"
                 onClick={() => scrollToDate(group.key)}
+                className="oa-conv-rail__item"
                 style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6,
                   border: "1px solid " + (activeKey === group.key ? "rgba(21,88,85,.3)" : "transparent"),
                   background: activeKey === group.key ? "#EAF4F2" : "transparent",
                   color: activeKey === group.key ? "#155855" : "#6F7E7A",
-                  borderRadius: 10, padding: "7px 10px", font: "inherit", fontSize: 12, fontWeight: 800,
-                  cursor: "pointer", textAlign: "left",
                 }}
               >
                 <span>{group.label}</span>
@@ -123,7 +119,7 @@ export default function ConversationsPage() {
             ))}
           </aside>
 
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="oa-conv-main">
             {groups.map((group) => (
               <section
                 key={group.key}
