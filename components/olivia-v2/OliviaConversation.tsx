@@ -58,6 +58,36 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
 
   useEffect(() => { void hydrate(); }, [hydrate]);
   useEffect(() => {
+    // 홈 채팅에 한정 — 촬영일이 지났는데 아직 "촬영" 단계인 프로젝트가 있으면 올리비아가
+    // 먼저 물어보는 메시지를 대화 맨 끝에 꽂아 넣는다. 이미 같은 insight로 물어본 적 있으면
+    // (메시지 목록에 이미 있으면) 다시 안 넣는다.
+    if (variant !== "home" || !isHydrated) return;
+    let cancelled = false;
+    fetch("/api/olivia/shoot-confirmations")
+      .then((response) => response.json())
+      .then((payload) => {
+        if (cancelled || !payload?.ok) return;
+        const existingIds = new Set(
+          useOliviaConversationStore.getState().messages
+            .flatMap((message) => message.blocks)
+            .filter((block): block is Extract<typeof block, { type: "shoot_confirm" }> => block.type === "shoot_confirm")
+            .map((block) => block.insightId),
+        );
+        for (const item of payload.items ?? []) {
+          if (existingIds.has(item.insightId)) continue;
+          appendMessage({
+            id: `shoot-confirm:${item.insightId}`,
+            role: "assistant",
+            content: "",
+            status: "complete",
+            blocks: [{ type: "shoot_confirm", insightId: item.insightId, workflowRunId: item.workflowRunId, clientName: item.clientName, shootDate: item.shootDate, state: "pending" }],
+          });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [variant, isHydrated, appendMessage]);
+  useEffect(() => {
     const list = listRef.current;
     if (!list) return;
     const lastMessage = messages.at(-1);
