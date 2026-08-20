@@ -1055,11 +1055,9 @@
 @media (max-width: 1180px) {
   .oa-header--enhanced { gap: 14px; padding-inline: 18px; }
   .oa-header-search { width: min(250px,26vw); }
-  .oa-header-quick-trigger > span,
-  .oa-header-profile div { display: none; }
+  .oa-header-quick-trigger > span { display: none; }
   .oa-header-quick-trigger { width: 38px; padding: 0; }
   .oa-header-quick-trigger svg:last-child { display: none; }
-  .oa-header-profile { width: 38px; padding: 4px; }
 }
 
 @media (max-width: 760px) {
