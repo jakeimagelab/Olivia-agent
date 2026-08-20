@@ -7216,7 +7216,7 @@ main:has(> .pc-header) {
   padding: 0 18px;
   border-radius: 9px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   transition: all 150ms ease;
