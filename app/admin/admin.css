@@ -2837,7 +2837,6 @@
   width: 68%;
   height: 68%;
   object-fit: contain;
-  filter: drop-shadow(0 10px 26px rgba(21,88,85,.32));
 }
 .olivia-home-orb::after {
   content: "";
