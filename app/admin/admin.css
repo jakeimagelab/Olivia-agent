@@ -3687,6 +3687,7 @@
   .oa-header.oa-header--page { min-height: 82px; padding: 13px 18px; }
   .oa-header--page .oa-header__title { font-size: 24px; }
   .oa-header--page .oa-header__description { font-size: 12px; }
+  .oa-header--calendar .oa-header__title { font-size: 20px; }
 }
 
 @media (max-width: 560px) {
@@ -3695,4 +3696,9 @@
   .oa-header.oa-header--page { min-height: 76px; padding-inline: 14px; }
   .oa-header--page .oa-header__title { font-size: 21px; }
   .oa-header--page .oa-header__description { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .oa-header--calendar .oa-header__title { font-size: 18px; }
 }
+
+/* 일정 페이지만 타이틀을 한 단계 작고 중립적인 톤으로 — 오른쪽에 뷰 전환 버튼이 붙어서
+   타이틀이 상대적으로 덜 두드러져야 균형이 맞는다. */
+.oa-header--calendar .oa-header__title { font-size: clamp(22px, 1.8vw, 25px); color: #333333; }
