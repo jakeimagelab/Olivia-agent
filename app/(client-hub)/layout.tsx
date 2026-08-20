@@ -41,7 +41,7 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
 
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
-      {!inIframe && (isPcrmSection ? <><PcrmHeader /><Suspense fallback={null}><PcrmSubNav /></Suspense></> : <PageHeader title={title} />)}
+      {!inIframe && (isPcrmSection ? <><GlobalHeader title="고객관리" /><Suspense fallback={null}><PcrmSubNav /></Suspense></> : <PageHeader title={title} />)}
 
       <div className="pc-page-content">
         {children}
