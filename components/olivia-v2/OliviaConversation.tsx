@@ -48,6 +48,11 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const [selectedGuideId, setSelectedGuideId] = useState<string>();
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const lastMessageCountRef = useRef(0);
+  // 페이지를 처음 열어서 캐시/서버 기록이 아직 하나도 안 채워진 0 → N으로 바뀌는 첫 순간을
+  // 따로 구분한다. 이걸 안 하면 "방금 내가 보낸 메시지"랑 똑같은 조건(0에서 늘어남)으로 오인해서,
+  // 기록의 마지막 메시지가 assistant면 "위로 스크롤해서 읽는 중"으로 잘못 판단해 맨 아래로
+  // 안 붙이고 "새 메시지 ↓" 버튼만 뜬 채로 멈춰 있었다 — 스플래시 직후 보이던 깜빡임의 정체.
+  const hasDoneInitialScrollRef = useRef(false);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const list = listRef.current;
