@@ -70,5 +70,5 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
 // 그냥 빈 슬롯이라 기본 헤더와 동일하게 보인다.
 function PcrmSectionHeader() {
   const pageActions = usePcrmHeaderActionsSlot();
-  return <GlobalHeader title="고객관리" pageActions={pageActions} />;
+  return <GlobalHeader title="Clients" description="고객과 진행 중인 프로젝트를 관리합니다." pageActions={pageActions} />;
 }
