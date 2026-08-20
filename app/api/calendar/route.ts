@@ -130,6 +130,15 @@ export async function PATCH(req: NextRequest) {
 
   const { error } = await db.from("calendar_tasks").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+  if (["date", "location", "category"].some((key) => requestedFields[key] !== undefined)) {
+    const { data: updated } = await db.from("calendar_tasks").select("date,category,location").eq("id", id).maybeSingle();
+    if (updated) {
+      await syncShootDateToWorkflow(db, updated).catch((syncError) => {
+        console.error("[calendar] 프로젝트 촬영일 연동 실패:", syncError instanceof Error ? syncError.message : syncError);
+      });
+    }
+  }
   return NextResponse.json({ ok: true });
 }
 
