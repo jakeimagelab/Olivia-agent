@@ -48,11 +48,29 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
           key={group.category}
           category={group.category}
           label={group.label}
-          items={group.items}
-          suffix={suffix}
+          count={group.items.length}
           // 검색 중일 땐 카테고리를 눌러야 보이면 검색 의미가 없어지니 바로 펼쳐서 보여준다.
           defaultOpen={Boolean(query)}
-        />
+        >
+          {/* 카드는 여기(서버 컴포넌트)에서 아이콘까지 다 렌더링해서 완성된 JSX로 넘긴다 —
+              ToolDef.icon(함수 참조)을 클라이언트 컴포넌트에 raw prop으로 넘기면 직렬화 에러가 난다. */}
+          <div className="admin-menu-grid">
+            {group.items.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <Link key={tool.href} href={`${tool.href}${suffix}`} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
+                  <div className={`admin-menu-icon admin-menu-icon--${tool.category}`}><Icon size={19} /></div>
+                  <div className="admin-menu-copy">
+                    <span>{tool.meta}</span>
+                    <h2>{tool.title}</h2>
+                    <p>{tool.desc}</p>
+                  </div>
+                  <div className="admin-menu-action" aria-hidden="true"><ArrowRight size={17} /></div>
+                </Link>
+              );
+            })}
+          </div>
+        </ToolCategoryPanel>
       )) : (
         <CategorySection eyebrow="WORK TOOLS" title="실제 작업 도구">
           <div className="oa-tool-search-empty"><strong>“{rawQuery}”에 해당하는 기능이 없습니다.</strong><p>다른 기능명이나 설명 키워드로 검색해보세요.</p><Link href={`/admin/tools${suffix}`}>검색 초기화</Link></div>
