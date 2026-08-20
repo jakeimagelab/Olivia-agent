@@ -2347,6 +2347,25 @@
 .home-simple-dashboard .olivia-home-greeting h1 { color: #17322d; font-size: clamp(27px,2.1vw,32px); font-weight: 760; }
 .home-simple-dashboard .olivia-home-greeting p { margin-top: 6px; color: #586d68; font-size: 14.5px; font-weight: 530; }
 .home-simple-dashboard .olivia-conversation--home { padding: 0; border-color: rgba(21,88,85,.11); border-radius: 24px; background-color: #fff; box-shadow: 0 16px 44px rgba(21,88,85,.075); backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* 채팅창을 "지금 에이전트가 살아있다"는 느낌으로 — 카드 자체가 아니라 overflow:visible한
+   바깥 래퍼(.olivia-adaptive-stage__chat)에 흐린 그라디언트 글로우를 얹는다. 카드에 직접
+   붙이면 .olivia-conversation의 overflow:hidden에 잘려서 안 보인다. */
+.home-simple-dashboard .olivia-adaptive-stage__chat { position: relative; }
+.home-simple-dashboard .olivia-adaptive-stage__chat::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: 27px;
+  background: linear-gradient(120deg, #155855, #569082 30%, #7C3AED 55%, #E85D2C 78%, #EB8F22);
+  filter: blur(20px);
+  opacity: .5;
+  animation: olivia-chat-glow-pulse 4.2s cubic-bezier(.45,0,.55,1) infinite;
+}
+@keyframes olivia-chat-glow-pulse { 50% { opacity: .74; } }
+@media (prefers-reduced-motion: reduce) {
+  .home-simple-dashboard .olivia-adaptive-stage__chat::before { animation: none; }
+}
 .home-simple-dashboard .olivia-conversation--home[data-message-count="0"] { height: 332px; }
 .home-simple-dashboard .olivia-conversation--home:not([data-message-count="0"]) { height: 460px; }
 .home-simple-dashboard .olivia-conversation--home[data-message-count="0"] .olivia-conversation__main { justify-content: center; padding: 18px 0; }
