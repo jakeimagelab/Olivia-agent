@@ -1033,7 +1033,7 @@
 .oa-header-popover header { display: flex; align-items: flex-start; justify-content: space-between; border-radius: 13px 13px 8px 8px; padding: 12px; background: #fff; }
 .oa-header-popover header span,
 .oa-header-popover__eyebrow { color: #e85d2c; font-size: 7px; font-weight: 900; letter-spacing: .14em; }
-.oa-header-popover header h2 { margin: 2px 0 0; color: #155855; font-size: 14px; }
+.oa-header-popover header h2 { margin: 2px 0 0; color: #155855; font-size: 14px; font-weight: 600; }
 .oa-header-popover header button { width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 8px; background: #f1f5f4; color: #728681; cursor: pointer; }
 .oa-header-notification-list { max-height: 330px; overflow-y: auto; margin-top: 5px; border-radius: 8px; background: #fff; }
 .oa-header-notification-list > p { margin: 0; padding: 28px 12px; color: #879a96; text-align: center; font-size: 9px; }
