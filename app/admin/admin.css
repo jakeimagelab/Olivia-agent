@@ -3193,70 +3193,49 @@
   padding: 26px 0 24px;
   font-family: var(--font-sans);
 }
-.pcrm-workspace-page-header {
-  min-height: 76px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 20px;
-}
-.pcrm-workspace-page-header h1 {
-  margin: 0;
-  color: #172a26;
-  font-size: 29px;
-  font-weight: 700;
-  line-height: 1.18;
-  letter-spacing: -.035em;
-}
-.pcrm-workspace-page-header p {
-  margin: 7px 0 0;
-  color: #758681;
-  font-size: 13.5px;
-  font-weight: 500;
-}
-.pcrm-workspace-page-header__actions {
+/* 고객관리 검색+등록 컨트롤 — 원래 페이지 본문 자체 헤더(pcrm-workspace-page-header)에 있던
+   것을 GlobalHeader 오른쪽으로 옮기면서, 헤더의 다른 컨트롤(38px 높이)에 맞춰 축소했다. */
+.oa-header__client-search {
+  height: 38px;
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.pcrm-workspace-page-header__actions label {
-  width: min(310px, 30vw);
-  height: 46px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 8px;
+  width: min(230px, 20vw);
   border: 1px solid rgba(21,88,85,.1);
-  border-radius: 23px;
-  padding: 0 17px;
-  background: rgba(255,255,255,.9);
-  color: #617873;
-  box-shadow: 0 7px 22px rgba(21,88,85,.035);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: #f0f5f4;
+  color: #718b86;
 }
-.pcrm-workspace-page-header__actions input {
+.oa-header__client-search input {
   min-width: 0;
   border: 0;
   padding: 0;
   background: transparent;
-  color: #243934;
+  color: #1c2b28;
   outline: 0;
-  font-size: 12.5px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
 }
-.pcrm-workspace-page-header__actions button {
-  height: 46px;
+.oa-header__client-search input::placeholder { color: #8da09c; }
+.oa-header__client-create {
+  height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   border: 0;
-  border-radius: 23px;
-  padding: 0 20px;
+  border-radius: 12px;
+  padding: 0 14px;
   background: #168b72;
   color: #fff;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  box-shadow: 0 9px 22px rgba(21,88,85,.13);
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(21,88,85,.15);
+  cursor: pointer;
 }
 .pcrm-workspace-grid > .pc-card,
 .pcrm-inline-project .pc-card,
