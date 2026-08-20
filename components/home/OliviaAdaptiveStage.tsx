@@ -62,6 +62,9 @@ export default function OliviaAdaptiveStage() {
   const agentStatus = useOliviaConversationStore((state) => state.agentStatus);
   const { data } = useHomeDashboardData();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지하려고 null로 시작 — 마운트 후에만 실제
+  // 시각을 채운다(hydration mismatch 방지, TodayAlertBanner와 동일한 패턴).
+  const [now, setNow] = useState<Date | null>(null);
   const hasWorkspace = useWorkspaceStore((state) => state.type !== null);
   // 실제 워크스페이스가 열리기 전, 도구가 그걸 열 것으로 보이면(pendingWorkspaceOpen) 결과가
   // 오기 전에도 미리 패널을 펼쳐서 스켈레톤을 보여준다(Phase 4) — mode는 OPEN_WORKSPACE가 와야
@@ -69,6 +72,17 @@ export default function OliviaAdaptiveStage() {
   const isWorkspaceMode = (hasWorkspace && (mode === "workspace" || mode === "workspace-chat-expanded" || mode === "fullscreen")) || (pendingWorkspaceOpen && !hasWorkspace);
   const weights = getWorkspaceLayoutWeight({ mode, chatFocused, workspaceFocused, streaming: isStreaming });
   const todayCount = data?.todayTasks.length ?? 0;
+  const pendingCount =
+    (data?.mailing?.pending?.length ?? 0) +
+    (data?.clients?.galleryPending?.length ?? 0) +
+    (data?.clients?.reviewPending?.length ?? 0) +
+    (data?.clients?.contractPending?.length ?? 0);
+  const greetingTitle = useMemo(
+    () => (now ? getHomeGreetingTitle(now, todayCount, pendingCount) : "안녕하세요"),
+    [now, todayCount, pendingCount],
+  );
+
+  useEffect(() => { setNow(new Date()); }, []);
 
   useEffect(() => {
     if (hasWorkspace && (mode === "idle" || mode === "conversation")) openWorkspaceMode();
