@@ -27,6 +27,10 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
   const filteredTools = query
     ? TOOLS.filter((tool) => normalizeAdminSearchQuery(`${tool.title} ${tool.desc} ${tool.meta}`).includes(query))
     : TOOLS;
+  // 카테고리별로 나눠 보여준다(요청) — 이미 있던 groupToolsByCategory(전역 사이드바용으로 만들어졌지만
+  // 안 쓰이고 있었다)를 그대로 재사용해서 /admin의 3분류(관리자 대시보드/고객관리 CRM/AI Assistant)
+  // 기준을 그대로 따른다. 검색으로 걸러진 뒤 비는 카테고리는 섹션 자체를 숨긴다.
+  const groupedTools = groupToolsByCategory(filteredTools).filter((group) => group.items.length > 0);
 
   return (
     <div className="oa-page oa-tools-page">
