@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
-import PcrmHeader from "@/components/pcrm/PcrmHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import PcrmSubNav from "@/components/pcrm/PcrmSubNav";
 
 const TITLE: Record<string, string> = {
