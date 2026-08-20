@@ -29,6 +29,11 @@ export async function GET(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q");
+  // scope=full은 예전 응답과 100% 동일(대시보드 집계 포함) — 지금 실제로 그 집계를 그리는 화면은
+  // PcrmDashboard.tsx뿐인데 그 컴포넌트는 어디서도 import되지 않는 죽은 코드다. 그래서 기본값을
+  // "list"로 바꿔 고객 목록 화면(/clients, /clients/list)이 매번 기다리던 activity/inquiries/PER/
+  // 오늘 일정 조회를 건너뛴다 — 필요해지면 ?scope=full로 그대로 되살릴 수 있다.
+  const scope = searchParams.get("scope") === "full" ? "full" : "list";
 
   let query = supabase
     .from("clients")
@@ -43,24 +48,14 @@ export async function GET(req: NextRequest) {
   const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  let [
-    clientsRes, runsRes, tasksRes, approvalsRes, mailingRes,
-    todayTasksRes, activityRes, inquiriesRes, perClientsRes, perTxRes, portalRes,
-  ] = await Promise.all([
+  // 1단계 — 목록 화면에 항상 필요한 것만 먼저 병렬 조회(고객, 워크플로우, 포털 상태).
+  let [clientsRes, runsRes, portalRes] = await Promise.all([
     query,
     supabase
       .from("workflow_runs")
       .select("id, client_id, client_name, project_name, current_step_key, status, shoot_date, updated_at, started_at, manager_name, completed_at")
       .neq("status", "canceled")
       .order("started_at", { ascending: true }),
-    supabase.from("agent_tasks").select("*").order("created_at", { ascending: false }).limit(300),
-    supabase.from("agent_approvals").select("*").order("created_at", { ascending: false }).limit(300),
-    supabase.from("mailing_queue").select("*").order("created_at", { ascending: false }).limit(300),
-    supabase.from("calendar_tasks").select("id, title, category, time, end_time, location, completed").eq("date", todayStr).order("time", { ascending: true, nullsFirst: false }),
-    supabase.from("pcrm_activity_logs").select("id, actor_type, actor_name, action_type, title, description, created_at, clients(hospital_name)").order("created_at", { ascending: false }).limit(6),
-    supabase.from("pcrm_inquiries").select("id, client_id, title, status, last_message_at, clients(hospital_name)").order("last_message_at", { ascending: false }).limit(6),
-    supabase.from("clients").select("available_points").eq("per_joined", true),
-    supabase.from("reward_transactions").select("type, points").gte("created_at", monthStartIso),
     supabase.from("client_portal_access").select("client_id, is_active"),
   ]);
 
@@ -86,8 +81,21 @@ export async function GET(req: NextRequest) {
     else if (!portalStatusMap.has(access.client_id)) portalStatusMap.set(access.client_id, "inactive");
   }
 
-  // 고객마다 tasks/approvals/mailing(최대 300건씩)을 매번 .filter()로 훑으면 O(고객수 × 300)이 되어
-  // 고객이 많아질수록 느려진다 — workflow_run_id 기준으로 한 번만 그룹핑해 O(1) 조회로 바꾼다.
+  // 2단계 — next_action/승인·작업 카운트(PcrmClientTable이 씀)를 위한 tasks/approvals/mailing.
+  // 예전엔 전체 테이블에서 최신 300건만 가져와 그룹핑했는데, 고객이 늘수록 정작 필요한 워크플로우가
+  // 300건 밖으로 밀려날 수 있는 정확성 문제도 있었다 — 실제로 존재하는 workflow_run_id로만
+  // .in() 조회해서 더 가볍고 더 정확하게 바꾼다.
+  const runIds = (runsRes.data ?? []).map((r) => r.id);
+  const [tasksRes, approvalsRes, mailingRes] = runIds.length
+    ? await Promise.all([
+        supabase.from("agent_tasks").select("id, workflow_run_id, status, created_at").in("workflow_run_id", runIds),
+        supabase.from("agent_approvals").select("id, workflow_run_id, status, approval_type, created_at").in("workflow_run_id", runIds),
+        supabase.from("mailing_queue").select("id, workflow_run_id, hospital_name, created_at").order("created_at", { ascending: false }).limit(300),
+      ])
+    : [{ data: [] as any[], error: null }, { data: [] as any[], error: null }, { data: [] as any[], error: null }];
+
+  // 고객마다 tasks/approvals/mailing을 매번 .filter()로 훑으면 O(고객수 × 건수)가 되어 고객이
+  // 많아질수록 느려진다 — workflow_run_id 기준으로 한 번만 그룹핑해 O(1) 조회로 바꾼다.
   const groupByRunId = <T extends { workflow_run_id?: string | null }>(rows: T[]) => {
     const map = new Map<string, T[]>();
     for (const row of rows) {
@@ -114,29 +122,46 @@ export async function GET(req: NextRequest) {
     const runTasks = run ? tasksByRun.get(run.id) ?? [] : [];
     const runApprovals = run ? approvalsByRun.get(run.id) ?? [] : [];
     const runMailing = run ? [...(mailingByRun.get(run.id) ?? []), ...(mailingByHospital.get(c.hospital_name) ?? [])] : [];
-    const nextAction = run ? buildWorkflowNextAction({ run, tasks: runTasks, approvals: runApprovals, mailing: runMailing }) : null;
+    const nextAction = run ? buildWorkflowNextAction({ run, tasks: runTasks as any, approvals: runApprovals as any, mailing: runMailing as any }) : null;
     return {
       ...normalized,
       next_action: nextAction,
-      waiting_approval_count: runApprovals.filter((approval) => approval.status === "pending").length,
-      open_task_count: runTasks.filter((task) => ["pending", "running", "waiting_approval", "failed"].includes(task.status)).length,
+      waiting_approval_count: runApprovals.filter((approval: any) => approval.status === "pending").length,
+      open_task_count: runTasks.filter((task: any) => ["pending", "running", "waiting_approval", "failed"].includes(task.status)).length,
       active_project_count: activeProjectCountMap.get(c.id) ?? 0,
       portal_status: portalStatusMap.get(c.id) ?? "none",
     };
   });
 
+  if (scope !== "full") {
+    return NextResponse.json(
+      { ok: true, clients, dashboard: null },
+      { headers: { "Cache-Control": "private, no-store, max-age=0" } },
+    );
+  }
+
+  // 3단계(scope=full일 때만) — 대시보드 집계용 무거운 조회. 지금은 PcrmDashboard.tsx(미사용)만
+  // 이 데이터를 그리므로 기본 목록 로딩에서는 절대 안 탄다.
+  const [todayTasksRes, activityRes, inquiriesRes, perClientsRes, perTxRes] = await Promise.all([
+    supabase.from("calendar_tasks").select("id, title, category, time, end_time, location, completed").eq("date", todayStr).order("time", { ascending: true, nullsFirst: false }),
+    supabase.from("pcrm_activity_logs").select("id, actor_type, actor_name, action_type, title, description, created_at, clients(hospital_name)").order("created_at", { ascending: false }).limit(6),
+    supabase.from("pcrm_inquiries").select("id, client_id, title, status, last_message_at, clients(hospital_name)").order("last_message_at", { ascending: false }).limit(6),
+    supabase.from("clients").select("available_points").eq("per_joined", true),
+    supabase.from("reward_transactions").select("type, points").gte("created_at", monthStartIso),
+  ]);
+
   /* ── 요약 카드 증감 (신규/완료 건수) ── */
   const newClientsThisWeek = (clientsRes.data ?? []).filter((c) => c.created_at >= weekAgoIso).length;
   const newActiveProjectsThisWeek = (runsRes.data ?? []).filter((r) => r.status === "active" && r.started_at >= weekAgoIso).length;
   const completedThisMonth = (runsRes.data ?? []).filter((r) => r.status === "completed" && r.completed_at && r.completed_at >= monthStartIso).length;
-  const newApprovalsLast24h = (approvalsRes.data ?? []).filter((a) => a.status === "pending" && a.created_at >= dayAgoIso).length;
-  const newTasksLast24h = (tasksRes.data ?? []).filter((t) => ["pending", "running", "waiting_approval", "failed"].includes(t.status) && t.created_at >= dayAgoIso).length;
+  const newApprovalsLast24h = (approvalsRes.data ?? []).filter((a: any) => a.status === "pending" && a.created_at >= dayAgoIso).length;
+  const newTasksLast24h = (tasksRes.data ?? []).filter((t: any) => ["pending", "running", "waiting_approval", "failed"].includes(t.status) && t.created_at >= dayAgoIso).length;
 
   /* ── 승인 대기 항목 (유형별 집계) ── */
   const approvalTypeCounts = new Map<string, number>();
   for (const approval of approvalsRes.data ?? []) {
-    if (approval.status !== "pending") continue;
-    const type = approval.approval_type || "other";
+    if ((approval as any).status !== "pending") continue;
+    const type = (approval as any).approval_type || "other";
     approvalTypeCounts.set(type, (approvalTypeCounts.get(type) ?? 0) + 1);
   }
   const pendingApprovalsByType = Array.from(approvalTypeCounts.entries())
