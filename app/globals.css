@@ -1099,9 +1099,9 @@ main:has(> .pc-header) {
 
 .admin-menu-card:hover {
   box-shadow:
-    0 14px 40px rgba(21, 88, 85, 0.13),
+    0 8px 24px rgba(21, 88, 85, 0.09),
     0 1px 0 rgba(255, 255, 255, 0.98) inset;
-  transform: translateY(-4px) scale(1.012);
+  transform: translateY(-1px);
 }
 
 .ops-shell {
