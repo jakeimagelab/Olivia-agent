@@ -137,6 +137,22 @@
 .oa-category-section__title { margin: 0; color: var(--oa-text); font-size: 17px; font-weight: 600; line-height: 1.35; letter-spacing: -.025em; }
 .oa-category-section__description { margin: 5px 0 0; color: #a0a6ac; font-size: 10px; line-height: 1.55; }
 .oa-category-section__action { flex-shrink: 0; }
+
+/* 전체보기 카테고리 아코디언 — 헤더를 버튼으로 눌러 부드럽게 펼치고 접는다(요청).
+   기존 oa-category-section__header의 시각적 모양은 그대로 두고 버튼 기본 스타일만 지운다. */
+.oa-tool-category-panel__trigger {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+.oa-tool-category-panel__meta { display: flex; align-items: center; gap: 10px; }
+.oa-tool-category-panel__chevron { color: #8a9d98; transition: transform 280ms cubic-bezier(.32,.72,0,1); }
+.oa-tool-category-panel__chevron[data-open="true"] { transform: rotate(180deg); color: #155855; }
+.oa-tool-category-panel__content { padding-top: 17px; }
 .oa-status-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; border-radius: 99px; padding: 0 9px; font-size: 9px; font-weight: 600; white-space: nowrap; }
 .oa-status-badge--blue { color: #155855; background: #eaf4f2; }
 .oa-status-badge--orange { color: #eb8f22; background: #fff3e0; }
