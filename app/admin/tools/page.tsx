@@ -43,29 +43,35 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
         {linked ? <a className="oa-context-banner__action" href="/admin/dashboard/home">홈으로 돌아가기</a> : <a className="oa-context-banner__action" href="/clients">고객 선택해서 연결하기</a>}
       </section>
 
-      <CategorySection
-        eyebrow="WORK TOOLS"
-        title="실제 작업 도구"
-        description="각 기능은 고객 연결 없이도 독립적으로 실행할 수 있습니다."
-        action={<StatusBadge tone="blue">{query ? `${filteredTools.length}개 검색 결과` : `${TOOLS.length}개 기능`}</StatusBadge>}
-      >
-        {filteredTools.length ? <div className="admin-menu-grid">
-          {filteredTools.map(tool => {
-            const Icon = tool.icon;
-            return (
-              <Link key={tool.href} href={`${tool.href}${suffix}`} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
-                <div className={`admin-menu-icon admin-menu-icon--${tool.category}`}><Icon size={24}/></div>
-                <div className="admin-menu-copy">
-                  <span>{tool.meta}</span>
-                  <h2>{tool.title}</h2>
-                  <p>{tool.desc}</p>
-                </div>
-                <div className="admin-menu-action" aria-hidden="true"><ArrowRight size={21}/></div>
-              </Link>
-            );
-          })}
-        </div> : <div className="oa-tool-search-empty"><strong>“{rawQuery}”에 해당하는 기능이 없습니다.</strong><p>다른 기능명이나 설명 키워드로 검색해보세요.</p><Link href={`/admin/tools${suffix}`}>검색 초기화</Link></div>}
-      </CategorySection>
+      {filteredTools.length ? groupedTools.map((group) => (
+        <CategorySection
+          key={group.category}
+          eyebrow={group.category.toUpperCase()}
+          title={group.label}
+          action={<StatusBadge tone="blue">{group.items.length}개 기능</StatusBadge>}
+        >
+          <div className="admin-menu-grid">
+            {group.items.map(tool => {
+              const Icon = tool.icon;
+              return (
+                <Link key={tool.href} href={`${tool.href}${suffix}`} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
+                  <div className={`admin-menu-icon admin-menu-icon--${tool.category}`}><Icon size={19}/></div>
+                  <div className="admin-menu-copy">
+                    <span>{tool.meta}</span>
+                    <h2>{tool.title}</h2>
+                    <p>{tool.desc}</p>
+                  </div>
+                  <div className="admin-menu-action" aria-hidden="true"><ArrowRight size={17}/></div>
+                </Link>
+              );
+            })}
+          </div>
+        </CategorySection>
+      )) : (
+        <CategorySection eyebrow="WORK TOOLS" title="실제 작업 도구">
+          <div className="oa-tool-search-empty"><strong>“{rawQuery}”에 해당하는 기능이 없습니다.</strong><p>다른 기능명이나 설명 키워드로 검색해보세요.</p><Link href={`/admin/tools${suffix}`}>검색 초기화</Link></div>
+        </CategorySection>
+      )}
     </div>
   );
 }
