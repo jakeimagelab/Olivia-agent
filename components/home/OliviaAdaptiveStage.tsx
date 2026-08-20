@@ -103,10 +103,10 @@ export default function OliviaAdaptiveStage() {
               </button>
               <div className="olivia-home-greeting">
                 <div className={`olivia-home-orb${isStreaming ? " is-thinking" : ""}`} aria-hidden="true">
-                  <img src="/assets/photoclinic-mark.png" alt="" />
+                  <span className="olivia-home-orb__logo" />
                 </div>
-                <h1>{greetingTitle}</h1>
-                <p>오늘도 <em>스마트한 업무</em>를 시작해볼까요?</p>
+                <h1 className="olivia-home-greeting__rainbow">{greetingTitle}</h1>
+                <p className="olivia-home-greeting__rainbow">오늘도 스마트한 업무를 시작해볼까요?</p>
               </div>
             </>
           ) : null}
