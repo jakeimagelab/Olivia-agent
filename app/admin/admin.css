@@ -1040,7 +1040,7 @@
 .oa-header-notification-list > a { min-height: 61px; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 10px 12px; color: inherit; text-decoration: none; box-shadow: inset 0 -1px rgba(21,88,85,.06); transition: background 300ms cubic-bezier(.32,.72,0,1); }
 .oa-header-notification-list > a:hover { background: #f4f8f7; }
 .oa-header-notification-list span { grid-row: 1/3; align-self: start; border-radius: 99px; padding: 3px 6px; background: #fff1eb; color: #c6542f; font-size: 7px; font-weight: 900; }
-.oa-header-notification-list strong { overflow: hidden; color: #29413d; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
+.oa-header-notification-list strong { overflow: hidden; color: #29413d; font-size: 9.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .oa-header-notification-list small { overflow: hidden; color: #899b97; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .oa-header-popover__footer { min-height: 38px; display: flex; align-items: center; justify-content: space-between; margin-top: 5px; border-radius: 8px 8px 13px 13px; padding: 0 10px 0 12px; background: #155855; color: #fff; text-decoration: none; font-size: 8.5px; font-weight: 850; }
 .oa-header-popover__footer span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.12); }
