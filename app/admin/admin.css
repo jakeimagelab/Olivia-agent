@@ -1059,6 +1059,9 @@
   .oa-header-quick-trigger > span { display: none; }
   .oa-header-quick-trigger { width: 38px; padding: 0; }
   .oa-header-quick-trigger svg:last-child { display: none; }
+  .oa-header__client-search { width: min(160px,18vw); }
+  .oa-header__client-create span { display: none; }
+  .oa-header__client-create { width: 38px; padding: 0; }
 }
 
 @media (max-width: 760px) {
@@ -1066,7 +1069,18 @@
   .oa-header--enhanced .oa-header__brand { overflow: hidden; }
   .oa-header--enhanced .oa-header__brand img { height: 24px; }
   .oa-header--enhanced .oa-header__title--compact { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-  .oa-header__command-area { gap: 5px; }
+  .oa-header__command-area {
+    gap: 5px;
+    /* 페이지 전용 컨트롤(일정 뷰전환, 고객 검색 등)까지 더해지면 좁은 화면에서 한 줄에
+       다 안 들어올 수 있다 — 잘리는 대신 가로 스크롤로 빠지게 해서 항상 다 접근 가능하게 한다. */
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .oa-header__command-area::-webkit-scrollbar { display: none; }
+  .oa-header__command-area > * { flex-shrink: 0; }
+  .oa-header__page-actions { padding-right: 6px; margin-right: 0; gap: 5px; }
   .oa-header-search { position: static; width: auto; }
   .oa-header-search__mobile-trigger { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 12px; background: #f3f7f6; color: #466a64; box-shadow: inset 0 0 0 1px rgba(21,88,85,.06); }
   .oa-header-search__field { display: none; }
@@ -1074,8 +1088,14 @@
   .oa-header-search.is-mobile-open .oa-header-search__popover { top: calc(100% + 54px); left: 10px; right: 10px; width: auto; max-height: 58vh; }
   .oa-header-action-button,
   .oa-header-quick-trigger,
-  .oa-header-search__mobile-trigger { width: 36px; height: 36px; border-radius: 11px; }
+  .oa-header-search__mobile-trigger,
+  .oa-header__client-create { width: 36px; height: 36px; border-radius: 11px; }
   .oa-header-popover { position: fixed; top: 80px; left: 10px; right: 10px; width: auto; max-height: calc(100dvh - 96px); }
+  .oa-header__client-search { width: 110px; }
+}
+
+@media (max-width: 560px) {
+  .oa-header__client-search { display: none; }
 }
 
 @media (max-width: 460px) {
