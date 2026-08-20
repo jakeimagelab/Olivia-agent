@@ -391,6 +391,41 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
     }
   },
   cancelApproval: (approvalId) => set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "approval" && block.approvalId === approvalId ? { ...block, state: "cancelled" as const } : block) })) })),
+
+  confirmShootConfirmation: async (insightId) => {
+    const mark = (state: "confirmed" | "error") => set((current) => ({
+      messages: current.messages.map((message) => ({
+        ...message,
+        blocks: message.blocks.map((block) => block.type === "shoot_confirm" && block.insightId === insightId ? { ...block, state } : block),
+      })),
+    }));
+    try {
+      const response = await fetch(`/api/olivia/shoot-confirmations/${insightId}/confirm`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "다음 단계로 넘기지 못했어요.");
+      mark("confirmed");
+    } catch {
+      mark("error");
+    }
+  },
+  snoozeShootConfirmation: async (insightId) => {
+    const mark = (state: "snoozed" | "error") => set((current) => ({
+      messages: current.messages.map((message) => ({
+        ...message,
+        blocks: message.blocks.map((block) => block.type === "shoot_confirm" && block.insightId === insightId ? { ...block, state } : block),
+      })),
+    }));
+    try {
+      const response = await fetch(`/api/olivia/insights/${insightId}/dismiss`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "아직 촬영 전/확인 전" }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "미루지 못했어요.");
+      mark("snoozed");
+    } catch {
+      mark("error");
+    }
+  },
 }));
 
 useOliviaConversationStore.subscribe((state, previous) => {
