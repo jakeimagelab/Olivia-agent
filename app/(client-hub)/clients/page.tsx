@@ -19,17 +19,6 @@ import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
 import ClientListPanel from "@/components/client-workspace/ClientListPanel";
 import ProjectWorkflowStepper from "@/components/client-workspace/ProjectWorkflowStepper";
 import WorkspaceModal from "@/components/client-workspace/WorkspaceModal";
-
-// 견적서/계약서/콘티 빌더와 진행상세 모달은 실제로 모달을 열 때만 필요하다 — 고객 목록 첫 화면에는
-// 전혀 안 쓰이는데 지금까지는 정적 import라 항상 초기 JS 번들에 포함됐다. 모달 상태가 열리는
-// 순간에만 청크를 받아오도록 next/dynamic으로 분리(코드 요청서 17/18절, ContiBuilder가 특히 큼).
-const modalLoading = () => (
-  <div className="pcrm-inline-project-state"><span className="pcrm-inline-project-spinner" /><p>불러오는 중...</p></div>
-);
-const ProgressDetailModal = dynamic(() => import("@/components/client-workspace/ProgressDetailModal"), { ssr: false, loading: modalLoading });
-const QuoteBuilder = dynamic(() => import("@/components/quote/QuoteBuilder"), { ssr: false, loading: modalLoading });
-const ContractBuilder = dynamic(() => import("@/components/contract/ContractBuilder"), { ssr: false, loading: modalLoading });
-const ContiBuilder = dynamic(() => import("@/components/conti/ContiBuilder"), { ssr: false, loading: modalLoading });
 import type { WorkspacePhase } from "@/lib/clientWorkspace/types";
 import ClientFormModal from "./_components/ClientFormModal";
 import NewPcrmProjectDialog from "./_components/NewPcrmProjectDialog";
@@ -43,6 +32,17 @@ import MissionStatusBar from "@/components/olivia/ui/MissionStatusBar";
 import { C } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "./_hooks/useClientRoster";
+
+// 견적서/계약서/콘티 빌더와 진행상세 모달은 실제로 모달을 열 때만 필요하다 — 고객 목록 첫 화면에는
+// 전혀 안 쓰이는데 지금까지는 정적 import라 항상 초기 JS 번들에 포함됐다. 모달 상태가 열리는
+// 순간에만 청크를 받아오도록 next/dynamic으로 분리(코드 요청서 17/18절, ContiBuilder가 특히 큼).
+const modalLoading = () => (
+  <div className="pcrm-inline-project-state"><span className="pcrm-inline-project-spinner" /><p>불러오는 중...</p></div>
+);
+const ProgressDetailModal = dynamic(() => import("@/components/client-workspace/ProgressDetailModal"), { ssr: false, loading: modalLoading });
+const QuoteBuilder = dynamic(() => import("@/components/quote/QuoteBuilder"), { ssr: false, loading: modalLoading });
+const ContractBuilder = dynamic(() => import("@/components/contract/ContractBuilder"), { ssr: false, loading: modalLoading });
+const ContiBuilder = dynamic(() => import("@/components/conti/ContiBuilder"), { ssr: false, loading: modalLoading });
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { usePcrmHeaderActions } from "@/components/pcrm/PcrmHeaderActionsSlot";
 
