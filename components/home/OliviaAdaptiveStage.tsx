@@ -102,7 +102,9 @@ export default function OliviaAdaptiveStage() {
                 <ListChecks size={17} strokeWidth={1.7} /> 할 일 <strong>{todayCount}</strong><span>· 최근 작업</span>
               </button>
               <div className="olivia-home-greeting">
-                <div className={`olivia-home-orb${isStreaming ? " is-thinking" : ""}`} aria-hidden="true" />
+                <div className={`olivia-home-orb${isStreaming ? " is-thinking" : ""}`} aria-hidden="true">
+                  <img src="/assets/photoclinic-mark.png" alt="" />
+                </div>
                 <h1>{greetingTitle}</h1>
                 <p>오늘도 <em>스마트한 업무</em>를 시작해볼까요?</p>
               </div>
