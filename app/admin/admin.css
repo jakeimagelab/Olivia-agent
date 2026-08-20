@@ -2845,6 +2845,9 @@
   place-items: center;
   flex-shrink: 0;
   animation: olivia-home-orb-breathe 4.2s cubic-bezier(.45,0,.55,1) infinite;
+  /* 채팅이 Framer Motion으로 부드럽게 커지는 동안 로고는 CSS transition이 없어 순간적으로
+     스냅되던 문제 — 채팅 쪽과 비슷한 리듬으로 같이 줄어들게 맞춘다. */
+  transition: width 560ms cubic-bezier(.32,.72,0,1), height 560ms cubic-bezier(.32,.72,0,1), margin-bottom 560ms cubic-bezier(.32,.72,0,1);
 }
 .olivia-home-orb__logo {
   display: block;
