@@ -135,11 +135,18 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
 
   const onInput = (value: string) => {
     setInput(value);
+    const list = listRef.current;
+    // 입력창(composer)이 여러 줄로 늘어나면 메시지 목록의 실제 높이가 줄어든다 — 스크롤 위치는
+    // 그대로라서 바닥에 붙어있던 마지막 메시지가 늘어난 입력창 뒤로 가려 보인다. 늘어나기
+    // 직전에 바닥 근처였는지 미리 재서, 늘어난 뒤에도 계속 바닥에 붙어 있게 한다. 위로 스크롤해
+    // 이전 대화를 읽는 중이면(120px 이상 떨어짐) 건드리지 않는다.
+    const wasNearBottom = list ? list.scrollHeight - list.scrollTop - list.clientHeight <= 120 : false;
     requestAnimationFrame(() => {
       const element = textareaRef.current;
       if (!element) return;
       element.style.height = "auto";
       element.style.height = `${Math.min(element.scrollHeight, 152)}px`;
+      if (wasNearBottom && list) list.scrollTo({ top: list.scrollHeight, behavior: "auto" });
     });
   };
 
