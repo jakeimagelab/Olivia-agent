@@ -229,23 +229,46 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
   );
 }
 
+// 고객 A→B→A처럼 왔다갔다 할 때 A를 처음부터 다시 기다리지 않도록 하는 짧은 메모리 캐시
+// (코드 요청서 9/10절) — 캐시가 있으면 그 데이터를 즉시 보여주고, 그 사이에도 항상
+// 최신 데이터를 백그라운드로 다시 받아와 조용히 갱신한다(stale-while-revalidate).
+const CLIENT_DETAIL_STALE_MS = 45_000;
+const clientDetailCache = new Map<string, { data: any; fetchedAt: number }>();
+
+function invalidateClientDetailCache(clientId: string) {
+  clientDetailCache.delete(clientId);
+}
+
 function InlineClientProjectPanel({ clientId }: { clientId: string }) {
   const router = useRouter();
-  const [pageData, setPageData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = clientDetailCache.get(clientId);
+  const [pageData, setPageData] = useState<any>(() => cached?.data ?? null);
+  const [loading, setLoading] = useState(() => !cached);
   const [loadError, setLoadError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [toolModal, setToolModal] = useState<{ type: "quote" | "contract" | "conti"; resourceId?: string } | null>(null);
   const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
 
-  const refresh = () => setReloadKey((value) => value + 1);
+  const refresh = () => { invalidateClientDetailCache(clientId); setReloadKey((value) => value + 1); };
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setLoadError("");
-    setPageData(null);
+    const cachedEntry = clientDetailCache.get(clientId);
+    const hasFreshCache = cachedEntry && Date.now() - cachedEntry.fetchedAt < CLIENT_DETAIL_STALE_MS;
+    if (cachedEntry) {
+      // 캐시된 화면을 그대로 보여주고(스피너로 안 덮음), 아래에서 최신 데이터로 조용히 갱신한다.
+      setPageData(cachedEntry.data);
+      setLoading(false);
+      setLoadError("");
+    } else {
+      setLoading(true);
+      setLoadError("");
+      setPageData(null);
+    }
+    // 캐시가 아주 신선하면(45초 이내) 굳이 다시 안 받아온다 — 그래도 명시적 refresh()(reloadKey 변경)는
+    // invalidateClientDetailCache로 캐시를 먼저 지우므로 hasFreshCache가 false가 되어 항상 다시 받는다.
+    if (hasFreshCache) return;
     void (async () => {
       try {
         let response = await fetch(`/api/clients/${clientId}`, { cache: "no-store", signal: controller.signal });
@@ -255,12 +278,13 @@ function InlineClientProjectPanel({ clientId }: { clientId: string }) {
           payload = await response.json().catch(() => null);
         }
         if (!response.ok || !payload?.ok) throw new Error(payload?.error || "고객 프로젝트를 불러오지 못했습니다.");
+        clientDetailCache.set(clientId, { data: payload, fetchedAt: Date.now() });
         setPageData(payload);
         useOliviaContextStore.getState().setClient(payload.client.id, payload.client.name);
         useOliviaContextStore.getState().setProject(payload.workflowRun?.id, payload.workflowRun?.project_name);
       } catch (error) {
         if (controller.signal.aborted) return;
-        setLoadError(error instanceof Error ? error.message : "고객 프로젝트를 불러오지 못했습니다.");
+        if (!cachedEntry) setLoadError(error instanceof Error ? error.message : "고객 프로젝트를 불러오지 못했습니다.");
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
