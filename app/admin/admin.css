@@ -1007,7 +1007,7 @@
 .oa-header-search__group a.is-active { background: #edf5f3; transform: translateX(2px); }
 .oa-header-search__group a > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: #edf5f3; color: #155855; }
 .oa-header-search__group a div { min-width: 0; display: grid; gap: 2px; }
-.oa-header-search__group strong { overflow: hidden; color: #29413d; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.oa-header-search__group strong { overflow: hidden; color: #29413d; font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .oa-header-search__group small { overflow: hidden; color: #8a9a96; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .oa-header-search__empty { padding: 26px 14px; border-radius: 13px; background: #fff; color: #879b96; text-align: center; font-size: 10px; }
 
