@@ -220,7 +220,10 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         <div className="olivia-conversation__main">
       <OliviaEngineBackground active={isStreaming} />
       <div ref={listRef} className="olivia-conversation__messages" aria-live="polite">
-        {!isHydrated ? <div className="olivia-conversation__empty">대화를 불러오는 중…</div> : null}
+        {/* 로컬 캐시에 이미 메시지가 있으면(재방문) 그 메시지가 바로 그려지므로 로딩 문구를
+            띄우지 않는다 — isHydrated로만 걸었더니 캐시된 메시지 위에 "불러오는 중…"이 잠깐
+            겹쳐 떴다가, 서버 재확인이 끝나는 순간 그 문구만 사라지는 깜빡임이 있었다. */}
+        {!isHydrated && messages.length === 0 ? <div className="olivia-conversation__empty">대화를 불러오는 중…</div> : null}
         {isHydrated && messages.length === 0 ? (
           <div className={`olivia-conversation__welcome${isHome ? " is-home" : ""}`}>
             {isHome ? (
