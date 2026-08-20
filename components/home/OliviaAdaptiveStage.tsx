@@ -6,6 +6,7 @@ import { CalendarDays, FileText, ListChecks, Search, Sparkles } from "lucide-rea
 import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
 import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTransition";
 import OliviaHomeContextDrawer from "@/components/home/OliviaHomeContextDrawer";
+import OliviaCore from "@/components/olivia/OliviaCore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { getWorkspaceLayoutWeight, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
