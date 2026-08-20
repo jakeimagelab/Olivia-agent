@@ -2900,6 +2900,14 @@
   padding: 24px 24px 56px;
   color: #263a36;
   font-family: var(--font-sans);
+  min-height: calc(100dvh - var(--admin-header-height, 64px));
+  border-radius: 28px;
+  /* 홈(.olivia-adaptive-stage)과 같은 옅은 민트 웜톤 그라디언트 — 대화 목록이 흰 배경에 붙어
+     밋밋해 보인다는 피드백이라, 홈에서 쓰는 배경을 그대로 가져와 톤을 맞췄다. */
+  background:
+    radial-gradient(circle at 70% 6%, rgba(213,240,235,.30), transparent 30%),
+    radial-gradient(circle at 8% 92%, rgba(235,143,34,.06), transparent 34%),
+    linear-gradient(180deg, #FBFDFC 0%, #F8FBFA 100%);
 }
 
 .oa-tools-page .admin-menu-grid { gap: 10px; }
