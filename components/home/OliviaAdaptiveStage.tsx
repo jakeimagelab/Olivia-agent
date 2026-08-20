@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CalendarDays, FileText, ListChecks, Search, Sparkles } from "lucide-react";
 import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
 import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTransition";
 import OliviaHomeContextDrawer from "@/components/home/OliviaHomeContextDrawer";
-import OliviaCore from "@/components/olivia/OliviaCore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { getWorkspaceLayoutWeight, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
@@ -19,6 +18,36 @@ const QUICK_PROMPTS = [
   { title: "보고서 생성", description: "데이터 기반 보고서 만들기", icon: FileText, prompt: "보고서를 만들고 싶어요. 어떤 정보가 필요한지 물어봐줘." },
   { title: "일정 확인", description: "오늘의 일정 한눈에 보기", icon: CalendarDays, prompt: "오늘 일정과 해야 할 일을 정리해줘." },
 ] as const;
+
+// 시간대/업무량에 따라 인사말이 "유기적으로" 바뀌게 — 같은 상황이어도 매번 똑같은 문장이면
+// 금방 질리니 상황별로 2~3개 후보를 두고 날짜 기준으로 하나를 고른다(하루 안에서는 고정,
+// 날짜가 바뀌면 자연스럽게 다른 문장으로). 일정이 많은 날/처리할 일이 쌓인 날은 시간대 인사보다
+// 그 사실을 먼저 알려주는 쪽이 더 쓸모 있어서 우선순위를 앞에 둔다.
+const GREETING_VARIANTS = {
+  busy: ["오늘은 일정이 많은 날이에요", "할 일이 가득한 하루예요", "바쁜 하루가 될 것 같아요"],
+  pending: ["확인할 업무가 쌓여 있어요", "처리할 일들이 기다리고 있어요"],
+  dawn: ["늦은 시간까지 고생 많으세요", "오늘도 늦게까지 애쓰고 계시네요"],
+  morning: ["안녕하세요, 좋은 아침입니다", "상쾌한 아침이에요", "오늘도 활기찬 아침이에요"],
+  afternoon: ["오늘도 좋은 오후예요", "활기찬 오후 보내고 계신가요", "오늘 하루도 순조롭길 바라요"],
+  evening: ["오늘 하루도 고생하셨어요", "오늘도 수고 많으셨어요"],
+  night: ["늦은 시간까지 고생 많으세요", "오늘도 늦게까지 애쓰셨어요"],
+} as const;
+
+function pickVariant(list: readonly string[], seed: number) {
+  return list[((seed % list.length) + list.length) % list.length];
+}
+
+function getHomeGreetingTitle(now: Date, todayCount: number, pendingCount: number) {
+  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86_400_000);
+  const hour = now.getHours();
+  if (todayCount >= 4) return pickVariant(GREETING_VARIANTS.busy, dayOfYear);
+  if (pendingCount >= 3) return pickVariant(GREETING_VARIANTS.pending, dayOfYear);
+  if (hour < 5) return pickVariant(GREETING_VARIANTS.dawn, dayOfYear);
+  if (hour < 12) return pickVariant(GREETING_VARIANTS.morning, dayOfYear);
+  if (hour < 18) return pickVariant(GREETING_VARIANTS.afternoon, dayOfYear);
+  if (hour < 22) return pickVariant(GREETING_VARIANTS.evening, dayOfYear);
+  return pickVariant(GREETING_VARIANTS.night, dayOfYear);
+}
 
 export default function OliviaAdaptiveStage() {
   const mode = useOliviaLayoutStore((state) => state.mode);
