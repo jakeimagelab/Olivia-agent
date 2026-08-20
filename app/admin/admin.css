@@ -1073,10 +1073,7 @@
   .oa-header-search.is-mobile-open .oa-header-search__popover { top: calc(100% + 54px); left: 10px; right: 10px; width: auto; max-height: 58vh; }
   .oa-header-action-button,
   .oa-header-quick-trigger,
-  .oa-header-profile,
   .oa-header-search__mobile-trigger { width: 36px; height: 36px; border-radius: 11px; }
-  .oa-header-profile { padding: 3px; }
-  .oa-header-profile > span { width: 30px; height: 30px; }
   .oa-header-popover { position: fixed; top: 80px; left: 10px; right: 10px; width: auto; max-height: calc(100dvh - 96px); }
 }
 
