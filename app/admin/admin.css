@@ -3839,32 +3839,37 @@
 .oa-header--calendar .oa-header__title { font-size: clamp(18px, 1.5vw, 20px); color: #333333; }
 .oa-header--calendar .oa-header__description { font-size: clamp(11px, 1vw, 12px); }
 
-/* 앱 최초 진입/새로고침 스플래시(요청) — 세션당 한 번, OliviaSplash.tsx가 세션스토리지로
-   게이트한다. 로고+텍스트 등장 → 텍스트 디졸브 → 로고 축소 → 채팅창 상하 오픈 → 전체 페이드아웃
-   순서를 Framer Motion의 keyframe 배열 하나로 이어서 보간한다(단계마다 JS state를 갈아끼우며
-   서로 다른 CSS transition을 새로 트리거하면 전환 지점마다 미묘하게 끊겨 보였다) — 그래서 여기
-   CSS는 애니메이션 값 없이 정적인 위치·크기·비주얼만 정의하고, opacity/scale/y/filter는 전부
-   컴포넌트의 inline style(Framer)이 담당한다. 실제 홈 화면은 이 오버레이 아래에서 평소처럼
-   정적으로 렌더링되고 있다가 오버레이가 사라지면서 그대로 드러난다. */
+/* 앱 최초 진입/새로고침 스플래시(요청, 2026-08-22 레퍼런스 반영) — 세션당 한 번.
+   1.조용한 도착 → 2.깨어남(텍스트 소멸 + 로고 축소 + 라인이 양옆으로 뻗음) →
+   3.채팅 패널 펼침(라인이 패널 중심이 되어 위아래로 열리고 로고는 좌측 상단으로 이동) →
+   4.홈 화면 완성. 로고와 채팅 패널이 같은 중심점에서 출발해야 "로고가 패널 모서리로
+   이동"하는 좌표 계산이 성립하므로, 셋 다 position:absolute로 화면 정중앙에 고정하고
+   Framer Motion의 x/y/scale은 그 위에 얹는 상대 이동값으로만 쓴다(margin 기반 중앙 정렬 —
+   transform 기반 중앙정렬을 쓰면 Framer가 적용하는 transform과 충돌한다). */
 .olivia-splash {
   position: fixed;
   inset: 0;
   z-index: 99999;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
   background: #fff;
 }
 .olivia-splash__logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 96px;
   height: 96px;
-  margin-bottom: 18px;
+  margin: -48px 0 0 -48px;
 }
 .olivia-splash__logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
 .olivia-splash__brand {
-  margin: 0 0 34px;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  margin-top: 58px;
+  text-align: center;
   color: var(--brand-green);
   font-size: 14px;
   font-weight: 700;
@@ -3872,17 +3877,21 @@
 }
 
 .olivia-splash__chat {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: min(560px, 86vw);
   height: 220px;
+  margin-top: -110px;
+  margin-left: calc(min(560px, 86vw) / -2);
   border-radius: 21px;
   background:
     linear-gradient(#fff,#fff) padding-box,
     var(--olivia-chat-border-gradient) border-box;
   border: 1px solid transparent;
   box-shadow: 0 18px 50px rgba(10,40,35,.08);
-  transform-origin: center;
 }
 @media (max-width: 560px) {
-  .olivia-splash__logo { width: 76px; height: 76px; }
-  .olivia-splash__chat { height: 160px; }
+  .olivia-splash__logo { width: 76px; height: 76px; margin: -38px 0 0 -38px; }
+  .olivia-splash__chat { height: 160px; margin-top: -80px; }
 }
