@@ -2813,9 +2813,9 @@
 .olivia-agent-home__drawer-trigger:hover { background: #f3faf7; box-shadow: 0 10px 32px rgba(10,40,35,.075); }
 .olivia-agent-home__drawer-trigger strong { min-width: 20px; height: 20px; display: grid; place-items: center; border-radius: 99px; background: #fff1e8; color: #e85d2c; font-size: 10px; }
 .olivia-agent-home__drawer-trigger span { color: #7b8d88; }
-.olivia-agent-home .olivia-home-greeting { min-height: 0; display: flex; flex-direction: column; align-items: center; padding: 0; margin: 0 0 24px; text-align: center; transition: margin-bottom 1200ms cubic-bezier(.32,.72,0,1); }
+.olivia-agent-home .olivia-home-greeting { min-height: 0; display: flex; flex-direction: column; align-items: center; padding: 0; margin: 0 0 24px; text-align: center; transition: margin-bottom 2200ms cubic-bezier(.22,.61,.36,1); }
 .olivia-home-greeting__badge { min-height: 30px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgba(21,88,85,.08); border-radius: 999px; padding: 0 13px; background: #f0f8f6; color: #315f58; font-size: 11.5px; font-weight: 600; }
-.olivia-agent-home .olivia-home-greeting h1 { margin: 0; font-size: clamp(28px,2.4vw,32px); font-weight: 600; line-height: 1.2; letter-spacing: -.04em; transition: font-size 1200ms cubic-bezier(.32,.72,0,1); }
+.olivia-agent-home .olivia-home-greeting h1 { margin: 0; font-size: clamp(28px,2.4vw,32px); font-weight: 600; line-height: 1.2; letter-spacing: -.04em; transition: font-size 2200ms cubic-bezier(.22,.61,.36,1); }
 .olivia-agent-home .olivia-home-greeting p { margin: 9px 0 0; font-size: 14px; font-weight: 500; }
 
 /* 채팅창 테두리 글로우와 똑같은 레인보우 그라데이션을 로고/텍스트에도 — 색상 정지점을
@@ -2860,7 +2860,7 @@
   animation: olivia-home-orb-breathe 4.2s cubic-bezier(.45,0,.55,1) infinite;
   /* 채팅이 Framer Motion으로 부드럽게 커지는 동안 로고는 CSS transition이 없어 순간적으로
      스냅되던 문제 — 채팅 쪽과 비슷한 리듬으로 같이, 훨씬 천천히 줄어들게 맞춘다. */
-  transition: width 1200ms cubic-bezier(.32,.72,0,1), height 1200ms cubic-bezier(.32,.72,0,1), margin-bottom 1200ms cubic-bezier(.32,.72,0,1);
+  transition: width 2200ms cubic-bezier(.22,.61,.36,1), height 2200ms cubic-bezier(.22,.61,.36,1), margin-bottom 2200ms cubic-bezier(.22,.61,.36,1);
 }
 .olivia-home-orb__logo {
   display: block;
@@ -2884,7 +2884,7 @@
   border-radius: 50%;
   background: radial-gradient(circle, rgba(21,88,85,.2), rgba(124,58,237,.13) 45%, transparent 72%);
   filter: blur(22px);
-  transition: inset 1200ms cubic-bezier(.32,.72,0,1), filter 1200ms cubic-bezier(.32,.72,0,1);
+  transition: inset 2200ms cubic-bezier(.22,.61,.36,1), filter 2200ms cubic-bezier(.22,.61,.36,1);
 }
 .olivia-home-orb.is-thinking { animation-duration: 1.8s; }
 @keyframes olivia-home-orb-breathe {
