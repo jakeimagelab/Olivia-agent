@@ -27,10 +27,9 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
   const filteredTools = query
     ? TOOLS.filter((tool) => normalizeAdminSearchQuery(`${tool.title} ${tool.desc} ${tool.meta}`).includes(query))
     : TOOLS;
-  // 카테고리별로 나눠 보여준다(요청) — 이미 있던 groupToolsByCategory(전역 사이드바용으로 만들어졌지만
-  // 안 쓰이고 있었다)를 그대로 재사용해서 /admin의 3분류(관리자 대시보드/고객관리 CRM/AI Assistant)
-  // 기준을 그대로 따른다. 검색으로 걸러진 뒤 비는 카테고리는 섹션 자체를 숨긴다.
-  const groupedTools = groupToolsByCategory(filteredTools).filter((group) => group.items.length > 0);
+  // 상단 필터 탭 개수는 실제 데이터 기준으로 계산한다(하드코딩 금지, 요청) — groupToolsByCategory는
+  // 전역 사이드바용으로 이미 있던 헬퍼를 그대로 재사용한다.
+  const groups = groupToolsByCategory(filteredTools).map((group) => ({ category: group.category, label: group.label, count: group.items.length }));
 
   return (
     <div className="oa-page oa-tools-page">
@@ -43,22 +42,17 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
         {linked ? <a className="oa-context-banner__action" href="/admin/dashboard/home">홈으로 돌아가기</a> : <a className="oa-context-banner__action" href="/clients">고객 선택해서 연결하기</a>}
       </section>
 
-      {filteredTools.length ? groupedTools.map((group) => (
-        <ToolCategoryPanel
-          key={group.category}
-          category={group.category}
-          label={group.label}
-          count={group.items.length}
-          // 검색 중일 땐 카테고리를 눌러야 보이면 검색 의미가 없어지니 바로 펼쳐서 보여준다.
-          defaultOpen={Boolean(query)}
-        >
+      {filteredTools.length ? (
+        <ToolCategoryTabs groups={groups} totalCount={filteredTools.length}>
           {/* 카드는 여기(서버 컴포넌트)에서 아이콘까지 다 렌더링해서 완성된 JSX로 넘긴다 —
-              ToolDef.icon(함수 참조)을 클라이언트 컴포넌트에 raw prop으로 넘기면 직렬화 에러가 난다. */}
+              ToolDef.icon(함수 참조)을 클라이언트 컴포넌트에 raw prop으로 넘기면 직렬화 에러가 난다.
+              카테고리별로 그리드를 나누지 않고 하나의 그리드에 전부 렌더링한 뒤, 탭 선택에 따라
+              data-tool-category로 표시/숨김만 전환한다 — 카드 디자인·아이콘·순서·라우팅은 그대로다. */}
           <div className="admin-menu-grid">
-            {group.items.map((tool) => {
+            {filteredTools.map((tool) => {
               const Icon = tool.icon;
               return (
-                <Link key={tool.href} href={`${tool.href}${suffix}`} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
+                <Link key={tool.href} href={`${tool.href}${suffix}`} data-tool-category={tool.category} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
                   <div className={`admin-menu-icon admin-menu-icon--${tool.category}`}><Icon size={19} /></div>
                   <div className="admin-menu-copy">
                     <span>{tool.meta}</span>
@@ -70,8 +64,8 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
               );
             })}
           </div>
-        </ToolCategoryPanel>
-      )) : (
+        </ToolCategoryTabs>
+      ) : (
         <CategorySection eyebrow="WORK TOOLS" title="실제 작업 도구">
           <div className="oa-tool-search-empty"><strong>“{rawQuery}”에 해당하는 기능이 없습니다.</strong><p>다른 기능명이나 설명 키워드로 검색해보세요.</p><Link href={`/admin/tools${suffix}`}>검색 초기화</Link></div>
         </CategorySection>
