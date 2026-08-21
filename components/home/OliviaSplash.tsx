@@ -52,9 +52,14 @@ export default function OliviaSplash() {
     // 페인트하지 않을 수 있다 — rAF 한 번만으로는 "정지 상태가 실제로 그려진 뒤 값이
     // 바뀌는" 조건이 보장되지 않아 애니메이션이 여전히 건너뛰었다(실측 확인됨). 두 번
     // 연속 rAF로 확실히 한 프레임을 그리게 한 뒤에 play를 켠다.
+    console.log("[OliviaSplash] scheduling raf1 t=" + performance.now().toFixed(1));
     let raf2 = 0;
     const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => setPlay(true));
+      console.log("[OliviaSplash] raf1 fired t=" + performance.now().toFixed(1));
+      raf2 = requestAnimationFrame(() => {
+        console.log("[OliviaSplash] raf2 fired, setPlay(true) t=" + performance.now().toFixed(1));
+        setPlay(true);
+      });
     });
     const revealTimer = setTimeout(() => setRevealing(true), TOTAL * 1000 * 0.9);
     return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); clearTimeout(revealTimer); };
