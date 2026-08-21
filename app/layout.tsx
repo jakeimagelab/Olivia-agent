@@ -61,6 +61,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         />
       </head>
       <body className={`${nanumSquare.variable} min-h-screen font-sans antialiased`}>
+        <OliviaSplash />
         <CursorEffect />
         <div className="olivia-app-row">
           <div className="olivia-app-main">
