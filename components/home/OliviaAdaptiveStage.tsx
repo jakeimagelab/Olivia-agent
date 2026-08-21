@@ -125,7 +125,12 @@ export default function OliviaAdaptiveStage() {
             layout
             initial={{ opacity: 0, scaleY: .86, y: 14 }}
             animate={{ opacity: 1, scaleY: 1, y: 0 }}
-            transition={{ ...spring, delay: .15 }}
+            transition={{
+              layout: spring,
+              opacity: { duration: .5, delay: .15, ease: [.32, .72, 0, 1] },
+              scaleY: { ...spring, delay: .15 },
+              y: { ...spring, delay: .15 },
+            }}
             style={{ transformOrigin: "top" }}
             className="olivia-adaptive-stage__chat"
           >
