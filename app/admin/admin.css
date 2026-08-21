@@ -138,22 +138,34 @@
 .oa-category-section__description { margin: 5px 0 0; color: #a0a6ac; font-size: 10px; line-height: 1.55; }
 .oa-category-section__action { flex-shrink: 0; }
 
-/* 전체보기 카테고리 아코디언 — 헤더를 버튼으로 눌러 부드럽게 펼치고 접는다(요청).
-   기존 oa-category-section__header의 시각적 모양은 그대로 두고 버튼 기본 스타일만 지운다. */
-.oa-tool-category-panel { margin-bottom: 16px; }
-.oa-tool-category-panel__trigger {
-  width: 100%;
-  border: 0;
-  background: transparent;
+/* 전체보기 카테고리 필터 탭 — 3단 아코디언 대신 컴팩트한 세그먼트 탭으로 즉시 필터링(요청).
+   카드 자체는 서버에서 한 번에 렌더링된 단일 그리드를 그대로 두고, 탭 선택에 따라
+   data-tool-category 속성으로 표시/숨김만 CSS로 전환한다. */
+.oa-tool-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.oa-tool-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #e3e8ec;
+  border-radius: 999px;
+  padding: 9px 15px;
+  background: #fff;
+  color: #6b7680;
   font: inherit;
-  text-align: left;
+  font-size: 12.5px;
+  font-weight: 700;
   cursor: pointer;
-  margin-bottom: 0;
+  transition: background 180ms cubic-bezier(.32,.72,0,1), color 180ms cubic-bezier(.32,.72,0,1), border-color 180ms cubic-bezier(.32,.72,0,1);
 }
-.oa-tool-category-panel__meta { display: flex; align-items: center; gap: 10px; }
-.oa-tool-category-panel__chevron { color: #8a9d98; transition: transform 280ms cubic-bezier(.32,.72,0,1); }
-.oa-tool-category-panel__chevron[data-open="true"] { transform: rotate(180deg); color: #155855; }
-.oa-tool-category-panel__content { padding-top: 17px; }
+.oa-tool-tabs__tab:hover { border-color: #cfd8dc; }
+.oa-tool-tabs__tab[data-active="true"] { border-color: #cce9da; background: #f0f8f6; color: #155855; }
+.oa-tool-tabs__tab-count { color: #9aa4a9; font-size: 11px; font-weight: 700; }
+.oa-tool-tabs__tab[data-active="true"] .oa-tool-tabs__tab-count { color: #4d8a7c; }
+.oa-tool-tabs__grid[data-active-tab="dashboard"] [data-tool-category]:not([data-tool-category="dashboard"]),
+.oa-tool-tabs__grid[data-active-tab="crm"] [data-tool-category]:not([data-tool-category="crm"]),
+.oa-tool-tabs__grid[data-active-tab="tools"] [data-tool-category]:not([data-tool-category="tools"]) {
+  display: none;
+}
 .oa-status-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; border-radius: 99px; padding: 0 9px; font-size: 9px; font-weight: 600; white-space: nowrap; }
 .oa-status-badge--blue { color: #155855; background: #eaf4f2; }
 .oa-status-badge--orange { color: #eb8f22; background: #fff3e0; }
