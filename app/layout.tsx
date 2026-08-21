@@ -5,6 +5,7 @@ import OliviaPageTransition from "@/components/olivia/OliviaPageTransition";
 import GlobalClientContextBridge from "@/components/GlobalClientContextBridge";
 import GlobalFeatureSidebar from "@/components/GlobalFeatureSidebar";
 import CursorEffect from "@/components/CursorEffect";
+import OliviaSplash from "@/components/home/OliviaSplash";
 import "./globals.css";
 import "./admin/admin.css";
 
