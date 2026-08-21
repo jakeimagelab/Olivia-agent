@@ -106,7 +106,7 @@ export default function OliviaAdaptiveStage() {
                   className="olivia-home-greeting__intro"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: .6, ease: [.32, .72, 0, 1] }}
+                  transition={{ duration: 1.6, ease: [.22, .61, .36, 1] }}
                 >
                   <div className={`olivia-home-orb${isStreaming ? " is-thinking" : ""}`} aria-hidden="true">
                     <span className="olivia-home-orb__logo" />
