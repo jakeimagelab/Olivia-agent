@@ -84,7 +84,9 @@ export default function OliviaSplash() {
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: [0, 1, 1, 0], y: [6, 0, 0, -4], filter: ["blur(0px)", "blur(0px)", "blur(0px)", "blur(4px)"] }}
         transition={{ duration: TOTAL, times: [0, T1, T2, T2 + 0.02], ease }}
-      />
+      >
+        Photoclinic Olivia
+      </motion.p>
       <motion.div
         className="olivia-splash__chat"
         initial={{ opacity: 0, scaleX: 0, scaleY: 0.018 }}
