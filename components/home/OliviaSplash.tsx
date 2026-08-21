@@ -48,9 +48,16 @@ export default function OliviaSplash() {
 
   useEffect(() => {
     if (!show) return;
-    const raf = requestAnimationFrame(() => setPlay(true));
+    // show=true가 커밋된 직후 바로 이어서 실행되는 경우, 그 사이 브라우저가 실제로 한 번도
+    // 페인트하지 않을 수 있다 — rAF 한 번만으로는 "정지 상태가 실제로 그려진 뒤 값이
+    // 바뀌는" 조건이 보장되지 않아 애니메이션이 여전히 건너뛰었다(실측 확인됨). 두 번
+    // 연속 rAF로 확실히 한 프레임을 그리게 한 뒤에 play를 켠다.
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setPlay(true));
+    });
     const revealTimer = setTimeout(() => setRevealing(true), TOTAL * 1000 * 0.9);
-    return () => { cancelAnimationFrame(raf); clearTimeout(revealTimer); };
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); clearTimeout(revealTimer); };
   }, [show]);
 
   if (!show) return null;
