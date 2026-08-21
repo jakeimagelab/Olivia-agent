@@ -2836,17 +2836,30 @@
 
 /* 채팅 위 로고 — 요청대로 2배 키우고, 뒤에 흐린 글로우 halo로 "몽환적인" 떠 있는 느낌을 준다.
    4.2초 숨쉬듯 펄스는 기존 올리비아 프레즌스 애니메이션과 같은 리듬. */
+.olivia-home-greeting__intro { display: flex; flex-direction: column; align-items: center; }
+.olivia-home-greeting__brand {
+  margin: 0 0 18px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  background: var(--olivia-home-rainbow);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.olivia-agent-home.is-conversation .olivia-home-greeting__brand { display: none; }
 .olivia-home-orb {
   position: relative;
   width: 216px;
   height: 216px;
-  margin: 0 0 22px;
+  margin: 0 0 12px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
   animation: olivia-home-orb-breathe 4.2s cubic-bezier(.45,0,.55,1) infinite;
   /* 채팅이 Framer Motion으로 부드럽게 커지는 동안 로고는 CSS transition이 없어 순간적으로
-     스냅되던 문제 — 채팅 쪽과 비슷한 리듬으로 같이 줄어들게 맞춘다. */
+     스냅되던 문제 — 채팅 쪽과 비슷한 리듬으로 같이, 훨씬 천천히 줄어들게 맞춘다. */
   transition: width 1200ms cubic-bezier(.32,.72,0,1), height 1200ms cubic-bezier(.32,.72,0,1), margin-bottom 1200ms cubic-bezier(.32,.72,0,1);
 }
 .olivia-home-orb__logo {
