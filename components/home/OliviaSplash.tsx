@@ -10,9 +10,25 @@ const TOTAL = 2.3; // seconds — 참고 레퍼런스의 4단계 시간대(0.6/1
 const T1 = 0.6 / TOTAL;  // 조용한 도착 끝
 const T2 = 1.2 / TOTAL;  // 깨어남(텍스트 소멸 + 라인이 양옆으로 뻗음) 끝
 const T3 = 1.8 / TOTAL;  // 채팅 패널 펼침(로고가 좌측 상단으로 이동) 끝
+const ease = [0.22, 0.61, 0.36, 1] as const;
 
+// 정지 상태(아직 재생 전) 값 — mount 직후 이 값으로 한 번 그려진 뒤, 다음 프레임에
+// "값을 바꿔서" keyframe 애니메이션을 트리거한다. mount와 동시에 initial→animate로
+// 재생하면(React 19 + Framer Motion 13 조합에서 실측 확인됨) 트윈이 재생되지 않고 바로
+// 최종 keyframe 값으로 점프해버리는 문제가 있었다 — 이미 마운트된 뒤 값이 바뀌는 형태여야
+// 정상적으로 애니메이션이 재생된다.
+const REST = {
+  overlay: { opacity: 1 },
+  logo: { opacity: 0, scale: 0.94, x: 0, y: 0 },
+  brand: { opacity: 0, y: 6, filter: "blur(0px)" },
+  chat: { opacity: 0, scaleX: 0, scaleY: 0.018 },
+};
+
+// 앱을 처음 열거나 새로고침했을 때만 한 번 — 세션에 이미 기록이 있으면 show는 false로
+// 남아 아무것도 렌더링하지 않는다(서버 렌더와도 항상 일치해서 깜빡임이 없다).
 export default function OliviaSplash() {
   const [show, setShow] = useState(false);
+  const [play, setPlay] = useState(false);
   const [reduced, setReduced] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [corner, setCorner] = useState({ x: -248, y: -78 });
@@ -24,23 +40,14 @@ export default function OliviaSplash() {
     // 로고가 이동할 "패널 좌측 상단" 좌표를 실제 CSS 패널 크기(모바일 브레이크포인트 포함)에
     // 맞춰 근사 계산한다 — 화면 중앙(로고 시작 위치) 기준 상대 오프셋.
     setCorner(window.innerWidth <= 560 ? { x: -142, y: -55 } : { x: -248, y: -78 });
-
-    // 이 홈 화면은 하이드레이션이 무거워서 mount 직후 바로 애니메이션을 틀면 메인 스레드가
-    // 계속 바쁜 동안 프레임을 못 그리고 넘어가고, Framer의 실시간 기반 시계는 그 못 그린
-    // 시간만큼 이미 진행된 채로 첫 페인트를 해버려 애니메이션이 중간부터 시작한 것처럼
-    // 보이는 문제가 있었다 — rAF는 메인 스레드가 비어야만 실행되므로, 두 번 연속 rAF를
-    // 거친 뒤에야 타이머를 시작해서 그 하이드레이션 시간을 흡수한다.
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => setShow(true));
-    });
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+    setShow(true);
   }, []);
 
   useEffect(() => {
     if (!show) return;
+    const raf = requestAnimationFrame(() => setPlay(true));
     const revealTimer = setTimeout(() => setRevealing(true), TOTAL * 1000 * 0.9);
-    return () => clearTimeout(revealTimer);
+    return () => { cancelAnimationFrame(raf); clearTimeout(revealTimer); };
   }, [show]);
 
   if (!show) return null;
@@ -50,10 +57,9 @@ export default function OliviaSplash() {
       <motion.div
         className="olivia-splash"
         style={{ pointerEvents: "none" }}
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 0 }}
+        animate={{ opacity: play ? 0 : 1 }}
         transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
-        onAnimationComplete={() => setShow(false)}
+        onAnimationComplete={() => play && setShow(false)}
         aria-hidden="true"
       >
         <div className="olivia-splash__logo">
@@ -64,15 +70,13 @@ export default function OliviaSplash() {
     );
   }
 
-  const ease = [0.22, 0.61, 0.36, 1] as const;
-
   return (
     <motion.div
       className="olivia-splash"
       style={{ pointerEvents: revealing ? "none" : "auto" }}
-      animate={{ opacity: [1, 1, 0] }}
-      transition={{ duration: TOTAL, times: [0, 0.87, 1], ease: "easeInOut" }}
-      onAnimationComplete={() => setShow(false)}
+      animate={play ? { opacity: [1, 1, 0] } : REST.overlay}
+      transition={play ? { duration: TOTAL, times: [0, 0.87, 1], ease: "easeInOut" } : { duration: 0 }}
+      onAnimationComplete={() => play && setShow(false)}
       aria-hidden="true"
     >
       {/* 1. 조용한 도착(0~0.6s) — 로고와 브랜드가 차분히 나타난다.
@@ -82,30 +86,35 @@ export default function OliviaSplash() {
           4. 홈 화면 완성(1.8~2.3s) — 패널이 다 열린 채 오버레이가 걷히며 실제 홈이 드러난다. */}
       <motion.div
         className="olivia-splash__logo"
-        initial={{ opacity: 0, scale: 0.94, x: 0, y: 0 }}
-        animate={{
+        animate={play ? {
           opacity: [0, 1, 1, 1, 1],
           scale: [0.94, 1, 0.62, 0.32, 0.32],
           x: [0, 0, 0, corner.x, corner.x],
           y: [0, 0, 0, corner.y, corner.y],
-        }}
-        transition={{ duration: TOTAL, times: [0, T1, T2, T3, 1], ease }}
+        } : REST.logo}
+        transition={play ? { duration: TOTAL, times: [0, T1, T2, T3, 1], ease } : { duration: 0 }}
       >
         <img src="/assets/photoclinic-mark.png" alt="" />
       </motion.div>
       <motion.p
         className="olivia-splash__brand"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: [0, 1, 1, 0], y: [6, 0, 0, -4], filter: ["blur(0px)", "blur(0px)", "blur(0px)", "blur(4px)"] }}
-        transition={{ duration: TOTAL, times: [0, T1, T2, T2 + 0.02], ease }}
+        animate={play ? {
+          opacity: [0, 1, 1, 0],
+          y: [6, 0, 0, -4],
+          filter: ["blur(0px)", "blur(0px)", "blur(0px)", "blur(4px)"],
+        } : REST.brand}
+        transition={play ? { duration: TOTAL, times: [0, T1, T2, T2 + 0.02], ease } : { duration: 0 }}
       >
         Photoclinic Olivia
       </motion.p>
       <motion.div
         className="olivia-splash__chat"
-        initial={{ opacity: 0, scaleX: 0, scaleY: 0.018 }}
-        animate={{ opacity: [0, 0, 1, 1, 1], scaleX: [0, 0, 1, 1, 1], scaleY: [0.018, 0.018, 0.018, 1, 1] }}
-        transition={{ duration: TOTAL, times: [0, T1, T2, T3, 1], ease }}
+        animate={play ? {
+          opacity: [0, 0, 1, 1, 1],
+          scaleX: [0, 0, 1, 1, 1],
+          scaleY: [0.018, 0.018, 0.018, 1, 1],
+        } : REST.chat}
+        transition={play ? { duration: TOTAL, times: [0, T1, T2, T3, 1], ease } : { duration: 0 }}
       />
     </motion.div>
   );
