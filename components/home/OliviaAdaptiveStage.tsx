@@ -102,16 +102,33 @@ export default function OliviaAdaptiveStage() {
                 <ListChecks size={17} strokeWidth={1.7} /> 할 일 <strong>{todayCount}</strong><span>· 최근 작업</span>
               </button>
               <div className="olivia-home-greeting">
-                <div className={`olivia-home-orb${isStreaming ? " is-thinking" : ""}`} aria-hidden="true">
-                  <span className="olivia-home-orb__logo" />
-                </div>
+                <motion.div
+                  className="olivia-home-greeting__intro"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: .6, ease: [.32, .72, 0, 1] }}
+                >
+                  <div className={`olivia-home-orb${isStreaming ? " is-thinking" : ""}`} aria-hidden="true">
+                    <span className="olivia-home-orb__logo" />
+                  </div>
+                  <p className="olivia-home-greeting__brand">Photoclinic Olivia</p>
+                </motion.div>
                 <h1 className="olivia-home-greeting__rainbow">{greetingTitle}</h1>
                 <p className="olivia-home-greeting__rainbow">오늘도 스마트한 업무를 시작해볼까요?</p>
               </div>
             </>
           ) : null}
 
-          <motion.section layout transition={spring} className="olivia-adaptive-stage__chat">
+          {/* 스플래시 스크린을 없앤 대신, 로고가 먼저 보인 뒤 채팅창이 아래로 펼쳐지듯
+              열리는 모션으로 홈 화면 진입을 대체한다. */}
+          <motion.section
+            layout
+            initial={{ opacity: 0, scaleY: .86, y: 14 }}
+            animate={{ opacity: 1, scaleY: 1, y: 0 }}
+            transition={{ ...spring, delay: .15 }}
+            style={{ transformOrigin: "top" }}
+            className="olivia-adaptive-stage__chat"
+          >
             <OliviaConversation variant={isWorkspaceMode ? "workspace" : "home"} showExpandToggle={isWorkspaceMode} />
           </motion.section>
 
