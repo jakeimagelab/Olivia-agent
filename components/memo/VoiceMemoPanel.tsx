@@ -26,6 +26,7 @@ export default function VoiceMemoPanel({ memoId, existingUrl, transcript, summar
   const blobRef = useRef<Blob | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoProcessedRef = useRef(false);
 
   useEffect(() => () => {
     if (timerRef.current) clearInterval(timerRef.current);
