@@ -2891,10 +2891,10 @@
   50% { transform: scale(1.05); }
 }
 @media (max-width: 900px) {
-  .olivia-home-orb { width: 168px; height: 168px; margin-bottom: 18px; }
+  .olivia-home-orb { width: 168px; height: 168px; margin-bottom: 10px; }
 }
 @media (max-width: 560px) {
-  .olivia-home-orb { width: 136px; height: 136px; margin-bottom: 14px; }
+  .olivia-home-orb { width: 136px; height: 136px; margin-bottom: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .olivia-home-orb, .olivia-home-orb::after, .olivia-agent-home .olivia-home-greeting, .olivia-agent-home .olivia-home-greeting h1 { animation: none; transition: none; }
