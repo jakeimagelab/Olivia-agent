@@ -40,7 +40,7 @@ export default function VoiceMemoPanel({ memoId, existingUrl, transcript, summar
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const type = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
       const recorder = new MediaRecorder(stream, { mimeType: type });
-      streamRef.current = stream; chunksRef.current = []; blobRef.current = null;
+      streamRef.current = stream; chunksRef.current = []; blobRef.current = null; autoProcessedRef.current = false;
       recorder.ondataavailable = event => { if (event.data.size) chunksRef.current.push(event.data); };
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
