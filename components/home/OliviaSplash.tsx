@@ -46,7 +46,7 @@ export default function OliviaSplash() {
         <img src="/assets/photoclinic-mark.png" alt="" />
       </div>
       <p className={`olivia-splash__brand${textVisible ? " is-visible" : ""}`}>Photoclinic Olivia</p>
-      <div className={`olivia-splash__chat olivia-conversation--home${chatOpen ? " is-open" : ""}`} data-message-count="0" />
+      <div className={`olivia-splash__chat${chatOpen ? " is-open" : ""}`} />
     </div>
   );
 }
