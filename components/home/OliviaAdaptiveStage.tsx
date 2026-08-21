@@ -102,38 +102,21 @@ export default function OliviaAdaptiveStage() {
                 <ListChecks size={17} strokeWidth={1.7} /> 할 일 <strong>{todayCount}</strong><span>· 최근 작업</span>
               </button>
               <div className="olivia-home-greeting">
-                <motion.div
-                  className="olivia-home-greeting__intro"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 1.6, ease: [.22, .61, .36, 1] }}
-                >
+                <div className="olivia-home-greeting__intro">
                   <div className={`olivia-home-orb${isStreaming ? " is-thinking" : ""}`} aria-hidden="true">
                     <img className="olivia-home-orb__logo" src="/assets/photoclinic-mark.png" alt="" />
                   </div>
                   <p className="olivia-home-greeting__brand">Photoclinic Olivia</p>
-                </motion.div>
+                </div>
                 <h1>{greetingTitle}</h1>
                 <p>오늘도 스마트한 업무를 시작해볼까요?</p>
               </div>
             </>
           ) : null}
 
-          {/* 스플래시 스크린을 없앤 대신, 로고가 먼저 보인 뒤 채팅창이 아래로 펼쳐지듯
-              열리는 모션으로 홈 화면 진입을 대체한다. */}
-          <motion.section
-            layout
-            initial={{ opacity: 0, scaleY: .82, y: 18 }}
-            animate={{ opacity: 1, scaleY: 1, y: 0 }}
-            transition={{
-              layout: spring,
-              opacity: { duration: 1.6, delay: .7, ease: [.22, .61, .36, 1] },
-              scaleY: { duration: 1.6, delay: .7, ease: [.22, .61, .36, 1] },
-              y: { duration: 1.6, delay: .7, ease: [.22, .61, .36, 1] },
-            }}
-            style={{ transformOrigin: "top" }}
-            className="olivia-adaptive-stage__chat"
-          >
+          {/* 홈 진입 모션(로고 등장 → 채팅창 오픈)은 OliviaSplash가 전담한다 — 여기서는
+              내부 페이지 이동마다 반복되면 안 되니 별도 mount-in 애니메이션을 걸지 않는다. */}
+          <motion.section layout transition={spring} className="olivia-adaptive-stage__chat">
             <OliviaConversation variant={isWorkspaceMode ? "workspace" : "home"} showExpandToggle={isWorkspaceMode} />
           </motion.section>
 
