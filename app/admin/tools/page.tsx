@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Camera } from "lucide-react";
 import CategorySection from "@/components/admin/CategorySection";
-import ToolCategoryPanel from "@/components/admin/ToolCategoryPanel";
+import ToolCategoryTabs from "@/components/admin/ToolCategoryTabs";
 import { ALL_TOOLS, groupToolsByCategory } from "@/lib/toolNav";
 import { normalizeAdminSearchQuery } from "@/lib/adminSearch";
 
