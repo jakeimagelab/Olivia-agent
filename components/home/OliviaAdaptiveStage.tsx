@@ -123,13 +123,13 @@ export default function OliviaAdaptiveStage() {
               열리는 모션으로 홈 화면 진입을 대체한다. */}
           <motion.section
             layout
-            initial={{ opacity: 0, scaleY: .86, y: 14 }}
+            initial={{ opacity: 0, scaleY: .82, y: 18 }}
             animate={{ opacity: 1, scaleY: 1, y: 0 }}
             transition={{
               layout: spring,
-              opacity: { duration: .5, delay: .15, ease: [.32, .72, 0, 1] },
-              scaleY: { ...spring, delay: .15 },
-              y: { ...spring, delay: .15 },
+              opacity: { duration: 1.6, delay: .7, ease: [.22, .61, .36, 1] },
+              scaleY: { duration: 1.6, delay: .7, ease: [.22, .61, .36, 1] },
+              y: { duration: 1.6, delay: .7, ease: [.22, .61, .36, 1] },
             }}
             style={{ transformOrigin: "top" }}
             className="olivia-adaptive-stage__chat"
