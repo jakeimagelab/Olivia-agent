@@ -24,10 +24,24 @@ export default function OliviaSplash() {
     // 로고가 이동할 "패널 좌측 상단" 좌표를 실제 CSS 패널 크기(모바일 브레이크포인트 포함)에
     // 맞춰 근사 계산한다 — 화면 중앙(로고 시작 위치) 기준 상대 오프셋.
     setCorner(window.innerWidth <= 560 ? { x: -142, y: -55 } : { x: -248, y: -78 });
-    setShow(true);
+
+    // 이 홈 화면은 하이드레이션이 무거워서 mount 직후 바로 애니메이션을 틀면 메인 스레드가
+    // 계속 바쁜 동안 프레임을 못 그리고 넘어가고, Framer의 실시간 기반 시계는 그 못 그린
+    // 시간만큼 이미 진행된 채로 첫 페인트를 해버려 애니메이션이 중간부터 시작한 것처럼
+    // 보이는 문제가 있었다 — rAF는 메인 스레드가 비어야만 실행되므로, 두 번 연속 rAF를
+    // 거친 뒤에야 타이머를 시작해서 그 하이드레이션 시간을 흡수한다.
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setShow(true));
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, []);
+
+  useEffect(() => {
+    if (!show) return;
     const revealTimer = setTimeout(() => setRevealing(true), TOTAL * 1000 * 0.9);
     return () => clearTimeout(revealTimer);
-  }, []);
+  }, [show]);
 
   if (!show) return null;
 
