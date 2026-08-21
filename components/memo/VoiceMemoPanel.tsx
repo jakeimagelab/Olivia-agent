@@ -86,6 +86,16 @@ export default function VoiceMemoPanel({ memoId, existingUrl, transcript, summar
     finally { setBusy(false); }
   };
 
+  // 녹음을 멈춘 뒤 "저장 + AI 요약" 버튼을 따로 누르지 않으면 오디오가 로컬 blob URL로만
+  // 남고 서버에 업로드되지 않아 나중에 열어도 아무것도 없는 문제 — 녹음이 끝나면 바로
+  // 자동으로 저장·분석까지 진행해서 별도 클릭을 잊어도 소실되지 않게 한다.
+  useEffect(() => {
+    if (localUrl && !recording && blobRef.current && !autoProcessedRef.current) {
+      autoProcessedRef.current = true;
+      void process();
+    }
+  }, [localUrl, recording]);
+
   const audioUrl = localUrl || existingUrl;
   return (
     <section style={{ padding: 6, borderRadius: 22, background: "rgba(21,88,85,.06)" }}>
