@@ -29,7 +29,7 @@ const REST = {
 let __renderCount = 0;
 export default function OliviaSplash() {
   __renderCount++;
-  if (typeof window !== "undefined") { console.log("[OliviaSplash] render #" + __renderCount); }
+  if (typeof window !== "undefined") { console.log("[OliviaSplash] render #" + __renderCount + " t=" + performance.now().toFixed(1)); }
   const [show, setShow] = useState(false);
   const [play, setPlay] = useState(false);
   const [reduced, setReduced] = useState(false);
