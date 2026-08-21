@@ -2856,15 +2856,7 @@
   display: block;
   width: 68%;
   height: 68%;
-  background: var(--olivia-home-rainbow);
-  -webkit-mask-image: url(/assets/photoclinic-mark.png);
-  mask-image: url(/assets/photoclinic-mark.png);
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
+  object-fit: contain;
 }
 .olivia-home-orb::after {
   content: "";
@@ -2872,7 +2864,7 @@
   inset: -34px;
   z-index: -1;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(21,88,85,.2), rgba(124,58,237,.13) 45%, transparent 72%);
+  background: radial-gradient(circle, rgba(21,88,85,.18), rgba(232,93,44,.1) 45%, transparent 72%);
   filter: blur(22px);
   transition: inset 2200ms cubic-bezier(.22,.61,.36,1), filter 2200ms cubic-bezier(.22,.61,.36,1);
 }
