@@ -42,7 +42,7 @@ export default function OliviaSplash() {
   return (
     <div
       className={`olivia-splash${play ? " is-playing" : ""}${reduced ? " is-reduced" : ""}`}
-      style={{ "--olivia-splash-corner-x": `${corner.x}px`, "--olivia-splash-corner-y": `${corner.y}px` } as React.CSSProperties}
+      style={{ "--olivia-splash-corner-x": `${corner.x}px`, "--olivia-splash-corner-y": `${corner.y}px` } as CSSProperties}
       onAnimationEnd={(event) => {
         if (event.target === event.currentTarget) setShow(false);
       }}
