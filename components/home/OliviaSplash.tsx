@@ -36,7 +36,8 @@ export default function OliviaSplash() {
   if (phase === "gone") return null;
 
   const textVisible = phase === "visible";
-  const shrunk = phase === "dissolving" || phase === "chat-open" || phase === "revealing";
+  const textDissolving = phase === "dissolving" || phase === "chat-open" || phase === "revealing";
+  const shrunk = textDissolving;
   const chatOpen = phase === "chat-open" || phase === "revealing";
   const revealing = phase === "revealing";
 
@@ -45,7 +46,7 @@ export default function OliviaSplash() {
       <div className={`olivia-splash__logo${phase !== "entering" ? " is-in" : ""}${shrunk ? " is-shrunk" : ""}`}>
         <img src="/assets/photoclinic-mark.png" alt="" />
       </div>
-      <p className={`olivia-splash__brand${textVisible ? " is-visible" : ""}`}>Photoclinic Olivia</p>
+      <p className={`olivia-splash__brand${textVisible ? " is-visible" : ""}${textDissolving ? " is-dissolving" : ""}`}>Photoclinic Olivia</p>
       <div className={`olivia-splash__chat${chatOpen ? " is-open" : ""}`} />
     </div>
   );
