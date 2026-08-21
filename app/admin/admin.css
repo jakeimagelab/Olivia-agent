@@ -1,6 +1,7 @@
 :root {
   --brand-orange: #e85d2c;
   --brand-green: #155855;
+  --olivia-chat-border-gradient: linear-gradient(110deg, rgba(40,194,173,.36), rgba(95,180,225,.26) 38%, rgba(190,135,216,.2) 70%, rgba(255,126,76,.34));
 }
 
 /* 색상 토큰 — 원래 시안은 Financial Dashboard 참고용 블루 팔레트였지만, 포토클리닉의
