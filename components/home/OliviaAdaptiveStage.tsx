@@ -109,12 +109,12 @@ export default function OliviaAdaptiveStage() {
                   transition={{ duration: 1.6, ease: [.22, .61, .36, 1] }}
                 >
                   <div className={`olivia-home-orb${isStreaming ? " is-thinking" : ""}`} aria-hidden="true">
-                    <span className="olivia-home-orb__logo" />
+                    <img className="olivia-home-orb__logo" src="/assets/photoclinic-mark.png" alt="" />
                   </div>
                   <p className="olivia-home-greeting__brand">Photoclinic Olivia</p>
                 </motion.div>
-                <h1 className="olivia-home-greeting__rainbow">{greetingTitle}</h1>
-                <p className="olivia-home-greeting__rainbow">오늘도 스마트한 업무를 시작해볼까요?</p>
+                <h1>{greetingTitle}</h1>
+                <p>오늘도 스마트한 업무를 시작해볼까요?</p>
               </div>
             </>
           ) : null}
