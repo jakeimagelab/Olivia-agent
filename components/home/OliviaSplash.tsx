@@ -26,7 +26,10 @@ const REST = {
 
 // 앱을 처음 열거나 새로고침했을 때만 한 번 — 세션에 이미 기록이 있으면 show는 false로
 // 남아 아무것도 렌더링하지 않는다(서버 렌더와도 항상 일치해서 깜빡임이 없다).
+let __renderCount = 0;
 export default function OliviaSplash() {
+  __renderCount++;
+  if (typeof window !== "undefined") { console.log("[OliviaSplash] render #" + __renderCount); }
   const [show, setShow] = useState(false);
   const [play, setPlay] = useState(false);
   const [reduced, setReduced] = useState(false);
