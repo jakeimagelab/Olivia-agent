@@ -36,10 +36,10 @@ export default function OliviaSplash() {
         onAnimationComplete={() => setShow(false)}
         aria-hidden="true"
       >
-        <div className="olivia-splash__logo is-in">
+        <div className="olivia-splash__logo">
           <img src="/assets/photoclinic-mark.png" alt="" />
         </div>
-        <p className="olivia-splash__brand is-visible">Photoclinic Olivia</p>
+        <p className="olivia-splash__brand">Photoclinic Olivia</p>
       </motion.div>
     );
   }
