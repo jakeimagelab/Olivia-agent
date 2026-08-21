@@ -3843,15 +3843,23 @@
    1.조용한 도착 → 2.깨어남(텍스트 소멸 + 로고 축소 + 라인이 양옆으로 뻗음) →
    3.채팅 패널 펼침(라인이 패널 중심이 되어 위아래로 열리고 로고는 좌측 상단으로 이동) →
    4.홈 화면 완성. 로고와 채팅 패널이 같은 중심점에서 출발해야 "로고가 패널 모서리로
-   이동"하는 좌표 계산이 성립하므로, 셋 다 position:absolute로 화면 정중앙에 고정하고
-   Framer Motion의 x/y/scale은 그 위에 얹는 상대 이동값으로만 쓴다(margin 기반 중앙 정렬 —
-   transform 기반 중앙정렬을 쓰면 Framer가 적용하는 transform과 충돌한다). */
+   이동"하는 좌표 계산이 성립하므로, 셋 다 position:absolute로 화면 정중앙에 고정한다.
+   순수 CSS @keyframes로 구현 — Framer Motion의 duration+times keyframe으로 먼저 만들었지만
+   이 프로젝트의 framer-motion 13 + React 19 조합에서 "mount 이후 값이 바뀌며 트리거되는
+   keyframe 애니메이션"의 내부 시계가 실제 트리거 시점이 아니라 그보다 앞선 기준점에서
+   시작해버리는 문제를 실측으로 확인했다(Playwright로 rAF 트레이스까지 찍어 재현). 브라우저
+   컴포지터가 직접 시간을 재는 CSS 애니메이션은 이 문제에서 자유롭다. */
 .olivia-splash {
   position: fixed;
   inset: 0;
   z-index: 99999;
   overflow: hidden;
   background: #fff;
+  pointer-events: none;
+}
+.olivia-splash.is-playing {
+  pointer-events: auto;
+  animation: olivia-splash-overlay 2300ms cubic-bezier(.22,.61,.36,1) forwards;
 }
 .olivia-splash__logo {
   position: absolute;
@@ -3860,6 +3868,11 @@
   width: 96px;
   height: 96px;
   margin: -48px 0 0 -48px;
+  opacity: 0;
+  transform: scale(.94);
+}
+.olivia-splash.is-playing .olivia-splash__logo {
+  animation: olivia-splash-logo 2300ms cubic-bezier(.22,.61,.36,1) forwards;
 }
 .olivia-splash__logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
@@ -3874,6 +3887,11 @@
   font-size: 14px;
   font-weight: 700;
   letter-spacing: .02em;
+  opacity: 0;
+  transform: translateY(6px);
+}
+.olivia-splash.is-playing .olivia-splash__brand {
+  animation: olivia-splash-brand 2300ms cubic-bezier(.22,.61,.36,1) forwards;
 }
 
 .olivia-splash__chat {
@@ -3890,7 +3908,46 @@
     var(--olivia-chat-border-gradient) border-box;
   border: 1px solid transparent;
   box-shadow: 0 18px 50px rgba(10,40,35,.08);
+  opacity: 0;
+  transform: scale(0, .018);
 }
+.olivia-splash.is-playing .olivia-splash__chat {
+  animation: olivia-splash-chat 2300ms cubic-bezier(.22,.61,.36,1) forwards;
+}
+
+@keyframes olivia-splash-overlay {
+  0%, 87% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes olivia-splash-logo {
+  0% { opacity: 0; transform: translate(0, 0) scale(.94); }
+  26.09% { opacity: 1; transform: translate(0, 0) scale(1); }
+  52.17% { opacity: 1; transform: translate(0, 0) scale(.62); }
+  78.26%, 100% { opacity: 1; transform: translate(var(--olivia-splash-corner-x), var(--olivia-splash-corner-y)) scale(.32); }
+}
+@keyframes olivia-splash-brand {
+  0% { opacity: 0; filter: blur(0); transform: translateY(6px); }
+  26.09% { opacity: 1; filter: blur(0); transform: translateY(0); }
+  52.17% { opacity: 1; filter: blur(0); transform: translateY(0); }
+  53.17%, 100% { opacity: 0; filter: blur(4px); transform: translateY(-4px); }
+}
+@keyframes olivia-splash-chat {
+  0%, 26.09% { opacity: 0; transform: scale(0, .018); }
+  52.17% { opacity: 1; transform: scale(1, .018); }
+  78.26%, 100% { opacity: 1; transform: scale(1, 1); }
+}
+
+.olivia-splash.is-reduced.is-playing {
+  animation: olivia-splash-overlay-reduced 550ms ease-out forwards;
+}
+.olivia-splash.is-reduced .olivia-splash__logo,
+.olivia-splash.is-reduced .olivia-splash__brand { opacity: 1; transform: none; }
+.olivia-splash.is-reduced .olivia-splash__chat { display: none; }
+@keyframes olivia-splash-overlay-reduced {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 @media (max-width: 560px) {
   .olivia-splash__logo { width: 76px; height: 76px; margin: -38px 0 0 -38px; }
   .olivia-splash__chat { height: 160px; margin-top: -80px; }
