@@ -13,7 +13,7 @@ import {
 } from "@/lib/assistant/conversations/service";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { executeAgentTool, OLIVIA_V2_TOOLS } from "@/lib/olivia/v2/toolExecutor";
+import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import { classifyOliviaRequest, routeOliviaModel } from "@/lib/olivia/v2/modelRouter";
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import type { OliviaContextSnapshot, OliviaStreamEvent, OliviaToolCall } from "@/lib/olivia/v2/types";
@@ -24,6 +24,11 @@ import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRe
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
 import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
 import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
+import { selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
+import { executeOliviaToolBatch } from "@/lib/olivia/v2/toolScheduler";
+import { inferPersistentRunClientName, inferPersistentRunType, shouldCreatePersistentAgentRun } from "@/lib/olivia/v2/persistentRunClassifier";
+import { createAgentRun } from "@/lib/olivia/agentRuns/service";
+import { hasDatabaseFastPath, resolveDatabaseFastPath } from "@/lib/olivia/v2/databaseFastPath";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,7 +37,12 @@ export const maxDuration = 60;
 // 도구가 20여 개(견적/콘티) → 45개 이상(캘린더/워크플로우/메일링/갤러리/이메일/브리핑/미팅/진단 추가)으로
 // 늘면서 "이번달 일정 보여주고 계약 안 된 곳 견적 다시 보내줘" 같은 복합 요청이 한 라운드로 안 끝날
 // 수 있어 4 → 6 → 12로 올렸다(2026-08-15, 코드 요청서 1번 항목 — 무한 루프 세이프가드는 그대로 유지).
-const MAX_TOOL_ROUNDS = 12;
+function maxToolRounds(requestClass: ReturnType<typeof classifyOliviaRequest>) {
+  if (requestClass === "FAST_COMMAND") return 2;
+  if (requestClass === "NORMAL_CHAT") return 3;
+  if (requestClass === "TOOL_ACTION") return 5;
+  return 6;
+}
 
 // 레거시(Claude) 경로(lib/assistant/core/legacyOliviaCore.ts:752)는 시스템 프롬프트에 오늘 날짜를
 // 직접 박아 넣는데, v2(OpenAI) 경로는 이 프롬프트가 빠져 있어서 모델이 학습 데이터의 연도를 그대로
@@ -260,6 +270,7 @@ async function streamOpenAIResponse(input: {
   signal: AbortSignal;
   send: (event: OliviaStreamEvent) => void;
   messageId: string;
+  onFirstToken?: () => void;
 }) {
   const stream = await input.openai.responses.create(
     { ...input.request, model: input.model, stream: true },
@@ -274,6 +285,7 @@ async function streamOpenAIResponse(input: {
     if (current.type === "response.created") {
       responseId = current.response.id;
     } else if (current.type === "response.output_text.delta") {
+      input.onFirstToken?.();
       text += current.delta;
       input.send({ type: "text_delta", messageId: input.messageId, delta: current.delta });
     } else if (current.type === "response.output_item.done" && current.item.type === "function_call") {
@@ -314,7 +326,11 @@ function toolStatus(name: string) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAdminSession(req)) {
+  const requestStartedAt = performance.now();
+  const requestId = crypto.randomUUID();
+  const authenticated=isAdminSession(req);
+  const authMs=performance.now()-requestStartedAt;
+  if (!authenticated) {
     return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   }
 
@@ -348,7 +364,10 @@ export async function POST(req: NextRequest) {
 
   const requestClass = classifyOliviaRequest(message, context);
   const model = routeOliviaModel(requestClass);
-  if (!deterministic && (!process.env.OPENAI_API_KEY || !model)) {
+  const persistentAgentRun = shouldCreatePersistentAgentRun(message, requestClass);
+  const selectedTools = selectOliviaTools({ requestClass, message, context });
+  const databaseFastPath = hasDatabaseFastPath(message);
+  if (!deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
   }
 
@@ -361,36 +380,51 @@ export async function POST(req: NextRequest) {
     projectId: context.activeProjectId,
     workspace: context.activeWorkspace,
     resourceId: context.activeResourceId,
+    requestId,
+    selectedToolCount: selectedTools.length,
+    persistentAgentRun,
   });
 
   const encoder = new TextEncoder();
   const responseStream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let closed = false;
+      let firstEventMs: number | undefined;
+      let modelFirstTokenMs: number | undefined;
+      let historyMs = 0;
+      let contextMs = 0;
+      let toolExecutionMs = 0;
+      let toolRounds = 0;
       const send = (event: OliviaStreamEvent) => {
-        if (!closed) controller.enqueue(encoder.encode(encodeEvent(event)));
+        if (!closed) {
+          if (firstEventMs === undefined) firstEventMs = performance.now() - requestStartedAt;
+          controller.enqueue(encoder.encode(encodeEvent(event)));
+        }
       };
       const messageId = optionalString(body.responseId) || crypto.randomUUID();
 
+      // 연결이 성립하면 DB 준비보다 먼저 UI가 즉시 응답 상태를 표시한다.
+      send({ type: "message_start", messageId });
+      send({ type: "agent_status", status: "요청을 확인했어요." });
+
       try {
         const db = getSupabaseAdmin();
+        const contextStartedAt = performance.now();
         const owner = await ensurePrimaryAssistantOwner(db);
-        let conversation = await getOrCreateAssistantConversation(db, owner.id);
         const requestedConversationId = optionalString(body.conversationId);
-        if (requestedConversationId) {
-          const { data: requestedConversation } = await db.from("assistant_conversations")
-            .select("id,owner_id")
-            .eq("id", requestedConversationId)
-            .eq("owner_id", owner.id)
-            .maybeSingle();
-          if (requestedConversation) conversation = requestedConversation as { id: string; owner_id: string };
-        }
+        const [defaultConversation, requestedResult] = await Promise.all([
+          getOrCreateAssistantConversation(db, owner.id),
+          requestedConversationId
+            ? db.from("assistant_conversations").select("id,owner_id").eq("id", requestedConversationId).eq("owner_id", owner.id).maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+        const conversation = requestedResult.data
+          ? requestedResult.data as { id: string; owner_id: string }
+          : defaultConversation;
+        contextMs = performance.now() - contextStartedAt;
 
-        // toInputMessages는 최근 30개만 온전히 모델 입력에 넣는다 — 30턴을 넘는 대화의 앞부분은
-        // 통째로 사라지던 문제(코드 요청서 5번 항목)를 최소 버전으로 완화하려고 150개까지 더
-        // 끌어와서, 잘려나가는 구간의 assistant 응답(=도구 실행 결과 요약)만 짧게 남긴다.
-        const history = await listAssistantMessages(db, owner.id, conversation.id, 150);
-        await saveAssistantMessage(db, {
+        const historyStartedAt = performance.now();
+        const [history, , conversationMetadataResult] = await Promise.all([listAssistantMessages(db, owner.id, conversation.id, 30), saveAssistantMessage(db, {
           ownerId: owner.id,
           conversationId: conversation.id,
           role: "user",
@@ -400,9 +434,44 @@ export async function POST(req: NextRequest) {
           channel: "web",
           externalMessageId: optionalString(body.clientRequestId) || crypto.randomUUID(),
           metadata: { context, pageContext, requestClass, requestKind, routeDecision: deterministic?.routeDecision ?? "GPT_FALLBACK", resolvedMessage: message !== rawMessage ? message : undefined },
-        });
+        }), db.from("assistant_conversations").select("metadata").eq("id",conversation.id).maybeSingle()]);
+        const compactSummary=typeof conversationMetadataResult.data?.metadata?.compactSummary==="string"
+          ? conversationMetadataResult.data.metadata.compactSummary as string
+          : undefined;
+        historyMs = performance.now() - historyStartedAt;
 
         send({ type: "message_start", messageId, conversationId: conversation.id });
+
+        if (databaseFastPath) {
+          const fastText=await resolveDatabaseFastPath(db,message,context,oliviaRuntime.todayISO);
+          if(fastText){
+            send({type:"text_delta",messageId,delta:fastText});
+            await saveAssistantMessage(db,{ownerId:owner.id,conversationId:conversation.id,role:"assistant",content:fastText,channel:"web",metadata:{blocks:[{type:"text",text:fastText}],routeDecision:"DATABASE_FAST_PATH"}});
+            send({type:"message_complete",messageId,conversationId:conversation.id});
+            return;
+          }
+        }
+
+        if (persistentAgentRun) {
+          const created = await createAgentRun(db, {
+            ownerId: owner.id,
+            conversationId: conversation.id,
+            clientId: context.activeClientId,
+            workflowRunId: context.activeProjectId,
+            goal: rawMessage,
+            runType: inferPersistentRunType(message),
+            source: "chat",
+            idempotencyKey: optionalString(body.clientRequestId) || requestId,
+            context: context as unknown as Record<string, unknown>,
+            metadata: { requestClass, pageContext, clientName: context.activeClientName || inferPersistentRunClientName(message) },
+          });
+          const text = created.duplicate ? "이미 접수된 업무예요. Agent Center에서 진행 상황을 이어서 볼 수 있어요." : "업무를 접수했어요. 페이지를 이동하거나 창을 닫아도 계속 진행하며, 승인이 필요하면 멈추고 알려드릴게요.";
+          send({ type: "run_created", run: { id: created.run.id, goal: created.run.goal, status: created.run.status, progress: created.run.progress, currentStepKey: created.run.current_step_key || undefined } });
+          send({ type: "text_delta", messageId, delta: text });
+          await saveAssistantMessage(db, { ownerId: owner.id, conversationId: conversation.id, role: "assistant", content: text, channel: "web", metadata: { blocks: [{ type: "text", text }], agentRunId: created.run.id } });
+          send({ type: "message_complete", messageId, conversationId: conversation.id });
+          return;
+        }
 
         // ── Deterministic bypass: 오늘/지금 질문이나 고신뢰 화면 이동은 GPT를 거치지 않는다 ──
         if (deterministic) {
@@ -435,7 +504,7 @@ export async function POST(req: NextRequest) {
         // Responses API는 previous_response_id로 input은 이어주지만 instructions는 자동으로
         // 이어주지 않는다 — 매 라운드 같은 instructions를 다시 넣지 않으면 도구 실행 후속 응답에서
         // 오늘 날짜/운영 규칙이 통째로 빠진다(설계 문서 5절, 2026-08-14 확인된 버그).
-        const instructions = buildSystemPrompt(oliviaRuntime, summarizeOlderMessages(history));
+        const instructions = buildSystemPrompt(oliviaRuntime, compactSummary || summarizeOlderMessages(history));
         // 서로 무관한 조회 도구들(예: "오늘 일정 보여주고 이번주 미결 견적도 알려줘")을 모델이 한
         // 라운드에 같이 요청할 수 있게 허용한다 — 실제 실행은 아래 for(toolCall of response.toolCalls)
         // 루프가 여전히 순차(await 직렬)로 처리하므로, 같은 라운드에 mutation 도구 2개가 와도
@@ -443,13 +512,15 @@ export async function POST(req: NextRequest) {
         let request: StreamingRequest = {
           instructions,
           input: toInputMessages(history, message, context, pageContext, temporalHint),
-          tools: OLIVIA_V2_TOOLS,
+          tools: selectedTools,
           parallel_tool_calls: true,
         };
         let workingContext = context;
         let finalText = "";
+        const executedToolCalls = new Set<string>();
 
-        for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+        for (let round = 0; round < maxToolRounds(requestClass); round += 1) {
+          toolRounds = round + 1;
           const response = await streamOpenAIResponse({
             openai,
             model,
@@ -457,13 +528,25 @@ export async function POST(req: NextRequest) {
             signal: req.signal,
             send,
             messageId,
+            onFirstToken: () => { if (modelFirstTokenMs === undefined) modelFirstTokenMs = performance.now() - requestStartedAt; },
           });
           finalText += response.text;
           if (!response.toolCalls.length) break;
           if (!response.responseId) throw new Error("OpenAI tool response ID가 없습니다.");
 
           const outputs: ResponseInputItem[] = [];
+          const uniqueCalls: OliviaToolCall[] = [];
           for (const toolCall of response.toolCalls) {
+            const signature = `${toolCall.name}:${toolCall.arguments}`;
+            if (executedToolCalls.has(signature)) {
+              outputs.push({ type: "function_call_output", call_id: toolCall.id, output: JSON.stringify({ success: false, message: "동일한 도구 호출이 반복되어 중단했습니다." }) });
+              continue;
+            }
+            executedToolCalls.add(signature);
+            uniqueCalls.push(toolCall);
+          }
+          const toolStartedAt = performance.now();
+          const executions = await executeOliviaToolBatch(uniqueCalls, async (toolCall) => {
             send({ type: "agent_status", status: toolStatus(toolCall.name) });
             send({ type: "tool_start", tool: toolCall.name, toolCallId: toolCall.id });
             console.info("[olivia-v2] tool requested", { tool: toolCall.name, round });
@@ -487,7 +570,10 @@ export async function POST(req: NextRequest) {
               workingContext = updateWorkingContext(workingContext, action);
               console.info("[olivia-v2] ui action", { type: action.type });
             }
-
+            return { execution, toolPayload };
+          });
+          toolExecutionMs += performance.now() - toolStartedAt;
+          for (const { call: toolCall, result: { execution, toolPayload } } of executions) {
             outputs.push({
               type: "function_call_output",
               call_id: toolCall.id,
@@ -500,7 +586,7 @@ export async function POST(req: NextRequest) {
             instructions,
             previous_response_id: response.responseId,
             input: outputs,
-            tools: OLIVIA_V2_TOOLS,
+            tools: selectedTools,
             parallel_tool_calls: true,
           };
         }
@@ -516,6 +602,10 @@ export async function POST(req: NextRequest) {
           metadata: { blocks: [{ type: "text", text: finalText }], model, requestClass },
         });
         send({ type: "message_complete", messageId, conversationId: conversation.id });
+        const summaryLines=history.slice(-12).concat([{role:"assistant",content:finalText} as ConversationMessage])
+          .map((row)=>`${row.role}: ${String(row.content||"").replace(/\s+/g," ").slice(0,180)}`);
+        const nextSummary=[compactSummary,...summaryLines].filter(Boolean).join("\n").slice(-4000);
+        await db.from("assistant_conversations").update({metadata:{...(conversationMetadataResult.data?.metadata||{}),compactSummary:nextSummary,summaryCursor:new Date().toISOString()}}).eq("id",conversation.id);
       } catch (error) {
         if (req.signal.aborted) {
           console.info("[olivia-v2] response cancelled");
@@ -528,6 +618,20 @@ export async function POST(req: NextRequest) {
           });
         }
       } finally {
+        console.info("[OliviaPerformance]", {
+          requestId,
+          authMs: Math.round(authMs),
+          contextMs: Math.round(contextMs),
+          historyMs: Math.round(historyMs),
+          firstEventMs: Math.round(firstEventMs ?? 0),
+          modelFirstTokenMs: modelFirstTokenMs === undefined ? null : Math.round(modelFirstTokenMs),
+          toolExecutionMs: Math.round(toolExecutionMs),
+          totalMs: Math.round(performance.now() - requestStartedAt),
+          model: deterministic || persistentAgentRun ? null : model,
+          requestClass,
+          selectedToolCount: selectedTools.length,
+          toolRounds,
+        });
         closed = true;
         controller.close();
       }

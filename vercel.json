@@ -55,6 +55,10 @@
     {
       "path": "/api/cron/assistant-evening-briefing",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/olivia-agent-runs",
+      "schedule": "* * * * *"
     }
   ]
 }

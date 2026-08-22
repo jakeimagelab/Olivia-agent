@@ -1,0 +1,2 @@
+"use client";
+export function AgentCenterMobileTabs({tab,onChange}:{tab:"overview"|"chat";onChange:(tab:"overview"|"chat")=>void}){return <nav className="agent-center-mobile-tabs" aria-label="Agent Center 화면"><button className={tab==="overview"?"is-active":""} onClick={()=>onChange("overview")}>업무 현황</button><button className={tab==="chat"?"is-active":""} onClick={()=>onChange("chat")}>Olivia 채팅</button></nav>}

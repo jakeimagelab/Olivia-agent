@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
 import { buildOliviaPageContext, getOliviaContextSnapshot } from "@/lib/store/oliviaContextStore";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
-import type { OliviaMessageBlock, OliviaStreamEvent, OliviaV2Message } from "@/lib/olivia/v2/types";
+import type { OliviaMessageBlock, OliviaRunStreamPayload, OliviaStreamEvent, OliviaV2Message } from "@/lib/olivia/v2/types";
 import { chooseConversationMessages } from "@/lib/olivia/conversationTimeline";
 
 export type { OliviaMessage } from "@/lib/olivia/v2/types";
@@ -24,6 +24,7 @@ export type OliviaConversationState = {
   // 자신을 렌더링한다(61절 "어느 페이지에서도 Task Session 유지" — Persistent Chat과 같은
   // 컴포넌트 트리라 route 이동에도 그대로 남는다).
   activeTaskSessionId?: string;
+  agentRuns: Record<string, OliviaRunStreamPayload>;
   appendMessage: (message: OliviaV2Message) => void;
   updateMessage: (id: string, updates: Partial<OliviaV2Message>) => void;
   setMessages: (messages: OliviaV2Message[]) => void;
@@ -99,6 +100,10 @@ function newId(prefix: string) {
   return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function notifyAgentCenter(){
+  if(typeof window!=="undefined") window.dispatchEvent(new Event("olivia-agent-center-refresh"));
 }
 
 function textBlock(text: string): OliviaMessageBlock[] {
@@ -189,6 +194,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
   pendingWorkspaceOpen: false,
   lastFailedContent: undefined,
   activeTaskSessionId: undefined,
+  agentRuns: {},
 
   appendMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
   updateMessage: (id, updates) => set((state) => ({
@@ -212,6 +218,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
       pendingWorkspaceOpen: false,
       lastFailedContent: undefined,
       activeTaskSessionId: undefined,
+      agentRuns: {},
     });
     useOliviaLayoutStore.getState().resetToIdle();
     removeConversationCache();
@@ -322,6 +329,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
         } else if (event.type === "tool_start") {
           if (WORKSPACE_OPENING_TOOLS.has(event.tool)) set({ pendingWorkspaceOpen: true });
         } else if (event.type === "tool_result") {
+          notifyAgentCenter();
           if (event.success && (event.tool === "start_task_session" || event.tool === "continue_task_session")) {
             const sessionId = (event.result as { sessionId?: string } | undefined)?.sessionId;
             if (sessionId) set({ activeTaskSessionId: sessionId });
@@ -339,6 +347,10 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
             if (event.action.type === "OPEN_WORKSPACE" || event.action.type === "SWITCH_WORKSPACE") set({ pendingWorkspaceOpen: false });
             executeOliviaAction(event.action);
           }
+        } else if (event.type.startsWith("run_")) {
+          const runEvent=event as Extract<OliviaStreamEvent,{type:"run_created"|"run_updated"|"run_step_updated"|"run_waiting_approval"|"run_completed"|"run_failed"}>;
+          set((state)=>({agentRuns:{...state.agentRuns,[runEvent.run.id]:{...state.agentRuns[runEvent.run.id],...runEvent.run}}}));
+          notifyAgentCenter();
         } else if (event.type === "message_complete") {
           flushPendingDelta(set);
           set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? { ...message, status: "complete" } : message) }));
@@ -383,6 +395,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "승인 작업에 실패했어요.");
       for (const action of payload.uiActions || []) executeOliviaAction(action);
+      notifyAgentCenter();
       set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "approval" && block.approvalId === approvalId ? { ...block, state: "approved" as const } : block) })) }));
     } catch {
       set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "approval" && block.approvalId === approvalId ? { ...block, state: "error" as const } : block) })) }));

@@ -1,0 +1,3 @@
+import { NextRequest, NextResponse } from "next/server";
+import { isAdminSession } from "@/lib/passkey"; import { getSupabaseAdmin } from "@/lib/supabase"; import { transitionAgentRun } from "@/lib/olivia/agentRuns/service";
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) { if (!isAdminSession(req)) return NextResponse.json({ ok:false,error:"관리자 로그인이 필요합니다."},{status:401}); try { return NextResponse.json({ok:true,run:await transitionAgentRun(getSupabaseAdmin(),(await params).id,"paused")}); } catch(error){return NextResponse.json({ok:false,error:error instanceof Error?error.message:"일시정지 실패"},{status:409});} }

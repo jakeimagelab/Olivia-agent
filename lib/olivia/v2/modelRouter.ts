@@ -21,9 +21,8 @@ export function routeOliviaModel(requestClass: OliviaRequestClass): string | und
   if (requestClass === "FAST_COMMAND" || requestClass === "TOOL_ACTION") {
     return process.env.OLIVIA_FAST_MODEL || process.env.OLIVIA_DEFAULT_MODEL;
   }
-  // REASONING과 NORMAL_CHAT(=REASONING_PATTERN/TOOL_PATTERN/FAST_PATTERN 어디에도 안 걸리는 애매한
-  // 요청) 둘 다 reasoning 모델을 우선한다 — "규칙이 못 잡는 요청일수록 오히려 판단이 더 필요한
-  // 요청"이라는 전제로, 예전엔 NORMAL_CHAT만 기본(DEFAULT) 모델로 약하게 처리됐었다
-  // (2026-08-15, 코드 요청서 2번 항목).
-  return process.env.OLIVIA_REASONING_MODEL || process.env.OLIVIA_DEFAULT_MODEL;
+  if (requestClass === "REASONING") {
+    return process.env.OLIVIA_REASONING_MODEL || process.env.OLIVIA_DEFAULT_MODEL;
+  }
+  return process.env.OLIVIA_DEFAULT_MODEL || process.env.OLIVIA_FAST_MODEL;
 }

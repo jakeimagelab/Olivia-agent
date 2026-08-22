@@ -3,8 +3,7 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
-import OliviaTaskStrip from "@/components/olivia/OliviaTaskStrip";
+import OliviaAgentCenter from "@/components/olivia-agent-center/OliviaAgentCenter";
 import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { useOliviaChatModeStore } from "@/lib/store/useOliviaChatModeStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
@@ -12,8 +11,7 @@ import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { registerOliviaRouter } from "@/lib/olivia/features/navigationBridge";
 
 // 코드 요청서 — Olivia UX/Motion Core(2026-08-16). 예전 GlobalOliviaChat.tsx를 대체한다 —
-// 홈 이외의 페이지에서는 데스크톱에서 본문과 폭을 나누는 호출형 패널로 동작한다.
-// 모바일에서만 기존처럼 화면 위에 올라오는 drawer로 바뀐다.
+// 홈 이외의 페이지에서는 전역 Agent Center modal/sheet 진입점으로 동작한다.
 // 홈(/admin/dashboard/home)은 자체 큰 임베드 채팅(useOliviaLayoutStore)을 쓰므로 여기서 제외한다 —
 // 두 표면 다 같은 useOliviaConversationStore.messages를 구독하므로 대화 내용은 계속 같다.
 const localContextPages = ["/photoclinic", "/client-portal", "/admin/dashboard/home"];
@@ -65,13 +63,7 @@ export default function OliviaPersistentChat() {
       >
         {isOpen ? <X size={20} strokeWidth={1.8} /> : <OliviaIcon size={20} />}
       </button>
-      <div className={`olivia-chat-drawer__scrim olivia-chat-drawer__scrim--persistent${isOpen ? " is-open" : ""}`} aria-hidden="true" onClick={minimizeChat} />
-      {isOpen ? (
-        <aside className="olivia-persistent-chat olivia-persistent-chat--split" aria-label="Olivia 대화">
-          <OliviaTaskStrip />
-          <OliviaConversation variant="drawer" />
-        </aside>
-      ) : null}
+      {isOpen ? <OliviaAgentCenter onClose={minimizeChat} onMinimize={minimizeChat} /> : null}
     </>
   );
 }

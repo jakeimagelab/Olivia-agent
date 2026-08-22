@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { resumeAgentRunsForApproval } from "@/lib/olivia/agentRuns/service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,5 +19,6 @@ export async function POST(req: NextRequest) {
   const context = body.context && typeof body.context === "object" && !Array.isArray(body.context) ? body.context as OliviaContextSnapshot : { recentActions: [], revision: 0 };
   const execution = await executeAgentTool({ id: String(body.approvalId || crypto.randomUUID()), name: toolName, arguments: JSON.stringify(input) }, context);
   if (!execution.result.success) return NextResponse.json({ ok: false, error: execution.result.error || "승인 작업에 실패했어요." }, { status: 400 });
+  await resumeAgentRunsForApproval(getSupabaseAdmin(),String(body.approvalId || "")).catch((error)=>console.warn("[OliviaAgentRun] approval resume failed",error));
   return NextResponse.json({ ok: true, result: execution.result.data, uiActions: execution.uiActions });
 }

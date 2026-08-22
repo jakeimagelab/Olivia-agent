@@ -1,0 +1,59 @@
+import type { FunctionTool } from "openai/resources/responses/responses";
+import { OLIVIA_V2_TOOLS } from "./toolExecutor";
+import type { OliviaContextSnapshot } from "./types";
+import type { OliviaRequestClass } from "./modelRouter";
+
+type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run";
+
+const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
+  navigation: ["open_feature","show_workspace"],
+  calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
+  client: ["select_project","search_client_projects","get_project_status","memo_add"],
+  quote: ["create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","preview_quote","request_quote_publish"],
+  contract: ["create_contract","link_document_to_client"],
+  conti: ["get_conti_status","create_conti","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client"],
+  workflow: ["get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
+  mailing: ["list_mailing_queue","send_mailing","email_search","email_read","email_summarize","email_create_draft"],
+  gallery: ["get_gallery","create_gallery"],
+  meeting: ["list_upcoming_meetings","prepare_meeting_brief","analyze_meeting_memo","complete_meeting","get_meeting_followups","link_meeting_client"],
+  content: ["get_today_briefing","get_urgent_insights","run_brand_diagnosis","create_feature_record","update_feature_record"],
+  agent_run: ["start_task_session","get_task_session_status","continue_task_session","pause_task_session","get_today_briefing","get_urgent_insights"],
+};
+
+const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
+  ["calendar",/(일정|캘린더|스케줄|오늘\s*할\s*일)/i], ["quote",/(견적|단가|금액|할인|부가세|vat)/i],
+  ["contract",/(계약)/i], ["conti",/(콘티|스토리보드|컷|촬영\s*시간|촬영\s*준비물)/i],
+  ["workflow",/(워크플로|단계|프로세스|진행\s*상태|체크리스트)/i], ["mailing",/(메일|이메일|발송|답장)/i],
+  ["gallery",/(갤러리|사진|셀렉)/i], ["meeting",/(미팅|회의|상담)/i],
+  ["content",/(브리핑|인사이트|진단|분석|콘텐츠|보고서)/i],
+  ["agent_run",/(준비해|준비하자|계속하자|어디까지|보류|끝까지|알아서\s*처리)/i],
+  ["client",/(고객|병원|의원|프로젝트)/i], ["navigation",/(열어|보여줘|이동|화면|페이지)/i],
+];
+
+const SAFE_FALLBACK = new Set(["open_feature","select_project","search_client_projects","get_project_status","get_workflow_status","list_active_workflows","calendar_list","get_today_briefing","get_urgent_insights"]);
+
+export function getOliviaToolDomains(message:string, context:OliviaContextSnapshot):ToolDomain[]{
+  const domains=new Set<ToolDomain>();
+  for(const [domain,pattern] of DOMAIN_PATTERNS) if(pattern.test(message)) domains.add(domain);
+  const workspace=String(context.activeWorkspace||"").toLowerCase();
+  if(workspace.includes("quote")) domains.add("quote");
+  if(workspace.includes("conti")) domains.add("conti");
+  if(workspace.includes("contract")) domains.add("contract");
+  return [...domains];
+}
+
+export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message:string;context:OliviaContextSnapshot;tools?:FunctionTool[]}){
+  const tools=input.tools??OLIVIA_V2_TOOLS;
+  const domains=getOliviaToolDomains(input.message,input.context);
+  const names=new Set<string>();
+  for(const domain of domains) for(const name of DOMAIN_TOOLS[domain]) names.add(name);
+  if(!names.size || input.requestClass==="NORMAL_CHAT") for(const name of SAFE_FALLBACK) names.add(name);
+  names.add("open_feature");
+  names.add("select_project");
+  return tools.filter((tool)=>names.has(tool.name)).slice(0,15);
+}
+
+export function isReadOnlyOliviaTool(toolName:string, tools:FunctionTool[]=OLIVIA_V2_TOOLS){
+  const tool=tools.find((candidate)=>candidate.name===toolName);
+  return Boolean(tool?.description?.startsWith("[READ]")) || ["get_conti_status","preview_quote","estimate_conti_duration","generate_shoot_prep_from_conti"].includes(toolName);
+}

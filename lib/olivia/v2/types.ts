@@ -62,6 +62,15 @@ export type OliviaAgentToolExecution = {
   uiActions: OliviaUiAction[];
 };
 
+export type OliviaRunStreamPayload = {
+  id: string;
+  goal?: string;
+  status?: string;
+  progress?: number;
+  currentStepKey?: string;
+  message?: string;
+};
+
 export type OliviaStreamEvent =
   | { type: "message_start"; messageId: string; conversationId?: string }
   | { type: "text_delta"; messageId: string; delta: string }
@@ -70,6 +79,12 @@ export type OliviaStreamEvent =
   | { type: "tool_result"; tool: string; toolCallId: string; success: boolean; result?: unknown }
   | { type: "ui_action"; action: OliviaUiAction }
   | { type: "message_complete"; messageId: string; conversationId?: string }
+  | { type: "run_created"; run: OliviaRunStreamPayload }
+  | { type: "run_updated"; run: OliviaRunStreamPayload }
+  | { type: "run_step_updated"; run: OliviaRunStreamPayload }
+  | { type: "run_waiting_approval"; run: OliviaRunStreamPayload }
+  | { type: "run_completed"; run: OliviaRunStreamPayload }
+  | { type: "run_failed"; run: OliviaRunStreamPayload }
   | { type: "error"; message: string; retryable: boolean };
 
 export function messageText(message: OliviaV2Message) {
