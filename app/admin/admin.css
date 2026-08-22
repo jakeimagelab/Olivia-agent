@@ -2862,7 +2862,7 @@
 
 .home-simple-dashboard { width: 100%; max-width: none; height: 100dvh; margin: 0; padding: 0; overflow: hidden; }
 .home-simple-dashboard .olivia-adaptive-stage.olivia-agent-home {
-  --olivia-home-content-width: min(1080px,92%);
+  --olivia-home-content-width: calc(100% - 64px);
   width: 100%;
   max-width: none;
   height: 100dvh;
