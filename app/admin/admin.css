@@ -2960,9 +2960,6 @@
 @media (prefers-reduced-motion: reduce) {
   .olivia-home-orb.is-thinking { animation: none; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .olivia-home-orb, .olivia-home-orb::after, .olivia-agent-home .olivia-home-greeting, .olivia-agent-home .olivia-home-greeting h1 { animation: none; transition: none; }
-}
 .olivia-agent-home .olivia-adaptive-stage__chat { position: relative; isolation: isolate; width: var(--olivia-home-content-width); max-width: none; flex: 0 0 auto; overflow: visible; }
 /* 막대나 화살표 없이, 낮은 대비의 빛 면이 테두리를 아주 천천히 순환한다. */
 .olivia-agent-home .olivia-adaptive-stage__chat::before {
