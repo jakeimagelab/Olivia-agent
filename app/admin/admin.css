@@ -3206,9 +3206,7 @@
     scrollbar-width: none;
   }
   .olivia-agent-home__main::-webkit-scrollbar { display: none; }
-  .olivia-agent-home .olivia-conversation--home,
-  .olivia-agent-home .olivia-conversation--home[data-message-count="0"] { height: clamp(320px,46dvh,380px); }
-  .olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) { height: min(62dvh,560px); }
+  .olivia-agent-home .olivia-conversation--home { height: clamp(300px,44dvh,400px); }
 }
 
 @media (max-width: 560px) {
