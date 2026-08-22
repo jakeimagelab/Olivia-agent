@@ -7,10 +7,6 @@
      새 민트/블루/퍼플/핑크 색을 추가하지 않는다 — 공식 브랜드 컬러 두 개만 쓴다. */
   --gb-green: 21, 88, 85;
   --gb-orange: 232, 93, 44;
-  --gb-speed-idle: 22s;
-  --gb-speed-typing: 16s;
-  --gb-speed-thinking: 10s;
-  --gb-state-transition: 900ms cubic-bezier(.32,.72,0,1);
   --gb-ring-vivid: conic-gradient(from var(--gb-angle, 0deg),
     rgba(var(--gb-green), .9) 0deg,
     rgba(var(--gb-green), .15) 70deg,
