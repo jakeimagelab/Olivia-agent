@@ -32,17 +32,6 @@
     rgba(var(--gb-orange), .34) 246deg,
     rgba(var(--gb-orange), .09) 320deg,
     rgba(var(--gb-green), .38) 360deg);
-  --gb-chat-comets: conic-gradient(from var(--gb-angle, 0deg),
-    rgba(var(--gb-green), .46) 0deg,
-    rgba(var(--gb-green), .15) 54deg,
-    rgba(var(--gb-green), .035) 116deg,
-    transparent 154deg,
-    rgba(var(--gb-orange), .025) 184deg,
-    rgba(var(--gb-orange), .13) 226deg,
-    rgba(var(--gb-orange), .42) 260deg,
-    rgba(var(--gb-orange), .12) 306deg,
-    transparent 338deg,
-    rgba(var(--gb-green), .46) 360deg);
 }
 
 /* 회전을 부드럽게 보간하려면 각도 커스텀 프로퍼티를 등록해야 한다(@property 미지원
