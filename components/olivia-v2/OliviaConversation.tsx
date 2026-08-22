@@ -174,6 +174,9 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
 
   const isHome = variant === "home";
   const isEmpty = messages.length === 0;
+  // 채팅창 테두리 애니메이션 상태 — 실제 대화 상태(isStreaming/chatFocused/입력값)에만
+  // 연결한다. 가짜 setTimeout으로 만든 상태가 아니라 스토어가 이미 들고 있는 값 그대로다.
+  const borderState = isStreaming ? "thinking" : chatFocused || input.trim().length > 0 ? "typing" : "idle";
 
   const submit = () => {
     const content = input.trim();
