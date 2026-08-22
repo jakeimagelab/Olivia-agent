@@ -3889,7 +3889,6 @@
 
 @media (max-width: 900px) {
   .home-simple-dashboard .olivia-adaptive-stage.olivia-agent-home { --olivia-home-content-width: 100%; }
-  .olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) { height: min(66dvh, 610px); }
   .oa-header.oa-header--page { min-height: 82px; padding: 13px 18px; }
   .oa-header--page .oa-header__title { font-size: 19px; }
   .oa-header--page .oa-header__description { font-size: 11px; }
