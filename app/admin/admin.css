@@ -3082,10 +3082,8 @@
   .olivia-agent-home__row { min-height: 100dvh; padding: 74px 14px 26px; overflow: visible; }
   .olivia-agent-home__main { justify-content: flex-start; padding: 0; }
   .olivia-agent-home__drawer-trigger { position: fixed; top: 14px; right: 14px; z-index: 46; }
-  .olivia-agent-home .olivia-home-greeting { margin: 30px 0 30px; }
-  .olivia-agent-home .olivia-home-greeting h1 { font-size: 29px; }
-  .olivia-agent-home .olivia-home-greeting p { font-size: 14px; }
-  .olivia-agent-home .olivia-conversation--home[data-message-count="0"] { height: 310px; }
+  .olivia-agent-home .olivia-home-greeting h1 { font-size: 24px; }
+  .olivia-agent-home .olivia-home-greeting p { font-size: 13px; }
   .olivia-agent-home .olivia-conversation--home .olivia-conversation__main { padding: 26px 22px 22px; }
   .olivia-agent-quick-actions { grid-template-columns: 1fr 1fr; }
 }
