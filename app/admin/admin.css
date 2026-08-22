@@ -7,13 +7,10 @@
      새 민트/블루/퍼플/핑크 색을 추가하지 않는다 — 공식 브랜드 컬러 두 개만 쓴다. */
   --gb-green: 21, 88, 85;
   --gb-orange: 232, 93, 44;
-  --gb-speed-idle: 7.5s;
-  --gb-speed-typing: 5.5s;
-  --gb-speed-thinking: 3.8s;
-  --gb-delay-idle: -3.75s;
-  --gb-delay-typing: -2.75s;
-  --gb-delay-thinking: -1.9s;
-  --gb-state-transition: 520ms cubic-bezier(.32,.72,0,1);
+  --gb-speed-idle: 22s;
+  --gb-speed-typing: 16s;
+  --gb-speed-thinking: 10s;
+  --gb-state-transition: 900ms cubic-bezier(.32,.72,0,1);
   --gb-ring-vivid: conic-gradient(from var(--gb-angle, 0deg),
     rgba(var(--gb-green), .9) 0deg,
     rgba(var(--gb-green), .15) 70deg,
@@ -30,8 +27,7 @@
     rgba(var(--gb-orange), .07) 260deg,
     transparent 320deg,
     rgba(var(--gb-green), .5) 360deg);
-  /* 홈 채팅 전용: 균일한 색띠 대신 서로 반대편에 짧고 밝은 head와 점점 옅어지는 tail을
-     둔다. 회전 위치가 눈에 잡혀야 실제로 흐르는 방향이 느껴진다. */
+  /* 홈 채팅 전용: 긴 막대형 head를 쓰지 않고 넓고 낮은 명암만 천천히 흐르게 한다. */
   --gb-chat-rail: conic-gradient(from 18deg,
     rgba(var(--gb-green), .38) 0deg,
     rgba(var(--gb-green), .1) 82deg,
@@ -41,23 +37,16 @@
     rgba(var(--gb-orange), .09) 320deg,
     rgba(var(--gb-green), .38) 360deg);
   --gb-chat-comets: conic-gradient(from var(--gb-angle, 0deg),
-    transparent 0deg,
-    rgba(var(--gb-green), .03) 24deg,
-    rgba(var(--gb-green), .14) 38deg,
-    rgba(var(--gb-green), .58) 49deg,
-    rgba(var(--gb-green), 1) 55deg,
-    rgba(var(--gb-green), .78) 58deg,
-    rgba(var(--gb-green), .12) 64deg,
-    transparent 70deg,
-    transparent 178deg,
-    rgba(var(--gb-orange), .03) 204deg,
-    rgba(var(--gb-orange), .15) 218deg,
-    rgba(var(--gb-orange), .62) 229deg,
-    rgba(var(--gb-orange), 1) 235deg,
-    rgba(var(--gb-orange), .76) 238deg,
-    rgba(var(--gb-orange), .12) 244deg,
-    transparent 250deg,
-    transparent 360deg);
+    rgba(var(--gb-green), .46) 0deg,
+    rgba(var(--gb-green), .15) 54deg,
+    rgba(var(--gb-green), .035) 116deg,
+    transparent 154deg,
+    rgba(var(--gb-orange), .025) 184deg,
+    rgba(var(--gb-orange), .13) 226deg,
+    rgba(var(--gb-orange), .42) 260deg,
+    rgba(var(--gb-orange), .12) 306deg,
+    transparent 338deg,
+    rgba(var(--gb-green), .46) 360deg);
 }
 
 /* 회전을 부드럽게 보간하려면 각도 커스텀 프로퍼티를 등록해야 한다(@property 미지원
@@ -69,9 +58,6 @@
 }
 @keyframes gb-rotate {
   to { --gb-angle: 360deg; }
-}
-@keyframes olivia-border-runner-orbit {
-  to { offset-distance: 100%; }
 }
 
 /* 색상 토큰 — 원래 시안은 Financial Dashboard 참고용 블루 팔레트였지만, 포토클리닉의
@@ -2506,25 +2492,8 @@
 .home-simple-dashboard .olivia-home-greeting h1 { color: #17322d; font-size: clamp(27px,2.1vw,32px); font-weight: 600; }
 .home-simple-dashboard .olivia-home-greeting p { margin-top: 6px; color: #586d68; font-size: 14.5px; font-weight: 530; }
 .home-simple-dashboard .olivia-conversation--home { padding: 0; border-color: rgba(21,88,85,.11); border-radius: 24px; background-color: #fff; box-shadow: 0 16px 44px rgba(21,88,85,.075); backdrop-filter: none; -webkit-backdrop-filter: none; }
-/* 채팅창을 "지금 에이전트가 살아있다"는 느낌으로 — 카드 자체가 아니라 overflow:visible한
-   바깥 래퍼(.olivia-adaptive-stage__chat)에 흐린 그라디언트 글로우를 얹는다. 카드에 직접
-   붙이면 .olivia-conversation의 overflow:hidden에 잘려서 안 보인다. */
+/* 실제 모션 테두리는 하단의 Olivia Agent Home 블록에서 한 번만 정의한다. */
 .home-simple-dashboard .olivia-adaptive-stage__chat { position: relative; }
-.home-simple-dashboard .olivia-adaptive-stage__chat::before {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  z-index: -1;
-  border-radius: 27px;
-  background: linear-gradient(120deg, #155855, #569082 30%, #7C3AED 55%, #E85D2C 78%, #EB8F22);
-  filter: blur(20px);
-  opacity: .5;
-  animation: olivia-chat-glow-pulse 4.2s cubic-bezier(.45,0,.55,1) infinite;
-}
-@keyframes olivia-chat-glow-pulse { 50% { opacity: .74; } }
-@media (prefers-reduced-motion: reduce) {
-  .home-simple-dashboard .olivia-adaptive-stage__chat::before { animation: none; }
-}
 .home-simple-dashboard .olivia-conversation--home[data-message-count="0"] { height: 332px; }
 .home-simple-dashboard .olivia-conversation--home:not([data-message-count="0"]) { height: 460px; }
 .home-simple-dashboard .olivia-conversation--home[data-message-count="0"] .olivia-conversation__main { justify-content: center; padding: 18px 0; }
@@ -2999,20 +2968,16 @@
   .olivia-home-orb, .olivia-home-orb::after, .olivia-agent-home .olivia-home-greeting, .olivia-agent-home .olivia-home-greeting h1 { animation: none; transition: none; }
 }
 .olivia-agent-home .olivia-adaptive-stage__chat { position: relative; isolation: isolate; width: var(--olivia-home-content-width); max-width: none; flex: 0 0 auto; overflow: visible; }
-/* "살아 숨 쉬는" 테두리 글로우 — 카드 자체(.olivia-conversation)는 overflow:hidden이라
-   바깥으로 번지는 흐린 빛은 카드에 직접 붙이면 잘린다. overflow:visible한 바깥 래퍼에
-   얹는다(이 프로젝트에 이미 있는 .home-simple-dashboard 레퍼런스와 같은 구조). 링(카드
-   ::before)과 같은 --gb-angle 회전을 같은 duration으로 걸어서 위상을 맞춘다 — 상태는
-   OliviaConversation이 실제 대화 상태로 채우는 data-border-state를 :has()로 그대로 읽는다. */
+/* 막대나 화살표 없이, 낮은 대비의 빛 면이 테두리를 아주 천천히 순환한다. */
 .olivia-agent-home .olivia-adaptive-stage__chat::before {
   content: "";
   position: absolute;
-  inset: -9px;
+  inset: -7px;
   z-index: -1;
   border-radius: 31px;
   background: var(--gb-chat-comets);
-  filter: blur(10px);
-  opacity: .46;
+  filter: blur(12px);
+  opacity: .14;
   animation: gb-rotate var(--gb-speed-idle) linear infinite;
   pointer-events: none;
   will-change: opacity;
@@ -3020,11 +2985,11 @@
 .olivia-agent-home .olivia-adaptive-stage__chat::after {
   content: "";
   position: absolute;
-  inset: -10px;
+  inset: -8px;
   z-index: -1;
   border-radius: 31px;
   background: var(--gb-chat-comets);
-  filter: blur(13px);
+  filter: blur(15px);
   opacity: 0;
   animation: gb-rotate var(--gb-speed-typing) linear infinite;
   transition: opacity var(--gb-state-transition);
@@ -3032,10 +2997,10 @@
   will-change: opacity;
 }
 .olivia-agent-home .olivia-adaptive-stage__chat:has(.olivia-conversation--home[data-border-state="typing"])::after {
-  opacity: .28;
+  opacity: .08;
 }
 .olivia-agent-home .olivia-adaptive-stage__chat:has(.olivia-conversation--home[data-border-state="thinking"])::after {
-  opacity: .5;
+  opacity: .16;
   animation-duration: var(--gb-speed-thinking);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3063,14 +3028,14 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1.6px;
+  padding: 1px;
   z-index: 2;
   background: var(--gb-chat-comets);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
   pointer-events: none;
-  opacity: 1;
+  opacity: .7;
   animation: gb-rotate var(--gb-speed-idle) linear infinite;
   will-change: opacity;
 }
@@ -3080,7 +3045,7 @@
   inset: 0;
   z-index: 2;
   border-radius: inherit;
-  padding: 1.6px;
+  padding: 1px;
   background: var(--gb-chat-comets);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -3091,60 +3056,14 @@
   transition: opacity var(--gb-state-transition);
   will-change: opacity;
 }
-.olivia-agent-home .olivia-conversation--home[data-border-state="typing"]::after { opacity: .44; }
+.olivia-agent-home .olivia-conversation--home[data-border-state="typing"]::after { opacity: .16; }
 .olivia-agent-home .olivia-conversation--home[data-border-state="thinking"]::after {
-  opacity: .8;
+  opacity: .3;
   animation-duration: var(--gb-speed-thinking);
-}
-.olivia-agent-home .olivia-conversation__border-runners {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  overflow: hidden;
-  border-radius: inherit;
-  pointer-events: none;
-}
-.olivia-agent-home .olivia-conversation__border-runner {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: clamp(84px, 10vw, 132px);
-  height: 2.4px;
-  border-radius: 999px;
-  offset-path: inset(2px round 19px);
-  offset-distance: 0%;
-  offset-anchor: 100% 50%;
-  offset-rotate: auto;
-  animation: olivia-border-runner-orbit var(--gb-speed-idle) linear infinite;
-  will-change: offset-distance, opacity;
-}
-.olivia-agent-home .olivia-conversation__border-runner.is-green {
-  background: linear-gradient(90deg, transparent, rgba(var(--gb-green),.14) 28%, rgba(var(--gb-green),.72) 72%, rgba(var(--gb-green),1));
-  box-shadow: 0 0 5px rgba(var(--gb-green),.58), 0 0 13px rgba(var(--gb-green),.3);
-}
-.olivia-agent-home .olivia-conversation__border-runner.is-orange {
-  background: linear-gradient(90deg, transparent, rgba(var(--gb-orange),.14) 28%, rgba(var(--gb-orange),.72) 72%, rgba(var(--gb-orange),1));
-  box-shadow: 0 0 5px rgba(var(--gb-orange),.58), 0 0 13px rgba(var(--gb-orange),.3);
-  animation-delay: var(--gb-delay-idle);
-}
-.olivia-agent-home .olivia-conversation--home[data-border-state="typing"] .olivia-conversation__border-runner {
-  height: 2.7px;
-  animation-duration: var(--gb-speed-typing);
-}
-.olivia-agent-home .olivia-conversation--home[data-border-state="typing"] .olivia-conversation__border-runner.is-orange {
-  animation-delay: var(--gb-delay-typing);
-}
-.olivia-agent-home .olivia-conversation--home[data-border-state="thinking"] .olivia-conversation__border-runner {
-  height: 3px;
-  animation-duration: var(--gb-speed-thinking);
-}
-.olivia-agent-home .olivia-conversation--home[data-border-state="thinking"] .olivia-conversation__border-runner.is-orange {
-  animation-delay: var(--gb-delay-thinking);
 }
 @media (prefers-reduced-motion: reduce) {
   .olivia-agent-home .olivia-conversation--home::before,
-  .olivia-agent-home .olivia-conversation--home::after,
-  .olivia-agent-home .olivia-conversation__border-runner { animation: none; }
+  .olivia-agent-home .olivia-conversation--home::after { animation: none; }
 }
 .olivia-agent-home .olivia-conversation--home[data-message-count="0"] { height: 292px; }
 .olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) { height: min(54dvh,520px); }
@@ -4117,9 +4036,11 @@
     #fcfdfc;
 }
 .olivia-splash.is-handoff {
-  animation: olivia-splash-release 1230ms cubic-bezier(.32,.72,0,1) forwards;
+  animation: olivia-splash-release 1390ms cubic-bezier(.32,.72,0,1) forwards;
 }
 .olivia-splash__presence {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4152,6 +4073,26 @@
   animation: olivia-splash-brand-handoff 420ms cubic-bezier(.32,.72,0,1) forwards;
 }
 
+/* 실제 홈 채팅 래퍼의 getBoundingClientRect 값을 그대로 사용한다. 스플래시용 고정 폭을
+   다시 추정하지 않으므로 창이 다 열린 마지막 프레임과 홈 채팅의 네 변이 정확히 겹친다. */
+.olivia-splash__window {
+  position: fixed;
+  z-index: 1;
+  border: 1px solid transparent;
+  border-radius: 21px;
+  background:
+    linear-gradient(#fff,#fff) padding-box,
+    var(--gb-chat-rail) border-box;
+  box-shadow: 0 18px 50px rgba(10,40,35,.055);
+  opacity: 0;
+  transform: scaleX(.035) scaleY(.012);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.olivia-splash.is-handoff .olivia-splash__window {
+  animation: olivia-splash-window-open 920ms cubic-bezier(.32,.72,0,1) 80ms both;
+}
+
 @keyframes olivia-splash-arrive {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
@@ -4165,6 +4106,11 @@
 @keyframes olivia-splash-brand-handoff {
   to { opacity: 0; transform: translateY(-8px); }
 }
+@keyframes olivia-splash-window-open {
+  0% { opacity: 0; transform: scaleX(.035) scaleY(.012); }
+  22% { opacity: 1; transform: scaleX(1) scaleY(.012); }
+  100% { opacity: 1; transform: scaleX(1) scaleY(1); }
+}
 @keyframes olivia-splash-release {
   0%, 18% { opacity: 1; }
   100% { opacity: 0; }
@@ -4176,10 +4122,12 @@
 html[data-olivia-splash="active"] .olivia-home-greeting__intro,
 html[data-olivia-splash="active"] .olivia-agent-home .olivia-home-greeting h1,
 html[data-olivia-splash="active"] .olivia-agent-home .olivia-home-greeting > p,
-html[data-olivia-splash="active"] .olivia-home-entry__chat-core,
 html[data-olivia-splash="active"] .olivia-agent-quick-actions {
   opacity: 0;
   transform: translateY(12px);
+}
+html[data-olivia-splash="active"] .olivia-home-entry__chat-core {
+  opacity: 0;
 }
 html[data-olivia-splash="handoff"] .olivia-home-greeting__intro {
   animation: olivia-home-entry 680ms cubic-bezier(.32,.72,0,1) 40ms both;
@@ -4189,7 +4137,7 @@ html[data-olivia-splash="handoff"] .olivia-agent-home .olivia-home-greeting > p 
   animation: olivia-home-entry 700ms cubic-bezier(.32,.72,0,1) 140ms both;
 }
 html[data-olivia-splash="handoff"] .olivia-home-entry__chat-core {
-  animation: olivia-home-entry 760ms cubic-bezier(.32,.72,0,1) 260ms both;
+  animation: olivia-home-chat-reveal 480ms cubic-bezier(.32,.72,0,1) 820ms both;
 }
 html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
   animation: olivia-home-entry 720ms cubic-bezier(.32,.72,0,1) 390ms both;
@@ -4198,9 +4146,14 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes olivia-home-chat-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 .olivia-splash.is-reduced .olivia-splash__logo,
 .olivia-splash.is-reduced .olivia-splash__brand { animation-duration: 120ms; animation-delay: 0ms; }
+.olivia-splash.is-reduced .olivia-splash__window { display: none; }
 .olivia-splash.is-reduced.is-handoff {
   animation: olivia-splash-release-reduced 210ms cubic-bezier(.32,.72,0,1) forwards;
 }

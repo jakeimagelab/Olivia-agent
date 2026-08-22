@@ -1,11 +1,12 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const SESSION_KEY = "pc_home_splash_shown";
 const HOME_PATH = "/admin/dashboard/home";
 type SplashPhase = "arriving" | "handoff";
+type SplashWindowBounds = { left: number; top: number; width: number; height: number };
 
 // 앱을 처음 열거나 새로고침했을 때만 한 번 — 세션에 이미 기록이 있으면 show는 false로
 // 남아 아무것도 렌더링하지 않는다(서버 렌더와도 항상 일치해서 깜빡임이 없다).
@@ -23,6 +24,8 @@ export default function OliviaSplash() {
   const [show, setShow] = useState(false);
   const [phase, setPhase] = useState<SplashPhase>("arriving");
   const [reduced, setReduced] = useState(false);
+  const [windowBounds, setWindowBounds] = useState<SplashWindowBounds | null>(null);
+  const splashWindowRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const root = document.documentElement;
@@ -44,9 +47,34 @@ export default function OliviaSplash() {
       return;
     }
 
+    let hasInitialBounds = false;
+    let measureFrame = 0;
+    const measureChatSurface = () => {
+      const chatSurface = document.querySelector<HTMLElement>(
+        ".olivia-agent-home .olivia-adaptive-stage__chat",
+      );
+      if (chatSurface) {
+        const rect = chatSurface.getBoundingClientRect();
+        const bounds = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+        if (!hasInitialBounds) {
+          hasInitialBounds = true;
+          setWindowBounds(bounds);
+        }
+        const splashWindow = splashWindowRef.current;
+        if (splashWindow) {
+          splashWindow.style.left = `${bounds.left}px`;
+          splashWindow.style.top = `${bounds.top}px`;
+          splashWindow.style.width = `${bounds.width}px`;
+          splashWindow.style.height = `${bounds.height}px`;
+        }
+      }
+      measureFrame = window.requestAnimationFrame(measureChatSurface);
+    };
+    measureFrame = window.requestAnimationFrame(measureChatSurface);
+
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const handoffDelay = prefersReducedMotion ? 70 : 520;
-    const completionDelay = prefersReducedMotion ? 280 : 1650;
+    const handoffDelay = prefersReducedMotion ? 70 : 560;
+    const completionDelay = prefersReducedMotion ? 280 : 1950;
 
     setReduced(prefersReducedMotion);
     setPhase("arriving");
@@ -66,6 +94,7 @@ export default function OliviaSplash() {
     return () => {
       window.clearTimeout(handoffTimer);
       window.clearTimeout(completionTimer);
+      window.cancelAnimationFrame(measureFrame);
       delete root.dataset.oliviaSplash;
     };
   }, [pathname]);
@@ -83,6 +112,13 @@ export default function OliviaSplash() {
         </div>
         <p className="olivia-splash__brand">Photoclinic Olivia</p>
       </div>
+      {windowBounds ? (
+        <div
+          ref={splashWindowRef}
+          className="olivia-splash__window"
+          style={windowBounds}
+        />
+      ) : null}
     </div>
   );
 }
