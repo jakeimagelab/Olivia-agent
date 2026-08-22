@@ -3099,13 +3099,6 @@
 
 /* viewport는 고정하고 실제 콘텐츠 영역만 내부 스크롤한다. */
 .olivia-agent-home__row { padding-block: 20px; }
-.olivia-agent-home .olivia-conversation--home,
-.olivia-agent-home .olivia-conversation--home[data-message-count="0"] {
-  height: clamp(300px,calc(100dvh - 300px),380px);
-}
-.olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) {
-  height: min(70dvh,676px);
-}
 
 .oa-conversations-page {
   width: min(100%,980px);
