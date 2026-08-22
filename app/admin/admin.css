@@ -2,6 +2,39 @@
   --brand-orange: #e85d2c;
   --brand-green: #155855;
   --olivia-chat-border-gradient: linear-gradient(110deg, rgba(40,194,173,.36), rgba(95,180,225,.26) 38%, rgba(190,135,216,.2) 70%, rgba(255,126,76,.34));
+
+  /* "살아있는" 그라데이션 테두리 공통 토큰 — 채팅창(움직임)과 전체기능 카드(정적)가 같은
+     두 색(rgb 트리플렛으로 한 곳에만 정의)만 재사용하고, 강도(opacity)만 용도별로 다르다.
+     새 민트/블루/퍼플/핑크 색을 추가하지 않는다 — 공식 브랜드 컬러 두 개만 쓴다. */
+  --gb-green: 21, 88, 85;
+  --gb-orange: 232, 93, 44;
+  --gb-ring-vivid: conic-gradient(from var(--gb-angle, 0deg),
+    rgba(var(--gb-green), .9) 0deg,
+    rgba(var(--gb-green), .15) 70deg,
+    transparent 130deg,
+    rgba(var(--gb-orange), .85) 200deg,
+    rgba(var(--gb-orange), .12) 260deg,
+    transparent 320deg,
+    rgba(var(--gb-green), .9) 360deg);
+  --gb-ring-quiet: conic-gradient(from 24deg,
+    rgba(var(--gb-green), .5) 0deg,
+    rgba(var(--gb-green), .08) 70deg,
+    transparent 130deg,
+    rgba(var(--gb-orange), .42) 200deg,
+    rgba(var(--gb-orange), .07) 260deg,
+    transparent 320deg,
+    rgba(var(--gb-green), .5) 360deg);
+}
+
+/* 회전을 부드럽게 보간하려면 각도 커스텀 프로퍼티를 등록해야 한다(@property 미지원
+   브라우저에서는 그냥 정적인 각도로 렌더링됨 — 자연스러운 폴백, 별도 분기 불필요). */
+@property --gb-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes gb-rotate {
+  to { --gb-angle: 360deg; }
 }
 
 /* 색상 토큰 — 원래 시안은 Financial Dashboard 참고용 블루 팔레트였지만, 포토클리닉의
