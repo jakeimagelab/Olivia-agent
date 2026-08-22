@@ -27,6 +27,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const snoozeShootConfirmation = useOliviaConversationStore((state) => state.snoozeShootConfirmation);
   const appendMessage = useOliviaConversationStore((state) => state.appendMessage);
   const layoutMode = useOliviaLayoutStore((state) => state.mode);
+  const chatFocused = useOliviaLayoutStore((state) => state.chatFocused);
   const setChatFocused = useOliviaLayoutStore((state) => state.setChatFocused);
   const expandWorkspaceChat = useOliviaLayoutStore((state) => state.expandWorkspaceChat);
   const collapseWorkspaceChat = useOliviaLayoutStore((state) => state.collapseWorkspaceChat);
