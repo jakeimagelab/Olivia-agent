@@ -2927,9 +2927,9 @@
 .olivia-agent-home.is-conversation .olivia-home-greeting__brand { display: none; }
 .olivia-home-orb {
   position: relative;
-  width: 216px;
-  height: 216px;
-  margin: 0 0 12px;
+  width: 148px;
+  height: 148px;
+  margin: 0 0 10px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -2940,14 +2940,14 @@
 }
 .olivia-home-orb__logo {
   display: block;
-  width: 68%;
-  height: 68%;
+  width: 72%;
+  height: 72%;
   object-fit: contain;
 }
 .olivia-home-orb::after {
   content: "";
   position: absolute;
-  inset: -34px;
+  inset: -26px;
   z-index: -1;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(21,88,85,.18), rgba(232,93,44,.1) 45%, transparent 72%);
@@ -2959,10 +2959,10 @@
   50% { transform: scale(1.05); }
 }
 @media (max-width: 900px) {
-  .olivia-home-orb { width: 168px; height: 168px; margin-bottom: 10px; }
+  .olivia-home-orb { width: 126px; height: 126px; margin-bottom: 9px; }
 }
 @media (max-width: 560px) {
-  .olivia-home-orb { width: 136px; height: 136px; margin-bottom: 8px; }
+  .olivia-home-orb { width: 108px; height: 108px; margin-bottom: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .olivia-home-orb, .olivia-home-orb::after, .olivia-agent-home .olivia-home-greeting, .olivia-agent-home .olivia-home-greeting h1 { animation: none; transition: none; }
@@ -3069,8 +3069,26 @@
 .olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) { height: min(54dvh,520px); }
 .olivia-agent-home .olivia-conversation--home .olivia-conversation__stage { display: block; }
 .olivia-agent-home .olivia-conversation--home .olivia-conversation__main { height: 100%; justify-content: flex-start; padding: 27px 30px 24px; }
+.olivia-agent-home .olivia-conversation--home .olivia-conversation__header {
+  min-height: 62px;
+  padding: 10px 26px;
+}
+.olivia-agent-home .olivia-conversation--home .olivia-conversation__identity { gap: 10px; }
+.olivia-agent-home .olivia-conversation--home .olivia-conversation__identity strong {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.olivia-agent-home .olivia-conversation--home .olivia-conversation__identity small {
+  margin-top: 2px;
+  font-size: 10.5px;
+}
+.olivia-agent-home .olivia-conversation--home .olivia-core-mark { width: 28px; height: 28px; }
 .olivia-agent-home .olivia-conversation--home .olivia-engine-bg { display: none; }
-.olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-conversation__messages { flex: 0 0 auto; width: 100%; overflow: visible; padding: 0; }
+.olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-conversation__main {
+  padding: 22px 26px 24px;
+}
+.olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-conversation__messages { display: none; }
 .olivia-agent-home .olivia-conversation--home .olivia-conversation__welcome { width: 100%; margin: 0; padding: 0; text-align: left; }
 .olivia-conversation__home-identity { display: flex; align-items: center; gap: 9px; }
 .olivia-agent-home .olivia-conversation--home .olivia-conversation__welcome-icon { width: 25px; height: 25px; margin: 0; border-radius: 8px; background: #eaf7f4; color: #137068; }
@@ -3086,6 +3104,31 @@
 .olivia-agent-home .olivia-conversation__suggestions--below-composer { padding: 0; }
 .olivia-agent-home .olivia-conversation--home .olivia-conversation__suggestions button { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; border-color: rgba(21,88,85,.07); border-radius: 11px; padding: 0 14px; background: #fff; color: #315b55; font-size: 12px; font-weight: 600; box-shadow: 0 4px 16px rgba(10,40,35,.03); }
 .olivia-agent-home .olivia-conversation--home .olivia-conversation__suggestions button:hover { background: #f4f9f7; transform: none; }
+.olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-composer-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+}
+.olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-composer {
+  flex: 1 1 auto;
+  min-height: 128px;
+  border: 1px solid rgba(21,88,85,.11);
+  border-radius: 18px;
+  padding: 18px 18px 14px 20px;
+  background: #fff;
+  box-shadow: 0 9px 28px rgba(21,88,85,.055);
+}
+.olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-composer:focus-within {
+  border-color: rgba(21,88,85,.18);
+  box-shadow: 0 0 0 3px rgba(21,88,85,.045), 0 12px 30px rgba(21,88,85,.07);
+}
+.olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-composer textarea {
+  align-self: flex-start;
+  font-size: 16px;
+}
+.olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-conversation__suggestions--below-composer {
+  padding: 14px 26px 18px;
+}
 .olivia-agent-quick-actions { width: var(--olivia-home-content-width); display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin-top: 18px; }
 .olivia-agent-quick-actions button { min-width: 0; min-height: 72px; display: grid; grid-template-columns: 26px minmax(0,1fr); grid-template-rows: auto auto; align-content: center; column-gap: 9px; row-gap: 3px; border: 1px solid rgba(10,40,35,.05); border-radius: 14px; padding: 11px 13px; background: rgba(255,255,255,.9); color: #155855; text-align: left; box-shadow: 0 7px 24px rgba(10,40,35,.035); cursor: pointer; transition: transform 200ms cubic-bezier(.32,.72,0,1), border-color 200ms cubic-bezier(.32,.72,0,1), box-shadow 200ms cubic-bezier(.32,.72,0,1), background 200ms cubic-bezier(.32,.72,0,1); }
 .olivia-agent-quick-actions button:hover { transform: translateY(-1px); border-color: rgba(21,88,85,.1); background: #fff; box-shadow: 0 10px 28px rgba(10,40,35,.055); }

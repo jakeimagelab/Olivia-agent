@@ -215,11 +215,13 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       data-message-count={messages.length}
       data-border-state={borderState}
     >
-      {isHome && isEmpty ? null : (
-        <header className="olivia-conversation__header">
+      <header className="olivia-conversation__header">
           <div className="olivia-conversation__identity">
             <span className={`olivia-core-mark${isStreaming ? " is-thinking" : ""}`}><OliviaIcon size={15} /></span>
-            <div><strong>OLIVIA</strong><small>{isStreaming ? agentStatus || "답변 작성 중…" : "Context-aware agent"}</small></div>
+            <div>
+              <strong>{isHome ? "Olivia Agent" : "OLIVIA"}</strong>
+              <small>{isStreaming ? agentStatus || "답변 작성 중…" : isHome ? "업무 파트너" : "Context-aware agent"}</small>
+            </div>
           </div>
           <div className="olivia-conversation__controls">
             {showExpandToggle ? (
@@ -228,13 +230,12 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                 {layoutMode === "workspace-chat-expanded" ? "작업 크게" : "대화 크게"}
               </button>
             ) : null}
-            <button type="button" onClick={() => void startNewConversation()}><Plus size={13} /> 새 대화</button>
+            {!isEmpty ? <button type="button" onClick={() => void startNewConversation()}><Plus size={13} /> 새 대화</button> : null}
             {onMinimize ? (
               <button type="button" onClick={onMinimize} aria-label="Olivia 대화 최소화"><Minus size={13} /></button>
             ) : null}
           </div>
-        </header>
-      )}
+      </header>
 
       <div className={`olivia-conversation__stage${showConversationGuide ? " has-guide" : ""}`}>
         {isHome ? null : <OliviaConversationNavigator exchanges={exchanges} activeId={activeMessageId} onNavigate={scrollToMessage} />}
@@ -245,27 +246,17 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             띄우지 않는다 — isHydrated로만 걸었더니 캐시된 메시지 위에 "불러오는 중…"이 잠깐
             겹쳐 떴다가, 서버 재확인이 끝나는 순간 그 문구만 사라지는 깜빡임이 있었다. */}
         {!isHydrated && messages.length === 0 ? <div className="olivia-conversation__empty">대화를 불러오는 중…</div> : null}
-        {isHydrated && messages.length === 0 ? (
-          <div className={`olivia-conversation__welcome${isHome ? " is-home" : ""}`}>
-            {isHome ? (
-              <div className="olivia-conversation__home-identity">
-                <span className="olivia-conversation__welcome-icon"><OliviaIcon size={18} /></span>
-                <strong>Olivia Agent</strong>
-                <small>업무 파트너</small>
-              </div>
-            ) : (
-              <span>OLIVIA AGENT</span>
-            )}
-            {isHome ? null : <><h1>무엇을 도와드릴까요?</h1><p>업무 질문, 요약, 계획, 문서 작성까지 무엇이든 물어보세요.</p></>}
+        {isHydrated && messages.length === 0 && !isHome ? (
+          <div className="olivia-conversation__welcome">
+            <span>OLIVIA AGENT</span>
+            <h1>무엇을 도와드릴까요?</h1><p>업무 질문, 요약, 계획, 문서 작성까지 무엇이든 물어보세요.</p>
             {/* home variant는 칩을 컴포저 "아래"로 옮긴다(레퍼런스 순서: 제목→입력창→칩) —
                 다른 variant(drawer/workspace)는 기존 순서(제목→칩→입력창) 그대로 유지. */}
-            {!isHome ? (
-              <div className="olivia-conversation__suggestions">
-                {["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"].map((prompt) => (
-                  <button key={prompt} type="button" onClick={() => void sendMessage(prompt)}>{prompt}</button>
-                ))}
-              </div>
-            ) : null}
+            <div className="olivia-conversation__suggestions">
+              {["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"].map((prompt) => (
+                <button key={prompt} type="button" onClick={() => void sendMessage(prompt)}>{prompt}</button>
+              ))}
+            </div>
           </div>
         ) : null}
         {messages.map((message) => {
