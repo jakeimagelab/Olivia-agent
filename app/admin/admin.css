@@ -3086,7 +3086,7 @@
 .olivia-agent-home .olivia-conversation--home .olivia-core-mark { width: 28px; height: 28px; }
 .olivia-agent-home .olivia-conversation--home .olivia-engine-bg { display: none; }
 .olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-conversation__main {
-  padding: 22px 26px 24px;
+  padding: 22px 30px 28px;
 }
 .olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-conversation__messages { display: none; }
 .olivia-agent-home .olivia-conversation--home .olivia-conversation__welcome { width: 100%; margin: 0; padding: 0; text-align: left; }
