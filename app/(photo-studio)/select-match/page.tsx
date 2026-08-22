@@ -471,7 +471,7 @@ export default function SelectMatchPage() {
 
   /* ── 실제 복사 실행 ── */
   const runMatch = useCallback(async () => {
-    if (!rootDir || selected.size === 0) return;
+    if ((!rootDir && !rawRootDir) || selected.size === 0) return;
     setStep("matching");
     cancelRef.current = false;
     const logLines: string[] = [];
