@@ -2927,18 +2927,73 @@
 @media (prefers-reduced-motion: reduce) {
   .olivia-home-orb, .olivia-home-orb::after, .olivia-agent-home .olivia-home-greeting, .olivia-agent-home .olivia-home-greeting h1 { animation: none; transition: none; }
 }
-.olivia-agent-home .olivia-adaptive-stage__chat { width: var(--olivia-home-content-width); max-width: none; flex: 0 0 auto; overflow: visible; }
+.olivia-agent-home .olivia-adaptive-stage__chat { position: relative; width: var(--olivia-home-content-width); max-width: none; flex: 0 0 auto; overflow: visible; }
+/* "살아 숨 쉬는" 테두리 글로우 — 카드 자체(.olivia-conversation)는 overflow:hidden이라
+   바깥으로 번지는 흐린 빛은 카드에 직접 붙이면 잘린다. overflow:visible한 바깥 래퍼에
+   얹는다(이 프로젝트에 이미 있는 .home-simple-dashboard 레퍼런스와 같은 구조). 링(카드
+   ::before)과 같은 --gb-angle 회전을 같은 duration으로 걸어서 위상을 맞춘다 — 상태는
+   OliviaConversation이 실제 대화 상태로 채우는 data-border-state를 :has()로 그대로 읽는다. */
+.olivia-agent-home .olivia-adaptive-stage__chat::before {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  z-index: -1;
+  border-radius: 33px;
+  background: var(--gb-ring-vivid);
+  filter: blur(18px);
+  opacity: .16;
+  animation: gb-rotate 10s linear infinite;
+  transition: opacity .5s ease;
+  pointer-events: none;
+  will-change: opacity;
+}
+.olivia-agent-home .olivia-adaptive-stage__chat:has(.olivia-conversation--home[data-border-state="typing"])::before {
+  opacity: .2;
+  animation-duration: 8s;
+}
+.olivia-agent-home .olivia-adaptive-stage__chat:has(.olivia-conversation--home[data-border-state="thinking"])::before {
+  opacity: .28;
+  animation-duration: 4.2s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .olivia-agent-home .olivia-adaptive-stage__chat::before { animation: none; }
+}
+
 .olivia-agent-home .olivia-conversation--home {
+  position: relative;
+  isolation: isolate;
   height: 292px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 21px;
-  background:
-    linear-gradient(#fff,#fff) padding-box,
-    var(--olivia-chat-border-gradient) border-box;
+  background: #fff;
   box-shadow: 0 18px 50px rgba(10,40,35,.055);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+/* 테두리 링 — mask-composite:exclude로 가운데를 투명하게 뚫어서 1px 두께만 남긴다. 카드
+   자체의 border-radius를 그대로 상속받고, 클릭·스크롤을 막지 않게 pointer-events:none. */
+.olivia-agent-home .olivia-conversation--home::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--gb-ring-vivid);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  animation: gb-rotate 10s linear infinite;
+  transition: opacity .5s ease;
+}
+.olivia-agent-home .olivia-conversation--home[data-border-state="typing"]::before { animation-duration: 8s; }
+.olivia-agent-home .olivia-conversation--home[data-border-state="thinking"]::before {
+  animation-duration: 4.2s;
+  opacity: .92;
+}
+@media (prefers-reduced-motion: reduce) {
+  .olivia-agent-home .olivia-conversation--home::before { animation: none; }
 }
 .olivia-agent-home .olivia-conversation--home[data-message-count="0"] { height: 292px; }
 .olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) { height: min(54dvh,520px); }
