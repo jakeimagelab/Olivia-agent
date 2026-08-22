@@ -3809,9 +3809,6 @@
   .olivia-persistent-chat--split { animation: none; }
 }
 
-.olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) {
-  height: min(74dvh, 720px);
-}
 .olivia-agent-home .olivia-conversation--home:not([data-message-count="0"]) .olivia-conversation__main {
   padding: 14px 18px 12px;
 }
