@@ -2984,14 +2984,12 @@
   -webkit-mask-composite: xor;
           mask-composite: exclude;
   pointer-events: none;
+  opacity: .72;
   animation: gb-rotate 10s linear infinite;
   transition: opacity .5s ease;
 }
-.olivia-agent-home .olivia-conversation--home[data-border-state="typing"]::before { animation-duration: 8s; }
-.olivia-agent-home .olivia-conversation--home[data-border-state="thinking"]::before {
-  animation-duration: 4.2s;
-  opacity: .92;
-}
+.olivia-agent-home .olivia-conversation--home[data-border-state="typing"]::before { opacity: .85; animation-duration: 8s; }
+.olivia-agent-home .olivia-conversation--home[data-border-state="thinking"]::before { opacity: 1; animation-duration: 4.2s; }
 @media (prefers-reduced-motion: reduce) {
   .olivia-agent-home .olivia-conversation--home::before { animation: none; }
 }
