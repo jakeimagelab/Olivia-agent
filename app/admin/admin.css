@@ -3020,7 +3020,7 @@
 }
 .olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-composer textarea {
   align-self: flex-start;
-  font-size: 16px;
+  font-size: 21px;
 }
 .olivia-agent-home .olivia-conversation--home[data-message-count="0"] .olivia-conversation__suggestions--below-composer {
   padding: 14px 26px 18px;
