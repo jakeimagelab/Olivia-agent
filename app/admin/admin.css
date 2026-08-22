@@ -2901,44 +2901,51 @@
 .olivia-agent-home__drawer-trigger:hover { background: #f3faf7; box-shadow: 0 10px 32px rgba(10,40,35,.075); }
 .olivia-agent-home__drawer-trigger strong { min-width: 20px; height: 20px; display: grid; place-items: center; border-radius: 99px; background: #fff1e8; color: #e85d2c; font-size: 10px; }
 .olivia-agent-home__drawer-trigger span { color: #7b8d88; }
-.olivia-agent-home .olivia-home-greeting { min-height: 0; display: flex; flex-direction: column; align-items: center; padding: 0; margin: 0 0 24px; text-align: center; transition: margin-bottom 2200ms cubic-bezier(.22,.61,.36,1); }
+/* 확정 시안 기준 compact greeting — 로고(왼쪽) + 타이틀/서브타이틀(오른쪽)을 grid 2열로
+   배치한다. intro가 1열에서 두 행(타이틀+서브타이틀)만큼 세로로 걸치고, h1/p는 DOM 순서
+   그대로 2열에 쌓인다 — 마크업은 그대로 두고 CSS만으로 "로고 왼쪽/텍스트 오른쪽" 구조를
+   만든다. is-conversation이어도 크기가 바뀌지 않는다(새 대화 전후 레이아웃 동일 요구). */
+.olivia-agent-home .olivia-home-greeting {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 16px;
+  align-items: center;
+  padding: 0;
+  margin: 0 0 16px;
+  text-align: left;
+}
 .olivia-home-greeting__badge { min-height: 30px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgba(21,88,85,.08); border-radius: 999px; padding: 0 13px; background: #f0f8f6; color: #315f58; font-size: 11.5px; font-weight: 600; }
 .olivia-agent-home .olivia-home-greeting h1 {
+  grid-column: 2;
+  grid-row: 1;
   margin: 0;
-  font-size: clamp(28px,2.4vw,32px);
+  font-size: clamp(24px,2vw,28px);
   font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -.04em;
+  line-height: 1.25;
+  letter-spacing: -.035em;
   color: #155855;
-  /* 텍스트 내부는 브랜드 딥그린 단색만 쓰고, 채팅창 테두리 글로우와 같은 느낌의 은은한
-     외곽 그림자만 딥그린·오렌지 공식 컬러로 넣는다 — 글자 자체는 흐려지지 않는다. */
-  text-shadow: 0 2px 20px rgba(21,88,85,.22), 0 1px 30px rgba(232,93,44,.13);
-  transition: font-size 2200ms cubic-bezier(.22,.61,.36,1);
 }
-.olivia-agent-home .olivia-home-greeting p { margin: 9px 0 0; font-size: 14px; font-weight: 500; }
+.olivia-agent-home .olivia-home-greeting p { grid-column: 2; grid-row: 2; margin: 4px 0 0; font-size: 14px; font-weight: 450; color: #5c716c; }
 
-/* 채팅 위 로고. 4.2초 숨쉬듯 펄스는 기존 올리비아 프레즌스 애니메이션과 같은 리듬. */
-.olivia-home-greeting__intro { display: flex; flex-direction: column; align-items: center; }
+.olivia-home-greeting__intro { grid-column: 1; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: center; }
 .olivia-home-greeting__brand {
-  margin: 0 0 18px;
-  font-size: 13px;
+  margin: 4px 0 0;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: .02em;
   color: #155855;
+  opacity: .55;
 }
-.olivia-agent-home.is-conversation .olivia-home-greeting__brand { display: none; }
 .olivia-home-orb {
   position: relative;
-  width: 148px;
-  height: 148px;
-  margin: 0 0 10px;
+  width: 58px;
+  height: 58px;
+  margin: 0;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  animation: olivia-home-orb-breathe 4.2s cubic-bezier(.45,0,.55,1) infinite;
-  /* 채팅이 Framer Motion으로 부드럽게 커지는 동안 로고는 CSS transition이 없어 순간적으로
-     스냅되던 문제 — 채팅 쪽과 비슷한 리듬으로 같이, 훨씬 천천히 줄어들게 맞춘다. */
-  transition: width 2200ms cubic-bezier(.22,.61,.36,1), height 2200ms cubic-bezier(.22,.61,.36,1), margin-bottom 2200ms cubic-bezier(.22,.61,.36,1);
+  border-radius: 50%;
+  box-shadow: 0 10px 30px rgba(21,88,85,.08);
 }
 .olivia-home-orb__logo {
   display: block;
@@ -2946,25 +2953,12 @@
   height: 72%;
   object-fit: contain;
 }
-.olivia-home-orb::after {
-  content: "";
-  position: absolute;
-  inset: -26px;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(21,88,85,.18), rgba(232,93,44,.1) 45%, transparent 72%);
-  filter: blur(22px);
-  transition: inset 2200ms cubic-bezier(.22,.61,.36,1), filter 2200ms cubic-bezier(.22,.61,.36,1);
-}
-.olivia-home-orb.is-thinking { animation-duration: 1.8s; }
+.olivia-home-orb.is-thinking { animation: olivia-home-orb-breathe 1.8s cubic-bezier(.45,0,.55,1) infinite; }
 @keyframes olivia-home-orb-breathe {
   50% { transform: scale(1.05); }
 }
-@media (max-width: 900px) {
-  .olivia-home-orb { width: 126px; height: 126px; margin-bottom: 9px; }
-}
-@media (max-width: 560px) {
-  .olivia-home-orb { width: 108px; height: 108px; margin-bottom: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .olivia-home-orb.is-thinking { animation: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .olivia-home-orb, .olivia-home-orb::after, .olivia-agent-home .olivia-home-greeting, .olivia-agent-home .olivia-home-greeting h1 { animation: none; transition: none; }
