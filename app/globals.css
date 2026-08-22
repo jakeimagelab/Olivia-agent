@@ -1069,17 +1069,17 @@ main:has(> .pc-header) {
     #ffffff;
 }
 
+/* 채팅창과 같은 디자인 시스템으로 통일(요청) — 깨끗한 화이트 배경 + 공통 gradient-border
+   토큰(--gb-ring-quiet, admin.css)을 쓰는 정적인 테두리. 실제 링은 ::before(admin.css)가
+   그린다 — 여기서는 배경만 화이트로 정돈하고 기존 실선 테두리는 투명 처리해서 링과
+   겹치지 않게 한다. */
 .oa-tools-page .admin-menu-card {
-  background:
-    radial-gradient(140% 100% at 100% 0%, rgba(21,88,85,.07) 0%, transparent 55%),
-    #FBF7EF;
-  border-color: rgba(16,58,98,.14);
+  background: #fff;
+  border-color: transparent;
 }
 
 .oa-tools-page .admin-menu-card.orange {
-  background:
-    radial-gradient(140% 100% at 100% 0%, rgba(232,93,44,.08) 0%, transparent 55%),
-    #FBF7EF;
+  background: #fff;
 }
 
 /* 전체보기 카드 20% 축소(요청) — 다른 페이지(예전 홈, 마케팅, 프롬프터)의 admin-menu-card는
