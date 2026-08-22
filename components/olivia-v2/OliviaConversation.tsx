@@ -213,6 +213,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       className={`olivia-conversation olivia-conversation--${variant}`}
       data-olivia-surface={variant}
       data-message-count={messages.length}
+      data-border-state={borderState}
     >
       {isHome && isEmpty ? null : (
         <header className="olivia-conversation__header">
