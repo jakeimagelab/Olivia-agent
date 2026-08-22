@@ -117,7 +117,9 @@ export default function OliviaAdaptiveStage() {
           {/* 홈 진입 모션(로고 등장 → 채팅창 오픈)은 OliviaSplash가 전담한다 — 여기서는
               내부 페이지 이동마다 반복되면 안 되니 별도 mount-in 애니메이션을 걸지 않는다. */}
           <motion.section layout transition={spring} className="olivia-adaptive-stage__chat">
-            <OliviaConversation variant={isWorkspaceMode ? "workspace" : "home"} showExpandToggle={isWorkspaceMode} />
+            <div className="olivia-home-entry__chat-core">
+              <OliviaConversation variant={isWorkspaceMode ? "workspace" : "home"} showExpandToggle={isWorkspaceMode} />
+            </div>
           </motion.section>
 
           {!isWorkspaceMode ? (

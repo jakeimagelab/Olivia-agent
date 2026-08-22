@@ -215,6 +215,12 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       data-message-count={messages.length}
       data-border-state={borderState}
     >
+      {isHome ? (
+        <span className="olivia-conversation__border-runners" aria-hidden="true">
+          <i className="olivia-conversation__border-runner is-green" />
+          <i className="olivia-conversation__border-runner is-orange" />
+        </span>
+      ) : null}
       {isHome && isEmpty ? null : (
         <header className="olivia-conversation__header">
           <div className="olivia-conversation__identity">

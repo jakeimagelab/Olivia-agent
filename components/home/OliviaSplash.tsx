@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const SESSION_KEY = "pc_home_splash_shown";
+const HOME_PATH = "/admin/dashboard/home";
+type SplashPhase = "arriving" | "handoff";
 
 // 앱을 처음 열거나 새로고침했을 때만 한 번 — 세션에 이미 기록이 있으면 show는 false로
 // 남아 아무것도 렌더링하지 않는다(서버 렌더와도 항상 일치해서 깜빡임이 없다).
@@ -16,48 +19,70 @@ const SESSION_KEY = "pc_home_splash_shown";
 // 컴포지터가 시간을 재는 방식이라 이런 문제에서 자유롭고, 이 프로젝트에서 이미 검증된
 // 패턴이다(app/admin/admin.css의 .olivia-home-orb transition 참고).
 export default function OliviaSplash() {
+  const pathname = usePathname();
   const [show, setShow] = useState(false);
-  const [play, setPlay] = useState(false);
+  const [phase, setPhase] = useState<SplashPhase>("arriving");
   const [reduced, setReduced] = useState(false);
-  const [corner, setCorner] = useState({ x: -248, y: -78 });
 
-  useEffect(() => {
-    if (sessionStorage.getItem(SESSION_KEY) === "1") return;
-    sessionStorage.setItem(SESSION_KEY, "1");
-    setReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    // 로고가 이동할 "패널 좌측 상단" 좌표를 실제 CSS 패널 크기(모바일 브레이크포인트 포함)에
-    // 맞춰 근사 계산한다 — 화면 중앙(로고 시작 위치) 기준 상대 오프셋.
-    setCorner(window.innerWidth <= 560 ? { x: -142, y: -55 } : { x: -248, y: -78 });
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (pathname !== HOME_PATH) {
+      delete root.dataset.oliviaSplash;
+      setShow(false);
+      return;
+    }
+
+    try {
+      if (sessionStorage.getItem(SESSION_KEY) === "1") {
+        delete root.dataset.oliviaSplash;
+        return;
+      }
+      sessionStorage.setItem(SESSION_KEY, "1");
+    } catch {
+      // 저장소 사용이 제한된 환경에서는 홈을 가리지 않고 바로 표시한다.
+      delete root.dataset.oliviaSplash;
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const handoffDelay = prefersReducedMotion ? 70 : 520;
+    const completionDelay = prefersReducedMotion ? 280 : 1650;
+
+    setReduced(prefersReducedMotion);
+    setPhase("arriving");
     setShow(true);
-  }, []);
+    root.dataset.oliviaSplash = "active";
 
-  useEffect(() => {
-    if (!show) return;
-    const raf = requestAnimationFrame(() => setPlay(true));
-    return () => cancelAnimationFrame(raf);
-  }, [show]);
+    const handoffTimer = window.setTimeout(() => {
+      root.dataset.oliviaSplash = "handoff";
+      setPhase("handoff");
+    }, handoffDelay);
+    // animationend가 브라우저/탭 상태에 따라 누락되어도 오버레이가 남지 않는 종료 fallback.
+    const completionTimer = window.setTimeout(() => {
+      delete root.dataset.oliviaSplash;
+      setShow(false);
+    }, completionDelay);
+
+    return () => {
+      window.clearTimeout(handoffTimer);
+      window.clearTimeout(completionTimer);
+      delete root.dataset.oliviaSplash;
+    };
+  }, [pathname]);
 
   if (!show) return null;
 
   return (
     <div
-      className={`olivia-splash${play ? " is-playing" : ""}${reduced ? " is-reduced" : ""}`}
-      style={{ "--olivia-splash-corner-x": `${corner.x}px`, "--olivia-splash-corner-y": `${corner.y}px` } as CSSProperties}
-      onAnimationEnd={(event) => {
-        if (event.target === event.currentTarget) setShow(false);
-      }}
+      className={`olivia-splash is-${phase}${reduced ? " is-reduced" : ""}`}
       aria-hidden="true"
     >
-      {/* 1. 조용한 도착(0~0.6s) — 로고와 브랜드가 차분히 나타난다.
-          2. 깨어남(0.6~1.2s) — 텍스트가 사라지고 로고가 작아지는 동안 라인이 양옆으로 뻗는다.
-          3. 채팅 패널 펼침(1.2~1.8s) — 라인이 패널 중심이 되어 위아래로 펼쳐지고, 로고는
-             패널 좌측 상단으로 자리를 옮긴다.
-          4. 홈 화면 완성(1.8~2.3s) — 패널이 다 열린 채 오버레이가 걷히며 실제 홈이 드러난다. */}
-      <div className="olivia-splash__logo">
-        <img src="/assets/photoclinic-mark.png" alt="" />
+      <div className="olivia-splash__presence">
+        <div className="olivia-splash__logo">
+          <img src="/assets/photoclinic-mark.png" alt="" />
+        </div>
+        <p className="olivia-splash__brand">Photoclinic Olivia</p>
       </div>
-      <p className="olivia-splash__brand">Photoclinic Olivia</p>
-      <div className="olivia-splash__chat" />
     </div>
   );
 }
