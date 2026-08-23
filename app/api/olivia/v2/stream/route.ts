@@ -211,10 +211,13 @@ function toInputMessages(
   pageContext?: string,
   temporalHint?: string,
 ): ResponseInputItem[] {
-  const history: ResponseInputItem[] = rows.slice(-30).map((row) => ({
-    role: row.role === "assistant" ? "assistant" : "user",
-    content: String(row.content || ""),
-  }));
+  const history: ResponseInputItem[] = rows
+    .slice(-30)
+    .filter((row) => isWellFormedHistoryText(String(row.content || "")))
+    .map((row) => ({
+      role: row.role === "assistant" ? "assistant" : "user",
+      content: String(row.content || ""),
+    }));
   return [
     ...history,
     {
