@@ -421,16 +421,7 @@ export default function SelectMatchPage() {
     rawIndexRef.map.clear();
     for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
 
-    const selArr = Array.from(selected);
-    const willMatch = selArr.filter(b => rawIndex.has(b)).length;
-    const pf: Preflight = {
-      rawFound: rawIndex.size,
-      willMatch,
-      willMiss: selArr.length - willMatch,
-      rawSamples: Array.from(rawIndex.keys()).slice(0, 4),
-      jpgSamples: selArr.slice(0, 4),
-    };
-    setPreflight(pf);
+    setPreflight(computePreflight(selected, rawIndex));
   }, [rootDir, selected, buildRawIndex, rawIndexRef]);
 
   /* ── 실제 복사 실행 ── */
