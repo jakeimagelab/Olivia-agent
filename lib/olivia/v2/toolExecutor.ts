@@ -1113,7 +1113,7 @@ export async function runTool(
       const table = sourceType === "memo" ? "consultation_memos" : "photo_galleries";
       const clientColumn = sourceType === "memo" ? "hospital_id" : "client_id";
       const { data: row } = await db.from(table).select(`id, ${clientColumn}`).eq("id", sourceId).maybeSingle();
-      const clientId = row?.[clientColumn];
+      const clientId = (row as Record<string, unknown> | null)?.[clientColumn];
       if (!clientId) throw new Error("문서를 찾지 못했어요.");
       return { tool: name, success: true, data: { href: `/clients?clientId=${clientId}`, summary: "관련 고객 화면을 열었어요." } };
     }
