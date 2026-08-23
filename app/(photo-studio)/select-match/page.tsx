@@ -234,6 +234,7 @@ export default function SelectMatchPage() {
   const [ratingLoading, setRatingLoading] = useState(false);
   const [rawRootDir,    setRawRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
   const [preflight,  setPreflight]  = useState<Preflight | null>(null);
+  const [rawScanCount, setRawScanCount] = useState(0);
   const [rawIndexRef] = useState<{ map: Map<string, FileSystemFileHandle> }>(() => ({ map: new Map() }));
   const [log,        setLog]        = useState<string[]>([]);
   const [progress,   setProgress]   = useState({ cur: 0, total: 0, msg: "" });
