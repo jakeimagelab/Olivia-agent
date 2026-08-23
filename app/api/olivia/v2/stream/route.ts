@@ -589,7 +589,7 @@ export async function POST(req: NextRequest) {
             const execution = await executeAgentTool(toolCall, workingContext);
             const toolPayload = execution.result.success
               ? execution.result.data || {}
-              : { message: execution.result.error || "작업을 완료하지 못했어요." };
+              : { message: execution.result.error || OLIVIA_FALLBACK_MESSAGES.toolFailureGeneric };
             send({
               type: "tool_result",
               tool: toolCall.name,
