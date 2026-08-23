@@ -758,8 +758,10 @@ export async function runTool(
         notes: text(item, "notes") || undefined,
       }));
       const selected = context.selectedEntityType === "conti-shot" ? resolveContiShot(conti.result, { shotId: context.selectedEntityId })[0] : undefined;
-      const insertAfterInput = input.insertAfter == null ? undefined : parseKoreanCount(input.insertAfter as string | number) ?? undefined;
-      const mutation = addContiShots(conti.result, { items, insertAfter: insertAfterInput ?? selected?.index });
+      const rawInsertAfter = input.insertAfter;
+      const insertAfterInput = rawInsertAfter == null || rawInsertAfter === "" ? undefined : Number(rawInsertAfter);
+      const insertAfter = insertAfterInput !== undefined && Number.isInteger(insertAfterInput) && insertAfterInput >= 0 ? insertAfterInput : selected?.index;
+      const mutation = addContiShots(conti.result, { items, insertAfter });
       const updatedResource = await saveConti(resourceId, mutation.result);
       return { tool: name, success: true, data: { resourceId, contiId: resourceId, changedEntityId: mutation.created[0]?.id, updatedResource, summary: `${items.length}개 항목을 추가했어요.` } };
     }
