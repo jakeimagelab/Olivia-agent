@@ -422,9 +422,16 @@ export default function SelectMatchPage() {
   }, [scenes]);
 
   /* ── 재귀 RAW 스캔 공통 함수 ── */
-  const buildRawIndex = useCallback(async (overrideRawDir?: FileSystemDirectoryHandle): Promise<Map<string, FileSystemFileHandle>> => {
+  // 파일이 수천 장이면 스캔 자체에 시간이 꽤 걸린다 — onProgress로 진행 상황(스캔한 파일 수)을
+  // 주기적으로 알려줘서 "멈춘 것처럼 보이는" 문제를 없앤다(2026-08 사용자 리포트: RAW 5000여
+  // 개인 폴더에서 "RAW 파일 탐색 중..."만 뜨고 진행 상황이 안 보여 멈춘 줄 알았다고 함).
+  const buildRawIndex = useCallback(async (
+    overrideRawDir?: FileSystemDirectoryHandle,
+    onProgress?: (scannedCount: number) => void,
+  ): Promise<Map<string, FileSystemFileHandle>> => {
     const effectiveRawDir = overrideRawDir ?? rawRootDir;
     const rawIndex = new Map<string, FileSystemFileHandle>();
+    let scannedCount = 0;
     const scanDir = async (dir: FileSystemDirectoryHandle, depth = 0) => {
       if (depth > 5) return;
       for await (const [name, handle] of (dir as any).entries()) {
@@ -432,6 +439,8 @@ export default function SelectMatchPage() {
         if ((handle as FileSystemHandle).kind === "directory") {
           await scanDir(handle as FileSystemDirectoryHandle, depth + 1);
         } else {
+          scannedCount += 1;
+          if (onProgress && scannedCount % 50 === 0) onProgress(scannedCount);
           const ext = name.split(".").pop()?.toLowerCase() ?? "";
           if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
         }
@@ -443,6 +452,7 @@ export default function SelectMatchPage() {
       try { await scanDir(await (rootDir as any).getDirectoryHandle("RAW")); } catch {}
       if (rawIndex.size === 0) await scanDir(rootDir!);
     }
+    onProgress?.(scannedCount);
     return rawIndex;
   }, [rootDir, rawRootDir]);
 
@@ -453,7 +463,8 @@ export default function SelectMatchPage() {
     if (overrideRawDir) setRawRootDir(overrideRawDir);
     setStep("preflight");
     setPreflight(null);
-    const rawIndex = await buildRawIndex(overrideRawDir);
+    setRawScanCount(0);
+    const rawIndex = await buildRawIndex(overrideRawDir, setRawScanCount);
     rawIndexRef.map.clear();
     for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
 
