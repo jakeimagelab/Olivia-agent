@@ -1,5 +1,5 @@
 "use client";
-import { AlertCircle, CalendarDays, CheckCircle2, Clock3, Lightbulb, ShieldCheck } from "lucide-react";
+import { AlertCircle, CalendarDays, Clock3, Lightbulb, ShieldCheck } from "lucide-react";
 import type { AgentCenterSummary, AgentCenterItem } from "./types";
 import type { OliviaAgentRun } from "@/lib/olivia/agentRuns/types";
 import { AgentRunCard } from "./AgentRunCard";
