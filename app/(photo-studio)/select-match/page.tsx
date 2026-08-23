@@ -1121,7 +1121,18 @@ export default function SelectMatchPage() {
           🔍 매칭 사전 확인
         </div>
         {!preflight ? (
-          <div style={{ padding: 32, textAlign: "center", fontSize: 12, color: C.hint }}>RAW 파일 탐색 중...</div>
+          <div style={{ padding: 32, textAlign: "center" }}>
+            <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
+              <div style={{
+                height: "100%", width: "40%", borderRadius: 3, background: C.teal,
+                animation: "select-match-scan-bar 1.1s ease-in-out infinite",
+              }} />
+            </div>
+            <div style={{ fontSize: 12, color: C.hint }}>
+              RAW 파일 탐색 중{rawScanCount > 0 ? ` — ${rawScanCount.toLocaleString()}개 확인` : "..."}
+            </div>
+            <style>{`@keyframes select-match-scan-bar { 0% { margin-left: 0%; } 50% { margin-left: 60%; } 100% { margin-left: 0%; } }`}</style>
+          </div>
         ) : (
           <div style={{ padding: 20 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
