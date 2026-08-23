@@ -14,14 +14,6 @@ type DocumentRow = {
   route?: string | null;
 };
 
-type _Unused = never;
-
-type DocumentRowLegacy = {
-  status?: string | null;
-  updatedAt?: string | null;
-  route?: string | null;
-};
-
 // 채팅의 search_documents 도구와 완전히 같은 searchDocuments()를 API 라우트 하나로만 거친다 —
 // 여기서 별도 필터/정렬 로직을 만들지 않는다(요청서 7절).
 const TYPE_TABS: { value: OliviaDocumentType | "all"; label: string }[] = [
@@ -104,6 +96,7 @@ export default function DocumentSearchPanel() {
           <div className="oa-table-head oa-document-table__row">
             <span>문서명</span>
             <span>고객</span>
+            <span>프로젝트</span>
             <span>종류</span>
             <span>상태</span>
             <span>수정일</span>
@@ -115,6 +108,7 @@ export default function DocumentSearchPanel() {
               <a key={doc.id} href={doc.route || "#"} className="oa-table-row oa-document-table__row">
                 <span className="is-strong">{doc.title}</span>
                 <span>{doc.clientName || "-"}</span>
+                <span>{doc.projectName || "-"}</span>
                 <span>{TYPE_TABS.find((t) => t.value === doc.type)?.label || doc.type}</span>
                 <span>{doc.status || "-"}</span>
                 <span>{formatDate(doc.updatedAt)}</span>
