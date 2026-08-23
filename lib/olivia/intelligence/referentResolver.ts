@@ -5,7 +5,8 @@ import type { ConversationEntityLike, ResolveContextInput } from "@/lib/olivia/i
 // (7절 우선순위표의 selectedEntity/activeResource 단계에 해당, 이미 동작 중). 이 resolver는
 // 그 위 단계 — "화면엔 없지만 대화에서 최근에 다룬 고객/프로젝트"만 보완한다.
 const CLIENT_REFERENT_PATTERNS = [/그\s*병원/, /그\s*고객/, /거기/, /그\s*쪽/];
-const GENERIC_REFERENT_PATTERNS = [/아까\s*그?거/, /방금\s*전\s*거/, /방금\s*그?거/, /이거/, /그거/, /저거/];
+const PROJECT_REFERENT_PATTERNS = [/그\s*프로젝트/, /그\s*건/];
+const GENERIC_REFERENT_PATTERNS = [/아까\s*그?거/, /방금\s*전\s*거/, /방금\s*그?거/, /이거/, /그거/, /저거/, /그것도/];
 
 export type ReferentResolution = {
   matchedText: string;
