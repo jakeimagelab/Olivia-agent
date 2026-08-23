@@ -178,6 +178,9 @@ function contextPrompt(context: OliviaContextSnapshot, pageContext?: string, tem
     context.recentActions.length
       ? `최근 UI Action: ${context.recentActions.slice(-4).map((action) => action.type).join(" → ")}`
       : null,
+    context.lastTool
+      ? `마지막으로 실행한 도구: ${context.lastTool}${context.lastIntent ? ` (${context.lastIntent})` : ""} — "그거"/"그것도"/"아까 그거"가 이 도구를 다시 가리킬 수 있다.`
+      : null,
     context.recentEntities?.length
       // 별칭/지시어 전처리(applyAliasRewrite/applyReferentRewrite)가 못 잡은 애매한 경우의
       // 마지막 안전망 — LLM이 참고해서 스스로 해석하거나, 그래도 애매하면 되묻는다.
