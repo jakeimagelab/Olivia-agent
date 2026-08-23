@@ -3,7 +3,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import OliviaChat from "@/components/OliviaChat";
 import PageHeader from "@/components/PageHeader";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { createMailingDraft } from "@/lib/mailingQueue";
