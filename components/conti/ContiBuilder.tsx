@@ -1259,6 +1259,9 @@ ${contiSummary}
           setResultTitle(entry.title || entry.hospital_name);
           setForm((prev) => ({ ...prev, hospitalName: entry.hospital_name, specialties: entry.specialties || prev.specialties }));
           setSavedContiId(resourceId);
+          // In-page Agent 패널이 "여기에 추가해줘"처럼 지금 보고 있는 문서를 다시 지칭하지
+          // 않아도 알아듣도록, 실제로 콘티를 불러온 시점에 현재 문서로 기록한다.
+          setOliviaCurrentDocument(resourceId, "storyboard", entry.title || entry.hospital_name);
         })
         .catch(() => {});
       void loadResource();
