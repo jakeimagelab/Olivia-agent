@@ -330,9 +330,8 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
         if (event.type === "message_start") {
           set({ conversationId: event.conversationId ?? get().conversationId, activeResponseId: event.messageId });
         } else if (event.type === "text_delta") {
-          bufferedMessageId = responseId;
-          bufferedDelta += event.delta;
-          scheduleDeltaFlush(set);
+          appendPendingDelta(responseId, event.delta);
+          scheduleDeltaFlush(set, responseId);
         } else if (event.type === "agent_status") {
           set({ agentStatus: event.status });
         } else if (event.type === "tool_start") {
