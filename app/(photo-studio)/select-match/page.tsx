@@ -402,40 +402,12 @@ export default function SelectMatchPage() {
     setScenes(prev => prev.map((s, i) => i === sceneIdx ? { ...s, photos: updated } : s));
   }, [scenes]);
 
-  /* ── 재귀 RAW 스캔 공통 함수 ── */
-  // 파일이 수천 장이면 스캔 자체에 시간이 꽤 걸린다 — onProgress로 진행 상황(스캔한 파일 수)을
-  // 주기적으로 알려줘서 "멈춘 것처럼 보이는" 문제를 없앤다(2026-08 사용자 리포트: RAW 5000여
-  // 개인 폴더에서 "RAW 파일 탐색 중..."만 뜨고 진행 상황이 안 보여 멈춘 줄 알았다고 함).
-  const buildRawIndex = useCallback(async (
+  /* ── 재귀 RAW 스캔 공통 함수 (lib/selectMatch/rawIndex.ts로 추출된 순수 함수의 얇은 wrapper) ── */
+  const buildRawIndex = useCallback((
     overrideRawDir?: FileSystemDirectoryHandle,
     onProgress?: (scannedCount: number) => void,
-  ): Promise<Map<string, FileSystemFileHandle>> => {
-    const effectiveRawDir = overrideRawDir ?? rawRootDir;
-    const rawIndex = new Map<string, FileSystemFileHandle>();
-    let scannedCount = 0;
-    const scanDir = async (dir: FileSystemDirectoryHandle, depth = 0) => {
-      if (depth > 5) return;
-      for await (const [name, handle] of (dir as any).entries()) {
-        if (name === "Selected_RAW") continue; // 출력 폴더는 스킵
-        if ((handle as FileSystemHandle).kind === "directory") {
-          await scanDir(handle as FileSystemDirectoryHandle, depth + 1);
-        } else {
-          scannedCount += 1;
-          if (onProgress && scannedCount % 50 === 0) onProgress(scannedCount);
-          const ext = name.split(".").pop()?.toLowerCase() ?? "";
-          if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
-        }
-      }
-    };
-    if (effectiveRawDir) {
-      await scanDir(effectiveRawDir);
-    } else if (rootDir) {
-      try { await scanDir(await (rootDir as any).getDirectoryHandle("RAW")); } catch {}
-      if (rawIndex.size === 0) await scanDir(rootDir!);
-    }
-    onProgress?.(scannedCount);
-    return rawIndex;
-  }, [rootDir, rawRootDir]);
+  ): Promise<Map<string, FileSystemFileHandle>> => buildRawIndexPure(overrideRawDir ?? rawRootDir, rootDir, onProgress),
+  [rootDir, rawRootDir]);
 
   /* ── 사전 확인 (preflight) ── */
   const runPreflight = useCallback(async (overrideRawDir?: FileSystemDirectoryHandle) => {
