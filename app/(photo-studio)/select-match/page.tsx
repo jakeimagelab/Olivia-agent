@@ -6,6 +6,16 @@ import {
   SELECT_MATCH_JPG_EXTENSIONS as JPG_EXTS,
   type SelectMatchFolderGroup,
 } from "@/lib/selectMatch/folderScanner";
+import {
+  parseNamesFromText,
+  parseNamesFromFiles,
+  SELECT_MATCH_RAW_EXTENSIONS as RAW_EXTS,
+} from "@/lib/selectMatch/nameParsing";
+import {
+  buildRawIndex as buildRawIndexPure,
+  copyFileHandle,
+  computePreflight,
+} from "@/lib/selectMatch/rawIndex";
 
 /* ── 색상 ── */
 const C = {
@@ -14,7 +24,6 @@ const C = {
   txt: "#1C2B28", light: "#EAF4F2", bg: "#EDF5F3", red: "#DC2626",
 };
 
-const RAW_EXTS = new Set(["arw","cr2","cr3","nef","orf","raf","rw2","dng","pef","srw","x3f","3fr","mef","mrw"]);
 const MOBILE_CONVERT_DOWNLOAD = "/assets/tools/mobile-convert/PhotoClinicMobile1500_fixed.zip";
 const PROGRAM_ARCHIVE_ITEMS = [
   {
