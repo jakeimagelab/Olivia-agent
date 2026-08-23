@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
-import { buildOliviaPageContext, getOliviaContextSnapshot } from "@/lib/store/oliviaContextStore";
+import { buildOliviaPageContext, getOliviaContextSnapshot, useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import type { OliviaMessageBlock, OliviaRunStreamPayload, OliviaStreamEvent, OliviaV2Message } from "@/lib/olivia/v2/types";
 import { chooseConversationMessages } from "@/lib/olivia/conversationTimeline";
