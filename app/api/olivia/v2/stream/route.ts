@@ -626,7 +626,7 @@ export async function POST(req: NextRequest) {
           };
         }
 
-        if (!finalText.trim()) finalText = "요청한 작업을 확인했어요.";
+        if (!finalText.trim()) finalText = OLIVIA_FALLBACK_MESSAGES.emptyResponseFallback;
         await saveAssistantMessage(db, {
           ownerId: owner.id,
           conversationId: conversation.id,
