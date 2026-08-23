@@ -307,6 +307,7 @@ function toDocSummary(doc: OliviaDocumentRef) {
     typeLabel: DOCUMENT_TYPE_LABELS[doc.type],
     title: doc.title,
     clientName: doc.clientName ?? undefined,
+    projectName: doc.projectName ?? undefined,
     status: doc.status ?? undefined,
     updatedAt: doc.updatedAt ?? undefined,
   };
