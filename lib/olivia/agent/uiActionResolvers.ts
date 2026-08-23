@@ -148,6 +148,26 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
           projectName: context.activeProjectName,
         }];
   },
+  open_document: async ({ result, context }) => {
+    if (!result.success) return [];
+    const workspace = value(result.data, "workspace") as "quote" | "contract" | "conti" | undefined;
+    const resourceId = value(result.data, "resourceId");
+    if (workspace && resourceId) {
+      return [context.activeWorkspace
+        ? { type: "SWITCH_WORKSPACE", workspace, resourceId }
+        : {
+            type: "OPEN_WORKSPACE",
+            workspace,
+            resourceId,
+            clientId: value(result.data, "clientId") || context.activeClientId,
+            workflowRunId: value(result.data, "workflowRunId") || context.activeProjectId,
+            clientName: value(result.data, "hospitalName") || context.activeClientName,
+            projectName: context.activeProjectName,
+          }];
+    }
+    const href = value(result.data, "href");
+    return href ? [{ type: "OPEN_FEATURE", href }] : [];
+  },
 };
 
 function mutationActions(resource: "quote" | "conti", result: OliviaToolResult, entityType?: string): OliviaUiAction[] {
