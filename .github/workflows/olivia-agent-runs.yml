@@ -1,0 +1,16 @@
+name: Olivia agent runs worker
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call olivia-agent-runs worker
+        run: |
+          curl -sS -X POST "https://olivia.photoclinic.kr/api/cron/olivia-agent-runs" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail-with-body
