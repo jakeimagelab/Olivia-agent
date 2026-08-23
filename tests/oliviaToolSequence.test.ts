@@ -156,7 +156,7 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
   });
 
   it("콘티 컷 추가는 같은 result JSON을 저장한 뒤 refresh한다", async () => {
-    const execution = await executeAgentTool({ id: "conti-add", name: "add_conti_shots", arguments: JSON.stringify({ count: "두 개", shotType: "상담", description: null }) }, {
+    const execution = await executeAgentTool({ id: "conti-add", name: "add_conti_shots", arguments: JSON.stringify({ items: [{ category: "상담", keyword: null, personnel: null, location: null, description: null, notes: null }, { category: "상담", keyword: null, personnel: null, location: null, description: null, notes: null }], insertAfter: null }) }, {
       ...context, activeWorkspace: "conti", activeResourceId: contiRow.id,
     });
     expect(executionLog).toContain("db:update:conti_saves");
