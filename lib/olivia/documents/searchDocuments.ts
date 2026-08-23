@@ -135,17 +135,17 @@ async function fetchMemos(db: SupabaseClient, clientId?: string, resolvedClientN
   }));
 }
 
-async function fetchGalleries(db: SupabaseClient, clientId?: string, projectId?: string | null): Promise<OliviaDocumentRef[]> {
+async function fetchGalleries(db: SupabaseClient, clientId?: string, projectId?: string | null, clientNameFilter?: string | null): Promise<OliviaDocumentRef[]> {
   const [photoRes, selectRes] = await Promise.all([
     (() => {
       let q = db.from("photo_galleries").select("id, hospital_name, client_id, workflow_run_id, gallery_type, created_at").order("created_at", { ascending: false }).limit(CANDIDATE_LIMIT);
-      if (clientId) q = q.eq("client_id", clientId);
+      q = applyClientFilter(q, clientId, clientNameFilter);
       if (projectId) q = q.eq("workflow_run_id", projectId);
       return q;
     })(),
     (() => {
       let q = db.from("select_galleries").select("id, title, hospital_name, client_id, workflow_run_id, created_at").order("created_at", { ascending: false }).limit(CANDIDATE_LIMIT);
-      if (clientId) q = q.eq("client_id", clientId);
+      q = applyClientFilter(q, clientId, clientNameFilter);
       if (projectId) q = q.eq("workflow_run_id", projectId);
       return q;
     })(),
