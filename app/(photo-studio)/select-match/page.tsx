@@ -493,7 +493,10 @@ export default function SelectMatchPage() {
     let rawIndex = rawIndexRef.map;
     if (rawIndex.size === 0) {
       addLog("📂 RAW 탐색 중...");
-      rawIndex = await buildRawIndex();
+      let lastLoggedCount = 0;
+      rawIndex = await buildRawIndex(undefined, (count) => {
+        if (count - lastLoggedCount >= 500) { lastLoggedCount = count; addLog(`   ...${count.toLocaleString()}개 확인 중`); }
+      });
       rawIndexRef.map.clear();
       for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
     }
