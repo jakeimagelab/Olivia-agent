@@ -1287,6 +1287,31 @@ ${contiSummary}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModal, modalClientId, resourceId]);
 
+  // 페이지 모드(예: /conti에서 "이전 콘티 불러오기")는 위 모달 전용 effect가 아예 안 돌아서
+  // olivia-resource-refresh를 아무도 안 듣고 있었다 — 채팅으로 지금 보고 있는 콘티를 수정해도
+  // "반영했다"는 답만 오고 화면은 그대로였던 버그. savedContiId가 있을 때(콘티를 한 번이라도
+  // 불러온 뒤)만 듣고, 같은 레코드가 바뀌었을 때 새로고침 없이 그 자리에서 다시 불러온다.
+  useEffect(() => {
+    if (isModal || !savedContiId) return;
+    const onRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
+      if (detail?.resource && detail.resource !== "conti") return;
+      if (detail?.resourceId && detail.resourceId !== savedContiId) return;
+      fetch(`/api/conti/saves/${savedContiId}`)
+        .then((r) => r.json())
+        .then((json) => {
+          if (!json.ok) return;
+          const entry = json.data;
+          setResult(entry.result);
+          setResultTitle(entry.title || entry.hospital_name);
+          setForm((prev) => ({ ...prev, hospitalName: entry.hospital_name, specialties: entry.specialties || prev.specialties }));
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("olivia-resource-refresh", onRefresh);
+    return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
+  }, [isModal, savedContiId]);
+
   useEffect(() => {
     if (!result) return;
 
