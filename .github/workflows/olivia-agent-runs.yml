@@ -10,7 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Call olivia-agent-runs worker
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET repository secret is not set yet — skipping without failing (Settings > Secrets and variables > Actions)."
+            exit 0
+          fi
           curl -sS -X POST "https://olivia.photoclinic.kr/api/cron/olivia-agent-runs" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
             --fail-with-body
