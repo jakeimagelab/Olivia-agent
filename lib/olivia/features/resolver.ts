@@ -35,6 +35,11 @@ function stripFillers(normalized: string): string {
   return result || normalized;
 }
 
+// 최소 길이 미만인 후보 텍스트는 substring 매칭 대상에서 뺀다 — "홈"(1글자) 같은 별칭이 전혀
+// 무관한 문장 아무 데나 우연히 걸려서 오탐(false positive)을 내는 걸 막는다(기존 코드에 있던
+// 안전장치, 재작성하면서도 반드시 유지).
+const MIN_CANDIDATE_LENGTH_FOR_SUBSTRING = 2;
+
 function candidateTexts(tool: ToolDef): string[] {
   return [tool.title, tool.meta, ...(tool.aliases ?? [])];
 }
