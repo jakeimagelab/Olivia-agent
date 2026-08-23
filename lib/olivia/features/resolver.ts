@@ -62,25 +62,35 @@ function bigramSimilarity(a: string, b: string): number {
   return (2 * overlap) / (bigramsA.size + bigramsB.size);
 }
 
-// 별칭/제목 토큰이 질의에 얼마나 겹치는지(부분 문자열 커버리지)로 점수를 매긴다.
-function scoreCandidate(tool: ToolDef, normalizedQuery: string): number {
+// 별칭/제목 텍스트 하나와 질의 하나를 비교해 점수를 매긴다. 후보 텍스트가 너무 짧으면(1글자)
+// substring 검사에서 제외해 오탐을 막는다.
+function scoreAgainst(text: string, normalizedQuery: string): number {
+  if (!text || !normalizedQuery) return 0;
+  if (text === normalizedQuery) return EXACT_CONFIDENCE;
+  if (
+    text.length >= MIN_CANDIDATE_LENGTH_FOR_SUBSTRING
+    && normalizedQuery.length >= MIN_CANDIDATE_LENGTH_FOR_SUBSTRING
+    && (normalizedQuery.includes(text) || text.includes(normalizedQuery))
+  ) {
+    const coverage = Math.min(text.length, normalizedQuery.length) / Math.max(text.length, normalizedQuery.length);
+    return 0.55 + coverage * 0.25; // 0.55~0.80
+  }
+  const sim = bigramSimilarity(text, normalizedQuery);
+  if (sim > 0.5) return 0.35 + sim * 0.3; // 0.35~0.65
+  return 0;
+}
+
+// 별칭/제목 토큰이 질의에 얼마나 겹치는지로 점수를 매긴다. 필러어를 제거한 질의와 제거하지
+// 않은 원본 질의 둘 다에 대해 채점해 더 높은 쪽을 쓴다 — "대본 화면"처럼 필러어 목록에 있는
+// 단어("화면")가 동시에 실제 등록된 별칭의 일부이기도 한 경우, 무작정 제거하면 완전 일치가
+// 깨지는 문제를 막기 위함(의미 파괴 방지).
+function scoreCandidate(tool: ToolDef, normalizedQuery: string, strippedQuery: string): number {
   const texts = candidateTexts(tool).map(normalize).filter(Boolean);
   let best = 0;
-
   for (const text of texts) {
-    if (text === normalizedQuery) {
-      best = Math.max(best, EXACT_CONFIDENCE);
-      continue;
-    }
-    if (normalizedQuery.includes(text) || text.includes(normalizedQuery)) {
-      const coverage = Math.min(text.length, normalizedQuery.length) / Math.max(text.length, normalizedQuery.length);
-      best = Math.max(best, 0.55 + coverage * 0.25); // 0.55~0.80
-      continue;
-    }
-    const sim = bigramSimilarity(text, normalizedQuery);
-    if (sim > 0.5) best = Math.max(best, 0.35 + sim * 0.3); // 0.35~0.65
+    best = Math.max(best, scoreAgainst(text, normalizedQuery));
+    if (strippedQuery !== normalizedQuery) best = Math.max(best, scoreAgainst(text, strippedQuery));
   }
-
   return Math.min(best, EXACT_CONFIDENCE);
 }
 
