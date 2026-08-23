@@ -43,6 +43,10 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
         {linked ? <a className="oa-context-banner__action" href="/admin/dashboard/home">홈으로 돌아가기</a> : <a className="oa-context-banner__action" href="/clients">고객 선택해서 연결하기</a>}
       </section>
 
+      <CategorySection eyebrow="DOCUMENT HUB" title="통합 문서함" description="저장된 견적·계약·콘티·메모·갤러리를 고객명이나 문서명으로 한 번에 찾습니다.">
+        <DocumentSearchPanel />
+      </CategorySection>
+
       {filteredTools.length ? (
         <ToolCategoryTabs groups={groups} totalCount={filteredTools.length}>
           {/* 카드는 여기(서버 컴포넌트)에서 아이콘까지 다 렌더링해서 완성된 JSX로 넘긴다 —
