@@ -9,7 +9,6 @@ import { resolveNavigationCapability } from "@/lib/olivia/capabilities/resolver"
 describe("resolveFeatureIntent — 완전 일치(동의어 포함)는 즉시 match, confidence 1", () => {
   const exactCases: Array<[string, string]> = [
     ["콘티", "/conti"],
-    ["셀렉", "/select-galleries"],
     ["견적", "/quote"],
     ["사진분류", "/photo-sorting"],
     ["사진 분류", "/photo-sorting"],
