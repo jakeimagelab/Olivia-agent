@@ -574,7 +574,7 @@ export async function POST(req: NextRequest) {
           for (const toolCall of response.toolCalls) {
             const signature = `${toolCall.name}:${toolCall.arguments}`;
             if (executedToolCalls.has(signature)) {
-              outputs.push({ type: "function_call_output", call_id: toolCall.id, output: JSON.stringify({ success: false, message: "동일한 도구 호출이 반복되어 중단했습니다." }) });
+              outputs.push({ type: "function_call_output", call_id: toolCall.id, output: JSON.stringify({ success: false, message: OLIVIA_FALLBACK_MESSAGES.duplicateToolCall }) });
               continue;
             }
             executedToolCalls.add(signature);
