@@ -460,6 +460,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const [pdfImportMessage, setPdfImportMessage] = useState("");
   const [manualPdfQuote, setManualPdfQuote] = useState<ImportedPdfQuote | null>(null);
   const [recentQuoteMessage, setRecentQuoteMessage] = useState("");
+  // 페이지 모드(/photoclinic)에서 "불러오기"로 연 견적서의 id — 채팅이 지금 이 견적서를
+  // 찾아 수정할 수 있게(activeResourceId) 하고, 수정 후 실시간 반영에도 쓴다.
+  const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);
   const [basePreviewScale, setBasePreviewScale] = useState(0.48);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(false);
