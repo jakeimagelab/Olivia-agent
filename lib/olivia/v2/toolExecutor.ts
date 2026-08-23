@@ -747,12 +747,21 @@ export async function runTool(
     const resourceId = activeResource(context, "conti");
     const conti = await loadConti(resourceId);
     if (name === "add_conti_shots") {
-      const count = parseKoreanCount(input.count as string | number);
-      if (!count) throw new Error("추가할 컷 수를 확인해주세요.");
+      const rawItems = Array.isArray(input.items) ? input.items as Record<string, unknown>[] : [];
+      if (!rawItems.length) throw new Error("추가할 항목을 확인해주세요.");
+      const items = rawItems.map((item) => ({
+        category: text(item, "category"),
+        keyword: text(item, "keyword") || undefined,
+        personnel: text(item, "personnel") || undefined,
+        location: text(item, "location") || undefined,
+        description: text(item, "description") || undefined,
+        notes: text(item, "notes") || undefined,
+      }));
       const selected = context.selectedEntityType === "conti-shot" ? resolveContiShot(conti.result, { shotId: context.selectedEntityId })[0] : undefined;
-      const mutation = addContiShots(conti.result, { count, shotType: text(input, "shotType"), description: text(input, "description") || undefined, insertAfter: selected?.index });
+      const insertAfterInput = input.insertAfter == null ? undefined : parseKoreanCount(input.insertAfter as string | number) ?? undefined;
+      const mutation = addContiShots(conti.result, { items, insertAfter: insertAfterInput ?? selected?.index });
       const updatedResource = await saveConti(resourceId, mutation.result);
-      return { tool: name, success: true, data: { resourceId, contiId: resourceId, changedEntityId: mutation.created[0]?.id, updatedResource, summary: `${text(input, "shotType")}컷 ${count}개를 추가했어요.` } };
+      return { tool: name, success: true, data: { resourceId, contiId: resourceId, changedEntityId: mutation.created[0]?.id, updatedResource, summary: `${items.length}개 항목을 추가했어요.` } };
     }
     if (name === "estimate_conti_duration") {
       const estimate = estimateContiDuration(conti.result);
