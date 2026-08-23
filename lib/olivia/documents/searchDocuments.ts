@@ -256,5 +256,19 @@ export async function searchDocuments(input: SearchDocumentsInput): Promise<Oliv
       return bt - at;
     });
 
-  return scored.slice(0, limit).map((entry) => entry.doc);
+  const top = scored.slice(0, limit).map((entry) => entry.doc);
+  await attachProjectNames(db, top);
+  return top;
+}
+
+// 문서함 표에 "프로젝트" 컬럼을 보여주려고 workflow_runs.project_name을 붙인다 — 최종 결과(limit
+// 적용 후)에만 한 번 배치 조회한다(검색 도중 매 후보마다 조회하지 않음).
+async function attachProjectNames(db: SupabaseClient, docs: OliviaDocumentRef[]) {
+  const projectIds = [...new Set(docs.map((doc) => doc.projectId).filter((id): id is string => Boolean(id)))];
+  if (!projectIds.length) return;
+  const { data } = await db.from("workflow_runs").select("id, project_name").in("id", projectIds);
+  const names = new Map((data || []).map((row: Row) => [row.id, row.project_name]));
+  for (const doc of docs) {
+    if (doc.projectId && names.has(doc.projectId)) doc.projectName = names.get(doc.projectId) || undefined;
+  }
 }
