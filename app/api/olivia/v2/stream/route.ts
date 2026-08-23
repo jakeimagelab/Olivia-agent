@@ -160,6 +160,9 @@ function normalizeContext(value: unknown): OliviaContextSnapshot {
     revision: typeof input.revision === "number" ? input.revision : 0,
     lastTool: optionalString(input.lastTool),
     lastIntent: optionalString(input.lastIntent),
+    currentDocumentId: optionalString(input.currentDocumentId),
+    currentDocumentType: optionalString(input.currentDocumentType),
+    currentDocumentTitle: optionalString(input.currentDocumentTitle),
   };
 }
 
