@@ -69,14 +69,18 @@ describe("resolveFeatureIntent — 완전히 못 찾아도 dead-end로 끝내지
   });
 });
 
-describe("resolveFeatureIntent — 두 후보가 동시에 완전 일치하면 임의로 고르지 않고 ambiguous", () => {
-  it("서로 다른 두 기능이 정확히 같은 별칭을 쓰면 ambiguous", () => {
-    // 실제 등록 데이터엔 완전 중복 별칭이 없어야 하지만, 회귀 방지 차원에서 알고리즘 자체를
-    // 점검한다 — 동점(diff < 0.1, top>=0.5)이면 kind가 반드시 ambiguous여야 한다.
+describe("resolveFeatureIntent — 애매하게 걸치는 후보는 임의로 고르지 않고 ambiguous", () => {
+  it("\"셀렉\"만 단독으로 말하면 셀렉 갤러리/셀렉 & 매칭 둘 다 후보로 걸려 ambiguous", () => {
+    // "셀렉" 자체는 어느 기능의 완전 일치 별칭도 아니다 — 여러 기능의 별칭에 부분 문자열로
+    // 걸쳐 점수가 근접하게 나오는 게 실제로 맞는 동작이다(사용자 스펙 8/9절 "애매하면 후보를
+    // 보여주고 되묻는다").
     const result = resolveFeatureIntent("셀렉");
-    // "셀렉"은 "셀렉 갤러리"의 별칭이자 "셀렉 & 매칭"의 keyword 성격 별칭 후보이기도 하다 —
-    // 정확히 같은 문자열로 등록된 alias가 하나뿐이면 match, 여럿이면 ambiguous여야 한다.
-    expect(["match", "ambiguous"]).toContain(result.kind);
+    expect(result.kind).toBe("ambiguous");
+    if (result.kind === "ambiguous") {
+      const hrefs = result.candidates.map((tool) => tool.href);
+      expect(hrefs).toContain("/select-match");
+      expect(hrefs).toContain("/select-galleries");
+    }
   });
 });
 
