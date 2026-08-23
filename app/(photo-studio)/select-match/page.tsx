@@ -112,14 +112,6 @@ async function readPhotoRating(
   } catch { return null; }
 }
 
-async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
-  const file = await src.getFile();
-  const buf = await file.arrayBuffer();
-  const fh = await (dest as any).getFileHandle(name, { create: true });
-  const wr = await fh.createWritable();
-  await wr.write(buf); await wr.close();
-}
-
 // 영상 파일처럼 큰 파일도 다룰 수 있도록 스트리밍으로 복사 (파일명으로 찾아 이동 기능 전용)
 async function copyFileStreamed(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
   const file = await src.getFile();
