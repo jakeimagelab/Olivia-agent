@@ -45,9 +45,11 @@ export type OliviaConversationState = {
 };
 
 let activeController: AbortController | null = null;
-let flushTimer: ReturnType<typeof setTimeout> | null = null;
-let bufferedDelta = "";
-let bufferedMessageId = "";
+// messageId별로 버퍼를 분리한다 — 예전에는 모듈 전역 단일 변수(bufferedDelta/bufferedMessageId)
+// 하나를 모든 요청이 같이 썼는데, 이러면 두 요청이 겹칠 때 한쪽 delta가 다른 메시지로 새어
+// 들어갈 여지가 이론상 있었다(현재는 isSending 가드가 사실상 막아주지만, 관례가 아니라
+// 구조적으로 안전하게 만든다).
+const pendingDeltas = new Map<string, { delta: string; timer: ReturnType<typeof setTimeout> | null }>();
 let hydrationPromise: Promise<void> | null = null;
 let cacheTimer: ReturnType<typeof setTimeout> | null = null;
 
