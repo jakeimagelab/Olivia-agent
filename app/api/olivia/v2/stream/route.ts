@@ -154,6 +154,8 @@ function normalizeContext(value: unknown): OliviaContextSnapshot {
     recentEntities,
     aliases,
     revision: typeof input.revision === "number" ? input.revision : 0,
+    lastTool: optionalString(input.lastTool),
+    lastIntent: optionalString(input.lastIntent),
   };
 }
 
