@@ -290,9 +290,11 @@ async function streamOpenAIResponse(input: {
     if (current.type === "response.created") {
       responseId = current.response.id;
     } else if (current.type === "response.output_text.delta") {
+      // 이상 문자(아랍어/히브리어/키릴 등) 검사를 라운드 텍스트가 완성된 뒤 한 번에 하기 위해
+      // 여기서는 클라이언트로 바로 흘려보내지 않고 누적만 한다 — 실제 전송은 아래 라운드 루프의
+      // flushTextAsDeltas()가 검사를 통과한 뒤에 synthetic delta로 대신한다.
       input.onFirstToken?.();
       text += current.delta;
-      input.send({ type: "text_delta", messageId: input.messageId, delta: current.delta });
     } else if (current.type === "response.output_item.done" && current.item.type === "function_call") {
       toolCalls.push({
         id: current.item.call_id,
