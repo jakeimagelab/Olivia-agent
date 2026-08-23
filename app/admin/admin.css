@@ -208,6 +208,27 @@
 .oa-tool-tabs__grid[data-active-tab="tools"] [data-tool-category]:not([data-tool-category="tools"]) {
   display: none;
 }
+/* 통합 문서함 검색(전체보기 화면) — 기존 oa-tool-tabs/oa-table-* 스타일을 그대로 재사용하고,
+   문서 표만 6컬럼 그리드로 확장한다. 새 색/폰트 도입 없이 기존 팔레트만 쓴다. */
+.oa-document-search { margin-top: 22px; }
+.oa-document-search__bar { margin-bottom: 14px; }
+.oa-document-search__input {
+  width: 100%;
+  border: 1px solid #e3e8ec;
+  border-radius: 14px;
+  padding: 13px 16px;
+  background: #fff;
+  color: #4c5357;
+  font: inherit;
+  font-size: 13px;
+}
+.oa-document-search__input:focus { outline: none; border-color: #cce9da; box-shadow: 0 0 0 3px rgba(21,88,85,.08); }
+.oa-document-table { border: 1px solid #edf0f2; border-radius: 16px; overflow: hidden; }
+.oa-category-section__content:has(.oa-document-table) { overflow-x: auto; }
+.oa-document-table__row { grid-template-columns: 1.6fr 1fr 1.1fr .7fr .8fr .9fr; min-width: 720px; }
+.oa-document-table .oa-table-head { border-radius: 0; }
+.oa-document-table a.oa-table-row { text-decoration: none; cursor: pointer; }
+.oa-document-table a.oa-table-row:hover { background: #f8fafb; }
 .oa-status-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; border-radius: 99px; padding: 0 9px; font-size: 9px; font-weight: 600; white-space: nowrap; }
 .oa-status-badge--blue { color: #155855; background: #eaf4f2; }
 .oa-status-badge--orange { color: #eb8f22; background: #fff3e0; }
