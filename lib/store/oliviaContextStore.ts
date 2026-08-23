@@ -216,6 +216,9 @@ export function getOliviaContextSnapshot(pathname?: string) {
     revision: state.revision,
     lastTool: state.lastTool,
     lastIntent: state.lastIntent,
+    currentDocumentId: state.currentDocumentId,
+    currentDocumentType: state.currentDocumentType,
+    currentDocumentTitle: state.currentDocumentTitle,
   };
 }
 
