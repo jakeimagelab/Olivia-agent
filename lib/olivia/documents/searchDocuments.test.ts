@@ -57,10 +57,10 @@ vi.mock("@/lib/supabase", () => ({
 const { searchDocuments } = await import("./searchDocuments");
 
 describe("searchDocuments", () => {
-  it("맵퍼가 견적 row를 올바른 OliviaDocumentRef로 변환한다(빈 title은 병원명+번호로 대체)", async () => {
+  it("맵퍼가 견적 row를 올바른 OliviaDocumentRef로 변환하고 프로젝트명을 붙인다(빈 title은 병원명+번호로 대체)", async () => {
     const docs = await searchDocuments({ clientName: "히어산부인과", types: ["quote"] });
     expect(docs).toHaveLength(1);
-    expect(docs[0]).toMatchObject({ type: "quote", sourceType: "quotes", sourceId: "q1", title: "히어산부인과 견적서 (PC-1)", clientId: "client-1" });
+    expect(docs[0]).toMatchObject({ type: "quote", sourceType: "quotes", sourceId: "q1", title: "히어산부인과 견적서 (PC-1)", clientId: "client-1", projectName: "히어 홈페이지 리뉴얼" });
   });
 
   it("고객명으로 스코프를 좁히면 다른 고객의 문서는 나오지 않는다", async () => {
