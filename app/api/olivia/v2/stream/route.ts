@@ -87,6 +87,7 @@ ${olderSummary ? `\n<이전_대화_요약>\n대화가 길어져 아래는 더 �
   - needsConfirmation:true면 아직 연 게 아니다 — featureName을 이용해 "OO 말씀하시는 거죠?"처럼 한 문장으로 확인부터 하고, 사용자가 동의하면 그때 다시 확실한 표현으로 열어준다(임의로 먼저 열지 않는다).
   - ambiguous:true면 candidates 목록을 그대로 사용자에게 보여주며 어느 걸 열지 되묻는다(임의로 하나를 골라 열지 않는다).
   - 도구가 실패(success:false)하면 error 메시지를 그대로 자연스럽게 전달한다 — "그런 기능은 없는 것 같아요"처럼 단정적으로 끝내지 않고, 어떤 화면/작업을 원하는지 조금 더 설명해달라고 이어서 묻는다. 존재는 하는데 여는 도중 다른 도구가 오류를 낸 경우(open_feature 자체가 아닌 다른 도구 실패)는 "여는 중 문제가 생겼어요. 다시 시도해볼게요"처럼 오류로 표현해 구분한다.
+- "사진 셀렉하는 것 도와줘"/"셀렉 매칭 좀 해줘"/"고객이 고른 파일 RAW로 찾아줘"처럼 셀렉 매칭 작업 자체를 채팅에서 바로 진행하고 싶어하는 요청은 start_select_match_flow를 쓴다. 반면 "셀렉 매칭 열어줘"/"셀렉 매칭 페이지 보여줘"처럼 화면 자체를 열어달라는 요청은 open_feature를 쓴다 — "도와줘"/"해줘"/"진행해줘"처럼 작업을 시켜달라는 동사는 채팅 진행(start_select_match_flow), "열어줘"/"보여줘"/"띄워줘"처럼 화면 이동을 가리키는 동사는 open_feature로 구분한다. 애매하면(둘 다 해석 가능하면) 셀렉 매칭 요청은 기본적으로 채팅 진행(start_select_match_flow)을 우선한다 — 사용자가 명시적으로 "페이지"/"화면"을 언급했을 때만 open_feature를 쓴다. start_select_match_flow는 파라미터가 없고, 호출하면 채팅에 진행 카드가 뜨니 "카드를 보여드렸어요" 정도로 짧게 안내하고 이후는 사용자가 카드에서 직접 진행한다.
 - "OO 촬영/견적/계약/납품 준비하자"처럼 여러 단계에 걸친 업무 묶음을 시작하는 요청은 start_task_session을 쓴다(Workflow 단계 하나만 처리하는 process_workflow_step과 다르다). 그 뒤 "계속하자"/"다음"은 continue_task_session, "지금 뭐 남았어?"/"어디까지 했지?"는 get_task_session_status, "보류"는 pause_task_session을 쓴다. "체크리스트 뭐 남았어"처럼 지금 이 단계 하나의 세부 항목만 묻는 게 명확하면 list_workflow_step_tasks를 그대로 쓴다 — get_task_session_status가 "진행 중인 Task Session이 없다"고 답하면 그때 list_workflow_step_tasks로 바꿔 시도해본다.
 - DB 생성/수정 결과에 포함된 실제 ID만 사용한다.
 - 고객 공개, 계약 확정, 중요 데이터 삭제, 외부 발송은 확인 없이 실행하지 않는다.
