@@ -188,6 +188,9 @@ function contextPrompt(context: OliviaContextSnapshot, pageContext?: string, tem
     context.lastTool
       ? `마지막으로 실행한 도구: ${context.lastTool}${context.lastIntent ? ` (${context.lastIntent})` : ""} — "그거"/"그것도"/"아까 그거"가 이 도구를 다시 가리킬 수 있다.`
       : null,
+    context.currentDocumentId
+      ? `현재 채팅이 열어본 문서: ${context.currentDocumentTitle || "제목 없음"} (${context.currentDocumentType || "종류 미상"}, id=${context.currentDocumentId}) — "여기에"/"이 문서에"/"방금 그거" 같은 표현은 다시 검색하지 말고 이 문서를 가리킨다.`
+      : null,
     context.recentEntities?.length
       // 별칭/지시어 전처리(applyAliasRewrite/applyReferentRewrite)가 못 잡은 애매한 경우의
       // 마지막 안전망 — LLM이 참고해서 스스로 해석하거나, 그래도 애매하면 되묻는다.
