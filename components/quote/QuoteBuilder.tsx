@@ -2709,15 +2709,6 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             : quotePreviewShellNode}
         </aside>
       </section>
-      {isModal ? null : (
-        <OliviaChat
-          pageContext="견적서 작성 페이지"
-          contextData={{
-            [cfg.entityLabel]: customer.hospitalName || "미입력",
-            담당자: customer.managerName || "미입력",
-          }}
-        />
-      )}
     </main>
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
