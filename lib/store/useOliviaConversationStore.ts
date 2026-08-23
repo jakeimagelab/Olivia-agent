@@ -338,6 +338,10 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           if (WORKSPACE_OPENING_TOOLS.has(event.tool)) set({ pendingWorkspaceOpen: true });
         } else if (event.type === "tool_result") {
           notifyAgentCenter();
+          // "그거 다시 해줘"/"그것도" 같은 팔로우업이 방금 실행된 도구를 가리킬 수 있게, 성공한
+          // 도구 호출마다 마지막 도구를 기록한다(open_feature처럼 순수 조회성 도구는 다음 요청의
+          // 참조 대상으로 삼기엔 약하지만, 실패보다 기록해두는 쪽이 더 유용해서 성공 시 전부 기록).
+          if (event.success) useOliviaContextStore.getState().setLastToolIntent(event.tool);
           if (event.success && (event.tool === "start_task_session" || event.tool === "continue_task_session")) {
             const sessionId = (event.result as { sessionId?: string } | undefined)?.sessionId;
             if (sessionId) set({ activeTaskSessionId: sessionId });
