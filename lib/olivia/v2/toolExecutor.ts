@@ -1054,6 +1054,72 @@ export async function runTool(
     return { tool: name, success: false, error: OLIVIA_FALLBACK_MESSAGES.featureNotFoundSoft(query) };
   }
 
+  if (name === "search_documents" || name === "get_recent_documents") {
+    const query = name === "search_documents" ? text(input, "query") : "";
+    const clientName = text(input, "clientName") || undefined;
+    const documentType = normalizeDocumentTypeHint(input.documentType);
+    const limitInput = input.limit == null ? undefined : parseKoreanCount(input.limit as string | number);
+    const docs = await searchDocuments({
+      query,
+      clientName,
+      types: documentType ? [documentType] : undefined,
+      limit: limitInput || 8,
+      currentClientId: context.activeClientId,
+      currentProjectId: context.activeProjectId,
+    });
+    if (name === "get_recent_documents") {
+      return { tool: name, success: true, data: { documents: docs.map(toDocSummary) } };
+    }
+    if (!docs.length) {
+      const scopeLabel = [clientName, documentType ? DOCUMENT_TYPE_LABELS[documentType] : undefined].filter(Boolean).join(" ");
+      return { tool: name, success: false, error: `${scopeLabel ? `${scopeLabel} ` : ""}문서를 찾지 못했어요. 고객명이나 문서 종류를 조금만 더 알려주세요.` };
+    }
+    return {
+      tool: name,
+      success: true,
+      data: { matched: docs.length === 1, ambiguous: docs.length > 1, documents: docs.map(toDocSummary) },
+    };
+  }
+
+  if (name === "open_document") {
+    const documentId = text(input, "documentId");
+    const sep = documentId.indexOf(":");
+    const sourceType = sep >= 0 ? documentId.slice(0, sep) : documentId;
+    const sourceId = sep >= 0 ? documentId.slice(sep + 1) : "";
+    if (!sourceId) throw new Error("어떤 문서인지 확인하지 못했어요.");
+
+    if (sourceType === "quote" || sourceType === "contract" || sourceType === "conti") {
+      const table = sourceType === "quote" ? "quotes" : sourceType === "contract" ? "contracts" : "conti_saves";
+      const { data: row } = await db.from(table).select("id, hospital_name, client_id, workflow_run_id").eq("id", sourceId).maybeSingle();
+      if (!row) throw new Error("문서를 찾지 못했어요.");
+      const typeLabel = DOCUMENT_TYPE_LABELS[sourceType === "conti" ? "storyboard" : sourceType];
+      return {
+        tool: name,
+        success: true,
+        data: {
+          workspace: sourceType,
+          resourceId: String(row.id),
+          clientId: row.client_id || undefined,
+          workflowRunId: row.workflow_run_id || undefined,
+          hospitalName: row.hospital_name || undefined,
+          summary: `${row.hospital_name || "고객"} ${typeLabel}을 열었어요.`,
+        },
+      };
+    }
+    if (sourceType === "select_gallery") {
+      return { tool: name, success: true, data: { href: `/select-galleries/${sourceId}`, summary: "셀렉 갤러리를 열었어요." } };
+    }
+    if (sourceType === "memo" || sourceType === "photo_gallery") {
+      const table = sourceType === "memo" ? "consultation_memos" : "photo_galleries";
+      const clientColumn = sourceType === "memo" ? "hospital_id" : "client_id";
+      const { data: row } = await db.from(table).select(`id, ${clientColumn}`).eq("id", sourceId).maybeSingle();
+      const clientId = row?.[clientColumn];
+      if (!clientId) throw new Error("문서를 찾지 못했어요.");
+      return { tool: name, success: true, data: { href: `/clients?clientId=${clientId}`, summary: "관련 고객 화면을 열었어요." } };
+    }
+    throw new Error("지원하지 않는 문서 종류예요.");
+  }
+
   throw new Error("지원하지 않는 Olivia 작업이에요.");
 }
 
