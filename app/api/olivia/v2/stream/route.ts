@@ -648,7 +648,7 @@ export async function POST(req: NextRequest) {
           console.error("[olivia-v2] stream failed", error);
           send({
             type: "error",
-            message: "Olivia 응답을 불러오지 못했어요. 다시 시도해주세요.",
+            message: OLIVIA_FALLBACK_MESSAGES.streamFailure,
             retryable: true,
           });
         }
