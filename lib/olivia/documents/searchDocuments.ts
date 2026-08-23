@@ -91,9 +91,9 @@ async function fetchContracts(db: SupabaseClient, clientId?: string, projectId?:
   }));
 }
 
-async function fetchConti(db: SupabaseClient, clientId?: string, projectId?: string | null): Promise<OliviaDocumentRef[]> {
+async function fetchConti(db: SupabaseClient, clientId?: string, projectId?: string | null, clientNameFilter?: string | null): Promise<OliviaDocumentRef[]> {
   let q = db.from("conti_saves").select("id, hospital_name, title, client_id, workflow_run_id, saved_at").order("saved_at", { ascending: false }).limit(CANDIDATE_LIMIT);
-  if (clientId) q = q.eq("client_id", clientId);
+  q = applyClientFilter(q, clientId, clientNameFilter);
   if (projectId) q = q.eq("workflow_run_id", projectId);
   const { data } = await q;
   return (data || []).map((row: Row): OliviaDocumentRef => ({
