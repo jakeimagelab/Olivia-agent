@@ -38,6 +38,11 @@ export type OliviaContextState = {
   aliases: Record<string, EntityAlias>;
   revision: number;
   lastAction?: string;
+  // "그거 다시 해줘"처럼 마지막으로 실행된 도구를 참조하는 팔로우업을 풀기 위한 필드 —
+  // lastAction(자유 텍스트 UI 액션 라벨)과 달리 실제로 호출된 tool 이름/그 도구가 나타내는
+  // 의도를 담는다. tool_result 이벤트를 받는 지점(useOliviaConversationStore)에서만 채운다.
+  lastTool?: string;
+  lastIntent?: string;
 
   setClient: (id?: string, name?: string) => void;
   setProject: (id?: string, name?: string) => void;
