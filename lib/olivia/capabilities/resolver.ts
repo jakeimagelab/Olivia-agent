@@ -24,10 +24,10 @@ export function resolveNavigationCapability(message: string): NavigationCapabili
 
   // 단일 match는 완전 일치(confidence===1)일 때만 허용한다 — "견적"/"콘티"/"일정"처럼 짧은
   // 별칭이 "히어산부인과 견적 보여줘"/"오늘 일정 보여줘" 같은 실제 데이터 질문 문장 안에서
-  // 부분일치로 걸려 화면 이동으로 오판되는 사고를 막는다(2026-08-14 eval에서 재현·확인).
-  // 다만 진짜로 애매한 경우(여러 후보가 동시에 걸림)는 그대로 살려서 "관리 열어줘" 같은 요청에
-  // 되묻는 동작(43절)까지 잃지 않는다.
+  // 부분일치로 걸려 화면 이동으로 오판되는 사고를 막는다(2026-08-14 eval에서 재현·확인). 완전
+  // 일치가 아니면(ambiguous 포함) 이 결정론적 경로에서 답을 만들지 않고 항상 GPT+open_feature로
+  // 넘긴다 — 애매함 해소는 LLM 쪽 confirm/후보 제시 흐름(코드 요청서 — 자연어 기능 이해 강화,
+  // WP2)이 대화 맥락까지 참고해서 더 잘 처리한다.
   if (resolution.kind === "match" && resolution.confidence === 1) return toResolution(resolution);
-  if (resolution.kind === "ambiguous") return toResolution(resolution);
   return { kind: "none" };
 }
