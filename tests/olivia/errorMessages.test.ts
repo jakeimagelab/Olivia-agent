@@ -35,9 +35,14 @@ describe("normalizeToolError — 원본 에러가 사용자 메시지로 절대 
     expect(normalized.userMessage).toBeTruthy();
   });
 
-  it("매칭되는 패턴이 없으면 지정한 fallback을 쓴다", () => {
-    const normalized = normalizeToolError(new Error("완전히 새로운 종류의 에러"), "커스텀 폴백 메시지");
+  it("알려진 패턴도 없고 한글도 없는 정체불명 영문 에러는 지정한 fallback을 쓴다", () => {
+    const normalized = normalizeToolError(new Error("Something totally unexpected happened in a dependency"), "커스텀 폴백 메시지");
     expect(normalized.userMessage).toBe("커스텀 폴백 메시지");
+  });
+
+  it("이미 한국어로 작성된 안전한 비즈니스 메시지는 그대로 통과시킨다(WP5 회귀 — quote 도메인 미지원 안내 등)", () => {
+    const normalized = normalizeToolError(new Error(`"quote"은(는) 아직 챗에서 직접 생성·수정할 수 없는 기능이에요.`));
+    expect(normalized.userMessage).toBe(`"quote"은(는) 아직 챗에서 직접 생성·수정할 수 없는 기능이에요.`);
   });
 });
 
