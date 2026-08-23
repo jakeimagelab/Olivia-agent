@@ -251,6 +251,8 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   { type: "function", name: "memo_add", description: "[WRITE] 고객 상담 메모를 실제로 저장합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientName: { type: "string" }, content: { type: "string" } }, required: ["clientName", "content"] } },
   // ── 화면 전환 ──
   { type: "function", name: "open_feature", description: "[READ] 사용자가 앱의 특정 기능/화면을 열어달라고 요청할 때 사용합니다(예: \"프롬프터 실행해줘\", \"고객관리 열어줘\", \"콘티 보여줘\", \"일정 열어줘\"). featureQuery에 사용자가 말한 기능 이름을 그대로 넣으면 실제 존재하는 기능과 매칭해서 화면을 엽니다. \"OO병원 고객관리 페이지 열어줘\"처럼 특정 고객을 지정해서 그 고객관리 화면을 열어달라는 요청이면 hospitalName에 그 고객명을 넣는다 — 그러면 고객 목록이 아니라 그 고객이 바로 선택된 화면을 연다(현재는 고객관리 화면만 지원). 다른 도구로 처리되는 요청(예: 특정 고객의 견적서 생성처럼 데이터가 필요한 작업)에는 쓰지 않습니다 — 순수하게 '화면을 연다'는 의도일 때만 씁니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { featureQuery: { type: "string" }, hospitalName: { type: ["string", "null"] } }, required: ["featureQuery", "hospitalName"] } },
+  // ── 채팅 안에서 바로 작업 수행 (client_task 카드 파일럿) ──
+  { type: "function", name: "start_select_match_flow", description: "[WRITE] 사용자가 채팅 안에서 바로 사진 셀렉/RAW 매칭 작업을 진행하고 싶어할 때 사용합니다(예: \"사진 셀렉하는 것 도와줘\", \"셀렉 매칭 좀 해줘\", \"고객이 고른 파일 RAW로 찾아줘\"). 페이지를 열어달라는 요청(open_feature가 처리)이 아니라, 채팅에서 파일명을 받고 RAW 폴더를 골라 바로 작업을 끝내고 싶어하는 요청일 때 씁니다. 파라미터는 없습니다 — 호출하면 채팅에 진행 카드가 뜨고 이후 단계는 사용자가 카드에서 직접 진행합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: {}, required: [] } },
   // ── 범용 기능 데이터 생성/수정 (코드 요청서 3번 항목, 2026-08-15) ──
   {
     type: "function",
