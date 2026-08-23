@@ -988,6 +988,15 @@ export async function runTool(
         });
         if (client) href = `/clients?clientId=${encodeURIComponent(client.id)}`;
       }
+      // 0.85 미만(완전 일치가 아닌 애매한 매칭)은 바로 열지 않고 한 문장으로 확인부터 하도록
+      // needsConfirmation을 신호로 보낸다 — 시스템 프롬프트가 이 값을 보고 확인 질문을 한다.
+      if (resolution.confidence < 0.85) {
+        return {
+          tool: name,
+          success: true,
+          data: { matched: false, needsConfirmation: true, featureName: resolution.tool.title, href, confidence: resolution.confidence },
+        };
+      }
       return { tool: name, success: true, data: { matched: true, featureName: resolution.tool.title, href } };
     }
     if (resolution.kind === "ambiguous") {
@@ -997,7 +1006,15 @@ export async function runTool(
         data: { matched: false, ambiguous: true, candidates: resolution.candidates.map((candidate) => candidate.title) },
       };
     }
-    return { tool: name, success: false, error: `"${query}"에 해당하는 기능을 찾지 못했어요. 앱에 존재하지 않는 기능이거나 다른 이름으로 불리고 있을 수 있어요.` };
+    // kind === "none" — 완전히 못 찾았어도 근접 후보가 있으면 dead-end 대신 후보를 보여준다.
+    if (resolution.candidates?.length) {
+      return {
+        tool: name,
+        success: true,
+        data: { matched: false, ambiguous: true, candidates: resolution.candidates.map((candidate) => candidate.title) },
+      };
+    }
+    return { tool: name, success: false, error: OLIVIA_FALLBACK_MESSAGES.featureNotFoundSoft(query) };
   }
 
   throw new Error("지원하지 않는 Olivia 작업이에요.");
