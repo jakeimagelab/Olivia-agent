@@ -309,6 +309,37 @@ async function streamOpenAIResponse(input: {
   return { text, toolCalls, responseId };
 }
 
+// 진짜 토큰 단위 스트리밍 대신, 검사를 통과한 텍스트를 짧은 간격으로 흘려보내 타이핑 느낌만
+// 최대한 유지한다(완전 차단 방식 — 이상 문자가 화면에 뜨는 경우를 원천 차단하기 위해 실시간
+// 스트리밍을 포기하기로 확정, 2026-08 코드 요청서).
+async function flushTextAsDeltas(text: string, send: (event: OliviaStreamEvent) => void, messageId: string) {
+  if (!text) return;
+  const CHUNK_SIZE = 6;
+  for (let i = 0; i < text.length; i += CHUNK_SIZE) {
+    send({ type: "text_delta", messageId, delta: text.slice(i, i + CHUNK_SIZE) });
+    await new Promise((resolve) => setTimeout(resolve, 12));
+  }
+}
+
+// 한 라운드의 응답 텍스트에 이상 문자가 섞여 있으면 클라이언트에 절대 보여주지 않는다 — 같은
+// 요청을 1회만 재생성해보고, 그래도 안 되면 안전한 fallback 문구로 대체한다(재시도 반복은
+// 비용/지연 때문에 하지 않는다). 원문은 서버 로그에만 남긴다.
+async function runRoundWithSanitization(
+  params: Parameters<typeof streamOpenAIResponse>[0],
+): Promise<ReturnType<typeof streamOpenAIResponse> extends Promise<infer T> ? T : never> {
+  let response = await streamOpenAIResponse(params);
+  if (response.text && !detectAbnormalScript(response.text).clean) {
+    const anomaly = detectAbnormalScript(response.text);
+    console.error("[olivia-v2] abnormal script detected, regenerating once", { offendingRanges: anomaly.offendingRanges, raw: response.text });
+    response = await streamOpenAIResponse(params);
+    if (response.text && !detectAbnormalScript(response.text).clean) {
+      console.error("[olivia-v2] abnormal script persisted after retry, using fallback", { raw: response.text });
+      response = { ...response, text: OLIVIA_FALLBACK_MESSAGES.sanitizationFallback };
+    }
+  }
+  return response;
+}
+
 function toolStatus(name: string) {
   if (name === "select_project") return "고객과 프로젝트를 확인하는 중…";
   if (name === "create_quote") return "견적 초안을 생성하는 중…";
