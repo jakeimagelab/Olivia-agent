@@ -20,6 +20,10 @@ const FIXTURES: Record<string, Row[]> = {
   photo_galleries: [],
   select_galleries: [],
   mailing_queue: [],
+  workflow_runs: [
+    { id: "proj-1", project_name: "히어 홈페이지 리뉴얼" },
+    { id: "proj-2", project_name: "라셀 브랜드 캠페인" },
+  ],
 };
 
 function applyEq(rows: Row[], col: string, val: unknown) {
@@ -39,6 +43,7 @@ function makeQuery(initialRows: Row[]) {
     limit: (n: number) => { rows = rows.slice(0, n); return builder; },
     eq: (col: string, val: unknown) => { rows = applyEq(rows, col, val); return builder; },
     ilike: (col: string, pattern: string) => { rows = applyIlike(rows, col, pattern); return builder; },
+    in: (col: string, vals: unknown[]) => { rows = rows.filter((row) => vals.includes(row[col])); return builder; },
     maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
     then: (onFulfilled: any, onRejected?: any) => Promise.resolve({ data: rows, error: null }).then(onFulfilled, onRejected),
   };
