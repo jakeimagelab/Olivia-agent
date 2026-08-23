@@ -371,7 +371,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
         }
       });
     } catch (error) {
-      flushPendingDelta(set);
+      flushPendingDelta(set, responseId);
       if ((error as any)?.name === "AbortError") {
         set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? { ...message, status: "stopped" } : message) }));
       } else {
