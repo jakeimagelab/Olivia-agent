@@ -428,6 +428,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
     }
   },
   cancelApproval: (approvalId) => set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "approval" && block.approvalId === approvalId ? { ...block, state: "cancelled" as const } : block) })) })),
+  setClientTaskBlockState: (flowId, blockState) => set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "client_task" && block.flowId === flowId ? { ...block, state: blockState } : block) })) })),
 
   confirmShootConfirmation: async (insightId) => {
     const mark = (state: "confirmed" | "error") => set((current) => ({
