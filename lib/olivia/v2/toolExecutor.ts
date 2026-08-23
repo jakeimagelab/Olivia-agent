@@ -48,6 +48,7 @@ import { executeOliviaChatWorkTool, OLIVIA_CHAT_WORK_TOOL_NAMES } from "@/lib/ol
 import { fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 import { analyzeChannels } from "@/lib/channelAnalysis";
 import { resolveFeatureIntent } from "@/lib/olivia/features/resolver";
+import { normalizeToolError, OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 
 // calendar.ts/workflow.ts/mailing.ts/gallery.ts, chatWorkTools.ts는 전부 레거시(Claude) 경로와
 // 공유하는 {action:"done", message, ...} 모양으로 결과를 돌려준다 — v2가 기대하는
