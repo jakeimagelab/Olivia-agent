@@ -58,7 +58,7 @@
     },
     {
       "path": "/api/cron/olivia-agent-runs",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 19 * * *"
     }
   ]
 }
