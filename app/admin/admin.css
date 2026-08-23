@@ -2102,6 +2102,21 @@
   pointer-events: auto;
   transform: translateY(0) scale(1);
 }
+/* 홈에서 채팅으로 문서(콘티/견적 등)를 열 때도 다른 페이지와 같은 "옆에 붙는 패널" 느낌으로
+   보이게 — 채팅 아래에 문서가 세로로 크게 펼쳐지던 것을, 문서 열람 중에만 가로 분할(문서 왼쪽
+   · 채팅 오른쪽)로 바꾼다. row-reverse라 DOM 순서(채팅이 먼저)는 그대로 두고 시각적 위치만
+   뒤집는다 — weights.chat/workspace(기존 세로 분할 비율, 기본 34/66)를 가로 폭 비율로 그대로
+   재사용해서 다른 값을 새로 정의하지 않는다. */
+.olivia-adaptive-stage.is-workspace,
+.olivia-adaptive-stage.is-workspace-chat-expanded { flex-direction: row-reverse; }
+.olivia-adaptive-stage.is-workspace .olivia-adaptive-stage__workspace,
+.olivia-adaptive-stage.is-workspace-chat-expanded .olivia-adaptive-stage__workspace { transform: translateX(-30px) scale(.97); }
+.olivia-adaptive-stage.is-workspace .olivia-adaptive-stage__workspace.is-visible,
+.olivia-adaptive-stage.is-workspace-chat-expanded .olivia-adaptive-stage__workspace.is-visible { transform: translateX(0) scale(1); }
+@media (max-width: 900px) {
+  .olivia-adaptive-stage.is-workspace,
+  .olivia-adaptive-stage.is-workspace-chat-expanded { flex-direction: column; }
+}
 /* 워크스페이스 스켈레톤(Phase 4) — 실제 데이터 도착 전 자리채움 */
 .olivia-workspace-skeleton__pulse {
   display: block;
