@@ -138,27 +138,34 @@ function appendTextDelta(messages: OliviaV2Message[], messageId: string, delta: 
   });
 }
 
-function scheduleDeltaFlush(set: (partial: Partial<OliviaConversationState> | ((state: OliviaConversationState) => Partial<OliviaConversationState>)) => void) {
-  if (flushTimer) return;
-  flushTimer = setTimeout(() => {
-    const delta = bufferedDelta;
-    const messageId = bufferedMessageId;
-    bufferedDelta = "";
-    bufferedMessageId = "";
-    flushTimer = null;
-    if (delta && messageId) set((state) => ({ messages: appendTextDelta(state.messages, messageId, delta) }));
+type SetFn = (partial: Partial<OliviaConversationState> | ((state: OliviaConversationState) => Partial<OliviaConversationState>)) => void;
+
+function appendPendingDelta(messageId: string, delta: string) {
+  const entry = pendingDeltas.get(messageId) ?? { delta: "", timer: null };
+  entry.delta += delta;
+  pendingDeltas.set(messageId, entry);
+}
+
+function scheduleDeltaFlush(set: SetFn, messageId: string) {
+  const entry = pendingDeltas.get(messageId);
+  if (!entry || entry.timer) return;
+  entry.timer = setTimeout(() => {
+    const current = pendingDeltas.get(messageId);
+    pendingDeltas.delete(messageId);
+    if (current?.delta) set((state) => ({ messages: appendTextDelta(state.messages, messageId, current.delta) }));
   }, 32);
 }
 
-function flushPendingDelta(set: (partial: Partial<OliviaConversationState> | ((state: OliviaConversationState) => Partial<OliviaConversationState>)) => void) {
-  if (flushTimer) clearTimeout(flushTimer);
-  flushTimer = null;
-  if (bufferedDelta && bufferedMessageId) {
-    const delta = bufferedDelta;
-    const messageId = bufferedMessageId;
-    bufferedDelta = "";
-    bufferedMessageId = "";
-    set((state) => ({ messages: appendTextDelta(state.messages, messageId, delta) }));
+// messageId를 넘기면 그 메시지의 버퍼만, 생략하면 남아있는 모든 버퍼를 내보낸다(대화 초기화 등
+// 전체 정리가 필요한 지점에서 씀).
+function flushPendingDelta(set: SetFn, messageId?: string) {
+  const ids = messageId ? [messageId] : Array.from(pendingDeltas.keys());
+  for (const id of ids) {
+    const entry = pendingDeltas.get(id);
+    if (!entry) continue;
+    if (entry.timer) clearTimeout(entry.timer);
+    pendingDeltas.delete(id);
+    if (entry.delta) set((state) => ({ messages: appendTextDelta(state.messages, id, entry.delta) }));
   }
 }
 
