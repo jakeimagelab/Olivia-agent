@@ -14,6 +14,11 @@ export type OliviaMessageBlock =
   | { type: "resource_card"; resourceType: string; resourceId: string; title?: string; summary?: string }
   | { type: "approval"; approvalId: string; summary: string; toolName: string; toolInput: Record<string, unknown>; confirmLabel: string; state?: "pending" | "approved" | "cancelled" | "error" }
   | { type: "action"; label: string; action: OliviaUiAction }
+  // 채팅 안에서 실제 작업(파일시스템 접근 등 브라우저 전용 로직)을 끝까지 수행하는 카드 —
+  // flowId는 opaque 참조일 뿐, 실제 진행 상태는 client-only 스토어(예: useSelectMatchChatStore)에
+  // 있다. FileSystemHandle 등 직렬화 불가능한 값은 절대 이 블록에 담지 않는다(메시지는 JSON으로
+  // 저장/캐시됨). task는 문자열 유니온으로 다른 도구를 같은 패턴에 추가할 때 이어붙인다.
+  | { type: "client_task"; flowId: string; task: "select_match"; state?: "pending" | "in_progress" | "done" | "cancelled" | "error" }
   | { type: "error"; message: string; retryable: boolean }
   // 촬영일이 지났는데 워크플로우가 아직 "촬영" 단계에 머물러 있는 고객을 홈 채팅에서 먼저
   // 물어보는 카드 — /api/olivia/shoot-confirmations가 감지해서 만든 insight 1건과 대응된다.
