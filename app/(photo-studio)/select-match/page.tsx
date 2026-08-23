@@ -273,27 +273,6 @@ export default function SelectMatchPage() {
   const [fmOcrMessage, setFmOcrMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const fmOcrFileRef = useRef<HTMLInputElement>(null);
 
-  /* ── 텍스트에서 파일명 파싱 ── */
-  const parseNamesFromText = (text: string): Set<string> => {
-    const re = /[\w\-가-힣]+\.(jpg|jpeg|heic|heif|tif|tiff|png|arw|cr2|cr3|nef|orf|raf|rw2|dng)/gi;
-    const found = new Set<string>();
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) found.add(m[0].replace(/\.[^.]+$/, "").toLowerCase());
-    return found;
-  };
-
-  /* ── 파일 업로드에서 파일명 추출 ── */
-  const parseNamesFromFiles = (files: FileList | File[]): Set<string> => {
-    const found = new Set<string>();
-    Array.from(files).forEach(f => {
-      const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
-      if (JPG_EXTS.has(ext) || RAW_EXTS.has(ext)) {
-        found.add(f.name.replace(/\.[^.]+$/, "").toLowerCase());
-      }
-    });
-    return found;
-  };
-
   /* ── 클라이언트 선택 확정 → raw_pick 단계로 ── */
   const confirmClientInput = (names: Set<string>) => {
     if (names.size === 0) { alert("파일명을 찾지 못했습니다. 파일명(DSC_0142.jpg 형태)이 포함된 텍스트를 붙여넣어 주세요."); return; }
