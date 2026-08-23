@@ -202,6 +202,8 @@ export function getOliviaContextSnapshot(pathname?: string) {
     recentEntities: state.recentEntities,
     aliases: state.aliases,
     revision: state.revision,
+    lastTool: state.lastTool,
+    lastIntent: state.lastIntent,
   };
 }
 
