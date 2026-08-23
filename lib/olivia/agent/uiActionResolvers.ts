@@ -106,6 +106,11 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     if (!href) return [];
     return [{ type: "OPEN_FEATURE", href }];
   },
+  start_select_match_flow: async ({ result }) => {
+    if (!result.success) return [];
+    const flowId = value(result.data, "flowId");
+    return flowId ? [{ type: "OPEN_CLIENT_TASK", task: "select_match", flowId }] : [];
+  },
   start_task_session: async ({ result }) => {
     if (!result.success) return [];
     const href = value(result.data, "href");
