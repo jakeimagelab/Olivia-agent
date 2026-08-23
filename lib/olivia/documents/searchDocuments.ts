@@ -38,9 +38,18 @@ async function resolveClient(db: SupabaseClient, clientId?: string | null, clien
   return null;
 }
 
-async function fetchQuotes(db: SupabaseClient, clientId?: string, projectId?: string | null): Promise<OliviaDocumentRef[]> {
+// clientId가 안 풀렸는데(등록 안 된 고객명 등) clientNameFilter가 있으면 hospital_name ilike로
+// 최소한의 구조적 필터라도 건다 — 안 그러면 "모르는 고객명"이 그냥 "필터 없음"이 되어 버려서
+// 전체 문서가 다 나오는(=존재하지 않는 고객인데 결과가 나오는) 오류가 생긴다.
+function applyClientFilter(q: any, clientId: string | undefined, clientNameFilter: string | null | undefined) {
+  if (clientId) return q.eq("client_id", clientId);
+  if (clientNameFilter) return q.ilike("hospital_name", `%${clientNameFilter}%`);
+  return q;
+}
+
+async function fetchQuotes(db: SupabaseClient, clientId?: string, projectId?: string | null, clientNameFilter?: string | null): Promise<OliviaDocumentRef[]> {
   let q = db.from("quotes").select("id, quote_number, title, hospital_name, client_id, workflow_run_id, status, created_at, updated_at").order("updated_at", { ascending: false }).limit(CANDIDATE_LIMIT);
-  if (clientId) q = q.eq("client_id", clientId);
+  q = applyClientFilter(q, clientId, clientNameFilter);
   if (projectId) q = q.eq("workflow_run_id", projectId);
   const { data } = await q;
   return (data || []).map((row: Row): OliviaDocumentRef => ({
