@@ -50,7 +50,7 @@ export function detectAbnormalScript(text: string): ScriptAnomalyResult {
   return { clean: offendingRanges.length === 0, offendingRanges };
 }
 
-const STACK_TRACE_PATTERN = /\bat\s+\S+\.(ts|tsx|js):\d+:\d+/;
+const STACK_TRACE_PATTERN = /\bat\s+.*\.(ts|tsx|js):\d+:\d+/;
 const RAW_JSON_ERROR_PATTERN = /^\{[\s\S]*"error"[\s\S]*\}$/;
 const MAX_HISTORY_MESSAGE_LENGTH = 4000;
 
