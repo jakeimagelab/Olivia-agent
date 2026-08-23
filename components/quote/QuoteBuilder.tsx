@@ -1190,6 +1190,27 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModal, clientId, resourceId]);
 
+  // 페이지 모드(/photoclinic)에서 "불러오기"로 연 견적서 — 모달 전용 effect 위에는 아예 없던
+  // 리스너라 채팅으로 지금 보고 있는 견적을 수정해도 화면이 그대로였다(콘티와 동일한 버그).
+  // currentQuoteId가 있을 때(견적을 한 번이라도 불러온 뒤)만 듣고 새로고침 없이 다시 불러온다.
+  useEffect(() => {
+    if (isModal || !currentQuoteId) return;
+    const onRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
+      if (detail?.resource && detail.resource !== "quote") return;
+      if (detail?.resourceId && detail.resourceId !== currentQuoteId) return;
+      fetch(`/api/quotes/${currentQuoteId}`)
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.ok) loadRecentQuote(rowToContractQuoteData(json.quote));
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("olivia-resource-refresh", onRefresh);
+    return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal, currentQuoteId]);
+
   // 2) dirty 추적: formState 스냅샷을 마지막 저장본과 비교한다(id/savedAt은 매번 달라 formState만 비교).
   useEffect(() => {
     if (!isModal) return;
