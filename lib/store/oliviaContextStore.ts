@@ -55,6 +55,7 @@ export type OliviaContextState = {
   recordAction: (action: string) => void;
   rememberEntity: (entity: Omit<ConversationEntity, "lastMentionedAt">) => void;
   setAlias: (alias: string, ref: EntityAlias) => void;
+  setLastToolIntent: (tool?: string, intent?: string) => void;
   clearSelection: () => void;
   clearContext: () => void;
 };
