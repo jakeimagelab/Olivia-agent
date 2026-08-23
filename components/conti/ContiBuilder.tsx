@@ -3401,25 +3401,6 @@ ${header("타임테이블")}
       </div>
     )}
 
-    {/* 올리비아 채팅 - 콘티 페이지 컨텍스트 (모달 모드에선 루트 레이아웃이 이미 전역 렌더링 중) */}
-    {isModal ? null : (
-      <OliviaChat
-        pageContext="촬영 콘티 생성 페이지"
-        contextData={result ? {
-          병원명: form.hospitalName || "미입력",
-          진료과: form.specialties.join(", ") || "미입력",
-          상태: "콘티 생성 완료",
-        } : {
-          상태: "콘티 입력 중",
-        }}
-        contiData={result ?? null}
-        onContiUpdate={(updated: any) => {
-          if (updated?.conti)     setResult(prev => prev ? { ...prev, conti: updated.conti } : prev);
-          if (updated?.checklist) setResult(prev => prev ? { ...prev, checklist: updated.checklist } : prev);
-          if (updated?.schedule)  setResult(prev => prev ? { ...prev, schedule: updated.schedule } : prev);
-        }}
-      />
-    )}
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
         <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24 }}>
