@@ -9,6 +9,7 @@ import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { buildConversationExchanges } from "@/lib/olivia/conversationTimeline";
 import { OliviaConversationGuide, OliviaConversationNavigator } from "@/components/olivia-v2/OliviaConversationNavigation";
 import OliviaEngineBackground from "@/components/olivia-v2/OliviaEngineBackground";
+import SelectMatchChatCard from "@/components/olivia/SelectMatchChatCard";
 
 export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer" | "home"; showExpandToggle?: boolean; onMinimize?: () => void }) {
   const messages = useOliviaConversationStore((state) => state.messages);
