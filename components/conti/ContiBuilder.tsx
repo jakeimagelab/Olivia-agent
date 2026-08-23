@@ -883,7 +883,7 @@ export default function ContiBuilder({
     });
 
   /* ── 결과 행 추가/삭제 ── */
-  const addContiRow = () => setResult(prev => prev ? addContiShotsShared(prev, { count: 1, shotType: "", description: "" }).result as ContiResult : prev);
+  const addContiRow = () => setResult(prev => prev ? addContiShotsShared(prev, { items: [{ category: "", description: "" }] }).result as ContiResult : prev);
 
   const delContiRow = (i: number) => setResult(prev => prev ? removeContiShotShared(prev, i).result as ContiResult : prev);
   const dupContiRow = (i: number) => setResult(prev => {
