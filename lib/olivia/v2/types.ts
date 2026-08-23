@@ -46,6 +46,8 @@ export type OliviaContextSnapshot = {
   recentEntities?: ConversationEntity[];
   aliases?: Record<string, EntityAlias>;
   revision: number;
+  lastTool?: string;
+  lastIntent?: string;
 };
 
 export type OliviaToolCall = { id: string; name: string; arguments: string };
