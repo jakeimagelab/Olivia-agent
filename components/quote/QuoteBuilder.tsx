@@ -999,6 +999,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     }
 
     setRecentQuoteMessage("선택한 견적서를 입력 폼에 불러왔습니다.");
+    // 페이지 모드에서 불러온 뒤에도 채팅이 "지금 이 견적서"를 찾아 수정할 수 있도록 컨텍스트를
+    // 맞춰준다(모달 모드는 resourceId prop으로 이미 되고 있음) — components/conti/ContiBuilder.tsx의
+    // 같은 패턴(불러오기 클릭 시 setOliviaWorkspace) 참고.
+    if (data.id) {
+      setCurrentQuoteId(data.id);
+      setOliviaWorkspace("quote", data.id);
+      if (data.hospitalName) setOliviaClient(undefined, data.hospitalName);
+    }
   };
 
   const openContractWithQuote = (data: ContractQuoteData) => {
