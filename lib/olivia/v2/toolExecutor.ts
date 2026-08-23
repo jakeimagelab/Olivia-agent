@@ -1012,7 +1012,7 @@ export async function executeAgentTool(
     const parsed = JSON.parse(toolCall.arguments || "{}");
     input = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch {
-    return { result: { tool: toolCall.name, success: false, error: "작업 입력을 이해하지 못했어요." }, uiActions: [] };
+    return { result: { tool: toolCall.name, success: false, error: OLIVIA_FALLBACK_MESSAGES.toolInputUnreadable }, uiActions: [] };
   }
 
   try {
@@ -1020,11 +1020,13 @@ export async function executeAgentTool(
     const uiActions = await resolveUiActions({ toolCall, input, result, context });
     return { result, uiActions };
   } catch (error) {
+    const normalized = normalizeToolError(error);
+    console.error("[olivia-v2] tool execution failed", toolCall.name, normalized.logDetail);
     return {
       result: {
         tool: toolCall.name,
         success: false,
-        error: error instanceof Error ? error.message : "작업을 완료하지 못했어요.",
+        error: normalized.userMessage,
       },
       uiActions: [],
     };
