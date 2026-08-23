@@ -184,11 +184,11 @@ async function fetchGalleries(db: SupabaseClient, clientId?: string, projectId?:
 }
 
 const FETCHERS: Partial<Record<OliviaDocumentType, (db: SupabaseClient, clientId?: string, projectId?: string | null, clientName?: string | null) => Promise<OliviaDocumentRef[]>>> = {
-  quote: (db, clientId, projectId) => fetchQuotes(db, clientId, projectId),
-  contract: (db, clientId, projectId) => fetchContracts(db, clientId, projectId),
-  storyboard: (db, clientId, projectId) => fetchConti(db, clientId, projectId),
+  quote: (db, clientId, projectId, clientName) => fetchQuotes(db, clientId, projectId, clientName),
+  contract: (db, clientId, projectId, clientName) => fetchContracts(db, clientId, projectId, clientName),
+  storyboard: (db, clientId, projectId, clientName) => fetchConti(db, clientId, projectId, clientName),
   memo: (db, clientId, _projectId, clientName) => fetchMemos(db, clientId, clientName),
-  gallery: (db, clientId, projectId) => fetchGalleries(db, clientId, projectId),
+  gallery: (db, clientId, projectId, clientName) => fetchGalleries(db, clientId, projectId, clientName),
 };
 
 function scoreDocument(doc: OliviaDocumentRef, params: {
