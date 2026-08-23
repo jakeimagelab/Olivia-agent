@@ -43,6 +43,11 @@ export type OliviaContextState = {
   // 의도를 담는다. tool_result 이벤트를 받는 지점(useOliviaConversationStore)에서만 채운다.
   lastTool?: string;
   lastIntent?: string;
+  // 통합 문서 검색/열람(search_documents, open_document)이 성공하면 채워지는, "지금 채팅이 보고
+  // 있는 문서" — "여기에 6명 추가해줘"처럼 문서를 다시 지칭하지 않는 후속 요청을 풀 때 쓴다.
+  currentDocumentId?: string;
+  currentDocumentType?: string;
+  currentDocumentTitle?: string;
 
   setClient: (id?: string, name?: string) => void;
   setProject: (id?: string, name?: string) => void;
@@ -56,6 +61,7 @@ export type OliviaContextState = {
   rememberEntity: (entity: Omit<ConversationEntity, "lastMentionedAt">) => void;
   setAlias: (alias: string, ref: EntityAlias) => void;
   setLastToolIntent: (tool?: string, intent?: string) => void;
+  setCurrentDocument: (id?: string, type?: string, title?: string) => void;
   clearSelection: () => void;
   clearContext: () => void;
 };
