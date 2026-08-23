@@ -63,7 +63,7 @@ export default function OliviaPersistentChat() {
       >
         {isOpen ? <X size={20} strokeWidth={1.8} /> : <OliviaIcon size={20} />}
       </button>
-      {isOpen ? <OliviaAgentCenter onClose={minimizeChat} onMinimize={minimizeChat} /> : null}
+      <OliviaAgentCenter isOpen={isOpen} onClose={minimizeChat} onMinimize={minimizeChat} />
     </>
   );
 }
