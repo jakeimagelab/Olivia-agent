@@ -14,6 +14,14 @@ type DocumentRow = {
   route?: string | null;
 };
 
+type _Unused = never;
+
+type DocumentRowLegacy = {
+  status?: string | null;
+  updatedAt?: string | null;
+  route?: string | null;
+};
+
 // 채팅의 search_documents 도구와 완전히 같은 searchDocuments()를 API 라우트 하나로만 거친다 —
 // 여기서 별도 필터/정렬 로직을 만들지 않는다(요청서 7절).
 const TYPE_TABS: { value: OliviaDocumentType | "all"; label: string }[] = [
