@@ -150,7 +150,7 @@ export default function ContractBuilder({
     // 찾아 계약서 초안의 기초 데이터로 쓴다(계약서는 견적 데이터를 그대로 이어받는 문서라
     // 견적서가 아직 없으면 고객 기본 정보만으로 빈 계약서를 시작한다).
     if (resourceId) {
-      fetch(`/api/contracts/${resourceId}`)
+      const loadContract = () => fetch(`/api/contracts/${resourceId}`)
         .then((r) => r.json())
         .then((json) => {
           if (!json.ok) return;
@@ -159,7 +159,16 @@ export default function ContractBuilder({
           setSignatureDataUrl(json.data.signature_data_url ?? "");
         })
         .catch(() => {});
-      return;
+      void loadContract();
+      // 채팅으로 지금 열려 있는 계약서를 수정했을 때 새로고침 없이 화면에 바로 반영되도록
+      // (콘티/견적서와 동일한 패턴 — lib/olivia/agent/actionRouter.ts의 REFRESH_RESOURCE가
+      // 이 이벤트를 쏜다).
+      const onRefresh = (event: Event) => {
+        const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
+        if ((!detail?.resource || detail.resource === "contract") && (!detail?.resourceId || detail.resourceId === resourceId)) void loadContract();
+      };
+      window.addEventListener("olivia-resource-refresh", onRefresh);
+      return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
     }
     if (!modalClientId) return;
     fetch(`/api/clients/${modalClientId}/workspace`)
