@@ -274,7 +274,7 @@ async function streamOpenAIResponse(input: {
   request: StreamingRequest;
   signal: AbortSignal;
   onFirstToken?: () => void;
-}) {
+}): Promise<{ text: string; toolCalls: OliviaToolCall[]; responseId: string }> {
   const stream = await input.openai.responses.create(
     { ...input.request, model: input.model, stream: true },
     { signal: input.signal },
