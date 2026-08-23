@@ -52,19 +52,19 @@ export function updateContiShot(resultValue: unknown, index: number, changes: Pa
   return { result, before, after };
 }
 
-export function addContiShots(resultValue: unknown, input: { count: number; shotType: string; insertAfter?: number; description?: string }) {
+export function addContiShots(resultValue: unknown, input: { items: Partial<ContiShot>[]; insertAfter?: number }) {
   const result = normalizeContiResult(resultValue);
-  const count = Math.min(10, Math.max(1, input.count));
-  const created = Array.from({ length: count }, (_, index): ContiShot => ({
+  const items = input.items.slice(0, 20);
+  const created: ContiShot[] = items.map((item, index) => ({
     id: crypto.randomUUID(),
-    category: input.shotType,
-    duration: "",
-    location: "",
-    cameraAngle: "",
-    keyword: `${input.shotType}컷${count > 1 ? ` ${index + 1}` : ""}`.trim(),
-    description: input.description || `${input.shotType} 장면`,
-    personnel: "",
-    notes: "",
+    category: item.category || "",
+    duration: item.duration || "",
+    location: item.location || "",
+    cameraAngle: item.cameraAngle || "",
+    keyword: item.keyword || `${item.category || "컷"} ${index + 1}`,
+    description: item.description || "",
+    personnel: item.personnel || "",
+    notes: item.notes || "",
   }));
   const insertAt = input.insertAfter === undefined ? result.conti.length : Math.min(result.conti.length, input.insertAfter + 1);
   result.conti.splice(insertAt, 0, ...created);
