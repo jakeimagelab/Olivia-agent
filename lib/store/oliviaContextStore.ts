@@ -240,6 +240,9 @@ export function buildOliviaPageContext(pathname?: string): string {
       : undefined,
     scheduleId: context.selectedScheduleId,
     recentActions: context.recentActions.slice(-4).map((action) => action.type),
+    currentDocument: context.currentDocumentId
+      ? { id: context.currentDocumentId, type: context.currentDocumentType, title: context.currentDocumentTitle }
+      : undefined,
   };
   return JSON.stringify(pageContext);
 }
