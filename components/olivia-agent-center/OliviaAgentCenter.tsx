@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
 import OliviaTaskStrip from "@/components/olivia/OliviaTaskStrip";
 import { AgentCenterHeader } from "./AgentCenterHeader";
