@@ -355,6 +355,16 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
               ...message,
               blocks: [...message.blocks, { type: "approval", approvalId: approval.approvalId, summary: approval.summary, toolName: approval.toolName, toolInput: approval.toolInput, confirmLabel: approval.confirmLabel, state: "pending" }],
             } : message) }));
+          } else if (event.action.type === "OPEN_CLIENT_TASK") {
+            // 채팅 안에서 실제 작업을 끝까지 수행하는 카드(예: 셀렉 매칭) — approval과 동일하게
+            // 여기서 미리 가로채 메시지에 블록을 추가한다. 실시간 진행 상태는 별도 client-only
+            // 스토어(useSelectMatchChatStore 등)가 갖고, 이 블록은 flowId 참조만 들고 있다.
+            const openTask = event.action;
+            if (openTask.task === "select_match") useSelectMatchChatStore.getState().startFlow(openTask.flowId);
+            set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? {
+              ...message,
+              blocks: [...message.blocks, { type: "client_task", flowId: openTask.flowId, task: openTask.task, state: "pending" }],
+            } : message) }));
           } else {
             if (event.action.type === "OPEN_WORKSPACE" || event.action.type === "SWITCH_WORKSPACE") set({ pendingWorkspaceOpen: false });
             executeOliviaAction(event.action);
