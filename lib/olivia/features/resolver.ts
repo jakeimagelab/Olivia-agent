@@ -104,12 +104,13 @@ export interface FeatureResolutionContext {
 // bypass를 통과하고, 그 외(0.35~0.84)는 항상 LLM 쪽 open_feature 호출을 거쳐 확인 질문 또는
 // 후보 제시로 이어진다 — 절대 "그런 기능은 없는 것 같아요"로 바로 끝내지 않는다.
 export function resolveFeatureIntent(query: string, context?: FeatureResolutionContext): FeatureResolution {
-  const normalizedQuery = stripFillers(normalize(query));
+  const normalizedQuery = normalize(query);
+  const strippedQuery = stripFillers(normalizedQuery);
   if (!normalizedQuery) return { kind: "none" };
 
   const features = getOliviaFeatures();
   const scored = features
-    .map((tool) => ({ tool, score: scoreCandidate(tool, normalizedQuery) }))
+    .map((tool) => ({ tool, score: scoreCandidate(tool, normalizedQuery, strippedQuery) }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score);
 
