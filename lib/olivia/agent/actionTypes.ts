@@ -40,4 +40,5 @@ export type OliviaUiAction =
       confirmLabel: string;
       toolName: string;
       toolInput: Record<string, unknown>;
-    };
+    }
+  | { type: "OPEN_CLIENT_TASK"; task: "select_match"; flowId: string };
