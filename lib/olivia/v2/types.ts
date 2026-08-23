@@ -53,6 +53,9 @@ export type OliviaContextSnapshot = {
   revision: number;
   lastTool?: string;
   lastIntent?: string;
+  currentDocumentId?: string;
+  currentDocumentType?: string;
+  currentDocumentTitle?: string;
 };
 
 export type OliviaToolCall = { id: string; name: string; arguments: string };
