@@ -300,6 +300,18 @@ function text(input: Record<string, unknown>, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function toDocSummary(doc: OliviaDocumentRef) {
+  return {
+    id: doc.id,
+    type: doc.type,
+    typeLabel: DOCUMENT_TYPE_LABELS[doc.type],
+    title: doc.title,
+    clientName: doc.clientName ?? undefined,
+    status: doc.status ?? undefined,
+    updatedAt: doc.updatedAt ?? undefined,
+  };
+}
+
 function workspaceLabel(workspace: string) {
   return workspace === "quote" ? "견적서" : workspace === "contract" ? "계약서" : "콘티";
 }
