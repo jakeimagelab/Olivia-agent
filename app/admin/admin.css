@@ -4159,4 +4159,4 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
 .olivia-select-match-card button { padding: 8px 14px; font-size: 11px; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; background: #155855; color: #fff; }
 .olivia-select-match-card button.is-secondary { background: #fff; border: 1px solid rgba(21,88,85,.12); color: #155855; }
 .olivia-select-match-card button:disabled { background: rgba(21,88,85,.12); color: #9BB5B0; cursor: not-allowed; }
-@media(prefers-reduced-motion:reduce){.olivia-agent-center-layer,.olivia-agent-center,.agent-center-overview.is-loading>div{animation:none}}
+@media(prefers-reduced-motion:reduce){.olivia-agent-panel,.olivia-agent-center,.agent-center-overview.is-loading>div{transition:none;animation:none}}
