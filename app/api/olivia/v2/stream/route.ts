@@ -557,15 +557,14 @@ export async function POST(req: NextRequest) {
 
         for (let round = 0; round < maxToolRounds(requestClass); round += 1) {
           toolRounds = round + 1;
-          const response = await streamOpenAIResponse({
+          const response = await runRoundWithSanitization({
             openai,
             model,
             request,
             signal: req.signal,
-            send,
-            messageId,
             onFirstToken: () => { if (modelFirstTokenMs === undefined) modelFirstTokenMs = performance.now() - requestStartedAt; },
           });
+          await flushTextAsDeltas(response.text, send, messageId);
           finalText += response.text;
           if (!response.toolCalls.length) break;
           if (!response.responseId) throw new Error("OpenAI tool response ID가 없습니다.");
