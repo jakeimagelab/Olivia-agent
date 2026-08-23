@@ -157,6 +157,11 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     aliases: { ...state.aliases, [alias]: ref },
     revision: state.revision + 1,
   })),
+  setLastToolIntent: (tool, intent) => set((state) => ({
+    lastTool: tool,
+    lastIntent: intent,
+    revision: state.revision + 1,
+  })),
   clearSelection: () => set((state) => ({
     selectedEntityId: undefined,
     selectedEntityType: undefined,
