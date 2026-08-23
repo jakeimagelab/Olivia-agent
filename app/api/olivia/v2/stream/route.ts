@@ -273,8 +273,6 @@ async function streamOpenAIResponse(input: {
   model: string;
   request: StreamingRequest;
   signal: AbortSignal;
-  send: (event: OliviaStreamEvent) => void;
-  messageId: string;
   onFirstToken?: () => void;
 }) {
   const stream = await input.openai.responses.create(
