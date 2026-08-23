@@ -80,6 +80,11 @@ export function executeOliviaAction(action: OliviaUiAction) {
     }
     case "REQUEST_APPROVAL":
       return;
+    // OPEN_CLIENT_TASK는 useOliviaConversationStore.ts의 ui_action 분기가 REQUEST_APPROVAL과
+    // 동일하게 미리 가로채(메시지에 client_task 블록 추가 + 플로우 스토어 시딩) 처리하므로
+    // 여기까지 도달하지 않는다 — exhaustive switch를 통과시키기 위한 no-op.
+    case "OPEN_CLIENT_TASK":
+      return;
     case "OPEN_FEATURE": {
       context.recordAction(`feature:open:${action.href}`);
       navigateToFeature(action.href);
