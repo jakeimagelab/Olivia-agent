@@ -4087,4 +4087,31 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
 .agent-center-partial{display:flex;align-items:center;justify-content:center;gap:6px;color:#9a7d70;font-size:10px}.agent-center-overview.is-loading{grid-template-columns:1fr 1fr}.agent-center-overview.is-loading>div{height:150px;border-radius:17px;background:linear-gradient(90deg,#f1f5f4,#fff,#f1f5f4);background-size:200% 100%;animation:agent-center-loading 1.8s linear infinite}@keyframes agent-center-loading{to{background-position:-200% 0}}
 .agent-center-detail{min-height:100%;border:1px solid rgba(21,88,85,.07);border-radius:18px;padding:20px;background:#fff}.agent-center-detail>button{border:0;background:transparent;color:#155855;font-size:11px;cursor:pointer}.agent-center-detail h2{margin:22px 0;color:#203a34;font-size:20px}.agent-center-detail dl{display:grid;gap:0}.agent-center-detail dl>div{display:grid;grid-template-columns:130px minmax(0,1fr);gap:14px;padding:11px 0;border-top:1px solid rgba(21,88,85,.06)}.agent-center-detail dt{color:#8a9995;font-size:10px}.agent-center-detail dd{margin:0;color:#354b46;font-size:11.5px}.agent-center-detail>a{display:inline-flex;margin-top:18px;border-radius:10px;padding:9px 12px;background:#155855;color:#fff;font-size:11px;font-weight:600;text-decoration:none}.agent-center-mobile-tabs{display:none}
 @media(max-width:760px){.olivia-agent-center-layer{padding:0}.olivia-agent-center{width:100%;height:100dvh;border:0;border-radius:0}.olivia-agent-center__header{min-height:64px;padding-inline:14px}.olivia-agent-center__header-actions>small{display:none}.olivia-agent-center__header-actions button:nth-of-type(2){display:none}.agent-center-mobile-tabs{height:46px;display:grid;grid-template-columns:1fr 1fr;padding:5px 12px;border-bottom:1px solid rgba(21,88,85,.06);background:#fff}.agent-center-mobile-tabs button{border:0;border-radius:9px;background:transparent;color:#7a8b87;font-size:12px;font-weight:600}.agent-center-mobile-tabs button.is-active{background:#eaf4f2;color:#155855}.olivia-agent-center__body{display:block;min-height:0;padding-bottom:env(safe-area-inset-bottom)}.olivia-agent-center__body>main,.olivia-agent-center__body>aside{height:100%;border-left:0}.olivia-agent-center__body>main.is-mobile-hidden,.olivia-agent-center__body>aside.is-mobile-hidden{display:none}.agent-center-overview__grid,.agent-run-grid{grid-template-columns:1fr}.olivia-agent-center__body>main{padding:12px}.agent-center-section{padding:14px}}
+
+/* 채팅 안에서 셀렉 매칭을 끝까지 수행하는 카드 (client_task 블록 파일럿) */
+.olivia-select-match-card { width: 100%; max-width: 360px; border: 1px solid rgba(21,88,85,.12); border-radius: 14px; padding: 14px; background: #fff; box-shadow: 0 8px 24px rgba(10,40,35,.05); }
+.olivia-select-match-card__section { display: grid; gap: 10px; }
+.olivia-select-match-card__section > p { margin: 0; color: #5A7470; font-size: 12px; line-height: 1.6; }
+.olivia-select-match-card__section > strong { color: #22876A; font-size: 13px; }
+.olivia-select-match-card__tabs { display: flex; gap: 6px; }
+.olivia-select-match-card__tabs button { flex: 1; padding: 7px 8px; border: 1px solid rgba(21,88,85,.12); border-radius: 8px; background: #fff; color: #5A7470; font-size: 11px; font-weight: 700; cursor: pointer; }
+.olivia-select-match-card__tabs button.is-active { border-color: #155855; background: #EAF4F2; color: #155855; }
+.olivia-select-match-card textarea { width: 100%; box-sizing: border-box; border: 1px solid rgba(21,88,85,.12); border-radius: 8px; padding: 8px 10px; font-size: 11px; font-family: monospace; resize: vertical; background: #EDF5F3; color: #1C2B28; }
+.olivia-select-match-card__dropzone { border: 2px dashed rgba(21,88,85,.12); border-radius: 10px; padding: 20px 12px; text-align: center; font-size: 11px; color: #5A7470; cursor: pointer; }
+.olivia-select-match-card__dropzone.is-dragging { border-color: #155855; background: #EAF4F2; }
+.olivia-select-match-card__samples { background: #EAF4F2; border-radius: 8px; padding: 8px 10px; font-size: 10.5px; font-family: monospace; color: #5A7470; }
+.olivia-select-match-card__stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+.olivia-select-match-card__stats > div { background: #EDF5F3; border-radius: 8px; padding: 10px 6px; text-align: center; }
+.olivia-select-match-card__stats strong { display: block; color: #155855; font-size: 18px; }
+.olivia-select-match-card__stats span { color: #9BB5B0; font-size: 9.5px; }
+.olivia-select-match-card__error { background: #FEF2F2; border-radius: 8px; padding: 9px 11px; font-size: 11px; color: #DC2626; }
+.olivia-select-match-card__warning { background: #FEF9C3; border-radius: 8px; padding: 9px 11px; font-size: 11px; color: #92400E; }
+.olivia-select-match-card__actions { display: flex; gap: 8px; }
+.olivia-select-match-card__progress-bar { height: 6px; background: rgba(21,88,85,.12); border-radius: 3px; overflow: hidden; }
+.olivia-select-match-card__progress-bar > i { display: block; height: 100%; width: 40%; background: #155855; border-radius: 3px; animation: olivia-select-match-scan 1.1s ease-in-out infinite; }
+.olivia-select-match-card__stats + .olivia-select-match-card__log, .olivia-select-match-card__log { max-height: 140px; overflow-y: auto; background: #F8FFFE; border: 1px solid rgba(21,88,85,.12); border-radius: 8px; padding: 8px; font-size: 10px; font-family: monospace; color: #5A7470; }
+@keyframes olivia-select-match-scan { 0% { margin-left: 0%; } 50% { margin-left: 60%; } 100% { margin-left: 0%; } }
+.olivia-select-match-card button { padding: 8px 14px; font-size: 11px; font-weight: 700; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; background: #155855; color: #fff; }
+.olivia-select-match-card button.is-secondary { background: #fff; border: 1px solid rgba(21,88,85,.12); color: #155855; }
+.olivia-select-match-card button:disabled { background: rgba(21,88,85,.12); color: #9BB5B0; cursor: not-allowed; }
 @media(prefers-reduced-motion:reduce){.olivia-agent-center-layer,.olivia-agent-center,.agent-center-overview.is-loading>div{animation:none}}
