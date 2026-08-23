@@ -26,16 +26,32 @@ const ERROR_PATTERN_MAP: Array<{ test: (raw: string) => boolean; message: string
 
 export type NormalizedError = { userMessage: string; logDetail: string };
 
+const HANGUL_PATTERN = /[가-힣]/;
+const MAX_PASSTHROUGH_LENGTH = 200;
+
+// 이 코드베이스의 관례상, 우리 코드가 직접 던지는 안전한 실패 메시지는 이미 한국어 문장으로
+// 작성돼 있다(예: "quote"은(는) 아직 챗에서 직접 생성·수정할 수 없는 기능이에요.). 반대로
+// Postgres/Node/네트워크 같은 외부 raw 에러는 거의 항상 영문 기술 용어다. 그래서 알려진 위험
+// 패턴에 안 걸리고 한글이 섞여 있으면 "이미 사람이 쓴 안전한 메시지"로 보고 그대로 통과시킨다
+// — 무조건 generic fallback으로 뭉개면 "quote 도메인은 아직 지원 안 함" 같은 유용한 안내까지
+// 사라진다.
+function looksLikeSafeAuthoredMessage(raw: string): boolean {
+  return HANGUL_PATTERN.test(raw) && raw.length <= MAX_PASSTHROUGH_LENGTH;
+}
+
 /**
- * 원본 에러(raw)는 절대 사용자에게 그대로 내보내지 않는다. 알려진 패턴이면 그에 맞는 한국어
- * 안내 문구로, 모르면 fallback으로 매핑한다. logDetail은 호출부가 console.error로 서버 로그에만
- * 남기기 위한 것 — 클라이언트로 보내면 안 된다.
+ * 원본 에러(raw)는 절대 사용자에게 그대로 내보내지 않는다. 알려진 위험 패턴(Postgres 코드,
+ * 스택트레이스, raw JSON 등)이면 안전한 한국어 문구로 바꾸고, 그렇지 않고 이미 한국어로 작성된
+ * 안전한 메시지로 보이면 그대로 쓰고, 그 외(정체불명의 영문 기술 에러 등)는 fallback을 쓴다.
+ * logDetail은 호출부가 console.error로 서버 로그에만 남기기 위한 것 — 클라이언트로 보내면 안 된다.
  */
 export function normalizeToolError(error: unknown, fallback: string = OLIVIA_FALLBACK_MESSAGES.toolFailureGeneric): NormalizedError {
   const raw = error instanceof Error ? error.message : String(error ?? "알 수 없는 오류");
   const matched = ERROR_PATTERN_MAP.find((rule) => rule.test(raw));
-  return {
-    userMessage: matched?.message ?? fallback,
-    logDetail: raw,
-  };
+  const userMessage = matched
+    ? matched.message
+    : looksLikeSafeAuthoredMessage(raw)
+      ? raw
+      : fallback;
+  return { userMessage, logDetail: raw };
 }
