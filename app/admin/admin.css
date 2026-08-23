@@ -225,7 +225,8 @@
 .oa-document-search__input:focus { outline: none; border-color: #cce9da; box-shadow: 0 0 0 3px rgba(21,88,85,.08); }
 .oa-document-table { border: 1px solid #edf0f2; border-radius: 16px; overflow: hidden; }
 .oa-category-section__content:has(.oa-document-table) { overflow-x: auto; }
-.oa-document-table__row { grid-template-columns: 1.6fr 1fr 1.1fr .7fr .8fr .9fr; min-width: 720px; }
+.oa-table-head.oa-document-table__row,
+.oa-table-row.oa-document-table__row { grid-template-columns: 1.6fr 1fr 1.1fr .7fr .8fr .9fr; min-width: 720px; }
 .oa-document-table .oa-table-head { border-radius: 0; }
 .oa-document-table a.oa-table-row { text-decoration: none; cursor: pointer; }
 .oa-document-table a.oa-table-row:hover { background: #f8fafb; }
