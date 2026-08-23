@@ -620,6 +620,7 @@ export default function ContiBuilder({
   const setOliviaProject = useOliviaContextStore((state) => state.setProject);
   const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
   const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
+  const setOliviaCurrentDocument = useOliviaContextStore((state) => state.setCurrentDocument);
   const [form, setForm] = useState({
     hospitalName:  "",
     specialties:   [] as string[],
