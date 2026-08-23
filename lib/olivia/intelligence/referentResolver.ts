@@ -45,6 +45,17 @@ export function resolveReferent(text: string, context: ResolveContextInput): Ref
     }
   }
 
+  for (const pattern of PROJECT_REFERENT_PATTERNS) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    const recentProject = mostRecentByType(context.recentEntities, "project");
+    const name = recentProject?.name || context.activeProjectName;
+    const id = recentProject?.id || context.activeProjectId;
+    if (name && id) {
+      return { matchedText: match[0], resolvedName: name, entity: { type: "project", id, name } };
+    }
+  }
+
   for (const pattern of GENERIC_REFERENT_PATTERNS) {
     const match = text.match(pattern);
     if (!match) continue;
