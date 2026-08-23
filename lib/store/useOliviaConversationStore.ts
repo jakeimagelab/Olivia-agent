@@ -344,6 +344,19 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           // 도구 호출마다 마지막 도구를 기록한다(open_feature처럼 순수 조회성 도구는 다음 요청의
           // 참조 대상으로 삼기엔 약하지만, 실패보다 기록해두는 쪽이 더 유용해서 성공 시 전부 기록).
           if (event.success) useOliviaContextStore.getState().setLastToolIntent(event.tool);
+          // 문서를 열었거나(open_document) 검색 결과가 1건으로 확실하면(search_documents) "이
+          // 문서"/"여기에"류 후속 요청이 다시 검색하지 않고 바로 그 문서를 가리키도록 기록한다.
+          if (event.success && event.tool === "open_document") {
+            const data = event.result as { resourceId?: string; workspace?: string; hospitalName?: string } | undefined;
+            if (data?.resourceId) useOliviaContextStore.getState().setCurrentDocument(data.resourceId, data.workspace, data.hospitalName);
+          }
+          if (event.success && event.tool === "search_documents") {
+            const data = event.result as { matched?: boolean; documents?: Array<{ id: string; type: string; title: string }> } | undefined;
+            if (data?.matched && data.documents?.[0]) {
+              const doc = data.documents[0];
+              useOliviaContextStore.getState().setCurrentDocument(doc.id, doc.type, doc.title);
+            }
+          }
           if (event.success && (event.tool === "start_task_session" || event.tool === "continue_task_session")) {
             const sessionId = (event.result as { sessionId?: string } | undefined)?.sessionId;
             if (sessionId) set({ activeTaskSessionId: sessionId });
