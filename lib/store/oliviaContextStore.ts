@@ -168,6 +168,12 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     lastIntent: intent,
     revision: state.revision + 1,
   })),
+  setCurrentDocument: (id, type, title) => set((state) => ({
+    currentDocumentId: id,
+    currentDocumentType: type,
+    currentDocumentTitle: title,
+    revision: state.revision + 1,
+  })),
   clearSelection: () => set((state) => ({
     selectedEntityId: undefined,
     selectedEntityType: undefined,
