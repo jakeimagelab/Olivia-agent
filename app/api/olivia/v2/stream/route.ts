@@ -326,7 +326,7 @@ async function flushTextAsDeltas(text: string, send: (event: OliviaStreamEvent) 
 // 비용/지연 때문에 하지 않는다). 원문은 서버 로그에만 남긴다.
 async function runRoundWithSanitization(
   params: Parameters<typeof streamOpenAIResponse>[0],
-): Promise<ReturnType<typeof streamOpenAIResponse> extends Promise<infer T> ? T : never> {
+): Promise<{ text: string; toolCalls: OliviaToolCall[]; responseId: string }> {
   let response = await streamOpenAIResponse(params);
   if (response.text && !detectAbnormalScript(response.text).clean) {
     const anomaly = detectAbnormalScript(response.text);
