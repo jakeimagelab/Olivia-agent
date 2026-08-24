@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 
 const C = {
   teal: "#155855", orange: "#E85D2C", green: "#22876A", red: "#DC2626",
