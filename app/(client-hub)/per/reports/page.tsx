@@ -45,18 +45,10 @@ export default function PerReportsPage() {
 
   const REPORT_TYPE_LABEL: Record<string,string> = { client:"병원별", campaign:"캠페인", overall:"전체 운영" };
 
+  usePcrmHeaderTitle("PER 리포트", "병원별·캠페인별·전체 운영 리워드 리포트를 생성합니다.", []);
+
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">PER 리포트</span>
-          </div>
-        </div>
-        <div className="pc-header-actions" />
-      </header>
-
       <div style={{ maxWidth:900, margin:"0 auto", padding:"24px 20px 100px" }}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:28 }}>
           {/* 병원별 리포트 생성 */}
