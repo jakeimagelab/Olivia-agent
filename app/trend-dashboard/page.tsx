@@ -10,6 +10,7 @@ import {
   TrendingUp, RefreshCw, Sparkles, Hash, Users, Youtube, Instagram, Plus, X, Trash2, Search,
 } from "lucide-react";
 import { TREND_INDUSTRIES } from "@/lib/trend/constants";
+import GlobalHeader from "@/components/GlobalHeader";
 
 const SERIES_COLORS = ["#155855", "#E85D2C", "#0891B2", "#9333EA", "#D97706", "#059669"];
 
