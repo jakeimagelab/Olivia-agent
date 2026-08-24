@@ -43,6 +43,21 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
     load();
   };
 
+  usePcrmHeaderTitle(data?.client?.name ?? "병원별 PER 상세", "병원의 리워드 포인트 내역과 신청·기부 이력을 관리합니다.", [data?.client?.name]);
+  usePcrmHeaderActions(
+    data?.client ? (
+      <>
+        <Link href="/per/clients" style={{ display:"flex", alignItems:"center", height:36, padding:"0 14px", border:`1px solid ${C.border}`, borderRadius:9, background:C.light, color:C.teal, fontWeight:700, fontSize:13, textDecoration:"none" }}>
+          ← 병원 목록
+        </Link>
+        <span style={{ background:TIER_COLOR[data.client.reward_tier ?? "standard"], color:"#fff", borderRadius:20, padding:"4px 14px", fontWeight:800, fontSize:12 }}>
+          {TIER_LABEL[data.client.reward_tier ?? "standard"]} 등급
+        </span>
+      </>
+    ) : null,
+    [data?.client],
+  );
+
   if (loading) return <div style={{ padding:40, textAlign:"center", color:C.hint }}>로딩 중...</div>;
   if (!data?.client) return <div style={{ padding:40, textAlign:"center", color:C.hint }}>병원 정보를 찾을 수 없습니다.</div>;
 
@@ -51,23 +66,6 @@ export default function PerClientDetail({ params }: { params: Promise<{ hospital
 
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">{client.name}</span>
-          </div>
-        </div>
-        <div className="pc-header-actions">
-          <Link href="/per/clients" style={{ display:"flex", alignItems:"center", height:36, padding:"0 14px", border:`1px solid ${C.border}`, borderRadius:9, background:C.light, color:C.teal, fontWeight:700, fontSize:13, textDecoration:"none" }}>
-            ← 병원 목록
-          </Link>
-          <span style={{ background:TIER_COLOR[client.reward_tier ?? "standard"], color:"#fff", borderRadius:20, padding:"4px 14px", fontWeight:800, fontSize:12 }}>
-            {TIER_LABEL[client.reward_tier ?? "standard"]} 등급
-          </span>
-        </div>
-      </header>
-
       <div style={{ maxWidth:900, margin:"0 auto", padding:"24px 20px 100px" }}>
         {/* 포인트 요약 */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, marginBottom:24 }}>
