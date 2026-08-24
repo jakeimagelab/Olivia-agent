@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import GlobalHeader from "@/components/GlobalHeader";
 import PcrmSubNav from "@/components/pcrm/PcrmSubNav";
-import { PcrmHeaderActionsProvider, usePcrmHeaderActionsSlot } from "@/components/pcrm/PcrmHeaderActionsSlot";
+import { PcrmHeaderActionsProvider, usePcrmHeaderActionsSlot, usePcrmHeaderTitleSlot } from "@/components/pcrm/PcrmHeaderActionsSlot";
 
 const TITLE: Record<string, string> = {
   "/clients":          "고객관리",
