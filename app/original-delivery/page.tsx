@@ -44,20 +44,18 @@ function DeliveryInner() {
 
   return (
     <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">원본 데이터 전달</span>
-          </div>
-        </div>
-        <div className="pc-header-actions" style={{ padding: "0 20px" }}>
-          {clientId
-            ? <Link href={`/clients?id=${clientId}`} className="pc-header-back">← 고객 화면</Link>
-            : <Link href="/clients" className="pc-header-back">← 고객관리</Link>}
-          <span style={{ fontSize: 10, fontWeight: 900, color: "#7C3AED", border: "1px solid rgba(124,58,237,.4)", borderRadius: 99, padding: "3px 10px" }}>Step 7 · 원본 전달</span>
-        </div>
-      </header>
+      <GlobalHeader
+        title="원본 데이터 전달"
+        description="촬영 원본 데이터를 고객에게 전달하고 진행 상태를 기록합니다."
+        pageActions={
+          <>
+            {clientId
+              ? <Link href={`/clients?id=${clientId}`} className="pc-header-back">← 고객 화면</Link>
+              : <Link href="/clients" className="pc-header-back">← 고객관리</Link>}
+            <span style={{ fontSize: 10, fontWeight: 900, color: "#7C3AED", border: "1px solid rgba(124,58,237,.4)", borderRadius: 99, padding: "3px 10px" }}>Step 7 · 원본 전달</span>
+          </>
+        }
+      />
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "28px 20px 60px" }}>
 
