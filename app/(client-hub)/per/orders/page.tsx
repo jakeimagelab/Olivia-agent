@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ORDER_STATUS_LABEL } from "@/lib/per";
+import { usePcrmHeaderTitle } from "@/components/pcrm/PcrmHeaderActionsSlot";
 
 const C = { teal:"#155855", orange:"#E85D2C", green:"#22876A", bg:"#F0F9F8", white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470", hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2" };
 const STATUS_BADGE_VARIANT: Record<string,string> = { pending:"orange", approved:"teal", points_deducted:"teal", preparing:"gray", shipped:"blue", completed:"green", canceled:"gray", rejected:"red" };
