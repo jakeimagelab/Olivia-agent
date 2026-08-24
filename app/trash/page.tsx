@@ -82,7 +82,7 @@ export default function TrashPage() {
 
   return (
     <main style={{ minHeight: "100dvh", background: C.mist, color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <PageHeader title="휴지통" />
+      <GlobalHeader title="휴지통" description="삭제한 상담·일정·고객·콘티를 30일 동안 확인하고 복원합니다." />
       <section style={{ maxWidth: 1040, margin: "0 auto", padding: "22px 13px 64px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <p style={{ margin: 0, color: C.muted, fontSize: 11, lineHeight: 1.7 }}>삭제한 항목의 원래 기능을 확인하고 30일 안에 복원할 수 있습니다.</p>
