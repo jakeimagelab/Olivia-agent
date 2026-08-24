@@ -24,7 +24,10 @@ import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRe
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
 import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
 import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
-import { selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
+import { getOliviaToolDomains, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
+import { listActiveMemories } from "@/lib/olivia/memory/repository";
+import { formatMemoryForPrompt } from "@/lib/olivia/memory/format";
+import type { OliviaMemoryRow } from "@/lib/olivia/memory/types";
 import { executeOliviaToolBatch } from "@/lib/olivia/v2/toolScheduler";
 import { inferPersistentRunClientName, inferPersistentRunType, shouldCreatePersistentAgentRun } from "@/lib/olivia/v2/persistentRunClassifier";
 import { createAgentRun } from "@/lib/olivia/agentRuns/service";
