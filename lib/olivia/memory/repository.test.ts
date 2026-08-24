@@ -53,7 +53,15 @@ function makeQuery() {
       }
       return { data: rows[0] ?? null, error: null };
     },
-    then: (onFulfilled: any, onRejected?: any) => Promise.resolve({ data: rows, error: null }).then(onFulfilled, onRejected),
+    then: (onFulfilled: any, onRejected?: any) => {
+      // deactivateMemory처럼 .single()/.maybeSingle() 없이 update(...).eq(...)만 await하는
+      // 호출도 있어서, 대기 중인 update가 있으면 여기서도 반영한다.
+      if (updatePayload && targetId) {
+        const row = TABLE.find((r) => r.id === targetId);
+        if (row) Object.assign(row, updatePayload);
+      }
+      return Promise.resolve({ data: rows, error: null }).then(onFulfilled, onRejected);
+    },
   };
   return builder;
 }
