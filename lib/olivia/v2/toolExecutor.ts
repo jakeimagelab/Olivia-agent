@@ -519,13 +519,55 @@ export async function runTool(
   if (name === "create_quote") {
     const hospitalName = text(input, "hospitalName") || context.activeClientName;
     if (!hospitalName) throw new Error("견적을 만들 고객을 먼저 알려주세요.");
-    const quoteData = buildAgentQuoteData({ ...input, hospitalName }, context.activeProjectId);
-    const execution = await executeOliviaCrud(db, {
-      operation: "create",
-      domain: "quote",
-      data: quoteData,
-      requestText: `${hospitalName} 견적 생성`,
-    });
+
+    // Adaptive Memory Execution Policy — "앞으로 견적 요청에 고객이 없으면 자동등록해" 같은
+    // 사용자가 가르친 규칙이 활성화돼 있으면, 고객/프로젝트가 없어도 등록해달라고 되묻지 않고
+    // 여기서 직접 찾거나 만든다. 규칙이 없으면(마이그레이션 미적용 포함) 정책 값이 전부 falsy라
+    // 아래 분기가 전혀 실행되지 않고 기존 동작 그대로다.
+    const quoteMemories = await listActiveMemories(db, { scopes: ["quote"] });
+    const policy = resolveExecutionPolicy(quoteMemories);
+    let clientId = context.activeClientId;
+    let workflowRunId = context.activeProjectId;
+    if (!clientId && (policy.autoCreateClient || policy.autoCreateProject)) {
+      const candidates = await fuzzyNameSearch<{ id: string; hospital_name: string }>({
+        db, table: "clients", nameColumn: "hospital_name", select: "id,hospital_name", query: hospitalName, limit: 5,
+      });
+      if (candidates.length > 1) {
+        return {
+          tool: name,
+          success: false,
+          error: `"${hospitalName}"와 비슷한 고객이 ${candidates.length}명 있어요(${candidates.map((c) => c.hospital_name).join(", ")}). 어느 고객인지 확인해주세요.`,
+        };
+      }
+      if (policy.autoCreateClient || candidates.length === 1) {
+        const created = await createClientWithWorkflow(db, {
+          hospitalName: candidates[0]?.hospital_name || hospitalName,
+          contactName: text(input, "contactName") || null,
+          phone: text(input, "phone") || null,
+          email: text(input, "email") || null,
+        });
+        clientId = created.client.id;
+        workflowRunId = created.run?.id;
+      }
+    }
+
+    const quoteData = buildAgentQuoteData({ ...input, hospitalName }, workflowRunId);
+    if (clientId) (quoteData as Record<string, unknown>).clientId = clientId;
+    let execution;
+    try {
+      execution = await executeOliviaCrud(db, {
+        operation: "create",
+        domain: "quote",
+        data: quoteData,
+        requestText: `${hospitalName} 견적 생성`,
+      });
+    } catch (error) {
+      const usedMemory = quoteMemories.find((memory) => memory.key === "quote_auto_client_project_creation");
+      if (usedMemory) await recordMemoryOutcome(db, usedMemory.id, { success: false });
+      throw error;
+    }
+    const usedMemory = quoteMemories.find((memory) => memory.key === "quote_auto_client_project_creation");
+    if (usedMemory) await recordMemoryOutcome(db, usedMemory.id, { success: true });
     const record = execution.record || {};
     return {
       tool: name,
