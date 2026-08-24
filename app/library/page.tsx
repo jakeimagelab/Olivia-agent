@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Search, Quote, Languages, Megaphone, Briefcase, Globe2, Star } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import { C } from "@/lib/theme";
 
 type Category = "quote" | "business_english" | "marketing_case" | "consulting_framework" | "world_issue";
