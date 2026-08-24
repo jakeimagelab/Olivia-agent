@@ -91,12 +91,12 @@ export default function ContiLibraryDetailPage() {
     }
   };
 
-  if (loading) return <><PageHeader title="콘티 사례 라이브러리" /><div className="pc-content"><p style={{ fontSize: 13, color: C.hint }}>불러오는 중...</p></div></>;
-  if (!caseDoc) return <><PageHeader title="콘티 사례 라이브러리" /><div className="pc-content"><p style={{ fontSize: 13, color: C.danger }}>{error || "사례를 찾을 수 없습니다."}</p></div></>;
+  if (loading) return <><GlobalHeader title="콘티 사례 라이브러리" description="지난 콘티 작성 사례를 모아 참고할 수 있는 라이브러리입니다." /><div className="pc-content"><p style={{ fontSize: 13, color: C.hint }}>불러오는 중...</p></div></>;
+  if (!caseDoc) return <><GlobalHeader title="콘티 사례 라이브러리" description="지난 콘티 작성 사례를 모아 참고할 수 있는 라이브러리입니다." /><div className="pc-content"><p style={{ fontSize: 13, color: C.danger }}>{error || "사례를 찾을 수 없습니다."}</p></div></>;
 
   return (
     <>
-      <PageHeader title="콘티 사례 라이브러리" />
+      <GlobalHeader title="콘티 사례 라이브러리" description="지난 콘티 작성 사례를 모아 참고할 수 있는 라이브러리입니다." />
       <div className="pc-content pc-content--wide">
         <Link href="/conti-library" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: C.muted, textDecoration: "none", marginBottom: 12 }}>
           <ArrowLeft size={14} />목록으로
