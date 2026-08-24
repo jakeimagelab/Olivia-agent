@@ -36,6 +36,9 @@ function OliviaPageTransitionInner({ children }: { children: React.ReactNode }) 
     return <div key={transitionKey}>{children}</div>;
   }
 
+  // exit은 완전히 투명해지지 않고 0.92까지만 옅어진다("사라짐"이 아니라 "화면이 바뀌는 중"이라는
+  // 느낌만 준다) — enter보다 짧게(140ms) 끝내고, mode="wait"라 그 다음 enter(200ms)가 이어져도
+  // 합계 340ms로 요청서의 250-350ms 안에 들어온다.
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
