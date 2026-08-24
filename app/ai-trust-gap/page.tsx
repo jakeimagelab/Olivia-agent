@@ -364,7 +364,7 @@ export default function AiTrustGapPage() {
 
   return (
     <div className="ai-trust-gap-page" style={{ color: C.txt, minHeight: "100vh", background: C.bg, fontFamily: "var(--font-sans)" }}>
-      <PageHeader title="AI 추천 병원 역분석" />
+      <GlobalHeader title="AI 추천 병원 역분석" description="AI가 반복 추천하는 병원군의 증거와 패턴을 분석해 신뢰 격차와 촬영 기획으로 연결합니다." />
       <main className="ai-trust-gap-main" style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 22px 88px" }}>
         <section className="pc-mobile-stack ai-trust-gap-layout" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(360px, .65fr)", gap: 20, alignItems: "start" }}>
           <div className="ai-trust-gap-primary" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
