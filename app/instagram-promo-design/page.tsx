@@ -282,7 +282,7 @@ export default function InstaDesignPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
-      <PageHeader title="인스타그램 디자이너" />
+      <GlobalHeader title="인스타그램 디자이너" description="비율에 맞춘 인스타그램 홍보 이미지를 디자인하고 내보냅니다." />
 
       <div className="pc-mobile-stack" style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px", display: "grid", gridTemplateColumns: "1fr 360px", gap: 24 }}>
 
