@@ -54,6 +54,13 @@ export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message
   if(!names.size || input.requestClass==="NORMAL_CHAT") for(const name of SAFE_FALLBACK) names.add(name);
   names.add("open_feature");
   names.add("select_project");
+  // Adaptive Memory 도구는 어느 도메인 turn에서든 "앞으로 이렇게 해" 같은 가르침이 나올 수
+  // 있어서 무조건 포함한다 — 도메인 매칭이 안 되는 turn에서 조용히 빠지면 방금 고친 것과
+  // 같은 종류의 "도구가 안 보여서 모델이 지어내는" 사고로 이어진다.
+  names.add("save_agent_memory");
+  names.add("update_agent_memory");
+  names.add("disable_agent_memory");
+  names.add("list_agent_memories");
   // 도메인 2개만 겹쳐도(예: 견적(10개)+고객(4개)) 15개에 바로 닿는다 — 그 이상 넘치면 어떤
   // 도구가 조용히 빠졌는지 모델도 사용자도 알 방법이 없어서, 정작 필요한 도구(예: create_quote)가
   // 빠진 채로 "그 기능은 연결 안 돼 있다"고 지어내는 사고로 이어졌다(2026-08-24). 전체 도구
