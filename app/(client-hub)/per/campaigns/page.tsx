@@ -56,23 +56,17 @@ export default function PerCampaignsPage() {
     else alert(d.error);
   };
 
+  usePcrmHeaderTitle("기부 캠페인", "고객 리워드 포인트를 활용한 기부 캠페인을 관리합니다.", []);
+  usePcrmHeaderActions(
+    <button onClick={() => { setEditing(null); setForm({ title:"", periodLabel:"", startDate:"", endDate:"", donationTarget:"", description:"", goalAmount:"" }); setModal(true); }}
+      className="pc-btn pc-btn--primary pc-btn--sm">
+      <Plus size={13}/> 캠페인 생성
+    </button>,
+    [],
+  );
+
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">기부 캠페인</span>
-          </div>
-        </div>
-        <div className="pc-header-actions">
-          <button onClick={() => { setEditing(null); setForm({ title:"", periodLabel:"", startDate:"", endDate:"", donationTarget:"", description:"", goalAmount:"" }); setModal(true); }}
-            className="pc-btn pc-btn--primary pc-btn--sm">
-            <Plus size={13}/> 캠페인 생성
-          </button>
-        </div>
-      </header>
-
       <div style={{ maxWidth:960, margin:"0 auto", padding:"24px 20px 100px", display:"grid", gridTemplateColumns:"1fr 340px", gap:20 }}>
         {/* 캠페인 목록 */}
         <div>
