@@ -126,21 +126,19 @@ function ConsultationInner() {
 
   return (
     <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">상담 · 미팅 앱</span>
-          </div>
-        </div>
-        <div className="pc-header-actions" style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 20px" }}>
-          {savedId
-            ? <Link href={`/clients?id=${savedId}`} className="pc-header-back">← 고객 화면</Link>
-            : <Link href="/clients" className="pc-header-back">← 고객관리</Link>}
-          <span style={{ fontSize: 10, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}40`, borderRadius: 99, padding: "3px 10px" }}>Step 1 · 상담/미팅</span>
-          {savedId && <Link href={`/clients?id=${savedId}`} style={{ fontSize: 12, fontWeight: 800, color: C.teal, textDecoration: "none" }}>고객 상세 →</Link>}
-        </div>
-      </header>
+      <GlobalHeader
+        title="상담 · 미팅 앱"
+        description="고객 상담과 미팅 정보를 기록하고 워크플로우 1단계를 시작합니다."
+        pageActions={
+          <>
+            {savedId
+              ? <Link href={`/clients?id=${savedId}`} className="pc-header-back">← 고객 화면</Link>
+              : <Link href="/clients" className="pc-header-back">← 고객관리</Link>}
+            <span style={{ fontSize: 10, fontWeight: 900, color: C.orange, border: `1px solid ${C.orange}40`, borderRadius: 99, padding: "3px 10px" }}>Step 1 · 상담/미팅</span>
+            {savedId && <Link href={`/clients?id=${savedId}`} style={{ fontSize: 12, fontWeight: 800, color: C.teal, textDecoration: "none" }}>고객 상세 →</Link>}
+          </>
+        }
+      />
 
       {savedId && (
         <div style={{ background: C.light, borderBottom: `1px solid ${C.border}`, padding: "8px 24px", display: "flex", alignItems: "center", gap: 12 }}>
