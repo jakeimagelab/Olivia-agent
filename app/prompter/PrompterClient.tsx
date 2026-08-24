@@ -11,7 +11,7 @@ import {
   Scan, Palette, AlignVerticalDistributeCenter, Share2, Hand,
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import { getSupabase } from "@/lib/supabase";
 import {
   FONT_OPTIONS, COLOR_OPTIONS, BG_COLOR_OPTIONS, V_ALIGN_PADDING, fmtTime,
