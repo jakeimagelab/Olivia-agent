@@ -122,7 +122,7 @@ export default function BrollPromptPage() {
 
   return (
     <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <PageHeader title="B롤 이미지 프롬프트 생성기" />
+      <GlobalHeader title="B롤 이미지 프롬프트 생성기" description="유튜브 대본에서 구간을 골라 이미지 생성 AI에 바로 쓸 영문 프롬프트를 만듭니다." />
       <div className="pc-content pc-content--wide">
         <p style={{ fontSize: 13, color: C.muted, marginBottom: 18 }}>
           유튜브 대본에서 이미지화할 구간을 여러 개 골라 대기 목록에 담고, 한 번에 영문 프롬프트를 생성합니다. 이미지 생성 자체는 하지 않습니다.
