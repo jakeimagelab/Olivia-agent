@@ -126,7 +126,7 @@ export default function VariationPage() {
 
   return (
     <div className="pc-page">
-      <PageHeader title="Photo Variation" />
+      <GlobalHeader title="Photo Variation" description="업로드한 인물 사진을 AI로 자연스럽게 변형한 여러 버전을 생성합니다." />
 
       <div className="pc-content pc-content--wide">
 
