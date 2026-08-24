@@ -10,6 +10,16 @@ function isMissingTableError(error: { code?: string; message?: string } | null) 
   return error.code === "42P01" || /relation .* does not exist/i.test(error.message || "");
 }
 
+// listActiveMemories는 채팅 메시지마다(선택 매칭 트리거 포함) 실행되는 hot path다 — 마이그레이션이
+// 아직 적용 안 된 환경에서는 매번 실패하는 Supabase 왕복을 그대로 기다리는 바람에 모든 메시지가
+// 체감상 느려지는 사고가 있었다(2026-08-24). 한 번 "테이블 없음"을 확인하면 잠깐(60초) 동안은
+// 다시 물어보지 않고 바로 빈 배열을 돌려준다 — 마이그레이션을 적용하면 재배포 없이도 1분 안에
+// 다시 살아난다.
+let tableMissingUntil = 0;
+const TABLE_MISSING_RECHECK_MS = 60_000;
+function markTableMissing() { tableMissingUntil = Date.now() + TABLE_MISSING_RECHECK_MS; }
+function isTableKnownMissing() { return Date.now() < tableMissingUntil; }
+
 // 이 함수는 create_quote 같은 기존(사전 테스트로 검증된) 도구 흐름 한가운데서 항상 먼저
 // 호출된다 — 테이블이 없거나(마이그레이션 미적용) 예상 밖의 에러가 나도 기존 흐름을 절대
 // 막으면 안 되므로, {error} 응답뿐 아니라 동기/비동기 throw까지 전부 여기서 삼키고 빈 배열을
