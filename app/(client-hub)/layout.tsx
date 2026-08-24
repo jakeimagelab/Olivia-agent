@@ -60,7 +60,7 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
 
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
-      {!inIframe && <PageHeader title={title} />}
+      {!inIframe && <GlobalHeader title={title} description={description} />}
 
       <div className="pc-page-content">
         {children}
