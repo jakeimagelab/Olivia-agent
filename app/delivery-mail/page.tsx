@@ -106,14 +106,7 @@ export default function DeliveryMailPage() {
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
 
       {/* NAV */}
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">File Transfer</span>
-          </div>
-        </div>
-      </header>
+      <GlobalHeader title="File Transfer" description="최종 파일을 정리해 고객에게 전달하고 후기 요청 메일을 발송합니다." />
 
       <div className="pc-mobile-stack" style={{ maxWidth: preview ? 1100 : 560, margin: "0 auto", padding: "28px 20px",
                     display: "grid", gridTemplateColumns: preview ? "1fr 1fr" : "1fr", gap: 24, alignItems: "start" }}>
