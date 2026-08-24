@@ -14,7 +14,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import Link from "next/link";
 
 // ─────────────────────────────────────────────────────────────
