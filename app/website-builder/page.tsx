@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import {
   ArrowLeft, ArrowRight, Check, Globe2, Pencil, Download,
