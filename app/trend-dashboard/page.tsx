@@ -159,14 +159,7 @@ export default function TrendDashboardPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#EDF5F3" }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">병원 트렌드 분석</span>
-          </div>
-        </div>
-      </header>
+      <GlobalHeader title="병원 트렌드 분석" description="SNS·키워드 검색량·경쟁사 현황을 업종별로 수집해 AI 인사이트와 함께 보여줍니다." />
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 20px 60px" }}>
 
