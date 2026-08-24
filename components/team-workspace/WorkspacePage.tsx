@@ -35,15 +35,22 @@ export default function WorkspacePage({
 
   return (
     <TeamWorkspaceShell>
-      <PageHeader
-        title="워크스페이스"
-        tabs={[
+      <GlobalHeader title="워크스페이스" description="팀 채팅·목표·프로젝트·리포트를 한 곳에서 관리합니다." />
+      <div className="pc-tabs pc-tabs--global">
+        {[
           { key: "tasks", label: "할 일", icon: <CheckSquare2 size={15} /> },
           { key: "chat", label: "팀채팅", icon: <MessageCircle size={15} /> },
-        ]}
-        activeTab={activeTab}
-        onTabChange={changeTab}
-      />
+        ].map((t) => (
+          <button
+            key={t.key}
+            className={`pc-tab${activeTab === t.key ? " pc-tab--active" : ""}`}
+            onClick={() => changeTab(t.key)}
+          >
+            <span className="pc-tab-icon">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       <div className="workspace-content">
         {activeTab === "chat" ? (
