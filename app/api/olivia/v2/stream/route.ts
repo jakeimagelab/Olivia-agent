@@ -381,6 +381,9 @@ function toolStatus(name: string) {
   if (name === "link_document_to_client") return "고객에 연결하는 중…";
   if (name === "create_feature_record") return "데이터를 생성하는 중…";
   if (name === "update_feature_record") return "데이터를 수정하는 중…";
+  if (name === "save_agent_memory" || name === "update_agent_memory") return "업무 규칙을 기억하는 중…";
+  if (name === "disable_agent_memory") return "업무 규칙을 정리하는 중…";
+  if (name === "list_agent_memories") return "기억하고 있는 규칙을 확인하는 중…";
   return "화면을 준비하는 중…";
 }
 
