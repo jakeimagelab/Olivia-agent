@@ -217,22 +217,15 @@ function SeoDeliveryInner() {
   return (
     <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif", color: C.txt }}>
 
-      {/* ── 헤더 ── */}
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">
-              AI 검색 최적화 납품 생성{clientInfo ? ` · ${clientInfo.hospital_name || clientInfo.name}` : ""}
-            </span>
-          </div>
-        </div>
-        <div className="pc-header-actions" style={{ fontSize: 11, color: "#9BB5B0" }}>
-          {clientId
+      <GlobalHeader
+        title={`AI 검색 최적화 납품 생성${clientInfo ? ` · ${clientInfo.hospital_name || clientInfo.name}` : ""}`}
+        description="납품 사진의 SEO 파일명·ALT·캡션·메타데이터를 자동 생성합니다."
+        pageActions={
+          clientId
             ? <Link href={`/clients?id=${clientId}`} className="pc-header-back">← 고객관리</Link>
-            : <span>독립 실행 모드</span>}
-        </div>
-      </header>
+            : <span style={{ fontSize: 11, color: "#9BB5B0" }}>독립 실행 모드</span>
+        }
+      />
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 16px 80px" }}>
         <div style={{ display: "grid", gridTemplateColumns: results.length ? "1fr 480px" : "1fr", gap: 16, alignItems: "start" }}>
