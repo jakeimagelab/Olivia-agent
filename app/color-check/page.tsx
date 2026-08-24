@@ -134,14 +134,7 @@ export default function ColorCheckPage() {
   return (
     <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
 
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="" className="pc-header-logo"/>
-            <span className="pc-header-title">색감 체크</span>
-          </div>
-        </div>
-      </header>
+      <GlobalHeader title="색감 체크" description="사진을 업로드해 기준 색감과 비교하고 보정 가이드를 확인합니다." />
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 20px 80px" }}>
 
