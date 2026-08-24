@@ -203,7 +203,7 @@ export default function DailyIdeasPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
-      <PageHeader title="아이디어 제안" actions={<>
+      <GlobalHeader title="아이디어 제안" description="오늘 제작할 클라이언트 홍보 콘텐츠 아이디어를 AI가 매일 제안합니다." pageActions={<>
           {genMsg && <span style={{ fontSize: 12, fontWeight: 700, color: genMsg.includes("됐") ? "#22876A" : C.orange }}>{genMsg}</span>}
           <button onClick={generate} disabled={generating} className={`pc-btn pc-btn--sm ${hasToday ? "pc-btn--primary" : "pc-btn--orange"}`}>
             {generating ? "생성 중..." : hasToday ? "재생성" : "✨ 생성"}
