@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import {
   Activity, BarChart2, RefreshCw, TrendingUp
 } from "lucide-react";
+import GlobalHeader from "@/components/GlobalHeader";
 
 type ReportData = {
   total: number;
