@@ -285,7 +285,7 @@ export default function StrategyDetailPage() {
   if (loading) {
     return (
       <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-        <PageHeader title="마케팅 대시보드" />
+        <GlobalHeader title="마케팅 대시보드" description="채널별 마케팅 전략과 지식 베이스를 관리합니다." />
         <p style={{ textAlign: "center", color: C.muted, padding: 80 }}>불러오는 중…</p>
       </main>
     );
@@ -294,7 +294,7 @@ export default function StrategyDetailPage() {
   if (!strategy) {
     return (
       <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-        <PageHeader title="마케팅 대시보드" />
+        <GlobalHeader title="마케팅 대시보드" description="채널별 마케팅 전략과 지식 베이스를 관리합니다." />
         <p style={{ textAlign: "center", color: C.muted, padding: 80 }}>전략을 찾을 수 없습니다.</p>
       </main>
     );
