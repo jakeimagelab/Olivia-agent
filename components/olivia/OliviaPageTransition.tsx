@@ -41,9 +41,8 @@ function OliviaPageTransitionInner({ children }: { children: React.ReactNode }) 
       <motion.div
         key={transitionKey}
         initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -4 }}
-        transition={oliviaMotion.page}
+        animate={{ opacity: 1, y: 0, transition: { duration: 0.2, ease: [.32, .72, 0, 1] } }}
+        exit={{ opacity: 0.92, y: 4, transition: { duration: 0.14, ease: [.32, .72, 0, 1] } }}
       >
         {children}
       </motion.div>
