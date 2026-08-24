@@ -307,7 +307,7 @@ function WorkJournalInner() {
 
   return (
     <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <PageHeader title="업무일지" />
+      <GlobalHeader title="업무일지" description="촬영 일정별 To-do와 장비·렌탈 준비사항을 관리합니다." />
       <div className="pc-content pc-content--wide">
         <p style={{ fontSize: 13, color: C.muted, margin: "-8px 0 20px" }}>
           일정을 선택하면 To-do를 관리할 수 있고, 촬영 일정은 준비사항(장비·렌탈)도 함께 관리할 수 있습니다.
