@@ -47,23 +47,17 @@ export default function PerDonationsPage() {
 
   const selectedClient = clients.find(c => c.id === form.clientId);
 
+  usePcrmHeaderTitle("기부 내역", "고객이 리워드 포인트로 진행한 기부 내역을 조회하고 등록합니다.", []);
+  usePcrmHeaderActions(
+    <button onClick={() => { setForm({ clientId:"", campaignId:"", points:"", hospitalNamePublic:true, displayName:"" }); setModal(true); }}
+      className="pc-btn pc-btn--primary pc-btn--sm">
+      <Plus size={13}/> 기부 등록
+    </button>,
+    [],
+  );
+
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">기부 내역</span>
-          </div>
-        </div>
-        <div className="pc-header-actions">
-          <button onClick={() => { setForm({ clientId:"", campaignId:"", points:"", hospitalNamePublic:true, displayName:"" }); setModal(true); }}
-            className="pc-btn pc-btn--primary pc-btn--sm">
-            <Plus size={13}/> 기부 등록
-          </button>
-        </div>
-      </header>
-
       <div style={{ maxWidth:900, margin:"0 auto", padding:"24px 20px 100px" }}>
         {loading ? <div style={{ textAlign:"center", padding:40, color:C.hint }}>로딩 중...</div> :
           donations.length === 0
