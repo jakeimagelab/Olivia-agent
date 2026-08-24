@@ -434,11 +434,13 @@ export async function POST(req: NextRequest) {
   const persistentAgentRun = shouldCreatePersistentAgentRun(message, requestClass);
   const recentUserText = optionalString(body.recentUserText);
   const selectedTools = selectOliviaTools({ requestClass, message, context, recentText: recentUserText });
-  // Adaptive Memory — 도구 선택에 이미 쓴 도메인 판정을 그대로 재사용해 그 범위의 taught rule만
-  // 가져온다(요청서 23-24번, 매 요청에 전체 memory를 다 넣지 않음). 테이블이 아직 없어도(마이그레이션
-  // 미적용) listActiveMemories가 조용히 빈 배열을 돌려주므로 기존 흐름에 영향 없다.
+  // Adaptive Memory용 scope만 여기서 미리 계산해둔다(순수 함수, DB 호출 없음) — 실제 조회는
+  // 스트림 안에서 history 등 기존에 이미 병렬로 부르던 DB 호출들과 함께 묶는다. 예전엔 여기서
+  // 바로 await listActiveMemories(...)를 했는데, deterministic/fast-path/persistentAgentRun처럼
+  // LLM/도구가 아예 필요 없는 요청까지 스트림이 시작하기도 전에 Supabase 왕복 하나를 더 기다리게
+  // 만들어서 "셀렉매칭" 같은 요청까지 체감상 느려졌다(2026-08-24 사용자 리포트) — 특히 마이그레이션
+  // 미적용 상태(테이블 없음)에서는 매 요청마다 실패하는 조회를 순차로 기다린 셈이라 더 심했다.
   const memoryScopes = getOliviaToolDomains(message, context, recentUserText);
-  const taughtMemories = await listActiveMemories(getSupabaseAdmin(), { scopes: memoryScopes });
   const databaseFastPath = hasDatabaseFastPath(message);
   if (!deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
