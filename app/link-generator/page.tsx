@@ -142,7 +142,7 @@ export default function LinkGeneratorPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <PageHeader title="외부 공유 링크" />
+      <GlobalHeader title="외부 공유 링크" description="비밀번호 없는 외부인에게 특정 기능 하나만 열어주는 링크를 생성·관리합니다." />
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "24px 20px 80px" }}>
         <Card>
           <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 900, color: C.teal }}>
