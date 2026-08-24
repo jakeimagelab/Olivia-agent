@@ -10,20 +10,28 @@ function isMissingTableError(error: { code?: string; message?: string } | null) 
   return error.code === "42P01" || /relation .* does not exist/i.test(error.message || "");
 }
 
+// 이 함수는 create_quote 같은 기존(사전 테스트로 검증된) 도구 흐름 한가운데서 항상 먼저
+// 호출된다 — 테이블이 없거나(마이그레이션 미적용) 예상 밖의 에러가 나도 기존 흐름을 절대
+// 막으면 안 되므로, {error} 응답뿐 아니라 동기/비동기 throw까지 전부 여기서 삼키고 빈 배열을
+// 돌려준다.
 export async function listActiveMemories(
   db: SupabaseClient,
   input: { scopes?: string[]; memoryTypes?: OliviaMemoryType[] } = {},
 ): Promise<OliviaMemoryRow[]> {
-  let query = db.from("olivia_agent_memory").select("*").eq("is_active", true).order("priority", { ascending: false }).order("updated_at", { ascending: false });
-  if (input.scopes?.length) query = query.in("scope", input.scopes);
-  if (input.memoryTypes?.length) query = query.in("memory_type", input.memoryTypes);
-  const { data, error } = await query;
-  if (error) {
-    if (isMissingTableError(error)) return [];
-    console.error("[OliviaMemory] listActiveMemories 실패", error);
+  try {
+    let query = db.from("olivia_agent_memory").select("*").eq("is_active", true).order("priority", { ascending: false }).order("updated_at", { ascending: false });
+    if (input.scopes?.length) query = query.in("scope", input.scopes);
+    if (input.memoryTypes?.length) query = query.in("memory_type", input.memoryTypes);
+    const { data, error } = await query;
+    if (error) {
+      if (!isMissingTableError(error)) console.error("[OliviaMemory] listActiveMemories 실패", error);
+      return [];
+    }
+    return (data || []) as OliviaMemoryRow[];
+  } catch (error) {
+    console.error("[OliviaMemory] listActiveMemories 예외", error);
     return [];
   }
-  return (data || []) as OliviaMemoryRow[];
 }
 
 export async function findMemoryByKeyScope(db: SupabaseClient, key: string, scope: string | null): Promise<OliviaMemoryRow | null> {
