@@ -84,19 +84,15 @@ export default function PortalAdminPage() {
 
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">고객 포털 관리</span>
-          </div>
-        </div>
-        <div className="pc-header-actions">
+      <GlobalHeader
+        title="고객 포털 관리"
+        description="병원 고객에게 전달할 고객 전용 포털 링크를 생성하고 수정 요청·리뷰를 관리합니다."
+        pageActions={
           <a href="/client-portal/dashboard" target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:5, height:36, padding:"0 12px", borderRadius:9, background:C.light, color:C.teal, fontWeight:700, fontSize:12, textDecoration:"none" }}>
             <ExternalLink size={12}/> 고객 포털 미리보기
           </a>
-        </div>
-      </header>
+        }
+      />
 
       {/* 탭 */}
       <div className="pc-tabs pc-tabs--global">
