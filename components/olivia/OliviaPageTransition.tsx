@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname, useSearchParams } from "next/navigation";
-import { oliviaMotion, prefersReducedMotion } from "@/lib/motion/presets";
+import { prefersReducedMotion } from "@/lib/motion/presets";
 
 // 코드 요청서 — Olivia UX/Motion Core(2026-08-16), 섹션 10/43/44. AppShell(사이드바, 채팅
 // 패널)은 그대로 두고 라우트가 바뀔 때 main content만 opacity/y로 이어붙인다. 리소스 정체성이
