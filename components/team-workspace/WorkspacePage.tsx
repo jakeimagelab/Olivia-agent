@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { CheckSquare2, MessageCircle } from "lucide-react";
 import { useState } from "react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import TeamWorkspaceShell from "./TeamWorkspaceShell";
 
 type WorkspaceTab = "chat" | "tasks";
