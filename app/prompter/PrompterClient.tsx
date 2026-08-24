@@ -1089,9 +1089,10 @@ export default function PrompterPage() {
   if (mode === "scenes") {
     return (
       <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-        <PageHeader
+        <GlobalHeader
           title="프롬프터"
-          actions={<>
+          description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다."
+          pageActions={<>
             <button onClick={backToProjects} className="pt-btn"><ChevronLeft size={15} /> 프로젝트 목록</button>
             <button
               onClick={() => setSceneView((view) => view === "editor" ? "data" : "editor")}
