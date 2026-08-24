@@ -32,22 +32,14 @@ export default function PerSettingsPage() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  usePcrmHeaderTitle("포인트 정책 설정", "리워드 적립률, 포인트 만료, 사용 가능 옵션을 설정합니다.", []);
+
   if (!settings) return <div style={{ padding:40, textAlign:"center", color:C.hint }}>로딩 중...</div>;
 
   const previewPoints = Math.floor(2000000 * (Number(form.reward_rate) || 0.01));
 
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">포인트 정책 설정</span>
-          </div>
-        </div>
-        <div className="pc-header-actions" />
-      </header>
-
       <div style={{ maxWidth:700, margin:"0 auto", padding:"24px 20px 100px" }}>
         <div className="pc-card pc-card--padded" style={{ marginBottom:20 }}>
           <h2 style={{ margin:"0 0 20px", fontSize:15, fontWeight:800, display:"flex", alignItems:"center", gap:8 }}>
