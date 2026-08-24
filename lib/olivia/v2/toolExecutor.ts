@@ -45,12 +45,17 @@ import {
 } from "@/lib/assistant/actions/email";
 import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
 import { executeOliviaChatWorkTool, OLIVIA_CHAT_WORK_TOOL_NAMES } from "@/lib/olivia/chatWorkTools";
-import { fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
+import { fuzzyNameSearch, fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 import { analyzeChannels } from "@/lib/channelAnalysis";
 import { resolveFeatureIntent } from "@/lib/olivia/features/resolver";
 import { normalizeToolError, OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { searchDocuments } from "@/lib/olivia/documents/searchDocuments";
 import { DOCUMENT_TYPE_LABELS, normalizeDocumentTypeHint, type OliviaDocumentRef } from "@/lib/olivia/documents/types";
+import { createClientWithWorkflow } from "@/lib/clients/createClientWithWorkflow";
+import { OLIVIA_MEMORY_TYPES, type OliviaMemoryType } from "@/lib/olivia/memory/types";
+import { createMemory, deactivateMemory, findMemoryByKeyScope, listActiveMemories, recordMemoryOutcome, updateMemory } from "@/lib/olivia/memory/repository";
+import { resolveExecutionPolicy } from "@/lib/olivia/memory/executionPolicy";
+import { formatMemoryForUser } from "@/lib/olivia/memory/format";
 
 // calendar.ts/workflow.ts/mailing.ts/gallery.ts, chatWorkTools.ts는 전부 레거시(Claude) 경로와
 // 공유하는 {action:"done", message, ...} 모양으로 결과를 돌려준다 — v2가 기대하는
