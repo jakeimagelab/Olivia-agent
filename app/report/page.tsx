@@ -64,14 +64,7 @@ export default function ReportPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#F0F9F8" }}>
-      <header className="pc-header" style={{ justifyContent: "center" }}>
-        <div className="pc-header-left" style={{ flex: "none" }}>
-          <div className="pc-header-brand" style={{ justifyContent: "center" }}>
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">업무 리포트</span>
-          </div>
-        </div>
-      </header>
+      <GlobalHeader title="업무 리포트" description="AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다." />
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "18px 20px 48px" }}>
 
