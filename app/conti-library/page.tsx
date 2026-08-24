@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, FileText, Plus, RefreshCw, Trash2 } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import { C, R } from "@/lib/theme";
 import { SCENE_TYPE_LABELS_KO } from "@/lib/conti-library/config";
 import type { ContiCaseDocument } from "@/lib/conti-library/types";
