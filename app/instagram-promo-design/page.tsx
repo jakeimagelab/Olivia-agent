@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import { Upload, Sparkles, Download, Copy, Check, RefreshCw } from "lucide-react";
 
 // ── 색상 ──────────────────────────────────────────────────
