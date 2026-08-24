@@ -27,6 +27,9 @@ const pageTitle: Record<string, PageMeta> = {
   "/admin/tools/reviews": { title: "후기 DB" },
   "/admin/tools/rewards": { title: "리워드 관리" },
   "/admin/tools/content": { title: "콘텐츠 제작" },
+  "/admin/security": { title: "보안 설정", description: "패스키 등록·삭제 등 계정 보안을 관리합니다." },
+  "/admin/kakao-assistant": { title: "카카오 AI 비서", description: "카카오 채널로 연결된 Olivia 외부 채널을 관리합니다." },
+  "/admin/team-chat-settings": { title: "팀 채팅 설정", description: "팀 채팅 연동과 저장 공간을 관리합니다." },
 };
 
 type AdminHeaderProps = {
