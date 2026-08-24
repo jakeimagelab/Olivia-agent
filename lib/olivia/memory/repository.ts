@@ -28,13 +28,15 @@ export async function listActiveMemories(
   db: SupabaseClient,
   input: { scopes?: string[]; memoryTypes?: OliviaMemoryType[] } = {},
 ): Promise<OliviaMemoryRow[]> {
+  if (isTableKnownMissing()) return [];
   try {
     let query = db.from("olivia_agent_memory").select("*").eq("is_active", true).order("priority", { ascending: false }).order("updated_at", { ascending: false });
     if (input.scopes?.length) query = query.in("scope", input.scopes);
     if (input.memoryTypes?.length) query = query.in("memory_type", input.memoryTypes);
     const { data, error } = await query;
     if (error) {
-      if (!isMissingTableError(error)) console.error("[OliviaMemory] listActiveMemories 실패", error);
+      if (isMissingTableError(error)) markTableMissing();
+      else console.error("[OliviaMemory] listActiveMemories 실패", error);
       return [];
     }
     return (data || []) as OliviaMemoryRow[];
@@ -45,12 +47,14 @@ export async function listActiveMemories(
 }
 
 export async function findMemoryByKeyScope(db: SupabaseClient, key: string, scope: string | null): Promise<OliviaMemoryRow | null> {
+  if (isTableKnownMissing()) return null;
   try {
     let query = db.from("olivia_agent_memory").select("*").eq("key", key);
     query = scope ? query.eq("scope", scope) : query.is("scope", null);
     const { data, error } = await query.maybeSingle();
     if (error) {
-      if (!isMissingTableError(error)) console.error("[OliviaMemory] findMemoryByKeyScope 실패", error);
+      if (isMissingTableError(error)) markTableMissing();
+      else console.error("[OliviaMemory] findMemoryByKeyScope 실패", error);
       return null;
     }
     return (data as OliviaMemoryRow) ?? null;
