@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import { C, R, FS, SP } from "@/lib/theme";
 import type {
   ChannelDiagnosisResult, ChannelScores, DiagnosisChannel, DiagnosisProgressStatus,
