@@ -88,12 +88,11 @@ export default function MarketingDashboardPage() {
   const router = useRouter();
   return (
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-      <PageHeader
-        title="마케팅 대시보드"
-        tabs={[{ key: "home", label: "홈" }, { key: "strategy", label: "전략" }]}
-        activeTab="home"
-        onTabChange={(key) => { if (key === "strategy") router.push("/marketing/strategy"); }}
-      />
+      <GlobalHeader title="마케팅 대시보드" description="채널별 마케팅 전략과 지식 베이스를 관리합니다." />
+      <div className="pc-tabs pc-tabs--global">
+        <button className="pc-tab pc-tab--active">홈</button>
+        <button className="pc-tab" onClick={() => router.push("/marketing/strategy")}>전략</button>
+      </div>
       <div className="oa-page oa-tools-page">
         <div className="mkt-brief-row">
           <TodayIdeaBrief />
