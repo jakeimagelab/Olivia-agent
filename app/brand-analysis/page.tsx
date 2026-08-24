@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 
 const C = {
   green:  "#155855",
