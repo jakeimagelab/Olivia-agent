@@ -56,11 +56,12 @@ function maxToolRounds(requestClass: ReturnType<typeof classifyOliviaRequest>) {
 // 진짜 source of truth는 lib/olivia/runtime/buildRuntimeContext.ts가 계산한 OliviaRuntimeContext다
 // — 이 프롬프트의 "오늘 날짜" 문구는 그 값을 GPT에게 설명해주는 보조 수단일 뿐이다(런타임 질문
 // 자체는 GPT를 거치지 않고 orchestrator가 직접 답한다. 아래 handleRequest 참고).
-function buildSystemPrompt(runtime: OliviaRuntimeContext, olderSummary?: string): string {
+function buildSystemPrompt(runtime: OliviaRuntimeContext, olderSummary?: string, taughtMemories: OliviaMemoryRow[] = []): string {
   return `당신은 포토클리닉 운영 AI Agent Olivia다. 사용자는 대표자다.
 
 오늘 날짜: ${runtime.todayISO} ${runtime.weekdayKo} (한국 시간 기준 — 절대 학습 데이터의 연도로 추측하지 말고 이 날짜를 기준으로 답한다. '오늘'/'내일'/'이번주 금요일' 등을 YYYY-MM-DD로 변환할 때도 이 날짜를 쓴다.)
 ${olderSummary ? `\n<이전_대화_요약>\n대화가 길어져 아래는 더 오래된 assistant 응답 원문 일부다(요약이 아니라 실제 발화를 짧게 자른 것 — 지어낸 내용 없음). 최근 대화와 이어지지 않는 부분이 있으면 사용자에게 확인한다.\n${olderSummary}\n</이전_대화_요약>\n` : ""}
+${taughtMemories.length ? `\n<taught_business_rules>\n사용자가 채팅으로 가르친 활성 업무 규칙이다. 아래 <operating_rules>의 일반 원칙보다 이 규칙을 우선 적용한다.\n${taughtMemories.map(formatMemoryForPrompt).join("\n")}\n</taught_business_rules>\n` : ""}
 
 <operating_rules>
 - 현재 Context를 먼저 사용한다. 이미 선택된 고객/프로젝트를 다시 묻지 않는다.
