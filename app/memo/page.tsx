@@ -262,17 +262,22 @@ function MemoWorkspace() {
 
   return (
     <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <PageHeader
-        title="메모"
-        tabs={MODE_TABS}
-        activeTab={mode}
-        onTabChange={key => changeMode(key as MemoMode)}
-        actionsAfterTabs
-        actions={<>
+      <GlobalHeader title="메모" description="일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다." pageActions={<>
           <Link href="/trash" className="pc-btn pc-btn--secondary pc-btn--sm" aria-label="휴지통"><Trash2 size={14} /><span className="memo-header-action-label">휴지통</span></Link>
           <button className="pc-btn pc-btn--orange pc-btn--sm" onClick={() => reset(mode)}><Plus size={15} />새 메모</button>
-        </>}
-      />
+        </>} />
+      <div className="pc-tabs pc-tabs--global">
+        {MODE_TABS.map((t) => (
+          <button
+            key={t.key}
+            className={`pc-tab${mode === t.key ? " pc-tab--active" : ""}`}
+            onClick={() => changeMode(t.key as MemoMode)}
+          >
+            <span className="pc-tab-icon">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       <div className={`pc-content pc-content--wide memo-content${mode === "template" ? " memo-content--full" : ""}`}>
         {dateParam ? <div className="memo-notice">캘린더 {dateParam} 일정에서 시작한 메모입니다.</div> : null}
