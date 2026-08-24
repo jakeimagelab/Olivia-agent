@@ -696,7 +696,7 @@ export default function HospitalBrandImageDiagnosisPage() {
   if (screen === "landing") {
     return (
       <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-        <PageHeader title="병원브랜드이미지 진단" />
+        <GlobalHeader title="병원브랜드이미지 진단" description="홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다." />
         <div className="oa-page" style={{ maxWidth: 720, margin: "0 auto", padding: `60px 20px 80px`, textAlign: "center" }}>
           <h1 style={{ fontSize: FS.xxl, fontWeight: 900, color: C.ink, margin: "0 0 14px" }}>병원브랜드이미지 진단</h1>
           <p style={{ fontSize: FS.lg, color: C.ink, lineHeight: 1.7, margin: "0 0 6px" }}>
@@ -749,7 +749,7 @@ export default function HospitalBrandImageDiagnosisPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-      <PageHeader title="병원브랜드이미지 진단" />
+      <GlobalHeader title="병원브랜드이미지 진단" description="홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다." />
       <div className="oa-page" style={{ maxWidth: 820, margin: "0 auto", padding: `${SP.lg}px 20px 80px` }}>
         <StepIndicator current={step} maxReached={maxReached} isMobile={isMobile} />
         {globalError && (
