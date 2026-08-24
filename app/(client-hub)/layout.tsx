@@ -69,10 +69,26 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
   );
 }
 
+const PCRM_SECTION_META: Record<string, { title: string; description: string }> = {
+  "/clients":       { title: "Clients",     description: "고객과 진행 중인 프로젝트를 관리합니다." },
+  "/per":           { title: "PER 리워드",  description: "고객 추천 리워드 적립·신청·후속 관리를 처리합니다." },
+  "/review-studio": { title: "리뷰컨텐츠",  description: "클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다." },
+};
+
+function pcrmSectionFallback(pathname: string) {
+  if (pathname.startsWith("/per")) return PCRM_SECTION_META["/per"];
+  if (pathname.startsWith("/review-studio")) return PCRM_SECTION_META["/review-studio"];
+  return PCRM_SECTION_META["/clients"];
+}
+
 // /clients 페이지가 검색창/등록 버튼을 PcrmHeaderActionsSlot으로 꽂아 넣으면 여기서 받아
-// GlobalHeader 오른쪽에 그대로 얹는다 — /per, /review-studio처럼 꽂아 넣는 페이지가 없으면
-// 그냥 빈 슬롯이라 기본 헤더와 동일하게 보인다.
+// GlobalHeader 오른쪽에 그대로 얹는다. /per 하위 페이지들처럼 자기만의 제목(예: 병원 이름)이
+// 필요한 경우 usePcrmHeaderTitle로 titleOverride를 꽂아 넣으면 그걸 우선 쓰고, 없으면 섹션
+// 기본값(Clients/PER 리워드/리뷰컨텐츠)으로 떨어진다.
 function PcrmSectionHeader() {
+  const pathname = usePathname();
   const pageActions = usePcrmHeaderActionsSlot();
-  return <GlobalHeader title="Clients" description="고객과 진행 중인 프로젝트를 관리합니다." pageActions={pageActions} />;
+  const titleOverride = usePcrmHeaderTitleSlot();
+  const meta = titleOverride ?? pcrmSectionFallback(pathname ?? "");
+  return <GlobalHeader title={meta.title} description={meta.description} pageActions={pageActions} />;
 }
