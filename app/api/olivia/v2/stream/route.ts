@@ -499,7 +499,11 @@ export async function POST(req: NextRequest) {
         contextMs = performance.now() - contextStartedAt;
 
         const historyStartedAt = performance.now();
-        const [history, , conversationMetadataResult] = await Promise.all([listAssistantMessages(db, owner.id, conversation.id, 30), saveAssistantMessage(db, {
+        // taughtMemories는 deterministic/fast-path/persistentAgentRun이면 아예 안 쓰지만, 그 판단
+        // 자체가 이 아래에서 일어나고 history/saveAssistantMessage도 그 판단과 무관하게 항상 먼저
+        // 불러오던 기존 구조라, 같은 Promise.all에 얹어도 그 경로들의 지연 시간이 늘지 않는다(이미
+        // 지불하던 병렬 호출 묶음에 하나 더 낀 것뿐 — 순차 대기가 아니다).
+        const [history, , conversationMetadataResult, taughtMemories] = await Promise.all([listAssistantMessages(db, owner.id, conversation.id, 30), saveAssistantMessage(db, {
           ownerId: owner.id,
           conversationId: conversation.id,
           role: "user",
@@ -509,7 +513,7 @@ export async function POST(req: NextRequest) {
           channel: "web",
           externalMessageId: optionalString(body.clientRequestId) || crypto.randomUUID(),
           metadata: { context, pageContext, requestClass, requestKind, routeDecision: deterministic?.routeDecision ?? "GPT_FALLBACK", resolvedMessage: message !== rawMessage ? message : undefined },
-        }), db.from("assistant_conversations").select("metadata").eq("id",conversation.id).maybeSingle()]);
+        }), db.from("assistant_conversations").select("metadata").eq("id",conversation.id).maybeSingle(), listActiveMemories(db, { scopes: memoryScopes })]);
         const compactSummary=typeof conversationMetadataResult.data?.metadata?.compactSummary==="string"
           ? conversationMetadataResult.data.metadata.compactSummary as string
           : undefined;
