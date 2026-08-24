@@ -8,13 +8,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({}) }));
 
-const listActiveMemoriesMock = vi.fn(async () => [] as any[]);
+const listActiveMemoriesMock = vi.fn(async (..._args: any[]) => [] as any[]);
 vi.mock("@/lib/olivia/memory/repository", () => ({
   listActiveMemories: (...args: any[]) => listActiveMemoriesMock(...args),
   recordMemoryOutcome: vi.fn(async () => {}),
 }));
 
-const fuzzyNameSearchMock = vi.fn(async () => [] as any[]);
+const fuzzyNameSearchMock = vi.fn(async (..._args: any[]) => [] as any[]);
 vi.mock("@/lib/olivia/nameSearch", () => ({
   fuzzyNameSearch: (...args: any[]) => fuzzyNameSearchMock(...args),
   fuzzyNameSearchOne: vi.fn(async () => null),
@@ -22,7 +22,7 @@ vi.mock("@/lib/olivia/nameSearch", () => ({
   normalizeSearchText: (value: unknown) => String(value ?? "").toLowerCase(),
 }));
 
-const createClientWithWorkflowMock = vi.fn(async () => ({
+const createClientWithWorkflowMock = vi.fn(async (..._args: any[]) => ({
   client: { id: "new-client-1", hospital_name: "유진스의원" },
   run: { id: "new-run-1" },
   created: true,
