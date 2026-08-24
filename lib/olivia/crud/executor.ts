@@ -207,7 +207,10 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
   }
 
   if (domain === "quote") {
-    const client = await resolveClient(db, undefined, data.hospitalName);
+    // data.clientId는 Adaptive Memory Execution Policy가 견적 생성 전에 이미 찾았거나 자동
+    // 생성한 고객 ID다(lib/olivia/v2/toolExecutor.ts의 create_quote 핸들러) — 없으면(정책 미적용
+    // 등) 기존과 동일하게 hospitalName만으로 재조회한다.
+    const client = await resolveClient(db, data.clientId, data.hospitalName);
     const number = data.quoteNumber || quoteNumber();
     const { data: existingQuote, error: existingQuoteError } = await db.from("quotes").select("id").eq("quote_number", number).limit(1).maybeSingle();
     if (existingQuoteError) dbError(existingQuoteError, "견적번호 중복 확인에 실패했습니다.");
