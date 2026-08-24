@@ -664,64 +664,73 @@ export default function ContractBuilder({
       ) : null}
 
       {/* NAV */}
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src={cfg.logo} alt={cfg.label} className="pc-header-logo" />
-            <span className="pc-header-title">{cfg.headerTitle}</span>
-          </div>
-        </div>
-        <div className="pc-header-actions">
-          {isModal ? null : (
-            <button onClick={() => window.history.back()} className="pc-header-back">
-              ← 견적서로
-            </button>
-          )}
-          <button onClick={handleSave} disabled={saveState === "saving"} className="pc-btn pc-btn--sm"
-            style={{
-              borderColor: saveState === "saved" ? "#22C55E" : saveState === "error" ? C.orange : undefined,
-              color: saveState === "saved" ? "#16a34a" : saveState === "error" ? C.orange : undefined,
-            }}>
-            {saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : saveState === "error" ? "✕ 저장 실패" : "저장 (⌘S)"}
-          </button>
-          <div style={{ position: "relative" }}>
-            <button onClick={() => setShowDownloadMenu((v) => !v)} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
-              {pdfGenerating ? "PDF 생성 중..." : "다운로드 ▾"}
-            </button>
-            {showDownloadMenu && (
-              <div style={{
-                position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 30,
-                background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10,
-                boxShadow: "0 12px 30px rgba(21,88,85,.14)", minWidth: 120, overflow: "hidden",
-              }}>
-                <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}
-                  style={{ display: "block", width: "100%", padding: "10px 14px", border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: C.teal, textAlign: "left" }}>
-                  PDF
-                </button>
-                <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}
-                  style={{ display: "block", width: "100%", padding: "10px 14px", border: 0, borderTop: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: C.teal, textAlign: "left" }}>
-                  Excel
-                </button>
-              </div>
+      {(() => {
+        const actionButtons = (
+          <>
+            {isModal ? null : (
+              <button onClick={() => window.history.back()} className="pc-header-back">
+                ← 견적서로
+              </button>
             )}
-          </div>
-          <button onClick={completeContractStep} disabled={completeState === "completing"} className="pc-btn pc-btn--sm"
-            style={{
-              background: completeState === "done" ? undefined : "#155855",
-              color: completeState === "done" ? "#16a34a" : "#fff",
-              borderColor: completeState === "error" ? C.orange : undefined,
-            }}>
-            {completeState === "completing" ? "최종완료 처리 중..." : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "✕ 완료 실패" : "최종완료"}
-          </button>
-          <button onClick={publishToPortal} disabled={publishState === "publishing"} className="pc-btn pc-btn--secondary pc-btn--sm"
-            style={{
-              borderColor: publishState === "done" ? "#22C55E" : publishState === "error" ? C.orange : undefined,
-              color: publishState === "done" ? "#16a34a" : publishState === "error" ? C.orange : undefined,
-            }}>
-            {publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨(링크 복사됨)" : publishState === "error" ? "✕ 공개 실패" : "포털 공개"}
-          </button>
-        </div>
-      </header>
+            <button onClick={handleSave} disabled={saveState === "saving"} className="pc-btn pc-btn--sm"
+              style={{
+                borderColor: saveState === "saved" ? "#22C55E" : saveState === "error" ? C.orange : undefined,
+                color: saveState === "saved" ? "#16a34a" : saveState === "error" ? C.orange : undefined,
+              }}>
+              {saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : saveState === "error" ? "✕ 저장 실패" : "저장 (⌘S)"}
+            </button>
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setShowDownloadMenu((v) => !v)} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
+                {pdfGenerating ? "PDF 생성 중..." : "다운로드 ▾"}
+              </button>
+              {showDownloadMenu && (
+                <div style={{
+                  position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 30,
+                  background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10,
+                  boxShadow: "0 12px 30px rgba(21,88,85,.14)", minWidth: 120, overflow: "hidden",
+                }}>
+                  <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}
+                    style={{ display: "block", width: "100%", padding: "10px 14px", border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: C.teal, textAlign: "left" }}>
+                    PDF
+                  </button>
+                  <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}
+                    style={{ display: "block", width: "100%", padding: "10px 14px", border: 0, borderTop: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: C.teal, textAlign: "left" }}>
+                    Excel
+                  </button>
+                </div>
+              )}
+            </div>
+            <button onClick={completeContractStep} disabled={completeState === "completing"} className="pc-btn pc-btn--sm"
+              style={{
+                background: completeState === "done" ? undefined : "#155855",
+                color: completeState === "done" ? "#16a34a" : "#fff",
+                borderColor: completeState === "error" ? C.orange : undefined,
+              }}>
+              {completeState === "completing" ? "최종완료 처리 중..." : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "✕ 완료 실패" : "최종완료"}
+            </button>
+            <button onClick={publishToPortal} disabled={publishState === "publishing"} className="pc-btn pc-btn--secondary pc-btn--sm"
+              style={{
+                borderColor: publishState === "done" ? "#22C55E" : publishState === "error" ? C.orange : undefined,
+                color: publishState === "done" ? "#16a34a" : publishState === "error" ? C.orange : undefined,
+              }}>
+              {publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨(링크 복사됨)" : publishState === "error" ? "✕ 공개 실패" : "포털 공개"}
+            </button>
+          </>
+        );
+        return isModal ? (
+          <header className="pc-header">
+            <div className="pc-header-left">
+              <div className="pc-header-brand">
+                <img src={cfg.logo} alt={cfg.label} className="pc-header-logo" />
+                <span className="pc-header-title">{cfg.headerTitle}</span>
+              </div>
+            </div>
+            <div className="pc-header-actions">{actionButtons}</div>
+          </header>
+        ) : (
+          <GlobalHeader title={cfg.headerTitle} description="촬영 패키지와 옵션을 확정한 계약서를 생성합니다." pageActions={actionButtons} />
+        );
+      })()}
 
       <div className="pc-mobile-stack" style={{ maxWidth: 1240, margin: "0 auto", padding: "24px 20px", display: "grid",
                     gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 20, alignItems: "start" }}>
