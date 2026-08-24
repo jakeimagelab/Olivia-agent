@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import { C, R } from "@/lib/theme";
 import { SCENE_TYPE_LABELS_KO } from "@/lib/conti-library/config";
 import type { ContiCaseDocument, ContiCaseScene } from "@/lib/conti-library/types";
