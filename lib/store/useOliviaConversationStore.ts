@@ -281,6 +281,15 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
   sendMessage: async (rawContent) => {
     const content = rawContent.trim();
     if (!content || get().isSending) return;
+    // "해줘"/"그냥해"처럼 키워드 없는 짧은 후속 확인 메시지만 보고 도구 목록을 고르면(server의
+    // selectOliviaTools) 방금 전 메시지("견적서 만들어줘")에서 이미 정해진 주제(견적)의 도구가
+    // 통째로 빠져서, 모델이 "그 도구가 연결되어 있지 않다"고 지어내는 사고가 있었다(2026-08-24
+    // 사용자 리포트) — 직전 사용자 메시지 최근 2개를 같이 보내 주제가 이어지게 한다.
+    const recentUserText = get().messages
+      .filter((m) => m.role === "user")
+      .slice(-2)
+      .map((m) => m.content)
+      .join(" ");
     const clientRequestId = newId("request");
     const userMessage: OliviaV2Message = {
       id: clientRequestId,
