@@ -13,6 +13,10 @@ const TITLE: Record<string, string> = {
   "/per":              "PER 리워드",
 };
 
+const DESCRIPTION: Record<string, string> = {
+  "/select-galleries": "고객에게 촬영본을 전달하고 셀렉을 받는 갤러리를 관리합니다.",
+};
+
 const MESH_BG = [
   "radial-gradient(ellipse 130% 55% at 10% 0%,   rgba(21,88,85,.12)   0%, transparent 52%)",
   "radial-gradient(ellipse 90%  60% at 90% 100%,  rgba(235,143,34,.08) 0%, transparent 50%)",
