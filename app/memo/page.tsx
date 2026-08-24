@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileText, Mic, PenLine, Plus, Trash2 } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import type { CanvasExportOptions, DrawingCanvasHandle } from "@/components/DrawingCanvas";
 import NoteCanvasPanel from "@/components/memo/NoteCanvasPanel";
 import VoiceMemoPanel from "@/components/memo/VoiceMemoPanel";
