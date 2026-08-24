@@ -54,7 +54,11 @@ export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message
   if(!names.size || input.requestClass==="NORMAL_CHAT") for(const name of SAFE_FALLBACK) names.add(name);
   names.add("open_feature");
   names.add("select_project");
-  return tools.filter((tool)=>names.has(tool.name)).slice(0,15);
+  // 도메인 2개만 겹쳐도(예: 견적(10개)+고객(4개)) 15개에 바로 닿는다 — 그 이상 넘치면 어떤
+  // 도구가 조용히 빠졌는지 모델도 사용자도 알 방법이 없어서, 정작 필요한 도구(예: create_quote)가
+  // 빠진 채로 "그 기능은 연결 안 돼 있다"고 지어내는 사고로 이어졌다(2026-08-24). 전체 도구
+  // 개수(69개)보다는 훨씬 좁히되, 흔한 2~3개 도메인 조합은 다 담기게 여유를 둔다.
+  return tools.filter((tool)=>names.has(tool.name)).slice(0,28);
 }
 
 export function isReadOnlyOliviaTool(toolName:string, tools:FunctionTool[]=OLIVIA_V2_TOOLS){
