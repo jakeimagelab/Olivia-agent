@@ -352,14 +352,7 @@ function GalleryPageInner() {
           📎 워크플로우 연결됨 — 저장 시 메일 draft 자동 생성 + 보정완료 단계 전진
         </div>
       )}
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">Gallery Delivery</span>
-          </div>
-        </div>
-      </header>
+      <GlobalHeader title="Gallery Delivery" description="촬영본 갤러리 링크를 만들어 고객에게 전달합니다." />
 
       <section className="pc-mobile-stack" style={{ maxWidth: 1220, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "420px 1fr", gap: 22, alignItems: "start" }}>
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
