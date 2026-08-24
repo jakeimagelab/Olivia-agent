@@ -107,7 +107,7 @@ export default function KnowledgePatchesPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-      <PageHeader title="마케팅 대시보드" />
+      <GlobalHeader title="Olivia 지식 패치" description="마케팅 전략에 반영할 지식 패치를 검토하고 관리합니다." />
       <div className="oa-page" style={{ maxWidth: 780, margin: "0 auto", padding: `${SP.lg}px 20px 60px` }}>
         <button onClick={() => router.push("/marketing/strategy")} style={{
           display: "inline-flex", alignItems: "center", gap: 6, border: "none", background: "transparent",
