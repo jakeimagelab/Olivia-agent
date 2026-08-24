@@ -423,7 +423,8 @@ export async function POST(req: NextRequest) {
   const requestClass = classifyOliviaRequest(message, context);
   const model = routeOliviaModel(requestClass);
   const persistentAgentRun = shouldCreatePersistentAgentRun(message, requestClass);
-  const selectedTools = selectOliviaTools({ requestClass, message, context });
+  const recentUserText = optionalString(body.recentUserText);
+  const selectedTools = selectOliviaTools({ requestClass, message, context, recentText: recentUserText });
   const databaseFastPath = hasDatabaseFastPath(message);
   if (!deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
