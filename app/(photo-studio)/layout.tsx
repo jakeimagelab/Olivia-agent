@@ -47,7 +47,7 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
 
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)" }}>
-      <PageHeader title={title} />
+      <GlobalHeader title={meta.title} description={meta.description} />
 
       <nav className="pc-tabs pc-tabs--global" aria-label="사진 작업 기능">
         {visibleTabs.map(t => (
