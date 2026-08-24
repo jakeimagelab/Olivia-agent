@@ -90,7 +90,7 @@ export default function ContiLibraryPage() {
 
   return (
     <>
-      <PageHeader title="콘티 사례 라이브러리" />
+      <GlobalHeader title="콘티 사례 라이브러리" description="지난 콘티 작성 사례를 모아 참고할 수 있는 라이브러리입니다." />
       <div className="pc-content pc-content--wide">
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 18, gap: 12 }}>
           <div>
