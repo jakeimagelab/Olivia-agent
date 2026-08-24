@@ -357,16 +357,23 @@ export default function ImageDirectorPage() {
   // ─────────────────────────────────────────────────────────
   return (
     <main className="pc-page">
-      <PageHeader
-        title="리얼 이미지 디렉터"
-        tabs={[
+      <GlobalHeader title="리얼 이미지 디렉터" description="올리비아가 촬영 디렉팅하고 OpenAI gpt-image-1로 실사 병원 이미지를 생성합니다." />
+      <div className="pc-tabs pc-tabs--global">
+        {[
           { key: "real", icon: <ImagePlus size={15} />, label: "리얼 병원 이미지 생성" },
           { key: "variation", icon: <Camera size={15} />, label: "실사진 기반 베리에이션" },
           { key: "conti", icon: <FileImage size={15} />, label: "촬영 콘티 시안 생성" },
-        ]}
-        activeTab={mode}
-        onTabChange={(key) => setMode(key as Mode)}
-      />
+        ].map((t) => (
+          <button
+            key={t.key}
+            className={`pc-tab${mode === t.key ? " pc-tab--active" : ""}`}
+            onClick={() => setMode(t.key as Mode)}
+          >
+            <span className="pc-tab-icon">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {/* Mode 설명 */}
       <div style={{ padding: "20px 32px 0" }}>
