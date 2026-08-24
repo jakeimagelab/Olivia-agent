@@ -1583,7 +1583,7 @@ export default function WebsiteBuilderPage() {
 
   return (
     <main className="website-builder-page">
-      <PageHeader title="홈페이지 제작" />
+      <GlobalHeader title="홈페이지 제작" description="병원 홈페이지 제작 요청과 기획 정보를 정리합니다." />
       <div className="admin-shell website-builder-content">
         <section className="admin-dashboard" style={{ maxWidth: 900 }}>
 
