@@ -2041,7 +2041,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
   return (
     <>
-    {isModal ? null : <PageHeader title="Quote Builder" />}
+    {isModal ? null : <GlobalHeader title="견적서 생성기" description="촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다." />}
     <main className={`${isModal ? "" : "min-h-screen"} text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`} style={isModal ? undefined : { background: "var(--mesh-bg)" }}>
       {isModal ? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px", borderBottom: "1px solid rgba(21,88,85,.1)", background: "#fafaf8" }}>
