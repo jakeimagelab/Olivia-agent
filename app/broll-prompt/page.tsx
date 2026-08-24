@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Check, Copy, Plus, RefreshCw, Sparkles, X } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import { C, R } from "@/lib/theme";
 
 const FIXED_STYLE_SUFFIX =
