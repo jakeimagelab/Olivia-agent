@@ -55,22 +55,16 @@ export default function PerProductsPage() {
     load();
   };
 
+  usePcrmHeaderTitle("리워드 카탈로그", "포인트로 신청할 수 있는 리워드 제품을 등록하고 관리합니다.", []);
+  usePcrmHeaderActions(
+    <button onClick={openAdd} className="pc-btn pc-btn--orange pc-btn--sm">
+      <Plus size={13}/> 제품 등록
+    </button>,
+    [],
+  );
+
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">리워드 카탈로그</span>
-          </div>
-        </div>
-        <div className="pc-header-actions">
-          <button onClick={openAdd} className="pc-btn pc-btn--orange pc-btn--sm">
-            <Plus size={13}/> 제품 등록
-          </button>
-        </div>
-      </header>
-
       <div style={{ maxWidth:1000, margin:"0 auto", padding:"24px 20px 100px" }}>
         {/* 필터 */}
         <div style={{ display:"flex", gap:8, marginBottom:14, flexWrap:"wrap" }}>
