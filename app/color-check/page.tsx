@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { RefreshCw, CheckCircle2, AlertCircle, Camera } from "lucide-react";
+import GlobalHeader from "@/components/GlobalHeader";
 
 const C = {
   teal: "#155855", orange: "#E85D2C", bg: "#F0F9F8",
