@@ -1055,7 +1055,7 @@ export default function PrompterPage() {
   if (mode === "projects") {
     return (
       <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-        <PageHeader title="프롬프터" />
+        <GlobalHeader title="프롬프터" description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다." />
         <div className="oa-page pt-projects-page">
           <button onClick={() => openProjectModal("create")} className="pt-new-project-btn"><Plus size={20} /> 새 프로젝트 만들기</button>
 
