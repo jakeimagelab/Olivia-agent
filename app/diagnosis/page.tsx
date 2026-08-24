@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import {
   Q1_OPTIONS, Q2_OPTIONS, Q3_OPTIONS, Q4_OPTIONS, Q7_OPTIONS,
 } from "@/lib/diagnosis/questions";
