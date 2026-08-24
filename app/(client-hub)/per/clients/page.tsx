@@ -47,22 +47,16 @@ export default function PerClientsPage() {
 
   const iS: React.CSSProperties = { width:"100%", border:`1.5px solid ${C.border}`, borderRadius:8, padding:"0 12px", height:40, fontSize:13, outline:"none", background:C.white, color:C.txt, fontFamily:"inherit", boxSizing:"border-box" };
 
+  usePcrmHeaderTitle("병원별 포인트 관리", "병원별 리워드 포인트를 조회하고 수동으로 적립합니다.", []);
+  usePcrmHeaderActions(
+    <button onClick={() => setAddModal(true)} className="pc-btn pc-btn--orange pc-btn--sm">
+      <Plus size={13}/> 포인트 적립
+    </button>,
+    [],
+  );
+
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">병원별 포인트 관리</span>
-          </div>
-        </div>
-        <div className="pc-header-actions">
-          <button onClick={() => setAddModal(true)} className="pc-btn pc-btn--orange pc-btn--sm">
-            <Plus size={13}/> 포인트 적립
-          </button>
-        </div>
-      </header>
-
       <div style={{ maxWidth:920, margin:"0 auto", padding:"24px 20px 100px" }}>
         <div style={{ position:"relative", marginBottom:20 }}>
           <Search size={14} style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:C.hint }} />
