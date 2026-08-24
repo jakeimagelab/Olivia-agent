@@ -34,18 +34,10 @@ export default function PerOrdersPage() {
     load();
   };
 
+  usePcrmHeaderTitle("제품 신청 관리", "고객이 포인트로 신청한 리워드 제품의 처리 상태를 관리합니다.", []);
+
   return (
     <main style={{ minHeight:"100vh", background:C.bg, color:C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">제품 신청 관리</span>
-          </div>
-        </div>
-        <div className="pc-header-actions" />
-      </header>
-
       <div style={{ maxWidth:960, margin:"0 auto", padding:"24px 20px 100px" }}>
         <div style={{ display:"flex", gap:6, marginBottom:16, flexWrap:"wrap" }}>
           {["전체",...Object.keys(ORDER_STATUS_LABEL)].map(s => (
