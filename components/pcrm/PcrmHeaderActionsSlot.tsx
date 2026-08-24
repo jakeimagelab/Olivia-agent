@@ -46,3 +46,13 @@ export function usePcrmHeaderActions(node: ReactNode, deps: DependencyList) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }
+
+export function usePcrmHeaderTitle(title: string, description: string | undefined, deps: DependencyList) {
+  const ctx = useContext(PcrmHeaderActionsContext);
+  const setTitleOverride = ctx?.setTitleOverride;
+  useEffect(() => {
+    setTitleOverride?.({ title, description });
+    return () => setTitleOverride?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+}
