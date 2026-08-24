@@ -27,6 +27,7 @@ const MESH_BG = [
 export default function ClientHubLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = TITLE[pathname] ?? (pathname.startsWith("/select-galleries") ? "셀렉 갤러리" : "고객 허브");
+  const description = DESCRIPTION[pathname] ?? (pathname.startsWith("/select-galleries") ? DESCRIPTION["/select-galleries"] : undefined);
   // PcrmSubNav 자체가 /per, /review-studio로 가는 메뉴를 담고 있으므로, 그 메뉴를 눌러 들어간 뒤에도
   // 같은 서브내비게이션이 계속 보여야 "연동된 한 화면"처럼 느껴진다 — /clients로만 한정하지 않는다.
   const isPcrmSection =
