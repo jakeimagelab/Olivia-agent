@@ -35,15 +35,19 @@ export async function listActiveMemories(
 }
 
 export async function findMemoryByKeyScope(db: SupabaseClient, key: string, scope: string | null): Promise<OliviaMemoryRow | null> {
-  let query = db.from("olivia_agent_memory").select("*").eq("key", key);
-  query = scope ? query.eq("scope", scope) : query.is("scope", null);
-  const { data, error } = await query.maybeSingle();
-  if (error) {
-    if (isMissingTableError(error)) return null;
-    console.error("[OliviaMemory] findMemoryByKeyScope 실패", error);
+  try {
+    let query = db.from("olivia_agent_memory").select("*").eq("key", key);
+    query = scope ? query.eq("scope", scope) : query.is("scope", null);
+    const { data, error } = await query.maybeSingle();
+    if (error) {
+      if (!isMissingTableError(error)) console.error("[OliviaMemory] findMemoryByKeyScope 실패", error);
+      return null;
+    }
+    return (data as OliviaMemoryRow) ?? null;
+  } catch (error) {
+    console.error("[OliviaMemory] findMemoryByKeyScope 예외", error);
     return null;
   }
-  return (data as OliviaMemoryRow) ?? null;
 }
 
 export type CreateMemoryInput = {
