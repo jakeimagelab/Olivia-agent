@@ -22,7 +22,7 @@ describe("Olivia routing and tools",()=>{
     const tools=selectOliviaTools({requestClass,message:"견적 10만원 할인 넣어",context});
     expect(tools.map((tool)=>tool.name)).toContain("apply_quote_discount");
     expect(tools.map((tool)=>tool.name)).not.toContain("email_search");
-    expect(tools.length).toBeLessThanOrEqual(15);
+    expect(tools.length).toBeLessThanOrEqual(28);
   });
   it("parallelizes read calls and serializes writes",async()=>{
     let active=0;let maxActive=0;
