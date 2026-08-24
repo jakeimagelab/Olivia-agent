@@ -32,9 +32,13 @@ const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
 
 const SAFE_FALLBACK = new Set(["open_feature","select_project","search_client_projects","get_project_status","get_workflow_status","list_active_workflows","calendar_list","get_today_briefing","get_urgent_insights"]);
 
-export function getOliviaToolDomains(message:string, context:OliviaContextSnapshot):ToolDomain[]{
+// recentText(직전 사용자 메시지 몇 개)를 message와 함께 봐야 "해줘"/"그냥해"처럼 키워드 없는
+// 짧은 후속 확인 메시지에서도 방금 전 주제(예: 견적)의 도구가 목록에서 안 빠진다 — 안 그러면
+// 모델이 그 도구를 호출 못 해놓고 "이 대화에는 연결이 안 돼 있다"고 지어내는 사고가 난다.
+export function getOliviaToolDomains(message:string, context:OliviaContextSnapshot, recentText?:string):ToolDomain[]{
+  const combined = recentText ? `${recentText} ${message}` : message;
   const domains=new Set<ToolDomain>();
-  for(const [domain,pattern] of DOMAIN_PATTERNS) if(pattern.test(message)) domains.add(domain);
+  for(const [domain,pattern] of DOMAIN_PATTERNS) if(pattern.test(combined)) domains.add(domain);
   const workspace=String(context.activeWorkspace||"").toLowerCase();
   if(workspace.includes("quote")) domains.add("quote");
   if(workspace.includes("conti")) domains.add("conti");
@@ -42,9 +46,9 @@ export function getOliviaToolDomains(message:string, context:OliviaContextSnapsh
   return [...domains];
 }
 
-export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message:string;context:OliviaContextSnapshot;tools?:FunctionTool[]}){
+export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message:string;context:OliviaContextSnapshot;tools?:FunctionTool[];recentText?:string}){
   const tools=input.tools??OLIVIA_V2_TOOLS;
-  const domains=getOliviaToolDomains(input.message,input.context);
+  const domains=getOliviaToolDomains(input.message,input.context,input.recentText);
   const names=new Set<string>();
   for(const domain of domains) for(const name of DOMAIN_TOOLS[domain]) names.add(name);
   if(!names.size || input.requestClass==="NORMAL_CHAT") for(const name of SAFE_FALLBACK) names.add(name);
