@@ -293,6 +293,74 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
       required: ["domain", "data", "target", "requestText"],
     },
   },
+  // ── Adaptive Memory — 사용자가 채팅으로 가르친 업무 규칙/별칭/선호/교정을 저장·적용한다.
+  // "앞으로 이렇게 해"/"기억해" 같은 표현을 이 도구를 호출하는 것 자체가 감지+구조화다 —
+  // 별도 분류기 없이, 언제 이 도구를 쓸지는 시스템 프롬프트가 안내하고 구조는 스키마가 강제한다.
+  {
+    type: "function",
+    name: "save_agent_memory",
+    description: "[WRITE] 사용자가 채팅으로 새로운 업무 규칙/별칭/선호/문서 작성 방식을 가르칠 때 저장합니다. 같은 key+scope의 규칙이 이미 있으면 덮어씁니다(중복 생성 안 함).",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        memoryType: { type: "string", enum: [...OLIVIA_MEMORY_TYPES], description: "business_rule=업무 규칙, alias=별칭, preference=선호, correction=교정, workflow_rule=워크플로우 규칙, document_rule=문서 작성 규칙, tool_behavior=도구 동작" },
+        key: { type: "string", description: "영문 snake_case 짧은 식별자. 예: quote_auto_client_project_creation" },
+        scope: { type: ["string", "null"], description: "관련된 기능 범위. 예: quote, storyboard, select_match. 특정 기능에 안 묶이면 null." },
+        value: { type: "string", description: "규칙 내용을 담은 JSON 객체 문자열. 예: {\"ifClientMissing\":\"create_client_from_request\"}" },
+        priority: { type: ["number", "null"], description: "우선순위, 기본 50. 강한 규칙일수록 높게(최대 100)." },
+        sourceText: { type: ["string", "null"], description: "사용자가 실제로 한 말 원문." },
+      },
+      required: ["memoryType", "key", "scope", "value", "priority", "sourceText"],
+    },
+  },
+  {
+    type: "function",
+    name: "update_agent_memory",
+    description: "[WRITE] 이미 저장된 업무 규칙을 사용자가 채팅으로 수정할 때 씁니다(예: '앞으로 프로젝트는 자동 생성하지 마'). key로 기존 규칙을 못 찾으면 실패합니다 — 이때는 먼저 list_agent_memories로 정확한 key를 확인하세요.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        key: { type: "string" },
+        scope: { type: ["string", "null"] },
+        value: { type: "string", description: "바뀐 필드만 담은 JSON 객체 문자열(기존 값과 병합됨)" },
+        priority: { type: ["number", "null"] },
+      },
+      required: ["key", "scope", "value", "priority"],
+    },
+  },
+  {
+    type: "function",
+    name: "disable_agent_memory",
+    description: "[WRITE] 사용자가 '그 규칙 취소해'/'별칭 삭제해'처럼 이미 가르친 규칙을 더 이상 쓰지 말라고 할 때 비활성화합니다(완전 삭제가 아니라 soft delete). 정확한 key를 모르면 먼저 list_agent_memories로 확인하세요.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        key: { type: "string" },
+        scope: { type: ["string", "null"] },
+      },
+      required: ["key", "scope"],
+    },
+  },
+  {
+    type: "function",
+    name: "list_agent_memories",
+    description: "[READ] 사용자가 '내가 가르친 규칙 보여줘'처럼 저장된 업무 규칙을 확인하고 싶어할 때 씁니다. scope를 주면 그 범위만, 안 주면 전체를 보여줍니다.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        scope: { type: ["string", "null"] },
+      },
+      required: ["scope"],
+    },
+  },
 ];
 
 function text(input: Record<string, unknown>, key: string) {
