@@ -243,7 +243,7 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
   }
 
   if (domain === "contract") {
-    const client = await resolveClient(db, undefined, data.hospitalName);
+    const client = await resolveClient(db, data.clientId, data.hospitalName);
     const { data: row, error } = await db.from("contracts").insert({
       quote_number: data.quoteNumber || null,
       hospital_name: client?.hospital_name || data.hospitalName,
