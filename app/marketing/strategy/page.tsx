@@ -218,20 +218,18 @@ export default function MarketingStrategyListPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-      <PageHeader
-        title="마케팅 대시보드"
-        tabs={[{ key: "home", label: "홈" }, { key: "strategy", label: "전략" }]}
-        activeTab="strategy"
-        onTabChange={(key) => { if (key === "home") router.push("/marketing"); }}
-        actions={
+      <GlobalHeader title="마케팅 대시보드" description="채널별 마케팅 전략과 지식 베이스를 관리합니다." pageActions={
           <button onClick={() => setShowNewModal(true)} style={{
             display: "inline-flex", alignItems: "center", gap: 6, height: 38, padding: "0 16px",
             borderRadius: R.md, border: "none", background: C.orange, color: "#fff", fontWeight: 800, fontSize: FS.sm, cursor: "pointer",
           }}>
             <Plus size={15} /> 새 전략
           </button>
-        }
-      />
+        } />
+      <div className="pc-tabs pc-tabs--global">
+        <button className="pc-tab" onClick={() => router.push("/marketing")}>홈</button>
+        <button className="pc-tab pc-tab--active">전략</button>
+      </div>
 
       <div className="oa-page" style={{ maxWidth: 1160, margin: "0 auto", padding: `${SP.lg}px 20px 60px` }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
