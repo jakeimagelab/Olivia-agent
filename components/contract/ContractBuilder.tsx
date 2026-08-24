@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
+import GlobalHeader from "@/components/GlobalHeader";
 
 interface QuoteData {
   hospitalName: string;
