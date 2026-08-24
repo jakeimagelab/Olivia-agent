@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChangeEvent, FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createMailingDraft } from "@/lib/mailingQueue";
+import GlobalHeader from "@/components/GlobalHeader";
 
 type GalleryItem = {
   id?: string;
