@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import ScheduleColumn from "@/components/work-journal/ScheduleColumn";
 import TodoColumn from "@/components/work-journal/TodoColumn";
 import PreparationColumn from "@/components/work-journal/PreparationColumn";
