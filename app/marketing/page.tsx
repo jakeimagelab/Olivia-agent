@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Lightbulb, TrendingUp } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import CategorySection from "@/components/admin/CategorySection";
 import { TOOLS_CONTENT, type ToolDef } from "@/lib/toolNav";
 
