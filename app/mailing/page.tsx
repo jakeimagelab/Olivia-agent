@@ -1628,14 +1628,7 @@ export default function MailingPage() {
 
   return (
     <main className="mailing-page" style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
-      <header className="pc-header">
-        <div className="pc-header-left">
-          <div className="pc-header-brand">
-            <img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo" />
-            <span className="pc-header-title">통합 메일링</span>
-          </div>
-        </div>
-      </header>
+      <GlobalHeader title="통합 메일링" description="견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다." />
       <div className="pc-tabs pc-tabs--global">
         <button className={`pc-tab${tab === "custom" ? " pc-tab--active" : ""}`} onClick={() => setTab("custom")}>✉️ 브랜드 메일</button>
         <button className={`pc-tab${tab === "queue"  ? " pc-tab--active" : ""}`} onClick={() => setTab("queue")}>📥 임시저장 메일링</button>
