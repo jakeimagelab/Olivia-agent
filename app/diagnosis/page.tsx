@@ -152,7 +152,7 @@ export default function DiagnosisPage() {
 
     return (
       <div style={{ minHeight: "100vh", background: C.bg }}>
-        <PageHeader title="병원이미지 진단" />
+        <GlobalHeader title="병원이미지 진단" description="병원 현황에 맞는 사진 콘텐츠 방향을 AI가 진단합니다." />
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "28px 20px 64px" }}>
 
           {/* 진단 결과 헤더 */}
@@ -260,7 +260,7 @@ export default function DiagnosisPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg }}>
-      <PageHeader title="병원이미지 진단" />
+      <GlobalHeader title="병원이미지 진단" description="병원 현황에 맞는 사진 콘텐츠 방향을 AI가 진단합니다." />
       <div style={{ maxWidth: 620, margin: "0 auto", padding: "24px 20px 80px" }}>
         <ProgressBar step={step} total={TOTAL_STEPS} />
 
