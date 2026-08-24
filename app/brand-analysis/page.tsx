@@ -718,8 +718,9 @@ export default function BrandAnalysisPage() {
   /* ── Layout ───────────────────────────────────────────────── */
   return (
     <div style={{ minHeight: "100vh", background: C.ivory, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <PageHeader
+      <GlobalHeader
         title={result ? `홈페이지 브랜드 분석 — ${result.brandName}` : "홈페이지 브랜드 분석"}
+        description="병원 홈페이지 URL만 입력하면 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 자동 분석합니다."
       />
 
       {/* Main */}
