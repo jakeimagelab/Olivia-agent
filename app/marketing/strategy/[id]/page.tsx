@@ -302,12 +302,11 @@ export default function StrategyDetailPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-      <PageHeader
-        title="마케팅 대시보드"
-        tabs={[{ key: "home", label: "홈" }, { key: "strategy", label: "전략" }]}
-        activeTab="strategy"
-        onTabChange={(key) => { if (key === "home") router.push("/marketing"); }}
-      />
+      <GlobalHeader title="마케팅 대시보드" description="채널별 마케팅 전략과 지식 베이스를 관리합니다." />
+      <div className="pc-tabs pc-tabs--global">
+        <button className="pc-tab" onClick={() => router.push("/marketing")}>홈</button>
+        <button className="pc-tab pc-tab--active">전략</button>
+      </div>
 
       <div className="oa-page" style={{ maxWidth: 880, margin: "0 auto", padding: `${SP.lg}px 20px 60px` }}>
         <button onClick={() => router.push("/marketing/strategy")} style={{
