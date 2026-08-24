@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { C } from "@/lib/theme";
+import GlobalHeader from "@/components/GlobalHeader";
 
 export default function DeliveryMailPage() {
   const [hospitalName, setHospitalName] = useState("");
