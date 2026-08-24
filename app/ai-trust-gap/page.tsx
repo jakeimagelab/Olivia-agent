@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 import { AI_TRUST_DEMAND_SOURCES, AI_TRUST_EVIDENCE_SCHEMAS, AI_TRUST_INTENTS } from "@/lib/ai-trust/constants";
 import type { AiTrustGeneratedPrompt, AiTrustProviderStatus } from "@/lib/ai-trust/types";
 
