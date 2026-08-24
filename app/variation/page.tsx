@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Upload, X, Download, Sparkles, Loader2 } from "lucide-react";
-import PageHeader from "@/components/PageHeader";
+import GlobalHeader from "@/components/GlobalHeader";
 
 type ResultImage = { url: string; no: number };
 
