@@ -609,6 +609,7 @@ export default function ContiBuilder({
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;
   registerRequestClose?: (fn: () => void) => void;
