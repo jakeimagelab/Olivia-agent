@@ -34,6 +34,10 @@ export type OpenWorkspaceContext = {
   workspaceTitle?: string;
   source?: string;
   openedBy?: string;
+  // preview_quote처럼 "패널을 열면서 바로 미리보기 화면으로 시작해라"는 의도 — 패널이 이미
+  // 열려 있으면 각 빌더의 olivia-*-preview 이벤트 리스너가 처리하므로, 이 플래그는 "아직 안
+  // 열려 있어서 새로 마운트되는" 경우에만 초기 상태로 쓰인다(2026-08-25, 미리보기 무반응 버그).
+  startInPreview?: boolean;
 };
 
 export type WorkspaceState = {
@@ -47,6 +51,7 @@ export type WorkspaceState = {
   workspaceTitle?: string;
   source?: string;
   openedBy?: string;
+  startInPreview?: boolean;
 
   openWorkspace: (type: Exclude<WorkspaceType, null>, ctx?: OpenWorkspaceContext) => void;
   switchWorkspace: (type: Exclude<WorkspaceType, null>, ctx?: OpenWorkspaceContext) => void;
@@ -58,6 +63,7 @@ export type WorkspaceState = {
 const EMPTY_CONTEXT = {
   clientId: undefined, workflowRunId: undefined, resourceId: undefined, clientName: undefined,
   projectName: undefined, workspaceTitle: undefined, source: undefined, openedBy: undefined,
+  startInPreview: undefined,
 };
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
