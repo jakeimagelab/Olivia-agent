@@ -408,6 +408,7 @@ type QuoteBuilderProps = {
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;
   registerRequestClose?: (fn: () => void) => void;
