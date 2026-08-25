@@ -38,6 +38,7 @@ export default function DynamicWorkspace() {
     clientId,
     workflowRunId,
     resourceId,
+    startInPreview,
     onClose: () => executeOliviaAction({ type: "CLOSE_WORKSPACE" }),
     onPublished: () => {},
   };
