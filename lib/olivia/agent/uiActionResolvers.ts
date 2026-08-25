@@ -81,9 +81,26 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     if (!resourceId || typeof discountAmount !== "number") return [];
     return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "견적 조정안을 적용할까요?"), confirmLabel: "적용", toolName: "apply_quote_rebalance", toolInput: { discountAmount } }];
   },
-  preview_quote: async ({ result }) => {
+  preview_quote: async (args) => {
+    const { result, context } = args;
     const resourceId = value(result.data, "resourceId");
-    return result.success && resourceId ? [{ type: "PREVIEW_QUOTE", resourceId }] : [];
+    if (!result.success || !resourceId) return [];
+    // 패널이 아직 안 열려 있으면(홈 등에서 바로 "미리보기 보여줘") SWITCH_WORKSPACE로 먼저
+    // 열고 startInPreview로 시작 화면을 미리보기로 잡는다 — 이미 열려 있으면 QuoteBuilder가
+    // 마운트 상태를 그대로 유지하므로 이 호출은 사실상 no-op이고, 아래 PREVIEW_QUOTE 이벤트가
+    // 그 열려 있는 인스턴스의 미리보기를 토글한다(2026-08-25, "보여줘 → 어디?" 버그 수정).
+    return [
+      {
+        type: "SWITCH_WORKSPACE",
+        workspace: "quote",
+        resourceId,
+        clientId: value(result.data, "clientId") || context.activeClientId,
+        workflowRunId: value(result.data, "workflowRunId") || context.activeProjectId,
+        clientName: value(result.data, "hospitalName") || context.activeClientName,
+        startInPreview: true,
+      },
+      { type: "PREVIEW_QUOTE", resourceId },
+    ];
   },
   request_quote_publish: async ({ result }) => {
     if (!result.success) return [];
