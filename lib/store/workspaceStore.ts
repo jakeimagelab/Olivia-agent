@@ -89,6 +89,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       workspaceTitle: ctx.workspaceTitle,
       source: ctx.source ?? state.source,
       openedBy: ctx.openedBy ?? state.openedBy,
+      startInPreview: ctx.startInPreview,
     }));
     useOliviaLayoutStore.getState().openWorkspaceMode();
   },
