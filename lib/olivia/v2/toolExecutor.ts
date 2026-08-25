@@ -859,7 +859,19 @@ export async function runTool(
 
   if (name === "preview_quote") {
     const resourceId = activeResource(context, "quote");
-    return { tool: name, success: true, data: { resourceId, quoteId: resourceId, summary: "견적 미리보기를 열었어요." } };
+    const quote = await loadQuote(resourceId);
+    return {
+      tool: name,
+      success: true,
+      data: {
+        resourceId,
+        quoteId: resourceId,
+        clientId: (quote.client_id as string | null) || undefined,
+        workflowRunId: (quote.workflow_run_id as string | null) || undefined,
+        hospitalName: (quote.hospital_name as string | null) || undefined,
+        summary: "견적 미리보기를 열었어요.",
+      },
+    };
   }
 
   if (name === "request_quote_publish") {
