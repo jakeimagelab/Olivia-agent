@@ -467,7 +467,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);
   const [basePreviewScale, setBasePreviewScale] = useState(0.48);
   const [previewZoom, setPreviewZoom] = useState(1);
-  const [showFullscreenPreview, setShowFullscreenPreview] = useState(false);
+  // startInPreview는 채팅에서 "미리보기 보여줘"(preview_quote)로 이 워크스페이스가 방금 새로
+  // 열렸을 때만 의미가 있다 — lazy initializer라 마운트 시 한 번만 반영되고, 이미 마운트된
+  // 상태에서 이 prop이 나중에 바뀌어도(같은 리소스를 다시 미리보기) 재적용되지 않는다. 그
+  // "이미 열려 있는" 경우는 olivia-quote-preview 이벤트 리스너가 대신 처리한다(아래 useEffect).
+  const [showFullscreenPreview, setShowFullscreenPreview] = useState(() => !!startInPreview);
 
   useEffect(() => {
     setOliviaWorkspace("quote", resourceId);
