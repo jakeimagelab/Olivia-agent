@@ -18,6 +18,11 @@ export type OliviaUiAction =
       type: "SWITCH_WORKSPACE";
       workspace: Exclude<WorkspaceType, null>;
       resourceId?: string;
+      clientId?: string;
+      workflowRunId?: string;
+      clientName?: string;
+      projectName?: string;
+      startInPreview?: boolean;
     }
   | { type: "CLOSE_WORKSPACE" }
   | { type: "ENTER_FULLSCREEN" }
