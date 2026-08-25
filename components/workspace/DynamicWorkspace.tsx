@@ -16,7 +16,7 @@ import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 // split: 페이지 레이아웃 안에 그대로 그려져 부모가 준 높이를 채운다.
 // fullscreen: 사이드바까지 덮도록 body에 포털로 빠져나가 뷰포트 전체를 차지한다(ESC로도 종료).
 export default function DynamicWorkspace() {
-  const { type, mode, clientId, workflowRunId, resourceId, clientName } = useWorkspaceStore();
+  const { type, mode, clientId, workflowRunId, resourceId, clientName, startInPreview } = useWorkspaceStore();
   const isFullscreen = mode === "fullscreen";
   const drawerOpen = useOliviaLayoutStore((state) => state.drawerOpen);
   const setDrawerOpen = useOliviaLayoutStore((state) => state.setDrawerOpen);
