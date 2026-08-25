@@ -29,8 +29,17 @@ export function executeOliviaAction(action: OliviaUiAction) {
       return;
     }
     case "SWITCH_WORKSPACE": {
-      workspace.switchWorkspace(action.workspace, { resourceId: action.resourceId });
+      workspace.switchWorkspace(action.workspace, {
+        resourceId: action.resourceId,
+        clientId: action.clientId,
+        workflowRunId: action.workflowRunId,
+        clientName: action.clientName,
+        projectName: action.projectName,
+        startInPreview: action.startInPreview,
+      });
       context.setWorkspace(action.workspace, action.resourceId);
+      if (action.clientId) context.setClient(action.clientId, action.clientName);
+      if (action.workflowRunId || action.projectName) context.setProject(action.workflowRunId, action.projectName);
       context.recordAction(`switch:${action.workspace}`);
       layout.openWorkspaceMode();
       return;
