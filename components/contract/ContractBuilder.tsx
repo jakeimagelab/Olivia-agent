@@ -114,6 +114,7 @@ export default function ContractBuilder({
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;
   registerRequestClose?: (fn: () => void) => void;
