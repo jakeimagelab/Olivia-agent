@@ -424,6 +424,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   clientId,
   workflowRunId,
   resourceId,
+  startInPreview,
   onClose,
   onPublished,
   registerRequestClose,
