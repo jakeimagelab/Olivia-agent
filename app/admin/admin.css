@@ -988,6 +988,7 @@
   content: "";
   position: absolute;
   inset: 0;
+  height: auto;
   border-radius: inherit;
   padding: 1px;
   background: var(--gb-ring-quiet);
