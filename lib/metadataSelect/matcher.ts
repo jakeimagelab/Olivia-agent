@@ -15,8 +15,15 @@ export interface MetadataSelectRow {
   message: string;
 }
 
+/** 경로가 섞여 들어와도(예: "folderA/J8A_4231.CR3") 확장자를 뺀 파일명만 돌려준다. */
 function basenameOf(name: string): string {
-  return name.replace(/\.[^.]+$/, "");
+  const leaf = name.split("/").pop() ?? name;
+  return leaf.replace(/\.[^.]+$/, "");
+}
+
+function extensionOf(name: string): string {
+  const leaf = name.split("/").pop() ?? name;
+  return leaf.split(".").pop()?.toLowerCase() ?? "";
 }
 
 /** 원본 JPG 목록을 정규화된 DateTimeOriginal 기준으로 인덱싱한다. 같은 초에 여러 장이면 배열에 함께 담긴다. */
