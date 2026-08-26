@@ -220,7 +220,7 @@ export default function MetadataSelectPage() {
                       <div style={{ fontWeight: 700, color: C.ink }}>{row.selectionName}</div>
                       {row.status === "success" ? (
                         <div style={{ color: C.muted, marginTop: 2, lineHeight: 1.7 }}>
-                          → {row.matchedOriginalName}<br />→ {row.rawName}
+                          → {row.matchedOriginalName && leafName(row.matchedOriginalName)}<br />→ {row.rawName && leafName(row.rawName)}
                         </div>
                       ) : (
                         <div style={{ color: C.muted, marginTop: 2 }}>
