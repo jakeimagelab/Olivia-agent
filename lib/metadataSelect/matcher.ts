@@ -42,7 +42,7 @@ export function buildOriginalIndex(entries: { name: string; normalizedDateTime: 
 export function buildRawIndexByBasename(entries: { name: string }[], rawExtensions: Set<string>): Map<string, string[]> {
   const index = new Map<string, string[]>();
   for (const entry of entries) {
-    const ext = entry.name.split(".").pop()?.toLowerCase() ?? "";
+    const ext = extensionOf(entry.name);
     if (!rawExtensions.has(ext)) continue;
     const key = basenameOf(entry.name).toLowerCase();
     const list = index.get(key);
