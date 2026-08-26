@@ -177,9 +177,9 @@ export default function MetadataSelectPage() {
           </div>
         ) : (
           <section className="pc-card pc-card--padded">
-            <FolderPickerRow step={1} label="고객 선택본" dir={selectionDir} mode="read" onPick={() => pick(setSelectionDir, "read")} />
-            <FolderPickerRow step={2} label="원본 JPG" dir={originalDir} mode="read" onPick={() => pick(setOriginalDir, "read")} />
-            <FolderPickerRow step={3} label="RAW 원본" dir={rawDir} mode="readwrite" onPick={() => pick(setRawDir, "readwrite")} />
+            <FolderPickerRow step={1} label="고객 선택본" dir={selectionDir} onPick={() => pick(setSelectionDir, "read")} />
+            <FolderPickerRow step={2} label="원본 JPG" dir={originalDir} onPick={() => pick(setOriginalDir, "read")} />
+            <FolderPickerRow step={3} label="RAW 원본" dir={rawDir} onPick={() => pick(setRawDir, "readwrite")} />
 
             <div style={{ marginTop: 18, textAlign: "center" }}>
               <Btn onClick={run} disabled={!canStart}>
