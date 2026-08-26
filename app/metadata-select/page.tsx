@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, HelpCircle, XCircle, AlertTriangle, Clock } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { C, R } from "@/lib/theme";
-import { scanJpgFiles, scanRawFiles, type ScannedFile } from "@/lib/metadataSelect/folderScan";
+import { scanJpgFiles, scanRawFiles } from "@/lib/metadataSelect/folderScan";
 import { readExifDateTime } from "@/lib/metadataSelect/readExifDateTime";
 import { copyFileStreamed } from "@/lib/metadataSelect/copy";
 import {
