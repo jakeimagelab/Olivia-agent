@@ -57,10 +57,9 @@ function Btn({ children, onClick, disabled }: { children: React.ReactNode; onCli
 }
 
 function FolderPickerRow({
-  step, label, dir, onPick, mode,
+  step, label, dir, onPick,
 }: {
-  step: number; label: string; dir: FileSystemDirectoryHandle | null;
-  onPick: () => void; mode: "readwrite" | "read";
+  step: number; label: string; dir: FileSystemDirectoryHandle | null; onPick: () => void;
 }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: `1px solid ${C.border}` }}>
@@ -73,7 +72,6 @@ function FolderPickerRow({
         {dir && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{dir.name}</div>}
       </div>
       <Btn onClick={onPick}>{dir ? `✅ ${dir.name}` : "📂 폴더 선택"}</Btn>
-      {mode === "readwrite" && !dir && <span style={{ display: "none" }} />}
     </div>
   );
 }
