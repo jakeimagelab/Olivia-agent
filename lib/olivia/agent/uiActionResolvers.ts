@@ -108,6 +108,11 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   },
   apply_quote_rebalance: async ({ result }) => mutationActions("quote", result),
   publish_quote: async ({ result }) => mutationActions("quote", result),
+  download_quote_pdf: async ({ result, context }) => {
+    if (!result.success) return [];
+    const resourceId = value(result.data, "resourceId") || context.activeResourceId;
+    return resourceId ? [{ type: "DOWNLOAD_QUOTE_PDF", resourceId }] : [];
+  },
   add_conti_shots: async ({ result }) => mutationActions("conti", result, "conti-shot"),
   update_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
   reorder_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
