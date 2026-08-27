@@ -495,6 +495,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
   // Workspace Modal 모드 전용 — dirty 추적/자동저장/닫기 확인 (mode="page"일 땐 전부 미사용).
   const lastSavedFormStateRef = useRef<string>("");
+  // 서버가 마지막으로 알려준 이 견적의 updated_at — 저장할 때 함께 보내 다른 곳(Agent 또는
+  // 다른 탭)이 그 사이 먼저 저장했는지 서버가 감지하게 한다(soft-warn, Phase 5). 폼 계산에는
+  // 쓰이지 않으므로 store가 아니라 ref로 둔다.
+  const lastKnownUpdatedAtRef = useRef<string | undefined>(undefined);
   const [dirty, setDirty] = useState(false);
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
