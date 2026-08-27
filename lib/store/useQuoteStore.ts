@@ -53,6 +53,13 @@ export type QuoteStoreState = QuoteFormState & {
   // 그대로 두고, 나머지는 네트워크 왕복 없이 즉시 반영된다(Phase 3).
   patchFromAgent: (row: Record<string, unknown>) => void;
 
+  // 지금 마운트된 QuoteBuilder 인스턴스가 등록해 둔 실제 downloadPdf() 콜백 — 사람이 누르는
+  // 다운로드 버튼과 Agent(actionRouter.ts의 DOWNLOAD_QUOTE_PDF)가 정확히 같은 함수를
+  // 호출하게 하려고 존재한다(Phase 4). 마운트된 화면이 없으면 null이고, 그 자체가 "지금
+  // 열려 있는 견적서가 없다"는 신호다.
+  pdfHandler: (() => Promise<{ success: boolean; error?: string }>) | null;
+  registerPdfHandler: (fn: (() => Promise<{ success: boolean; error?: string }>) | null) => void;
+
   setCustomer: (value: Updater<CustomerInfo>) => void;
   setBrand: (value: Updater<Brand>) => void;
   setQuoteTitle: (value: Updater<string>) => void;
