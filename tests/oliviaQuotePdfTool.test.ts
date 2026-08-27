@@ -1,9 +1,4 @@
-import { describe, expect, it } from "vitest";
-
-vi_mock();
-function vi_mock() {}
-
-import { vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: () => ({}) }) }));
 vi.mock("@/lib/olivia/crud/executor", () => ({ executeOliviaCrud: vi.fn() }));
