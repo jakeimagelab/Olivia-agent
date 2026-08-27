@@ -608,9 +608,13 @@ export async function POST(req: NextRequest) {
             signal: req.signal,
             onFirstToken: () => { if (modelFirstTokenMs === undefined) modelFirstTokenMs = performance.now() - requestStartedAt; },
           });
-          await flushTextAsDeltas(response.text, send, messageId);
-          finalText += response.text;
-          if (!response.toolCalls.length) break;
+          if (!response.toolCalls.length) {
+            // 이 라운드엔 tool 호출이 없다 — 앞선 라운드에서 이미 실행·검증된 결과를 보고
+            // 모델이 내놓는 최종 텍스트라 검증할 실행이 없다. 지금까지처럼 즉시 흘려보낸다.
+            finalText += response.text;
+            await flushTextAsDeltas(response.text, send, messageId);
+            break;
+          }
           if (!response.responseId) throw new Error("OpenAI tool response ID가 없습니다.");
 
           const outputs: ResponseInputItem[] = [];
