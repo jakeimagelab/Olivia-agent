@@ -1029,6 +1029,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setOliviaWorkspace("quote", data.id);
       if (data.hospitalName) setOliviaClient(undefined, data.hospitalName);
     }
+    // resetForm()과 같은 이유로, 방금 불러온 값을 새 기준선으로 삼는다 — 사람이 편집 중이던
+    // 값을 dirty로 남겨서 이후 Agent patch를 영구히 막지 않도록 한다.
+    useQuoteStore.getState().clearDirty();
   };
 
   const openContractWithQuote = (data: ContractQuoteData) => {
