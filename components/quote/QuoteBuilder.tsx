@@ -815,6 +815,16 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setMemo(cfg.defaultMemo);
   };
 
+  // useQuoteStore는 모듈 전역 싱글턴이라, useState였을 때와 달리 컴포넌트를 다시 마운트해도
+  // (모달을 닫았다가 다른 고객으로 다시 열 때 등) 이전 값이 저절로 사라지지 않는다. 마운트마다
+  // 항상 빈 폼에서 시작하도록 resetForm()을 명시적으로 호출한다 — resourceId/clientId 프리필은
+  // 바로 아래(모달 전용) useEffect가 뒤이어 덮어쓴다. useLayoutEffect라 브라우저가 그리기 전에
+  // 끝나 이전 견적의 값이 한 프레임이라도 보이는 깜빡임이 없다.
+  useLayoutEffect(() => {
+    resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const buildContractQuoteData = (): ContractQuoteData => {
     const visibleItems: ContractQuoteItem[] = [
       ...(selectedPackage && selectedPackage.price > 0 ? [{
