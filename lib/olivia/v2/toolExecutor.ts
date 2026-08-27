@@ -881,6 +881,17 @@ export async function runTool(
     return { tool: name, success: true, data: { resourceId, quoteId: resourceId, approvalRequired: true, hospitalName: quote.hospital_name, totalAmount: quote.total_amount, quoteNumber: quote.quote_number, summary: `${quote.hospital_name || "현재 고객"} 견적 ${quote.quote_number || ""}, 총액 ${Number(quote.total_amount || 0).toLocaleString("ko-KR")}원을 고객 포털에 공개할까요?` } };
   }
 
+  if (name === "download_quote_pdf") {
+    // PDF는 브라우저에 열려 있는 QuoteBuilder의 html2canvas/jsPDF로만 만들 수 있어 서버는
+    // DB를 건드리지 않는다 — 여기서는 "지금 견적서 화면이 실제로 열려 있는지"만 activeResource로
+    // 검증하고, 실제 다운로드는 client가 DOWNLOAD_QUOTE_PDF ui_action을 받아 사람이 누르는
+    // 버튼과 완전히 같은 downloadPdf() 함수를 호출해 처리한다. 성공 여부는 그 클라이언트
+    // 실행이 끝난 뒤에만 확정되므로, 여기 success:true는 "요청을 접수했다"는 뜻이지 "PDF가
+    // 만들어졌다"는 뜻이 아니다 — actionRouter.ts가 실제 결과를 채팅에 별도로 보고한다.
+    const resourceId = activeResource(context, "quote");
+    return { tool: name, success: true, data: { resourceId, quoteId: resourceId, summary: "PDF를 준비하고 있어요…" } };
+  }
+
   if (name === "publish_quote") {
     const resourceId = activeResource(context, "quote");
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:3000";
