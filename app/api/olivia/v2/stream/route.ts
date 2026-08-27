@@ -664,6 +664,18 @@ export async function POST(req: NextRequest) {
             });
           }
 
+          // 이 라운드는 tool 호출을 동반했다 — response.text는 tool이 실행되기 전에 모델이
+          // 만든 텍스트라 "완료했다"는 주장이 섞여 있어도 아직 검증되지 않은 상태였다. 실행이
+          // 끝나고 실제 성공/실패를 안 지금에서야 흘려보낸다. 이 라운드의 모든 호출이 견적
+          // mutation tool이면 모델의 자유 텍스트 대신 서버가 이미 계산해 둔 결정론적 확인
+          // 문구(성공은 data.summary, 실패는 result.error)로 통째로 교체한다.
+          const quoteConfirmation = buildQuoteRoundConfirmation(
+            executions.map(({ call, result: { execution } }) => ({ toolName: call.name, result: execution.result }))
+          );
+          const roundText = quoteConfirmation ?? response.text;
+          finalText += roundText;
+          await flushTextAsDeltas(roundText, send, messageId);
+
           send({ type: "agent_status", status: "결과를 정리하는 중…" });
           request = {
             instructions,
