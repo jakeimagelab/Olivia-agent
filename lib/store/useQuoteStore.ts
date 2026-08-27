@@ -131,8 +131,10 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     memo: "",
     depositRate: 50,
     dirtyFields: new Set(),
+    pdfHandler: null,
 
     clearDirty: () => set({ dirtyFields: new Set() }),
+    registerPdfHandler: (fn) => set({ pdfHandler: fn }),
 
     patchFromAgent: (row) => {
       const server = quoteRowToFormState(row);
