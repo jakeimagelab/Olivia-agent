@@ -1230,9 +1230,13 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   useEffect(() => {
     if (isModal || !currentQuoteId) return;
     const onRefresh = (event: Event) => {
-      const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
+      const detail = (event as CustomEvent<{ resource?: string; resourceId?: string; after?: unknown }>).detail;
       if (detail?.resource && detail.resource !== "quote") return;
       if (detail?.resourceId && detail.resourceId !== currentQuoteId) return;
+      if (detail?.after && typeof detail.after === "object") {
+        useQuoteStore.getState().patchFromAgent(detail.after as Record<string, unknown>);
+        return;
+      }
       fetch(`/api/quotes/${currentQuoteId}`)
         .then((r) => r.json())
         .then((json) => {
