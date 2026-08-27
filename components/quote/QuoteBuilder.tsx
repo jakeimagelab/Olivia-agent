@@ -1182,8 +1182,17 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     if (resourceId) {
       loadResource();
       const onRefresh = (event: Event) => {
-        const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
-        if ((!detail?.resource || detail.resource === "quote") && (!detail?.resourceId || detail.resourceId === resourceId)) loadResource();
+        const detail = (event as CustomEvent<{ resource?: string; resourceId?: string; after?: unknown }>).detail;
+        if ((!detail?.resource || detail.resource === "quote") && (!detail?.resourceId || detail.resourceId === resourceId)) {
+          // after(방금 저장된 DB row)가 실려 있으면 다시 fetch하지 않고 dirty하지 않은 필드만
+          // 즉시 patch한다 — 없을 때만(다른 리소스 타입이 재사용하는 경우 등) 기존처럼 다시
+          // 불러온다.
+          if (detail?.after && typeof detail.after === "object") {
+            useQuoteStore.getState().patchFromAgent(detail.after as Record<string, unknown>);
+          } else {
+            loadResource();
+          }
+        }
       };
       window.addEventListener("olivia-resource-refresh", onRefresh);
       const onPreview = (event: Event) => {
