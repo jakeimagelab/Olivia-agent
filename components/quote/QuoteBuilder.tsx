@@ -938,12 +938,17 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         headers: { "Content-Type": "application/json" },
         // Workspace Modal 모드에서는 병원명 문자열매칭이 아니라 이미 알고 있는 정확한
         // clientId/workflowRunId로 연결한다(app/api/quotes/route.ts가 body.clientId를 우선한다).
-        body: JSON.stringify(isModal ? { ...data, clientId, workflowRunId } : data),
+        // lastKnownUpdatedAt은 서버가 저장 충돌을 감지(soft-warn)하는 데만 쓰인다(Phase 5).
+        body: JSON.stringify({
+          ...(isModal ? { ...data, clientId, workflowRunId } : data),
+          lastKnownUpdatedAt: lastKnownUpdatedAtRef.current,
+        }),
       });
       const body = await response.json().catch(() => null);
       if (!response.ok || !body?.ok) throw new Error(body?.error ?? "서버 오류");
 
-      const savedData = { ...data, id: body.id ?? data.id, savedAt: body.createdAt ?? data.savedAt };
+      const savedData = { ...data, id: body.id ?? data.id, savedAt: body.createdAt ?? data.savedAt, updatedAt: body.updatedAt ?? data.updatedAt };
+      lastKnownUpdatedAtRef.current = savedData.updatedAt;
       setRecentQuotes((current) => [
         savedData,
         ...current.filter((quote) => quote.quoteNumber !== savedData.quoteNumber),
@@ -961,6 +966,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       // 필드들을 다시 patch할 수 있게 한다(모드에 상관없이 적용, page 모드는 지금까지
       // dirty 추적 자체가 없었다).
       useQuoteStore.getState().clearDirty();
+      // 저장은 됐지만 그 사이 다른 곳에서 먼저 저장했을 수 있다 — 막지 않고 알려만 준다.
+      if (body.conflictDetected) {
+        setRecentQuoteMessage("⚠️ 저장했지만, 그 사이 다른 곳에서 이 견적서가 먼저 수정됐어요. 최신 상태인지 확인해주세요.");
+      }
       return savedData;
     } catch (error) {
       setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${error instanceof Error ? error.message : "네트워크 오류"}`);
