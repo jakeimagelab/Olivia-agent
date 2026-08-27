@@ -77,6 +77,10 @@ type ContractQuoteData = {
   memos: string | null;
   status?: string;
   portalUrl?: string;
+  // 저장 충돌(soft-warn) 감지용 — DB row의 updated_at을 그대로 들고 있다가 다음 저장 때
+  // lastKnownUpdatedAt으로 함께 보낸다(Phase 5). 사람이 새로 입력 중인 값이 아니라 서버가
+  // 마지막으로 알려준 시각일 뿐이라 폼 계산에는 전혀 쓰이지 않는다.
+  updatedAt?: string;
   formState?: {
     customer: CustomerInfo;
     quoteTitle: string;
