@@ -105,54 +105,55 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
   }
 
   return {
-  customer: emptyCustomer(),
-  brand: "photoclinic",
-  quoteTitle: "",
-  selectedPackageId: null,
-  selectedSingleItemIds: [],
-  singleItemAmounts: {},
-  profileCount: 0,
-  stagedCount: 0,
-  combinedProfileStagedCount: 0,
-  floorCount: 0,
-  largeHospital: false,
-  droneCount: 0,
-  customItems: [],
-  benefitItems: [],
-  discountRate: 0,
-  extraDiscount: 0,
-  memo: "",
-  depositRate: 50,
-  dirtyFields: new Set(),
+    customer: emptyCustomer(),
+    brand: "photoclinic",
+    quoteTitle: "",
+    selectedPackageId: null,
+    selectedSingleItemIds: [],
+    singleItemAmounts: {},
+    profileCount: 0,
+    stagedCount: 0,
+    combinedProfileStagedCount: 0,
+    floorCount: 0,
+    largeHospital: false,
+    droneCount: 0,
+    customItems: [],
+    benefitItems: [],
+    discountRate: 0,
+    extraDiscount: 0,
+    memo: "",
+    depositRate: 50,
+    dirtyFields: new Set(),
 
-  clearDirty: () => set({ dirtyFields: new Set() }),
+    clearDirty: () => set({ dirtyFields: new Set() }),
 
-  patchFromAgent: (row) => {
-    const server = quoteRowToFormState(row);
-    const { dirtyFields } = get();
-    const patch: Partial<QuoteFormState> = {};
-    for (const key of QUOTE_FORM_KEYS) {
-      if (!dirtyFields.has(key)) (patch as Record<string, unknown>)[key] = server[key];
-    }
-    set(patch);
-  },
+    patchFromAgent: (row) => {
+      const server = quoteRowToFormState(row);
+      const { dirtyFields } = get();
+      const patch: Partial<QuoteFormState> = {};
+      for (const key of QUOTE_FORM_KEYS) {
+        if (!dirtyFields.has(key)) (patch as Record<string, unknown>)[key] = server[key];
+      }
+      set(patch);
+    },
 
-  setCustomer: dirtySetter("customer"),
-  setBrand: dirtySetter("brand"),
-  setQuoteTitle: dirtySetter("quoteTitle"),
-  setSelectedPackageId: dirtySetter("selectedPackageId"),
-  setSelectedSingleItemIds: dirtySetter("selectedSingleItemIds"),
-  setSingleItemAmounts: dirtySetter("singleItemAmounts"),
-  setProfileCount: dirtySetter("profileCount"),
-  setStagedCount: dirtySetter("stagedCount"),
-  setCombinedProfileStagedCount: dirtySetter("combinedProfileStagedCount"),
-  setFloorCount: dirtySetter("floorCount"),
-  setLargeHospital: dirtySetter("largeHospital"),
-  setDroneCount: dirtySetter("droneCount"),
-  setCustomItems: dirtySetter("customItems"),
-  setBenefitItems: dirtySetter("benefitItems"),
-  setDiscountRate: dirtySetter("discountRate"),
-  setExtraDiscount: dirtySetter("extraDiscount"),
-  setMemo: dirtySetter("memo"),
-  setDepositRate: dirtySetter("depositRate"),
-}));
+    setCustomer: dirtySetter("customer"),
+    setBrand: dirtySetter("brand"),
+    setQuoteTitle: dirtySetter("quoteTitle"),
+    setSelectedPackageId: dirtySetter("selectedPackageId"),
+    setSelectedSingleItemIds: dirtySetter("selectedSingleItemIds"),
+    setSingleItemAmounts: dirtySetter("singleItemAmounts"),
+    setProfileCount: dirtySetter("profileCount"),
+    setStagedCount: dirtySetter("stagedCount"),
+    setCombinedProfileStagedCount: dirtySetter("combinedProfileStagedCount"),
+    setFloorCount: dirtySetter("floorCount"),
+    setLargeHospital: dirtySetter("largeHospital"),
+    setDroneCount: dirtySetter("droneCount"),
+    setCustomItems: dirtySetter("customItems"),
+    setBenefitItems: dirtySetter("benefitItems"),
+    setDiscountRate: dirtySetter("discountRate"),
+    setExtraDiscount: dirtySetter("extraDiscount"),
+    setMemo: dirtySetter("memo"),
+    setDepositRate: dirtySetter("depositRate"),
+  };
+});
