@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
+import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 
 // 현재 열려 있는 견적서 하나의 폼 상태 — QuoteBuilder.tsx(Form/Preview, 같은 상태 트리를
 // 그대로 공유)와 Olivia Agent(actionRouter.ts를 통한 실시간 patch, Phase 3)가 함께 읽고 쓴다.
@@ -27,6 +28,13 @@ export type QuoteFormState = {
   depositRate: number;
 };
 
+const QUOTE_FORM_KEYS = [
+  "customer", "brand", "quoteTitle", "selectedPackageId", "selectedSingleItemIds",
+  "singleItemAmounts", "profileCount", "stagedCount", "combinedProfileStagedCount",
+  "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems",
+  "discountRate", "extraDiscount", "memo", "depositRate",
+] as const satisfies readonly (keyof QuoteFormState)[];
+
 type Updater<T> = T | ((prev: T) => T);
 
 function resolveUpdater<T>(value: Updater<T>, prev: T): T {
@@ -34,6 +42,17 @@ function resolveUpdater<T>(value: Updater<T>, prev: T): T {
 }
 
 export type QuoteStoreState = QuoteFormState & {
+  // 사람이 직접 건드린(퍼블릭 setter를 거친) 필드 이름 — Agent가 patchFromAgent로 들어와도
+  // 이 안에 있는 필드는 값을 덮어쓰지 않는다(§45 미저장 편집 보호). resetForm()/loadRecentQuote()
+  // 처럼 폼 전체를 새 기준선으로 교체하는 지점은 끝에서 clearDirty()를 호출해 dirtyFields를
+  // 비운다 — "사람이 지금 편집 중"이 아니라 "새 기준선을 세우는 것"이기 때문이다.
+  dirtyFields: Set<keyof QuoteFormState>;
+  clearDirty: () => void;
+  // Agent tool이 견적을 수정한 뒤 REFRESH_RESOURCE의 after payload(quotes 테이블 row)로
+  // 들어온다. dirtyFields에 없는 필드만 서버 값으로 교체한다 — 사람이 지금 편집 중인 필드는
+  // 그대로 두고, 나머지는 네트워크 왕복 없이 즉시 반영된다(Phase 3).
+  patchFromAgent: (row: Record<string, unknown>) => void;
+
   setCustomer: (value: Updater<CustomerInfo>) => void;
   setBrand: (value: Updater<Brand>) => void;
   setQuoteTitle: (value: Updater<string>) => void;
@@ -69,7 +88,20 @@ const emptyCustomer = (): CustomerInfo => ({
   quoteNumber: "",
 });
 
-export const useQuoteStore = create<QuoteStoreState>((set) => ({
+// 값 하나를 set하면서 그 필드를 dirty로 표시하는 setter를 만든다 — human 쪽 JSX onChange와
+// resetForm()/loadRecentQuote() 안의 호출부가 정확히 같은 함수를 부르지만(마이그레이션 시
+// 변수명을 그대로 유지했다), 후자는 함수 끝에서 clearDirty()를 호출해 이 dirty 표시를
+// 지운다 — "폼 전체를 새 기준선으로 교체" vs "사람이 지금 이 필드를 편집" 둘 다 같은 setter를
+// 쓰되, 그 차이는 clearDirty 호출 여부로 구분한다.
+function dirtySetter<K extends keyof QuoteFormState>(key: K) {
+  return (value: Updater<QuoteFormState[K]>) =>
+    useQuoteStore.setState((state) => ({
+      [key]: resolveUpdater(value, state[key]),
+      dirtyFields: new Set(state.dirtyFields).add(key),
+    }));
+}
+
+export const useQuoteStore = create<QuoteStoreState>((set, get) => ({
   customer: emptyCustomer(),
   brand: "photoclinic",
   quoteTitle: "",
@@ -88,23 +120,36 @@ export const useQuoteStore = create<QuoteStoreState>((set) => ({
   extraDiscount: 0,
   memo: "",
   depositRate: 50,
+  dirtyFields: new Set(),
 
-  setCustomer: (value) => set((state) => ({ customer: resolveUpdater(value, state.customer) })),
-  setBrand: (value) => set((state) => ({ brand: resolveUpdater(value, state.brand) })),
-  setQuoteTitle: (value) => set((state) => ({ quoteTitle: resolveUpdater(value, state.quoteTitle) })),
-  setSelectedPackageId: (value) => set((state) => ({ selectedPackageId: resolveUpdater(value, state.selectedPackageId) })),
-  setSelectedSingleItemIds: (value) => set((state) => ({ selectedSingleItemIds: resolveUpdater(value, state.selectedSingleItemIds) })),
-  setSingleItemAmounts: (value) => set((state) => ({ singleItemAmounts: resolveUpdater(value, state.singleItemAmounts) })),
-  setProfileCount: (value) => set((state) => ({ profileCount: resolveUpdater(value, state.profileCount) })),
-  setStagedCount: (value) => set((state) => ({ stagedCount: resolveUpdater(value, state.stagedCount) })),
-  setCombinedProfileStagedCount: (value) => set((state) => ({ combinedProfileStagedCount: resolveUpdater(value, state.combinedProfileStagedCount) })),
-  setFloorCount: (value) => set((state) => ({ floorCount: resolveUpdater(value, state.floorCount) })),
-  setLargeHospital: (value) => set((state) => ({ largeHospital: resolveUpdater(value, state.largeHospital) })),
-  setDroneCount: (value) => set((state) => ({ droneCount: resolveUpdater(value, state.droneCount) })),
-  setCustomItems: (value) => set((state) => ({ customItems: resolveUpdater(value, state.customItems) })),
-  setBenefitItems: (value) => set((state) => ({ benefitItems: resolveUpdater(value, state.benefitItems) })),
-  setDiscountRate: (value) => set((state) => ({ discountRate: resolveUpdater(value, state.discountRate) })),
-  setExtraDiscount: (value) => set((state) => ({ extraDiscount: resolveUpdater(value, state.extraDiscount) })),
-  setMemo: (value) => set((state) => ({ memo: resolveUpdater(value, state.memo) })),
-  setDepositRate: (value) => set((state) => ({ depositRate: resolveUpdater(value, state.depositRate) })),
+  clearDirty: () => set({ dirtyFields: new Set() }),
+
+  patchFromAgent: (row) => {
+    const server = quoteRowToFormState(row);
+    const { dirtyFields } = get();
+    const patch: Partial<QuoteFormState> = {};
+    for (const key of QUOTE_FORM_KEYS) {
+      if (!dirtyFields.has(key)) (patch as Record<string, unknown>)[key] = server[key];
+    }
+    set(patch);
+  },
+
+  setCustomer: dirtySetter("customer"),
+  setBrand: dirtySetter("brand"),
+  setQuoteTitle: dirtySetter("quoteTitle"),
+  setSelectedPackageId: dirtySetter("selectedPackageId"),
+  setSelectedSingleItemIds: dirtySetter("selectedSingleItemIds"),
+  setSingleItemAmounts: dirtySetter("singleItemAmounts"),
+  setProfileCount: dirtySetter("profileCount"),
+  setStagedCount: dirtySetter("stagedCount"),
+  setCombinedProfileStagedCount: dirtySetter("combinedProfileStagedCount"),
+  setFloorCount: dirtySetter("floorCount"),
+  setLargeHospital: dirtySetter("largeHospital"),
+  setDroneCount: dirtySetter("droneCount"),
+  setCustomItems: dirtySetter("customItems"),
+  setBenefitItems: dirtySetter("benefitItems"),
+  setDiscountRate: dirtySetter("discountRate"),
+  setExtraDiscount: dirtySetter("extraDiscount"),
+  setMemo: dirtySetter("memo"),
+  setDepositRate: dirtySetter("depositRate"),
 }));
