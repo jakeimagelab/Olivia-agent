@@ -243,6 +243,7 @@ const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => 
   memos: row.memos ?? null,
   status: row.status ?? "draft",
   formState: row.form_state ?? undefined,
+  updatedAt: row.updated_at ?? undefined,
 });
 
 const uniqueQuoteItems = (items: string[]) => Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
