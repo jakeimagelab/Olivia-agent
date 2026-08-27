@@ -101,6 +101,12 @@ export function executeOliviaAction(action: OliviaUiAction) {
     // 여기까지 도달하지 않는다 — exhaustive switch를 통과시키기 위한 no-op.
     case "OPEN_CLIENT_TASK":
       return;
+    // DOWNLOAD_QUOTE_PDF도 같은 이유로 useOliviaConversationStore.ts가 미리 가로챈다 — 여기서
+    // useQuoteStore.pdfHandler를 부르면 그 결과(성공/실패)를 채팅 메시지로 남겨야 하는데,
+    // 이 파일이 useOliviaConversationStore를 다시 import하면 그쪽이 이미 actionRouter.ts를
+    // import하고 있어 순환 참조가 된다.
+    case "DOWNLOAD_QUOTE_PDF":
+      return;
     case "OPEN_FEATURE": {
       context.recordAction(`feature:open:${action.href}`);
       navigateToFeature(action.href);
