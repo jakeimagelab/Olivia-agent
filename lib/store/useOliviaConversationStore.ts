@@ -380,6 +380,39 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
               ...message,
               blocks: [...message.blocks, { type: "approval", approvalId: approval.approvalId, summary: approval.summary, toolName: approval.toolName, toolInput: approval.toolInput, confirmLabel: approval.confirmLabel, state: "pending" }],
             } : message) }));
+          } else if (event.action.type === "DOWNLOAD_QUOTE_PDF") {
+            // PDF는 브라우저에 열려 있는 QuoteBuilder만 실제로 만들 수 있다(html2canvas가 DOM을
+            // 캡처한다) — 서버 tool의 success:true는 "요청을 접수했다"일 뿐, 진짜 성공/실패는
+            // 사람이 누르는 다운로드 버튼과 같은 downloadPdf()가 끝난 뒤에만 확정된다(Phase 4).
+            // executeOliviaAction으로 안 보내는 이유는 actionRouter.ts가 이 스토어를 다시
+            // import하면 순환 참조가 되기 때문 — REQUEST_APPROVAL/OPEN_CLIENT_TASK와 같은
+            // 이유로 여기서 가로챈다. PDF 생성은 수 초 걸릴 수 있어 원래 스트리밍 메시지가 이미
+            // 끝났을 수 있으므로, 결과는 새 assistant 메시지로 따로 보고한다.
+            const handler = useQuoteStore.getState().pdfHandler;
+            if (!handler) {
+              get().appendMessage({
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: "지금 열려 있는 견적서가 없어서 PDF를 만들지 못했어요.",
+                blocks: [{ type: "text", text: "지금 열려 있는 견적서가 없어서 PDF를 만들지 못했어요." }],
+                createdAt: new Date().toISOString(),
+                status: "complete",
+              });
+            } else {
+              void handler().then((result) => {
+                const text = result.success
+                  ? "현재 견적서 기준으로 PDF 다운로드를 완료했어요."
+                  : (result.error || "PDF 생성에 실패했어요.");
+                get().appendMessage({
+                  id: crypto.randomUUID(),
+                  role: "assistant",
+                  content: text,
+                  blocks: [{ type: "text", text }],
+                  createdAt: new Date().toISOString(),
+                  status: "complete",
+                });
+              });
+            }
           } else if (event.action.type === "OPEN_CLIENT_TASK") {
             // 채팅 안에서 실제 작업을 끝까지 수행하는 카드(예: 셀렉 매칭) — approval과 동일하게
             // 여기서 미리 가로채 메시지에 블록을 추가한다. 실시간 진행 상태는 별도 client-only
