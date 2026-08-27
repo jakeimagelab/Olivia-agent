@@ -1723,10 +1723,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       if (pdfWindow) {
         pdfWindow.close();
       }
+      onResult?.({ success: true });
     } catch (error) {
       const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
       console.error("PDF generation failed", error);
       writeErrorWindow(message);
+      onResult?.({ success: false, error: message });
     } finally {
       if (captureRoot) {
         captureRoot.remove();
