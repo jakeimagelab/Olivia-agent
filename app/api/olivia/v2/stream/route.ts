@@ -34,6 +34,7 @@ import { createAgentRun } from "@/lib/olivia/agentRuns/service";
 import { hasDatabaseFastPath, resolveDatabaseFastPath } from "@/lib/olivia/v2/databaseFastPath";
 import { detectAbnormalScript, isWellFormedHistoryText } from "@/lib/olivia/output/scriptSanitizer";
 import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
+import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmations";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
