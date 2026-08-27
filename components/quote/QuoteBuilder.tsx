@@ -1492,8 +1492,15 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     }
   };
 
-  const downloadPdf = async () => {
-    if (!previewRef.current || isGenerating) return;
+  // onResult는 선택 인자다 — 사람이 누르는 다운로드 버튼(onClick={() => void downloadPdf()})은
+  // 그대로 두고, Agent가 채팅으로 트리거할 때만(useQuoteStore.pdfHandler, 아래 useEffect)
+  // 실제 성공/실패를 알려준다. 별도의 "Agent용 PDF 함수"를 만들지 않고 같은 함수를 그대로
+  // 재사용하기 위한 최소한의 확장이다(Phase 4).
+  const downloadPdf = async (onResult?: (result: { success: boolean; error?: string }) => void) => {
+    if (!previewRef.current || isGenerating) {
+      onResult?.({ success: false, error: isGenerating ? "이미 PDF를 생성하고 있어요." : "견적서 화면을 찾지 못했어요." });
+      return;
+    }
     const snapshot = buildContractQuoteData();
 
     const shootingLines = snapshot.items
