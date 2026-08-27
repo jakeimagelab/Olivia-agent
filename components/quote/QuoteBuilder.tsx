@@ -44,19 +44,6 @@ type SingleItem = {
   price: number;
 };
 
-type CustomItem = {
-  id: string;
-  name: string;
-  detail: string;
-  amount: number;
-  discountable?: boolean;
-};
-
-type BenefitItem = {
-  id: string;
-  name: string;
-};
-
 type ContractQuoteItem = {
   id?: string;
   name: string;
