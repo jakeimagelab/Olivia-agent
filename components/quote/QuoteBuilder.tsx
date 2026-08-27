@@ -813,6 +813,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setDiscountRate(0);
     setExtraDiscount(0);
     setMemo(cfg.defaultMemo);
+    // 위 setter들은 사람이 직접 입력할 때 쓰는 것과 같은 함수라 각 필드를 dirty로 표시했다 —
+    // 여기는 "새 기준선을 세우는 것"이지 편집이 아니므로 끝에서 지운다(Phase 3, patchFromAgent
+    // 가드가 여기서 잘못 dirty로 남은 필드를 영구히 못 건드리게 되는 걸 막는다).
+    useQuoteStore.getState().clearDirty();
   };
 
   // useQuoteStore는 모듈 전역 싱글턴이라, useState였을 때와 달리 컴포넌트를 다시 마운트해도
