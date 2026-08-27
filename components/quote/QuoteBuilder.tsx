@@ -948,6 +948,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         lastSavedFormStateRef.current = JSON.stringify(savedData.formState ?? null);
         setDirty(false);
       }
+      // 저장이 실제로 성공한 지금이 새 기준선이다 — dirtyFields를 비워서 Agent가 이후 이
+      // 필드들을 다시 patch할 수 있게 한다(모드에 상관없이 적용, page 모드는 지금까지
+      // dirty 추적 자체가 없었다).
+      useQuoteStore.getState().clearDirty();
       return savedData;
     } catch (error) {
       setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${error instanceof Error ? error.message : "네트워크 오류"}`);
