@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactElement, ReactNode } from "react";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
@@ -9,6 +9,8 @@ import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useQuoteStore } from "@/lib/store/useQuoteStore";
+import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
 import {
   CheckCircle2,
   ChevronDown,
