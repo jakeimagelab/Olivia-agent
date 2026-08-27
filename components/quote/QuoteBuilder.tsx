@@ -302,8 +302,6 @@ const invertImageColors = (src: string): Promise<string> =>
     img.src = src;
   });
 
-type Brand = "photoclinic" | "jakeimage";
-
 const BRAND_CONFIG: Record<Brand, {
   label: string;
   logo: string;
