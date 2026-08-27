@@ -1258,7 +1258,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       if (detail?.resource && detail.resource !== "quote") return;
       if (detail?.resourceId && detail.resourceId !== currentQuoteId) return;
       if (detail?.after && typeof detail.after === "object") {
-        useQuoteStore.getState().patchFromAgent(detail.after as Record<string, unknown>);
+        const afterRow = detail.after as Record<string, unknown>;
+        useQuoteStore.getState().patchFromAgent(afterRow);
+        if (typeof afterRow.updated_at === "string") lastKnownUpdatedAtRef.current = afterRow.updated_at;
         return;
       }
       fetch(`/api/quotes/${currentQuoteId}`)
