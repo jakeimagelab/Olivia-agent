@@ -978,6 +978,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   };
 
   const loadRecentQuote = (data: ContractQuoteData) => {
+    lastKnownUpdatedAtRef.current = data.updatedAt;
     if (data.formState && !data.formState.agentOverrideItems) {
       setBrand(data.formState.brand ?? "photoclinic");
       setCustomer(data.formState.customer);
