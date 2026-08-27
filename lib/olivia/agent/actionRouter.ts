@@ -71,7 +71,14 @@ export function executeOliviaAction(action: OliviaUiAction) {
       context.setResource(action.resourceId);
       context.pushRecentAction({ type: `refresh:${action.resource || "resource"}`, at: new Date().toISOString(), entityId: action.changedEntityId || action.resourceId, before: action.before, after: action.after });
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("olivia-resource-refresh", { detail: { resource: action.resource, resourceId: action.resourceId } }));
+        // before/after/changedEntityId를 실어 보낸다 — QuoteBuilder.tsx는 after(견적 mutation
+        // tool이 저장한 DB row)가 있으면 다시 fetch하지 않고 그 값으로 dirty하지 않은 필드만
+        // 바로 patch한다(useQuoteStore.patchFromAgent, Phase 3). resource/resourceId만 읽는
+        // 다른 리스너(ContractBuilder.tsx, ContiBuilder.tsx)는 그대로 무시하므로 추가만 해도
+        // 안전하다.
+        window.dispatchEvent(new CustomEvent("olivia-resource-refresh", {
+          detail: { resource: action.resource, resourceId: action.resourceId, changedEntityId: action.changedEntityId, before: action.before, after: action.after },
+        }));
       }
       return;
     }
