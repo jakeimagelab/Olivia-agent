@@ -83,17 +83,33 @@ export async function POST(req: NextRequest) {
 
     const { data: existing, error: findError } = await supabase
       .from("quotes")
-      .select("id")
+      .select("id, updated_at")
       .eq("quote_number", body.quoteNumber)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (findError) throw new Error(findError.message);
 
+    // 사람의 저장(수동/자동)과 Agent tool의 직접 DB write가 서로 다른 경로로 같은 행을 건드릴
+    // 수 있다(§45/46) — 여기서는 막지 않고(하드 리젝트는 이 충돌을 다루는 기존 테스트가 없어
+    // false-positive로 정상 저장까지 막을 위험이 더 크다고 판단) 감지만 해서 알려준다.
+    // updated_at 컬럼에는 지금까지 UPDATE 시 자동 갱신 트리거가 없었으므로 여기서 직접 채운다.
+    const conflictDetected = Boolean(
+      existing?.id && typeof body.lastKnownUpdatedAt === "string" && existing.updated_at &&
+      new Date(existing.updated_at).getTime() !== new Date(body.lastKnownUpdatedAt).getTime()
+    );
+    if (conflictDetected) {
+      console.warn("[quotes] 저장 충돌 감지 — 다른 곳에서 먼저 저장됨", {
+        quoteId: existing!.id,
+        knownUpdatedAt: body.lastKnownUpdatedAt,
+        actualUpdatedAt: existing!.updated_at,
+      });
+    }
+
     const query = existing?.id
-      ? supabase.from("quotes").update(payload).eq("id", existing.id)
+      ? supabase.from("quotes").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", existing.id)
       : supabase.from("quotes").insert(payload);
-    const { data, error } = await query.select("id, created_at").single();
+    const { data, error } = await query.select("id, created_at, updated_at").single();
 
     if (error) throw new Error(error.message);
     // 재시도로 같은 견적을 덮어쓸 때마다 알림이 쌓이지 않도록 신규 생성일 때만 포털에 기록한다.
