@@ -1737,6 +1737,30 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     }
   };
 
+  // downloadPdf는 렌더마다 새로 만들어지는 클로저라(customer/brand 등 최신 상태를 참조해야
+  // 한다) 아래 등록 effect가 매번 다시 실행되면 낭비다 — 최신 함수는 ref로만 갱신하고,
+  // useQuoteStore에 등록하는 handler 자체는 마운트 시 한 번만 만들어 안정적으로 유지한다
+  // (advanced-use-latest 패턴).
+  const downloadPdfRef = useRef(downloadPdf);
+  useEffect(() => {
+    downloadPdfRef.current = downloadPdf;
+  });
+
+  // 사람이 누르는 다운로드 버튼과 Agent(actionRouter.ts의 DOWNLOAD_QUOTE_PDF)가 정확히 같은
+  // downloadPdf()를 호출하게 하는 연결점 — 지금 이 인스턴스가 마운트돼 있을 때만 등록되고,
+  // 언마운트되면 해제된다. useQuoteStore.pdfHandler가 null이면 "지금 열려 있는 견적서가
+  // 없다"는 뜻이라 Agent 쪽에서 실행 전에 바로 알 수 있다(Phase 4).
+  useEffect(() => {
+    const handler = () =>
+      new Promise<{ success: boolean; error?: string }>((resolve) => {
+        void downloadPdfRef.current((result) => resolve(result));
+      });
+    useQuoteStore.getState().registerPdfHandler(handler);
+    return () => {
+      if (useQuoteStore.getState().pdfHandler === handler) useQuoteStore.getState().registerPdfHandler(null);
+    };
+  }, []);
+
   /* ── Excel 다운로드 (열너비 적용, 2시트) — 코드 요청서 3차 2번 항목, 콘티의
      handleSpreadsheetDownload과 같은 패턴(xlsx 패키지, aoa_to_sheet) ── */
   const downloadExcel = async () => {
