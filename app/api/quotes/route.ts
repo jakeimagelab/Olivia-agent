@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     }
     // 저장(자동저장 포함)은 임시저장일 뿐 — 워크플로우 전진은 /api/quotes/[id]/publish
     // ("포털 공개")에서만 일어난다.
-    return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at, updated: Boolean(existing?.id) });
+    return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at, updatedAt: data.updated_at, updated: Boolean(existing?.id), conflictDetected });
   } catch (error) {
     return NextResponse.json({ ok: false, error: quoteErrorMessage(error, "견적 저장 실패") }, { status: 500 });
   }
