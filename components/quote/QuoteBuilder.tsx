@@ -100,17 +100,6 @@ type ContractQuoteData = {
   };
 };
 
-type CustomerInfo = {
-  hospitalName: string;
-  managerName: string;
-  phone: string;
-  email: string;
-  quoteDate: string;
-  validUntil: string;
-  shootDate: string;
-  quoteNumber: string;
-};
-
 type ImportedPdfQuote = {
   hospitalName: string;
   quoteNumber: string;
