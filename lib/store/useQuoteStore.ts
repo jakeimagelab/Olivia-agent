@@ -88,20 +88,23 @@ const emptyCustomer = (): CustomerInfo => ({
   quoteNumber: "",
 });
 
-// 값 하나를 set하면서 그 필드를 dirty로 표시하는 setter를 만든다 — human 쪽 JSX onChange와
-// resetForm()/loadRecentQuote() 안의 호출부가 정확히 같은 함수를 부르지만(마이그레이션 시
-// 변수명을 그대로 유지했다), 후자는 함수 끝에서 clearDirty()를 호출해 이 dirty 표시를
-// 지운다 — "폼 전체를 새 기준선으로 교체" vs "사람이 지금 이 필드를 편집" 둘 다 같은 setter를
-// 쓰되, 그 차이는 clearDirty 호출 여부로 구분한다.
-function dirtySetter<K extends keyof QuoteFormState>(key: K) {
-  return (value: Updater<QuoteFormState[K]>) =>
-    useQuoteStore.setState((state) => ({
-      [key]: resolveUpdater(value, state[key]),
-      dirtyFields: new Set(state.dirtyFields).add(key),
-    }));
-}
+export const useQuoteStore = create<QuoteStoreState>((set, get) => {
+  // 값 하나를 set하면서 그 필드를 dirty로 표시하는 setter를 만든다 — human 쪽 JSX onChange와
+  // resetForm()/loadRecentQuote() 안의 호출부가 정확히 같은 함수를 부르지만(마이그레이션 시
+  // 변수명을 그대로 유지했다), 후자는 함수 끝에서 clearDirty()를 호출해 이 dirty 표시를
+  // 지운다 — "폼 전체를 새 기준선으로 교체" vs "사람이 지금 이 필드를 편집" 둘 다 같은
+  // setter를 쓰되, 그 차이는 clearDirty 호출 여부로 구분한다. create() 콜백의 set/get을
+  // 클로저로 잡아써야 한다 — 정의 중인 useQuoteStore 자신을 참조하면 TS가 자기참조 추론에
+  // 실패해 이 파일 전체와 QuoteBuilder.tsx 호출부까지 암묵적 any로 번진다.
+  function dirtySetter<K extends keyof QuoteFormState>(key: K): (value: Updater<QuoteFormState[K]>) => void {
+    return (value) =>
+      set((state) => ({
+        ...({ [key]: resolveUpdater(value, state[key]) } as Pick<QuoteFormState, K>),
+        dirtyFields: new Set(state.dirtyFields).add(key),
+      }));
+  }
 
-export const useQuoteStore = create<QuoteStoreState>((set, get) => ({
+  return {
   customer: emptyCustomer(),
   brand: "photoclinic",
   quoteTitle: "",
