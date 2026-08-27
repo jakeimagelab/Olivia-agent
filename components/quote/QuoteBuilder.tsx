@@ -1207,7 +1207,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           // 즉시 patch한다 — 없을 때만(다른 리소스 타입이 재사용하는 경우 등) 기존처럼 다시
           // 불러온다.
           if (detail?.after && typeof detail.after === "object") {
-            useQuoteStore.getState().patchFromAgent(detail.after as Record<string, unknown>);
+            const afterRow = detail.after as Record<string, unknown>;
+            useQuoteStore.getState().patchFromAgent(afterRow);
+            // Agent가 방금 이 시각으로 저장했다 — 사람의 다음 저장이 이 값을 기준으로 충돌
+            // 여부를 판단하게 최신화한다(Phase 5). 그대로면 실제로는 이미 반영된 Agent 변경을
+            // "충돌"로 잘못 경고하게 된다.
+            if (typeof afterRow.updated_at === "string") lastKnownUpdatedAtRef.current = afterRow.updated_at;
           } else {
             loadResource();
           }
