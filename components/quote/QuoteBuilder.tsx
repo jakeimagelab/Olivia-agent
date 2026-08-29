@@ -2033,7 +2033,15 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           <ActiveMissionBar workflowRunId={workflowRunId} />
         </div>
       ) : null}
-      <section className="mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)] lg:py-8">
+      {/* 이 그리드의 minmax() 하한이 곧 "이 아래로는 못 줄어든다"는 실제 폭 마지노선이다.
+          기존 440/560px(lg) 하한은 /quote 풀페이지처럼 뷰포트를 통째로 쓰는 화면 기준이었는데,
+          같은 컴포넌트가 워크스페이스 채팅 분할(고정 70% 폭, DynamicWorkspace.tsx가 overflow:hidden
+          으로 감싸 넘치면 스크롤 없이 그냥 잘려 보인다) 안에서도 mode="modal"로 그대로 쓰이면서
+          실제 폭이 하한보다 좁아져 미리보기 열이 잘려 보이는 문제가 있었다(2026-08-30 사용자
+          리포트). 미리보기 안쪽 A4 페이지는 이미 ResizeObserver로 실제 폭에 맞춰 scale을 다시
+          계산하므로(위 previewShellRef 참고) 그리드 하한만 낮춰도 잘림 없이 계속 축소된다 —
+          /quote 풀페이지는 폭이 넉넉해 fr 비율로 그대로 채워지므로 시각적으로 변화가 없다. */}
+      <section className={`mx-auto grid max-w-[1500px] min-w-0 gap-6 px-4 py-5 sm:px-6 lg:py-8 ${isModal ? "md:grid-cols-[minmax(300px,0.85fr)_minmax(340px,1.15fr)]" : "md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)]"}`}>
         <div className="min-w-0 space-y-5">
           <header className="rounded-lg border border-[var(--quote-ink)]/15 bg-white px-5 py-5 shadow-sm">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
