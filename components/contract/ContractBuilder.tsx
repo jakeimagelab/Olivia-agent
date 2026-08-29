@@ -449,8 +449,14 @@ export default function ContractBuilder({
   const contractFileName = () =>
     `${cfg.label}_계약서_${quote?.hospitalName || "고객"}_${quote?.quoteDate || ""}.pdf`;
 
-  const downloadPdf = async () => {
-    if (!contractHtml || !quote) return;
+  // onResult는 선택 인자다 — 사람이 누르는 다운로드 버튼은 그대로 두고, Agent가 채팅으로
+  // 트리거할 때만(useContractPdfHandlerStore.pdfHandler, 아래 등록 effect) 실제 성공/실패를
+  // 알려준다. QuoteBuilder.tsx의 downloadPdf(onResult?) 확장과 동일한 패턴(PHASE 2).
+  const downloadPdf = async (onResult?: (result: { success: boolean; error?: string }) => void) => {
+    if (!contractHtml || !quote) {
+      onResult?.({ success: false, error: "계약서 화면을 찾지 못했어요." });
+      return;
+    }
     setPdfGenerating(true); setError("");
     try {
       const savedContractId = await handleSave();
@@ -475,12 +481,31 @@ export default function ContractBuilder({
         console.error("workflow artifact upload failed (non-blocking)", artifactError);
       }
       pdf.save(fileName);
+      onResult?.({ success: true });
     } catch (e: any) {
       setError(e.message || "PDF 생성에 실패했습니다.");
+      onResult?.({ success: false, error: e.message || "PDF 생성에 실패했습니다." });
     } finally {
       setPdfGenerating(false);
     }
   };
+
+  // downloadPdf는 렌더마다 새로 만들어지는 클로저라 등록 effect는 마운트 시 한 번만 실행하고,
+  // 최신 함수는 ref로 갱신한다(QuoteBuilder.tsx와 동일한 advanced-use-latest 패턴).
+  const downloadPdfRef = useRef(downloadPdf);
+  useEffect(() => {
+    downloadPdfRef.current = downloadPdf;
+  });
+  useEffect(() => {
+    const handler = () =>
+      new Promise<{ success: boolean; error?: string }>((resolve) => {
+        void downloadPdfRef.current((result) => resolve(result));
+      });
+    useContractPdfHandlerStore.getState().registerPdfHandler(handler);
+    return () => {
+      if (useContractPdfHandlerStore.getState().pdfHandler === handler) useContractPdfHandlerStore.getState().registerPdfHandler(null);
+    };
+  }, []);
 
   /* ── Excel 다운로드 (열너비 적용, 2시트) — 코드 요청서 3차 2번 항목, 견적서/콘티와
      같은 패턴(xlsx 패키지, aoa_to_sheet) ── */
