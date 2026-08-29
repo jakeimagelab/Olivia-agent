@@ -48,6 +48,11 @@ export type OliviaContextState = {
   currentDocumentId?: string;
   currentDocumentType?: string;
   currentDocumentTitle?: string;
+  // 견적 Chat-native Workflow(PHASE 2) — 지금 열려 있는 문서(견적서 등)의 실시간 합계/미저장
+  // 편집 여부. LLM이 총액을 스스로 계산해서 말하지 않고 이 값을 그대로 전달하게 하기 위함
+  // (스펙 §21). QuoteBuilder.tsx가 finalAmount/dirtyFields가 바뀔 때마다 갱신한다.
+  currentDocumentTotal?: number;
+  currentDocumentDirty?: boolean;
 
   setClient: (id?: string, name?: string) => void;
   setProject: (id?: string, name?: string) => void;
@@ -62,6 +67,7 @@ export type OliviaContextState = {
   setAlias: (alias: string, ref: EntityAlias) => void;
   setLastToolIntent: (tool?: string, intent?: string) => void;
   setCurrentDocument: (id?: string, type?: string, title?: string) => void;
+  setCurrentDocumentTotal: (total?: number, dirty?: boolean) => void;
   clearSelection: () => void;
   clearContext: () => void;
 };
