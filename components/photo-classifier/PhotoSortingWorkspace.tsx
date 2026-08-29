@@ -1103,6 +1103,21 @@ function PhotoSortingInner({
     setFieldScenes(newScenes);
     setStep(2);
 
+    // PHASE 4(2026-08-30) — 채팅에서 시작했을 때만(isModal) 결과 요약을 채팅에 남긴다. 실제
+    // newScenes/jpgEntries 결과가 나온 뒤에만 부르므로 "성공했다"는 거짓 보고가 아니다(스펙 §44).
+    if (isModal) {
+      const needsReviewCount = newScenes.filter((scene) => scene.boundaryBefore?.needsReview).length;
+      const summary = `사진 분류 완료\n\n총 사진 ${total}장\n분류 Scene ${newScenes.length}개${needsReviewCount > 0 ? `\n확인 필요 ${needsReviewCount}개` : ""}`;
+      useOliviaConversationStore.getState().appendMessage({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: summary,
+        blocks: [{ type: "text", text: summary }],
+        createdAt: new Date().toISOString(),
+        status: "complete",
+      });
+    }
+
     // ⑤ 백그라운드: AI 씬 분석 (옵션)
     if (fastAnalyzeMode && (aiNamingEnabled || departmentLogicEnabled) && newScenes.length > 0) {
       runSceneAiAnalysis(newScenes);
