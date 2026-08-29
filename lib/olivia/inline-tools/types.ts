@@ -17,4 +17,10 @@ export type InlineToolDefinition = {
   // "현재 셀렉/매칭이 진행 중입니다" 같은 중복 실행 가드 문구 — 도구마다 다른 명사를 쓸 수 있어
   // 프레임워크가 문구를 하드코딩하지 않고 도구가 넘긴다(없으면 범용 문구로 대체).
   duplicateRunMessage?: string;
+  // 새 카드가 생성될 때 client_task 블록에 넣을 초기 state — 기본값은 "in_progress"
+  // (select_match처럼 done/cancelled/error로 끝나는 단계형 흐름과 맞음). quote_preview처럼
+  // "완료" 개념이 없는 상시-live 카드는 "done"으로 지정해야, 중복 실행 가드
+  // (hasInProgressInlineTool)가 이 카드를 "아직 진행 중"으로 착각해 같은 도구의 새 카드를
+  // 영구히 막아버리는 걸 방지한다.
+  initialState?: InlineToolState;
 };
