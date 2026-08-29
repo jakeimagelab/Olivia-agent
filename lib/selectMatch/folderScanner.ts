@@ -55,3 +55,16 @@ export async function collectJpgFolderGroups(
   groups.sort((a, b) => a.name.localeCompare(b.name));
   return groups;
 }
+
+/** SelectMatchFolderGroup[]을 basename Set으로 평탄화한다 — nameParsing.ts의
+ * parseNamesFromText/parseNamesFromFiles와 동일하게 소문자로 정규화해야 buildRawIndex/
+ * computePreflight의 매칭 키(둘 다 .toLowerCase() 사용)와 대소문자가 어긋나지 않는다.
+ * collectJpgFolderGroups()의 basename 자체는 소문자화되어 있지 않으므로(원본 파일명 그대로)
+ * 여기서 명시적으로 낮춘다. */
+export function flattenFolderGroupsToNames(groups: SelectMatchFolderGroup[]): Set<string> {
+  const names = new Set<string>();
+  for (const group of groups) {
+    for (const photo of group.photos) names.add(photo.basename.toLowerCase());
+  }
+  return names;
+}
