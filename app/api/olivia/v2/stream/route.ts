@@ -381,6 +381,7 @@ function toolStatus(name: string) {
   if (name === "request_contract_signature") return "서명 패드를 준비하는 중…";
   if (name === "request_contract_publish" || name === "publish_contract") return "계약서를 최종 생성하는 중…";
   if (name === "download_contract_pdf") return "계약서 PDF를 준비하는 중…";
+  if (["rename_photo_scene", "merge_photo_scenes", "split_photo_scene"].includes(name)) return "사진 씬을 정리하는 중…";
   if (name === "add_conti_shots") return "콘티 컷을 구성하는 중…";
   if (["update_conti_shot", "remove_conti_shot", "reorder_conti_shot", "duplicate_conti_shot"].includes(name)) return "콘티를 수정하는 중…";
   if (name === "open_feature") return "화면을 찾는 중…";
