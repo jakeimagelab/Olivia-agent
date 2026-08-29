@@ -373,6 +373,13 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
       required: ["scope"],
     },
   },
+  // ── 사진 분류 씬 편집(PHASE 4, 2026-08-30) — 실제 실행은 지금 열려 있는 PhotoSortingWorkspace
+  // 안에서만 가능하다(파일시스템 핸들이 클라이언트에만 있음). 이 도구들은 "지금 화면이 열려
+  // 있는지"만 확인하고 실제 실행은 client_task 이후 ui_action(RENAME/MERGE/SPLIT_PHOTO_SCENE)이
+  // 처리한다 — 사람이 왼쪽 화면에서 직접 이름을 바꾸는 것과 정확히 같은 함수를 호출한다.
+  { type: "function", name: "rename_photo_scene", description: "현재 사진 분류 화면의 씬 이름을 바꿉니다. sceneNumber를 생략하면 지금 선택된 씬을 사용합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { sceneNumber: { type: ["number", "null"], description: "1부터 시작하는 씬 번호. 생략하면 지금 선택된 씬." }, newName: { type: "string" } }, required: ["sceneNumber", "newName"] } },
+  { type: "function", name: "merge_photo_scenes", description: "현재 사진 분류 화면에서 두 씬을 하나로 합칩니다. sceneNumberA를 생략하면 지금 선택된 씬을 사용합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { sceneNumberA: { type: ["number", "null"], description: "1부터 시작하는 씬 번호. 생략하면 지금 선택된 씬." }, sceneNumberB: { type: "number", description: "1부터 시작하는 씬 번호." } }, required: ["sceneNumberA", "sceneNumberB"] } },
+  { type: "function", name: "split_photo_scene", description: "현재 사진 분류 화면에서 한 씬을 지정한 사진 위치에서 둘로 나눕니다. sceneNumber를 생략하면 지금 선택된 씬을 사용합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { sceneNumber: { type: ["number", "null"], description: "1부터 시작하는 씬 번호. 생략하면 지금 선택된 씬." }, splitBeforePhotoNumber: { type: "number", description: "이 씬 안에서 몇 번째(1부터) 사진부터 새 씬으로 나눌지." } }, required: ["sceneNumber", "splitBeforePhotoNumber"] } },
 ];
 
 function text(input: Record<string, unknown>, key: string) {
