@@ -1,6 +1,5 @@
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import type { OliviaContextSnapshot, OliviaToolCall, OliviaToolResult } from "@/lib/olivia/v2/types";
-import { SELECT_MATCH_TOOL_ID } from "@/lib/olivia/inline-tools/builtins";
 
 export type UiActionResolverArgs = {
   input: Record<string, unknown>;
