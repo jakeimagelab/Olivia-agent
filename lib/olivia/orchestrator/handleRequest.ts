@@ -4,6 +4,7 @@ import { answerRuntimeQuery } from "./runtimeIntent";
 import { resolveNavigationCapability } from "@/lib/olivia/capabilities/resolver";
 import { buildOpenFeatureAction } from "@/lib/olivia/capabilities/executor";
 import { isSelectMatchRunIntent } from "@/lib/olivia/capabilities/selectMatchIntent";
+import { isPhotoClassificationRunIntent } from "@/lib/olivia/capabilities/photoClassificationIntent";
 import { isQuoteNavigationShortcutBlocked } from "@/lib/olivia/capabilities/quoteCreateIntent";
 import { isContractNavigationShortcutBlocked } from "@/lib/olivia/capabilities/contractCreateIntent";
 import type { DeterministicOliviaResult } from "./types";
