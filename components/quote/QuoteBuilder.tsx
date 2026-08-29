@@ -590,6 +590,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     finalAmount,
   } = computeQuoteTotals({ packageTotal, singleItemsTotal, optionsTotal, customItems, discountRate, extraDiscount });
 
+  // Agent가 총액을 스스로 계산해서 말하지 않고 지금 화면의 실제 값을 그대로 전달하게 한다
+  // (PHASE 2 스펙 §21, §40) — 편집할 때마다(dirtyFields도 함께) 최신 값으로 갱신한다.
+  useEffect(() => {
+    setOliviaCurrentDocumentTotal(finalAmount, dirtyFields.size > 0);
+  }, [finalAmount, dirtyFields, setOliviaCurrentDocumentTotal]);
+
   const updateCustomer = (key: keyof CustomerInfo, value: string) => {
     setCustomer((prev) => ({ ...prev, [key]: value }));
   };
