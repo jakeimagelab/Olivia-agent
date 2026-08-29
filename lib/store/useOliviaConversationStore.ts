@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
 import { buildOliviaPageContext, getOliviaContextSnapshot, useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useQuoteStore } from "@/lib/store/useQuoteStore";
+import { useContractPdfHandlerStore } from "@/lib/store/useContractPdfHandlerStore";
 // index.ts를 통해 import한다(registry.ts를 직접 import하면 안 됨) — index.ts가 builtins.ts를
 // re-export하면서 select_match 등록 side effect를 트리거하기 때문이다.
 import { getInlineTool, hasInProgressInlineTool } from "@/lib/olivia/inline-tools";
