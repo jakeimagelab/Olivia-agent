@@ -2771,7 +2771,10 @@ function PhotoSortingInner({
                     </div>
                   )}
                   {/* Scene card */}
-                  <div style={{borderBottom:`1px solid ${C.border}`,padding:"12px 20px"}}>
+                  {/* PHASE 4(2026-08-30) — 씬을 클릭하면 Olivia Agent Context에 "지금 선택된 씬"으로
+                      반영된다. 채팅에서 "이 씬 이름 바꿔"처럼 말할 때 몇 번 씬인지 다시 묻지
+                      않기 위함(스펙 §33) — 카드 안 입력칸/버튼 클릭도 함께 선택되지만 부작용 없음. */}
+                  <div onClick={()=>useOliviaContextStore.getState().setSelection("photo_scene", String(sc.index))} style={{borderBottom:`1px solid ${C.border}`,padding:"12px 20px"}}>
                     <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"100px auto 1fr auto",gap:12,alignItems:"start"}}>
                       {/* 썸네일 */}
                       <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
