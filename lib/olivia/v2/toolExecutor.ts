@@ -586,22 +586,36 @@ export async function runTool(
   }
 
   if (name === "create_contract") {
-    const hospitalName = text(input, "hospitalName") || context.activeClientName;
-    if (!hospitalName) throw new Error("계약서를 만들 고객을 먼저 알려주세요.");
-    const quote = await latestResource("quote", { ...context, activeClientName: hospitalName });
+    // 견적 우선순위(스펙 §3, 2026-08-30) — "이 견적으로 계약서 만들어줘"처럼 지금 보고 있는
+    // 견적을 가리킬 때 이름 기반 최신 조회가 엉뚱한 견적을 잡지 않도록, 명시된 quoteId나 지금
+    // 열려 있는 견적 Workspace를 hospitalName 매칭보다 먼저 확인한다.
+    const quoteId = text(input, "quoteId");
+    let quote: Record<string, unknown> | null = null;
+    if (quoteId) {
+      quote = await loadQuote(quoteId).catch(() => null);
+    } else if (context.activeWorkspace === "quote" && context.activeResourceId) {
+      quote = await loadQuote(context.activeResourceId).catch(() => null);
+    }
+    const hospitalName = text(input, "hospitalName") || context.activeClientName || (quote ? String(quote.hospital_name || "") : "");
+    if (!quote) {
+      if (!hospitalName) throw new Error("계약서를 만들 고객을 먼저 알려주세요.");
+      quote = await latestResource("quote", { ...context, activeClientName: hospitalName });
+    }
     if (!quote) throw new Error("계약서의 기준이 될 견적서를 먼저 만들어주세요.");
+    const finalHospitalName = hospitalName || String(quote.hospital_name || "");
+    if (!finalHospitalName) throw new Error("계약서를 만들 고객을 먼저 알려주세요.");
     const execution = await executeOliviaCrud(db, {
       operation: "create",
       domain: "contract",
       data: {
         quoteNumber: quote.quote_number,
-        hospitalName,
+        hospitalName: finalHospitalName,
         contactName: quote.contact_name,
         email: quote.email,
         quoteData: quote,
         workflowRunId: context.activeProjectId,
       },
-      requestText: `${hospitalName} 계약서 생성`,
+      requestText: `${finalHospitalName} 계약서 생성`,
     });
     const record = execution.record || {};
     return {
