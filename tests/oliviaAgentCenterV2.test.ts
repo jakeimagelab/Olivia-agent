@@ -29,6 +29,13 @@ describe("Olivia routing and tools",()=>{
     const tools=selectOliviaTools({requestClass,message:"병원명 바꿔줘",context:{...context,activeWorkspace:"quote",activeResourceId:"quote-1"}});
     expect(tools.map((tool)=>tool.name)).toContain("update_quote_info");
   });
+  it("계약 워크스페이스가 열려 있으면 update_contract_terms/request_contract_signature/request_contract_publish도 포함한다(PHASE 3, 2026-08-30) — 같은 도메인 누락 버그 재발 방지",()=>{
+    const requestClass=classifyOliviaRequest("계약금 30%로 해",context);
+    const tools=selectOliviaTools({requestClass,message:"계약금 30%로 해",context:{...context,activeWorkspace:"contract",activeResourceId:"contract-1"}}).map((tool)=>tool.name);
+    expect(tools).toContain("update_contract_terms");
+    expect(tools).toContain("request_contract_signature");
+    expect(tools).toContain("request_contract_publish");
+  });
   it("parallelizes read calls and serializes writes",async()=>{
     let active=0;let maxActive=0;
     const execute=async()=>{active++;maxActive=Math.max(maxActive,active);await new Promise((resolve)=>setTimeout(resolve,8));active--;return true};
