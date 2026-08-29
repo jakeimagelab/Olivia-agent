@@ -190,6 +190,40 @@ describe("Deterministic Router — Navigation (N1-N5, GPT 미호출)", () => {
   });
 });
 
+// 2026-08-29 사용자 리포트: "셀렉매칭 하자"/"셀렉매칭"처럼 /select-match의 등록 별칭과 겹치는
+// 문장이 resolveNavigationCapability의 완전일치 경로로 새서 검증 없이 페이지 이동으로
+// 확정됐다(N5류 "여는 동사 없이 기능 이름만" 완전일치 허용 규칙과 정확히 같은 매커니즘). 이
+// 도메인만 예외적으로 RUN(Inline Tool 실행)을 OPEN(페이지 이동)보다 우선한다.
+describe("Deterministic Router — Select/RAW Match RUN 의도 우선(GPT 미호출)", () => {
+  it("사진 셀렉해서 RAW 매칭해야 해 → 채팅 안에서 바로 실행", () => {
+    const result = resolveDeterministicResponse("사진 셀렉해서 RAW 매칭해야 해", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("SELECT_MATCH_RUN_INTENT");
+    expect(result?.uiActions[0]).toMatchObject({ type: "OPEN_CLIENT_TASK", task: "select_match" });
+  });
+  it("셀렉매칭 하자 → 채팅 안에서 바로 실행", () => {
+    const result = resolveDeterministicResponse("셀렉매칭 하자", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("SELECT_MATCH_RUN_INTENT");
+  });
+  it("여는 동사 없이 \"셀렉매칭\"만 있어도 페이지 이동이 아니라 RUN — 다른 기능(N5 고객관리류)과 다른 예외", () => {
+    const result = resolveDeterministicResponse("셀렉매칭", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("SELECT_MATCH_RUN_INTENT");
+  });
+  it("매칭만 입력해도 RUN", () => {
+    const result = resolveDeterministicResponse("매칭", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("SELECT_MATCH_RUN_INTENT");
+  });
+  it("셀렉매칭 페이지 열어줘 → \"페이지\" 명시 시 여전히 OPEN(페이지 이동)", () => {
+    const result = resolveDeterministicResponse("셀렉매칭 페이지 열어줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/select-match" }]);
+  });
+  it("RAW 매칭 화면 보여줘 → \"화면\" 명시 시 여전히 OPEN", () => {
+    const result = resolveDeterministicResponse("RAW 매칭 화면 보여줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/select-match" }]);
+  });
+});
+
 describe("Ambiguity — 임의 실행 금지", () => {
   // 현재 등록된 실제 기능 데이터에서 "관리"는 "고객 포털 관리"(가장 긴 별칭)로 확정 매칭되는
   // 단일 승자가 있어(0.6 신뢰도) 진짜 동점 애매함은 아니다 — 그래도 완전 일치(1.0)가 아니므로
