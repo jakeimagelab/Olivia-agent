@@ -107,6 +107,10 @@ export function executeOliviaAction(action: OliviaUiAction) {
     // import하고 있어 순환 참조가 된다.
     case "DOWNLOAD_QUOTE_PDF":
       return;
+    // DOWNLOAD_CONTRACT_PDF도 같은 순환참조 회피 이유로 useOliviaConversationStore.ts가
+    // 미리 가로챈다(2026-08-30, PHASE 3).
+    case "DOWNLOAD_CONTRACT_PDF":
+      return;
     case "OPEN_FEATURE": {
       context.recordAction(`feature:open:${action.href}`);
       navigateToFeature(action.href);
