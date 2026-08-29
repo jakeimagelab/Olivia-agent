@@ -256,7 +256,13 @@ export function buildOliviaPageContext(pathname?: string): string {
     scheduleId: context.selectedScheduleId,
     recentActions: context.recentActions.slice(-4).map((action) => action.type),
     currentDocument: context.currentDocumentId
-      ? { id: context.currentDocumentId, type: context.currentDocumentType, title: context.currentDocumentTitle }
+      ? {
+          id: context.currentDocumentId,
+          type: context.currentDocumentType,
+          title: context.currentDocumentTitle,
+          total: context.currentDocumentTotal,
+          dirty: context.currentDocumentDirty,
+        }
       : undefined,
   };
   return JSON.stringify(pageContext);
