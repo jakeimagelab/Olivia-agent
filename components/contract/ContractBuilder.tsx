@@ -695,6 +695,13 @@ export default function ContractBuilder({
     </div>
   );
 
+  // depositRate가 채팅으로 바뀌었으면(update_contract_terms) 그 비율로, 아니면 견적에서
+  // 물려받은 금액을 그대로 쓴다 — buildContractHtml()의 같은 계산과 동일한 원칙.
+  const effectiveDepositRate = quote.depositRate ?? Math.round(((quote.depositAmount || 0) / (quote.totalAmount || 1)) * 100);
+  const { depositAmount: effectiveDeposit, balanceAmount: effectiveBalance } = quote.depositRate != null
+    ? computeContractDeposit(quote.totalAmount, quote.depositRate)
+    : { depositAmount: quote.depositAmount, balanceAmount: quote.balanceAmount };
+
   return (
     <>
     <div
