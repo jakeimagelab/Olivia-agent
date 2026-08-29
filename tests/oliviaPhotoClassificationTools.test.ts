@@ -1,4 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// runTool()(lib/olivia/v2/toolExecutor.ts)은 모든 도구 분기보다 먼저 getSupabaseAdmin()을
+// 무조건 한 번 호출한다 — rename/merge/split_photo_scene은 db를 실제로 안 쓰지만, 그 초기화
+// 자체가 테스트 환경(Supabase 환경변수 없음)에서 던지므로 다른 도구 테스트와 동일하게
+// mock이 필요하다.
+vi.mock("@/lib/supabase", () => ({
+  getSupabaseAdmin: () => ({ from: () => ({}) }),
+}));
+
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 
