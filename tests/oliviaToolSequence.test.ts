@@ -155,6 +155,23 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
     expect(execution.uiActions[0]).toMatchObject({ type: "REFRESH_RESOURCE", resource: "quote", resourceId: quoteRow.id });
   });
 
+  it("견적 기본정보(병원명/제목) 수정은 DB update 후 form_state.customer에도 반영되고 refresh한다", async () => {
+    const execution = await executeAgentTool({ id: "quote-info-update", name: "update_quote_info", arguments: JSON.stringify({ hospitalName: "새이름산부인과", contactName: null, phone: null, email: null, quoteDate: null, shootDate: null, validUntil: null, quoteTitle: "여름 프로모션 견적서" }) }, {
+      ...context, activeWorkspace: "quote", activeResourceId: quoteRow.id,
+    });
+    expect(executionLog).toContain("db:update:quotes");
+    expect(quoteRow).toMatchObject({ hospital_name: "새이름산부인과", title: "여름 프로모션 견적서" });
+    expect((quoteRow as unknown as { form_state: { customer: { hospitalName: string } } }).form_state.customer).toMatchObject({ hospitalName: "새이름산부인과" });
+    expect(execution.uiActions[0]).toMatchObject({ type: "REFRESH_RESOURCE", resource: "quote", resourceId: quoteRow.id });
+  });
+
+  it("견적 기본정보 수정에 변경할 값이 하나도 없으면 실패로 보고한다", async () => {
+    const execution = await executeAgentTool({ id: "quote-info-empty", name: "update_quote_info", arguments: JSON.stringify({ hospitalName: null, contactName: null, phone: null, email: null, quoteDate: null, shootDate: null, validUntil: null, quoteTitle: null }) }, {
+      ...context, activeWorkspace: "quote", activeResourceId: quoteRow.id,
+    });
+    expect(execution.result.success).toBe(false);
+  });
+
   it("콘티 컷 추가는 같은 result JSON을 저장한 뒤 refresh한다", async () => {
     const execution = await executeAgentTool({ id: "conti-add", name: "add_conti_shots", arguments: JSON.stringify({ items: [{ category: "상담", keyword: null, personnel: null, location: null, description: null, notes: null }, { category: "상담", keyword: null, personnel: null, location: null, description: null, notes: null }], insertAfter: null }) }, {
       ...context, activeWorkspace: "conti", activeResourceId: contiRow.id,
