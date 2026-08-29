@@ -5,6 +5,8 @@ import { useSelectMatchChatStore } from "@/lib/store/useSelectMatchChatStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { parseNamesFromText, parseNamesFromFiles } from "@/lib/selectMatch/nameParsing";
 import { buildRawIndex, copyFileHandle, computePreflight } from "@/lib/selectMatch/rawIndex";
+import { collectJpgFolderGroups, flattenFolderGroupsToNames } from "@/lib/selectMatch/folderScanner";
+import { buildMatchSummaryText } from "@/lib/selectMatch/matchSummary";
 
 // 채팅 안에서 셀렉 매칭을 끝까지 수행하는 카드 — /select-match 페이지의 "텍스트 붙여넣기"/
 // "파일 업로드" 입력 모드 + RAW 폴더 선택 + 사전 확인 + 복사 실행을 압축한 버전이다. 실제
