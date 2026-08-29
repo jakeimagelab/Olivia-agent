@@ -23,10 +23,14 @@ describe("Olivia layout store", () => {
     expect(useOliviaLayoutStore.getState().mode).toBe("workspace-chat-expanded");
   });
 
-  it("uses the requested adaptive weights", () => {
-    expect(getWorkspaceLayoutWeight({ mode: "workspace", chatFocused: false, workspaceFocused: false, streaming: false })).toEqual({ chat: 0.34, workspace: 0.66 });
-    expect(getWorkspaceLayoutWeight({ mode: "workspace", chatFocused: true, workspaceFocused: false, streaming: false })).toEqual({ chat: 0.42, workspace: 0.58 });
-    expect(getWorkspaceLayoutWeight({ mode: "workspace", chatFocused: false, workspaceFocused: true, streaming: false })).toEqual({ chat: 0.27, workspace: 0.73 });
+  // 스트리밍/포커스로 비율이 계속 바뀌던 이전 동작은 "레이아웃이 자꾸 움직인다"는 사용자
+  // 신고(2026-08-30)로 제거됐다 — 이제 workspace 비율은 항상 70/30으로 고정이고, 사용자가
+  // 직접 누르는 "대화 크게" 토글(workspace-chat-expanded)만 예외로 남는다.
+  it("고정 70/30 비율을 쓰고, streaming/focus 상태는 더 이상 비율에 영향을 주지 않는다", () => {
+    expect(getWorkspaceLayoutWeight({ mode: "workspace", chatFocused: false, workspaceFocused: false, streaming: false })).toEqual({ chat: 0.3, workspace: 0.7 });
+    expect(getWorkspaceLayoutWeight({ mode: "workspace", chatFocused: true, workspaceFocused: false, streaming: false })).toEqual({ chat: 0.3, workspace: 0.7 });
+    expect(getWorkspaceLayoutWeight({ mode: "workspace", chatFocused: false, workspaceFocused: true, streaming: false })).toEqual({ chat: 0.3, workspace: 0.7 });
+    expect(getWorkspaceLayoutWeight({ mode: "workspace", chatFocused: false, workspaceFocused: false, streaming: true })).toEqual({ chat: 0.3, workspace: 0.7 });
     expect(getWorkspaceLayoutWeight({ mode: "workspace-chat-expanded", chatFocused: false, workspaceFocused: false, streaming: false })).toEqual({ chat: 0.62, workspace: 0.38 });
   });
 
