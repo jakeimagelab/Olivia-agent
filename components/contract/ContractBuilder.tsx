@@ -932,7 +932,7 @@ export default function ContractBuilder({
               계약서 미리보기 내용 그대로 PDF,<br/>계약 내역은 Excel로 받을 수 있습니다.
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={downloadPdf} disabled={pdfGenerating}
+              <button onClick={() => void downloadPdf()} disabled={pdfGenerating}
                 className="pc-btn pc-btn--primary" style={{ flex: 1 }}>
                 {pdfGenerating ? "PDF 생성 중..." : "PDF"}
               </button>
