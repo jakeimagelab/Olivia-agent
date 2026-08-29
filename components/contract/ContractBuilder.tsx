@@ -6,6 +6,9 @@ import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import GlobalHeader from "@/components/GlobalHeader";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useContractPdfHandlerStore } from "@/lib/store/useContractPdfHandlerStore";
+import { computeContractDeposit } from "@/lib/contract/computeContractDeposit";
 
 interface QuoteData {
   hospitalName: string;
@@ -25,6 +28,13 @@ interface QuoteData {
   depositAmount: number;
   balanceAmount: number;
   memos: string | null;
+  // 채팅 계약 워크플로우(2026-08-30)가 추가한 선택 필드 — 없으면 기존 하드코딩 조항 텍스트가
+  // 그대로 쓰인다(buildContractHtml 참고). depositRate가 있으면 depositAmount/balanceAmount보다
+  // 우선해서 computeContractDeposit()로 다시 계산한다.
+  depositRate?: number;
+  paymentTerms?: string;
+  deliveryTerms?: string;
+  specialTerms?: string;
 }
 
 type ContractBrand = "photoclinic" | "jakeimage";
