@@ -1865,7 +1865,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                         <tr key={item.id}>
                           <td>
                             {(selectedPackage ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || cfg.customItemsLabel}
-                            {item.detail ? <small>- {item.detail}</small> : null}
+                            {item.detail ? <small style={{ whiteSpace: "pre-line" }}>- {item.detail}</small> : null}
                           </td>
                           <td></td>
                           <td>{amount(item.amount)}</td>
