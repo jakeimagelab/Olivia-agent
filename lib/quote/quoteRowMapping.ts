@@ -17,7 +17,16 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
 
   if (formState && !formState.agentOverrideItems) {
     return {
-      customer: formState.customer,
+      customer: formState.customer ?? {
+        hospitalName: row.hospital_name || "",
+        managerName: row.contact_name || "",
+        phone: row.phone || "",
+        email: row.email || "",
+        quoteDate: row.quote_date || "",
+        validUntil: row.valid_until || "",
+        shootDate: row.shoot_date || "",
+        quoteNumber: row.quote_number || "",
+      },
       brand: (formState.brand ?? "photoclinic") as Brand,
       quoteTitle: formState.quoteTitle ?? "",
       selectedPackageId: formState.selectedPackageId ?? null,
