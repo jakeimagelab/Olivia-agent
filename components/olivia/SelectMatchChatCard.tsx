@@ -27,6 +27,17 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
 
   if (!flow) return null;
 
+  const appendAssistantText = (text: string) => {
+    appendMessage({
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content: text,
+      blocks: [{ type: "text", text }],
+      createdAt: new Date().toISOString(),
+      status: "complete",
+    });
+  };
+
   const submitNames = (names: Set<string>) => {
     if (names.size === 0) {
       store().setError(flowId, "파일명을 찾지 못했어요. 파일명(DSC_0142.jpg 형태)이 포함된 텍스트를 붙여넣거나 파일을 업로드해주세요.");
@@ -35,6 +46,21 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
     store().setNames(flowId, names);
     store().setStep(flowId, "awaiting_raw_folder");
     setBlockState(flowId, "in_progress");
+  };
+
+  const pickJpgFolderAndCollect = async () => {
+    try {
+      // showDirectoryPicker는 반드시 클릭 핸들러의 첫 번째 await여야 한다 — pickRawFolderAndScan과
+      // 동일한 이유(user gesture). 이름만 필요하므로 읽기 전용으로 연다.
+      const dir = await (window as any).showDirectoryPicker({ mode: "read" });
+      setFolderScanning(true);
+      const groups = await collectJpgFolderGroups(dir);
+      submitNames(flattenFolderGroupsToNames(groups));
+    } catch (e: any) {
+      if (e?.name !== "AbortError") store().setError(flowId, "폴더 선택에 실패했어요. 다시 시도해주세요.");
+    } finally {
+      setFolderScanning(false);
+    }
   };
 
   const pickRawFolderAndScan = async () => {
@@ -50,7 +76,11 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
       store().setPreflight(flowId, computePreflight(flow.selectedNames, rawIndex));
       store().setStep(flowId, "preflight_ready");
     } catch (e: any) {
-      if (e?.name !== "AbortError") store().setError(flowId, "폴더 선택에 실패했어요. 다시 시도해주세요.");
+      if (e?.name !== "AbortError") {
+        const msg = "RAW 폴더 선택에 실패했어요. 다시 시도해주세요.";
+        store().setError(flowId, msg);
+        appendAssistantText(msg);
+      }
     }
   };
 
@@ -60,6 +90,7 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
     cancelRef.current = false;
     const rawSelectDir = await (flow.rawRootDir as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
     let matched = 0, missing = 0, done = 0;
+    const missingNames: string[] = [];
     const names = Array.from(flow.selectedNames);
     for (const basename of names) {
       if (cancelRef.current) break;
@@ -68,16 +99,20 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
       if (handle) {
         const rawFile = await handle.getFile();
         try { await copyFileHandle(handle, rawSelectDir, rawFile.name); store().appendLog(flowId, `✅ ${rawFile.name}`); matched++; }
-        catch { store().appendLog(flowId, `❌ 실패: ${rawFile.name}`); }
+        catch { store().appendLog(flowId, `❌ 실패: ${rawFile.name}`); missingNames.push(basename); }
       } else {
         store().appendLog(flowId, `⚠️ RAW 없음: ${basename}`);
         missing++;
+        missingNames.push(basename);
       }
       done++;
     }
     store().setResult(flowId, { matched, missing, selected: names.length });
     store().setStep(flowId, "done");
     setBlockState(flowId, "done");
+    // client_task 블록은 텍스트가 아니라서 다음 턴 모델 입력(messageText())에 절대 안 잡힌다 —
+    // "한 장 왜 안됐어?" 같은 팔로우업에 답하려면 결과를 텍스트로도 남겨야 한다.
+    appendAssistantText(buildMatchSummaryText(names.length, matched, missing, missingNames));
   };
 
   return (
