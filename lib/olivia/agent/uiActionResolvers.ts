@@ -132,7 +132,7 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   start_select_match_flow: async ({ result }) => {
     if (!result.success) return [];
     const flowId = value(result.data, "flowId");
-    return flowId ? [{ type: "OPEN_CLIENT_TASK", task: "select_match", flowId }] : [];
+    return flowId ? [{ type: "OPEN_CLIENT_TASK", task: SELECT_MATCH_TOOL_ID, flowId }] : [];
   },
   start_task_session: async ({ result }) => {
     if (!result.success) return [];
