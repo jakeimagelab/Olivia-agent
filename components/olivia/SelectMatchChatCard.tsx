@@ -15,12 +15,14 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
   const flow = useSelectMatchChatStore((s) => s.flows[flowId]);
   const store = useSelectMatchChatStore.getState;
   const setBlockState = useOliviaConversationStore((s) => s.setClientTaskBlockState);
+  const appendMessage = useOliviaConversationStore((s) => s.appendMessage);
 
   const rawIndexRef = useRef<Map<string, FileSystemFileHandle>>(new Map());
   const cancelRef = useRef(false);
   const [textValue, setTextValue] = useState("");
-  const [inputMode, setInputMode] = useState<"text" | "upload">("text");
+  const [inputMode, setInputMode] = useState<"folder" | "text" | "upload">("folder");
   const [dragging, setDragging] = useState(false);
+  const [folderScanning, setFolderScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!flow) return null;
