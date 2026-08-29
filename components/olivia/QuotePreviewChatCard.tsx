@@ -61,7 +61,7 @@ export default function QuotePreviewChatCard({ flowId }: { flowId: string }) {
   return (
     <div className="olivia-quote-preview-card">
       <div className="olivia-quote-preview-card__label">견적서 Preview</div>
-      <div className="olivia-quote-preview-card__client">{customer.hospitalName || "고객명 미입력"}</div>
+      <div className="olivia-quote-preview-card__client">{customer?.hospitalName || "고객명 미입력"}</div>
       <div className="olivia-quote-preview-card__title">{quoteTitle || "제목 없음"}</div>
       <div className="olivia-quote-preview-card__total">{formatWon(finalAmount)}</div>
       <button
