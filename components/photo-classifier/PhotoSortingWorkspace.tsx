@@ -20,6 +20,7 @@ import {
 } from "@/lib/photo-classifier/scene-cache";
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
 import { evaluateSceneBoundaries } from "@/lib/photo-classifier/evaluation/metrics";
+import { usePhotoClassificationHandoffStore } from "@/lib/store/usePhotoClassificationHandoffStore";
 import type {
   AccuracyReport, ClassificationJobState, HybridSceneType, LocalVisualFeatures, SceneBoundaryDecision,
   SceneCorrection, SceneFrameAnalysis, TimestampSource,
