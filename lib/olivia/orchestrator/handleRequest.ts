@@ -39,6 +39,17 @@ export function resolveDeterministicResponse(
     };
   }
 
+  // "사진 분류하자"류(PHASE 4, 2026-08-30)도 select_match와 동일하게 완전 결정론적으로 바로
+  // Inline Tool을 띄운다 — 채팅에서 단계별로 설정을 모으는 흐름이라 첫 메시지에 파라미터가
+  // 필요 없다.
+  if (isPhotoClassificationRunIntent(message)) {
+    return {
+      text: "사진 분류를 시작할게요.",
+      uiActions: [{ type: "OPEN_CLIENT_TASK", task: "photo_classification", flowId: crypto.randomUUID() }],
+      routeDecision: "PHOTO_CLASSIFICATION_RUN_INTENT",
+    };
+  }
+
   const navigation = resolveNavigationCapability(message);
   // "견적"/"견적서"/"견적 만들어줘"처럼 /quote 별칭과 완전일치하는 문장은, "페이지"/"화면"을
   // 명시하지 않은 이상 대부분 "채팅에서 바로 견적을 만들어달라"(create_quote, RUN)는 의도다 —
