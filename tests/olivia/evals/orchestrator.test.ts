@@ -224,6 +224,33 @@ describe("Deterministic Router — Select/RAW Match RUN 의도 우선(GPT 미호
   });
 });
 
+// PHASE 2(견적서 Chat-native Workflow) 스펙 조사 중 발견: lib/toolNav.ts의 /quote 별칭 목록에
+// "견적서"/"견적"/"견적 만들어줘"가 그대로 들어 있어 셀렉/매칭과 똑같은 버그 패턴이 재현된다.
+// 다만 견적은 hospitalName을 문장에서 뽑아야 해서 완전 결정론적으로 create_quote를 바로
+// 실행할 수는 없다 — 여기서는 "페이지 이동으로 단정하지 않고 GPT에게 넘기는지"만 확인한다
+// (resolveDeterministicResponse가 null을 반환하면 GPT+tool 판단 경로로 넘어간다).
+describe("Deterministic Router — 견적 생성 RUN 의도 시 페이지 이동 억제(GPT로 위임)", () => {
+  it("여는 동사 없이 \"견적\"만 있어도 페이지 이동으로 단정하지 않는다(GPT에게 위임)", () => {
+    expect(resolveDeterministicResponse("견적", runtime, emptyContext)).toBeNull();
+  });
+  it("\"견적서\"만 있어도 마찬가지", () => {
+    expect(resolveDeterministicResponse("견적서", runtime, emptyContext)).toBeNull();
+  });
+  it("완전일치 별칭 \"견적 만들어줘\"도 페이지 이동으로 단정하지 않는다", () => {
+    expect(resolveDeterministicResponse("견적 만들어줘", runtime, emptyContext)).toBeNull();
+  });
+  it("견적서 페이지 열어줘 → \"페이지\" 명시 시 여전히 OPEN(회귀)", () => {
+    const result = resolveDeterministicResponse("견적서 페이지 열어줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/quote" }]);
+  });
+  it("견적 화면 보여줘 → \"화면\" 명시 시 여전히 OPEN(회귀)", () => {
+    const result = resolveDeterministicResponse("견적 화면 보여줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/quote" }]);
+  });
+});
+
 describe("Ambiguity — 임의 실행 금지", () => {
   // 현재 등록된 실제 기능 데이터에서 "관리"는 "고객 포털 관리"(가장 긴 별칭)로 확정 매칭되는
   // 단일 승자가 있어(0.6 신뢰도) 진짜 동점 애매함은 아니다 — 그래도 완전 일치(1.0)가 아니므로
