@@ -30,22 +30,33 @@ export default function QuotePreviewChatCard({ flowId }: { flowId: string }) {
   const discountRate = useQuoteStore((state) => state.discountRate);
   const extraDiscount = useQuoteStore((state) => state.extraDiscount);
 
+  // 이 카드는 QuoteBuilder.tsx와 별개로 채팅 패널 쪽 트리에서 useQuoteStore(전역 싱글턴)를
+  // 직접 구독한다 — QuoteBuilder는 자기 마운트 시 useLayoutEffect로 항상 resetForm()을 먼저
+  // 불러 store를 정리해 두지만, 이 카드는 QuoteBuilder보다 먼저(또는 patchFromAgent가 아직
+  // 필드를 다 채우기 전에) 렌더링될 수 있어 배열/객체 필드를 무조건 있다고 가정하면 안 된다.
   const selectedPackage = packages.find((item) => item.id === selectedPackageId) ?? null;
   const packageTotal = selectedPackage?.price ?? 0;
-  const singleItemsTotal = selectedSingleItemIds.reduce((sum, id) => {
+  const singleItemsTotal = (selectedSingleItemIds ?? []).reduce((sum, id) => {
     const item = singleItems.find((candidate) => candidate.id === id);
     if (!item) return sum;
-    return sum + (brand === "jakeimage" ? singleItemAmounts[id] || 0 : item.price);
+    return sum + (brand === "jakeimage" ? (singleItemAmounts ?? {})[id] || 0 : item.price);
   }, 0);
   const optionsTotal =
-    profileCount * 250000 +
-    stagedCount * 450000 +
-    combinedProfileStagedCount * 650000 +
-    floorCount * 250000 +
+    (profileCount ?? 0) * 250000 +
+    (stagedCount ?? 0) * 450000 +
+    (combinedProfileStagedCount ?? 0) * 650000 +
+    (floorCount ?? 0) * 250000 +
     (largeHospital ? 750000 : 0) +
-    droneCount * 500000;
+    (droneCount ?? 0) * 500000;
 
-  const { finalAmount } = computeQuoteTotals({ packageTotal, singleItemsTotal, optionsTotal, customItems, discountRate, extraDiscount });
+  const { finalAmount } = computeQuoteTotals({
+    packageTotal,
+    singleItemsTotal,
+    optionsTotal,
+    customItems: customItems ?? [],
+    discountRate: discountRate ?? 0,
+    extraDiscount: extraDiscount ?? 0,
+  });
 
   return (
     <div className="olivia-quote-preview-card">
