@@ -46,7 +46,7 @@ describe("Olivia layout store", () => {
       chatFocused: useOliviaLayoutStore.getState().chatFocused,
       workspaceFocused: useOliviaLayoutStore.getState().workspaceFocused,
       streaming: false,
-    })).toEqual({ chat: 0.42, workspace: 0.58 });
+    })).toEqual({ chat: 0.3, workspace: 0.7 });
 
     useOliviaLayoutStore.getState().setWorkspaceFocused(true);
     expect(getWorkspaceLayoutWeight({
@@ -54,7 +54,7 @@ describe("Olivia layout store", () => {
       chatFocused: useOliviaLayoutStore.getState().chatFocused,
       workspaceFocused: useOliviaLayoutStore.getState().workspaceFocused,
       streaming: false,
-    })).toEqual({ chat: 0.27, workspace: 0.73 });
+    })).toEqual({ chat: 0.3, workspace: 0.7 });
 
     useOliviaLayoutStore.getState().expandWorkspaceChat();
     useWorkspaceStore.getState().enterFullscreen();
