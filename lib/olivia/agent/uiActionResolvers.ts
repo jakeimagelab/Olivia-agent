@@ -233,7 +233,7 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   },
 };
 
-function mutationActions(resource: "quote" | "conti", result: OliviaToolResult, entityType?: string): OliviaUiAction[] {
+function mutationActions(resource: "quote" | "conti" | "contract", result: OliviaToolResult, entityType?: string): OliviaUiAction[] {
   if (!result.success) return [];
   const resourceId = value(result.data, "resourceId");
   if (!resourceId) return [];
