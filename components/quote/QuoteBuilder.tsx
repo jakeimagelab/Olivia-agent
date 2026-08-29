@@ -335,6 +335,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const setMemo = useQuoteStore((state) => state.setMemo);
   const depositRate = useQuoteStore((state) => state.depositRate);
   const setDepositRate = useQuoteStore((state) => state.setDepositRate);
+  const dirtyFields = useQuoteStore((state) => state.dirtyFields);
+  const setOliviaCurrentDocumentTotal = useOliviaContextStore((state) => state.setCurrentDocumentTotal);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isImportingQuotePdf, setIsImportingQuotePdf] = useState(false);
   const [pdfImportMessage, setPdfImportMessage] = useState("");
