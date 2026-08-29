@@ -578,13 +578,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   // 실제 합계 계산은 lib/quote/computeQuoteTotals.ts로 옮겼다(코드만 이동, 로직 동일) — 채팅
   // Quote Preview Card도 같은 함수를 써서 이 화면과 절대 다른 숫자를 보여줄 수 없게 한다.
   const {
-    nonDiscountableCustomTotal,
     discountableSubtotal,
     contentSubtotal,
     rateDiscountAmount,
     extraDiscountAmount,
     discountTotal,
-    rawSupplyAmount,
     supplyAmount,
     vat,
     finalAmount,
