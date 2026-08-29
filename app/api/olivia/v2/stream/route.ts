@@ -35,6 +35,7 @@ import { hasDatabaseFastPath, resolveDatabaseFastPath } from "@/lib/olivia/v2/da
 import { detectAbnormalScript, isWellFormedHistoryText } from "@/lib/olivia/output/scriptSanitizer";
 import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmations";
+import { buildContractRoundConfirmation } from "@/lib/olivia/output/contractConfirmations";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
