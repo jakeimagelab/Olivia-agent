@@ -251,6 +251,26 @@ describe("Deterministic Router — 견적 생성 RUN 의도 시 페이지 이동
   });
 });
 
+// PHASE 3(계약서 Chat-native Workflow) 조사 중 발견: /contract 페이지가 lib/toolNav.ts에
+// 아예 등록조차 안 되어 있었다(계약서 페이지 열어줘조차 안 열림) — 등록하면서 견적과 같은
+// RUN/OPEN 별칭 충돌 버그도 함께 재현되므로 같은 가드를 적용한다.
+describe("Deterministic Router — 계약서 생성 RUN 의도 시 페이지 이동 억제(GPT로 위임, PHASE 3)", () => {
+  it("여는 동사 없이 \"계약서\"만 있어도 페이지 이동으로 단정하지 않는다(GPT에게 위임)", () => {
+    expect(resolveDeterministicResponse("계약서", runtime, emptyContext)).toBeNull();
+  });
+  it("\"계약\"만 있어도 마찬가지", () => {
+    expect(resolveDeterministicResponse("계약", runtime, emptyContext)).toBeNull();
+  });
+  it("완전일치 별칭 \"계약서 만들어줘\"도 페이지 이동으로 단정하지 않는다", () => {
+    expect(resolveDeterministicResponse("계약서 만들어줘", runtime, emptyContext)).toBeNull();
+  });
+  it("계약서 페이지 열어줘 → \"페이지\" 명시 시 여전히 OPEN(회귀)", () => {
+    const result = resolveDeterministicResponse("계약서 페이지 열어줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/contract" }]);
+  });
+});
+
 describe("Ambiguity — 임의 실행 금지", () => {
   // 현재 등록된 실제 기능 데이터에서 "관리"는 "고객 포털 관리"(가장 긴 별칭)로 확정 매칭되는
   // 단일 승자가 있어(0.6 신뢰도) 진짜 동점 애매함은 아니다 — 그래도 완전 일치(1.0)가 아니므로
