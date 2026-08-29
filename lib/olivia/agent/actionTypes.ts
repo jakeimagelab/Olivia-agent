@@ -51,4 +51,6 @@ export type OliviaUiAction =
       toolName: string;
       toolInput: Record<string, unknown>;
     }
-  | { type: "OPEN_CLIENT_TASK"; task: "select_match"; flowId: string };
+  // task는 Inline Tool Registry(lib/olivia/inline-tools)의 등록 id를 가리키는 opaque 문자열이다
+  // — 새 도구가 추가돼도 이 파일을 다시 열 필요가 없도록 리터럴 유니온으로 제한하지 않는다.
+  | { type: "OPEN_CLIENT_TASK"; task: string; flowId: string };
