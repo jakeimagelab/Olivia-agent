@@ -9,6 +9,7 @@ import { resolveUiActions } from "@/lib/olivia/agent/uiActionResolvers";
 import { buildAgentQuoteData } from "@/lib/quote/agentQuote";
 import { parseKoreanCount, parseKoreanMoney, parseShotPosition, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
 import { addQuoteItem, quoteItems, recalculateQuote, removeQuoteItem, resolveQuoteItem, updateQuoteItem, type QuoteItem } from "@/lib/quote/quoteMutationService";
+import { computeContractDeposit } from "@/lib/contract/computeContractDeposit";
 import { addContiShots, duplicateContiShot, estimateContiDuration, normalizeContiResult, removeContiShot, reorderContiShot, resolveContiShot, updateContiShot } from "@/lib/conti/contiMutationService";
 import type {
   OliviaAgentToolExecution,
