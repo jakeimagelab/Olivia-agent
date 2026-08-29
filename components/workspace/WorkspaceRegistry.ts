@@ -1,8 +1,9 @@
 import type { ComponentType } from "react";
-import { Clapperboard, FileSignature, FileText, type LucideIcon } from "lucide-react";
+import { Clapperboard, FileSignature, FileText, Wand2, type LucideIcon } from "lucide-react";
 import QuoteBuilder from "@/components/quote/QuoteBuilder";
 import ContractBuilder from "@/components/contract/ContractBuilder";
 import ContiBuilder from "@/components/conti/ContiBuilder";
+import PhotoSortingWorkspace from "@/components/photo-classifier/PhotoSortingWorkspace";
 import type { WorkspaceType } from "@/lib/store/workspaceStore";
 
 // DynamicWorkspace가 if(type==='quote')/if(type==='contract') 하드코딩 없이 타입 → 컴포넌트를
