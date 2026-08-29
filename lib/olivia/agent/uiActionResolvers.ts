@@ -77,7 +77,15 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     if (!resourceId) return opened;
     return [...opened, { type: "OPEN_CLIENT_TASK", task: "quote_preview", flowId: resourceId }];
   },
-  create_contract: async (args) => workspaceAction("contract", args),
+  create_contract: async (args) => {
+    const opened = workspaceAction("contract", args);
+    if (!opened.length) return opened;
+    // create_quote와 동일한 이유로 문자열 리터럴 사용(PHASE 3, 2026-08-30) — 채팅에도 live
+    // Preview 카드를 띄운다.
+    const resourceId = value(args.result.data, "resourceId") || value(args.result.data, "contractId");
+    if (!resourceId) return opened;
+    return [...opened, { type: "OPEN_CLIENT_TASK", task: "contract_preview", flowId: resourceId }];
+  },
   create_conti: async (args) => workspaceAction("conti", args),
   update_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
   add_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
