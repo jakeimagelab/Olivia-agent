@@ -172,13 +172,11 @@ export default function ContractBuilder({
         current.setWorkspace(undefined, undefined);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId, setOliviaProject, setOliviaWorkspace, modalWorkflowRunId]);
 
   useEffect(() => {
     setOliviaCurrentDocumentTotal(quote?.totalAmount, dirty);
     return () => setOliviaCurrentDocumentTotal(undefined, undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quote?.totalAmount, dirty, setOliviaCurrentDocumentTotal]);
 
   useEffect(() => {
