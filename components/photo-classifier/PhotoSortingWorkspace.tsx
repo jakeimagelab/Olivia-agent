@@ -1988,6 +1988,42 @@ function PhotoSortingInner({
     }
   }, [rootDir, studioOpts, studioSubMode, studioGroupSortMode, studioGapMinutes]);
 
+  // PHASE 4(채팅 핸드오프, 2026-08-30) — 채팅에서 설정을 다 모으고 [사진 분류 시작]을 누르면
+  // usePhotoClassificationHandoffStore에 값이 실려 오고 이 Workspace가 열린다. 마운트 시 한 번
+  // 그 값으로 로컬 state를 채우고, rootDir가 실제로 반영된 다음 렌더에서 handleFieldSort/
+  // handleStudioSort를 "페이지 버튼을 누른 것과 동일하게" 호출한다 — 별도 실행 경로를
+  // 만들지 않는다. setRootDir 직후 같은 tick에서 바로 호출하면 handleFieldSort/handleStudioSort
+  // 클로저가 아직 이전(null) rootDir를 참조하므로, rootDir가 반영된 다음 렌더를 기다린다.
+  const handoffPendingRef = useRef(false);
+  useEffect(() => {
+    if (!isModal) return;
+    const handoff = usePhotoClassificationHandoffStore.getState().consume();
+    if (!handoff) return;
+    setPhotoMode(handoff.photoMode);
+    setRootDir(handoff.rootDir);
+    if (handoff.photoMode === "field") {
+      if (handoff.department) setDepartment(handoff.department);
+      if (handoff.gapMinutes != null) setGapMinutes(handoff.gapMinutes);
+      if (handoff.fastAnalyzeMode != null) setFastAnalyzeMode(handoff.fastAnalyzeMode);
+      if (handoff.departmentLogicEnabled != null) setDepartmentLogicEnabled(handoff.departmentLogicEnabled);
+      if (handoff.aiNamingEnabled != null) setAiNamingEnabled(handoff.aiNamingEnabled);
+      if (handoff.qualityAnalysisEnabled != null) setQualityAnalysisEnabled(handoff.qualityAnalysisEnabled);
+      if (handoff.profileClassificationEnabled != null) setProfileClassificationEnabled(handoff.profileClassificationEnabled);
+    } else {
+      if (handoff.lightingSensitivity) setStudioOpts((o) => ({ ...o, lightingSensitivity: handoff.lightingSensitivity! }));
+      if (handoff.studioSubMode) setStudioSubMode(handoff.studioSubMode);
+    }
+    handoffPendingRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModal]);
+
+  useEffect(() => {
+    if (!handoffPendingRef.current || !rootDir) return;
+    handoffPendingRef.current = false;
+    if (photoMode === "field") void handleFieldSort();
+    else void handleStudioSort();
+  }, [rootDir, photoMode, handleFieldSort, handleStudioSort]);
+
   // 파일 크기 기반 ETC 임계값 계산 (중앙값 대비 35% 이하 = 어두운 컷)
   const calcEtcSizeThreshold = (files: StudioPhotoFile[]): number => {
     const sizes = files.map(f => f.fileSize).sort((a,b) => a-b);
