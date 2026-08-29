@@ -11,6 +11,7 @@ export const QUOTE_MUTATION_TOOLS = new Set([
   "add_quote_item",
   "remove_quote_item",
   "update_quote_note",
+  "update_quote_info",
   "apply_quote_discount",
   "update_quote_vat_mode",
   "apply_quote_rebalance",
