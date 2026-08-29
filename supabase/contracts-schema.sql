@@ -6,6 +6,13 @@ create table if not exists public.contracts (
   email              text default '',
   quote_data         jsonb not null default '{}'::jsonb,
   signature_data_url text,
+  -- 채팅 계약 워크플로우(2026-08-30)가 추가한 컬럼 — 상세는
+  -- supabase/migrations/20260830_contract_chat_terms.sql 참고.
+  status             text not null default 'draft' check (status in ('draft', 'final')),
+  deposit_rate       numeric,
+  payment_terms      text,
+  delivery_terms     text,
+  special_terms      text,
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now()
 );
