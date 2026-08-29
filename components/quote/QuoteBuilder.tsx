@@ -33,19 +33,6 @@ import {
   FileText
 } from "lucide-react";
 
-type PackageOption = {
-  id: string;
-  name: string;
-  price: number;
-  composition: string;
-};
-
-type SingleItem = {
-  id: string;
-  name: string;
-  price: number;
-};
-
 type ContractQuoteItem = {
   id?: string;
   name: string;
