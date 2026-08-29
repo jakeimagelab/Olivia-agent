@@ -811,12 +811,12 @@ export default function ContractBuilder({
             <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 10 }}>{fmt(quote.totalAmount)}원</div>
             <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div style={{ background: "rgba(255,255,255,.12)", borderRadius: 8, padding: "8px 10px" }}>
-                <div style={{ fontSize: 9, opacity: .7, marginBottom: 2 }}>선금 (50%)</div>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(quote.depositAmount)}원</div>
+                <div style={{ fontSize: 9, opacity: .7, marginBottom: 2 }}>선금 ({effectiveDepositRate}%)</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(effectiveDeposit)}원</div>
               </div>
               <div style={{ background: "rgba(255,255,255,.12)", borderRadius: 8, padding: "8px 10px" }}>
-                <div style={{ fontSize: 9, opacity: .7, marginBottom: 2 }}>잔금 (50%)</div>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(quote.balanceAmount)}원</div>
+                <div style={{ fontSize: 9, opacity: .7, marginBottom: 2 }}>잔금 ({100 - effectiveDepositRate}%)</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(effectiveBalance)}원</div>
               </div>
             </div>
           </div>
