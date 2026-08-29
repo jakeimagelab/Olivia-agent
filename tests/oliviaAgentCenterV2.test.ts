@@ -24,6 +24,11 @@ describe("Olivia routing and tools",()=>{
     expect(tools.map((tool)=>tool.name)).not.toContain("email_search");
     expect(tools.length).toBeLessThanOrEqual(28);
   });
+  it("견적 워크스페이스가 열려 있으면 update_quote_info(병원명/제목 등 기본정보 수정)도 포함한다 — 빠지면 도메인 밖으로 튕겨 \"직접 수정할 수 없다\"고 답하는 사고로 이어진다(2026-08-30)",()=>{
+    const requestClass=classifyOliviaRequest("병원명 바꿔줘",context);
+    const tools=selectOliviaTools({requestClass,message:"병원명 바꿔줘",context:{...context,activeWorkspace:"quote",activeResourceId:"quote-1"}});
+    expect(tools.map((tool)=>tool.name)).toContain("update_quote_info");
+  });
   it("parallelizes read calls and serializes writes",async()=>{
     let active=0;let maxActive=0;
     const execute=async()=>{active++;maxActive=Math.max(maxActive,active);await new Promise((resolve)=>setTimeout(resolve,8));active--;return true};
