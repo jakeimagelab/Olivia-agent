@@ -1,0 +1,18 @@
+import { resolveFeatureIntent } from "@/lib/olivia/features/resolver";
+
+const CONTRACT_HREF = "/contract";
+// "페이지"/"화면"을 명시하면 OPEN 의도이므로 이 억제 로직을 건너뛰고 기존
+// resolveNavigationCapability(화면 이동) 결과를 그대로 쓴다.
+const OPEN_QUALIFIER = /(페이지|화면)/;
+
+// quoteCreateIntent.ts와 완전히 같은 패턴 — "계약서"/"계약"/"계약서 만들어줘"가 /contract의
+// 등록된 별칭(lib/toolNav.ts)과 완전일치하면 resolveNavigationCapability가 confidence===1로
+// 판단해 GPT를 거치지 않고 곧장 페이지 이동을 확정해버린다. 계약서 생성도 견적을 승계해야 해서
+// select_match처럼 완전 결정론적으로 바로 실행할 수는 없다 — 페이지 이동을 단정하지 말고
+// GPT+create_contract/open_feature 판단으로 넘기라는 억제 신호만 준다.
+export function isContractNavigationShortcutBlocked(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed || OPEN_QUALIFIER.test(trimmed)) return false;
+  const resolution = resolveFeatureIntent(trimmed);
+  return resolution.kind === "match" && resolution.tool.href === CONTRACT_HREF;
+}
