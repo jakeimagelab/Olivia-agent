@@ -466,6 +466,23 @@ function activeResource(context: OliviaContextSnapshot, workspace: "quote" | "co
   return context.activeResourceId;
 }
 
+// PHASE 4(2026-08-30) — 사진 분류 씬은 DB row가 아니라 화면에 열려 있는 PhotoSortingWorkspace의
+// 로컬 state라 activeResourceId 개념이 없다. 대신 명시된 번호나 지금 선택된 씬(selectedEntityId,
+// "이 씬"류 팔로우업)으로 대상을 정한다 — 1부터 시작하는 화면 표시 번호를 그대로 쓴다.
+function resolvePhotoSceneNumber(input: Record<string, unknown>, key: string, context: OliviaContextSnapshot): number {
+  const explicit = input[key];
+  if (explicit != null) {
+    const n = Number(explicit);
+    if (!Number.isFinite(n) || n < 1) throw new Error("씬 번호를 확인해주세요.");
+    return n;
+  }
+  if (context.selectedEntityType === "photo_scene" && context.selectedEntityId) {
+    const n = Number(context.selectedEntityId);
+    if (Number.isFinite(n) && n >= 1) return n;
+  }
+  throw new Error("몇 번 씬인지 알려주세요.");
+}
+
 async function loadQuote(id: string) {
   const db = getSupabaseAdmin();
   const { data, error } = await db.from("quotes").select("*").eq("id", id).maybeSingle();
