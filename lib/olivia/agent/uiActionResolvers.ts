@@ -133,6 +133,22 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     const resourceId = value(result.data, "resourceId") || context.activeResourceId;
     return resourceId ? [{ type: "DOWNLOAD_QUOTE_PDF", resourceId }] : [];
   },
+  update_contract_terms: async ({ result }) => mutationActions("contract", result),
+  request_contract_signature: async ({ result }) => {
+    if (!result.success) return [];
+    const resourceId = value(result.data, "resourceId");
+    return resourceId ? [{ type: "OPEN_CLIENT_TASK", task: "contract_signature", flowId: resourceId }] : [];
+  },
+  request_contract_publish: async ({ result }) => {
+    if (!result.success) return [];
+    return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "계약서를 최종 생성할까요?"), confirmLabel: "최종 생성", toolName: "publish_contract", toolInput: {} }];
+  },
+  publish_contract: async ({ result }) => mutationActions("contract", result),
+  download_contract_pdf: async ({ result, context }) => {
+    if (!result.success) return [];
+    const resourceId = value(result.data, "resourceId") || context.activeResourceId;
+    return resourceId ? [{ type: "DOWNLOAD_CONTRACT_PDF", resourceId }] : [];
+  },
   add_conti_shots: async ({ result }) => mutationActions("conti", result, "conti-shot"),
   update_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
   reorder_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
