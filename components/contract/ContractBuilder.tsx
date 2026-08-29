@@ -167,7 +167,16 @@ export default function ContractBuilder({
         .then((json) => {
           if (!json.ok) return;
           setContractId(resourceId);
-          setQuote(json.data.quote_data ?? null);
+          // deposit_rate/payment_terms/delivery_terms/special_terms는 quote_data(jsonb) 안이
+          // 아니라 contracts 테이블의 별도 컬럼이라 매번 병합해서 넣는다(채팅 update_contract_terms
+          // 도구가 이 컬럼들만 patch하므로, quote_data 자체는 안 건드려도 최신 상태로 보인다).
+          setQuote(json.data.quote_data ? {
+            ...json.data.quote_data,
+            depositRate: json.data.deposit_rate ?? undefined,
+            paymentTerms: json.data.payment_terms ?? undefined,
+            deliveryTerms: json.data.delivery_terms ?? undefined,
+            specialTerms: json.data.special_terms ?? undefined,
+          } : null);
           setSignatureDataUrl(json.data.signature_data_url ?? "");
         })
         .catch(() => {});
