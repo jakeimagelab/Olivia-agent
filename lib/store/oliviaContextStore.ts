@@ -180,6 +180,13 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     currentDocumentTitle: title,
     revision: state.revision + 1,
   })),
+  // total/dirty만 갱신한다 — id/type/title(setCurrentDocument)과 호출 빈도가 다르다(견적
+  // 편집 중엔 매번 바뀌지만 어떤 문서가 열려 있는지는 자주 안 바뀜).
+  setCurrentDocumentTotal: (total, dirty) => set((state) => ({
+    currentDocumentTotal: total,
+    currentDocumentDirty: dirty,
+    revision: state.revision + 1,
+  })),
   clearSelection: () => set((state) => ({
     selectedEntityId: undefined,
     selectedEntityType: undefined,
