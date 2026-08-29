@@ -1165,14 +1165,14 @@ ${section("제1조", "계약 목적 및 촬영 범위", scope)}
   <div class="clause">${payment}</div>
   <div class="pay-boxes">
     <div class="pay-box">
-      <div class="pt">계약금 (선금 50%)</div>
-      <div class="pa">${fmt(q.depositAmount)}원</div>
+      <div class="pt">계약금 (선금 ${effectiveDepositRate}%)</div>
+      <div class="pa">${fmt(effectiveDeposit)}원</div>
       <div class="ps">계약 체결 시 납부</div>
     </div>
     <div class="pay-box">
-      <div class="pt">잔금 (50%)</div>
-      <div class="pa">${fmt(q.balanceAmount)}원</div>
-      <div class="ps">마지막 촬영 직후 납부</div>
+      <div class="pt">잔금 (${100 - effectiveDepositRate}%)</div>
+      <div class="pa">${fmt(effectiveBalance)}원</div>
+      <div class="ps">${q.paymentTerms || "마지막 촬영 직후"} 납부</div>
     </div>
   </div>
 </div>
