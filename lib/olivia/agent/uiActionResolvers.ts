@@ -149,6 +149,27 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     const resourceId = value(result.data, "resourceId") || context.activeResourceId;
     return resourceId ? [{ type: "DOWNLOAD_CONTRACT_PDF", resourceId }] : [];
   },
+  rename_photo_scene: async ({ result }) => {
+    if (!result.success) return [];
+    const sceneIndex = result.data?.sceneIndex;
+    const newName = result.data?.newName;
+    if (typeof sceneIndex !== "number" || typeof newName !== "string") return [];
+    return [{ type: "RENAME_PHOTO_SCENE", sceneIndex, newName }];
+  },
+  merge_photo_scenes: async ({ result }) => {
+    if (!result.success) return [];
+    const sceneIndexA = result.data?.sceneIndexA;
+    const sceneIndexB = result.data?.sceneIndexB;
+    if (typeof sceneIndexA !== "number" || typeof sceneIndexB !== "number") return [];
+    return [{ type: "MERGE_PHOTO_SCENES", sceneIndexA, sceneIndexB }];
+  },
+  split_photo_scene: async ({ result }) => {
+    if (!result.success) return [];
+    const sceneIndex = result.data?.sceneIndex;
+    const offset = result.data?.offset;
+    if (typeof sceneIndex !== "number" || typeof offset !== "number") return [];
+    return [{ type: "SPLIT_PHOTO_SCENE", sceneIndex, offset }];
+  },
   add_conti_shots: async ({ result }) => mutationActions("conti", result, "conti-shot"),
   update_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
   reorder_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
