@@ -1,4 +1,7 @@
-const OPEN_QUALIFIER = /(페이지|화면)/;
+// quote/contract의 "페이지"/"화면"만으로는 부족했다 — "사진분류 열어줘"처럼 명시적 오픈 동사가
+// 있는데도 "페이지"/"화면"이라는 단어 자체는 없는 기존 회귀 테스트(N5)가 있어서, resolveFeatureIntent
+// 의 FILLER_WORDS와 같은 "열어달라" 계열 동사도 함께 OPEN 신호로 인정한다(PHASE 4, 2026-08-30).
+const OPEN_QUALIFIER = /(페이지|화면|열어|보여줘|보여봐|띄워줘|띄워)/;
 // "사진 분류하자"/"사진 정리하자"/"촬영사진 분류해"/"씬 분류해"/"사진 분류해야 해" 같은 스펙
 // §2 예시 문장을 전부 잡아야 하는데, resolveFeatureIntent(lib/olivia/features/resolver.ts)의
 // 범용 퍼지 매칭은 "씬 분류해"처럼 /photo-sorting 별칭("사진분류","사진 작업실")과 겹치는
