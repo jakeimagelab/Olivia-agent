@@ -15,7 +15,7 @@ alter table public.contracts
 update public.contracts c set status = 'final'
 where exists (
   select 1 from public.pcrm_publications p
-  where p.related_type = 'contract' and p.related_id = c.id and p.status = 'published'
+  where p.related_type = 'contract' and p.related_id = c.id::text and p.status = 'published'
 );
 
 notify pgrst, 'reload schema';
