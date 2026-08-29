@@ -677,7 +677,11 @@ export async function POST(req: NextRequest) {
           const quoteConfirmation = buildQuoteRoundConfirmation(
             executions.map(({ call, result: { execution } }) => ({ toolName: call.name, result: execution.result }))
           );
-          const roundText = quoteConfirmation ?? response.text;
+          // 계약 mutation 라운드도 같은 원칙(PHASE 3, 2026-08-30) — 견적 라운드가 아닐 때만 확인.
+          const contractConfirmation = quoteConfirmation ? null : buildContractRoundConfirmation(
+            executions.map(({ call, result: { execution } }) => ({ toolName: call.name, result: execution.result }))
+          );
+          const roundText = quoteConfirmation ?? contractConfirmation ?? response.text;
           finalText += roundText;
           await flushTextAsDeltas(roundText, send, messageId);
 
