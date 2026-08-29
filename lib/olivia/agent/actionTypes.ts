@@ -45,6 +45,13 @@ export type OliviaUiAction =
   // 위 DOWNLOAD_QUOTE_PDF와 정확히 같은 이유(2026-08-30, PHASE 3) — ContractBuilder가
   // useContractPdfHandlerStore에 등록해 둔 pdfHandler를 호출한다.
   | { type: "DOWNLOAD_CONTRACT_PDF"; resourceId: string }
+  // 지금 마운트된 PhotoSortingWorkspace 인스턴스가 usePhotoClassificationActionsStore에 등록해
+  // 둔 renameScene/mergeScenes/splitScene을 그대로 호출한다(PHASE 4, 2026-08-30) — 씬 편집
+  // 함수가 컴포넌트 로컬 state에 묶여 있어 서버 tool이 직접 실행할 수 없기 때문에, 위
+  // DOWNLOAD_*_PDF와 같은 이유로 useOliviaConversationStore.ts가 미리 가로챈다.
+  | { type: "RENAME_PHOTO_SCENE"; sceneIndex: number; newName: string }
+  | { type: "MERGE_PHOTO_SCENES"; sceneIndexA: number; sceneIndexB: number }
+  | { type: "SPLIT_PHOTO_SCENE"; sceneIndex: number; offset: number }
   | { type: "OPEN_FEATURE"; href: string }
   | {
       type: "REQUEST_APPROVAL";
