@@ -2042,6 +2042,20 @@ function PhotoSortingInner({
     } else {
       await runStudioAnalysis(files);
     }
+    // PHASE 4(2026-08-30) — handleFieldSort와 동일한 원칙, isModal일 때만 채팅에 요약 보고.
+    // 그룹 개수는 runGapSort/runGroupAnalysis 등이 각자 비동기로 state를 채워서 여기서 안전하게
+    // 읽을 수 없어(클로저가 이전 값을 참조) 확실히 아는 값(총 사진 수)만 보고한다.
+    if (isModal) {
+      const summary = `사진 분류 완료\n\n총 사진 ${jpgFiles.length}장`;
+      useOliviaConversationStore.getState().appendMessage({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: summary,
+        blocks: [{ type: "text", text: summary }],
+        createdAt: new Date().toISOString(),
+        status: "complete",
+      });
+    }
   }, [rootDir, studioOpts, studioSubMode, studioGroupSortMode, studioGapMinutes]);
 
   // PHASE 4(채팅 핸드오프, 2026-08-30) — 채팅에서 설정을 다 모으고 [사진 분류 시작]을 누르면
