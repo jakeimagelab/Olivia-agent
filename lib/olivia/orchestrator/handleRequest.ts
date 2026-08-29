@@ -23,6 +23,19 @@ export function resolveDeterministicResponse(
     return { text: runtimeAnswer, uiActions: [], routeDecision: "RUNTIME_QUERY" };
   }
 
+  // 일반 네비게이션 완전일치 매칭(아래)보다 먼저 확인한다 — "셀렉매칭"/"매칭"처럼 /select-match의
+  // 등록된 별칭과 정확히 같은 문장은 resolveNavigationCapability에서 confidence===1로 잡혀 검증
+  // 없이 페이지 이동이 확정되는데, 이 요청은 대부분 "채팅에서 바로 실행해달라"(RUN)는 의도였다
+  // (2026-08-29 사용자 리포트). "페이지"/"화면"을 명시한 경우는 selectMatchIntent.ts가 스스로
+  // false를 반환해 아래 OPEN 경로로 자연스럽게 넘어간다.
+  if (isSelectMatchRunIntent(message)) {
+    return {
+      text: "셀렉/RAW 매칭을 시작할게요.",
+      uiActions: [{ type: "OPEN_CLIENT_TASK", task: "select_match", flowId: crypto.randomUUID() }],
+      routeDecision: "SELECT_MATCH_RUN_INTENT",
+    };
+  }
+
   const navigation = resolveNavigationCapability(message);
   if (navigation.kind === "match") {
     return {
