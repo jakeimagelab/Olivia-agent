@@ -271,6 +271,47 @@ describe("Deterministic Router — 계약서 생성 RUN 의도 시 페이지 이
   });
 });
 
+// select_match와 동일하게 완전 결정론적으로 바로 실행한다(PHASE 4, 2026-08-30) — 채팅에서
+// 단계별로 설정을 모으는 흐름이라 첫 메시지에 파라미터가 필요 없다.
+describe("Deterministic Router — 사진 분류 RUN 의도 우선(GPT 미호출, PHASE 4)", () => {
+  it("사진 분류하자 → 채팅 안에서 바로 실행", () => {
+    const result = resolveDeterministicResponse("사진 분류하자", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("PHOTO_CLASSIFICATION_RUN_INTENT");
+    expect(result?.uiActions[0]).toMatchObject({ type: "OPEN_CLIENT_TASK", task: "photo_classification" });
+  });
+  it("사진 정리하자 → 채팅 안에서 바로 실행", () => {
+    const result = resolveDeterministicResponse("사진 정리하자", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("PHOTO_CLASSIFICATION_RUN_INTENT");
+  });
+  it("촬영사진 분류해 → 채팅 안에서 바로 실행", () => {
+    const result = resolveDeterministicResponse("촬영사진 분류해", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("PHOTO_CLASSIFICATION_RUN_INTENT");
+  });
+  it("씬 분류해 → 채팅 안에서 바로 실행(별칭 퍼지매칭으로는 못 잡는 문장, 전용 패턴으로 잡음)", () => {
+    const result = resolveDeterministicResponse("씬 분류해", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("PHOTO_CLASSIFICATION_RUN_INTENT");
+  });
+  it("사진 분류해야 해 → 채팅 안에서 바로 실행", () => {
+    const result = resolveDeterministicResponse("사진 분류해야 해", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("PHOTO_CLASSIFICATION_RUN_INTENT");
+  });
+  it("사진분류 페이지 열어줘 → \"페이지\" 명시 시 여전히 OPEN(회귀)", () => {
+    const result = resolveDeterministicResponse("사진분류 페이지 열어줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting" }]);
+  });
+  it("사진분류 화면 보여줘 → \"화면\" 명시 시 여전히 OPEN(회귀)", () => {
+    const result = resolveDeterministicResponse("사진분류 화면 보여줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting" }]);
+  });
+  it("사진분류 열어줘 → \"열어줘\" 동사만 있어도 OPEN(회귀, 기존 N5 케이스와 충돌 방지)", () => {
+    const result = resolveDeterministicResponse("사진분류 열어줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting" }]);
+  });
+});
+
 describe("Ambiguity — 임의 실행 금지", () => {
   // 현재 등록된 실제 기능 데이터에서 "관리"는 "고객 포털 관리"(가장 긴 별칭)로 확정 매칭되는
   // 단일 승자가 있어(0.6 신뢰도) 진짜 동점 애매함은 아니다 — 그래도 완전 일치(1.0)가 아니므로
