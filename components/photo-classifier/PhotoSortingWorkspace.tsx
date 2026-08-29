@@ -571,7 +571,6 @@ export default function PhotoSortingWorkspace({
   mode = "page",
   clientId: modalClientId,
   workflowRunId: modalWorkflowRunId,
-  onClose,
 }: {
   mode?: "page" | "modal";
   clientId?: string;
@@ -581,7 +580,7 @@ export default function PhotoSortingWorkspace({
 } = {}) {
   return (
     <Suspense fallback={null}>
-      <PhotoSortingInner mode={mode} modalClientId={modalClientId} modalWorkflowRunId={modalWorkflowRunId} onClose={onClose} />
+      <PhotoSortingInner mode={mode} modalClientId={modalClientId} modalWorkflowRunId={modalWorkflowRunId} />
     </Suspense>
   );
 }
@@ -590,12 +589,10 @@ function PhotoSortingInner({
   mode = "page",
   modalClientId,
   modalWorkflowRunId,
-  onClose,
 }: {
   mode?: "page" | "modal";
   modalClientId?: string;
   modalWorkflowRunId?: string;
-  onClose?: () => void;
 }) {
   const isModal = mode === "modal";
   const sp = useSearchParams();
