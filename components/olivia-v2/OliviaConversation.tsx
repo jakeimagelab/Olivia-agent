@@ -121,7 +121,11 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       setShowJumpToBottom(true);
       return;
     }
-    list.scrollTo({ top: list.scrollHeight, behavior: isStreaming ? "auto" : "smooth" });
+    // "smooth"는 애니메이션이 끝나기 전에 다음 메시지(스트리밍 delta 등)가 도착하면 그 시점의
+    // scrollTop이 아직 바닥에 안 닿은 상태라 distanceFromBottom이 120을 넘는 것으로 잘못 측정돼
+    // "사용자가 위로 스크롤 중"으로 오판하고 자동 스크롤을 멈추는 경합이 있었다(2026-08-29 사용자
+    // 리포트: "이미 맨 아래에 있는데도 새 답변이 오면 안 내려감"). 항상 즉시 이동으로 바꿔 경합을 없앤다.
+    list.scrollTo({ top: list.scrollHeight, behavior: "auto" });
     setShowJumpToBottom(false);
   }, [messages, isStreaming, agentStatus]);
   useEffect(() => () => { if (blurTimerRef.current) clearTimeout(blurTimerRef.current); }, []);
