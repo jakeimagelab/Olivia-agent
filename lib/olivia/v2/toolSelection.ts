@@ -21,6 +21,10 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   meeting: ["list_upcoming_meetings","prepare_meeting_brief","analyze_meeting_memo","complete_meeting","get_meeting_followups","link_meeting_client"],
   content: ["get_today_briefing","get_urgent_insights","run_brand_diagnosis","create_feature_record","update_feature_record"],
   agent_run: ["start_task_session","get_task_session_status","continue_task_session","pause_task_session","get_today_briefing","get_urgent_insights"],
+  // 사진 분류 시작(select_match와 동일하게 결정론적 RUN으로 처리, GPT 미거침)은 여기 없다 —
+  // 씬 편집(이름변경/합치기/나누기)만 자연어 파라미터 추출이 필요해 GPT를 거친다(PHASE 4,
+  // 2026-08-30).
+  photo_classification: ["rename_photo_scene","merge_photo_scenes","split_photo_scene"],
 };
 
 const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
