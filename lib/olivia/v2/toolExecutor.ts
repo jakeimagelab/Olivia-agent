@@ -907,6 +907,13 @@ export async function runTool(
     const payload = await response.json();
     if (!response.ok || !payload.ok) throw new Error(payload.error || "견적서를 공개하지 못했어요.");
     const newlyLinkedClientId = !hadClientBefore && payload.clientId ? (payload.clientId as string) : undefined;
+    // publish_quote는 QUOTE_MUTATION_TOOLS(lib/olivia/output/quoteConfirmations.ts)에 있어서
+    // 이 summary가 모델 자유 텍스트 대신 그대로 채팅에 나간다 — 신규 고객 등록 여부를 여기서
+    // 바로 알려주면 별도 승인 카드 없이도 스펙 §31이 요구하는 "발행 직후 정확히 한 번" 안내를
+    // 만족한다.
+    const summary = newlyLinkedClientId
+      ? `견적서를 고객 포털에 공개했어요. ${quoteBeforePublish.hospital_name || "해당 병원"}을 신규 고객으로 등록했어요.`
+      : "견적서를 고객 포털에 공개했어요.";
     return {
       tool: name,
       success: true,
@@ -916,7 +923,7 @@ export async function runTool(
         ...payload,
         hospitalName: quoteBeforePublish.hospital_name,
         newlyLinkedClientId,
-        summary: "견적서를 고객 포털에 공개했어요.",
+        summary,
       },
     };
   }
