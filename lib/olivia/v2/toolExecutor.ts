@@ -1503,6 +1503,30 @@ export async function runTool(
     };
   }
 
+  if (name === "rename_photo_scene") {
+    if (context.activeWorkspace !== "photo-sort") throw new Error("먼저 사진 분류 화면을 열어주세요.");
+    const sceneNumber = resolvePhotoSceneNumber(input, "sceneNumber", context);
+    const newName = text(input, "newName");
+    if (!newName) throw new Error("바꿀 이름을 알려주세요.");
+    return { tool: name, success: true, data: { sceneIndex: sceneNumber - 1, newName, summary: `${sceneNumber}번 씬 이름을 바꿀게요.` } };
+  }
+
+  if (name === "merge_photo_scenes") {
+    if (context.activeWorkspace !== "photo-sort") throw new Error("먼저 사진 분류 화면을 열어주세요.");
+    const sceneNumberA = resolvePhotoSceneNumber(input, "sceneNumberA", context);
+    const sceneNumberB = Number(input.sceneNumberB);
+    if (!Number.isFinite(sceneNumberB) || sceneNumberB < 1) throw new Error("합칠 씬 번호를 확인해주세요.");
+    return { tool: name, success: true, data: { sceneIndexA: sceneNumberA - 1, sceneIndexB: sceneNumberB - 1, summary: `${sceneNumberA}번과 ${sceneNumberB}번 씬을 합칠게요.` } };
+  }
+
+  if (name === "split_photo_scene") {
+    if (context.activeWorkspace !== "photo-sort") throw new Error("먼저 사진 분류 화면을 열어주세요.");
+    const sceneNumber = resolvePhotoSceneNumber(input, "sceneNumber", context);
+    const splitBeforePhotoNumber = Number(input.splitBeforePhotoNumber);
+    if (!Number.isFinite(splitBeforePhotoNumber) || splitBeforePhotoNumber < 2) throw new Error("나눌 사진 위치를 확인해주세요.");
+    return { tool: name, success: true, data: { sceneIndex: sceneNumber - 1, offset: splitBeforePhotoNumber - 1, summary: `${sceneNumber}번 씬을 나눌게요.` } };
+  }
+
   throw new Error("지원하지 않는 Olivia 작업이에요.");
 }
 
