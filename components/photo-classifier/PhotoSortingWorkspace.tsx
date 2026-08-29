@@ -1369,6 +1369,29 @@ function PhotoSortingInner({
     });
   }, [rootDir]);
 
+  // PHASE 4(2026-08-30) — 아래 씬 검토 화면의 이름 입력칸(onChange+onBlur)이 하던 것과 정확히
+  // 같은 일을 하나의 호출 가능한 함수로 뽑았다(로직 변경 없음, 이름만 붙임) — 채팅에서 "3번 씬
+  // 이름 상담으로 바꿔"를 처리하려면 부를 수 있는 함수가 필요했다. 기존 입력칸 동작은 그대로 둔다.
+  const renameFieldScene = useCallback((sceneIndex: number, newName: string) => {
+    const scene = fieldScenes[sceneIndex];
+    if (!scene || !newName.trim()) return false;
+    setFieldScenes((previous) => previous.map((s, j) => (j === sceneIndex ? { ...s, editedName: newName } : s)));
+    if (newName !== scene.folderName) {
+      setSceneCorrections((previous) => [...previous, {
+        projectId: rootDir?.name ?? "local",
+        boundaryIndex: scene.boundaryBefore?.boundaryIndex ?? 0,
+        boundaryFileName: scene.files[0]?.name ?? "",
+        previousDecision: "split",
+        correctedDecision: "split",
+        action: "rename",
+        features: scene.boundaryBefore?.features ?? EMPTY_BOUNDARY_FEATURES,
+        reason: `${scene.folderName} → ${newName}`,
+        createdAt: new Date().toISOString(),
+      }]);
+    }
+    return true;
+  }, [fieldScenes, rootDir]);
+
   const approveFieldScene = useCallback((sceneIndex: number) => {
     setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, approved: true } : scene));
     const scene = fieldScenes[sceneIndex];
