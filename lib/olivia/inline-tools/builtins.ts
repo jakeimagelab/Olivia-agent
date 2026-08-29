@@ -45,3 +45,10 @@ registerInlineTool({
   component: ContractSignaturePad,
   duplicateRunMessage: "현재 서명 패드가 이미 열려 있습니다. 완료 후 다시 시도해주세요.",
 });
+
+registerInlineTool({
+  id: PHOTO_CLASSIFICATION_TOOL_ID,
+  component: PhotoClassificationChatCard,
+  onStart: (flowId) => usePhotoClassificationChatStore.getState().startFlow(flowId),
+  duplicateRunMessage: "현재 사진 분류가 진행 중입니다. 완료 후 다시 시도해주세요.",
+});
