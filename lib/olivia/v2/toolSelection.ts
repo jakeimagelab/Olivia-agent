@@ -51,6 +51,7 @@ export function getOliviaToolDomains(message:string, context:OliviaContextSnapsh
   if(workspace.includes("quote")) domains.add("quote");
   if(workspace.includes("conti")) domains.add("conti");
   if(workspace.includes("contract")) domains.add("contract");
+  if(workspace.includes("photo-sort")) domains.add("photo_classification");
   return [...domains];
 }
 
