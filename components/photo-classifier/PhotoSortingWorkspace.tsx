@@ -3528,7 +3528,7 @@ function PhotoSortingInner({
         </div>
       )}
 
-      <div style={{background:C.bg,minHeight:"100vh",color:C.txt}}>
+      <div style={{background:C.bg,minHeight:isModal?undefined:"100vh",color:C.txt}}>
         {renderStepIndicator()}
         <div className="ps-wrap" style={{maxWidth:960,margin:"0 auto"}}>
           {step===0 && <Step0/>}
