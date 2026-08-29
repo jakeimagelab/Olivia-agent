@@ -99,7 +99,7 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
       if (handle) {
         const rawFile = await handle.getFile();
         try { await copyFileHandle(handle, rawSelectDir, rawFile.name); store().appendLog(flowId, `✅ ${rawFile.name}`); matched++; }
-        catch { store().appendLog(flowId, `❌ 실패: ${rawFile.name}`); missingNames.push(basename); }
+        catch { store().appendLog(flowId, `❌ 실패: ${rawFile.name}`); }
       } else {
         store().appendLog(flowId, `⚠️ RAW 없음: ${basename}`);
         missing++;
