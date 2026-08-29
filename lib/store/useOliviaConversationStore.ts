@@ -417,6 +417,33 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
                 });
               });
             }
+          } else if (event.action.type === "DOWNLOAD_CONTRACT_PDF") {
+            // DOWNLOAD_QUOTE_PDF와 정확히 같은 이유·패턴(2026-08-30, PHASE 3).
+            const handler = useContractPdfHandlerStore.getState().pdfHandler;
+            if (!handler) {
+              get().appendMessage({
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: "지금 열려 있는 계약서가 없어서 PDF를 만들지 못했어요.",
+                blocks: [{ type: "text", text: "지금 열려 있는 계약서가 없어서 PDF를 만들지 못했어요." }],
+                createdAt: new Date().toISOString(),
+                status: "complete",
+              });
+            } else {
+              void handler().then((result) => {
+                const text = result.success
+                  ? "현재 계약서 기준으로 PDF 다운로드를 완료했어요."
+                  : (result.error || "PDF 생성에 실패했어요.");
+                get().appendMessage({
+                  id: crypto.randomUUID(),
+                  role: "assistant",
+                  content: text,
+                  blocks: [{ type: "text", text }],
+                  createdAt: new Date().toISOString(),
+                  status: "complete",
+                });
+              });
+            }
           } else if (event.action.type === "OPEN_CLIENT_TASK") {
             // 채팅 안에서 실제 작업을 끝까지 수행하는 카드(예: 셀렉 매칭) — approval과 동일하게
             // 여기서 미리 가로채 메시지에 블록을 추가한다. 실시간 진행 상태는 도구별 client-only
