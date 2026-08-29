@@ -2057,7 +2057,7 @@ function PhotoSortingInner({
         status: "complete",
       });
     }
-  }, [rootDir, studioOpts, studioSubMode, studioGroupSortMode, studioGapMinutes]);
+  }, [rootDir, studioOpts, studioSubMode, studioGroupSortMode, studioGapMinutes, isModal]);
 
   // PHASE 4(채팅 핸드오프, 2026-08-30) — 채팅에서 설정을 다 모으고 [사진 분류 시작]을 누르면
   // usePhotoClassificationHandoffStore에 값이 실려 오고 이 Workspace가 열린다. 마운트 시 한 번
