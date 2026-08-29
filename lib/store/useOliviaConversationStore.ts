@@ -438,10 +438,12 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
               // pending이 아니라 in_progress로 바로 시작한다 — 카드가 뜬 순간부터 이미 Tool
               // Session이 시작된 것으로 본다. pending으로 두면 사용자가 첫 화면(모드 선택)에서
               // 아직 아무 버튼도 안 눌렀을 때 같은 요청을 또 하면 위 중복 감지(hasInProgressInlineTool)를
-              // 통과하지 못해 카드가 중복 생성될 수 있었다.
+              // 통과하지 못해 카드가 중복 생성될 수 있었다. quote_preview처럼 완료 개념이 없는
+              // 상시-live 카드는 definition.initialState로 "done"을 지정해 이 기본값을 우회한다.
+              const initialState = definition?.initialState ?? "in_progress";
               set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? {
                 ...message,
-                blocks: [...message.blocks, { type: "client_task", flowId: openTask.flowId, task: openTask.task, state: "in_progress" }],
+                blocks: [...message.blocks, { type: "client_task", flowId: openTask.flowId, task: openTask.task, state: initialState }],
               } : message) }));
             }
           } else {
