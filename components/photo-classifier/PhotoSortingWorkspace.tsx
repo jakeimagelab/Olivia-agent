@@ -2091,8 +2091,21 @@ function PhotoSortingInner({
   useEffect(() => {
     if (!handoffPendingRef.current || !rootDir) return;
     handoffPendingRef.current = false;
-    if (photoMode === "field") void handleFieldSort();
-    else void handleStudioSort();
+    // handleFieldSort/handleStudioSort 내부의 개별 단계는 각자 로컬 try/catch로 대체값 처리를
+    // 하지만(체크포인트 복구), 폴더 접근 권한 상실처럼 그 전체를 깨는 예외는 여기서만 잡힌다 —
+    // 이 경우에만 "성공했다"는 오해가 안 생기게 실패를 채팅에 알린다(스펙 §37, §44).
+    const run = photoMode === "field" ? handleFieldSort() : handleStudioSort();
+    run.catch((error) => {
+      const message = error instanceof Error ? error.message : "사진 분류 중 오류가 발생했습니다.";
+      useOliviaConversationStore.getState().appendMessage({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: `사진 분류 중 오류가 발생했습니다. (${message})`,
+        blocks: [{ type: "text", text: `사진 분류 중 오류가 발생했습니다. (${message})` }],
+        createdAt: new Date().toISOString(),
+        status: "complete",
+      });
+    });
   }, [rootDir, photoMode, handleFieldSort, handleStudioSort]);
 
   // 파일 크기 기반 ETC 임계값 계산 (중앙값 대비 35% 이하 = 어두운 컷)
