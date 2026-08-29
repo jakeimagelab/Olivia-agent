@@ -101,61 +101,6 @@ type ImportedPdfQuote = {
   rawText: string;
 };
 
-const packages: PackageOption[] = [
-  {
-    id: "standard",
-    name: "스탠다드",
-    price: 1350000,
-    composition: "프로필 + 연출사진"
-  },
-  {
-    id: "premium",
-    name: "프리미엄",
-    price: 2000000,
-    composition: "프로필 + 연출사진 + 인테리어"
-  },
-  {
-    id: "premium-plus-1",
-    name: "프리미엄 플러스 1",
-    price: 3600000,
-    composition: "프로필 + 연출사진 + 인테리어 + 포인트영상"
-  },
-  {
-    id: "premium-plus-2",
-    name: "프리미엄 플러스 2",
-    price: 4500000,
-    composition: "프로필 + 연출사진 + 인테리어 + 브랜드필름"
-  }
-];
-
-const singleItems: SingleItem[] = [
-  {
-    id: "studio-profile",
-    name: "프로필촬영",
-    price: 350000
-  },
-  {
-    id: "directing",
-    name: "연출 촬영",
-    price: 1200000
-  },
-  {
-    id: "interior",
-    name: "인테리어 촬영",
-    price: 750000
-  },
-  {
-    id: "brand-film",
-    name: "브랜드필름",
-    price: 2800000
-  },
-  {
-    id: "point-video",
-    name: "포인트영상",
-    price: 1800000
-  }
-];
-
 const discountRates = [0, 10, 15, 20];
 
 const toDateInputValue = (date: Date) => {
