@@ -65,7 +65,18 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
       projectName: value(result.data, "projectName"),
     }];
   },
-  create_quote: async (args) => workspaceAction("quote", args),
+  create_quote: async (args) => {
+    const opened = workspaceAction("quote", args);
+    if (!opened.length) return opened;
+    // Quote Workspace를 여는 것과 별개로, 채팅에도 live Preview 카드를 띄운다(스펙 §25) —
+    // 이 카드는 useQuoteStore를 직접 구독해서 이후 채팅 편집에도 별도 트리거 없이 최신 합계를
+    // 보여준다. id는 문자열 리터럴로 둔다 — lib/olivia/inline-tools/builtins.ts를 여기서
+    // import하면 "use client" 컴포넌트/zustand 스토어가 이 파일을 통해 서버(toolExecutor.ts)
+    // 번들에 딸려 들어간다(start_select_match_flow 리졸버에도 같은 이유로 적용된 규칙).
+    const resourceId = value(args.result.data, "resourceId") || value(args.result.data, "quoteId");
+    if (!resourceId) return opened;
+    return [...opened, { type: "OPEN_CLIENT_TASK", task: "quote_preview", flowId: resourceId }];
+  },
   create_contract: async (args) => workspaceAction("contract", args),
   create_conti: async (args) => workspaceAction("conti", args),
   update_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
