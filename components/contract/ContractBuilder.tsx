@@ -156,6 +156,31 @@ export default function ContractBuilder({
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
 
+  // QuoteBuilder.tsx는 이 4줄을 이미 갖고 있지만 ContractBuilder.tsx엔 없었다 — 채팅 경유로
+  // 열릴 때는 actionRouter.ts의 OPEN_WORKSPACE 케이스가 대신 context.setWorkspace()를 호출해
+  // 지금까지도 동작했지만, 계약서 페이지를 직접 방문했을 땐 채팅 컨텍스트가 전혀 안 잡혔다
+  // (2026-08-30, PHASE 3). QuoteBuilder와 동일하게 무조건 호출한다.
+  const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
+  const setOliviaProject = useOliviaContextStore((state) => state.setProject);
+  const setOliviaCurrentDocumentTotal = useOliviaContextStore((state) => state.setCurrentDocumentTotal);
+  useEffect(() => {
+    setOliviaWorkspace("contract", resourceId);
+    if (workflowRunId) setOliviaProject(workflowRunId);
+    return () => {
+      const current = useOliviaContextStore.getState();
+      if (current.activeWorkspace === "contract" && current.activeResourceId === resourceId) {
+        current.setWorkspace(undefined, undefined);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resourceId, setOliviaProject, setOliviaWorkspace, workflowRunId]);
+
+  useEffect(() => {
+    setOliviaCurrentDocumentTotal(quote?.totalAmount, dirty);
+    return () => setOliviaCurrentDocumentTotal(undefined, undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quote?.totalAmount, dirty, setOliviaCurrentDocumentTotal]);
+
   useEffect(() => {
     if (!isModal) return;
     // resourceId(기존 계약서)가 있으면 그대로 불러오고, 없으면 그 고객의 저장된 견적서를
