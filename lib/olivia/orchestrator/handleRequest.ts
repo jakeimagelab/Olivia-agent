@@ -47,6 +47,11 @@ export function resolveDeterministicResponse(
   if (navigation.kind === "match" && isQuoteNavigationShortcutBlocked(message)) {
     return null;
   }
+  // "계약서"/"계약서 만들어줘"도 같은 이유(2026-08-30, PHASE 3) — 계약은 견적을 승계해야 해서
+  // select_match처럼 완전 결정론적으로 실행할 수 없으므로 GPT+create_contract 판단으로 넘긴다.
+  if (navigation.kind === "match" && isContractNavigationShortcutBlocked(message)) {
+    return null;
+  }
   if (navigation.kind === "match") {
     return {
       text: `${navigation.tool.title} 화면을 열었어요.`,
