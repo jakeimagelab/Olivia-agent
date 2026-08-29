@@ -131,7 +131,12 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   start_select_match_flow: async ({ result }) => {
     if (!result.success) return [];
     const flowId = value(result.data, "flowId");
-    return flowId ? [{ type: "OPEN_CLIENT_TASK", task: SELECT_MATCH_TOOL_ID, flowId }] : [];
+    // 이 파일은 toolExecutor.ts를 통해 서버(app/api/olivia/v2/stream/route.ts)에서도 로드된다 —
+    // 클라이언트 전용 Inline Tool Registry(lib/olivia/inline-tools/builtins.ts, "use client"
+    // 컴포넌트 + zustand 스토어를 끌어옴)를 여기서 import하지 않기 위해 id는 문자열 리터럴로
+    // 유지한다("select_match" — lib/olivia/inline-tools/builtins.ts의 SELECT_MATCH_TOOL_ID와
+    // 반드시 같은 값이어야 한다).
+    return flowId ? [{ type: "OPEN_CLIENT_TASK", task: "select_match", flowId }] : [];
   },
   start_task_session: async ({ result }) => {
     if (!result.success) return [];
