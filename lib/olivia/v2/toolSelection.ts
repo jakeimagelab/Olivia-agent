@@ -9,7 +9,7 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   navigation: ["open_feature","show_workspace"],
   calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
   client: ["select_project","search_client_projects","get_project_status","memo_add"],
-  quote: ["create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","preview_quote","request_quote_publish"],
+  quote: ["create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","preview_quote","request_quote_publish"],
   contract: ["create_contract","link_document_to_client"],
   conti: ["get_conti_status","create_conti","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client"],
   workflow: ["get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
