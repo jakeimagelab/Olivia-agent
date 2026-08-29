@@ -2392,6 +2392,14 @@
 .olivia-conversation--drawer .olivia-message-guide { padding-inline: 5px; }
 .olivia-conversation--workspace .olivia-message-guide__ticks > button,
 .olivia-conversation--drawer .olivia-message-guide__ticks > button { width: 22px; }
+/* Workspace 전환 시 오른쪽 compact 채팅의 메시지 밀도를 좁힌다 — 입력창/전송 버튼/폰트 크기는
+   그대로 두고 메시지 목록 간격·아바타·버블 padding만 줄인다(홈 variant는 12px 그대로 유지). */
+.olivia-conversation--workspace .olivia-conversation__messages,
+.olivia-conversation--drawer .olivia-conversation__messages { gap: 9px; }
+.olivia-conversation--workspace .olivia-message__avatar,
+.olivia-conversation--drawer .olivia-message__avatar { width: 18px; height: 18px; flex: 0 0 18px; }
+.olivia-conversation--workspace .olivia-message__body,
+.olivia-conversation--drawer .olivia-message__body { padding: 7px 10px; }
 .olivia-conversation__header {
   flex: 0 0 auto;
   min-height: 52px;
