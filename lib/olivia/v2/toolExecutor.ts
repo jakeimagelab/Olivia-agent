@@ -894,11 +894,31 @@ export async function runTool(
 
   if (name === "publish_quote") {
     const resourceId = activeResource(context, "quote");
+    // 공개(POST .../publish)는 app/api/quotes/[id]/publish/route.ts 안에서
+    // resolveQuoteWorkflowLink()로 고객을 자동 매칭·생성까지 전부 마친 뒤에야 성공 응답을
+    // 준다 — "등록할까요?"라고 물어볼 시점이 이미 지나 있다(결정은 서버가 동기적으로 이미
+    // 내렸다). 대신 발행 전/후 client_id를 비교해 "이번에 새로 연결/생성됐는지"만 판단하고,
+    // 이미 벌어진 일을 정확히 보고한다("DON'T SAY IT. DO IT. THEN SAY IT" 원칙 — 아직 안
+    // 일어난 일을 버튼으로 미리 묻지 않는다).
+    const quoteBeforePublish = await loadQuote(resourceId);
+    const hadClientBefore = Boolean(quoteBeforePublish.client_id);
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:3000";
     const response = await fetch(`${baseUrl}/api/quotes/${resourceId}/publish`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     const payload = await response.json();
     if (!response.ok || !payload.ok) throw new Error(payload.error || "견적서를 공개하지 못했어요.");
-    return { tool: name, success: true, data: { resourceId, quoteId: resourceId, ...payload, summary: "견적서를 고객 포털에 공개했어요." } };
+    const newlyLinkedClientId = !hadClientBefore && payload.clientId ? (payload.clientId as string) : undefined;
+    return {
+      tool: name,
+      success: true,
+      data: {
+        resourceId,
+        quoteId: resourceId,
+        ...payload,
+        hospitalName: quoteBeforePublish.hospital_name,
+        newlyLinkedClientId,
+        summary: "견적서를 고객 포털에 공개했어요.",
+      },
+    };
   }
 
   if (["add_conti_shots", "update_conti_shot", "remove_conti_shot", "apply_remove_conti_shot", "reorder_conti_shot", "duplicate_conti_shot", "estimate_conti_duration", "generate_shoot_prep_from_conti"].includes(name)) {
