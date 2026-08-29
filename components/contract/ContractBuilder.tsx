@@ -165,7 +165,7 @@ export default function ContractBuilder({
   const setOliviaCurrentDocumentTotal = useOliviaContextStore((state) => state.setCurrentDocumentTotal);
   useEffect(() => {
     setOliviaWorkspace("contract", resourceId);
-    if (workflowRunId) setOliviaProject(workflowRunId);
+    if (modalWorkflowRunId) setOliviaProject(modalWorkflowRunId);
     return () => {
       const current = useOliviaContextStore.getState();
       if (current.activeWorkspace === "contract" && current.activeResourceId === resourceId) {
@@ -173,7 +173,7 @@ export default function ContractBuilder({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceId, setOliviaProject, setOliviaWorkspace, workflowRunId]);
+  }, [resourceId, setOliviaProject, setOliviaWorkspace, modalWorkflowRunId]);
 
   useEffect(() => {
     setOliviaCurrentDocumentTotal(quote?.totalAmount, dirty);
