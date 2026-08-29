@@ -650,6 +650,77 @@ export async function runTool(
     };
   }
 
+  if (name === "update_contract_terms") {
+    const resourceId = activeResource(context, "contract");
+    const contract = await loadContractRow(resourceId);
+    const patch: Record<string, unknown> = {};
+    let depositRate: number | undefined;
+    if (input.depositRate != null) {
+      depositRate = Number(input.depositRate);
+      if (!Number.isFinite(depositRate) || depositRate < 0 || depositRate > 100) throw new Error("계약금 비율을 확인해주세요.");
+      patch.deposit_rate = depositRate;
+    }
+    if (input.paymentTerms != null) patch.payment_terms = String(input.paymentTerms).trim();
+    if (input.deliveryTerms != null) patch.delivery_terms = String(input.deliveryTerms).trim();
+    if (input.specialTerms != null) patch.special_terms = String(input.specialTerms).trim();
+    if (!Object.keys(patch).length) throw new Error("변경할 내용을 알려주세요.");
+    const updatedResource = await saveContractRow(resourceId, patch);
+    const quoteData = (contract.quote_data && typeof contract.quote_data === "object") ? contract.quote_data as Record<string, unknown> : {};
+    const totalAmount = Number(quoteData.totalAmount) || 0;
+    const summary = depositRate != null
+      ? (() => {
+          const amounts = computeContractDeposit(totalAmount, depositRate as number);
+          return `계약 조건을 수정했어요. 계약금 ${depositRate}%(${amounts.depositAmount.toLocaleString("ko-KR")}원), 잔금 ${amounts.balanceAmount.toLocaleString("ko-KR")}원이에요.`;
+        })()
+      : "계약 조건을 수정했어요.";
+    return { tool: name, success: true, data: { resourceId, contractId: resourceId, updatedResource, summary } };
+  }
+
+  if (name === "request_contract_signature") {
+    const resourceId = activeResource(context, "contract");
+    const contract = await loadContractRow(resourceId);
+    return { tool: name, success: true, data: { resourceId, contractId: resourceId, hospitalName: contract.hospital_name, summary: "대표 서명이 필요해요." } };
+  }
+
+  if (name === "request_contract_publish") {
+    const resourceId = activeResource(context, "contract");
+    const contract = await loadContractRow(resourceId);
+    const quoteData = (contract.quote_data && typeof contract.quote_data === "object") ? contract.quote_data as Record<string, unknown> : {};
+    return { tool: name, success: true, data: { resourceId, contractId: resourceId, approvalRequired: true, hospitalName: contract.hospital_name, summary: `${contract.hospital_name || "현재 고객"} 계약서(${Number(quoteData.totalAmount || 0).toLocaleString("ko-KR")}원)를 최종 생성할까요?` } };
+  }
+
+  if (name === "publish_contract") {
+    const resourceId = activeResource(context, "contract");
+    const contract = await loadContractRow(resourceId);
+    // 최종 생성 전 필수 확인(스펙 §28) — 부족한 항목만 짚어서 되묻는다. 실제 고객/프로젝트
+    // 연결 검증은 기존 /api/contracts/[id]/publish 라우트가 그대로 한다(중복 구현 안 함).
+    const quoteData = (contract.quote_data && typeof contract.quote_data === "object") ? contract.quote_data as Record<string, unknown> : {};
+    const missing: string[] = [];
+    if (!contract.hospital_name) missing.push("고객명");
+    if (!(Number(quoteData.totalAmount) > 0)) missing.push("계약 금액");
+    if (!quoteData.shootDate) missing.push("촬영 예정일");
+    if (!contract.signature_data_url) missing.push("대표 서명");
+    if (missing.length) throw new Error(`아직 부족한 항목이 있어요: ${missing.join(", ")}`);
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:3000";
+    const response = await fetch(`${baseUrl}/api/contracts/${resourceId}/publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: context.activeClientId, workflowRunId: context.activeProjectId }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "계약서를 최종 생성하지 못했어요.");
+    const updatedResource = await saveContractRow(resourceId, { status: "final" });
+    return { tool: name, success: true, data: { resourceId, contractId: resourceId, updatedResource, ...payload, summary: "계약서를 최종 생성했어요." } };
+  }
+
+  if (name === "download_contract_pdf") {
+    // download_quote_pdf와 동일한 원칙 — PDF는 브라우저에 열려 있는 ContractBuilder의
+    // html2canvas/jsPDF로만 만들 수 있어 서버는 DB를 건드리지 않는다. 실제 다운로드는 client가
+    // DOWNLOAD_CONTRACT_PDF ui_action을 받아 처리한다.
+    const resourceId = activeResource(context, "contract");
+    return { tool: name, success: true, data: { resourceId, contractId: resourceId, summary: "PDF를 준비하고 있어요…" } };
+  }
+
   if (name === "get_conti_status") {
     return fromLegacyResult(name, await getContiStatus({ hospitalName: text(input, "hospitalName") || context.activeClientName }));
   }
