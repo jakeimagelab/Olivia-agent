@@ -4,7 +4,7 @@ import {
   BarChart2, Share2, Lightbulb, CalendarCheck, Sparkles, ScanSearch, ShieldCheck,
   ImageDown, Activity, TrendingUp, Globe2, Search, Trash2, Images, Trophy, MessageCircle, Mic,
   Fingerprint, Library, ImagePlus, PenTool, LayoutGrid, Megaphone,
-  Target, Scissors, Film, Video, Palette, Clock,
+  Target, Scissors, Film, Video, Palette, Clock, FileSignature,
 } from "lucide-react";
 
 /* /admin 콘솔의 3개 카테고리(관리자 대시보드 / 고객관리 CRM / 개별 기능)와 동일한 분류 —
