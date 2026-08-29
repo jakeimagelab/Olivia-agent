@@ -30,5 +30,6 @@ export const workspaceRegistry: Partial<Record<Exclude<WorkspaceType, null>, Wor
   quote: { label: "견적서 작성", icon: FileText, component: QuoteBuilder },
   contract: { label: "계약서 작성", icon: FileSignature, component: ContractBuilder },
   conti: { label: "콘티 작성", icon: Clapperboard, component: ContiBuilder },
-  // shoot-prep/calendar/project/gallery/files/photo-sort/analysis: 화면이 생기면 여기 등록.
+  "photo-sort": { label: "사진 분류", icon: Wand2, component: PhotoSortingWorkspace },
+  // shoot-prep/calendar/project/gallery/files/analysis: 화면이 생기면 여기 등록.
 };
