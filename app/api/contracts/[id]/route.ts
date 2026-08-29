@@ -34,6 +34,13 @@ export async function PATCH(req: NextRequest, ctx: any) {
   }
   if (body.contactName !== undefined) update.contact_name = body.contactName;
   if (body.email !== undefined) update.email = body.email;
+  // 채팅 계약 워크플로우(2026-08-30)가 추가한 필드 — 안 보내면 기존 호출부(페이지 저장/자동저장)
+  // 동작과 100% 동일하다.
+  if (body.depositRate !== undefined) update.deposit_rate = body.depositRate;
+  if (body.paymentTerms !== undefined) update.payment_terms = body.paymentTerms;
+  if (body.deliveryTerms !== undefined) update.delivery_terms = body.deliveryTerms;
+  if (body.specialTerms !== undefined) update.special_terms = body.specialTerms;
+  if (body.status !== undefined) update.status = body.status;
 
   // ContractBuilder는 모달/URL에서 이미 아는 workflowRunId를 매 저장마다 body.workflowRunId로
   // 보내는데 여기서 계속 무시하고 있었다 — client_id가 확정되는 순간(위에서 계산됨)엔 그 값이
