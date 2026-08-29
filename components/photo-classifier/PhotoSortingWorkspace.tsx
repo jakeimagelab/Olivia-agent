@@ -1392,6 +1392,21 @@ function PhotoSortingInner({
     return true;
   }, [fieldScenes, rootDir]);
 
+  // PHASE 4(2026-08-30) — 채팅 도구(rename/merge/split_photo_scene)가 이 Workspace가 실제로
+  // 열려 있을 때만 씬 편집을 실행할 수 있게, 지금 마운트된 인스턴스의 최신 함수를 등록해둔다
+  // (useContractPdfHandlerStore와 동일 패턴). 언마운트되면 등록을 해제한다.
+  useEffect(() => {
+    if (isModal) {
+      const bundle = { renameScene: renameFieldScene, mergeScenes: mergeFieldScenes, splitScene: splitFieldScene };
+      usePhotoClassificationActionsStore.getState().registerActions(bundle);
+      return () => {
+        if (usePhotoClassificationActionsStore.getState().actions === bundle) {
+          usePhotoClassificationActionsStore.getState().registerActions(null);
+        }
+      };
+    }
+  }, [isModal, renameFieldScene, mergeFieldScenes, splitFieldScene]);
+
   const approveFieldScene = useCallback((sceneIndex: number) => {
     setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, approved: true } : scene));
     const scene = fieldScenes[sceneIndex];
