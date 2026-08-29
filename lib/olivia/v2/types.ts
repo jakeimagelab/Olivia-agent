@@ -58,6 +58,10 @@ export type OliviaContextSnapshot = {
   currentDocumentId?: string;
   currentDocumentType?: string;
   currentDocumentTitle?: string;
+  // 견적 Chat-native Workflow(PHASE 2) — 지금 열려 있는 문서의 실시간 합계/미저장 편집 여부.
+  // 모델이 총액을 스스로 계산해서 말하지 않고 이 값을 그대로 전달하게 하기 위함(스펙 §21).
+  currentDocumentTotal?: number;
+  currentDocumentDirty?: boolean;
 };
 
 export type OliviaToolCall = { id: string; name: string; arguments: string };
