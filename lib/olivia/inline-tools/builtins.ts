@@ -4,6 +4,8 @@ import { useSelectMatchChatStore } from "@/lib/store/useSelectMatchChatStore";
 import QuotePreviewChatCard from "@/components/olivia/QuotePreviewChatCard";
 import ContractPreviewChatCard from "@/components/olivia/ContractPreviewChatCard";
 import ContractSignaturePad from "@/components/olivia/ContractSignaturePad";
+import PhotoClassificationChatCard from "@/components/olivia/PhotoClassificationChatCard";
+import { usePhotoClassificationChatStore } from "@/lib/store/usePhotoClassificationChatStore";
 
 // 이 파일을 import하는 것만으로 등록이 끝난다(side-effect import) — index.ts가 이 파일을
 // re-export해서 앱이 레지스트리를 쓰는 지점(OliviaConversation.tsx, useOliviaConversationStore.ts)
