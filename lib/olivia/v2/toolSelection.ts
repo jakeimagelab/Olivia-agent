@@ -14,7 +14,10 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   conti: ["get_conti_status","create_conti","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client"],
   workflow: ["get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
   mailing: ["list_mailing_queue","send_mailing","email_search","email_read","email_summarize","email_create_draft"],
-  gallery: ["get_gallery","create_gallery"],
+  // start_select_match_flow가 빠져 있으면 "셀렉"/"사진" 키워드로 gallery 도메인이 잡혀도 모델이
+  // 이 도구를 아예 선택지로 못 받아서 항상 open_feature(페이지 이동)로 새는 사고가 났다
+  // (2026-08-29 사용자 리포트: "셀렉매칭 하자"가 기능 페이지로 이동해버림).
+  gallery: ["get_gallery","create_gallery","start_select_match_flow"],
   meeting: ["list_upcoming_meetings","prepare_meeting_brief","analyze_meeting_memo","complete_meeting","get_meeting_followups","link_meeting_client"],
   content: ["get_today_briefing","get_urgent_insights","run_brand_diagnosis","create_feature_record","update_feature_record"],
   agent_run: ["start_task_session","get_task_session_status","continue_task_session","pause_task_session","get_today_briefing","get_urgent_insights"],
