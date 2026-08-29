@@ -111,6 +111,13 @@ export function executeOliviaAction(action: OliviaUiAction) {
     // 미리 가로챈다(2026-08-30, PHASE 3).
     case "DOWNLOAD_CONTRACT_PDF":
       return;
+    // RENAME/MERGE/SPLIT_PHOTO_SCENE도 같은 순환참조 회피 이유로 useOliviaConversationStore.ts가
+    // 미리 가로채 usePhotoClassificationActionsStore에 등록된 함수를 직접 호출한다(PHASE 4,
+    // 2026-08-30).
+    case "RENAME_PHOTO_SCENE":
+    case "MERGE_PHOTO_SCENES":
+    case "SPLIT_PHOTO_SCENE":
+      return;
     case "OPEN_FEATURE": {
       context.recordAction(`feature:open:${action.href}`);
       navigateToFeature(action.href);
