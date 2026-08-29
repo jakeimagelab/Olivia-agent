@@ -3,7 +3,7 @@ import { OLIVIA_V2_TOOLS } from "./toolExecutor";
 import type { OliviaContextSnapshot } from "./types";
 import type { OliviaRequestClass } from "./modelRouter";
 
-type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run";
+type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run"|"photo_classification";
 
 const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   navigation: ["open_feature","show_workspace"],
