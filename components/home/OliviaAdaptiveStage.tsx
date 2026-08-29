@@ -93,7 +93,13 @@ export default function OliviaAdaptiveStage() {
   }, [isWorkspaceMode]);
 
   return (
-    <main className={`olivia-adaptive-stage olivia-agent-home is-${mode}`} data-layout-mode={mode}>
+    {/* mode는 OPEN_WORKSPACE가 실제로 도착해야 "workspace"로 바뀐다(위 주석 참고) — 그런데
+        .olivia-adaptive-stage.is-workspace 선택자가 좌우(row-reverse) 레이아웃을 담당해서,
+        pendingWorkspaceOpen만 켜진 스켈레톤 단계(isWorkspaceMode는 이미 true)에서는 바깥
+        컨테이너가 여전히 is-idle/is-conversation이라 기본값(flex-direction: column, 위/아래
+        분할)으로 보였다(2026-08-30 사용자 리포트). isWorkspaceMode가 true면 mode 값과 무관하게
+        is-workspace를 추가로 붙여 스켈레톤이 뜨는 순간부터 바로 좌우 레이아웃이 되게 한다. */}
+    <main className={`olivia-adaptive-stage olivia-agent-home is-${mode}${isWorkspaceMode ? " is-workspace" : ""}`} data-layout-mode={mode}>
       <motion.div className={`olivia-agent-home__row${isWorkspaceMode ? " is-workspace" : ""}`} layout transition={spring} style={isWorkspaceMode ? { flexGrow: weights.chat } : undefined}>
         <section className="olivia-agent-home__main">
           {!isWorkspaceMode ? (
