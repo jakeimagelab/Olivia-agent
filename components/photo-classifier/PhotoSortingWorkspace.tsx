@@ -21,6 +21,7 @@ import {
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
 import { evaluateSceneBoundaries } from "@/lib/photo-classifier/evaluation/metrics";
 import { usePhotoClassificationHandoffStore } from "@/lib/store/usePhotoClassificationHandoffStore";
+import { usePhotoClassificationActionsStore } from "@/lib/store/usePhotoClassificationActionsStore";
 import type {
   AccuracyReport, ClassificationJobState, HybridSceneType, LocalVisualFeatures, SceneBoundaryDecision,
   SceneCorrection, SceneFrameAnalysis, TimestampSource,
