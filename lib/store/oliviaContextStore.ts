@@ -232,6 +232,8 @@ export function getOliviaContextSnapshot(pathname?: string) {
     currentDocumentId: state.currentDocumentId,
     currentDocumentType: state.currentDocumentType,
     currentDocumentTitle: state.currentDocumentTitle,
+    currentDocumentTotal: state.currentDocumentTotal,
+    currentDocumentDirty: state.currentDocumentDirty,
   };
 }
 
