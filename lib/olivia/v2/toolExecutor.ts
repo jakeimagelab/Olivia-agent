@@ -120,13 +120,13 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   {
     type: "function",
     name: "create_contract",
-    description: "현재 고객/프로젝트의 최신 견적을 확인한 뒤 실제 계약서 초안을 DB에 생성합니다.",
+    description: "현재 고객/프로젝트의 최신 견적(또는 quoteId로 지정한 견적, 또는 지금 열려 있는 견적 Workspace)을 확인한 뒤 실제 계약서 초안을 DB에 생성합니다. \"이 견적으로 계약서 만들어줘\"처럼 지금 보고 있는 견적을 가리키는 요청이면 quoteId를 비워도 지금 열린 견적을 우선 사용합니다.",
     strict: true,
     parameters: {
       type: "object",
       additionalProperties: false,
-      properties: { hospitalName: { type: ["string", "null"] } },
-      required: ["hospitalName"],
+      properties: { hospitalName: { type: ["string", "null"] }, quoteId: { type: ["string", "null"], description: "특정 견적을 명시적으로 지정할 때만 채웁니다." } },
+      required: ["hospitalName", "quoteId"],
     },
   },
   {
