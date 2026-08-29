@@ -119,12 +119,20 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
     <div className="olivia-select-match-card">
       {flow.step === "collecting_names" && (
         <div className="olivia-select-match-card__section">
-          <p>셀렉 매칭을 도와드릴게요. 고객이 선택한 파일명을 알려주세요 — 텍스트로 붙여넣거나 파일을 업로드하면 돼요.</p>
+          <p>셀렉 매칭을 도와드릴게요. 고객이 선택한 파일명을 알려주세요 — 폴더를 선택하거나, 텍스트로 붙여넣거나, 파일을 업로드하면 돼요.</p>
           <div className="olivia-select-match-card__tabs">
+            <button type="button" className={inputMode === "folder" ? "is-active" : ""} onClick={() => setInputMode("folder")}>폴더 선택</button>
             <button type="button" className={inputMode === "text" ? "is-active" : ""} onClick={() => setInputMode("text")}>텍스트 붙여넣기</button>
             <button type="button" className={inputMode === "upload" ? "is-active" : ""} onClick={() => setInputMode("upload")}>파일 업로드</button>
           </div>
-          {inputMode === "text" ? (
+          {inputMode === "folder" ? (
+            <>
+              <p>고객이 선택한 JPG가 들어있는 폴더를 선택하면, 안에 있는 모든 JPG 파일명을 가져와요.</p>
+              <button type="button" disabled={folderScanning} onClick={() => void pickJpgFolderAndCollect()}>
+                {folderScanning ? "폴더 확인 중…" : "📂 JPG 폴더 선택 →"}
+              </button>
+            </>
+          ) : inputMode === "text" ? (
             <>
               <textarea
                 value={textValue}
