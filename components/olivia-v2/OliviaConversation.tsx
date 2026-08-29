@@ -301,7 +301,12 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                         <button type="button" onClick={() => void snoozeShootConfirmation(block.insightId)}>아직이에요</button>
                       </div> : null}
                     </div>;
-                    if (block.type === "client_task" && block.task === "select_match") return <SelectMatchChatCard key={index} flowId={block.flowId} />;
+                    if (block.type === "client_task") {
+                      const definition = getInlineTool(block.task);
+                      if (!definition) return null;
+                      const InlineToolComponent = definition.component;
+                      return <InlineToolComponent key={index} flowId={block.flowId} />;
+                    }
                     return null;
                   })}
                   {message.status === "streaming" && !messageText(message) ? <span className="olivia-typing"><i /><i /><i /></span> : null}
