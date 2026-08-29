@@ -42,6 +42,9 @@ export type OliviaUiAction =
   // 않으므로(PDF는 브라우저 DOM 캡처로만 만들 수 있다) 실제 성공/실패는 이 액션이 클라이언트에서
   // 실행된 뒤에만 확정된다(actionRouter.ts 참고).
   | { type: "DOWNLOAD_QUOTE_PDF"; resourceId: string }
+  // 위 DOWNLOAD_QUOTE_PDF와 정확히 같은 이유(2026-08-30, PHASE 3) — ContractBuilder가
+  // useContractPdfHandlerStore에 등록해 둔 pdfHandler를 호출한다.
+  | { type: "DOWNLOAD_CONTRACT_PDF"; resourceId: string }
   | { type: "OPEN_FEATURE"; href: string }
   | {
       type: "REQUEST_APPROVAL";
