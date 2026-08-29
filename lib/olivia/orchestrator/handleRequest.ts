@@ -3,6 +3,7 @@ import type { OliviaRuntimeContext } from "@/lib/olivia/runtime/types";
 import { answerRuntimeQuery } from "./runtimeIntent";
 import { resolveNavigationCapability } from "@/lib/olivia/capabilities/resolver";
 import { buildOpenFeatureAction } from "@/lib/olivia/capabilities/executor";
+import { isSelectMatchRunIntent } from "@/lib/olivia/capabilities/selectMatchIntent";
 import type { DeterministicOliviaResult } from "./types";
 
 // Olivia Orchestrator의 핵심 결정 함수. "GPT가 모든 요청의 첫 관문이 되면 안 된다"는 원칙에 따라
