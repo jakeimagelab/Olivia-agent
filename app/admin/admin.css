@@ -3392,6 +3392,13 @@
 .olivia-message-guide__ticks > button.is-active > span {
   box-shadow: 0 0 0 1px rgba(255,255,255,.92);
 }
+/* 기록바(메시지별 tick 버튼)를 compact 채팅에서 더 촘촘하게 — 눈에 보이는 색상 막대(span)는
+   4px 그대로 두고, 그 막대를 감싸는 클릭 영역(button)의 높이만 26px→14px로 줄여서 막대 사이
+   시각적 여백을 좁힌다. */
+.olivia-conversation--workspace .olivia-message-guide__ticks,
+.olivia-conversation--drawer .olivia-message-guide__ticks { gap: 0; padding-block: 2px; }
+.olivia-conversation--workspace .olivia-message-guide__ticks > button,
+.olivia-conversation--drawer .olivia-message-guide__ticks > button { min-height: 14px; flex: 0 0 14px; }
 .olivia-message-guide__popover {
   right: 52px;
   top: clamp(124px,42%,360px);
