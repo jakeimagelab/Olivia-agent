@@ -83,6 +83,7 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   add_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
   remove_quote_item: async ({ result }) => mutationActions("quote", result),
   update_quote_note: async ({ result }) => mutationActions("quote", result),
+  update_quote_info: async ({ result }) => mutationActions("quote", result),
   apply_quote_discount: async ({ result }) => mutationActions("quote", result),
   update_quote_vat_mode: async ({ result }) => mutationActions("quote", result),
   rebalance_quote_total: async ({ result }) => {
