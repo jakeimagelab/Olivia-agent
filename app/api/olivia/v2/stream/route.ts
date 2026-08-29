@@ -374,7 +374,7 @@ function toolStatus(name: string) {
   if (name === "create_conti") return "콘티 초안을 생성하는 중…";
   if (name === "get_conti_status") return "저장된 콘티를 확인하는 중…";
   if (name === "update_quote_item") return "견적을 수정하는 중…";
-  if (["add_quote_item", "remove_quote_item", "update_quote_note", "apply_quote_discount", "update_quote_vat_mode"].includes(name)) return "견적을 수정하는 중…";
+  if (["add_quote_item", "remove_quote_item", "update_quote_note", "update_quote_info", "apply_quote_discount", "update_quote_vat_mode"].includes(name)) return "견적을 수정하는 중…";
   if (name === "rebalance_quote_total") return "견적 조정안을 계산하는 중…";
   if (name === "add_conti_shots") return "콘티 컷을 구성하는 중…";
   if (["update_conti_shot", "remove_conti_shot", "reorder_conti_shot", "duplicate_conti_shot"].includes(name)) return "콘티를 수정하는 중…";
