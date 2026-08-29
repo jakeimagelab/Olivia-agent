@@ -416,14 +416,28 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
             }
           } else if (event.action.type === "OPEN_CLIENT_TASK") {
             // 채팅 안에서 실제 작업을 끝까지 수행하는 카드(예: 셀렉 매칭) — approval과 동일하게
-            // 여기서 미리 가로채 메시지에 블록을 추가한다. 실시간 진행 상태는 별도 client-only
-            // 스토어(useSelectMatchChatStore 등)가 갖고, 이 블록은 flowId 참조만 들고 있다.
+            // 여기서 미리 가로채 메시지에 블록을 추가한다. 실시간 진행 상태는 도구별 client-only
+            // 스토어가 갖고(Inline Tool Registry, lib/olivia/inline-tools), 이 블록은 flowId
+            // 참조만 들고 있다. 같은 task가 이미 in_progress면 새로 시작하지 않고 안내만 한다.
             const openTask = event.action;
-            if (openTask.task === "select_match") useSelectMatchChatStore.getState().startFlow(openTask.flowId);
-            set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? {
-              ...message,
-              blocks: [...message.blocks, { type: "client_task", flowId: openTask.flowId, task: openTask.task, state: "pending" }],
-            } : message) }));
+            const definition = getInlineTool(openTask.task);
+            if (hasInProgressInlineTool(get().messages, openTask.task)) {
+              const notice = definition?.duplicateRunMessage ?? "현재 작업이 진행 중입니다. 완료 후 다시 시도해주세요.";
+              get().appendMessage({
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: notice,
+                blocks: [{ type: "text", text: notice }],
+                createdAt: new Date().toISOString(),
+                status: "complete",
+              });
+            } else {
+              definition?.onStart?.(openTask.flowId);
+              set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? {
+                ...message,
+                blocks: [...message.blocks, { type: "client_task", flowId: openTask.flowId, task: openTask.task, state: "pending" }],
+              } : message) }));
+            }
           } else {
             if (event.action.type === "OPEN_WORKSPACE" || event.action.type === "SWITCH_WORKSPACE") set({ pendingWorkspaceOpen: false });
             executeOliviaAction(event.action);
