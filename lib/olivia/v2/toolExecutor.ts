@@ -818,6 +818,48 @@ export async function runTool(
     return { tool: name, success: true, data: { resourceId, quoteId: resourceId, before: quote.memos, updatedResource, summary: "견적 메모를 수정했어요." } };
   }
 
+  if (name === "update_quote_info") {
+    const resourceId = activeResource(context, "quote");
+    const quote = await loadQuote(resourceId);
+    // 견적 항목/금액은 add_quote_item 등 전용 도구가 recalculateQuote()를 거쳐 처리하지만,
+    // 병원명·담당자·연락처처럼 계산과 무관한 기본 정보는 그런 도구가 없어서 GPT가
+    // create_feature_record/update_feature_record(domain:"quote")로 넘어갔고, quote는 그
+    // 범용 경로에서 명시적으로 막혀 있어 "직접 수정할 수 없다"는 에러로 이어졌다
+    // (2026-08-30 사용자 리포트). items/formState 전체를 여는 대신 이 안전한 필드만 딱
+    // 열어주는 전용 도구를 추가한다.
+    const columnMap: Array<[string, string]> = [
+      ["hospitalName", "hospital_name"],
+      ["contactName", "contact_name"],
+      ["phone", "phone"],
+      ["email", "email"],
+      ["quoteDate", "quote_date"],
+      ["shootDate", "shoot_date"],
+      ["validUntil", "valid_until"],
+      ["quoteTitle", "title"],
+    ];
+    const patch: Record<string, string> = {};
+    for (const [key, column] of columnMap) {
+      const raw = input[key];
+      if (raw != null && String(raw).trim()) patch[column] = String(raw).trim();
+    }
+    if (!Object.keys(patch).length) throw new Error("변경할 내용을 알려주세요.");
+    const existingFormState = (quote.form_state && typeof quote.form_state === "object") ? quote.form_state as Record<string, unknown> : {};
+    const existingCustomer = (existingFormState.customer && typeof existingFormState.customer === "object") ? existingFormState.customer as Record<string, unknown> : {};
+    const nextCustomer = {
+      hospitalName: patch.hospital_name ?? existingCustomer.hospitalName ?? quote.hospital_name ?? "",
+      managerName: patch.contact_name ?? existingCustomer.managerName ?? quote.contact_name ?? "",
+      phone: patch.phone ?? existingCustomer.phone ?? quote.phone ?? "",
+      email: patch.email ?? existingCustomer.email ?? quote.email ?? "",
+      quoteDate: patch.quote_date ?? existingCustomer.quoteDate ?? quote.quote_date ?? "",
+      validUntil: patch.valid_until ?? existingCustomer.validUntil ?? quote.valid_until ?? "",
+      shootDate: patch.shoot_date ?? existingCustomer.shootDate ?? quote.shoot_date ?? "",
+      quoteNumber: existingCustomer.quoteNumber ?? quote.quote_number ?? "",
+    };
+    const formState = { ...existingFormState, customer: nextCustomer, ...(patch.title != null ? { quoteTitle: patch.title } : {}) };
+    const updatedResource = await saveQuote(resourceId, { ...patch, form_state: formState });
+    return { tool: name, success: true, data: { resourceId, quoteId: resourceId, updatedResource, summary: "견적서 정보를 수정했어요." } };
+  }
+
   if (name === "apply_quote_discount") {
     const resourceId = activeResource(context, "quote");
     const quote = await loadQuote(resourceId);
