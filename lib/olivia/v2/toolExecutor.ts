@@ -129,6 +129,10 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
       required: ["hospitalName", "quoteId"],
     },
   },
+  { type: "function", name: "update_contract_terms", description: "현재 계약서의 계약금 비율, 잔금 지급조건, 납품조건, 특약사항처럼 항목·금액이 아닌 계약 전용 조건을 실제 DB에 수정합니다. 언급된 값만 채우고 나머지는 null로 둡니다. depositRate가 바뀌면 계약금/잔금 금액은 자동으로 다시 계산됩니다(직접 금액을 계산하지 않습니다).", strict: true, parameters: { type: "object", additionalProperties: false, properties: { depositRate: { type: ["number", "null"], description: "계약금 비율(%). 예: 30, 50" }, paymentTerms: { type: ["string", "null"], description: "잔금 지급 시점 짧은 표현. 예: '촬영 전날', '촬영 당일', '납품 전'" }, deliveryTerms: { type: ["string", "null"], description: "납품 기한 짧은 표현. 예: '14일', '2주'" }, specialTerms: { type: ["string", "null"], description: "특약사항 전체 문단. 기존 내용에 추가/제거할 때도 최종 전체 내용을 다시 작성합니다." } }, required: ["depositRate", "paymentTerms", "deliveryTerms", "specialTerms"] } },
+  { type: "function", name: "request_contract_signature", description: "현재 계약서에 대표 서명이 필요할 때 채팅에 서명 패드를 띄웁니다. DB를 바로 바꾸지 않습니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: {}, required: [] } },
+  { type: "function", name: "request_contract_publish", description: "현재 계약서 최종 생성(공개) 승인을 요청합니다. 확인 전에는 생성하지 않습니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: {}, required: [] } },
+  { type: "function", name: "download_contract_pdf", description: "현재 화면에 열려 있는 계약서를 PDF로 저장하고 다운로드합니다. 계약서 화면이 열려 있지 않으면 실행할 수 없습니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: {}, required: [] } },
   {
     type: "function",
     name: "get_conti_status",
