@@ -444,6 +444,32 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
                 });
               });
             }
+          } else if (event.action.type === "RENAME_PHOTO_SCENE" || event.action.type === "MERGE_PHOTO_SCENES" || event.action.type === "SPLIT_PHOTO_SCENE") {
+            // DOWNLOAD_*_PDF와 동일한 순환참조 회피 패턴(PHASE 4, 2026-08-30) — 지금 열려 있는
+            // PhotoSortingWorkspace가 usePhotoClassificationActionsStore에 등록해 둔 함수를
+            // 여기서 직접 호출한다. 등록된 게 없으면 "지금 열려 있는 사진 분류 화면이 없다"는 뜻.
+            const actions = usePhotoClassificationActionsStore.getState().actions;
+            let text: string;
+            if (!actions) {
+              text = "지금 열려 있는 사진 분류 화면이 없어서 실행하지 못했어요.";
+            } else if (event.action.type === "RENAME_PHOTO_SCENE") {
+              const ok = actions.renameScene(event.action.sceneIndex, event.action.newName);
+              text = ok ? `${event.action.sceneIndex + 1}번 씬 이름을 "${event.action.newName}"으로 바꿨어요.` : "씬 이름을 바꾸지 못했어요.";
+            } else if (event.action.type === "MERGE_PHOTO_SCENES") {
+              actions.mergeScenes(event.action.sceneIndexA, event.action.sceneIndexB);
+              text = `${event.action.sceneIndexA + 1}번과 ${event.action.sceneIndexB + 1}번 씬을 합쳤어요.`;
+            } else {
+              actions.splitScene(event.action.sceneIndex, event.action.offset);
+              text = `${event.action.sceneIndex + 1}번 씬을 분리했어요.`;
+            }
+            get().appendMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: text,
+              blocks: [{ type: "text", text }],
+              createdAt: new Date().toISOString(),
+              status: "complete",
+            });
           } else if (event.action.type === "OPEN_CLIENT_TASK") {
             // 채팅 안에서 실제 작업을 끝까지 수행하는 카드(예: 셀렉 매칭) — approval과 동일하게
             // 여기서 미리 가로채 메시지에 블록을 추가한다. 실시간 진행 상태는 도구별 client-only
