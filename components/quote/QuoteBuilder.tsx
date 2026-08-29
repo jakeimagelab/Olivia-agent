@@ -573,22 +573,24 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const packageTotal = selectedPackage?.price ?? 0;
   const singleItemsTotal = selectedSingleItems.reduce((sum, item) => sum + singleItemPrice(item), 0);
   const optionsTotal = optionItems.reduce((sum, item) => sum + item.amount, 0);
-  const customTotal = customItems.reduce((sum, item) => sum + item.amount, 0);
-  // 외주 헤어메이크업·모델료처럼 할인이 적용되면 안 되는 기타 항목은 discountable=false로
-  // 표시해 할인율/추가할인 계산 대상(discountableSubtotal)에서 제외하고 원가 그대로 청구한다.
-  const discountableCustomTotal = customItems.filter((item) => item.discountable !== false).reduce((sum, item) => sum + item.amount, 0);
-  const nonDiscountableCustomTotal = customTotal - discountableCustomTotal;
   const visibleCustomItems = customItems.filter((item) => item.name || item.detail || item.amount > 0);
   const visibleBenefitItems = benefitItems.filter((item) => item.name);
-  const discountableSubtotal = packageTotal + singleItemsTotal + optionsTotal + discountableCustomTotal;
-  const contentSubtotal = discountableSubtotal + nonDiscountableCustomTotal;
-  const rateDiscountAmount = Math.round(discountableSubtotal * (discountRate / 100));
-  const extraDiscountAmount = Math.min(Math.max(Number(extraDiscount) || 0, 0), Math.max(discountableSubtotal - rateDiscountAmount, 0));
-  const discountTotal = rateDiscountAmount + extraDiscountAmount;
-  const rawSupplyAmount = Math.max(contentSubtotal - discountTotal, 0);
-  const supplyAmount = Math.floor(rawSupplyAmount / 10000) * 10000;
-  const vat = Math.round(supplyAmount * 0.1);
-  const finalAmount = supplyAmount + vat;
+  // 실제 합계 계산은 lib/quote/computeQuoteTotals.ts로 옮겼다(코드만 이동, 로직 동일) — 채팅
+  // Quote Preview Card도 같은 함수를 써서 이 화면과 절대 다른 숫자를 보여줄 수 없게 한다.
+  const {
+    customTotal,
+    discountableCustomTotal,
+    nonDiscountableCustomTotal,
+    discountableSubtotal,
+    contentSubtotal,
+    rateDiscountAmount,
+    extraDiscountAmount,
+    discountTotal,
+    rawSupplyAmount,
+    supplyAmount,
+    vat,
+    finalAmount,
+  } = computeQuoteTotals({ packageTotal, singleItemsTotal, optionsTotal, customItems, discountRate, extraDiscount });
 
   const updateCustomer = (key: keyof CustomerInfo, value: string) => {
     setCustomer((prev) => ({ ...prev, [key]: value }));
