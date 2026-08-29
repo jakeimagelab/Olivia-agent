@@ -147,9 +147,9 @@ export default function ContractSignaturePad({ flowId }: { flowId: string }) {
         />
         {error ? <div className="olivia-select-match-card__error">{error}</div> : null}
         <div className="olivia-select-match-card__actions">
-          <button type="button" onClick={clearSignature} disabled={status === "applying"}>다시 쓰기</button>
+          <button type="button" className="is-secondary" onClick={clearSignature} disabled={status === "applying"}>다시 쓰기</button>
           <button type="button" onClick={() => void apply()} disabled={status === "applying"}>{status === "applying" ? "적용 중..." : "서명 적용"}</button>
-          <button type="button" onClick={cancel} disabled={status === "applying"}>취소</button>
+          <button type="button" className="is-secondary" onClick={cancel} disabled={status === "applying"}>취소</button>
         </div>
       </div>
     </div>
