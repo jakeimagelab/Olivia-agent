@@ -447,9 +447,9 @@ async function latestResource(workspace: "quote" | "contract" | "conti", context
   return data as Record<string, unknown> | null;
 }
 
-function activeResource(context: OliviaContextSnapshot, workspace: "quote" | "conti") {
+function activeResource(context: OliviaContextSnapshot, workspace: "quote" | "conti" | "contract") {
   if (context.activeWorkspace !== workspace || !context.activeResourceId) {
-    throw new Error(`먼저 수정할 ${workspace === "quote" ? "견적서" : "콘티"}를 열어주세요.`);
+    throw new Error(`먼저 수정할 ${workspace === "quote" ? "견적서" : workspace === "contract" ? "계약서" : "콘티"}를 열어주세요.`);
   }
   return context.activeResourceId;
 }
@@ -465,6 +465,20 @@ async function saveQuote(id: string, data: Record<string, unknown>) {
   const db = getSupabaseAdmin();
   const { data: updated, error } = await db.from("quotes").update(data).eq("id", id).select("*").single();
   if (error || !updated) throw new Error("견적서를 저장하지 못했어요.");
+  return updated as Record<string, unknown>;
+}
+
+async function loadContractRow(id: string) {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db.from("contracts").select("*").eq("id", id).maybeSingle();
+  if (error || !data) throw new Error("현재 계약서를 불러오지 못했어요.");
+  return data as Record<string, unknown>;
+}
+
+async function saveContractRow(id: string, data: Record<string, unknown>) {
+  const db = getSupabaseAdmin();
+  const { data: updated, error } = await db.from("contracts").update(data).eq("id", id).select("*").single();
+  if (error || !updated) throw new Error("계약서를 저장하지 못했어요.");
   return updated as Record<string, unknown>;
 }
 
