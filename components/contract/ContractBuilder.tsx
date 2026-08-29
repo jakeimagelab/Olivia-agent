@@ -968,6 +968,13 @@ function buildContractHtml(q: QuoteData, signatureDataUrl = "", brand: ContractB
     ? `<img class="signature-image" src="${signatureDataUrl}" alt="${cfg.label} 서명">`
     : "";
 
+  // depositRate가 채팅으로 바뀌었으면(update_contract_terms) 그 비율로 다시 계산하고,
+  // 없으면 견적에서 그대로 물려받은 depositAmount/balanceAmount를 쓴다(기존 동작 그대로).
+  const effectiveDepositRate = q.depositRate ?? Math.round(((q.depositAmount || 0) / (q.totalAmount || 1)) * 100);
+  const { depositAmount: effectiveDeposit, balanceAmount: effectiveBalance } = q.depositRate != null
+    ? computeContractDeposit(q.totalAmount, q.depositRate)
+    : { depositAmount: q.depositAmount, balanceAmount: q.balanceAmount };
+
   const itemCards = q.items.map((item, i) => `
     <div class="quote-item">
       <div class="item-index">${String(i + 1).padStart(2, "0")}</div>
