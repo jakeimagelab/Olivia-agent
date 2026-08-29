@@ -23,6 +23,7 @@ import { evaluateSceneBoundaries } from "@/lib/photo-classifier/evaluation/metri
 import { usePhotoClassificationHandoffStore } from "@/lib/store/usePhotoClassificationHandoffStore";
 import { usePhotoClassificationActionsStore } from "@/lib/store/usePhotoClassificationActionsStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type {
   AccuracyReport, ClassificationJobState, HybridSceneType, LocalVisualFeatures, SceneBoundaryDecision,
   SceneCorrection, SceneFrameAnalysis, TimestampSource,
