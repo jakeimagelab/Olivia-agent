@@ -67,12 +67,14 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
     expect(execution.result.data?.summary).toBe("견적서를 고객 포털에 공개했어요.");
   });
 
-  it("발행 자체가 실패하면(ok:false) 에러를 던진다 — 신규 등록 판단 로직이 실패를 가리지 않는다", async () => {
+  it("발행 자체가 실패하면(ok:false) success:false로 실패를 그대로 보고한다 — 신규 등록 판단 로직이 실패를 가리지 않는다", async () => {
     global.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({ ok: false, error: "이미 처리 중인 견적입니다." }),
     })) as unknown as typeof fetch;
 
-    await expect(callPublishQuote()).rejects.toThrow(/이미 처리 중인 견적입니다/);
+    const execution = await callPublishQuote();
+    expect(execution.result.success).toBe(false);
+    expect(execution.result.error).toMatch(/이미 처리 중인 견적입니다/);
   });
 });
