@@ -241,65 +241,6 @@ const invertImageColors = (src: string): Promise<string> =>
     img.src = src;
   });
 
-const BRAND_CONFIG: Record<Brand, {
-  label: string;
-  logo: string;
-  defaultQuoteTitle: string;
-  entityLabel: string;
-  entityPlaceholder: string;
-  emailPlaceholder: string;
-  largeScaleLabel: string;
-  customItemsLabel: string;
-  brandMarkCaption: string;
-  railCaptionTitle: string | null;
-  railCaptionSub: string | null;
-  railNoticeTitle: string;
-  railNoticeSub: string;
-  railNoticeDetail: string;
-  popupBg: string;
-  quoteNumberPrefix: string;
-  defaultMemo: string;
-}> = {
-  photoclinic: {
-    label: "포토클리닉",
-    logo: "/assets/photoclinic-logo.png?v=3",
-    defaultQuoteTitle: "포토클리닉 브랜드사진 견적서",
-    entityLabel: "병원명",
-    entityPlaceholder: "포토클리닉",
-    emailPlaceholder: "photoclnic@gmail.com",
-    largeScaleLabel: "병원급 규모 추가",
-    customItemsLabel: "기타 항목",
-    brandMarkCaption: "제이크이미지연구소 · 병원 전문 브랜드 촬영",
-    railCaptionTitle: null,
-    railCaptionSub: null,
-    railNoticeTitle: "포토클리닉",
-    railNoticeSub: "제이크이미지연구소",
-    railNoticeDetail: "병원 전문 브랜드 촬영",
-    popupBg: "#f0f4f2",
-    quoteNumberPrefix: "PC-",
-    defaultMemo: ""
-  },
-  jakeimage: {
-    label: "제이크이미지연구소",
-    logo: "/assets/jakeimage-logo.png",
-    defaultQuoteTitle: "제이크이미지연구소 브랜드사진 견적서",
-    entityLabel: "회사명",
-    entityPlaceholder: "제이크이미지연구소",
-    emailPlaceholder: "contact@jakeimage.com",
-    largeScaleLabel: "대형 규모 촬영 추가",
-    customItemsLabel: "추가항목",
-    brandMarkCaption: "Jake Image Institute · Brand Image Direction",
-    railCaptionTitle: "BRAND IMAGE DIRECTION",
-    railCaptionSub: "Portrait · Brand · Editorial",
-    railNoticeTitle: "Jake Image Institute",
-    railNoticeSub: "기업과 개인 브랜드의",
-    railNoticeDetail: "이미지를 설계합니다.",
-    popupBg: "#eef1f5",
-    quoteNumberPrefix: "JI-",
-    defaultMemo: "촬영 범위와 일정은 상담 후 최종 확정됩니다."
-  }
-};
-
 // Olivia Agent 2.0 — DynamicWorkspace가 견적서를 채팅 아래에 열어둔 상태에서, 채팅으로
 // "프로필 촬영 50만원으로 바꿔줘" 같은 편집 명령을 받아 이 견적서에 바로 반영하기 위한
 // 명령형 핸들. ref를 안 넘기면(기존 모든 사용처: /quote, /photoclinic, 고객관리 WorkspaceModal)
