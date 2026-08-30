@@ -69,8 +69,8 @@ export async function linkNewClientToQuote(db: SupabaseClient, input: {
     .single();
   if (error || !updated) throw new Error("견적서에 고객을 연결하지 못했어요.");
 
-  await logActivity("link_new_client_to_quote", client.hospital_name, {
-    quoteId: input.resourceId, clientId: client.id, workflowRunId, created: !input.clientId,
+  await logActivity("link_document_to_client", client.hospital_name, {
+    documentType: "quote", quoteId: input.resourceId, clientId: client.id, workflowRunId, created: !input.clientId,
   });
 
   return { updated, client, workflowRunId };
