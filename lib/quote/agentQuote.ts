@@ -1,3 +1,6 @@
+import type { Brand } from "@/lib/quote/quoteFormTypes";
+import { BRAND_CONFIG } from "@/lib/quote/quoteCatalog";
+
 type QuoteLineItem = {
   id?: string;
   name: string;
@@ -7,6 +10,10 @@ type QuoteLineItem = {
   subtotal: number;
   note?: string;
 };
+
+function resolveBrand(value: unknown): Brand {
+  return value === "jakeimage" ? "jakeimage" : "photoclinic";
+}
 
 const PACKAGE_CATALOG = {
   standard: { name: "스탠다드 패키지", price: 1_350_000, composition: "프로필 + 연출사진" },
