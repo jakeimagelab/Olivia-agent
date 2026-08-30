@@ -1782,7 +1782,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                     <span>
                       제이크이미지연구소
                       <br />
-                      (정연호)
+                      (정헌호)
                     </span>
                   </div>
                 </div>
