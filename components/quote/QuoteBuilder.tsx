@@ -1786,7 +1786,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                     </span>
                   </div>
                 </div>
-                <div className="rail-notice">
+                <div className="rail-notice rail-notice--brand">
                   <strong>{cfg.railNoticeTitle}</strong>
                   <span>{cfg.railNoticeSub}</span>
                   <span>{cfg.railNoticeDetail}</span>
