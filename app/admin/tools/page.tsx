@@ -28,9 +28,13 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
   const filteredTools = query
     ? TOOLS.filter((tool) => normalizeAdminSearchQuery(`${tool.title} ${tool.desc} ${tool.meta}`).includes(query))
     : TOOLS;
-  // 상단 필터 탭 개수는 실제 데이터 기준으로 계산한다(하드코딩 금지, 요청) — groupToolsByCategory는
-  // 전역 사이드바용으로 이미 있던 헬퍼를 그대로 재사용한다.
-  const groups = groupToolsByCategory(filteredTools).map((group) => ({ category: group.category, label: group.label, count: group.items.length }));
+  // 상단 필터 탭 개수는 실제 데이터 기준으로 계산한다(하드코딩 금지, 요청) — 전역 사이드바용
+  // groupToolsByCategory(NavCategory 3분류)는 여기서 더 안 쓴다. 이 페이지 전용 7분류
+  // 표시 카테고리(lib/toolNavDisplayCategory.ts, 기존 40개 도구 href를 재분류)로 그룹핑한다
+  // (전체보기 개편, 2026-08-31) — 빈 카테고리는 탭에서 숨긴다.
+  const groups = groupToolsByDisplayCategory(filteredTools)
+    .map((group) => ({ category: group.category, label: group.label, count: group.items.length }))
+    .filter((group) => group.count > 0);
 
   return (
     <div className="oa-page oa-tools-page">
