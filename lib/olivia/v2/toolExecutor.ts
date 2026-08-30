@@ -1344,6 +1344,12 @@ export async function runTool(
     return { tool: name, success: true, data: { clientName: client?.hospital_name || text(input, "clientName"), summary: "메모를 저장했어요." } };
   }
 
+  if (name === "start_quote_wizard") {
+    // 서버 작업 없음 — flowId만 발급하면 클라이언트가 그 값으로 채팅 카드/스토어를 초기화한다
+    // (start_select_match_flow와 동일한 패턴, 견적서 UX 개편 2026-08-31).
+    return { tool: name, success: true, data: { flowId: crypto.randomUUID() } };
+  }
+
   if (name === "start_select_match_flow") {
     // 서버 작업 없음 — flowId만 발급하면 클라이언트가 그 값으로 채팅 카드/스토어를 초기화한다.
     // 실제 폴더 스캔·복사는 전부 브라우저(File System Access API)에서만 가능해서 여기선 할 수 없다.
