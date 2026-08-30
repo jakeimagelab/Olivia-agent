@@ -2756,6 +2756,9 @@ main:has(> .pc-header) {
   display: grid;
   grid-template-columns: 1fr 110px;
   align-items: center;
+  border: 1px solid var(--quote-tint-border);
+  margin-bottom: 6px;
+  padding: 3px 0;
 }
 
 .payment-box strong {
@@ -2769,6 +2772,27 @@ main:has(> .pc-header) {
 .payment-box span {
   padding-left: 26px;
   font-size: 10px;
+}
+
+.payment-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+}
+
+.payment-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--orange-soft);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
 }
 
 .payment-box p {
