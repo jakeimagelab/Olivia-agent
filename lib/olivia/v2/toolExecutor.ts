@@ -99,12 +99,13 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   {
     type: "function",
     name: "create_quote",
-    description: "고객의 실제 견적 초안을 DB에 생성합니다. 생성 성공 결과의 quoteId로만 화면을 엽니다.",
+    description: "고객의 실제 견적 초안을 DB에 생성합니다. 생성 성공 결과의 quoteId로만 화면을 엽니다. 브랜드가 대화에서 아직 확인되지 않았거나 요청이 막연하면(예: \"견적서 만들자\") 이 도구 대신 start_quote_wizard를 먼저 써서 브랜드를 물어본다 — 브랜드와 병원명 등 충분한 정보가 이미 한 메시지에 있으면 곧장 이 도구를 쓴다.",
     strict: true,
     parameters: {
       type: "object",
       additionalProperties: false,
       properties: {
+        brand: { type: ["string", "null"], enum: ["photoclinic", "jakeimage", null], description: "포토클리닉 또는 제이크이미지연구소. 대화에서 확인됐으면 채우고, 모르면 null(이 경우 photoclinic 기본값으로 생성되므로 가능하면 먼저 확인한다)." },
         hospitalName: { type: ["string", "null"] },
         packageId: { type: ["string", "null"], enum: ["standard", "premium", "premium-plus-1", "premium-plus-2", null] },
         contactName: { type: ["string", "null"] },
@@ -115,7 +116,7 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
         stagedCount: { type: ["number", "null"] },
         memo: { type: ["string", "null"] },
       },
-      required: ["hospitalName", "packageId", "contactName", "phone", "email", "shootDate", "profileCount", "stagedCount", "memo"],
+      required: ["brand", "hospitalName", "packageId", "contactName", "phone", "email", "shootDate", "profileCount", "stagedCount", "memo"],
     },
   },
   {
