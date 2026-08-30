@@ -1744,23 +1744,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             >
               <aside className="brand-rail">
                 <div className="rail-slogan" style={brand === "photoclinic" ? {fontFamily:"'Nanum Myeongjo', serif"} : undefined}>
-                  {brand === "jakeimage" ? (
-                    <>
-                      <img src={cfg.logo} alt={cfg.label} />
-                      {cfg.railCaptionTitle ? (
-                        <div className="rail-caption">
-                          <strong>{cfg.railCaptionTitle}</strong>
-                          <span>{cfg.railCaptionSub}</span>
-                        </div>
-                      ) : null}
-                    </>
-                  ) : (
-                    <>
-                      <p>브랜드를 담습니다.</p>
-                      <p>정직하고,</p>
-                      <p>자연스럽게.</p>
-                    </>
-                  )}
+                  {cfg.sloganLines.map((line, index) => (
+                    <p key={index}>{line}</p>
+                  ))}
+                  <span className="rail-divider" aria-hidden="true" />
+                  <div className="rail-caption">
+                    <strong>{cfg.railCaptionTitle}</strong>
+                    <span>{cfg.railCaptionSub}</span>
+                  </div>
                 </div>
                 <div className="rail-address">
                   <span>TO.</span>
@@ -1768,11 +1759,31 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                   <small>{customer.managerName || "담당자"}</small>
                 </div>
                 <div className="rail-notice">
-                  <strong>결제 조건</strong>
-                  <span>선금 50%, 잔금 50% 기준</span>
-                  <span>세부 조건은 상호 협의 가능</span>
-                  <span>1002-754-988962 우리은행</span>
-                  <span>제이크이미지연구소(정연호)</span>
+                  <strong>CONTACT</strong>
+                  <div className="rail-contact-row">
+                    <Receipt size={11} />
+                    <span>
+                      선금 50%, 잔금 50% 기준
+                      <br />
+                      세부 조건은 상호 협의 가능
+                    </span>
+                  </div>
+                  <div className="rail-contact-row">
+                    <Phone size={11} />
+                    <span>
+                      1002-754-988962
+                      <br />
+                      우리은행
+                    </span>
+                  </div>
+                  <div className="rail-contact-row">
+                    <MapPin size={11} />
+                    <span>
+                      제이크이미지연구소
+                      <br />
+                      (정연호)
+                    </span>
+                  </div>
                 </div>
                 <div className="rail-notice">
                   <strong>{cfg.railNoticeTitle}</strong>
