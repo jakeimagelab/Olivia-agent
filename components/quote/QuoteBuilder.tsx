@@ -2857,10 +2857,10 @@ function QuantityField({
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({ icon, label, value }: { icon?: ReactNode; label: string; value: string }) {
   return (
     <div>
-      <span>{label}</span>
+      <span>{icon}{label}</span>
       <strong>{value}</strong>
     </div>
   );
