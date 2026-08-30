@@ -488,6 +488,21 @@ function resolvePhotoSceneNumber(input: Record<string, unknown>, key: string, co
   throw new Error("몇 번 씬인지 알려주세요.");
 }
 
+// request_quote_publish(승인 요청)와 publish_quote(완료 보고) 둘 다 항목별 요약이 필요해서
+// 뽑아냈다(스펙 §19-22) — 금액은 전부 quotes 테이블에 이미 저장된 실제 값이고 여기서
+// 새로 계산하지 않는다.
+function buildQuoteBreakdownLines(quote: Record<string, unknown>): string[] {
+  const won = (value: unknown) => `${(Number(value) || 0).toLocaleString("ko-KR")}원`;
+  const items = Array.isArray(quote.items) ? (quote.items as Array<Record<string, unknown>>) : [];
+  const itemLines = items.map((item) => `- ${item.name}${item.detail ? ` (${item.detail})` : ""}`);
+  const discountAmount = Number(quote.discount_amount) || 0;
+  return [
+    ...itemLines,
+    discountAmount > 0 ? `할인: ${won(discountAmount)}` : null,
+    `최종 금액: ${won(quote.total_amount)}`,
+  ].filter((line): line is string => line !== null);
+}
+
 async function loadQuote(id: string) {
   const db = getSupabaseAdmin();
   const { data, error } = await db.from("quotes").select("*").eq("id", id).maybeSingle();
