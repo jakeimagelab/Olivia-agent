@@ -12,6 +12,17 @@ export function fuzzyIncludes(target: unknown, query: unknown): boolean {
   return normalizeSearchText(target).includes(normalizedQuery);
 }
 
+// normalizeSearchText()는 절대 바꾸지 않는다 — lib/clientLookup.ts의 resolveClientId()가 이
+// 함수로 "정확히 일치 + 후보 유일"할 때만 견적/계약을 자동 연결하는데, 병원/의원/클리닉 같은
+// 접미사를 지우면 실제로 다른 두 병원("OO의원"과 "OO클리닉")이 같다고 오판해 잘못된 고객에
+// 조용히 연결될 위험이 생긴다. 이 함수는 그 안전한 경로와 완전히 분리된, 새 견적서 마법사의
+// 고객 등록 제안(스펙 §23-29)에서만 쓰는 느슨한 비교용이다 — 사람이 후보를 직접 보고 확인
+// 버튼을 눌러야만 실제로 연결되므로 오매칭 후보가 섞여도 안전하다(견적서 UX 개편, 2026-08-31).
+const FACILITY_SUFFIXES = /(병원|의원|클리닉|한의원|치과)$/;
+export function normalizeHospitalNameLoose(value: unknown): string {
+  return normalizeSearchText(value).replace(FACILITY_SUFFIXES, "");
+}
+
 type QueryBuilder = any;
 
 type FuzzyNameSearchParams = {
