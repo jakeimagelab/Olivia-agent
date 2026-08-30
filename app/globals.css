@@ -3150,12 +3150,20 @@ main:has(> .pc-header) {
   border-top-color: #7f91a7;
 }
 
-.quote-app--jakeimage .payment-box strong {
+.quote-app--jakeimage .payment-row strong {
   background: var(--quote-ink);
 }
 
-.quote-app--jakeimage .payment-box .payment-icon {
+.quote-app--jakeimage .payment-row .payment-icon {
   background: var(--quote-accent);
+}
+
+.quote-app--jakeimage .payment-terms-note strong {
+  color: var(--quote-ink);
+}
+
+.quote-app--jakeimage .invoice-meta strong::before {
+  color: var(--quote-accent);
 }
 
 .quote-app--jakeimage .total-box {
