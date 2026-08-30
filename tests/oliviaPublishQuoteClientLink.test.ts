@@ -34,7 +34,11 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
   const originalFetch = global.fetch;
 
   beforeEach(() => {
-    quoteRow = { id: "quote-1", hospital_name: "유진스의원", client_id: null };
+    quoteRow = {
+      id: "quote-1", hospital_name: "유진스의원", client_id: null,
+      items: [{ name: "스탠다드 패키지", detail: "프로필 + 연출사진" }],
+      discount_amount: 0, total_amount: 1_350_000,
+    };
   });
 
   afterEach(() => {
