@@ -3055,34 +3055,12 @@ main:has(> .pc-header) {
   background: var(--quote-ink);
 }
 
-.quote-app--jakeimage .rail-slogan {
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: 10px;
-  padding: 16px 12px 0;
-}
-.quote-app--jakeimage .rail-slogan img {
-  width: 76px;
-  max-height: 76px;
-  object-fit: contain;
-  filter: brightness(0) invert(1);
-}
-.quote-app--jakeimage .rail-caption {
-  display: grid;
-  justify-items: center;
-  gap: 5px;
-  text-align: center;
+.quote-app--jakeimage .rail-divider {
+  background: var(--quote-accent);
 }
 .quote-app--jakeimage .rail-caption strong {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-}
-.quote-app--jakeimage .rail-caption span {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 9px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
+  font-weight: 500;
 }
 
 .quote-app--jakeimage .rail-address strong {
