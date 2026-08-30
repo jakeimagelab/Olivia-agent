@@ -2876,39 +2876,46 @@ main:has(> .pc-header) {
   display: grid;
   grid-template-columns: 1fr 120px;
   align-items: center;
-  min-height: 21px;
+  min-height: 26px;
   color: #222222;
 }
 
 .total-box span {
-  padding-left: 78px;
-  font-size: 10px;
+  padding-left: 82px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .total-box strong {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   text-align: right;
   padding-right: 18px;
 }
 
 .total-box .grand-total {
-  margin-top: 6px;
-  background: transparent;
-  padding: 0;
+  margin-top: 8px;
+  background: var(--deep-green);
+  padding: 9px 0;
 }
 
 .total-box .grand-total span {
-  padding-left: 78px;
-  color: #222222;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 18px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  background: var(--orange-soft);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .total-box .grand-total strong {
-  background: var(--orange-soft);
+  background: transparent;
   color: #ffffff;
-  padding: 5px 18px 5px 0;
-  font-size: 14px;
+  padding: 0 20px 0 0;
+  font-size: 20px;
   font-weight: 600;
 }
 
