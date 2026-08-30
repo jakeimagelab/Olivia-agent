@@ -17,6 +17,7 @@ export const QUOTE_MUTATION_TOOLS = new Set([
   "apply_quote_rebalance",
   "publish_quote",
   "download_quote_pdf",
+  "link_new_client_to_quote",
 ]);
 
 export function isQuoteMutationTool(toolName: string): boolean {
