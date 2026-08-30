@@ -2468,11 +2468,10 @@ main:has(> .pc-header) {
 
 .rail-address strong {
   display: block;
-  background: var(--orange-soft);
-  color: #1f211f;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
+  color: #ffffff;
+  padding: 6px 12px 0;
+  font-size: 15px;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
