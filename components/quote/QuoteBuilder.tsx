@@ -14,13 +14,18 @@ import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/q
 import { packages, singleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
 import {
+  Building2,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Download,
   FileSpreadsheet,
   Maximize2,
+  Mail,
+  MapPin,
+  Phone,
   Plus,
+  Receipt,
   RefreshCcw,
   Save,
   Trash2,
