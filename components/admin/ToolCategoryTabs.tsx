@@ -20,7 +20,7 @@ type ToolCategoryTabsProps = {
 // ToolDef.icon(함수 참조)을 클라이언트 컴포넌트에 raw prop으로 넘기면 직렬화 에러가 난다
 // (이전 버전이 그렇게 죽었었다) — 그래서 카드 목록 자체는 절대 prop으로 받지 않는다.
 export default function ToolCategoryTabs({ groups, totalCount, defaultActive = "all", children }: ToolCategoryTabsProps) {
-  const [active, setActive] = useState<NavCategory | "all">(defaultActive);
+  const [active, setActive] = useState<string>(defaultActive);
 
   return (
     <>
