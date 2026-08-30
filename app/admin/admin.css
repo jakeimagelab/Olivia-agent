@@ -203,9 +203,12 @@
 .oa-tool-tabs__tab[data-active="true"] { border-color: #cce9da; background: #f0f8f6; color: #155855; }
 .oa-tool-tabs__tab-count { color: #9aa4a9; font-size: 11px; font-weight: 700; }
 .oa-tool-tabs__tab[data-active="true"] .oa-tool-tabs__tab-count { color: #4d8a7c; }
-.oa-tool-tabs__grid[data-active-tab="dashboard"] [data-tool-category]:not([data-tool-category="dashboard"]),
+.oa-tool-tabs__grid[data-active-tab="document"] [data-tool-category]:not([data-tool-category="document"]),
 .oa-tool-tabs__grid[data-active-tab="crm"] [data-tool-category]:not([data-tool-category="crm"]),
-.oa-tool-tabs__grid[data-active-tab="tools"] [data-tool-category]:not([data-tool-category="tools"]) {
+.oa-tool-tabs__grid[data-active-tab="schedule"] [data-tool-category]:not([data-tool-category="schedule"]),
+.oa-tool-tabs__grid[data-active-tab="media"] [data-tool-category]:not([data-tool-category="media"]),
+.oa-tool-tabs__grid[data-active-tab="ai"] [data-tool-category]:not([data-tool-category="ai"]),
+.oa-tool-tabs__grid[data-active-tab="etc"] [data-tool-category]:not([data-tool-category="etc"]) {
   display: none;
 }
 /* 통합 문서함 검색(전체보기 화면) — 기존 oa-tool-tabs/oa-table-* 스타일을 그대로 재사용하고,
