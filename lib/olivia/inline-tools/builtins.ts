@@ -56,3 +56,10 @@ registerInlineTool({
   onStart: (flowId) => usePhotoClassificationChatStore.getState().startFlow(flowId),
   duplicateRunMessage: "현재 사진 분류가 진행 중입니다. 완료 후 다시 시도해주세요.",
 });
+
+registerInlineTool({
+  id: QUOTE_WIZARD_TOOL_ID,
+  component: QuoteWizardChatCard,
+  onStart: (flowId) => useQuoteWizardChatStore.getState().startFlow(flowId),
+  duplicateRunMessage: "현재 견적서 생성 마법사가 진행 중이에요. 완료 후 다시 시도해주세요.",
+});
