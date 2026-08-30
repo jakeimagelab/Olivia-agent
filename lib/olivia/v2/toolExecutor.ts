@@ -119,6 +119,7 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
       required: ["brand", "hospitalName", "packageId", "contactName", "phone", "email", "shootDate", "profileCount", "stagedCount", "memo"],
     },
   },
+  { type: "function", name: "start_quote_wizard", description: "[WRITE 아님] 사용자가 새 견적서를 시작하고 싶어하는데(예: \"견적서 만들자\", \"견적서 만들어줘\", \"견적서 화면 열어줘\") 브랜드가 아직 대화에서 확인되지 않았거나 요청이 막연할 때 씁니다. 브랜드+병원명 등 충분한 정보가 이미 한 메시지에 있으면 이 도구 대신 곧장 create_quote를 씁니다. \"OO클리닉 견적서 열어줘\"/\"지난 견적 보여줘\"처럼 기존 문서를 가리키는 요청에는 절대 쓰지 않습니다(search_documents/open_document를 씁니다). 파라미터는 없습니다 — 호출하면 채팅에 브랜드 선택 카드가 뜨고 이후 단계는 사용자가 카드에서 직접 진행합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: {}, required: [] } },
   {
     type: "function",
     name: "create_contract",
