@@ -12,6 +12,7 @@ import OliviaEngineBackground from "@/components/olivia-v2/OliviaEngineBackgroun
 // index.ts를 통해 import한다(registry.ts를 직접 import하면 안 됨) — index.ts가 builtins.ts를
 // re-export하면서 select_match 등록 side effect를 트리거하기 때문이다.
 import { getInlineTool } from "@/lib/olivia/inline-tools";
+import OliviaChatContextBanner from "@/components/olivia/OliviaChatContextBanner";
 
 export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer" | "home"; showExpandToggle?: boolean; onMinimize?: () => void }) {
   const messages = useOliviaConversationStore((state) => state.messages);
