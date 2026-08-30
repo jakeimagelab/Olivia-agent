@@ -19,7 +19,6 @@ export const CONTRACT_PREVIEW_TOOL_ID = "contract_preview";
 export const CONTRACT_SIGNATURE_TOOL_ID = "contract_signature";
 export const PHOTO_CLASSIFICATION_TOOL_ID = "photo_classification";
 export const QUOTE_WIZARD_TOOL_ID = "quote_wizard";
-export const QUOTE_CLIENT_REGISTRATION_TOOL_ID = "quote_client_registration";
 
 registerInlineTool({
   id: SELECT_MATCH_TOOL_ID,
