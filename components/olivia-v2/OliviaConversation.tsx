@@ -245,6 +245,8 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
           </div>
       </header>
 
+      {variant === "workspace" ? <OliviaChatContextBanner /> : null}
+
       <div className={`olivia-conversation__stage${showConversationGuide ? " has-guide" : ""}`}>
         {isHome ? null : <OliviaConversationNavigator exchanges={exchanges} activeId={activeMessageId} onNavigate={scrollToMessage} />}
         <div className="olivia-conversation__main">
