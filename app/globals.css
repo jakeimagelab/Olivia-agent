@@ -2729,19 +2729,21 @@ main:has(> .pc-header) {
 }
 
 .category-row td {
-  height: 32px;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  background: var(--gold);
-  color: #222222;
+  height: 40px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 18px;
+  background: #fbf1e2;
+  color: #2c2a26;
   font-weight: 600;
   text-align: left !important;
   border-bottom: 0;
+  border-left: 4px solid var(--orange-soft);
 }
 
 .service-row td,
 .vat-row td {
-  background: var(--gold);
+  background: #fbf1e2;
 }
 
 .discount-row td {
@@ -2749,8 +2751,8 @@ main:has(> .pc-header) {
 }
 
 .blank-row td {
-  height: 8px;
-  min-height: 8px;
+  height: 16px;
+  min-height: 16px;
   padding: 0;
   background: #ffffff;
   border-bottom: 0;
