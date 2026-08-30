@@ -2,8 +2,8 @@ import Link from "next/link";
 import { ArrowRight, Camera } from "lucide-react";
 import CategorySection from "@/components/admin/CategorySection";
 import ToolCategoryTabs from "@/components/admin/ToolCategoryTabs";
-import DocumentSearchPanel from "@/components/admin/DocumentSearchPanel";
-import { ALL_TOOLS, groupToolsByCategory } from "@/lib/toolNav";
+import { ALL_TOOLS } from "@/lib/toolNav";
+import { groupToolsByDisplayCategory, getDisplayCategory } from "@/lib/toolNavDisplayCategory";
 import { normalizeAdminSearchQuery } from "@/lib/adminSearch";
 
 // 사이드바 "개별 기능"은 tools 카테고리만 보여주지만, 이 홈은 이름 그대로 전체 기능 목록
