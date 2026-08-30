@@ -41,6 +41,7 @@ const navigation: NavigationItem[] = [
   { label: "일정", href: "/calendar", icon: CalendarDays, accent: "orange" },
   { label: "고객 관리", href: "/clients", icon: UsersRound, carryContext: true },
   { label: "기록 (대화)", href: "/admin/dashboard/conversations", icon: MessagesSquare },
+  { label: "문서함", href: "/admin/documents", icon: FolderOpen, carryContext: true },
   { label: "전체보기 (기능)", href: "/admin/tools", icon: Grid2X2, carryContext: true },
 ];
 
