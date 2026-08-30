@@ -65,13 +65,13 @@ export function buildAgentQuoteData(input: Record<string, any>, workflowRunId?: 
     shootDate: input.shootDate,
     quoteDate: dateInSeoul(),
     validUntil: dateInSeoul(14),
-    title: "포토클리닉 브랜드사진 견적서",
+    title: BRAND_CONFIG[brand].defaultQuoteTitle,
     items,
     ...amounts,
     depositRate: 50,
     memos: input.memo || null,
     workflowRunId,
-    formState: { selectedPackageId: packageId, profileCount: Number(input.profileCount) || 0, stagedCount: Number(input.stagedCount) || 0, source: "olivia-v2" },
+    formState: { brand, selectedPackageId: packageId, profileCount: Number(input.profileCount) || 0, stagedCount: Number(input.stagedCount) || 0, source: "olivia-v2" },
   };
 }
 
