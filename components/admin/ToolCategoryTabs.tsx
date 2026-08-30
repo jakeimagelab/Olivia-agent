@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import type { NavCategory } from "@/lib/toolNav";
 
-type TabGroup = { category: NavCategory; label: string; count: number };
+// category는 원래 lib/toolNav.ts의 NavCategory였지만, 이 컴포넌트의 유일한 소비자인
+// app/admin/tools/page.tsx가 전용 표시 카테고리(lib/toolNavDisplayCategory.ts)로 바뀌면서
+// string으로 넓혔다(전체보기 개편, 2026-08-31) — 로직은 문자열 비교뿐이라 타입만 넓혀도 안전.
+type TabGroup = { category: string; label: string; count: number };
 
 type ToolCategoryTabsProps = {
   groups: TabGroup[];
   totalCount: number;
-  defaultActive?: NavCategory | "all";
+  defaultActive?: string;
   children: ReactNode;
 };
 
