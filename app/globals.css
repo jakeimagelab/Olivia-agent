@@ -2891,12 +2891,19 @@ main:has(> .pc-header) {
 
 .contract-note {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
+  grid-template-columns: 24px 1fr;
+  gap: 8px;
   align-content: center;
   align-items: start;
   font-size: 10px;
   text-align: left;
+}
+
+.contract-note-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--orange-soft);
+  transform: scaleX(-1);
 }
 
 .contract-note strong {
