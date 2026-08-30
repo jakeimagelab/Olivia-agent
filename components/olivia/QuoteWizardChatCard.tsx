@@ -4,6 +4,8 @@ import { useQuoteWizardChatStore } from "@/lib/store/useQuoteWizardChatStore";
 import QuoteBrandSelector from "./QuoteBrandSelector";
 import QuoteSetupForm from "./QuoteSetupForm";
 import QuoteDiscountForm from "./QuoteDiscountForm";
+import QuoteClientRegistrationChatCard from "./QuoteClientRegistrationChatCard";
+import { callOliviaTool } from "@/lib/olivia/inline-tools/callTool";
 
 // 견적서 마법사 라우터 카드 — Inline Tool 프레임워크 계약({flowId}만 받는다) 그대로 하나의
 // 등록(quote_wizard)만 쓰고, 내부적으로 step에 따라 브랜드 선택→설정 폼→할인 퀵셀렉을
