@@ -2764,36 +2764,36 @@ main:has(> .pc-header) {
 
 .quote-bottom {
   display: grid;
-  grid-template-columns: 270px 290px 1fr;
+  grid-template-columns: 280px 300px 1fr;
   align-items: start;
-  gap: 20px;
+  gap: 28px;
   margin-top: auto;
   border-top: 2px solid var(--sage);
-  padding-top: 11px;
+  padding-top: 20px;
 }
 
 .payment-box {
   display: grid;
-  grid-template-columns: 74px 1fr;
+  grid-template-columns: 84px 1fr;
   align-content: start;
-  gap: 10px;
+  gap: 14px;
 }
 
 .payment-terms-note {
   display: grid;
-  gap: 4px;
+  gap: 5px;
   padding-top: 2px;
 }
 
 .payment-terms-note strong {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #155855;
 }
 
 .payment-terms-note span {
-  font-size: 9px;
-  line-height: 1.4;
+  font-size: 10px;
+  line-height: 1.5;
   color: #5f5b56;
 }
 
@@ -2808,28 +2808,32 @@ main:has(> .pc-header) {
   grid-template-columns: 1fr 110px;
   align-items: center;
   border: 1px solid var(--quote-tint-border);
-  margin-bottom: 6px;
-  padding: 3px 0;
+  background: #fdfbf8;
+  margin-bottom: 8px;
+  padding: 7px 4px;
 }
 
 .payment-row strong {
-  background: var(--orange-soft);
-  color: #ffffff;
-  padding: 5px 12px;
-  font-size: 11px;
-  text-align: center;
+  background: transparent;
+  color: var(--orange-soft);
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
 }
 
 .payment-row span {
-  padding-left: 26px;
-  font-size: 10px;
+  padding-left: 30px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #222222;
 }
 
 .payment-row .payment-label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-left: 8px;
+  gap: 8px;
+  padding-left: 10px;
 }
 
 .payment-row .payment-icon {
@@ -2837,21 +2841,21 @@ main:has(> .pc-header) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   padding-left: 0;
   border-radius: 50%;
   background: var(--orange-soft);
   color: #ffffff;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
 }
 
 .payment-terms-rows p {
-  margin-top: 5px;
+  margin-top: 7px;
   font-size: 10px;
   text-align: center;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .total-signature {
