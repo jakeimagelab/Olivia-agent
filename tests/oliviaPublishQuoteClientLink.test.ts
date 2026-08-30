@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // data.summary에 담아 정확히 한 번 알려준다 — publish_quote는 QUOTE_MUTATION_TOOLS에 있어서
 // 이 summary가 모델 자유 텍스트 대신 그대로 채팅에 나간다(lib/olivia/output/quoteConfirmations.ts).
 
-let quoteRow: { id: string; hospital_name: string; client_id: string | null };
+let quoteRow: { id: string; hospital_name: string; client_id: string | null; items?: unknown; discount_amount?: number; total_amount?: number };
 
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
