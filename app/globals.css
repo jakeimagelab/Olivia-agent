@@ -2755,11 +2755,36 @@ main:has(> .pc-header) {
 
 .payment-box {
   display: grid;
+  grid-template-columns: 74px 1fr;
+  align-content: start;
+  gap: 10px;
+}
+
+.payment-terms-note {
+  display: grid;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.payment-terms-note strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: #155855;
+}
+
+.payment-terms-note span {
+  font-size: 9px;
+  line-height: 1.4;
+  color: #5f5b56;
+}
+
+.payment-terms-rows {
+  display: grid;
   align-content: start;
   gap: 0;
 }
 
-.payment-box div {
+.payment-row {
   display: grid;
   grid-template-columns: 1fr 110px;
   align-items: center;
@@ -2768,7 +2793,7 @@ main:has(> .pc-header) {
   padding: 3px 0;
 }
 
-.payment-box strong {
+.payment-row strong {
   background: var(--orange-soft);
   color: #ffffff;
   padding: 5px 12px;
@@ -2776,19 +2801,19 @@ main:has(> .pc-header) {
   text-align: center;
 }
 
-.payment-box span {
+.payment-row span {
   padding-left: 26px;
   font-size: 10px;
 }
 
-.payment-box .payment-label {
+.payment-row .payment-label {
   display: flex;
   align-items: center;
   gap: 6px;
   padding-left: 8px;
 }
 
-.payment-box .payment-icon {
+.payment-row .payment-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2803,7 +2828,7 @@ main:has(> .pc-header) {
   font-weight: 700;
 }
 
-.payment-box p {
+.payment-terms-rows p {
   margin-top: 5px;
   font-size: 10px;
   text-align: center;
