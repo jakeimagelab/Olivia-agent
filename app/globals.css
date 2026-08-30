@@ -3072,6 +3072,10 @@ main:has(> .pc-header) {
   color: var(--quote-ink);
 }
 
+.quote-app--jakeimage .quote-hero h2::after {
+  background: var(--quote-accent);
+}
+
 .quote-app--jakeimage .client-strip {
   border-top-color: #7f91a7;
   border-left-color: #7f91a7;
