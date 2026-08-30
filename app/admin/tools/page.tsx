@@ -70,8 +70,8 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
             {filteredTools.map((tool) => {
               const Icon = tool.icon;
               return (
-                <Link key={tool.href} href={`${tool.href}${suffix}`} data-tool-category={tool.category} className={`admin-menu-card${tool.orange ? " orange" : ""}`}>
-                  <div className={`admin-menu-icon admin-menu-icon--${tool.category}`}><Icon size={19} /></div>
+                <Link key={tool.href} href={`${tool.href}${suffix}`} data-tool-category={getDisplayCategory(tool)} className={`admin-menu-card${tool.orange ? " orange" : ""}`} aria-label={tool.title}>
+                  <div className="admin-menu-icon"><Icon size={19} /></div>
                   <div className="admin-menu-copy">
                     <span>{tool.meta}</span>
                     <h2>{tool.title}</h2>
