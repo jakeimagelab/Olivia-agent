@@ -3153,12 +3153,12 @@ main:has(> .pc-header) {
   border-bottom-color: #7f91a7;
 }
 .quote-app--jakeimage .client-strip span {
-  background: #dce8f5;
+  background: transparent;
   color: var(--quote-ink);
 }
 
-.quote-app--jakeimage .estimate-table-wrap {
-  border-left-color: #dce8f5;
+.quote-app--jakeimage .client-strip span svg {
+  color: var(--quote-accent);
 }
 
 .quote-app--jakeimage .quote-table th {
@@ -3170,6 +3170,7 @@ main:has(> .pc-header) {
 .quote-app--jakeimage .vat-row td {
   background: #dce8f5;
   color: var(--quote-ink);
+  border-left-color: var(--quote-accent);
 }
 
 .quote-app--jakeimage .discount-row td {
