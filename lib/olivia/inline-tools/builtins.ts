@@ -8,7 +8,6 @@ import PhotoClassificationChatCard from "@/components/olivia/PhotoClassification
 import { usePhotoClassificationChatStore } from "@/lib/store/usePhotoClassificationChatStore";
 import QuoteWizardChatCard from "@/components/olivia/QuoteWizardChatCard";
 import { useQuoteWizardChatStore } from "@/lib/store/useQuoteWizardChatStore";
-import QuoteClientRegistrationChatCard from "@/components/olivia/QuoteClientRegistrationChatCard";
 
 // 이 파일을 import하는 것만으로 등록이 끝난다(side-effect import) — index.ts가 이 파일을
 // re-export해서 앱이 레지스트리를 쓰는 지점(OliviaConversation.tsx, useOliviaConversationStore.ts)
