@@ -3177,6 +3177,10 @@ main:has(> .pc-header) {
   color: var(--quote-ink);
 }
 
+.quote-app--jakeimage .contract-note-icon {
+  color: var(--quote-accent);
+}
+
 .jake-single-item-row {
   display: grid;
   gap: 8px;
