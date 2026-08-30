@@ -2582,6 +2582,14 @@ main:has(> .pc-header) {
   font-weight: 500;
 }
 
+.invoice-meta strong::before {
+  content: "•";
+  display: inline-block;
+  margin-right: 10px;
+  color: var(--orange-soft);
+  font-weight: 700;
+}
+
 .client-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
