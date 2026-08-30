@@ -36,6 +36,7 @@ export function calculateQuoteAmounts(items: QuoteLineItem[], discountAmount = 0
 }
 
 export function buildAgentQuoteData(input: Record<string, any>, workflowRunId?: string) {
+  const brand = resolveBrand(input.brand);
   const packageId = String(input.packageId || "standard") as keyof typeof PACKAGE_CATALOG;
   const selected = PACKAGE_CATALOG[packageId] || PACKAGE_CATALOG.standard;
   const items: QuoteLineItem[] = [{
