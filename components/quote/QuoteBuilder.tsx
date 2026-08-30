@@ -1818,10 +1818,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                 </header>
 
                 <section className="client-strip">
-                  <Info label={cfg.entityLabel} value={customer.hospitalName || "-"} />
-                  <Info label="담당자명" value={customer.managerName || "-"} />
-                  <Info label="연락처" value={customer.phone || "-"} />
-                  <Info label="이메일" value={customer.email || "-"} />
+                  <Info icon={<Building2 size={11} />} label={cfg.entityLabel} value={customer.hospitalName || "-"} />
+                  <Info icon={<UserRound size={11} />} label="담당자명" value={customer.managerName || "-"} />
+                  <Info icon={<Phone size={11} />} label="연락처" value={customer.phone || "-"} />
+                  <Info icon={<Mail size={11} />} label="이메일" value={customer.email || "-"} />
                 </section>
 
                 <section className="estimate-table-wrap">
