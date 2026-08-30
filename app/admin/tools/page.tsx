@@ -47,9 +47,18 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
         {linked ? <a className="oa-context-banner__action" href="/admin/dashboard/home">홈으로 돌아가기</a> : <a className="oa-context-banner__action" href="/clients">고객 선택해서 연결하기</a>}
       </section>
 
-      <CategorySection eyebrow="DOCUMENT HUB" title="통합 문서함" description="저장된 견적·계약·콘티·메모·갤러리를 고객명이나 문서명으로 한 번에 찾습니다.">
-        <DocumentSearchPanel />
-      </CategorySection>
+      <div className="oa-tools-page__heading">
+        <h1>전체 기능</h1>
+        <p>모든 도구를 한 곳에서 빠르게 찾아보고 바로 실행할 수 있습니다.</p>
+      </div>
+
+      {/* 서버 컴포넌트를 유지하기 위해 클라이언트 상태 없이 GET 폼으로 검색한다 — 필터
+          로직(normalizeAdminSearchQuery, title+desc+meta substring)은 이미 있던 것을 그대로
+          쓴다(전체보기 개편, 2026-08-31). CRM 컨텍스트 파라미터는 hidden input으로 보존한다. */}
+      <form className="oa-tools-search" method="GET" action="/admin/tools">
+        {CONTEXT_KEYS.map((key) => (params[key] ? <input key={key} type="hidden" name={key} value={String(params[key])} /> : null))}
+        <input type="search" name="q" defaultValue={rawQuery} placeholder="기능명으로 검색 (예: 견적서, 사진작업실, AI 검색)" aria-label="기능 검색" />
+      </form>
 
       {filteredTools.length ? (
         <ToolCategoryTabs groups={groups} totalCount={filteredTools.length}>
