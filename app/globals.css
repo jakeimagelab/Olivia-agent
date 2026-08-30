@@ -3131,10 +3131,6 @@ main:has(> .pc-header) {
   font-weight: 500;
 }
 
-.quote-app--jakeimage .rail-address strong {
-  background: #dce8f5;
-  color: var(--quote-ink);
-}
 
 .quote-app--jakeimage .quote-hero h2 {
   color: var(--quote-ink);
