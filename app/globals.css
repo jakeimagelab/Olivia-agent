@@ -3181,6 +3181,10 @@ main:has(> .pc-header) {
   color: var(--quote-accent);
 }
 
+.quote-app--jakeimage .brand-logo-image {
+  width: 108px;
+}
+
 .jake-single-item-row {
   display: grid;
   gap: 8px;
