@@ -3200,8 +3200,11 @@ main:has(> .pc-header) {
 .quote-app--jakeimage .total-box {
   border-color: #8b97a7;
 }
-.quote-app--jakeimage .total-box .grand-total strong {
+.quote-app--jakeimage .total-box .grand-total {
   background: var(--quote-ink);
+}
+.quote-app--jakeimage .total-box .grand-total span {
+  background: var(--quote-accent);
 }
 
 .quote-app--jakeimage .contract-note strong {
