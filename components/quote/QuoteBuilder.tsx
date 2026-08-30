@@ -25,6 +25,7 @@ import {
   MapPin,
   Phone,
   Plus,
+  Quote,
   Receipt,
   RefreshCcw,
   Save,
