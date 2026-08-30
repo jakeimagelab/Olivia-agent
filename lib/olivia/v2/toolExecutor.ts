@@ -1112,10 +1112,13 @@ export async function runTool(
     // publish_quote는 QUOTE_MUTATION_TOOLS(lib/olivia/output/quoteConfirmations.ts)에 있어서
     // 이 summary가 모델 자유 텍스트 대신 그대로 채팅에 나간다 — 신규 고객 등록 여부를 여기서
     // 바로 알려주면 별도 승인 카드 없이도 스펙 §31이 요구하는 "발행 직후 정확히 한 번" 안내를
-    // 만족한다.
-    const summary = newlyLinkedClientId
-      ? `견적서를 고객 포털에 공개했어요. ${quoteBeforePublish.hospital_name || "해당 병원"}을 신규 고객으로 등록했어요.`
-      : "견적서를 고객 포털에 공개했어요.";
+    // 만족한다. 완료 문구도 "완료됐습니다"로 뭉뚱그리지 않고 실제 구성을 반영한다(스펙 §22).
+    const summary = [
+      `${quoteBeforePublish.hospital_name || "현재 고객"} 견적서가`,
+      ...buildQuoteBreakdownLines(quoteBeforePublish),
+      "으로 완성되었습니다.",
+      newlyLinkedClientId ? `${quoteBeforePublish.hospital_name || "해당 병원"}을 신규 고객으로 등록했어요.` : null,
+    ].filter((line): line is string => line !== null).join("\n");
     return {
       tool: name,
       success: true,
