@@ -67,8 +67,16 @@ export default function QuoteDiscountForm({ flowId }: { flowId: string }) {
     setError(null);
     try {
       await callOliviaTool("apply_quote_discount", { amount: null, percent, remove });
-      await callOliviaTool("request_quote_publish", {});
-      useQuoteWizardChatStore.getState().setStep(flowId, "complete");
+      // 최종 승인(publish_quote)은 발행 API 자체가 고객을 자동 매칭/생성해버려서, 승인을
+      // 요청하기 전에 먼저 고객 연결 상태를 확인해야 스펙 §23("Finalize 성공 직후 질문")이
+      // 실제로 "묻고 나서 행동"하는 순서가 된다 — 이미 연결되어 있으면 곧장 승인으로 넘어간다.
+      const { result } = await callOliviaTool("resolve_quote_client", { quoteId: flow.quoteId });
+      if (result?.status === "already_linked") {
+        await callOliviaTool("request_quote_publish", {});
+        useQuoteWizardChatStore.getState().setStep(flowId, "complete");
+      } else {
+        useQuoteWizardChatStore.getState().setStep(flowId, "client_check");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "할인 적용에 실패했어요.");
     } finally {
