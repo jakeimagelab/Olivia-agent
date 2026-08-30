@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   CalendarDays,
   ChevronDown,
+  FolderOpen,
   Grid2X2,
   House,
   LogOut,
