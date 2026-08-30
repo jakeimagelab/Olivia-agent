@@ -82,6 +82,7 @@ export const BRAND_CONFIG: Record<Brand, {
   largeScaleLabel: string;
   customItemsLabel: string;
   brandMarkCaption: string;
+  sloganLines: string[];
   railCaptionTitle: string | null;
   railCaptionSub: string | null;
   railNoticeTitle: string;
@@ -101,8 +102,9 @@ export const BRAND_CONFIG: Record<Brand, {
     largeScaleLabel: "병원급 규모 추가",
     customItemsLabel: "기타 항목",
     brandMarkCaption: "제이크이미지연구소 · 병원 전문 브랜드 촬영",
-    railCaptionTitle: null,
-    railCaptionSub: null,
+    sloganLines: ["브랜드를 담습니다.", "정직하고,", "자연스럽게."],
+    railCaptionTitle: "PHOTO CLINIC",
+    railCaptionSub: "BRAND STUDIO",
     railNoticeTitle: "포토클리닉",
     railNoticeSub: "제이크이미지연구소",
     railNoticeDetail: "병원 전문 브랜드 촬영",
@@ -120,9 +122,10 @@ export const BRAND_CONFIG: Record<Brand, {
     largeScaleLabel: "대형 규모 촬영 추가",
     customItemsLabel: "추가항목",
     brandMarkCaption: "Jake Image Institute · Brand Image Direction",
-    railCaptionTitle: "BRAND IMAGE DIRECTION",
-    railCaptionSub: "Portrait · Brand · Editorial",
-    railNoticeTitle: "Jake Image Institute",
+    sloganLines: ["스토리와", "AI로", "브랜드를", "만듭니다"],
+    railCaptionTitle: "jake image lab",
+    railCaptionSub: "Jake Image Institute",
+    railNoticeTitle: "제이크이미지연구소",
     railNoticeSub: "기업과 개인 브랜드의",
     railNoticeDetail: "이미지를 설계합니다.",
     popupBg: "#eef1f5",
