@@ -36,6 +36,7 @@ import { listMailingQueue, sendMailing } from "@/lib/olivia/tools/mailing";
 import { getContiStatus } from "@/lib/olivia/tools/conti";
 import { createGallery, getGallery } from "@/lib/olivia/tools/gallery";
 import { linkDocumentToClient } from "@/lib/olivia/tools/documentLink";
+import { linkNewClientToQuote, resolveQuoteClient } from "@/lib/olivia/tools/quoteClientLink";
 import { continueTaskSession, getTaskSessionStatus, pauseTaskSession, startTaskSession } from "@/lib/olivia/tools/taskSession";
 import { findCalendarConflicts } from "@/lib/assistant/actions/calendarAvailability";
 import {
