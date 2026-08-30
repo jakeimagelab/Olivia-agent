@@ -135,6 +135,12 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   },
   apply_quote_rebalance: async ({ result }) => mutationActions("quote", result),
   publish_quote: async ({ result }) => mutationActions("quote", result),
+  // 읽기 전용이라 UI 액션이 없다 — QuoteWizardChatCard/QuoteClientRegistrationChatCard가
+  // callOliviaTool로 이 도구를 직접 호출해 result.data를 그대로 읽는다. 여기서 카드를 여는
+  // ui_action을 만들면 마법사가 이미 자기 안에서 같은 도구를 부를 때도 중복 카드가 뜬다
+  // (견적서 UX 개편, 2026-08-31).
+  resolve_quote_client: async () => [],
+  link_new_client_to_quote: async ({ result }) => mutationActions("quote", result),
   download_quote_pdf: async ({ result, context }) => {
     if (!result.success) return [];
     const resourceId = value(result.data, "resourceId") || context.activeResourceId;
