@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // resolve_quote_client — 견적서 마법사가 최종 승인 요청 직전에 호출해 병원명으로 등록된 고객을
 // 찾는다(견적서 UX 개편, 2026-08-31). 0/1/다건 매치 분기와 이미 연결된 경우의 조기 반환만
