@@ -1104,6 +1104,31 @@ export async function runTool(
     };
   }
 
+  if (name === "resolve_quote_client") {
+    const resourceId = text(input, "quoteId") || activeResource(context, "quote");
+    const quote = await loadQuote(resourceId);
+    const match = await resolveQuoteClient(db, quote);
+    return { tool: name, success: true, data: match };
+  }
+
+  if (name === "link_new_client_to_quote") {
+    const resourceId = text(input, "resourceId") || activeResource(context, "quote");
+    const clientId = text(input, "clientId") || null;
+    const { updated, client } = await linkNewClientToQuote(db, {
+      resourceId,
+      clientId,
+      hospitalName: text(input, "hospitalName") || null,
+      contactName: text(input, "contactName") || null,
+      phone: text(input, "phone") || null,
+      email: text(input, "email") || null,
+    });
+    return {
+      tool: name,
+      success: true,
+      data: { resourceId, updatedResource: updated, summary: `${client.hospital_name}에 이 견적서를 연결했어요.` },
+    };
+  }
+
   if (["add_conti_shots", "update_conti_shot", "remove_conti_shot", "apply_remove_conti_shot", "reorder_conti_shot", "duplicate_conti_shot", "estimate_conti_duration", "generate_shoot_prep_from_conti"].includes(name)) {
     const resourceId = activeResource(context, "conti");
     const conti = await loadConti(resourceId);
