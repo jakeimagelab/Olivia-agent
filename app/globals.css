@@ -3116,6 +3116,10 @@ main:has(> .pc-header) {
   background: var(--quote-ink);
 }
 
+.quote-app--jakeimage .payment-box .payment-icon {
+  background: var(--quote-accent);
+}
+
 .quote-app--jakeimage .total-box {
   border-color: #8b97a7;
 }
