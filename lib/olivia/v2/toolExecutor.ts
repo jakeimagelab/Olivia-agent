@@ -1073,21 +1073,13 @@ export async function runTool(
     // REQUEST_APPROVAL(approval 블록)의 summary 문자열만 여러 줄로 조립한다(결정 A). 금액은
     // 전부 이미 DB에 저장된 실제 값(quotes 테이블, computeQuoteTotals/calculateQuoteAmounts가
     // 계산해 저장한 것)이고 여기서 새로 계산하지 않는다.
-    const won = (value: unknown) => `${(Number(value) || 0).toLocaleString("ko-KR")}원`;
-    const items = Array.isArray(quote.items) ? (quote.items as Array<Record<string, unknown>>) : [];
-    const itemLines = items.map((item) => `- ${item.name}${item.detail ? ` (${item.detail})` : ""}`);
-    const discountAmount = Number(quote.discount_amount) || 0;
     const summary = [
       `${quote.hospital_name || "현재 고객"} 견적 ${quote.quote_number || ""}`.trim(),
-      ...itemLines,
       "",
-      discountAmount > 0 ? `할인: ${won(discountAmount)}` : null,
-      `공급가액: ${won(quote.supply_amount)}`,
-      `부가세: ${won(quote.vat)}`,
-      `최종 금액: ${won(quote.total_amount)}`,
+      ...buildQuoteBreakdownLines(quote),
       "",
       "이대로 최종 승인할까요?",
-    ].filter((line): line is string => line !== null).join("\n");
+    ].join("\n");
     return { tool: name, success: true, data: { resourceId, quoteId: resourceId, approvalRequired: true, hospitalName: quote.hospital_name, totalAmount: quote.total_amount, quoteNumber: quote.quote_number, summary } };
   }
 
