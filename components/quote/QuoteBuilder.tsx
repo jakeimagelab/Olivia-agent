@@ -1937,19 +1937,25 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
                 <footer className="quote-bottom">
                   <div className="payment-box">
-                    <div>
-                      {depositRate > 0 && <>
-                        <span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>선금{depositRate}%</strong></span>
-                        <span>{amount(Math.round(finalAmount * depositRate / 100))}</span>
-                      </>}
+                    <div className="payment-terms-note">
+                      <strong>결제조건</strong>
+                      <span>선금 50%, 잔금 50% 기준<br />세부 조건은 상호 협의 가능</span>
                     </div>
-                    <div>
-                      {depositRate < 100 && <>
-                        <span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>잔금{100-depositRate}%</strong></span>
-                        <span>{amount(Math.round(finalAmount * (100-depositRate) / 100))}</span>
-                      </>}
+                    <div className="payment-terms-rows">
+                      <div className="payment-row">
+                        {depositRate > 0 && <>
+                          <span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>선금{depositRate}%</strong></span>
+                          <span>{amount(Math.round(finalAmount * depositRate / 100))}</span>
+                        </>}
+                      </div>
+                      <div className="payment-row">
+                        {depositRate < 100 && <>
+                          <span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>잔금{100-depositRate}%</strong></span>
+                          <span>{amount(Math.round(finalAmount * (100-depositRate) / 100))}</span>
+                        </>}
+                      </div>
+                      <p>세부 결제 조건은 상호 협의에 따라 조정될 수 있습니다.</p>
                     </div>
-                    <p>세부 결제 조건은 상호 협의에 따라 조정될 수 있습니다.</p>
                   </div>
 
                   <div className="total-signature">
