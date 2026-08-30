@@ -114,7 +114,7 @@ export const BRAND_CONFIG: Record<Brand, {
   },
   jakeimage: {
     label: "제이크이미지연구소",
-    logo: "/assets/jakeimage-logo.png",
+    logo: "/assets/jakeimage-logo-2026.png",
     defaultQuoteTitle: "제이크이미지연구소 브랜드사진 견적서",
     entityLabel: "회사명",
     entityPlaceholder: "제이크이미지연구소",
