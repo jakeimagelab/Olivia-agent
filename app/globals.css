@@ -2388,7 +2388,7 @@ main:has(> .pc-header) {
 
 .quote-page {
   display: grid;
-  grid-template-columns: 126px 1fr;
+  grid-template-columns: 150px 1fr;
   width: 1123px;
   min-height: 794px;
   margin: 0;
