@@ -54,11 +54,18 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
     const execution = await callPublishQuote();
     expect(execution.result.success).toBe(true);
     expect(execution.result.data?.newlyLinkedClientId).toBe("new-client-1");
-    expect(execution.result.data?.summary).toMatch(/유진스의원.*신규 고객으로 등록했어요/);
+    const summary = String(execution.result.data?.summary);
+    expect(summary).toContain("유진스의원 견적서가 완성되었습니다.");
+    expect(summary).toContain("스탠다드 패키지");
+    expect(summary).toContain("유진스의원을 신규 고객으로 등록했어요.");
   });
 
   it("발행 전에 이미 client_id가 연결돼 있었으면 신규 등록 문구를 붙이지 않는다", async () => {
-    quoteRow = { id: "quote-1", hospital_name: "유진스의원", client_id: "existing-client-1" };
+    quoteRow = {
+      id: "quote-1", hospital_name: "유진스의원", client_id: "existing-client-1",
+      items: [{ name: "스탠다드 패키지", detail: "프로필 + 연출사진" }],
+      discount_amount: 0, total_amount: 1_350_000,
+    };
     global.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({ ok: true, clientId: "existing-client-1", workflowRunId: "run-1", portalUrl: "https://example.com/portal/abc" }),
@@ -67,8 +74,10 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
     const execution = await callPublishQuote();
     expect(execution.result.success).toBe(true);
     expect(execution.result.data?.newlyLinkedClientId).toBeUndefined();
-    expect(execution.result.data?.summary).not.toMatch(/신규 고객으로 등록했어요/);
-    expect(execution.result.data?.summary).toBe("견적서를 고객 포털에 공개했어요.");
+    const summary = String(execution.result.data?.summary);
+    expect(summary).not.toMatch(/신규 고객으로 등록했어요/);
+    expect(summary).toContain("유진스의원 견적서가 완성되었습니다.");
+    expect(summary).toContain("최종 금액: 1,350,000원");
   });
 
   it("발행 자체가 실패하면(ok:false) success:false로 실패를 그대로 보고한다 — 신규 등록 판단 로직이 실패를 가리지 않는다", async () => {
