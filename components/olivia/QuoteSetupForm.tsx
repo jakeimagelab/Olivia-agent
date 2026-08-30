@@ -102,6 +102,10 @@ export default function QuoteSetupForm({ flowId }: { flowId: string }) {
         </div>
       </div>
       <div className="olivia-select-match-card__section">
+        <strong>기타 요청(선택)</strong>
+        <textarea value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="기타 요청사항" rows={2} />
+      </div>
+      <div className="olivia-select-match-card__section">
         {error && <div className="olivia-select-match-card__error">{error}</div>}
         <div className="olivia-select-match-card__actions">
           <button type="button" onClick={submit} disabled={!canSubmit}>
