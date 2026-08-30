@@ -2937,23 +2937,23 @@ main:has(> .pc-header) {
 
 .contract-note strong {
   color: #155855;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .contract-note p {
   margin: 0;
-  font-size: 10px;
-  line-height: 1.65;
+  font-size: 11px;
+  line-height: 1.7;
   word-break: keep-all;
 }
 
 .contract-note small {
   display: block;
-  margin-top: 3px;
+  margin-top: 4px;
   color: #5f5b56;
   font-size: 10px;
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
 }
 
