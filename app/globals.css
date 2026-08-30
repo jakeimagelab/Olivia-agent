@@ -2774,20 +2774,21 @@ main:has(> .pc-header) {
   font-size: 10px;
 }
 
-.payment-label {
+.payment-box .payment-label {
   display: flex;
   align-items: center;
   gap: 6px;
   padding-left: 8px;
 }
 
-.payment-icon {
+.payment-box .payment-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   width: 16px;
   height: 16px;
+  padding-left: 0;
   border-radius: 50%;
   background: var(--orange-soft);
   color: #ffffff;
