@@ -1082,15 +1082,18 @@ main:has(> .pc-header) {
   background: #fff;
 }
 
-/* 전체보기 카드 20% 축소(요청) — 다른 페이지(예전 홈, 마케팅, 프롬프터)의 admin-menu-card는
-   그대로 두고 이 페이지에서만 크기를 줄인다. 640px 이하 모바일 압축 레이아웃은 이미 터치
-   타겟이 작아서 더 줄이지 않는다. */
-.oa-tools-page .admin-menu-grid { gap: 10px; }
-.oa-tools-page .admin-menu-card { min-height: 176px; padding: 16px; border-radius: 16px; gap: 13px; }
-.oa-tools-page .admin-menu-icon { width: 42px; height: 42px; border-radius: 11px; }
-.oa-tools-page .admin-menu-copy span { font-size: 8.5px; }
-.oa-tools-page .admin-menu-copy h2 { margin-top: 5px; font-size: 13.5px; }
-.oa-tools-page .admin-menu-copy p { margin-top: 6px; font-size: 10px; }
+/* 전체보기 카드 축소 — 다른 페이지(예전 홈, 마케팅, 프롬프터)의 admin-menu-card는 그대로
+   두고 이 페이지에서만 크기를 줄인다. 640px 이하 모바일 압축 레이아웃은 이미 터치 타겟이
+   작아서 더 줄이지 않는다. app/layout.tsx가 globals.css → admin.css 순서로 import해서
+   admin.css의 .oa-tools-page 블록(파일 끝, 2026-08-31 추가)이 동일 특이도에서 항상 이긴다 —
+   여기 값도 같이 맞춰서 두 파일이 서로 다른 값을 들고 있는 혼란을 없앤다(실제 화면에는
+   admin.css 쪽이 적용된다). */
+.oa-tools-page .admin-menu-grid { gap: 12px; }
+.oa-tools-page .admin-menu-card { min-height: 160px; padding: 17px; border-radius: 14px; gap: 13px; }
+.oa-tools-page .admin-menu-icon { width: 40px; height: 40px; border-radius: 11px; background: rgba(21,88,85,.06); color: #155855; }
+.oa-tools-page .admin-menu-copy span { font-size: 9.5px; }
+.oa-tools-page .admin-menu-copy h2 { margin-top: 8px; font-size: 14.5px; }
+.oa-tools-page .admin-menu-copy p { margin-top: 4px; font-size: 11px; }
 .oa-tools-page .admin-menu-action { width: 26px; height: 26px; }
 
 .calendar-page-shell {
