@@ -2602,9 +2602,14 @@ main:has(> .pc-header) {
 .client-strip strong {
   display: flex;
   align-items: center;
+  gap: 4px;
   padding: 5px 7px;
   font-size: 10px;
   line-height: 1.25;
+}
+
+.client-strip span svg {
+  flex-shrink: 0;
 }
 
 .client-strip span {
