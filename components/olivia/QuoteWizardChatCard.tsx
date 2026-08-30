@@ -20,6 +20,18 @@ export default function QuoteWizardChatCard({ flowId }: { flowId: string }) {
   if (flow.step === "brand") return <QuoteBrandSelector flowId={flowId} />;
   if (flow.step === "setup") return <QuoteSetupForm flowId={flowId} />;
   if (flow.step === "discount") return <QuoteDiscountForm flowId={flowId} />;
+  if (flow.step === "client_check" && flow.quoteId) {
+    const quoteId = flow.quoteId;
+    return (
+      <QuoteClientRegistrationChatCard
+        flowId={quoteId}
+        onDone={() => {
+          useQuoteWizardChatStore.getState().setStep(flowId, "complete");
+          void callOliviaTool("request_quote_publish", {});
+        }}
+      />
+    );
+  }
   if (flow.step === "error") {
     return (
       <div className="olivia-select-match-card">
