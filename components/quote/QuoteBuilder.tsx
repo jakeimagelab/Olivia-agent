@@ -1980,6 +1980,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                   </div>
 
                   <div className="contract-note">
+                    <Quote className="contract-note-icon" aria-hidden="true" />
                     <div>
                       <strong>계약 안내</strong>
                       <p>
