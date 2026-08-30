@@ -3182,7 +3182,7 @@ main:has(> .pc-header) {
 }
 
 .quote-app--jakeimage .payment-row strong {
-  background: var(--quote-ink);
+  color: var(--quote-ink);
 }
 
 .quote-app--jakeimage .payment-row .payment-icon {
