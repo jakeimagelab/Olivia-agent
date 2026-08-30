@@ -9,7 +9,7 @@ import type { Brand } from "@/lib/quote/quoteFormTypes";
 // 데이터 자체(고객정보/패키지/할인 등)는 절대 중복 저장하지 않고 lib/store/useQuoteStore.ts가
 // 유일한 소스로 남는다. brand는 create_quote가 실제로 실행되기 전까지의 임시 선택값일 뿐이고,
 // 생성 후에는 useQuoteStore.brand가 진짜 값이다(견적서 UX 개편, 2026-08-31).
-export type QuoteWizardStep = "brand" | "setup" | "discount" | "complete" | "error";
+export type QuoteWizardStep = "brand" | "setup" | "discount" | "client_check" | "complete" | "error";
 
 export type QuoteWizardFlowState = {
   flowId: string;
