@@ -2961,7 +2961,7 @@ main:has(> .pc-header) {
   display: grid;
   justify-items: center;
   gap: 0;
-  width: 112px;
+  width: 118px;
   margin-left: auto;
   margin-right: 8px;
 }
@@ -2975,7 +2975,7 @@ main:has(> .pc-header) {
 
 .signature-area img {
   display: block;
-  width: 104px;
+  width: 110px;
   height: auto;
 }
 
@@ -2985,8 +2985,8 @@ main:has(> .pc-header) {
   align-items: end;
   justify-items: center;
   gap: 12px;
-  margin-top: 4px;
-  padding: 0 8px 10px;
+  margin-top: 8px;
+  padding: 0 8px 14px;
 }
 
 .brand-mark-spacer { width: 100%; }
@@ -2995,7 +2995,7 @@ main:has(> .pc-header) {
 
 .brand-logo-image {
   display: block;
-  width: 78px;
+  width: 100px;
   height: auto;
   object-fit: contain;
 }
@@ -3003,7 +3003,7 @@ main:has(> .pc-header) {
 .quote-brand-mark p {
   margin: 0;
   color: #6d6d6d;
-  font-size: 9px;
+  font-size: 8px;
 }
 
 /* ============================================================
