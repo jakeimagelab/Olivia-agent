@@ -89,9 +89,9 @@ export default function QuoteSetupForm({ flowId }: { flowId: string }) {
       </div>
       <div className="olivia-select-match-card__section">
         <strong>담당자 정보(선택)</strong>
-        <textarea value={contactName} onChange={(event) => setContactName(event.target.value)} placeholder="담당자명" rows={1} />
-        <textarea value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="연락처" rows={1} />
-        <textarea value={email} onChange={(event) => setEmail(event.target.value)} placeholder="이메일" rows={1} />
+        <input type="text" value={contactName} onChange={(event) => setContactName(event.target.value)} placeholder="담당자명" />
+        <input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="연락처" />
+        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="이메일" />
         <input type="date" value={shootDate} onChange={(event) => setShootDate(event.target.value)} />
       </div>
       <div className="olivia-select-match-card__section">
