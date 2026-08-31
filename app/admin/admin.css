@@ -4273,9 +4273,13 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
 
 .oa-tools-page .admin-menu-card {
   position: relative;
-  min-height: 132px;
-  padding: 14px 14px 13px;
-  gap: 9px;
+  /* 화살표를 자체 grid row 대신 우하단에 절대배치로 띄워서(아래 .admin-menu-action) 그
+     row+gap만큼의 높이를 아낀다 — 아이콘/제목/설명만으로 카드 높이가 정해지게 해야
+     120~145px 목표(스펙 §5)를 실제 콘텐츠(2줄 설명 포함)로도 맞출 수 있다. */
+  grid-template-rows: auto 1fr;
+  min-height: 128px;
+  padding: 13px 14px 13px;
+  gap: 7px;
   border-radius: 13px;
   border: 1px solid rgba(21,88,85,.10);
   background: #fff;
