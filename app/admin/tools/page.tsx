@@ -50,7 +50,7 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
         {linked ? <a className="oa-context-banner__action" href="/admin/dashboard/home">홈으로 돌아가기</a> : <a className="oa-context-banner__action" href="/clients">고객 선택해서 연결하기</a>}
       </section>
 
-      <div className="oa-tools-page__heading">
+      <div className="oa-tools-launcher__heading">
         <h1>전체 기능</h1>
         <p>모든 도구를 한 곳에서 빠르게 찾아보고 바로 실행할 수 있습니다.</p>
       </div>
