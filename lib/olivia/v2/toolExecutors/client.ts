@@ -59,7 +59,7 @@ export const CLIENT_TOOL_NAMES = [
 export async function executeClientTool(
   name: string,
   input: Record<string, unknown>,
-  context: OliviaContextSnapshot,
+  _context: OliviaContextSnapshot,
 ): Promise<OliviaToolResult> {
   const db = getSupabaseAdmin();
 
