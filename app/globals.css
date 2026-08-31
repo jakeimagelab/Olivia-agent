@@ -2505,9 +2505,9 @@ main:has(> .pc-header) {
 }
 
 .rail-notice--brand {
-  gap: 3px;
-  padding-top: 12px;
-  padding-bottom: 16px;
+  gap: 2px;
+  padding-top: 10px;
+  padding-bottom: 12px;
 }
 
 .rail-notice--brand strong {
