@@ -4397,11 +4397,20 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
 .oa-tools-page .oa-tool-search-empty p { font-size: 9px; }
 
 /* 모바일 1열 — 설명을 숨기거나 카드를 정사각 아이콘 타일로 바꾸지 않는다(스펙 §35). 640px
-   이하에서는 이미 globals.css 기본 규칙이 카드를 아이콘-좌/텍스트-우 가로형으로 바꾸는데,
-   그 레이아웃은 그대로 두고 크기만 이 페이지에서 살짝 더 조인다. */
+   이하에서는 이미 globals.css 기본 규칙(grid-template-columns:auto 1fr auto,
+   grid-template-rows:none)이 카드를 아이콘-좌/텍스트-우/화살표-우 가로형 한 줄로 바꾼다 —
+   그 레이아웃은 그대로 두고 크기만 이 페이지에서 살짝 더 조인다. 데스크톱 전용으로 넣은
+   grid-template-rows:auto 1fr와 화살표 absolute 배치(위)는 이 breakpoint 안에서 명시적으로
+   되돌려서 가로형 배치를 깨지 않게 한다. */
 @media (max-width: 640px) {
-  .oa-tools-page .admin-menu-card { min-height: 0; padding: 11px 13px; }
+  .oa-tools-page .admin-menu-card {
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: none;
+    min-height: 0;
+    padding: 11px 13px;
+  }
   .oa-tools-page .admin-menu-icon { width: 34px; height: 34px; }
+  .oa-tools-page .admin-menu-copy { padding-right: 0; }
   .oa-tools-page .admin-menu-copy p {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -4409,5 +4418,10 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
     overflow: hidden;
     white-space: normal;
   }
-  .oa-tools-page .admin-menu-action { display: inline-flex; width: 24px; height: 24px; }
+  .oa-tools-page .admin-menu-action {
+    position: static;
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+  }
 }
