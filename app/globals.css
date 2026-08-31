@@ -2669,19 +2669,19 @@ main:has(> .pc-header) {
   border: 0;
   border-bottom: 1px solid rgba(21, 88, 85, 0.18);
   height: auto;
-  min-height: 40px;
-  padding: 10px 14px;
-  font-size: 11px;
-  line-height: 1.4;
+  min-height: 32px;
+  padding: 7px 12px;
+  font-size: 10.5px;
+  line-height: 1.32;
   vertical-align: middle;
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
 .quote-table th {
-  height: 40px;
-  padding-top: 10px;
-  padding-bottom: 10px;
+  height: 32px;
+  padding-top: 7px;
+  padding-bottom: 7px;
   background: var(--deep-green);
   color: #ffffff;
   text-align: center;
