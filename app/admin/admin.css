@@ -1229,30 +1229,12 @@
   .oa-header-quick-trigger,
   .oa-header-search__mobile-trigger { width: 34px; height: 34px; }
 
-  .oa-tools-page .admin-menu-card,
-  .oa-tools-page .admin-menu-card:hover {
-    width: 100%;
-    min-height: 82px;
-    aspect-ratio: auto;
-    border: 1px solid transparent !important;
-    border-radius: 14px !important;
-    padding: 8px 5px !important;
-    background: #fff !important;
-    box-shadow: 0 6px 18px rgba(10,40,35,.04) !important;
-    transform: none !important;
-  }
   .oa-tools-page .oa-category-section { padding-inline: 8px; }
-  .oa-tools-page .admin-menu-grid { width: 100%; grid-template-columns: repeat(4,minmax(0,1fr)); column-gap: 0; row-gap: 12px; justify-items: stretch; }
-  .oa-tools-page .admin-menu-card { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
-  .oa-tools-page .admin-menu-icon {
-    width: 63px !important;
-    height: 63px !important;
-    flex: 0 0 63px;
-    border-radius: 21px !important;
-  }
-  .oa-tools-page .admin-menu-icon svg { width: 28px; height: 28px; stroke-width: 2; }
-  .oa-tools-page .admin-menu-copy { width: 100%; text-align: center; }
-  .oa-tools-page .admin-menu-copy h2 { margin-top: 4px !important; font-size: 8.5px !important; line-height: 1.25; }
+  /* 예전엔 여기서 전체보기 카드를 4열 정사각 아이콘 타일(그리드 4열, !important 다수)로
+     바꿨다 — 새 스펙(§34-35)이 모바일 1열 + 설명 2줄 유지를 요구해서 이 페이지 몫만
+     제거한다. 나머지(oa-header--enhanced, crm-kpi-*) 규칙은 이 breakpoint에서 계속 쓰이므로
+     그대로 둔다. 실제 모바일 카드 크기·레이아웃은 admin.css 맨 끝의
+     .oa-tools-page 블록(@media max-width:640px)이 담당한다. */
 
   .crm-kpi-row { gap: 7px; margin-bottom: 11px; }
   .crm-kpi { min-height: 76px; border-radius: 10px; padding: 9px 9px 8px 12px; }
