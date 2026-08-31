@@ -2619,7 +2619,7 @@ main:has(> .pc-header) {
 .client-strip div {
   display: grid;
   grid-template-columns: 80px 1fr;
-  min-height: 34px;
+  min-height: 28px;
   border-right: 1px solid rgba(235, 117, 76, 0.32);
   border-bottom: 1px solid rgba(235, 117, 76, 0.32);
 }
@@ -2629,9 +2629,9 @@ main:has(> .pc-header) {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 9px;
-  font-size: 11px;
-  line-height: 1.3;
+  padding: 5px 9px;
+  font-size: 10.5px;
+  line-height: 1.25;
 }
 
 .client-strip span svg {
