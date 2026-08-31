@@ -4200,6 +4200,28 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
 .olivia-select-match-card__tabs button { flex: 1; padding: 7px 8px; border: 1px solid rgba(21,88,85,.12); border-radius: 8px; background: #fff; color: #5A7470; font-size: 11px; font-weight: 700; cursor: pointer; }
 .olivia-select-match-card__tabs button.is-active { border-color: #155855; background: #EAF4F2; color: #155855; }
 .olivia-select-match-card textarea { width: 100%; box-sizing: border-box; border: 1px solid rgba(21,88,85,.12); border-radius: 8px; padding: 8px 10px; font-size: 11px; font-family: monospace; resize: vertical; background: #EDF5F3; color: #1C2B28; }
+/* 견적서 마법사 폼(QuoteSetupForm/QuoteDiscountForm)의 병원명/담당자명/연락처/이메일/촬영일/
+   인원수처럼 한 줄짜리 값은 textarea가 아니라 input이어야 한다 — textarea를 rows=1로 써도
+   높이가 안 줄어드는 버그가 있었다(2026-08-31 스크린샷 리포트로 발견). textarea와 같은
+   시각 스타일을 한 줄 높이로 맞춰서 쓴다. */
+.olivia-select-match-card input[type="text"],
+.olivia-select-match-card input[type="email"],
+.olivia-select-match-card input[type="tel"],
+.olivia-select-match-card input[type="date"],
+.olivia-select-match-card input[type="number"],
+.olivia-select-match-card input[type="search"] {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(21,88,85,.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-family: inherit;
+  background: #EDF5F3;
+  color: #1C2B28;
+}
+.olivia-select-match-card input:focus,
+.olivia-select-match-card textarea:focus { outline: none; border-color: #155855; }
 .olivia-select-match-card__dropzone { border: 2px dashed rgba(21,88,85,.12); border-radius: 10px; padding: 20px 12px; text-align: center; font-size: 11px; color: #5A7470; cursor: pointer; }
 .olivia-select-match-card__dropzone.is-dragging { border-color: #155855; background: #EAF4F2; }
 .olivia-select-match-card__samples { background: #EAF4F2; border-radius: 8px; padding: 8px 10px; font-size: 10.5px; font-family: monospace; color: #5A7470; }
