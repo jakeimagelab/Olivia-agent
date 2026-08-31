@@ -2732,10 +2732,10 @@ main:has(> .pc-header) {
 }
 
 .category-row td {
-  height: 40px;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  padding-left: 18px;
+  height: 32px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 16px;
   background: #fbf1e2;
   color: #2c2a26;
   font-weight: 600;
