@@ -3222,15 +3222,9 @@
   .olivia-agent-home .olivia-conversation--home { height: clamp(300px,44dvh,400px); }
 }
 
-@media (max-width: 560px) {
-  .oa-tools-page .admin-menu-icon {
-    width: 54px !important;
-    height: 54px !important;
-    flex-basis: 54px;
-    border-radius: 17px !important;
-  }
-  .oa-tools-page .admin-menu-icon svg { width: 24px; height: 24px; }
-}
+/* 예전엔 여기 ≤560px 전용으로 전체보기 아이콘을 54px(!important)로 키우는 규칙이 있었다 —
+   admin.css 맨 끝의 .oa-tools-page 블록(@media max-width:640px)이 이제 이 폭까지 일관되게
+   34px 아이콘을 담당하므로(스펙 §7-8, 34~38px 통일) 제거한다. */
 
 /* Home과 Drawer가 동일 Conversation을 공유하므로 메시지/입력 영역은 각 표면을 꽉 채운다. */
 .olivia-agent-home .olivia-conversation--home .olivia-conversation__messages,
