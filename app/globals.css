@@ -2457,10 +2457,10 @@ main:has(> .pc-header) {
 
 .rail-address {
   display: grid;
-  gap: 4px;
-  min-height: 96px;
+  gap: 3px;
+  min-height: 86px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-  padding-top: 28px;
+  padding-top: 22px;
 }
 
 .rail-address span {
