@@ -66,11 +66,25 @@ export type OliviaContextSnapshot = {
 
 export type OliviaToolCall = { id: string; name: string; arguments: string };
 
+// Agent 실행 구조 개편(2026-08-31) — "실행했다고 생각함"과 "실제 결과를 확인함"을 구분한다.
+// success는 여전히 "요청의 핵심 목적을 달성했는가"를 뜻하고, verification은 그 판단을 뒷받침하는
+// 개별 신호들이다. 전부 optional이라 verification 없이 반환하는 기존 tool도 그대로 동작한다.
+export type OliviaToolVerification = {
+  executed?: boolean;
+  persisted?: boolean;
+  uiUpdated?: boolean;
+  linked?: boolean;
+  resourceExists?: boolean;
+  verifiedAt?: string;
+  details?: Record<string, boolean | string | number | null>;
+};
+
 export type OliviaToolResult = {
   tool: string;
   success: boolean;
   data?: Record<string, unknown>;
   error?: string;
+  verification?: OliviaToolVerification;
 };
 
 export type OliviaAgentToolExecution = {
