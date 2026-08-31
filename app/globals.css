@@ -2540,8 +2540,8 @@ main:has(> .pc-header) {
 .quote-content {
   display: flex;
   flex-direction: column;
-  gap: 13px;
-  padding: 32px 32px 28px 44px;
+  gap: 9px;
+  padding: 24px 30px 20px 42px;
 }
 
 .quote-hero {
@@ -2549,17 +2549,17 @@ main:has(> .pc-header) {
   grid-template-columns: 360px 1fr;
   align-items: start;
   justify-content: space-between;
-  min-height: 132px;
-  gap: 32px;
+  min-height: 112px;
+  gap: 28px;
 }
 
 .quote-hero h2 {
   position: relative;
   margin: 0;
-  padding-bottom: 14px;
+  padding-bottom: 11px;
   font-family: "Nanum Myeongjo", "AppleMyungjo", "Batang", serif;
   color: var(--orange-soft);
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 500;
   line-height: 1.24;
   text-align: right;
@@ -2574,23 +2574,23 @@ main:has(> .pc-header) {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 72px;
+  width: 68px;
   height: 2px;
   background: var(--orange-soft);
 }
 
 .invoice-meta {
   display: grid;
-  gap: 10px;
-  padding-top: 68px;
+  gap: 7px;
+  padding-top: 50px;
   padding-left: 6px;
 }
 
 .invoice-meta div {
   display: grid;
   grid-template-columns: 130px 1fr;
-  gap: 22px;
-  font-size: 12px;
+  gap: 20px;
+  font-size: 11px;
 }
 
 .invoice-meta span {
