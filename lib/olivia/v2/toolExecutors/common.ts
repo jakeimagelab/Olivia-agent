@@ -1,0 +1,66 @@
+import { getSupabaseAdmin } from "@/lib/supabase";
+import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
+
+// toolExecutor.ts 구조 개편(2026-08-31) — quote/contract/conti 등 여러 domain executor가
+// 공통으로 쓰는 작은 헬퍼만 모은다. domain 전용 로직(loadQuote 등)은 각자의 파일에 둔다
+// (스펙 §9 "domain 파일마다 복사하지 않는다" — 반대로 공통이 아닌 걸 여기로 몰아넣지도 않는다).
+
+export function text(input: Record<string, unknown>, key: string) {
+  const value = input[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+// calendar.ts/workflow.ts/mailing.ts/gallery.ts, chatWorkTools.ts는 전부 레거시(Claude) 경로와
+// 공유하는 {action:"done", message, ...} 모양으로 결과를 돌려준다 — v2가 기대하는
+// {tool, success, data} 모양으로 한 곳에서만 변환한다.
+export function fromLegacyResult(
+  name: string,
+  result: { action?: string; message: string; [key: string]: unknown },
+): OliviaToolResult {
+  const { message, action, ...rest } = result;
+  return { tool: name, success: true, data: { message, ...rest } };
+}
+
+export function workspaceLabel(workspace: string) {
+  return workspace === "quote" ? "견적서" : workspace === "contract" ? "계약서" : "콘티";
+}
+
+export function activeResource(context: OliviaContextSnapshot, workspace: "quote" | "conti" | "contract") {
+  if (context.activeWorkspace !== workspace || !context.activeResourceId) {
+    throw new Error(`먼저 수정할 ${workspaceLabel(workspace)}를 열어주세요.`);
+  }
+  return context.activeResourceId;
+}
+
+export async function latestResource(workspace: "quote" | "contract" | "conti", context: OliviaContextSnapshot) {
+  const db = getSupabaseAdmin();
+  const config = workspace === "quote"
+    ? { table: "quotes", date: "created_at" }
+    : workspace === "conti"
+      ? { table: "conti_saves", date: "saved_at" }
+      : { table: "contracts", date: "created_at" };
+  let query = db.from(config.table).select("*").order(config.date, { ascending: false }).limit(1);
+  if (context.activeProjectId) query = query.eq("workflow_run_id", context.activeProjectId);
+  else if (context.activeClientId) query = query.eq("client_id", context.activeClientId);
+  else if (context.activeClientName) query = query.eq("hospital_name", context.activeClientName);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error(`${workspaceLabel(workspace)} 데이터를 확인하지 못했어요.`);
+  return data as Record<string, unknown> | null;
+}
+
+export const COMMON_TOOL_NAMES = ["show_workspace"] as const;
+
+export async function executeCommonTool(
+  name: string,
+  input: Record<string, unknown>,
+  context: OliviaContextSnapshot,
+): Promise<OliviaToolResult> {
+  if (name === "show_workspace") {
+    const workspace = text(input, "workspace") as "quote" | "contract" | "conti";
+    if (!(["quote", "contract", "conti"] as const).includes(workspace)) throw new Error("지원하지 않는 작업 화면이에요.");
+    const resource = await latestResource(workspace, context);
+    if (!resource?.id) throw new Error(`현재 프로젝트의 ${workspaceLabel(workspace)}를 찾지 못했어요.`);
+    return { tool: name, success: true, data: { workspace, resourceId: String(resource.id) } };
+  }
+  throw new Error("지원하지 않는 Olivia 작업이에요.");
+}
