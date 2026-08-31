@@ -4434,7 +4434,10 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
 }
 .oa-tools-launcher .admin-menu-card.orange:hover .admin-menu-action { background: rgba(232,93,44,.14); }
 
-/* 검색 결과 없음 — 큰 CategorySection처럼 보이지 않게 컴팩트화(스펙 §36). */
+/* 검색 결과 없음 — 큰 CategorySection처럼 보이지 않게 컴팩트화(스펙 §36). 예전엔
+   .oa-tools-page .oa-category-section__title(977행)로 이 eyebrow 제목 색을 맞췄는데,
+   래퍼 클래스가 바뀌어서 더 안 걸리므로 여기서 다시 챙긴다. */
+.oa-tools-launcher .oa-category-section__title { color: #155855; font-size: 12px; }
 .oa-tools-launcher .oa-tool-search-empty { min-height: 140px; padding: 18px; }
 .oa-tools-launcher .oa-tool-search-empty strong { font-size: 12px; }
 .oa-tools-launcher .oa-tool-search-empty p { font-size: 9px; }
