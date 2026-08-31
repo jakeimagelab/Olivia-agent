@@ -65,11 +65,11 @@ export default function QuoteSetupForm({ flowId }: { flowId: string }) {
     <div className="olivia-select-match-card">
       <div className="olivia-select-match-card__section">
         <p>고객정보와 패키지 형태, 추가 옵션에 대해서 알려주시면 바로 반영할게요.</p>
-        <textarea
+        <input
+          type="text"
           value={hospitalName}
           onChange={(event) => setHospitalName(event.target.value)}
           placeholder={cfg.entityPlaceholder}
-          rows={1}
         />
       </div>
       <div className="olivia-select-match-card__section">
