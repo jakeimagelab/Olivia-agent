@@ -4215,60 +4215,100 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
    (1076행대, admin.css가 로드 순서상 항상 이겨서 시각적으로 무효)는 그대로 두고, 여기서
    같은 셀렉터를 마지막에 다시 선언해 확실히 우선 적용시킨다 — 기존 규칙을 지우지 않아
    회귀 위험이 없다. */
-.oa-tools-page__heading { margin: 4px 0 18px; }
-.oa-tools-page__heading h1 { margin: 0; color: #0d1f1e; font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
-.oa-tools-page__heading p { margin: 6px 0 0; color: #7d8a86; font-size: 12.5px; }
+.oa-tools-page__heading { margin: 2px 0 20px; }
+.oa-tools-page__heading h1 { margin: 0; color: #0d1f1e; font-size: 21px; font-weight: 700; letter-spacing: -.02em; }
+.oa-tools-page__heading p { margin: 5px 0 0; color: #7d8a86; font-size: 12.5px; }
 
-.oa-tools-search { margin-bottom: 16px; }
+/* 컨텍스트 배너 — 이 클래스는 문서함(app/admin/documents)도 함께 쓰므로 전역 규칙(322행의
+   밝은 버전, 739행의 "Dense Command" 다크 그라디언트 버전)은 건드리지 않는다. 실제 렌더
+   확인 결과(2026-08-31) 739행 버전이 조건 없이 캐스케이드 순서상 이겨서 이 페이지에서도
+   다크 배너가 나오고 있었다 — 이 스코프 안에서만 밝은 배너 + 컴팩트 높이로 명시적으로
+   되돌린다(다른 페이지는 이번 작업 범위 밖이라 손대지 않는다). */
+.oa-tools-page .oa-context-banner {
+  min-height: 0;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #fff;
+  background-image: none;
+  border: 1px solid #e3e8ec;
+  box-shadow: 0 4px 14px rgba(31,45,61,.04);
+  color: inherit;
+}
+.oa-tools-page .oa-context-banner.is-linked { border-color: #cce9da; background: #f4fcf7; }
+.oa-tools-page .oa-context-banner__icon { width: 30px; height: 30px; border-radius: 9px; background: var(--oa-blue-soft); color: var(--oa-blue); }
+.oa-tools-page .oa-context-banner__icon svg { width: 15px; height: 15px; }
+.oa-tools-page .oa-context-banner.is-linked .oa-context-banner__icon { color: var(--oa-green); background: #e6f8ee; }
+.oa-tools-page .oa-context-banner__copy strong { color: #4a5156; font-size: 10.5px; }
+.oa-tools-page .oa-context-banner__copy p { color: #969da3; font-size: 9px; }
+
+.oa-tools-search { margin-bottom: 14px; }
 .oa-tools-search input[type="search"] {
   width: 100%;
   border: 1px solid #e3e8ec;
-  border-radius: 14px;
-  padding: 12px 16px;
+  border-radius: 11px;
+  padding: 10px 14px;
   background: #fff;
   color: #4c5357;
   font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .oa-tools-search input[type="search"]:focus { outline: none; border-color: #cce9da; box-shadow: 0 0 0 3px rgba(21,88,85,.08); }
 
-.oa-tools-page .admin-menu-grid { gap: 12px; }
+/* 카테고리 탭 — chip 높이 축소, 선택 상태는 옅은 mint 배경 + 진초록 텍스트 + 얇은 초록
+   테두리를 유지한다(스펙 §21, 이미 186행대 기본 스타일이 이 톤이라 색은 그대로 두고
+   크기만 줄인다). */
+.oa-tools-page .oa-tool-tabs { gap: 6px; margin-bottom: 16px; }
+.oa-tools-page .oa-tool-tabs__tab { gap: 5px; padding: 6px 11px; font-size: 11.5px; }
+.oa-tools-page .oa-tool-tabs__tab-count { font-size: 10px; }
+
+/* 그리드 — 컬럼 수는 스펙 §34가 요구하는 정확한 값(대형 데스크톱 6 / 데스크톱 5 / 태블릿 3 /
+   소형 태블릿 2 / 모바일 1)을 그대로 보장하려고 기존 breakpoint 기반 repeat(N,1fr)를
+   유지한다 — auto-fill(minmax)은 실제 컨테이너 폭에 따라 컬럼 수가 달라져 이 요구를 정확히
+   못 맞출 수 있어 채택하지 않았다(스펙 §4가 "실제 container width에 맞춰 조정" 여지를 둠). */
+.oa-tools-page .admin-menu-grid { gap: 10px; }
 @media (min-width: 1700px) {
   .oa-tools-page .admin-menu-grid { grid-template-columns: repeat(6, minmax(0,1fr)); }
 }
 
 .oa-tools-page .admin-menu-card {
   position: relative;
-  min-height: 160px;
-  padding: 17px;
-  border-radius: 14px;
+  min-height: 132px;
+  padding: 14px 14px 13px;
+  gap: 9px;
+  border-radius: 13px;
   border: 1px solid rgba(21,88,85,.10);
   background: #fff;
-  box-shadow: none;
-  transition: border-color 170ms ease, box-shadow 170ms ease, transform 170ms ease;
+  box-shadow: 0 1px 2px rgba(15,50,45,.02);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 .oa-tools-page .admin-menu-card::before { display: none; }
 .oa-tools-page .admin-menu-card:hover,
 .oa-tools-page .admin-menu-card:focus-visible {
   border-color: rgba(21,88,85,.22);
-  box-shadow: 0 8px 22px rgba(21,88,85,.06);
+  box-shadow: 0 6px 18px rgba(21,88,85,.06);
   transform: translateY(-1px);
 }
 
-/* 아이콘: 카테고리/orange 여부와 무관하게 전부 같은 연한 mint 배경 + deep green 라인
-   아이콘으로 통일한다(스펙 §11-12 — orange는 아이콘 배경이 아니라 작은 dot/badge로만). */
+/* 아이콘: 34~38px box + 17~20px line icon으로 통일한다(스펙 §7-8). orange 플래그는 아이콘
+   배경을 solid로 칠하는 대신 옅은 오렌지 톤으로만 틴트한다("정도로만" — 스펙 §9). */
 .oa-tools-page .admin-menu-icon,
 .oa-tools-page .admin-menu-icon--dashboard,
 .oa-tools-page .admin-menu-icon--crm,
-.oa-tools-page .admin-menu-icon--tools,
-.oa-tools-page .admin-menu-card.orange .admin-menu-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  border: none;
+.oa-tools-page .admin-menu-icon--tools {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(21,88,85,.08);
   background: rgba(21,88,85,.06);
   color: #155855;
   box-shadow: none;
+  filter: none;
+}
+.oa-tools-page .admin-menu-card.orange .admin-menu-icon {
+  border-color: rgba(232,93,44,.08);
+  background: rgba(232,93,44,.07);
+  color: #E85D2C;
 }
 .oa-tools-page .admin-menu-card:hover .admin-menu-icon,
 .oa-tools-page .admin-menu-card:active .admin-menu-icon,
@@ -4276,37 +4316,84 @@ html[data-olivia-splash="handoff"] .olivia-agent-quick-actions {
   filter: none;
   background: rgba(21,88,85,.1);
 }
-.oa-tools-page .admin-menu-icon svg { width: 23px; height: 23px; stroke-width: 1.7; }
-
-/* orange 플래그(자주 사용/AI 등으로 표시하던 것)는 아이콘 전체를 칠하는 대신 카드 우상단의
-   작은 점 하나로만 표현한다 — JSX 변경 없이 기존 .orange 클래스만 재사용. */
-.oa-tools-page .admin-menu-card.orange::after {
-  content: "";
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #e85d2c;
+.oa-tools-page .admin-menu-card.orange:hover .admin-menu-icon,
+.oa-tools-page .admin-menu-card.orange:active .admin-menu-icon,
+.oa-tools-page .admin-menu-card.orange:focus-visible .admin-menu-icon {
+  background: rgba(232,93,44,.12);
 }
+.oa-tools-page .admin-menu-icon svg { width: 18px; height: 18px; stroke-width: 1.8; }
+/* orange 카드의 우상단 점 배지는 이번 재작업에서 뺀다 — 아이콘 자체가 이미 오렌지 톤을
+   띠므로 배지까지 겹치면 이중 신호가 된다(스펙 §9 "정도로만", §26 "카드 전체를 다른 색으로
+   만들지 않는다"). */
+.oa-tools-page .admin-menu-card.orange::after { display: none; }
 
-.oa-tools-page .admin-menu-copy span { font-size: 9.5px; }
-.oa-tools-page .admin-menu-copy h2 { margin-top: 8px; color: #155855; font-size: 14.5px; font-weight: 700; }
+/* 타이포그래피 — 제목 > 아이콘 > 설명 > meta 순으로 위계가 느껴지게 한다(스펙 §6, §10-12).
+   meta는 작고 옅게, 제목은 굵게 최대 2줄, 설명은 항상 2줄로 고정해 카드 높이가 내용에 따라
+   달라지지 않게 한다. */
+.oa-tools-page .admin-menu-copy span {
+  margin: 0;
+  color: rgba(21,88,85,.45);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.oa-tools-page .admin-menu-copy h2 {
+  margin-top: 5px;
+  color: #0d1f1e;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .oa-tools-page .admin-menu-copy p {
   margin-top: 4px;
-  font-size: 11px;
-  line-height: 1.5;
+  color: #7d938e;
+  font-size: 11.5px;
+  line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
+/* 화살표 — 22~24px, hover는 색만 살짝 진해지는 정도로만(스펙 §16, §39 — 큰 애니메이션 금지). */
 .oa-tools-page .admin-menu-action {
-  width: 26px;
-  height: 26px;
-  background: rgba(21,88,85,.06);
+  width: 23px;
+  height: 23px;
+  background: rgba(21,88,85,.05);
   border: none;
+  color: #155855;
 }
-.oa-tools-page .admin-menu-action svg { width: 13px; height: 13px; }
+.oa-tools-page .admin-menu-action svg { width: 12px; height: 12px; }
+.oa-tools-page .admin-menu-card:hover .admin-menu-action {
+  background: rgba(21,88,85,.12);
+  color: #155855;
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+.oa-tools-page .admin-menu-card.orange:hover .admin-menu-action { background: rgba(232,93,44,.14); }
+
+/* 검색 결과 없음 — 큰 CategorySection처럼 보이지 않게 컴팩트화(스펙 §36). */
+.oa-tools-page .oa-tool-search-empty { min-height: 140px; padding: 18px; }
+.oa-tools-page .oa-tool-search-empty strong { font-size: 12px; }
+.oa-tools-page .oa-tool-search-empty p { font-size: 9px; }
+
+/* 모바일 1열 — 설명을 숨기거나 카드를 정사각 아이콘 타일로 바꾸지 않는다(스펙 §35). 640px
+   이하에서는 이미 globals.css 기본 규칙이 카드를 아이콘-좌/텍스트-우 가로형으로 바꾸는데,
+   그 레이아웃은 그대로 두고 크기만 이 페이지에서 살짝 더 조인다. */
+@media (max-width: 640px) {
+  .oa-tools-page .admin-menu-card { min-height: 0; padding: 11px 13px; }
+  .oa-tools-page .admin-menu-icon { width: 34px; height: 34px; }
+  .oa-tools-page .admin-menu-copy p {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+  }
+  .oa-tools-page .admin-menu-action { display: inline-flex; width: 24px; height: 24px; }
+}
