@@ -2416,8 +2416,8 @@ main:has(> .pc-header) {
 }
 
 .rail-slogan {
-  min-height: 152px;
-  padding: 18px 16px 0;
+  min-height: 138px;
+  padding: 14px 16px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.18);
 }
 
@@ -2426,7 +2426,7 @@ main:has(> .pc-header) {
   font-family: "Nanum Myeongjo", "AppleMyungjo", "Batang", serif;
   font-size: 15px;
   font-weight: 600;
-  line-height: 1.34;
+  line-height: 1.22;
   letter-spacing: 0;
 }
 
@@ -2434,7 +2434,7 @@ main:has(> .pc-header) {
   display: block;
   width: 18px;
   height: 2px;
-  margin: 16px 0 12px;
+  margin: 11px 0 9px;
   background: var(--orange-soft);
 }
 
