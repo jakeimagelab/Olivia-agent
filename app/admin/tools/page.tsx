@@ -37,7 +37,10 @@ export default async function AdminToolsPage({ searchParams }: { searchParams: P
     .filter((group) => group.count > 0);
 
   return (
-    <div className="oa-page oa-tools-page">
+    // oa-tools-page 대신 이 페이지 전용 oa-tools-launcher를 쓴다 — app/marketing/page.tsx가
+    // oa-tools-page를 함께 쓰고 있어서(발견, 2026-08-31) 공유 클래스로 스코프하면 컴팩트
+    // 개편이 그쪽에도 새어 들어간다. admin.css 맨 끝의 .oa-tools-launcher 블록 참고.
+    <div className="oa-page oa-tools-launcher">
       <section className={`oa-context-banner${linked ? " is-linked" : ""}`}>
         <span className="oa-context-banner__icon"><Camera size={19}/></span>
         <div className="oa-context-banner__copy">
