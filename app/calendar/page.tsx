@@ -1132,14 +1132,14 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
         </button>
         {isMobile ? (
           <button onClick={onNavigateYear} style={{
-            flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900, color: "#1c2b28", letterSpacing: "-0.3px",
+            flex: 1, textAlign: "center", fontSize: mfz(18, isMobile), fontWeight: mfw(900, isMobile), color: "#1c2b28", letterSpacing: "-0.3px",
             background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
           }}>
             <ChevronLeft size={15} style={{ opacity: .55 }}/> {year}년 {monthLabel(month)}
           </button>
         ) : (
-          <div style={{ flex: 1, textAlign: "center", fontSize: 18, fontWeight: 900, color: "#1c2b28", letterSpacing: "-0.3px" }}>
+          <div style={{ flex: 1, textAlign: "center", fontSize: mfz(18, isMobile), fontWeight: mfw(900, isMobile), color: "#1c2b28", letterSpacing: "-0.3px" }}>
             {year}년 {monthLabel(month)}
           </div>
         )}
@@ -1153,7 +1153,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)",
         background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0 }}>
         {WEEKDAYS.map((w, i) => (
-          <div key={w} style={{ textAlign: "center", fontSize: 12, fontWeight: 900, padding: "8px 0 7px",
+          <div key={w} style={{ textAlign: "center", fontSize: mfz(12, isMobile), fontWeight: mfw(900, isMobile), padding: "8px 0 7px",
             color: i===0 ? "#C0201A" : i===6 ? "#1D4ED8" : C.muted }}>
             {w}
           </div>
@@ -1247,8 +1247,8 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                   <span style={{
-                    fontSize: 14,
-                    fontWeight: isToday ? 900 : isSelected ? 800 : 600,
+                    fontSize: mfz(14, isMobile),
+                    fontWeight: mfw(isToday ? 900 : isSelected ? 800 : 600, isMobile),
                     opacity: dimmed ? 0.38 : 1,
                     color: isToday ? "#fff" : (dow===0 || holidayName) ? "#C0201A" : dow===6 ? "#1D4ED8" : C.txt,
                   }}>{cell.day}</span>
@@ -1259,7 +1259,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                   아니라 빨간색이 우선). 셀 폭이 좁으므로 한 줄로 줄여서 보여준다. */}
               {holidayName && (
                 <div style={{
-                  fontSize: isMobile ? 8.5 : 9.5, fontWeight: 800, color: "#C0201A", lineHeight: 1.2,
+                  fontSize: mfz(isMobile ? 8.5 : 9.5, isMobile), fontWeight: mfw(800, isMobile), color: "#C0201A", lineHeight: 1.2,
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                   opacity: dimmed ? 0.5 : 1, marginBottom: 2,
                 }}>{holidayName}</div>
@@ -1282,7 +1282,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                       );
                     })}
                     {tasks.length > 8 && (
-                      <span style={{ fontSize: 8, color: C.muted, fontWeight: 700, lineHeight: "6px", opacity: dimmed ? 0.45 : 1 }}>
+                      <span style={{ fontSize: mfz(8, isMobile), color: C.muted, fontWeight: mfw(700, isMobile), lineHeight: "6px", opacity: dimmed ? 0.45 : 1 }}>
                         +{tasks.length-8}
                       </span>
                     )}
@@ -1324,12 +1324,12 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                         background: t.completed ? "#A0AEC0" : cat.color,
                       }}/>
                       <span style={{
-                        flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700,
+                        flex: 1, minWidth: 0, fontSize: mfz(10.5, isMobile), fontWeight: mfw(700, isMobile),
                         color: t.completed ? C.muted : cat.color, textDecoration: t.completed ? "line-through" : "none",
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                       }}>{t.title}</span>
                       {t.time && !isMobile && (
-                        <span style={{ fontSize: 9, color: C.muted, fontWeight: 500, flexShrink: 0 }}>
+                        <span style={{ fontSize: mfz(9, isMobile), color: C.muted, fontWeight: mfw(500, isMobile), flexShrink: 0 }}>
                           {formatTimeKo(t.time)}
                         </span>
                       )}
@@ -1337,7 +1337,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                   );
                 })}
                 {tasks.length > 4 && (
-                  <span style={{ fontSize: 10, color: C.muted, fontWeight: 700, paddingLeft: 3, lineHeight: 1, opacity: dimmed ? 0.45 : 1 }}>
+                  <span style={{ fontSize: mfz(10, isMobile), color: C.muted, fontWeight: mfw(700, isMobile), paddingLeft: 3, lineHeight: 1, opacity: dimmed ? 0.45 : 1 }}>
                     +{tasks.length-4}개 더
                   </span>
                 )}
@@ -1351,14 +1351,14 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
       {/* ── 데일리 루틴 — 그리드 밑에 남는 공간을 채우는 매일 반복 일정 안내 */}
       <div style={{ flex: "0 0 auto", minHeight: 56, maxHeight: 92, overflowY: "auto", background: C.surface,
         borderTop: `1px solid ${C.border}`, padding: "12px 20px" }}>
-        <div style={{ fontSize: 10, fontWeight: 900, color: C.hint, letterSpacing: ".06em",
+        <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(900, isMobile), color: C.hint, letterSpacing: ".06em",
           textTransform: "uppercase", marginBottom: 10 }}>⏰ 데일리 루틴</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 10 : 22 }}>
           {DAILY_ROUTINE.map((r, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.teal, flexShrink: 0 }}/>
-              <span style={{ fontSize: 12, fontWeight: 800, color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.txt, whiteSpace: "nowrap" }}>{r.label}</span>
+              <span style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
+              <span style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(600, isMobile), color: C.txt, whiteSpace: "nowrap" }}>{r.label}</span>
               {i < DAILY_ROUTINE.length - 1 && (
                 <div style={{ width: 14, height: 1, background: C.border, marginLeft: isMobile ? 2 : 14 }}/>
               )}
@@ -1373,7 +1373,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
         {Object.entries(CATS).map(([, v]) => (
           <div key={v.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }}/>
-            <span style={{ fontSize: 10.5, color: "#5a7470", fontWeight: 700 }}>{v.label}</span>
+            <span style={{ fontSize: mfz(10.5, isMobile), color: "#5a7470", fontWeight: mfw(700, isMobile) }}>{v.label}</span>
           </div>
         ))}
       </div>
@@ -1383,7 +1383,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
         <div style={{
           position: "fixed", left: "50%", bottom: 28, transform: "translateX(-50%)", zIndex: 400,
           background: "#0F4440", color: "#fff", padding: "10px 18px", borderRadius: 99,
-          fontSize: 12.5, fontWeight: 700, boxShadow: "0 10px 28px rgba(15,68,64,.32)",
+          fontSize: mfz(12.5, isMobile), fontWeight: mfw(700, isMobile), boxShadow: "0 10px 28px rgba(15,68,64,.32)",
           pointerEvents: "none", whiteSpace: "nowrap",
         }}>{toast}</div>
       )}
@@ -1657,7 +1657,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           background: C.mint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
           <ChevronLeft size={14}/>
         </button>
-        <div style={{ flex: 1, textAlign: "center", fontSize: 15, fontWeight: 900, color: C.teal }}>{navLabel}</div>
+        <div style={{ flex: 1, textAlign: "center", fontSize: mfz(15, isMobile), fontWeight: mfw(900, isMobile), color: C.teal }}>{navLabel}</div>
         <button onClick={onNext} style={{ width: 30, height: 30, border: `1px solid ${C.border}`, borderRadius: 7,
           background: C.mint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
           <ChevronRight size={14}/>
@@ -1678,18 +1678,18 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           return (
             <div key={i} onClick={() => onSelectDate(ds)}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "6px 2px", cursor: "pointer" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, marginBottom: 2,
+              <span style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(700, isMobile), marginBottom: 2,
                 color: (dow===0 || holidayName) ? "#DC2626" : dow===6 ? "#2563EB" : C.muted }}>{WEEKDAYS[dow]}</span>
               <div style={{ width: 26, height: 26, borderRadius: "50%",
                 background: isToday ? C.todayRed : isSelected ? C.teal : "transparent",
                 display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 13, fontWeight: (isToday||isSelected) ? 900 : 700,
+                <span style={{ fontSize: mfz(13, isMobile), fontWeight: mfw((isToday||isSelected) ? 900 : 700, isMobile),
                   color: (isToday||isSelected) ? "#fff" : (dow===0 || holidayName) ? "#DC2626" : dow===6 ? "#2563EB" : C.txt }}>
                   {d.getDate()}
                 </span>
               </div>
               {holidayName ? (
-                <span style={{ fontSize: isMobile ? 7.5 : 8.5, fontWeight: 800, color: "#DC2626", marginTop: 2,
+                <span style={{ fontSize: mfz(isMobile ? 7.5 : 8.5, isMobile), fontWeight: mfw(800, isMobile), color: "#DC2626", marginTop: 2,
                   maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{holidayName}</span>
               ) : cnt > 0 && !isToday && !isSelected && (
                 <div style={{ width: 4, height: 4, borderRadius: "50%", background: C.teal, marginTop: 2 }}/>
@@ -1702,7 +1702,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       {/* All-day row */}
       <div style={{ display: "grid", gridTemplateColumns: `${TL_W}px repeat(7,1fr)`,
         background: "#F8FBFA", borderBottom: `1px solid ${C.border}40`, flexShrink: 0 }}>
-        <div style={{ fontSize: 9, color: C.hint, paddingTop: 6, textAlign: "right", paddingRight: isMobile ? 4 : 8 }}>종일</div>
+        <div style={{ fontSize: mfz(9, isMobile), color: C.hint, paddingTop: 6, textAlign: "right", paddingRight: isMobile ? 4 : 8 }}>종일</div>
         {weekDates.map((d, i) => {
           const ds = toYMD(d);
           const allDay = (tasksByDate[ds] ?? []).filter(t => !t.time);
@@ -1710,7 +1710,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
             <div key={i} style={{ padding: "3px 2px", display: "flex", flexDirection: "column", gap: 1.5,
               borderLeft: `1px solid ${C.border}30`, minHeight: 24 }}>
               {allDay.map(t => (
-                <div key={t.id} style={{ fontSize: 9, fontWeight: 700, color: "#fff",
+                <div key={t.id} style={{ fontSize: mfz(9, isMobile), fontWeight: mfw(700, isMobile), color: "#fff",
                   background: (CATS[t.category]?.color) ?? C.hint, borderRadius: 2, padding: "1.5px 4px",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   opacity: t.completed ? 0.5 : 1 }}>{t.title}</div>
@@ -1730,13 +1730,13 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
               <div key={h} style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}25`,
                 display: "flex", alignItems: "flex-start", paddingTop: 4,
                 justifyContent: "flex-end", paddingRight: isMobile ? 4 : 8 }}>
-                <span style={{ fontSize: isMobile ? 8 : 9.5, color: C.hint, fontWeight: 700 }}>
+                <span style={{ fontSize: mfz(isMobile ? 8 : 9.5, isMobile), color: C.hint, fontWeight: mfw(700, isMobile) }}>
                   {String(h).padStart(2,"0")}:00
                 </span>
               </div>
             ))}
             <span style={{ position: "absolute", right: isMobile ? 4 : 8, bottom: 3,
-              fontSize: isMobile ? 8 : 9.5, color: C.hint, fontWeight: 700 }}>
+              fontSize: mfz(isMobile ? 8 : 9.5, isMobile), color: C.hint, fontWeight: mfw(700, isMobile) }}>
               24:00
             </span>
           </div>
@@ -1813,17 +1813,17 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                         transition: isResizing ? "none" : "opacity .15s, box-shadow .15s",
                         touchAction: "none",
                       }}>
-                      <div style={{ fontSize: 10, fontWeight: 800, color: "#fff",
+                      <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(800, isMobile), color: "#fff",
                         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {currentStart?.slice(0,5)} {t.title}
                       </div>
                       {currentEnd && (
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,.75)" }}>~ {currentEnd.slice(0,5)}</div>
+                        <div style={{ fontSize: mfz(9, isMobile), color: "rgba(255,255,255,.75)" }}>~ {currentEnd.slice(0,5)}</div>
                       )}
                       {isResizing && (
                         <span style={{ position: "absolute", top: 2, right: 3, zIndex: 20,
                           borderRadius: 4, padding: "1px 4px", background: "rgba(245,247,247,.94)",
-                          color: "#74827F", fontSize: isMobile ? 9 : 8, fontWeight: 900, lineHeight: 1.4,
+                          color: "#74827F", fontSize: mfz(isMobile ? 9 : 8, isMobile), fontWeight: mfw(900, isMobile), lineHeight: 1.4,
                           boxShadow: "0 1px 3px rgba(21,88,85,.12)" }}>
                           {currentStart.slice(0,5)}{currentEnd ? `–${currentEnd.slice(0,5)}` : ""}
                         </span>
@@ -1916,15 +1916,15 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           }}>
             <span ref={ghostTimeRef} style={{ position: "absolute", top: 3, right: 4, zIndex: 2,
               borderRadius: 4, padding: "1px 4px", background: "rgba(245,247,247,.94)",
-              color: "#74827F", fontSize: isMobile ? 9 : 8, fontWeight: 900, lineHeight: 1.4 }}>
+              color: "#74827F", fontSize: mfz(isMobile ? 9 : 8, isMobile), fontWeight: mfw(900, isMobile), lineHeight: 1.4 }}>
               {dragging.task.time?.slice(0,5)}
             </span>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#fff",
+            <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(800, isMobile), color: "#fff",
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {dragging.task.time?.slice(0,5)} {dragging.task.title}
             </div>
             {dragging.task.end_time && (
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,.75)", marginTop: 1 }}>
+              <div style={{ fontSize: mfz(9, isMobile), color: "rgba(255,255,255,.75)", marginTop: 1 }}>
                 ~ {dragging.task.end_time.slice(0,5)}
               </div>
             )}
@@ -2062,7 +2062,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
       {isMobile && onNavigateMonth && (
         <div style={{ padding: "8px 12px 0", flexShrink: 0 }}>
           <button onClick={onNavigateMonth} style={{
-            background: "none", border: "none", color: C.teal, fontSize: 14, fontWeight: 800,
+            background: "none", border: "none", color: C.teal, fontSize: mfz(14, isMobile), fontWeight: mfw(800, isMobile),
             cursor: "pointer", padding: "4px 2px", fontFamily: "inherit" }}>
             ‹ {d.getMonth()+1}월
           </button>
@@ -2079,12 +2079,12 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
         </button>
         <div style={{ flex: 1, textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            {isToday && <span style={{ fontSize: isMobile ? 10 : 11, fontWeight: 800, color: C.todayRed,
+            {isToday && <span style={{ fontSize: mfz(isMobile ? 10 : 11, isMobile), fontWeight: mfw(800, isMobile), color: C.todayRed,
               background: "#FFF0EE", padding: "2px 9px", borderRadius: 99 }}>오늘</span>}
-            <span style={{ fontSize: isMobile ? 15 : 18, fontWeight: 900, color: holidayName ? "#C0201A" : C.teal }}>
+            <span style={{ fontSize: mfz(isMobile ? 15 : 18, isMobile), fontWeight: mfw(900, isMobile), color: holidayName ? "#C0201A" : C.teal }}>
               {d.getMonth()+1}월 {d.getDate()}일 {WEEKDAYS[dow]}요일
             </span>
-            {holidayName && <span style={{ fontSize: isMobile ? 10 : 11, fontWeight: 800, color: "#C0201A",
+            {holidayName && <span style={{ fontSize: mfz(isMobile ? 10 : 11, isMobile), fontWeight: mfw(800, isMobile), color: "#C0201A",
               background: "#FFF0EE", padding: "2px 9px", borderRadius: 99 }}>{holidayName}</span>}
           </div>
         </div>
@@ -2099,7 +2099,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
       {allDay.length > 0 && (
         <div style={{ background: C.surface, border: `1px solid ${C.border}`,
           borderRadius: 12, padding: "10px 12px", margin: `0 ${isMobile ? 8 : 24}px 10px`, flexShrink: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.hint, marginBottom: 6 }}>하루 종일</div>
+          <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(700, isMobile), color: C.hint, marginBottom: 6 }}>하루 종일</div>
           <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 5 : 7 }}>
             {allDay.map(t => (
               <TaskItem key={t.id} task={t} onToggle={() => onToggle(t)} onDelete={() => onDelete(t.id)} onEdit={onEdit} isMobile={isMobile}/>
@@ -2110,7 +2110,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
 
       {/* Time grid */}
       {loading ? (
-        <div style={{ textAlign: "center", color: C.hint, padding: "32px 0", fontSize: 13 }}>불러오는 중…</div>
+        <div style={{ textAlign: "center", color: C.hint, padding: "32px 0", fontSize: mfz(13, isMobile) }}>불러오는 중…</div>
       ) : (
         <div ref={scrollRef} style={{ flex: 1, overflowY: "auto",
           padding: `0 ${isMobile ? 4 : 24}px` }}>
@@ -2120,13 +2120,13 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
               {HOURS.map(h => (
                 <div key={h} style={{ height: HOUR_HEIGHT, display: "flex", alignItems: "flex-start",
                   paddingTop: 4, justifyContent: "flex-end", paddingRight: isMobile ? 4 : 8 }}>
-                  <span style={{ fontSize: isMobile ? 8.5 : 9.5, color: C.hint, fontWeight: 700 }}>
+                  <span style={{ fontSize: mfz(isMobile ? 8.5 : 9.5, isMobile), color: C.hint, fontWeight: mfw(700, isMobile) }}>
                     {String(h).padStart(2,"0")}:00
                   </span>
                 </div>
               ))}
               <span style={{ position: "absolute", right: isMobile ? 4 : 8, bottom: 3,
-                fontSize: isMobile ? 8.5 : 9.5, color: C.hint, fontWeight: 700 }}>
+                fontSize: mfz(isMobile ? 8.5 : 9.5, isMobile), color: C.hint, fontWeight: mfw(700, isMobile) }}>
                 24:00
               </span>
             </div>
@@ -2203,16 +2203,16 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                       transition: "opacity .15s",
                       touchAction: "none",
                     }}>
-                    <div style={{ fontSize: isMobile ? 10 : 9, fontWeight: 700,
+                    <div style={{ fontSize: mfz(isMobile ? 10 : 9, isMobile), fontWeight: mfw(700, isMobile),
                       color: "rgba(255,255,255,.85)", marginBottom: 1 }}>
                       {t.time?.slice(0,5)}{t.end_time ? ` – ${t.end_time.slice(0,5)}` : ""}
                     </div>
-                    <div style={{ fontSize: isMobile ? 12 : 11, fontWeight: 800, color: "#fff",
+                    <div style={{ fontSize: mfz(isMobile ? 12 : 11, isMobile), fontWeight: mfw(800, isMobile), color: "#fff",
                       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.3 }}>
                       {t.title}
                     </div>
                     {t.location && (
-                      <div style={{ fontSize: isMobile ? 10 : 9, color: "rgba(255,255,255,.75)", marginTop: 1 }}>
+                      <div style={{ fontSize: mfz(isMobile ? 10 : 9, isMobile), color: "rgba(255,255,255,.75)", marginTop: 1 }}>
                         📍 {t.location}
                       </div>
                     )}
@@ -2265,12 +2265,12 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
               width: 140, background: cat.color, borderRadius: 6, padding: "5px 10px 10px",
               boxShadow: "0 10px 32px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.18)", overflow: "hidden",
             }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: "#fff",
+              <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(800, isMobile), color: "#fff",
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {dragging.task.time?.slice(0,5)} {dragging.task.title}
               </div>
               {dragging.task.end_time && (
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,.75)", marginTop: 1 }}>
+                <div style={{ fontSize: mfz(9, isMobile), color: "rgba(255,255,255,.75)", marginTop: 1 }}>
                   ~ {dragging.task.end_time.slice(0,5)}
                 </div>
               )}
@@ -2297,12 +2297,12 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
       borderRadius: 12, padding: "10px 10px 8px", cursor: "pointer",
       transition: "border-color .15s",
     }}>
-      <div style={{ fontSize: 12, fontWeight: 900, color: C.teal, marginBottom: 6, textAlign: "center" }}>
+      <div style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(900, isMobile), color: C.teal, marginBottom: 6, textAlign: "center" }}>
         {monthLabel(m)}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)" }}>
         {WEEKDAYS.map((w, i) => (
-          <div key={w} style={{ textAlign: "center", fontSize: 7.5, fontWeight: 700, paddingBottom: 2,
+          <div key={w} style={{ textAlign: "center", fontSize: mfz(7.5, isMobile), fontWeight: mfw(700, isMobile), paddingBottom: 2,
             color: i===0 ? "#DC2626" : i===6 ? "#2563EB" : C.hint }}>{w}</div>
         ))}
         {cells.map((cell, idx) => {
@@ -2327,7 +2327,7 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
                 background: isToday ? C.todayRed : isSelected ? C.teal : "transparent",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <span style={{ fontSize: 8, fontWeight: isToday || isSelected ? 900 : 600,
+                <span style={{ fontSize: mfz(8, isMobile), fontWeight: mfw(isToday || isSelected ? 900 : 600, isMobile),
                   color: isToday || isSelected ? "#fff" : (dow===0 || isHoliday) ? "#DC2626" : dow===6 ? "#2563EB" : C.txt }}>
                   {cell.day}
                 </span>
@@ -2358,7 +2358,7 @@ function YearView({ year, todayStr, tasksByDate, selectedDate, onSelectDate, onP
           background: C.surface, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
           <ChevronLeft size={14}/>
         </button>
-        <div style={{ flex: 1, textAlign: "center", fontSize: 20, fontWeight: 900, color: C.teal }}>{year}년</div>
+        <div style={{ flex: 1, textAlign: "center", fontSize: mfz(20, isMobile), fontWeight: mfw(900, isMobile), color: C.teal }}>{year}년</div>
         <button onClick={onNext} style={{ width: 30, height: 30, border: `1px solid ${C.border}`, borderRadius: 7,
           background: C.surface, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
           <ChevronRight size={14}/>
@@ -2752,8 +2752,8 @@ export default function CalendarPage() {
             boxShadow: "0 20px 50px rgba(0,0,0,.22)",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 15, fontWeight: 900, color: C.txt }}>📊 일정 분석</span>
-              <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 800, color: C.muted,
+              <span style={{ fontSize: mfz(15, isMobile), fontWeight: mfw(900, isMobile), color: C.txt }}>📊 일정 분석</span>
+              <span style={{ marginLeft: "auto", fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), color: C.muted,
                 background: C.mint, padding: "3px 10px", borderRadius: 20 }}>
                 {year}년 {monthLabel(month)}
               </span>
@@ -2762,7 +2762,7 @@ export default function CalendarPage() {
                 <X size={16}/>
               </button>
             </div>
-            <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
+            <div style={{ fontSize: mfz(12, isMobile), color: C.muted, marginBottom: 16 }}>
               총 {monthStats.total}건 · 완료 {monthStats.completed}건
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -2771,17 +2771,17 @@ export default function CalendarPage() {
                 return (
                   <div key={c.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 9, height: 9, borderRadius: 3, background: c.color, flexShrink: 0 }}/>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: C.txt, width: 44, flexShrink: 0 }}>{c.label}</span>
+                    <span style={{ fontSize: mfz(13, isMobile), fontWeight: mfw(700, isMobile), color: C.txt, width: 44, flexShrink: 0 }}>{c.label}</span>
                     <div style={{ flex: 1, height: 8, borderRadius: 99, background: "#F1F5F4", overflow: "hidden" }}>
                       <div style={{ width: `${pct}%`, height: "100%", background: c.color, borderRadius: 99, transition: "width .3s" }}/>
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: C.muted, width: 36, textAlign: "right", flexShrink: 0 }}>{c.count}건</span>
+                    <span style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), color: C.muted, width: 36, textAlign: "right", flexShrink: 0 }}>{c.count}건</span>
                   </div>
                 );
               })}
             </div>
             {monthStats.total === 0 && (
-              <div style={{ fontSize: 12, color: C.hint, textAlign: "center", padding: "16px 0 4px" }}>
+              <div style={{ fontSize: mfz(12, isMobile), color: C.hint, textAlign: "center", padding: "16px 0 4px" }}>
                 이 달에 등록된 일정이 없어요
               </div>
             )}
@@ -2798,8 +2798,8 @@ export default function CalendarPage() {
             width: 320, background: "#fff", borderRadius: 14, padding: "22px 22px 18px",
             boxShadow: "0 20px 50px rgba(0,0,0,.22)",
           }}>
-            <div style={{ fontSize: 15, fontWeight: 900, color: C.txt, marginBottom: 8 }}>일정을 삭제할까요?</div>
-            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, marginBottom: 20, wordBreak: "break-word" }}>
+            <div style={{ fontSize: mfz(15, isMobile), fontWeight: mfw(900, isMobile), color: C.txt, marginBottom: 8 }}>일정을 삭제할까요?</div>
+            <div style={{ fontSize: mfz(13, isMobile), color: C.muted, lineHeight: 1.6, marginBottom: 20, wordBreak: "break-word" }}>
               &lsquo;{taskById[confirmDeleteId]?.title ?? ""}&rsquo; 일정을 휴지통으로 이동합니다. 30일 안에 복원할 수 있어요.
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
