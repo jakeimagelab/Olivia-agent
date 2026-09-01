@@ -669,7 +669,7 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
 }
 
 /* ─── EventDetailView (읽기 전용, "편집" 눌러야 수정 폼으로 전환) ── */
-function EventDetailView({ task, onEdit, onToggle }: { task: CalTask; onEdit: () => void; onToggle: () => void }) {
+function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: CalTask; onEdit: () => void; onToggle: () => void; isMobile?: boolean }) {
   const cat = CATS[task.category] ?? CATS.general;
   const [completed, setCompleted] = useState(task.completed); // 팝업 안에서 즉시 반영되도록 로컬로도 관리
   const [sharing, setSharing] = useState(false);
