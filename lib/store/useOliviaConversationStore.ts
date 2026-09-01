@@ -217,7 +217,9 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
   lastFailedContent: undefined,
   activeTaskSessionId: undefined,
   agentRuns: {},
+  draft: "",
 
+  setDraft: (draft) => set({ draft }),
   appendMessage: (message) => set((state) => ({ messages: [...state.messages, message] })),
   updateMessage: (id, updates) => set((state) => ({
     messages: state.messages.map((message) => message.id === id ? { ...message, ...updates } : message),
