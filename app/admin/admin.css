@@ -3152,8 +3152,11 @@
   min-height: calc(100dvh - 20px);
   padding: 14px 20px;
 }
-.olivia-workspace-shell__viewport { min-width: 0; min-height: 0; position: relative; }
-.olivia-workspace-shell__chat { min-width: 0; min-height: 0; overflow: hidden; }
+/* flex-basis:0이 없으면 flex-grow 비율이 아니라 각 Builder의 콘텐츠 고유 너비가 우선돼
+   70/30이 라우트마다 제각각으로 어긋난다 — 홈의 .olivia-adaptive-stage__chat(flex-basis:0)과
+   동일한 이유로 맞춰준다. */
+.olivia-workspace-shell__viewport { flex-basis: 0; min-width: 0; min-height: 0; position: relative; }
+.olivia-workspace-shell__chat { flex-basis: 0; min-width: 0; min-height: 0; overflow: hidden; }
 .olivia-workspace-shell__chat-slot { width: 100%; height: 100%; }
 
 @media (prefers-reduced-motion: reduce) {
