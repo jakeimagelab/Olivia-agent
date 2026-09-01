@@ -35,7 +35,12 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const setChatFocused = useOliviaLayoutStore((state) => state.setChatFocused);
   const expandWorkspaceChat = useOliviaLayoutStore((state) => state.expandWorkspaceChat);
   const collapseWorkspaceChat = useOliviaLayoutStore((state) => state.collapseWorkspaceChat);
-  const [input, setInput] = useState("");
+  // Olivia 2.0 Phase 1 — draft는 로컬 state가 아니라 공유 store(useOliviaConversationStore)에
+  // 둔다. 홈 ↔ 다른 워크스페이스 라우트 전환은 이 컴포넌트를 portal로 다른 DOM 노드에 옮기는
+  // 순간이라(OliviaWorkspaceShell), 컴포넌트 fiber 보존 여부에 기대지 않아야 타이핑 중이던
+  // 내용이 어떤 전환에서도 사라지지 않는다.
+  const input = useOliviaConversationStore((state) => state.draft);
+  const setInput = useOliviaConversationStore((state) => state.setDraft);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef(new Map<string, HTMLElement>());
