@@ -1,5 +1,10 @@
-import ContiBuilder from "@/components/conti/ContiBuilder";
+import { Suspense } from "react";
+import OliviaWorkspaceRouteBridge from "@/components/olivia/OliviaWorkspaceRouteBridge";
 
 export default function ContiPage() {
-  return <ContiBuilder />;
+  return (
+    <Suspense fallback={null}>
+      <OliviaWorkspaceRouteBridge workspaceType="conti" />
+    </Suspense>
+  );
 }
