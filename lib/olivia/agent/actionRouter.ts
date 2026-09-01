@@ -2,7 +2,24 @@ import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
-import { navigateToFeature } from "@/lib/olivia/features/navigationBridge";
+import { navigateToFeature, syncCanonicalWorkspaceUrl } from "@/lib/olivia/features/navigationBridge";
+import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
+
+const HOME_PREFIX = "/admin/dashboard/home";
+
+// Olivia 2.0 Phase 1 — 채팅/카드로 워크스페이스를 열거나 바꿀 때, 지금 홈이 아니면 주소창도
+// 그 워크스페이스의 canonical direct route로 맞춰준다. 홈은 이미 인라인으로 스플릿을
+// 보여주므로 이동하지 않는다 — 그 외(다른 워크스페이스 직접 라우트, 미지원 페이지)에서는
+// 이렇게 URL을 맞춰야 OliviaWorkspaceShell이 실제로 화면을 그린다(그 판단이 pathname
+// 기준이라서다). store 갱신 → URL 갱신 순서로 호출하므로, 이동한 URL은 이미 store와 일치한
+// 상태다 — OliviaWorkspaceShell의 자동 닫기 감시(pathname watcher)와 경합하지 않는다.
+function syncUrlIfNotHome(workspace: Exclude<OliviaUiAction extends { workspace: infer W } ? W : never, undefined>) {
+  if (typeof window !== "undefined" && window.location.pathname.startsWith(HOME_PREFIX)) return;
+  const canonical = workspaceRegistry[workspace]?.directRoutes?.[0];
+  if (!canonical) return;
+  const context = useOliviaContextStore.getState();
+  syncCanonicalWorkspaceUrl(canonical, { clientId: context.activeClientId, workflowRunId: context.activeProjectId });
+}
 
 // Olivia Agent 2.0 — OliviaUiAction 하나를 실제 store 변경으로 옮긴다. 채팅 컴포넌트는
 // executeOliviaAction(action)만 부르면 되고, 어떤 store를 어떻게 바꾸는지는 여기 한 곳에만
@@ -20,12 +37,17 @@ export function executeOliviaAction(action: OliviaUiAction) {
         resourceId: action.resourceId,
         clientName: action.clientName,
         projectName: action.projectName,
+        // 카드 클릭과 채팅 명령이 모두 이 함수를 거치므로(§1-3 규칙), 여기서 여는 워크스페이스는
+        // "명시적 사용자 요청"이다 — 페이지 이동만으로 자동으로 닫히면 안 된다(openedBy:"route"만
+        // 자동으로 닫힌다, WorkspaceRegistry.ts의 shouldAutoCloseWorkspace 참고).
+        openedBy: "chat",
       });
       context.setWorkspace(action.workspace, action.resourceId);
       if (action.clientId) context.setClient(action.clientId, action.clientName);
       if (action.workflowRunId || action.projectName) context.setProject(action.workflowRunId, action.projectName);
       context.recordAction(`open:${action.workspace}`);
       layout.openWorkspaceMode();
+      syncUrlIfNotHome(action.workspace);
       return;
     }
     case "SWITCH_WORKSPACE": {
@@ -36,12 +58,14 @@ export function executeOliviaAction(action: OliviaUiAction) {
         clientName: action.clientName,
         projectName: action.projectName,
         startInPreview: action.startInPreview,
+        openedBy: "chat",
       });
       context.setWorkspace(action.workspace, action.resourceId);
       if (action.clientId) context.setClient(action.clientId, action.clientName);
       if (action.workflowRunId || action.projectName) context.setProject(action.workflowRunId, action.projectName);
       context.recordAction(`switch:${action.workspace}`);
       layout.openWorkspaceMode();
+      syncUrlIfNotHome(action.workspace);
       return;
     }
     case "CLOSE_WORKSPACE": {
