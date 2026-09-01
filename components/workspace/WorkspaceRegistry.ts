@@ -32,7 +32,12 @@ export type WorkspaceRegistryEntry = {
 };
 
 export const workspaceRegistry: Partial<Record<Exclude<WorkspaceType, null>, WorkspaceRegistryEntry>> = {
-  quote: { label: "견적서 작성", icon: FileText, component: QuoteBuilder, directRoutes: ["/photoclinic", "/quote"] },
+  // 견적서 원복 요청(2026-09) — /photoclinic, /quote는 QuoteBuilder mode="page"를 직접
+  // 렌더링하는 예전 구조로 되돌아갔다(70/30 스플릿에서 제외). directRoutes를 비워두면
+  // getWorkspaceTypeForPathname이 이 두 경로를 더 이상 등록된 워크스페이스로 인식하지 않아,
+  // OliviaWorkspaceShell도 자동으로 일반 페이지(플로팅 챗)로 취급한다 — quote 타입 자체는
+  // 지우지 않았으므로 채팅에서 "견적서 열어줘"처럼 workspace로 띄우는 기능은 그대로 쓸 수 있다.
+  quote: { label: "견적서 작성", icon: FileText, component: QuoteBuilder, directRoutes: [] },
   contract: { label: "계약서 작성", icon: FileSignature, component: ContractBuilder, directRoutes: ["/contract"] },
   conti: { label: "콘티 작성", icon: Clapperboard, component: ContiBuilder, directRoutes: ["/conti"] },
   // photo-sort의 실제 direct route(/photo-sorting)는 PhotoWorkspace(자체 탭/URL 체계를 가진
