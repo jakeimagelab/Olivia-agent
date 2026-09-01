@@ -635,10 +635,10 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
         {isMobile && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <button onClick={onClose} style={{ background: "none", border: "none", color: C.teal,
-              fontSize: 15, fontWeight: 800, cursor: "pointer", padding: "6px 4px" }}>‹ 닫기</button>
+              fontSize: mfz(15, isMobile), fontWeight: mfw(800, isMobile), cursor: "pointer", padding: "6px 4px" }}>‹ 닫기</button>
             {mode === "edit" && task && editing && (
               <button onClick={() => { onDelete(task.id); onClose(); }} style={{
-                background: "none", border: "none", color: "#DC2626", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+                background: "none", border: "none", color: "#DC2626", fontSize: mfz(13, isMobile), fontWeight: mfw(800, isMobile), cursor: "pointer" }}>
                 삭제
               </button>
             )}
@@ -649,13 +649,13 @@ function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose
         )}
         {mode === "add" ? (
           <AddTaskForm key={`add-${date}-${anchor?.x}-${anchor?.y}`} date={date}
-            onAdd={t => { onAdd(t); onClose(); }} triggerKey={1} defaultTime={defaultTime}/>
+            onAdd={t => { onAdd(t); onClose(); }} triggerKey={1} defaultTime={defaultTime} isMobile={isMobile}/>
         ) : task && !editing ? (
-          <EventDetailView task={task} onEdit={() => setEditing(true)} onToggle={() => onToggle(task)}/>
+          <EventDetailView task={task} onEdit={() => setEditing(true)} onToggle={() => onToggle(task)} isMobile={isMobile}/>
         ) : task && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <EditTaskForm key={task.id} task={task}
-              onSave={t => { onSave(t); onClose(); }} onCancel={() => setEditing(false)}/>
+              onSave={t => { onSave(t); onClose(); }} onCancel={() => setEditing(false)} isMobile={isMobile}/>
             {!isMobile && (
               <button onClick={() => { onDelete(task.id); onClose(); }} className="pc-btn pc-btn--danger pc-btn--sm">
                 🗑 일정 삭제
