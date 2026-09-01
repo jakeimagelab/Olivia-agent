@@ -2067,9 +2067,11 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             {isToday && <span style={{ fontSize: isMobile ? 10 : 11, fontWeight: 800, color: C.todayRed,
               background: "#FFF0EE", padding: "2px 9px", borderRadius: 99 }}>오늘</span>}
-            <span style={{ fontSize: isMobile ? 15 : 18, fontWeight: 900, color: C.teal }}>
+            <span style={{ fontSize: isMobile ? 15 : 18, fontWeight: 900, color: holidayName ? "#C0201A" : C.teal }}>
               {d.getMonth()+1}월 {d.getDate()}일 {WEEKDAYS[dow]}요일
             </span>
+            {holidayName && <span style={{ fontSize: isMobile ? 10 : 11, fontWeight: 800, color: "#C0201A",
+              background: "#FFF0EE", padding: "2px 9px", borderRadius: 99 }}>{holidayName}</span>}
           </div>
         </div>
         <button onClick={onNext} style={{ width: isMobile ? 36 : 30, height: isMobile ? 36 : 30,
