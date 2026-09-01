@@ -24,7 +24,7 @@ export default function WorkspaceModal({
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
-  // 이 모달은 94vw짜리 대형 오버레이라 영구 채팅 패널(OliviaPersistentChat)과 겹친다 — 열려있는
+  // 이 모달은 94vw짜리 대형 오버레이라 영구 채팅 패널(OliviaWorkspaceShell의 플로팅 토글)과 겹친다 — 열려있는
   // 동안만 패널을 rail로 접어두고 닫히면 원래 모드로 되돌린다. 견적/계약/콘티 빌더가 전부
   // 이 셸 하나를 공유하므로 여기 한 곳에서만 처리한다.
   const registerModalOpen = useOliviaChatModeStore((state) => state.registerModalOpen);
