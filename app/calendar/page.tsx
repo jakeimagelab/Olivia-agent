@@ -1937,6 +1937,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
   const isToday = dateStr === todayStr;
   const d = new Date(dateStr + "T12:00:00");
   const dow = d.getDay();
+  const holidayName = getKoreanHoliday(dateStr);
   const allDay = tasks.filter(t => !t.time);
   const timed  = tasks.filter(t => !!t.time);
   const timedLayout = useMemo(() => layoutOverlappingTasks(timed), [timed]);
