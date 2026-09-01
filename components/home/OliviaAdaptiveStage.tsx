@@ -7,7 +7,7 @@ import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTrans
 import OliviaHomeContextDrawer from "@/components/home/OliviaHomeContextDrawer";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { useOliviaChatDockStore } from "@/lib/store/useOliviaChatDockStore";
-import { getWorkspaceLayoutWeight, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
+import { getWorkspaceLayoutWeight, isOliviaWorkspaceSplitActive, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 
