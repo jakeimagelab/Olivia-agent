@@ -722,28 +722,28 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
         </button>
         <div style={{ width: 10, height: 10, borderRadius: 3, background: cat.color, marginTop: 7, flexShrink: 0 }}/>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 900, color: completed ? C.hint : C.txt, lineHeight: 1.35,
+          <div style={{ fontSize: mfz(16, isMobile), fontWeight: mfw(900, isMobile), color: completed ? C.hint : C.txt, lineHeight: 1.35,
             textDecoration: completed ? "line-through" : "none" }}>{task.title}</div>
-          <span style={{ display: "inline-block", marginTop: 5, fontSize: 11, fontWeight: 800, color: cat.color,
+          <span style={{ display: "inline-block", marginTop: 5, fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), color: cat.color,
             background: cat.bg, padding: "2px 9px", borderRadius: 99 }}>{cat.label}</span>
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: C.muted }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: mfz(13, isMobile), color: C.muted }}>
         <div>📅 {new Date(task.date + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</div>
         {task.time && (
           <div>⏰ {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}</div>
         )}
         {task.location && <div>📍 {task.location}</div>}
-        {task.reminder_enabled && <div style={{ color: C.orange, fontWeight: 800 }}>🔔 올리비아 텔레그램 · {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</div>}
+        {task.reminder_enabled && <div style={{ color: C.orange, fontWeight: mfw(800, isMobile) }}>🔔 올리비아 텔레그램 · {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</div>}
       </div>
       {task.memo && (
-        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6, background: "#FAFCFB",
+        <div style={{ fontSize: mfz(12, isMobile), color: C.muted, lineHeight: 1.6, background: "#FAFCFB",
           border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", whiteSpace: "pre-wrap" }}>
           {task.memo}
         </div>
       )}
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={shareCard} disabled={sharing} className="pc-btn pc-btn--sm" style={{ flex: 1, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, fontWeight: 800 }}>
+        <button onClick={shareCard} disabled={sharing} className="pc-btn pc-btn--sm" style={{ flex: 1, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, fontWeight: mfw(800, isMobile) }}>
           <Share2 size={13} style={{ marginRight: 4, verticalAlign: -2 }} />{sharing ? "생성 중..." : "공유"}
         </button>
         <button onClick={onEdit} className="pc-btn pc-btn--primary" style={{ flex: 1 }}>
