@@ -122,10 +122,16 @@ export default function OliviaAdaptiveStage() {
 
           {/* 홈 진입 모션(로고 등장 → 채팅창 오픈)은 OliviaSplash가 전담한다 — 여기서는
               내부 페이지 이동마다 반복되면 안 되니 별도 mount-in 애니메이션을 걸지 않는다. */}
+          {/* Olivia 2.0 Phase 1 — 실제 <OliviaConversation>은 더 이상 여기서 마운트하지
+              않는다. 루트에 항상 떠 있는 OliviaWorkspaceShell이 단일 인스턴스를 소유하고,
+              이 슬롯 노드에 portal로 꽂는다 — 그래야 홈 ↔ 다른 워크스페이스 라우트를 오가도
+              채팅이 재마운트되지 않는다(useOliviaChatDockStore). 레이아웃/애니메이션은
+              그대로 이 motion.section이 담당한다. */}
           <motion.section layout transition={spring} className="olivia-adaptive-stage__chat">
-            <div className="olivia-home-entry__chat-core">
-              <OliviaConversation variant={isWorkspaceMode ? "workspace" : "home"} showExpandToggle={isWorkspaceMode} />
-            </div>
+            <div
+              className="olivia-home-entry__chat-core"
+              ref={(el) => useOliviaChatDockStore.getState().setNode(el)}
+            />
           </motion.section>
 
           {!isWorkspaceMode ? (
