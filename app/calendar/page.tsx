@@ -377,8 +377,8 @@ function TaskItem({
 }
 
 /* ─── AddTaskForm ─────────────────────────────────────── */
-function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime }: {
-  date: string; onAdd: (t: CalTask) => void; triggerKey?: number; defaultTime?: string;
+function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = false }: {
+  date: string; onAdd: (t: CalTask) => void; triggerKey?: number; defaultTime?: string; isMobile?: boolean;
 }) {
   const [open,     setOpen]     = useState(false);
   const [title,    setTitle]    = useState("");
