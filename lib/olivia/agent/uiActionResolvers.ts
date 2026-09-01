@@ -230,9 +230,9 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   },
   show_workspace: async ({ result, context }) => {
     if (!result.success) return [];
-    const workspace = value(result.data, "workspace") as "quote" | "contract" | "conti" | undefined;
+    const workspace = value(result.data, "workspace") as "quote" | "contract" | "conti" | "photo-sort" | undefined;
     const resourceId = value(result.data, "resourceId");
-    if (!workspace || !resourceId) return [];
+    if (!workspace || (workspace !== "photo-sort" && !resourceId)) return [];
     return [context.activeWorkspace
       ? { type: "SWITCH_WORKSPACE", workspace, resourceId }
       : {

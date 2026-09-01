@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
 /* ── Types ──────────────────────────────────────────────── */
@@ -297,6 +298,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 /* ── Main Component ─────────────────────────────────────── */
 
 export default function RawSelectPage() {
+  const embedded = usePathname() === "/photo-sorting";
   const [step, setStep] = useState(0);
   const [jpgDir, setJpgDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [rawDir, setRawDir] = useState<FileSystemDirectoryHandle | null>(null);
@@ -966,7 +968,7 @@ export default function RawSelectPage() {
 
   /* ── Layout ─────────────────────────────────────────────── */
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", color: C.txt }}>
+    <div style={{ background: C.bg, minHeight: embedded ? 0 : "100vh", color: C.txt }}>
 
       {/* 기능 안내 배너 */}
       <div style={{ background: "linear-gradient(135deg, #1A4F4C 0%, #155855 100%)", color: "#fff", padding: "14px 24px" }}>

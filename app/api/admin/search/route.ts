@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { ALL_TOOLS } from "@/lib/toolNav";
 import { filterAdminTools, sanitizePostgrestSearch, type AdminSearchResult } from "@/lib/adminSearch";
+import { getWorkspaceAwareTools } from "@/lib/olivia/features/registry";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const rawQuery = request.nextUrl.searchParams.get("q") || "";
   const query = sanitizePostgrestSearch(rawQuery);
-  const tools = filterAdminTools(ALL_TOOLS, rawQuery).slice(0, 8);
+  const tools = filterAdminTools(getWorkspaceAwareTools(), rawQuery).slice(0, 8);
   if (query.length < 2) return NextResponse.json({ ok: true, customers: [], projects: [], tools });
 
   const db = getSupabaseAdmin();

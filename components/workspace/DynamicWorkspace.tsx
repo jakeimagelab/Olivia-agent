@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
-import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
+import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
@@ -105,7 +105,7 @@ export default function DynamicWorkspace() {
         <button type="button" className="olivia-floating-core" onClick={() => setDrawerOpen(!drawerOpen)} aria-label="Olivia 대화 열기"><OliviaIcon size={18} /></button>
         <aside className={`olivia-chat-drawer${drawerOpen ? " is-open" : ""}`} aria-hidden={!drawerOpen}>
           <button type="button" className="olivia-chat-drawer__close" onClick={() => setDrawerOpen(false)}>닫기</button>
-          <OliviaConversation variant="drawer" />
+          <OliviaChatDockTarget id={`fullscreen:${type}:${resourceId ?? "new"}`} priority={100} className="olivia-fullscreen-chat-dock" />
         </aside>
       </div>,
       document.body,

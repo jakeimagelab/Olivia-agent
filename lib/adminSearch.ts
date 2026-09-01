@@ -19,7 +19,7 @@ export function sanitizePostgrestSearch(value: unknown) {
 export function filterAdminTools(tools: ToolDef[], query: unknown): AdminSearchResult[] {
   const normalized = normalizeAdminSearchQuery(query);
   if (!normalized) return [];
-  return tools.filter((tool) => normalizeAdminSearchQuery(`${tool.title} ${tool.desc} ${tool.meta}`).includes(normalized)).map((tool) => ({
+  return tools.filter((tool) => normalizeAdminSearchQuery(`${tool.title} ${tool.desc} ${tool.meta} ${(tool.aliases ?? []).join(" ")}`).includes(normalized)).map((tool) => ({
     id: tool.href,
     kind: "tool",
     title: tool.title,

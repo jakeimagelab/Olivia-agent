@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
@@ -20,9 +20,8 @@ const CLIENT_PORTAL_PREFIX = "/client-portal";
 // 자리). 앱 전체에서 <OliviaConversation> 인스턴스를 딱 하나만 소유하고, 지금 어느 DOM
 // 노드(useOliviaChatDockStore)에 portal로 꽂을지만 결정한다 — 실제 노드는 홈(OliviaAdaptiveStage)
 // 이나 직접 워크스페이스 라우트(OliviaWorkspaceRouteBridge)가 각자 자기 자리에 등록해둔다.
-// portal 호출 자체는 이 컴포넌트 렌더마다 항상 같은 위치(같은 JSX 모양)에서 일어나므로,
-// 대상 노드가 바뀌어도(홈 슬롯 → 다른 라우트의 슬롯) React가 컴포넌트를 재마운트하지 않고
-// DOM만 옮긴다 — 이게 "기능이 바뀌어도 채팅이 재마운트되지 않는다"는 요구사항의 핵심이다.
+// createPortal 대상은 앱 수명 동안 유지되는 host 하나로 고정하고, host DOM만 활성 dock으로
+// 옮긴다. 이 방식이 "기능이 바뀌어도 채팅이 재마운트되지 않는다"는 요구사항의 핵심이다.
 export default function OliviaWorkspaceShell() {
   const pathname = usePathname();
   const router = useRouter();
@@ -37,6 +36,25 @@ export default function OliviaWorkspaceShell() {
   const layoutMode = useOliviaLayoutStore((s) => s.mode);
   const pendingWorkspaceOpen = useOliviaConversationStore((s) => s.pendingWorkspaceOpen);
   const dockNode = useOliviaChatDockStore((s) => s.node);
+  const activeDockId = useOliviaChatDockStore((s) => s.activeDockId);
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
+
+  // createPortal의 container가 바뀌면 React는 그 subtree를 새로 만든다. 따라서 홈/직접 route/
+  // fullscreen마다 다른 dockNode를 createPortal에 직접 넘기지 않고, 앱 수명 동안 하나뿐인
+  // detached host를 만든 뒤 실제 DOM만 active dock으로 옮긴다. OliviaConversation의 React
+  // identity는 이 host 아래에서 절대 바뀌지 않는다.
+  useEffect(() => {
+    const host = document.createElement("div");
+    host.className = "olivia-chat-portal-host";
+    host.dataset.oliviaChatMount = "persistent";
+    setPortalHost(host);
+    return () => host.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!portalHost || !dockNode || portalHost.parentElement === dockNode) return;
+    dockNode.appendChild(portalHost);
+  }, [dockNode, portalHost]);
 
   const isHome = pathname?.startsWith(HOME_PREFIX) ?? false;
   const isClientPortal = pathname?.startsWith(CLIENT_PORTAL_PREFIX) ?? false;
@@ -57,15 +75,14 @@ export default function OliviaWorkspaceShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  if (isClientPortal) return null; // 고객용 화면 — 기존과 동일하게 범위 밖.
-  if (isFullscreen) return null; // DynamicWorkspace 자신의 body 포털 드로어가 이미 채팅을 그린다.
-
   const hasWorkspace = workspaceType !== null;
   const isSplitActive = isOliviaWorkspaceSplitActive({ hasWorkspace, mode: layoutMode, pendingWorkspaceOpen });
-  const chatVariant = isHome ? (isSplitActive ? "workspace" : "home") : "workspace";
+  const chatVariant = isFullscreen || activeDockId === "floating"
+    ? "drawer"
+    : isHome ? (isSplitActive ? "workspace" : "home") : "workspace";
   const showExpandToggle = isHome ? isSplitActive : true;
-  const chatPortal = dockNode
-    ? createPortal(<OliviaConversation variant={chatVariant} showExpandToggle={showExpandToggle} />, dockNode)
+  const chatPortal = portalHost
+    ? createPortal(<OliviaConversation variant={chatVariant} showExpandToggle={showExpandToggle} />, portalHost)
     : null;
 
   // 홈: greeting/quick-prompt/드로어는 OliviaAdaptiveStage가 그대로 그린다 — 여기서는 그
@@ -73,6 +90,7 @@ export default function OliviaWorkspaceShell() {
   // 채팅 슬롯 div)는 OliviaWorkspaceRouteBridge가 그 페이지 트리 안에서 직접 그린다(그래야
   // GlobalFeatureSidebar가 이미 그리는 사이드바와 겹치지 않는다) — 여기서는 마찬가지로
   // 그 슬롯에 채팅만 꽂는다. 그 외(미지원 페이지, photo-sorting): 기존 플로팅 토글.
-  if (isHome || hasSplitViewHere) return chatPortal;
-  return <OliviaFloatingChatToggle />;
+  if (isClientPortal) return chatPortal;
+  if (isHome || hasSplitViewHere || isFullscreen) return chatPortal;
+  return <><OliviaFloatingChatToggle />{chatPortal}</>;
 }

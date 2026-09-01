@@ -166,7 +166,7 @@ describe("Deterministic Router — Navigation (N1-N5, GPT 미호출)", () => {
   it("N5: 사진분류 열어줘 → /photo-sorting open", () => {
     const result = resolveDeterministicResponse("사진분류 열어줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?tool=classification" }]);
   });
   it("업무일지 열어줘 → /work-journal open", () => {
     const result = resolveDeterministicResponse("업무일지 열어줘", runtime, emptyContext);
@@ -215,12 +215,12 @@ describe("Deterministic Router — Select/RAW Match RUN 의도 우선(GPT 미호
   it("셀렉매칭 페이지 열어줘 → \"페이지\" 명시 시 여전히 OPEN(페이지 이동)", () => {
     const result = resolveDeterministicResponse("셀렉매칭 페이지 열어줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/select-match" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?tool=select-raw" }]);
   });
   it("RAW 매칭 화면 보여줘 → \"화면\" 명시 시 여전히 OPEN", () => {
     const result = resolveDeterministicResponse("RAW 매칭 화면 보여줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/select-match" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?tool=select-raw" }]);
   });
 });
 
@@ -298,17 +298,17 @@ describe("Deterministic Router — 사진 분류 RUN 의도 우선(GPT 미호출
   it("사진분류 페이지 열어줘 → \"페이지\" 명시 시 여전히 OPEN(회귀)", () => {
     const result = resolveDeterministicResponse("사진분류 페이지 열어줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?tool=classification" }]);
   });
   it("사진분류 화면 보여줘 → \"화면\" 명시 시 여전히 OPEN(회귀)", () => {
     const result = resolveDeterministicResponse("사진분류 화면 보여줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?tool=classification" }]);
   });
   it("사진분류 열어줘 → \"열어줘\" 동사만 있어도 OPEN(회귀, 기존 N5 케이스와 충돌 방지)", () => {
     const result = resolveDeterministicResponse("사진분류 열어줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?tool=classification" }]);
   });
 });
 

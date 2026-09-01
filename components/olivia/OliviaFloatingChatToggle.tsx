@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import OliviaAgentCenter from "@/components/olivia-agent-center/OliviaAgentCenter";
+import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { useOliviaChatModeStore } from "@/lib/store/useOliviaChatModeStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
@@ -47,7 +48,12 @@ export default function OliviaFloatingChatToggle() {
       >
         {isOpen ? <X size={20} strokeWidth={1.8} /> : <OliviaIcon size={20} />}
       </button>
-      <OliviaAgentCenter isOpen={isOpen} onClose={minimizeChat} onMinimize={minimizeChat} />
+      <OliviaAgentCenter
+        isOpen={isOpen}
+        onClose={minimizeChat}
+        onMinimize={minimizeChat}
+        chatContent={<OliviaChatDockTarget id="floating" priority={10} className="olivia-floating-chat-dock" />}
+      />
     </>
   );
 }

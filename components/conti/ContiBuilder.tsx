@@ -131,6 +131,9 @@ export default function ContiBuilder({
     const doctors      = params.get("doctors");
     const extras       = params.get("extras");
     const clientId     = params.get("client_id") || params.get("clientId");
+    const workspaceTool = params.get("tool");
+    if (workspaceTool === "portrait") setPageMode("portrait");
+    if (workspaceTool === "shooting") setPageMode("conti");
     setUrlClientId(clientId);
     setUrlWorkflowRunId(params.get("workflowRunId"));
 

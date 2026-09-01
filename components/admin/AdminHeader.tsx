@@ -15,7 +15,7 @@ const pageTitle: Record<string, PageMeta> = {
   "/admin/dashboard/mailing": { title: "메일링" },
   "/admin/dashboard/links": { title: "외부링크" },
   "/admin/dashboard/trash": { title: "휴지통" },
-  "/admin/tools": { title: "All Tools", description: "견적서, 계약서, 콘티, 사진 작업 등 실제 업무 도구를 실행합니다." },
+  "/admin/tools": { title: "통합 작업실", description: "업무 영역을 선택하고 필요한 세부 기능으로 바로 이동합니다." },
   "/admin/tools/quote": { title: "견적서 생성기" },
   "/admin/tools/contract": { title: "계약서 생성기" },
   "/admin/tools/conti": { title: "콘티 생성기" },

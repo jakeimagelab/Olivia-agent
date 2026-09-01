@@ -1,8 +1,9 @@
 import { Grid2X2, House } from "lucide-react";
 import { ALL_TOOLS, type ToolDef } from "@/lib/toolNav";
+import { WORKSPACE_GROUPS, isIntegratedToolHref } from "@/lib/workspaceGroups";
 
-// lib/toolNav.ts의 ALL_TOOLS가 Olivia 기능 실행의 단일 진실 공급원 — 사이드바/대시보드가 쓰는
-// 것과 같은 배열이라 "사이드바엔 있는데 Olivia는 모른다"는 상황이 구조적으로 안 생긴다.
+// 기존 ALL_TOOLS는 Sidebar/기존 route 호환성을 유지하고, 통합 대상은 WORKSPACE_GROUPS의
+// canonical 목적지와 별칭을 사용한다. 독립 기능은 계속 ALL_TOOLS를 그대로 쓴다.
 // 홈/더보기는 시각적 그리드 타일이 아니라서(더보기는 그리드 자체를 보여주는 메타 페이지) ALL_TOOLS에
 // 없다 — 여기서만 별도로 얹는다.
 export const OLIVIA_HOME_FEATURE: ToolDef = {
@@ -17,10 +18,41 @@ export const OLIVIA_MORE_FEATURE: ToolDef = {
   aliases: ["더보기", "전체 기능", "기능 목록", "사용할 수 있는 기능"],
 };
 
+function getWorkspaceFeatures(): ToolDef[] {
+  return WORKSPACE_GROUPS.flatMap((group) => [
+    {
+      title: group.title,
+      desc: group.description,
+      href: group.href,
+      icon: group.icon,
+      meta: "Workspace",
+      orange: false,
+      category: "tools" as const,
+      aliases: group.aliases,
+    },
+    ...group.tools.map((tool) => ({
+      title: tool.title,
+      desc: `${group.title}에서 ${tool.title} 기능을 엽니다.`,
+      href: tool.href,
+      icon: group.icon,
+      meta: group.title,
+      orange: false,
+      category: "tools" as const,
+      aliases: tool.aliases,
+    })),
+  ]);
+}
+
+export function getWorkspaceAwareTools(): ToolDef[] {
+  const standaloneFeatures = ALL_TOOLS.filter((tool) => !isIntegratedToolHref(tool.href));
+  return [...getWorkspaceFeatures(), ...standaloneFeatures];
+}
+
 export function getOliviaFeatures(): ToolDef[] {
-  return [OLIVIA_HOME_FEATURE, OLIVIA_MORE_FEATURE, ...ALL_TOOLS];
+  return [OLIVIA_HOME_FEATURE, OLIVIA_MORE_FEATURE, ...getWorkspaceAwareTools()];
 }
 
 export function findFeatureByHref(href: string): ToolDef | undefined {
-  return getOliviaFeatures().find((tool) => tool.href === href);
+  return getOliviaFeatures().find((tool) => tool.href === href)
+    ?? ALL_TOOLS.find((tool) => tool.href === href);
 }

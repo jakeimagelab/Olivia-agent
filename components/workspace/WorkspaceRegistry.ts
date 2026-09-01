@@ -1,10 +1,17 @@
 import type { ComponentType } from "react";
+import dynamic from "next/dynamic";
 import { Clapperboard, FileSignature, FileText, Wand2, type LucideIcon } from "lucide-react";
-import QuoteBuilder from "@/components/quote/QuoteBuilder";
-import ContractBuilder from "@/components/contract/ContractBuilder";
-import ContiBuilder from "@/components/conti/ContiBuilder";
-import PhotoSortingWorkspace from "@/components/photo-classifier/PhotoSortingWorkspace";
 import type { WorkspaceType } from "@/lib/store/workspaceStore";
+
+const loadQuoteBuilder = () => import("@/components/quote/QuoteBuilder");
+const loadContractBuilder = () => import("@/components/contract/ContractBuilder");
+const loadContiBuilder = () => import("@/components/conti/ContiBuilder");
+const loadPhotoWorkspace = () => import("@/components/photo-workspace/PhotoWorkspace");
+
+const QuoteBuilder = dynamic<WorkspaceBuilderProps>(() => loadQuoteBuilder().then((module) => module.default as ComponentType<WorkspaceBuilderProps>));
+const ContractBuilder = dynamic<WorkspaceBuilderProps>(() => loadContractBuilder().then((module) => module.default as ComponentType<WorkspaceBuilderProps>));
+const ContiBuilder = dynamic<WorkspaceBuilderProps>(() => loadContiBuilder().then((module) => module.default as ComponentType<WorkspaceBuilderProps>));
+const PhotoWorkspace = dynamic<WorkspaceBuilderProps>(() => loadPhotoWorkspace().then((module) => module.default as ComponentType<WorkspaceBuilderProps>));
 
 // DynamicWorkspace가 if(type==='quote')/if(type==='contract') 하드코딩 없이 타입 → 컴포넌트를
 // 찾도록 하는 레지스트리. 새 워크스페이스(예: shoot-prep)를 연결할 땐 화면 컴포넌트를 만들고
@@ -24,6 +31,7 @@ export type WorkspaceRegistryEntry = {
   label: string;
   icon: LucideIcon;
   component: ComponentType<WorkspaceBuilderProps>;
+  preload: () => Promise<unknown>;
   // Olivia 2.0 Phase 1 — 이 워크스페이스를 채팅 없이 직접 열 수 있는 URL 목록. 첫 항목이
   // canonical(URL 동기화 시 쓰는 대표 경로)이다. getWorkspaceTypeForPathname/
   // shouldAutoCloseWorkspace가 이 목록 하나만 보고 판단하므로, 새 direct route를 추가할 땐
@@ -37,16 +45,20 @@ export const workspaceRegistry: Partial<Record<Exclude<WorkspaceType, null>, Wor
   // getWorkspaceTypeForPathname이 이 두 경로를 더 이상 등록된 워크스페이스로 인식하지 않아,
   // OliviaWorkspaceShell도 자동으로 일반 페이지(플로팅 챗)로 취급한다 — quote 타입 자체는
   // 지우지 않았으므로 채팅에서 "견적서 열어줘"처럼 workspace로 띄우는 기능은 그대로 쓸 수 있다.
-  quote: { label: "견적서 작성", icon: FileText, component: QuoteBuilder, directRoutes: [] },
-  contract: { label: "계약서 작성", icon: FileSignature, component: ContractBuilder, directRoutes: ["/contract"] },
-  conti: { label: "콘티 작성", icon: Clapperboard, component: ContiBuilder, directRoutes: ["/conti"] },
+  quote: { label: "견적서 작성", icon: FileText, component: QuoteBuilder, preload: loadQuoteBuilder, directRoutes: [] },
+  contract: { label: "계약서 작성", icon: FileSignature, component: ContractBuilder, preload: loadContractBuilder, directRoutes: ["/contract"] },
+  conti: { label: "콘티 작성", icon: Clapperboard, component: ContiBuilder, preload: loadContiBuilder, directRoutes: ["/conti"] },
   // photo-sort의 실제 direct route(/photo-sorting)는 PhotoWorkspace(자체 탭/URL 체계를 가진
   // 상위 셸)가 그려서 70/30 스플릿을 쓰지 않는다 — directRoutes는 "이 경로는 등록된
   // 워크스페이스에 속한다"는 판정에만 쓰이고, OliviaWorkspaceShell은 photo-sort일 때 스플릿
   // 렌더를 건너뛴다(components/olivia/OliviaWorkspaceShell.tsx 참고).
-  "photo-sort": { label: "사진 분류", icon: Wand2, component: PhotoSortingWorkspace, directRoutes: ["/photo-sorting"] },
+  "photo-sort": { label: "사진 작업실", icon: Wand2, component: PhotoWorkspace, preload: loadPhotoWorkspace, directRoutes: ["/photo-sorting"] },
   // shoot-prep/calendar/project/gallery/files/analysis: 화면이 생기면 여기 등록.
 };
+
+export function preloadWorkspace(type: Exclude<WorkspaceType, null>) {
+  return workspaceRegistry[type]?.preload();
+}
 
 function matchesDirectRoute(pathname: string, route: string) {
   return pathname === route || pathname.startsWith(`${route}/`);

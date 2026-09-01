@@ -1639,6 +1639,178 @@
   }
 }
 
+/* ============================================================
+   통합 작업실 1차 Launcher (2026-09-02)
+   기존 독립 기능 카드 규칙은 아래 섹션에서 그대로 재사용하고, 업무 단위 Workspace만
+   가로형 카드로 위에 배치한다. */
+.oa-workspace-launcher { max-width: 1180px; }
+
+.oa-workspace-notice {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 48px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(21,88,85,.12);
+  border-radius: 14px;
+  background: #f2faf7;
+}
+.oa-workspace-notice__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  color: #155855;
+  background: rgba(21,88,85,.08);
+}
+.oa-workspace-notice strong { display: block; color: #24433f; font-size: 12px; font-weight: 700; }
+.oa-workspace-notice p { margin: 3px 0 0; color: #78908b; font-size: 10px; }
+
+.oa-workspace-launcher .oa-tools-search { position: relative; }
+.oa-workspace-launcher .oa-tools-search > svg {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  z-index: 1;
+  color: #8aa09b;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.oa-workspace-launcher .oa-tools-search input[type="search"] { padding-left: 38px; }
+
+.oa-workspace-list { display: grid; gap: 10px; }
+.oa-workspace-card {
+  --workspace-accent: #155855;
+  --workspace-tint: rgba(21,88,85,.065);
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 124px;
+  padding: 16px 17px;
+  overflow: hidden;
+  border: 1px solid rgba(21,88,85,.11);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15,50,45,.02);
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+.oa-workspace-card[data-accent="blue"] { --workspace-accent: #547a9b; --workspace-tint: rgba(84,122,155,.07); }
+.oa-workspace-card[data-accent="purple"] { --workspace-accent: #7b6996; --workspace-tint: rgba(123,105,150,.07); }
+.oa-workspace-card[data-accent="orange"] { --workspace-accent: #b97851; --workspace-tint: rgba(185,120,81,.07); }
+.oa-workspace-card[data-accent="green"] { --workspace-accent: #4e836b; --workspace-tint: rgba(78,131,107,.07); }
+.oa-workspace-card:hover,
+.oa-workspace-card:focus-within {
+  border-color: color-mix(in srgb, var(--workspace-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--workspace-tint) 55%, #fff);
+  transform: translateY(-1px);
+}
+.oa-workspace-card__overlay { position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
+.oa-workspace-card__overlay:focus-visible { outline: 3px solid rgba(21,88,85,.18); outline-offset: -3px; }
+.oa-workspace-card__icon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid color-mix(in srgb, var(--workspace-accent) 13%, transparent);
+  border-radius: 14px;
+  color: var(--workspace-accent);
+  background: var(--workspace-tint);
+  pointer-events: none;
+}
+.oa-workspace-card__body { position: relative; z-index: 1; min-width: 0; pointer-events: none; }
+.oa-workspace-card__body h2 { margin: 0; color: #132725; font-size: 16px; font-weight: 750; letter-spacing: -.015em; }
+.oa-workspace-card__body > p { margin: 4px 0 10px; color: #728782; font-size: 11.5px; line-height: 1.45; }
+.oa-workspace-card__tools { display: flex; flex-wrap: wrap; gap: 5px; pointer-events: auto; }
+.oa-workspace-card__tools a {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--workspace-accent) 12%, transparent);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--workspace-accent) 86%, #263b37);
+  background: var(--workspace-tint);
+  font-size: 10.5px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+.oa-workspace-card__tools a:hover,
+.oa-workspace-card__tools a:focus-visible { border-color: color-mix(in srgb, var(--workspace-accent) 28%, transparent); background: #fff; outline: none; }
+.oa-workspace-card__open {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 78px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid rgba(21,88,85,.13);
+  border-radius: 10px;
+  color: #155855;
+  background: #fff;
+  font-size: 11.5px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.oa-workspace-card__open:hover,
+.oa-workspace-card__open:focus-visible { border-color: rgba(21,88,85,.28); background: #f5fbf8; outline: none; }
+
+.oa-standalone-tools { margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(21,88,85,.09); }
+.oa-standalone-tools__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid rgba(21,88,85,.1);
+  border-radius: 12px;
+  color: #203431;
+  background: rgba(255,255,255,.72);
+  cursor: pointer;
+  list-style: none;
+}
+.oa-standalone-tools__heading::-webkit-details-marker { display: none; }
+.oa-standalone-tools__heading > span:first-child { display: grid; gap: 3px; }
+.oa-standalone-tools__heading strong { font-size: 12.5px; font-weight: 750; }
+.oa-standalone-tools__heading small { color: #849590; font-size: 10px; font-weight: 500; }
+.oa-standalone-tools__toggle { display: inline-flex; align-items: center; gap: 5px; color: #55736d; font-size: 10.5px; font-weight: 700; }
+.oa-standalone-tools__toggle svg { transition: transform 160ms ease; }
+.oa-standalone-tools[open] .oa-standalone-tools__toggle svg { transform: rotate(180deg); }
+.oa-standalone-tools__content { padding-top: 14px; }
+
+@media (max-width: 820px) {
+  .oa-workspace-card { grid-template-columns: 46px minmax(0,1fr); gap: 13px; }
+  .oa-workspace-card__icon { width: 46px; height: 46px; }
+  .oa-workspace-card__open { grid-column: 2; justify-self: start; min-height: 32px; margin-top: -2px; }
+}
+
+@media (max-width: 560px) {
+  .oa-workspace-card { display: flex; flex-direction: column; align-items: flex-start; min-height: 0; padding: 15px; }
+  .oa-workspace-card__body > p { margin-bottom: 9px; }
+  .oa-workspace-card__open { align-self: stretch; margin-top: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oa-workspace-card,
+  .oa-workspace-card__tools a { transition-duration: .01ms; }
+  .oa-workspace-card:hover,
+  .oa-workspace-card:focus-within { transform: none; }
+}
+
 /* Olivia Agent 2.0 — 홈 레이아웃: Olivia Chat이 압도적 메인(~74%), 하단은 빠른실행(0.72fr) |
    최근 프로젝트(1.08fr) | 통합 스케줄(2.2fr) 비대칭 3분할. 실측 헤더 높이는 72px(admin.css
    "Dense Command" 블록 기준). */
@@ -2098,13 +2270,13 @@
   flex-basis: 0;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(30px) scale(.97);
-  transition: opacity 420ms cubic-bezier(.32,.72,0,1), transform 460ms cubic-bezier(.32,.72,0,1);
+  transform: translateY(6px);
+  transition: opacity 220ms cubic-bezier(.32,.72,0,1), transform 220ms cubic-bezier(.32,.72,0,1);
 }
 .olivia-adaptive-stage__workspace.is-visible {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0) scale(1);
+  transform: translateY(0);
 }
 /* 홈에서 채팅으로 문서(콘티/견적 등)를 열 때도 다른 페이지와 같은 "옆에 붙는 패널" 느낌으로
    보이게 — 채팅 아래에 문서가 세로로 크게 펼쳐지던 것을, 문서 열람 중에만 가로 분할(문서 왼쪽
@@ -2114,9 +2286,9 @@
 .olivia-adaptive-stage.is-workspace,
 .olivia-adaptive-stage.is-workspace-chat-expanded { flex-direction: row-reverse; }
 .olivia-adaptive-stage.is-workspace .olivia-adaptive-stage__workspace,
-.olivia-adaptive-stage.is-workspace-chat-expanded .olivia-adaptive-stage__workspace { transform: translateX(-30px) scale(.97); }
+.olivia-adaptive-stage.is-workspace-chat-expanded .olivia-adaptive-stage__workspace { transform: translateY(6px); }
 .olivia-adaptive-stage.is-workspace .olivia-adaptive-stage__workspace.is-visible,
-.olivia-adaptive-stage.is-workspace-chat-expanded .olivia-adaptive-stage__workspace.is-visible { transform: translateX(0) scale(1); }
+.olivia-adaptive-stage.is-workspace-chat-expanded .olivia-adaptive-stage__workspace.is-visible { transform: translateY(0); }
 @media (max-width: 900px) {
   .olivia-adaptive-stage.is-workspace,
   .olivia-adaptive-stage.is-workspace-chat-expanded { flex-direction: column; }
@@ -2698,6 +2870,8 @@
   bottom: 0;
   z-index: 10043;
   width: clamp(420px,32vw,480px);
+  display: flex;
+  flex-direction: column;
   padding-top: 40px;
   border-left: 1px solid rgba(21,88,85,.08);
   background: #f8faf9;
@@ -2705,7 +2879,7 @@
   transform: translateX(104%);
   opacity: 0;
   pointer-events: none;
-  transition: transform 430ms cubic-bezier(.32,.72,0,1), opacity 260ms cubic-bezier(.32,.72,0,1);
+  transition: transform 320ms cubic-bezier(.32,.72,0,1), opacity 220ms cubic-bezier(.32,.72,0,1);
 }
 .olivia-chat-drawer.is-open { transform: translateX(0); opacity: 1; pointer-events: auto; }
 .olivia-chat-drawer__scrim {
@@ -3157,9 +3331,18 @@
    동일한 이유로 맞춰준다. */
 .olivia-workspace-shell__viewport { flex-basis: 0; min-width: 0; min-height: 0; position: relative; }
 .olivia-workspace-shell__chat { flex-basis: 0; min-width: 0; min-height: 0; overflow: hidden; }
-.olivia-workspace-shell__chat-slot { width: 100%; height: 100%; }
+.olivia-workspace-shell__chat-slot,
+.olivia-floating-chat-dock,
+.olivia-fullscreen-chat-dock,
+.olivia-chat-portal-host { width: 100%; height: 100%; min-height: 0; }
+.olivia-fullscreen-chat-dock { flex: 1 1 0; height: auto; }
+.olivia-chat-portal-host { display: flex; }
+.olivia-chat-portal-host > .olivia-conversation { flex: 1 1 0; min-height: 0; }
 
 @media (prefers-reduced-motion: reduce) {
+  .olivia-adaptive-stage__workspace { transform: none; transition-duration: 60ms; }
+  .olivia-chat-drawer { transform: none; visibility: hidden; transition-duration: 60ms; }
+  .olivia-chat-drawer.is-open { visibility: visible; }
   .olivia-workspace-shell__viewport, .olivia-workspace-shell__chat { transition: none !important; }
 }
 

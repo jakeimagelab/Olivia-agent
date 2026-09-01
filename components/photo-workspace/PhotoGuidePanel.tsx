@@ -1,9 +1,10 @@
 import type { LucideIcon } from "lucide-react";
-import { CheckSquare2, FileCheck2, FileOutput, FolderOpen, FolderTree, Images, Link2, MessageCircle, ScanSearch, Sparkles, Users } from "lucide-react";
+import { CheckSquare2, Clock, FileCheck2, FileOutput, FolderOpen, FolderTree, Images, Link2, MessageCircle, Palette, ScanSearch, Scissors, Sparkles, Users } from "lucide-react";
 import type { PhotoSelectMode, PhotoWorkspaceMode } from "./types";
+import type { PhotoWorkspaceToolId } from "./photoWorkspaceToolState";
 import styles from "./PhotoWorkspace.module.css";
 
-type GuideKey = "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "conversion";
+type GuideKey = "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "conversion" | "metadata_match" | "ai_cull" | "retouch";
 type GuideStep = { icon: LucideIcon; title: string; description: string };
 
 const GUIDES: Record<GuideKey, GuideStep[]> = {
@@ -43,15 +44,36 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
     { icon: FileOutput, title: "FHD 변환", description: "브라우저에서 1920×1080 MP4로 변환합니다." },
     { icon: FileCheck2, title: "결과 확인", description: "FHD_변환 폴더의 결과를 확인합니다." },
   ],
+  metadata_match: [
+    { icon: Images, title: "고객 선택본", description: "파일명이 변경된 고객 선택본 폴더를 고릅니다." },
+    { icon: Clock, title: "촬영시간 확인", description: "EXIF 촬영시간으로 원본 JPG를 찾습니다." },
+    { icon: FolderOpen, title: "RAW 원본 선택", description: "연결할 RAW 원본 폴더를 선택합니다." },
+    { icon: FileCheck2, title: "결과 확인", description: "매칭 성공과 확인 필요 항목을 검토합니다." },
+  ],
+  ai_cull: [
+    { icon: FolderOpen, title: "촬영 폴더 선택", description: "정리할 JPG와 RAW 폴더를 선택합니다." },
+    { icon: Scissors, title: "컷 분석", description: "품질과 중복 기준으로 후보를 정리합니다." },
+    { icon: CheckSquare2, title: "후보 검토", description: "남길 사진과 제외할 사진을 확인합니다." },
+    { icon: Link2, title: "RAW 정리", description: "선택한 JPG의 RAW 원본을 결과 폴더에 모읍니다." },
+  ],
+  retouch: [
+    { icon: Images, title: "사진 업로드", description: "색감을 확인할 사진을 선택합니다." },
+    { icon: Palette, title: "기준 선택", description: "피부톤 또는 가운 색상 기준을 선택합니다." },
+    { icon: Sparkles, title: "색감 분석", description: "기준 색상과 현재 사진의 차이를 분석합니다." },
+    { icon: FileCheck2, title: "보정값 확인", description: "Photoshop과 Camera Raw 보정 가이드를 확인합니다." },
+  ],
 };
 
-function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode): GuideKey {
+function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode, tool?: string | null): GuideKey {
+  if (tool === "metadata-match") return "metadata_match";
+  if (tool === "ai-cull") return "ai_cull";
+  if (tool === "retouch") return "retouch";
   if (mode === "select") return `select_${selectMode}` as GuideKey;
   if (mode === "raw-match") return "raw_match";
   return mode;
 }
-export default function PhotoGuidePanel({ mode, selectMode }: { mode: PhotoWorkspaceMode; selectMode: PhotoSelectMode }) {
-  const key = guideKey(mode, selectMode);
+export default function PhotoGuidePanel({ mode, selectMode, tool }: { mode: PhotoWorkspaceMode; selectMode: PhotoSelectMode; tool?: PhotoWorkspaceToolId | string | null }) {
+  const key = guideKey(mode, selectMode, tool);
   const steps = GUIDES[key];
   return (
     <aside className={styles.guide} aria-label="사용 가이드">

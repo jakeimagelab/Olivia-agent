@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
-import DynamicWorkspace from "@/components/workspace/DynamicWorkspace";
-import { useOliviaChatDockStore } from "@/lib/store/useOliviaChatDockStore";
+import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
+import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTransition";
 import { getWorkspaceLayoutWeight, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { useWorkspaceStore, type WorkspaceType } from "@/lib/store/workspaceStore";
 
-const spring = { type: "spring" as const, stiffness: 230, damping: 28, mass: 0.85 };
+const layoutTransition = { duration: 0.32, ease: [0.32, 0.72, 0, 1] as const };
 
 // Olivia Agent 2.0 Phase 1 — /contract, /conti(그리고 sync 전용으로 /photo-sorting)가
 // 렌더링하는 얇은 다리. /photoclinic, /quote(견적서)는 2026-09 원복 요청으로 이 브릿지를
@@ -35,7 +35,8 @@ export default function OliviaWorkspaceRouteBridge({
   const workflowRunId = searchParams.get("workflowRunId") ?? searchParams.get("projectId") ?? undefined;
   const resourceId = searchParams.get("resourceId") ?? searchParams.get("stepKey") ?? undefined;
   const layoutMode = useOliviaLayoutStore((s) => s.mode);
-  const setDockNode = useOliviaChatDockStore((s) => s.setNode);
+  const hasWorkspace = useWorkspaceStore((s) => s.type !== null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const store = useWorkspaceStore.getState();
@@ -55,11 +56,11 @@ export default function OliviaWorkspaceRouteBridge({
 
   return (
     <div className="olivia-workspace-shell">
-      <motion.div layout transition={spring} className="olivia-workspace-shell__viewport" style={{ flexGrow: weights.workspace }}>
-        <DynamicWorkspace />
+      <motion.div layout transition={reduceMotion ? { duration: 0 } : layoutTransition} className="olivia-workspace-shell__viewport" style={{ flexGrow: weights.workspace }}>
+        <WorkspaceMorphTransition hasWorkspace={hasWorkspace} pendingWorkspaceOpen={false} />
       </motion.div>
-      <motion.div layout transition={spring} className="olivia-workspace-shell__chat" style={{ flexGrow: weights.chat }}>
-        <div className="olivia-workspace-shell__chat-slot" ref={(el) => setDockNode(el)} />
+      <motion.div layout transition={reduceMotion ? { duration: 0 } : layoutTransition} className="olivia-workspace-shell__chat" style={{ flexGrow: weights.chat }}>
+        <OliviaChatDockTarget id={`route:${workspaceType}`} priority={80} className="olivia-workspace-shell__chat-slot" />
       </motion.div>
     </div>
   );

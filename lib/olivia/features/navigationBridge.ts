@@ -1,3 +1,5 @@
+import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
+
 // executeOliviaAction(actionRouter.ts)과 openOliviaFeature(executor.ts)는 훅이 아닌 평범한
 // 함수라서 useRouter()를 직접 쓸 수 없다. 루트 레이아웃에 항상 떠 있는 OliviaWorkspaceShell이
 // 마운트 시 실제 라우터를 여기 등록해두면, 그 아래 어디서든 SPA 네비게이션을 쓸 수 있다.
@@ -11,11 +13,12 @@ export function registerOliviaRouter(router: RouterLike) {
 }
 
 export function navigateToFeature(href: string) {
+  const targetHref = getCanonicalWorkspaceHref(href);
   if (registeredRouter) {
-    registeredRouter.push(href);
+    registeredRouter.push(targetHref);
     return;
   }
-  if (typeof window !== "undefined") window.location.href = href;
+  if (typeof window !== "undefined") window.location.href = targetHref;
 }
 
 // Olivia 2.0 Phase 1 — 채팅이 SWITCH_WORKSPACE로 워크스페이스를 바꾸면(예: "콘티로 넘어가자"),

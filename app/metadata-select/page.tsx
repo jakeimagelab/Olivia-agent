@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { CheckCircle2, HelpCircle, XCircle, AlertTriangle, Clock } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { C, R } from "@/lib/theme";
@@ -77,6 +78,7 @@ function FolderPickerRow({
 }
 
 export default function MetadataSelectPage() {
+  const embedded = usePathname() === "/photo-sorting";
   const [hasFS, setHasFS] = useState(false);
   useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
 
@@ -166,10 +168,12 @@ export default function MetadataSelectPage() {
 
   return (
     <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <GlobalHeader
-        title="메타데이터 셀렉"
-        description="파일명을 변경한 선택본도 촬영시간 메타데이터로 RAW를 찾습니다."
-      />
+      {!embedded ? (
+        <GlobalHeader
+          title="메타데이터 셀렉"
+          description="파일명을 변경한 선택본도 촬영시간 메타데이터로 RAW를 찾습니다."
+        />
+      ) : null}
       <div className="pc-content">
         {!hasFS ? (
           <div className="pc-card pc-card--padded" style={{ fontSize: 12, color: C.danger, textAlign: "center" }}>

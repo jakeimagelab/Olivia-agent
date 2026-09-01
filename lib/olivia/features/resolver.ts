@@ -99,8 +99,8 @@ export interface FeatureResolutionContext {
   recentFeatureHrefs?: string[];
 }
 
-// 자연어 요청을 기존 기능(lib/toolNav.ts ALL_TOOLS)과 매칭한다 — 새 기능을 만들지 않고 이미
-// 존재하는 라우트만 대상으로 한다. 완전 일치(1.0)만 resolveNavigationCapability의 결정론적
+// 자연어 요청을 중앙 Olivia 기능 목록(통합 WORKSPACE_GROUPS + 독립 ALL_TOOLS)과 매칭한다.
+// 완전 일치(1.0)만 resolveNavigationCapability의 결정론적
 // bypass를 통과하고, 그 외(0.35~0.84)는 항상 LLM 쪽 open_feature 호출을 거쳐 확인 질문 또는
 // 후보 제시로 이어진다 — 절대 "그런 기능은 없는 것 같아요"로 바로 끝내지 않는다.
 export function resolveFeatureIntent(query: string, context?: FeatureResolutionContext): FeatureResolution {

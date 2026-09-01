@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CalendarDays, FileText, ListChecks, Search, Sparkles } from "lucide-react";
+import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTransition";
 import OliviaHomeContextDrawer from "@/components/home/OliviaHomeContextDrawer";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
-import { useOliviaChatDockStore } from "@/lib/store/useOliviaChatDockStore";
 import { getWorkspaceLayoutWeight, isOliviaWorkspaceSplitActive, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 
-const spring = { type: "spring" as const, stiffness: 230, damping: 28, mass: 0.85 };
+const layoutTransition = { duration: 0.32, ease: [0.32, 0.72, 0, 1] as const };
 const QUICK_PROMPTS = [
   { title: "업무 요청하기", description: "작업을 Olivia에게 맡기기", icon: Sparkles, prompt: "새 업무를 요청하고 싶어요. 필요한 내용을 물어봐줘." },
   { title: "정보 찾아보기", description: "필요한 정보 빠르게 찾기", icon: Search, prompt: "업무에 필요한 정보를 찾고 싶어요. 무엇을 찾을지 물어봐줘." },
@@ -50,6 +50,8 @@ function getHomeGreetingTitle(now: Date, todayCount: number, pendingCount: numbe
 }
 
 export default function OliviaAdaptiveStage() {
+  const reduceMotion = useReducedMotion();
+  const transition = reduceMotion ? { duration: 0 } : layoutTransition;
   const mode = useOliviaLayoutStore((state) => state.mode);
   const chatFocused = useOliviaLayoutStore((state) => state.chatFocused);
   const workspaceFocused = useOliviaLayoutStore((state) => state.workspaceFocused);
@@ -101,7 +103,7 @@ export default function OliviaAdaptiveStage() {
   // is-workspace를 추가로 붙여 스켈레톤이 뜨는 순간부터 바로 좌우 레이아웃이 되게 한다.
   return (
     <main className={`olivia-adaptive-stage olivia-agent-home is-${mode}${isWorkspaceMode ? " is-workspace" : ""}`} data-layout-mode={mode}>
-      <motion.div className={`olivia-agent-home__row${isWorkspaceMode ? " is-workspace" : ""}`} layout transition={spring} style={isWorkspaceMode ? { flexGrow: weights.chat } : undefined}>
+      <motion.div className={`olivia-agent-home__row${isWorkspaceMode ? " is-workspace" : ""}`} layout transition={transition} style={isWorkspaceMode ? { flexGrow: weights.chat } : undefined}>
         <section className="olivia-agent-home__main">
           {!isWorkspaceMode ? (
             <>
@@ -128,11 +130,8 @@ export default function OliviaAdaptiveStage() {
               이 슬롯 노드에 portal로 꽂는다 — 그래야 홈 ↔ 다른 워크스페이스 라우트를 오가도
               채팅이 재마운트되지 않는다(useOliviaChatDockStore). 레이아웃/애니메이션은
               그대로 이 motion.section이 담당한다. */}
-          <motion.section layout transition={spring} className="olivia-adaptive-stage__chat">
-            <div
-              className="olivia-home-entry__chat-core"
-              ref={(el) => useOliviaChatDockStore.getState().setNode(el)}
-            />
+          <motion.section layout transition={transition} className="olivia-adaptive-stage__chat">
+            <OliviaChatDockTarget id="home" priority={70} className="olivia-home-entry__chat-core" />
           </motion.section>
 
           {!isWorkspaceMode ? (
@@ -166,7 +165,7 @@ export default function OliviaAdaptiveStage() {
 
       <motion.section
         layout
-        transition={spring}
+        transition={transition}
         className={`olivia-adaptive-stage__workspace${isWorkspaceMode ? " is-visible" : ""}`}
         style={{ flexGrow: isWorkspaceMode ? weights.workspace : 0, position: "relative" }}
         onPointerDown={() => setWorkspaceFocused(true)}

@@ -1,96 +1,139 @@
 import Link from "next/link";
-import { ArrowRight, Camera } from "lucide-react";
+import { ArrowRight, ChevronDown, Layers3, Search } from "lucide-react";
 import CategorySection from "@/components/admin/CategorySection";
 import ToolCategoryTabs from "@/components/admin/ToolCategoryTabs";
-import { ALL_TOOLS } from "@/lib/toolNav";
-import { groupToolsByDisplayCategory, getDisplayCategory } from "@/lib/toolNavDisplayCategory";
 import { normalizeAdminSearchQuery } from "@/lib/adminSearch";
-
-// 사이드바 "개별 기능"은 tools 카테고리만 보여주지만, 이 홈은 이름 그대로 전체 기능 목록
-// (메모·캘린더 등 대시보드/CRM 카테고리 포함)이 다 있어야 한다는 요청 — ALL_TOOLS 전체를 쓴다.
-// 카드 디자인은 예전 홈(app/page.tsx)의 admin-menu-card를 그대로 재사용 — 새로 만들지 않고
-// 이미 검증된 반응형 그리드(5→4→3→2→1열)를 그대로 가져다 써서 old-design 느낌을 100% 맞춘다.
-const TOOLS = ALL_TOOLS;
+import { ALL_TOOLS } from "@/lib/toolNav";
+import { getDisplayCategory, groupToolsByDisplayCategory } from "@/lib/toolNavDisplayCategory";
+import {
+  WORKSPACE_GROUPS,
+  isIntegratedToolHref,
+  workspaceGroupSearchText,
+} from "@/lib/workspaceGroups";
 
 const CONTEXT_KEYS = ["clientId", "projectId", "workflowRunId", "stepKey"] as const;
 
-export default async function AdminToolsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+function withContext(href: string, context: URLSearchParams) {
+  if (context.size === 0) return href;
+  const url = new URL(href, "https://olivia.local");
+  context.forEach((value, key) => url.searchParams.set(key, value));
+  return `${url.pathname}${url.search}`;
+}
+
+export default async function AdminToolsPage({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const params = await searchParams;
   const context = new URLSearchParams();
   for (const key of CONTEXT_KEYS) {
     const value = params[key];
     if (typeof value === "string" && value) context.set(key, value);
   }
-  const linked = context.size > 0;
-  const suffix = linked ? `?${context.toString()}` : "";
+
   const rawQuery = typeof params.q === "string" ? params.q : "";
   const query = normalizeAdminSearchQuery(rawQuery);
-  const filteredTools = query
-    ? TOOLS.filter((tool) => normalizeAdminSearchQuery(`${tool.title} ${tool.desc} ${tool.meta}`).includes(query))
-    : TOOLS;
-  // 상단 필터 탭 개수는 실제 데이터 기준으로 계산한다(하드코딩 금지, 요청) — 전역 사이드바용
-  // groupToolsByCategory(NavCategory 3분류)는 여기서 더 안 쓴다. 이 페이지 전용 7분류
-  // 표시 카테고리(lib/toolNavDisplayCategory.ts, 기존 40개 도구 href를 재분류)로 그룹핑한다
-  // (전체보기 개편, 2026-08-31) — 빈 카테고리는 탭에서 숨긴다.
-  const groups = groupToolsByDisplayCategory(filteredTools)
+  const workspaceGroups = query
+    ? WORKSPACE_GROUPS.filter((group) => normalizeAdminSearchQuery(workspaceGroupSearchText(group)).includes(query))
+    : WORKSPACE_GROUPS;
+  const standaloneTools = ALL_TOOLS
+    .filter((tool) => !isIntegratedToolHref(tool.href))
+    .filter((tool) => !query || normalizeAdminSearchQuery(`${tool.title} ${tool.desc} ${tool.meta} ${(tool.aliases ?? []).join(" ")}`).includes(query));
+  const standaloneGroups = groupToolsByDisplayCategory(standaloneTools)
     .map((group) => ({ category: group.category, label: group.label, count: group.items.length }))
     .filter((group) => group.count > 0);
+  const hasResults = workspaceGroups.length > 0 || standaloneTools.length > 0;
 
   return (
-    // oa-tools-page 대신 이 페이지 전용 oa-tools-launcher를 쓴다 — app/marketing/page.tsx가
-    // oa-tools-page를 함께 쓰고 있어서(발견, 2026-08-31) 공유 클래스로 스코프하면 컴팩트
-    // 개편이 그쪽에도 새어 들어간다. admin.css 맨 끝의 .oa-tools-launcher 블록 참고.
-    <div className="oa-page oa-tools-launcher">
-      <section className={`oa-context-banner${linked ? " is-linked" : ""}`}>
-        <span className="oa-context-banner__icon"><Camera size={19}/></span>
-        <div className="oa-context-banner__copy">
-          <strong>{linked ? "고객 프로젝트와 연결된 작업입니다." : "현재 고객과 연결되지 않은 독립 작업입니다."}</strong>
-          <p>{linked ? [params.clientId && `고객 ${params.clientId}`, params.projectId && `프로젝트 ${params.projectId}`, params.workflowRunId && `워크플로우 ${params.workflowRunId}`].filter(Boolean).join(" · ") : "도구를 바로 실행하거나, 추후 CRM에서 고객과 프로젝트를 선택해 연결할 수 있습니다."}</p>
-        </div>
-        {linked ? <a className="oa-context-banner__action" href="/admin/dashboard/home">홈으로 돌아가기</a> : <a className="oa-context-banner__action" href="/clients">고객 선택해서 연결하기</a>}
-      </section>
-
+    <div className="oa-page oa-tools-launcher oa-workspace-launcher">
       <div className="oa-tools-launcher__heading">
-        <h1>전체 기능</h1>
-        <p>모든 도구를 한 곳에서 빠르게 찾아보고 바로 실행할 수 있습니다.</p>
+        <h1>통합 작업실</h1>
+        <p>흩어진 기능을 업무 단위로 통합해 더 빠르게 작업합니다.</p>
       </div>
 
-      {/* 서버 컴포넌트를 유지하기 위해 클라이언트 상태 없이 GET 폼으로 검색한다 — 필터
-          로직(normalizeAdminSearchQuery, title+desc+meta substring)은 이미 있던 것을 그대로
-          쓴다(전체보기 개편, 2026-08-31). CRM 컨텍스트 파라미터는 hidden input으로 보존한다. */}
+      <section className="oa-workspace-notice" aria-label="통합 작업실 안내">
+        <span className="oa-workspace-notice__icon"><Layers3 size={18} aria-hidden="true" /></span>
+        <div>
+          <strong>중복 기능을 줄이고, 채팅과 페이지를 같은 구조로 연결합니다.</strong>
+          {context.size > 0 ? (
+            <p>{[
+              typeof params.clientId === "string" && `고객 ${params.clientId}`,
+              typeof params.projectId === "string" && `프로젝트 ${params.projectId}`,
+            ].filter(Boolean).join(" · ")} 컨텍스트를 작업실에 이어갑니다.</p>
+          ) : null}
+        </div>
+      </section>
+
       <form className="oa-tools-search" method="GET" action="/admin/tools">
         {CONTEXT_KEYS.map((key) => (params[key] ? <input key={key} type="hidden" name={key} value={String(params[key])} /> : null))}
-        <input type="search" name="q" defaultValue={rawQuery} placeholder="기능명으로 검색 (예: 견적서, 사진작업실, AI 검색)" aria-label="기능 검색" />
+        <Search size={16} aria-hidden="true" />
+        <input type="search" name="q" defaultValue={rawQuery} placeholder="작업실 또는 기능 검색" aria-label="작업실 또는 기능 검색" />
       </form>
 
-      {filteredTools.length ? (
-        <ToolCategoryTabs groups={groups} totalCount={filteredTools.length}>
-          {/* 카드는 여기(서버 컴포넌트)에서 아이콘까지 다 렌더링해서 완성된 JSX로 넘긴다 —
-              ToolDef.icon(함수 참조)을 클라이언트 컴포넌트에 raw prop으로 넘기면 직렬화 에러가 난다.
-              카테고리별로 그리드를 나누지 않고 하나의 그리드에 전부 렌더링한 뒤, 탭 선택에 따라
-              data-tool-category로 표시/숨김만 전환한다 — 카드 디자인·아이콘·순서·라우팅은 그대로다. */}
-          <div className="admin-menu-grid">
-            {filteredTools.map((tool) => {
-              const Icon = tool.icon;
-              return (
-                <Link key={tool.href} href={`${tool.href}${suffix}`} data-tool-category={getDisplayCategory(tool)} className={`admin-menu-card${tool.orange ? " orange" : ""}`} aria-label={tool.title}>
-                  <div className="admin-menu-icon"><Icon size={19} /></div>
-                  <div className="admin-menu-copy">
-                    <span>{tool.meta}</span>
-                    <h2>{tool.title}</h2>
-                    <p>{tool.desc}</p>
+      {workspaceGroups.length > 0 ? (
+        <section className="oa-workspace-list" aria-label="업무별 작업실">
+          {workspaceGroups.map((workspace) => {
+            const Icon = workspace.icon;
+            const workspaceHref = withContext(workspace.href, context);
+            return (
+              <article key={workspace.id} className="oa-workspace-card" data-accent={workspace.accent}>
+                <Link className="oa-workspace-card__overlay" href={workspaceHref} aria-label={`${workspace.title} 열기`} />
+                <span className="oa-workspace-card__icon" aria-hidden="true"><Icon size={24} strokeWidth={1.7} /></span>
+                <div className="oa-workspace-card__body">
+                  <h2>{workspace.title}</h2>
+                  <p>{workspace.description}</p>
+                  <div className="oa-workspace-card__tools" aria-label={`${workspace.title} 세부 기능`}>
+                    {workspace.tools.map((tool) => (
+                      <Link key={tool.id} href={withContext(tool.href, context)}>{tool.title}</Link>
+                    ))}
                   </div>
-                  <div className="admin-menu-action" aria-hidden="true"><ArrowRight size={17} /></div>
+                </div>
+                <Link className="oa-workspace-card__open" href={workspaceHref}>
+                  열기 <ArrowRight size={15} aria-hidden="true" />
                 </Link>
-              );
-            })}
+              </article>
+            );
+          })}
+        </section>
+      ) : null}
+
+      {standaloneTools.length > 0 ? (
+        <details className="oa-standalone-tools" open={query ? true : undefined}>
+          <summary className="oa-standalone-tools__heading">
+            <span><strong>독립 기능</strong><small>캘린더, 프롬프터, 팀 채팅 등 {standaloneTools.length}개</small></span>
+            <span className="oa-standalone-tools__toggle">기능 보기 <ChevronDown size={15} aria-hidden="true" /></span>
+          </summary>
+          <div className="oa-standalone-tools__content">
+            <ToolCategoryTabs groups={standaloneGroups} totalCount={standaloneTools.length}>
+              <div className="admin-menu-grid">
+                {standaloneTools.map((tool) => {
+                  const Icon = tool.icon;
+                  return (
+                    <Link key={tool.href} href={withContext(tool.href, context)} data-tool-category={getDisplayCategory(tool)} className={`admin-menu-card${tool.orange ? " orange" : ""}`} aria-label={tool.title}>
+                      <div className="admin-menu-icon"><Icon size={19} /></div>
+                      <div className="admin-menu-copy">
+                        <span>{tool.meta}</span>
+                        <h2>{tool.title}</h2>
+                        <p>{tool.desc}</p>
+                      </div>
+                      <div className="admin-menu-action" aria-hidden="true"><ArrowRight size={17} /></div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </ToolCategoryTabs>
           </div>
-        </ToolCategoryTabs>
-      ) : (
-        <CategorySection eyebrow="WORK TOOLS" title="실제 작업 도구">
-          <div className="oa-tool-search-empty"><strong>“{rawQuery}”에 해당하는 기능이 없습니다.</strong><p>다른 기능명이나 설명 키워드로 검색해보세요.</p><Link href={`/admin/tools${suffix}`}>검색 초기화</Link></div>
+        </details>
+      ) : null}
+
+      {!hasResults ? (
+        <CategorySection eyebrow="WORKSPACES" title="검색 결과">
+          <div className="oa-tool-search-empty">
+            <strong>“{rawQuery}”에 해당하는 작업실이나 기능이 없습니다.</strong>
+            <p>다른 업무명이나 기능명으로 검색해보세요.</p>
+            <Link href={withContext("/admin/tools", context)}>검색 초기화</Link>
+          </div>
         </CategorySection>
-      )}
+      ) : null}
     </div>
   );
 }

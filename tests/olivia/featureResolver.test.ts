@@ -10,17 +10,17 @@ describe("resolveFeatureIntent — 완전 일치(동의어 포함)는 즉시 mat
   const exactCases: Array<[string, string]> = [
     ["콘티", "/conti"],
     ["견적", "/quote"],
-    ["사진분류", "/photo-sorting"],
-    ["사진 분류", "/photo-sorting"],
-    ["셀렉매칭", "/select-match"],
-    ["셀렉 매칭", "/select-match"],
-    ["RAW매칭", "/select-match"],
-    ["원본매칭", "/select-match"],
-    ["사진셀렉", "/select-match"],
-    ["고객셀렉", "/select-match"],
-    ["RAW셀렉", "/raw-select"],
+    ["사진분류", "/photo-sorting?tool=classification"],
+    ["사진 분류", "/photo-sorting?tool=classification"],
+    ["셀렉매칭", "/photo-sorting?tool=select-raw"],
+    ["셀렉 매칭", "/photo-sorting?tool=select-raw"],
+    ["RAW매칭", "/photo-sorting?tool=select-raw"],
+    ["원본매칭", "/photo-sorting?tool=select-raw"],
+    ["사진셀렉", "/photo-sorting?tool=select-raw"],
+    ["고객셀렉", "/photo-sorting?tool=select-raw"],
+    ["RAW셀렉", "/photo-sorting?tool=ai-cull"],
     ["영상분류", "/video-sorting"],
-    ["색감보정", "/photo-retouching"],
+    ["색감보정", "/photo-sorting?tool=retouch"],
   ];
   for (const [query, expectedHref] of exactCases) {
     it(`"${query}" → ${expectedHref}, confidence 1`, () => {
@@ -39,7 +39,7 @@ describe("resolveFeatureIntent — 필러어가 섞여도 정규화 후 매칭�
     const result = resolveFeatureIntent("셀렉매칭기능말이야");
     expect(result.kind).toBe("match");
     if (result.kind === "match") {
-      expect(result.tool.href).toBe("/select-match");
+      expect(result.tool.href).toBe("/photo-sorting?tool=select-raw");
       expect(result.confidence).toBe(1);
     }
   });
@@ -47,13 +47,13 @@ describe("resolveFeatureIntent — 필러어가 섞여도 정규화 후 매칭�
   it("\"셀렉매칭 좀 열어줘\" → select-match, confidence 1", () => {
     const result = resolveFeatureIntent("셀렉매칭 좀 열어줘");
     expect(result.kind).toBe("match");
-    if (result.kind === "match") expect(result.tool.href).toBe("/select-match");
+    if (result.kind === "match") expect(result.tool.href).toBe("/photo-sorting?tool=select-raw");
   });
 
   it("\"RAW 매칭 기능 보여줘\" → select-match", () => {
     const result = resolveFeatureIntent("RAW 매칭 기능 보여줘");
     expect(result.kind).toBe("match");
-    if (result.kind === "match") expect(result.tool.href).toBe("/select-match");
+    if (result.kind === "match") expect(result.tool.href).toBe("/photo-sorting?tool=select-raw");
   });
 });
 
@@ -78,7 +78,7 @@ describe("resolveFeatureIntent — 애매하게 걸치는 후보는 임의로 �
     expect(result.kind).toBe("ambiguous");
     if (result.kind === "ambiguous") {
       const hrefs = result.candidates.map((tool) => tool.href);
-      expect(hrefs).toContain("/select-match");
+      expect(hrefs).toContain("/photo-sorting?tool=select-raw");
       expect(hrefs).toContain("/select-galleries");
     }
   });
@@ -107,6 +107,6 @@ describe("resolveNavigationCapability — confidence===1 게이트가 새 알고
   it("완전 일치인 \"셀렉매칭 열어줘\"도 결정론적으로 바로 통과한다(WP1 registry 등록 확인)", () => {
     const result = resolveNavigationCapability("셀렉매칭 열어줘");
     expect(result.kind).toBe("match");
-    if (result.kind === "match") expect(result.tool.href).toBe("/select-match");
+    if (result.kind === "match") expect(result.tool.href).toBe("/photo-sorting?tool=select-raw");
   });
 });

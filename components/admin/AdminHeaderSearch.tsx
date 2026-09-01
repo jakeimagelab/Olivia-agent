@@ -4,14 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { FolderKanban, Search, Sparkles, UserRound, X } from "lucide-react";
-import { ALL_TOOLS } from "@/lib/toolNav";
 import { filterAdminTools, type AdminSearchResult } from "@/lib/adminSearch";
+import { getWorkspaceAwareTools } from "@/lib/olivia/features/registry";
 
 type SearchMode = "global" | "tools";
 type SearchResponse = { customers: AdminSearchResult[]; projects: AdminSearchResult[]; tools: AdminSearchResult[]; partial?: boolean };
 
 const EMPTY_RESULTS: SearchResponse = { customers: [], projects: [], tools: [] };
 const KIND_ICON = { customer: UserRound, project: FolderKanban, tool: Sparkles } as const;
+const WORKSPACE_AWARE_TOOLS = getWorkspaceAwareTools();
 
 export default function AdminHeaderSearch({ mode }: { mode: SearchMode }) {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function AdminHeaderSearch({ mode }: { mode: SearchMode }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const localTools = useMemo(() => filterAdminTools(ALL_TOOLS, deferredQuery).slice(0, 8), [deferredQuery]);
+  const localTools = useMemo(() => filterAdminTools(WORKSPACE_AWARE_TOOLS, deferredQuery).slice(0, 8), [deferredQuery]);
   const groups = mode === "global" ? [
     { label: "고객", items: results.customers },
     { label: "프로젝트", items: results.projects },

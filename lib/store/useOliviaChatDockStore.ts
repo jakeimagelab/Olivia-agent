@@ -9,12 +9,46 @@ import { create } from "zustand";
 // 동일한 이유다. 홈은 이 store에 자기 슬롯 DOM 노드를 등록해두고, Shell은 그 노드가
 // 생기면 단일 <OliviaConversation> 인스턴스를 그 안에 portal로 렌더링한다 — 그래서 홈 ↔
 // 다른 워크스페이스 라우트를 오가도 채팅 컴포넌트가 재마운트되지 않는다.
+type DockRegistration = {
+  node: HTMLElement;
+  priority: number;
+  sequence: number;
+};
+
 type OliviaChatDockState = {
   node: HTMLElement | null;
-  setNode: (node: HTMLElement | null) => void;
+  activeDockId?: string;
+  docks: Record<string, DockRegistration>;
+  sequence: number;
+  setDock: (id: string, node: HTMLElement | null, priority?: number) => void;
 };
+
+function activeDock(docks: Record<string, DockRegistration>) {
+  return Object.entries(docks).sort(([, left], [, right]) => (
+    right.priority - left.priority || right.sequence - left.sequence
+  ))[0];
+}
 
 export const useOliviaChatDockStore = create<OliviaChatDockState>((set) => ({
   node: null,
-  setNode: (node) => set({ node }),
+  activeDockId: undefined,
+  docks: {},
+  sequence: 0,
+  setDock: (id, node, priority = 0) => set((state) => {
+    const docks = { ...state.docks };
+    let sequence = state.sequence;
+    if (node) {
+      sequence += 1;
+      docks[id] = { node, priority, sequence };
+    } else {
+      delete docks[id];
+    }
+    const active = activeDock(docks);
+    return {
+      docks,
+      sequence,
+      activeDockId: active?.[0],
+      node: active?.[1].node ?? null,
+    };
+  }),
 }));

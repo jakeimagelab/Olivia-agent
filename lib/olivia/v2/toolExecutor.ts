@@ -163,12 +163,12 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   {
     type: "function",
     name: "show_workspace",
-    description: "현재 고객과 프로젝트를 유지하면서 실제 최신 견적서·계약서·콘티 Workspace를 엽니다.",
+    description: "현재 고객과 프로젝트를 유지하면서 견적서·계약서·콘티·사진 작업실 Workspace를 엽니다.",
     strict: true,
     parameters: {
       type: "object",
       additionalProperties: false,
-      properties: { workspace: { type: "string", enum: ["quote", "contract", "conti"] } },
+      properties: { workspace: { type: "string", enum: ["quote", "contract", "conti", "photo-sort"] } },
       required: ["workspace"],
     },
   },

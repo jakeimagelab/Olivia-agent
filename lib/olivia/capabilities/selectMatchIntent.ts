@@ -1,6 +1,6 @@
 import { resolveFeatureIntent } from "@/lib/olivia/features/resolver";
 
-const SELECT_MATCH_HREF = "/select-match";
+const SELECT_MATCH_HREFS = new Set(["/select-match", "/photo-sorting?tool=select-raw"]);
 // "페이지"/"화면"을 명시하면 OPEN 의도이므로 이 결정론적 RUN 경로를 건너뛰고 기존
 // resolveNavigationCapability(화면 이동) 쪽으로 넘긴다.
 const OPEN_QUALIFIER = /(페이지|화면)/;
@@ -16,5 +16,5 @@ export function isSelectMatchRunIntent(message: string): boolean {
   const resolution = resolveFeatureIntent(trimmed);
   // ambiguous(다른 "셀렉" 계열 기능과 겹침)면 여기서 단정하지 않고 기존 경로(GPT/후보 제시)로
   // 넘긴다 — select-match로 확실히 좁혀진 경우만 결정론적으로 가로챈다.
-  return resolution.kind === "match" && resolution.tool.href === SELECT_MATCH_HREF;
+  return resolution.kind === "match" && SELECT_MATCH_HREFS.has(resolution.tool.href);
 }

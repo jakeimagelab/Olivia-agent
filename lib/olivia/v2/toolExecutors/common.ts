@@ -63,8 +63,11 @@ export async function executeCommonTool(
   context: OliviaContextSnapshot,
 ): Promise<OliviaToolResult> {
   if (name === "show_workspace") {
-    const workspace = text(input, "workspace") as "quote" | "contract" | "conti";
-    if (!(["quote", "contract", "conti"] as const).includes(workspace)) throw new Error("지원하지 않는 작업 화면이에요.");
+    const workspace = text(input, "workspace") as "quote" | "contract" | "conti" | "photo-sort";
+    if (!(["quote", "contract", "conti", "photo-sort"] as const).includes(workspace)) throw new Error("지원하지 않는 작업 화면이에요.");
+    if (workspace === "photo-sort") {
+      return { tool: name, success: true, data: { workspace } };
+    }
     const resource = await latestResource(workspace, context);
     if (!resource?.id) throw new Error(`현재 프로젝트의 ${workspaceLabel(workspace)}를 찾지 못했어요.`);
     return { tool: name, success: true, data: { workspace, resourceId: String(resource.id) } };
