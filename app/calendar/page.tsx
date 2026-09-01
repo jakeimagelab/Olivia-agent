@@ -2295,6 +2295,7 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
           const isSelected = ds === selectedDate;
           const hasTasks   = (tasksByDate[ds]?.length ?? 0) > 0;
           const dow = new Date(cell.year, cell.month, cell.day).getDay();
+          const isHoliday = !!getKoreanHoliday(ds);
           return (
             <div key={idx} onClick={e => {
               // 모바일은 날짜를 눌러도 월 화면으로 이동(탭 영역 대부분이 날짜 숫자라 그래야 자연스럽다).
@@ -2310,7 +2311,7 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
                 <span style={{ fontSize: 8, fontWeight: isToday || isSelected ? 900 : 600,
-                  color: isToday || isSelected ? "#fff" : dow===0 ? "#DC2626" : dow===6 ? "#2563EB" : C.txt }}>
+                  color: isToday || isSelected ? "#fff" : (dow===0 || isHoliday) ? "#DC2626" : dow===6 ? "#2563EB" : C.txt }}>
                   {cell.day}
                 </span>
               </div>
