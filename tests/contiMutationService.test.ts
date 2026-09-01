@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addContiShots, removeContiShot, reorderContiShot, resolveContiShot } from "@/lib/conti/contiMutationService";
+import { addContiShots, removeContiShot, reorderContiShot, resolveContiShot, updateContiShot } from "@/lib/conti/contiMutationService";
 
 const result = {
   conti: [
@@ -70,5 +70,11 @@ describe("conti mutation service", () => {
     const mutation = removeContiShot(result, 1);
     expect(mutation.removed.id).toBe("b");
     expect(mutation.result.conti.map((shot) => shot.id)).toEqual(["a"]);
+  });
+
+  it("updates one shot while preserving untouched row references for memoized rendering", () => {
+    const mutation = updateContiShot(result, 0, { description: "수정됨" });
+    expect(mutation.result.conti[0]).not.toBe(result.conti[0]);
+    expect(mutation.result.conti[1]).toBe(result.conti[1]);
   });
 });

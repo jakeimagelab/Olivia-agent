@@ -29,7 +29,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
   {
     group: "사진 작업실",
     items: [
-      { path: "/photo-sorting", label: "사진 분류" },
+      { path: "/photo-sorting?mode=classification", label: "사진 분류" },
       { path: "/video-sorting", label: "영상 분류" },
       { path: "/raw-select", label: "AI 컷 정리 & RAW" },
       { path: "/select-match", label: "셀렉 & 매칭" },

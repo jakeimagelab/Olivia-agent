@@ -42,7 +42,8 @@ async function saveQuote(id: string, data: Record<string, unknown>) {
 }
 
 function quoteTarget(quote: Record<string, unknown>, input: Record<string, unknown>, context: OliviaContextSnapshot) {
-  const selected = context.selectedEntityType === "quote-item" ? context.selectedEntityId : undefined;
+  const selected = context.selectedRowId
+    || (context.selectedEntityType === "quote-item" ? context.selectedEntityId : undefined);
   const rawPosition = input.position;
   const position = rawPosition == null ? undefined : resolveOrdinalReference(String(rawPosition), quoteItems(quote.items).length);
   const matches = resolveQuoteItem(quote.items, text(input, "selector"), selected, position);

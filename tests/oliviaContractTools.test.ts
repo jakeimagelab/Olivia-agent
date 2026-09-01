@@ -124,6 +124,16 @@ describe("request_contract_signature / request_contract_publish", () => {
     expect(execution.uiActions).toEqual([{ type: "OPEN_CLIENT_TASK", task: "contract_signature", flowId: "contract-1" }]);
   });
 
+  it("PageContext의 현재 계약서 ID만 있어도 계약서 정보를 조회한다", async () => {
+    const execution = await call("request_contract_signature", {}, {
+      ...baseContext,
+      currentDocumentType: "contract",
+      currentDocumentId: "contract-1",
+    });
+    expect(execution.result.success).toBe(true);
+    expect(execution.result.data?.contractId).toBe("contract-1");
+  });
+
   it("request_contract_publish는 REQUEST_APPROVAL(publish_contract)을 만든다 — 아직 계약서를 실제로 발행하지 않는다", async () => {
     const execution = await call("request_contract_publish", {}, { ...baseContext, activeWorkspace: "contract", activeResourceId: "contract-1" });
     expect(execution.result.success).toBe(true);

@@ -187,7 +187,7 @@ function ShootingInner() {
               <div style={{ padding: "16px 18px", background: doneMsg.includes("완료") ? C.light : "#FFF0F0", borderRadius: 12, fontSize: 13, fontWeight: 700, color: doneMsg.includes("완료") ? C.green : C.orange }}>
                 {doneMsg}
                 {doneMsg.includes("완료") && clientId && (
-                  <Link href={`/photo-sorting?client_id=${clientId}`} style={{ display: "block", marginTop: 12, padding: "10px 0", textAlign: "center", background: C.teal, color: "#fff", borderRadius: 8, textDecoration: "none", fontWeight: 800, fontSize: 13 }}>
+                  <Link href={`/photo-sorting?mode=classification&client_id=${clientId}`} style={{ display: "block", marginTop: 12, padding: "10px 0", textAlign: "center", background: C.teal, color: "#fff", borderRadius: 8, textDecoration: "none", fontWeight: 800, fontSize: 13 }}>
                     6단계: 사진 분류/백업 →
                   </Link>
                 )}

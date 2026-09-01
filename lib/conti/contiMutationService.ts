@@ -20,7 +20,9 @@ function normalized(value: unknown) {
 export function normalizeContiResult(value: unknown): ContiResult {
   const row = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
   return {
-    conti: Array.isArray(row.conti) ? row.conti.map((shot) => ({ ...(shot as ContiShot) })) : [],
+    // 배열 자체만 복사하고 변경되지 않은 shot 객체 참조는 유지한다. 각 mutation은 대상 행을
+    // 새 객체로 교체하므로 불변성은 지키면서 React.memo 행이 다른 셀 편집에 재렌더되지 않는다.
+    conti: Array.isArray(row.conti) ? row.conti.map((shot) => shot as ContiShot) : [],
     checklist: Array.isArray(row.checklist) ? [...row.checklist] : [],
     schedule: Array.isArray(row.schedule) ? [...row.schedule] : [],
   };

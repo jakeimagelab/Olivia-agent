@@ -37,6 +37,57 @@ interface QuoteData {
   specialTerms?: string;
 }
 
+function normalizeContractQuoteData(raw: unknown, contract: Record<string, unknown>): QuoteData | null {
+  if (!raw || typeof raw !== "object") return null;
+  const data = raw as Record<string, unknown>;
+  const stringValue = (camel: string, snake: string, fallback = "") => {
+    const value = data[camel] ?? data[snake] ?? fallback;
+    return typeof value === "string" ? value : String(value ?? "");
+  };
+  const numberValue = (camel: string, snake: string) => {
+    const value = Number(data[camel] ?? data[snake] ?? 0);
+    return Number.isFinite(value) ? value : 0;
+  };
+  const items = Array.isArray(data.items) ? data.items.map((item) => {
+    const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    const unitPrice = Number(row.unitPrice ?? row.unit_price ?? 0);
+    const qty = Number(row.qty ?? row.quantity ?? 0);
+    const subtotal = Number(row.subtotal ?? 0);
+    return {
+      name: String(row.name ?? ""),
+      detail: String(row.detail ?? ""),
+      unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0,
+      qty: Number.isFinite(qty) ? qty : 0,
+      subtotal: Number.isFinite(subtotal) ? subtotal : 0,
+      note: String(row.note ?? ""),
+    };
+  }) : [];
+
+  return {
+    hospitalName: stringValue("hospitalName", "hospital_name", String(contract.hospital_name ?? "")),
+    contactName: stringValue("contactName", "contact_name", String(contract.contact_name ?? "")),
+    businessNumber: stringValue("businessNumber", "business_number") || undefined,
+    phone: stringValue("phone", "phone"),
+    email: stringValue("email", "email", String(contract.email ?? "")),
+    quoteNumber: stringValue("quoteNumber", "quote_number", String(contract.quote_number ?? "")),
+    quoteDate: stringValue("quoteDate", "quote_date"),
+    shootDate: stringValue("shootDate", "shoot_date") || null,
+    validUntil: stringValue("validUntil", "valid_until"),
+    items,
+    supplyAmount: numberValue("supplyAmount", "supply_amount"),
+    discountAmount: numberValue("discountAmount", "discount_amount"),
+    vat: numberValue("vat", "vat"),
+    totalAmount: numberValue("totalAmount", "total_amount"),
+    depositAmount: numberValue("depositAmount", "deposit_amount"),
+    balanceAmount: numberValue("balanceAmount", "balance_amount"),
+    memos: data.memos == null ? null : String(data.memos),
+    depositRate: contract.deposit_rate == null ? undefined : Number(contract.deposit_rate),
+    paymentTerms: contract.payment_terms == null ? undefined : String(contract.payment_terms),
+    deliveryTerms: contract.delivery_terms == null ? undefined : String(contract.delivery_terms),
+    specialTerms: contract.special_terms == null ? undefined : String(contract.special_terms),
+  };
+}
+
 type ContractBrand = "photoclinic" | "jakeimage";
 
 const THEME: Record<ContractBrand, {
@@ -163,16 +214,37 @@ export default function ContractBuilder({
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
   const setOliviaProject = useOliviaContextStore((state) => state.setProject);
   const setOliviaCurrentDocumentTotal = useOliviaContextStore((state) => state.setCurrentDocumentTotal);
+  const setOliviaCurrentDocument = useOliviaContextStore((state) => state.setCurrentDocument);
+  const setOliviaPageContext = useOliviaContextStore((state) => state.setPageContext);
   useEffect(() => {
-    setOliviaWorkspace("contract", resourceId);
     if (modalWorkflowRunId) setOliviaProject(modalWorkflowRunId);
+  }, [modalWorkflowRunId, setOliviaProject]);
+
+  const contractDocumentId = resourceId || contractId || undefined;
+  useEffect(() => {
+    const current = useOliviaContextStore.getState();
+    if (current.activeWorkspace !== "contract" || current.activeResourceId !== contractDocumentId) {
+      setOliviaWorkspace("contract", contractDocumentId);
+    }
     return () => {
-      const current = useOliviaContextStore.getState();
-      if (current.activeWorkspace === "contract" && current.activeResourceId === resourceId) {
-        current.setWorkspace(undefined, undefined);
+      const latest = useOliviaContextStore.getState();
+      if (latest.activeWorkspace === "contract" && latest.activeResourceId === contractDocumentId) {
+        latest.setWorkspace(undefined, undefined);
       }
     };
-  }, [resourceId, setOliviaProject, setOliviaWorkspace, modalWorkflowRunId]);
+  }, [contractDocumentId, setOliviaWorkspace]);
+
+  useEffect(() => {
+    setOliviaCurrentDocument(contractDocumentId, "contract", quote?.hospitalName ? `${quote.hospitalName} 계약서` : "계약서");
+    setOliviaPageContext({
+      pageMode: contractDocumentId ? "edit" : "create",
+      capabilities: ["contract.edit", "contract.sign", "contract.publish", "contract.download_pdf"],
+      documentStatus: publishState === "done" ? "published" : "draft",
+      brand,
+      canEdit: publishState !== "done",
+      canFinalize: Boolean(quote) && publishState !== "done",
+    });
+  }, [brand, contractDocumentId, publishState, quote, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
     setOliviaCurrentDocumentTotal(quote?.totalAmount, dirty);
@@ -185,24 +257,31 @@ export default function ContractBuilder({
     // 찾아 계약서 초안의 기초 데이터로 쓴다(계약서는 견적 데이터를 그대로 이어받는 문서라
     // 견적서가 아직 없으면 고객 기본 정보만으로 빈 계약서를 시작한다).
     if (resourceId) {
-      const loadContract = () => fetch(`/api/contracts/${resourceId}`)
-        .then((r) => r.json())
+      const loadContract = () => {
+        setError("");
+        return fetch(`/api/contracts/${resourceId}`)
+        .then(async (r) => {
+          const json = await r.json().catch(() => null);
+          if (!r.ok || !json?.ok) throw new Error(json?.error || `HTTP ${r.status}`);
+          return json;
+        })
         .then((json) => {
-          if (!json.ok) return;
+          const contract = json.data as Record<string, unknown>;
+          const loadedQuote = normalizeContractQuoteData(contract.quote_data, contract);
+          if (!loadedQuote) throw new Error("저장된 계약서에 견적 정보가 없습니다.");
           setContractId(resourceId);
           // deposit_rate/payment_terms/delivery_terms/special_terms는 quote_data(jsonb) 안이
           // 아니라 contracts 테이블의 별도 컬럼이라 매번 병합해서 넣는다(채팅 update_contract_terms
           // 도구가 이 컬럼들만 patch하므로, quote_data 자체는 안 건드려도 최신 상태로 보인다).
-          setQuote(json.data.quote_data ? {
-            ...json.data.quote_data,
-            depositRate: json.data.deposit_rate ?? undefined,
-            paymentTerms: json.data.payment_terms ?? undefined,
-            deliveryTerms: json.data.delivery_terms ?? undefined,
-            specialTerms: json.data.special_terms ?? undefined,
-          } : null);
-          setSignatureDataUrl(json.data.signature_data_url ?? "");
+          setQuote(loadedQuote);
+          setSignatureDataUrl(String(contract.signature_data_url ?? ""));
+          lastSavedSnapshotRef.current = JSON.stringify({ quote: loadedQuote, signatureDataUrl: String(contract.signature_data_url ?? "") });
         })
-        .catch(() => {});
+        .catch((loadError) => {
+          console.error("contract load failed", loadError);
+          setError("계약서 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.");
+        });
+      };
       void loadContract();
       // 채팅으로 지금 열려 있는 계약서를 수정했을 때 새로고침 없이 화면에 바로 반영되도록
       // (콘티/견적서와 동일한 패턴 — lib/olivia/agent/actionRouter.ts의 REFRESH_RESOURCE가

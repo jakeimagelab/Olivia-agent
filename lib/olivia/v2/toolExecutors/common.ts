@@ -26,6 +26,13 @@ export function workspaceLabel(workspace: string) {
 }
 
 export function activeResource(context: OliviaContextSnapshot, workspace: "quote" | "conti" | "contract") {
+  // PageContext의 현재 문서는 실제 화면이 등록한 값이므로, actionRouter가 이전 workspace
+  // resource를 잠깐 보유하고 있더라도 이 값을 우선한다. 특히 ContractBuilder가 저장 직후
+  // contractId를 등록한 렌더와 Olivia 요청 사이의 짧은 경합에서 존재하지 않는 이전 id를
+  // 조회해 "현재 계약서를 불러오지 못했어요"가 발생하지 않게 한다.
+  if (context.currentDocumentType === workspace && context.currentDocumentId) {
+    return context.currentDocumentId;
+  }
   if (context.activeWorkspace !== workspace || !context.activeResourceId) {
     throw new Error(`먼저 수정할 ${workspaceLabel(workspace)}를 열어주세요.`);
   }

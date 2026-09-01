@@ -33,5 +33,8 @@ export default async function AdminToolRedirectPage({
     const value = incoming[key];
     if (typeof value === "string" && value) query.set(key, value);
   }
-  redirect(query.size ? `${target}?${query.toString()}` : target);
+  const [pathname, targetQuery = ""] = target.split("?");
+  const mergedQuery = new URLSearchParams(targetQuery);
+  query.forEach((value, key) => mergedQuery.set(key, value));
+  redirect(mergedQuery.size ? `${pathname}?${mergedQuery.toString()}` : pathname);
 }

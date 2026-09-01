@@ -343,6 +343,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const setDepositRate = useQuoteStore((state) => state.setDepositRate);
   const dirtyFields = useQuoteStore((state) => state.dirtyFields);
   const setOliviaCurrentDocumentTotal = useOliviaContextStore((state) => state.setCurrentDocumentTotal);
+  const setOliviaCurrentDocument = useOliviaContextStore((state) => state.setCurrentDocument);
+  const setOliviaPageContext = useOliviaContextStore((state) => state.setPageContext);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isImportingQuotePdf, setIsImportingQuotePdf] = useState(false);
   const [pdfImportMessage, setPdfImportMessage] = useState("");
@@ -351,6 +353,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   // 페이지 모드(/photoclinic)에서 "불러오기"로 연 견적서의 id — 채팅이 지금 이 견적서를
   // 찾아 수정할 수 있게(activeResourceId) 하고, 수정 후 실시간 반영에도 쓴다.
   const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);
+  const [currentQuoteStatus, setCurrentQuoteStatus] = useState("draft");
   const [basePreviewScale, setBasePreviewScale] = useState(0.48);
   const [previewZoom, setPreviewZoom] = useState(1);
   // startInPreview는 채팅에서 "미리보기 보여줘"(preview_quote)로 이 워크스페이스가 방금 새로
@@ -358,6 +361,28 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   // 상태에서 이 prop이 나중에 바뀌어도(같은 리소스를 다시 미리보기) 재적용되지 않는다. 그
   // "이미 열려 있는" 경우는 olivia-quote-preview 이벤트 리스너가 대신 처리한다(아래 useEffect).
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(() => !!startInPreview);
+  const quoteDocumentId = resourceId || currentQuoteId || undefined;
+
+  useEffect(() => {
+    setOliviaCurrentDocument(quoteDocumentId, "quote", quoteTitle || customer.hospitalName || "견적서");
+    setOliviaPageContext({
+      pageMode: quoteDocumentId ? "edit" : "create",
+      capabilities: ["quote.edit", "quote.discount", "quote.add_item", "quote.publish", "contract.create"],
+      documentStatus: currentQuoteStatus,
+      brand,
+      canEdit: currentQuoteStatus !== "archived",
+      canFinalize: currentQuoteStatus !== "published" && currentQuoteStatus !== "archived",
+    });
+  }, [brand, currentQuoteStatus, customer.hospitalName, quoteDocumentId, quoteTitle, setOliviaCurrentDocument, setOliviaPageContext]);
+
+  useEffect(() => {
+    const current = useOliviaContextStore.getState();
+    if (current.activeWorkspace !== "quote" || current.activeResourceId !== quoteDocumentId) setOliviaWorkspace("quote", quoteDocumentId);
+    return () => {
+      const current = useOliviaContextStore.getState();
+      if (current.activeWorkspace === "quote" && current.activeResourceId === quoteDocumentId) current.setWorkspace(undefined, undefined);
+    };
+  }, [quoteDocumentId, setOliviaWorkspace]);
 
   useEffect(() => {
     setOliviaWorkspace("quote", resourceId);
@@ -932,6 +957,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     // 같은 패턴(불러오기 클릭 시 setOliviaWorkspace) 참고.
     if (data.id) {
       setCurrentQuoteId(data.id);
+      setCurrentQuoteStatus(data.status || "draft");
       setOliviaWorkspace("quote", data.id);
       if (data.hospitalName) setOliviaClient(undefined, data.hospitalName);
     }
@@ -975,6 +1001,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setRecentQuotes((prev) =>
         prev.map((quote) => (quote.id === item.id ? { ...quote, status: "published", portalUrl: json.portalUrl } : quote)),
       );
+      if (item.id === (resourceId || currentQuoteId)) setCurrentQuoteStatus("published");
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(json.portalUrl).catch(() => {});
         setRecentQuoteMessage("포털에 공개했습니다. 포털 링크를 클립보드에 복사했습니다.");

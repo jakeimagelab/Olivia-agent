@@ -122,6 +122,10 @@ function optionalString(value: unknown) {
   return typeof value === "string" && value ? value : undefined;
 }
 
+function optionalBoolean(value: unknown) {
+  return typeof value === "boolean" ? value : undefined;
+}
+
 function normalizeContext(value: unknown): OliviaContextSnapshot {
   const input = value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -176,11 +180,24 @@ function normalizeContext(value: unknown): OliviaContextSnapshot {
     currentDocumentId: optionalString(input.currentDocumentId),
     currentDocumentType: optionalString(input.currentDocumentType),
     currentDocumentTitle: optionalString(input.currentDocumentTitle),
+    currentDocumentTotal: typeof input.currentDocumentTotal === "number" ? input.currentDocumentTotal : undefined,
+    currentDocumentDirty: optionalBoolean(input.currentDocumentDirty),
+    pageMode: (["create", "edit", "view", "list"] as const).find((mode) => mode === input.pageMode),
+    capabilities: Array.isArray(input.capabilities)
+      ? input.capabilities.filter((capability): capability is string => typeof capability === "string" && Boolean(capability)).slice(0, 50)
+      : undefined,
+    selectedRowId: optionalString(input.selectedRowId),
+    selectedSceneId: optionalString(input.selectedSceneId),
+    documentStatus: optionalString(input.documentStatus),
+    brand: optionalString(input.brand),
+    canEdit: optionalBoolean(input.canEdit),
+    canFinalize: optionalBoolean(input.canFinalize),
   };
 }
 
 function contextPrompt(context: OliviaContextSnapshot, pageContext?: string, temporalHint?: string) {
   const lines = [
+    "판단 우선순위: 현재 PageContext > 실제 Tool/DB 결과 > 최근 Agent Context > 대화 텍스트 > 추론. 현재 PageContext와 충돌하는 값을 추측하지 않는다.",
     temporalHint ? `해석된 날짜(코드가 계산함 — 이 값을 그대로 쓴다): ${temporalHint}` : null,
     context.pathname ? `현재 경로: ${context.pathname}` : null,
     context.activeClientName || context.activeClientId
@@ -195,6 +212,16 @@ function contextPrompt(context: OliviaContextSnapshot, pageContext?: string, tem
       ? `현재 선택 항목: ${context.selectedEntityType || "유형 없음"} ${context.selectedEntityId || "ID 없음"}`
       : null,
     context.selectedScheduleId ? `현재 선택 일정: ${context.selectedScheduleId}` : null,
+    context.pageMode ? `현재 페이지 모드: ${context.pageMode}` : null,
+    context.capabilities?.length ? `현재 페이지 기능: ${context.capabilities.join(", ")}` : null,
+    context.selectedRowId ? `현재 선택 행 ID: ${context.selectedRowId}` : null,
+    context.selectedSceneId ? `현재 선택 장면 ID: ${context.selectedSceneId}` : null,
+    context.documentStatus ? `현재 문서 상태: ${context.documentStatus}` : null,
+    context.brand ? `현재 브랜드: ${context.brand} — 대화에서 다른 브랜드를 추측하지 않는다.` : null,
+    typeof context.canEdit === "boolean" ? `현재 수정 가능: ${context.canEdit ? "예" : "아니오"}` : null,
+    typeof context.canFinalize === "boolean" ? `현재 최종 승인 가능: ${context.canFinalize ? "예" : "아니오"}` : null,
+    context.canEdit === false ? "현재 페이지 종속 수정 Tool을 실행하지 말고 수정 불가 상태를 안내한다." : null,
+    context.canFinalize === false ? "현재 문서의 최종 승인/공개 Tool을 실행하지 않는다." : null,
     context.recentActions.length
       ? `최근 UI Action: ${context.recentActions.slice(-4).map((action) => action.type).join(" → ")}`
       : null,

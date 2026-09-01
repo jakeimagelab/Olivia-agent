@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getOliviaToolDomains, selectOliviaTools } from "./toolSelection";
 import type { OliviaContextSnapshot } from "./types";
+import { getSelectedContiSceneId } from "./toolExecutors/conti";
 
 const baseContext: OliviaContextSnapshot = {
   recentActions: [],
@@ -41,5 +42,48 @@ describe("selectOliviaTools", () => {
   it("getOliviaToolDomains는 recentText와 message를 합쳐서 판단한다", () => {
     const domains = getOliviaToolDomains("해줘", baseContext, "콘티 10~15번 컷 추가해줘");
     expect(domains).toContain("conti");
+  });
+
+  it("A. 견적 최종 승인이 가능하면 publish 도구를 후보에 포함한다", () => {
+    const tools = selectOliviaTools({
+      requestClass: "TOOL_ACTION",
+      message: "최종 승인해",
+      context: { ...baseContext, activeWorkspace: "quote", canFinalize: true, capabilities: ["quote.publish"] },
+    });
+    expect(tools.map((tool) => tool.name)).toContain("request_quote_publish");
+  });
+
+  it("B. 견적 최종 승인이 불가능하면 publish 도구를 후보에서 제외한다", () => {
+    const tools = selectOliviaTools({
+      requestClass: "TOOL_ACTION",
+      message: "최종 승인해",
+      context: { ...baseContext, activeWorkspace: "quote", canFinalize: false, capabilities: ["quote.publish"] },
+    });
+    expect(tools.map((tool) => tool.name)).not.toContain("request_quote_publish");
+  });
+
+  it("C. 콘티의 명시적 selectedSceneId를 legacy selection보다 우선한다", () => {
+    expect(getSelectedContiSceneId({
+      ...baseContext,
+      activeWorkspace: "conti",
+      selectedSceneId: "scene3",
+      selectedEntityType: "conti-shot",
+      selectedEntityId: "legacy-scene",
+    })).toBe("scene3");
+    const tools = selectOliviaTools({
+      requestClass: "TOOL_ACTION",
+      message: "이 장면 삭제해",
+      context: { ...baseContext, activeWorkspace: "conti", selectedSceneId: "scene3", capabilities: ["conti.remove_scene"] },
+    });
+    expect(tools.map((tool) => tool.name)).toContain("remove_conti_shot");
+  });
+
+  it("D. 계약 편집이 가능하면 계약 조건 수정 도구를 후보에 포함한다", () => {
+    const tools = selectOliviaTools({
+      requestClass: "TOOL_ACTION",
+      message: "계약금 30%로",
+      context: { ...baseContext, activeWorkspace: "contract", canEdit: true, capabilities: ["contract.edit"] },
+    });
+    expect(tools.map((tool) => tool.name)).toContain("update_contract_terms");
   });
 });

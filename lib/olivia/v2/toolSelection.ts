@@ -40,6 +40,43 @@ const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
 
 const SAFE_FALLBACK = new Set(["open_feature","select_project","search_client_projects","get_project_status","get_workflow_status","list_active_workflows","calendar_list","get_today_briefing","get_urgent_insights"]);
 
+// PageContext가 명시된 경우에만 적용한다. 페이지와 무관한 조회/탐색/DB 도구는 이 표에 넣지
+// 않아 기존 전역 동작을 유지하고, 현재 UI가 실제 제공하는 mutation만 후보에서 제한한다.
+const PAGE_TOOL_CAPABILITY: Readonly<Record<string, string>> = {
+  update_quote_item: "quote.edit",
+  remove_quote_item: "quote.edit",
+  update_quote_note: "quote.edit",
+  update_quote_info: "quote.edit",
+  update_quote_vat_mode: "quote.edit",
+  rebalance_quote_total: "quote.edit",
+  add_quote_item: "quote.add_item",
+  apply_quote_discount: "quote.discount",
+  request_quote_publish: "quote.publish",
+  create_contract: "contract.create",
+  update_contract_terms: "contract.edit",
+  request_contract_signature: "contract.sign",
+  request_contract_publish: "contract.publish",
+  download_contract_pdf: "contract.download_pdf",
+  update_conti_shot: "conti.edit",
+  duplicate_conti_shot: "conti.edit",
+  add_conti_shots: "conti.add_scene",
+  remove_conti_shot: "conti.remove_scene",
+  reorder_conti_shot: "conti.reorder_scene",
+};
+
+const EDIT_TOOLS = new Set(Object.entries(PAGE_TOOL_CAPABILITY)
+  .filter(([, capability]) => capability.endsWith(".edit") || capability.endsWith(".discount") || capability.endsWith(".add_item") || capability.includes("scene"))
+  .map(([tool]) => tool));
+const FINALIZE_TOOLS = new Set(["request_quote_publish", "request_contract_publish"]);
+
+function isAllowedByPageContext(toolName: string, context: OliviaContextSnapshot) {
+  const requiredCapability = PAGE_TOOL_CAPABILITY[toolName];
+  if (requiredCapability && context.capabilities && !context.capabilities.includes(requiredCapability)) return false;
+  if (context.canEdit === false && EDIT_TOOLS.has(toolName)) return false;
+  if (context.canFinalize === false && FINALIZE_TOOLS.has(toolName)) return false;
+  return true;
+}
+
 // recentText(직전 사용자 메시지 몇 개)를 message와 함께 봐야 "해줘"/"그냥해"처럼 키워드 없는
 // 짧은 후속 확인 메시지에서도 방금 전 주제(예: 견적)의 도구가 목록에서 안 빠진다 — 안 그러면
 // 모델이 그 도구를 호출 못 해놓고 "이 대화에는 연결이 안 돼 있다"고 지어내는 사고가 난다.
@@ -74,7 +111,7 @@ export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message
   // 도구가 조용히 빠졌는지 모델도 사용자도 알 방법이 없어서, 정작 필요한 도구(예: create_quote)가
   // 빠진 채로 "그 기능은 연결 안 돼 있다"고 지어내는 사고로 이어졌다(2026-08-24). 전체 도구
   // 개수(69개)보다는 훨씬 좁히되, 흔한 2~3개 도메인 조합은 다 담기게 여유를 둔다.
-  return tools.filter((tool)=>names.has(tool.name)).slice(0,28);
+  return tools.filter((tool)=>names.has(tool.name) && isAllowedByPageContext(tool.name, input.context)).slice(0,28);
 }
 
 export function isReadOnlyOliviaTool(toolName:string, tools:FunctionTool[]=OLIVIA_V2_TOOLS){

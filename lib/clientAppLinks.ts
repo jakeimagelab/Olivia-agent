@@ -48,6 +48,9 @@ export function buildClientAppLink({
   const params = new URLSearchParams();
   params.set("clientId", clientId);
   params.set("client_id", clientId);
+  if (app === "photo-sorting" && stepKey === "backup_sorting") {
+    params.set("mode", "classification");
+  }
   if (workflowRunId) params.set("workflowRunId", workflowRunId);
   if (stepKey) params.set("stepKey", stepKey);
   return `/${app}?${params.toString()}`;

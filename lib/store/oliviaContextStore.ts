@@ -23,6 +23,19 @@ export type ConversationEntity = {
 
 export type EntityAlias = { type: string; id: string; name: string };
 
+export type OliviaPageMode = "create" | "edit" | "view" | "list";
+
+export type OliviaPageContext = {
+  pageMode?: OliviaPageMode;
+  capabilities?: string[];
+  selectedRowId?: string;
+  selectedSceneId?: string;
+  documentStatus?: string;
+  brand?: string;
+  canEdit?: boolean;
+  canFinalize?: boolean;
+};
+
 export type OliviaContextState = {
   activeClientId?: string;
   activeClientName?: string;
@@ -53,6 +66,14 @@ export type OliviaContextState = {
   // (스펙 §21). QuoteBuilder.tsx가 finalAmount/dirtyFields가 바뀔 때마다 갱신한다.
   currentDocumentTotal?: number;
   currentDocumentDirty?: boolean;
+  pageMode?: OliviaPageMode;
+  capabilities?: string[];
+  selectedRowId?: string;
+  selectedSceneId?: string;
+  documentStatus?: string;
+  brand?: string;
+  canEdit?: boolean;
+  canFinalize?: boolean;
 
   setClient: (id?: string, name?: string) => void;
   setProject: (id?: string, name?: string) => void;
@@ -68,6 +89,10 @@ export type OliviaContextState = {
   setLastToolIntent: (tool?: string, intent?: string) => void;
   setCurrentDocument: (id?: string, type?: string, title?: string) => void;
   setCurrentDocumentTotal: (total?: number, dirty?: boolean) => void;
+  setPageContext: (context: OliviaPageContext) => void;
+  setSelectedRow: (id?: string) => void;
+  setSelectedScene: (id?: string) => void;
+  clearPageContext: () => void;
   clearSelection: () => void;
   clearContext: () => void;
 };
@@ -108,25 +133,52 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     revision: state.revision + 1,
     recentEntities: id ? rememberEntityIn(state.recentEntities, { type: "project", id, name }) : state.recentEntities,
   })),
-  setWorkspace: (workspace, resourceId) => set((state) => ({
-    activeWorkspace: workspace,
-    activeResourceId: resourceId,
-    selectedEntityId: workspace === state.activeWorkspace ? state.selectedEntityId : undefined,
-    selectedEntityType: workspace === state.activeWorkspace ? state.selectedEntityType : undefined,
-    lastAction: "setWorkspace",
-    revision: state.revision + 1,
-    recentEntities: workspace && resourceId
-      ? rememberEntityIn(state.recentEntities, { type: workspace, id: resourceId })
-      : state.recentEntities,
-  })),
-  setResource: (resourceId) => set((state) => ({
-    activeResourceId: resourceId,
-    lastAction: "setResource",
-    revision: state.revision + 1,
-  })),
+  setWorkspace: (workspace, resourceId) => set((state) => {
+    const contextChanged = workspace !== state.activeWorkspace || resourceId !== state.activeResourceId;
+    return {
+      activeWorkspace: workspace,
+      activeResourceId: resourceId,
+      selectedEntityId: contextChanged ? undefined : state.selectedEntityId,
+      selectedEntityType: contextChanged ? undefined : state.selectedEntityType,
+      selectedScheduleId: contextChanged ? undefined : state.selectedScheduleId,
+      selectedRowId: contextChanged ? undefined : state.selectedRowId,
+      selectedSceneId: contextChanged ? undefined : state.selectedSceneId,
+      pageMode: contextChanged ? undefined : state.pageMode,
+      capabilities: contextChanged ? undefined : state.capabilities,
+      documentStatus: contextChanged ? undefined : state.documentStatus,
+      brand: contextChanged ? undefined : state.brand,
+      canEdit: contextChanged ? undefined : state.canEdit,
+      canFinalize: contextChanged ? undefined : state.canFinalize,
+      currentDocumentId: contextChanged ? undefined : state.currentDocumentId,
+      currentDocumentType: contextChanged ? undefined : state.currentDocumentType,
+      currentDocumentTitle: contextChanged ? undefined : state.currentDocumentTitle,
+      currentDocumentTotal: contextChanged ? undefined : state.currentDocumentTotal,
+      currentDocumentDirty: contextChanged ? undefined : state.currentDocumentDirty,
+      lastAction: "setWorkspace",
+      revision: state.revision + 1,
+      recentEntities: workspace && resourceId
+        ? rememberEntityIn(state.recentEntities, { type: workspace, id: resourceId })
+        : state.recentEntities,
+    };
+  }),
+  setResource: (resourceId) => set((state) => {
+    const resourceChanged = resourceId !== state.activeResourceId;
+    return {
+      activeResourceId: resourceId,
+      selectedRowId: resourceChanged ? undefined : state.selectedRowId,
+      selectedSceneId: resourceChanged ? undefined : state.selectedSceneId,
+      currentDocumentId: resourceChanged ? undefined : state.currentDocumentId,
+      currentDocumentType: resourceChanged ? undefined : state.currentDocumentType,
+      currentDocumentTitle: resourceChanged ? undefined : state.currentDocumentTitle,
+      lastAction: "setResource",
+      revision: state.revision + 1,
+    };
+  }),
   setSelection: (type, id) => set((state) => ({
     selectedEntityType: type,
     selectedEntityId: id,
+    selectedRowId: type === "quote-item" ? id : undefined,
+    selectedSceneId: type === "conti-shot" ? id : undefined,
     lastAction: "setSelection",
     revision: state.revision + 1,
     recentEntities: type && id ? rememberEntityIn(state.recentEntities, { type, id }) : state.recentEntities,
@@ -134,12 +186,16 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
   setSelectedEntity: (id, type) => set((state) => ({
     selectedEntityType: type,
     selectedEntityId: id,
+    selectedRowId: type === "quote-item" ? id : undefined,
+    selectedSceneId: type === "conti-shot" ? id : undefined,
     lastAction: "setSelection",
     revision: state.revision + 1,
     recentEntities: type && id ? rememberEntityIn(state.recentEntities, { type, id }) : state.recentEntities,
   })),
   setSelectedSchedule: (id) => set((state) => ({
     selectedScheduleId: id,
+    selectedRowId: undefined,
+    selectedSceneId: undefined,
     selectedEntityType: id ? "schedule" : state.selectedEntityType,
     selectedEntityId: id || state.selectedEntityId,
     lastAction: "setSelectedSchedule",
@@ -174,12 +230,17 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     lastIntent: intent,
     revision: state.revision + 1,
   })),
-  setCurrentDocument: (id, type, title) => set((state) => ({
-    currentDocumentId: id,
-    currentDocumentType: type,
-    currentDocumentTitle: title,
-    revision: state.revision + 1,
-  })),
+  setCurrentDocument: (id, type, title) => set((state) => {
+    const documentChanged = id !== state.currentDocumentId || type !== state.currentDocumentType;
+    return {
+      currentDocumentId: id,
+      currentDocumentType: type,
+      currentDocumentTitle: title,
+      selectedRowId: documentChanged ? undefined : state.selectedRowId,
+      selectedSceneId: documentChanged ? undefined : state.selectedSceneId,
+      revision: state.revision + 1,
+    };
+  }),
   // total/dirty만 갱신한다 — id/type/title(setCurrentDocument)과 호출 빈도가 다르다(견적
   // 편집 중엔 매번 바뀌지만 어떤 문서가 열려 있는지는 자주 안 바뀜).
   setCurrentDocumentTotal: (total, dirty) => set((state) => ({
@@ -187,10 +248,38 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     currentDocumentDirty: dirty,
     revision: state.revision + 1,
   })),
+  setPageContext: (context) => set((state) => ({
+    ...context,
+    capabilities: context.capabilities ? [...context.capabilities] : context.capabilities,
+    revision: state.revision + 1,
+  })),
+  setSelectedRow: (id) => set((state) => ({
+    selectedRowId: id,
+    revision: state.revision + 1,
+  })),
+  setSelectedScene: (id) => set((state) => ({
+    selectedSceneId: id,
+    selectedEntityType: id ? "conti-shot" : state.selectedEntityType,
+    selectedEntityId: id || (state.selectedEntityType === "conti-shot" ? undefined : state.selectedEntityId),
+    revision: state.revision + 1,
+  })),
+  clearPageContext: () => set((state) => ({
+    pageMode: undefined,
+    capabilities: undefined,
+    selectedRowId: undefined,
+    selectedSceneId: undefined,
+    documentStatus: undefined,
+    brand: undefined,
+    canEdit: undefined,
+    canFinalize: undefined,
+    revision: state.revision + 1,
+  })),
   clearSelection: () => set((state) => ({
     selectedEntityId: undefined,
     selectedEntityType: undefined,
     selectedScheduleId: undefined,
+    selectedRowId: undefined,
+    selectedSceneId: undefined,
     lastAction: "clearSelection",
     revision: state.revision + 1,
   })),
@@ -204,6 +293,19 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     selectedEntityId: undefined,
     selectedEntityType: undefined,
     selectedScheduleId: undefined,
+    selectedRowId: undefined,
+    selectedSceneId: undefined,
+    pageMode: undefined,
+    capabilities: undefined,
+    documentStatus: undefined,
+    brand: undefined,
+    canEdit: undefined,
+    canFinalize: undefined,
+    currentDocumentId: undefined,
+    currentDocumentType: undefined,
+    currentDocumentTitle: undefined,
+    currentDocumentTotal: undefined,
+    currentDocumentDirty: undefined,
     recentActions: [],
     revision: state.revision + 1,
     lastAction: "clearContext",
@@ -234,6 +336,14 @@ export function getOliviaContextSnapshot(pathname?: string) {
     currentDocumentTitle: state.currentDocumentTitle,
     currentDocumentTotal: state.currentDocumentTotal,
     currentDocumentDirty: state.currentDocumentDirty,
+    pageMode: state.pageMode,
+    capabilities: state.capabilities,
+    selectedRowId: state.selectedRowId,
+    selectedSceneId: state.selectedSceneId,
+    documentStatus: state.documentStatus,
+    brand: state.brand,
+    canEdit: state.canEdit,
+    canFinalize: state.canFinalize,
   };
 }
 
@@ -254,6 +364,14 @@ export function buildOliviaPageContext(pathname?: string): string {
       ? { type: context.selectedEntityType, id: context.selectedEntityId }
       : undefined,
     scheduleId: context.selectedScheduleId,
+    pageMode: context.pageMode,
+    capabilities: context.capabilities,
+    selectedRowId: context.selectedRowId,
+    selectedSceneId: context.selectedSceneId,
+    documentStatus: context.documentStatus,
+    brand: context.brand,
+    canEdit: context.canEdit,
+    canFinalize: context.canFinalize,
     recentActions: context.recentActions.slice(-4).map((action) => action.type),
     currentDocument: context.currentDocumentId
       ? {

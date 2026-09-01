@@ -23,11 +23,16 @@ async function saveConti(id: string, result: unknown) {
   return updated as Record<string, unknown>;
 }
 
+export function getSelectedContiSceneId(context: OliviaContextSnapshot) {
+  return context.selectedSceneId
+    || (context.selectedEntityType === "conti-shot" ? context.selectedEntityId : undefined);
+}
+
 function contiTarget(conti: Record<string, unknown>, input: Record<string, unknown>, context: OliviaContextSnapshot) {
   const rawPosition = input.position;
   const shotCount = normalizeContiResult(conti.result).conti.length;
   const position = rawPosition == null ? undefined : resolveOrdinalReference(String(rawPosition), shotCount);
-  const selected = context.selectedEntityType === "conti-shot" ? context.selectedEntityId : undefined;
+  const selected = getSelectedContiSceneId(context);
   const matches = resolveContiShot(conti.result, { shotId: selected, selector: text(input, "selector"), position });
   if (matches.length !== 1) {
     const choices = matches.map(({ shot }, index) => shot.keyword || shot.category || `${index + 1}번 컷`).join(", ");
@@ -104,7 +109,8 @@ export async function executeContiTool(
         description: text(item, "description") || undefined,
         notes: text(item, "notes") || undefined,
       }));
-      const selected = context.selectedEntityType === "conti-shot" ? resolveContiShot(conti.result, { shotId: context.selectedEntityId })[0] : undefined;
+      const selectedShotId = getSelectedContiSceneId(context);
+      const selected = selectedShotId ? resolveContiShot(conti.result, { shotId: selectedShotId })[0] : undefined;
       const rawInsertAfter = input.insertAfter;
       const insertAfterInput = rawInsertAfter == null || rawInsertAfter === "" ? undefined : Number(rawInsertAfter);
       const insertAfter = insertAfterInput !== undefined && Number.isInteger(insertAfterInput) && insertAfterInput >= 0 ? insertAfterInput : selected?.index;
