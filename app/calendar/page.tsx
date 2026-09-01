@@ -176,6 +176,18 @@ function formatTimeKo(t: string): string {
 
 function monthLabel(m: number) { return `${m+1}월`; }
 
+// 모바일 캘린더 텍스트 전체 15% 축소 + 볼드체 → 레귤러(요청 2026-09) — 텍스트 크기/굵기가
+// 파일 전체에 인라인 style로 흩어져 있어(fontSize/fontWeight 200여 곳), 각 값을 이 두 헬퍼로
+// 감싸는 방식으로 통일했다. 기존에 이미 `isMobile ? 모바일값 : 데스크탑값` 삼항식이던 곳도
+// 그대로 감싸면 된다 — mfz/mfw는 "최종적으로 뽑힌 값"에만 작용해서 desktop 쪽 숫자는 건드리지
+// 않고, mobile 쪽만 15% 더 줄이거나 400으로 낮춘다(이중 적용 아님).
+function mfz(px: number, isMobile: boolean): number {
+  return isMobile ? Math.round(px * 0.85 * 10) / 10 : px;
+}
+function mfw(weight: number, isMobile: boolean): number {
+  return isMobile && weight >= 500 ? 400 : weight;
+}
+
 function getWeekDates(dateStr: string): Date[] {
   const d = new Date(dateStr + "T12:00:00");
   const dow = d.getDay();
