@@ -1,5 +1,10 @@
-import ContractBuilder from "@/components/contract/ContractBuilder";
+import { Suspense } from "react";
+import OliviaWorkspaceRouteBridge from "@/components/olivia/OliviaWorkspaceRouteBridge";
 
 export default function ContractPage() {
-  return <ContractBuilder />;
+  return (
+    <Suspense fallback={null}>
+      <OliviaWorkspaceRouteBridge workspaceType="contract" />
+    </Suspense>
+  );
 }
