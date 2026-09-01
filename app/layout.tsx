@@ -70,7 +70,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <OliviaPageTransition>{children}</OliviaPageTransition>
             </GlobalFeatureSidebar>
           </div>
-          <OliviaPersistentChat />
+          <OliviaWorkspaceShell />
         </div>
         <script dangerouslySetInnerHTML={{ __html: `
           document.addEventListener("click", function(e) {
