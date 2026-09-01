@@ -446,24 +446,24 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = fals
       borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
       <input ref={titleRef} value={title} onChange={e => setTitle(e.target.value)}
         onKeyDown={e => e.key === "Enter" && submit()} placeholder="할일 제목"
-        style={{ fontSize: 14, fontWeight: 700, border: "none", outline: "none",
+        style={{ fontSize: mfz(14, isMobile), fontWeight: mfw(700, isMobile), border: "none", outline: "none",
           background: "transparent", color: C.txt, width: "100%" }}/>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <TimeSelect value={time} onChange={handleTimeChange} placeholder="시작 시간"/>
+        <TimeSelect value={time} onChange={handleTimeChange} placeholder="시작 시간" isMobile={isMobile}/>
         {time && <>
-          <span style={{ fontSize: 11, color: C.hint, flexShrink: 0 }}>~</span>
-          <TimeSelect value={endTime} onChange={setEndTime} placeholder="종료 시간"/>
+          <span style={{ fontSize: mfz(11, isMobile), color: C.hint, flexShrink: 0 }}>~</span>
+          <TimeSelect value={endTime} onChange={setEndTime} placeholder="종료 시간" isMobile={isMobile}/>
         </>}
       </div>
       <input type="text" value={location} onChange={e => setLocation(e.target.value)}
         placeholder="장소 (선택)"
-        style={{ fontSize: 13, border: `1px solid ${C.border}`,
+        style={{ fontSize: mfz(13, isMobile), border: `1px solid ${C.border}`,
           borderRadius: 8, padding: "6px 10px", outline: "none", background: "#FAFAFA", color: C.txt }}/>
-      <ReminderControls enabled={reminderEnabled} minutes={reminderMinutes} hasTime={Boolean(time)} onEnabled={setReminderEnabled} onMinutes={setReminderMinutes}/>
+      <ReminderControls enabled={reminderEnabled} minutes={reminderMinutes} hasTime={Boolean(time)} onEnabled={setReminderEnabled} onMinutes={setReminderMinutes} isMobile={isMobile}/>
       <div style={{ display: "flex", gap: 6 }}>
         {Object.entries(CATS).map(([key, v]) => (
           <button key={key} onClick={() => setCat(key as keyof typeof CATS)} style={{
-            padding: "4px 10px", borderRadius: 99, fontSize: 11, fontWeight: 800, cursor: "pointer",
+            padding: "4px 10px", borderRadius: 99, fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), cursor: "pointer",
             border: `1.5px solid ${cat === key ? v.color : C.border}`,
             background: cat === key ? v.color : "transparent",
             color: cat === key ? "#fff" : C.muted,
@@ -472,9 +472,9 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = fals
       </div>
       <textarea value={memo} onChange={e => setMemo(e.target.value)}
         placeholder="메모 (선택) — 상담 내용, 준비물, 특이사항 등" rows={2}
-        style={{ fontSize: 12, color: C.muted, border: `1px solid ${C.border}`,
+        style={{ fontSize: mfz(12, isMobile), color: C.muted, border: `1px solid ${C.border}`,
           borderRadius: 8, padding: "8px 10px", resize: "none", background: "#FAFAFA", outline: "none" }}/>
-      {err && <div style={{ fontSize: 11, color: "#E85D2C", background: "#FFF0EB",
+      {err && <div style={{ fontSize: mfz(11, isMobile), color: "#E85D2C", background: "#FFF0EB",
         borderRadius: 6, padding: "6px 10px" }}>⚠️ {err}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={submit} disabled={busy || !title.trim()} className="pc-btn pc-btn--primary pc-btn--sm" style={{ flex: 1 }}>{busy ? "저장 중…" : "저장"}</button>
