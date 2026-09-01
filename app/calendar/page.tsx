@@ -2102,7 +2102,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
           <div style={{ fontSize: 10, fontWeight: 700, color: C.hint, marginBottom: 6 }}>하루 종일</div>
           <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 5 : 7 }}>
             {allDay.map(t => (
-              <TaskItem key={t.id} task={t} onToggle={() => onToggle(t)} onDelete={() => onDelete(t.id)} onEdit={onEdit}/>
+              <TaskItem key={t.id} task={t} onToggle={() => onToggle(t)} onDelete={() => onDelete(t.id)} onEdit={onEdit} isMobile={isMobile}/>
             ))}
           </div>
         </div>
