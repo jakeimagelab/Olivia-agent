@@ -2247,7 +2247,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
 
           {/* Add task form */}
           <div style={{ marginTop: 16 }}>
-            <AddTaskForm date={dateStr} onAdd={onAdd}/>
+            <AddTaskForm date={dateStr} onAdd={onAdd} isMobile={isMobile}/>
           </div>
         </div>
       )}
