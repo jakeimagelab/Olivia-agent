@@ -1660,20 +1660,24 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           const isSelected = ds === selectedDate;
           const dow = d.getDay();
           const cnt = tasksByDate[ds]?.length ?? 0;
+          const holidayName = getKoreanHoliday(ds);
           return (
             <div key={i} onClick={() => onSelectDate(ds)}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "6px 2px", cursor: "pointer" }}>
               <span style={{ fontSize: 10, fontWeight: 700, marginBottom: 2,
-                color: dow===0 ? "#DC2626" : dow===6 ? "#2563EB" : C.muted }}>{WEEKDAYS[dow]}</span>
+                color: (dow===0 || holidayName) ? "#DC2626" : dow===6 ? "#2563EB" : C.muted }}>{WEEKDAYS[dow]}</span>
               <div style={{ width: 26, height: 26, borderRadius: "50%",
                 background: isToday ? C.todayRed : isSelected ? C.teal : "transparent",
                 display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ fontSize: 13, fontWeight: (isToday||isSelected) ? 900 : 700,
-                  color: (isToday||isSelected) ? "#fff" : dow===0 ? "#DC2626" : dow===6 ? "#2563EB" : C.txt }}>
+                  color: (isToday||isSelected) ? "#fff" : (dow===0 || holidayName) ? "#DC2626" : dow===6 ? "#2563EB" : C.txt }}>
                   {d.getDate()}
                 </span>
               </div>
-              {cnt > 0 && !isToday && !isSelected && (
+              {holidayName ? (
+                <span style={{ fontSize: isMobile ? 7.5 : 8.5, fontWeight: 800, color: "#DC2626", marginTop: 2,
+                  maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{holidayName}</span>
+              ) : cnt > 0 && !isToday && !isSelected && (
                 <div style={{ width: 4, height: 4, borderRadius: "50%", background: C.teal, marginTop: 2 }}/>
               )}
             </div>
