@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import OliviaWorkspaceRouteBridge from "@/components/olivia/OliviaWorkspaceRouteBridge";
+import QuoteBuilder from "@/components/quote/QuoteBuilder";
 
 export default function PhotoclinicPage() {
-  return (
-    <Suspense fallback={null}>
-      <OliviaWorkspaceRouteBridge workspaceType="quote" />
-    </Suspense>
-  );
+  return <QuoteBuilder />;
 }
