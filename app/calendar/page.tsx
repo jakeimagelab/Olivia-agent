@@ -485,8 +485,8 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = fals
 }
 
 /* ─── EditTaskForm ────────────────────────────────────── */
-function EditTaskForm({ task, onSave, onCancel }: {
-  task: CalTask; onSave: (updated: CalTask) => void; onCancel: () => void;
+function EditTaskForm({ task, onSave, onCancel, isMobile = false }: {
+  task: CalTask; onSave: (updated: CalTask) => void; onCancel: () => void; isMobile?: boolean;
 }) {
   const [title,    setTitle]    = useState(task.title);
   const [memo,     setMemo]     = useState(task.memo);
