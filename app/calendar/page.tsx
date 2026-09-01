@@ -261,8 +261,8 @@ function ReminderControls({ enabled, minutes, hasTime, onEnabled, onMinutes, isM
 
 /* ─── TaskItem ────────────────────────────────────────── */
 function TaskItem({
-  task, compact, onToggle, onDelete, onEdit,
-}: { task: CalTask; compact?: boolean; onToggle: () => void; onDelete: () => void; onEdit?: (t: CalTask) => void }) {
+  task, compact, onToggle, onDelete, onEdit, isMobile = false,
+}: { task: CalTask; compact?: boolean; onToggle: () => void; onDelete: () => void; onEdit?: (t: CalTask) => void; isMobile?: boolean }) {
   const cat = CATS[task.category] ?? CATS.general;
   const [expanded, setExpanded] = useState(false);
   const [editing,  setEditing]  = useState(false);
@@ -271,7 +271,8 @@ function TaskItem({
   if (editing) return (
     <EditTaskForm task={task}
       onSave={updated => { onEdit?.(updated); setEditing(false); }}
-      onCancel={() => setEditing(false)}/>
+      onCancel={() => setEditing(false)}
+      isMobile={isMobile}/>
   );
 
   if (compact) return (
@@ -281,10 +282,10 @@ function TaskItem({
       background: cat.color + "18", borderLeft: `2.5px solid ${cat.color}`,
       overflow: "hidden",
     }}>
-      {task.time && <span style={{ fontSize: 9, color: cat.color, fontWeight: 800, flexShrink: 0 }}>{task.time.slice(0,5)}</span>}
-      {task.reminder_enabled ? <span aria-label="알람 설정됨" style={{ fontSize: 9, flexShrink: 0 }}>🔔</span> : null}
-      <span style={{ fontSize: 10, color: C.txt, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-        textDecoration: task.completed ? "line-through" : "none", opacity: task.completed ? 0.55 : 1, fontWeight: 700 }}>
+      {task.time && <span style={{ fontSize: mfz(9, isMobile), color: cat.color, fontWeight: mfw(800, isMobile), flexShrink: 0 }}>{task.time.slice(0,5)}</span>}
+      {task.reminder_enabled ? <span aria-label="알람 설정됨" style={{ fontSize: mfz(9, isMobile), flexShrink: 0 }}>🔔</span> : null}
+      <span style={{ fontSize: mfz(10, isMobile), color: C.txt, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        textDecoration: task.completed ? "line-through" : "none", opacity: task.completed ? 0.55 : 1, fontWeight: mfw(700, isMobile) }}>
         {task.title}
       </span>
     </div>
@@ -313,31 +314,31 @@ function TaskItem({
 
         {/* title + meta stacked */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: task.completed ? C.hint : C.txt,
+          <div style={{ fontSize: mfz(14, isMobile), fontWeight: mfw(700, isMobile), color: task.completed ? C.hint : C.txt,
             textDecoration: task.completed ? "line-through" : "none",
             lineHeight: 1.35, marginBottom: 3,
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {task.title}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: cat.color, background: cat.bg,
+            <span style={{ fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), color: cat.color, background: cat.bg,
               padding: "1px 7px", borderRadius: 99 }}>{cat.label}</span>
             {task.time && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: C.teal }}>
+              <span style={{ fontSize: mfz(11, isMobile), fontWeight: mfw(700, isMobile), color: C.teal }}>
                 ⏰ {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}
               </span>
             )}
             {task.reminder_enabled && (
-              <span style={{ fontSize: 11, fontWeight: 800, color: C.orange }}>🔔 {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</span>
+              <span style={{ fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), color: C.orange }}>🔔 {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</span>
             )}
             {task.location && (
-              <span style={{ fontSize: 11, color: C.muted }}>📍 {task.location}</span>
+              <span style={{ fontSize: mfz(11, isMobile), color: C.muted }}>📍 {task.location}</span>
             )}
           </div>
         </div>
 
         {hasDetail && (
-          <span style={{ fontSize: 11, color: C.hint, transition: "transform .2s",
+          <span style={{ fontSize: mfz(11, isMobile), color: C.hint, transition: "transform .2s",
             transform: expanded ? "rotate(180deg)" : "none", flexShrink: 0 }}>▾</span>
         )}
         <button onClick={e => { e.stopPropagation(); setEditing(true); }}
@@ -354,16 +355,16 @@ function TaskItem({
       {expanded && (
         <div style={{ borderTop: `1px solid ${cat.color}20`, background: cat.bg + "60",
           padding: "10px 14px 12px 44px", display: "flex", flexDirection: "column", gap: 6 }}>
-          {task.time && <div style={{ display: "flex", gap: 6, fontSize: 12, color: C.txt, fontWeight: 700 }}>
+          {task.time && <div style={{ display: "flex", gap: 6, fontSize: mfz(12, isMobile), color: C.txt, fontWeight: mfw(700, isMobile) }}>
             <span style={{ color: C.teal }}>⏰</span>
             {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}
           </div>}
-          {task.location && <div style={{ display: "flex", gap: 6, fontSize: 12, color: C.txt }}>
+          {task.location && <div style={{ display: "flex", gap: 6, fontSize: mfz(12, isMobile), color: C.txt }}>
             <span>📍</span>{task.location}
           </div>}
-          {task.reminder_enabled && <div style={{ display: "flex", gap: 6, fontSize: 12, color: C.orange, fontWeight: 800 }}><span>🔔</span>올리비아가 {reminderTimingPhrase(task.reminder_minutes_before ?? 30)} 텔레그램으로 알려드려요.</div>}
+          {task.reminder_enabled && <div style={{ display: "flex", gap: 6, fontSize: mfz(12, isMobile), color: C.orange, fontWeight: mfw(800, isMobile) }}><span>🔔</span>올리비아가 {reminderTimingPhrase(task.reminder_minutes_before ?? 30)} 텔레그램으로 알려드려요.</div>}
           {task.memo && (
-            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7,
+            <div style={{ fontSize: mfz(12, isMobile), color: C.muted, lineHeight: 1.7,
               borderLeft: `2px solid ${cat.color}`, paddingLeft: 10, marginTop: 2,
               whiteSpace: "pre-wrap" }}>
               {task.memo}
