@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 
 // Olivia Agent 2.0 — 채팅에서 연 "기능 화면"이 홈 페이지 레이아웃(split)이나 전체화면
-// (fullscreen)으로 떠 있는 상태를 앱 전역에서 공유한다. OliviaPersistentChat(루트 레이아웃,
+// (fullscreen)으로 떠 있는 상태를 앱 전역에서 공유한다. OliviaWorkspaceShell(루트 레이아웃,
 // 페이지 트리 바깥)도 이 store를 읽어서 전체화면일 때만 채팅 패널을 다시 보여준다 — 그래서
 // React Context가 아니라 Zustand로 뒀다(페이지별 Provider 트리 밖에서도 읽어야 하므로).
 //
