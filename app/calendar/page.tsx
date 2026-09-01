@@ -1236,12 +1236,45 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                     fontSize: 14,
                     fontWeight: isToday ? 900 : isSelected ? 800 : 600,
                     opacity: dimmed ? 0.38 : 1,
-                    color: isToday ? "#fff" : dow===0 ? "#C0201A" : dow===6 ? "#1D4ED8" : C.txt,
+                    color: isToday ? "#fff" : (dow===0 || holidayName) ? "#C0201A" : dow===6 ? "#1D4ED8" : C.txt,
                   }}>{cell.day}</span>
                 </div>
               </div>
 
-              {/* event pills */}
+              {/* 공휴일/연휴 이름 — 요일과 무관하게 항상 빨간색으로 표시(토요일 공휴일도 파란색이
+                  아니라 빨간색이 우선). 셀 폭이 좁으므로 한 줄로 줄여서 보여준다. */}
+              {holidayName && (
+                <div style={{
+                  fontSize: isMobile ? 8.5 : 9.5, fontWeight: 800, color: "#C0201A", lineHeight: 1.2,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  opacity: dimmed ? 0.5 : 1, marginBottom: 2,
+                }}>{holidayName}</div>
+              )}
+
+              {/* event pills — 모바일 월 화면은 텍스트 없이 카테고리 색 점만 보여준다(공간이 좁고,
+                  제목은 어차피 셀을 눌러 일 화면으로 들어가야 읽을 수 있다). 데스크탑은 기존처럼
+                  제목+시간이 있는 pill을 최대 4개까지 보여준다. */}
+              {isMobile ? (
+                tasks.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 3, paddingLeft: 1 }}>
+                    {tasks.slice(0, 8).map(t => {
+                      const cat = CATS[t.category] ?? CATS.general;
+                      return (
+                        <span key={t.id} style={{
+                          width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                          background: t.completed ? "#A0AEC0" : cat.color,
+                          opacity: dimmed ? 0.45 : t.completed ? 0.55 : 1,
+                        }}/>
+                      );
+                    })}
+                    {tasks.length > 8 && (
+                      <span style={{ fontSize: 8, color: C.muted, fontWeight: 700, lineHeight: "6px", opacity: dimmed ? 0.45 : 1 }}>
+                        +{tasks.length-8}
+                      </span>
+                    )}
+                  </div>
+                )
+              ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 {tasks.slice(0, 4).map(t => {
                   const cat = CATS[t.category] ?? CATS.general;
