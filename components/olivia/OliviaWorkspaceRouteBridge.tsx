@@ -10,8 +10,10 @@ import { useWorkspaceStore, type WorkspaceType } from "@/lib/store/workspaceStor
 
 const spring = { type: "spring" as const, stiffness: 230, damping: 28, mass: 0.85 };
 
-// Olivia Agent 2.0 Phase 1 — /photoclinic, /contract, /conti(그리고 sync 전용으로
-// /photo-sorting)가 렌더링하는 얇은 다리. 두 가지 일을 한다:
+// Olivia Agent 2.0 Phase 1 — /contract, /conti(그리고 sync 전용으로 /photo-sorting)가
+// 렌더링하는 얇은 다리. /photoclinic, /quote(견적서)는 2026-09 원복 요청으로 이 브릿지를
+// 쓰지 않고 QuoteBuilder mode="page"를 직접 렌더링한다(WorkspaceRegistry.ts 참고). 두 가지
+// 일을 한다:
 // (1) URL 쿼리를 useWorkspaceStore에 동기화해서 채팅으로 연 것과 똑같은 store 상태를 만든다
 //     (app/admin/tools/[tool]/page.tsx가 이미 clientId/workflowRunId/projectId/stepKey를
 //     이 쿼리 파라미터로 넘겨준다).
