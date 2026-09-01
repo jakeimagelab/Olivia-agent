@@ -17,6 +17,7 @@ function ClientContextBridgeInner() {
   const standaloneToolPaths = ["/quote", "/contract", "/conti", "/photo-sorting", "/select-galleries", "/select-match", "/photo-retouching", "/seo-delivery", "/review-studio", "/per", "/sns-manager", "/channel-analyzer"];
   const isStandaloneTool = standaloneToolPaths.some(path => pathname === path || pathname?.startsWith(`${path}/`));
   if (pathname?.startsWith("/admin")) return null;
+  if (pathname === "/photo-sorting") return null;
   if (!isClientLinked && !isStandaloneTool) return null;
   if (pathname?.startsWith("/clients") || pathname?.startsWith("/client-portal")) return null;
 

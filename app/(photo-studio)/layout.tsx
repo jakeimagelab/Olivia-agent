@@ -11,7 +11,7 @@ function readCookie(name: string): string | null {
 }
 
 const PHOTO_TABS = [
-  { href: "/photo-sorting",    label: "📁 사진 분류",         matches: ["/photo-sorting"] },
+  { href: "/photo-sorting?mode=classification", label: "📁 사진 분류", matches: ["/photo-sorting"] },
   { href: "/video-sorting",    label: "🎥 영상 분류",         matches: ["/video-sorting"] },
   { href: "/video-convert",    label: "🔄 4K→FHD 변환",       matches: ["/video-convert"] },
   { href: "/raw-select",       label: "✂️ AI 컷 정리 & RAW",  matches: ["/raw-select"] },
@@ -37,6 +37,7 @@ const MESH_BG = [
 
 export default function PhotoStudioLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const unifiedWorkspace = pathname === "/photo-sorting";
   const meta = TITLE[pathname] ?? { title: "사진 작업실", description: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다." };
 
   // 공유 링크로 들어온 외부 세션이면 자신에게 허용된 탭 하나만 보여준다.
@@ -47,9 +48,9 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
 
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)" }}>
-      <GlobalHeader title={meta.title} description={meta.description} />
+      {!unifiedWorkspace ? <GlobalHeader title={meta.title} description={meta.description} /> : null}
 
-      <nav className="pc-tabs pc-tabs--global" aria-label="사진 작업 기능">
+      {!unifiedWorkspace ? <nav className="pc-tabs pc-tabs--global" aria-label="사진 작업 기능">
         {visibleTabs.map(t => (
           <Link
             key={t.href}
@@ -59,9 +60,9 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
             {t.label}
           </Link>
         ))}
-      </nav>
+      </nav> : null}
 
-      <div className="pc-page-content">
+      <div className={unifiedWorkspace ? undefined : "pc-page-content"}>
         {children}
       </div>
     </div>

@@ -576,7 +576,7 @@ export default function PhotoSortingWorkspace({
   clientId: modalClientId,
   workflowRunId: modalWorkflowRunId,
 }: {
-  mode?: "page" | "modal";
+  mode?: "page" | "modal" | "embedded";
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
@@ -594,11 +594,12 @@ function PhotoSortingInner({
   modalClientId,
   modalWorkflowRunId,
 }: {
-  mode?: "page" | "modal";
+  mode?: "page" | "modal" | "embedded";
   modalClientId?: string;
   modalWorkflowRunId?: string;
 }) {
   const isModal = mode === "modal";
+  const isEmbedded = mode === "embedded";
   const sp = useSearchParams();
   const router = useRouter();
   const clientId = isModal ? (modalClientId ?? "") : (sp.get("clientId") ?? sp.get("client_id") ?? "");
@@ -3651,7 +3652,7 @@ function PhotoSortingInner({
         </div>
       )}
 
-      <div style={{background:C.bg,minHeight:isModal?undefined:"100vh",color:C.txt}}>
+      <div style={{background:C.bg,minHeight:isModal||isEmbedded?undefined:"100vh",color:C.txt}}>
         {renderStepIndicator()}
         <div className="ps-wrap" style={{maxWidth:960,margin:"0 auto"}}>
           {step===0 && <Step0/>}
