@@ -31,6 +31,12 @@ export type OliviaConversationState = {
   // 컴포넌트 트리라 route 이동에도 그대로 남는다).
   activeTaskSessionId?: string;
   agentRuns: Record<string, OliviaRunStreamPayload>;
+  // Olivia 2.0 Phase 1 — 입력창 draft를 OliviaConversation의 로컬 state가 아니라 여기서 소유한다.
+  // 홈 ↔ 다른 워크스페이스 라우트 전환은 <OliviaConversation> portal의 대상 DOM 노드가
+  // 바뀌는 순간이라, 컴포넌트 fiber가 안전하게 보존되는지에 기대지 않고 draft를 이 공유
+  // store(모든 표면이 이미 구독 중)에 둬야 어떤 경우에도 타이핑 중이던 내용이 사라지지 않는다.
+  draft: string;
+  setDraft: (value: string) => void;
   appendMessage: (message: OliviaV2Message) => void;
   updateMessage: (id: string, updates: Partial<OliviaV2Message>) => void;
   setMessages: (messages: OliviaV2Message[]) => void;
