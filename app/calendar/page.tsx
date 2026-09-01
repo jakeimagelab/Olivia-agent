@@ -235,25 +235,26 @@ function TimeSelect({ value, onChange, placeholder = "시간 없음", isMobile =
   );
 }
 
-function ReminderControls({ enabled, minutes, hasTime, onEnabled, onMinutes }: {
+function ReminderControls({ enabled, minutes, hasTime, onEnabled, onMinutes, isMobile = false }: {
   enabled: boolean;
   minutes: CalendarReminderMinutes;
   hasTime: boolean;
   onEnabled: (value: boolean) => void;
   onMinutes: (value: CalendarReminderMinutes) => void;
+  isMobile?: boolean;
 }) {
   return (
     <div style={{ display: "grid", gap: 8, border: `1px solid ${enabled ? "#E85D2C55" : C.border}`, borderRadius: 10, padding: "10px 11px", background: enabled ? "#FFF7F2" : "#FAFCFB" }}>
-      <label style={{ display: "flex", alignItems: "center", gap: 8, color: hasTime ? C.txt : C.hint, fontSize: 12, fontWeight: 800, cursor: hasTime ? "pointer" : "not-allowed" }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, color: hasTime ? C.txt : C.hint, fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), cursor: hasTime ? "pointer" : "not-allowed" }}>
         <input type="checkbox" checked={enabled} disabled={!hasTime} onChange={(event) => onEnabled(event.target.checked)} style={{ accentColor: C.orange }} />
         <span>🔔 올리비아 텔레그램 알람</span>
       </label>
       {enabled ? (
         <select aria-label="알람 시점" value={minutes} onChange={(event) => onMinutes(Number(event.target.value) as CalendarReminderMinutes)}
-          style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 9px", background: "#fff", color: C.txt, fontSize: 12, fontFamily: "inherit" }}>
+          style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 9px", background: "#fff", color: C.txt, fontSize: mfz(12, isMobile), fontFamily: "inherit" }}>
           {CALENDAR_REMINDER_MINUTES.map((value) => <option key={value} value={value}>{CALENDAR_REMINDER_LABEL[value]}</option>)}
         </select>
-      ) : !hasTime ? <small style={{ color: C.hint, fontSize: 10 }}>시작 시간을 선택하면 알람을 켤 수 있습니다.</small> : null}
+      ) : !hasTime ? <small style={{ color: C.hint, fontSize: mfz(10, isMobile) }}>시작 시간을 선택하면 알람을 켤 수 있습니다.</small> : null}
     </div>
   );
 }
