@@ -68,8 +68,9 @@ export default function OliviaAdaptiveStage() {
   const hasWorkspace = useWorkspaceStore((state) => state.type !== null);
   // 실제 워크스페이스가 열리기 전, 도구가 그걸 열 것으로 보이면(pendingWorkspaceOpen) 결과가
   // 오기 전에도 미리 패널을 펼쳐서 스켈레톤을 보여준다(Phase 4) — mode는 OPEN_WORKSPACE가 와야
-  // "workspace"로 바뀌므로 건드리지 않는다.
-  const isWorkspaceMode = (hasWorkspace && (mode === "workspace" || mode === "workspace-chat-expanded" || mode === "fullscreen")) || (pendingWorkspaceOpen && !hasWorkspace);
+  // "workspace"로 바뀌므로 건드리지 않는다. OliviaWorkspaceShell도 같은 값을 계산해 chat
+  // variant를 정하므로, 두 곳이 어긋나지 않도록 공유 함수(isOliviaWorkspaceSplitActive)로 뺐다.
+  const isWorkspaceMode = isOliviaWorkspaceSplitActive({ hasWorkspace, mode, pendingWorkspaceOpen });
   const weights = getWorkspaceLayoutWeight({ mode, chatFocused, workspaceFocused, streaming: isStreaming });
   const todayCount = data?.todayTasks.length ?? 0;
   const pendingCount =
