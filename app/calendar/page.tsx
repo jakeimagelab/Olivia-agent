@@ -221,12 +221,12 @@ function buildMonthCells(year: number, month: number) {
 }
 
 /* ─── TimeSelect ─────────────────────────────────────── */
-function TimeSelect({ value, onChange, placeholder = "시간 없음" }: {
-  value: string; onChange: (v: string) => void; placeholder?: string;
+function TimeSelect({ value, onChange, placeholder = "시간 없음", isMobile = false }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; isMobile?: boolean;
 }) {
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
-      style={{ fontSize: 13, border: `1px solid ${C.border}`, borderRadius: 8,
+      style={{ fontSize: mfz(13, isMobile), border: `1px solid ${C.border}`, borderRadius: 8,
         padding: "6px 8px", outline: "none", background: "#FAFAFA",
         color: value ? C.txt : C.hint, cursor: "pointer", fontFamily: "inherit", flex: 1 }}>
       <option value="">{placeholder}</option>
