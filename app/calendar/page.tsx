@@ -1160,6 +1160,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
           const dow        = new Date(cell.year, cell.month, cell.day).getDay();
           const isDragOver = dragOverDate === dateStr && dragTask?.date !== dateStr;
           const dimmed     = !cell.isCurrent;
+          const holidayName = getKoreanHoliday(dateStr);
 
           return (
             <div key={idx}
