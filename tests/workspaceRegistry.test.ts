@@ -3,8 +3,6 @@ import { getWorkspaceTypeForPathname, shouldAutoCloseWorkspace, workspaceRegistr
 
 describe("getWorkspaceTypeForPathname", () => {
   it("resolves every registered direct route to its workspace type", () => {
-    expect(getWorkspaceTypeForPathname("/photoclinic")).toBe("quote");
-    expect(getWorkspaceTypeForPathname("/quote")).toBe("quote");
     expect(getWorkspaceTypeForPathname("/contract")).toBe("contract");
     expect(getWorkspaceTypeForPathname("/conti")).toBe("conti");
     expect(getWorkspaceTypeForPathname("/photo-sorting")).toBe("photo-sort");
@@ -14,17 +12,21 @@ describe("getWorkspaceTypeForPathname", () => {
     expect(getWorkspaceTypeForPathname("/contract/anything")).toBe("contract");
   });
 
-  it("returns undefined for unrelated paths, home, or missing pathname", () => {
+  // 견적서 원복(2026-09) — /photoclinic, /quote는 QuoteBuilder mode="page"를 직접 렌더링하는
+  // 예전 구조로 돌아갔고, quote는 direct route가 없다(WorkspaceRegistry.ts 참고) — 채팅에서
+  // workspace로 여는 기능은 유지하되, 직접 URL 진입은 70/30 스플릿 대상이 아니다.
+  it("returns undefined for unrelated paths, home, quote's routes, or missing pathname", () => {
     expect(getWorkspaceTypeForPathname("/clients")).toBeUndefined();
     expect(getWorkspaceTypeForPathname("/admin/dashboard/home")).toBeUndefined();
+    expect(getWorkspaceTypeForPathname("/photoclinic")).toBeUndefined();
+    expect(getWorkspaceTypeForPathname("/quote")).toBeUndefined();
     expect(getWorkspaceTypeForPathname(null)).toBeUndefined();
     expect(getWorkspaceTypeForPathname(undefined)).toBeUndefined();
   });
 
-  it("gives every registered workspace at least one direct route", () => {
-    for (const entry of Object.values(workspaceRegistry)) {
-      expect(entry?.directRoutes.length).toBeGreaterThan(0);
-    }
+  it("quote stays registered (for chat-driven opens) even with no direct routes", () => {
+    expect(workspaceRegistry.quote).toBeDefined();
+    expect(workspaceRegistry.quote?.directRoutes).toEqual([]);
   });
 });
 
