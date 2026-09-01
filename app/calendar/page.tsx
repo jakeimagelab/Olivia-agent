@@ -8,6 +8,7 @@ import GlobalHeader from "@/components/GlobalHeader";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { CALENDAR_REMINDER_LABEL, CALENDAR_REMINDER_MINUTES, reminderTimingPhrase, type CalendarReminderMinutes } from "@/lib/calendarReminders";
 import { parseClipboardTasks } from "@/lib/calendarPaste";
+import { getKoreanHoliday } from "@/lib/koreanHolidays";
 
 /* ─── types ──────────────────────────────────────────── */
 type ViewMode = "day" | "week" | "month" | "year";
