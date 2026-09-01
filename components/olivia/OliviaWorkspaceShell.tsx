@@ -64,7 +64,6 @@ export default function OliviaWorkspaceShell() {
   const isSplitActive = isOliviaWorkspaceSplitActive({ hasWorkspace, mode: layoutMode, pendingWorkspaceOpen });
   const chatVariant = isHome ? (isSplitActive ? "workspace" : "home") : "workspace";
   const showExpandToggle = isHome ? isSplitActive : true;
-  if (typeof window !== "undefined") console.log("[DEBUG dockNode]", { pathname, dockNode: dockNode ? dockNode.className : null, chatVariant });
   const chatPortal = dockNode
     ? createPortal(<OliviaConversation variant={chatVariant} showExpandToggle={showExpandToggle} />, dockNode)
     : null;
