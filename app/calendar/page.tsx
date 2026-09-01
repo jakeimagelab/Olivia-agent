@@ -1328,6 +1328,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                   </span>
                 )}
               </div>
+              )}
             </div>
           );
         })}
