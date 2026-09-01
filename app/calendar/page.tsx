@@ -2168,7 +2168,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                   <div key={t.id} style={{ position: "absolute", top, left: layout?.left ?? 2, width: layout?.width ?? "calc(100% - 4px)", zIndex: 20 }}>
                     <EditTaskForm task={t}
                       onSave={updated => { onEdit(updated); setEditingId(null); }}
-                      onCancel={() => setEditingId(null)}/>
+                      onCancel={() => setEditingId(null)} isMobile={isMobile}/>
                   </div>
                 );
 
