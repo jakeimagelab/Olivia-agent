@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CalendarDays, FileText, ListChecks, Search, Sparkles } from "lucide-react";
-import OliviaConversation from "@/components/olivia-v2/OliviaConversation";
 import WorkspaceMorphTransition from "@/components/workspace/WorkspaceMorphTransition";
 import OliviaHomeContextDrawer from "@/components/home/OliviaHomeContextDrawer";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
+import { useOliviaChatDockStore } from "@/lib/store/useOliviaChatDockStore";
 import { getWorkspaceLayoutWeight, useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
