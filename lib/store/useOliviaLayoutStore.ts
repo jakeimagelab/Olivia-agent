@@ -66,3 +66,17 @@ export function getWorkspaceLayoutWeight(input: {
   if (input.mode === "workspace-chat-expanded") return { chat: 0.62, workspace: 0.38 };
   return { chat: 0.3, workspace: 0.7 };
 }
+
+// Olivia 2.0 Phase 1 — "지금 워크스페이스 스플릿 화면을 보여줘야 하는가"를 홈(OliviaAdaptiveStage)과
+// 루트 셸(OliviaWorkspaceShell)이 각자 따로 계산하면 두 곳이 어긋나 레이아웃과 채팅 variant가
+// 서로 다른 순간이 생길 수 있다 — 하나의 함수로 묶어 두 곳이 항상 같은 결론을 내도록 한다.
+export function isOliviaWorkspaceSplitActive(input: {
+  hasWorkspace: boolean;
+  mode: OliviaLayoutMode;
+  pendingWorkspaceOpen: boolean;
+}) {
+  return (
+    (input.hasWorkspace && (input.mode === "workspace" || input.mode === "workspace-chat-expanded" || input.mode === "fullscreen")) ||
+    (input.pendingWorkspaceOpen && !input.hasWorkspace)
+  );
+}
