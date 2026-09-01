@@ -1109,6 +1109,17 @@ main:has(> .pc-header) {
 .calendar-page-shell > .oa-header,
 .calendar-page-shell > .pc-page-actions,
 .calendar-page-shell > .calendar-mission-shell { flex: 0 0 auto; }
+
+/* 모바일 캘린더 텍스트 15% 축소 + 볼드체 → 레귤러(요청 2026-09) — 캘린더 화면 안의 텍스트는
+   대부분 page.tsx 인라인 style(mfz/mfw 헬퍼)로 처리했지만, 헤더의 "오늘"/"일정 분석" 버튼은
+   전역 .pc-btn 클래스를 그대로 쓴다. 이 페이지 안에서만 덮어써서 다른 페이지의 .pc-btn에는
+   영향이 없게 한다(page.tsx의 isMobile 판정 기준인 768px와 동일한 분기점 사용). */
+@media (max-width: 767px) {
+  .calendar-page-shell .pc-btn {
+    font-size: 10.2px !important;
+    font-weight: 400 !important;
+  }
+}
 .calendar-page-content { flex: 1 1 0; min-height: 0; }
 
 .admin-menu-card:hover {
