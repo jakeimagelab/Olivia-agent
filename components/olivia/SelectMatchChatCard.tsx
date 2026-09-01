@@ -5,7 +5,8 @@ import { useSelectMatchChatStore } from "@/lib/store/useSelectMatchChatStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { parseNamesFromText, parseNamesFromFiles } from "@/lib/selectMatch/nameParsing";
 import { buildRawIndex, copyFileHandle, computePreflight } from "@/lib/selectMatch/rawIndex";
-import { collectJpgFolderGroups, flattenFolderGroupsToNames } from "@/lib/selectMatch/folderScanner";
+import { collectJpgFolderGroups } from "@/lib/selectMatch/folderScanner";
+import { collectBridgeSidecarRatedNames } from "@/lib/selectMatch/bridgeRating";
 import { buildMatchSummaryText } from "@/lib/selectMatch/matchSummary";
 
 // 채팅 안에서 셀렉 매칭을 끝까지 수행하는 카드 — /select-match 페이지의 "텍스트 붙여넣기"/
@@ -55,7 +56,17 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
       const dir = await (window as any).showDirectoryPicker({ mode: "read" });
       setFolderScanning(true);
       const groups = await collectJpgFolderGroups(dir);
-      submitNames(flattenFolderGroupsToNames(groups));
+      const result = await collectBridgeSidecarRatedNames(groups);
+      if (result.names.size === 0) {
+        store().setError(
+          flowId,
+          result.scanned === 0
+            ? "선택한 폴더에서 JPG 파일을 찾지 못했어요."
+            : `JPG ${result.scanned.toLocaleString()}장을 확인했지만 Bridge 별점 사이드카(.xmp)를 찾지 못했어요. Adobe Bridge에서 별점을 저장한 뒤 다시 선택해주세요.`,
+        );
+        return;
+      }
+      submitNames(result.names);
     } catch (e: any) {
       if (e?.name !== "AbortError") store().setError(flowId, "폴더 선택에 실패했어요. 다시 시도해주세요.");
     } finally {
@@ -127,9 +138,9 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
           </div>
           {inputMode === "folder" ? (
             <>
-              <p>고객이 선택한 JPG가 들어있는 폴더를 선택하면, 안에 있는 모든 JPG 파일명을 가져와요.</p>
+              <p>촬영 JPG 폴더를 선택하면 Bridge 별점 사이드카(.xmp)를 확인해 별점이 있는 사진만 가져와요.</p>
               <button type="button" disabled={folderScanning} onClick={() => void pickJpgFolderAndCollect()}>
-                {folderScanning ? "폴더 확인 중…" : "📂 JPG 폴더 선택 →"}
+                {folderScanning ? "Bridge 별점 확인 중…" : "📂 JPG 폴더 선택 →"}
               </button>
             </>
           ) : inputMode === "text" ? (

@@ -16,6 +16,7 @@ import {
   copyFileHandle,
   computePreflight,
 } from "@/lib/selectMatch/rawIndex";
+import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
 
 /* ── 색상 ── */
 const C = {
@@ -62,54 +63,6 @@ async function loadThumb(file: File, size = 120): Promise<string | null> {
     img.onerror = () => { URL.revokeObjectURL(url); res(null); };
     img.src = url;
   });
-}
-
-/* ── XMP 별점 읽기 ──
-   우선순위: 1) .xmp 사이드카  2) JPG 내 XMP 세그먼트
-   xmp:Rating 값 1-5 반환, 없으면 null
-── */
-async function readRatingFromXmpText(text: string): Promise<number | null> {
-  // <xmp:Rating>5</xmp:Rating>  또는  xmp:Rating="5"
-  const m = text.match(/xmp:Rating[^>]*>(\d)/i) ?? text.match(/xmp:Rating="(\d)"/i);
-  if (!m) return null;
-  const r = parseInt(m[1]);
-  return (r >= 1 && r <= 5) ? r : null;
-}
-
-async function readRatingSidecar(
-  dirHandle: FileSystemDirectoryHandle, basename: string
-): Promise<number | null> {
-  try {
-    const xmpHandle = await (dirHandle as any).getFileHandle(basename + ".xmp");
-    const file = await xmpHandle.getFile();
-    return readRatingFromXmpText(await file.text());
-  } catch { return null; }
-}
-
-async function readRatingEmbedded(file: File): Promise<number | null> {
-  try {
-    // JPG XMP 세그먼트는 보통 처음 128KB 안에 있음
-    const slice = file.slice(0, 131072);
-    const buf = await slice.arrayBuffer();
-    const text = new TextDecoder("utf-8", { fatal: false }).decode(buf);
-    const start = text.indexOf("<x:xmpmeta");
-    if (start === -1) return null;
-    const end = text.indexOf("</x:xmpmeta>", start);
-    return readRatingFromXmpText(text.slice(start, end === -1 ? start + 4096 : end + 12));
-  } catch { return null; }
-}
-
-async function readPhotoRating(
-  dirHandle: FileSystemDirectoryHandle, photo: { basename: string; handle: FileSystemFileHandle }
-): Promise<number | null> {
-  // 사이드카 우선
-  const sc = await readRatingSidecar(dirHandle, photo.basename);
-  if (sc !== null) return sc;
-  // 내장 XMP
-  try {
-    const file = await photo.handle.getFile();
-    return readRatingEmbedded(file);
-  } catch { return null; }
 }
 
 // 영상 파일처럼 큰 파일도 다룰 수 있도록 스트리밍으로 복사 (파일명으로 찾아 이동 기능 전용)
