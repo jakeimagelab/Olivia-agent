@@ -1,4 +1,4 @@
-import { useWorkspaceStore } from "@/lib/store/workspaceStore";
+import { useWorkspaceStore, type WorkspaceType } from "@/lib/store/workspaceStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
@@ -13,7 +13,7 @@ const HOME_PREFIX = "/admin/dashboard/home";
 // 이렇게 URL을 맞춰야 OliviaWorkspaceShell이 실제로 화면을 그린다(그 판단이 pathname
 // 기준이라서다). store 갱신 → URL 갱신 순서로 호출하므로, 이동한 URL은 이미 store와 일치한
 // 상태다 — OliviaWorkspaceShell의 자동 닫기 감시(pathname watcher)와 경합하지 않는다.
-function syncUrlIfNotHome(workspace: Exclude<OliviaUiAction extends { workspace: infer W } ? W : never, undefined>) {
+function syncUrlIfNotHome(workspace: Exclude<WorkspaceType, null>) {
   if (typeof window !== "undefined" && window.location.pathname.startsWith(HOME_PREFIX)) return;
   const canonical = workspaceRegistry[workspace]?.directRoutes?.[0];
   if (!canonical) return;
