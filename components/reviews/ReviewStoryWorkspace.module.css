@@ -152,6 +152,12 @@
 .toolbarGroup { display: flex; align-items: center; gap: 6px; }
 .zoomLabel { min-width: 42px; text-align: center; color: #617873; font-size: 10px; font-weight: 750; }
 
+.styleTabs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 12px; padding: 3px; background: #f0f3f2; border-radius: 9px; }
+.styleTab { min-height: 28px; border: 0; border-radius: 7px; background: transparent; color: #6b807c; font: 750 11px var(--font-sans); cursor: pointer; }
+.styleTabActive { background: #fff; color: var(--green); box-shadow: 0 2px 8px rgba(21,88,85,.12); }
+.subheading { margin: 0 0 8px; color: #8aa09b; font-size: 10px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+.checkboxField { display: flex; flex-direction: row; align-items: center; gap: 6px; margin-top: 10px; color: #526a65; font-size: 11px; font-weight: 700; }
+
 .propertyEmpty { padding: 34px 20px; color: #81928e; font-size: 11px; line-height: 1.7; text-align: center; }
 .propertyGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .propertyGrid .field { margin-top: 0; }
