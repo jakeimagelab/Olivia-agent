@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
-  AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Check, ChevronDown,
+  AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, ArrowLeft, Check, ChevronDown,
   Download, Eye, EyeOff, ImagePlus, Lock, Minus, Plus, Redo2, Save, Send,
   Sparkles, Trash2, Undo2, Unlock, Upload, ZoomIn, ZoomOut,
 } from "lucide-react";
