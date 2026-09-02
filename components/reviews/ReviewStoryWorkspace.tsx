@@ -27,7 +27,15 @@ type Review = {
   review_text: string;
   delivered_at?: string;
   permission_to_publish?: boolean;
+  rating?: number | null;
 };
+
+function formatShortDate(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\s/g, "").replace(/\.$/, "");
+}
 
 type LayoutAsset = {
   id: string;
