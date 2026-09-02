@@ -13,7 +13,7 @@ export type InlineToolDefinition = {
   component: ComponentType<{ flowId: string }>;
   // 새 flow를 시작할 때 그 도구 전용 client-only 스토어를 시딩한다(예: useSelectMatchChatStore.startFlow).
   // 프레임워크는 이 스토어의 존재/모양을 모른다 — 도구가 자기 시딩 로직을 통째로 넘겨준다.
-  onStart?: (flowId: string) => void;
+  onStart?: (flowId: string, initialData?: Record<string, string | number | boolean | null>) => void;
   // "현재 셀렉/매칭이 진행 중입니다" 같은 중복 실행 가드 문구 — 도구마다 다른 명사를 쓸 수 있어
   // 프레임워크가 문구를 하드코딩하지 않고 도구가 넘긴다(없으면 범용 문구로 대체).
   duplicateRunMessage?: string;

@@ -119,6 +119,31 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
     ]));
   });
 
+  it("확정된 PageContext 브랜드가 모델이 보낸 값보다 우선해 실제 견적 데이터에 저장된다", async () => {
+    await executeAgentTool({
+      id: "create-quote-brand-context",
+      name: "create_quote",
+      arguments: JSON.stringify({
+        brand: "photoclinic",
+        hospitalName: "제이크컴퍼니",
+        packageId: "standard",
+        contactName: null,
+        phone: null,
+        email: null,
+        shootDate: null,
+        profileCount: 0,
+        stagedCount: 0,
+        memo: null,
+      }),
+    }, { ...context, brand: "jakeimage" });
+
+    const createRequest = vi.mocked(executeOliviaCrud).mock.calls.at(-1)?.[1];
+    expect(createRequest?.data).toMatchObject({
+      title: "제이크이미지연구소 브랜드사진 견적서",
+      formState: { brand: "jakeimage" },
+    });
+  });
+
   it("create_contract와 create_conti도 DB 결과 ID로 Workspace를 연다", async () => {
     const contract = await call("create_contract", { hospitalName: null });
     const conti = await call("create_conti", { hospitalName: null, title: null, specialties: [] });

@@ -80,9 +80,15 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   start_quote_wizard: async ({ result }) => {
     if (!result.success) return [];
     const flowId = value(result.data, "flowId");
+    const brand = value(result.data, "brand");
     // start_select_match_flow와 동일한 이유로 문자열 리터럴 사용(견적서 UX 개편, 2026-08-31) —
     // "quote_wizard"는 lib/olivia/inline-tools/builtins.ts의 QUOTE_WIZARD_TOOL_ID와 같은 값이어야 한다.
-    return flowId ? [{ type: "OPEN_CLIENT_TASK", task: "quote_wizard", flowId }] : [];
+    return flowId ? [{
+      type: "OPEN_CLIENT_TASK",
+      task: "quote_wizard",
+      flowId,
+      ...(brand === "photoclinic" || brand === "jakeimage" ? { initialData: { brand } } : {}),
+    }] : [];
   },
   create_contract: async (args) => {
     const opened = workspaceAction("contract", args);

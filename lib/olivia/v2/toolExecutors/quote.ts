@@ -11,6 +11,7 @@ import { resolveExecutionPolicy } from "@/lib/olivia/memory/executionPolicy";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text, activeResource } from "./common";
 import { createVerification } from "./verification";
+import { isKnownDocumentBrand } from "@/lib/olivia/brandResolver";
 
 // request_quote_publish(승인 요청)와 publish_quote(완료 보고) 둘 다 항목별 요약이 필요해서
 // 뽑아냈다(스펙 §19-22) — 금액은 전부 quotes 테이블에 이미 저장된 실제 값이고 여기서
@@ -71,7 +72,15 @@ export async function executeQuoteTool(
   if (name === "start_quote_wizard") {
     // 서버 작업 없음 — flowId만 발급하면 클라이언트가 그 값으로 채팅 카드/스토어를 초기화한다
     // (start_select_match_flow와 동일한 패턴, 견적서 UX 개편 2026-08-31).
-    return { tool: name, success: true, data: { flowId: crypto.randomUUID() }, verification: createVerification({ executed: true }) };
+    return {
+      tool: name,
+      success: true,
+      data: {
+        flowId: crypto.randomUUID(),
+        ...(isKnownDocumentBrand(context.brand) ? { brand: context.brand } : {}),
+      },
+      verification: createVerification({ executed: true }),
+    };
   }
 
   if (name === "create_quote") {
@@ -111,7 +120,13 @@ export async function executeQuoteTool(
       }
     }
 
-    const quoteData = buildAgentQuoteData({ ...input, hospitalName }, workflowRunId);
+    // 요청 초입에서 확정한 실제 Context 브랜드가 모델 인자보다 우선한다. Context가 없을 때만
+    // create_quote가 직접 받은 brand를 사용하고, 둘 다 없으면 기존 기본값(photoclinic)을 유지한다.
+    const quoteData = buildAgentQuoteData({
+      ...input,
+      brand: isKnownDocumentBrand(context.brand) ? context.brand : input.brand,
+      hospitalName,
+    }, workflowRunId);
     if (clientId) (quoteData as Record<string, unknown>).clientId = clientId;
     let execution;
     try {

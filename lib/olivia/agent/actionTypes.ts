@@ -63,4 +63,11 @@ export type OliviaUiAction =
     }
   // task는 Inline Tool Registry(lib/olivia/inline-tools)의 등록 id를 가리키는 opaque 문자열이다
   // — 새 도구가 추가돼도 이 파일을 다시 열 필요가 없도록 리터럴 유니온으로 제한하지 않는다.
-  | { type: "OPEN_CLIENT_TASK"; task: string; flowId: string };
+  | {
+      type: "OPEN_CLIENT_TASK";
+      task: string;
+      flowId: string;
+      // 도구별 client store를 시작할 때 필요한 작은 JSON 초기값만 전달한다.
+      // 실제 문서/파일 데이터는 담지 않는다.
+      initialData?: Record<string, string | number | boolean | null>;
+    };

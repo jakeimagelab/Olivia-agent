@@ -36,6 +36,7 @@ import { detectAbnormalScript, isWellFormedHistoryText } from "@/lib/olivia/outp
 import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmations";
 import { buildContractRoundConfirmation } from "@/lib/olivia/output/contractConfirmations";
+import { resolveDocumentBrand } from "@/lib/olivia/brandResolver";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -75,6 +76,7 @@ ${taughtMemories.length ? `\n<taught_business_rules>\n사용자가 채팅으로 
 - 도구를 호출했다면, 그 결과의 success 값이 실제로 true일 때만 "완료했다/열었다/보냈다"고 말한다. 결과를 못 받았거나 success:false면 절대 성공한 것처럼 지어내지 않는다 — "안 됐어요, 다시 해볼게요"처럼 짧고 정직하게 말하고, 재시도하거나 이유를 되묻는다. 도구를 아예 안 불렀으면 아무것도 하지 않은 것이다 — 했다고 답하지 않는다.
 - 특정 고객명 없이 "지금 뭐 진행 중이야" 같은 전체 조회는 list_active_workflows, 한 고객의 현황은 get_workflow_status를 쓴다. 하루 일정은 calendar_list, 여러 날/이번달은 calendar_list_month를 쓴다(하루씩 여러 번 부르지 않는다).
 - create_quote/create_conti/create_contract는 hospitalName만 실제로 필요하다 — packageId·담당자명·연락처·이메일·촬영일·프로필/연출 컷 수·메모 같은 나머지 값은 모두 선택 항목이라 비워도(null) 도구가 정상적으로 문서를 만든다. 정보가 부족하다고 "시스템상 필수라 생성이 안 된다"처럼 제한이 있는 것처럼 답하지 않는다 — 알고 있는 값만 채워 그대로 만들거나, 필요하면 "담당자 정보 없이 진행해도 될까요?"처럼 자연스럽게 한 번만 확인하고 동의하면 바로 만든다. 고객·프로젝트가 등록돼 있지 않아도 절대 막지 않는다 — hospitalName 문자열만으로 새로 만든다.
+- 문서 생성 요청에서 병원·의원·클리닉·피부과·치과·산부인과 등 의료 문맥이 확인되면 브랜드는 photoclinic이다. 포토클리닉/제이크이미지 중 무엇인지 다시 묻거나 브랜드 선택 카드를 띄우지 않는다. 단, 사용자가 현재 요청에서 제이크이미지를 명시했거나 현재 Page Context의 brand가 있으면 그 실제 값을 우선한다.
 - 지금 이 응답에서 필요한 도구가 목록에 안 보이더라도 "이 기능은 지원 안 한다"/"이 대화에는 실행 기능이 연결되어 있지 않다"처럼 스스로 능력을 지어내 단정하지 않는다 — 방금 전 메시지에서 이미 무엇을 만들지 다 확인됐다면(예: 견적 내용을 요약해서 보여준 다음 사용자가 "해줘"라고만 답한 경우) 그 도구가 이번 응답에 없을 이유가 없다. 도구가 안 보이면 사용자에게 티내지 말고 방금 확인한 내용 그대로 다시 요청하는 셈 치고 그 도구를 호출한다 — 여러 번 사과하거나 같은 변명을 반복하지 않는다.
 - 견적 항목은 선택 항목을 우선하고, 없으면 이름이 하나로 식별될 때만 수정한다. 첫 항목을 임의 선택하지 않는다.
 - 금액·수량·컷 번호는 사용자의 한국어 표현을 그대로 tool argument로 전달해도 된다.
@@ -439,7 +441,17 @@ export async function POST(req: NextRequest) {
   const rawMessage = String(body.message || "").trim();
   if (!rawMessage) return Response.json({ ok: false, error: "메시지를 입력해주세요." }, { status: 400 });
 
-  const context = normalizeContext(body.context);
+  const normalizedContext = normalizeContext(body.context);
+  const resolvedBrand = resolveDocumentBrand({
+    message: rawMessage,
+    contextBrand: normalizedContext.brand,
+    activeClientName: normalizedContext.activeClientName,
+  });
+  // 이번 요청에만 사용하는 유효 Context다. 전역 store나 전체 고객 객체를 복사하지 않으며,
+  // 실제 문서/Workspace가 열리면 각 기능 store가 계속 Source of Truth가 된다.
+  const context = resolvedBrand
+    ? { ...normalizedContext, brand: resolvedBrand }
+    : normalizedContext;
   const pageContext = optionalString(body.pageContext);
 
   // Context Intelligence(코드 요청서 2026-08-17) — "히어" 같은 별칭이나 "그 병원"/"이거"/

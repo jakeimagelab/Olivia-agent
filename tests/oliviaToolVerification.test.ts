@@ -115,6 +115,25 @@ describe("Tool 실행 결과 Verification (Agent 실행 구조 개편, 2026-08-3
     expect(execution.result.verification?.resourceExists).toBe(true);
   });
 
+  it("A-2. 의료 문맥으로 확정된 Context 브랜드는 견적 마법사 카드 초기값으로 전달된다", async () => {
+    const execution = await call("start_quote_wizard", {}, { ...baseContext, brand: "photoclinic" });
+    expect(execution.result).toMatchObject({ success: true, data: { brand: "photoclinic" } });
+    expect(execution.uiActions).toEqual([
+      expect.objectContaining({
+        type: "OPEN_CLIENT_TASK",
+        task: "quote_wizard",
+        initialData: { brand: "photoclinic" },
+      }),
+    ]);
+  });
+
+  it("A-3. 브랜드가 확정되지 않은 견적 마법사는 기존 선택 UI를 유지한다", async () => {
+    const execution = await call("start_quote_wizard", {});
+    expect(execution.result.data?.brand).toBeUndefined();
+    expect(execution.uiActions[0]).toMatchObject({ type: "OPEN_CLIENT_TASK", task: "quote_wizard" });
+    expect(execution.uiActions[0]).not.toHaveProperty("initialData");
+  });
+
   it("B. get_conti_status — 저장된 콘티가 없으면 success=true인데도 verification.resourceExists=false다(콘티 없음은 실패가 아니다)", async () => {
     fuzzyNameSearchMock.mockResolvedValueOnce([]);
     const execution = await call("get_conti_status", { hospitalName: "없는병원" });

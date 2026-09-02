@@ -497,7 +497,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
                 status: "complete",
               });
             } else {
-              definition?.onStart?.(openTask.flowId);
+              definition?.onStart?.(openTask.flowId, openTask.initialData);
               // pending이 아니라 in_progress로 바로 시작한다 — 카드가 뜬 순간부터 이미 Tool
               // Session이 시작된 것으로 본다. pending으로 두면 사용자가 첫 화면(모드 선택)에서
               // 아직 아무 버튼도 안 눌렀을 때 같은 요청을 또 하면 위 중복 감지(hasInProgressInlineTool)를

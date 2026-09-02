@@ -25,7 +25,7 @@ function emptyFlow(flowId: string, step: QuoteWizardStep = "brand"): QuoteWizard
 
 export type QuoteWizardChatStoreState = {
   flows: Record<string, QuoteWizardFlowState>;
-  startFlow: (flowId: string) => void;
+  startFlow: (flowId: string, brand?: Brand) => void;
   setStep: (flowId: string, step: QuoteWizardStep) => void;
   setBrand: (flowId: string, brand: Brand) => void;
   setQuoteId: (flowId: string, quoteId: string) => void;
@@ -45,7 +45,14 @@ function updateFlow(
 export const useQuoteWizardChatStore = create<QuoteWizardChatStoreState>((set) => ({
   flows: {},
 
-  startFlow: (flowId) => set((state) => ({ flows: { ...state.flows, [flowId]: emptyFlow(flowId) } })),
+  startFlow: (flowId, brand) => set((state) => ({
+    flows: {
+      ...state.flows,
+      [flowId]: brand
+        ? { ...emptyFlow(flowId, "setup"), brand }
+        : emptyFlow(flowId),
+    },
+  })),
   setStep: (flowId, step) => set((state) => ({ flows: updateFlow(state.flows, flowId, { step }) })),
   setBrand: (flowId, brand) => set((state) => ({ flows: updateFlow(state.flows, flowId, { brand }) })),
   setQuoteId: (flowId, quoteId) => set((state) => ({ flows: updateFlow(state.flows, flowId, { quoteId }) })),

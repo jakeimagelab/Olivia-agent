@@ -59,6 +59,12 @@ registerInlineTool({
 registerInlineTool({
   id: QUOTE_WIZARD_TOOL_ID,
   component: QuoteWizardChatCard,
-  onStart: (flowId) => useQuoteWizardChatStore.getState().startFlow(flowId),
+  onStart: (flowId, initialData) => {
+    const brand = initialData?.brand;
+    useQuoteWizardChatStore.getState().startFlow(
+      flowId,
+      brand === "photoclinic" || brand === "jakeimage" ? brand : undefined,
+    );
+  },
   duplicateRunMessage: "현재 견적서 생성 마법사가 진행 중이에요. 완료 후 다시 시도해주세요.",
 });
