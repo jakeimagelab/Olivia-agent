@@ -79,6 +79,9 @@ export type ReviewStorySource = {
   doctorName?: string;
   date?: string;
   photo?: { src?: string; storagePath?: string };
+  // 3컷/2컷 콜라주 템플릿(photo2/photo3 바인딩)용 — 순서대로 photo1/2/3에 배분된다.
+  // 없으면 photo1은 photo로 폴백(기존 단일 사진 흐름과 하위호환).
+  photos?: Array<{ src?: string; storagePath?: string }>;
 };
 
 export type ReviewStoryTemplateConfig = {
