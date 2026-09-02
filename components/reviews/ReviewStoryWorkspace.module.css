@@ -182,7 +182,7 @@
 .emptyStrip { padding: 16px 4px; color: #849692; font-size: 11px; }
 
 @media (max-width: 1280px) {
-  .editorGrid { grid-template-columns: 288px minmax(410px, 1fr) 278px; }
+  .editorGrid { grid-template-columns: 260px minmax(410px, 1fr) 260px; }
 }
 
 @media (max-width: 1050px) {
