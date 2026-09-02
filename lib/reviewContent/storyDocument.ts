@@ -8,7 +8,11 @@ export type ReviewStoryBinding =
   | "doctorName"
   | "date"
   | "url"
-  | "photo1";
+  | "photo1"
+  | "photo2"
+  | "photo3";
+
+const PHOTO_BINDINGS: ReviewStoryBinding[] = ["photo1", "photo2", "photo3"];
 
 type ReviewStoryElementBase = {
   id: string;
