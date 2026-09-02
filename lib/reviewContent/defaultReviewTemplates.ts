@@ -17,7 +17,10 @@ function img(
 ): ReviewStoryImageElement {
   return {
     id: `${prefix}-${n}`, name, type: "image", binding,
-    x, y, width: w, height: h, rotation: 0, opacity: 0.14, zIndex,
+    // opacity 1로 둬서 사진을 넣기 전에도 플레이스홀더(부드러운 그라데이션 + 아이콘)가 또렷하게
+    // 보이게 한다 — 텍스트는 이미 실제 후기로 바인딩되니, 사진만 비어 있어도 "완성된 디자인"
+    // 미리보기처럼 보인다. bindReviewStoryDocument가 실제 사진이 들어올 때만 값을 덮어쓴다.
+    x, y, width: w, height: h, rotation: 0, opacity: 1, zIndex,
     cropX: 50, cropY: 50, scale: 1,
     edgeBlend: { enabled: false, type: "gradient", directions: ["bottom"], size: 160, strength: 40 },
     ...opts,
