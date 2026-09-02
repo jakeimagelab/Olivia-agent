@@ -540,6 +540,12 @@ export default function ReviewStoryWorkspace() {
     patchElement(selectedElement.id, { zIndex: Math.max(0, selectedElement.zIndex + direction) });
   };
 
+  // 리뷰 관리 목록 → [콘텐츠 만들기]로 들어올 때 콘텐츠를 새로 만드는 await가 끼어 있어서,
+  // 그 사이 빈 에디터가 잠깐 보이지 않도록 첫 로드가 끝날 때까지는 로딩 문구만 보여준다.
+  if (busy === "load" && !reviews.length && !contents.length) {
+    return <main className={styles.workspace}><div className={styles.loadingState}>리뷰 정보를 불러오는 중…</div></main>;
+  }
+
   return (
     <main className={styles.workspace}>
       <header className={styles.header}>
