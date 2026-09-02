@@ -632,10 +632,22 @@ export default function ReviewStoryWorkspace() {
 
           <section className={styles.section}>
             <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>템플릿 선택</h2><span className={styles.count}>{selectedTemplateIds.length}개 선택</span></div>
-            <div className={styles.templateList}>
+            <div className={styles.templateGrid}>
               {layouts.map((layout, index) => {
                 const selected = selectedTemplateIds.includes(layout.id);
-                return <button key={layout.id} type="button" className={`${styles.template} ${selected ? styles.templateSelected : ""}`} aria-pressed={selected} onClick={() => setSelectedTemplateIds((current) => current.includes(layout.id) ? current.filter((id) => id !== layout.id) : [...current, layout.id].slice(-6))}><span className={styles.templateNumber}>{String(index + 1).padStart(2, "0")} {selected ? "✓" : ""}</span>{layout.name}</button>;
+                return (
+                  <button
+                    key={layout.id} type="button" aria-pressed={selected}
+                    className={`${styles.templateCard} ${selected ? styles.templateCardSelected : ""}`}
+                    onClick={() => setSelectedTemplateIds((current) => current.includes(layout.id) ? current.filter((id) => id !== layout.id) : [...current, layout.id].slice(-6))}
+                  >
+                    <span className={styles.templateThumb}>
+                      {layout.thumbnailUrl ? <img src={layout.thumbnailUrl} alt={layout.name} /> : <span className={styles.templateThumbFallback}>{String.fromCharCode(65 + (index % 26))}</span>}
+                      {selected ? <span className={styles.templateCheck}><Check size={11} /></span> : null}
+                    </span>
+                    <span className={styles.templateLabel}>{layout.name}</span>
+                  </button>
+                );
               })}
             </div>
           </section>
