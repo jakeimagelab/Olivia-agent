@@ -65,7 +65,11 @@ export const TOOLS_WORK: ToolDef[] = [
 export const TOOLS_CONTENT: ToolDef[] = [
   { title: "아이디어 제안", desc: "오늘 제작할 클라이언트 홍보 콘텐츠 아이디어를 AI가 매일 제안합니다.", href: "/daily-ideas", icon: Lightbulb, meta: "Idea Proposal", orange: true, category: "tools", aliases: ["아이디어 제안", "콘텐츠 아이디어"] },
   { title: "홍보 콘텐츠 제작", desc: "블로그·인스타·네이버 플레이스 홍보 콘텐츠를 클라이언트별로 제작합니다.", href: "/sns-manager", icon: CalendarCheck, meta: "Content Production", orange: false, category: "tools", aliases: ["홍보 콘텐츠", "SNS 관리"] },
-  { title: "리뷰컨텐츠", desc: "클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다.", href: "/clients/reviews", icon: Sparkles, meta: "Review Content", orange: false, category: "tools", aliases: ["리뷰 콘텐츠", "리뷰컨텐츠"] },
+  // href는 그대로 /review-studio를 유지한다 — isIntegratedToolHref/getWorkspaceAwareTools가
+  // 이 값을 workspaceGroups.ts의 sourceHrefs와 비교해 이 항목을 단독 카드에서 제외하고, 실제
+  // 검색·전체보기 노출은 workspaceGroups.ts의 "리뷰 콘텐츠" 그룹 항목(href: /clients/reviews)이
+  // 대신한다. 여기를 바꾸면 두 항목이 동시에 노출되는 중복 카드가 생긴다.
+  { title: "리뷰컨텐츠", desc: "클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다.", href: "/review-studio", icon: Sparkles, meta: "Review Content", orange: false, category: "tools", aliases: ["리뷰 콘텐츠", "리뷰컨텐츠"] },
   { title: "홈페이지 브랜드 분석", desc: "병원 홈페이지 URL만 입력하면 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 자동 분석합니다.", href: "/brand-analysis", icon: ScanSearch, meta: "Brand Analysis", orange: true, category: "tools", aliases: ["브랜드 분석", "홈페이지 브랜드 분석"] },
   { title: "AI 추천 병원 역분석", desc: "AI가 반복 추천하는 병원군의 증거와 패턴을 분석해 신뢰 격차와 촬영 기획으로 연결합니다.", href: "/ai-trust-gap", icon: ShieldCheck, meta: "AI Trust Gap", orange: true, category: "tools", aliases: ["AI 추천 병원 역분석", "신뢰 격차"] },
   { title: "병원이미지 진단", desc: "병원 현황에 맞는 사진 콘텐츠 방향을 AI가 진단합니다.", href: "/diagnosis", icon: ImageDown, meta: "Clinic Diagnosis", orange: false, category: "tools", aliases: ["병원이미지 진단", "이미지 진단"] },
