@@ -551,7 +551,10 @@ export default function ReviewStoryWorkspace() {
     <main className={styles.workspace}>
       <header className={styles.header}>
         <div>
-          <div className={styles.titleRow}><h1 className={styles.title}>리뷰 스토리 자동 생성기</h1><span className={styles.badge}>통합</span></div>
+          <Link href="/clients/reviews" className={styles.iconButton} style={{ marginBottom: 8, width: "fit-content", padding: "6px 10px" }}>
+            <ArrowLeft size={13} /><span>리뷰 관리로 돌아가기</span>
+          </Link>
+          <div className={styles.titleRow}><h1 className={styles.title}>리뷰 콘텐츠 제작</h1><span className={styles.badge}>통합</span></div>
           <p className={styles.subtitle}>후기와 사진을 바탕으로 병원 리뷰 콘텐츠를 빠르게 제작합니다.</p>
         </div>
         <div className={styles.headerActions}>
