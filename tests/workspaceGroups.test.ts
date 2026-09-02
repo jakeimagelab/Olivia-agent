@@ -55,7 +55,7 @@ describe("Olivia resolves detailed feature names through the workspace registry"
     ["메타데이터 셀렉", "/photo-sorting?tool=metadata-match"],
     ["유튜브 편집 콘티", "/youtube-editing-conti"],
     ["병원 채널 분석", "/channel-analyzer"],
-    ["리뷰 콘텐츠", "/review-studio"],
+    ["리뷰 콘텐츠", "/clients/reviews"],
   ];
 
   for (const [query, href] of cases) {
