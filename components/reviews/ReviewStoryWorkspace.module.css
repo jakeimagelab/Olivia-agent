@@ -172,10 +172,10 @@
 .layerIcon { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 5px; }
 .layerFooter { display: flex; gap: 5px; margin-top: 9px; }
 
-.storyStrip { border-top: 1px solid var(--line); background: #fff; padding: 12px 18px 16px; }
-.storyStripHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
-.storyList { display: flex; gap: 9px; overflow-x: auto; padding: 2px; }
-.storyThumb { flex: 0 0 82px; border: 1px solid var(--line); border-radius: 9px; background: #f5f8f7; padding: 5px; cursor: pointer; }
+.storyStrip { border-top: 1px solid var(--line); background: #fff; padding: 9px 18px 12px; }
+.storyStripHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+.storyList { display: flex; gap: 8px; overflow-x: auto; padding: 2px; }
+.storyThumb { flex: 0 0 72px; border: 1px solid var(--line); border-radius: 8px; background: #f5f8f7; padding: 4px; cursor: pointer; }
 .storyThumbActive { border-color: var(--green); background: var(--mint); box-shadow: 0 0 0 1px var(--green); }
 .storyPreview { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; border-radius: 5px; background: #dce9e6; }
 .storyNumber { display: block; margin-top: 5px; color: #667c77; font-size: 9px; font-weight: 800; text-align: center; }
