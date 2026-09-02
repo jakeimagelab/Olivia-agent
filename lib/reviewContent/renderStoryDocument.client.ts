@@ -125,7 +125,7 @@ async function drawElement(context: CanvasRenderingContext2D, element: ReviewSto
     context.fill();
   } else {
     context.fillStyle = element.color;
-    context.font = `${element.fontWeight} ${element.fontSize}px Arial, sans-serif`;
+    context.font = `${element.fontWeight} ${element.fontSize}px ${resolveCanvasFontFamily(element.fontFamily)}`;
     context.textAlign = element.textAlign;
     context.textBaseline = "top";
     const x = element.textAlign === "left" ? 0 : element.textAlign === "center" ? element.width / 2 : element.width;
