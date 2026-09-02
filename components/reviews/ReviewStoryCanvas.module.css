@@ -1,0 +1,110 @@
+.stage {
+  min-width: 0;
+  min-height: 650px;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 32px;
+  background-color: #f1f3f2;
+  background-image: radial-gradient(rgba(21, 88, 85, 0.08) 0.8px, transparent 0.8px);
+  background-size: 16px 16px;
+}
+
+.canvas {
+  position: relative;
+  width: min(540px, 100%);
+  aspect-ratio: 4 / 5;
+  flex: 0 0 auto;
+  overflow: hidden;
+  box-shadow: 0 22px 60px rgba(21, 55, 51, 0.14);
+  user-select: none;
+  touch-action: none;
+}
+
+.element {
+  position: absolute;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: move;
+  transform-origin: center;
+}
+
+.element:focus-visible,
+.selected {
+  outline: calc(2px / var(--story-scale, 1)) solid #155855;
+  outline-offset: calc(2px / var(--story-scale, 1));
+}
+
+.locked { cursor: default; }
+
+.imageFrame { position: absolute; inset: 0; overflow: hidden; }
+
+.image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #53716c;
+  background: linear-gradient(145deg, #dfece8, #cdded9);
+  font-weight: 700;
+}
+
+.blurOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.text { white-space: pre-wrap; overflow: hidden; overflow-wrap: break-word; }
+
+.inlineEditor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.92);
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+}
+
+.resizeHandle {
+  position: absolute;
+  right: calc(-7px / var(--story-scale, 1));
+  bottom: calc(-7px / var(--story-scale, 1));
+  width: calc(14px / var(--story-scale, 1));
+  height: calc(14px / var(--story-scale, 1));
+  border: calc(2px / var(--story-scale, 1)) solid #fff;
+  border-radius: 3px;
+  background: #155855;
+  cursor: nwse-resize;
+}
+
+@media (max-width: 1100px) {
+  .stage { min-height: 540px; padding: 22px; }
+  .canvas { width: min(460px, 100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .element { transition: none; }
+}

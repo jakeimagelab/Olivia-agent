@@ -4,6 +4,7 @@ import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { renderReviewVariant, type ReviewLayoutConfig } from "@/lib/reviewContent/renderVariant";
 import { REVIEW_CONTENT_BUCKET, signReviewAsset } from "@/lib/reviewContent/storage";
+import { createReviewStoryDocument, splitReviewForPages, type ReviewStoryTemplateConfig } from "@/lib/reviewContent/storyDocument";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,11 +22,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ conten
     .maybeSingle();
   if (contentError || !content) return NextResponse.json({ ok: false, error: "콘텐츠를 찾지 못했습니다." }, { status: 404 });
 
+  const requestedCount = Math.min(10, Math.max(1, Number(body.count) || 3));
   let layoutsQuery = db.from("review_layout_assets").select("*").eq("is_active", true).eq("ratio", "4:5");
   if (Array.isArray(body.layoutAssetIds) && body.layoutAssetIds.length) {
-    layoutsQuery = layoutsQuery.in("id", body.layoutAssetIds.slice(0, 3));
+    layoutsQuery = layoutsQuery.in("id", body.layoutAssetIds.slice(0, 10));
   }
-  const { data: layouts, error: layoutError } = await layoutsQuery.order("asset_type").limit(3);
+  const { data: layouts, error: layoutError } = await layoutsQuery.order("asset_type").limit(10);
   if (layoutError || !layouts?.length) {
     return NextResponse.json({ ok: false, error: layoutError?.message || "사용 가능한 레이아웃이 없습니다." }, { status: 400 });
   }
@@ -34,9 +36,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ conten
   const client = review.clients || {};
   const hospitalName = client.hospital_name || client.name || "고객";
   const reviewText = review.public_review_text || review.good_points || content.summary;
+  const pageCopy = splitReviewForPages(
+    Array.isArray(content.carousel) && content.carousel.length
+      ? content.carousel.map((item: any) => [item?.title, item?.body].filter(Boolean).join("\n")).join("\n\n")
+      : reviewText,
+    requestedCount,
+  );
   const variants = [];
-  for (let index = 0; index < layouts.length; index += 1) {
-    const layout = layouts[index];
+  for (let index = 0; index < requestedCount; index += 1) {
+    const layout = layouts[index % layouts.length];
     const id = randomUUID();
     const storagePath = `variants/${id}/review-${contentId}.png`;
     const buffer = await renderReviewVariant({
@@ -58,7 +66,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ conten
       mime_type: "image/png",
       width: 1080,
       height: 1350,
-      generation_metadata: { renderer: "svg-sharp", layoutName: layout.name },
+      generation_metadata: {
+        renderer: "svg-sharp",
+        layoutName: layout.name,
+        editorDocument: createReviewStoryDocument({
+          reviewText: pageCopy[index] || reviewText,
+          hospitalName,
+          doctorName: review.writer_name || "",
+          date: review.delivered_at || "",
+        }, layout.layout_config as ReviewStoryTemplateConfig),
+      },
       sort_order: index,
     }).select("*").single();
     if (variantError) return NextResponse.json({ ok: false, error: variantError.message }, { status: 500 });

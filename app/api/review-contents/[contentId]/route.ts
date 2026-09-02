@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { signReviewAsset } from "@/lib/reviewContent/storage";
+import { signReviewAsset, signReviewDocumentAssets } from "@/lib/reviewContent/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +19,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ content
   const variants = await Promise.all((data.review_content_variants ?? []).map(async (variant: any) => ({
     ...variant,
     imageUrl: await signReviewAsset(db, variant.image_storage_path),
+    assetUrls: await signReviewDocumentAssets(db, variant.generation_metadata),
   })));
   return NextResponse.json({ ok: true, content: { ...data, review_content_variants: variants } });
 }
