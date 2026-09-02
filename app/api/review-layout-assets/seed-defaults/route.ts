@@ -41,3 +41,11 @@ async function runSeed(req: NextRequest) {
   if (insertError) return NextResponse.json({ ok: false, error: insertError.message }, { status: 500 });
   return NextResponse.json({ ok: true, inserted: toInsert.length, skipped: DEFAULT_REVIEW_TEMPLATES.length - toInsert.length });
 }
+
+export async function POST(req: NextRequest) {
+  return runSeed(req);
+}
+
+export async function GET(req: NextRequest) {
+  return runSeed(req);
+}
