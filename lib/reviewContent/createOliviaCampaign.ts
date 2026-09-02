@@ -152,7 +152,7 @@ export async function createOliviaReviewCampaign(
     reviewId: review.id as string,
     hospitalName,
     action: "navigate",
-    url: "/review-studio",
+    url: `/review-studio?contentId=${content.id}`,
     message: `${hospitalName} 리뷰를 선택해 Instagram 이미지 시안 3개를 만들었어요. 리뷰 콘텐츠 화면에서 시안을 선택하고 대표 승인할 수 있습니다.`,
     dataChanged: ["reviews", "review_contents"],
   };
