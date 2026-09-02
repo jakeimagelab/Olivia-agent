@@ -111,6 +111,21 @@
 .sourceActions { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; }
 .subtleButton { border: 0; background: transparent; color: var(--green); padding: 3px; font: 750 10px var(--font-sans); cursor: pointer; }
 
+.quoteCard { position: relative; margin-top: 10px; padding: 14px 14px 10px; background: #f6faf8; border: 1px solid var(--line); border-radius: 11px; }
+.quoteIcon { color: #b7cbc6; margin-bottom: 4px; }
+.quoteTextarea { width: 100%; min-height: 84px; border: 0; background: transparent; outline: none; resize: vertical; color: #33443f; font: 500 12.5px/1.65 var(--font-sans); font-style: italic; padding: 0; }
+.quoteMeta { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.quoteStars { display: inline-flex; align-items: center; gap: 2px; color: #b3862a; font-size: 10.5px; font-weight: 800; }
+.quoteStars span { margin-left: 3px; }
+.quoteDate { color: #8aa09b; font-size: 10.5px; font-weight: 700; }
+
+.hospitalCard { display: flex; align-items: center; gap: 10px; margin-top: 9px; padding: 10px 12px; background: #fbfcfb; border: 1px solid var(--line); border-radius: 11px; }
+.hospitalLogo { width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: var(--mint); color: var(--green); display: grid; place-items: center; }
+.hospitalFields { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.hospitalInput,
+.hospitalInputSm { width: 100%; border: 0; background: transparent; outline: none; padding: 0; font: 750 13px var(--font-sans); color: #1c2b28; }
+.hospitalInputSm { font: 600 11px var(--font-sans); color: #6b807c; }
+
 .photoGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .photoThumb,
 .photoAdd { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #f3f6f5; padding: 0; cursor: pointer; position: relative; }
