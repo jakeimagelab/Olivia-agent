@@ -10,6 +10,7 @@ type Props = {
   selectedElementId: string | null;
   assetUrls: Record<string, string>;
   zoom: number;
+  lockAspectRatio?: boolean;
   onSelect: (id: string | null) => void;
   onChange: (document: ReviewStoryDocument, historyBase?: ReviewStoryDocument) => void;
 };
