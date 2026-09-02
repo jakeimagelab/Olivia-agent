@@ -71,7 +71,9 @@ export async function createOliviaReviewCampaign(
   const copy = campaignCopy(hospitalName, reviewText(review));
   const { data: existing } = await db
     .from("review_contents")
-    .select("*, review_content_variants(id)")
+    // review_contents.selected_variant_id도 review_content_variants를 가리키는 양방향 FK라서
+    // review_content_id FK를 명시하지 않으면 PostgREST의 "more than one relationship" 오류가 난다.
+    .select("*, review_content_variants!review_content_id(id)")
     .eq("review_id", review.id)
     .neq("status", "failed")
     .order("created_at", { ascending: false })
