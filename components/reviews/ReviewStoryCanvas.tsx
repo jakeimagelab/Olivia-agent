@@ -77,7 +77,8 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
         if (action === "move") return { ...item, x: Math.round(Math.max(-item.width + 24, Math.min(document.width - 24, origin.x + dx))), y: Math.round(Math.max(-item.height + 24, Math.min(document.height - 24, origin.y + dy))) };
         const ratio = origin.width / Math.max(1, origin.height);
         const nextWidth = Math.max(40, origin.width + dx);
-        const nextHeight = element.type === "image" && pointerEvent.shiftKey ? nextWidth / ratio : Math.max(32, origin.height + dy);
+        const shouldLockRatio = lockAspectRatio || (element.type === "image" && pointerEvent.shiftKey);
+        const nextHeight = shouldLockRatio ? nextWidth / ratio : Math.max(32, origin.height + dy);
         return { ...item, width: Math.round(nextWidth), height: Math.round(nextHeight) };
       });
       latest = next;
