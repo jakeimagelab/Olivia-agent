@@ -9,7 +9,7 @@ const TOOL_ROUTES: Record<string, string> = {
   "raw-matching": "/select-match",
   retouching: "/photo-retouching",
   "seo-delivery": "/seo-delivery",
-  reviews: "/review-studio",
+  reviews: "/clients/reviews",
   rewards: "/per",
   content: "/sns-manager",
 };
