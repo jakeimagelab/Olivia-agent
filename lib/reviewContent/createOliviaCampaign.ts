@@ -2,15 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { renderReviewVariant, type ReviewLayoutConfig } from "@/lib/reviewContent/renderVariant";
 import { REVIEW_CONTENT_BUCKET } from "@/lib/reviewContent/storage";
+import { reviewText } from "@/lib/reviewContent/reviewContentService";
 
 type CreateOliviaCampaignInput = {
   reviewId?: string;
   hospitalName?: string;
 };
-
-function reviewText(review: Record<string, any>) {
-  return String(review.public_review_text || review.good_points || "").trim();
-}
 
 function hasRisk(review: Record<string, any>) {
   const text = `${reviewText(review)} ${review.improvement_points || ""}`;
@@ -20,6 +17,9 @@ function hasRisk(review: Record<string, any>) {
     || /\b01[016789][-\s]?\d{3,4}[-\s]?\d{4}\b/.test(text);
 }
 
+// createOliviaReviewCampaign은 후보 선택 단계에서 이미 만족도 높은 후기를 골랐다는 걸 알고
+// 있어서, 리뷰 관리 목록의 범용 초안(draftCampaignCopy)보다 조금 더 풍부한 카피를 쓴다 —
+// findOrCreateReviewContent를 그대로 쓰지 않고 이 파일 안에서 직접 insert하는 이유.
 function campaignCopy(hospitalName: string, text: string) {
   const excerpt = text.length > 170 ? `${text.slice(0, 167).trim()}…` : text;
   return {
