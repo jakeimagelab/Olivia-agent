@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, ArrowLeft, Check, ChevronDown,
-  Download, Eye, EyeOff, ImagePlus, Lock, Minus, Plus, Redo2, Save, Send,
-  Sparkles, Trash2, Undo2, Unlock, Upload, ZoomIn, ZoomOut,
+  AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Building2, Check, ChevronDown,
+  Download, Eye, EyeOff, ImagePlus, Lock, Minus, Plus, Quote, Redo2, Save, Send,
+  Sparkles, Star, Trash2, Undo2, Unlock, Upload, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { createMailingDraft } from "@/lib/mailingQueue";
