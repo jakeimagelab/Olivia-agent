@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { normalizeClientReview } from "@/lib/reviews/normalizeReview";
+import { getErrorMessage } from "@/lib/errors";
+import { moveRecordToTrash } from "@/lib/trash";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
