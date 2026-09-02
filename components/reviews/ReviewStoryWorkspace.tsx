@@ -655,7 +655,17 @@ export default function ReviewStoryWorkspace() {
                   <button
                     key={layout.id} type="button" aria-pressed={selected}
                     className={`${styles.templateCard} ${selected ? styles.templateCardSelected : ""}`}
-                    onClick={() => setSelectedTemplateIds((current) => current.includes(layout.id) ? current.filter((id) => id !== layout.id) : [...current, layout.id].slice(-6))}
+                    onClick={() => {
+                      setSelectedTemplateIds((current) => current.includes(layout.id) ? current.filter((id) => id !== layout.id) : [...current, layout.id].slice(-6));
+                      // 성공 기준: 템플릿을 클릭하면 (열려 있는 페이지가 있을 때) 캔버스가 즉시
+                      // 그 레이아웃으로 바뀐다 — 현재 후기/병원/사진 데이터를 그대로 새 geometry에 다시 바인딩.
+                      if (activePage) {
+                        const before = clone(activePage.document);
+                        const next = createReviewStoryDocument({ ...source, photos: photos.slice(0, 3) }, layout.layout_config || {});
+                        replaceActiveDocument(next, before);
+                        setSelectedElementId(null);
+                      }
+                    }}
                   >
                     <span className={styles.templateThumb}>
                       {layout.thumbnailUrl ? (
