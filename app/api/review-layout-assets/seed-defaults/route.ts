@@ -6,22 +6,24 @@ import { DEFAULT_REVIEW_TEMPLATES } from "@/lib/reviewContent/defaultReviewTempl
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// 기본 템플릿 10종을 review_layout_assets에 1회성으로 등록한다. 이름 기준으로 이미 있는
-// builtin 행은 건너뛰어 몇 번을 다시 호출해도 중복 생성되지 않는다(idempotent). GET도 받는 건
-// 관리자가 DevTools 콘솔 없이 브라우저 주소창에 URL만 열어서 실행할 수 있게 하기 위함 —
-// 멱등이라 실수로 여러 번 열려도 안전하다.
+// 기본 템플릿 10종을 review_layout_assets에 등록/동기화한다. 이름 기준으로 없는 것은 새로
+// 추가하고, 이미 있는 builtin 행은 layout_config/description을 defaultReviewTemplates.ts의
+// 최신 정의로 덮어쓴다 — 그래야 geometry를 나중에 손봐도(예: 플레이스홀더 투명도 수정) 이미
+// 시드된 운영 DB에 다시 반영할 수 있다. 사용자가 직접 수정/저장한 커스텀 템플릿(asset_type
+// 'reference' 또는 builtin이 아닌 것)은 건드리지 않는다. GET도 받는 건 관리자가 DevTools
+// 콘솔 없이 브라우저 주소창에 URL만 열어서 실행할 수 있게 하기 위함 — 몇 번을 다시 열어도 안전.
 async function runSeed(req: NextRequest) {
   if (!isAdminSession(req)) return NextResponse.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const db = getSupabaseAdmin();
   const { data: existing, error: existingError } = await db
     .from("review_layout_assets")
-    .select("name")
+    .select("id, name")
     .eq("asset_type", "builtin");
   if (existingError) return NextResponse.json({ ok: false, error: existingError.message }, { status: 500 });
-  const existingNames = new Set((existing ?? []).map((row) => row.name));
+  const existingIdByName = new Map((existing ?? []).map((row) => [row.name, row.id]));
 
   const toInsert = DEFAULT_REVIEW_TEMPLATES
-    .filter((template) => !existingNames.has(template.name))
+    .filter((template) => !existingIdByName.has(template.name))
     .map((template) => ({
       name: template.name,
       description: template.description,
@@ -32,14 +34,20 @@ async function runSeed(req: NextRequest) {
       layout_config: template.layoutConfig,
       created_by: "system",
     }));
+  const toUpdate = DEFAULT_REVIEW_TEMPLATES.filter((template) => existingIdByName.has(template.name));
 
-  if (!toInsert.length) {
-    return NextResponse.json({ ok: true, inserted: 0, skipped: DEFAULT_REVIEW_TEMPLATES.length });
+  if (toInsert.length) {
+    const { error: insertError } = await db.from("review_layout_assets").insert(toInsert);
+    if (insertError) return NextResponse.json({ ok: false, error: insertError.message }, { status: 500 });
   }
-
-  const { error: insertError } = await db.from("review_layout_assets").insert(toInsert);
-  if (insertError) return NextResponse.json({ ok: false, error: insertError.message }, { status: 500 });
-  return NextResponse.json({ ok: true, inserted: toInsert.length, skipped: DEFAULT_REVIEW_TEMPLATES.length - toInsert.length });
+  for (const template of toUpdate) {
+    const { error: updateError } = await db
+      .from("review_layout_assets")
+      .update({ description: template.description, layout_config: template.layoutConfig })
+      .eq("id", existingIdByName.get(template.name));
+    if (updateError) return NextResponse.json({ ok: false, error: updateError.message }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, inserted: toInsert.length, updated: toUpdate.length });
 }
 
 export async function POST(req: NextRequest) {
