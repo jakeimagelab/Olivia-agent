@@ -12,9 +12,21 @@ export default function ClientReviewsPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/reviews", { cache: "no-store" });
-      const d = await res.json();
-      if (d.ok) setReviews(d.reviews || []);
+      const [reviewsRes, contentsRes] = await Promise.all([
+        fetch("/api/reviews", { cache: "no-store" }),
+        fetch("/api/review-contents", { cache: "no-store" }),
+      ]);
+      const reviewsData = await reviewsRes.json();
+      const contentsData = await contentsRes.json().catch(() => ({ contents: [] }));
+      // client_reviews에는 사진 개수 필드가 없어서, 연결된 review_contents의 variant 개수로
+      // "사진 수" 컬럼을 계산한다(스키마 변경 없음, 콘텐츠가 없는 리뷰는 0으로 표시).
+      const photoCountByReviewId = new Map<string, number>();
+      for (const content of contentsData.contents || []) {
+        photoCountByReviewId.set(content.review_id, (content.review_content_variants || []).length);
+      }
+      if (reviewsData.ok) {
+        setReviews((reviewsData.reviews || []).map((row: ReviewRow) => ({ ...row, photoCount: photoCountByReviewId.get(row.id) || 0 })));
+      }
     } finally {
       setLoading(false);
     }
