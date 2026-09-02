@@ -588,28 +588,41 @@ export default function ReviewStoryWorkspace() {
       <div className={styles.editorGrid}>
         <aside className={`${styles.panel} ${styles.leftPanel}`} aria-label="리뷰 입력과 소스">
           <section className={styles.section}>
-            <div className={styles.sectionHeader}><div><h2 className={styles.sectionTitle}>후기 정보 입력</h2><p className={styles.helper}>기존 후기를 선택하거나 새 후기를 작성하세요.</p></div></div>
-            <label className={styles.field}>기존 리뷰
-              <select className={`${styles.select} ${styles.reviewPicker}`} value={selectedReviewId} onChange={(event) => selectReview(event.target.value)}>
-                <option value="">새 리뷰 작성</option>
-                {reviews.map((review) => <option key={review.id} value={review.id}>{review.hospital_name} · {review.review_text.slice(0, 24)}</option>)}
-              </select>
-            </label>
-            <label className={styles.field}>후기 텍스트
-              <textarea className={styles.textarea} value={source.reviewText} onChange={(event) => setSource((current) => ({ ...current, reviewText: event.target.value }))} placeholder="고객이 남긴 후기를 입력해 주세요." />
-            </label>
+            <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>선택한 리뷰</h2></div>
+            <select className={`${styles.select} ${styles.reviewPicker}`} value={selectedReviewId} onChange={(event) => selectReview(event.target.value)}>
+              <option value="">새 리뷰 작성</option>
+              {reviews.map((review) => <option key={review.id} value={review.id}>{review.hospital_name} · {review.review_text.slice(0, 24)}</option>)}
+            </select>
+            <div className={styles.quoteCard}>
+              <Quote size={16} className={styles.quoteIcon} />
+              <textarea className={styles.quoteTextarea} value={source.reviewText} onChange={(event) => setSource((current) => ({ ...current, reviewText: event.target.value }))} placeholder="고객이 남긴 후기를 입력해 주세요." />
+              <div className={styles.quoteMeta}>
+                {selectedReview?.rating ? (
+                  <span className={styles.quoteStars}>
+                    {Array.from({ length: 5 }).map((_, index) => <Star key={index} size={12} fill={index < Math.round(selectedReview.rating || 0) ? "#EB8F22" : "none"} color="#EB8F22" />)}
+                    <span>{selectedReview.rating.toFixed(1)}</span>
+                  </span>
+                ) : <span />}
+                <span className={styles.quoteDate}>{formatShortDate(source.date)}</span>
+              </div>
+            </div>
             <div className={styles.sourceActions}><span className={styles.count}>{source.reviewText.length.toLocaleString()}자</span><button type="button" className={styles.subtleButton} onClick={() => void generateStories()} disabled={Boolean(busy)}>문구 정리하기 ✨</button></div>
           </section>
 
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>병원 정보</h2>
-            <label className={styles.field}>병원명<input className={styles.input} value={source.hospitalName} onChange={(event) => setSource((current) => ({ ...current, hospitalName: event.target.value }))} placeholder="춘천 가두리한의원" /></label>
-            <label className={styles.field}>원장명<input className={styles.input} value={source.doctorName} onChange={(event) => setSource((current) => ({ ...current, doctorName: event.target.value }))} placeholder="김윤일 원장님" /></label>
+            <h2 className={styles.sectionTitle}>병원 / 의사 정보</h2>
+            <div className={styles.hospitalCard}>
+              <span className={styles.hospitalLogo}><Building2 size={16} /></span>
+              <div className={styles.hospitalFields}>
+                <input className={styles.hospitalInput} value={source.hospitalName} onChange={(event) => setSource((current) => ({ ...current, hospitalName: event.target.value }))} placeholder="춘천 가두리한의원" />
+                <input className={styles.hospitalInputSm} value={source.doctorName} onChange={(event) => setSource((current) => ({ ...current, doctorName: event.target.value }))} placeholder="김윤일 원장님" />
+              </div>
+            </div>
             <label className={styles.field}>촬영일 또는 리뷰일<input className={styles.input} type="date" value={source.date || ""} onChange={(event) => setSource((current) => ({ ...current, date: event.target.value }))} /></label>
           </section>
 
           <section className={styles.section}>
-            <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>사진 업로드 ({photos.length}장)</h2><button type="button" className={styles.subtleButton} onClick={() => photoInputRef.current?.click()}><Upload size={12} /> 사진 추가</button></div>
+            <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>선택된 사진 ({photos.length})</h2><button type="button" className={styles.subtleButton} onClick={() => photoInputRef.current?.click()}><Upload size={12} /> 사진 추가</button></div>
             <div className={styles.photoGrid}>
               {photos.map((photo) => <button type="button" key={photo.id} draggable className={styles.photoThumb} title={`${photo.name} · 드래그해서 순서 변경`} onDragStart={(event) => event.dataTransfer.setData("text/review-photo", photo.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const sourceId = event.dataTransfer.getData("text/review-photo"); setPhotos((current) => { const from = current.findIndex((item) => item.id === sourceId); const to = current.findIndex((item) => item.id === photo.id); if (from < 0 || to < 0) return current; const next = [...current]; const [moving] = next.splice(from, 1); next.splice(to, 0, moving); return next; }); }} onClick={() => applyPhoto(photo)}><img src={photo.src} alt={photo.name} /><span className={styles.photoDelete} onClick={(event) => { event.stopPropagation(); setPhotos((current) => current.filter((item) => item.id !== photo.id)); }}>×</span></button>)}
               <button type="button" className={styles.photoAdd} onClick={() => photoInputRef.current?.click()} aria-label="사진 추가"><ImagePlus size={20} /></button>
