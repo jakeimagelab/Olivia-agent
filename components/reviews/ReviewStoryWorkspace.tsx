@@ -654,7 +654,13 @@ export default function ReviewStoryWorkspace() {
                     onClick={() => setSelectedTemplateIds((current) => current.includes(layout.id) ? current.filter((id) => id !== layout.id) : [...current, layout.id].slice(-6))}
                   >
                     <span className={styles.templateThumb}>
-                      {layout.thumbnailUrl ? <img src={layout.thumbnailUrl} alt={layout.name} /> : <span className={styles.templateThumbFallback}>{String.fromCharCode(65 + (index % 26))}</span>}
+                      {layout.thumbnailUrl ? (
+                        <img src={layout.thumbnailUrl} alt={layout.name} />
+                      ) : layout.layout_config?.editorDocument ? (
+                        <ReviewTemplateThumbnail document={layout.layout_config.editorDocument} />
+                      ) : (
+                        <span className={styles.templateThumbFallback}>{String.fromCharCode(65 + (index % 26))}</span>
+                      )}
                       {selected ? <span className={styles.templateCheck}><Check size={11} /></span> : null}
                     </span>
                     <span className={styles.templateLabel}>{layout.name}</span>
