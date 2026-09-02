@@ -12,6 +12,16 @@
   font-family: var(--font-sans);
 }
 
+.loadingState {
+  min-height: calc(100vh - 148px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b807c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .status {
   position: fixed;
   z-index: 80;
