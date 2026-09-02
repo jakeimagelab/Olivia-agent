@@ -12,7 +12,8 @@ export type TrashSourceType =
   | "video_conti"
   | "reward_product"
   | "trend_competitor"
-  | "olivia_chat";
+  | "olivia_chat"
+  | "client_review";
 
 type RecordValue = Record<string, unknown>;
 
