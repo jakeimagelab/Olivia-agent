@@ -115,6 +115,12 @@ export const TRASH_SOURCES: Record<TrashSourceType, SourceConfig> = {
     },
     multiple: true,
   },
+  client_review: {
+    label: "리뷰",
+    table: "client_reviews",
+    title: row => text(row.writer_name) ? `${text(row.writer_name)}님 후기` : "작성자 미상 후기",
+    preview: row => clipped(row.public_review_text || row.good_points),
+  },
 };
 
 export type TrashItem = {
