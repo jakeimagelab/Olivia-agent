@@ -41,7 +41,7 @@ function sourceFor(element: ReviewStoryImageElement, assetUrls: Record<string, s
   return element.storagePath ? assetUrls[element.storagePath] || element.src : element.src;
 }
 
-export default function ReviewStoryCanvas({ document, selectedElementId, assetUrls, zoom, onSelect, onChange }: Props) {
+export default function ReviewStoryCanvas({ document, selectedElementId, assetUrls, zoom, lockAspectRatio, onSelect, onChange }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   const [editingId, setEditingId] = useState<string | null>(null);
