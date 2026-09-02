@@ -136,10 +136,15 @@ export default function ReviewStoryWorkspace() {
   const [future, setFuture] = useState<ReviewStoryDocument[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [source, setSource] = useState({ hospitalName: "", doctorName: "", date: "", reviewText: "" });
+  const [rightTab, setRightTab] = useState<"props" | "style">("props");
+  const [lockAspectRatio, setLockAspectRatio] = useState(false);
 
   const activeContent = useMemo(() => contents.find((item) => item.id === activeContentId) || null, [contents, activeContentId]);
   const activePage = useMemo(() => pages.find((page) => page.id === activePageId) || pages[0] || null, [pages, activePageId]);
   const selectedElement = useMemo(() => activePage?.document.elements.find((element) => element.id === selectedElementId) || null, [activePage, selectedElementId]);
+  const selectedReview = useMemo(() => reviews.find((review) => review.id === selectedReviewId) || null, [reviews, selectedReviewId]);
+
+  useEffect(() => { setRightTab("props"); }, [selectedElementId]);
 
   const notify = useCallback((value: string, isError = false) => {
     setMessage(value);
