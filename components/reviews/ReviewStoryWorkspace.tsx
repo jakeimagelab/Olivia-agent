@@ -144,14 +144,38 @@ export default function ReviewStoryWorkspace() {
       jsonRequest("/api/review-layout-assets", { cache: "no-store" }),
     ]);
     const nextReviews = reviewsResult.reviews || [];
-    const nextContents = contentsResult.contents || [];
+    let nextContents = contentsResult.contents || [];
     const nextLayouts = layoutsResult.assets || [];
-    setReviews(nextReviews);
-    setContents(nextContents);
     setLayouts(nextLayouts);
     setSelectedTemplateIds((current) => current.length ? current.filter((id) => nextLayouts.some((layout: LayoutAsset) => layout.id === id)) : nextLayouts.slice(0, 3).map((layout: LayoutAsset) => layout.id));
-    const queryContentId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("contentId") || "" : "";
-    const nextContent = nextContents.find((item: ReviewContent) => item.id === (preferredContentId || queryContentId || activeContentId)) || nextContents[0] || null;
+
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const queryContentId = params?.get("contentId") || "";
+    const queryReviewId = params?.get("reviewId") || "";
+
+    let targetContentId = preferredContentId || queryContentId;
+    // 리뷰 관리 목록의 [콘텐츠 만들기]는 ?reviewId=만 들고 온다 — 그 리뷰의 콘텐츠가 이미
+    // 있으면 그대로 열고, 없으면 여기서 만든 뒤(findOrCreateReviewContent) 목록을 다시
+    // 불러와서 연다. 상세 페이지 없이 바로 에디터로 온다는 게 이 흐름의 핵심이라, 빈 에디터가
+    // 잠깐 보이지 않도록 이 await가 끝날 때까지 아래 setContents를 미룬다.
+    if (!targetContentId && queryReviewId) {
+      const linked = nextContents.find((item: ReviewContent) => item.review_id === queryReviewId);
+      if (linked) {
+        targetContentId = linked.id;
+      } else {
+        const created = await jsonRequest(`/api/reviews/${queryReviewId}/content`, { method: "POST" });
+        targetContentId = created.contentId;
+        const refreshed = await jsonRequest("/api/review-contents", { cache: "no-store" });
+        nextContents = refreshed.contents || [];
+      }
+    }
+
+    setReviews(nextReviews);
+    setContents(nextContents);
+    const fallbackToFirst = !queryReviewId && !queryContentId && !preferredContentId;
+    const nextContent = nextContents.find((item: ReviewContent) => item.id === (targetContentId || activeContentId))
+      || (fallbackToFirst ? nextContents[0] : null)
+      || null;
     if (nextContent) {
       const nextPages = pagesFromContent(nextContent, nextLayouts);
       const nextSource = contentSource(nextContent);
@@ -161,10 +185,12 @@ export default function ReviewStoryWorkspace() {
       setActivePageId((current) => nextPages.some((page) => page.id === current) ? current : nextPages[0]?.id || "");
       setSource(nextSource);
       setAssetUrls(Object.assign({}, ...nextPages.map((page) => page.assetUrls || {})));
-    } else if (nextReviews[0]) {
-      const review = nextReviews[0] as Review;
-      setSelectedReviewId(review.id);
-      setSource({ hospitalName: review.hospital_name || "", doctorName: review.reviewer_name || "", date: review.delivered_at || "", reviewText: review.review_text || "" });
+    } else {
+      const review = nextReviews.find((item: Review) => item.id === queryReviewId) || (fallbackToFirst ? nextReviews[0] : null);
+      if (review) {
+        setSelectedReviewId(review.id);
+        setSource({ hospitalName: review.hospital_name || "", doctorName: review.reviewer_name || "", date: review.delivered_at || "", reviewText: review.review_text || "" });
+      }
     }
   }, [activeContentId]);
 
