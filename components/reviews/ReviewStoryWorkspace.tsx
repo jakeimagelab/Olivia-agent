@@ -17,6 +17,7 @@ import {
 } from "@/lib/reviewContent/storyDocument";
 import { renderReviewStoryDocument } from "@/lib/reviewContent/renderStoryDocument.client";
 import ReviewStoryCanvas from "./ReviewStoryCanvas";
+import ReviewTemplateThumbnail from "./ReviewTemplateThumbnail";
 import styles from "./ReviewStoryWorkspace.module.css";
 
 type Review = {
