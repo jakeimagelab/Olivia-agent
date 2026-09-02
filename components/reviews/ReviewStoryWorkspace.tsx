@@ -742,14 +742,19 @@ export default function ReviewStoryWorkspace() {
   );
 }
 
-function ImageProperties({ element, patch, onReplace }: { element: ReviewStoryImageElement; patch: (value: Partial<ReviewStoryImageElement>) => void; onReplace: () => void }) {
-  const blend = element.edgeBlend || { enabled: false, type: "gradient" as const, directions: ["bottom" as const], size: 180, strength: 80 };
-  const directions = ["top", "bottom", "left", "right"] as const;
+function ImagePropsFields({ element, patch, onReplace }: { element: ReviewStoryImageElement; patch: (value: Partial<ReviewStoryImageElement>) => void; onReplace: () => void }) {
   return <>
     <div className={styles.sourceActions}><button className={styles.button} onClick={onReplace}><ImagePlus size={13} /> 교체</button><button className={styles.button} onClick={() => patch({ cropX: 50, cropY: 50, scale: 1 })}>자르기 초기화</button></div>
     <label className={styles.field}>사진 확대 / 자르기<input className={styles.range} type="range" min="1" max="3" step="0.05" value={element.scale} onChange={(event) => patch({ scale: Number(event.target.value) })} /></label>
     <div className={styles.propertyGrid}><label className={styles.field}>가로 위치<input className={styles.range} type="range" min="0" max="100" value={element.cropX} onChange={(event) => patch({ cropX: Number(event.target.value) })} /></label><label className={styles.field}>세로 위치<input className={styles.range} type="range" min="0" max="100" value={element.cropY} onChange={(event) => patch({ cropY: Number(event.target.value) })} /></label></div>
-    <label className={styles.field} style={{ display: "flex", gridTemplateColumns: "1fr auto", alignItems: "center" }}>경계 블렌딩<input type="checkbox" checked={blend.enabled} onChange={(event) => patch({ edgeBlend: { ...blend, enabled: event.target.checked } })} /></label>
+  </>;
+}
+
+function ImageStyleFields({ element, patch }: { element: ReviewStoryImageElement; patch: (value: Partial<ReviewStoryImageElement>) => void }) {
+  const blend = element.edgeBlend || { enabled: false, type: "gradient" as const, directions: ["bottom" as const], size: 180, strength: 80 };
+  const directions = ["top", "bottom", "left", "right"] as const;
+  return <>
+    <label className={styles.checkboxField}>경계 블렌딩<input type="checkbox" checked={blend.enabled} onChange={(event) => patch({ edgeBlend: { ...blend, enabled: event.target.checked } })} /></label>
     {blend.enabled ? <>
       <div className={styles.segmented}><button className={`${styles.segment} ${blend.type === "gradient" ? styles.segmentActive : ""}`} onClick={() => patch({ edgeBlend: { ...blend, type: "gradient" } })}>그라데이션</button><button className={`${styles.segment} ${blend.type === "blur" ? styles.segmentActive : ""}`} onClick={() => patch({ edgeBlend: { ...blend, type: "blur" } })}>블러</button></div>
       <label className={styles.field}>방향<div className={styles.segmented} style={{ gridTemplateColumns: "repeat(4,1fr)" }}>{directions.map((direction) => <button key={direction} className={`${styles.segment} ${blend.directions.includes(direction) ? styles.segmentActive : ""}`} onClick={() => patch({ edgeBlend: { ...blend, directions: blend.directions.includes(direction) ? blend.directions.filter((item) => item !== direction) : [...blend.directions, direction] } })}>{direction === "top" ? "상" : direction === "bottom" ? "하" : direction === "left" ? "좌" : "우"}</button>)}</div></label>
