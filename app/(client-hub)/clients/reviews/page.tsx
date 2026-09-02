@@ -51,7 +51,7 @@ export default function ClientReviewsPage() {
     await load();
   }, [load]);
 
-  const onEdit = useMemo(() => async (id: string, patch: { reviewText?: string; reviewerName?: string }) => {
+  const onEdit = useMemo(() => async (id: string, patch: { reviewText?: string; reviewerName?: string; contentStatus?: string }) => {
     const res = await fetch(`/api/reviews/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
