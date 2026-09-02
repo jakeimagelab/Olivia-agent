@@ -8,6 +8,10 @@ import { moveRecordToTrash } from "@/lib/trash";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// client_reviews.content_status의 기존 CHECK 제약값 — 리뷰 목록의 "보류" 처리(⋮ 메뉴)가
+// 이 중 'excluded'를 재사용하므로, 임의 문자열이 그대로 컬럼에 들어가지 않도록 검증한다.
+const VALID_CONTENT_STATUS = new Set(["unused", "candidate", "drafted", "approved", "published", "excluded"]);
+
 export async function PATCH(req: NextRequest, context: { params: Promise<{ reviewId: string }> }) {
   if (!isAdminSession(req)) return NextResponse.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const { reviewId } = await context.params;
@@ -22,6 +26,11 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ revie
   if ("reviewerName" in body) patch.writer_name = String(body.reviewerName || "").trim().slice(0, 120);
   if ("deliveredAt" in body) patch.delivered_at = body.deliveredAt || null;
   if ("permissionToPublish" in body) patch.allow_public_use = Boolean(body.permissionToPublish);
+  if ("contentStatus" in body) {
+    const contentStatus = String(body.contentStatus || "");
+    if (!VALID_CONTENT_STATUS.has(contentStatus)) return NextResponse.json({ ok: false, error: "허용되지 않는 상태값입니다." }, { status: 400 });
+    patch.content_status = contentStatus;
+  }
   if (Object.keys(patch).length === 1) return NextResponse.json({ ok: false, error: "수정할 후기 정보가 없습니다." }, { status: 400 });
   const db = getSupabaseAdmin();
   const { data, error } = await db.from("client_reviews").update(patch).eq("id", reviewId).select("*, clients(*)").single();
