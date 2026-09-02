@@ -10,6 +10,16 @@ function loadImage(src: string) {
   });
 }
 
+// context.font은 CSS 커스텀 프로퍼티(var(--font-sans))를 해석하지 못해서, 캔버스 미리보기와
+// PNG 내보내기 결과가 어긋나던 기존 버그를 고친다 — var(...) 형태면 실제 계산된 폰트로 치환한다.
+function resolveCanvasFontFamily(fontFamily: string) {
+  if (typeof window !== "undefined" && fontFamily.includes("var(")) {
+    const resolved = window.getComputedStyle(window.document.body).fontFamily;
+    if (resolved) return resolved;
+  }
+  return fontFamily || "sans-serif";
+}
+
 function wrapCanvasText(context: CanvasRenderingContext2D, text: string, width: number) {
   const paragraphs = text.split("\n");
   const lines: string[] = [];
