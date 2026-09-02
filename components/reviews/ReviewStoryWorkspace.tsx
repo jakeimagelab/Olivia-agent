@@ -681,23 +681,45 @@ export default function ReviewStoryWorkspace() {
 
         <aside className={`${styles.panel} ${styles.rightPanel}`} aria-label="요소 속성과 레이어">
           <section className={styles.section}>
-            <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>{selectedElement?.type === "image" ? "이미지 편집" : selectedElement?.type === "text" ? "텍스트 편집" : "요소 속성"}</h2>{selectedElement ? <span className={styles.count}>{selectedElement.name}</span> : null}</div>
+            <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>요소 편집</h2>{selectedElement ? <span className={styles.count}>{selectedElement.name}</span> : null}</div>
             {!selectedElement ? <div className={styles.propertyEmpty}>캔버스에서 텍스트나 사진을 선택하면<br />편집 도구가 표시됩니다.</div> : (
               <>
-                <div className={styles.propertyGrid}>
-                  {(["x", "y", "width", "height"] as const).map((key) => <label key={key} className={styles.field}>{key.toUpperCase()}<input className={styles.input} type="number" value={Math.round(selectedElement[key])} onChange={(event) => patchElement(selectedElement.id, { [key]: Number(event.target.value) })} /></label>)}
-                  <label className={styles.field}>회전<input className={styles.input} type="number" value={selectedElement.rotation} onChange={(event) => patchElement(selectedElement.id, { rotation: Number(event.target.value) })} /></label>
-                  <label className={styles.field}>불투명도<input className={styles.input} type="number" min="0" max="100" value={Math.round(selectedElement.opacity * 100)} onChange={(event) => patchElement(selectedElement.id, { opacity: Number(event.target.value) / 100 })} /></label>
+                <div className={styles.styleTabs} role="tablist">
+                  <button type="button" role="tab" aria-selected={rightTab === "props"} className={`${styles.styleTab} ${rightTab === "props" ? styles.styleTabActive : ""}`} onClick={() => setRightTab("props")}>속성</button>
+                  <button type="button" role="tab" aria-selected={rightTab === "style"} className={`${styles.styleTab} ${rightTab === "style" ? styles.styleTabActive : ""}`} onClick={() => setRightTab("style")}>스타일</button>
                 </div>
-                {selectedElement.type === "text" ? (
+
+                {rightTab === "props" ? (
                   <>
-                    <label className={styles.field}>내용<textarea className={styles.textarea} value={selectedElement.text} onChange={(event) => patchElement(selectedElement.id, { text: event.target.value } as Partial<ReviewStoryElement>)} /></label>
-                    <div className={styles.propertyGrid}><label className={styles.field}>크기<input className={styles.input} type="number" value={selectedElement.fontSize} onChange={(event) => patchElement(selectedElement.id, { fontSize: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label><label className={styles.field}>굵기<select className={styles.select} value={selectedElement.fontWeight} onChange={(event) => patchElement(selectedElement.id, { fontWeight: Number(event.target.value) } as Partial<ReviewStoryElement>)}><option value="400">Regular</option><option value="600">Semi Bold</option><option value="700">Bold</option><option value="800">Extra Bold</option></select></label><label className={styles.field}>행간<input className={styles.input} type="number" min="0.8" max="3" step="0.05" value={selectedElement.lineHeight} onChange={(event) => patchElement(selectedElement.id, { lineHeight: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label><label className={styles.field}>자간<input className={styles.input} type="number" step="0.2" value={selectedElement.letterSpacing} onChange={(event) => patchElement(selectedElement.id, { letterSpacing: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label></div>
-                    <label className={styles.field}>텍스트 색상<input className={styles.input} type="color" value={selectedElement.color} onChange={(event) => patchElement(selectedElement.id, { color: event.target.value } as Partial<ReviewStoryElement>)} /></label>
-                    <div className={styles.segmented}>{([{ value: "left", icon: AlignLeft }, { value: "center", icon: AlignCenter }, { value: "right", icon: AlignRight }] as const).map(({ value, icon: Icon }) => <button key={value} className={`${styles.segment} ${selectedElement.textAlign === value ? styles.segmentActive : ""}`} onClick={() => patchElement(selectedElement.id, { textAlign: value } as Partial<ReviewStoryElement>)}><Icon size={13} /></button>)}</div>
+                    <h3 className={styles.subheading}>위치 및 크기</h3>
+                    <div className={styles.propertyGrid}>
+                      {(["x", "y", "width", "height"] as const).map((key) => <label key={key} className={styles.field}>{key.toUpperCase()}<input className={styles.input} type="number" value={Math.round(selectedElement[key])} onChange={(event) => patchElement(selectedElement.id, { [key]: Number(event.target.value) })} /></label>)}
+                    </div>
+                    <label className={styles.checkboxField}><input type="checkbox" checked={lockAspectRatio} onChange={(event) => setLockAspectRatio(event.target.checked)} /> 비율 유지</label>
+                    <label className={styles.field}>회전 {selectedElement.rotation}°<input className={styles.range} type="range" min="-180" max="180" value={selectedElement.rotation} onChange={(event) => patchElement(selectedElement.id, { rotation: Number(event.target.value) })} /></label>
+                    <label className={styles.field}>불투명도 {Math.round(selectedElement.opacity * 100)}%<input className={styles.range} type="range" min="0" max="100" value={Math.round(selectedElement.opacity * 100)} onChange={(event) => patchElement(selectedElement.id, { opacity: Number(event.target.value) / 100 })} /></label>
+                    {selectedElement.type === "text" ? (
+                      <label className={styles.field}>내용<textarea className={styles.textarea} value={selectedElement.text} onChange={(event) => patchElement(selectedElement.id, { text: event.target.value } as Partial<ReviewStoryElement>)} /></label>
+                    ) : null}
+                    {selectedElement.type === "image" ? <ImagePropsFields element={selectedElement} patch={(value) => patchElement(selectedElement.id, value as Partial<ReviewStoryElement>)} onReplace={() => photoInputRef.current?.click()} /> : null}
                   </>
-                ) : null}
-                {selectedElement.type === "image" ? <ImageProperties element={selectedElement} patch={(value) => patchElement(selectedElement.id, value as Partial<ReviewStoryElement>)} onReplace={() => photoInputRef.current?.click()} /> : null}
+                ) : (
+                  <>
+                    {selectedElement.type === "text" ? (
+                      <>
+                        <label className={styles.field}>글꼴
+                          <select className={styles.select} value={selectedElement.fontFamily} onChange={(event) => patchElement(selectedElement.id, { fontFamily: event.target.value } as Partial<ReviewStoryElement>)}>
+                            {FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
+                          </select>
+                        </label>
+                        <div className={styles.propertyGrid}><label className={styles.field}>크기<input className={styles.input} type="number" value={selectedElement.fontSize} onChange={(event) => patchElement(selectedElement.id, { fontSize: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label><label className={styles.field}>굵기<select className={styles.select} value={selectedElement.fontWeight} onChange={(event) => patchElement(selectedElement.id, { fontWeight: Number(event.target.value) } as Partial<ReviewStoryElement>)}><option value="400">Regular</option><option value="600">Semi Bold</option><option value="700">Bold</option><option value="800">Extra Bold</option></select></label><label className={styles.field}>행간<input className={styles.input} type="number" min="0.8" max="3" step="0.05" value={selectedElement.lineHeight} onChange={(event) => patchElement(selectedElement.id, { lineHeight: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label><label className={styles.field}>자간<input className={styles.input} type="number" step="0.2" value={selectedElement.letterSpacing} onChange={(event) => patchElement(selectedElement.id, { letterSpacing: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label></div>
+                        <label className={styles.field}>텍스트 색상<input className={styles.input} type="color" value={selectedElement.color} onChange={(event) => patchElement(selectedElement.id, { color: event.target.value } as Partial<ReviewStoryElement>)} /></label>
+                        <div className={styles.segmented}>{([{ value: "left", icon: AlignLeft }, { value: "center", icon: AlignCenter }, { value: "right", icon: AlignRight }] as const).map(({ value, icon: Icon }) => <button key={value} className={`${styles.segment} ${selectedElement.textAlign === value ? styles.segmentActive : ""}`} onClick={() => patchElement(selectedElement.id, { textAlign: value } as Partial<ReviewStoryElement>)}><Icon size={13} /></button>)}</div>
+                      </>
+                    ) : null}
+                    {selectedElement.type === "image" ? <ImageStyleFields element={selectedElement} patch={(value) => patchElement(selectedElement.id, value as Partial<ReviewStoryElement>)} /> : null}
+                  </>
+                )}
               </>
             )}
           </section>
