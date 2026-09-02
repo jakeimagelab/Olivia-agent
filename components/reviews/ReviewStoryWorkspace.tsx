@@ -408,7 +408,11 @@ export default function ReviewStoryWorkspace() {
         await Promise.all(result.variants.map((variant: Variant, index: number) => {
           const layout = layouts.find((item) => item.id === variant.layout_asset_id);
           const photo = photos[index % photos.length];
-          const documentValue = createReviewStoryDocument({ ...source, photo }, layout?.layout_config || {});
+          // 3컷/2컷 템플릿(photo2/photo3 바인딩)도 자동 채워지도록, 현재 사진 목록을 index부터
+          // 순환시켜 최대 3장을 같이 넘긴다. 사진이 1장뿐이면 photos[1]/[2]는 같은 사진이 반복되고,
+          // 템플릿에 그런 슬롯이 없으면 bindReviewStoryDocument가 그냥 무시한다.
+          const photoWindow = photos.length ? Array.from({ length: Math.min(3, photos.length) }, (_, offset) => photos[(index + offset) % photos.length]) : [];
+          const documentValue = createReviewStoryDocument({ ...source, photo, photos: photoWindow }, layout?.layout_config || {});
           return jsonRequest(`/api/review-contents/${contentId}/variants/${variant.id}`, {
             method: "PATCH", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ editorDocument: documentValue }),
