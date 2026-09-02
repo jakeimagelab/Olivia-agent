@@ -551,7 +551,7 @@ export default function ReviewStoryWorkspace() {
     <main className={styles.workspace}>
       <header className={styles.header}>
         <div>
-          <Link href="/clients/reviews" className={styles.iconButton} style={{ marginBottom: 8, width: "fit-content", padding: "6px 10px" }}>
+          <Link href="/clients/reviews" className={styles.button} style={{ marginBottom: 8, width: "fit-content", textDecoration: "none" }}>
             <ArrowLeft size={13} /><span>리뷰 관리로 돌아가기</span>
           </Link>
           <div className={styles.titleRow}><h1 className={styles.title}>리뷰 콘텐츠 제작</h1><span className={styles.badge}>통합</span></div>
