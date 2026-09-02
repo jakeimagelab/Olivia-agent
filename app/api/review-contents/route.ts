@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
   const db = getSupabaseAdmin();
   let query = db
     .from("review_contents")
-    .select("*, client_reviews(*, clients(*)), review_content_variants(*, review_layout_assets(*))")
+    // review_contents.selected_variant_id도 review_content_variants를 가리키고 있어서(양방향
+    // FK) review_content_variants(...)만 쓰면 PostgREST가 어느 FK로 임베드할지 못 정하고
+    // "more than one relationship was found" 오류를 낸다 — review_content_id FK를 명시한다.
+    .select("*, client_reviews(*, clients(*)), review_content_variants!review_content_id(*, review_layout_assets(*))")
     .order("created_at", { ascending: false })
     .limit(100);
   const status = req.nextUrl.searchParams.get("status");
