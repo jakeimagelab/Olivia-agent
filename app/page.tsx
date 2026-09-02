@@ -690,7 +690,7 @@ const PIPELINE = [
   { n:7,  label:"원본전달",   href:"/clients",          color:"#0891B2" },
   { n:8,  label:"수정",       href:"/portal-admin",     color:"#9333EA" },
   { n:9,  label:"최종전달",   href:"/mailing",          color:"#E85D2C" },
-  { n:10, label:"후기",       href:"/review-studio",    color:"#059669" },
+  { n:10, label:"후기",       href:"/clients/reviews",  color:"#059669" },
   { n:11, label:"콘텐츠",     href:"/sns-manager",      color:"#059669" },
   { n:12, label:"영상콘티",   href:"/video-conti",      color:"#155855" },
 ];
