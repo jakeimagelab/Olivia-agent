@@ -82,6 +82,17 @@ type StoryPage = Variant & { document: ReviewStoryDocument };
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
+// app/layout.tsx에서 이미 전역으로 로드해 둔 폰트만 나열한다(새 웹폰트 로딩 없음).
+const FONT_OPTIONS = [
+  { value: "var(--font-sans)", label: "Pretendard (기본)" },
+  { value: "'Noto Sans KR', sans-serif", label: "Noto Sans KR" },
+  { value: "'Nanum Myeongjo', serif", label: "나눔명조" },
+  { value: "'Black Han Sans', sans-serif", label: "Black Han Sans" },
+  { value: "'Do Hyeon', sans-serif", label: "Do Hyeon" },
+  { value: "'Gothic A1', sans-serif", label: "Gothic A1" },
+  { value: "'Song Myung', serif", label: "Song Myung" },
+];
+
 function contentSource(content: ReviewContent) {
   const review = content.client_reviews || {};
   return {
