@@ -86,7 +86,9 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
     tools: [
       { id: "ideas", title: "아이디어", href: "/daily-ideas", aliases: ["아이디어 제안", "콘텐츠 아이디어"], sourceHrefs: ["/daily-ideas"] },
       { id: "promotion", title: "홍보 콘텐츠", href: "/sns-manager", aliases: ["홍보 콘텐츠 제작", "SNS 콘텐츠"], sourceHrefs: ["/sns-manager"] },
-      { id: "review", title: "리뷰 콘텐츠", href: "/review-studio", aliases: ["리뷰 콘텐츠", "리뷰컨텐츠"], sourceHrefs: ["/review-studio"] },
+      // href는 DB 목록 화면(canonical 진입점)을 가리킨다. sourceHrefs에는 예전 단독 진입점이던
+      // 에디터 경로를 그대로 남겨 getCanonicalWorkspaceHref("/review-studio")도 목록으로 정규화되게 한다.
+      { id: "review", title: "리뷰 콘텐츠", href: "/clients/reviews", aliases: ["리뷰 콘텐츠", "리뷰컨텐츠"], sourceHrefs: ["/review-studio"] },
     ],
   },
   {
