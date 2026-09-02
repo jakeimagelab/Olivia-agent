@@ -50,10 +50,13 @@
   background: rgba(255, 255, 255, 0.96);
 }
 
-.titleRow { display: flex; align-items: center; gap: 9px; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: #8aa09b; font-size: 10.5px; font-weight: 700; }
+.breadcrumb a { color: #8aa09b; text-decoration: none; }
+.breadcrumb a:hover { color: var(--green); }
+.breadcrumbSep { color: #c3d3cf; }
+.breadcrumbCurrent { color: var(--green); }
 .title { margin: 0; color: var(--green-dark); font-size: 20px; letter-spacing: -0.03em; }
 .subtitle { margin: 4px 0 0; color: #6b807c; font-size: 12px; }
-.badge { padding: 4px 8px; border-radius: 999px; background: var(--mint); color: var(--green); font-size: 10px; font-weight: 800; }
 .headerActions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
 
 .button,
