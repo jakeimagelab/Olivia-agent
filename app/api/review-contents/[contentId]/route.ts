@@ -12,7 +12,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ content
   const db = getSupabaseAdmin();
   const { data, error } = await db
     .from("review_contents")
-    .select("*, client_reviews(*, clients(*)), review_content_variants(*, review_layout_assets(*))")
+    // review_contents.selected_variant_id도 review_content_variants를 가리키는 양방향 FK라서
+    // review_content_id FK를 명시하지 않으면 PostgREST의 "more than one relationship" 오류가 난다.
+    .select("*, client_reviews(*, clients(*)), review_content_variants!review_content_id(*, review_layout_assets(*))")
     .eq("id", contentId)
     .maybeSingle();
   if (error || !data) return NextResponse.json({ ok: false, error: "콘텐츠를 찾지 못했습니다." }, { status: 404 });
