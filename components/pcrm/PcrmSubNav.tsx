@@ -31,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "calendar", label: "일정 관리", icon: Calendar, href: "/clients/schedule" },
   { key: "gallery", label: "앨범/갤러리", icon: ImageIcon, href: "/clients/gallery" },
   { key: "revisions", label: "수정 요청", icon: PenLine, href: "/clients/revisions" },
-  { key: "reviews", label: "리뷰 관리", icon: Heart, href: "/review-studio" },
+  { key: "reviews", label: "리뷰 관리", icon: Heart, href: "/clients/reviews" },
   { key: "per", label: "PER 포인트", icon: Coins, href: "/per" },
   { key: "reports", label: "통계/보고서", icon: Building2, href: "/clients/reports" },
 ];
