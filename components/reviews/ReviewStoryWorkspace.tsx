@@ -564,11 +564,15 @@ export default function ReviewStoryWorkspace() {
     <main className={styles.workspace}>
       <header className={styles.header}>
         <div>
-          <Link href="/clients/reviews" className={styles.button} style={{ marginBottom: 8, width: "fit-content", textDecoration: "none" }}>
-            <ArrowLeft size={13} /><span>리뷰 관리로 돌아가기</span>
-          </Link>
-          <div className={styles.titleRow}><h1 className={styles.title}>리뷰 콘텐츠 제작</h1><span className={styles.badge}>통합</span></div>
-          <p className={styles.subtitle}>후기와 사진을 바탕으로 병원 리뷰 콘텐츠를 빠르게 제작합니다.</p>
+          <nav className={styles.breadcrumb} aria-label="이동 경로">
+            <Link href="/clients/reviews">리뷰 콘텐츠</Link>
+            <span className={styles.breadcrumbSep}>/</span>
+            <span>{source.hospitalName || "새 리뷰"}</span>
+            <span className={styles.breadcrumbSep}>/</span>
+            <span className={styles.breadcrumbCurrent}>콘텐츠 만들기</span>
+          </nav>
+          <h1 className={styles.title}>리뷰 콘텐츠 제작</h1>
+          <p className={styles.subtitle}>선택한 리뷰를 다양한 스토리형 콘텐츠로 제작할 수 있습니다.</p>
         </div>
         <div className={styles.headerActions}>
           {activeContent?.status === "approved" ? <button className={`${styles.button} ${styles.primary}`} onClick={() => void publish()} disabled={Boolean(busy)}><Send size={14} /><span>Instagram 게시</span></button> : null}
