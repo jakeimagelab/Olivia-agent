@@ -195,8 +195,10 @@ export function bindReviewStoryDocument(document: ReviewStoryDocument, source: R
     if (element.type === "text" && element.binding && bindings[element.binding] != null) {
       return { ...element, text: bindings[element.binding] || "" };
     }
-    if (element.type === "image" && element.binding === "photo1" && source.photo) {
-      return { ...element, src: source.photo.src, storagePath: source.photo.storagePath, opacity: 1 };
+    if (element.type === "image" && element.binding && PHOTO_BINDINGS.includes(element.binding)) {
+      const slotIndex = PHOTO_BINDINGS.indexOf(element.binding);
+      const photo = source.photos?.[slotIndex] || (slotIndex === 0 ? source.photo : undefined);
+      if (photo) return { ...element, src: photo.src, storagePath: photo.storagePath, opacity: 1 };
     }
     return element;
   });
