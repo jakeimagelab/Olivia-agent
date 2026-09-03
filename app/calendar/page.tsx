@@ -2664,23 +2664,25 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   return (
     <main className="calendar-page-shell" style={{ background: C.bg, color: C.txt }}>
 
-      <GlobalHeader title="Schedule" description="촬영과 미팅 일정을 관리합니다." className="oa-header--calendar" pageActions={<>
-          {/* view mode tabs — 모바일에서는 숨기고 연/월/일 드릴다운 내비게이션으로 대체 */}
-          {!isMobile && (
-            <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,
-              borderRadius: 10, padding: 2, gap: 1 }}>
-              {(["day","week","month","year"] as ViewMode[]).map(v => (
-                <button key={v} onClick={() => setViewMode(v)}
-                  className={`pc-btn pc-btn--sm ${viewMode === v ? "pc-btn--primary" : "pc-btn--ghost"}`}
-                  style={{ border: "none" }}>{VIEW_LABELS[v]}</button>
-              ))}
-            </div>
-          )}
-          <button onClick={goToday} className="pc-btn pc-btn--secondary pc-btn--sm">오늘</button>
-          <button onClick={() => setShowStatsModal(v => !v)} className="pc-btn pc-btn--stats pc-btn--sm">
-            <BarChart3 size={15} strokeWidth={2} />{!isMobile && " 일정 분석"}
-          </button>
-      </>} />
+      {!embedded && (
+        <GlobalHeader title="Schedule" description="촬영과 미팅 일정을 관리합니다." className="oa-header--calendar" pageActions={<>
+            {/* view mode tabs — 모바일에서는 숨기고 연/월/일 드릴다운 내비게이션으로 대체 */}
+            {!isMobile && (
+              <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,
+                borderRadius: 10, padding: 2, gap: 1 }}>
+                {(["day","week","month","year"] as ViewMode[]).map(v => (
+                  <button key={v} onClick={() => setViewMode(v)}
+                    className={`pc-btn pc-btn--sm ${viewMode === v ? "pc-btn--primary" : "pc-btn--ghost"}`}
+                    style={{ border: "none" }}>{VIEW_LABELS[v]}</button>
+                ))}
+              </div>
+            )}
+            <button onClick={goToday} className="pc-btn pc-btn--secondary pc-btn--sm">오늘</button>
+            <button onClick={() => setShowStatsModal(v => !v)} className="pc-btn pc-btn--stats pc-btn--sm">
+              <BarChart3 size={15} strokeWidth={2} />{!isMobile && " 일정 분석"}
+            </button>
+        </>} />
+      )}
 
       {!isMobile ? (
         <div className="calendar-mission-shell" style={{ maxWidth: 1440, margin: "0 auto 10px", width: "100%", padding: "0 20px" }}>
