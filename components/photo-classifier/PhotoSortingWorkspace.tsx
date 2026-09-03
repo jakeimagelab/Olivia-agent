@@ -118,7 +118,9 @@ const DEPARTMENTS: { value: MedicalDepartment; label: string }[] = [
 
 const GAP_OPTIONS = [3, 3.5, 5, 7, 10];
 
-const C = {
+// AI 사진 분류 2.0의 새 ai-auto/ 하위 컴포넌트들이 기존과 똑같은 톤을 쓰도록 export한다
+// (값 변경 없음, 이 파일 안에서의 기존 사용은 전부 그대로).
+export const C = {
   teal:"#155855", orange:"#E85D2C", green:"#22876A",
   white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470",
   hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2", bg:"#EDF5F3",
