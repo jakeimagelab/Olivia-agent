@@ -511,7 +511,7 @@ function SectionPill({ label, count, color }: { label: string; count: number; co
   );
 }
 
-function Toggle({ label, desc, value, onChange }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void }) {
+export function Toggle({ label, desc, value, onChange }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
       <div>
