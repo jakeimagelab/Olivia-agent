@@ -198,7 +198,11 @@ export function SelectMatchWorkspace({
   const [rawRootDir,    setRawRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
   const [preflight,  setPreflight]  = useState<Preflight | null>(null);
   const [rawScanCount, setRawScanCount] = useState(0);
-  const [rawIndexRef] = useState<{ map: Map<string, FileSystemFileHandle> }>(() => ({ map: new Map() }));
+  const [rawIndexRef] = useState<{ map: Map<string, RawIndexEntry> }>(() => ({ map: new Map() }));
+  // 매칭된 RAW 파일을 Selected_RAW/에 넣을 때 원본을 지울지(이동) 남겨둘지(복사) — 기본값은
+  // 기존 동작(복사)과 동일하게 유지해 이 기능을 모르는 사용자에게 갑자기 원본이 사라지는
+  // 일이 없게 한다.
+  const [rawSelectMode, setRawSelectMode] = useState<"move" | "copy">("copy");
   const [log,        setLog]        = useState<string[]>([]);
   const [progress,   setProgress]   = useState({ cur: 0, total: 0, msg: "" });
   const [result,     setResult]     = useState({ matched: 0, missing: 0, selected: 0 });
