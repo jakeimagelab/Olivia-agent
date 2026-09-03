@@ -479,6 +479,64 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
               createdAt: new Date().toISOString(),
               status: "complete",
             });
+          } else if (event.action.type === "START_AI_PHOTO_CLASSIFICATION") {
+            // AI 사진 분류 2.0(스펙 §35/36) — RENAME/MERGE/SPLIT_PHOTO_SCENE과 같은 가로채기
+            // 패턴이지만 이건 비동기(네트워크 호출 포함)라, 완료를 기다린 뒤 실제 결과
+            // (fieldScenes가 실제로 생겼는지)로만 "분류했다"고 말한다(스펙 §37/44).
+            const actions = usePhotoClassificationActionsStore.getState().actions;
+            if (!actions) {
+              get().appendMessage({
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: "지금 열려 있는 사진 분류 화면이 없어서 실행하지 못했어요. 먼저 사진 분류 화면을 열고 폴더를 선택해주세요.",
+                blocks: [{ type: "text", text: "지금 열려 있는 사진 분류 화면이 없어서 실행하지 못했어요. 먼저 사진 분류 화면을 열고 폴더를 선택해주세요." }],
+                createdAt: new Date().toISOString(),
+                status: "complete",
+              });
+            } else {
+              void actions.startAiClassification().then((result) => {
+                const text = result.ok
+                  ? `AI 자동 분류를 실행했어요. Scene ${result.sceneCount ?? 0}개로 나왔어요 — 화면에서 검토 후 실행해주세요.`
+                  : (result.reason || "폴더가 선택되지 않아서 실행하지 못했어요. 화면에서 폴더를 먼저 선택해주세요.");
+                get().appendMessage({
+                  id: crypto.randomUUID(),
+                  role: "assistant",
+                  content: text,
+                  blocks: [{ type: "text", text }],
+                  createdAt: new Date().toISOString(),
+                  status: "complete",
+                });
+              });
+            }
+          } else if (event.action.type === "REFINE_PHOTO_CLASSIFICATION") {
+            // 자연어 요청을 화이트리스트 override로 파싱해 현재 프로필에 반영한다(스펙 §20/40).
+            // 이미 한 번 분류된 상태였다면 다시 분류까지 실행되므로(PhotoSortingWorkspace.tsx의
+            // submitAiNlRequest), 그 결과(fieldScenes)가 실제로 있을 때만 "다시 분류했다"고 말한다.
+            const actions = usePhotoClassificationActionsStore.getState().actions;
+            if (!actions) {
+              get().appendMessage({
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: "지금 열려 있는 사진 분류 화면이 없어서 반영하지 못했어요. 먼저 사진 분류 화면을 열어주세요.",
+                blocks: [{ type: "text", text: "지금 열려 있는 사진 분류 화면이 없어서 반영하지 못했어요. 먼저 사진 분류 화면을 열어주세요." }],
+                createdAt: new Date().toISOString(),
+                status: "complete",
+              });
+            } else {
+              void actions.submitNlRequest(event.action.message).then((result) => {
+                const text = result.sceneCount && result.sceneCount > 0
+                  ? `요청하신 기준을 반영해서 다시 분류했어요. Scene ${result.sceneCount}개로 나왔어요.`
+                  : "요청하신 기준을 추천 조건에 반영했어요. 화면에서 확인 후 [AI 자동 분류 시작]을 눌러주세요.";
+                get().appendMessage({
+                  id: crypto.randomUUID(),
+                  role: "assistant",
+                  content: text,
+                  blocks: [{ type: "text", text }],
+                  createdAt: new Date().toISOString(),
+                  status: "complete",
+                });
+              });
+            }
           } else if (event.action.type === "OPEN_CLIENT_TASK") {
             // 채팅 안에서 실제 작업을 끝까지 수행하는 카드(예: 셀렉 매칭) — approval과 동일하게
             // 여기서 미리 가로채 메시지에 블록을 추가한다. 실시간 진행 상태는 도구별 client-only
