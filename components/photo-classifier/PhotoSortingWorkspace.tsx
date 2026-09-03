@@ -2576,8 +2576,9 @@ function PhotoSortingInner({
       dermatology: "피부과 모드: 실장상담, 피부관리, 원장상담, 레이저시술, 장비시술, 주사시술, 프로필, 인테리어, 접수안내 장면을 기준으로 분류합니다.",
       general: "기타 모드: 시간차 기준 Scene 분류를 우선 적용하고, 공통 장면 기준으로 이름을 추천합니다.",
     };
+    const aiAutoActive = photoMode === "field" && classificationUiMode === "ai-auto";
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:700}}>
+      <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth: aiAutoActive ? 1120 : 700}}>
 
         {/* 이전 작업 복원 배너 */}
         {savedSession && (
