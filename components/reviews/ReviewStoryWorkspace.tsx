@@ -759,11 +759,6 @@ export default function ReviewStoryWorkspace() {
           </section>
         </aside>
       </div>
-
-      <section className={styles.storyStrip} aria-label="생성된 스토리">
-        <div className={styles.storyStripHeader}><h2 className={styles.sectionTitle}>생성된 스토리 ({pages.length}장)</h2><div className={styles.toolbarGroup}><button className={styles.iconButton} onClick={() => void reorderPage(-1)} disabled={!activePage}><ArrowUp size={13} /></button><button className={styles.iconButton} onClick={() => void reorderPage(1)} disabled={!activePage}><ArrowDown size={13} /></button><button className={styles.iconButton} onClick={() => void removePage()} disabled={!activePage || pages.length <= 1}><Trash2 size={13} /></button></div></div>
-        {pages.length ? <div className={styles.storyList}>{pages.map((page, index) => <button key={page.id} type="button" draggable className={`${styles.storyThumb} ${activePage?.id === page.id ? styles.storyThumbActive : ""}`} title="드래그해서 페이지 순서 변경" onDragStart={(event) => event.dataTransfer.setData("text/review-page", page.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void movePageTo(event.dataTransfer.getData("text/review-page"), page.id); }} onClick={() => { setActivePageId(page.id); setSelectedElementId(null); setHistory([]); setFuture([]); }}><img className={styles.storyPreview} src={page.imageUrl || ""} alt={`${index + 1}번 스토리`} /><span className={styles.storyNumber}>{String(index + 1).padStart(2, "0")}{page.is_selected ? " · 대표" : ""}</span></button>)}</div> : <div className={styles.emptyStrip}>아직 생성된 스토리가 없습니다.</div>}
-      </section>
     </main>
   );
 }
