@@ -50,7 +50,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 14px 22px;
+  padding: 14px 0;
   border-bottom: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.96);
 }
