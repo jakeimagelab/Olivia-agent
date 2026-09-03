@@ -33,9 +33,8 @@
   transform-origin: center;
 }
 
-.element:focus-visible,
-.selected {
-  outline: calc(2px / var(--story-scale, 1)) solid #155855;
+.element:focus-visible {
+  outline: calc(2px / var(--story-scale, 1)) solid rgba(21, 88, 85, 0.4);
   outline-offset: calc(2px / var(--story-scale, 1));
 }
 
@@ -78,27 +77,185 @@
   width: 100%;
   height: 100%;
   resize: none;
-  border: 0;
+  border: calc(1px / var(--story-scale, 1)) dashed rgba(21, 88, 85, 0.4);
   outline: 0;
   padding: 0;
-  background: rgba(255, 255, 255, 0.92);
+  background: transparent;
   color: inherit;
   font: inherit;
   line-height: inherit;
   text-align: inherit;
 }
 
-.resizeHandle {
+/* ── Selection: 실제 요소(또는 텍스트는 측정된 글자 영역)에 딱 맞는 얇은 테두리 ── */
+.selectionBorder {
   position: absolute;
-  right: calc(-7px / var(--story-scale, 1));
-  bottom: calc(-7px / var(--story-scale, 1));
-  width: calc(14px / var(--story-scale, 1));
-  height: calc(14px / var(--story-scale, 1));
-  border: calc(2px / var(--story-scale, 1)) solid #fff;
-  border-radius: 3px;
-  background: #155855;
-  cursor: nwse-resize;
+  inset: 0;
+  border: calc(1.5px / var(--story-scale, 1)) solid #155855;
+  border-radius: calc(2px / var(--story-scale, 1));
+  pointer-events: none;
 }
+
+/* ── Resize handles: 작은 흰 사각형 + 민트 보더, zoom과 무관하게 화면상 크기 고정 ── */
+.handle {
+  position: absolute;
+  width: calc(9px / var(--story-scale, 1));
+  height: calc(9px / var(--story-scale, 1));
+  border: calc(1.5px / var(--story-scale, 1)) solid #155855;
+  border-radius: 2px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(21, 55, 51, 0.25);
+}
+.handle:hover { background: #eaf4f2; }
+.handleNw { left: 0; top: 0; transform: translate(-50%, -50%); cursor: nwse-resize; }
+.handleNe { right: 0; top: 0; transform: translate(50%, -50%); cursor: nesw-resize; }
+.handleSw { left: 0; bottom: 0; transform: translate(-50%, 50%); cursor: nesw-resize; }
+.handleSe { right: 0; bottom: 0; transform: translate(50%, 50%); cursor: nwse-resize; }
+.handleW { left: 0; top: 50%; transform: translate(-50%, -50%); cursor: ew-resize; border-radius: 50%; }
+.handleE { right: 0; top: 50%; transform: translate(50%, -50%); cursor: ew-resize; border-radius: 50%; }
+
+/* ── Rotation handle: 선택 박스 상단 중앙의 작은 원형 핸들 + 연결선 ── */
+.rotateHandle {
+  position: absolute;
+  left: 50%;
+  top: calc(-22px / var(--story-scale, 1));
+  width: calc(9px / var(--story-scale, 1));
+  height: calc(9px / var(--story-scale, 1));
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: calc(1.5px / var(--story-scale, 1)) solid #155855;
+  background: #fff;
+  cursor: grab;
+  box-shadow: 0 1px 2px rgba(21, 55, 51, 0.25);
+}
+.rotateHandle::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: calc(1px / var(--story-scale, 1));
+  height: calc(13px / var(--story-scale, 1));
+  background: rgba(21, 88, 85, 0.35);
+  transform: translateX(-50%);
+}
+
+.angleTooltip,
+.sizeTooltip {
+  position: absolute;
+  left: 50%;
+  top: calc(-42px / var(--story-scale, 1));
+  transform: translateX(-50%) scale(calc(1 / var(--story-scale, 1)));
+  transform-origin: center bottom;
+  background: #103f3c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.sizeTooltip { top: auto; bottom: calc(-24px / var(--story-scale, 1)); transform-origin: center top; }
+
+/* ── Floating contextual toolbar ── */
+.floatingToolbar {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) scale(calc(1 / var(--story-scale, 1)));
+  transform-origin: center bottom;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: #fff;
+  border: 1px solid rgba(21, 88, 85, 0.14);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(21, 55, 51, 0.18);
+  white-space: nowrap;
+}
+.toolbarBtn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #526a65;
+  cursor: pointer;
+}
+.toolbarBtn:hover { background: #eaf4f2; color: #155855; }
+.toolbarBtnActive { background: #eaf4f2; color: #155855; }
+.toolbarDivider { width: 1px; height: 16px; background: rgba(21, 88, 85, 0.14); margin: 0 2px; }
+
+/* ── Locked indicator ── */
+.lockBadge {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  background: rgba(16, 63, 60, 0.85);
+  color: #fff;
+  border-radius: 4px;
+  transform: scale(calc(1 / var(--story-scale, 1)));
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+/* ── Smart guides: 캔버스 전체 오버레이(요소 밖에 위치, export에는 절대 포함 안 됨) ── */
+.guideVertical,
+.guideHorizontal {
+  position: absolute;
+  pointer-events: none;
+  z-index: 999;
+}
+.guideVertical { width: 0; border-left: 1px dashed #6bcfc1; }
+.guideHorizontal { height: 0; border-top: 1px dashed #6bcfc1; }
+.guideLabel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: #6bcfc1;
+  color: #06322c;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ── Crop mode ── */
+.cropToolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%) scale(calc(1 / var(--story-scale, 1)));
+  transform-origin: center bottom;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: rgba(16, 43, 40, 0.82);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cropButton {
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+.cropDone { width: auto; padding: 0 8px; background: #6bcfc1; color: #06322c; border: 0; font-weight: 800; }
 
 @media (max-width: 1100px) {
   .stage { padding: 22px; }
