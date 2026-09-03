@@ -11,12 +11,12 @@ describe("computeSnap", () => {
     expect(result.guides.some((g) => g.type === "vertical" && g.position === 540)).toBe(true);
   });
 
-  it("does not snap when beyond the threshold", () => {
-    const rect = { x: 400, y: 500, width: 100, height: 100 }; // far from every candidate
+  it("does not snap or show gap labels when far from every candidate", () => {
+    const rect = { x: 400, y: 500, width: 100, height: 100 }; // far from every candidate and every canvas edge
     const result = computeSnap(rect, CANVAS, [], 8);
     expect(result.x).toBe(400);
     expect(result.y).toBe(500);
-    expect(result.guides.filter((g) => g.label === undefined)).toHaveLength(0);
+    expect(result.guides).toHaveLength(0);
   });
 
   it("snaps to another element's right edge", () => {
