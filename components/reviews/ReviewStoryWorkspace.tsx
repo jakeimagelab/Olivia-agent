@@ -624,7 +624,7 @@ export default function ReviewStoryWorkspace() {
       {message ? <div className={`${styles.status} ${error ? styles.error : ""}`} role="status">{message}</div> : null}
 
       <div className={styles.editorGrid}>
-        <aside className={`${styles.panel} ${styles.leftPanel}`} aria-label="리뷰 입력과 소스">
+        <aside className={styles.panel} aria-label="리뷰 입력과 소스">
           <section className={styles.section}>
             <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>선택한 리뷰</h2></div>
             <select className={`${styles.select} ${styles.reviewPicker}`} value={selectedReviewId} onChange={(event) => selectReview(event.target.value)}>
