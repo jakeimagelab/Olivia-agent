@@ -22,6 +22,7 @@ import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
 import { evaluateSceneBoundaries } from "@/lib/photo-classifier/evaluation/metrics";
 import { usePhotoClassificationHandoffStore } from "@/lib/store/usePhotoClassificationHandoffStore";
 import { usePhotoClassificationActionsStore } from "@/lib/store/usePhotoClassificationActionsStore";
+import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type {
