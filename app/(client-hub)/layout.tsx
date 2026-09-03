@@ -35,6 +35,8 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
     pathname === "/per" || pathname.startsWith("/per/") ||
     pathname === "/review-studio" || pathname.startsWith("/review-studio/");
   const [inIframe, setInIframe] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [minHeight, setMinHeight] = useState("100vh");
 
   useEffect(() => {
     const isEmbed =
@@ -44,9 +46,26 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
     setInIframe(isEmbed);
   }, []);
 
+  // 이 div가 항상 minHeight:100vh를 요구하면, 위에 GlobalClientContextBridge 배너(고객관리와
+  // 연결되지 않은/연결된 고객 정보 바)가 이미 공간을 차지한 상태에서 또 뷰포트 전체 높이를
+  // 요구해 배너 높이만큼 페이지 전체가 스크롤되는 문제가 있었다(리뷰 에디터 레이아웃 작업 중
+  // 발견, /clients·/per 등도 동일). 실제 이 div가 시작하는 y좌표를 재서 "남은 뷰포트 높이"만
+  // 최소 높이로 요구하도록 바꾼다 — 배경 그라데이션이 짧은 페이지에서도 뷰포트를 채우는
+  // 원래 목적은 유지하면서, 위쪽에 뭐가 얼마나 있든 항상 딱 맞는다.
+  useEffect(() => {
+    const node = shellRef.current;
+    if (!node) return;
+    const update = () => setMinHeight(`${Math.max(0, window.innerHeight - node.getBoundingClientRect().top)}px`);
+    update();
+    window.addEventListener("resize", update);
+    const observer = new ResizeObserver(update);
+    observer.observe(document.body);
+    return () => { window.removeEventListener("resize", update); observer.disconnect(); };
+  }, []);
+
   if (isPcrmSection) {
     return (
-      <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
+      <div ref={shellRef} style={{ minHeight, background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
         <PcrmHeaderActionsProvider>
           {!inIframe && <PcrmSectionHeader />}
           {!inIframe && <Suspense fallback={null}><PcrmSubNav /></Suspense>}
@@ -59,7 +78,7 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
+    <div ref={shellRef} style={{ minHeight, background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
       {!inIframe && <GlobalHeader title={title} description={description} />}
 
       <div className="pc-page-content">
