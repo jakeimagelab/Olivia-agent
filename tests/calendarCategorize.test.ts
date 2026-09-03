@@ -7,9 +7,10 @@ describe("calendar title keyword categorization", () => {
     expect(categorizeByTitle("OOOO촬영")).toBe("shooting");
   });
 
-  it("미팅/상담/고객이 들어가면 client", () => {
+  it("미팅/상담/고객/병원이 들어가면 client", () => {
     expect(categorizeByTitle("허태경 대표님 미팅")).toBe("client");
     expect(categorizeByTitle("신규 고객 상담")).toBe("client");
+    expect(categorizeByTitle("서울병원 방문")).toBe("client");
   });
 
   it("회의/정산/세금 등 행정 키워드는 admin", () => {
@@ -17,8 +18,8 @@ describe("calendar title keyword categorization", () => {
     expect(categorizeByTitle("부가세 신고")).toBe("admin");
   });
 
-  it("개인/휴가/병원 등은 personal", () => {
-    expect(categorizeByTitle("개인 병원 예약")).toBe("personal");
+  it("개인/휴가/가족 등은 personal", () => {
+    expect(categorizeByTitle("개인 휴가")).toBe("personal");
   });
 
   it("매칭되는 키워드가 없으면 general", () => {
