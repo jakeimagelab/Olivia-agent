@@ -66,10 +66,7 @@ export function parseClipboardTasks(raw: string, fallbackDate: string): PastedCa
       .trim();
     if (!title) return [];
 
-    const category = /촬영|콘티/.test(title) ? "shooting"
-      : /상담|미팅|고객|병원/.test(title) ? "client"
-      : /계약|정산|세금|행정/.test(title) ? "admin"
-      : /개인|가족/.test(title) ? "personal" : "general";
+    const category = categorizeByTitle(title);
 
     return [{
       date: datePart.date,
