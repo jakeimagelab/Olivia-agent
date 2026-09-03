@@ -1120,6 +1120,7 @@ function PhotoSortingInner({
       if (abortController.signal.aborted || cancelRef.current) {
         setClassificationJobState("CANCELLED");
         setCopyLog((previous) => [...previous, "⏸ 정밀 분류가 중단되었습니다. 원본 파일은 이동되지 않았습니다."]);
+        useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "cancelled");
         return;
       }
 
