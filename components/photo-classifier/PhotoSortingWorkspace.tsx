@@ -15,8 +15,8 @@ import { buildFieldScenesFromBoundaries, simpleSceneFolderName } from "@/lib/pho
 import { extractFeaturesWithWorkers } from "@/lib/photo-classifier/feature-worker-client";
 import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
 import {
-  clearClassificationCheckpoint, featureCacheKey, getCachedFeature,
-  getClassificationCheckpoint, setCachedFeature, setClassificationCheckpoint,
+  clearClassificationCheckpoint, featureCacheKey, folderFingerprint, getCachedFeature, getCachedPattern,
+  getClassificationCheckpoint, setCachedFeature, setCachedPattern, setClassificationCheckpoint,
 } from "@/lib/photo-classifier/scene-cache";
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
 import { evaluateSceneBoundaries } from "@/lib/photo-classifier/evaluation/metrics";
@@ -28,6 +28,15 @@ import type {
   AccuracyReport, ClassificationJobState, HybridSceneType, LocalVisualFeatures, SceneBoundaryDecision,
   SceneCorrection, SceneFrameAnalysis, TimestampSource,
 } from "@/lib/photo-classifier/hybrid-types";
+import {
+  applyOverrides, adjustGranularity, computeFolderStats, sceneProposalFromFieldScene,
+  type FolderShootingPattern, type SceneWeightProfile,
+} from "@/lib/photo-classifier/pattern-analysis";
+import ClassificationModeToggle, { type ClassificationUiMode } from "./ai-auto/ClassificationModeToggle";
+import FolderAnalysisSummary from "./ai-auto/FolderAnalysisSummary";
+import ClassificationPrompt from "./ai-auto/ClassificationPrompt";
+import SceneProposalList from "./ai-auto/SceneProposalList";
+import ClassificationProfilePanel from "./ai-auto/ClassificationProfilePanel";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
