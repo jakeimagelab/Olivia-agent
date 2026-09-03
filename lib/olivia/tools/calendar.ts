@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
+import { categorizeByTitle } from "@/lib/calendarCategorize";
 
 // lib/assistant/core/legacyOliviaCore.ts에서 그대로 옮긴 캘린더 CRUD — Olivia 채팅 도구
 // (레거시 Claude 경로, v2 OpenAI 경로) 양쪽이 같은 구현을 공유한다. 동작은 옮기기 전과
