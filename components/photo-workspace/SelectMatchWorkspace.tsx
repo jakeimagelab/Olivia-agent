@@ -424,11 +424,14 @@ export function SelectMatchWorkspace({
     for (const basename of selected) {
       if (cancelRef.current) break;
       setProgress({ cur: done, total: selected.size, msg: `매칭: ${basename}` });
-      const handle = rawIndex.get(basename);
-      if (handle) {
-        const rawFile = await handle.getFile();
-        try { await copyFileHandle(handle, rawSelectDir, rawFile.name); addLog(`✅ ${rawFile.name}`); matched++; }
-        catch { addLog(`❌ 실패: ${rawFile.name}`); }
+      const entry = rawIndex.get(basename);
+      if (entry) {
+        const rawFile = await entry.fileHandle.getFile();
+        try {
+          await copyFileHandle(entry.fileHandle, rawSelectDir, rawFile.name);
+          if (rawSelectMode === "move") await (entry.dirHandle as any).removeEntry(entry.fileHandle.name);
+          addLog(`✅ ${rawFile.name}`); matched++;
+        } catch { addLog(`❌ 실패: ${rawFile.name}`); }
       } else {
         addLog(`⚠️ RAW 없음: ${basename}`);
         missing++;
@@ -437,7 +440,7 @@ export function SelectMatchWorkspace({
     }
     setResult({ matched, missing, selected: selected.size });
     setStep("done");
-  }, [rootDir, rawRootDir, selected, buildRawIndex, rawIndexRef]);
+  }, [rootDir, rawRootDir, selected, buildRawIndex, rawIndexRef, rawSelectMode]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
