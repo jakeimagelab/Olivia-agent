@@ -13,6 +13,17 @@
   box-shadow: 0 18px 44px rgba(21, 88, 85, 0.22);
 }
 
+/* header+content만 감싸서 둥근 모서리로 잘라낸다 — resize handle은 이 wrapper 밖(.window
+   바로 아래)에 둬서 overflow:hidden에 안 잘리게 한다(핸들이 테두리 살짝 밖으로 나가야 하므로). */
+.body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
 .header {
   display: flex;
   align-items: center;
