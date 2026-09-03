@@ -189,6 +189,16 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     if (typeof sceneIndex !== "number" || typeof offset !== "number") return [];
     return [{ type: "SPLIT_PHOTO_SCENE", sceneIndex, offset }];
   },
+  start_ai_photo_classification: async ({ result }) => {
+    if (!result.success) return [];
+    return [{ type: "START_AI_PHOTO_CLASSIFICATION" }];
+  },
+  refine_photo_classification: async ({ result }) => {
+    if (!result.success) return [];
+    const message = value(result.data, "message");
+    if (!message) return [];
+    return [{ type: "REFINE_PHOTO_CLASSIFICATION", message }];
+  },
   add_conti_shots: async ({ result }) => mutationActions("conti", result, "conti-shot"),
   update_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
   reorder_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
