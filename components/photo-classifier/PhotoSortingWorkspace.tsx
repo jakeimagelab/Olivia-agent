@@ -1014,7 +1014,7 @@ function PhotoSortingInner({
     // ③ JPG → 시간순 정렬 → Scene 분리
     const sortedEntries = sortTimestampedFiles(jpgEntries);
     jpgEntries.splice(0, jpgEntries.length, ...sortedEntries);
-    const gapMs = gapMinutes * 60 * 1000;
+    const gapMs = effectiveGapMinutes * 60 * 1000;
     const groups: typeof jpgEntries[] = jpgEntries.length > 0 ? [[jpgEntries[0]]] : [];
     for (let i = 1; i < jpgEntries.length; i++) {
       if (jpgEntries[i].mtime - jpgEntries[i-1].mtime > gapMs) groups.push([jpgEntries[i]]);
