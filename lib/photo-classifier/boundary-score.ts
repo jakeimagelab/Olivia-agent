@@ -106,11 +106,12 @@ export function decideBoundary(args: {
   beforeFileName: string;
   afterFileName: string;
   aiFailed?: boolean;
+  weights?: SceneBoundaryFeatures;
 }): SceneBoundaryDecision {
   const { candidate, analysis, settings } = args;
   const features = boundaryFeaturesFromAnalysis(candidate, analysis, settings);
   const ruleReasons = forcedReasons(analysis);
-  let score = calculateBoundaryScore(features);
+  let score = calculateBoundaryScore(features, args.weights);
   if (!analysis && args.aiFailed) score = candidate.visualChangeScore;
   if (shouldHoldSameScene(analysis)) score = Math.max(0, score - 0.15);
   const forced = candidate.hardGap || ruleReasons.length > 0;
