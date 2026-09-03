@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useSelectMatchChatStore } from "@/lib/store/useSelectMatchChatStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { parseNamesFromText, parseNamesFromFiles } from "@/lib/selectMatch/nameParsing";
-import { buildRawIndex, copyFileHandle, computePreflight } from "@/lib/selectMatch/rawIndex";
+import { buildRawIndex, copyFileHandle, computePreflight, type RawIndexEntry } from "@/lib/selectMatch/rawIndex";
 import { collectJpgFolderGroups } from "@/lib/selectMatch/folderScanner";
 import { collectBridgeSidecarRatedNames } from "@/lib/selectMatch/bridgeRating";
 import { buildMatchSummaryText } from "@/lib/selectMatch/matchSummary";
