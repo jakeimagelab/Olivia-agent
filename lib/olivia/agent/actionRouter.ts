@@ -142,6 +142,12 @@ export function executeOliviaAction(action: OliviaUiAction) {
     case "MERGE_PHOTO_SCENES":
     case "SPLIT_PHOTO_SCENE":
       return;
+    // START/REFINE_PHOTO_CLASSIFICATION도 같은 순환참조 회피 이유로 useOliviaConversationStore.ts가
+    // 미리 가로챈다(AI 사진 분류 2.0, 스펙 §35/36) — 둘 다 비동기라 완료 후 실제 결과로 채팅
+    // 응답을 만들어야 해서, RENAME/MERGE/SPLIT처럼 즉시 반환하지 않고 Promise를 기다린다.
+    case "START_AI_PHOTO_CLASSIFICATION":
+    case "REFINE_PHOTO_CLASSIFICATION":
+      return;
     case "OPEN_FEATURE": {
       context.recordAction(`feature:open:${action.href}`);
       navigateToFeature(action.href);
