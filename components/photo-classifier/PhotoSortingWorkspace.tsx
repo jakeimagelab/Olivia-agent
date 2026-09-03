@@ -976,6 +976,11 @@ function PhotoSortingInner({
   const handleFieldSort = useCallback(async () => {
     if (!rootDir) return;
     setStep(1); cancelRef.current = false; setCopyLog([]); setBoundaryDecisions([]); setSceneCorrections([]);
+    useBackgroundJobsStore.getState().startJob({
+      id: PHOTO_CLASSIFY_JOB_ID, label: "사진 분류 중",
+      cur: 0, total: 0, status: "running",
+      returnPath: "/photo-sorting?mode=classification", cancelRef,
+    });
     classificationAbortRef.current?.abort();
     const abortController = new AbortController();
     classificationAbortRef.current = abortController;
