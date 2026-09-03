@@ -23,7 +23,11 @@ function detailHref(item:AgentCenterItem|OliviaAgentRun){
 // 때문이다(조건부 마운트/언마운트로는 열림/닫힘에 애니메이션을 줄 수 없다). 그래서 데이터
 // 폴링(refresh)만 isOpen일 때로 제한해서, 닫혀 있는 동안 불필요한 요청이 안 나가게 한다.
 export default function OliviaAgentCenter({isOpen,onClose,onMinimize,chatContent}:{isOpen:boolean;onClose:()=>void;onMinimize:()=>void;chatContent?:ReactNode}){
-  const [summary,setSummary]=useState(summaryCache); const [loading,setLoading]=useState(!summaryCache); const [refreshing,setRefreshing]=useState(false); const [selected,setSelected]=useState<AgentCenterItem|OliviaAgentRun>(); const [tab,setTab]=useState<"overview"|"chat">("overview");
+  const [summary,setSummary]=useState(summaryCache); const [loading,setLoading]=useState(!summaryCache); const [refreshing,setRefreshing]=useState(false); const [selected,setSelected]=useState<AgentCenterItem|OliviaAgentRun>(); const [tab,setTab]=useState<"overview"|"chat">("chat");
+  // 모바일에서 채팅 아이콘을 누르면 매번 채팅이 먼저 보여야 한다 — 이 컴포넌트는 계속
+  // 마운트돼 있으므로(위 주석) 이전에 "업무 현황" 탭을 보다가 닫았으면 tab state가 그대로
+  // 남아있다. 열릴 때마다 채팅 탭으로 되돌린다(데스크톱은 이 tab이 레이아웃에 영향 없음).
+  useEffect(()=>{if(isOpen)setTab("chat")},[isOpen]);
   // 데스크톱 3단 분할 토글 — 기본은 채팅 패널만(70/30), 누르면 가운데 업무 현황 패널이 추가로
   // 열린다(50/20/30). 이 컴포넌트가 페이지 이동에도 계속 마운트돼 있으므로 별도 전역 스토어
   // 없이 로컬 state만으로 네비게이션 간 상태가 유지된다.
