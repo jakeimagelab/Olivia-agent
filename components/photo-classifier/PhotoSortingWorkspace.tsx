@@ -105,6 +105,9 @@ interface PersonGroup {
 ═══════════════════════════════════════════════ */
 const RAW_EXTS = new Set(["arw","cr3","cr2","nef","raf","dng","orf","rw2"]);
 const JPG_EXTS = new Set(["jpg","jpeg"]);
+// 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — handleFieldSort만
+// 이 id로 startJob을 부른다(스튜디오 모드 handleStudioSort는 범위 밖, 이 id로 등록 안 함).
+const PHOTO_CLASSIFY_JOB_ID = "photo-classify";
 const EMPTY_BOUNDARY_FEATURES = {
   timeGapScore: 0, personChangeScore: 0, locationChangeScore: 0, equipmentChangeScore: 0,
   poseChangeScore: 0, sceneTypeChangeScore: 0, visualChangeScore: 0, shotDistanceChangeScore: 0,
