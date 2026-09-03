@@ -58,3 +58,24 @@ export async function setClassificationCheckpoint<T>(jobId: string, checkpoint: 
 export async function clearClassificationCheckpoint(jobId: string) {
   try { await transact(JOB_STORE, "readwrite", (store) => store.delete(jobId)); } catch {}
 }
+
+// 폴더 지문 — 파일명/크기/mtime/개수로 만든다(스펙 30). 순서에 안 흔들리게 정렬 후 계산하고,
+// 파일이 수백~수천 개라 문자열을 그대로 키로 쓰면 너무 기니 간단한 32bit 체크섬으로 압축한다.
+export function folderFingerprint(rootName: string, files: Array<{ name: string; size: number; lastModified: number }>): string {
+  const sorted = [...files].sort((a, b) => a.name.localeCompare(b.name));
+  let hash = 0;
+  for (const file of sorted) {
+    const token = `${file.name}:${file.size}:${file.lastModified}`;
+    for (let index = 0; index < token.length; index += 1) hash = (hash * 31 + token.charCodeAt(index)) | 0;
+  }
+  return `${rootName}:${sorted.length}:${(hash >>> 0).toString(36)}`;
+}
+
+export async function getCachedPattern<T>(fingerprint: string): Promise<T | null> {
+  try { return (await transact<T | undefined>(PATTERN_STORE, "readonly", (store) => store.get(fingerprint))) ?? null; }
+  catch { return null; }
+}
+
+export async function setCachedPattern<T>(fingerprint: string, pattern: T) {
+  try { await transact(PATTERN_STORE, "readwrite", (store) => store.put(pattern, fingerprint)); } catch {}
+}
