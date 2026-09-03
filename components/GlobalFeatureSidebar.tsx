@@ -23,11 +23,14 @@ export default function GlobalFeatureSidebar({ children }: { children: React.Rea
   const isDashboard = pathname === "/";
   const isAdminArea = pathname === "/admin" || pathname?.startsWith("/admin/");
   const isStandalone = STANDALONE_PATH_PREFIXES.some((p) => pathname?.startsWith(p));
+  // OLIVIA OS Desktop(/desktop)도 대시보드/관리자 콘솔처럼 자기만의 전체화면 셸을 그린다 —
+  // 기존 아이콘 레일이 그 위에 겹치면 안 된다.
+  const isDesktopOS = pathname === "/desktop";
   // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
   // (PageHeader의 isSharedSession과 동일한 패턴).
   const [isShared, setIsShared] = useState(false);
   useEffect(() => { setIsShared(hasShareScope()); }, []);
-  const show = !isDashboard && !isAdminArea && !isStandalone && !isShared;
+  const show = !isDashboard && !isAdminArea && !isStandalone && !isDesktopOS && !isShared;
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobile, setMobile] = useState(false);
