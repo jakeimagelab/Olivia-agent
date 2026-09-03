@@ -72,6 +72,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </GlobalFeatureSidebar>
           </div>
           <OliviaWorkspaceShell />
+          <BackgroundJobsWidget />
         </div>
         <script dangerouslySetInnerHTML={{ __html: `
           document.addEventListener("click", function(e) {
