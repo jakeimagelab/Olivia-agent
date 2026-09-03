@@ -146,15 +146,15 @@
 .photoDelete { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border: 0; border-radius: 50%; background: rgba(16,63,60,.88); color: #fff; cursor: pointer; display: grid; place-items: center; }
 .photoAdd { display: grid; place-items: center; color: var(--green); }
 
-.templateGrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-.templateCard { display: grid; gap: 3px; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; }
-.templateThumb { position: relative; aspect-ratio: 4 / 5; border-radius: 6px; overflow: hidden; border: 1.5px solid var(--line); background: linear-gradient(155deg, #eef2f1, #dde7e4); }
+.templateGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.templateCard { display: grid; gap: 4px; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; }
+.templateThumb { position: relative; aspect-ratio: 4 / 5; border-radius: 8px; overflow: hidden; border: 1.5px solid var(--line); background: linear-gradient(155deg, #eef2f1, #dde7e4); }
 .templateThumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.templateThumbFallback { display: grid; place-items: center; width: 100%; height: 100%; color: #97ada8; font-size: 16px; font-weight: 800; }
+.templateThumbFallback { display: grid; place-items: center; width: 100%; height: 100%; color: #97ada8; font-size: 18px; font-weight: 800; }
 .templateCardSelected .templateThumb { border-color: var(--green); box-shadow: 0 0 0 2px rgba(21,88,85,.18); }
-.templateCheck { position: absolute; top: 2px; right: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; }
-.templateCheck svg { width: 8px; height: 8px; }
-.templateLabel { color: #58706b; font-size: 8.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.templateCheck { position: absolute; top: 4px; right: 4px; width: 15px; height: 15px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; }
+.templateCheck svg { width: 9px; height: 9px; }
+.templateLabel { color: #58706b; font-size: 9.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
 
 .generateBox { padding: 15px 16px 18px; background: #f6faf8; }
 .stepper { display: flex; align-items: center; justify-content: space-between; gap: 7px; margin: 11px 0; }
