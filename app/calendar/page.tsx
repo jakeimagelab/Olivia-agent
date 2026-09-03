@@ -9,6 +9,7 @@ import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { CALENDAR_REMINDER_LABEL, CALENDAR_REMINDER_MINUTES, reminderTimingPhrase, type CalendarReminderMinutes } from "@/lib/calendarReminders";
 import { parseClipboardTasks } from "@/lib/calendarPaste";
 import { categorizeByTitle } from "@/lib/calendarCategorize";
+import { useCalendarEmbedded } from "@/lib/calendarEmbedContext";
 import { getKoreanHoliday } from "@/lib/koreanHolidays";
 
 /* ─── types ──────────────────────────────────────────── */
