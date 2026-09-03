@@ -287,7 +287,7 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
       <div
         ref={canvasBoxRef}
         className={styles.canvas}
-        style={{ background: document.background, width: `${Math.round(document.width * scale)}px`, "--story-scale": scale } as React.CSSProperties}
+        style={{ background: document.background, width: `${Math.round(document.width * scale)}px` }}
         role="application"
         aria-label="리뷰 스토리 편집 캔버스"
       >
