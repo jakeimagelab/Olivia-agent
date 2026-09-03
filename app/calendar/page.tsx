@@ -2842,9 +2842,3 @@ export default function CalendarPage() {
     </main>
   );
 }
-
-export default function CalendarPage() {
-  return <CalendarPageContent />;
-}
-
-export { CalendarPageContent };
