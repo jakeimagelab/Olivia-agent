@@ -37,8 +37,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const db = getSupabaseAdmin();
   const body = await req.json();
-  const { date, title, memo, category, time, end_time, location } = body;
+  const { date, title, memo, time, end_time, location } = body;
   if (!date || !title) return NextResponse.json({ ok: false, error: "date, title 필수" }, { status: 400 });
+  // category를 명시적으로 안 보낸 호출부(Olivia 툴, 다른 통합 등)를 위한 안전망 — 항상 "general"로
+  // 뭉개지 않고 제목 키워드로 한 번 더 추측한다. 화면(app/calendar/page.tsx)은 이미 같은 함수로
+  // 입력하는 동안 미리 골라주므로 보통 여기까지 빈 값이 오지 않는다.
+  const category = body.category || categorizeByTitle(title);
   const reminderEnabled = body.reminder_enabled === true;
   const reminderMinutes = isCalendarReminderMinutes(body.reminder_minutes_before) ? Number(body.reminder_minutes_before) : 30;
   if (reminderEnabled && !time) {
