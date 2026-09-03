@@ -2621,112 +2621,158 @@ function PhotoSortingInner({
 
         {photoMode === "field" && (
           <>
-            {/* 폴더 선택 */}
-            <Card>
-              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>폴더 선택</div>
-              <div style={{padding:20}}>
-                <button onClick={pickDir} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
-                  {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 폴더 선택</>}
-                </button>
-              </div>
-            </Card>
+            <ClassificationModeToggle mode={classificationUiMode} onChange={setClassificationUiMode} />
 
-            {/* 진료과 선택 */}
-            <Card>
-              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>진료과 선택</div>
-              <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:12}}>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
-                  {DEPARTMENTS.map(d => (
-                    <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"10px 14px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.white,cursor:"pointer",fontSize:12,fontWeight:department===d.value?900:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
-                      {d.label}{department===d.value&&" ✓"}
-                    </button>
-                  ))}
+            {aiAutoActive ? (
+              <div className="pc-ai-auto-grid" style={{display:"grid",gridTemplateColumns:"280px 1fr 280px",gap:16,alignItems:"start"}}>
+                {/* LEFT — 폴더/진료과(간단) + 자연어 요청 */}
+                <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                  <Card>
+                    <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>폴더 선택</div>
+                    <div style={{padding:20}}>
+                      <button onClick={pickDir} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
+                        {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 폴더 선택</>}
+                      </button>
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>진료과 선택</div>
+                    <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:8}}>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                        {DEPARTMENTS.map(d => (
+                          <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"9px 10px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.white,cursor:"pointer",fontSize:11.5,fontWeight:department===d.value?900:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
+                            {d.label}{department===d.value&&" ✓"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+
+                  <ClassificationPrompt onSubmit={submitAiNlRequest} busy={aiRefining} history={aiRefinementHistory} />
                 </div>
-                {deptInfo[department] && (
-                  <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.7}}>
-                    {deptInfo[department]}
+
+                {/* CENTER — AI 분석 결과 + Scene 미리보기 + 시작 버튼 */}
+                <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                  <FolderAnalysisSummary analyzing={aiAnalyzing} pattern={aiShootingPattern} fileCount={aiScanFileCount} />
+                  <SceneProposalList proposals={aiSceneProposals} />
+                  {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
+                  <Btn onClick={handleFieldSort} disabled={!rootDir||!hasFS||aiAnalyzing}>AI 자동 분류 시작 →</Btn>
+                </div>
+
+                {/* RIGHT — 추천 기준(쉬운 말) + 고급 설정 진입 */}
+                <ClassificationProfilePanel profile={aiWeightProfile} onOpenAdvanced={() => setClassificationUiMode("advanced")} />
+              </div>
+            ) : (
+              <>
+                {/* 폴더 선택 */}
+                <Card>
+                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>폴더 선택</div>
+                  <div style={{padding:20}}>
+                    <button onClick={pickDir} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
+                      {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 폴더 선택</>}
+                    </button>
                   </div>
-                )}
-              </div>
-            </Card>
+                </Card>
 
-            {/* 강제 Scene 경계 시간 */}
-            <Card>
-              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>강제 Scene 경계 시간</div>
-              <div style={{padding:"14px 20px"}}>
-                <div style={{display:"flex",gap:8,marginBottom:10}}>
-                  {GAP_OPTIONS.map(g => (
-                    <button key={g} onClick={()=>setGapMinutes(g)} style={{flex:1,padding:"10px 0",borderRadius:8,border:`1.5px solid ${gapMinutes===g?C.teal:C.border}`,background:gapMinutes===g?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:gapMinutes===g?900:600,color:gapMinutes===g?C.teal:C.muted,fontFamily:"inherit"}}>
-                      {g===3.5 ? "3분30초" : `${g}분`}
-                    </button>
-                  ))}
-                </div>
-                <div style={{fontSize:11,color:C.hint}}>설정 시간을 넘으면 강제 분리합니다. 그 이내에서도 사람·장비·장소가 바뀌면 새 Scene으로 분리합니다.</div>
-              </div>
-            </Card>
-
-            {/* 분류 모드 */}
-            <Card>
-              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>분류 모드</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
-                {([
-                  ["fast",  "⚡ 빠른 분석",    "파일을 이동하지 않고 Scene 계획만 생성합니다.\nRAW는 원본 위치 유지. EXIF 생략. 10~30초 목표."],
-                  ["precise","🔍 정밀 분류",   "EXIF + 사람·장비·장소 변화 분석.\n검토·승인 전에는 파일을 이동하지 않습니다."],
-                ] as const).map(([val, title, desc]) => (
-                  <button key={val} onClick={()=>setFastAnalyzeMode(val==="fast")}
-                    style={{padding:"14px 18px",textAlign:"left",border:"none",borderRight:val==="fast"?`1px solid ${C.border}`:"none",background:fastAnalyzeMode===(val==="fast")?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
-                    <div style={{fontSize:13,fontWeight:900,color:fastAnalyzeMode===(val==="fast")?C.teal:C.muted,marginBottom:4}}>{title}{fastAnalyzeMode===(val==="fast")&&" ✓"}</div>
-                    <div style={{fontSize:10,color:C.hint,lineHeight:1.6,whiteSpace:"pre-line"}}>{desc}</div>
-                  </button>
-                ))}
-              </div>
-            </Card>
-
-            {/* 옵션 */}
-            <Card>
-              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>분류 옵션</div>
-              <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:18}}>
-                <Toggle label="진료과 로직 사용" desc="선택한 진료과에 맞는 장면 분류 기준을 적용합니다." value={departmentLogicEnabled} onChange={setDepartmentLogicEnabled}/>
-                <Toggle label="AI 씬 이름 추천" desc="대표 이미지를 분석해 진료과에 맞는 폴더명을 추천합니다. 자동 변경 없이 검토 화면에서 확인 후 적용합니다." value={aiNamingEnabled} onChange={setAiNamingEnabled}/>
-                <Toggle label="품질 분석" desc="흔들림, 조명불량 등 불량컷을 00_QUALITY_EXCLUDED/ 폴더로 분리합니다." value={qualityAnalysisEnabled} onChange={setQualityAnalysisEnabled}/>
-                <Toggle label="프로필 자동 분류 (엄격 모드)" desc="1인 단독·정면 응시·의도된 정지 포즈일 때만 PROFILE/ 폴더로 분류합니다. 상담/시술 장면은 제외됩니다." value={profileClassificationEnabled} onChange={setProfileClassificationEnabled}/>
-              </div>
-            </Card>
-
-            {/* RAW SELECT 방식 */}
-            <Card>
-              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>RAW SELECT 처리 방식</div>
-              <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:10}}>
-                <div className="ps-btn-row">
-                  {(["move","copy"] as const).map(m => (
-                    <button key={m} onClick={()=>setRawSelectMode(m)} style={{flex:1,padding:"12px 0",borderRadius:8,border:`1.5px solid ${rawSelectMode===m?C.teal:C.border}`,background:rawSelectMode===m?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:rawSelectMode===m?900:600,color:rawSelectMode===m?C.teal:C.muted,fontFamily:"inherit"}}>
-                      {m === "move" ? "이동 (권장)" : "복사"}
-                    </button>
-                  ))}
-                </div>
-                {rawSelectMode === "copy" && (
-                  <div style={{padding:"10px 14px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>
-                    ⚠️ RAW 파일을 복사하면 저장 용량이 크게 증가할 수 있습니다. 기본 권장 방식은 이동입니다.
+                {/* 진료과 선택 */}
+                <Card>
+                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>진료과 선택</div>
+                  <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:12}}>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+                      {DEPARTMENTS.map(d => (
+                        <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"10px 14px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.white,cursor:"pointer",fontSize:12,fontWeight:department===d.value?900:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
+                          {d.label}{department===d.value&&" ✓"}
+                        </button>
+                      ))}
+                    </div>
+                    {deptInfo[department] && (
+                      <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.7}}>
+                        {deptInfo[department]}
+                      </div>
+                    )}
                   </div>
-                )}
-                <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.9}}>
-                  <strong>결과 폴더 구조</strong><br/>
-                  {fastAnalyzeMode
-                    ? <>⚡ 빠른 분석 모드: 씬 계획 생성 → 검토 → [폴더 정리 실행] 시 실제 이동<br/></>
-                    : <>🔍 정밀 분류 모드: 하이브리드 Scene 계획 → 검토 → 승인 후 이동<br/></>
-                  }
-                  RAW/ — 전체 RAW 파일{fastAnalyzeMode ? " (정리 실행 후 이동)" : " (이동)"}<br/>
-                  JPG/Scene01/, Scene02/... — JPG 씬별 분류<br/>
-                  PROFILE/ — 프로필 사진 (1인·정면·정지 포즈만)<br/>
-                  SELECT/JPG_SELECT/ — 선택한 JPG<br/>
-                  SELECT/RAW_SELECT/ — 선택 RAW ({rawSelectMode === "move" ? "이동" : "복사"})<br/>
-                  REPORT/ — 분류 리포트 (summary.json, profile_report.csv)
-                </div>
-              </div>
-            </Card>
+                </Card>
 
-            {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
-            <Btn onClick={handleFieldSort} disabled={!rootDir||!hasFS}>현장촬영 분류 시작 →</Btn>
+                {/* 강제 Scene 경계 시간 */}
+                <Card>
+                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>강제 Scene 경계 시간</div>
+                  <div style={{padding:"14px 20px"}}>
+                    <div style={{display:"flex",gap:8,marginBottom:10}}>
+                      {GAP_OPTIONS.map(g => (
+                        <button key={g} onClick={()=>setGapMinutes(g)} style={{flex:1,padding:"10px 0",borderRadius:8,border:`1.5px solid ${gapMinutes===g?C.teal:C.border}`,background:gapMinutes===g?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:gapMinutes===g?900:600,color:gapMinutes===g?C.teal:C.muted,fontFamily:"inherit"}}>
+                          {g===3.5 ? "3분30초" : `${g}분`}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{fontSize:11,color:C.hint}}>설정 시간을 넘으면 강제 분리합니다. 그 이내에서도 사람·장비·장소가 바뀌면 새 Scene으로 분리합니다.</div>
+                  </div>
+                </Card>
+
+                {/* 분류 모드 */}
+                <Card>
+                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>분류 모드</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+                    {([
+                      ["fast",  "⚡ 빠른 분석",    "파일을 이동하지 않고 Scene 계획만 생성합니다.\nRAW는 원본 위치 유지. EXIF 생략. 10~30초 목표."],
+                      ["precise","🔍 정밀 분류",   "EXIF + 사람·장비·장소 변화 분석.\n검토·승인 전에는 파일을 이동하지 않습니다."],
+                    ] as const).map(([val, title, desc]) => (
+                      <button key={val} onClick={()=>setFastAnalyzeMode(val==="fast")}
+                        style={{padding:"14px 18px",textAlign:"left",border:"none",borderRight:val==="fast"?`1px solid ${C.border}`:"none",background:fastAnalyzeMode===(val==="fast")?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
+                        <div style={{fontSize:13,fontWeight:900,color:fastAnalyzeMode===(val==="fast")?C.teal:C.muted,marginBottom:4}}>{title}{fastAnalyzeMode===(val==="fast")&&" ✓"}</div>
+                        <div style={{fontSize:10,color:C.hint,lineHeight:1.6,whiteSpace:"pre-line"}}>{desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </Card>
+
+                {/* 옵션 */}
+                <Card>
+                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>분류 옵션</div>
+                  <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:18}}>
+                    <Toggle label="진료과 로직 사용" desc="선택한 진료과에 맞는 장면 분류 기준을 적용합니다." value={departmentLogicEnabled} onChange={setDepartmentLogicEnabled}/>
+                    <Toggle label="AI 씬 이름 추천" desc="대표 이미지를 분석해 진료과에 맞는 폴더명을 추천합니다. 자동 변경 없이 검토 화면에서 확인 후 적용합니다." value={aiNamingEnabled} onChange={setAiNamingEnabled}/>
+                    <Toggle label="품질 분석" desc="흔들림, 조명불량 등 불량컷을 00_QUALITY_EXCLUDED/ 폴더로 분리합니다." value={qualityAnalysisEnabled} onChange={setQualityAnalysisEnabled}/>
+                    <Toggle label="프로필 자동 분류 (엄격 모드)" desc="1인 단독·정면 응시·의도된 정지 포즈일 때만 PROFILE/ 폴더로 분류합니다. 상담/시술 장면은 제외됩니다." value={profileClassificationEnabled} onChange={setProfileClassificationEnabled}/>
+                  </div>
+                </Card>
+
+                {/* RAW SELECT 방식 */}
+                <Card>
+                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>RAW SELECT 처리 방식</div>
+                  <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:10}}>
+                    <div className="ps-btn-row">
+                      {(["move","copy"] as const).map(m => (
+                        <button key={m} onClick={()=>setRawSelectMode(m)} style={{flex:1,padding:"12px 0",borderRadius:8,border:`1.5px solid ${rawSelectMode===m?C.teal:C.border}`,background:rawSelectMode===m?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:rawSelectMode===m?900:600,color:rawSelectMode===m?C.teal:C.muted,fontFamily:"inherit"}}>
+                          {m === "move" ? "이동 (권장)" : "복사"}
+                        </button>
+                      ))}
+                    </div>
+                    {rawSelectMode === "copy" && (
+                      <div style={{padding:"10px 14px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>
+                        ⚠️ RAW 파일을 복사하면 저장 용량이 크게 증가할 수 있습니다. 기본 권장 방식은 이동입니다.
+                      </div>
+                    )}
+                    <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.9}}>
+                      <strong>결과 폴더 구조</strong><br/>
+                      {fastAnalyzeMode
+                        ? <>⚡ 빠른 분석 모드: 씬 계획 생성 → 검토 → [폴더 정리 실행] 시 실제 이동<br/></>
+                        : <>🔍 정밀 분류 모드: 하이브리드 Scene 계획 → 검토 → 승인 후 이동<br/></>
+                      }
+                      RAW/ — 전체 RAW 파일{fastAnalyzeMode ? " (정리 실행 후 이동)" : " (이동)"}<br/>
+                      JPG/Scene01/, Scene02/... — JPG 씬별 분류<br/>
+                      PROFILE/ — 프로필 사진 (1인·정면·정지 포즈만)<br/>
+                      SELECT/JPG_SELECT/ — 선택한 JPG<br/>
+                      SELECT/RAW_SELECT/ — 선택 RAW ({rawSelectMode === "move" ? "이동" : "복사"})<br/>
+                      REPORT/ — 분류 리포트 (summary.json, profile_report.csv)
+                    </div>
+                  </div>
+                </Card>
+
+                {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
+                <Btn onClick={handleFieldSort} disabled={!rootDir||!hasFS}>현장촬영 분류 시작 →</Btn>
+              </>
+            )}
           </>
         )}
 
