@@ -61,6 +61,14 @@ describe("buildRawIndex — RAW 폴더 재귀 스캔", () => {
     expect(Array.from(index.keys()).sort()).toEqual(["a001", "b002"]);
   });
 
+  it("각 항목은 원본을 삭제할 수 있게 부모 dirHandle도 함께 담는다(이동 지원용)", async () => {
+    const root = dir("RAW", [dir("scene1", [file("A001.nef")])]);
+    const index = await buildRawIndex(wrapHandle(root), null);
+    const entry = index.get("a001");
+    expect(entry?.fileHandle.name).toBe("A001.nef");
+    expect(entry?.dirHandle.name).toBe("scene1");
+  });
+
   it("Selected_RAW 출력 폴더는 스킵한다", async () => {
     const root = dir("RAW", [file("A001.nef"), dir("Selected_RAW", [file("A001.nef")])]);
     const index = await buildRawIndex(wrapHandle(root), null);
