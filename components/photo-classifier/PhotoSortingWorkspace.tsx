@@ -854,6 +854,101 @@ function PhotoSortingInner({
     catch (_) {}
   };
 
+  // AI 사진 분류 2.0 — 폴더를 고르면 실제 정밀 분류(handleFieldSort, Vision 호출 포함)를 돌리기
+  // 전에 먼저 가볍게 "이번 촬영엔 뭐가 중요한지" 물어본다. 이미지 전송 없음(메타데이터+이미
+  // 캐시된 시각 feature만) — 새 Vision 호출·새 feature 추출 전부 안 함(스펙 §6/§29/§30).
+  // 결과(weights/threshold)는 handleFieldSort가 그대로 받아쓸 뿐, 엔진 자체는 그대로다.
+  const runAiFolderAnalysis = useCallback(async () => {
+    if (!rootDir) return;
+    setAiAnalyzing(true);
+    setAiShootingPattern(null);
+    setAiSceneProposals([]);
+    try {
+      const entries: { name: string; mtime: number; file: File }[] = [];
+      for await (const [name, handle] of (rootDir as any).entries()) {
+        if (handle.kind !== "file") continue;
+        const ext = name.split(".").pop()?.toLowerCase() ?? "";
+        if (!JPG_EXTS.has(ext)) continue;
+        const file = await (handle as FileSystemFileHandle).getFile();
+        const exif = await readPhotoTimestamp(file);
+        entries.push({ name, mtime: exif?.timestamp ?? file.lastModified, file });
+      }
+      entries.sort((a, b) => a.mtime - b.mtime);
+      aiScanEntriesRef.current = entries;
+      setAiScanFileCount(entries.length);
+      if (!entries.length) return;
+
+      const fingerprint = folderFingerprint(rootDir.name, entries.map((entry) => ({ name: entry.name, size: entry.file.size, lastModified: entry.file.lastModified })));
+      const cachedPattern = await getCachedPattern<FolderShootingPattern>(fingerprint);
+      if (cachedPattern) {
+        setAiShootingPattern(cachedPattern);
+        setAiWeightProfile(cachedPattern.profile);
+        setAiSceneProposals(await buildQuickProposals(entries, cachedPattern.profile.absoluteTimeGapMinutes ?? gapMinutes));
+        return;
+      }
+
+      const cachedFeatures = (await Promise.all(
+        entries.map((entry) => getCachedFeature(featureCacheKey(rootDir.name, entry.file))),
+      )).filter((feature): feature is LocalVisualFeatures => Boolean(feature));
+      const stats = computeFolderStats(entries.map((entry) => entry.mtime), cachedFeatures, 1);
+
+      const response = await fetch("/api/photo-classification-pattern", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ department, stats }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error ?? "폴더 분석 실패");
+      const pattern = data.pattern as FolderShootingPattern;
+      setAiShootingPattern(pattern);
+      setAiWeightProfile(pattern.profile);
+      await setCachedPattern(fingerprint, pattern);
+      setAiSceneProposals(await buildQuickProposals(entries, pattern.profile.absoluteTimeGapMinutes ?? gapMinutes));
+    } catch (error) {
+      console.error("[ai-folder-analysis]", error);
+    } finally {
+      setAiAnalyzing(false);
+    }
+  }, [rootDir, department, gapMinutes]);
+
+  useEffect(() => {
+    if (!rootDir || photoMode !== "field" || classificationUiMode !== "ai-auto") return;
+    runAiFolderAnalysis();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootDir, photoMode, classificationUiMode]);
+
+  // 자연어 재조정 — 화이트리스트 필드(ClassificationOverrides)만 파싱해 현재 profile에 머지한다
+  // (스펙 §20, 임의 코드 실행 없음). Step0에서 아직 분류 전이면 미리보기만 갱신하고, 이미 결과를
+  // 검토 중이면(step>=1) handleFieldSort를 다시 돌린다 — 체크포인트 캐시가 이전 AI 분석 결과를
+  // weights만 바꿔 재사용하므로(boundary-score.ts) 이 재실행은 새 Vision 호출을 만들지 않는다.
+  const submitAiNlRequest = useCallback(async (message: string) => {
+    setAiRefining(true);
+    try {
+      const response = await fetch("/api/photo-classification-nl-override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, context: aiRefinementHistory.length ? aiRefinementHistory.join(" / ") : undefined }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error ?? "요청을 이해하지 못했습니다.");
+      const base = aiWeightProfile ?? DEFAULT_WEIGHT_PROFILE;
+      const overrides = data.overrides as ClassificationOverrides;
+      let next = applyOverrides(base, overrides);
+      if (data.granularity === "coarser" || data.granularity === "finer") next = adjustGranularity(next, data.granularity);
+      setAiWeightProfile(next);
+      setAiRefinementHistory((previous) => [...previous, message]);
+      if (aiScanEntriesRef.current.length) {
+        setAiSceneProposals(await buildQuickProposals(aiScanEntriesRef.current, next.absoluteTimeGapMinutes ?? gapMinutes));
+      }
+      if (step >= 1) await handleFieldSort();
+    } catch (error) {
+      console.error("[ai-nl-override]", error);
+    } finally {
+      setAiRefining(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiWeightProfile, aiRefinementHistory, gapMinutes, step]);
+
   const stepLabels = photoMode === "studio"
     ? (studioSubMode === "group" ? STUDIO_GROUP_STEPS : STUDIO_STEPS)
     : FIELD_STEPS;
