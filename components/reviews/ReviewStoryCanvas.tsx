@@ -108,11 +108,10 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
   };
 
   return (
-    <div className={styles.stage} onPointerDown={() => onSelect(null)}>
+    <div ref={stageRef} className={styles.stage} onPointerDown={() => onSelect(null)}>
       <div
-        ref={canvasRef}
         className={styles.canvas}
-        style={{ background: document.background, width: `${Math.max(30, Math.min(100, zoom))}%`, "--story-scale": scale } as React.CSSProperties}
+        style={{ background: document.background, width: `${Math.round(document.width * scale)}px`, "--story-scale": scale } as React.CSSProperties}
         role="application"
         aria-label="리뷰 스토리 편집 캔버스"
       >
