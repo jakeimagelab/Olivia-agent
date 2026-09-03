@@ -18,7 +18,7 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
   const setBlockState = useOliviaConversationStore((s) => s.setClientTaskBlockState);
   const appendMessage = useOliviaConversationStore((s) => s.appendMessage);
 
-  const rawIndexRef = useRef<Map<string, FileSystemFileHandle>>(new Map());
+  const rawIndexRef = useRef<Map<string, RawIndexEntry>>(new Map());
   const cancelRef = useRef(false);
   const [textValue, setTextValue] = useState("");
   const [inputMode, setInputMode] = useState<"folder" | "text" | "upload">("folder");
