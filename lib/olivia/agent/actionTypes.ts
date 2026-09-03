@@ -52,6 +52,12 @@ export type OliviaUiAction =
   | { type: "RENAME_PHOTO_SCENE"; sceneIndex: number; newName: string }
   | { type: "MERGE_PHOTO_SCENES"; sceneIndexA: number; sceneIndexB: number }
   | { type: "SPLIT_PHOTO_SCENE"; sceneIndex: number; offset: number }
+  // AI 사진 분류 2.0(스펙 §35/36) — 위 RENAME/MERGE/SPLIT_PHOTO_SCENE과 같은 이유로 지금 열려
+  // 있는 PhotoSortingWorkspace 인스턴스의 함수를 직접 호출한다. START는 이미 폴더가 선택된
+  // 인스턴스에서만 실제로 분류를 실행하고(폴더 선택창을 대신 열 수 없음, 브라우저 제약),
+  // REFINE은 자연어를 화이트리스트 override로 파싱해 기존 결과를 다시 반영한다.
+  | { type: "START_AI_PHOTO_CLASSIFICATION" }
+  | { type: "REFINE_PHOTO_CLASSIFICATION"; message: string }
   | { type: "OPEN_FEATURE"; href: string }
   | {
       type: "REQUEST_APPROVAL";
