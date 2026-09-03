@@ -15,6 +15,7 @@ import {
   buildRawIndex as buildRawIndexPure,
   copyFileHandle,
   computePreflight,
+  type RawIndexEntry,
 } from "@/lib/selectMatch/rawIndex";
 import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
 
