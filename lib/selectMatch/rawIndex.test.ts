@@ -104,7 +104,7 @@ describe("copyFileHandle — 파일 복사", () => {
 describe("computePreflight — 매칭 예상치 계산", () => {
   it("선택된 이름 중 RAW 인덱스에 있는 것만 매칭으로 센다", () => {
     const selected = new Set(["a", "b", "c"]);
-    const rawIndex = new Map([["a", {} as FileSystemFileHandle], ["c", {} as FileSystemFileHandle]]);
+    const rawIndex = new Map([["a", {} as RawIndexEntry], ["c", {} as RawIndexEntry]]);
     const pf = computePreflight(selected, rawIndex);
     expect(pf).toMatchObject({ rawFound: 2, willMatch: 2, willMiss: 1 });
   });
@@ -116,7 +116,7 @@ describe("computePreflight — 매칭 예상치 계산", () => {
 
   it("샘플은 최대 4개까지만 담는다", () => {
     const selected = new Set(["a", "b", "c", "d", "e", "f"]);
-    const rawIndex = new Map(["a", "b", "c", "d", "e"].map((k) => [k, {} as FileSystemFileHandle]));
+    const rawIndex = new Map(["a", "b", "c", "d", "e"].map((k) => [k, {} as RawIndexEntry]));
     const pf = computePreflight(selected, rawIndex);
     expect(pf.jpgSamples).toHaveLength(4);
     expect(pf.rawSamples).toHaveLength(4);
