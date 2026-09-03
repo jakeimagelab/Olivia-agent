@@ -664,6 +664,10 @@ function PhotoSortingInner({
   const [aiAnalyzing,          setAiAnalyzing]          = useState(false);
   const [aiRefining,           setAiRefining]           = useState(false);
   const [aiRefinementHistory,  setAiRefinementHistory]  = useState<string[]>([]);
+  const [aiSceneProposals,     setAiSceneProposals]     = useState<SceneProposal[]>([]);
+  const [aiScanFileCount,      setAiScanFileCount]      = useState(0);
+  // NL 재조정 시 폴더를 다시 스캔하지 않고 미리보기만 재계산하기 위한 스캔 결과 캐시(ref라 리렌더 유발 안 함)
+  const aiScanEntriesRef = useRef<{ name: string; mtime: number; file: File }[]>([]);
 
   /* ── 셀렉 & 매칭 탭 state ── */
   const [selectTabView,          setSelectTabView]          = useState<"guide"|"select">("guide");
