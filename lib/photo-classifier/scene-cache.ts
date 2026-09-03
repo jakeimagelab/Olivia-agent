@@ -1,9 +1,12 @@
 import type { LocalVisualFeatures } from "./hybrid-types";
 
 const DB_NAME = "olivia-photo-classification";
-const DB_VERSION = 1;
+// AI 사진 분류 2.0 — 폴더 패턴 프로필 캐시용 store 추가로 버전 2로 올림(onupgradeneeded가
+// 기존 features/jobs store는 그대로 두고 patterns store만 새로 만든다 — 기존 캐시 유지).
+const DB_VERSION = 2;
 const FEATURE_STORE = "features";
 const JOB_STORE = "jobs";
+const PATTERN_STORE = "patterns";
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -12,6 +15,7 @@ function openDatabase(): Promise<IDBDatabase> {
       const database = request.result;
       if (!database.objectStoreNames.contains(FEATURE_STORE)) database.createObjectStore(FEATURE_STORE);
       if (!database.objectStoreNames.contains(JOB_STORE)) database.createObjectStore(JOB_STORE);
+      if (!database.objectStoreNames.contains(PATTERN_STORE)) database.createObjectStore(PATTERN_STORE);
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
