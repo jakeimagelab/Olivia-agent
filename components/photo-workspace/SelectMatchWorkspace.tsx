@@ -204,9 +204,17 @@ export function SelectMatchWorkspace({
   // 일이 없게 한다.
   const [rawSelectMode, setRawSelectMode] = useState<"move" | "copy">("copy");
   const [log,        setLog]        = useState<string[]>([]);
-  const [progress,   setProgress]   = useState({ cur: 0, total: 0, msg: "" });
+  const [progress,   setProgressState] = useState({ cur: 0, total: 0, msg: "" });
   const [result,     setResult]     = useState({ matched: 0, missing: 0, selected: 0 });
   const cancelRef = useRef(false);
+
+  // RAW 매칭이 다른 페이지로 이동해도 우상단 팝업에 계속 보이게(BackgroundJobsWidget) — 로컬
+  // state를 그대로 두고 전역 스토어에도 같이 반영만 한다. runMatch 안의 기존 setProgress(...)
+  // 호출부는 이름이 그대로라 하나도 안 건드려도 된다.
+  const setProgress = useCallback((next: { cur: number; total: number; msg: string }) => {
+    setProgressState(next);
+    useBackgroundJobsStore.getState().updateJob(RAW_MATCH_JOB_ID, next);
+  }, []);
 
   // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
   const [hasFS, setHasFS] = useState(false);
