@@ -962,9 +962,14 @@ function PhotoSortingInner({
     classificationAbortRef.current?.abort();
     const abortController = new AbortController();
     classificationAbortRef.current = abortController;
+    // AI 사진 분류 2.0 — aiWeightProfile이 있으면(=Step0에서 AI 자동 분류로 폴더를 분석했으면)
+    // 하드갭 분/threshold를 그 프로필로 덮어쓴다. 없으면(고급 설정 모드거나 아직 분석 전) 기존
+    // 그대로 gapMinutes/부서 프리셋만 사용 — 동작이 100% 예전과 같다(회귀 없음).
+    const effectiveGapMinutes = aiWeightProfile?.absoluteTimeGapMinutes ?? gapMinutes;
     const preciseSettings = {
       ...getClassificationSettings(department === "dermatology" ? "dermatology" : "default", "precise"),
-      hardGapMinutes: gapMinutes,
+      hardGapMinutes: effectiveGapMinutes,
+      ...(aiWeightProfile ? { splitThreshold: aiWeightProfile.splitThreshold, reviewThreshold: aiWeightProfile.reviewThreshold } : {}),
     };
 
     // ① 스캔
