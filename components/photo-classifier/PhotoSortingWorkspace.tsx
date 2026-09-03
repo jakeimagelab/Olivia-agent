@@ -656,6 +656,15 @@ function PhotoSortingInner({
   const [dismissedCandidates,        setDismissedCandidates]        = useState<Set<string>>(new Set());
   const [mergeDecisions,             setMergeDecisions]             = useState<MergeDecision[]>([]);
 
+  /* ── AI 사진 분류 2.0 — Step0의 "AI 자동 분류" 탭 상태(기존 필드 분류 엔진은 그대로,
+     이 상태들은 그 엔진에 넘길 동적 weights/threshold만 들고 있다) ── */
+  const [classificationUiMode, setClassificationUiMode] = useState<ClassificationUiMode>("ai-auto");
+  const [aiWeightProfile,      setAiWeightProfile]      = useState<SceneWeightProfile | null>(null);
+  const [aiShootingPattern,    setAiShootingPattern]    = useState<FolderShootingPattern | null>(null);
+  const [aiAnalyzing,          setAiAnalyzing]          = useState(false);
+  const [aiRefining,           setAiRefining]           = useState(false);
+  const [aiRefinementHistory,  setAiRefinementHistory]  = useState<string[]>([]);
+
   /* ── 셀렉 & 매칭 탭 state ── */
   const [selectTabView,          setSelectTabView]          = useState<"guide"|"select">("guide");
   const [inAppSelected,          setInAppSelected]          = useState<Set<string>>(new Set());
