@@ -694,6 +694,11 @@ function PhotoSortingInner({
   const [aiScanFileCount,      setAiScanFileCount]      = useState(0);
   // NL 재조정 시 폴더를 다시 스캔하지 않고 미리보기만 재계산하기 위한 스캔 결과 캐시(ref라 리렌더 유발 안 함)
   const aiScanEntriesRef = useRef<{ name: string; mtime: number; file: File }[]>([]);
+  // Olivia Chat이 "분류했어요"라고 말해도 되는 시점을 정직하게 판단하려고(스펙 §37/44) fieldScenes를
+  // 그대로 미러링한다 — handleFieldSort는 비동기라 await 직후 클로저의 fieldScenes가 아니라
+  // 이 ref로 최신 값을 읽어야 한다.
+  const fieldScenesRef = useRef<FieldScene[]>([]);
+  useEffect(() => { fieldScenesRef.current = fieldScenes; }, [fieldScenes]);
 
   /* ── 셀렉 & 매칭 탭 state ── */
   const [selectTabView,          setSelectTabView]          = useState<"guide"|"select">("guide");
