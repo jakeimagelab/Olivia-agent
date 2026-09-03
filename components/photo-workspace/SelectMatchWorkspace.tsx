@@ -1162,8 +1162,8 @@ export function SelectMatchWorkspace({
             ))}
           </div>
           <div style={{ background: C.light, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9, marginBottom: 16 }}>
-            📁 <strong style={{ color: C.teal }}>Selected_RAW/</strong> — 매칭 RAW 복사 완료<br />
-            <span style={{ color: C.hint }}>원본 RAW 파일은 삭제되지 않았습니다.</span>
+            📁 <strong style={{ color: C.teal }}>Selected_RAW/</strong> — 매칭 RAW {rawSelectMode === "move" ? "이동" : "복사"} 완료<br />
+            <span style={{ color: C.hint }}>{rawSelectMode === "move" ? "원본 RAW 파일은 삭제되었습니다." : "원본 RAW 파일은 삭제되지 않았습니다."}</span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <Btn variant="secondary" onClick={() => { setStep("ready"); setLog([]); }}>← 다시 선택</Btn>
