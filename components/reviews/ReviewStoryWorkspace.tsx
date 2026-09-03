@@ -153,6 +153,23 @@ export default function ReviewStoryWorkspace() {
   const [source, setSource] = useState({ hospitalName: "", doctorName: "", date: "", reviewText: "" });
   const [rightTab, setRightTab] = useState<"props" | "style">("props");
   const [lockAspectRatio, setLockAspectRatio] = useState(false);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const [workspaceHeight, setWorkspaceHeight] = useState<number | null>(null);
+
+  // 위(GlobalHeader/PcrmSubNav) 높이가 "고객관리와 연결되지 않은 신규 작업입니다" 배너처럼
+  // 조건부로 나타나는 요소 때문에 고정값이 아니다 — CSS calc(100dvh - Npx)로 고정폭을 빼면
+  // 배너가 뜰 때마다 어긋난다. 실제 뷰포트에서 이 요소가 시작하는 y좌표를 재서 남은 높이를
+  // 직접 계산하면 위쪽 chrome이 얼마나 늘어나든 페이지 스크롤 없이 항상 맞는다.
+  useEffect(() => {
+    const node = workspaceRef.current;
+    if (!node) return;
+    const update = () => setWorkspaceHeight(window.innerHeight - node.getBoundingClientRect().top);
+    update();
+    window.addEventListener("resize", update);
+    const observer = new ResizeObserver(update);
+    observer.observe(document.body);
+    return () => { window.removeEventListener("resize", update); observer.disconnect(); };
+  }, []);
 
   const activeContent = useMemo(() => contents.find((item) => item.id === activeContentId) || null, [contents, activeContentId]);
   const activePage = useMemo(() => pages.find((page) => page.id === activePageId) || pages[0] || null, [pages, activePageId]);
