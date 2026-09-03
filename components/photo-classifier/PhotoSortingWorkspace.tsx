@@ -1281,7 +1281,7 @@ function PhotoSortingInner({
     if (fastAnalyzeMode && (aiNamingEnabled || departmentLogicEnabled) && newScenes.length > 0) {
       runSceneAiAnalysis(newScenes);
     }
-  }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal]);
+  }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal, aiWeightProfile]);
 
   // 피부과 2차 분리: 강한 전환 신호 감지
   const isDermatologyStrongTransition = (
