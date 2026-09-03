@@ -162,6 +162,31 @@ async function loadThumb(file: File, size = 120): Promise<string | null> {
   });
 }
 
+// AI 사진 분류 2.0 — Step0 "AI 자동 분류" 화면의 즉석 미리보기. 실제 boundary AI 검증(Vision
+// API)은 전혀 쓰지 않고, 이미 스캔해둔 시간(mtime)만으로 기존 fast-mode와 동일한 하드갭 규칙을
+// 적용한다 — 그래서 이 미리보기는 무료지만 근사치다(실제 분류는 handleFieldSort가 다시 돈다).
+const AI_PREVIEW_MAX_SCENES = 24;
+async function buildQuickProposals(entries: { name: string; mtime: number; file: File }[], gapMinutes: number): Promise<SceneProposal[]> {
+  if (!entries.length) return [];
+  const gapMs = gapMinutes * 60 * 1000;
+  const groups: (typeof entries)[] = [[entries[0]]];
+  for (let index = 1; index < entries.length; index += 1) {
+    if (entries[index].mtime - entries[index - 1].mtime > gapMs) groups.push([entries[index]]);
+    else groups[groups.length - 1].push(entries[index]);
+  }
+  const limited = groups.slice(0, AI_PREVIEW_MAX_SCENES);
+  return Promise.all(limited.map(async (group, index) => ({
+    id: `quick-${index}`,
+    startIndex: index,
+    endIndex: index,
+    fileCount: group.length,
+    startTime: new Date(group[0].mtime).toISOString(),
+    endTime: new Date(group[group.length - 1].mtime).toISOString(),
+    representativeFiles: [await loadThumb(group[0].file, 80)].filter((url): url is string => Boolean(url)),
+    reasons: ["시간 간격 기준(예상)"],
+  })));
+}
+
 // 영상 파일과 마찬가지로 RAW도 수십~수백 MB일 수 있어 arrayBuffer()로 전체를 메모리에
 // 올리지 않고 스트리밍으로 복사한다.
 async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
