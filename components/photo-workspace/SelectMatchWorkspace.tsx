@@ -459,6 +459,7 @@ export function SelectMatchWorkspace({
     }
     setResult({ matched, missing, selected: selected.size });
     setStep("done");
+    useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, cancelRef.current ? "cancelled" : "done");
   }, [rootDir, rawRootDir, selected, buildRawIndex, rawIndexRef, rawSelectMode]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
