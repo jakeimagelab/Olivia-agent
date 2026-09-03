@@ -646,8 +646,16 @@ function PhotoSortingInner({
   const [photoMode,  setPhotoMode]  = useState<PhotoMode>("field");
   const [step,       setStep]       = useState(0);
   const [rootDir,    setRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
-  const [progress,   setProgress]   = useState({ cur:0, total:0, msg:"" });
+  const [progress,   setProgressState] = useState({ cur:0, total:0, msg:"" });
   const cancelRef = useRef(false);
+  // 사진 분류(handleFieldSort)가 다른 페이지로 이동해도 우상단 팝업에 계속 보이게
+  // (BackgroundJobsWidget) — 로컬 state는 그대로 두고 전역 스토어에도 같이 반영만 한다.
+  // handleFieldSort 안의 기존 setProgress(...) 호출부는 이름이 그대로라 하나도 안 건드려도 된다.
+  // (스튜디오 모드 handleStudioSort는 startJob을 안 부르므로 이 미러링은 조용히 no-op된다.)
+  const setProgress = useCallback((next: { cur: number; total: number; msg: string }) => {
+    setProgressState(next);
+    useBackgroundJobsStore.getState().updateJob(PHOTO_CLASSIFY_JOB_ID, next);
+  }, []);
   // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
   const [hasFS, setHasFS] = useState(false);
   useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
