@@ -1573,12 +1573,30 @@ function PhotoSortingInner({
     return true;
   }, [fieldScenes, rootDir]);
 
+  // AI 사진 분류 2.0 — Olivia Chat이 "지금 열려 있는 화면"에서 AI 자동 분류를 실행/재조정하게
+  // 하는 채팅 전용 래퍼(스펙 §35/36). rename/merge/splitFieldScene과 달리 둘 다 비동기라(네트워크
+  // 호출 포함) 완료를 기다렸다가 실제 결과(fieldScenesRef)를 함께 돌려준다 — 그래야 채팅이
+  // "분류했습니다"를 실제 grouping 결과가 있을 때만 말할 수 있다(스펙 §37/44).
+  const startAiClassificationForChat = useCallback(async (): Promise<{ ok: boolean; reason?: string; sceneCount?: number }> => {
+    if (!rootDir) return { ok: false, reason: "먼저 화면에서 폴더를 선택해주세요." };
+    await handleFieldSort();
+    return { ok: true, sceneCount: fieldScenesRef.current.length };
+  }, [rootDir, handleFieldSort]);
+
+  const submitAiNlRequestForChat = useCallback(async (message: string): Promise<{ ok: boolean; sceneCount?: number }> => {
+    await submitAiNlRequest(message);
+    return { ok: true, sceneCount: fieldScenesRef.current.length };
+  }, [submitAiNlRequest]);
+
   // PHASE 4(2026-08-30) — 채팅 도구(rename/merge/split_photo_scene)가 이 Workspace가 실제로
   // 열려 있을 때만 씬 편집을 실행할 수 있게, 지금 마운트된 인스턴스의 최신 함수를 등록해둔다
   // (useContractPdfHandlerStore와 동일 패턴). 언마운트되면 등록을 해제한다.
   useEffect(() => {
     if (isModal) {
-      const bundle = { renameScene: renameFieldScene, mergeScenes: mergeFieldScenes, splitScene: splitFieldScene };
+      const bundle = {
+        renameScene: renameFieldScene, mergeScenes: mergeFieldScenes, splitScene: splitFieldScene,
+        startAiClassification: startAiClassificationForChat, submitNlRequest: submitAiNlRequestForChat,
+      };
       usePhotoClassificationActionsStore.getState().registerActions(bundle);
       return () => {
         if (usePhotoClassificationActionsStore.getState().actions === bundle) {
@@ -1586,7 +1604,7 @@ function PhotoSortingInner({
         }
       };
     }
-  }, [isModal, renameFieldScene, mergeFieldScenes, splitFieldScene]);
+  }, [isModal, renameFieldScene, mergeFieldScenes, splitFieldScene, startAiClassificationForChat, submitAiNlRequestForChat]);
 
   const approveFieldScene = useCallback((sceneIndex: number) => {
     setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, approved: true } : scene));
