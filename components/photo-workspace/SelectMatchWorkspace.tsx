@@ -27,6 +27,10 @@ const C = {
   txt: "#1C2B28", light: "#EAF4F2", bg: "#EDF5F3", red: "#DC2626",
 };
 
+// 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
+// 재시작해도 이전 항목을 덮어쓴다.
+const RAW_MATCH_JOB_ID = "raw-match";
+
 const MOBILE_CONVERT_DOWNLOAD = "/assets/tools/mobile-convert/PhotoClinicMobile1500_fixed.zip";
 const PROGRAM_ARCHIVE_ITEMS = [
   {
