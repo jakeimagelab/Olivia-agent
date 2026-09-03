@@ -71,16 +71,18 @@ export function AppWindow({ windowId, minWidth = 420, minHeight = 320, children 
       role="region"
       aria-label={win.title}
     >
-      <WindowHeader
-        title={win.title}
-        onPointerDown={withInteractionGuard(beginDrag)}
-        onDoubleClick={toggleMaximize}
-        onClose={() => closeWindow(windowId)}
-        onMinimize={() => minimizeWindow(windowId)}
-        onToggleMaximize={toggleMaximize}
-      />
-      <div className={styles.content}>
-        <AppWindowErrorBoundary appTitle={win.title}>{children}</AppWindowErrorBoundary>
+      <div className={styles.body}>
+        <WindowHeader
+          title={win.title}
+          onPointerDown={withInteractionGuard(beginDrag)}
+          onDoubleClick={toggleMaximize}
+          onClose={() => closeWindow(windowId)}
+          onMinimize={() => minimizeWindow(windowId)}
+          onToggleMaximize={toggleMaximize}
+        />
+        <div className={styles.content}>
+          <AppWindowErrorBoundary appTitle={win.title}>{children}</AppWindowErrorBoundary>
+        </div>
       </div>
       {!win.maximized && (
         <>
