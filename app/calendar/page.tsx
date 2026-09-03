@@ -2386,7 +2386,10 @@ function YearView({ year, todayStr, tasksByDate, selectedDate, onSelectDate, onP
 }
 
 /* ─── CalendarPage ────────────────────────────────────── */
-export default function CalendarPage() {
+// embedded: OLIVIA OS Desktop의 AppWindow 안에 마운트될 때 true로 넘어온다 — (client-hub)의
+// 고객관리 페이지와 달리 이 페이지는 GlobalHeader를 직접 그리므로, 창 안에서는 그 호출만
+// 건너뛴다. 기본값 false라 기존 /calendar 방문(prop 없음)은 전혀 바뀌지 않는다.
+export default function CalendarPage({ embedded = false }: { embedded?: boolean } = {}) {
   const today    = new Date();
   const todayStr = toYMD(today);
 
