@@ -20,7 +20,10 @@ function resolvePhotoSceneNumber(input: Record<string, unknown>, key: string, co
   throw new Error("몇 번 씬인지 알려주세요.");
 }
 
-export const PHOTO_CLASSIFICATION_TOOL_NAMES = ["rename_photo_scene", "merge_photo_scenes", "split_photo_scene"] as const;
+export const PHOTO_CLASSIFICATION_TOOL_NAMES = [
+  "rename_photo_scene", "merge_photo_scenes", "split_photo_scene",
+  "start_ai_photo_classification", "refine_photo_classification",
+] as const;
 
 export async function executePhotoClassificationTool(
   name: string,
