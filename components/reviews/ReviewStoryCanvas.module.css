@@ -34,8 +34,8 @@
 }
 
 .element:focus-visible {
-  outline: calc(2px / var(--story-scale, 1)) solid rgba(21, 88, 85, 0.4);
-  outline-offset: calc(2px / var(--story-scale, 1));
+  outline: 1px solid rgba(21, 88, 85, 0.4);
+  outline-offset: 1px;
 }
 
 .locked { cursor: default; }
@@ -77,7 +77,7 @@
   width: 100%;
   height: 100%;
   resize: none;
-  border: calc(1px / var(--story-scale, 1)) dashed rgba(21, 88, 85, 0.4);
+  border: 1px dashed rgba(21, 88, 85, 0.4);
   outline: 0;
   padding: 0;
   background: transparent;
@@ -87,22 +87,23 @@
   text-align: inherit;
 }
 
-/* ── Selection: 실제 요소(또는 텍스트는 측정된 글자 영역)에 딱 맞는 얇은 테두리 ── */
+/* ── Selection: 실제 요소(또는 텍스트는 측정된 글자 영역)에 딱 맞는 얇은 테두리. 크기는
+   전부 고정 px로 둬서 zoom(캔버스 실제 크기)이 바뀌어도 항상 작고 일정하게 보인다 ── */
 .selectionBorder {
   position: absolute;
   inset: 0;
-  border: calc(1.5px / var(--story-scale, 1)) solid #155855;
-  border-radius: calc(2px / var(--story-scale, 1));
+  border: 1px solid #155855;
+  border-radius: 1px;
   pointer-events: none;
 }
 
-/* ── Resize handles: 작은 흰 사각형 + 민트 보더, zoom과 무관하게 화면상 크기 고정 ── */
+/* ── Resize handles: 작은 흰 사각형 + 민트 보더 ── */
 .handle {
   position: absolute;
-  width: calc(9px / var(--story-scale, 1));
-  height: calc(9px / var(--story-scale, 1));
-  border: calc(1.5px / var(--story-scale, 1)) solid #155855;
-  border-radius: 2px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid #155855;
+  border-radius: 1px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(21, 55, 51, 0.25);
 }
@@ -118,12 +119,12 @@
 .rotateHandle {
   position: absolute;
   left: 50%;
-  top: calc(-22px / var(--story-scale, 1));
-  width: calc(9px / var(--story-scale, 1));
-  height: calc(9px / var(--story-scale, 1));
+  top: -14px;
+  width: 6px;
+  height: 6px;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  border: calc(1.5px / var(--story-scale, 1)) solid #155855;
+  border: 1px solid #155855;
   background: #fff;
   cursor: grab;
   box-shadow: 0 1px 2px rgba(21, 55, 51, 0.25);
@@ -133,8 +134,8 @@
   position: absolute;
   left: 50%;
   top: 100%;
-  width: calc(1px / var(--story-scale, 1));
-  height: calc(13px / var(--story-scale, 1));
+  width: 1px;
+  height: 8px;
   background: rgba(21, 88, 85, 0.35);
   transform: translateX(-50%);
 }
@@ -143,70 +144,69 @@
 .sizeTooltip {
   position: absolute;
   left: 50%;
-  top: calc(-42px / var(--story-scale, 1));
-  transform: translateX(-50%) scale(calc(1 / var(--story-scale, 1)));
-  transform-origin: center bottom;
+  top: -30px;
+  transform: translateX(-50%);
   background: #103f3c;
   color: #fff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 1px 5px;
+  border-radius: 3px;
   white-space: nowrap;
   pointer-events: none;
 }
-.sizeTooltip { top: auto; bottom: calc(-24px / var(--story-scale, 1)); transform-origin: center top; }
+.sizeTooltip { top: auto; bottom: -16px; }
 
 /* ── Floating contextual toolbar ── */
 .floatingToolbar {
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 10px);
-  transform: translateX(-50%) scale(calc(1 / var(--story-scale, 1)));
-  transform-origin: center bottom;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 3px;
+  gap: 1px;
+  padding: 2px;
   background: #fff;
   border: 1px solid rgba(21, 88, 85, 0.14);
-  border-radius: 8px;
-  box-shadow: 0 8px 20px rgba(21, 55, 51, 0.18);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(21, 55, 51, 0.16);
   white-space: nowrap;
 }
 .toolbarBtn {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 4px;
   background: transparent;
   color: #526a65;
   cursor: pointer;
 }
+.toolbarBtn svg { width: 10px; height: 10px; }
 .toolbarBtn:hover { background: #eaf4f2; color: #155855; }
 .toolbarBtnActive { background: #eaf4f2; color: #155855; }
-.toolbarDivider { width: 1px; height: 16px; background: rgba(21, 88, 85, 0.14); margin: 0 2px; }
+.toolbarDivider { width: 1px; height: 12px; background: rgba(21, 88, 85, 0.14); margin: 0 1px; }
 
 /* ── Locked indicator ── */
 .lockBadge {
   position: absolute;
-  left: 4px;
-  top: 4px;
-  width: 16px;
-  height: 16px;
+  left: 2px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
   display: grid;
   place-items: center;
   background: rgba(16, 63, 60, 0.85);
   color: #fff;
-  border-radius: 4px;
-  transform: scale(calc(1 / var(--story-scale, 1)));
-  transform-origin: top left;
+  border-radius: 3px;
   pointer-events: none;
 }
+.lockBadge svg { width: 8px; height: 8px; }
 
-/* ── Smart guides: 캔버스 전체 오버레이(요소 밖에 위치, export에는 절대 포함 안 됨) ── */
+/* ── Smart guides: 캔버스 전체 오버레이(요소 밖에 위치, export에는 절대 포함 안 됨). 선은
+   1px, 라벨도 고정 작은 px — zoom과 무관하게 항상 얇고 작게 ── */
 .guideVertical,
 .guideHorizontal {
   position: absolute;
@@ -219,12 +219,14 @@
   position: absolute;
   left: 50%;
   top: 50%;
+  transform: translate(-50%, -50%);
   background: #6bcfc1;
   color: #06322c;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 800;
-  padding: 1px 5px;
-  border-radius: 4px;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 2px;
   white-space: nowrap;
 }
 
@@ -232,30 +234,29 @@
 .cropToolbar {
   position: absolute;
   left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%) scale(calc(1 / var(--story-scale, 1)));
-  transform-origin: center bottom;
+  bottom: 6px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
+  gap: 4px;
+  padding: 3px 6px;
   background: rgba(16, 43, 40, 0.82);
   color: #fff;
-  border-radius: 8px;
-  font-size: 10.5px;
+  border-radius: 6px;
+  font-size: 9px;
   font-weight: 700;
   white-space: nowrap;
 }
 .cropButton {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 4px;
+  border-radius: 3px;
   background: transparent;
   color: #fff;
   cursor: pointer;
 }
-.cropDone { width: auto; padding: 0 8px; background: #6bcfc1; color: #06322c; border: 0; font-weight: 800; }
+.cropDone { width: auto; padding: 0 6px; background: #6bcfc1; color: #06322c; border: 0; font-weight: 800; }
 
 @media (max-width: 1100px) {
   .stage { padding: 22px; }
