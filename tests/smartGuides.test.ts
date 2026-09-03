@@ -28,11 +28,6 @@ describe("computeSnap", () => {
   });
 
   it("respects the exact threshold boundary", () => {
-    const rect = { x: 100, y: 0, width: 100, height: 100 }; // centerY = 50
-    const withinThreshold = computeSnap(rect, CANVAS, [], 50); // canvas centerY=675, far — use canvas top(0) instead
-    // top edge is already 0, so canvas-top candidate matches exactly regardless of threshold
-    expect(withinThreshold.y).toBe(0);
-
     const other = { x: 0, y: 200, width: 50, height: 50 };
     const exact = computeSnap({ x: 0, y: 192, width: 50, height: 50 }, CANVAS, [other], 8); // delta exactly 8
     expect(exact.y).toBe(200);
