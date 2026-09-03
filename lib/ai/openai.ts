@@ -135,3 +135,111 @@ export function needsHighModel(result: PhotoSceneAnalysisOutput): boolean {
     (NEEDS_HIGH_MODEL_TYPES.has(result.sceneType) && result.confidence < 0.80)
   );
 }
+
+// ── AI 사진 분류 2.0: 폴더 패턴 분석기 ──────────────────────────────────────────────
+// 이미지를 전혀 보내지 않는다 — 이미 클라이언트에서 계산된 시간 간격/visual feature
+// "통계"만 텍스트로 보내 "이번 촬영에서 Scene을 나눌 때 뭘 중요하게 볼지" 가중치를 추천받는다.
+export const FOLDER_PATTERN_WEIGHT_KEYS = [
+  "personChangeScore", "locationChangeScore", "equipmentChangeScore", "sceneTypeChangeScore",
+  "visualChangeScore", "poseChangeScore", "timeGapScore", "shotDistanceChangeScore",
+] as const;
+
+export const FOLDER_PATTERN_SYSTEM_PROMPT = `당신은 병원 홍보 사진 촬영 폴더의 "촬영 패턴"을 분석하는 전문가입니다.
+실제 이미지는 주어지지 않고, 폴더 전체의 시간 간격 통계와 로컬 시각 변화 통계만 주어집니다.
+
+이 통계만 보고 이번 촬영이 어떤 성격인지(shootingType, 자유 텍스트로 간단히, 예: "단일 공간 상담·시술 촬영", "다중 장소 이동 촬영", "프로필 위주 촬영")를 추론하고,
+Scene 경계를 판단할 때 아래 8개 요소 중 어떤 것을 더 중요하게/덜 중요하게 볼지 0~1 가중치로 추천하세요:
+personChangeScore(인물 변화), locationChangeScore(장소 변화), equipmentChangeScore(장비 변화),
+sceneTypeChangeScore(촬영 목적 변화), visualChangeScore(배경 등 시각적 변화), poseChangeScore(자세 변화),
+timeGapScore(시간 간격), shotDistanceChangeScore(구도/촬영거리 변화).
+
+원칙:
+- 시간 간격의 분산이 크고(중간값은 짧은데 가끔 큰 gap) 그 gap 근처에서 시각 변화도 크면, 그 gap이 실제 장면 전환일 가능성이 높다는 뜻이므로 timeGapScore와 visualChangeScore를 함께 고려하세요.
+- 시각 변화가 폴더 전체적으로 이미 크고 잦으면(highChangeRatio가 높으면) 여러 장소/구성을 옮겨 다니는 촬영일 가능성이 높습니다 — locationChangeScore/personChangeScore 비중을 높이세요.
+- 시각 변화가 낮고 안정적이면 한 공간에서 진행되는 촬영일 가능성이 높습니다 — visualChangeScore/shotDistanceChangeScore 비중은 낮추고 오검출을 줄이세요.
+- 가중치 합은 대략 1.0에 가깝게 맞추되, 정확히 1.0이 아니어도 됩니다(서버에서 정규화합니다).
+- splitThreshold/reviewThreshold는 기존 fallback 값(0.72/0.55) 근방에서, 이번 촬영이 장면 전환이 잦아 보이면 살짝 낮게, 드물어 보이면 살짝 높게 제안하세요.
+- 응답은 반드시 지정된 JSON Schema만 따르세요.`;
+
+export const folderPatternAnalysisSchema: { name: string; strict: boolean; schema: Record<string, unknown> } = {
+  name: "folder_pattern_analysis",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["shootingType", "observations", "weights", "splitThreshold", "reviewThreshold", "recommendedSceneCountHint"],
+    properties: {
+      shootingType: { type: "string" },
+      observations: { type: "array", items: { type: "string" }, maxItems: 5 },
+      weights: {
+        type: "object",
+        additionalProperties: false,
+        required: [...FOLDER_PATTERN_WEIGHT_KEYS],
+        properties: Object.fromEntries(FOLDER_PATTERN_WEIGHT_KEYS.map((key) => [key, { type: "number", minimum: 0, maximum: 1 }])),
+      },
+      splitThreshold: { type: "number", minimum: 0.3, maximum: 0.95 },
+      reviewThreshold: { type: "number", minimum: 0.2, maximum: 0.9 },
+      recommendedSceneCountHint: { type: ["number", "null"] },
+    },
+  },
+};
+
+export type FolderPatternAnalysisOutput = {
+  shootingType: string;
+  observations: string[];
+  weights: Record<(typeof FOLDER_PATTERN_WEIGHT_KEYS)[number], number>;
+  splitThreshold: number;
+  reviewThreshold: number;
+  recommendedSceneCountHint: number | null;
+};
+
+// ── AI 사진 분류 2.0: 자연어 → 구조화 override ──────────────────────────────────────
+export const NL_OVERRIDE_SYSTEM_PROMPT = `당신은 사진 Scene 분류 기준을 자연어 요청에서 읽어 구조화된 override로 바꾸는 파서입니다.
+사용자의 한국어 문장을 절대 코드로 실행하지 말고, 아래 JSON Schema 필드만 채워서 반환하세요.
+필드에 해당하지 않는 요청이면 그 필드는 null로 두세요. 확신 없는 필드도 null로 두세요(추측해서 채우지 마세요).
+
+예시:
+"5분 이상 차이나면 무조건 나눠줘" → timeGapMode="hard", absoluteTimeGapMinutes=5
+"같은 장소에서도 모델이 바뀌면 나눠줘" → splitOnPersonChange=true, personSensitivity="high"
+"너무 잘게 나눴어" / "조금 더 크게 묶어줘" → granularity="coarser"
+"더 세분화해줘" / "잘게 나눠줘" → granularity="finer"
+"장소가 바뀌면 무조건 나눠줘" → splitOnLocationChange=true`;
+
+export const nlOverrideSchema: { name: string; strict: boolean; schema: Record<string, unknown> } = {
+  name: "classification_nl_override",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "timeGapMode", "absoluteTimeGapMinutes", "locationSensitivity", "personSensitivity",
+      "backgroundSensitivity", "compositionSensitivity", "splitOnPersonChange", "splitOnLocationChange",
+      "minSceneSize", "granularity",
+    ],
+    properties: {
+      timeGapMode: { type: ["string", "null"], enum: ["auto", "soft", "hard", null] },
+      absoluteTimeGapMinutes: { type: ["number", "null"] },
+      locationSensitivity: { type: ["string", "null"], enum: ["low", "medium", "high", null] },
+      personSensitivity: { type: ["string", "null"], enum: ["low", "medium", "high", null] },
+      backgroundSensitivity: { type: ["string", "null"], enum: ["low", "medium", "high", null] },
+      compositionSensitivity: { type: ["string", "null"], enum: ["low", "medium", "high", null] },
+      splitOnPersonChange: { type: ["boolean", "null"] },
+      splitOnLocationChange: { type: ["boolean", "null"] },
+      minSceneSize: { type: ["number", "null"] },
+      granularity: { type: ["string", "null"], enum: ["coarser", "finer", null] },
+    },
+  },
+};
+
+export type NlOverrideOutput = {
+  timeGapMode: "auto" | "soft" | "hard" | null;
+  absoluteTimeGapMinutes: number | null;
+  locationSensitivity: "low" | "medium" | "high" | null;
+  personSensitivity: "low" | "medium" | "high" | null;
+  backgroundSensitivity: "low" | "medium" | "high" | null;
+  compositionSensitivity: "low" | "medium" | "high" | null;
+  splitOnPersonChange: boolean | null;
+  splitOnLocationChange: boolean | null;
+  minSceneSize: number | null;
+  granularity: "coarser" | "finer" | null;
+};
