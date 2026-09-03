@@ -1177,10 +1177,11 @@ function PhotoSortingInner({
       };
 
       setClassificationJobState("VERIFYING_BOUNDARIES");
-      const checkpointId = `${rootDir.name}:${department}:${gapMinutes}:precise-v2`;
+      const checkpointId = `${rootDir.name}:${department}:${effectiveGapMinutes}:precise-v2`;
       const checkpoint = await getClassificationCheckpoint<{ decisions: Record<string, SceneBoundaryDecision> }>(checkpointId);
       const checkpointDecisions: Record<string, SceneBoundaryDecision> = { ...(checkpoint?.decisions ?? {}) };
       const boundaryStartedAt = Date.now();
+      const weights = aiWeightProfile?.weights;
       let verified = 0;
       const rawDecisions = await mapWithConcurrency(candidates, preciseSettings.maxConcurrentAiJobs, async (candidate) => {
         const beforeFileName = jpgEntries[candidate.boundaryIndex - 1]?.name ?? "";
@@ -1189,28 +1190,34 @@ function PhotoSortingInner({
         if (checkpointDecisions[checkpointKey]) {
           verified += 1;
           setProgress({ cur: verified, total: candidates.length, msg: `경계 검증 복원 ${verified}/${candidates.length}${estimatedRemaining(verified, candidates.length, boundaryStartedAt)}` });
-          return checkpointDecisions[checkpointKey];
+          const cachedDecision = checkpointDecisions[checkpointKey];
+          // weights가 있으면(=AI 자동 분류 프로필 적용 중) Vision을 다시 부르지 않고 캐시된
+          // aiAnalysis에 새 weights만 다시 적용한다 — 자연어로 가중치만 바꿨을 때 즉시 반영되면서도
+          // 새 API 호출은 0번(스펙 §29/30). weights가 없으면(고급 설정) 예전처럼 그대로 반환.
+          return weights
+            ? decideBoundary({ candidate, analysis: cachedDecision.aiAnalysis, settings: preciseSettings, beforeFileName, afterFileName, weights })
+            : cachedDecision;
         }
         if (candidate.hardGap) {
           verified += 1;
           setProgress({ cur: verified, total: candidates.length, msg: `경계 검증 ${verified}/${candidates.length}${estimatedRemaining(verified, candidates.length, boundaryStartedAt)}` });
-          const hardDecision = decideBoundary({ candidate, analysis: null, settings: preciseSettings, beforeFileName, afterFileName });
+          const hardDecision = decideBoundary({ candidate, analysis: null, settings: preciseSettings, beforeFileName, afterFileName, weights });
           checkpointDecisions[checkpointKey] = hardDecision;
           await setClassificationCheckpoint(checkpointId, { decisions: checkpointDecisions });
           return hardDecision;
         }
         try {
           let analysis = await analyzeBoundary(candidate.boundaryIndex, 3, false);
-          let decision = decideBoundary({ candidate, analysis, settings: preciseSettings, beforeFileName, afterFileName });
+          let decision = decideBoundary({ candidate, analysis, settings: preciseSettings, beforeFileName, afterFileName, weights });
           if (decision.decision === "review") {
             analysis = await analyzeBoundary(candidate.boundaryIndex, 5, true);
-            decision = decideBoundary({ candidate, analysis, settings: preciseSettings, beforeFileName, afterFileName });
+            decision = decideBoundary({ candidate, analysis, settings: preciseSettings, beforeFileName, afterFileName, weights });
           }
           checkpointDecisions[checkpointKey] = decision;
           await setClassificationCheckpoint(checkpointId, { decisions: checkpointDecisions });
           return decision;
         } catch {
-          const fallbackDecision = decideBoundary({ candidate, analysis: null, settings: preciseSettings, beforeFileName, afterFileName, aiFailed: true });
+          const fallbackDecision = decideBoundary({ candidate, analysis: null, settings: preciseSettings, beforeFileName, afterFileName, aiFailed: true, weights });
           checkpointDecisions[checkpointKey] = fallbackDecision;
           await setClassificationCheckpoint(checkpointId, { decisions: checkpointDecisions });
           return fallbackDecision;
