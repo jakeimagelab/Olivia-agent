@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRawIndex, copyFileHandle, computePreflight } from "@/lib/selectMatch/rawIndex";
+import { buildRawIndex, copyFileHandle, computePreflight, type RawIndexEntry } from "@/lib/selectMatch/rawIndex";
 
 type MockNode = MockDir | MockFile;
 interface MockFile { kind: "file"; name: string; content: string }
