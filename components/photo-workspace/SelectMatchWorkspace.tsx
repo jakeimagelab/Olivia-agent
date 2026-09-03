@@ -408,6 +408,11 @@ export function SelectMatchWorkspace({
     if ((!rootDir && !rawRootDir) || selected.size === 0) return;
     setStep("matching");
     cancelRef.current = false;
+    useBackgroundJobsStore.getState().startJob({
+      id: RAW_MATCH_JOB_ID, label: `RAW ${rawSelectMode === "move" ? "이동" : "복사"} 중`,
+      cur: 0, total: selected.size, status: "running",
+      returnPath: "/photo-sorting?mode=raw-match", cancelRef,
+    });
     const logLines: string[] = [];
     const addLog = (l: string) => { logLines.push(l); setLog([...logLines]); };
 
