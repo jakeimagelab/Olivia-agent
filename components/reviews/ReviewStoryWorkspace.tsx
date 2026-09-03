@@ -163,7 +163,9 @@ export default function ReviewStoryWorkspace() {
   useEffect(() => {
     const node = workspaceRef.current;
     if (!node) return;
-    const update = () => setWorkspaceHeight(window.innerHeight - node.getBoundingClientRect().top);
+    // 760px 이하는 CSS 미디어쿼리가 이 영역을 height:auto(자연 스크롤)로 되돌리는 모바일 스택
+    // 레이아웃이라, 그 구간에서는 인라인 높이를 넣지 않아야 CSS가 이긴다.
+    const update = () => setWorkspaceHeight(window.innerWidth > 760 ? window.innerHeight - node.getBoundingClientRect().top : null);
     update();
     window.addEventListener("resize", update);
     const observer = new ResizeObserver(update);
