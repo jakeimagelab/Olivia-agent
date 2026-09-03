@@ -471,7 +471,7 @@ function buildPersonGroups(files: StudioPhotoFile[]): PersonGroup[] {
 /* ════════════════════════════════════════════════
    SHARED UI COMPONENTS
 ═══════════════════════════════════════════════ */
-function Btn({ onClick, disabled, children, variant="primary", style: s }: {
+export function Btn({ onClick, disabled, children, variant="primary", style: s }: {
   onClick?: () => void; disabled?: boolean; children: React.ReactNode;
   variant?: "primary" | "secondary" | "danger"; style?: React.CSSProperties;
 }) {
@@ -480,7 +480,7 @@ function Btn({ onClick, disabled, children, variant="primary", style: s }: {
   return <button onClick={onClick} disabled={disabled} style={{...base,...v[variant],...s}}>{children}</button>;
 }
 
-function Card({ children, style: s }: { children: React.ReactNode; style?: React.CSSProperties }) {
+export function Card({ children, style: s }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return <div style={{background:C.white,borderRadius:14,border:`1px solid ${C.border}`,overflow:"hidden",...s}}>{children}</div>;
 }
 
