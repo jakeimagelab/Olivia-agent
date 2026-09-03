@@ -18,6 +18,7 @@ import {
   type RawIndexEntry,
 } from "@/lib/selectMatch/rawIndex";
 import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
+import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 
 /* ── 색상 ── */
 const C = {
