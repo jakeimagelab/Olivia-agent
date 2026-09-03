@@ -18,11 +18,14 @@ export async function listCalendarTasks(date: string) {
 
 export async function addCalendarTask(input: any) {
   const db = getSupabaseAdmin();
+  // AI가 category를 명시적으로 안 골라서 넘긴 경우(특히 calendar_add_bulk는 스키마에 category
+  // 파라미터가 아예 없다) "general"로 뭉개지 않고 제목 키워드로 추측한다 — calendar page의
+  // 수동 입력 폼과 같은 기준(lib/calendarCategorize.ts)을 쓴다.
   const base = {
     date: input.date,
     title: input.title,
     memo: input.memo ?? "",
-    category: input.category ?? "general",
+    category: input.category || categorizeByTitle(input.title ?? ""),
     completed: false,
   };
 
