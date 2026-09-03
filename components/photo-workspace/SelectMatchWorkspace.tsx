@@ -372,7 +372,7 @@ export function SelectMatchWorkspace({
   const buildRawIndex = useCallback((
     overrideRawDir?: FileSystemDirectoryHandle,
     onProgress?: (scannedCount: number) => void,
-  ): Promise<Map<string, FileSystemFileHandle>> => buildRawIndexPure(overrideRawDir ?? rawRootDir, rootDir, onProgress),
+  ): Promise<Map<string, RawIndexEntry>> => buildRawIndexPure(overrideRawDir ?? rawRootDir, rootDir, onProgress),
   [rootDir, rawRootDir]);
 
   /* ── 사전 확인 (preflight) ── */
