@@ -140,7 +140,10 @@ export default function ReviewStoryWorkspace() {
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({});
   const [generationCount, setGenerationCount] = useState(6);
-  const [zoom, setZoom] = useState(82);
+  // 100 = "맞춤"(가운데 컬럼에 꽉 차게 계산된 fit scale). ReviewStoryCanvas가 이 값을
+  // 실제 스테이지 크기 기준 fitScale에 곱해서 최종 캔버스 픽셀 크기를 정하므로, 컬럼 폭이
+  // 아무리 넓어져도 캔버스가 화면을 뒤덮지 않는다.
+  const [zoom, setZoom] = useState(100);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
