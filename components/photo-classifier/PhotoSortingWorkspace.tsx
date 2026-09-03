@@ -1195,7 +1195,7 @@ function PhotoSortingInner({
           // aiAnalysis에 새 weights만 다시 적용한다 — 자연어로 가중치만 바꿨을 때 즉시 반영되면서도
           // 새 API 호출은 0번(스펙 §29/30). weights가 없으면(고급 설정) 예전처럼 그대로 반환.
           return weights
-            ? decideBoundary({ candidate, analysis: cachedDecision.aiAnalysis, settings: preciseSettings, beforeFileName, afterFileName, weights })
+            ? decideBoundary({ candidate, analysis: cachedDecision.aiAnalysis ?? null, settings: preciseSettings, beforeFileName, afterFileName, weights })
             : cachedDecision;
         }
         if (candidate.hardGap) {
