@@ -1284,6 +1284,7 @@ function PhotoSortingInner({
 
     setFieldScenes(newScenes);
     setStep(2);
+    useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "done");
 
     // PHASE 4(2026-08-30) — 채팅에서 시작했을 때만(isModal) 결과 요약을 채팅에 남긴다. 실제
     // newScenes/jpgEntries 결과가 나온 뒤에만 부르므로 "성공했다"는 거짓 보고가 아니다(스펙 §44).
