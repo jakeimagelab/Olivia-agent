@@ -62,9 +62,11 @@ export function boundaryFeaturesFromAnalysis(
   };
 }
 
-export function calculateBoundaryScore(features: SceneBoundaryFeatures) {
-  return clamp01((Object.keys(BOUNDARY_WEIGHTS) as Array<keyof SceneBoundaryFeatures>)
-    .reduce((score, key) => score + features[key] * BOUNDARY_WEIGHTS[key], 0));
+// weights를 안 넘기면 기존 고정 BOUNDARY_WEIGHTS 그대로 — AI 사진 분류 2.0에서만 폴더별 동적
+// weights를 넘기고, 기존 호출부(부서 프리셋 등)는 이 인자를 안 넘겨 동작이 완전히 동일하다.
+export function calculateBoundaryScore(features: SceneBoundaryFeatures, weights: SceneBoundaryFeatures = BOUNDARY_WEIGHTS) {
+  return clamp01((Object.keys(weights) as Array<keyof SceneBoundaryFeatures>)
+    .reduce((score, key) => score + features[key] * weights[key], 0));
 }
 
 function forcedReasons(analysis: SceneFrameAnalysis | null): string[] {
