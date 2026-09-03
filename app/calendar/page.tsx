@@ -2844,3 +2844,9 @@ function CalendarPageContent({ embedded = false }: { embedded?: boolean } = {}) 
     </main>
   );
 }
+
+export default function CalendarPage() {
+  return <CalendarPageContent />;
+}
+
+export { CalendarPageContent };
