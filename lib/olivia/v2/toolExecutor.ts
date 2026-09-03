@@ -342,6 +342,11 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   { type: "function", name: "rename_photo_scene", description: "현재 사진 분류 화면의 씬 이름을 바꿉니다. sceneNumber를 생략하면 지금 선택된 씬을 사용합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { sceneNumber: { type: ["number", "null"], description: "1부터 시작하는 씬 번호. 생략하면 지금 선택된 씬." }, newName: { type: "string" } }, required: ["sceneNumber", "newName"] } },
   { type: "function", name: "merge_photo_scenes", description: "현재 사진 분류 화면에서 두 씬을 하나로 합칩니다. sceneNumberA를 생략하면 지금 선택된 씬을 사용합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { sceneNumberA: { type: ["number", "null"], description: "1부터 시작하는 씬 번호. 생략하면 지금 선택된 씬." }, sceneNumberB: { type: "number", description: "1부터 시작하는 씬 번호." } }, required: ["sceneNumberA", "sceneNumberB"] } },
   { type: "function", name: "split_photo_scene", description: "현재 사진 분류 화면에서 한 씬을 지정한 사진 위치에서 둘로 나눕니다. sceneNumber를 생략하면 지금 선택된 씬을 사용합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { sceneNumber: { type: ["number", "null"], description: "1부터 시작하는 씬 번호. 생략하면 지금 선택된 씬." }, splitBeforePhotoNumber: { type: "number", description: "이 씬 안에서 몇 번째(1부터) 사진부터 새 씬으로 나눌지." } }, required: ["sceneNumber", "splitBeforePhotoNumber"] } },
+  // AI 사진 분류 2.0(스펙 §35/36) — 지금 열려 있는 사진 분류 화면에 이미 폴더가 선택돼 있을 때만
+  // 의미가 있다(폴더 선택창은 사용자 클릭 없이 열 수 없음). start는 그 폴더를 AI가 분석해 추천한
+  // 기준으로 바로 분류를 실행하고, refine은 자연어로 이미 나온 분류 기준/결과를 조정한다.
+  { type: "function", name: "start_ai_photo_classification", description: "지금 열려 있는 사진 분류 화면에서, 이미 선택된 폴더를 AI가 분석해 추천한 기준으로 자동 분류를 실행합니다. 폴더가 아직 선택되지 않았으면 실패합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: {}, required: [] } },
+  { type: "function", name: "refine_photo_classification", description: "지금 열려 있는 사진 분류 화면의 AI 분류 기준이나 결과를 자연어 요청으로 조정합니다. 예: '같은 장소라도 모델 바뀌면 나눠줘', '너무 잘게 나눴어', '3번 Scene만 더 나눠줘'.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { message: { type: "string", description: "사용자의 자연어 요청 원문." } }, required: ["message"] } },
 ];
 
 // ── Tool Router (구조 개편 2026-08-31) ────────────────────────────────────────────────
