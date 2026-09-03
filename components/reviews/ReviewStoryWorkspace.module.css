@@ -85,8 +85,17 @@
 .button:focus-visible, .iconButton:focus-visible, .template:focus-visible, .storyThumb:focus-visible { outline: 3px solid rgba(21,88,85,.22); outline-offset: 2px; }
 .iconButton { width: 34px; min-height: 34px; padding: 0; }
 
-.editorGrid { display: grid; grid-template-columns: 272px minmax(480px, 1fr) 268px; min-width: 0; }
-.panel { min-width: 0; overflow-y: auto; background: #fff; }
+.editorGrid {
+  display: grid;
+  grid-template-columns: 320px minmax(480px, 560px) 340px;
+  gap: 22px;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+.panel { min-width: 0; min-height: 0; overflow-y: auto; background: #fff; }
 .leftPanel { border-right: 1px solid var(--line); }
 .rightPanel { border-left: 1px solid var(--line); }
 .section { padding: 16px; border-bottom: 1px solid var(--line); }
