@@ -55,5 +55,19 @@ export async function executePhotoClassificationTool(
     return { tool: name, success: true, data: { sceneIndex: sceneNumber - 1, offset: splitBeforePhotoNumber - 1, summary: `${sceneNumber}번 씬을 나눌게요.` }, verification: createVerification({ executed: true }) };
   }
 
+  // AI 사진 분류 2.0(스펙 §35/36) — 아래 둘은 폴더 선택창을 대신 열 수 없다는 브라우저 제약 때문에
+  // "이미 화면이 열려 있고 폴더가 선택돼 있을 때"만 의미가 있다. 실제 성공/실패와 Scene 개수는
+  // client의 ui_action 처리(usePhotoClassificationActionsStore) 이후에만 확정되므로, 여기서는
+  // "요청을 받았다"만 반환하고 완료 문구는 만들지 않는다(스펙 §37/44 — 거짓 완료 보고 금지).
+  if (name === "start_ai_photo_classification") {
+    return { tool: name, success: true, data: { summary: "AI 자동 분류를 실행할게요." }, verification: createVerification({ executed: true }) };
+  }
+
+  if (name === "refine_photo_classification") {
+    const message = text(input, "message");
+    if (!message) throw new Error("어떻게 바꿀지 알려주세요.");
+    return { tool: name, success: true, data: { message, summary: "요청하신 기준을 반영할게요." }, verification: createVerification({ executed: true }) };
+  }
+
   throw new Error("지원하지 않는 Olivia 작업이에요.");
 }
