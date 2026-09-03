@@ -8,6 +8,14 @@ export interface SelectMatchPreflight {
   jpgSamples: string[];
 }
 
+// fileHandle만으로는 원본을 지울 수 없다(File System Access API에 "부모 폴더 알아내기"가
+// 없음) — RAW 매칭 후 "이동" 선택지를 지원하려면 removeEntry를 부를 부모 dirHandle을 스캔
+// 시점에 같이 들고 있어야 한다.
+export interface RawIndexEntry {
+  fileHandle: FileSystemFileHandle;
+  dirHandle: FileSystemDirectoryHandle;
+}
+
 /* ── 재귀 RAW 스캔 공통 함수 ── */
 // 파일이 수천 장이면 스캔 자체에 시간이 꽤 걸린다 — onProgress로 진행 상황(스캔한 파일 수)을
 // 주기적으로 알려줘서 "멈춘 것처럼 보이는" 문제를 없앤다.
@@ -15,8 +23,8 @@ export async function buildRawIndex(
   rawRootDir: FileSystemDirectoryHandle | null,
   fallbackRootDir: FileSystemDirectoryHandle | null,
   onProgress?: (scannedCount: number) => void,
-): Promise<Map<string, FileSystemFileHandle>> {
-  const rawIndex = new Map<string, FileSystemFileHandle>();
+): Promise<Map<string, RawIndexEntry>> {
+  const rawIndex = new Map<string, RawIndexEntry>();
   let scannedCount = 0;
   const scanDir = async (dir: FileSystemDirectoryHandle, depth = 0) => {
     if (depth > 5) return;
@@ -28,7 +36,9 @@ export async function buildRawIndex(
         scannedCount += 1;
         if (onProgress && scannedCount % 50 === 0) onProgress(scannedCount);
         const ext = name.split(".").pop()?.toLowerCase() ?? "";
-        if (SELECT_MATCH_RAW_EXTENSIONS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
+        if (SELECT_MATCH_RAW_EXTENSIONS.has(ext)) {
+          rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), { fileHandle: handle as FileSystemFileHandle, dirHandle: dir });
+        }
       }
     }
   };
