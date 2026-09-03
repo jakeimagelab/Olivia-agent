@@ -442,7 +442,7 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
             className={styles.guideVertical}
             style={{ left: `${(guide.position / document.width) * 100}%`, top: `${((guide.start ?? 0) / document.height) * 100}%`, height: `${(((guide.end ?? document.height) - (guide.start ?? 0)) / document.height) * 100}%` }}
           >
-            {guide.label ? <span className={styles.guideLabel} style={{ transform: `translate(-50%, -50%) scale(${inverse})` }}>{guide.label}</span> : null}
+            {guide.label ? <span className={styles.guideLabel}>{guide.label}</span> : null}
           </span>
         ) : (
           <span
@@ -450,7 +450,7 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
             className={styles.guideHorizontal}
             style={{ top: `${(guide.position / document.height) * 100}%`, left: `${((guide.start ?? 0) / document.width) * 100}%`, width: `${(((guide.end ?? document.width) - (guide.start ?? 0)) / document.width) * 100}%` }}
           >
-            {guide.label ? <span className={styles.guideLabel} style={{ transform: `translate(-50%, -50%) scale(${inverse})` }}>{guide.label}</span> : null}
+            {guide.label ? <span className={styles.guideLabel}>{guide.label}</span> : null}
           </span>
         ))}
       </div>
