@@ -60,7 +60,7 @@ export async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystem
   await wr.write(buf); await wr.close();
 }
 
-export function computePreflight(selectedNames: Set<string>, rawIndex: Map<string, FileSystemFileHandle>): SelectMatchPreflight {
+export function computePreflight(selectedNames: Set<string>, rawIndex: Map<string, RawIndexEntry>): SelectMatchPreflight {
   const selArr = Array.from(selectedNames);
   const willMatch = selArr.filter((b) => rawIndex.has(b)).length;
   return {
