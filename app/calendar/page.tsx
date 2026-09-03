@@ -437,7 +437,7 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = fals
           time: time || null, end_time: endTime || null, location: location.trim() || null,
           reminder_enabled: reminderEnabled, reminder_minutes_before: reminderMinutes, reminder_due_at: d.reminder_due_at ?? null });
         window.dispatchEvent(new CustomEvent("olivia-calendar-updated", { detail: { taskId: d.id } }));
-        setTitle(""); setMemo(""); setTime(""); setEndTime(""); setLocation(""); setCat("general"); setReminderEnabled(false); setReminderMinutes(30); setOpen(false);
+        setTitle(""); setMemo(""); setTime(""); setEndTime(""); setLocation(""); setCat("general"); setCatTouched(false); setReminderEnabled(false); setReminderMinutes(30); setOpen(false);
       } else setErr(d.error ?? "저장 실패");
     } catch { setErr("네트워크 오류"); }
     finally { setBusy(false); }
