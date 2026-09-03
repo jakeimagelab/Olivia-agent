@@ -388,6 +388,9 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = fals
   const [endTime,  setEndTime]  = useState(defaultTime ? nextHourTime(defaultTime) : "");
   const [location, setLocation] = useState("");
   const [cat,      setCat]      = useState<keyof typeof CATS>("general");
+  // 사용자가 카테고리 pill을 직접 누르기 전까지는 제목 키워드로 자동 분류한다("OOOO촬영" →
+  // 촬영, "미팅" → 고객 등). 한 번이라도 직접 고르면 그 뒤로는 자동 추측이 덮어쓰지 않는다.
+  const [catTouched, setCatTouched] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderMinutes, setReminderMinutes] = useState<CalendarReminderMinutes>(30);
   const [busy,     setBusy]     = useState(false);
