@@ -1092,10 +1092,32 @@ export function SelectMatchWorkspace({
               </div>
             ) : null}
 
+            {preflight.willMatch > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: C.hint, marginBottom: 6 }}>매칭된 RAW 처리 방식</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {([["copy", "복사 (원본 유지)"], ["move", "이동 (원본 삭제)"]] as const).map(([mode, label]) => (
+                    <button key={mode} onClick={() => setRawSelectMode(mode)} style={{
+                      flex: 1, padding: "10px 0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+                      border: `1.5px solid ${rawSelectMode === mode ? C.teal : C.border}`,
+                      background: rawSelectMode === mode ? C.light : C.white,
+                      color: rawSelectMode === mode ? C.teal : C.muted,
+                      fontSize: 12, fontWeight: rawSelectMode === mode ? 900 : 600,
+                    }}>{label}</button>
+                  ))}
+                </div>
+                {rawSelectMode === "move" && (
+                  <div style={{ marginTop: 8, padding: "8px 12px", background: "#FFF3CD", borderRadius: 8, fontSize: 11, color: "#856404", border: "1px solid #FFD980" }}>
+                    ⚠️ 이동을 선택하면 원본 RAW 파일이 원래 위치에서 삭제됩니다.
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 8 }}>
               <Btn variant="secondary" onClick={() => setStep("ready")}>← 취소</Btn>
               {preflight.willMatch > 0 && (
-                <Btn onClick={runMatch}>복사 시작 ({preflight.willMatch}개) →</Btn>
+                <Btn onClick={runMatch}>{rawSelectMode === "move" ? "이동" : "복사"} 시작 ({preflight.willMatch}개) →</Btn>
               )}
             </div>
           </div>
