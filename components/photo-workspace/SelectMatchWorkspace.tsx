@@ -431,6 +431,7 @@ export function SelectMatchWorkspace({
 
     if (rawIndex.size === 0) {
       addLog("❌ RAW 파일을 찾을 수 없습니다.");
+      useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, "error");
       setStep("ready"); return;
     }
 
