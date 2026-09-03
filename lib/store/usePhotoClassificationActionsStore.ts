@@ -9,6 +9,11 @@ type PhotoClassificationActions = {
   renameScene: (sceneIndex: number, newName: string) => boolean;
   mergeScenes: (sceneIndexA: number, sceneIndexB: number) => void;
   splitScene: (sceneIndex: number, offset: number) => void;
+  // AI 사진 분류 2.0(스펙 §35/36) — 위 셋과 달리 비동기(네트워크 호출 포함)라 완료 후 실제
+  // 결과를 돌려준다. 호출 쪽(useOliviaConversationStore.ts)이 이 결과를 보고 채팅 응답 문구를
+  // 정하므로, 여기서 낙관적으로 성공을 가정하지 않는다.
+  startAiClassification: () => Promise<{ ok: boolean; reason?: string; sceneCount?: number }>;
+  submitNlRequest: (message: string) => Promise<{ ok: boolean; sceneCount?: number }>;
 };
 
 type PhotoClassificationActionsState = {
