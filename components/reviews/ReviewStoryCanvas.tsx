@@ -41,20 +41,34 @@ function sourceFor(element: ReviewStoryImageElement, assetUrls: Record<string, s
   return element.storagePath ? assetUrls[element.storagePath] || element.src : element.src;
 }
 
+// 캔버스가 화면 대부분을 차지하던 원인 — 예전엔 zoom%를 스테이지 폭에 대한 CSS width:%로 직접
+// 적용해서, 가운데 컬럼이 넓어지면(1fr) 캔버스도 그만큼 무한정 커졌다. 이제는 스테이지의 실제
+// 픽셀 크기를 재서 "맞춤" 스케일을 직접 계산하고, zoom은 그 fit 스케일에 곱하는 배율(100%=맞춤)
+// 로만 쓴다 — 컬럼 폭과 무관하게 캔버스가 항상 적당히 작게 유지된다.
+const STAGE_PADDING = 64; // .stage의 좌우/상하 padding(32px×2) — 실제 사용 가능 영역 계산용
+const MAX_FIT_SCALE = 0.46;
+
 export default function ReviewStoryCanvas({ document, selectedElementId, assetUrls, zoom, lockAspectRatio, onSelect, onChange }: Props) {
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.5);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({ width: 480, height: 600 });
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    const node = canvasRef.current;
+    const node = stageRef.current;
     if (!node) return;
-    const update = () => setScale(node.getBoundingClientRect().width / document.width);
+    const update = () => setStageSize({ width: node.clientWidth, height: node.clientHeight });
     update();
     const observer = new ResizeObserver(update);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [document.width, zoom]);
+  }, []);
+
+  const fitScale = Math.min(
+    Math.max(0, stageSize.width - STAGE_PADDING) / document.width,
+    Math.max(0, stageSize.height - STAGE_PADDING) / document.height,
+    MAX_FIT_SCALE,
+  ) || 0.3;
+  const scale = fitScale * (Math.max(50, Math.min(160, zoom)) / 100);
 
   const sorted = useMemo(() => [...document.elements].sort((a, b) => a.zIndex - b.zIndex), [document.elements]);
 
