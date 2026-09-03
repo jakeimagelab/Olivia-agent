@@ -1,3 +1,5 @@
+import { categorizeByTitle } from "./calendarCategorize";
+
 export type PastedCalendarTask = {
   date: string;
   title: string;
