@@ -408,6 +408,11 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = fals
     }
   }, [triggerKey, defaultTime]);
 
+  useEffect(() => {
+    if (catTouched) return;
+    setCat(categorizeByTitle(title));
+  }, [title, catTouched]);
+
   const handleTimeChange = (v: string) => {
     setTime(v);
     if (!v) setReminderEnabled(false);
