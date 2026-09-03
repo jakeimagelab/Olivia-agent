@@ -282,7 +282,6 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
     void elementId;
   };
 
-  const selectedElement = document.elements.find((item) => item.id === selectedElementId) || null;
   const inverse = 1 / scale;
 
   return (
