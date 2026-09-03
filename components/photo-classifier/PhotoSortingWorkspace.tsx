@@ -30,7 +30,8 @@ import type {
 } from "@/lib/photo-classifier/hybrid-types";
 import {
   applyOverrides, adjustGranularity, computeFolderStats, sceneProposalFromFieldScene,
-  type FolderShootingPattern, type SceneWeightProfile,
+  DEFAULT_WEIGHT_PROFILE,
+  type FolderShootingPattern, type SceneWeightProfile, type SceneProposal, type ClassificationOverrides,
 } from "@/lib/photo-classifier/pattern-analysis";
 import ClassificationModeToggle, { type ClassificationUiMode } from "./ai-auto/ClassificationModeToggle";
 import FolderAnalysisSummary from "./ai-auto/FolderAnalysisSummary";
