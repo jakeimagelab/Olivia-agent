@@ -2389,7 +2389,11 @@ function YearView({ year, todayStr, tasksByDate, selectedDate, onSelectDate, onP
 // embedded: OLIVIA OS Desktop의 AppWindow 안에 마운트될 때 true로 넘어온다 — (client-hub)의
 // 고객관리 페이지와 달리 이 페이지는 GlobalHeader를 직접 그리므로, 창 안에서는 그 호출만
 // 건너뛴다. 기본값 false라 기존 /calendar 방문(prop 없음)은 전혀 바뀌지 않는다.
-export default function CalendarPage({ embedded = false }: { embedded?: boolean } = {}) {
+// Next.js App Router의 page.tsx 기본 export는 자체 PageProps 타입 제약이 있어(파라미터를
+// 추가하면 .next/types 생성 타입 체크가 깨진다) 실제 로직은 이 내부 컴포넌트에 두고,
+// 기본 export는 인자 없는 얇은 wrapper로 유지한다 — OliviaOS 어댑터는 아래 named export
+// CalendarPageContent를 직접 import해서 embedded prop을 넘긴다.
+function CalendarPageContent({ embedded = false }: { embedded?: boolean } = {}) {
   const today    = new Date();
   const todayStr = toYMD(today);
 
