@@ -106,10 +106,10 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
     for (const basename of names) {
       if (cancelRef.current) break;
       store().setMatchProgress(flowId, { cur: done, total: names.length, msg: `매칭: ${basename}` });
-      const handle = rawIndexRef.current.get(basename);
-      if (handle) {
-        const rawFile = await handle.getFile();
-        try { await copyFileHandle(handle, rawSelectDir, rawFile.name); store().appendLog(flowId, `✅ ${rawFile.name}`); matched++; }
+      const entry = rawIndexRef.current.get(basename);
+      if (entry) {
+        const rawFile = await entry.fileHandle.getFile();
+        try { await copyFileHandle(entry.fileHandle, rawSelectDir, rawFile.name); store().appendLog(flowId, `✅ ${rawFile.name}`); matched++; }
         catch { store().appendLog(flowId, `❌ 실패: ${rawFile.name}`); }
       } else {
         store().appendLog(flowId, `⚠️ RAW 없음: ${basename}`);
