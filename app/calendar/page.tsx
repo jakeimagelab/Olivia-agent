@@ -471,7 +471,7 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = fals
       <ReminderControls enabled={reminderEnabled} minutes={reminderMinutes} hasTime={Boolean(time)} onEnabled={setReminderEnabled} onMinutes={setReminderMinutes} isMobile={isMobile}/>
       <div style={{ display: "flex", gap: 6 }}>
         {Object.entries(CATS).map(([key, v]) => (
-          <button key={key} onClick={() => setCat(key as keyof typeof CATS)} style={{
+          <button key={key} onClick={() => { setCat(key as keyof typeof CATS); setCatTouched(true); }} style={{
             padding: "4px 10px", borderRadius: 99, fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), cursor: "pointer",
             border: `1.5px solid ${cat === key ? v.color : C.border}`,
             background: cat === key ? v.color : "transparent",
