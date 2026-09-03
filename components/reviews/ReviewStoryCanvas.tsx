@@ -282,8 +282,6 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
     void elementId;
   };
 
-  const inverse = 1 / scale;
-
   return (
     <div ref={stageRef} className={styles.stage} onPointerDown={() => { onSelect(null); setCropModeId(null); }}>
       <div
