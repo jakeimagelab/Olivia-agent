@@ -53,7 +53,7 @@ export function computeSnap(
     candidatesY.push({ position: oy.top, source: "element" }, { position: oy.bottom, source: "element" }, { position: oy.centerY, source: "element" });
   }
 
-  function bestSnap(dragEdges: number[], candidates: Array<{ position: number; source: "canvas" | "element" }>) {
+  function bestSnap(dragEdges: number[], candidates: Array<{ position: number; source: "canvas" | "element" }>): { delta: number; edgeIndex: number; position: number } | null {
     let best: { delta: number; edgeIndex: number; position: number } | null = null;
     dragEdges.forEach((edgeValue, edgeIndex) => {
       for (const candidate of candidates) {
