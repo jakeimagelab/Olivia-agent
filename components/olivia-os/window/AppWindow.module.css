@@ -46,31 +46,43 @@
 .controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   flex-shrink: 0;
+  padding-left: 2px;
 }
 
-.controlButton {
+/* macOS 트래픽라이트 — 평소엔 색 원만, hover 시에만 내부 글리프가 나타난다. */
+.trafficLight {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 12px;
+  height: 12px;
   border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #5A7470;
+  border-radius: 999px;
   cursor: pointer;
+  color: transparent;
 }
 
-.controlButton:hover {
-  background: rgba(21, 88, 85, 0.08);
-  color: #155855;
+.trafficLight:hover .trafficLightGlyph,
+.trafficLight:focus-visible .trafficLightGlyph {
+  color: rgba(0, 0, 0, 0.55);
 }
 
-.controlButton.closeButton:hover {
-  background: rgba(220, 38, 38, 0.1);
-  color: #DC2626;
+.trafficLightGlyph {
+  color: inherit;
+}
+
+.trafficLightClose {
+  background: #FF5F57;
+}
+
+.trafficLightMinimize {
+  background: #FEBC2E;
+}
+
+.trafficLightMaximize {
+  background: #28C840;
 }
 
 .title {
