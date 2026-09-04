@@ -9035,45 +9035,64 @@ main,
   background: var(--olivia-green);
 }
 
-/* OS 채팅은 왼쪽의 실제 대화 Navigator를 사용하므로 오른쪽 topic tick만 숨긴다. */
-body .olivia-os-chat-dock .olivia-message-guide {
+/* OS 채팅은 왼쪽의 대화 기록 목록을 노출하지 않는다. 긴 대화에서는 기존 메시지별
+   막대 Navigator를 오른쪽에 작고 촘촘하게 표시한다. */
+body .olivia-os-chat-dock .olivia-history-nav {
   display: none;
 }
 
-body .olivia-os-chat-dock .olivia-conversation__stage,
+body .olivia-os-chat-dock .olivia-conversation__stage {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 body .olivia-os-chat-dock .olivia-conversation__stage.has-guide {
-  grid-template-columns: 108px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 34px;
 }
 
-body .olivia-os-chat-dock .olivia-history-nav {
-  display: flex;
-  background: rgba(235, 244, 241, .72);
+body .olivia-os-chat-dock .olivia-message-guide {
+  display: block;
+  width: 34px;
+  padding: 6px 3px;
+  overflow: visible;
 }
 
-.olivia-os-chat-dock .olivia-history-nav__title {
-  min-height: 34px;
-  padding-inline: 8px;
+body .olivia-os-chat-dock .olivia-message-guide__ticks {
+  gap: 0;
+  padding-block: 2px;
 }
 
-.olivia-os-chat-dock .olivia-history-nav__title strong { font-size: 8.5px; }
-.olivia-os-chat-dock .olivia-history-nav__groups { padding: 0 5px 8px; }
-.olivia-os-chat-dock .olivia-history-nav__groups h3 { margin: 6px 3px 3px; }
-.olivia-os-chat-dock .olivia-history-nav__groups h4 { margin: 7px 3px 2px; }
-.olivia-os-chat-dock .olivia-history-nav__groups button {
-  min-height: 31px;
-  grid-template-columns: 27px minmax(0, 1fr);
-  padding: 3px 4px;
-  border-radius: 7px;
+body .olivia-os-chat-dock .olivia-message-guide__ticks > button {
+  width: 28px;
+  min-height: 13px;
+  flex-basis: 13px;
 }
-.olivia-os-chat-dock .olivia-history-nav__groups button > svg { display: none; }
-.olivia-os-chat-dock .olivia-history-nav__groups time { font-size: 6.5px; }
-.olivia-os-chat-dock .olivia-history-nav__groups span { font-size: 7.5px; }
+
+body .olivia-os-chat-dock .olivia-message-guide__ticks > button > span {
+  width: 20px;
+  height: 3px;
+}
+
+body .olivia-os-chat-dock .olivia-message-guide__ticks > button:hover > span,
+body .olivia-os-chat-dock .olivia-message-guide__ticks > button[aria-pressed="true"] > span,
+body .olivia-os-chat-dock .olivia-message-guide__ticks > button.is-active > span {
+  width: 25px;
+}
+
+body .olivia-os-chat-dock .olivia-message-guide__popover {
+  right: 40px;
+  width: min(280px, calc(100cqw - 54px));
+}
+
 .olivia-os-chat-dock .olivia-conversation__messages { gap: 6px; padding-inline: 10px; }
 .olivia-os-chat-dock .olivia-message__body { padding: 7px 9px; }
 
 @container (max-width: 390px) {
-  body .olivia-os-chat-dock .olivia-conversation__stage,
   body .olivia-os-chat-dock .olivia-conversation__stage.has-guide {
-    grid-template-columns: 88px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 30px;
+  }
+
+  body .olivia-os-chat-dock .olivia-message-guide {
+    width: 30px;
+    padding-inline: 2px;
   }
 }
