@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { PcrmHeaderActionsProvider } from "@/components/pcrm/PcrmHeaderActionsSlot";
+import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 
 // app/(client-hub)/clients/page.tsx(ClientsPage)도 GlobalHeader를 직접 그리지 않는다 —
 // (client-hub)/layout.tsx가 그린다. page.tsx는 usePcrmHeaderActions()만 호출해 검색/등록
@@ -15,8 +16,12 @@ const ClientsPage = dynamic(() => import("@/app/(client-hub)/clients/page"), {
 
 export function ClientsWindowContent() {
   return (
-    <PcrmHeaderActionsProvider>
-      <ClientsPage />
-    </PcrmHeaderActionsProvider>
+    <DesktopWindowProvider value={true}>
+      <PcrmHeaderActionsProvider>
+        <div style={{ width: "100%", height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
+          <ClientsPage />
+        </div>
+      </PcrmHeaderActionsProvider>
+    </DesktopWindowProvider>
   );
 }

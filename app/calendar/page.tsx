@@ -2665,7 +2665,7 @@ export default function CalendarPage() {
   const VIEW_LABELS: Record<ViewMode, string> = { day: "일", week: "주", month: "월", year: "년" };
 
   return (
-    <main className="calendar-page-shell" style={{ background: C.bg, color: C.txt }}>
+    <main className={`calendar-page-shell${embedded ? " calendar-page-shell--embedded" : ""}`} style={{ background: C.bg, color: C.txt }}>
 
       {!embedded && (
         <GlobalHeader title="Schedule" description="촬영과 미팅 일정을 관리합니다." className="oa-header--calendar" pageActions={<>
@@ -2687,7 +2687,7 @@ export default function CalendarPage() {
         </>} />
       )}
 
-      {!isMobile ? (
+      {!embedded && !isMobile ? (
         <div className="calendar-mission-shell" style={{ maxWidth: 1440, margin: "0 auto 10px", width: "100%", padding: "0 20px" }}>
           <ActiveMissionBar />
         </div>

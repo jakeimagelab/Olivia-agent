@@ -44,14 +44,13 @@ function isRightSide(mode: Exclude<SnapMode, "none">): boolean {
 
 export function resolveSnapBounds(
   mode: Exclude<SnapMode, "none">,
-  viewportWidth: number, viewportHeight: number,
-  topBarHeight: number, dockSafeArea: number,
+  workspaceWidth: number, workspaceHeight: number, dockSafeArea: number,
 ): { x: number; y: number; width: number; height: number } {
-  const top = topBarHeight + 8;
-  const bottom = viewportHeight - dockSafeArea;
+  const top = 8;
+  const bottom = workspaceHeight - dockSafeArea;
   const height = Math.max(200, bottom - top);
   const fullLeft = 12;
-  const fullWidth = Math.max(200, viewportWidth - 24);
+  const fullWidth = Math.max(200, workspaceWidth - 24);
 
   if (mode === "maximized") return { x: fullLeft, y: top, width: fullWidth, height };
 

@@ -32,6 +32,7 @@ import MissionStatusBar from "@/components/olivia/ui/MissionStatusBar";
 import { C } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "./_hooks/useClientRoster";
+import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 
 // 견적서/계약서/콘티 빌더와 진행상세 모달은 실제로 모달을 열 때만 필요하다 — 고객 목록 첫 화면에는
 // 전혀 안 쓰이는데 지금까지는 정적 import라 항상 초기 JS 번들에 포함됐다. 모달 상태가 열리는
@@ -113,17 +114,19 @@ function SpinBox() {
 function ClientsInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const embedded = useDesktopWindowMode();
+  if (embedded) return <ClientWorkspaceView embedded openNewOnLoad={false} initialClientId={null} />;
   const id = searchParams.get("id");
   const workflowRunId = searchParams.get("workflowRunId");
   // 기존 8탭 상세 화면은 그대로 둔다(?id=) — 이번 개편으로 아직 안 옮긴 기능(문서/갤러리 상세관리 등)의
   // 도피처. 새 3단 워크스페이스는 기본 진입(/clients, ?clientId=) 경로로 붙인다.
   if (id) return <DetailView clientId={id} workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
   if (workflowRunId) return <DetailView clientId="_by-workflow" workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
-  return <ClientWorkspaceView openNewOnLoad={searchParams.get("new") === "1"} initialClientId={searchParams.get("clientId")} />;
+  return <ClientWorkspaceView embedded={false} openNewOnLoad={searchParams.get("new") === "1"} initialClientId={searchParams.get("clientId")} />;
 }
 
 /* ── 2열 워크스페이스 — 왼쪽 고객 목록 | 오른쪽 선택 고객 프로젝트 ── */
-function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openNewOnLoad?: boolean; initialClientId: string | null }) {
+function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId }: { embedded: boolean; openNewOnLoad?: boolean; initialClientId: string | null }) {
   const router = useRouter();
   const {
     filtered, loading, search, setSearch,
@@ -149,10 +152,10 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
     const contextStore = useOliviaContextStore.getState();
     contextStore.setClient(selected?.id, selected?.name);
     contextStore.setProject(undefined, undefined);
-    if (nextId && initialClientId !== nextId) router.replace(`/clients?clientId=${encodeURIComponent(nextId)}`, { scroll: false });
+    if (!embedded && nextId && initialClientId !== nextId) router.replace(`/clients?clientId=${encodeURIComponent(nextId)}`, { scroll: false });
   // filteredClientIds는 선택 가능한 id 집합만 추적해 검색 입력 중 불필요한 effect 재실행을 막는다.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredClientIds, initialClientId, loading, router, selectedClientId]);
+  }, [embedded, filteredClientIds, initialClientId, loading, router, selectedClientId]);
 
   const selectClient = (clientId: string) => {
     setSelectedClientId(clientId);
@@ -160,7 +163,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
     const contextStore = useOliviaContextStore.getState();
     contextStore.setClient(clientId, selected?.name);
     contextStore.setProject(undefined, undefined);
-    router.replace(`/clients?clientId=${encodeURIComponent(clientId)}`, { scroll: false });
+    if (!embedded) router.replace(`/clients?clientId=${encodeURIComponent(clientId)}`, { scroll: false });
   };
 
   // openCreate는 useClientRoster가 매 렌더마다 새로 만드는 함수라 deps에 넣으면 헤더 슬롯이
@@ -182,15 +185,14 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
         <Plus size={15} /> <span>고객 등록</span>
       </button>
     </>
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   ), [search, setSearch]);
   usePcrmHeaderActions(headerActions, [headerActions]);
 
   return (
-    <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt }}>
+    <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt, height: embedded ? "100%" : undefined, minHeight: 0, overflow: embedded ? "hidden" : undefined }}>
       <div
         className="pcrm-workspace-grid"
-        style={{ display: "grid", width: "100%", gridTemplateColumns: "310px minmax(0, 1fr)", gap: 18, height: "calc(100vh - 160px)", minHeight: 560, padding: "0 0 16px" }}
+        style={{ display: "grid", width: "100%", gridTemplateColumns: "310px minmax(0, 1fr)", gap: 18, height: embedded ? "100%" : "calc(100vh - 160px)", minHeight: embedded ? 0 : 560, padding: embedded ? 12 : "0 0 16px" }}
       >
         <ClientListPanel
           clients={filtered}
@@ -205,7 +207,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
 
         <div className="pcrm-inline-project-column">
           {selectedClientId ? (
-            <InlineClientProjectPanel clientId={selectedClientId} />
+            <InlineClientProjectPanel clientId={selectedClientId} embedded={embedded} />
           ) : (
             <div className="pc-card pc-card--padded pcrm-inline-project-empty">
               <p>등록된 고객이 없습니다.</p>
@@ -221,7 +223,7 @@ function ClientWorkspaceView({ openNewOnLoad = false, initialClientId }: { openN
         client={formModal?.client}
         onClose={closeForm}
         onSaved={(id) => { closeForm(); void load(false); selectClient(id); }}
-        onSavedAndNewProject={(id) => { closeForm(); void load(false); router.push(`/quote?clientId=${id}`); }}
+        onSavedAndNewProject={(id) => { closeForm(); void load(false); if (!embedded) router.push(`/quote?clientId=${id}`); }}
       />
 
       <style jsx global>{`
@@ -247,7 +249,7 @@ function invalidateClientDetailCache(clientId: string) {
   clientDetailCache.delete(clientId);
 }
 
-function InlineClientProjectPanel({ clientId }: { clientId: string }) {
+function InlineClientProjectPanel({ clientId, embedded }: { clientId: string; embedded: boolean }) {
   const router = useRouter();
   const cached = clientDetailCache.get(clientId);
   const [pageData, setPageData] = useState<any>(() => cached?.data ?? null);
@@ -326,7 +328,7 @@ function InlineClientProjectPanel({ clientId }: { clientId: string }) {
     await tryMoveWorkflowStep(workflowRun.id, targetStep);
     refresh();
     if (targetStep === "quote" || targetStep === "contract" || targetStep === "conti") openToolModal(targetStep);
-    else router.push(buildStepAppLink({ stepKey: targetStep, clientId, workflowRunId: workflowRun.id }));
+    else if (!embedded) router.push(buildStepAppLink({ stepKey: targetStep, clientId, workflowRunId: workflowRun.id }));
   };
 
   return (
@@ -340,10 +342,12 @@ function InlineClientProjectPanel({ clientId }: { clientId: string }) {
             <small>최근 작업일: {fmtDot(workflowRun?.updated_at || client.updated_at || client.created_at)}</small>
           </div>
         </div>
-        <div className="pcrm-inline-project__header-actions">
-          <Link href={`/clients?id=${encodeURIComponent(clientId)}`}><UserRound size={15} /> 고객 정보</Link>
-          <Link href={`/clients?id=${encodeURIComponent(clientId)}#settings`}><Settings size={15} /> 관리 설정</Link>
-        </div>
+        {!embedded ? (
+          <div className="pcrm-inline-project__header-actions">
+            <Link href={`/clients?id=${encodeURIComponent(clientId)}`}><UserRound size={15} /> 고객 정보</Link>
+            <Link href={`/clients?id=${encodeURIComponent(clientId)}#settings`}><Settings size={15} /> 관리 설정</Link>
+          </div>
+        ) : null}
       </header>
 
       {workflowRun ? (

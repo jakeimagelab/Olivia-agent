@@ -23,12 +23,10 @@ export type OliviaWindowState = {
   previousBounds?: { x: number; y: number; width: number; height: number };
 };
 
-// Top Bar/Dock 높이 — AppWindow의 drag clamp와 snap/maximize 영역 계산이 공유한다(단일 소스).
-// 40(기존 아이콘/시계 행) + 28(메뉴바 행, DesktopTopBar.tsx) = 68 — 메뉴바를 추가할 때 반드시
-// 같이 바꿔야 한다. 안 그러면 최대화/스냅된 창이 메뉴바 뒤에 깔린다.
-export const DESKTOP_TOPBAR_HEIGHT = 68;
+// WindowLayer는 Top Bar 아래의 DesktopSurface 자체가 좌표 원점이다. Dock만 Surface 위에
+// overlay되므로 drag/resize/snap이 공유하는 bottom safe area만 둔다.
 export const DESKTOP_DOCK_SAFE_AREA = 96;
-// 화면 밖으로 창이 완전히 사라지지 않게 — 헤더 일부는 항상 viewport 안에 남긴다
+// 화면 밖으로 창이 완전히 사라지지 않게 — 헤더 일부는 항상 WindowLayer 안에 남긴다
 // (useWindowInteractions.ts의 드래그 clamp와 동일한 값).
 const MIN_VISIBLE_HEADER = 40;
 
@@ -39,6 +37,10 @@ const Z_BASE = 100;
 // 이 값을 넘으면 다음 bringToFront 호출 때 전체를 현재 순서대로 100번대로 재정규화한다 —
 // "z-index 무한 증가 문제 방지"(스펙 1-11/2-28).
 const Z_NORMALIZE_THRESHOLD = 10_000;
+const FLOATING_MAX_WIDTH_RATIO = 0.82;
+const FLOATING_MAX_HEIGHT_RATIO = 0.82;
+const FLOATING_EDGE_GAP = 12;
+const STORAGE_KEY = "olivia-os-desktop-state";
 
 export type OpenAppInput = {
   appId: string;
@@ -59,6 +61,8 @@ type OliviaDesktopState = {
   // Show Desktop이 임시로 minimize한 창 id 목록 — 다시 누르면 정확히 이것만 복원한다(사용자가
   // 그 사이 개별적으로 최소화한 창까지 잘못 복원하지 않기 위해, 스펙 2-11).
   showDesktopStash: string[] | null;
+  workspaceWidth: number;
+  workspaceHeight: number;
   openApp: (input: OpenAppInput) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
@@ -71,7 +75,8 @@ type OliviaDesktopState = {
   unsnapWindow: (id: string) => void;
   setDragHint: (hint: Exclude<SnapMode, "none"> | null) => void;
   toggleShowDesktop: () => void;
-  reconcileViewport: (viewportWidth: number, viewportHeight: number) => void;
+  setWorkspaceSize: (width: number, height: number) => void;
+  reconcileWorkspace: (width: number, height: number) => void;
 };
 
 export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
@@ -81,6 +86,8 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
   nextZIndex: Z_BASE,
   dragHint: null,
   showDesktopStash: null,
+  workspaceWidth: 0,
+  workspaceHeight: 0,
 
   // 앱당 창 하나(singleton) 모델 — 창 id는 appId를 그대로 쓴다. 이미 열려 있으면 새로 만들지
   // 않고 focus/restore만 한다(Dock/Shortcut 클릭 시 "열림→focus, minimized→restore" 동작,
@@ -92,14 +99,25 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
       else get().focusWindow(existing.id);
       return;
     }
-    const { openCount } = get();
+    const { openCount, workspaceWidth, workspaceHeight } = get();
     const slot = openCount % CASCADE_WRAP_AFTER;
-    const x = CASCADE_START + slot * CASCADE_STEP;
-    const y = CASCADE_START + slot * CASCADE_STEP;
+    const usableHeight = Math.max(320, workspaceHeight - DESKTOP_DOCK_SAFE_AREA);
+    const maxWidth = workspaceWidth > 0 ? workspaceWidth * FLOATING_MAX_WIDTH_RATIO : input.width;
+    const maxHeight = workspaceHeight > 0 ? usableHeight * FLOATING_MAX_HEIGHT_RATIO : input.height;
+    const width = Math.max(320, Math.min(input.width, maxWidth));
+    const height = Math.max(240, Math.min(input.height, maxHeight));
+    const desiredX = CASCADE_START + slot * CASCADE_STEP;
+    const desiredY = CASCADE_START + slot * CASCADE_STEP;
+    const x = workspaceWidth > 0
+      ? Math.max(FLOATING_EDGE_GAP, Math.min(desiredX, workspaceWidth - width - FLOATING_EDGE_GAP))
+      : desiredX;
+    const y = workspaceHeight > 0
+      ? Math.max(FLOATING_EDGE_GAP, Math.min(desiredY, usableHeight - height - FLOATING_EDGE_GAP))
+      : desiredY;
     const zIndex = get().nextZIndex + 1;
     const win: OliviaWindowState = {
       id: input.appId, appId: input.appId, title: input.title,
-      x, y, width: input.width, height: input.height,
+      x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height),
       minimized: false, snapMode: "none", zIndex,
     };
     set((state) => ({
@@ -202,23 +220,28 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     return { windows, showDesktopStash: idsToHide, activeWindowId: null };
   }),
 
-  // 브라우저 창 크기가 바뀌어도(외부 모니터 해제, 맥북 화면 복귀 등) 창이 화면 밖으로 나가지
-  // 않게 한다(스펙 2-15/2-16). snap/maximize된 창은 저장된 픽셀을 못 믿고 새 뷰포트 기준으로
+  // DesktopSurface 크기가 바뀌어도(외부 모니터 해제, 맥북 화면 복귀 등) 창이 밖에 남지 않게
+  // 한다. snap/maximize된 창은 저장된 픽셀을 못 믿고 새 WindowLayer 기준으로
   // 다시 계산하고, 떠 있는 창은 위치/크기만 clamp한다.
-  reconcileViewport: (viewportWidth, viewportHeight) => set((state) => {
+  setWorkspaceSize: (width, height) => {
+    set({ workspaceWidth: width, workspaceHeight: height });
+    get().reconcileWorkspace(width, height);
+  },
+
+  reconcileWorkspace: (workspaceWidth, workspaceHeight) => set((state) => {
     let changed = false;
     const windows = { ...state.windows };
     for (const [id, win] of Object.entries(windows)) {
       if (win.snapMode !== "none") {
-        const bounds = resolveSnapBounds(win.snapMode, viewportWidth, viewportHeight, DESKTOP_TOPBAR_HEIGHT, DESKTOP_DOCK_SAFE_AREA);
+        const bounds = resolveSnapBounds(win.snapMode, workspaceWidth, workspaceHeight, DESKTOP_DOCK_SAFE_AREA);
         windows[id] = { ...win, ...bounds };
         changed = true;
         continue;
       }
-      const clampedX = Math.max(-(win.width - MIN_VISIBLE_HEADER), Math.min(viewportWidth - MIN_VISIBLE_HEADER, win.x));
-      const clampedY = Math.max(DESKTOP_TOPBAR_HEIGHT, Math.min(viewportHeight - MIN_VISIBLE_HEADER, win.y));
-      const clampedWidth = Math.min(win.width, Math.max(320, viewportWidth - 24));
-      const clampedHeight = Math.min(win.height, Math.max(240, viewportHeight - DESKTOP_TOPBAR_HEIGHT - 24));
+      const clampedWidth = Math.min(win.width, Math.max(320, workspaceWidth - 24));
+      const clampedHeight = Math.min(win.height, Math.max(240, workspaceHeight - DESKTOP_DOCK_SAFE_AREA - 16));
+      const clampedX = Math.max(-(clampedWidth - MIN_VISIBLE_HEADER), Math.min(workspaceWidth - MIN_VISIBLE_HEADER, win.x));
+      const clampedY = Math.max(0, Math.min(workspaceHeight - MIN_VISIBLE_HEADER, win.y));
       if (clampedX !== win.x || clampedY !== win.y || clampedWidth !== win.width || clampedHeight !== win.height) {
         windows[id] = { ...win, x: clampedX, y: clampedY, width: clampedWidth, height: clampedHeight };
         changed = true;
@@ -233,8 +256,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
 // 들이지 않고 수동 localStorage read/write로 구현한다. FileSystemHandle/File/Blob/DOM
 // 참조/ReactNode/함수는 OliviaWindowState 자체에 애초에 없으므로(각 앱의 내부 상태일 뿐) 직렬화
 // 위험이 구조적으로 없다.
-export const DESKTOP_STATE_VERSION = 1;
-const STORAGE_KEY = "olivia-os-desktop-state";
+export const DESKTOP_STATE_VERSION = 2;
 // "12개 창이 열려 있었다고 전부 복원하면 실패"(스펙 2-8) — 최근 포커스 순 상위 4개까지만,
 // minimized였던 창은 애초에 저장하지 않는다.
 const MAX_RESTORED_WINDOWS = 4;
@@ -306,6 +328,14 @@ export function loadDesktopState(knownAppIds: Set<string>) {
   } catch {
     // 파싱 실패 등 오염된 state는 조용히 버린다(스펙 2-37).
   }
+}
+
+export function resetDesktopSession() {
+  useOliviaDesktopStore.setState({
+    windows: {}, activeWindowId: null, openCount: 0, nextZIndex: Z_BASE,
+    dragHint: null, showDesktopStash: null,
+  });
+  if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
 }
 
 // windows/activeWindowId가 바뀔 때마다(드래그 중 매 픽셀 이동 포함) 곧바로 저장하면 너무

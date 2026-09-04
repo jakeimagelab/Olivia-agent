@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 import { motion } from "framer-motion";
 import { oliviaMotion } from "@/lib/motion/presets";
 import {
-  useOliviaDesktopStore, DESKTOP_TOPBAR_HEIGHT, DESKTOP_DOCK_SAFE_AREA,
+  useOliviaDesktopStore, DESKTOP_DOCK_SAFE_AREA,
 } from "@/lib/store/useOliviaDesktopStore";
 import { useWindowInteractions } from "./useWindowInteractions";
 import { resolveSnapBounds } from "./snapZones";
@@ -12,8 +12,9 @@ import { WindowHeader } from "./WindowHeader";
 import { AppWindowErrorBoundary } from "./AppWindowErrorBoundary";
 import styles from "./AppWindow.module.css";
 
-export function AppWindow({ windowId, minWidth = 420, minHeight = 320, children }: {
+export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 320, children }: {
   windowId: string;
+  workspaceRef: RefObject<HTMLDivElement | null>;
   minWidth?: number;
   minHeight?: number;
   children: ReactNode;
@@ -25,32 +26,21 @@ export function AppWindow({ windowId, minWidth = 420, minHeight = 320, children 
   const snapWindow = useOliviaDesktopStore((state) => state.snapWindow);
   const unsnapWindow = useOliviaDesktopStore((state) => state.unsnapWindow);
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
-  const { beginDrag, beginResize } = useWindowInteractions(windowId, minWidth, minHeight);
   // drag/resize 중엔 CSS transition을 꺼서(즉각 반응), maximize/restore 때만 부드럽게 움직인다.
   const [interacting, setInteracting] = useState(false);
-  const interactingRef = useRef(false);
+  const { beginDrag, beginResize } = useWindowInteractions(windowId, minWidth, minHeight, workspaceRef, setInteracting);
 
   if (!win) return null;
 
   const isActive = activeWindowId === windowId;
 
-  const withInteractionGuard = (handler: (event: React.PointerEvent) => void) => (event: React.PointerEvent) => {
-    interactingRef.current = true;
-    setInteracting(true);
-    handler(event);
-    const clear = () => {
-      interactingRef.current = false;
-      setInteracting(false);
-      window.removeEventListener("pointerup", clear);
-    };
-    window.addEventListener("pointerup", clear, { once: true });
-  };
-
   const toggleMaximize = () => {
     if (win.snapMode === "maximized") {
       unsnapWindow(windowId);
     } else {
-      const bounds = resolveSnapBounds("maximized", window.innerWidth, window.innerHeight, DESKTOP_TOPBAR_HEIGHT, DESKTOP_DOCK_SAFE_AREA);
+      const surface = workspaceRef.current;
+      if (!surface) return;
+      const bounds = resolveSnapBounds("maximized", surface.clientWidth, surface.clientHeight, DESKTOP_DOCK_SAFE_AREA);
       snapWindow(windowId, "maximized", bounds);
     }
   };
@@ -73,7 +63,7 @@ export function AppWindow({ windowId, minWidth = 420, minHeight = 320, children 
       <div className={styles.body}>
         <WindowHeader
           title={win.title}
-          onPointerDown={withInteractionGuard(beginDrag)}
+          onPointerDown={beginDrag}
           onDoubleClick={toggleMaximize}
           onClose={() => closeWindow(windowId)}
           onMinimize={() => minimizeWindow(windowId)}
@@ -85,9 +75,9 @@ export function AppWindow({ windowId, minWidth = 420, minHeight = 320, children 
       </div>
       {win.snapMode === "none" && (
         <>
-          <div className={styles.resizeHandleE} onPointerDown={withInteractionGuard((event) => beginResize(event, "e"))} />
-          <div className={styles.resizeHandleS} onPointerDown={withInteractionGuard((event) => beginResize(event, "s"))} />
-          <div className={styles.resizeHandleSe} onPointerDown={withInteractionGuard((event) => beginResize(event, "se"))} />
+          <div className={styles.resizeHandleE} onPointerDown={(event) => beginResize(event, "e")} />
+          <div className={styles.resizeHandleS} onPointerDown={(event) => beginResize(event, "s")} />
+          <div className={styles.resizeHandleSe} onPointerDown={(event) => beginResize(event, "se")} />
         </>
       )}
     </motion.div>

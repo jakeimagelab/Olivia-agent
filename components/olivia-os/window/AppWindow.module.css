@@ -1,5 +1,5 @@
 .window {
-  position: fixed;
+  position: absolute;
   display: flex;
   flex-direction: column;
   background: #FFFFFF;
@@ -8,6 +8,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
 }
 
 .window.active {
@@ -102,6 +103,11 @@
   min-height: 0;
   overflow: auto;
   position: relative;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  isolation: isolate;
+  contain: layout paint;
 }
 
 .resizeHandleE, .resizeHandleS, .resizeHandleSe {
@@ -121,24 +127,4 @@
 .resizeHandleSe {
   right: -4px; bottom: -4px; width: 14px; height: 14px;
   cursor: nwse-resize;
-}
-
-@media (max-width: 1023px) {
-  .window {
-    left: 8px !important;
-    top: 72px !important;
-    width: calc(100vw - 16px) !important;
-    height: calc(100dvh - 152px) !important;
-    border-radius: 12px;
-  }
-
-  .header {
-    cursor: default;
-  }
-
-  .resizeHandleE,
-  .resizeHandleS,
-  .resizeHandleSe {
-    display: none;
-  }
 }

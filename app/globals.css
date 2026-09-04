@@ -1105,6 +1105,10 @@ main:has(> .pc-header) {
   overflow: hidden;
   font-family: var(--font-sans);
 }
+.calendar-page-shell--embedded {
+  height: 100%;
+  max-height: 100%;
+}
 .calendar-page-shell > .pc-header,
 .calendar-page-shell > .oa-header,
 .calendar-page-shell > .pc-page-actions,
@@ -8025,10 +8029,13 @@ main:has(> .pc-header) {
    포토클리닉 어드민 — 전역 인터랙션 이펙트
    ═══════════════════════════════════════════════════════════ */
 
-/* 커스텀 커서 숨기기 — 마우스 디바이스에서만 */
+/* LegacyAppChrome이 실제 커스텀 커서를 마운트한 동안에만 native cursor를 숨긴다.
+   OLIVIA OS는 이 class를 사용하지 않으므로 항상 OS cursor가 보인다. */
 @media (pointer: fine) {
-  * { cursor: none !important; }
-  input, textarea { cursor: text !important; }
+  .pc-custom-cursor-active,
+  .pc-custom-cursor-active * { cursor: none !important; }
+  .pc-custom-cursor-active input,
+  .pc-custom-cursor-active textarea { cursor: text !important; }
 }
 
 

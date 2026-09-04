@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getDesktopShortcutApps, oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { DesktopShortcut } from "./DesktopShortcut";
@@ -14,18 +14,22 @@ export function DesktopSurface() {
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const closeWindow = useOliviaDesktopStore((state) => state.closeWindow);
   const minimizeWindow = useOliviaDesktopStore((state) => state.minimizeWindow);
-  const reconcileViewport = useOliviaDesktopStore((state) => state.reconcileViewport);
+  const setWorkspaceSize = useOliviaDesktopStore((state) => state.setWorkspaceSize);
   const [selectedShortcut, setSelectedShortcut] = useState<string | null>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
 
   const shortcutApps = getDesktopShortcutApps();
 
-  // 화면 크기가 바뀌어도(외부 모니터 해제 등) 창이 화면 밖에 남지 않게 한다(스펙 2-15/2-16).
+  // WindowLayer 자체를 측정해 모든 창 좌표를 viewport가 아닌 DesktopSurface 기준으로 통일한다.
   useEffect(() => {
-    const handleResize = () => reconcileViewport(window.innerWidth, window.innerHeight);
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [reconcileViewport]);
+    const surface = surfaceRef.current;
+    if (!surface) return;
+    const measure = () => setWorkspaceSize(surface.clientWidth, surface.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(surface);
+    return () => observer.disconnect();
+  }, [setWorkspaceSize]);
 
   // 최소 키보드 단축키(스펙 2-29) — 브라우저 기본 동작과 크게 충돌하는 것은 넣지 않는다.
   useEffect(() => {
@@ -46,7 +50,7 @@ export function DesktopSurface() {
   }, [activeWindowId, closeWindow, minimizeWindow]);
 
   return (
-    <div className={styles.surface} onPointerDown={(event) => { if (event.currentTarget === event.target) setSelectedShortcut(null); }}>
+    <div ref={surfaceRef} className={styles.surface} onPointerDown={(event) => { if (event.currentTarget === event.target) setSelectedShortcut(null); }}>
       <div className={styles.shortcutLayer}>
         {shortcutApps.map((app) => (
           <DesktopShortcut
@@ -64,7 +68,7 @@ export function DesktopSurface() {
           if (!app) return null;
           const Content = app.component;
           return (
-            <AppWindow key={win.id} windowId={win.id} minWidth={app.minSize?.width} minHeight={app.minSize?.height}>
+            <AppWindow key={win.id} windowId={win.id} workspaceRef={surfaceRef} minWidth={app.minSize?.width} minHeight={app.minSize?.height}>
               <Content />
             </AppWindow>
           );

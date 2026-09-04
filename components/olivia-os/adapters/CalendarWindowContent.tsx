@@ -13,7 +13,9 @@ const CalendarPage = dynamic(() => import("@/app/calendar/page"), {
 export function CalendarWindowContent() {
   return (
     <CalendarEmbedProvider value={true}>
-      <CalendarPage />
+      <div style={{ width: "100%", height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
+        <CalendarPage />
+      </div>
     </CalendarEmbedProvider>
   );
 }

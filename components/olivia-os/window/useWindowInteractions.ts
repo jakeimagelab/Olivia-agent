@@ -1,97 +1,156 @@
 "use client";
 
-import { useCallback } from "react";
-import { useOliviaDesktopStore, DESKTOP_TOPBAR_HEIGHT, DESKTOP_DOCK_SAFE_AREA } from "@/lib/store/useOliviaDesktopStore";
+import { useCallback, useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { DESKTOP_DOCK_SAFE_AREA, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { computeSnapZone, resolveSnapBounds } from "./snapZones";
 
-// components/reviews/ReviewStoryCanvas.tsx의 beginPointerAction 패턴을 일반화했다 — pointerdown에서
-// 시작점을 기록하고 window에 pointermove/pointerup을 붙여 델타를 계산한 뒤 pointerup에서 정리하는
-// 구조가 그대로다. 캔버스 좌표 스케일(scale)이 없다는 점만 다르다.
 const MIN_VISIBLE_HEADER = 40;
+const EDGE_GAP = 12;
 
 export type ResizeHandle = "e" | "s" | "se";
 
-export function useWindowInteractions(windowId: string, minWidth: number, minHeight: number) {
+export function useWindowInteractions(
+  windowId: string,
+  minWidth: number,
+  minHeight: number,
+  workspaceRef: RefObject<HTMLDivElement | null>,
+  setInteracting: Dispatch<SetStateAction<boolean>>,
+) {
   const moveWindow = useOliviaDesktopStore((state) => state.moveWindow);
   const resizeWindow = useOliviaDesktopStore((state) => state.resizeWindow);
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const snapWindow = useOliviaDesktopStore((state) => state.snapWindow);
   const unsnapWindow = useOliviaDesktopStore((state) => state.unsnapWindow);
   const setDragHint = useOliviaDesktopStore((state) => state.setDragHint);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => cleanupRef.current?.(), []);
 
   const beginDrag = useCallback((event: React.PointerEvent) => {
     event.preventDefault();
-    focusWindow(windowId);
+    cleanupRef.current?.();
+    const workspace = workspaceRef.current;
     const win = useOliviaDesktopStore.getState().windows[windowId];
-    if (!win) return;
+    if (!workspace || !win) return;
 
-    // 이미 스냅/최대화된 창의 header를 다시 드래그하면 먼저 floating 크기로 복원한 뒤,
-    // 마우스 포인터를 중심으로 그 창이 따라오게 한다(스펙 2-18) — 딱딱하게 그대로 안 끌려나옴.
+    focusWindow(windowId);
+    setInteracting(true);
+    const captureTarget = event.currentTarget as HTMLElement;
+    const pointerId = event.pointerId;
+    try { captureTarget.setPointerCapture(pointerId); } catch { /* best effort */ }
+
+    const previousUserSelect = document.body.style.userSelect;
+    const previousCursor = document.body.style.cursor;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "grabbing";
+
+    const workspaceRect = workspace.getBoundingClientRect();
+    const localStartX = event.clientX - workspaceRect.left;
+    const localStartY = event.clientY - workspaceRect.top;
     let originX = win.x;
     let originY = win.y;
     let originWidth = win.width;
     let originHeight = win.height;
+
     if (win.snapMode !== "none") {
       const restored = win.previousBounds ?? { x: win.x, y: win.y, width: minWidth * 1.5, height: minHeight * 1.5 };
-      originWidth = restored.width;
-      originHeight = restored.height;
-      originX = event.clientX - originWidth / 2;
-      originY = Math.max(DESKTOP_TOPBAR_HEIGHT, event.clientY - 16);
+      originWidth = Math.min(restored.width, workspaceRect.width * 0.82);
+      originHeight = Math.min(restored.height, (workspaceRect.height - DESKTOP_DOCK_SAFE_AREA) * 0.82);
+      originX = localStartX - originWidth / 2;
+      originY = Math.max(0, localStartY - 16);
       unsnapWindow(windowId);
       moveWindow(windowId, originX, originY);
       resizeWindow(windowId, originWidth, originHeight);
     }
 
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const move = (pointerEvent: PointerEvent) => {
-      const dx = pointerEvent.clientX - startX;
-      const dy = pointerEvent.clientY - startY;
-      // 화면 밖으로 완전히 사라지지 않게 — 헤더 일부는 항상 viewport 안(Top Bar 아래)에 남긴다.
-      const nextX = Math.max(-(originWidth - MIN_VISIBLE_HEADER), Math.min(window.innerWidth - MIN_VISIBLE_HEADER, originX + dx));
-      const nextY = Math.max(DESKTOP_TOPBAR_HEIGHT, Math.min(window.innerHeight - MIN_VISIBLE_HEADER, originY + dy));
-      moveWindow(windowId, Math.round(nextX), Math.round(nextY));
-      setDragHint(computeSnapZone(pointerEvent.clientX, pointerEvent.clientY, window.innerWidth, window.innerHeight));
-    };
-    const up = () => {
+    let finished = false;
+    const finish = (applySnap: boolean) => {
+      if (finished) return;
+      finished = true;
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+      try {
+        if (captureTarget.hasPointerCapture(pointerId)) captureTarget.releasePointerCapture(pointerId);
+      } catch { /* the element may already be detached */ }
+      document.body.style.userSelect = previousUserSelect;
+      document.body.style.cursor = previousCursor;
+      setInteracting(false);
       const hint = useOliviaDesktopStore.getState().dragHint;
-      if (hint) {
-        const bounds = resolveSnapBounds(hint, window.innerWidth, window.innerHeight, DESKTOP_TOPBAR_HEIGHT, DESKTOP_DOCK_SAFE_AREA);
+      if (applySnap && hint) {
+        const bounds = resolveSnapBounds(hint, workspace.clientWidth, workspace.clientHeight, DESKTOP_DOCK_SAFE_AREA);
         snapWindow(windowId, hint, bounds);
       }
       setDragHint(null);
+      cleanupRef.current = null;
     };
+    const move = (pointerEvent: PointerEvent) => {
+      const localX = pointerEvent.clientX - workspaceRect.left;
+      const localY = pointerEvent.clientY - workspaceRect.top;
+      const nextX = Math.max(-(originWidth - MIN_VISIBLE_HEADER), Math.min(workspaceRect.width - MIN_VISIBLE_HEADER, originX + localX - localStartX));
+      const nextY = Math.max(0, Math.min(workspaceRect.height - MIN_VISIBLE_HEADER, originY + localY - localStartY));
+      moveWindow(windowId, Math.round(nextX), Math.round(nextY));
+      setDragHint(computeSnapZone(localX, localY, workspaceRect.width, workspaceRect.height));
+    };
+    const up = () => finish(true);
+    const cancel = () => finish(false);
+    cleanupRef.current = () => finish(false);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up, { once: true });
-  }, [windowId, minWidth, minHeight, moveWindow, resizeWindow, focusWindow, snapWindow, unsnapWindow, setDragHint]);
+    window.addEventListener("pointercancel", cancel, { once: true });
+  }, [focusWindow, minHeight, minWidth, moveWindow, resizeWindow, setDragHint, setInteracting, snapWindow, unsnapWindow, windowId, workspaceRef]);
 
-  // Phase 1 최소 요구치(스펙 1-8): e(오른쪽)/s(아래)/se(오른쪽아래) 3방향만. 8방향은 다음 단계.
   const beginResize = useCallback((event: React.PointerEvent, handle: ResizeHandle) => {
     event.preventDefault();
     event.stopPropagation();
-    focusWindow(windowId);
+    cleanupRef.current?.();
+    const workspace = workspaceRef.current;
     const win = useOliviaDesktopStore.getState().windows[windowId];
-    if (!win || win.snapMode !== "none") return;
+    if (!workspace || !win || win.snapMode !== "none") return;
+
+    focusWindow(windowId);
+    setInteracting(true);
+    const captureTarget = event.currentTarget as HTMLElement;
+    const pointerId = event.pointerId;
+    try { captureTarget.setPointerCapture(pointerId); } catch { /* best effort */ }
+    const previousUserSelect = document.body.style.userSelect;
+    const previousCursor = document.body.style.cursor;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = handle === "e" ? "ew-resize" : handle === "s" ? "ns-resize" : "nwse-resize";
+
     const startX = event.clientX;
     const startY = event.clientY;
     const originWidth = win.width;
     const originHeight = win.height;
+    const maxWidth = Math.max(minWidth, workspace.clientWidth - win.x - EDGE_GAP);
+    const maxHeight = Math.max(minHeight, workspace.clientHeight - DESKTOP_DOCK_SAFE_AREA - win.y - EDGE_GAP);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      try {
+        if (captureTarget.hasPointerCapture(pointerId)) captureTarget.releasePointerCapture(pointerId);
+      } catch { /* the element may already be detached */ }
+      document.body.style.userSelect = previousUserSelect;
+      document.body.style.cursor = previousCursor;
+      setInteracting(false);
+      cleanupRef.current = null;
+    };
     const move = (pointerEvent: PointerEvent) => {
       const dx = pointerEvent.clientX - startX;
       const dy = pointerEvent.clientY - startY;
-      const nextWidth = handle === "s" ? originWidth : Math.max(minWidth, originWidth + dx);
-      const nextHeight = handle === "e" ? originHeight : Math.max(minHeight, originHeight + dy);
+      const nextWidth = handle === "s" ? originWidth : Math.min(maxWidth, Math.max(minWidth, originWidth + dx));
+      const nextHeight = handle === "e" ? originHeight : Math.min(maxHeight, Math.max(minHeight, originHeight + dy));
       resizeWindow(windowId, Math.round(nextWidth), Math.round(nextHeight));
     };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
+    cleanupRef.current = finish;
     window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up, { once: true });
-  }, [windowId, minWidth, minHeight, resizeWindow, focusWindow]);
+    window.addEventListener("pointerup", finish, { once: true });
+    window.addEventListener("pointercancel", finish, { once: true });
+  }, [focusWindow, minHeight, minWidth, resizeWindow, setInteracting, windowId, workspaceRef]);
 
   return { beginDrag, beginResize };
 }

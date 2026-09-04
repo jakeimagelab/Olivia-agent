@@ -14,8 +14,12 @@ export default function CursorEffect() {
       setIsTouch(true);
       return;
     }
+    setIsTouch(false);
+    if (pathname?.startsWith("/client-portal")) return;
     const dot = dotRef.current;
     if (!dot) return;
+
+    document.documentElement.classList.add("pc-custom-cursor-active");
 
     const onMove = (e: MouseEvent) => {
       dot.style.transform = `translate(${e.clientX - 4}px, ${e.clientY - 4}px)`;
@@ -28,11 +32,12 @@ export default function CursorEffect() {
     document.addEventListener("mouseup",   onUp);
 
     return () => {
+      document.documentElement.classList.remove("pc-custom-cursor-active");
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("mouseup",   onUp);
     };
-  }, []);
+  }, [pathname]);
 
   if (isTouch || pathname?.startsWith("/client-portal")) return null;
 
