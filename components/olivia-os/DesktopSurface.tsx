@@ -20,7 +20,6 @@ export function DesktopSurface() {
   const closeWindow = useOliviaDesktopStore((state) => state.closeWindow);
   const minimizeWindow = useOliviaDesktopStore((state) => state.minimizeWindow);
   const reconcileViewport = useOliviaDesktopStore((state) => state.reconcileViewport);
-  const toggleChat = useOliviaChatModeStore((state) => state.toggleChat);
   const [selectedShortcut, setSelectedShortcut] = useState<string | null>(null);
 
   const shortcutApps = SHORTCUT_APP_IDS.map((id) => oliviaAppRegistry.find((app) => app.id === id)).filter((app) => app !== undefined);
