@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import React, { FormEvent, useEffect, useRef, useState } from "react";
+import OliviaDesktop from "@/components/olivia-os/OliviaDesktop";
 import { TOOLS_WORK, TOOLS_CONTENT, type ToolDef } from "@/lib/toolNav";
 import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import {
