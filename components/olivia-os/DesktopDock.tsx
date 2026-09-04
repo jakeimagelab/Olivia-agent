@@ -53,7 +53,7 @@ export function DesktopDock() {
             onClick={() => handleDockClick(app.id, app.title, app.defaultSize.width, app.defaultSize.height)}
             aria-label={app.title}
           >
-            <AppIcon icon={app.icon} size={46} />
+            <AppIcon icon={app.icon} size={46} active={active} />
             <span className={styles.dockLabel}>{app.title}</span>
             {running && <span className={styles.dockIndicator} />}
           </button>
