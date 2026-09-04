@@ -50,9 +50,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(21, 88, 85, 0.1);
+  background: rgba(244, 249, 247, 0.76);
+  backdrop-filter: blur(24px) saturate(140%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: 0 1px 0 rgba(10, 60, 55, 0.05);
   z-index: 8000;
 }
 
