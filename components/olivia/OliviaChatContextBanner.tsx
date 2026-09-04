@@ -32,8 +32,9 @@ export default function OliviaChatContextBanner() {
     const label = activeClientName ? `${activeWindow.title} · ${activeClientName}` : activeWindow.title;
     return (
       <div className="olivia-chat-context-banner">
+        <span>● {label}</span>
         <button type="button" onClick={() => focusWindow(activeWindow.id)}>
-          ● {label}
+          창 보기
         </button>
       </div>
     );
