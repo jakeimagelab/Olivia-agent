@@ -40,6 +40,7 @@ const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
   ["agent_run",/(준비해|준비하자|계속하자|어디까지|보류|끝까지|알아서\s*처리)/i],
   ["client",/(고객|병원|의원|프로젝트)/i], ["navigation",/(열어|보여줘|이동|화면|페이지)/i],
   ["photo_classification",/(씬)/i],
+  ["window",/(이\s*창|창\s*닫|닫아줘|최소화|내려줘|전체화면|창\s*키워)/i],
 ];
 
 const SAFE_FALLBACK = new Set(["open_feature","select_project","search_client_projects","get_project_status","get_workflow_status","list_active_workflows","calendar_list","get_today_briefing","get_urgent_insights"]);
