@@ -101,11 +101,20 @@
 }
 
 .topBarActiveTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
-  color: #5A7470;
+  font-weight: 600;
+  color: #1C2B28;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.topBarActiveTitleDot {
+  color: #8CA39D;
+  font-weight: 700;
 }
 
 .topBarRight {
