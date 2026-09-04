@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
-import { useOliviaChatModeStore } from "@/lib/store/useOliviaChatModeStore";
+import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { DesktopShortcut } from "./DesktopShortcut";
 import { AppWindow } from "./window/AppWindow";
 import { SnapZoneOverlay } from "./window/SnapZoneOverlay";
