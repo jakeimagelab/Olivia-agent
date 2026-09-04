@@ -74,6 +74,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1000, height: 720 },
     minSize: { width: 640, height: 420 },
     singleton: true,
+    dockOrder: 6,
     component: QuoteBuilderWindowContent,
   },
   {
@@ -83,6 +84,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1000, height: 720 },
     minSize: { width: 640, height: 420 },
     singleton: true,
+    dockOrder: 7,
     component: ContractBuilderWindowContent,
   },
   {
@@ -93,6 +95,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1100, height: 760 },
     minSize: { width: 720, height: 440 },
     singleton: true,
+    dockOrder: 8,
     component: ContiBuilderWindowContent,
   },
   {
