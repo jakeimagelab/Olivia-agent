@@ -83,7 +83,7 @@ export function AppWindow({ windowId, minWidth = 420, minHeight = 320, children 
           <AppWindowErrorBoundary appTitle={win.title}>{children}</AppWindowErrorBoundary>
         </div>
       </div>
-      {!win.maximized && (
+      {win.snapMode === "none" && (
         <>
           <div className={styles.resizeHandleE} onPointerDown={withInteractionGuard((event) => beginResize(event, "e"))} />
           <div className={styles.resizeHandleS} onPointerDown={withInteractionGuard((event) => beginResize(event, "s"))} />
