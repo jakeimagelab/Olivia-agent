@@ -9015,3 +9015,19 @@ main,
   display: flex;
   flex-direction: column;
 }
+
+/* Visual Polish Pass §6 — OS 창 안의 Olivia 채팅만 순백색 느낌을 완화한다(다른 페이지의
+   floating/home/drawer variant는 그대로 둔다 — .olivia-os-chat-dock 조상 스코프로 한정). 유저
+   말풍선(deep green)/입력창(흰색+얇은 보더)/전송 버튼(deep green 원형)은 admin.css의 기본값이
+   이미 이 요구사항과 일치해서 손대지 않는다. */
+.olivia-os-chat-dock .olivia-conversation {
+  background: linear-gradient(160deg, #FEFDFA 0%, #F1F7F5 100%);
+}
+
+.olivia-os-chat-dock .olivia-message__body {
+  background: #EEF4F2;
+}
+
+.olivia-os-chat-dock .olivia-message.is-user .olivia-message__body {
+  background: var(--olivia-green);
+}
