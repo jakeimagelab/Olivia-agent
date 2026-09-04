@@ -11,16 +11,18 @@ export function WindowHeader({
   title: string;
   onPointerDown: (event: React.PointerEvent) => void;
   onDoubleClick: () => void;
-  onClose: () => void;
+  onClose?: () => void;
   onMinimize: () => void;
   onToggleMaximize: () => void;
 }) {
   return (
     <div className={styles.header} onPointerDown={onPointerDown} onDoubleClick={onDoubleClick}>
       <div className={styles.controls}>
-        <button type="button" aria-label="닫기" className={`${styles.trafficLight} ${styles.trafficLightClose}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClose}>
-          <X size={7} strokeWidth={3} className={styles.trafficLightGlyph} />
-        </button>
+        {onClose ? (
+          <button type="button" aria-label="닫기" className={`${styles.trafficLight} ${styles.trafficLightClose}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClose}>
+            <X size={7} strokeWidth={3} className={styles.trafficLightGlyph} />
+          </button>
+        ) : <span className={`${styles.trafficLight} ${styles.trafficLightClose} ${styles.trafficLightDisabled}`} aria-hidden="true" />}
         <button type="button" aria-label="최소화" className={`${styles.trafficLight} ${styles.trafficLightMinimize}`} onPointerDown={(event) => event.stopPropagation()} onClick={onMinimize}>
           <Minus size={7} strokeWidth={3} className={styles.trafficLightGlyph} />
         </button>

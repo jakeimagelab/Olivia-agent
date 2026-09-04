@@ -15,19 +15,19 @@ describe("OLIVIA OS app registry navigation", () => {
     ]);
   });
 
-  it("exposes Olivia in the Dock as a movable window", () => {
+  it("keeps Olivia outside the Dock while retaining it as a movable window", () => {
     expect(getDockApps().map((app) => app.id)).toEqual([
       "customer",
       "calendar",
       "photo-workspace",
       "documents",
       "review-studio",
-      "olivia-chat",
     ]);
+    expect(getOliviaApp("olivia-chat")).toBeDefined();
   });
 
   it("keeps non-Dock apps registered for All Apps", () => {
-    for (const appId of ["quote", "contract", "conti", "memo", "today", "all-apps"]) {
+    for (const appId of ["quote", "contract", "conti", "memo", "today", "all-apps", "legacy-route"]) {
       const app = getOliviaApp(appId);
       expect(app).toBeDefined();
       expect(app?.desktopShortcutOrder).toBeUndefined();

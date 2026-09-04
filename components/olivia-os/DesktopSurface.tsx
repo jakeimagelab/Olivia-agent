@@ -7,7 +7,7 @@ import { AppWindow } from "./window/AppWindow";
 import { SnapZoneOverlay } from "./window/SnapZoneOverlay";
 import styles from "./OliviaDesktop.module.css";
 
-export function DesktopSurface() {
+export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?: (x: number, y: number) => void }) {
   const windows = useOliviaDesktopStore((state) => state.windows);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const closeWindow = useOliviaDesktopStore((state) => state.closeWindow);
@@ -32,7 +32,9 @@ export function DesktopSurface() {
       const meta = event.metaKey || event.ctrlKey;
       if (meta && event.key.toLowerCase() === "w" && activeWindowId) {
         event.preventDefault();
-        closeWindow(activeWindowId);
+        const activeWindow = useOliviaDesktopStore.getState().windows[activeWindowId];
+        if (activeWindow?.appId === "olivia-chat") minimizeWindow(activeWindowId);
+        else closeWindow(activeWindowId);
       } else if (meta && event.key.toLowerCase() === "m" && activeWindowId) {
         event.preventDefault();
         minimizeWindow(activeWindowId);
@@ -43,7 +45,19 @@ export function DesktopSurface() {
   }, [activeWindowId, closeWindow, minimizeWindow]);
 
   return (
-    <main ref={surfaceRef} className={styles.surface} aria-label="앱 작업 공간">
+    <main
+      ref={surfaceRef}
+      className={styles.surface}
+      aria-label="앱 작업 공간"
+      onContextMenu={(event) => {
+        if ((event.target as HTMLElement).closest("[data-app-window]")) return;
+        event.preventDefault();
+        onDesktopContextMenu?.(
+          Math.min(event.clientX, window.innerWidth - 224),
+          Math.min(event.clientY, window.innerHeight - 110),
+        );
+      }}
+    >
       <div className={styles.windowLayer}>
         {Object.values(windows).map((win) => {
           const app = oliviaAppRegistry.find((candidate) => candidate.id === win.appId);

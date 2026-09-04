@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
-import { Check, CircleHelp, Images } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Check, CircleHelp, ImagePlus, Images } from "lucide-react";
 import styles from "./OliviaDesktop.module.css";
 
 export type DesktopOverlayKind = "wallpaper" | "help" | null;
-export type WallpaperMode = "original" | "soft";
+export type WallpaperMode = "original" | "soft" | "custom";
 
-export function DesktopSystemOverlay({ kind, wallpaper, onWallpaperChange, onClose }: {
+export function DesktopSystemOverlay({ kind, wallpaper, customWallpaper, onWallpaperChange, onCustomWallpaper, onClose }: {
   kind: DesktopOverlayKind;
   wallpaper: WallpaperMode;
   onWallpaperChange: (mode: WallpaperMode) => void;
+  customWallpaper?: string;
+  onCustomWallpaper: (file: File) => void;
   onClose: () => void;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!kind) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -43,6 +46,25 @@ export function DesktopSystemOverlay({ kind, wallpaper, onWallpaperChange, onClo
                 {wallpaper === mode ? <Check size={14} /> : null}
               </button>
             ))}
+            <button type="button" className={wallpaper === "custom" ? styles.wallpaperSelected : ""} onClick={() => fileRef.current?.click()}>
+              <span
+                className={`${styles.wallpaperPreview} ${styles.wallpaperPreviewCustom}`}
+                style={customWallpaper ? { backgroundImage: `url("${customWallpaper}")` } : undefined}
+              ><ImagePlus size={24} /></span>
+              <strong>{customWallpaper ? "커스텀 배경화면" : "이미지 선택"}</strong>
+              {wallpaper === "custom" ? <Check size={14} /> : null}
+            </button>
+            <input
+              ref={fileRef}
+              className={styles.visuallyHidden}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onCustomWallpaper(file);
+                event.currentTarget.value = "";
+              }}
+            />
           </div>
         ) : null}
 
@@ -51,7 +73,7 @@ export function DesktopSystemOverlay({ kind, wallpaper, onWallpaperChange, onClo
             <div><dt>앱 열기</dt><dd>Dock 또는 모든 앱에서 선택</dd></div>
             <div><dt>창 이동</dt><dd>창 제목 막대를 드래그</dd></div>
             <div><dt>창 닫기</dt><dd>⌘W 또는 빨간 버튼</dd></div>
-            <div><dt>Olivia</dt><dd>Dock에서 열고 다른 창처럼 이동·최소화</dd></div>
+            <div><dt>Olivia</dt><dd>오른쪽 하단 아이콘으로 열고 다른 창처럼 이동·최소화</dd></div>
           </dl>
         ) : null}
       </section>

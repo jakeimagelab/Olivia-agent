@@ -81,6 +81,11 @@
   background: #FF5F57;
 }
 
+.trafficLightDisabled {
+  opacity: .42;
+  cursor: default;
+}
+
 .trafficLightMinimize {
   background: #FEBC2E;
 }
@@ -111,6 +116,12 @@
   height: 100%;
   isolation: isolate;
   contain: layout paint;
+  container-type: size;
+}
+
+.content > * {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .resizeHandleE, .resizeHandleS, .resizeHandleSe {

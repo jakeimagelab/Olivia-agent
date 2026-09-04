@@ -64,12 +64,14 @@ describe("actionRouter — OLIVIA OS routing", () => {
     expect(useOliviaDesktopStore.getState().windows["review-studio"]).toBeDefined();
   });
 
-  it("매핑 없는 OPEN_FEATURE href는 기존 route로 fallback한다", () => {
+  it("매핑 없는 OPEN_FEATURE href도 Desktop compatibility Window에서 연다", () => {
     stubPathname("/");
     executeOliviaAction({ type: "OPEN_FEATURE", href: "/some-unmapped-feature" });
 
-    expect(Object.keys(useOliviaDesktopStore.getState().windows)).toHaveLength(0);
-    expect(window.location.href).toBe("/some-unmapped-feature");
+    const win = useOliviaDesktopStore.getState().windows["legacy-route"];
+    expect(win).toBeDefined();
+    expect(win.context?.resourceId).toBe("/some-unmapped-feature");
+    expect(window.location.pathname).toBe("/");
   });
 
   it("resource가 다른 견적 요청은 같은 Window의 context를 갱신한다", () => {

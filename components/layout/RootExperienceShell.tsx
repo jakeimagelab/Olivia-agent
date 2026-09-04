@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import OliviaWorkspaceShell from "@/components/olivia/OliviaWorkspaceShell";
 
 const LegacyAppChrome = dynamic(() => import("./LegacyAppChrome"));
@@ -11,6 +11,13 @@ const OS_ROUTE_PATHS = new Set(["/", "/desktop", "/admin/dashboard/home"]);
 
 export default function RootExperienceShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const [embedded, setEmbedded] = useState(false);
+
+  useEffect(() => { setEmbedded(window.self !== window.top); }, []);
+
+  // Desktop compatibility Window의 iframe 안에서는 기존 페이지의 기능 내용만 렌더한다.
+  // Global sidebar/header와 두 번째 Olivia shell을 넣지 않아 OS chrome이 중복되지 않는다.
+  if (embedded) return <>{children}</>;
 
   // OS 루트는 사이드바/커서이펙트/스플래시 등 나머지 Legacy chrome은 다 건너뛰지만,
   // OliviaWorkspaceShell만은 항상 마운트돼야 한다 — 앱 전체에 단 하나뿐인 <OliviaConversation>

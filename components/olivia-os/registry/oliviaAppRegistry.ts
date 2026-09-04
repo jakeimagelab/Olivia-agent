@@ -14,12 +14,12 @@ import { ContiBuilderWindowContent } from "../adapters/ContiBuilderWindowContent
 import { MemoWindowContent } from "../adapters/MemoWindowContent";
 import { TodayWindowContent } from "../adapters/TodayWindowContent";
 import { AllAppsWindowContent } from "../apps/all-apps/AllAppsWindowContent";
+import { LegacyRouteWindowContent } from "../adapters/LegacyRouteWindowContent";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
 // conti는 Phase 3에서 레거시 70/30 시스템이 이미 쓰던 mode="modal" 빌더(QuoteBuilder 등)를
 // 그대로 연결했다(ComingSoonPlaceholder였던 상태에서 전환, §41 no fake completion) — 단
-// clientId/resourceId를 지정해서 바로 여는 것은 아직 안 됨(OpenAppInput이 그 값을 안 실어 나름,
-// 후속 작업).
+// clientId/resourceId를 포함한 WindowContext도 같은 registry 경로로 전달한다.
 export type OliviaAppDefinition = {
   id: string;
   title: string;
@@ -148,7 +148,6 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 420, height: 640 },
     minSize: { width: 340, height: 420 },
     singleton: true,
-    dockOrder: 6,
     component: OliviaChatWindowContent,
   },
   {
@@ -159,6 +158,15 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 520, height: 380 },
     singleton: true,
     component: AllAppsWindowContent,
+  },
+  {
+    id: "legacy-route",
+    title: "포토클리닉",
+    icon: createElement(LayoutGrid, { size: 24 }),
+    defaultSize: { width: 1120, height: 740 },
+    minSize: { width: 520, height: 380 },
+    singleton: true,
+    component: LegacyRouteWindowContent,
   },
 ];
 

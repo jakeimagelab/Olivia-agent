@@ -28,6 +28,16 @@ describe("OLIVIA OS desktop store", () => {
     expect(DESKTOP_STATE_VERSION).toBe(3);
   });
 
+  it("places Olivia at the right edge on its first open", () => {
+    useOliviaDesktopStore.getState().openApp({
+      appId: "olivia-chat", title: "Olivia", width: 420, height: 640, placement: "right",
+    });
+    const win = useOliviaDesktopStore.getState().windows["olivia-chat"];
+    expect(win.snapMode).toBe("none");
+    expect(win.x + win.width).toBeLessThanOrEqual(1280 - 12);
+    expect(win.x).toBeGreaterThan(700);
+  });
+
   it("updates resource context without replacing the window", () => {
     const store = useOliviaDesktopStore.getState();
     store.openApp({ appId: "quote", title: "견적서", width: 1000, height: 700, context: { clientId: "client-1", resourceId: "quote-1", resourceType: "quote" } });

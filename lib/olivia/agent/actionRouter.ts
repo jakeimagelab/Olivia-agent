@@ -250,8 +250,16 @@ export function executeOliviaAction(action: OliviaUiAction) {
         } : undefined;
         const input = appId ? desktopAppInputFor(appId, context) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
-        // Adapter가 아직 없는 기존 기능은 숨기지 않고 기존 route로 연다.
-        navigateToFeature(action.href);
+        // Adapter가 아직 없는 기존 기능도 Desktop을 벗어나지 않고 compatibility Window에서
+        // 연다. 해당 기능에 전용 Adapter가 추가되면 위 매핑이 우선한다.
+        const compatibilityInput = desktopAppInputFor("legacy-route", {
+          resourceId: action.href,
+          resourceType: "route",
+        });
+        if (compatibilityInput) {
+          openOrFocusDesktopApp({ ...compatibilityInput, title: "포토클리닉" });
+          return;
+        }
         return;
       }
       navigateToFeature(action.href);

@@ -9035,13 +9035,45 @@ main,
   background: var(--olivia-green);
 }
 
-/* Wallpaper Asset Integration §19 — 오른쪽의 색색깔 topic-tick "rail"이 prototype/dev-tool
-   느낌을 만든다. 실제 기능(주제별 점프)이 OS 맥락에서 꼭 필요한 건 아니라서 숨기고, 그만큼
-   비어있던 34px 컬럼을 메시지 목록이 다시 채우게 한다. */
-.olivia-os-chat-dock .olivia-message-guide {
+/* OS 채팅은 왼쪽의 실제 대화 Navigator를 사용하므로 오른쪽 topic tick만 숨긴다. */
+body .olivia-os-chat-dock .olivia-message-guide {
   display: none;
 }
 
-.olivia-os-chat-dock .olivia-conversation__stage {
-  grid-template-columns: minmax(0, 1fr);
+body .olivia-os-chat-dock .olivia-conversation__stage,
+body .olivia-os-chat-dock .olivia-conversation__stage.has-guide {
+  grid-template-columns: 108px minmax(0, 1fr);
+}
+
+body .olivia-os-chat-dock .olivia-history-nav {
+  display: flex;
+  background: rgba(235, 244, 241, .72);
+}
+
+.olivia-os-chat-dock .olivia-history-nav__title {
+  min-height: 34px;
+  padding-inline: 8px;
+}
+
+.olivia-os-chat-dock .olivia-history-nav__title strong { font-size: 8.5px; }
+.olivia-os-chat-dock .olivia-history-nav__groups { padding: 0 5px 8px; }
+.olivia-os-chat-dock .olivia-history-nav__groups h3 { margin: 6px 3px 3px; }
+.olivia-os-chat-dock .olivia-history-nav__groups h4 { margin: 7px 3px 2px; }
+.olivia-os-chat-dock .olivia-history-nav__groups button {
+  min-height: 31px;
+  grid-template-columns: 27px minmax(0, 1fr);
+  padding: 3px 4px;
+  border-radius: 7px;
+}
+.olivia-os-chat-dock .olivia-history-nav__groups button > svg { display: none; }
+.olivia-os-chat-dock .olivia-history-nav__groups time { font-size: 6.5px; }
+.olivia-os-chat-dock .olivia-history-nav__groups span { font-size: 7.5px; }
+.olivia-os-chat-dock .olivia-conversation__messages { gap: 6px; padding-inline: 10px; }
+.olivia-os-chat-dock .olivia-message__body { padding: 7px 9px; }
+
+@container (max-width: 390px) {
+  body .olivia-os-chat-dock .olivia-conversation__stage,
+  body .olivia-os-chat-dock .olivia-conversation__stage.has-guide {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
 }

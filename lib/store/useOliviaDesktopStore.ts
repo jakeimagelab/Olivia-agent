@@ -60,6 +60,7 @@ export type OpenAppInput = {
   width: number;
   height: number;
   context?: WindowContext;
+  placement?: "center" | "right";
 };
 
 type SnapBounds = { x: number; y: number; width: number; height: number };
@@ -127,8 +128,12 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     // 남아 허전해 보인다. 화면 중앙을 기준으로 slot별로 좌우/상하로 살짝만 벌어지게 해서
     // 여러 창이 항상 중앙 근처에 모이게 한다(중앙 대비 오프셋, 절대 좌표 아님).
     const centerOffset = (slot - (CASCADE_WRAP_AFTER - 1) / 2) * CASCADE_STEP;
-    const desiredX = workspaceWidth > 0 ? (workspaceWidth - width) / 2 + centerOffset : CASCADE_START + slot * CASCADE_STEP;
-    const desiredY = workspaceHeight > 0 ? (usableHeight - height) / 2 + centerOffset : CASCADE_START + slot * CASCADE_STEP;
+    const desiredX = input.placement === "right" && workspaceWidth > 0
+      ? workspaceWidth - width - 24
+      : workspaceWidth > 0 ? (workspaceWidth - width) / 2 + centerOffset : CASCADE_START + slot * CASCADE_STEP;
+    const desiredY = input.placement === "right" && workspaceHeight > 0
+      ? 24
+      : workspaceHeight > 0 ? (usableHeight - height) / 2 + centerOffset : CASCADE_START + slot * CASCADE_STEP;
     const x = workspaceWidth > 0
       ? Math.max(FLOATING_EDGE_GAP, Math.min(desiredX, workspaceWidth - width - FLOATING_EDGE_GAP))
       : desiredX;
@@ -156,7 +161,8 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
   }),
 
   closeWindow: (id) => set((state) => {
-    const { [id]: _removed, ...rest } = state.windows;
+    const rest = { ...state.windows };
+    delete rest[id];
     return { windows: rest, activeWindowId: state.activeWindowId === id ? null : state.activeWindowId };
   }),
 

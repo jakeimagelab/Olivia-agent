@@ -57,6 +57,7 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={oliviaMotion.page}
       onPointerDownCapture={() => focusWindow(windowId)}
+      data-app-window={win.appId}
       role="region"
       aria-label={win.title}
     >
@@ -65,7 +66,7 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
           title={win.title}
           onPointerDown={beginDrag}
           onDoubleClick={toggleMaximize}
-          onClose={() => closeWindow(windowId)}
+          onClose={win.appId === "olivia-chat" ? undefined : () => closeWindow(windowId)}
           onMinimize={() => minimizeWindow(windowId)}
           onToggleMaximize={toggleMaximize}
         />

@@ -1,25 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { ALL_TOOLS, groupToolsByCategory } from "@/lib/toolNav";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { useDesktopAppLauncher } from "../../useDesktopAppLauncher";
 import { AppIcon } from "../../AppIcon";
-import { getOliviaAppByRoute, getOliviaApp } from "../../registry/oliviaAppRegistry";
+import { getOliviaApp } from "../../registry/oliviaAppRegistry";
 import styles from "./AllAppsWindowContent.module.css";
 
 export function AllAppsWindowContent() {
-  const router = useRouter();
   const openApp = useOliviaDesktopStore((state) => state.openApp);
+  const launchHref = useDesktopAppLauncher();
   const groups = groupToolsByCategory(ALL_TOOLS);
-
-  const launch = (href: string) => {
-    const app = getOliviaAppByRoute(href);
-    if (app) {
-      openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height });
-      return;
-    }
-    router.push(href);
-  };
 
   const systemApps = [getOliviaApp("today"), getOliviaApp("olivia-chat")].filter((app) => app !== undefined);
 
@@ -40,7 +31,7 @@ export function AllAppsWindowContent() {
           <h2>{group.label}</h2>
           <div className={styles.grid}>
             {group.items.map((tool) => (
-              <button type="button" key={tool.href} onClick={() => launch(tool.href)} title={tool.desc}>
+              <button type="button" key={tool.href} onClick={() => launchHref(tool.href, tool.title)} title={tool.desc}>
                 <AppIcon icon={<tool.icon size={24} />} size={42} /><span>{tool.title}</span>
               </button>
             ))}

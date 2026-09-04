@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
+import Image from "next/image";
 import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
+import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import type { DesktopOverlayKind } from "./DesktopSystemOverlay";
 import styles from "./OliviaDesktop.module.css";
@@ -92,8 +93,8 @@ export function DesktopTopBar({ activeAppTitle, onOpenOverlay }: {
   return (
     <div className={styles.topBar}>
       <div className={styles.topBarLeft}>
-        <span className={styles.topBarBrandMark}><Sparkles size={13} /></span>
-        <span className={styles.topBarBrand}>Olivia</span>
+        <span className={styles.topBarBrandMark}><Image src="/assets/photoclinic-mark.png" alt="" width={22} height={22} priority /></span>
+        <span className={styles.topBarBrand}>PHOTO CLINIC</span>
         <div className={styles.menuBar} role="menubar" aria-label="시스템 메뉴" ref={menuRef}>
           {MENU_LABELS.map((label) => (
             <div className={styles.menuBarGroup} key={label}>
@@ -107,6 +108,7 @@ export function DesktopTopBar({ activeAppTitle, onOpenOverlay }: {
         {activeAppTitle ? <span className={styles.topBarActiveTitle}><span className={styles.topBarActiveTitleDot}>·</span>{activeAppTitle}</span> : null}
       </div>
       <div className={styles.topBarRight}>
+        <DesktopGlobalSearch />
         {online !== null ? <span className={styles.topBarStatus}><span className={`${styles.topBarStatusDot} ${!online ? styles.topBarStatusDotOffline : ""}`} />{online ? "온라인" : "오프라인"}</span> : null}
         {now ? <span className={styles.topBarClock}>{now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span> : null}
       </div>
