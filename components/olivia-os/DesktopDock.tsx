@@ -3,6 +3,7 @@
 import { Layers } from "lucide-react";
 import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { AppIcon } from "./AppIcon";
 import styles from "./OliviaDesktop.module.css";
 
 export function DesktopDock() {
