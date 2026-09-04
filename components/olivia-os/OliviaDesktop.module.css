@@ -5,15 +5,48 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  /* 밋밋한 플랫 배경 대신 참고 이미지처럼 리치한 다크 틸→에메랄드 배경 — 새 이미지 에셋 없이
-     순수 CSS만으로(그라데이션 레이어 3장 + 베이스). */
-  background:
-    radial-gradient(ellipse 140% 70% at 12% -10%, rgba(255, 255, 255, 0.10) 0%, transparent 45%),
-    radial-gradient(ellipse 120% 65% at 88% 105%, rgba(235, 143, 34, 0.14) 0%, transparent 55%),
-    radial-gradient(ellipse 100% 80% at 50% 40%, rgba(30, 130, 120, 0.35) 0%, transparent 60%),
-    linear-gradient(160deg, #0B3B38 0%, #14524E 38%, #1C6B63 68%, #0E3E3B 100%);
+  /* Visual Polish Pass — 단순 radial 2~3개가 아니라 베이스 그라데이션 + 블러 하이라이트
+     레이어(::before) + abstract wave 텍스처/비네트 레이어(::after)를 겹친 다층 배경.
+     deep green/mint/teal 팔레트만 쓴다. */
+  background: linear-gradient(150deg, #0A322E 0%, #123F3A 28%, #175249 52%, #1B4F49 74%, #0C332F 100%);
   font-family: var(--font-sans);
   cursor: default;
+}
+
+.desktop::before,
+.desktop::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 좌상단/우하단에 은은한 depth — 블러 처리된 부드러운 색 얼룩(그라데이션 블롭), 화면 밖으로
+   inset을 넉넉히 잡아 블러 경계가 뷰포트 안에서 잘리지 않게 한다. */
+.desktop::before {
+  inset: -12%;
+  background:
+    radial-gradient(ellipse 55% 45% at 8% 6%, rgba(120, 210, 185, 0.30) 0%, transparent 62%),
+    radial-gradient(ellipse 60% 50% at 96% 94%, rgba(235, 143, 34, 0.15) 0%, transparent 58%),
+    radial-gradient(ellipse 42% 38% at 72% 12%, rgba(190, 235, 215, 0.10) 0%, transparent 62%);
+  filter: blur(70px);
+}
+
+/* abstract wave 텍스처(아주 옅은 대각선 밴딩) + 가장자리 비네트. 중앙은 상대적으로 밝게,
+   가장자리는 아주 옅은 다크 비네트만 — 시네마틱하게 과하지 않도록 alpha를 낮게 유지. */
+.desktop::after {
+  inset: 0;
+  background:
+    repeating-linear-gradient(115deg,
+      rgba(255, 255, 255, 0.032) 0px,
+      rgba(255, 255, 255, 0.032) 2px,
+      transparent 2px,
+      transparent 150px
+    ),
+    radial-gradient(ellipse 130% 85% at 50% 110%, rgba(0, 0, 0, 0.30) 0%, transparent 58%),
+    radial-gradient(ellipse 130% 85% at 50% -10%, rgba(0, 0, 0, 0.20) 0%, transparent 55%),
+    radial-gradient(ellipse 85% 70% at -8% 50%, rgba(0, 0, 0, 0.16) 0%, transparent 60%),
+    radial-gradient(ellipse 85% 70% at 108% 50%, rgba(0, 0, 0, 0.16) 0%, transparent 60%);
 }
 
 /* ── Top Bar ─────────────────────────────────────────── */
