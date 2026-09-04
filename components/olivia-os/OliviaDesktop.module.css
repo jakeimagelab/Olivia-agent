@@ -288,7 +288,8 @@
 
 .dockButton:hover {
   background: rgba(21, 88, 85, 0.08);
-  transform: scale(1.05);
+  /* 과도한 macOS magnification 금지 — 살짝 뜨는 정도만(§14). */
+  transform: translateY(-3px) scale(1.04);
 }
 
 .dockButton.active {
