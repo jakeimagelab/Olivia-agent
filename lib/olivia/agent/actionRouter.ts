@@ -21,10 +21,11 @@ function isOliviaOsRoute() {
 
 // Workspace 타입 → Desktop App. title/width/height는 oliviaAppRegistry를 단일 진실 공급원으로
 // 삼아 가져온다(중복 하드코딩 방지) — registry에 없는 타입은 매핑에서 제외된다.
-function desktopAppInputFor(appId: string): OpenAppInput | undefined {
+function desktopAppInputFor(appId: string, context?: OpenAppInput["context"]): OpenAppInput | undefined {
   const app = getOliviaApp(appId);
   if (!app) return undefined;
-  return { appId, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height };
+  const title = context?.clientName ? `${context.clientName} · ${app.title}` : app.title;
+  return { appId, title, width: app.defaultSize.width, height: app.defaultSize.height, context };
 }
 
 const WORKSPACE_TO_DESKTOP_APP_ID: Partial<Record<Exclude<WorkspaceType, null>, string>> = {
@@ -53,10 +54,7 @@ const FEATURE_HREF_TO_DESKTOP_APP_ID: Record<string, string> = {
 // components/olivia-os/DesktopDock.tsx의 handleDockClick과 동일한 규칙.
 function openOrFocusDesktopApp(input: OpenAppInput) {
   const store = useOliviaDesktopStore.getState();
-  const win = store.windows[input.appId];
-  if (!win) { store.openApp(input); return; }
-  if (win.minimized) { store.restoreWindow(input.appId); return; }
-  store.focusWindow(input.appId);
+  store.openApp(input);
 }
 
 // Olivia 2.0 Phase 1 — 채팅/카드로 워크스페이스를 열거나 바꿀 때, 지금 홈이 아니면 주소창도
@@ -106,7 +104,11 @@ export function executeOliviaAction(action: OliviaUiAction) {
       // 갱신은 legacy 호환을 위해 그대로 둔다(다른 코드가 이 store를 계속 읽을 수 있으므로).
       if (isOliviaOsRoute()) {
         const appId = WORKSPACE_TO_DESKTOP_APP_ID[action.workspace];
-        const input = appId ? desktopAppInputFor(appId) : undefined;
+        const input = appId ? desktopAppInputFor(appId, {
+          clientId: action.clientId, clientName: action.clientName,
+          projectId: action.workflowRunId, projectName: action.projectName,
+          resourceId: action.resourceId, resourceType: action.workspace,
+        }) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
       }
       layout.openWorkspaceMode();
@@ -131,7 +133,11 @@ export function executeOliviaAction(action: OliviaUiAction) {
       // focus/restore만 하고, route는 그대로 "/"에 남는다.
       if (isOliviaOsRoute()) {
         const appId = WORKSPACE_TO_DESKTOP_APP_ID[action.workspace];
-        const input = appId ? desktopAppInputFor(appId) : undefined;
+        const input = appId ? desktopAppInputFor(appId, {
+          clientId: action.clientId, clientName: action.clientName,
+          projectId: action.workflowRunId, projectName: action.projectName,
+          resourceId: action.resourceId, resourceType: action.workspace,
+        }) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
       }
       layout.openWorkspaceMode();
@@ -233,10 +239,19 @@ export function executeOliviaAction(action: OliviaUiAction) {
       // 아무 것도 하지 않는다(legacy route로 절대 보내지 않는다) — legacy route에서만
       // navigateToFeature를 그대로 쓴다.
       if (isOliviaOsRoute()) {
-        const appId = FEATURE_HREF_TO_DESKTOP_APP_ID[action.href];
-        const input = appId ? desktopAppInputFor(appId) : undefined;
+        const [pathname, query = ""] = action.href.split("?");
+        const appId = FEATURE_HREF_TO_DESKTOP_APP_ID[pathname];
+        const params = new URLSearchParams(query);
+        const context = appId ? {
+          clientId: params.get("clientId") ?? (appId === "customer" ? params.get("id") ?? undefined : undefined),
+          projectId: params.get("workflowRunId") ?? undefined,
+          resourceId: params.get("resourceId") ?? (["quote", "contract", "conti"].includes(appId) ? params.get("id") ?? undefined : undefined),
+          resourceType: ["quote", "contract", "conti"].includes(appId) ? appId : undefined,
+        } : undefined;
+        const input = appId ? desktopAppInputFor(appId, context) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
-        console.warn(`[OLIVIA OS] No desktop app mapping for ${action.href}`);
+        // Adapter가 아직 없는 기존 기능은 숨기지 않고 기존 route로 연다.
+        navigateToFeature(action.href);
         return;
       }
       navigateToFeature(action.href);

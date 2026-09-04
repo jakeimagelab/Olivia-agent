@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaDesktopEffectiveActiveApp } from "./useOliviaDesktopEffectiveActiveApp";
@@ -29,22 +29,41 @@ export function useOliviaDesktopContextBridge() {
   // 쓴다 — 안 그러면 채팅 입력창을 클릭하는 순간 activeWorkspace가 지워져서, 정작 채팅에게
   // 물어보려던 화면의 컨텍스트가 사라진다(브라우저 QA에서 발견).
   const effective = useOliviaDesktopEffectiveActiveApp();
-  const customerWindowOpen = useOliviaDesktopStore((state) => Boolean(state.windows.customer));
-  const wasCustomerOpen = useRef(false);
+  const activeContext = useOliviaDesktopStore((state) => effective?.windowId ? state.windows[effective.windowId]?.context : undefined);
+  const activeClientId = useOliviaContextStore((state) => state.activeClientId);
+  const activeClientName = useOliviaContextStore((state) => state.activeClientName);
+  const activeProjectId = useOliviaContextStore((state) => state.activeProjectId);
+  const activeProjectName = useOliviaContextStore((state) => state.activeProjectName);
+  const activeWorkspace = useOliviaContextStore((state) => state.activeWorkspace);
+  const activeResourceId = useOliviaContextStore((state) => state.activeResourceId);
 
   const effectiveAppId = effective?.appId;
   useEffect(() => {
     const mapped = effectiveAppId ? DESKTOP_APP_TO_WORKSPACE[effectiveAppId] : undefined;
-    useOliviaContextStore.getState().setWorkspace(mapped, undefined);
-  }, [effectiveAppId]);
+    const context = useOliviaContextStore.getState();
+    context.setWorkspace(mapped, activeContext?.resourceId);
+    if (activeContext?.clientId || activeContext?.clientName) context.setClient(activeContext.clientId, activeContext.clientName);
+    if (activeContext?.projectId || activeContext?.projectName) context.setProject(activeContext.projectId, activeContext.projectName);
+    if (activeContext?.documentId) context.setCurrentDocument(activeContext.documentId, activeContext.documentType);
+  }, [activeContext, effectiveAppId]);
 
-  // 고객관리 창이 실제로 닫힐 때만(포커스만 잃는 것과 구분) activeClientId를 정리한다 —
-  // 대화 연속성을 위해 창을 전환하는 것만으로는 지우지 않는다(스펙 §25/§45).
+  // 기존 feature가 Olivia context store에 기록한 실제 선택을 활성 Window에도 되돌려 적는다.
+  // 동일 값이면 쓰지 않아 effect/store 갱신 루프가 생기지 않는다.
   useEffect(() => {
-    if (customerWindowOpen) { wasCustomerOpen.current = true; return; }
-    if (wasCustomerOpen.current) {
-      wasCustomerOpen.current = false;
-      useOliviaContextStore.getState().setClient(undefined, undefined);
-    }
-  }, [customerWindowOpen]);
+    if (!effective) return;
+    const desktop = useOliviaDesktopStore.getState();
+    const win = desktop.windows[effective.windowId];
+    if (!win) return;
+    const mapped = DESKTOP_APP_TO_WORKSPACE[effective.appId];
+    const next = {
+      ...win.context,
+      clientId: activeClientId ?? win.context?.clientId,
+      clientName: activeClientName ?? win.context?.clientName,
+      projectId: activeProjectId ?? win.context?.projectId,
+      projectName: activeProjectName ?? win.context?.projectName,
+      resourceId: mapped && activeWorkspace === mapped ? activeResourceId : win.context?.resourceId,
+      resourceType: mapped ?? win.context?.resourceType,
+    };
+    if (JSON.stringify(next) !== JSON.stringify(win.context ?? {})) desktop.updateWindowContext(effective.windowId, next);
+  }, [activeClientId, activeClientName, activeProjectId, activeProjectName, activeResourceId, activeWorkspace, effective]);
 }

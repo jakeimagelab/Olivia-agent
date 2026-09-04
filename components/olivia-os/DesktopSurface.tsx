@@ -51,7 +51,7 @@ export function DesktopSurface() {
           const Content = app.component;
           return (
             <AppWindow key={win.id} windowId={win.id} workspaceRef={surfaceRef} minWidth={app.minSize?.width} minHeight={app.minSize?.height}>
-              <Content />
+              <Content key={`${win.appId}:${win.context?.resourceId ?? ""}:${win.context?.clientId ?? ""}:${win.context?.projectId ?? ""}`} context={win.context} />
             </AppWindow>
           );
         })}

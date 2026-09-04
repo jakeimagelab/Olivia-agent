@@ -1,15 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { resetDesktopSession, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { loadDesktopState, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { HomeDashboardDataProvider } from "@/components/dashboard/HomeDashboardData";
 import { useOliviaDesktopContextBridge } from "./useOliviaDesktopContextBridge";
 import { DesktopTopBar } from "./DesktopTopBar";
 import { DesktopSurface } from "./DesktopSurface";
 import { DesktopDock } from "./DesktopDock";
-import { DesktopWidgets } from "./DesktopWidgets";
-import { OliviaSystemPanel } from "./OliviaSystemPanel";
 import { DesktopSystemOverlay, type DesktopOverlayKind, type WallpaperMode } from "./DesktopSystemOverlay";
+import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import styles from "./OliviaDesktop.module.css";
 
 const WALLPAPER_KEY = "olivia-os-wallpaper-v1";
@@ -37,7 +36,7 @@ export default function OliviaDesktop() {
     document.body.style.overflow = "hidden";
     document.documentElement.style.cursor = "default";
     document.body.style.cursor = "default";
-    resetDesktopSession();
+    loadDesktopState(new Set(oliviaAppRegistry.map((app) => app.id)));
     try {
       const savedWallpaper = window.localStorage.getItem(WALLPAPER_KEY);
       if (savedWallpaper === "original" || savedWallpaper === "soft") setWallpaper(savedWallpaper);
@@ -66,9 +65,7 @@ export default function OliviaDesktop() {
       <DesktopTopBar activeAppTitle={activeTitle} onOpenOverlay={setOverlay} />
       <HomeDashboardDataProvider>
         <div className={styles.desktopBody}>
-          <DesktopWidgets />
           <DesktopSurface />
-          <OliviaSystemPanel />
         </div>
       </HomeDashboardDataProvider>
       <div className={styles.dockArea}>

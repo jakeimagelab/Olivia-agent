@@ -261,16 +261,22 @@
   z-index: 2;
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: var(--left-rail-width) minmax(0, 1fr) var(--assistant-width);
-  gap: var(--desktop-gap);
-  padding: 20px var(--desktop-edge);
+  display: block;
+  padding: 0;
   isolation: isolate;
   transition: grid-template-columns 260ms cubic-bezier(.22, 1, .36, 1);
 }
 
 .desktopBody:has(.assistantCollapsed) {
-  grid-template-columns: var(--left-rail-width) minmax(0, 1fr) 58px;
+  display: block;
+}
+
+.todayWindow {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: repeat(3, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 12px;
 }
 
 .leftRail {
@@ -431,7 +437,9 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border-radius: 16px;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
   isolation: isolate;
   contain: layout paint;
 }
@@ -577,8 +585,8 @@
 .dockArea {
   position: absolute;
   z-index: 6000;
-  left: calc(var(--desktop-edge) + var(--left-rail-width) + var(--desktop-gap));
-  right: calc(var(--desktop-edge) + var(--assistant-width) + var(--desktop-gap));
+  left: 12px;
+  right: 12px;
   bottom: 18px;
   display: flex;
   justify-content: center;
@@ -671,7 +679,7 @@
 
 @media (max-width: 1500px) {
   .desktop { --left-rail-width: 224px; --assistant-width: 350px; --desktop-gap: 14px; --desktop-edge: 14px; }
-  .desktopBody { padding-top: 14px; }
+  .desktopBody { padding: 0; }
   .dock { gap: 4px; padding-inline: 9px; }
   .dockButton { width: 50px; flex-basis: 50px; }
   .assistantPanel { height: min(720px, calc(100% - 44px)); margin-top: 44px; }
@@ -680,7 +688,7 @@
 @media (max-width: 1279px) {
   .desktop { --desktop-edge: 10px; --desktop-gap: 10px; }
   .desktopBody,
-  .desktopBody:has(.assistantCollapsed) { grid-template-columns: minmax(0, 1fr); padding: 10px 10px 98px; }
+  .desktopBody:has(.assistantCollapsed) { display: block; padding: 0; }
   .leftRail { display: none; }
   .assistantPanel { position: absolute; z-index: 4900; top: 10px; right: 10px; bottom: 98px; width: min(360px, calc(100% - 20px)); height: auto; margin-top: 0; }
   .assistantPanel.assistantCollapsed { width: 54px; }

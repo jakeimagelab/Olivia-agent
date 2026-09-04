@@ -41,7 +41,7 @@ function WidgetFrame({ icon, title, action, children }: {
   );
 }
 
-export function DesktopWidgets() {
+export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean }) {
   const { data, state } = useHomeDashboardData();
   const openApp = useOliviaDesktopStore((store) => store.openApp);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -75,7 +75,7 @@ export function DesktopWidgets() {
   const loading = state === "loading";
 
   return (
-    <aside className={styles.leftRail} aria-label="오늘의 업무 요약">
+    <aside className={windowMode ? styles.todayWindow : styles.leftRail} aria-label="오늘의 업무 요약">
       <WidgetFrame
         icon={<CalendarDays size={14} />}
         title="오늘 일정"

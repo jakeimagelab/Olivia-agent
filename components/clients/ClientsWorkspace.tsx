@@ -94,10 +94,10 @@ const MAIL_COLOR: Record<string, string> = {
   draft: C.hint, ready: C.orange, sent: C.green, failed: "#DC2626",
 };
 
-export default function ClientsWorkspace() {
+export default function ClientsWorkspace({ initialClientId, initialWorkflowRunId }: { initialClientId?: string; initialWorkflowRunId?: string } = {}) {
   return (
     <Suspense fallback={<SpinBox />}>
-      <ClientsInner />
+      <ClientsInner initialClientId={initialClientId} initialWorkflowRunId={initialWorkflowRunId} />
     </Suspense>
   );
 }
@@ -111,13 +111,13 @@ function SpinBox() {
   );
 }
 
-function ClientsInner() {
+function ClientsInner({ initialClientId, initialWorkflowRunId }: { initialClientId?: string; initialWorkflowRunId?: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const embedded = useDesktopWindowMode();
-  if (embedded) return <ClientWorkspaceView embedded openNewOnLoad={false} initialClientId={null} />;
+  if (embedded) return <ClientWorkspaceView embedded openNewOnLoad={false} initialClientId={initialClientId ?? null} />;
   const id = searchParams.get("id");
-  const workflowRunId = searchParams.get("workflowRunId");
+  const workflowRunId = initialWorkflowRunId ?? searchParams.get("workflowRunId");
   // 기존 8탭 상세 화면은 그대로 둔다(?id=) — 이번 개편으로 아직 안 옮긴 기능(문서/갤러리 상세관리 등)의
   // 도피처. 새 3단 워크스페이스는 기본 진입(/clients, ?clientId=) 경로로 붙인다.
   if (id) return <DetailView clientId={id} workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;

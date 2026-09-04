@@ -8,7 +8,7 @@ import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 // 채팅 명령이 절대 legacy full-page route로 이동하면 안 된다(대신 AppWindow open/focus).
 // window.location.pathname을 직접 스텁해 isOliviaOsRoute()의 분기를 결정적으로 테스트한다.
 function stubPathname(pathname: string) {
-  vi.stubGlobal("window", { location: { pathname } });
+  vi.stubGlobal("window", { location: { pathname, href: pathname } });
 }
 
 describe("actionRouter — OLIVIA OS routing", () => {
@@ -64,15 +64,23 @@ describe("actionRouter — OLIVIA OS routing", () => {
     expect(useOliviaDesktopStore.getState().windows["review-studio"]).toBeDefined();
   });
 
-  it("매핑 없는 OPEN_FEATURE href는 OS 라우트에서 아무 창도 열지 않고 조용히 무시한다", () => {
+  it("매핑 없는 OPEN_FEATURE href는 기존 route로 fallback한다", () => {
     stubPathname("/");
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     executeOliviaAction({ type: "OPEN_FEATURE", href: "/some-unmapped-feature" });
 
     expect(Object.keys(useOliviaDesktopStore.getState().windows)).toHaveLength(0);
-    expect(window.location.pathname).toBe("/");
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
+    expect(window.location.href).toBe("/some-unmapped-feature");
+  });
+
+  it("resource가 다른 견적 요청은 같은 Window의 context를 갱신한다", () => {
+    stubPathname("/");
+    executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "quote", clientId: "client-1", clientName: "글로리의원", resourceId: "quote-1" });
+    executeOliviaAction({ type: "SWITCH_WORKSPACE", workspace: "quote", clientId: "client-1", clientName: "글로리의원", resourceId: "quote-2" });
+
+    const win = useOliviaDesktopStore.getState().windows.quote;
+    expect(win.context?.resourceId).toBe("quote-2");
+    expect(win.context?.clientName).toBe("글로리의원");
+    expect(win.title).toContain("글로리의원");
   });
 
   it("ENTER_FULLSCREEN/EXIT_FULLSCREEN은 OS 라우트에서 legacy fullscreen으로 전환하지 않는다", () => {

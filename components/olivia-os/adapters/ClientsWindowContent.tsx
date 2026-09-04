@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { PcrmHeaderActionsProvider } from "@/components/pcrm/PcrmHeaderActionsSlot";
 import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
+import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 
 // ClientsWorkspace는 GlobalHeader를 직접 그리지 않는다. standalone route의 (client-hub)
 // layout만 헤더를 그리고, workspace는 usePcrmHeaderActions()로 검색/등록
@@ -14,12 +15,12 @@ const ClientsWorkspace = dynamic(() => import("@/components/clients/ClientsWorks
   loading: () => <div style={{ padding: 24, fontSize: 12, color: "#5A7470" }}>고객관리를 준비하는 중...</div>,
 });
 
-export function ClientsWindowContent() {
+export function ClientsWindowContent({ context }: { context?: WindowContext }) {
   return (
     <DesktopWindowProvider value={true}>
       <PcrmHeaderActionsProvider>
         <div style={{ width: "100%", height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
-          <ClientsWorkspace />
+          <ClientsWorkspace initialClientId={context?.clientId} initialWorkflowRunId={context?.projectId} />
         </div>
       </PcrmHeaderActionsProvider>
     </DesktopWindowProvider>

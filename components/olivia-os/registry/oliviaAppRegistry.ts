@@ -1,5 +1,6 @@
 import { createElement, type ComponentType, type ReactNode } from "react";
-import { CalendarDays, Clapperboard, FileSignature, FileText, FolderOpen, Images, PenLine, Star, Users } from "lucide-react";
+import { CalendarClock, CalendarDays, Clapperboard, FileSignature, FileText, FolderOpen, Images, LayoutGrid, PenLine, Star, Users } from "lucide-react";
+import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { PhotoWorkspaceWindowContent } from "../adapters/PhotoWorkspaceWindowContent";
 import { ClientsWindowContent } from "../adapters/ClientsWindowContent";
@@ -11,6 +12,8 @@ import { QuoteBuilderWindowContent } from "../adapters/QuoteBuilderWindowContent
 import { ContractBuilderWindowContent } from "../adapters/ContractBuilderWindowContent";
 import { ContiBuilderWindowContent } from "../adapters/ContiBuilderWindowContent";
 import { MemoWindowContent } from "../adapters/MemoWindowContent";
+import { TodayWindowContent } from "../adapters/TodayWindowContent";
+import { AllAppsWindowContent } from "../apps/all-apps/AllAppsWindowContent";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
 // conti는 Phase 3에서 레거시 70/30 시스템이 이미 쓰던 mode="modal" 빌더(QuoteBuilder 등)를
@@ -28,10 +31,19 @@ export type OliviaAppDefinition = {
   singleton?: boolean;
   desktopShortcutOrder?: number;
   dockOrder?: number;
-  component: ComponentType;
+  component: ComponentType<{ context?: WindowContext }>;
 };
 
 export const oliviaAppRegistry: OliviaAppDefinition[] = [
+  {
+    id: "today",
+    title: "오늘",
+    icon: createElement(CalendarClock, { size: 24 }),
+    defaultSize: { width: 520, height: 680 },
+    minSize: { width: 360, height: 420 },
+    singleton: true,
+    component: TodayWindowContent,
+  },
   {
     id: "customer",
     title: "고객관리",
@@ -72,6 +84,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     id: "quote",
     title: "견적서",
     icon: createElement(FileText, { size: 24 }),
+    route: "/quote",
     defaultSize: { width: 1000, height: 720 },
     minSize: { width: 640, height: 420 },
     singleton: true,
@@ -81,6 +94,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     id: "contract",
     title: "계약서",
     icon: createElement(FileSignature, { size: 24 }),
+    route: "/contract",
     defaultSize: { width: 1000, height: 720 },
     minSize: { width: 640, height: 420 },
     singleton: true,
@@ -134,12 +148,27 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 420, height: 640 },
     minSize: { width: 340, height: 420 },
     singleton: true,
+    dockOrder: 6,
     component: OliviaChatWindowContent,
+  },
+  {
+    id: "all-apps",
+    title: "모든 앱",
+    icon: createElement(LayoutGrid, { size: 24 }),
+    defaultSize: { width: 880, height: 650 },
+    minSize: { width: 520, height: 380 },
+    singleton: true,
+    component: AllAppsWindowContent,
   },
 ];
 
 export function getOliviaApp(appId: string): OliviaAppDefinition | undefined {
   return oliviaAppRegistry.find((app) => app.id === appId);
+}
+
+export function getOliviaAppByRoute(href: string): OliviaAppDefinition | undefined {
+  const pathname = href.split("?")[0].replace(/\/$/, "") || "/";
+  return oliviaAppRegistry.find((app) => app.route === pathname);
 }
 
 export function getDesktopShortcutApps(): OliviaAppDefinition[] {

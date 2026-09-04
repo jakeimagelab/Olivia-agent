@@ -24,7 +24,18 @@ describe("OLIVIA OS desktop store", () => {
     expect(win.y).toBeGreaterThanOrEqual(12);
   });
 
-  it("invalidates version-1 persisted window geometry", () => {
-    expect(DESKTOP_STATE_VERSION).toBe(2);
+  it("invalidates fixed-layout persisted window geometry", () => {
+    expect(DESKTOP_STATE_VERSION).toBe(3);
+  });
+
+  it("updates resource context without replacing the window", () => {
+    const store = useOliviaDesktopStore.getState();
+    store.openApp({ appId: "quote", title: "견적서", width: 1000, height: 700, context: { clientId: "client-1", resourceId: "quote-1", resourceType: "quote" } });
+    const firstBounds = useOliviaDesktopStore.getState().windows.quote;
+    store.openApp({ appId: "quote", title: "견적서", width: 1000, height: 700, context: { clientId: "client-1", resourceId: "quote-2", resourceType: "quote" } });
+    const updated = useOliviaDesktopStore.getState().windows.quote;
+    expect(updated.context?.resourceId).toBe("quote-2");
+    expect(updated.x).toBe(firstBounds.x);
+    expect(updated.y).toBe(firstBounds.y);
   });
 });

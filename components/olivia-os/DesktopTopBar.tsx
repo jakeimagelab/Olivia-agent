@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, Search, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import type { DesktopOverlayKind } from "./DesktopSystemOverlay";
@@ -53,7 +53,7 @@ export function DesktopTopBar({ activeAppTitle, onOpenOverlay }: {
 
   const launch = (appId: string) => {
     const app = getOliviaApp(appId);
-    if (!app || app.id === "olivia-chat") return;
+    if (!app) return;
     openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height });
     setOpenMenu(null);
   };
@@ -66,7 +66,7 @@ export function DesktopTopBar({ activeAppTitle, onOpenOverlay }: {
   const renderMenu = () => {
     if (!openMenu) return null;
     if (openMenu === "파일") return <>
-      <button type="button" onClick={() => overlay("apps")}>모든 앱 열기</button>
+      <button type="button" onClick={() => launch("all-apps")}>모든 앱 열기</button>
       <span className={styles.menuDivider} />
       <button type="button" disabled={!activeWindowId} onClick={() => { if (activeWindowId) closeWindow(activeWindowId); setOpenMenu(null); }}>활성 창 닫기 <kbd>⌘W</kbd></button>
     </>;
@@ -76,13 +76,15 @@ export function DesktopTopBar({ activeAppTitle, onOpenOverlay }: {
       <button type="button" onClick={() => overlay("wallpaper")}>배경화면 변경</button>
     </>;
     if (openMenu === "이동") return <>
-      {getDockApps().filter((app) => app.id !== "olivia-chat").map((app) => (
+      {getDockApps().map((app) => (
         <button type="button" key={app.id} onClick={() => launch(app.id)}>{app.title}</button>
       ))}
     </>;
     if (openMenu === "도구") return <>
       <button type="button" onClick={() => launch("memo")}>메모 열기</button>
-      <button type="button" onClick={() => overlay("apps")}>모든 앱</button>
+      <button type="button" onClick={() => launch("today")}>오늘 열기</button>
+      <button type="button" onClick={() => launch("olivia-chat")}>Olivia 열기</button>
+      <button type="button" onClick={() => launch("all-apps")}>모든 앱</button>
     </>;
     return <button type="button" onClick={() => overlay("help")}>Olivia OS 사용법</button>;
   };
@@ -105,11 +107,6 @@ export function DesktopTopBar({ activeAppTitle, onOpenOverlay }: {
         {activeAppTitle ? <span className={styles.topBarActiveTitle}><span className={styles.topBarActiveTitleDot}>·</span>{activeAppTitle}</span> : null}
       </div>
       <div className={styles.topBarRight}>
-        <label className={styles.topBarSearch}>
-          <Search size={13} className={styles.topBarSearchIcon} />
-          <input type="text" placeholder="검색 (⌘K)" className={styles.topBarSearchInput} disabled />
-        </label>
-        <button type="button" className={styles.topBarIconButton} aria-label="알림" title="알림"><Bell size={15} /></button>
         {online !== null ? <span className={styles.topBarStatus}><span className={`${styles.topBarStatusDot} ${!online ? styles.topBarStatusDotOffline : ""}`} />{online ? "온라인" : "오프라인"}</span> : null}
         {now ? <span className={styles.topBarClock}>{now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span> : null}
       </div>

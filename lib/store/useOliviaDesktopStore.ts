@@ -7,6 +7,17 @@ import { resolveSnapBounds, type SnapMode } from "@/components/olivia-os/window/
 // "Desktop"/"Window"만 쓴다.
 export type { SnapMode };
 
+export type WindowContext = {
+  clientId?: string;
+  clientName?: string;
+  projectId?: string;
+  projectName?: string;
+  resourceId?: string;
+  resourceType?: string;
+  documentId?: string;
+  documentType?: string;
+};
+
 export type OliviaWindowState = {
   id: string;
   appId: string;
@@ -20,6 +31,7 @@ export type OliviaWindowState = {
   // Snap Layout의 한 종류다(스펙 2-17). "none"이면 자유롭게 떠 있는 상태.
   snapMode: SnapMode;
   zIndex: number;
+  context?: WindowContext;
   previousBounds?: { x: number; y: number; width: number; height: number };
 };
 
@@ -47,6 +59,7 @@ export type OpenAppInput = {
   title: string;
   width: number;
   height: number;
+  context?: WindowContext;
 };
 
 type SnapBounds = { x: number; y: number; width: number; height: number };
@@ -64,6 +77,7 @@ type OliviaDesktopState = {
   workspaceWidth: number;
   workspaceHeight: number;
   openApp: (input: OpenAppInput) => void;
+  updateWindowContext: (id: string, context: WindowContext) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
   bringToFront: (id: string) => void;
@@ -95,6 +109,9 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
   openApp: (input) => {
     const existing = get().windows[input.appId];
     if (existing) {
+      if (input.context) {
+        set((state) => ({ windows: { ...state.windows, [existing.id]: { ...state.windows[existing.id], title: input.title, context: input.context } } }));
+      }
       if (existing.minimized) get().restoreWindow(existing.id);
       else get().focusWindow(existing.id);
       return;
@@ -122,7 +139,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     const win: OliviaWindowState = {
       id: input.appId, appId: input.appId, title: input.title,
       x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height),
-      minimized: false, snapMode: "none", zIndex,
+      minimized: false, snapMode: "none", zIndex, context: input.context,
     };
     set((state) => ({
       windows: { ...state.windows, [win.id]: win },
@@ -131,6 +148,12 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
       nextZIndex: zIndex,
     }));
   },
+
+  updateWindowContext: (id, context) => set((state) => {
+    const win = state.windows[id];
+    if (!win) return state;
+    return { windows: { ...state.windows, [id]: { ...win, context } } };
+  }),
 
   closeWindow: (id) => set((state) => {
     const { [id]: _removed, ...rest } = state.windows;
@@ -260,14 +283,12 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
 // 들이지 않고 수동 localStorage read/write로 구현한다. FileSystemHandle/File/Blob/DOM
 // 참조/ReactNode/함수는 OliviaWindowState 자체에 애초에 없으므로(각 앱의 내부 상태일 뿐) 직렬화
 // 위험이 구조적으로 없다.
-export const DESKTOP_STATE_VERSION = 2;
-// "12개 창이 열려 있었다고 전부 복원하면 실패"(스펙 2-8) — 최근 포커스 순 상위 4개까지만,
-// minimized였던 창은 애초에 저장하지 않는다.
-const MAX_RESTORED_WINDOWS = 4;
+export const DESKTOP_STATE_VERSION = 3;
+const MAX_RESTORED_WINDOWS = 20;
 
 type PersistedWindow = {
   appId: string; title: string; x: number; y: number; width: number; height: number;
-  snapMode: SnapMode; previousBounds?: SnapBounds;
+  minimized: boolean; snapMode: SnapMode; previousBounds?: SnapBounds; context?: WindowContext;
 };
 type PersistedState = { version: number; windows: PersistedWindow[]; activeAppId: string | null };
 
@@ -283,13 +304,12 @@ export function saveDesktopState() {
   if (typeof window === "undefined") return;
   try {
     const { windows, activeWindowId } = useOliviaDesktopStore.getState();
-    const visible = Object.values(windows).filter((win) => !win.minimized);
-    const top = visible.sort((a, b) => b.zIndex - a.zIndex).slice(0, MAX_RESTORED_WINDOWS);
+    const top = Object.values(windows).sort((a, b) => a.zIndex - b.zIndex).slice(-MAX_RESTORED_WINDOWS);
     const payload: PersistedState = {
       version: DESKTOP_STATE_VERSION,
       windows: top.map((win) => ({
         appId: win.appId, title: win.title, x: win.x, y: win.y, width: win.width, height: win.height,
-        snapMode: win.snapMode, previousBounds: win.previousBounds,
+        minimized: win.minimized, snapMode: win.snapMode, previousBounds: win.previousBounds, context: win.context,
       })),
       activeAppId: activeWindowId,
     };
@@ -321,7 +341,8 @@ export function loadDesktopState(knownAppIds: Set<string>) {
       windows[win.appId] = {
         id: win.appId, appId: win.appId, title: win.title,
         x: win.x, y: win.y, width: win.width, height: win.height,
-        minimized: false, snapMode: win.snapMode ?? "none", previousBounds: win.previousBounds,
+        minimized: Boolean(win.minimized), snapMode: win.snapMode ?? "none", previousBounds: win.previousBounds,
+        context: win.context,
         zIndex,
       };
     }

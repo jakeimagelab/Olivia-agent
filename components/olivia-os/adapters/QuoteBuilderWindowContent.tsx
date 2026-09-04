@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 
 // QuoteBuilder는 이미 mode="modal"로 GlobalHeader 없이 렌더되는 경로를 갖고 있다(고객관리
 // 견적 모달에서 실사용 중) — 그 경로를 그대로 재사용한다. "견적서 열어줘"가 ComingSoonPlaceholder
@@ -13,6 +14,6 @@ const QuoteBuilder = dynamic(() => import("@/components/quote/QuoteBuilder"), {
   loading: () => <div style={{ padding: 24, fontSize: 12, color: "#5A7470" }}>견적서를 준비하는 중...</div>,
 });
 
-export function QuoteBuilderWindowContent() {
-  return <QuoteBuilder mode="modal" />;
+export function QuoteBuilderWindowContent({ context }: { context?: WindowContext }) {
+  return <QuoteBuilder mode="modal" clientId={context?.clientId} workflowRunId={context?.projectId} resourceId={context?.resourceId} />;
 }

@@ -15,18 +15,19 @@ describe("OLIVIA OS app registry navigation", () => {
     ]);
   });
 
-  it("keeps Olivia out of the Dock because it is a system assistant", () => {
+  it("exposes Olivia in the Dock as a movable window", () => {
     expect(getDockApps().map((app) => app.id)).toEqual([
       "customer",
       "calendar",
       "photo-workspace",
       "documents",
       "review-studio",
+      "olivia-chat",
     ]);
   });
 
-  it("keeps placeholder apps registered without exposing them by default", () => {
-    for (const appId of ["quote", "contract", "conti", "memo", "olivia-chat"]) {
+  it("keeps non-Dock apps registered for All Apps", () => {
+    for (const appId of ["quote", "contract", "conti", "memo", "today", "all-apps"]) {
       const app = getOliviaApp(appId);
       expect(app).toBeDefined();
       expect(app?.desktopShortcutOrder).toBeUndefined();
