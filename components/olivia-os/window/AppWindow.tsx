@@ -47,13 +47,11 @@ export function AppWindow({ windowId, minWidth = 420, minHeight = 320, children 
   };
 
   const toggleMaximize = () => {
-    if (win.maximized) {
-      restoreMaximizedWindow(windowId);
+    if (win.snapMode === "maximized") {
+      unsnapWindow(windowId);
     } else {
-      maximizeWindow(windowId, {
-        left: 12, top: DESKTOP_TOPBAR_HEIGHT + 8,
-        right: window.innerWidth - 12, bottom: window.innerHeight - DESKTOP_DOCK_SAFE_AREA,
-      });
+      const bounds = resolveSnapBounds("maximized", window.innerWidth, window.innerHeight, DESKTOP_TOPBAR_HEIGHT, DESKTOP_DOCK_SAFE_AREA);
+      snapWindow(windowId, "maximized", bounds);
     }
   };
 
