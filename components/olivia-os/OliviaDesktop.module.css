@@ -246,3 +246,11 @@
   border-radius: 999px;
   background: #E85D2C;
 }
+
+/* Olivia 채팅 창(adapters/OliviaChatWindowContent.tsx) 안에 portal된 실제 <OliviaConversation>이
+   창의 .content(AppWindow.module.css, flex:1) 영역을 꽉 채우게 한다. */
+:global(.olivia-os-chat-dock) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
