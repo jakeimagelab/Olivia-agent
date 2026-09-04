@@ -76,4 +76,9 @@ export type OliviaUiAction =
       // 도구별 client store를 시작할 때 필요한 작은 JSON 초기값만 전달한다.
       // 실제 문서/파일 데이터는 담지 않는다.
       initialData?: Record<string, string | number | boolean | null>;
-    };
+    }
+  // OLIVIA OS Phase 3 — "크게 보여줘"/"이 창 닫아줘"/"최소화해줘"는 OS 라우트에서만 의미가
+  // 있다(actionRouter.ts의 isOliviaOsRoute() 분기). legacy 라우트에서는 no-op.
+  | { type: "MAXIMIZE_ACTIVE_WINDOW" }
+  | { type: "CLOSE_ACTIVE_WINDOW" }
+  | { type: "MINIMIZE_ACTIVE_WINDOW" };
