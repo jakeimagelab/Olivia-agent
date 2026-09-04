@@ -22,6 +22,8 @@ export type OliviaAppDefinition = {
   minSize?: { width: number; height: number };
   defaultPosition?: { x: number; y: number };
   singleton?: boolean;
+  desktopShortcutOrder?: number;
+  dockOrder?: number;
   component: ComponentType;
 };
 
@@ -33,6 +35,8 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     route: "/clients",
     defaultSize: { width: 1100, height: 720 },
     singleton: true,
+    desktopShortcutOrder: 1,
+    dockOrder: 1,
     component: ClientsWindowContent,
   },
   {
@@ -42,6 +46,8 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     route: "/calendar",
     defaultSize: { width: 1050, height: 700 },
     singleton: true,
+    desktopShortcutOrder: 2,
+    dockOrder: 2,
     component: CalendarWindowContent,
   },
   {
@@ -51,6 +57,8 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     route: "/photo-sorting",
     defaultSize: { width: 1200, height: 760 },
     singleton: true,
+    desktopShortcutOrder: 3,
+    dockOrder: 3,
     component: PhotoWorkspaceWindowContent,
   },
   {
@@ -85,6 +93,8 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1080, height: 720 },
     minSize: { width: 640, height: 420 },
     singleton: true,
+    desktopShortcutOrder: 4,
+    dockOrder: 4,
     component: DocumentsWindowContent,
   },
   {
@@ -94,6 +104,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     route: "/review-studio",
     defaultSize: { width: 1100, height: 740 },
     singleton: true,
+    dockOrder: 5,
     component: ReviewStudioWindowContent,
   },
   {
@@ -103,10 +114,24 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 420, height: 640 },
     minSize: { width: 340, height: 420 },
     singleton: true,
+    desktopShortcutOrder: 5,
+    dockOrder: 6,
     component: OliviaChatWindowContent,
   },
 ];
 
 export function getOliviaApp(appId: string): OliviaAppDefinition | undefined {
   return oliviaAppRegistry.find((app) => app.id === appId);
+}
+
+export function getDesktopShortcutApps(): OliviaAppDefinition[] {
+  return oliviaAppRegistry
+    .filter((app) => app.desktopShortcutOrder !== undefined)
+    .sort((a, b) => (a.desktopShortcutOrder ?? 0) - (b.desktopShortcutOrder ?? 0));
+}
+
+export function getDockApps(): OliviaAppDefinition[] {
+  return oliviaAppRegistry
+    .filter((app) => app.dockOrder !== undefined)
+    .sort((a, b) => (a.dockOrder ?? 0) - (b.dockOrder ?? 0));
 }

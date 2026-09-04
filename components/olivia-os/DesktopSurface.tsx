@@ -1,17 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
+import { getDesktopShortcutApps, oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
-import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { DesktopShortcut } from "./DesktopShortcut";
 import { AppWindow } from "./window/AppWindow";
 import { SnapZoneOverlay } from "./window/SnapZoneOverlay";
 import styles from "./OliviaDesktop.module.css";
-
-// 바탕화면에 모든 기능을 다 늘어놓지 않는다(스펙 2-21) — 고객관리/일정/사진작업실/문서함 +
-// Olivia만 최대 5개. 견적/계약·콘티는 Dock/검색/앱 내부/Olivia로 접근한다.
-const SHORTCUT_APP_IDS = ["customer", "calendar", "photo-workspace", "documents"];
 
 export function DesktopSurface() {
   const windows = useOliviaDesktopStore((state) => state.windows);
@@ -22,7 +17,7 @@ export function DesktopSurface() {
   const reconcileViewport = useOliviaDesktopStore((state) => state.reconcileViewport);
   const [selectedShortcut, setSelectedShortcut] = useState<string | null>(null);
 
-  const shortcutApps = SHORTCUT_APP_IDS.map((id) => oliviaAppRegistry.find((app) => app.id === id)).filter((app) => app !== undefined);
+  const shortcutApps = getDesktopShortcutApps();
 
   // 화면 크기가 바뀌어도(외부 모니터 해제 등) 창이 화면 밖에 남지 않게 한다(스펙 2-15/2-16).
   useEffect(() => {
@@ -62,12 +57,6 @@ export function DesktopSurface() {
             onOpen={() => openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height })}
           />
         ))}
-        <DesktopShortcut
-          app={{ title: "Olivia", icon: <OliviaIcon size={20} /> }}
-          selected={selectedShortcut === "olivia-chat"}
-          onSelect={() => setSelectedShortcut("olivia-chat")}
-          onOpen={() => openApp({ appId: "olivia-chat", title: "Olivia", width: 420, height: 640 })}
-        />
       </div>
       <div className={styles.windowLayer}>
         {Object.values(windows).map((win) => {

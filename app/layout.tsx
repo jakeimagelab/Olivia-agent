@@ -1,12 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import OliviaWorkspaceShell from "@/components/olivia/OliviaWorkspaceShell";
-import BackgroundJobsWidget from "@/components/olivia/BackgroundJobsWidget";
-import OliviaPageTransition from "@/components/olivia/OliviaPageTransition";
-import GlobalClientContextBridge from "@/components/GlobalClientContextBridge";
-import GlobalFeatureSidebar from "@/components/GlobalFeatureSidebar";
-import CursorEffect from "@/components/CursorEffect";
-import OliviaSplash from "@/components/home/OliviaSplash";
+import RootExperienceShell from "@/components/layout/RootExperienceShell";
 import "./globals.css";
 import "./admin/admin.css";
 
@@ -62,33 +56,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         />
       </head>
       <body className={`${nanumSquare.variable} min-h-screen font-sans antialiased`}>
-        <OliviaSplash />
-        <CursorEffect />
-        <div className="olivia-app-row">
-          <div className="olivia-app-main">
-            <GlobalFeatureSidebar>
-              <GlobalClientContextBridge />
-              <OliviaPageTransition>{children}</OliviaPageTransition>
-            </GlobalFeatureSidebar>
-          </div>
-          <OliviaWorkspaceShell />
-          <BackgroundJobsWidget />
-        </div>
-        <script dangerouslySetInnerHTML={{ __html: `
-          document.addEventListener("click", function(e) {
-            var btn = e.target.closest("button");
-            if (!btn || btn.disabled) return;
-            var rect = btn.getBoundingClientRect();
-            var size = Math.max(rect.width, rect.height) * 2;
-            var x = e.clientX - rect.left - size / 2;
-            var y = e.clientY - rect.top - size / 2;
-            var ripple = document.createElement("span");
-            ripple.className = "pc-ripple";
-            ripple.style.cssText = "width:" + size + "px;height:" + size + "px;left:" + x + "px;top:" + y + "px;";
-            btn.appendChild(ripple);
-            setTimeout(function() { ripple.remove(); }, 600);
-          });
-        `}} />
+        <RootExperienceShell>{children}</RootExperienceShell>
       </body>
     </html>
   );

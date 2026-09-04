@@ -122,3 +122,23 @@
   right: -4px; bottom: -4px; width: 14px; height: 14px;
   cursor: nwse-resize;
 }
+
+@media (max-width: 1023px) {
+  .window {
+    left: 8px !important;
+    top: 72px !important;
+    width: calc(100vw - 16px) !important;
+    height: calc(100dvh - 152px) !important;
+    border-radius: 12px;
+  }
+
+  .header {
+    cursor: default;
+  }
+
+  .resizeHandleE,
+  .resizeHandleS,
+  .resizeHandleSe {
+    display: none;
+  }
+}

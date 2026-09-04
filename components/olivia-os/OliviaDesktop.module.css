@@ -246,3 +246,44 @@
   border-radius: 999px;
   background: #E85D2C;
 }
+
+@media (max-width: 1023px) {
+  .menuBar {
+    gap: 12px;
+    overflow-x: auto;
+  }
+
+  .shortcutLayer {
+    top: 12px;
+    left: 8px;
+    right: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  }
+
+  .shortcut {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dock {
+    bottom: 8px;
+    max-width: calc(100vw - 12px);
+    gap: 2px;
+    padding: 6px 8px;
+    border-radius: 16px;
+  }
+
+  .dockButton {
+    width: 40px;
+    padding: 4px 0;
+  }
+
+  .dockIcon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .dockLabel {
+    display: none;
+  }
+}
