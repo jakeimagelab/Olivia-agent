@@ -32,10 +32,11 @@ export function useOliviaDesktopContextBridge() {
   const customerWindowOpen = useOliviaDesktopStore((state) => Boolean(state.windows.customer));
   const wasCustomerOpen = useRef(false);
 
+  const effectiveAppId = effective?.appId;
   useEffect(() => {
-    const mapped = effective ? DESKTOP_APP_TO_WORKSPACE[effective.appId] : undefined;
+    const mapped = effectiveAppId ? DESKTOP_APP_TO_WORKSPACE[effectiveAppId] : undefined;
     useOliviaContextStore.getState().setWorkspace(mapped, undefined);
-  }, [effective]);
+  }, [effectiveAppId]);
 
   // 고객관리 창이 실제로 닫힐 때만(포커스만 잃는 것과 구분) activeClientId를 정리한다 —
   // 대화 연속성을 위해 창을 전환하는 것만으로는 지우지 않는다(스펙 §25/§45).
