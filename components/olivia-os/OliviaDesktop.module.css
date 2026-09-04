@@ -355,11 +355,6 @@
     padding: 4px 0;
   }
 
-  .dockIcon {
-    width: 28px;
-    height: 28px;
-  }
-
   .dockLabel {
     display: none;
   }
