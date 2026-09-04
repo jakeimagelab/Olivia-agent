@@ -162,13 +162,10 @@ export async function middleware(req: NextRequest) {
   const isAdminSession = IS_LOCAL_DEV || req.cookies.get("pc_admin_session")?.value === "active";
   const shareToken = req.cookies.get("pc_share_token")?.value;
 
-  // 루트(`/`)는 원래 클라이언트에서 /api/auth/check를 다시 fetch해서 로그인 여부를 확인한 뒤
-  // /admin/dashboard/home으로 이동했다 — 미들웨어가 pc_admin_session 쿠키로 이미 알고 있는
-  // 사실을 페이지가 로드되고 나서야 다시 물어보는 셈이라, 그 왕복 동안 로딩 화면이 한 번 더
-  // 보이는 "홈이 두 개처럼 깜빡이는" 현상의 원인이었다. 여기서 바로 리다이렉트해서 그 왕복을 없앤다.
-  if (pathname === "/" && isAdminSession) {
-    return NextResponse.redirect(new URL("/admin/dashboard/home", req.url));
-  }
+  // OLIVIA OS Phase 1.1 — 예전엔 여기서 인증된 세션을 /admin/dashboard/home(기존 Dashboard)으로
+  // 즉시 돌려보냈다. 이제 "/" 자체가 로그인 후 기본 화면(Olivia OS Desktop)이라 더 이상 리다이렉트하지
+  // 않는다 — app/page.tsx가 인증 여부에 따라 LoginScreen 또는 OliviaDesktop을 그 자리에서 렌더한다.
+  // 기존 Dashboard(OliviaAdaptiveStage)는 /admin/dashboard/home에 그대로 남아있다(삭제 안 함).
 
   // ── 팀 채팅 데이터 API — pc_admin_session이 아니라 팀원 개인 Supabase 세션이 있어야 한다 ──
   if (pathname.startsWith("/api/team-chat/rooms") || pathname.startsWith("/api/team-chat/members") || pathname.startsWith("/api/team/")) {
