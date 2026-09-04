@@ -36,7 +36,8 @@
   height: 40px;
   padding: 0 10px;
   flex-shrink: 0;
-  background: #FAFCFB;
+  /* 단순 회색 대신 아주 은은한 세로 그라데이션. */
+  background: linear-gradient(180deg, rgba(252, 254, 253, 0.98), rgba(246, 250, 248, 0.96));
   border-bottom: 1px solid rgba(21, 88, 85, 0.1);
   cursor: grab;
   user-select: none;
