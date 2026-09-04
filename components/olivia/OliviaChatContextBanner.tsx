@@ -17,7 +17,6 @@ import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 // activeWindowId가 채워져 있으면 이 배너를 Desktop 전용으로 쓰고, 없으면 기존 legacy
 // split-view 분기로 그대로 폴백한다 — 다른 라우트 동작은 전혀 안 바뀐다.
 export default function OliviaChatContextBanner() {
-  const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const activeWindow = useOliviaDesktopStore((state) => (
     state.activeWindowId ? state.windows[state.activeWindowId] : null
   ));
