@@ -55,7 +55,13 @@ export async function latestResource(workspace: "quote" | "contract" | "conti", 
   return data as Record<string, unknown> | null;
 }
 
-export const COMMON_TOOL_NAMES = ["show_workspace"] as const;
+// OLIVIA OS Phase 3 — 창 조작 3종은 서버가 아무것도 조회/계산할 필요가 없다(파라미터도 없다).
+// 실제 동작(어떤 창을 movement/close/minimize할지)은 클라이언트 actionRouter.ts가
+// useOliviaDesktopStore의 activeWindowId를 보고 판단한다 — 여기서는 "이 의도가 맞다"만
+// 확인해준다.
+const WINDOW_TOOL_NAMES = ["maximize_active_window", "close_active_window", "minimize_active_window"] as const;
+
+export const COMMON_TOOL_NAMES = ["show_workspace", ...WINDOW_TOOL_NAMES] as const;
 
 export async function executeCommonTool(
   name: string,
@@ -71,6 +77,9 @@ export async function executeCommonTool(
     const resource = await latestResource(workspace, context);
     if (!resource?.id) throw new Error(`현재 프로젝트의 ${workspaceLabel(workspace)}를 찾지 못했어요.`);
     return { tool: name, success: true, data: { workspace, resourceId: String(resource.id) } };
+  }
+  if ((WINDOW_TOOL_NAMES as readonly string[]).includes(name)) {
+    return { tool: name, success: true, data: {} };
   }
   throw new Error("지원하지 않는 Olivia 작업이에요.");
 }
