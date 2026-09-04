@@ -1301,15 +1301,18 @@ function Dashboard({onLogout}:{onLogout:()=>void}) {
 
 /* ─── root ───────────────────────────────────────────────── */
 
+// OLIVIA OS Phase 1.1 — 로그인 후 기본 진입 화면. 예전엔 인증 확인 후 /admin/dashboard/home
+// (기존 Dashboard)으로 이동했지만, 이제 "/" 자체가 Olivia OS Desktop이다 — 인증돼 있으면
+// 그 자리에서 OliviaDesktop을 그린다(이동 없음). 기존 Dashboard는 그대로 /admin/dashboard/home에
+// 남아있다(삭제 안 함, legacy route로 계속 접근 가능).
 export default function AdminHome() {
-  const router=useRouter();
-  const [ready,setReady]=useState(false);
-  useEffect(()=>{
-    fetch("/api/auth/check").then(r=>r.json()).then(d=>{
-      if(d.authenticated) router.replace("/admin/dashboard/home");
-      else setReady(true);
-    }).catch(()=>setReady(true));
-  },[router]);
-  if(!ready) return <main className="admin-shell"><div className="admin-loading"/></main>;
-  return <LoginScreen onAuth={()=>router.replace("/admin/dashboard/home")}/>;
+  const [status, setStatus] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
+  useEffect(() => {
+    fetch("/api/auth/check").then(r => r.json()).then(d => {
+      setStatus(d.authenticated ? "authenticated" : "unauthenticated");
+    }).catch(() => setStatus("unauthenticated"));
+  }, []);
+  if (status === "checking") return <main className="admin-shell"><div className="admin-loading"/></main>;
+  if (status === "unauthenticated") return <LoginScreen onAuth={() => setStatus("authenticated")}/>;
+  return <OliviaDesktop />;
 }
