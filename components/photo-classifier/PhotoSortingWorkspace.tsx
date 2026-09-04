@@ -1622,7 +1622,6 @@ function PhotoSortingInner({
         startAiClassification: startAiClassificationForChat, submitNlRequest: submitAiNlRequestForChat,
       };
       usePhotoClassificationActionsStore.getState().registerActions(bundle);
-      console.log("[QA-TEMP] photo classification actions registered", { isModal, isEmbedded });
       return () => {
         if (usePhotoClassificationActionsStore.getState().actions === bundle) {
           usePhotoClassificationActionsStore.getState().registerActions(null);
