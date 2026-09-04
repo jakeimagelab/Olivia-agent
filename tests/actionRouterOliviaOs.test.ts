@@ -91,4 +91,54 @@ describe("actionRouter — OLIVIA OS routing", () => {
     expect(useWorkspaceStore.getState().type).toBe("photo-sort");
     expect(useOliviaLayoutStore.getState().mode).toBe("workspace");
   });
+
+  // Phase 3 — 창 조작 3종(§36/§37, TEST O/P)
+  it("MAXIMIZE_ACTIVE_WINDOW는 OS 라우트에서 활성 창을 maximized로 스냅한다", () => {
+    stubPathname("/");
+    useOliviaDesktopStore.setState({ workspaceWidth: 1600, workspaceHeight: 1000 });
+    executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "conti" });
+    executeOliviaAction({ type: "MAXIMIZE_ACTIVE_WINDOW" });
+
+    expect(useOliviaDesktopStore.getState().windows["conti"].snapMode).toBe("maximized");
+  });
+
+  it("CLOSE_ACTIVE_WINDOW는 OS 라우트에서 활성 창을 닫는다", () => {
+    stubPathname("/");
+    executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "conti" });
+    executeOliviaAction({ type: "CLOSE_ACTIVE_WINDOW" });
+
+    expect(useOliviaDesktopStore.getState().windows["conti"]).toBeUndefined();
+    expect(useOliviaDesktopStore.getState().activeWindowId).toBeNull();
+  });
+
+  it("MINIMIZE_ACTIVE_WINDOW는 OS 라우트에서 활성 창을 최소화한다(Dock에는 남음)", () => {
+    stubPathname("/");
+    executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "conti" });
+    executeOliviaAction({ type: "MINIMIZE_ACTIVE_WINDOW" });
+
+    expect(useOliviaDesktopStore.getState().windows["conti"]).toBeDefined();
+    expect(useOliviaDesktopStore.getState().windows["conti"].minimized).toBe(true);
+  });
+
+  it("창 조작 3종은 활성 창이 없으면 아무 것도 하지 않는다", () => {
+    stubPathname("/");
+    expect(() => {
+      executeOliviaAction({ type: "MAXIMIZE_ACTIVE_WINDOW" });
+      executeOliviaAction({ type: "CLOSE_ACTIVE_WINDOW" });
+      executeOliviaAction({ type: "MINIMIZE_ACTIVE_WINDOW" });
+    }).not.toThrow();
+    expect(Object.keys(useOliviaDesktopStore.getState().windows)).toHaveLength(0);
+  });
+
+  it("창 조작 3종은 legacy 라우트에서 no-op이다", () => {
+    stubPathname("/photo-sorting");
+    executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "photo-sort" });
+    useOliviaDesktopStore.setState({ activeWindowId: "photo-workspace", windows: { "photo-workspace": {
+      id: "photo-workspace", appId: "photo-workspace", title: "사진작업실",
+      x: 0, y: 0, width: 800, height: 600, minimized: false, snapMode: "none", zIndex: 100,
+    } } });
+    executeOliviaAction({ type: "MAXIMIZE_ACTIVE_WINDOW" });
+
+    expect(useOliviaDesktopStore.getState().windows["photo-workspace"].snapMode).toBe("none");
+  });
 });
