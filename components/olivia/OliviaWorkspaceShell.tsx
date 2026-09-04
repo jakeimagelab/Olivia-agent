@@ -85,6 +85,12 @@ export default function OliviaWorkspaceShell() {
     ? createPortal(<OliviaConversation variant={chatVariant} showExpandToggle={showExpandToggle} />, portalHost)
     : null;
 
+  // OLIVIA OS 데스크탑(`/`, `/desktop`)에서는 Olivia가 일반 앱처럼 자체 창(olivia-chat)을
+  // 갖는다(components/olivia-os/adapters/OliviaChatWindowContent.tsx가 더 높은 priority로
+  // dock을 등록) — 그 창을 쓰지, 플로팅 버블을 겹쳐 보여주면 진입점이 두 개가 되어 혼란스럽다.
+  // 이 창이 안 열려 있으면 등록된 dock이 없어 chatPortal은 화면에 아무것도 그리지 않는다.
+  const isOliviaOsRoute = pathname === "/" || pathname === "/desktop";
+
   // 홈: greeting/quick-prompt/드로어는 OliviaAdaptiveStage가 그대로 그린다 — 여기서는 그
   // 슬롯에 채팅만 꽂는다. 직접 워크스페이스 라우트: 70/30 스플릿 UI 자체(DynamicWorkspace +
   // 채팅 슬롯 div)는 OliviaWorkspaceRouteBridge가 그 페이지 트리 안에서 직접 그린다(그래야
@@ -92,5 +98,6 @@ export default function OliviaWorkspaceShell() {
   // 그 슬롯에 채팅만 꽂는다. 그 외(미지원 페이지, photo-sorting): 기존 플로팅 토글.
   if (isClientPortal) return chatPortal;
   if (isHome || hasSplitViewHere || isFullscreen) return chatPortal;
+  if (isOliviaOsRoute) return chatPortal;
   return <><OliviaFloatingChatToggle />{chatPortal}</>;
 }
