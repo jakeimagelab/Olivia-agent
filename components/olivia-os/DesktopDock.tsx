@@ -37,7 +37,7 @@ export function DesktopDock() {
   return (
     <div className={styles.dock} role="toolbar" aria-label="Dock">
       <button type="button" className={styles.dockButton} onClick={toggleShowDesktop} aria-label="바탕화면 보기">
-        <span className={styles.dockIcon}><Layers size={22} /></span>
+        <AppIcon icon={<Layers size={24} />} size={46} />
         <span className={styles.dockLabel}>Desktop</span>
       </button>
       <div className={styles.dockDivider} />
@@ -53,7 +53,7 @@ export function DesktopDock() {
             onClick={() => handleDockClick(app.id, app.title, app.defaultSize.width, app.defaultSize.height)}
             aria-label={app.title}
           >
-            <span className={styles.dockIcon}>{app.icon}</span>
+            <AppIcon icon={app.icon} size={46} />
             <span className={styles.dockLabel}>{app.title}</span>
             {running && <span className={styles.dockIndicator} />}
           </button>
