@@ -8,6 +8,9 @@ import { ComingSoonPlaceholder } from "../adapters/ComingSoonPlaceholder";
 import { ReviewStudioWindowContent } from "../adapters/ReviewStudioWindowContent";
 import { OliviaChatWindowContent } from "../adapters/OliviaChatWindowContent";
 import { DocumentsWindowContent } from "../apps/documents/DocumentsWindowContent";
+import { QuoteBuilderWindowContent } from "../adapters/QuoteBuilderWindowContent";
+import { ContractBuilderWindowContent } from "../adapters/ContractBuilderWindowContent";
+import { ContiBuilderWindowContent } from "../adapters/ContiBuilderWindowContent";
 
 // OLIVIA OS Phase 0 App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. 이번
 // Phase에서 실제로 기존 기능을 연결하는 건 customer/calendar/photo-workspace 3개뿐이고(스펙
