@@ -22,8 +22,8 @@ export function AppWindow({ windowId, minWidth = 420, minHeight = 320, children 
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const closeWindow = useOliviaDesktopStore((state) => state.closeWindow);
   const minimizeWindow = useOliviaDesktopStore((state) => state.minimizeWindow);
-  const maximizeWindow = useOliviaDesktopStore((state) => state.maximizeWindow);
-  const restoreMaximizedWindow = useOliviaDesktopStore((state) => state.restoreMaximizedWindow);
+  const snapWindow = useOliviaDesktopStore((state) => state.snapWindow);
+  const unsnapWindow = useOliviaDesktopStore((state) => state.unsnapWindow);
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const { beginDrag, beginResize } = useWindowInteractions(windowId, minWidth, minHeight);
   // drag/resize 중엔 CSS transition을 꺼서(즉각 반응), maximize/restore 때만 부드럽게 움직인다.
