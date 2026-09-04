@@ -11,10 +11,11 @@ import { QuoteBuilderWindowContent } from "../adapters/QuoteBuilderWindowContent
 import { ContractBuilderWindowContent } from "../adapters/ContractBuilderWindowContent";
 import { ContiBuilderWindowContent } from "../adapters/ContiBuilderWindowContent";
 
-// OLIVIA OS Phase 0 App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. 이번
-// Phase에서 실제로 기존 기능을 연결하는 건 customer/calendar/photo-workspace 3개뿐이고(스펙
-// 1-12), 나머지 3개는 Desktop Shortcut/Dock에는 노출하되(스펙 1-4/1-5) 내용은
-// ComingSoonPlaceholder로 채운다 — 창 자체(생성/드래그/리사이즈/닫기)는 진짜로 동작한다.
+// OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
+// conti는 Phase 3에서 레거시 70/30 시스템이 이미 쓰던 mode="modal" 빌더(QuoteBuilder 등)를
+// 그대로 연결했다(ComingSoonPlaceholder였던 상태에서 전환, §41 no fake completion) — 단
+// clientId/resourceId를 지정해서 바로 여는 것은 아직 안 됨(OpenAppInput이 그 값을 안 실어 나름,
+// 후속 작업).
 export type OliviaAppDefinition = {
   id: string;
   title: string;
