@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useOliviaDesktopEffectiveActiveApp } from "./useOliviaDesktopEffectiveActiveApp";
 
 // OLIVIA OS Phase 3 — Desktop Store(어떤 창이 떠 있고 어떤 게 포커스인지)와 기존
 // useOliviaContextStore(서버로 전송되는 LLM 컨텍스트, lib/store/oliviaContextStore.ts)를
