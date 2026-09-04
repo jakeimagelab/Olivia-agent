@@ -4,7 +4,6 @@ import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { PhotoWorkspaceWindowContent } from "../adapters/PhotoWorkspaceWindowContent";
 import { ClientsWindowContent } from "../adapters/ClientsWindowContent";
 import { CalendarWindowContent } from "../adapters/CalendarWindowContent";
-import { ComingSoonPlaceholder } from "../adapters/ComingSoonPlaceholder";
 import { ReviewStudioWindowContent } from "../adapters/ReviewStudioWindowContent";
 import { OliviaChatWindowContent } from "../adapters/OliviaChatWindowContent";
 import { DocumentsWindowContent } from "../apps/documents/DocumentsWindowContent";
