@@ -28,7 +28,12 @@ export function DesktopTopBar({ activeAppTitle }: { activeAppTitle: string | nul
             </span>
           ))}
         </div>
-        {activeAppTitle && <span className={styles.topBarActiveTitle}>{activeAppTitle}</span>}
+        {activeAppTitle && (
+          <span className={styles.topBarActiveTitle}>
+            <span className={styles.topBarActiveTitleDot}>·</span>
+            {activeAppTitle}
+          </span>
+        )}
       </div>
       <div className={styles.topBarRight}>
         <div className={styles.topBarSearch}>
