@@ -13,19 +13,18 @@ import OliviaEngineBackground from "@/components/olivia-v2/OliviaEngineBackgroun
 // re-export하면서 select_match 등록 side effect를 트리거하기 때문이다.
 import { getInlineTool } from "@/lib/olivia/inline-tools";
 import OliviaChatContextBanner from "@/components/olivia/OliviaChatContextBanner";
-import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopEffectiveActiveApp } from "@/components/olivia-os/useOliviaDesktopEffectiveActiveApp";
 import { DESKTOP_APP_SUGGESTIONS } from "@/components/olivia-os/oliviaDesktopSuggestions";
 
 const DEFAULT_SUGGESTIONS = ["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"];
 
 export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer" | "home"; showExpandToggle?: boolean; onMinimize?: () => void }) {
   const messages = useOliviaConversationStore((state) => state.messages);
-  // OLIVIA OS Phase 3 §27 — 지금 포커스된 Desktop 앱이 있으면 그 앱 전용 제안으로 바꾼다.
-  // Desktop 밖(다른 라우트)에서는 activeAppId가 항상 null이라 기존 기본값 그대로 나온다.
-  const activeDesktopAppId = useOliviaDesktopStore((state) => (
-    state.activeWindowId ? state.windows[state.activeWindowId]?.appId ?? null : null
-  ));
-  const suggestions = (activeDesktopAppId && DESKTOP_APP_SUGGESTIONS[activeDesktopAppId]) || DEFAULT_SUGGESTIONS;
+  // OLIVIA OS Phase 3 §27 — 지금 포커스된(또는 Olivia 자신에 포커스가 가 있다면 직전에 보던)
+  // Desktop 앱이 있으면 그 앱 전용 제안으로 바꾼다. Desktop 밖(다른 라우트)에서는 이 값이 항상
+  // null이라 기존 기본값 그대로 나온다.
+  const effectiveDesktopApp = useOliviaDesktopEffectiveActiveApp();
+  const suggestions = (effectiveDesktopApp && DESKTOP_APP_SUGGESTIONS[effectiveDesktopApp.appId]) || DEFAULT_SUGGESTIONS;
   const isHydrated = useOliviaConversationStore((state) => state.isHydrated);
   const isSending = useOliviaConversationStore((state) => state.isSending);
   const isStreaming = useOliviaConversationStore((state) => state.isStreaming);
