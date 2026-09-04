@@ -8998,3 +8998,13 @@ main,
     font-size: 21px;
   }
 }
+
+/* OLIVIA OS 데스크탑의 Olivia 창(components/olivia-os/adapters/OliviaChatWindowContent.tsx)
+   안에 portal된 실제 <OliviaConversation>이 창의 .content 영역을 꽉 채우게 한다. 이 클래스는
+   OliviaChatDockTarget에 plain string prop으로 전달되므로 CSS Module이 아닌 여기(global)에
+   둔다 — CSS Module은 최소 하나의 local class/id가 없는 순수 :global() 셀렉터를 허용하지 않는다. */
+.olivia-os-chat-dock {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
