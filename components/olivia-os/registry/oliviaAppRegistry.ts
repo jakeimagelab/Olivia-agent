@@ -127,7 +127,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 340, height: 420 },
     singleton: true,
     desktopShortcutOrder: 5,
-    dockOrder: 6,
+    dockOrder: 9,
     component: OliviaChatWindowContent,
   },
 ];
