@@ -9016,18 +9016,32 @@ main,
   flex-direction: column;
 }
 
-/* Visual Polish Pass §6 — OS 창 안의 Olivia 채팅만 순백색 느낌을 완화한다(다른 페이지의
-   floating/home/drawer variant는 그대로 둔다 — .olivia-os-chat-dock 조상 스코프로 한정). 유저
-   말풍선(deep green)/입력창(흰색+얇은 보더)/전송 버튼(deep green 원형)은 admin.css의 기본값이
-   이미 이 요구사항과 일치해서 손대지 않는다. */
+/* OS 창 안의 Olivia 채팅만 순백색 느낌을 완화한다(다른 페이지의 floating/home/drawer variant는
+   그대로 둔다 — .olivia-os-chat-dock 조상 스코프로 한정). 전송 버튼(deep green 원형)은
+   admin.css 기본값이 이미 이 요구사항과 일치해서 손대지 않는다. */
 .olivia-os-chat-dock .olivia-conversation {
-  background: linear-gradient(160deg, #FEFDFA 0%, #F1F7F5 100%);
+  background: linear-gradient(180deg, #FCFEFD 0%, #F5FAF8 100%);
+}
+
+.olivia-os-chat-dock .olivia-composer {
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .olivia-os-chat-dock .olivia-message__body {
-  background: #EEF4F2;
+  background: #F3F7F5;
 }
 
 .olivia-os-chat-dock .olivia-message.is-user .olivia-message__body {
   background: var(--olivia-green);
+}
+
+/* Wallpaper Asset Integration §19 — 오른쪽의 색색깔 topic-tick "rail"이 prototype/dev-tool
+   느낌을 만든다. 실제 기능(주제별 점프)이 OS 맥락에서 꼭 필요한 건 아니라서 숨기고, 그만큼
+   비어있던 34px 컬럼을 메시지 목록이 다시 채우게 한다. */
+.olivia-os-chat-dock .olivia-message-guide {
+  display: none;
+}
+
+.olivia-os-chat-dock .olivia-conversation__stage {
+  grid-template-columns: minmax(0, 1fr);
 }
