@@ -1610,8 +1610,12 @@ function PhotoSortingInner({
   // PHASE 4(2026-08-30) — 채팅 도구(rename/merge/split_photo_scene)가 이 Workspace가 실제로
   // 열려 있을 때만 씬 편집을 실행할 수 있게, 지금 마운트된 인스턴스의 최신 함수를 등록해둔다
   // (useContractPdfHandlerStore와 동일 패턴). 언마운트되면 등록을 해제한다.
+  // OLIVIA OS Phase 3 — isEmbedded(OS 창/PhotoWorkspace.tsx 탭)도 등록 대상에 추가했다. 원래
+  // isModal(채팅→모달 플로우)만 체크해서, OS Desktop 창 안에서는(PhotoWorkspaceWindowContent가
+  // mode="embedded"로 렌더) "이 폴더 분류해줘" 같은 RUN 액션이 조용히 실행할 대상을 못 찾는
+  // 버그가 있었다.
   useEffect(() => {
-    if (isModal) {
+    if (isModal || isEmbedded) {
       const bundle = {
         renameScene: renameFieldScene, mergeScenes: mergeFieldScenes, splitScene: splitFieldScene,
         startAiClassification: startAiClassificationForChat, submitNlRequest: submitAiNlRequestForChat,
@@ -1623,7 +1627,7 @@ function PhotoSortingInner({
         }
       };
     }
-  }, [isModal, renameFieldScene, mergeFieldScenes, splitFieldScene, startAiClassificationForChat, submitAiNlRequestForChat]);
+  }, [isModal, isEmbedded, renameFieldScene, mergeFieldScenes, splitFieldScene, startAiClassificationForChat, submitAiNlRequestForChat]);
 
   const approveFieldScene = useCallback((sceneIndex: number) => {
     setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, approved: true } : scene));
