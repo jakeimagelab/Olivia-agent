@@ -228,6 +228,16 @@ export function executeOliviaAction(action: OliviaUiAction) {
       return;
     case "OPEN_FEATURE": {
       context.recordAction(`feature:open:${action.href}`);
+      // OLIVIA OS(P0): href → appId 매핑이 있으면 AppWindow로, 없으면 Desktop을 유지한 채
+      // 아무 것도 하지 않는다(legacy route로 절대 보내지 않는다) — legacy route에서만
+      // navigateToFeature를 그대로 쓴다.
+      if (isOliviaOsRoute()) {
+        const appId = FEATURE_HREF_TO_DESKTOP_APP_ID[action.href];
+        const input = appId ? desktopAppInputFor(appId) : undefined;
+        if (input) { openOrFocusDesktopApp(input); return; }
+        console.warn(`[OLIVIA OS] No desktop app mapping for ${action.href}`);
+        return;
+      }
       navigateToFeature(action.href);
       return;
     }
