@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { resetDesktopSession, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopContextBridge } from "./useOliviaDesktopContextBridge";
 import { DesktopTopBar } from "./DesktopTopBar";
 import { DesktopSurface } from "./DesktopSurface";
 import { DesktopDock } from "./DesktopDock";
@@ -12,6 +13,9 @@ import styles from "./OliviaDesktop.module.css";
 export default function OliviaDesktop() {
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const activeTitle = useOliviaDesktopStore((state) => (activeWindowId ? state.windows[activeWindowId]?.title ?? null : null));
+
+  // Phase 3 — 활성 창을 Olivia의 LLM 컨텍스트(useOliviaContextStore)로 계속 흘려보낸다.
+  useOliviaDesktopContextBridge();
 
   // OLIVIA OS가 canonical root인 동안 문서 자체는 움직이지 않고 각 AppWindow만 스크롤한다.
   useEffect(() => {
