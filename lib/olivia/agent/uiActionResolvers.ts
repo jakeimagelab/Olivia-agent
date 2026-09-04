@@ -214,6 +214,11 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     if (!href) return [];
     return [{ type: "OPEN_FEATURE", href }];
   },
+  // OLIVIA OS Phase 3 — 서버 tool은 "의도가 맞다"만 확인해줬고(success:true), 실제 대상 창
+  // 판단은 클라이언트 actionRouter.ts의 isOliviaOsRoute() 분기가 activeWindowId를 보고 한다.
+  maximize_active_window: async ({ result }) => (result.success ? [{ type: "MAXIMIZE_ACTIVE_WINDOW" }] : []),
+  close_active_window: async ({ result }) => (result.success ? [{ type: "CLOSE_ACTIVE_WINDOW" }] : []),
+  minimize_active_window: async ({ result }) => (result.success ? [{ type: "MINIMIZE_ACTIVE_WINDOW" }] : []),
   start_select_match_flow: async ({ result }) => {
     if (!result.success) return [];
     const flowId = value(result.data, "flowId");
