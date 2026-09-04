@@ -17,7 +17,10 @@
 .desktop::after {
   content: "";
   position: absolute;
-  z-index: 0;
+  /* 음수 z-index — .topBarWrap(position:static)이 stacking 규칙상 z-index:0인 positioned
+     레이어보다 먼저(뒤에) 그려지는 문제를 피하려면, 이 배경 레이어들을 항상 맨 뒤로 보내는
+     음수 값이 유일하게 안전하다(topBar/surface/dock의 position/z-index를 신경 쓰지 않아도 됨). */
+  z-index: -1;
   pointer-events: none;
 }
 
