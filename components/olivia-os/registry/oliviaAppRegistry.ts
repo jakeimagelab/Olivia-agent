@@ -1,9 +1,13 @@
 import { createElement, type ComponentType, type ReactNode } from "react";
-import { CalendarDays, Clapperboard, FileText, FolderOpen, Images, Users } from "lucide-react";
+import { CalendarDays, Clapperboard, FileSignature, FileText, FolderOpen, Images, Star, Users } from "lucide-react";
+import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { PhotoWorkspaceWindowContent } from "../adapters/PhotoWorkspaceWindowContent";
 import { ClientsWindowContent } from "../adapters/ClientsWindowContent";
 import { CalendarWindowContent } from "../adapters/CalendarWindowContent";
 import { ComingSoonPlaceholder } from "../adapters/ComingSoonPlaceholder";
+import { ReviewStudioWindowContent } from "../adapters/ReviewStudioWindowContent";
+import { OliviaChatWindowContent } from "../adapters/OliviaChatWindowContent";
+import { DocumentsWindowContent } from "../apps/documents/DocumentsWindowContent";
 
 // OLIVIA OS Phase 0 App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. 이번
 // Phase에서 실제로 기존 기능을 연결하는 건 customer/calendar/photo-workspace 3개뿐이고(스펙
