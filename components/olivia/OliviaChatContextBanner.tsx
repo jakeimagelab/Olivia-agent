@@ -39,8 +39,6 @@ export default function OliviaChatContextBanner() {
       </div>
     );
   }
-  if (activeWindowId !== null) return null; // Desktop 라우트인데 활성 창만 없는 상태 — 표시 안 함.
-
   if (mode !== "split" || !type) return null;
   const entry = workspaceRegistry[type];
   if (!entry) return null;
