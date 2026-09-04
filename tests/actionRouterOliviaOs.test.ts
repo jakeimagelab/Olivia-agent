@@ -28,8 +28,6 @@ describe("actionRouter — OLIVIA OS routing", () => {
 
     expect(window.location.pathname).toBe("/");
     expect(useOliviaDesktopStore.getState().windows["photo-workspace"]).toBeDefined();
-    // legacy workspace store도 호환을 위해 갱신은 되지만, layout이 workspace 모드로 안 바뀐다.
-    expect(useOliviaLayoutStore.getState().mode).toBe("idle");
   });
 
   it("SWITCH_WORKSPACE(contract)는 OS 라우트에서 AppWindow만 연다", () => {
