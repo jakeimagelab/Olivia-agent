@@ -7,6 +7,7 @@ import {
   useOliviaDesktopStore, DESKTOP_TOPBAR_HEIGHT, DESKTOP_DOCK_SAFE_AREA,
 } from "@/lib/store/useOliviaDesktopStore";
 import { useWindowInteractions } from "./useWindowInteractions";
+import { resolveSnapBounds } from "./snapZones";
 import { WindowHeader } from "./WindowHeader";
 import { AppWindowErrorBoundary } from "./AppWindowErrorBoundary";
 import styles from "./AppWindow.module.css";
