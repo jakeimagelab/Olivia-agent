@@ -12,7 +12,10 @@ import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 // 새 store 필드를 만들지 않고 기존 setWorkspace(workspace, resourceId)에 얹는다 —
 // getOliviaContextSnapshot/buildOliviaPageContext가 이미 activeWorkspace를 서버로 보내고
 // 있으므로, LLM이 "지금 사진작업실을 보고 있다"를 알려면 이 값만 채우면 충분하다.
-const DESKTOP_APP_TO_WORKSPACE: Partial<Record<string, string>> = {
+// export된 이유: 이 매핑 테이블 자체는 순수 데이터라 유닛 테스트로 직접 검증 가능하다
+// (hook 본체는 React 렌더링이 필요해 이 repo의 node 환경 Vitest로는 직접 테스트하지 않고
+// 브라우저 QA로 검증한다 — tests/oliviaDesktopContextBridge.test.ts 참고).
+export const DESKTOP_APP_TO_WORKSPACE: Partial<Record<string, string>> = {
   "photo-workspace": "photo-sort",
   quote: "quote",
   contract: "contract",
