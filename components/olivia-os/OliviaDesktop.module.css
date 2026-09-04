@@ -52,36 +52,53 @@
     radial-gradient(ellipse 85% 70% at 108% 50%, rgba(0, 0, 0, 0.16) 0%, transparent 60%);
 }
 
-/* ── Top Bar ─────────────────────────────────────────── */
-.topBarWrap {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-}
-
+/* ── Top Bar ─────────────────────────────────────────── system bar 한 줄(44~48px) */
 .topBar {
   flex-shrink: 0;
-  height: 40px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
+  padding: 0 16px;
   background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(21, 88, 85, 0.1);
   z-index: 8000;
 }
 
-.menuBar {
-  flex-shrink: 0;
-  height: 28px;
+.topBarLeft {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 0 16px;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(21, 88, 85, 0.1);
-  z-index: 8000;
+  gap: 14px;
+  min-width: 0;
+}
+
+.topBarBrandMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: linear-gradient(145deg, #1A7168, #0F433E);
+  color: #EAF4F2;
+  flex-shrink: 0;
+}
+
+.topBarBrand {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #155855;
+  flex-shrink: 0;
+}
+
+.menuBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-left: 4px;
+  border-left: 1px solid rgba(21, 88, 85, 0.14);
+  margin-left: 2px;
 }
 
 .menuBarItem {
@@ -90,19 +107,6 @@
   color: #5A7470;
   cursor: default;
   user-select: none;
-}
-
-.topBarLeft {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.topBarBrand {
-  font-size: 12.5px;
-  font-weight: 800;
-  color: #155855;
 }
 
 .topBarActiveTitle {
@@ -116,8 +120,39 @@
 .topBarRight {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+.topBarSearch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 160px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(21, 88, 85, 0.07);
+  border: 1px solid rgba(21, 88, 85, 0.1);
+}
+
+.topBarSearchIcon {
+  color: #5A7470;
+  flex-shrink: 0;
+}
+
+.topBarSearchInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 11.5px;
+  color: #1C2B28;
+}
+
+.topBarSearchInput::placeholder {
+  color: #8CA39D;
 }
 
 .topBarIconButton {
@@ -138,11 +173,30 @@
   color: #155855;
 }
 
+.topBarStatus {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #5A7470;
+  white-space: nowrap;
+}
+
+.topBarStatusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #22876A;
+  box-shadow: 0 0 0 3px rgba(34, 135, 106, 0.16);
+}
+
 .topBarClock {
   font-size: 11.5px;
   font-weight: 700;
   color: #1C2B28;
-  padding: 0 6px;
+  padding-left: 6px;
+  border-left: 1px solid rgba(21, 88, 85, 0.14);
 }
 
 /* ── Surface (shortcuts + windows) ──────────────────────── */
