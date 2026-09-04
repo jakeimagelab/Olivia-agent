@@ -24,7 +24,9 @@ export type OliviaWindowState = {
 };
 
 // Top Bar/Dock 높이 — AppWindow의 drag clamp와 snap/maximize 영역 계산이 공유한다(단일 소스).
-export const DESKTOP_TOPBAR_HEIGHT = 40;
+// 40(기존 아이콘/시계 행) + 28(메뉴바 행, DesktopTopBar.tsx) = 68 — 메뉴바를 추가할 때 반드시
+// 같이 바꿔야 한다. 안 그러면 최대화/스냅된 창이 메뉴바 뒤에 깔린다.
+export const DESKTOP_TOPBAR_HEIGHT = 68;
 export const DESKTOP_DOCK_SAFE_AREA = 96;
 // 화면 밖으로 창이 완전히 사라지지 않게 — 헤더 일부는 항상 viewport 안에 남긴다
 // (useWindowInteractions.ts의 드래그 clamp와 동일한 값).
