@@ -11,19 +11,20 @@ import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 // 쓴다 — 셋 다 각자 구현하면 로직이 흩어진다.
 export function useOliviaDesktopEffectiveActiveApp(): { windowId: string; appId: string } | null {
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
-  const activeAppId = useOliviaDesktopStore((state) => (
-    state.activeWindowId ? state.windows[state.activeWindowId]?.appId ?? null : null
-  ));
+  const windows = useOliviaDesktopStore((state) => state.windows);
+  const activeAppId = activeWindowId ? windows[activeWindowId]?.appId ?? null : null;
   const lastRef = useRef<{ windowId: string; appId: string } | null>(null);
 
   useEffect(() => {
-    if (activeWindowId && activeAppId && activeAppId !== "olivia-chat") {
-      lastRef.current = { windowId: activeWindowId, appId: activeAppId };
-    } else if (!activeWindowId) {
-      // 아무 창도 없으면(전부 닫힘/최소화) 더 이상 유효하지 않은 이전 값도 지운다.
-      lastRef.current = null;
+    if (activeAppId && activeAppId !== "olivia-chat") {
+      lastRef.current = { windowId: activeWindowId as string, appId: activeAppId };
     }
-  });
+  }, [activeWindowId, activeAppId]);
+
+  // 기억해둔 창이 그 사이 닫혔으면 더 이상 유효하지 않다.
+  if (lastRef.current && !windows[lastRef.current.windowId]) {
+    lastRef.current = null;
+  }
 
   if (activeAppId && activeAppId !== "olivia-chat") return { windowId: activeWindowId as string, appId: activeAppId };
   return lastRef.current;
