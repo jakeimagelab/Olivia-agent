@@ -63,10 +63,10 @@ export function DesktopSurface() {
           />
         ))}
         <DesktopShortcut
-          app={{ title: "Olivia", icon: <Sparkles size={20} /> }}
-          selected={selectedShortcut === "olivia"}
-          onSelect={() => setSelectedShortcut("olivia")}
-          onOpen={toggleChat}
+          app={{ title: "Olivia", icon: <OliviaIcon size={20} /> }}
+          selected={selectedShortcut === "olivia-chat"}
+          onSelect={() => setSelectedShortcut("olivia-chat")}
+          onOpen={() => openApp({ appId: "olivia-chat", title: "Olivia", width: 420, height: 640 })}
         />
       </div>
       <div className={styles.windowLayer}>
