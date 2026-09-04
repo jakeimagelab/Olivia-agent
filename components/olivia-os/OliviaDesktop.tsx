@@ -36,6 +36,12 @@ export default function OliviaDesktop() {
 
   return (
     <div className={styles.desktop}>
+      {/* Wallpaper Asset Integration §24 — pseudo-element(::before/::after)는 stacking
+          규칙상 다른 static 요소보다 위로 그려지는 버그를 한 번 만든 적이 있어서(Visual Polish
+          Pass), 실제 배경 이미지 레이어부터는 진짜 DOM 엘리먼트로 분리해 그 문제 자체를 없앤다. */}
+      <div className={styles.wallpaperLayer} aria-hidden="true" />
+      <div className={styles.overlayLayer} aria-hidden="true" />
+      <div className={styles.vignetteLayer} aria-hidden="true" />
       <DesktopTopBar activeAppTitle={activeTitle} />
       <DesktopSurface />
       <DesktopDock />
