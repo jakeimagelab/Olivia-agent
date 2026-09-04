@@ -1,13 +1,30 @@
 /* 모든 앱(고객관리/일정/사진작업실/문서함/리뷰콘텐츠/Olivia/Desktop)이 공유하는 단일 tile
    geometry — Dock/바로가기에서 raw Lucide 아이콘을 직접 노출하지 않고 항상 이 컴포넌트를
-   거친다. 색은 deep green/mint/warm white 팔레트로만 고정한다(앱별 rainbow 색 금지). */
+   거친다. 색은 deep green/mint/warm white 팔레트로만 고정한다(앱별 rainbow 색 금지).
+   맥락(바탕화면 바로가기 vs Dock)에 따라 유리감 정도만 살짝 다르게 준다(§7 vs §13). */
 .tile {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(234, 244, 242, 0.88));
-  border: 1px solid rgba(21, 88, 85, 0.14);
-  box-shadow: 0 2px 6px rgba(10, 40, 36, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   color: #155855;
+  transition: background 160ms ease, transform 160ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.shortcut {
+  background: rgba(250, 253, 251, 0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  box-shadow: 0 8px 24px rgba(5, 30, 27, 0.14);
+}
+
+.dock {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(21, 88, 85, 0.08);
+  box-shadow: 0 5px 14px rgba(10, 50, 45, 0.10);
+}
+
+.dock.active {
+  background: rgba(220, 242, 235, 0.92);
+  transform: translateY(-2px);
 }
