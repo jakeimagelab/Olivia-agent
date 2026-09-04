@@ -18,7 +18,7 @@ describe("OLIVIA OS desktop store", () => {
 
     const win = useOliviaDesktopStore.getState().windows.customer;
     expect(win.snapMode).toBe("none");
-    expect(win.width).toBeLessThanOrEqual(Math.round(1280 * 0.82));
+    expect(win.width).toBeLessThanOrEqual(Math.round(1280 * 0.84));
     expect(win.height).toBeLessThanOrEqual(Math.round((732 - 96) * 0.82));
     expect(win.x).toBeGreaterThanOrEqual(12);
     expect(win.y).toBeGreaterThanOrEqual(12);

@@ -1,5 +1,5 @@
 import { createElement, type ComponentType, type ReactNode } from "react";
-import { CalendarDays, Clapperboard, FileSignature, FileText, FolderOpen, Images, Star, Users } from "lucide-react";
+import { CalendarDays, Clapperboard, FileSignature, FileText, FolderOpen, Images, PenLine, Star, Users } from "lucide-react";
 import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { PhotoWorkspaceWindowContent } from "../adapters/PhotoWorkspaceWindowContent";
 import { ClientsWindowContent } from "../adapters/ClientsWindowContent";
@@ -10,6 +10,7 @@ import { DocumentsWindowContent } from "../apps/documents/DocumentsWindowContent
 import { QuoteBuilderWindowContent } from "../adapters/QuoteBuilderWindowContent";
 import { ContractBuilderWindowContent } from "../adapters/ContractBuilderWindowContent";
 import { ContiBuilderWindowContent } from "../adapters/ContiBuilderWindowContent";
+import { MemoWindowContent } from "../adapters/MemoWindowContent";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
 // conti는 Phase 3에서 레거시 70/30 시스템이 이미 쓰던 mode="modal" 빌더(QuoteBuilder 등)를
@@ -117,14 +118,22 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     component: ReviewStudioWindowContent,
   },
   {
+    id: "memo",
+    title: "메모",
+    icon: createElement(PenLine, { size: 24 }),
+    route: "/memo",
+    defaultSize: { width: 980, height: 700 },
+    minSize: { width: 640, height: 420 },
+    singleton: true,
+    component: MemoWindowContent,
+  },
+  {
     id: "olivia-chat",
     title: "Olivia",
     icon: createElement(OliviaIcon, { size: 24 }),
     defaultSize: { width: 420, height: 640 },
     minSize: { width: 340, height: 420 },
     singleton: true,
-    desktopShortcutOrder: 5,
-    dockOrder: 9,
     component: OliviaChatWindowContent,
   },
 ];

@@ -37,7 +37,7 @@ const Z_BASE = 100;
 // 이 값을 넘으면 다음 bringToFront 호출 때 전체를 현재 순서대로 100번대로 재정규화한다 —
 // "z-index 무한 증가 문제 방지"(스펙 1-11/2-28).
 const Z_NORMALIZE_THRESHOLD = 10_000;
-const FLOATING_MAX_WIDTH_RATIO = 0.82;
+const FLOATING_MAX_WIDTH_RATIO = 0.84;
 const FLOATING_MAX_HEIGHT_RATIO = 0.82;
 const FLOATING_EDGE_GAP = 12;
 const STORAGE_KEY = "olivia-os-desktop-state";

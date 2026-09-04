@@ -1,256 +1,439 @@
 .desktop {
+  --desktop-edge: 22px;
+  --desktop-gap: 20px;
+  --left-rail-width: 248px;
+  --assistant-width: 380px;
   position: fixed;
   inset: 0;
   height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background-color: #0A322E;
+  background: #082e2b;
+  color: #1c2b28;
   font-family: var(--font-sans);
   cursor: default;
 }
 
-/* Wallpaper Asset Integration — 실제 이미지 asset. CSS로 가짜 배경을 그리지 않는다(대각선
-   반복 stripe 등은 여기서 전부 제거됨). center 45%로 살짝 위쪽 기준을 잡아 이미지의 밝은
-   대각선 흐름이 TopBar/Window 뒤에서 너무 튀지 않게 한다. */
-.wallpaperLayer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: url("/olivia-os/wallpaper.webp");
-  background-size: cover;
-  background-position: center 45%;
-  background-repeat: no-repeat;
-}
-
-/* 이미지 자체의 contrast만 조절 — 새 그림을 그리지 않는다. */
-.overlayLayer {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(4, 31, 28, 0.10) 0%, rgba(4, 31, 28, 0.02) 45%, rgba(4, 31, 28, 0.22) 100%);
-}
-
-/* 가장자리만 아주 약하게 어둡히는 비네트. */
+.wallpaperLayer,
+.overlayLayer,
 .vignetteLayer {
   position: absolute;
   inset: 0;
-  z-index: 1;
   pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.18) 100%);
 }
 
-/* ── Top Bar ─────────────────────────────────────────── system bar 한 줄(44~48px) */
+.wallpaperLayer {
+  z-index: 0;
+  background: url("/olivia-os/wallpaper.webp") center 45% / cover no-repeat;
+  transition: filter 320ms cubic-bezier(.22, 1, .36, 1), transform 320ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.desktop[data-wallpaper="soft"] .wallpaperLayer {
+  filter: saturate(.76) brightness(1.08) contrast(.9);
+  transform: scale(1.015);
+}
+
+.overlayLayer {
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(3, 34, 30, .11), rgba(3, 34, 30, .01) 46%, rgba(3, 34, 30, .2));
+}
+
+.desktop[data-wallpaper="soft"] .overlayLayer {
+  background: linear-gradient(180deg, rgba(232, 244, 239, .08), rgba(8, 47, 42, .02) 48%, rgba(5, 36, 32, .12));
+}
+
+.vignetteLayer {
+  z-index: 1;
+  background: radial-gradient(ellipse at center, transparent 52%, rgba(0, 0, 0, .18));
+}
+
 .topBar {
-  flex-shrink: 0;
+  position: relative;
+  z-index: 8000;
+  flex: 0 0 46px;
   height: 46px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
-  background: rgba(244, 249, 247, 0.76);
-  backdrop-filter: blur(24px) saturate(140%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.32);
-  box-shadow: 0 1px 0 rgba(10, 60, 55, 0.05);
-  z-index: 8000;
+  gap: 18px;
+  padding: 0 18px;
+  background: rgba(5, 66, 59, .93);
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 2px 12px rgba(2, 31, 28, .12);
+  color: #f5fbf8;
+}
+
+.topBarLeft,
+.topBarRight,
+.menuBar,
+.topBarSearch,
+.topBarStatus,
+.topBarActiveTitle {
+  display: flex;
+  align-items: center;
 }
 
 .topBarLeft {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  gap: 10px;
   min-width: 0;
 }
 
 .topBarBrandMark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: linear-gradient(145deg, #1A7168, #0F433E);
-  color: #EAF4F2;
-  flex-shrink: 0;
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 21px;
+  border-radius: 50%;
+  color: #fff;
+  background: #e97848;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45);
 }
 
 .topBarBrand {
-  font-size: 12.5px;
-  font-weight: 800;
-  color: #155855;
-  flex-shrink: 0;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 760;
+  letter-spacing: -.02em;
 }
 
 .menuBar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding-left: 4px;
-  border-left: 1px solid rgba(21, 88, 85, 0.14);
-  margin-left: 2px;
+  gap: 1px;
+  margin-left: 14px;
+}
+
+.menuBarGroup {
+  position: relative;
 }
 
 .menuBarItem {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #5A7470;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(248, 253, 251, .9);
+  font: 560 12px/1 inherit;
+  cursor: pointer;
+}
+
+.menuBarItem:hover,
+.menuBarItemOpen {
+  background: rgba(255, 255, 255, .13);
+  color: #fff;
+}
+
+.menuDropdown {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  min-width: 210px;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, .74);
+  border-radius: 10px;
+  background: rgba(250, 252, 251, .97);
+  box-shadow: 0 18px 46px rgba(2, 31, 28, .24), inset 0 1px 0 #fff;
+  color: #213934;
+}
+
+.menuDropdown button {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: 560 11px/1.2 inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuDropdown button:hover:not(:disabled) {
+  background: #e8f2ef;
+  color: #0d5f57;
+}
+
+.menuDropdown button:disabled {
+  color: #98a7a3;
   cursor: default;
-  user-select: none;
+}
+
+.menuDropdown kbd {
+  color: #7e918c;
+  font: 500 10px/1 inherit;
+}
+
+.menuDivider {
+  height: 1px;
+  margin: 3px 5px;
+  background: rgba(17, 83, 75, .1);
 }
 
 .topBarActiveTitle {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #1C2B28;
+  min-width: 0;
+  color: rgba(247, 252, 250, .76);
+  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .topBarActiveTitleDot {
-  color: #8CA39D;
-  font-weight: 700;
+  color: rgba(255, 255, 255, .42);
 }
 
 .topBarRight {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  gap: 9px;
 }
 
 .topBarSearch {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 180px;
-  height: 28px;
+  width: 190px;
+  height: 29px;
+  gap: 7px;
   padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.52);
-  border: 1px solid rgba(21, 88, 85, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .12);
 }
 
-.topBarSearchIcon {
-  color: #5A7470;
-  flex-shrink: 0;
-}
-
+.topBarSearchIcon { color: rgba(255, 255, 255, .72); }
 .topBarSearchInput {
-  flex: 1;
+  width: 100%;
   min-width: 0;
-  border: none;
-  outline: none;
+  border: 0;
+  outline: 0;
   background: transparent;
-  font-size: 11.5px;
-  color: #1C2B28;
+  color: #fff;
+  font: 520 11px/1 inherit;
 }
-
-.topBarSearchInput::placeholder {
-  color: #8CA39D;
-}
+.topBarSearchInput::placeholder { color: rgba(255, 255, 255, .68); }
 
 .topBarIconButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 28px;
   height: 28px;
-  border: none;
-  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
-  color: #5A7470;
+  color: rgba(255, 255, 255, .86);
   cursor: pointer;
 }
-
-.topBarIconButton:hover {
-  background: rgba(21, 88, 85, 0.08);
-  color: #155855;
-}
+.topBarIconButton:hover { background: rgba(255, 255, 255, .12); }
 
 .topBarStatus {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  gap: 6px;
+  color: rgba(255, 255, 255, .86);
   font-size: 10.5px;
-  font-weight: 700;
-  color: #5A7470;
-  white-space: nowrap;
+  font-weight: 650;
 }
 
 .topBarStatusDot {
   width: 6px;
   height: 6px;
-  border-radius: 999px;
-  background: #22876A;
-  box-shadow: 0 0 0 3px rgba(34, 135, 106, 0.16);
+  border-radius: 50%;
+  background: #70d7a9;
+  box-shadow: 0 0 0 3px rgba(112, 215, 169, .12);
 }
+.topBarStatusDotOffline { background: #e8a27f; }
 
 .topBarClock {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #1C2B28;
-  padding-left: 6px;
-  border-left: 1px solid rgba(21, 88, 85, 0.14);
+  min-width: 70px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, .14);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  text-align: right;
 }
 
-/* ── Surface (shortcuts + windows) ──────────────────────── */
-.surface {
+.desktopBody {
   position: relative;
+  z-index: 2;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-}
-
-.shortcutLayer {
-  position: absolute;
-  top: 22px;
-  left: 22px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, 92px);
-  gap: 16px;
-  z-index: 10;
+  grid-template-columns: var(--left-rail-width) minmax(0, 1fr) var(--assistant-width);
+  gap: var(--desktop-gap);
+  padding: 20px var(--desktop-edge);
+  isolation: isolate;
+  transition: grid-template-columns 260ms cubic-bezier(.22, 1, .36, 1);
 }
 
-.shortcut {
+.desktopBody:has(.assistantCollapsed) {
+  grid-template-columns: var(--left-rail-width) minmax(0, 1fr) 58px;
+}
+
+.leftRail {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+  margin-bottom: 92px;
+}
+
+.desktopWidget {
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, .62);
+  border-radius: 13px;
+  background: rgba(250, 253, 251, .91);
+  box-shadow: 0 14px 38px rgba(3, 35, 31, .17), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+
+.widgetHeader {
+  flex: 0 0 38px;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border-bottom: 1px solid rgba(16, 87, 78, .08);
+}
+
+.widgetHeader h2 {
+  margin: 0;
+  color: #183c37;
+  font-size: 11.5px;
+  font-weight: 760;
+  letter-spacing: -.015em;
+}
+
+.widgetTitleIcon {
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #e6f2ef;
+  color: #17665d;
+}
+
+.widgetAction {
+  margin-left: auto;
+}
+
+.widgetAction button {
+  min-height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #71837f;
+  font: 600 9.5px/1 inherit;
+  cursor: pointer;
+}
+.widgetAction button:hover { background: #eaf3f0; color: #155e56; }
+
+.widgetBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 7px;
+}
+
+.widgetEmpty {
+  height: 100%;
+  min-height: 52px;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  color: #83938f;
+  font-size: 10px;
+  text-align: center;
+}
+
+.scheduleRow,
+.taskRow {
+  width: 100%;
+  min-height: 41px;
+  display: grid;
   align-items: center;
   gap: 8px;
-  width: 92px;
-  padding: 10px 4px;
-  border: 1.5px solid transparent;
-  border-radius: 12px;
+  padding: 6px 7px;
+  border: 0;
+  border-radius: 8px;
   background: transparent;
+  color: #233b36;
+  text-align: left;
   cursor: pointer;
-  color: #1C2B28;
 }
-
-.shortcut:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.shortcut.selected {
-  border: 1px solid rgba(120, 200, 180, 0.45);
-  background: rgba(236, 247, 243, 0.92);
-  box-shadow: 0 0 0 3px rgba(120, 200, 180, 0.10);
-}
-
-.shortcutLabel {
-  font-size: 10.5px;
+.scheduleRow { grid-template-columns: 40px minmax(0, 1fr); }
+.taskRow { grid-template-columns: 9px minmax(0, 1fr); }
+.scheduleRow:hover, .taskRow:hover { background: rgba(229, 241, 237, .72); }
+.scheduleRow > time { color: #17665d; font-size: 9px; font-weight: 760; }
+.scheduleRow > span, .taskRow > span, .activityRow > span { min-width: 0; }
+.scheduleRow strong, .taskRow strong, .activityRow strong {
+  display: block;
+  overflow: hidden;
+  color: #263d38;
+  font-size: 10px;
   font-weight: 700;
-  text-align: center;
-  line-height: 1.3;
-  /* 어두운 배경 위 어디서든 읽히게 — macOS 데스크탑 아이콘 라벨과 동일한 방식(밝은 텍스트 +
-     어두운 그림자). 배경이 밝았던 이전 버전의 어두운 텍스트는 이제 대비가 사라진다. */
-  color: #FFFFFF;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.scheduleRow small, .taskRow small, .activityRow small {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: #84938f;
+  font-size: 8.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.taskStatus {
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid #6bb7a6;
+  border-radius: 50%;
+}
+
+.activityRow {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 7px;
+  border-radius: 8px;
+}
+.activityRow:hover { background: rgba(229, 241, 237, .58); }
+.activityIcon {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #f0f5f3;
+  color: #56726c;
+}
+.activityRow > time { color: #9aa6a3; font-size: 7.5px; white-space: nowrap; }
+
+.spinning { animation: widget-spin .8s linear infinite; }
+@keyframes widget-spin { to { transform: rotate(360deg); } }
+
+.surface {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  isolation: isolate;
+  contain: layout paint;
 }
 
 .windowLayer {
@@ -260,105 +443,270 @@
   pointer-events: none;
 }
 
-/* ── Dock ─────────────────────────────────────────────── OS 요소로 확실히 읽히게 확대 */
-.dock {
+.shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  width: 84px;
+  padding: 8px 4px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+.shortcut:hover, .shortcut.selected { background: rgba(243, 250, 247, .76); border-color: rgba(255, 255, 255, .58); }
+.shortcutLabel { color: #fff; font-size: 10px; font-weight: 700; text-shadow: 0 1px 3px rgba(0, 0, 0, .55); }
+
+.assistantPanel {
+  position: relative;
+  align-self: start;
+  width: 100%;
+  height: min(742px, calc(100% - 98px));
+  margin-top: 98px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 14px;
+  background: rgba(252, 254, 253, .97);
+  box-shadow: 0 24px 64px rgba(3, 30, 27, .28), inset 0 1px 0 rgba(255, 255, 255, .9);
+  transition: width 260ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.assistantHeader {
+  flex: 0 0 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  border-bottom: 1px solid rgba(21, 88, 85, .09);
+  background: linear-gradient(180deg, #fff, #f7faf8);
+}
+
+.assistantMark {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 25px;
+  border-radius: 9px;
+  background: #ee7545;
+  color: #fff;
+  box-shadow: 0 5px 13px rgba(232, 93, 44, .24), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+
+.assistantIdentity {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.assistantIdentity strong { color: #203a35; font-size: 12px; font-weight: 760; }
+.assistantIdentity small { margin-top: 1px; color: #8a9995; font-size: 8.5px; }
+.assistantHeader button {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #617b75;
+  cursor: pointer;
+}
+.assistantHeader button:hover { background: #eaf3f0; color: #155e56; }
+
+.assistantContext {
+  flex: 0 0 37px;
+  min-height: 37px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border-bottom: 1px solid rgba(21, 88, 85, .07);
+  background: #f5faf8;
+  overflow: hidden;
+}
+.assistantContext span { color: #e27042; font-size: 7.5px; font-weight: 820; letter-spacing: .12em; }
+.assistantContext strong { min-width: 0; overflow: hidden; color: #4e6a64; font-size: 9.5px; font-weight: 650; white-space: nowrap; text-overflow: ellipsis; }
+
+.assistantConversation {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.assistantChatDock { width: 100%; height: 100%; min-height: 0; display: flex; }
+.assistantChatDock :global(.olivia-conversation__header),
+.assistantChatDock :global(.olivia-chat-context-banner) { display: none; }
+.assistantChatDock :global(.olivia-conversation__welcome) { padding-inline: 16px; }
+.assistantChatDock :global(.olivia-conversation__welcome h1) { font-size: 22px; }
+.assistantChatDock :global(.olivia-conversation__welcome p) { line-height: 1.5; }
+.assistantChatDock :global(.olivia-conversation__suggestions) { gap: 6px; }
+
+.assistantRailLabel { display: none; }
+.assistantCollapsed .assistantHeader {
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 10px 0;
+  border-bottom: 0;
+}
+.assistantCollapsed .assistantIdentity,
+.assistantCollapsed .assistantContext { display: none; }
+.assistantCollapsed .assistantConversation { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+.assistantCollapsed .assistantHeader button { margin-top: auto; }
+.assistantCollapsed .assistantRailLabel {
   position: absolute;
+  top: 62px;
   left: 50%;
-  bottom: 22px;
+  display: block;
+  color: #71857f;
+  font-size: 8px;
+  font-weight: 820;
+  letter-spacing: .18em;
+  writing-mode: vertical-rl;
   transform: translateX(-50%);
+}
+
+.dockArea {
+  position: absolute;
+  z-index: 6000;
+  left: calc(var(--desktop-edge) + var(--left-rail-width) + var(--desktop-gap));
+  right: calc(var(--desktop-edge) + var(--assistant-width) + var(--desktop-gap));
+  bottom: 18px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  transition: right 260ms cubic-bezier(.22, 1, .36, 1);
+}
+.desktop:has(.assistantCollapsed) .dockArea { right: calc(var(--desktop-edge) + 58px + var(--desktop-gap)); }
+
+.dock {
+  max-width: 100%;
+  min-height: 76px;
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  padding: 12px 16px;
-  min-height: 76px;
-  border-radius: 24px;
-  background: rgba(245, 250, 247, 0.74);
-  backdrop-filter: blur(30px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.52);
-  box-shadow: 0 28px 70px rgba(4, 31, 28, 0.30), 0 6px 20px rgba(4, 31, 28, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.62);
-  z-index: 9000;
+  gap: 8px;
+  padding: 10px 14px;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, .58);
+  border-radius: 20px;
+  background: rgba(245, 250, 247, .82);
+  box-shadow: 0 22px 58px rgba(3, 30, 27, .28), 0 5px 16px rgba(3, 30, 27, .13), inset 0 1px 0 rgba(255, 255, 255, .8);
+  backdrop-filter: blur(22px) saturate(135%);
+  pointer-events: auto;
 }
 
 .dockButton {
   position: relative;
+  width: 55px;
+  flex: 0 0 55px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 56px;
-  padding: 4px 0 2px;
-  border: none;
-  border-radius: 14px;
+  padding: 3px 0 2px;
+  border: 0;
+  border-radius: 12px;
   background: transparent;
   color: #155855;
   cursor: pointer;
-  transition: transform 160ms cubic-bezier(.22, 1, .36, 1), background 160ms ease;
   transform-origin: bottom center;
+  transition: transform 180ms cubic-bezier(.22, 1, .36, 1), background 180ms cubic-bezier(.22, 1, .36, 1);
+}
+.dockButton:hover { background: rgba(21, 88, 85, .08); transform: translateY(-3px) scale(1.035); }
+.dockButton.active { background: rgba(226, 240, 235, .92); }
+.dockLabel { margin-top: 2px; color: #245b54; font-size: 8.5px; font-weight: 720; white-space: nowrap; }
+.dockDivider { width: 1px; align-self: stretch; flex: 0 0 1px; margin: 3px 1px; background: rgba(21, 88, 85, .14); }
+.dockIndicator { position: absolute; bottom: -3px; width: 4px; height: 4px; border-radius: 50%; background: #e86f40; }
+
+.systemPopoverBackdrop {
+  position: fixed;
+  inset: 46px 0 0;
+  z-index: 10000;
+  display: grid;
+  place-items: end center;
+  padding: 0 20px 111px;
+  background: rgba(2, 26, 23, .08);
 }
 
-.dockButton:hover {
-  background: rgba(21, 88, 85, 0.08);
-  /* 과도한 macOS magnification 금지 — 살짝 뜨는 정도만(§14). */
-  transform: translateY(-3px) scale(1.04);
+.systemPopover {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(620px, calc(100dvh - 170px));
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 16px;
+  background: rgba(250, 252, 251, .97);
+  box-shadow: 0 28px 80px rgba(2, 29, 26, .34), inset 0 1px 0 #fff;
+}
+.systemPopover > header { display: flex; align-items: center; gap: 9px; padding: 2px 2px 12px; }
+.systemPopover > header > span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: #e7f2ef; color: #175e56; }
+.systemPopover > header > div { min-width: 0; display: flex; flex: 1; flex-direction: column; }
+.systemPopover > header strong { color: #203934; font-size: 12px; }
+.systemPopover > header small { margin-top: 2px; color: #869590; font-size: 9px; }
+.systemPopover > header > button { width: 27px; height: 27px; border: 0; border-radius: 7px; background: transparent; color: #668079; font-size: 18px; cursor: pointer; }
+.systemPopover > header > button:hover { background: #eaf3f0; }
+
+.allAppsGrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+.allAppsGrid button { min-width: 0; min-height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 11px; background: transparent; color: #36504a; font: 650 9.5px/1.2 inherit; cursor: pointer; }
+.allAppsGrid button:hover { background: #eaf3f0; }
+
+.wallpaperChoices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.wallpaperChoices button { position: relative; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px; border: 1px solid rgba(21, 88, 85, .09); border-radius: 11px; background: #fff; color: #304a44; text-align: left; cursor: pointer; }
+.wallpaperChoices button:hover, .wallpaperChoices .wallpaperSelected { border-color: rgba(21, 110, 98, .35); background: #f0f7f4; }
+.wallpaperPreview { grid-column: 1 / -1; height: 116px; border-radius: 8px; background: url("/olivia-os/wallpaper.webp") center / cover; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .28); }
+.wallpaperPreviewSoft { filter: saturate(.76) brightness(1.08) contrast(.9); }
+.wallpaperChoices strong { padding-left: 2px; font-size: 10px; }
+
+.helpList { display: grid; gap: 1px; margin: 0; overflow: hidden; border: 1px solid rgba(21, 88, 85, .08); border-radius: 10px; }
+.helpList div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 14px; padding: 10px 12px; background: #fff; }
+.helpList dt { color: #284d46; font-size: 10px; font-weight: 750; }
+.helpList dd { margin: 0; color: #768984; font-size: 10px; }
+
+@media (max-width: 1500px) {
+  .desktop { --left-rail-width: 224px; --assistant-width: 350px; --desktop-gap: 14px; --desktop-edge: 14px; }
+  .desktopBody { padding-top: 14px; }
+  .dock { gap: 4px; padding-inline: 9px; }
+  .dockButton { width: 50px; flex-basis: 50px; }
+  .assistantPanel { height: min(720px, calc(100% - 44px)); margin-top: 44px; }
 }
 
-.dockButton.active {
-  background: rgba(234, 244, 242, 0.9);
+@media (max-width: 1279px) {
+  .desktop { --desktop-edge: 10px; --desktop-gap: 10px; }
+  .desktopBody,
+  .desktopBody:has(.assistantCollapsed) { grid-template-columns: minmax(0, 1fr); padding: 10px 10px 98px; }
+  .leftRail { display: none; }
+  .assistantPanel { position: absolute; z-index: 4900; top: 10px; right: 10px; bottom: 98px; width: min(360px, calc(100% - 20px)); height: auto; margin-top: 0; }
+  .assistantPanel.assistantCollapsed { width: 54px; }
+  .dockArea,
+  .desktop:has(.assistantCollapsed) .dockArea { left: 8px; right: 8px; bottom: 9px; }
+  .dock { min-height: 68px; gap: 2px; padding: 7px 8px; border-radius: 17px; }
+  .dockButton { width: 43px; flex-basis: 43px; }
+  .dockLabel { display: none; }
+  .topBarActiveTitle { display: none; }
 }
 
-.dockLabel {
-  font-size: 9.5px;
-  font-weight: 700;
-  margin-top: 3px;
+@media (max-width: 820px) {
+  .menuBar { margin-left: 4px; }
+  .menuBarGroup:nth-child(4), .menuBarGroup:nth-child(5) { display: none; }
+  .topBarSearch { display: none; }
+  .topBarStatus { display: none; }
+  .dockButton { width: 40px; flex-basis: 40px; }
+  .allAppsGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
-.dockDivider {
-  width: 1px;
-  align-self: stretch;
-  margin: 4px 2px;
-  background: rgba(21, 88, 85, 0.14);
-}
-
-.dockIndicator {
-  position: absolute;
-  bottom: 0;
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: #E85D2C;
-}
-
-@media (max-width: 1023px) {
-  .menuBar {
-    gap: 12px;
-    overflow-x: auto;
-  }
-
-  .shortcutLayer {
-    top: 12px;
-    left: 8px;
-    right: 8px;
-    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-  }
-
-  .shortcut {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .dock {
-    bottom: 8px;
-    max-width: calc(100vw - 12px);
-    gap: 2px;
-    padding: 6px 8px;
-    border-radius: 16px;
-  }
-
-  .dockButton {
-    width: 40px;
-    padding: 4px 0;
-  }
-
-  .dockLabel {
-    display: none;
-  }
+@media (max-width: 560px) {
+  .topBar { padding-inline: 10px; }
+  .menuBarGroup:nth-child(3), .menuBarGroup:nth-child(6) { display: none; }
+  .topBarClock { min-width: 58px; font-size: 10px; }
+  .dockButton { width: 37px; flex-basis: 37px; }
+  .dockDivider { display: none; }
+  .wallpaperChoices { grid-template-columns: 1fr; }
+  .allAppsGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
