@@ -4,8 +4,59 @@ import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { navigateToFeature, syncCanonicalWorkspaceUrl } from "@/lib/olivia/features/navigationBridge";
 import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
+import { useOliviaDesktopStore, type OpenAppInput } from "@/lib/store/useOliviaDesktopStore";
+import { getOliviaApp } from "@/components/olivia-os/registry/oliviaAppRegistry";
 
 const HOME_PREFIX = "/admin/dashboard/home";
+
+// OLIVIA OS Chat → Desktop Window Routing Fix(P0) — OS의 canonical route에서는 채팅 명령이
+// legacy full-page route로 이동하면 안 된다(대신 AppWindow open/focus). "/desktop"과 "/"만
+// 대상이다 — /admin/dashboard/home은 여전히 legacy 홈이라 기존 인라인 스플릿 동작을 그대로 쓴다.
+const OLIVIA_OS_PATHS = new Set(["/", "/desktop"]);
+
+function isOliviaOsRoute() {
+  return typeof window !== "undefined" && OLIVIA_OS_PATHS.has(window.location.pathname);
+}
+
+// Workspace 타입 → Desktop App. title/width/height는 oliviaAppRegistry를 단일 진실 공급원으로
+// 삼아 가져온다(중복 하드코딩 방지) — registry에 없는 타입은 매핑에서 제외된다.
+function desktopAppInputFor(appId: string): OpenAppInput | undefined {
+  const app = getOliviaApp(appId);
+  if (!app) return undefined;
+  return { appId, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height };
+}
+
+const WORKSPACE_TO_DESKTOP_APP_ID: Partial<Record<Exclude<WorkspaceType, null>, string>> = {
+  quote: "quote",
+  contract: "contract",
+  conti: "conti",
+  "photo-sort": "photo-workspace",
+};
+
+// OPEN_FEATURE의 href → Desktop App. navigateToFeature(action.href)가 legacy에서 쓰는 원본
+// href 그대로를 key로 쓴다(getCanonicalWorkspaceHref로 정규화하지 않음 — /quote와 /photoclinic이
+// 서로 다른 경로로 들어와도 둘 다 같은 quote 창으로 연결되어야 하므로 정규화 전 원본을 그대로
+// 매핑한다).
+const FEATURE_HREF_TO_DESKTOP_APP_ID: Record<string, string> = {
+  "/clients": "customer",
+  "/calendar": "calendar",
+  "/photo-sorting": "photo-workspace",
+  "/review-studio": "review-studio",
+  "/contract": "contract",
+  "/conti": "conti",
+  "/quote": "quote",
+  "/photoclinic": "quote",
+};
+
+// Desktop의 singleton 모델(창 id === appId) 그대로 open/focus/restore를 재사용한다 —
+// components/olivia-os/DesktopDock.tsx의 handleDockClick과 동일한 규칙.
+function openOrFocusDesktopApp(input: OpenAppInput) {
+  const store = useOliviaDesktopStore.getState();
+  const win = store.windows[input.appId];
+  if (!win) { store.openApp(input); return; }
+  if (win.minimized) { store.restoreWindow(input.appId); return; }
+  store.focusWindow(input.appId);
+}
 
 // Olivia 2.0 Phase 1 — 채팅/카드로 워크스페이스를 열거나 바꿀 때, 지금 홈이 아니면 주소창도
 // 그 워크스페이스의 canonical direct route로 맞춰준다. 홈은 이미 인라인으로 스플릿을
@@ -13,7 +64,11 @@ const HOME_PREFIX = "/admin/dashboard/home";
 // 이렇게 URL을 맞춰야 OliviaWorkspaceShell이 실제로 화면을 그린다(그 판단이 pathname
 // 기준이라서다). store 갱신 → URL 갱신 순서로 호출하므로, 이동한 URL은 이미 store와 일치한
 // 상태다 — OliviaWorkspaceShell의 자동 닫기 감시(pathname watcher)와 경합하지 않는다.
+// OLIVIA OS(P0): OS canonical route에서는 어떤 workspace도 legacy URL로 이동시키지 않는다 —
+// Desktop이 사라지면 안 되기 때문(OPEN_WORKSPACE/SWITCH_WORKSPACE가 이미 openOrFocusDesktopApp로
+// 분기하므로 여기까지 도달하는 건 원래도 legacy-only 경로지만, 방어적으로 한 번 더 막는다).
 function syncUrlIfNotHome(workspace: Exclude<WorkspaceType, null>) {
+  if (isOliviaOsRoute()) return;
   if (typeof window !== "undefined" && window.location.pathname.startsWith(HOME_PREFIX)) return;
   const canonical = workspaceRegistry[workspace]?.directRoutes?.[0];
   if (!canonical) return;
