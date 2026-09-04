@@ -255,7 +255,7 @@
 .dock {
   position: absolute;
   left: 50%;
-  bottom: 18px;
+  bottom: 22px;
   transform: translateX(-50%);
   display: flex;
   align-items: flex-end;
@@ -263,10 +263,10 @@
   padding: 12px 16px;
   min-height: 76px;
   border-radius: 24px;
-  background: rgba(255, 253, 248, 0.82);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(21, 88, 85, 0.13);
-  box-shadow: 0 26px 60px rgba(8, 36, 32, 0.34), 0 3px 10px rgba(8, 36, 32, 0.12);
+  background: rgba(245, 250, 247, 0.74);
+  backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  box-shadow: 0 28px 70px rgba(4, 31, 28, 0.30), 0 6px 20px rgba(4, 31, 28, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.62);
   z-index: 9000;
 }
 
