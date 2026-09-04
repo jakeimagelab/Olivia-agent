@@ -4,8 +4,9 @@ import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { navigateToFeature, syncCanonicalWorkspaceUrl } from "@/lib/olivia/features/navigationBridge";
 import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
-import { useOliviaDesktopStore, type OpenAppInput } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopStore, DESKTOP_DOCK_SAFE_AREA, type OpenAppInput } from "@/lib/store/useOliviaDesktopStore";
 import { getOliviaApp } from "@/components/olivia-os/registry/oliviaAppRegistry";
+import { resolveSnapBounds } from "@/components/olivia-os/window/snapZones";
 
 const HOME_PREFIX = "/admin/dashboard/home";
 
