@@ -242,6 +242,29 @@ export function executeOliviaAction(action: OliviaUiAction) {
       navigateToFeature(action.href);
       return;
     }
+    // OLIVIA OS Phase 3 — "크게 보여줘"/"이 창 닫아줘"/"최소화해줘". legacy 라우트에는 대응하는
+    // 개념이 없으므로(단일 workspace 모델) OS 라우트가 아니면 전부 no-op.
+    case "MAXIMIZE_ACTIVE_WINDOW": {
+      if (!isOliviaOsRoute()) return;
+      const desktop = useOliviaDesktopStore.getState();
+      const id = desktop.activeWindowId;
+      if (!id || !desktop.windows[id]) return;
+      const bounds = resolveSnapBounds("maximized", desktop.workspaceWidth, desktop.workspaceHeight, DESKTOP_DOCK_SAFE_AREA);
+      desktop.snapWindow(id, "maximized", bounds);
+      return;
+    }
+    case "CLOSE_ACTIVE_WINDOW": {
+      if (!isOliviaOsRoute()) return;
+      const desktop = useOliviaDesktopStore.getState();
+      if (desktop.activeWindowId) desktop.closeWindow(desktop.activeWindowId);
+      return;
+    }
+    case "MINIMIZE_ACTIVE_WINDOW": {
+      if (!isOliviaOsRoute()) return;
+      const desktop = useOliviaDesktopStore.getState();
+      if (desktop.activeWindowId) desktop.minimizeWindow(desktop.activeWindowId);
+      return;
+    }
   }
 }
 
