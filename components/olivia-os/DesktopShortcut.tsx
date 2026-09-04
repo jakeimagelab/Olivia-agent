@@ -21,7 +21,7 @@ export function DesktopShortcut({ app, selected, onSelect, onOpen }: {
       }}
       aria-label={app.title}
     >
-      <AppIcon icon={app.icon} size={50} />
+      <AppIcon icon={app.icon} size={50} variant="shortcut" />
       <span className={styles.shortcutLabel}>{app.title}</span>
     </button>
   );
