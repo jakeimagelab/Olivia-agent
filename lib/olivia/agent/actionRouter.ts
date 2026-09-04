@@ -101,6 +101,13 @@ export function executeOliviaAction(action: OliviaUiAction) {
       if (action.clientId) context.setClient(action.clientId, action.clientName);
       if (action.workflowRunId || action.projectName) context.setProject(action.workflowRunId, action.projectName);
       context.recordAction(`open:${action.workspace}`);
+      // OLIVIA OS(P0): OS에서는 route navigation 대신 AppWindow open/focus. 위 workspace/context
+      // 갱신은 legacy 호환을 위해 그대로 둔다(다른 코드가 이 store를 계속 읽을 수 있으므로).
+      if (isOliviaOsRoute()) {
+        const appId = WORKSPACE_TO_DESKTOP_APP_ID[action.workspace];
+        const input = appId ? desktopAppInputFor(appId) : undefined;
+        if (input) { openOrFocusDesktopApp(input); return; }
+      }
       layout.openWorkspaceMode();
       syncUrlIfNotHome(action.workspace);
       return;
@@ -119,6 +126,13 @@ export function executeOliviaAction(action: OliviaUiAction) {
       if (action.clientId) context.setClient(action.clientId, action.clientName);
       if (action.workflowRunId || action.projectName) context.setProject(action.workflowRunId, action.projectName);
       context.recordAction(`switch:${action.workspace}`);
+      // OLIVIA OS(P0): OPEN_WORKSPACE와 동일한 이유 — singleton 모델이라 이미 열려 있으면
+      // focus/restore만 하고, route는 그대로 "/"에 남는다.
+      if (isOliviaOsRoute()) {
+        const appId = WORKSPACE_TO_DESKTOP_APP_ID[action.workspace];
+        const input = appId ? desktopAppInputFor(appId) : undefined;
+        if (input) { openOrFocusDesktopApp(input); return; }
+      }
       layout.openWorkspaceMode();
       syncUrlIfNotHome(action.workspace);
       return;
@@ -127,15 +141,24 @@ export function executeOliviaAction(action: OliviaUiAction) {
       workspace.closeWorkspace();
       context.setWorkspace(undefined, undefined);
       context.clearSelection();
+      // OLIVIA OS(P0): legacy layout.closeWorkspaceMode()는 Desktop 레이아웃에 영향을 주지
+      // 않지만(OliviaWorkspaceShell은 OS route에서 항상 chatPortal만 반환), 실제 AppWindow를
+      // 닫는 건 Desktop Window Manager(Dock/헤더의 닫기 버튼)가 담당 — 이번 P0은 full-page
+      // 전환 방지가 우선이라 여기서 창을 추가로 닫지는 않는다.
+      if (isOliviaOsRoute()) return;
       layout.closeWorkspaceMode();
       return;
     }
     case "ENTER_FULLSCREEN": {
+      // OLIVIA OS(P0): Desktop에서는 AppWindow의 maximize가 이 역할을 담당한다 — legacy
+      // fullscreen(workspace.mode="fullscreen")으로 전환하지 않는다.
+      if (isOliviaOsRoute()) return;
       workspace.enterFullscreen();
       layout.enterFullscreen();
       return;
     }
     case "EXIT_FULLSCREEN": {
+      if (isOliviaOsRoute()) return;
       workspace.exitFullscreen();
       layout.exitFullscreen();
       return;
