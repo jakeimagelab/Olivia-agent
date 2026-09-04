@@ -31,7 +31,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "customer",
     title: "고객관리",
-    icon: createElement(Users, { size: 20 }),
+    icon: createElement(Users, { size: 24 }),
     route: "/clients",
     defaultSize: { width: 1100, height: 700 },
     minSize: { width: 640, height: 420 },
@@ -43,7 +43,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "calendar",
     title: "일정",
-    icon: createElement(CalendarDays, { size: 20 }),
+    icon: createElement(CalendarDays, { size: 24 }),
     route: "/calendar",
     defaultSize: { width: 1050, height: 680 },
     minSize: { width: 640, height: 420 },
@@ -55,7 +55,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "photo-workspace",
     title: "사진작업실",
-    icon: createElement(Images, { size: 20 }),
+    icon: createElement(Images, { size: 24 }),
     route: "/photo-sorting",
     defaultSize: { width: 1200, height: 720 },
     minSize: { width: 720, height: 440 },
@@ -67,7 +67,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "quote",
     title: "견적서",
-    icon: createElement(FileText, { size: 20 }),
+    icon: createElement(FileText, { size: 24 }),
     defaultSize: { width: 1000, height: 720 },
     singleton: true,
     component: () => createElement(ComingSoonPlaceholder, { title: "견적서" }),
@@ -75,7 +75,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "contract",
     title: "계약서",
-    icon: createElement(FileSignature, { size: 20 }),
+    icon: createElement(FileSignature, { size: 24 }),
     defaultSize: { width: 1000, height: 720 },
     singleton: true,
     component: () => createElement(ComingSoonPlaceholder, { title: "계약서" }),
@@ -83,7 +83,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "conti",
     title: "콘티 스튜디오",
-    icon: createElement(Clapperboard, { size: 20 }),
+    icon: createElement(Clapperboard, { size: 24 }),
     route: "/conti",
     defaultSize: { width: 1100, height: 760 },
     singleton: true,
@@ -92,7 +92,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "documents",
     title: "문서함",
-    icon: createElement(FolderOpen, { size: 20 }),
+    icon: createElement(FolderOpen, { size: 24 }),
     defaultSize: { width: 1050, height: 680 },
     minSize: { width: 640, height: 420 },
     singleton: true,
@@ -103,7 +103,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "review-studio",
     title: "리뷰콘텐츠",
-    icon: createElement(Star, { size: 20 }),
+    icon: createElement(Star, { size: 24 }),
     route: "/review-studio",
     defaultSize: { width: 1100, height: 740 },
     singleton: true,
@@ -113,7 +113,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "olivia-chat",
     title: "Olivia",
-    icon: createElement(OliviaIcon, { size: 20 }),
+    icon: createElement(OliviaIcon, { size: 24 }),
     defaultSize: { width: 420, height: 640 },
     minSize: { width: 340, height: 420 },
     singleton: true,
