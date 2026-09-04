@@ -3,10 +3,13 @@ import { OLIVIA_V2_TOOLS } from "./toolExecutor";
 import type { OliviaContextSnapshot } from "./types";
 import type { OliviaRequestClass } from "./modelRouter";
 
-type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run"|"photo_classification";
+type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run"|"photo_classification"|"window";
 
 const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   navigation: ["open_feature","show_workspace"],
+  // OLIVIA OS Phase 3 — "이 창 닫아줘"/"최소화해줘"류는 navigation 패턴(열어/보여줘/이동 등)과
+  // 안 겹쳐서 별도 도메인이 필요하다("크게 보여줘"만 navigation과 우연히 겹침, 문제 없음).
+  window: ["maximize_active_window","close_active_window","minimize_active_window"],
   calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
   client: ["select_project","search_client_projects","get_project_status","memo_add"],
   quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote"],
