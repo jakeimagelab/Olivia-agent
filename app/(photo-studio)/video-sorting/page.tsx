@@ -651,7 +651,8 @@ export default function VideoSortingPage() {
                 </div>
                 <div className="ps-btn-row">
                   <Btn variant="secondary" onClick={handleRegroupTime}>🔄 다시 그룹핑</Btn>
-                  <Btn onClick={handleExportTime} disabled={timeScenes.length === 0}>폴더 정리 실행 →</Btn>
+                  {/* 1.2 — 파일을 실제로 이동·복사하는 유일한 오렌지 버튼(final_review와 동일). */}
+                  <Btn onClick={handleExportTime} disabled={timeScenes.length === 0} style={{ background: C.orange }}>폴더 정리 실행 →</Btn>
                 </div>
               </SectionCard>
 
