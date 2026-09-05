@@ -2833,6 +2833,46 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             : quotePreviewShellNode}
         </aside>
       </section>
+      {/* OLIVIA OS 1차 작업 지시서 2/3단계 — 창 하단 고정 액션 바. AppWindow의 .content가
+          이미 overflow:auto라 sticky bottom이 콘텐츠 스크롤과 무관하게 바닥에 붙는다(부모를
+          flex-column으로 다시 짤 필요가 없다). "다운로드"의 PDF/Excel 드롭다운은 기존 상태
+          (showDownloadMenu)와 로직을 그대로 재사용하고, 바 바로 위에 뜨도록 자리만 옮겼다. */}
+      {isDesktopWindow && (
+        <div style={{ position: "sticky", bottom: 0, zIndex: 20 }}>
+          {showDownloadMenu && (
+            <div style={{
+              position: "absolute", bottom: "100%", right: 20, marginBottom: 4, zIndex: 30,
+              background: "#fff", border: "1px solid rgba(21,88,85,.14)", borderRadius: 10,
+              boxShadow: "0 12px 30px rgba(21,88,85,.14)", minWidth: 140, overflow: "hidden",
+            }}>
+              <button
+                type="button"
+                onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
+              >
+                <Download size={14} /> PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, borderTop: "1px solid rgba(21,88,85,.08)", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
+              >
+                <FileSpreadsheet size={14} /> Excel
+              </button>
+            </div>
+          )}
+          <WorkspaceActionBar
+            status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
+            actions={[
+              { key: "reset", label: "초기화", onClick: resetForm, icon: <RefreshCcw size={14} /> },
+              { key: "save", label: manualSaving ? "저장 중…" : "임시저장 (⌘S)", onClick: handleManualSave, disabled: manualSaving, icon: <Save size={14} /> },
+              { key: "download", label: isGenerating ? "PDF 생성 중" : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), icon: <Download size={14} /> },
+              { key: "complete", label: completingQuote ? "최종완료 처리 중…" : "최종완료", onClick: handleFinalComplete, disabled: completingQuote, icon: <CheckCircle2 size={14} /> },
+              { key: "contract", label: "고객 승인 후 계약서 생성", onClick: goToContract, variant: "primary", icon: <FileText size={14} /> },
+            ]}
+          />
+        </div>
+      )}
     </main>
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
