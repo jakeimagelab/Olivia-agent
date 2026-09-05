@@ -2379,6 +2379,15 @@ main:has(> .pc-header) {
   transition: background 220ms ease, box-shadow 220ms ease;
 }
 
+/* OLIVIA OS 1차 작업 지시서 3단계 — 기본 .preview-shell의 height는 100vh 기준인데, 이건
+   /quote 풀페이지(뷰포트 전체를 쓰는) 기준이다. OS 창/모달 임베드에서는 이 값이 실제
+   창 높이와 무관해져 미리보기가 잘리거나 남는 공간이 생긴다 — 부모(overflow:auto인
+   .content, AppWindow.module.css)가 이미 실제 높이를 주므로 100%로 채운다. */
+.preview-shell--embedded {
+  height: 100%;
+  min-height: 0;
+}
+
 .preview-shell--fullscreen {
   position: fixed;
   inset: 0;
