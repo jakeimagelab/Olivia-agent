@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import GlobalHeader from "@/components/GlobalHeader";
+import WorkspaceActionBar from "@/components/WorkspaceActionBar";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
