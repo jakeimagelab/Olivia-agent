@@ -606,14 +606,20 @@ main:has(> .pc-header) {
 
 /* ── OLIVIA OS iframe 임베드(LegacyRouteWindowContent) — 전용 Window Adapter가 없는
    페이지는 창 안에서도 자기 헤더/배경을 다시 그려 이중 크롬이 생긴다. 페이지 쪽을 고치는
-   대신 RootExperienceShell.tsx가 iframe 감지 시 <html>에 붙이는 클래스로 숨긴다. ── */
+   대신 RootExperienceShell.tsx가 iframe 감지 시 <html>에 붙이는 클래스로 숨긴다.
+   .pc-header/.analyzer-header 외에 GlobalHeader.tsx(가장 많은 페이지가 쓰는 공용 헤더)가
+   실제로 렌더하는 클래스는 .oa-header다 — 처음엔 이걸 놓쳐서 /raw-select 같은
+   (photo-studio) 그룹 페이지에서 헤더가 그대로 남아있었다(브라우저 확인 중 발견). ── */
 .olivia-embedded .pc-header,
-.olivia-embedded .analyzer-header {
+.olivia-embedded .analyzer-header,
+.olivia-embedded .oa-header {
   display: none;
 }
 
 .olivia-embedded main:has(> .pc-header),
-.olivia-embedded div:has(> .pc-header) {
+.olivia-embedded div:has(> .pc-header),
+.olivia-embedded main:has(> .oa-header),
+.olivia-embedded div:has(> .oa-header) {
   background: transparent !important;
 }
 
