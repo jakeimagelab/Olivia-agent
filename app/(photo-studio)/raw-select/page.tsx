@@ -871,11 +871,37 @@ export default function RawSelectPage() {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 10, paddingTop: 8 }}>
-          <Btn variant="secondary" onClick={() => setStep(2)}>← 뒤로</Btn>
-          <Btn onClick={runRawCopy} disabled={scenes.every(s => s.files.filter(f => f.selected).length === 0)}>
-            RAW_SELECT 생성 ({scenes.reduce((s, sc) => s + sc.files.filter(f => f.selected).length, 0)}장) →
-          </Btn>
+        {/* 유형 D — 도구는 하단 플로팅 알약 바로. 선택 N / 전체 N + 다음 단계 버튼.
+            "RAW_SELECT 생성"은 파일을 실제로 복사하는, 이 화면에서 가장 되돌리기 어려운
+            동작이라 화면 유일의 오렌지 버튼으로 둔다(1.2). */}
+        <div style={{ position: "sticky", bottom: 16, display: "flex", justifyContent: "center", pointerEvents: "none", paddingTop: 8 }}>
+          <div style={{
+            pointerEvents: "all", background: "rgba(21,88,85,.95)", color: "#fff", borderRadius: 999,
+            padding: "10px 12px 10px 22px", display: "flex", alignItems: "center", gap: 14,
+            boxShadow: "0 4px 20px rgba(0,0,0,.35)",
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+              {scenes.reduce((s, sc2) => s + sc2.files.filter(f => f.selected).length, 0)} / {scenes.reduce((s, sc2) => s + sc2.files.length, 0)} 선택
+            </span>
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(255,255,255,.4)", borderRadius: 999, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+            >← 뒤로</button>
+            <button
+              type="button"
+              onClick={runRawCopy}
+              disabled={scenes.every(s => s.files.filter(f => f.selected).length === 0)}
+              style={{
+                padding: "7px 18px", borderRadius: 999, color: "#fff", fontSize: 12, fontWeight: 800, fontFamily: "inherit", whiteSpace: "nowrap",
+                border: "1px solid " + C.orange, background: C.orange,
+                cursor: scenes.every(s => s.files.filter(f => f.selected).length === 0) ? "not-allowed" : "pointer",
+                opacity: scenes.every(s => s.files.filter(f => f.selected).length === 0) ? 0.5 : 1,
+              }}
+            >
+              RAW_SELECT 생성 ({scenes.reduce((s, sc2) => s + sc2.files.filter(f => f.selected).length, 0)}장) →
+            </button>
+          </div>
         </div>
       </div>
     );
