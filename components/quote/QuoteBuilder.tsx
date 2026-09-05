@@ -2741,6 +2741,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </div>
           </Panel>
 
+          {/* isDesktopWindow에서는 이 인라인 바 대신 창 하단 고정 WorkspaceActionBar를 쓴다
+              (OLIVIA OS 1차 작업 지시서 2/3단계) — 기존 채팅 분할뷰 모달과 /quote 풀페이지는
+              그대로 이 자리에 남는다. */}
+          {!isDesktopWindow && (
           <div className="action-button-bar">
             <button className="secondary-button" type="button" onClick={handleManualSave} disabled={manualSaving}>
               <Save size={18} />
@@ -2799,6 +2803,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               초기화
             </button>
           </div>
+          )}
         </div>
 
         <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]">
