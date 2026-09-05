@@ -1748,7 +1748,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
   const quotePreviewShellNode = (
           <div
-            className={`quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""} ${showFullscreenPreview ? "preview-shell preview-shell--fullscreen" : "preview-shell"}`}
+            className={`quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""} ${showFullscreenPreview ? "preview-shell preview-shell--fullscreen" : isModal ? "preview-shell preview-shell--embedded" : "preview-shell"}`}
             ref={previewShellRef}
           >
             {showFullscreenPreview && (
