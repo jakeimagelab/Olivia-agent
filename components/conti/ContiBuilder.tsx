@@ -1555,8 +1555,252 @@ ${header("타임테이블")}
             {/* 테이블 */}
             <div ref={printRef} style={{ background: "#fff", borderRadius: 8, border: "1px solid rgba(21,88,85,0.12)", overflow: "hidden" }}>
 
-              {/* ── 촬영 콘티 ── */}
-              {tab === "conti" && (
+              {/* ── 촬영 콘티 / 씬 편집 ── */}
+              {tab === "conti" && (isDesktopWindow ? (() => {
+                const rows = result.conti;
+                const activeIndex = rows.length
+                  ? Math.max(0, rows.findIndex((row, i) => (row.id || `shot:${i + 1}`) === selectedOliviaEntityId))
+                  : -1;
+                const activeRow = activeIndex >= 0 ? rows[activeIndex] : undefined;
+                const totalMinutes = rows.reduce((sum, row) => {
+                  const match = row.duration?.match(/\d+/);
+                  return sum + (match ? Number(match[0]) : 0);
+                }, 0);
+                const totalLabel = totalMinutes >= 60
+                  ? `${Math.floor(totalMinutes / 60)}시간${totalMinutes % 60 ? ` ${totalMinutes % 60}분` : ""}`
+                  : `${totalMinutes}분`;
+                const wide = contiEditorWidth >= 900;
+                const useDrawer = contiEditorWidth < 700;
+                // 지시서 §4단계 "반응형 규칙" — 900px 미만이면 우측 패널이 기본으로 접힌 상태가
+                // 되고, 같은 토글로 (좁은 화면에서는) 오버레이 서랍으로 다시 열 수 있다.
+                const rightPanelOpen = wide ? !contiRightPanelCollapsed : contiRightPanelCollapsed;
+
+                const sceneListNode = (
+                  <div style={{ width: useDrawer ? 240 : 200, flexShrink: 0, borderRight: "1px solid rgba(21,88,85,.12)", display: "flex", flexDirection: "column", background: "#fafaf8", height: "100%" }}>
+                    <div style={{ padding: "10px 12px", borderBottom: "1px solid rgba(21,88,85,.1)", fontSize: 11.5, fontWeight: 800, color: "#5A7470" }}>
+                      씬 {rows.length}개 · 예상 {totalMinutes > 0 ? totalLabel : "-"}
+                    </div>
+                    <div style={{ flex: 1, overflowY: "auto" }}>
+                      {rows.map((row, index) => {
+                        const id = row.id || `shot:${index + 1}`;
+                        const selected = index === activeIndex;
+                        const thumb = sceneImages[String(index)];
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            draggable
+                            onDragStart={() => handleContiDragStart(index)}
+                            onDragOver={(event) => handleContiDragOver(event, index)}
+                            onDrop={() => handleContiDrop(index)}
+                            onDragEnd={handleDragEnd}
+                            onClick={() => { selectContiScene(id); if (useDrawer) setContiLeftDrawerOpen(false); }}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px",
+                              border: 0, borderBottom: "1px solid rgba(21,88,85,.06)",
+                              background: selected ? "#EAF4F2" : "transparent",
+                              borderLeft: selected ? "3px solid #E85D2C" : "3px solid transparent",
+                              cursor: "grab", textAlign: "left", fontFamily: "inherit",
+                            }}
+                          >
+                            {thumb ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={thumb} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 36, height: 36, borderRadius: 6, flexShrink: 0, background: row.color || "#155855" }} />
+                            )}
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ fontSize: 12.5, fontWeight: 800, color: "#1c2b28", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {index + 1}. {row.keyword || "이름 없음"}
+                              </div>
+                              <div style={{ fontSize: 11, color: "#8a8377", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {row.cameraAngle || "구도 미입력"} · {row.duration || "-"}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ padding: "8px 10px", borderTop: "1px dashed rgba(21,88,85,.15)" }}>
+                      <button type="button" onClick={addContiRow} style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%",
+                        padding: "6px 12px", border: "1px dashed rgba(21,88,85,.3)", borderRadius: 6,
+                        background: "transparent", color: "#155855", fontSize: 12, fontWeight: 800, cursor: "pointer",
+                      }}>
+                        <Plus size={13} /> 씬 추가
+                      </button>
+                    </div>
+                  </div>
+                );
+
+                const rightPanelNode = (
+                  <div style={{ width: 210, flexShrink: 0, display: "flex", flexDirection: "column", background: "#fff", height: "100%" }}>
+                    <div style={{ padding: "10px 12px", borderBottom: "1px solid rgba(21,88,85,.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 11.5, fontWeight: 800, color: "#5A7470" }}>{activeIndex >= 0 ? `씬 ${activeIndex + 1} 설정` : "씬 설정"}</span>
+                      <button type="button" onClick={() => setContiRightPanelCollapsed(true)} title="패널 접기" style={{ border: 0, background: "transparent", cursor: "pointer", color: "#8a8377" }}>
+                        <Minus size={14} />
+                      </button>
+                    </div>
+                    {activeRow && (
+                      <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
+                        {([
+                          ["keyword", "씬 이름"], ["category", "분류"], ["duration", "소요시간"],
+                          ["location", "장소"], ["cameraAngle", "구도"], ["personnel", "인원"],
+                        ] as const).map(([field, label]) => (
+                          <label key={field} style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: 11, fontWeight: 700, color: "#5A7470" }}>
+                            {label}
+                            <input
+                              value={activeRow[field] ?? ""}
+                              onChange={(event) => updateConti(activeIndex, field, event.target.value)}
+                              style={{ padding: "6px 8px", border: "1px solid rgba(21,88,85,.16)", borderRadius: 6, fontSize: 12.5, fontFamily: "inherit", color: "#1c2b28" }}
+                            />
+                          </label>
+                        ))}
+                        <label style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: 11, fontWeight: 700, color: "#5A7470" }}>
+                          설명
+                          <textarea
+                            value={activeRow.description ?? ""}
+                            onChange={(event) => updateConti(activeIndex, "description", event.target.value)}
+                            rows={3}
+                            style={{ padding: "6px 8px", border: "1px solid rgba(21,88,85,.16)", borderRadius: 6, fontSize: 12.5, fontFamily: "inherit", resize: "vertical", color: "#1c2b28" }}
+                          />
+                        </label>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button type="button" onClick={() => dupContiRow(activeIndex)} style={{
+                            flex: 1, padding: "6px 0", borderRadius: 6, border: "1px solid rgba(21,88,85,.25)",
+                            background: "#fff", color: "#155855", fontSize: 11.5, fontWeight: 800, cursor: "pointer",
+                          }}>씬 복제</button>
+                          <button type="button" onClick={() => delContiRow(activeIndex, activeRow.id || `shot:${activeIndex + 1}`)} style={{
+                            flex: 1, padding: "6px 0", borderRadius: 6, border: "1px solid rgba(220,38,38,.3)",
+                            background: "#fff", color: "#dc2626", fontSize: 11.5, fontWeight: 800, cursor: "pointer",
+                          }}>씬 삭제</button>
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ padding: "10px 12px", borderTop: "1px solid rgba(21,88,85,.1)", fontSize: 11.5, fontWeight: 800, color: "#5A7470" }}>
+                      준비 체크리스트
+                    </div>
+                    <div style={{ flex: 1, overflow: "auto" }}>
+                      <ContiChecklist
+                        rows={result.checklist}
+                        dragOverIndex={dragOver?.type === "checklist" ? dragOver.index : undefined}
+                        onUpdate={updateChecklist}
+                        onColor={updateChecklistColor}
+                        onAdd={addChecklistRow}
+                        onDelete={delChecklistRow}
+                        onClear={clearChecklist}
+                        onDragStart={(index) => handleDragStart("checklist", index)}
+                        onDragOver={(event, index) => handleDragOver(event, "checklist", index)}
+                        onDrop={(index) => handleDrop("checklist", index)}
+                        onDragEnd={handleDragEnd}
+                      />
+                    </div>
+                  </div>
+                );
+
+                return (
+                  <div ref={contiEditorRef} style={{ display: "flex", height: 560, position: "relative" }}>
+                    {useDrawer ? (
+                      <>
+                        <button type="button" onClick={() => setContiLeftDrawerOpen(true)} style={{
+                          position: "absolute", top: 8, left: 8, zIndex: 5, padding: "6px 10px", borderRadius: 6,
+                          border: "1px solid rgba(21,88,85,.2)", background: "#fff", fontSize: 11.5, fontWeight: 800, color: "#155855", cursor: "pointer",
+                        }}>
+                          ☰ 씬 목록
+                        </button>
+                        {contiLeftDrawerOpen && (
+                          <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex" }}>
+                            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.25)" }} onClick={() => setContiLeftDrawerOpen(false)} />
+                            <div style={{ position: "relative" }}>{sceneListNode}</div>
+                          </div>
+                        )}
+                      </>
+                    ) : sceneListNode}
+
+                    {/* 중앙 — 선택된 씬의 그리기 캔버스 + 도구바 */}
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderBottom: "1px solid rgba(21,88,85,.1)", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          {PEN_TYPES.map(({ key, label, icon }) => (
+                            <button key={key} title={label} onClick={() => { setPenType(key as "pen" | "marker" | "highlighter" | "brush"); setIsEraser(false); }} style={{
+                              height: 28, padding: "0 8px", borderRadius: 6,
+                              background: !isEraser && penType === key ? "#155855" : "#f2f2f0",
+                              border: `1.5px solid ${!isEraser && penType === key ? "#E85D2C" : "transparent"}`,
+                              color: !isEraser && penType === key ? "#fff" : "#5A7470", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+                            }}>{icon} {label}</button>
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                          {(isEraser ? ERASER_SIZES : [2, 4, 8]).map((size) => {
+                            const dot = isEraser ? Math.min(24, 10 + size / 3) : size + 12;
+                            return (
+                              <button key={size} title={`굵기 ${size}`} onClick={() => (isEraser ? setEraserSize(size) : setPenSize(size))} style={{
+                                width: dot, height: dot, borderRadius: "50%",
+                                background: (isEraser ? eraserSize : penSize) === size ? "#155855" : "#e2ded4",
+                                border: (isEraser ? eraserSize : penSize) === size ? "2px solid #E85D2C" : "2px solid transparent",
+                                cursor: "pointer", flexShrink: 0,
+                              }} />
+                            );
+                          })}
+                        </div>
+                        <button type="button" onClick={() => setIsEraser((v) => !v)} title="지우개" style={{
+                          width: 28, height: 28, borderRadius: 6,
+                          background: isEraser ? "#E85D2C" : "#f2f2f0", border: 0, cursor: "pointer",
+                        }}>🧹</button>
+                        <button type="button" onClick={() => drawCanvasRef.current?.undo()} title="되돌리기" style={{
+                          width: 28, height: 28, borderRadius: 6, background: "#f2f2f0", border: 0, cursor: "pointer",
+                        }}>↩️</button>
+                        <div style={{ display: "flex", gap: 3 }}>
+                          {DRAW_COLORS.slice(0, 8).map(({ color, label }) => (
+                            <button key={color} title={label} onClick={() => { setPenColor(color); setIsEraser(false); }} style={{
+                              width: 18, height: 18, borderRadius: "50%", background: color, cursor: "pointer",
+                              border: !isEraser && penColor === color ? "2px solid #E85D2C" : "2px solid rgba(0,0,0,.08)",
+                            }} />
+                          ))}
+                        </div>
+                        {!wide && (
+                          <button type="button" onClick={() => setContiRightPanelCollapsed((v) => !v)} style={{
+                            padding: "5px 10px", borderRadius: 6, border: "1px solid rgba(21,88,85,.2)",
+                            background: "#fff", fontSize: 11.5, fontWeight: 800, color: "#155855", cursor: "pointer",
+                          }}>
+                            설정 ▸
+                          </button>
+                        )}
+                        <button type="button" onClick={saveDrawing} disabled={drawSaveState === "saving"} style={{
+                          marginLeft: wide ? "auto" : 0, padding: "5px 12px", borderRadius: 6, fontSize: 11.5, fontWeight: 800, cursor: "pointer",
+                          border: `1.5px solid ${drawSaveState === "saved" ? "#4CAF50" : drawSaveState === "error" ? "#DC2626" : "rgba(21,88,85,.3)"}`,
+                          background: "#fff", color: drawSaveState === "saved" ? "#4CAF50" : drawSaveState === "error" ? "#DC2626" : "#155855",
+                        }}>
+                          {drawSaveState === "saving" ? "저장 중…" : drawSaveState === "saved" ? "✓ 저장됨" : drawSaveState === "error" ? "저장 실패" : "💾 저장"}
+                        </button>
+                      </div>
+                      <div style={{ flex: 1, minHeight: 0, position: "relative", background: "#fff" }}>
+                        <DrawingCanvas
+                          ref={drawCanvasRef}
+                          penType={penType}
+                          penSize={penSize}
+                          penColor={penColor}
+                          isEraser={isEraser}
+                          eraserSize={eraserSize}
+                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 우측 — 선택된 씬 설정 + 전체 체크리스트 */}
+                    {wide ? (
+                      rightPanelOpen && <div style={{ borderLeft: "1px solid rgba(21,88,85,.12)" }}>{rightPanelNode}</div>
+                    ) : (
+                      rightPanelOpen && (
+                        <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", justifyContent: "flex-end" }}>
+                          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.25)" }} onClick={() => setContiRightPanelCollapsed(false)} />
+                          <div style={{ position: "relative", borderLeft: "1px solid rgba(21,88,85,.12)", boxShadow: "-8px 0 24px rgba(0,0,0,.12)" }}>{rightPanelNode}</div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                );
+              })() : (
                 <ContiSceneTable
                   rows={result.conti}
                   selectedSceneId={selectedOliviaEntityId}
@@ -1572,7 +1816,7 @@ ${header("타임테이블")}
                   onDrop={handleContiDrop}
                   onDragEnd={handleDragEnd}
                 />
-              )}
+              ))}
 
               {/* ── 체크리스트 ── */}
               {/* ══ 씬 참고 탭 ══ */}
