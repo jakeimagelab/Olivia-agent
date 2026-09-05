@@ -2088,7 +2088,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     <>
     {isModal ? null : <GlobalHeader title="견적서 생성기" description="촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다." />}
     <main className={`${isModal ? "" : "min-h-screen"} text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`} style={isModal ? undefined : { background: "var(--mesh-bg)" }}>
-      {isModal ? (
+      {/* isDesktopWindow에서는 이 상태 텍스트가 하단 WorkspaceActionBar의 status로 옮겨간다 —
+          기존 채팅 분할뷰 모달(isModal && !isDesktopWindow)은 그대로 상단에 유지한다. */}
+      {isModal && !isDesktopWindow ? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px", borderBottom: "1px solid rgba(21,88,85,.1)", background: "#fafaf8" }}>
           <span style={{ fontSize: 11.5, fontWeight: 700, color: autosaveStatus === "error" ? "#DC2626" : "#5a7470" }}>
             {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
