@@ -1348,9 +1348,13 @@ export function SelectMatchWorkspace({
                           key={p.name}
                           onClick={() => setSelected(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; })}
                           style={{
+                            // OLIVIA OS 1차 작업 지시서 6단계 — 선택 표시를 테두리가 아니라
+                            // 우상단 체크 배지로 통일한다(배지는 이미 있었다, 테두리 강조만
+                            // 없앤다). 테두리를 선택 여부와 무관하게 고정해서 사진 색 판단에
+                            // 방해되는 색 테두리 대비를 없앤다.
                             position: "relative", cursor: "pointer", borderRadius: 7, overflow: "hidden",
-                            border: isSel ? `2.5px solid ${C.teal}` : `1.5px solid ${C.border}`,
-                            aspectRatio: "3/2", background: "#e5eeec", transition: "border-color .1s",
+                            border: `1.5px solid ${C.border}`,
+                            aspectRatio: "3/2", background: "#e5eeec",
                           }}
                         >
                           {p.thumbUrl
@@ -1358,7 +1362,7 @@ export function SelectMatchWorkspace({
                             : <div style={{ width: "100%", height: "100%", background: "#dde8e6" }} />
                           }
                           {isSel && (
-                            <div style={{ position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: "50%", background: C.teal, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "white", fontWeight: 900 }}>✓</div>
+                            <div style={{ position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: "50%", background: C.teal, boxShadow: "0 0 0 2px #fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "white", fontWeight: 900 }}>✓</div>
                           )}
                           {p.rating !== null && (
                             <div style={{ position: "absolute", top: 4, left: 4, background: "rgba(0,0,0,.6)", borderRadius: 4, padding: "1px 4px", fontSize: 8, color: "#FBBF24", letterSpacing: -1 }}>
