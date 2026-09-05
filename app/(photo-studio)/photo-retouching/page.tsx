@@ -503,29 +503,28 @@ export default function PhotoRetouchingPage() {
 
   return (
     <main
-      style={{ background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}
+      // OLIVIA OS Desktop UI 제안서 유형 D + 1.5 — 사진 색을 판단하는 화면이라 중성 회색.
+      style={{ background: "#2A2A2A", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: "rgba(255,255,255,.85)" }}
       onPaste={handleGlobalPaste}
     >
-      <div className="pc-inline-tabs" style={{ background: "#FFFFFF", borderBottom: `1px solid ${C.border}`, display: "flex", padding: "0 8px", overflowX: "auto" }}>
-        {([["check","색감 체크"],["sync","색감 동기화"],["recipe","보정 레시피"]] as const).map(([id, lbl]) => (
-          <button key={id} onClick={() => setTab(id)} style={{
-            padding: "11px 20px", border: "none", borderBottom: `2.5px solid ${tab === id ? C.teal : "transparent"}`,
-            background: "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 13,
-            fontWeight: tab === id ? 800 : 600, color: tab === id ? C.teal : C.hint,
-            whiteSpace: "nowrap",
-          }}>{lbl}</button>
-        ))}
+      <div style={{ padding: "12px 20px 0" }}>
+        <SegmentedTabs
+          ariaLabel="색감 작업 선택"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: "check", label: "색감 체크" },
+            { value: "sync", label: "색감 동기화" },
+            { value: "recipe", label: "보정 레시피" },
+          ]}
+        />
       </div>
 
-      <div style={{ background: C.light, padding: "6px 24px", fontSize: 11, fontWeight: 800, color: C.teal, borderBottom: `1px solid ${C.border}` }}>
-        포토클리닉 색감 작업실 — 업로드 · 분석 · 보정 가이드
-      </div>
-
-      <div style={{ background: C.bg, minHeight: "100vh", color: C.txt }}>
-        <div style={{ maxWidth: 960, margin: "0 auto", padding: "28px 20px 80px" }}>
-        {/* 페이지 탭 */}
+      <div style={{ background: "#2A2A2A", minHeight: "100vh", color: "rgba(255,255,255,.85)" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto", padding: "16px 20px 80px" }}>
+        {/* 페이지 안내 — 1.1: 화면 이름을 다시 말하지 않는다(타이틀바가 이미 보여준다).
+            기존에 있던 "PHOTO RETOUCHING" 영문 이터브로우는 제거했다. */}
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, marginBottom: 18 }}>
-          <div style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 4 }}>PHOTO RETOUCHING</div>
           <div style={{ fontSize: 20, fontWeight: 900, color: C.teal, marginBottom: 6 }}>
             {tab === "check" ? "AI 색감 체크" : tab === "sync" ? "색감 동기화" : "포토클리닉 보정 레시피"}
           </div>
@@ -538,17 +537,6 @@ export default function PhotoRetouchingPage() {
                 ? "기준 사진과 대상 사진을 비교해 같은 톤으로 맞추는 보정값을 안내합니다."
                 : "Camera Raw와 Photoshop에서 바로 참고할 수 있는 기본 보정 기준입니다."}
           </div>
-        </div>
-        <div style={{ display: "none" }}>
-          {([["check","🎨 색감 체크"],["sync","🔄 색감 동기화"],["recipe","📋 보정 레시피"]] as const).map(([id, lbl]) => (
-            <button key={id} onClick={() => setTab(id)} style={{
-              flex: 1, minWidth: 150, padding: "12px 18px", border: "none", borderRadius: 10, cursor: "pointer",
-              fontFamily: "inherit", fontSize: 14, fontWeight: tab === id ? 900 : 700,
-              color: tab === id ? "#fff" : C.muted,
-              background: tab === id ? C.teal : "transparent",
-              whiteSpace: "nowrap",
-            }}>{lbl}</button>
-          ))}
         </div>
 
         {/* ── 색감 체크 ── */}
