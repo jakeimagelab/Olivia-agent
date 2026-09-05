@@ -181,7 +181,6 @@
 .workspaceLoading { min-height: 260px; display: grid; place-items: center; color: #718580; font-size: 12px; }
 
 @media (max-width: 1180px) {
-  .workspaceTabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .workspaceGrid { grid-template-columns: minmax(0, 1.8fr) minmax(260px, .9fr); }
 }
 
