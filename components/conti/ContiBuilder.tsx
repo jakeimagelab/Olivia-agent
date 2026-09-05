@@ -1535,22 +1535,22 @@ ${header("타임테이블")}
                 안) 그대로 상단 탭으로 남긴다. ClientsWorkspace.tsx의 기존 콘티 툴 모달은
                 isDesktopWindow가 false라 원래 4탭 그대로 유지된다 — 그쪽에서 체크리스트 탭이
                 사라지면 기존 기능이 없어지는 셈이라 반드시 구분해야 한다. */}
-            <div className="pc-tabs" style={{ marginLeft: -24, marginRight: -24, marginBottom: 16 }}>
-              {(isDesktopWindow ? [
-                { key: "conti",     label: "씬 편집",     Icon: ClipboardList },
-                { key: "schedule",  label: "타임테이블",   Icon: Clock },
-                { key: "scenes",    label: "씬 참고",      Icon: ImageIcon },
-              ] as const : [
-                { key: "conti",     label: "촬영 콘티",       Icon: ClipboardList },
-                { key: "scenes",    label: "촬영 씬(참고용)",  Icon: ImageIcon },
-                { key: "checklist", label: "준비 체크리스트", Icon: CheckSquare },
-                { key: "schedule",  label: "타임테이블",       Icon: Clock },
-              ] as const).map(({ key, label, Icon }) => (
-                <button key={key} onClick={() => setTab(key)} className={`pc-tab${tab === key ? " pc-tab--active" : ""}`}>
-                  <Icon size={13} />{label}
-                </button>
-              ))}
-            </div>
+            <SegmentedTabs
+              ariaLabel="콘티 결과 화면 선택"
+              value={tab}
+              onChange={setTab}
+              style={{ marginLeft: 24, marginRight: 24, marginBottom: 16 }}
+              items={isDesktopWindow ? [
+                { value: "conti", label: "씬 편집", icon: <ClipboardList size={13} /> },
+                { value: "schedule", label: "타임테이블", icon: <Clock size={13} /> },
+                { value: "scenes", label: "씬 참고", icon: <ImageIcon size={13} /> },
+              ] : [
+                { value: "conti", label: "촬영 콘티", icon: <ClipboardList size={13} /> },
+                { value: "scenes", label: "촬영 씬(참고용)", icon: <ImageIcon size={13} /> },
+                { value: "checklist", label: "준비 체크리스트", icon: <CheckSquare size={13} /> },
+                { value: "schedule", label: "타임테이블", icon: <Clock size={13} /> },
+              ]}
+            />
 
             {/* 테이블 */}
             <div ref={printRef} style={{ background: "#fff", borderRadius: 8, border: "1px solid rgba(21,88,85,0.12)", overflow: "hidden" }}>
