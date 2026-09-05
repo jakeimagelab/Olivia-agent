@@ -1499,13 +1499,15 @@ ${header("타임테이블")}
               <Pencil size={13} /> 셀 클릭 즉시 편집 · ⠿ 핸들로 드래그하여 순서 변경
             </div>
 
-            {/* 탭 */}
+            {/* 탭 — OLIVIA OS 1차 작업 지시서 4단계: 씬 편집(기본, 3단 레이아웃)에 체크리스트가
+                딸려 들어가서 "준비 체크리스트" 탭은 제거. 타임테이블/씬 참고는 3단 레이아웃에
+                넣을 자리가 없어(승인받은 안) 그대로 상단 탭으로 남긴다 — 탭 전환 시 3단 영역
+                전체가 그 화면(전체 폭)으로 바뀐다. */}
             <div className="pc-tabs" style={{ marginLeft: -24, marginRight: -24, marginBottom: 16 }}>
               {([
-                { key: "conti",     label: "촬영 콘티",       Icon: ClipboardList },
-                { key: "scenes",    label: "촬영 씬(참고용)",  Icon: ImageIcon },
-                { key: "checklist", label: "준비 체크리스트", Icon: CheckSquare },
-                { key: "schedule",  label: "타임테이블",       Icon: Clock }
+                { key: "conti",     label: "씬 편집",     Icon: ClipboardList },
+                { key: "schedule",  label: "타임테이블",   Icon: Clock },
+                { key: "scenes",    label: "씬 참고",      Icon: ImageIcon },
               ] as const).map(({ key, label, Icon }) => (
                 <button key={key} onClick={() => setTab(key)} className={`pc-tab${tab === key ? " pc-tab--active" : ""}`}>
                   <Icon size={13} />{label}
