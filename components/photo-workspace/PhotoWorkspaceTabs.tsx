@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { FileOutput, FolderTree, Images, Link2 } from "lucide-react";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import type { PhotoWorkspaceMode } from "./types";
-import styles from "./PhotoWorkspace.module.css";
 
 const WORKSPACES: Array<{
   mode: PhotoWorkspaceMode;
@@ -15,6 +15,8 @@ const WORKSPACES: Array<{
   { mode: "conversion", title: "파일 변환", description: "파일 형식 변환 및 리사이즈 작업을 처리합니다.", icon: FileOutput },
 ];
 
+// OLIVIA OS Desktop UI 제안서 3단계 — 1차 작업 6단계에서 이 파일에 직접 구현했던 세그먼트
+// 컨트롤을 components/ui/SegmentedTabs로 뽑아서 재사용한다(원본 스타일은 그대로).
 export default function PhotoWorkspaceTabs({
   value,
   onChange,
@@ -23,26 +25,19 @@ export default function PhotoWorkspaceTabs({
   onChange: (mode: PhotoWorkspaceMode) => void;
 }) {
   return (
-    <div className={styles.workspaceTabs} role="tablist" aria-label="사진 작업 선택">
-      {WORKSPACES.map(({ mode, title, description, icon: Icon }) => {
-        const active = value === mode;
-        return (
-          <button
-            key={mode}
-            type="button"
-            role="tab"
-            id={`photo-workspace-tab-${mode}`}
-            aria-selected={active}
-            aria-controls={`photo-workspace-panel-${mode}`}
-            title={description}
-            className={`${styles.workspaceTab}${active ? ` ${styles.workspaceTabActive}` : ""}`}
-            onClick={() => onChange(mode)}
-          >
-            <Icon size={15} strokeWidth={2} aria-hidden="true" />
-            <span>{title}</span>
-          </button>
-        );
-      })}
-    </div>
+    <SegmentedTabs
+      ariaLabel="사진 작업 선택"
+      value={value}
+      onChange={onChange}
+      items={WORKSPACES.map(({ mode, title, description, icon: Icon }) => ({
+        value: mode,
+        label: title,
+        title: description,
+        id: `photo-workspace-tab-${mode}`,
+        panelId: `photo-workspace-panel-${mode}`,
+        icon: <Icon size={15} strokeWidth={2} aria-hidden="true" />,
+      }))}
+      style={{ marginBottom: 18 }}
+    />
   );
 }
