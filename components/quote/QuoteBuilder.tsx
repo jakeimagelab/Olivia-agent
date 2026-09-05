@@ -293,6 +293,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   registerRequestClose,
 }, ref) {
   const isModal = mode === "modal";
+  // mode="modal"은 OLIVIA OS 창(QuoteBuilderWindowContent)과, 그보다 먼저부터 있던 채팅
+  // 분할뷰 모달 두 군데서 같이 쓴다 — useDesktopWindowMode()는 OS 창 쪽만 Provider로
+  // true를 내려주므로(ClientsWindowContent.tsx와 같은 패턴), 이걸로 구분해야 기존 채팅
+  // 분할뷰 모달의 레이아웃(상단 상태바 + 인라인 액션 바)이 그대로 유지된다.
+  const isDesktopWindow = isModal && useDesktopWindowMode();
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
   const setOliviaClient = useOliviaContextStore((state) => state.setClient);
   const setOliviaProject = useOliviaContextStore((state) => state.setProject);
