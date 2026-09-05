@@ -1364,36 +1364,70 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
           );
         })}
       </div>
+      );
 
-      {/* ── 데일리 루틴 — 그리드 밑에 남는 공간을 채우는 매일 반복 일정 안내 */}
-      <div style={{ flex: "0 0 auto", minHeight: 56, maxHeight: 92, overflowY: "auto", background: C.surface,
-        borderTop: `1px solid ${C.border}`, padding: "12px 20px" }}>
-        <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(900, isMobile), color: C.hint, letterSpacing: ".06em",
-          textTransform: "uppercase", marginBottom: 10 }}>⏰ 데일리 루틴</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 10 : 22 }}>
-          {DAILY_ROUTINE.map((r, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.teal, flexShrink: 0 }}/>
-              <span style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
-              <span style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(600, isMobile), color: C.txt, whiteSpace: "nowrap" }}>{r.label}</span>
-              {i < DAILY_ROUTINE.length - 1 && (
-                <div style={{ width: 14, height: 1, background: C.border, marginLeft: isMobile ? 2 : 14 }}/>
-              )}
+      // 데일리 루틴 내용 — embedded면 우측 패널, 아니면 기존처럼 그리드 밑에 그대로.
+      const dailyRoutineInner = (
+        <>
+          <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(900, isMobile), color: C.hint, letterSpacing: ".06em",
+            textTransform: "uppercase", marginBottom: 10 }}>⏰ 데일리 루틴</div>
+          <div style={{ display: "flex", flexWrap: embedded ? "nowrap" : "wrap", flexDirection: embedded ? "column" : "row", gap: embedded ? 10 : (isMobile ? 10 : 22) }}>
+            {DAILY_ROUTINE.map((r, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.teal, flexShrink: 0 }}/>
+                <span style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
+                <span style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(600, isMobile), color: C.txt, whiteSpace: "nowrap" }}>{r.label}</span>
+                {!embedded && i < DAILY_ROUTINE.length - 1 && (
+                  <div style={{ width: 14, height: 1, background: C.border, marginLeft: isMobile ? 2 : 14 }}/>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      );
+
+      // 범례 — embedded면 상단 툴바(월 이동 버튼 옆), 아니면 기존처럼 그리드 밑에 그대로.
+      // 이번 단계는 배치 이동만: 클릭 가능한 필터로 만들지 않고 색 설명 그대로 둔다.
+      const legendNode = (
+        <div style={{ display: "flex", gap: 14, padding: embedded ? 0 : "10px 20px", flexWrap: "wrap", flexShrink: 0 }}>
+          {Object.entries(CATS).map(([, v]) => (
+            <div key={v.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }}/>
+              <span style={{ fontSize: mfz(10.5, isMobile), color: "#5a7470", fontWeight: mfw(700, isMobile) }}>{v.label}</span>
             </div>
           ))}
         </div>
-      </div>
+      );
 
-      {/* ── Legend */}
-      <div style={{ display: "flex", gap: 14, padding: "10px 20px", flexWrap: "wrap", flexShrink: 0,
-        background: C.surface, borderTop: "1px solid rgba(21,88,85,.1)" }}>
-        {Object.entries(CATS).map(([, v]) => (
-          <div key={v.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }}/>
-            <span style={{ fontSize: mfz(10.5, isMobile), color: "#5a7470", fontWeight: mfw(700, isMobile) }}>{v.label}</span>
-          </div>
-        ))}
-      </div>
+      return (
+        <>
+          {embedded ? (
+            <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", overflow: "hidden" }}>
+              <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {weekdayRowNode}
+                {gridNode}
+              </div>
+              <div style={{ width: 210, flexShrink: 0, borderLeft: `1px solid ${C.border}`, overflowY: "auto",
+                padding: "14px 16px", background: C.surface }}>
+                {dailyRoutineInner}
+              </div>
+            </div>
+          ) : (
+            <>
+              {weekdayRowNode}
+              {gridNode}
+              <div style={{ flex: "0 0 auto", minHeight: 56, maxHeight: 92, overflowY: "auto", background: C.surface,
+                borderTop: `1px solid ${C.border}`, padding: "12px 20px" }}>
+                {dailyRoutineInner}
+              </div>
+              <div style={{ background: C.surface, borderTop: "1px solid rgba(21,88,85,.1)" }}>
+                {legendNode}
+              </div>
+            </>
+          )}
+        </>
+      );
+      })()}
 
       {/* 복사/붙여넣기는 화면에 눈에 띄는 변화가 없어서 결과를 알려주는 토스트 */}
       {toast && (
