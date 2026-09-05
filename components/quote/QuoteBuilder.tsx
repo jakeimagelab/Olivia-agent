@@ -464,11 +464,13 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         Number.parseFloat(style.borderLeftWidth || "0") + Number.parseFloat(style.borderRightWidth || "0");
       const shellWidth = shell.getBoundingClientRect().width;
       const availableWidth = Math.max(0, shellWidth - paddingX - borderX - 2);
-      // OLIVIA OS 1차 작업 지시서 3단계 — 창이 넓어질수록 실제 사이즈(scale=1, 1123px)까지
-      // 계속 커지던 걸 0.7로 막는다. .preview-shell이 이미 place-items:center라 남는 폭은
-      // 자동으로 가운데 정렬 여백이 된다(전체화면 미리보기의 updateFullscreenScale은 별개 —
-      // 거기는 의도적으로 화면을 최대한 채워야 해서 그대로 둔다).
-      const nextScale = Math.min(0.7, Math.max(0.12, availableWidth / 1123));
+      // OLIVIA OS 1차 작업 지시서 3단계 — OS 창(isDesktopWindow)에서는 창이 넓어질수록 실제
+      // 사이즈(scale=1, 1123px)까지 계속 커지던 걸 0.7로 막는다. .preview-shell이 이미
+      // place-items:center라 남는 폭은 자동으로 가운데 정렬 여백이 된다. /quote 풀페이지·
+      // 기존 채팅 분할뷰 모달은 이번 지시서 범위가 아니므로 기존 상한(1)을 그대로 둔다
+      // (전체화면 미리보기의 updateFullscreenScale은 별개 로직이라 여기서 안 건드린다).
+      const maxScale = isDesktopWindow ? 0.7 : 1;
+      const nextScale = Math.min(maxScale, Math.max(0.12, availableWidth / 1123));
       setBasePreviewScale(Number(nextScale.toFixed(3)));
     };
 
