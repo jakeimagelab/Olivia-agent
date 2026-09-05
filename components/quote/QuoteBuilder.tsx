@@ -1756,7 +1756,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
   const quotePreviewShellNode = (
           <div
-            className={`quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""} ${showFullscreenPreview ? "preview-shell preview-shell--fullscreen" : isModal ? "preview-shell preview-shell--embedded" : "preview-shell"}`}
+            className={`quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""} ${showFullscreenPreview ? "preview-shell preview-shell--fullscreen" : isDesktopWindow ? "preview-shell preview-shell--embedded" : "preview-shell"}`}
             ref={previewShellRef}
           >
             {showFullscreenPreview && (
@@ -2139,7 +2139,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           <Panel
             title="고객 정보"
             icon={<UserRound size={18} />}
-            collapsible={isModal}
+            collapsible={isDesktopWindow}
             defaultOpen
             summary={customer.hospitalName || "미입력"}
           >
@@ -2207,7 +2207,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             <Panel
               title="패키지 선택"
               icon={<WalletCards size={18} />}
-              collapsible={isModal}
+              collapsible={isDesktopWindow}
               defaultOpen
               summary={selectedPackage?.name ?? "패키지 선택 안 함"}
             >
@@ -2305,7 +2305,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
           <Panel
             title="추가 옵션"
-            collapsible={isModal}
+            collapsible={isDesktopWindow}
             defaultOpen={false}
             summary={(() => {
               const activeOptionCount =
@@ -2533,7 +2533,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
           <Panel
             title="추가할인(절삭)"
-            collapsible={isModal}
+            collapsible={isDesktopWindow}
             defaultOpen={false}
             summary={extraDiscount > 0 ? `${amount(extraDiscount)}원` : "없음"}
           >
@@ -2556,7 +2556,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
           <Panel
             title="메모"
-            collapsible={isModal}
+            collapsible={isDesktopWindow}
             defaultOpen={false}
             summary={memo.trim() ? "있음" : "없음"}
           >
