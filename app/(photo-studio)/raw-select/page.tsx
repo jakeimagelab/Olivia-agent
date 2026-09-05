@@ -967,8 +967,12 @@ export default function RawSelectPage() {
   };
 
   /* ── Layout ─────────────────────────────────────────────── */
+  // OLIVIA OS Desktop UI 제안서 유형 D — 사진 색을 판단하는 화면은 중성 회색이 기준이다
+  // (사진작업실이 기준 구현). 단계 안내 배너/카드는 전부 자기 흰 배경을 갖고 있어(Card
+  // 컴포넌트) 이 배경 변경의 영향을 안 받는다 — 브라우저로 전 단계를 실제 확인해서
+  // 카드 밖에 직접 놓인 텍스트만 별도로 밝은 색으로 바꿨다(아래 각 스텝 참고).
   return (
-    <div style={{ background: C.bg, minHeight: embedded ? 0 : "100vh", color: C.txt }}>
+    <div style={{ background: "#2A2A2A", minHeight: embedded ? 0 : "100vh", color: "rgba(255,255,255,.85)" }}>
 
       {/* 기능 안내 배너 */}
       <div style={{ background: "linear-gradient(135deg, #1A4F4C 0%, #155855 100%)", color: "#fff", padding: "14px 24px" }}>
