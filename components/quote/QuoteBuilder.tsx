@@ -2863,7 +2863,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               </button>
             </div>
           )}
-          <WorkspaceActionBar
+          <ActionBar
             status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
             actions={[
               { key: "reset", label: "초기화", onClick: resetForm, icon: <RefreshCcw size={14} /> },
