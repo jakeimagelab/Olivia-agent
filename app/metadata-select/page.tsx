@@ -168,7 +168,11 @@ export default function MetadataSelectPage() {
   const running = phase !== "idle" && phase !== "done";
 
   return (
-    <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+    // OLIVIA OS Desktop UI 제안서 유형 D — 사진 색을 판단하는 화면 계열이라 중성 회색.
+    // .pc-page 클래스가 var(--mesh-bg)를 주는데, 이 클래스는 lib/theme.ts를 쓰는 다른
+    // 90여 개 화면과 공유되므로 클래스나 공유 토큰은 안 건드리고 인라인 style로만
+    // 이 화면에서 덮어쓴다(인라인 style이 클래스보다 우선한다).
+    <main className="pc-page" style={{ background: "#2A2A2A", color: "rgba(255,255,255,.85)", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       {!embedded ? (
         <GlobalHeader
           title="메타데이터 셀렉"
