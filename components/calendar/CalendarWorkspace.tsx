@@ -1370,35 +1370,62 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
         </div>
       );
 
-      return (
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+      margin: "14px 20px", border: "1px solid rgba(21,88,85,.12)", borderRadius: 16,
+      boxShadow: "0 5px 18px rgba(21,88,85,.055)" }}>
+
+      {/* ── Month nav header — embedded면 범례를 여기, 월 이동 버튼 옆에 둔다 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px 12px",
+        background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0, flexWrap: embedded ? "wrap" : "nowrap" }}>
+        <button onClick={onPrev} style={{ width: 34, height: 34, border: "1px solid rgba(21,88,85,.14)", borderRadius: 9,
+          background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#155855" }}>
+          <ChevronLeft size={16}/>
+        </button>
+        {isMobile ? (
+          <button onClick={onNavigateYear} style={{
+            flex: 1, textAlign: "center", fontSize: mfz(18, isMobile), fontWeight: mfw(900, isMobile), color: "#1c2b28", letterSpacing: "-0.3px",
+            background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+          }}>
+            <ChevronLeft size={15} style={{ opacity: .55 }}/> {year}년 {monthLabel(month)}
+          </button>
+        ) : (
+          <div style={{ flex: 1, textAlign: "center", fontSize: mfz(18, isMobile), fontWeight: mfw(900, isMobile), color: "#1c2b28", letterSpacing: "-0.3px" }}>
+            {year}년 {monthLabel(month)}
+          </div>
+        )}
+        <button onClick={onNext} style={{ width: 34, height: 34, border: "1px solid rgba(21,88,85,.14)", borderRadius: 9,
+          background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#155855" }}>
+          <ChevronRight size={16}/>
+        </button>
+        {embedded && legendNode}
+      </div>
+
+      {embedded ? (
+        <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", overflow: "hidden" }}>
+          <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {weekdayRowNode}
+            {gridNode}
+          </div>
+          <div style={{ width: 210, flexShrink: 0, borderLeft: `1px solid ${C.border}`, overflowY: "auto",
+            padding: "14px 16px", background: C.surface }}>
+            {dailyRoutineInner}
+          </div>
+        </div>
+      ) : (
         <>
-          {embedded ? (
-            <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", overflow: "hidden" }}>
-              <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                {weekdayRowNode}
-                {gridNode}
-              </div>
-              <div style={{ width: 210, flexShrink: 0, borderLeft: `1px solid ${C.border}`, overflowY: "auto",
-                padding: "14px 16px", background: C.surface }}>
-                {dailyRoutineInner}
-              </div>
-            </div>
-          ) : (
-            <>
-              {weekdayRowNode}
-              {gridNode}
-              <div style={{ flex: "0 0 auto", minHeight: 56, maxHeight: 92, overflowY: "auto", background: C.surface,
-                borderTop: `1px solid ${C.border}`, padding: "12px 20px" }}>
-                {dailyRoutineInner}
-              </div>
-              <div style={{ background: C.surface, borderTop: "1px solid rgba(21,88,85,.1)" }}>
-                {legendNode}
-              </div>
-            </>
-          )}
+          {weekdayRowNode}
+          {gridNode}
+          <div style={{ flex: "0 0 auto", minHeight: 56, maxHeight: 92, overflowY: "auto", background: C.surface,
+            borderTop: `1px solid ${C.border}`, padding: "12px 20px" }}>
+            {dailyRoutineInner}
+          </div>
+          <div style={{ background: C.surface, borderTop: "1px solid rgba(21,88,85,.1)" }}>
+            {legendNode}
+          </div>
         </>
-      );
-      })()}
+      )}
 
       {/* 복사/붙여넣기는 화면에 눈에 띄는 변화가 없어서 결과를 알려주는 토스트 */}
       {toast && (
