@@ -2519,7 +2519,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </div>
           </Panel>
 
-          <Panel title="추가할인(절삭)">
+          <Panel
+            title="추가할인(절삭)"
+            collapsible={isModal}
+            defaultOpen={false}
+            summary={extraDiscount > 0 ? `${amount(extraDiscount)}원` : "없음"}
+          >
             <div className="grid gap-3">
               <Field label="추가할인 금액">
                 <input
