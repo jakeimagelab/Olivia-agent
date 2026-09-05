@@ -841,7 +841,9 @@ export default function RawSelectPage() {
                 key={f.name}
                 onClick={() => viewMode === "candidates" && toggleFile(i)}
                 style={{
-                  borderRadius: 10, overflow: "hidden", border: `2px solid ${f.selected && viewMode === "candidates" ? C.teal : C.border}`,
+                  // 유형 D — 선택 표시는 테두리가 아니라 우상단 체크 배지로. 테두리는
+                  // 선택 여부와 무관하게 고정한다.
+                  borderRadius: 10, overflow: "hidden", border: `2px solid ${C.border}`,
                   cursor: viewMode === "candidates" ? "pointer" : "default",
                   background: C.white, position: "relative",
                 }}
