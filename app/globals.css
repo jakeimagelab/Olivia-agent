@@ -35,6 +35,13 @@
   --teal-mid: #22876A;
   --danger: #DC2626;
   --line: rgba(0, 0, 0, .09);
+  /* 3단계 — 제안서 1.5(그 외 화면 배경)와 유형 C(점수 카드) 절이 구체적인 hex를 직접
+     지정하고 있어 그대로 토큰화한다 — 새로 만든 색이 아니라 문서가 이미 정한 값이다. */
+  --content-bg: #FDFCFA;
+  --panel-bg: #F7F5F1;
+  --score-good: #4C9A5C;
+  --score-normal: #E9A227;
+  --score-risk: #C0473F;
 }
 
 /* Native hospital channel analysis */
