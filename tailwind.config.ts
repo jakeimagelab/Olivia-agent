@@ -8,18 +8,6 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      colors: {
-        ivory: "#f7f1e7",
-        parchment: "#fbf8f1",
-        forest: "#183d2f",
-        moss: "#6f7e55",
-        walnut: "#6b4a32",
-        bark: "#3c2a1e",
-        ink: "#201b16",
-        stone: "#8b8377",
-        fog: "#e8e0d4",
-        tide: "#5f7480"
-      },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         serif: ["var(--font-serif)", "Georgia", "serif"]
