@@ -84,6 +84,11 @@ export default function ContiBuilder({
   registerRequestClose?: (fn: () => void) => void;
 } = {}) {
   const isModal = mode === "modal";
+  // mode="modal"은 OLIVIA OS 창(ContiBuilderWindowContent)과 ClientsWorkspace.tsx의 기존
+  // 툴 모달 둘 다에서 쓴다 — QuoteBuilder.tsx와 같은 이유로 useDesktopWindowMode()로 구분해서
+  // 4단계(3단 레이아웃) 변경을 OS 창에만 적용하고 기존 툴 모달은 그대로 둔다.
+  const isDesktopWindowMode = useDesktopWindowMode();
+  const isDesktopWindow = isModal && isDesktopWindowMode;
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
   const setOliviaClient = useOliviaContextStore((state) => state.setClient);
   const setOliviaProject = useOliviaContextStore((state) => state.setProject);
