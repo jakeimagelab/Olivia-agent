@@ -10,6 +10,9 @@ export type SegmentedTabsItem<T extends string = string> = {
      설명 문구를 안 보여준다(제안서 1.3 "탭 위아래에 정체불명의 띠를 두지 않는다"와 같은 맥락:
      탭 자체도 크게 만들지 않는다). */
   title?: string;
+  /* tabpanel과의 aria 연결이 필요할 때만 지정 — 생략하면 role/aria-selected만으로 동작한다. */
+  id?: string;
+  panelId?: string;
 };
 
 type SegmentedTabsProps<T extends string> = {
