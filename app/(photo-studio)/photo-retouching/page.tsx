@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { RefreshCw, Camera, Copy, Check } from "lucide-react";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 
 const C = {
   teal: "#155855", orange: "#E85D2C", green: "#22876A",
