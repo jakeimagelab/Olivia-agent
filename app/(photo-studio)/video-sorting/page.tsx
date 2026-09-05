@@ -190,8 +190,8 @@ function groupClipsByGap(clips: VideoClipFile[], gapMs: number): TimeScene[] {
 /* ════════════════════════════════════════════════
    PRESENTATIONAL HELPERS
 ═══════════════════════════════════════════════ */
-function Btn({ onClick, disabled, children, variant = "primary" }: {
-  onClick?: () => void; disabled?: boolean; children: React.ReactNode; variant?: "primary" | "secondary" | "ghost";
+function Btn({ onClick, disabled, children, variant = "primary", style: s }: {
+  onClick?: () => void; disabled?: boolean; children: React.ReactNode; variant?: "primary" | "secondary" | "ghost"; style?: React.CSSProperties;
 }) {
   const base: React.CSSProperties = { height: 42, padding: "0 22px", border: "none", borderRadius: 10, fontFamily: "inherit", fontSize: 13, fontWeight: 800, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, transition: "opacity .15s" };
   const variants: Record<string, React.CSSProperties> = {
@@ -199,7 +199,7 @@ function Btn({ onClick, disabled, children, variant = "primary" }: {
     secondary: { background: C.white, color: C.teal, border: `1.5px solid ${C.border}` },
     ghost: { background: C.white, color: C.teal, border: `1.5px solid ${C.border}` },
   };
-  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant] }}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...s }}>{children}</button>;
 }
 
 // photo-sorting의 Card와 동일 — padding은 안에 두지 않고, 섹션 헤더 바가 카드 모서리까지 꽉 차게 한다
