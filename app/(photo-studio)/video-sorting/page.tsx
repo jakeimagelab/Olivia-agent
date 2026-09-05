@@ -687,13 +687,7 @@ export default function VideoSortingPage() {
           )}
 
           {step === "final_review" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 820 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.muted }}>
-                  영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
-                </div>
-                <Btn onClick={handleExportAi} disabled={!allAnalyzed || classified.length === 0}>폴더 정리 실행 →</Btn>
-              </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 820, paddingBottom: 72 }}>
 
               <Card style={{ padding: 18 }}>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
