@@ -1131,39 +1131,10 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
     cellRefs.current[focusedIdx]?.focus({ preventScroll: true });
   }, [focusedIdx]);
 
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
-      margin: "14px 20px", border: "1px solid rgba(21,88,85,.12)", borderRadius: 16,
-      boxShadow: "0 5px 18px rgba(21,88,85,.055)" }}>
-
-      {/* ── Month nav header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px 12px",
-        background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0 }}>
-        <button onClick={onPrev} style={{ width: 34, height: 34, border: "1px solid rgba(21,88,85,.14)", borderRadius: 9,
-          background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#155855" }}>
-          <ChevronLeft size={16}/>
-        </button>
-        {isMobile ? (
-          <button onClick={onNavigateYear} style={{
-            flex: 1, textAlign: "center", fontSize: mfz(18, isMobile), fontWeight: mfw(900, isMobile), color: "#1c2b28", letterSpacing: "-0.3px",
-            background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-          }}>
-            <ChevronLeft size={15} style={{ opacity: .55 }}/> {year}년 {monthLabel(month)}
-          </button>
-        ) : (
-          <div style={{ flex: 1, textAlign: "center", fontSize: mfz(18, isMobile), fontWeight: mfw(900, isMobile), color: "#1c2b28", letterSpacing: "-0.3px" }}>
-            {year}년 {monthLabel(month)}
-          </div>
-        )}
-        <button onClick={onNext} style={{ width: 34, height: 34, border: "1px solid rgba(21,88,85,.14)", borderRadius: 9,
-          background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#155855" }}>
-          <ChevronRight size={16}/>
-        </button>
-      </div>
-
-      {/* ── Weekday row */}
-      {(() => { const weekdayRowNode = (
+  // ── OLIVIA OS 1차 작업 지시서 5단계 — embedded(OS 창)면 데일리 루틴/범례가 배치만 바뀐다.
+  // 이 조각들을 return 이전에 미리 만들어둬야 상단 헤더(범례 자리)와 본문(그리드+우측 패널)
+  // 양쪽에서 같은 값을 참조할 수 있다.
+  const weekdayRowNode = (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)",
         background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0 }}>
         {WEEKDAYS.map((w, i) => (
