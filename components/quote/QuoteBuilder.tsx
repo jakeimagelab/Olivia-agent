@@ -2542,7 +2542,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </div>
           </Panel>
 
-          <Panel title="메모">
+          <Panel
+            title="메모"
+            collapsible={isModal}
+            defaultOpen={false}
+            summary={memo.trim() ? "있음" : "없음"}
+          >
             <textarea
               value={memo}
               onChange={(event) => setMemo(event.target.value)}
