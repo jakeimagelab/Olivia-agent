@@ -2816,23 +2816,59 @@ function Panel({
   title,
   icon,
   action,
-  children
+  children,
+  collapsible = false,
+  defaultOpen = true,
+  summary,
 }: {
   title: string;
   icon?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
+  /* OLIVIA OS 1차 작업 지시서 3단계 — 아코디언 4개. collapsible이 false면(기본값) 기존과
+     완전히 동일하게(항상 펼침) 동작해서, 이 props를 안 넘기는 다른 Panel 호출부는 전혀
+     영향받지 않는다. */
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  /* 접혔을 때 헤더 우측에 보여줄 요약값 — 기존 state를 그대로 읽어 문자열로만 넘긴다. */
+  summary?: ReactNode;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const isOpen = collapsible ? open : true;
+
   return (
     <section className="rounded-lg border border-[#ded7cc] bg-white p-4 shadow-sm sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-base font-bold text-[var(--quote-ink)]">
-          {icon}
-          {title}
-        </h2>
+      <div className={isOpen ? "mb-4 flex items-center justify-between gap-3" : "flex items-center justify-between gap-3"}>
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={isOpen}
+            style={{
+              display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0,
+              background: "none", border: 0, padding: 0, textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            {isOpen ? <ChevronUp size={14} color="#9a9184" /> : <ChevronDown size={14} color="#9a9184" />}
+            <h2 className="flex items-center gap-2 text-base font-bold text-[var(--quote-ink)]">
+              {icon}
+              {title}
+            </h2>
+            {!isOpen && summary != null ? (
+              <span style={{ marginLeft: "auto", paddingLeft: 8, fontSize: 12, fontWeight: 600, color: "#8a8377", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {summary}
+              </span>
+            ) : null}
+          </button>
+        ) : (
+          <h2 className="flex items-center gap-2 text-base font-bold text-[var(--quote-ink)]">
+            {icon}
+            {title}
+          </h2>
+        )}
         {action}
       </div>
-      {children}
+      {isOpen ? children : null}
     </section>
   );
 }
