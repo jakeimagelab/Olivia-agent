@@ -7,6 +7,7 @@ import { createMailingDraft } from "@/lib/mailingQueue";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import { addContiShots as addContiShotsShared, duplicateContiShot as duplicateContiShotShared, removeContiShot as removeContiShotShared, reorderContiShot as reorderContiShotShared, updateContiShot as updateContiShotShared } from "@/lib/conti/contiMutationService";
 import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
 import PortraitConsentPanel from "@/components/conti/PortraitConsentPanel";
