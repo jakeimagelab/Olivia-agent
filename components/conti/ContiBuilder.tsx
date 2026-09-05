@@ -1645,7 +1645,11 @@ ${header("타임테이블")}
                       </button>
                     </div>
                     {activeRow && (
-                      <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
+                      // maxHeight 없이 두면 이 필드 묶음이 flex column에서 "자연 높이"를 그대로
+                      // 차지해버려서, 아래 flex:1인 체크리스트 영역이 남는 공간이 없어(브라우저
+                      // 확인 중 발견) 사실상 안 보이는 버그가 있었다 — 여기를 캡 걸고 자체
+                      // 스크롤시켜서 체크리스트에 항상 최소 공간을 보장한다.
+                      <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8, overflowY: "auto", maxHeight: 300, flexShrink: 0 }}>
                         {([
                           ["keyword", "씬 이름"], ["category", "분류"], ["duration", "소요시간"],
                           ["location", "장소"], ["cameraAngle", "구도"], ["personnel", "인원"],
