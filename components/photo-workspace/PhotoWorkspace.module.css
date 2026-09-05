@@ -108,10 +108,14 @@
   align-items: stretch;
   gap: 6px;
   padding: 0 20px;
-  border-bottom: 1px solid rgba(21, 88, 85, .1);
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
   overflow-x: auto;
 }
 
+/* .selectTabs/.aiPanel은 항상 어두운 .workPanel 안에서만 쓰인다(PhotoSelectWorkspace/
+   AiPhotoSelectPanel) — 6단계에서 workPanel을 중성 회색으로 바꾸면서, 밝은 배경을 전제로
+   짙게 잡혀 있던 글자색들이 실질적으로 안 보이게 된 걸 브라우저 확인 중 발견해 여기서
+   같이 밝게 바꾼다. */
 .selectTabs button {
   position: relative;
   flex: 0 0 auto;
@@ -122,7 +126,7 @@
   border: 0;
   padding: 0 18px;
   background: transparent;
-  color: #61736f;
+  color: rgba(255, 255, 255, .5);
   font: inherit;
   font-size: 12.5px;
   font-weight: 700;
@@ -130,12 +134,12 @@
 }
 
 .selectTabs button::after { content: ""; position: absolute; right: 14px; bottom: 0; left: 14px; height: 2px; border-radius: 2px; background: transparent; }
-.selectTabs .selectTabActive { color: #155855; }
-.selectTabs .selectTabActive::after { background: #22876a; }
+.selectTabs .selectTabActive { color: #fff; }
+.selectTabs .selectTabActive::after { background: #4fd8b8; }
 
 .aiPanel { padding: 24px 26px 26px; }
-.aiIntro { padding-bottom: 22px; border-bottom: 1px solid rgba(21, 88, 85, .09); }
-.aiIntro > p { margin: 0 0 14px; color: #5a7470; font-size: 12px; line-height: 1.7; }
+.aiIntro { padding-bottom: 22px; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+.aiIntro > p { margin: 0 0 14px; color: rgba(255, 255, 255, .55); font-size: 12px; line-height: 1.7; }
 .searchRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
 .searchInput { min-height: 48px; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(21, 88, 85, .15); border-radius: 11px; padding: 0 14px; color: #8ca19c; background: #fff; }
 .searchInput:focus-within { border-color: #22876a; box-shadow: 0 0 0 3px rgba(34, 135, 106, .09); }
