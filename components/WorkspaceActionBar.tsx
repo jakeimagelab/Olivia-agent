@@ -85,7 +85,6 @@ export default function WorkspaceActionBar({ status, actions }: WorkspaceActionB
   if (process.env.NODE_ENV !== "production") {
     const primaryCount = actions.filter((action) => action.variant === "primary").length;
     if (primaryCount > 1) {
-      // eslint-disable-next-line no-console
       console.warn(`WorkspaceActionBar: 화면당 오렌지 채움(primary) 버튼은 하나만 — 지금 ${primaryCount}개.`);
     }
   }
