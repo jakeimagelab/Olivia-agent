@@ -1078,7 +1078,7 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
 
 
 /* ─── MonthView ───────────────────────────────────────── */
-function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onUpdateTask, onCreateTask, onRequestDelete, onPrev, onNext, onOpenAdd, onOpenEdit, isMobile = false, onNavigateDay, onNavigateYear }: {
+function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onUpdateTask, onCreateTask, onRequestDelete, onPrev, onNext, onOpenAdd, onOpenEdit, isMobile = false, onNavigateDay, onNavigateYear, embedded = false }: {
   year: number; month: number; todayStr: string; selectedDate: string;
   tasksByDate: Record<string, CalTask[]>;
   onSelectDate: (d: string) => void;
@@ -1091,6 +1091,9 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
   isMobile?: boolean;
   onNavigateDay?: (date: string) => void;
   onNavigateYear?: () => void;
+  /* OLIVIA OS 1차 작업 지시서 5단계 — OS 창(embedded)에서만 데일리 루틴을 우측 패널로,
+     범례를 상단 툴바로 옮긴다. /calendar 풀페이지는 기본값 false라 전혀 안 바뀐다. */
+  embedded?: boolean;
 }) {
   const { cells } = buildMonthCells(year, month);
   const [dragTask,     setDragTask]     = useState<CalTask | null>(null);
