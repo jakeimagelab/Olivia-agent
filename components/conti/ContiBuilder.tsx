@@ -260,6 +260,30 @@ export default function ContiBuilder({
   const drawCanvasRef  = useRef<DrawingCanvasHandle>(null);
   const tempDrawingRef = useRef<string | null>(null);
 
+  // ── OLIVIA OS 1차 작업 지시서 4단계 — OS 창 전용 3단 씬 편집 레이아웃(isDesktopWindow) ──
+  // 아이패드 현장뷰(fieldView)의 drawMode 토글과는 별개로, 이 레이아웃에서는 캔버스가 항상
+  // 보이므로 진입 시 한 번 불러오기만 하면 된다(저장은 기존과 동일하게 수동 "저장" 버튼).
+  const [contiRightPanelCollapsed, setContiRightPanelCollapsed] = useState(false);
+  const [contiLeftDrawerOpen, setContiLeftDrawerOpen] = useState(false);
+  const contiEditorRef = useRef<HTMLDivElement>(null);
+  const [contiEditorWidth, setContiEditorWidth] = useState(1200);
+
+  useEffect(() => {
+    const el = contiEditorRef.current;
+    if (!el || !isDesktopWindow || tab !== "conti") return;
+    const update = () => setContiEditorWidth(el.getBoundingClientRect().width);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isDesktopWindow, tab]);
+
+  useEffect(() => {
+    if (!isDesktopWindow || tab !== "conti" || !result) return;
+    loadDrawing();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDesktopWindow, tab]);
+
   const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => (await fetch(dataUrl)).blob();
 
   /* 캔버스 → Supabase Storage 저장 */
