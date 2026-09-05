@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
-import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import type { DesktopOverlayKind } from "./DesktopSystemOverlay";
 import styles from "./OliviaDesktop.module.css";
@@ -91,7 +91,8 @@ export function DesktopTopBar({ onOpenOverlay }: {
   return (
     <div className={styles.topBar}>
       <div className={styles.topBarLeft}>
-        <span className={styles.topBarBrand}>PHOTO CLINIC</span>
+        <span className={styles.topBarBrandMark}><Image src="/assets/photoclinic-mark.png" alt="" width={26} height={26} priority /></span>
+        <span className={styles.topBarBrand}>OLIVIA</span>
         <div className={styles.menuBar} role="menubar" aria-label="시스템 메뉴" ref={menuRef}>
           {MENU_LABELS.map((label) => (
             <div className={styles.menuBarGroup} key={label}>
@@ -104,7 +105,6 @@ export function DesktopTopBar({ onOpenOverlay }: {
         </div>
       </div>
       <div className={styles.topBarRight}>
-        <DesktopGlobalSearch />
         {online !== null ? <span className={styles.topBarStatus} role="status" aria-label={online ? "온라인" : "오프라인"} title={online ? "온라인" : "오프라인"}><span className={`${styles.topBarStatusDot} ${!online ? styles.topBarStatusDotOffline : ""}`} /></span> : null}
         {now ? <span className={styles.topBarClock}>{now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span> : null}
       </div>

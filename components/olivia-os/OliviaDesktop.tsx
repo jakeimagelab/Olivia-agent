@@ -7,7 +7,7 @@ import { useOliviaDesktopContextBridge } from "./useOliviaDesktopContextBridge";
 import { DesktopTopBar } from "./DesktopTopBar";
 import { DesktopSurface } from "./DesktopSurface";
 import { DesktopDock } from "./DesktopDock";
-import { OliviaAssistantLauncher } from "./OliviaAssistantLauncher";
+import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { DesktopSystemOverlay, type DesktopOverlayKind, type WallpaperMode } from "./DesktopSystemOverlay";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import styles from "./OliviaDesktop.module.css";
@@ -125,7 +125,7 @@ export default function OliviaDesktop() {
       <div className={styles.dockArea}>
         <DesktopDock onOpenOverlay={setOverlay} />
       </div>
-      <OliviaAssistantLauncher />
+      <DesktopGlobalSearch />
       {contextMenu ? (
         <div className={styles.desktopContextMenuBackdrop} onPointerDown={() => setContextMenu(undefined)} onContextMenu={(event) => event.preventDefault()}>
           <div className={styles.desktopContextMenu} style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={(event) => event.stopPropagation()}>

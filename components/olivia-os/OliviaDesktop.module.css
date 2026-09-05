@@ -51,8 +51,8 @@
 .topBar {
   position: relative;
   z-index: 8000;
-  flex: 0 0 28px;
-  height: 28px;
+  flex: 0 0 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -84,10 +84,20 @@
 .topBarBrand {
   flex: 0 0 auto;
   color: rgba(255, 255, 255, .96);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: .04em;
 }
+
+.topBarBrandMark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+}
+
+.topBarBrandMark img { width: 26px; height: 26px; object-fit: contain; }
 
 .menuBar {
   gap: 1px;
@@ -99,7 +109,7 @@
 }
 
 .menuBarItem {
-  min-height: 24px;
+  min-height: 30px;
   padding: 0 8px;
   border: 0;
   border-radius: 6px;
@@ -117,7 +127,7 @@
 
 .menuDropdown {
   position: absolute;
-  top: 27px;
+  top: 34px;
   left: 0;
   min-width: 210px;
   padding: 6px;
@@ -172,33 +182,46 @@
   gap: 8px;
 }
 
-.desktopSearch {
-  position: relative;
-  width: clamp(220px, 22vw, 340px);
-  height: 22px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 7px;
-  border: .5px solid rgba(255, 255, 255, .16);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, .12);
-  color: rgba(255, 255, 255, .78);
+.desktopSearchOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: start center;
+  padding: min(18vh, 160px) 16px 16px;
+  background: rgba(3, 24, 21, .2);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 
-.desktopSearch:focus-within { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .28); }
-.topBar .desktopSearch input { width: 100%; min-width: 0; height: auto; padding: 0; border: 0 !important; outline: 0; border-radius: 0; background: transparent !important; box-shadow: none !important; color: #fff; font: 500 11px/1 inherit; }
-.desktopSearch input::placeholder { color: rgba(255, 255, 255, .65); }
-.desktopSearch > button { width: 18px; height: 18px; display: grid; place-items: center; flex: 0 0 18px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: rgba(255, 255, 255, .78); cursor: pointer; }
-.desktopSearch > button:hover { background: rgba(255, 255, 255, .12); }
-.desktopSearch > kbd { flex: 0 0 auto; padding: 2px 5px; border: 1px solid rgba(255, 255, 255, .13); border-radius: 4px; background: rgba(0, 0, 0, .08); color: rgba(255, 255, 255, .68); font: 600 8px/1 inherit; }
+.desktopSearch {
+  position: relative;
+  width: min(680px, calc(100vw - 32px));
+  height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border: .5px solid rgba(255, 255, 255, .72);
+  border-radius: 13px;
+  background: rgba(250, 247, 242, .96);
+  color: #45615b;
+  box-shadow: 0 24px 70px rgba(2, 29, 26, .36), inset 0 1px 0 #fff;
+}
+
+.desktopSearch:focus-within { border-color: rgba(21, 88, 85, .24); }
+.desktopSearch input { width: 100%; min-width: 0; height: auto; padding: 0; border: 0 !important; outline: 0; border-radius: 0; background: transparent !important; box-shadow: none !important; color: #1f3833; font: 500 16px/1 inherit; }
+.desktopSearch input::placeholder { color: #81918d; }
+.desktopSearch > button { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: #637a75; cursor: pointer; }
+.desktopSearch > button:hover { background: rgba(21, 88, 85, .08); }
+.desktopSearch > kbd { flex: 0 0 auto; padding: 4px 7px; border: 1px solid rgba(21, 88, 85, .12); border-radius: 6px; background: rgba(21, 88, 85, .06); color: #6c817c; font: 600 10px/1 inherit; }
 .desktopSearchSpinner { flex: 0 0 auto; animation: widget-spin .8s linear infinite; }
 
 .desktopSearchResults {
   position: absolute;
-  top: 27px;
-  left: 50%;
-  width: min(520px, calc(100vw - 32px));
+  top: calc(100% + 10px);
+  left: 0;
+  width: 100%;
   max-height: min(620px, calc(100dvh - 150px));
   overflow: auto;
   padding: 7px;
@@ -207,7 +230,6 @@
   background: rgba(250, 252, 251, .98);
   box-shadow: 0 24px 70px rgba(2, 29, 26, .34), inset 0 1px 0 #fff;
   color: #29423d;
-  transform: translateX(-50%);
 }
 .desktopSearchResults section + section { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(21, 88, 85, .08); }
 .desktopSearchResults h2 { margin: 0; padding: 6px 8px 4px; color: #81918d; font-size: 8px; font-weight: 800; letter-spacing: .08em; }
@@ -677,29 +699,7 @@
 .dockDivider { width: 1px; align-self: stretch; flex: 0 0 1px; margin: 4px 3px 8px; background: rgba(255, 255, 255, .38); }
 .dockIndicator { position: absolute; bottom: 0; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.85); box-shadow: 0 1px 3px rgba(0,0,0,.32); }
 
-.oliviaLauncher {
-  position: absolute;
-  right: 24px;
-  bottom: 112px;
-  z-index: 7000;
-  width: 58px;
-  height: 58px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(255,255,255,.72);
-  border-radius: 19px;
-  background: linear-gradient(145deg, #f48a57, #e65f2d);
-  color: #fff;
-  box-shadow: 0 16px 34px rgba(124, 43, 15, .32), inset 0 1px 0 rgba(255,255,255,.42);
-  cursor: pointer;
-  transition: transform 170ms ease, box-shadow 170ms ease;
-}
-.oliviaLauncher:hover { transform: translateY(-2px) scale(1.035); box-shadow: 0 19px 40px rgba(124, 43, 15, .39), inset 0 1px 0 rgba(255,255,255,.46); }
-.oliviaLauncher > span { display: grid; place-items: center; }
-.oliviaLauncher > svg { position: absolute; right: 7px; bottom: 6px; opacity: .82; }
-
-.desktopContextMenuBackdrop { position: fixed; inset: 28px 0 0; z-index: 9900; }
+.desktopContextMenuBackdrop { position: fixed; inset: 56px 0 0; z-index: 9900; }
 .desktopContextMenu { position: fixed; width: 210px; padding: 6px; border: 1px solid rgba(255,255,255,.7); border-radius: 11px; background: rgba(250,252,251,.97); box-shadow: 0 18px 46px rgba(2,31,28,.27), inset 0 1px 0 #fff; backdrop-filter: blur(18px); }
 .desktopContextMenu button { width: 100%; min-height: 31px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: #29443e; font: 600 11px/1 inherit; text-align: left; cursor: pointer; }
 .desktopContextMenu button:hover { background: #e5f1ed; color: #0f6258; }
@@ -707,7 +707,7 @@
 
 .systemPopoverBackdrop {
   position: fixed;
-  inset: 28px 0 0;
+  inset: 56px 0 0;
   z-index: 10000;
   display: grid;
   place-items: end center;
@@ -776,7 +776,6 @@
 @media (max-width: 820px) {
   .menuBar { margin-left: 4px; }
   .menuBarGroup:nth-child(4), .menuBarGroup:nth-child(5) { display: none; }
-  .desktopSearch { width: 180px; }
   .topBarStatus { display: none; }
   .dockButton { width: 40px; flex-basis: 40px; }
   .allAppsGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -790,9 +789,6 @@
   .dockButton { width: 37px; flex-basis: 37px; }
   .dockDivider { display: none; }
   .wallpaperChoices { grid-template-columns: 1fr; }
-  .desktopSearch { width: 34px; padding: 0 9px; }
-  .desktopSearch input, .desktopSearch > kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
-  .desktopSearch:focus-within { position: fixed; z-index: 9000; left: 8px; right: 8px; top: 7px; width: auto; }
-  .desktopSearch:focus-within input { position: static; width: 100%; height: auto; overflow: visible; opacity: 1; }
+  .desktopSearchOverlay { padding-top: 78px; }
   .allAppsGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

@@ -15,13 +15,14 @@ describe("OLIVIA OS app registry navigation", () => {
     ]);
   });
 
-  it("keeps Olivia outside the Dock while retaining it as a movable window", () => {
+  it("keeps Olivia in the Dock as a movable singleton window", () => {
     expect(getDockApps().map((app) => app.id)).toEqual([
       "customer",
       "calendar",
       "photo-workspace",
       "documents",
       "review-studio",
+      "olivia-chat",
     ]);
     expect(getOliviaApp("olivia-chat")).toBeDefined();
   });

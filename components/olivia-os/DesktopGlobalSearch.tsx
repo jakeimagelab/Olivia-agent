@@ -21,12 +21,11 @@ const EMPTY_RESULTS: SearchPayload = { customers: [], projects: [], tools: [], d
 
 export function DesktopGlobalSearch() {
   const [query, setQuery] = useState("");
-  const [focused, setFocused] = useState(false);
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchPayload>(EMPTY_RESULTS);
   const [activeIndex, setActiveIndex] = useState(-1);
   const deferredQuery = useDeferredValue(query.trim());
-  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const launchHref = useDesktopAppLauncher();
   const openApp = useOliviaDesktopStore((state) => state.openApp);
@@ -41,22 +40,19 @@ export function DesktopGlobalSearch() {
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
         event.preventDefault();
-        setFocused(true);
-        inputRef.current?.focus();
-        inputRef.current?.select();
+        setOpen(true);
+        window.requestAnimationFrame(() => {
+          inputRef.current?.focus();
+          inputRef.current?.select();
+        });
+      } else if (event.key === "Escape") {
+        setOpen(false);
       }
     };
-    const outside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setFocused(false);
-    };
     window.addEventListener("keydown", keydown);
-    document.addEventListener("pointerdown", outside);
-    return () => {
-      window.removeEventListener("keydown", keydown);
-      document.removeEventListener("pointerdown", outside);
-    };
+    return () => window.removeEventListener("keydown", keydown);
   }, []);
 
   useEffect(() => {
@@ -118,17 +114,17 @@ export function DesktopGlobalSearch() {
       const documentsApp = getOliviaApp("documents");
       if (documentsApp) openApp({ appId: documentsApp.id, title: documentsApp.title, width: documentsApp.defaultSize.width, height: documentsApp.defaultSize.height });
     }
-    setFocused(false);
+    setOpen(false);
   };
 
   const launchResult = (group: string, item: AdminSearchResult | OliviaDocumentRef) => {
     if (group === "document") launchDocument(item as OliviaDocumentRef);
     else launchHref((item as AdminSearchResult).href, (item as AdminSearchResult).title);
-    setFocused(false);
+    setOpen(false);
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Escape") { setFocused(false); inputRef.current?.blur(); return; }
+    if (event.key === "Escape") { setOpen(false); inputRef.current?.blur(); return; }
     if (!flatResults.length) return;
     if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex((index) => (index + 1) % flatResults.length); }
     if (event.key === "ArrowUp") { event.preventDefault(); setActiveIndex((index) => index <= 0 ? flatResults.length - 1 : index - 1); }
@@ -139,26 +135,28 @@ export function DesktopGlobalSearch() {
     }
   };
 
+  if (!open) return null;
+
   return (
-    <div ref={rootRef} className={styles.desktopSearch}>
-      <Search size={14} aria-hidden="true" />
-      <input
-        ref={inputRef}
-        type="search"
-        role="combobox"
-        aria-controls="olivia-desktop-search-results"
-        value={query}
-        placeholder="고객 · 프로젝트 · 자료 · 기능 검색"
-        aria-label="통합검색"
-        aria-expanded={focused && Boolean(deferredQuery)}
-        onChange={(event) => { setQuery(event.target.value); setActiveIndex(-1); }}
-        onFocus={() => setFocused(true)}
-        onKeyDown={onKeyDown}
-      />
+    <div className={styles.desktopSearchOverlay} onPointerDown={() => setOpen(false)}>
+      <div className={styles.desktopSearch} role="dialog" aria-modal="true" aria-label="통합검색" onPointerDown={(event) => event.stopPropagation()}>
+        <Search size={20} aria-hidden="true" />
+        <input
+          ref={inputRef}
+          type="search"
+          role="combobox"
+          aria-controls="olivia-desktop-search-results"
+          value={query}
+          placeholder="고객 · 프로젝트 · 자료 · 기능 검색"
+          aria-label="통합검색"
+          aria-expanded={Boolean(deferredQuery)}
+          onChange={(event) => { setQuery(event.target.value); setActiveIndex(-1); }}
+          onKeyDown={onKeyDown}
+        />
       {loading ? <LoaderCircle className={styles.desktopSearchSpinner} size={13} aria-label="검색 중" /> : query ? (
         <button type="button" onClick={() => { setQuery(""); inputRef.current?.focus(); }} aria-label="검색어 지우기"><X size={13} /></button>
-      ) : <kbd>⌘S</kbd>}
-      {focused && deferredQuery ? (
+      ) : <kbd>⌘F</kbd>}
+      {deferredQuery ? (
         <div id="olivia-desktop-search-results" className={styles.desktopSearchResults} role="listbox">
           {groups.map((group) => group.items.length ? (
             <section key={group.key}>
@@ -189,6 +187,7 @@ export function DesktopGlobalSearch() {
           {!loading && !flatResults.length ? <p>일치하는 검색 결과가 없습니다.</p> : null}
         </div>
       ) : null}
+      </div>
     </div>
   );
 }
