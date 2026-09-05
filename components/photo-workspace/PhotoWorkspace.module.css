@@ -155,13 +155,13 @@
 .primaryButton:disabled, .secondaryButton:disabled, .mutedButton:disabled { cursor: not-allowed; opacity: .46; }
 
 .aiSection { padding-top: 22px; }
-.aiSection h3 { margin: 0 0 13px; color: #20312e; font-size: 13px; }
-.aiSection h3 span { color: #155855; }
+.aiSection h3 { margin: 0 0 13px; color: #fff; font-size: 13px; }
+.aiSection h3 span { color: #4fd8b8; }
 .folderRow { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid rgba(21, 88, 85, .12); border-radius: 11px; padding: 8px 11px 8px 15px; background: #fbfcfc; }
 .folderState { min-width: 0; display: flex; align-items: center; gap: 10px; color: #667a75; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folderState svg { flex: 0 0 auto; color: #79908a; }
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.sectionHeading small { color: #718580; font-size: 11px; }
+.sectionHeading small { color: rgba(255, 255, 255, .45); font-size: 11px; }
 .emptyState { min-height: 220px; display: grid; place-items: center; align-content: center; gap: 14px; border: 1px solid rgba(21, 88, 85, .11); border-radius: 12px; background: #fbfcfc; color: #bec9c6; }
 .emptyState p { margin: 0; color: #61736f; font-size: 12px; }
 .aiActions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
