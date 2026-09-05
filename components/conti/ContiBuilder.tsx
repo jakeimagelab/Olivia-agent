@@ -1398,16 +1398,16 @@ ${header("타임테이블")}
       }}>
 
         {/* ══ 모드 전환: 콘티 작성 / 초상권 작성 ══ */}
-        <div className="pc-tabs" style={{ marginBottom: 24 }}>
-          {([
-            { key: "conti",    label: "촬영 콘티 작성", Icon: ClipboardList },
-            { key: "portrait", label: "초상권 동의서",   Icon: FileSignature },
-          ] as const).map(({ key, label, Icon }) => (
-            <button key={key} onClick={() => setPageMode(key)} className={`pc-tab${pageMode === key ? " pc-tab--active" : ""}`}>
-              <Icon size={13} />{label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          ariaLabel="콘티 작성 모드 선택"
+          value={pageMode}
+          onChange={setPageMode}
+          style={{ marginBottom: 24 }}
+          items={[
+            { value: "conti", label: "촬영 콘티 작성", icon: <ClipboardList size={13} /> },
+            { value: "portrait", label: "초상권 동의서", icon: <FileSignature size={13} /> },
+          ]}
+        />
 
         {pageMode === "portrait" && (
           <PortraitConsentPanel clientId={urlClientId} workflowRunId={urlWorkflowRunId} hospitalName={form.hospitalName} />
