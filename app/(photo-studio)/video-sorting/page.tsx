@@ -522,7 +522,9 @@ export default function VideoSortingPage() {
         </div>
       )}
 
-      <div style={{ background: C.bg, minHeight: "100vh", color: C.txt, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+      {/* OLIVIA OS Desktop UI 제안서 유형 D — 촬영 영상 분류 화면도 미디어 워크벤치라 중성
+          회색. 스텝 인디케이터/카드는 전부 자체 흰 배경이라 영향 없다. */}
+      <div style={{ background: "#2A2A2A", minHeight: "100vh", color: "rgba(255,255,255,.85)", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
         {renderStepIndicator()}
         <div className="ps-wrap" style={{ maxWidth: 960, margin: "0 auto" }}>
 
