@@ -761,6 +761,26 @@ export default function VideoSortingPage() {
                   </Card>
                 ))}
               </div>
+
+              {/* 유형 D — 도구는 하단 플로팅 알약 바로. "폴더 정리 실행"은 파일을 실제로
+                  이동·복사하는, 이 화면에서 가장 되돌리기 어려운 동작이라 화면 유일의
+                  오렌지 버튼으로 둔다(1.2). */}
+              <div style={{ position: "sticky", bottom: 16, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+                <div style={{
+                  pointerEvents: "all", background: "rgba(21,88,85,.95)", color: "#fff", borderRadius: 999,
+                  padding: "10px 12px 10px 22px", display: "flex", alignItems: "center", gap: 14,
+                  boxShadow: "0 4px 20px rgba(0,0,0,.35)",
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                    영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
+                  </span>
+                  <Btn
+                    onClick={handleExportAi}
+                    disabled={!allAnalyzed || classified.length === 0}
+                    style={{ background: C.orange, borderRadius: 999, height: 36 }}
+                  >폴더 정리 실행 →</Btn>
+                </div>
+              </div>
             </div>
           )}
 
