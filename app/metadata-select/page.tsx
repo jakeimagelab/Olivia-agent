@@ -40,7 +40,7 @@ function leafName(name: string): string {
   return name.split("/").pop() ?? name;
 }
 
-function Btn({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) {
+function Btn({ children, onClick, disabled, style: s }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; style?: React.CSSProperties }) {
   return (
     <button
       onClick={onClick}
@@ -50,6 +50,7 @@ function Btn({ children, onClick, disabled }: { children: React.ReactNode; onCli
         cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit",
         background: disabled ? C.border : C.teal, color: disabled ? C.hint : C.white,
         opacity: disabled ? 0.6 : 1, transition: "opacity .15s",
+        ...s,
       }}
     >
       {children}
