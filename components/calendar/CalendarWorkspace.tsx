@@ -2747,7 +2747,7 @@ export default function CalendarWorkspace() {
               onRequestDelete={requestDeleteTask}
               onPrev={prevPeriod} onNext={nextPeriod}
               onOpenAdd={openAddPopover} onOpenEdit={openEditPopover}
-              isMobile={isMobile} onNavigateDay={navigateToDay} onNavigateYear={navigateToYear}/>
+              isMobile={isMobile} onNavigateDay={navigateToDay} onNavigateYear={navigateToYear} embedded={embedded}/>
           </div>
         )}
 
