@@ -13,7 +13,14 @@ export default function RootExperienceShell({ children }: { children: ReactNode 
   const pathname = usePathname();
   const [embedded, setEmbedded] = useState(false);
 
-  useEffect(() => { setEmbedded(window.self !== window.top); }, []);
+  useEffect(() => {
+    const isEmbedded = window.self !== window.top;
+    setEmbedded(isEmbedded);
+    // 전용 Window Adapter가 없는 레거시 페이지는 iframe(LegacyRouteWindowContent) 안에서도
+    // 자기 GlobalHeader/mesh 배경을 그대로 그린다 — 페이지 126개를 각각 고치는 대신
+    // <html>에 클래스를 붙이고 globals.css에서 .pc-header/.analyzer-header를 숨긴다.
+    document.documentElement.classList.toggle("olivia-embedded", isEmbedded);
+  }, []);
 
   // Desktop compatibility Window의 iframe 안에서는 기존 페이지의 기능 내용만 렌더한다.
   // Global sidebar/header와 두 번째 Olivia shell을 넣지 않아 OS chrome이 중복되지 않는다.
