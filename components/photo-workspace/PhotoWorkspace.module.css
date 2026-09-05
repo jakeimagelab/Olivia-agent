@@ -33,50 +33,46 @@
   line-height: 1.55;
 }
 
+/* OLIVIA OS 1차 작업 지시서 6단계 — macOS 세그먼트 컨트롤 모양. 창 타이틀바에 못 넣는
+   이유는 PhotoWorkspace가 전용 OS 창 어댑터로 직접 렌더되긴 하지만(iframe 아님), 이번 단계는
+   지시서가 명시한 대로 콘텐츠 영역 최상단 배치로 통일한다 — 전용 타이틀바 슬롯 체계는
+   범위 밖. */
 .workspaceTabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(21, 88, 85, .07);
   margin-bottom: 18px;
 }
 
 .workspaceTab {
-  min-width: 0;
-  min-height: 104px;
-  display: flex;
+  flex: 0 0 auto;
+  display: inline-flex;
   align-items: center;
-  gap: 15px;
-  border: 1px solid rgba(21, 88, 85, .12);
-  border-radius: 15px;
-  padding: 18px 20px;
-  background: rgba(255, 255, 255, .92);
-  color: #1c2b28;
+  gap: 7px;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 14px;
+  background: transparent;
+  color: #5a7470;
   text-align: left;
   font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(20, 60, 53, .025);
-  transition: transform 260ms cubic-bezier(.32, .72, 0, 1), border-color 260ms cubic-bezier(.32, .72, 0, 1), background 260ms cubic-bezier(.32, .72, 0, 1);
+  transition: background 180ms cubic-bezier(.32, .72, 0, 1), color 180ms cubic-bezier(.32, .72, 0, 1);
 }
 
-.workspaceTab:hover { transform: translateY(-2px); border-color: rgba(21, 88, 85, .28); }
-.workspaceTab:active { transform: translateY(0) scale(.99); }
+.workspaceTab:hover { color: #155855; }
+.workspaceTab:active { transform: scale(.98); }
 .workspaceTab:focus-visible, .selectTabs button:focus-visible, .primaryButton:focus-visible, .secondaryButton:focus-visible, .mutedButton:focus-visible { outline: 3px solid rgba(34, 135, 106, .22); outline-offset: 2px; }
-.workspaceTabActive { border-color: rgba(21, 88, 85, .48); background: #edf7f4; box-shadow: inset 0 0 0 1px rgba(21, 88, 85, .05); }
-
-.workspaceIcon {
-  flex: 0 0 auto;
-  width: 50px;
-  height: 50px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  color: #155855;
-  background: #e6f4f0;
-}
-
-.workspaceTabCopy { min-width: 0; display: grid; gap: 6px; }
-.workspaceTabCopy strong { font-size: 16px; line-height: 1.2; letter-spacing: -.02em; }
-.workspaceTabCopy small { color: #667a75; font-size: 11.5px; line-height: 1.45; }
+.workspaceTabActive { background: #fff; color: #155855; box-shadow: 0 1px 4px rgba(21, 88, 85, .18); }
 
 .workspaceGrid {
   display: grid;
@@ -85,7 +81,19 @@
   align-items: start;
 }
 
-.workPanel, .guide {
+/* 사진 색을 판단하는 화면이라 아이보리 배경에서는 색이 따뜻하게 왜곡돼 보인다 — 작업
+   영역(사진이 실제로 표시되는 workPanel)만 중성 회색으로 바꾼다. guide(우측 안내 패널)는
+   사진이 아니라 텍스트 위주라 밝은 배경을 그대로 둔다. */
+.workPanel {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 16px;
+  background: #2a2a2a;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, .18);
+  overflow: hidden;
+}
+
+.guide {
   min-width: 0;
   border: 1px solid rgba(21, 88, 85, .12);
   border-radius: 16px;
