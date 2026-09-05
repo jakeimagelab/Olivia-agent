@@ -208,7 +208,5 @@
 }
 
 @media (max-width: 430px) {
-  .workspaceTabs { grid-template-columns: 1fr; }
-  .workspaceTab { min-height: 86px; }
   .emptyState { min-height: 180px; }
 }
