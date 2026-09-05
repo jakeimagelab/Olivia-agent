@@ -18,9 +18,23 @@
   --sage: #569082;
   --ivory: #faf7f2;
   --paper: #ffffff;
-  --ink: #222222;
+  --ink: #1c2b28;
   --muted-green: #5A7470;
   --soft-mint: #EAF4F2;
+  /* OLIVIA OS Desktop UI 제안서 2단계(1.9) — 위 토큰들과 이름만 다른 중복을 새로 만들지 않고,
+     문서가 요구하는 이름을 기존 값에 alias한다(--deep-green이 이미 74곳에서 쓰이고 있어
+     이름을 바꾸면 그만큼 건드려야 한다). --ink는 기존 값(#222222)의 실사용처가 7곳뿐이라
+     실제 최다 사용 색(#1c2b28, 237회)으로 교체했다 — 육안상 거의 같은 짙은 색이라 그 7곳도
+     안전하다. 나머지 4개(--teal-soft/--teal-mid/--danger/--line)는 실사용 빈도 상위인데
+     토큰이 아예 없던 색이라 새로 추가한다(색 자체는 새로 "만든" 게 아니라 이미 코드베이스
+     전역에서 쓰이던 값을 그대로 옮긴 것). */
+  --teal: var(--deep-green);
+  --muted: var(--muted-green);
+  --teal-tint: var(--soft-mint);
+  --teal-soft: #9BB5B0;
+  --teal-mid: #22876A;
+  --danger: #DC2626;
+  --line: rgba(0, 0, 0, .09);
 }
 
 /* Native hospital channel analysis */
