@@ -1383,14 +1383,19 @@ export function SelectMatchWorkspace({
         })
       )}
 
-      {/* 하단 고정 액션바 (선택 시만) */}
+      {/* 하단 플로팅 알약 바 (선택 시만) — OLIVIA OS 1차 작업 지시서 6단계: 선택 개수 /
+          전체 해제 / 다음 단계를 한 알약 안에 모은다. borderRadius를 완전한 캡슐 모양으로. */}
       {selected.size > 0 && (
         <div style={{ position: "sticky", bottom: 16, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-          <div style={{ pointerEvents: "all", background: C.teal, color: "white", borderRadius: 12, padding: "12px 28px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 20px rgba(21,88,85,.35)" }}>
-            <span style={{ fontSize: 13, fontWeight: 700 }}>{selected.size}장 선택됨</span>
+          <div style={{ pointerEvents: "all", background: C.teal, color: "white", borderRadius: 999, padding: "10px 12px 10px 22px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 4px 20px rgba(21,88,85,.35)" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>{selected.size}장 선택됨</span>
+            <button
+              onClick={() => setSelected(new Set())}
+              style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(255,255,255,.4)", borderRadius: 999, color: "white", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+            >전체 해제</button>
             <button
               onClick={() => runPreflight()}
-              style={{ padding: "7px 18px", background: "rgba(255,255,255,.2)", border: "1px solid rgba(255,255,255,.4)", borderRadius: 8, color: "white", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}
+              style={{ padding: "7px 18px", background: "rgba(255,255,255,.2)", border: "1px solid rgba(255,255,255,.4)", borderRadius: 999, color: "white", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
             >RAW 매칭 확인 →</button>
           </div>
         </div>
