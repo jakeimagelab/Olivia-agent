@@ -1163,6 +1163,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
       </div>
 
       {/* ── Weekday row */}
+      {(() => { const weekdayRowNode = (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)",
         background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0 }}>
         {WEEKDAYS.map((w, i) => (
@@ -1172,10 +1173,13 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
           </div>
         ))}
       </div>
+      );
 
-      {/* ── Day grid — 주 수(5~6주)에 따라 실제 높이가 달라지고, 남는 세로 공간은 아래
-          데일리 루틴 패널이 flex:1로 흡수한다(예전엔 이 div가 flex:1이라 그리드 밑에 빈
-          배경색만 남았다). */}
+      /* ── Day grid — 주 수(5~6주)에 따라 실제 높이가 달라지고, embedded가 아니면 남는 세로
+          공간은 아래 데일리 루틴 패널이 flex:1로 흡수한다(예전엔 이 div가 flex:1이라 그리드
+          밑에 빈 배경색만 남았다). embedded면 데일리 루틴/범례가 이 흐름 밖(우측 패널/상단
+          툴바)으로 빠지므로 그리드 자신이 남는 공간을 전부 흡수한다. */
+      const gridNode = (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)",
         gridAutoRows: "minmax(0,1fr)", gap: "1px", background: "rgba(21,88,85,.08)",
         flex: "1 1 0", minHeight: 0, overflow: "hidden" }}>
