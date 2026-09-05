@@ -59,7 +59,6 @@ export default function ContiSetupForm({
 
       <form onSubmit={onSubmit} style={{ display: "grid", gap: 18, background: "#fff", border: "1px solid rgba(21,88,85,.14)", borderRadius: 14, padding: 24 }}>
         <div>
-          <p className="admin-kicker" style={{ marginBottom: 5 }}>Conti setup</p>
           <h2 style={{ margin: 0, color: "#155855", fontSize: 20 }}>촬영에 필요한 핵심 정보만 입력하세요</h2>
         </div>
         <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
