@@ -2124,7 +2124,13 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </Field>
           </header>
 
-          <Panel title="고객 정보" icon={<UserRound size={18} />}>
+          <Panel
+            title="고객 정보"
+            icon={<UserRound size={18} />}
+            collapsible={isModal}
+            defaultOpen
+            summary={customer.hospitalName || "미입력"}
+          >
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label={cfg.entityLabel}>
                 <input
