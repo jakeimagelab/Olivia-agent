@@ -1539,7 +1539,7 @@ ${header("타임테이블")}
               ariaLabel="콘티 결과 화면 선택"
               value={tab}
               onChange={setTab}
-              style={{ marginLeft: 24, marginRight: 24, marginBottom: 16 }}
+              style={{ marginBottom: 16 }}
               items={isDesktopWindow ? [
                 { value: "conti", label: "씬 편집", icon: <ClipboardList size={13} /> },
                 { value: "schedule", label: "타임테이블", icon: <Clock size={13} /> },
