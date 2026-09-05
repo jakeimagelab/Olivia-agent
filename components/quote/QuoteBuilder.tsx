@@ -2192,7 +2192,13 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           </Panel>
 
           {brand === "photoclinic" && (
-            <Panel title="패키지 선택" icon={<WalletCards size={18} />}>
+            <Panel
+              title="패키지 선택"
+              icon={<WalletCards size={18} />}
+              collapsible={isModal}
+              defaultOpen
+              summary={selectedPackage?.name ?? "패키지 선택 안 함"}
+            >
               <div className="grid gap-3">
                 <button
                   type="button"
