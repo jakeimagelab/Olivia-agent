@@ -34,14 +34,12 @@ export default function PhotoWorkspaceTabs({
             id={`photo-workspace-tab-${mode}`}
             aria-selected={active}
             aria-controls={`photo-workspace-panel-${mode}`}
+            title={description}
             className={`${styles.workspaceTab}${active ? ` ${styles.workspaceTabActive}` : ""}`}
             onClick={() => onChange(mode)}
           >
-            <span className={styles.workspaceIcon} aria-hidden="true"><Icon size={21} strokeWidth={1.8} /></span>
-            <span className={styles.workspaceTabCopy}>
-              <strong>{title}</strong>
-              <small>{description}</small>
-            </span>
+            <Icon size={15} strokeWidth={2} aria-hidden="true" />
+            <span>{title}</span>
           </button>
         );
       })}
