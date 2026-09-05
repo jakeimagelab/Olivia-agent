@@ -604,6 +604,19 @@ main:has(> .pc-header) {
   color: var(--ink);
 }
 
+/* ── OLIVIA OS iframe 임베드(LegacyRouteWindowContent) — 전용 Window Adapter가 없는
+   페이지는 창 안에서도 자기 헤더/배경을 다시 그려 이중 크롬이 생긴다. 페이지 쪽을 고치는
+   대신 RootExperienceShell.tsx가 iframe 감지 시 <html>에 붙이는 클래스로 숨긴다. ── */
+.olivia-embedded .pc-header,
+.olivia-embedded .analyzer-header {
+  display: none;
+}
+
+.olivia-embedded main:has(> .pc-header),
+.olivia-embedded div:has(> .pc-header) {
+  background: transparent !important;
+}
+
 .admin-shell {
   min-height: 100vh;
   background: var(--mesh-bg);
