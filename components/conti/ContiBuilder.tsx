@@ -1637,7 +1637,10 @@ ${header("타임테이블")}
                   <div style={{ width: 210, flexShrink: 0, display: "flex", flexDirection: "column", background: "#fff", height: "100%" }}>
                     <div style={{ padding: "10px 12px", borderBottom: "1px solid rgba(21,88,85,.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <span style={{ fontSize: 11.5, fontWeight: 800, color: "#5A7470" }}>{activeIndex >= 0 ? `씬 ${activeIndex + 1} 설정` : "씬 설정"}</span>
-                      <button type="button" onClick={() => setContiRightPanelCollapsed(true)} title="패널 접기" style={{ border: 0, background: "transparent", cursor: "pointer", color: "#8a8377" }}>
+                      {/* rightPanelOpen = wide ? !collapsed : collapsed 라서, "닫기"는 wide일
+                          때 collapsed=true, narrow(서랍)일 때는 collapsed=false여야 한다 —
+                          단순히 true로 고정하면 서랍 모드에서 오히려 안 닫히는 버그가 된다. */}
+                      <button type="button" onClick={() => setContiRightPanelCollapsed(wide)} title="패널 접기" style={{ border: 0, background: "transparent", cursor: "pointer", color: "#8a8377" }}>
                         <Minus size={14} />
                       </button>
                     </div>
