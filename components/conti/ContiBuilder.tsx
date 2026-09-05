@@ -1687,7 +1687,7 @@ ${header("타임테이블")}
                     <div style={{ padding: "10px 12px", borderTop: "1px solid rgba(21,88,85,.1)", fontSize: 11.5, fontWeight: 800, color: "#5A7470" }}>
                       준비 체크리스트
                     </div>
-                    <div style={{ flex: 1, overflow: "auto" }}>
+                    <div style={{ flex: 1, minHeight: 120, overflow: "auto" }}>
                       <ContiChecklist
                         rows={result.checklist}
                         dragOverIndex={dragOver?.type === "checklist" ? dragOver.index : undefined}
