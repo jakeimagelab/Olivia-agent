@@ -70,7 +70,9 @@ export default function SegmentedTabs<T extends string>({ items, value, onChange
             key={item.value}
             type="button"
             role="tab"
+            id={item.id}
             aria-selected={active}
+            aria-controls={item.panelId}
             title={item.title}
             style={tabStyle(active)}
             onClick={() => onChange(item.value)}
