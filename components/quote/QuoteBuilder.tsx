@@ -2291,7 +2291,17 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </div>
           </Panel>
 
-          <Panel title="추가 옵션">
+          <Panel
+            title="추가 옵션"
+            collapsible={isModal}
+            defaultOpen={false}
+            summary={(() => {
+              const activeOptionCount =
+                [profileCount > 0, stagedCount > 0, combinedProfileStagedCount > 0, floorCount > 0, largeHospital, droneCount > 0].filter(Boolean).length +
+                customItems.length;
+              return activeOptionCount > 0 ? `${activeOptionCount}개` : "없음";
+            })()}
+          >
             <div className="grid gap-3">
               {brand === "photoclinic" && (
                 <>
