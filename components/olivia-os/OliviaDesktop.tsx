@@ -39,8 +39,6 @@ async function optimizeWallpaper(file: File): Promise<string> {
 // OLIVIA OS Phase 1 루트 셸 — TopBar + Surface(shortcuts+windows) + Dock 조립.
 // height:100dvh overflow:hidden으로 body가 page처럼 길어지지 않게 한다(스펙 1-1).
 export default function OliviaDesktop() {
-  const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
-  const activeTitle = useOliviaDesktopStore((state) => (activeWindowId ? state.windows[activeWindowId]?.title ?? null : null));
   const [overlay, setOverlay] = useState<DesktopOverlayKind>(null);
   const [wallpaper, setWallpaper] = useState<WallpaperMode>("original");
   const [customWallpaper, setCustomWallpaper] = useState<string>();
@@ -118,7 +116,7 @@ export default function OliviaDesktop() {
       <div className={styles.wallpaperLayer} style={wallpaper === "custom" && customWallpaper ? { backgroundImage: `url("${customWallpaper}")` } : undefined} aria-hidden="true" />
       <div className={styles.overlayLayer} aria-hidden="true" />
       <div className={styles.vignetteLayer} aria-hidden="true" />
-      <DesktopTopBar activeAppTitle={activeTitle} onOpenOverlay={setOverlay} />
+      <DesktopTopBar onOpenOverlay={setOverlay} />
       <HomeDashboardDataProvider>
         <div className={styles.desktopBody}>
           <DesktopSurface onDesktopContextMenu={(x, y) => setContextMenu({ x, y })} />

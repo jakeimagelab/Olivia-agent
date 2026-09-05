@@ -51,57 +51,47 @@
 .topBar {
   position: relative;
   z-index: 8000;
-  flex: 0 0 46px;
-  height: 46px;
+  flex: 0 0 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 0 18px;
-  background: rgba(5, 66, 59, .93);
-  border-bottom: 1px solid rgba(255, 255, 255, .12);
-  box-shadow: 0 2px 12px rgba(2, 31, 28, .12);
-  color: #f5fbf8;
+  gap: 14px;
+  padding: 0 20px;
+  background: rgba(21, 88, 85, .55);
+  border-bottom: .5px solid rgba(255, 255, 255, .18);
+  box-shadow: 0 1px 8px rgba(2, 31, 28, .12);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  color: rgba(255, 255, 255, .92);
+  font-size: 13px;
 }
 
 .topBarLeft,
 .topBarRight,
 .menuBar,
 .topBarSearch,
-.topBarStatus,
-.topBarActiveTitle {
+.topBarStatus {
   display: flex;
   align-items: center;
 }
 
 .topBarLeft {
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-}
-
-.topBarBrandMark {
-  width: 21px;
-  height: 21px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 21px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #fff;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .34);
 }
 
 .topBarBrand {
   flex: 0 0 auto;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .025em;
+  color: rgba(255, 255, 255, .96);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .menuBar {
   gap: 1px;
-  margin-left: 14px;
+  margin-left: 12px;
 }
 
 .menuBarGroup {
@@ -109,13 +99,13 @@
 }
 
 .menuBarItem {
-  min-height: 28px;
-  padding: 0 9px;
+  min-height: 24px;
+  padding: 0 8px;
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: rgba(248, 253, 251, .9);
-  font: 560 12px/1 inherit;
+  color: rgba(255, 255, 255, .78);
+  font: 500 13px/1 inherit;
   cursor: pointer;
 }
 
@@ -127,7 +117,7 @@
 
 .menuDropdown {
   position: absolute;
-  top: 32px;
+  top: 27px;
   left: 0;
   min-width: 210px;
   padding: 6px;
@@ -177,50 +167,36 @@
   background: rgba(17, 83, 75, .1);
 }
 
-.topBarActiveTitle {
-  gap: 6px;
-  min-width: 0;
-  color: rgba(247, 252, 250, .76);
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.topBarActiveTitleDot {
-  color: rgba(255, 255, 255, .42);
-}
-
 .topBarRight {
   flex: 0 0 auto;
-  gap: 9px;
+  gap: 8px;
 }
 
 .desktopSearch {
   position: relative;
-  width: clamp(230px, 24vw, 360px);
-  height: 30px;
+  width: clamp(220px, 22vw, 340px);
+  height: 22px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 8px;
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 8px;
+  gap: 6px;
+  padding: 0 7px;
+  border: .5px solid rgba(255, 255, 255, .16);
+  border-radius: 6px;
   background: rgba(255, 255, 255, .12);
   color: rgba(255, 255, 255, .78);
 }
 
 .desktopSearch:focus-within { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .28); }
-.topBar .desktopSearch input { width: 100%; min-width: 0; height: auto; padding: 0; border: 0 !important; outline: 0; border-radius: 0; background: transparent !important; box-shadow: none !important; color: #fff; font: 560 11px/1 inherit; }
+.topBar .desktopSearch input { width: 100%; min-width: 0; height: auto; padding: 0; border: 0 !important; outline: 0; border-radius: 0; background: transparent !important; box-shadow: none !important; color: #fff; font: 500 11px/1 inherit; }
 .desktopSearch input::placeholder { color: rgba(255, 255, 255, .65); }
-.desktopSearch > button { width: 22px; height: 22px; display: grid; place-items: center; flex: 0 0 22px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: rgba(255, 255, 255, .78); cursor: pointer; }
+.desktopSearch > button { width: 18px; height: 18px; display: grid; place-items: center; flex: 0 0 18px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: rgba(255, 255, 255, .78); cursor: pointer; }
 .desktopSearch > button:hover { background: rgba(255, 255, 255, .12); }
 .desktopSearch > kbd { flex: 0 0 auto; padding: 2px 5px; border: 1px solid rgba(255, 255, 255, .13); border-radius: 4px; background: rgba(0, 0, 0, .08); color: rgba(255, 255, 255, .68); font: 600 8px/1 inherit; }
 .desktopSearchSpinner { flex: 0 0 auto; animation: widget-spin .8s linear infinite; }
 
 .desktopSearchResults {
   position: absolute;
-  top: 36px;
+  top: 27px;
   left: 50%;
   width: min(520px, calc(100vw - 32px));
   max-height: min(620px, calc(100dvh - 150px));
@@ -281,10 +257,9 @@
 .topBarIconButton:hover { background: rgba(255, 255, 255, .12); }
 
 .topBarStatus {
-  gap: 6px;
-  color: rgba(255, 255, 255, .86);
-  font-size: 10.5px;
-  font-weight: 650;
+  width: 14px;
+  height: 22px;
+  justify-content: center;
 }
 
 .topBarStatusDot {
@@ -292,17 +267,15 @@
   height: 6px;
   border-radius: 50%;
   background: #70d7a9;
-  box-shadow: 0 0 0 3px rgba(112, 215, 169, .12);
+  box-shadow: 0 0 0 2px rgba(112, 215, 169, .12);
 }
 .topBarStatusDotOffline { background: #e8a27f; }
 
 .topBarClock {
-  min-width: 70px;
-  padding-left: 10px;
-  border-left: 1px solid rgba(255, 255, 255, .14);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 650;
+  min-width: 64px;
+  color: rgba(255, 255, 255, .92);
+  font-size: 12px;
+  font-weight: 500;
   text-align: right;
 }
 
@@ -647,41 +620,62 @@
 
 .dock {
   max-width: 100%;
-  min-height: 76px;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  padding: 10px 14px;
-  overflow-x: auto;
-  border: 1px solid rgba(255, 255, 255, .58);
-  border-radius: 20px;
-  background: rgba(245, 250, 247, .82);
-  box-shadow: 0 22px 58px rgba(3, 30, 27, .28), 0 5px 16px rgba(3, 30, 27, .13), inset 0 1px 0 rgba(255, 255, 255, .8);
-  backdrop-filter: blur(22px) saturate(135%);
+  gap: 6px;
+  padding: 8px 10px 10px;
+  overflow: visible;
+  border: .5px solid rgba(255, 255, 255, .45);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .24);
+  box-shadow: 0 18px 50px rgba(3, 30, 27, .26), inset 0 1px 0 rgba(255, 255, 255, .34);
+  backdrop-filter: blur(50px) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
   pointer-events: auto;
 }
 
 .dockButton {
   position: relative;
-  width: 55px;
-  flex: 0 0 55px;
+  width: 52px;
+  flex: 0 0 52px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 3px 0 10px;
+  padding: 0 2px 8px;
+  overflow: visible;
   border: 0;
   border-radius: 12px;
   background: transparent;
   color: #155855;
   cursor: pointer;
   transform-origin: bottom center;
-  transition: transform 180ms cubic-bezier(.22, 1, .36, 1), background 180ms cubic-bezier(.22, 1, .36, 1);
+  transition: transform 180ms cubic-bezier(.22, 1, .36, 1);
 }
-.dockButton:hover { background: rgba(21, 88, 85, .08); transform: translateY(-3px) scale(1.035); }
-.dockButton.active { background: rgba(226, 240, 235, .92); }
-.dockLabel { margin-top: 2px; color: #245b54; font-size: 8.5px; font-weight: 720; white-space: nowrap; }
-.dockDivider { width: 1px; align-self: stretch; flex: 0 0 1px; margin: 3px 1px; background: rgba(21, 88, 85, .14); }
-.dockIndicator { position: absolute; bottom: 0; width: 8px; height: 8px; border: 1.5px solid rgba(255,255,255,.96); border-radius: 50%; background: #ed612d; box-shadow: 0 2px 8px rgba(201, 59, 13, .72); }
+.dockButton:hover { transform: translateY(-4px) scale(1.12); }
+.dockTooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  z-index: 2;
+  max-width: 150px;
+  padding: 5px 8px;
+  border: .5px solid rgba(255,255,255,.5);
+  border-radius: 6px;
+  background: rgba(33, 38, 37, .86);
+  color: rgba(255,255,255,.96);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px) scale(.96);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.dockButton:hover .dockTooltip,
+.dockButton:focus-visible .dockTooltip { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.dockDivider { width: 1px; align-self: stretch; flex: 0 0 1px; margin: 4px 3px 8px; background: rgba(255, 255, 255, .38); }
+.dockIndicator { position: absolute; bottom: 0; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.85); box-shadow: 0 1px 3px rgba(0,0,0,.32); }
 
 .oliviaLauncher {
   position: absolute;
@@ -705,7 +699,7 @@
 .oliviaLauncher > span { display: grid; place-items: center; }
 .oliviaLauncher > svg { position: absolute; right: 7px; bottom: 6px; opacity: .82; }
 
-.desktopContextMenuBackdrop { position: fixed; inset: 46px 0 0; z-index: 9900; }
+.desktopContextMenuBackdrop { position: fixed; inset: 28px 0 0; z-index: 9900; }
 .desktopContextMenu { position: fixed; width: 210px; padding: 6px; border: 1px solid rgba(255,255,255,.7); border-radius: 11px; background: rgba(250,252,251,.97); box-shadow: 0 18px 46px rgba(2,31,28,.27), inset 0 1px 0 #fff; backdrop-filter: blur(18px); }
 .desktopContextMenu button { width: 100%; min-height: 31px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: #29443e; font: 600 11px/1 inherit; text-align: left; cursor: pointer; }
 .desktopContextMenu button:hover { background: #e5f1ed; color: #0f6258; }
@@ -713,7 +707,7 @@
 
 .systemPopoverBackdrop {
   position: fixed;
-  inset: 46px 0 0;
+  inset: 28px 0 0;
   z-index: 10000;
   display: grid;
   place-items: end center;
@@ -777,7 +771,6 @@
   .dock { min-height: 68px; gap: 2px; padding: 7px 8px; border-radius: 17px; }
   .dockButton { width: 43px; flex-basis: 43px; }
   .dockLabel { display: none; }
-  .topBarActiveTitle { display: none; }
 }
 
 @media (max-width: 820px) {
@@ -792,6 +785,7 @@
 @media (max-width: 560px) {
   .topBar { padding-inline: 10px; }
   .menuBarGroup:nth-child(3), .menuBarGroup:nth-child(6) { display: none; }
+  .dock { overflow-x: auto; overflow-y: hidden; }
   .topBarClock { min-width: 58px; font-size: 10px; }
   .dockButton { width: 37px; flex-basis: 37px; }
   .dockDivider { display: none; }

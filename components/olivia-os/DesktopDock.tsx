@@ -1,12 +1,17 @@
 "use client";
 
-import { Image as ImageIcon, Layers, LayoutGrid, PenLine } from "lucide-react";
 import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { Icon } from "@/components/Icon";
 import { AppIcon } from "./AppIcon";
+import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import styles from "./OliviaDesktop.module.css";
 
 import type { DesktopOverlayKind } from "./DesktopSystemOverlay";
+
+function DockTooltip({ children }: { children: string }) {
+  return <span className={styles.dockTooltip} role="tooltip">{children}</span>;
+}
 
 export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOverlayKind) => void }) {
   const windows = useOliviaDesktopStore((state) => state.windows);
@@ -15,6 +20,7 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const restoreWindow = useOliviaDesktopStore((state) => state.restoreWindow);
   const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
+  const launchHref = useDesktopAppLauncher();
 
   const fixedDockApps = getDockApps();
   const fixedDockIds = new Set(fixedDockApps.map((app) => app.id));
@@ -45,9 +51,9 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
 
   return (
     <div className={styles.dock} role="toolbar" aria-label="Dock">
-      <button type="button" className={styles.dockButton} onClick={toggleShowDesktop} aria-label="바탕화면 보기">
-        <AppIcon icon={<Layers size={24} />} size={46} />
-        <span className={styles.dockLabel}>Desktop</span>
+      <button type="button" className={styles.dockButton} onClick={toggleShowDesktop} aria-label="바탕화면 보기" data-tooltip="바탕화면 보기">
+        <DockTooltip>바탕화면 보기</DockTooltip>
+        <AppIcon icon={<Icon name="today" size={26} aria-hidden focusable={false} />} size={48} />
       </button>
       <div className={styles.dockDivider} />
       {dockApps.map((app) => {
@@ -61,27 +67,33 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
             className={`${styles.dockButton} ${active ? styles.active : ""}`}
             onClick={() => handleDockClick(app.id, app.title, app.defaultSize.width, app.defaultSize.height)}
             aria-label={app.title}
+            data-tooltip={app.title}
           >
-            <AppIcon icon={app.icon} size={46} active={active} />
-            <span className={styles.dockLabel}>{app.title}</span>
+            <DockTooltip>{app.title}</DockTooltip>
+            <AppIcon icon={app.icon} size={48} active={active} />
             {running && <span className={styles.dockIndicator} />}
           </button>
         );
       })}
-      <div className={styles.dockDivider} />
-      <button type="button" className={styles.dockButton} onClick={openMemo} aria-label="메모">
-        <AppIcon icon={<PenLine size={24} />} size={46} />
-        <span className={styles.dockLabel}>메모</span>
+      <button type="button" className={styles.dockButton} onClick={openMemo} aria-label="메모" data-tooltip="메모">
+        <DockTooltip>메모</DockTooltip>
+        <AppIcon icon={<Icon name="memo" size={26} aria-hidden focusable={false} />} size={48} active={activeWindowId === "memo"} />
         {windows.memo ? <span className={styles.dockIndicator} /> : null}
       </button>
-      <button type="button" className={styles.dockButton} onClick={openAllApps} aria-label="모든 앱">
-        <AppIcon icon={<LayoutGrid size={24} />} size={46} />
-        <span className={styles.dockLabel}>모든 앱</span>
+      <div className={styles.dockDivider} />
+      <button type="button" className={styles.dockButton} onClick={openAllApps} aria-label="모든 앱" data-tooltip="모든 앱">
+        <DockTooltip>모든 앱</DockTooltip>
+        <AppIcon icon={<Icon name="workspace" size={26} aria-hidden focusable={false} />} size={48} active={activeWindowId === "all-apps"} />
         {windows["all-apps"] ? <span className={styles.dockIndicator} /> : null}
       </button>
-      <button type="button" className={styles.dockButton} onClick={() => onOpenOverlay("wallpaper")} aria-label="배경화면">
-        <AppIcon icon={<ImageIcon size={24} />} size={46} />
-        <span className={styles.dockLabel}>배경</span>
+      <button type="button" className={styles.dockButton} onClick={() => onOpenOverlay("wallpaper")} aria-label="배경화면" data-tooltip="배경화면">
+        <DockTooltip>배경화면</DockTooltip>
+        <AppIcon icon={<Icon name="image-director" size={26} aria-hidden focusable={false} />} size={48} />
+      </button>
+      <button type="button" className={styles.dockButton} onClick={() => launchHref("/trash", "휴지통")} aria-label="휴지통" data-tooltip="휴지통">
+        <DockTooltip>휴지통</DockTooltip>
+        <AppIcon icon={<Icon name="trash" size={26} aria-hidden focusable={false} />} size={48} active={windows["legacy-route"]?.context?.resourceId === "/trash"} />
+        {windows["legacy-route"]?.context?.resourceId === "/trash" ? <span className={styles.dockIndicator} /> : null}
       </button>
     </div>
   );

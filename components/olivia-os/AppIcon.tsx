@@ -17,7 +17,7 @@ export function AppIcon({ icon, size = 44, variant = "dock", active = false }: {
   return (
     <span
       className={`${styles.tile} ${variant === "shortcut" ? styles.shortcut : styles.dock} ${active ? styles.active : ""}`}
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.28) }}
+      style={{ width: size, height: size, borderRadius: variant === "dock" ? 12 : Math.round(size * 0.28) }}
     >
       {icon}
     </span>

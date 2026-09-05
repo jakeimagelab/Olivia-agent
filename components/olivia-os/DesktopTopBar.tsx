@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
 import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
@@ -11,8 +10,7 @@ import styles from "./OliviaDesktop.module.css";
 type MenuKey = "파일" | "편집" | "보기" | "이동" | "도구" | "도움말";
 const MENU_LABELS: MenuKey[] = ["파일", "편집", "보기", "이동", "도구", "도움말"];
 
-export function DesktopTopBar({ activeAppTitle, onOpenOverlay }: {
-  activeAppTitle: string | null;
+export function DesktopTopBar({ onOpenOverlay }: {
   onOpenOverlay: (kind: DesktopOverlayKind) => void;
 }) {
   const [now, setNow] = useState<Date | null>(null);
@@ -93,7 +91,6 @@ export function DesktopTopBar({ activeAppTitle, onOpenOverlay }: {
   return (
     <div className={styles.topBar}>
       <div className={styles.topBarLeft}>
-        <span className={styles.topBarBrandMark}><Image src="/assets/photoclinic-mark.png" alt="" width={22} height={22} priority /></span>
         <span className={styles.topBarBrand}>PHOTO CLINIC</span>
         <div className={styles.menuBar} role="menubar" aria-label="시스템 메뉴" ref={menuRef}>
           {MENU_LABELS.map((label) => (
@@ -105,11 +102,10 @@ export function DesktopTopBar({ activeAppTitle, onOpenOverlay }: {
             </div>
           ))}
         </div>
-        {activeAppTitle ? <span className={styles.topBarActiveTitle}><span className={styles.topBarActiveTitleDot}>·</span>{activeAppTitle}</span> : null}
       </div>
       <div className={styles.topBarRight}>
         <DesktopGlobalSearch />
-        {online !== null ? <span className={styles.topBarStatus}><span className={`${styles.topBarStatusDot} ${!online ? styles.topBarStatusDotOffline : ""}`} />{online ? "온라인" : "오프라인"}</span> : null}
+        {online !== null ? <span className={styles.topBarStatus} role="status" aria-label={online ? "온라인" : "오프라인"} title={online ? "온라인" : "오프라인"}><span className={`${styles.topBarStatusDot} ${!online ? styles.topBarStatusDotOffline : ""}`} /></span> : null}
         {now ? <span className={styles.topBarClock}>{now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span> : null}
       </div>
     </div>

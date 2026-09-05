@@ -9035,6 +9035,69 @@ main,
   background: var(--olivia-green);
 }
 
+/* Desktop Window 안에서만 고객 목록을 macOS 사이드바처럼 표현한다. standalone /clients의
+   카드 표현은 유지하고, 선택 행 역시 브랜드 딥 틸의 낮은 농도만 사용한다. */
+.olivia-os-clients-window .pcrm-workspace-grid > .pc-card {
+  background: rgba(250, 247, 242, .62);
+  border-color: rgba(255, 255, 255, .5);
+  border-radius: 10px;
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(30px);
+  backdrop-filter: blur(30px);
+}
+
+.olivia-os-clients-window .pcrm-customer-list-row[data-active="true"] {
+  border-color: transparent;
+  border-radius: 6px;
+  background: rgba(21, 88, 85, .12);
+}
+
+.olivia-os-clients-window .pcrm-customer-list-row[data-active="true"] strong,
+.olivia-os-clients-window .pcrm-customer-list-row[data-active="true"] .pcrm-customer-list-row__arrow {
+  color: #155855;
+}
+
+/* Olivia OS의 빈 채팅은 큰 웹 랜딩 화면 대신 입력창 바로 위의 간결한 안내/빠른 실행으로
+   보이게 한다. 실제 대화, suggestion action, conversation store는 그대로 재사용한다. */
+.olivia-os-chat-dock .olivia-conversation__messages:has(.olivia-conversation__welcome) {
+  justify-content: flex-end;
+  padding: 12px 14px 6px;
+}
+
+.olivia-os-chat-dock .olivia-conversation__welcome {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.olivia-os-chat-dock .olivia-conversation__welcome > span { display: none; }
+
+.olivia-os-chat-dock .olivia-conversation__welcome h1 {
+  margin: 0;
+  color: #445b56;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -.01em;
+}
+
+.olivia-os-chat-dock .olivia-conversation__welcome p {
+  display: none;
+}
+
+.olivia-os-chat-dock .olivia-conversation__welcome .olivia-conversation__suggestions {
+  justify-content: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.olivia-os-chat-dock .olivia-conversation__welcome .olivia-conversation__suggestions button {
+  min-height: 28px;
+  padding-inline: 10px;
+  background: rgba(255, 255, 255, .86);
+  font-size: 8.5px;
+}
+
 /* OS 채팅은 왼쪽의 대화 기록 목록을 노출하지 않는다. 긴 대화에서는 기존 메시지별
    막대 Navigator를 오른쪽에 작고 촘촘하게 표시한다. */
 body .olivia-os-chat-dock .olivia-history-nav {

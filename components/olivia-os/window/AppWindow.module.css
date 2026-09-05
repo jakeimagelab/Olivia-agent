@@ -4,18 +4,17 @@
   flex-direction: column;
   /* 순백색 대신 아주 살짝 톤 다운된 warm white — wallpaper 위에서 카드가 아니라 뜬 앱처럼. */
   background: rgba(253, 254, 253, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.70);
-  border-radius: 16px;
-  /* inactive: 옅은 shadow + top highlight(1px)로 배경과 확실히 분리한다. */
-  box-shadow: 0 28px 80px rgba(3, 27, 24, 0.30), 0 8px 26px rgba(3, 27, 24, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  transition: box-shadow 200ms cubic-bezier(.22, 1, .36, 1);
+  border: .5px solid rgba(255, 255, 255, .64);
+  border-radius: 10px;
+  /* 기본값은 비활성 창. focus된 창만 아래 .active에서 더 깊어진다. */
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .28), 0 2px 6px rgba(0, 0, 0, .16);
+  transition: border-color 180ms ease, box-shadow 180ms cubic-bezier(.22, 1, .36, 1);
   pointer-events: auto;
 }
 
 .window.active {
-  border-color: rgba(255, 255, 255, 0.85);
-  /* active: 더 선명하고 깊은 shadow. */
-  box-shadow: 0 38px 96px rgba(3, 27, 24, 0.40), 0 10px 32px rgba(3, 27, 24, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, .82);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .38), 0 2px 8px rgba(0, 0, 0, .22);
 }
 
 /* header+content만 감싸서 둥근 모서리로 잘라낸다 — resize handle은 이 wrapper 밖(.window
@@ -33,12 +32,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 40px;
-  padding: 0 10px;
+  height: 38px;
+  padding: 0 12px;
   flex-shrink: 0;
-  /* 단순 회색 대신 아주 은은한 세로 그라데이션. */
-  background: linear-gradient(180deg, rgba(252, 254, 253, 0.98), rgba(246, 250, 248, 0.96));
-  border-bottom: 1px solid rgba(21, 88, 85, 0.1);
+  background: linear-gradient(180deg, rgba(249, 249, 247, .98), rgba(243, 243, 240, .96));
+  border-bottom: .5px solid rgba(35, 47, 44, .12);
   cursor: grab;
   user-select: none;
 }
@@ -52,7 +50,7 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  padding-left: 2px;
+  padding-left: 8px;
 }
 
 /* macOS 트래픽라이트 — 평소엔 색 원만, hover 시에만 내부 글리프가 나타난다. */
@@ -66,6 +64,7 @@
   border-radius: 999px;
   cursor: pointer;
   color: transparent;
+  background: #D6D6D2;
 }
 
 .trafficLight:hover .trafficLightGlyph,
@@ -78,7 +77,7 @@
 }
 
 .trafficLightClose {
-  background: #FF5F57;
+  background: #D6D6D2;
 }
 
 .trafficLightDisabled {
@@ -87,23 +86,32 @@
 }
 
 .trafficLightMinimize {
-  background: #FEBC2E;
+  background: #D6D6D2;
 }
 
 .trafficLightMaximize {
-  background: #28C840;
+  background: #D6D6D2;
 }
+
+.window.active .trafficLightClose { background: #FF5F57; }
+.window.active .trafficLightMinimize { background: #FEBC2E; }
+.window.active .trafficLightMaximize { background: #28C840; }
 
 .title {
   flex: 1;
   min-width: 0;
   font-size: 12px;
-  font-weight: 700;
-  color: #1C2B28;
+  font-weight: 400;
+  color: #9B9A94;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
+}
+
+.window.active .title {
+  color: #1C2B28;
+  font-weight: 600;
 }
 
 .content {

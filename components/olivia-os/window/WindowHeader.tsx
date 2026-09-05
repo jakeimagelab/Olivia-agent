@@ -31,7 +31,7 @@ export function WindowHeader({
         </button>
       </div>
       <div className={styles.title}>{title}</div>
-      <div style={{ width: 54, flexShrink: 0 }} aria-hidden="true" />
+      <div style={{ width: 60, flexShrink: 0 }} aria-hidden="true" />
     </div>
   );
 }

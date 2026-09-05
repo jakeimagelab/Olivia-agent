@@ -19,12 +19,11 @@
 }
 
 .dock {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(21, 88, 85, 0.08);
-  box-shadow: 0 5px 14px rgba(10, 50, 45, 0.10);
+  background: #fff;
+  border: 0.5px solid rgba(21, 88, 85, 0.08);
+  box-shadow: 0 4px 12px rgba(10, 50, 45, 0.12);
 }
 
 .dock.active {
-  background: rgba(220, 242, 235, 0.92);
-  transform: translateY(-2px);
+  background: #fff;
 }
