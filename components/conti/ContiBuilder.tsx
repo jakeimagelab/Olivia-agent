@@ -1706,7 +1706,7 @@ ${header("타임테이블")}
                 );
 
                 return (
-                  <div ref={contiEditorRef} style={{ display: "flex", height: 560, position: "relative" }}>
+                  <div ref={contiEditorRef} style={{ display: "flex", height: 640, position: "relative" }}>
                     {useDrawer ? (
                       <>
                         <button type="button" onClick={() => setContiLeftDrawerOpen(true)} style={{
