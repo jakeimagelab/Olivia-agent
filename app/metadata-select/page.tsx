@@ -187,7 +187,9 @@ export default function MetadataSelectPage() {
             <FolderPickerRow step={3} label="RAW 원본" dir={rawDir} onPick={() => pick(setRawDir, "readwrite")} />
 
             <div style={{ marginTop: 18, textAlign: "center" }}>
-              <Btn onClick={run} disabled={!canStart}>
+              {/* 1.2 — RAW를 실제로 복사하는, 이 화면에서 가장 되돌리기 어려운 동작이라
+                  화면 유일의 오렌지 버튼으로 둔다(비활성 상태의 회색 처리는 그대로 유지). */}
+              <Btn onClick={run} disabled={!canStart} style={canStart ? { background: C.orange } : undefined}>
                 {running ? PHASE_LABEL[phase] : "메타데이터 매칭 시작"}
               </Btn>
             </div>
