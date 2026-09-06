@@ -416,6 +416,9 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
                         <button type="button" className={`${styles.toolbarBtn} ${element.textAlign === "right" ? styles.toolbarBtnActive : ""}`} aria-label="오른쪽 정렬" onClick={() => commitPatch(element.id, { textAlign: "right" })}><AlignRight size={13} /></button>
                         <span className={styles.toolbarDivider} />
                         <button type="button" className={`${styles.toolbarBtn} ${element.fontWeight >= 700 ? styles.toolbarBtnActive : ""}`} aria-label="굵게" onClick={() => commitPatch(element.id, { fontWeight: element.fontWeight >= 700 ? 400 : 700 })}><Bold size={13} /></button>
+                        <button type="button" data-active={element.italic} className={`${styles.toolbarBtn} ${element.italic ? styles.toolbarBtnActive : ""}`} aria-label="기울임" onClick={() => commitPatch(element.id, { italic: !element.italic })}><Italic size={13} /></button>
+                        <button type="button" data-active={element.underline} className={`${styles.toolbarBtn} ${element.underline ? styles.toolbarBtnActive : ""}`} aria-label="밑줄" onClick={() => commitPatch(element.id, { underline: !element.underline })}><Underline size={13} /></button>
+                        <button type="button" data-active={element.highlight} className={`${styles.toolbarBtn} ${element.highlight ? styles.toolbarBtnActive : ""}`} aria-label="형광펜" onClick={() => commitPatch(element.id, { highlight: !element.highlight })}><Highlighter size={13} /></button>
                       </>
                     ) : element.type === "image" ? (
                       <>
