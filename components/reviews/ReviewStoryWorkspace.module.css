@@ -81,6 +81,9 @@
 }
 
 .primary { border-color: var(--green); background: var(--green); color: #fff; }
+/* 화면당 오렌지는 하나 — 되돌리기 어려운 동작(여기서는 "게시")에만 쓴다. 내보내기/생성은
+   .button(기존 흰 배경 아웃라인) 그대로 둔다. */
+.primaryOrange { border-color: var(--orange); background: var(--orange); color: #fff; }
 .button:disabled, .iconButton:disabled { opacity: .42; cursor: not-allowed; }
 .button:focus-visible, .iconButton:focus-visible, .template:focus-visible, .storyThumb:focus-visible { outline: 3px solid rgba(21,88,85,.22); outline-offset: 2px; }
 .iconButton { width: 34px; min-height: 34px; padding: 0; }
