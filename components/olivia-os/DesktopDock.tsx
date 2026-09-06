@@ -70,11 +70,6 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
           </button>
         );
       })}
-      <button type="button" className={styles.dockButton} onClick={openMemo} aria-label="메모" data-tooltip="메모">
-        <DockTooltip>메모</DockTooltip>
-        <AppIcon icon={<Icon name="memo" size={26} aria-hidden focusable={false} />} size={48} active={activeWindowId === "memo"} />
-        {windows.memo ? <span className={styles.dockIndicator} /> : null}
-      </button>
       <div className={styles.dockDivider} />
       <button type="button" className={styles.dockButton} onClick={openAllApps} aria-label="모든 앱" data-tooltip="모든 앱">
         <DockTooltip>모든 앱</DockTooltip>
