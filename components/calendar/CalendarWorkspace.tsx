@@ -2,7 +2,7 @@
 // 캘린더 UI/UX 개편 (팝업 추가/수정, 전체화면 그리드, 모바일 드릴다운 내비게이션)
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { Suspense, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { BarChart3, ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, Share2, X } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
