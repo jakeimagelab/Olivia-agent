@@ -2520,6 +2520,8 @@ export default function CalendarWorkspace() {
     if (isMobile && viewMode === "week") setViewMode("month");
   }, [isMobile, viewMode]);
 
+  useEffect(() => { window.localStorage.setItem(CALENDAR_VIEW_STORAGE_KEY, viewMode); }, [viewMode]);
+
   useEffect(() => {
     if (!confirmDeleteId) return;
     const close = (e: MouseEvent) => {
