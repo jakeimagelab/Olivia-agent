@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileText, Mic, PenLine, Plus, Trash2 } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import type { CanvasExportOptions, DrawingCanvasHandle } from "@/components/DrawingCanvas";
 import NoteCanvasPanel from "@/components/memo/NoteCanvasPanel";
 import VoiceMemoPanel from "@/components/memo/VoiceMemoPanel";
