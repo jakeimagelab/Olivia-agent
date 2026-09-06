@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Target, X } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import { C, R, FS, SP } from "@/lib/theme";
 import { CHANNEL_PRESETS, channelLabel } from "@/lib/marketingChannels";
 
