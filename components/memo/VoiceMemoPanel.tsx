@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, Mic, Pause, Play, Square } from "lucide-react";
 
 type Props = {
   memoId: string | null;
@@ -10,17 +11,20 @@ type Props = {
   ensureSaved: () => Promise<string>;
   onProcessed: (values: { audioUrl: string | null; duration: number; transcript: string; summary: string }) => void;
   onTranscriptChange: (value: string) => void;
+  // 캔버스 툴바 안에 "버튼 하나"로 들어가는 형태 — 녹음 중/결과 확인 중에만 최소한으로 펼쳐진다.
+  compact?: boolean;
 };
 
 const formatTime = (value: number) => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 
-export default function VoiceMemoPanel({ memoId, existingUrl, transcript, summary, ensureSaved, onProcessed, onTranscriptChange }: Props) {
+export default function VoiceMemoPanel({ memoId, existingUrl, transcript, summary, ensureSaved, onProcessed, onTranscriptChange, compact = false }: Props) {
   const [recording, setRecording] = useState(false);
   const [paused, setPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [reviewOpen, setReviewOpen] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const blobRef = useRef<Blob | null>(null);
