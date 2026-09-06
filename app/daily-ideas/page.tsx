@@ -213,15 +213,16 @@ export default function DailyIdeasPage() {
 
       {/* ── 모바일 탭 바 ── */}
       {isMobile && (
-        <div className="pc-tabs pc-tabs--global">
-          {[
-            { id: "list",   label: "📅 날짜 목록" },
-            { id: "detail", label: "💡 아이디어" },
-          ].map(tab => (
-            <button key={tab.id} className={`pc-tab${mobileTab === tab.id ? " pc-tab--active" : ""}`} onClick={() => setMobileTab(tab.id as "list" | "detail")}>
-              {tab.label}
-            </button>
-          ))}
+        <div className="pc-content" style={{ paddingBottom: 0 }}>
+          <SegmentedTabs
+            ariaLabel="아이디어 보기 선택"
+            value={mobileTab}
+            onChange={setMobileTab}
+            items={[
+              { value: "list", label: "날짜 목록", icon: "📅" },
+              { value: "detail", label: "아이디어", icon: "💡" },
+            ]}
+          />
         </div>
       )}
 
