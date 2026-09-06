@@ -74,6 +74,7 @@ const DETAIL_TABS: { key: string; label: string }[] = [
   { key: "gallery", label: "갤러리" },
   { key: "revisions", label: "수정·승인" },
   { key: "activity", label: "활동 기록" },
+  { key: "memo", label: "메모" },
   { key: "info", label: "고객 정보" },
   { key: "portal", label: "포털 관리" },
 ];
