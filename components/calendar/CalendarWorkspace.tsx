@@ -2341,8 +2341,15 @@ export default function CalendarWorkspace() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null); // 삭제 확인 팝업 대상 태스크 id
   const [popover, setPopover] = useState<{
     mode: "add" | "edit"; date: string; task: CalTask | null; x: number; y: number; time?: string;
+    boundsW: number; boundsH: number;
   } | null>(null);
   const loadedKeys = useRef<Set<string>>(new Set());
+  // OS 창(embedded) 안에서는 framer-motion이 창 자체에 transform을 걸어두기 때문에, 팝업이
+  // position:fixed를 쓰면 "브라우저 전체 화면" 기준이 아니라 이 창 기준으로 붙으면서도 클램프
+  // 계산은 여전히 window.innerWidth/innerHeight(전체 화면)를 썼다 — 기본 창 크기(창이 화면보다
+  // 작을 때)에서 팝업이 창 밖으로 튀어나가 다른 창 위에 겹쳐 보인 원인. shellRef 기준 좌표로
+  // 통일하고 팝업도 position:absolute로 바꿔서 항상 이 캘린더 영역 안에서만 계산되게 한다.
+  const shellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
