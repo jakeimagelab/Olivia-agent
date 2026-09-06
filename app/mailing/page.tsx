@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import GlobalHeader from "@/components/GlobalHeader";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { useContactDirectory } from "@/lib/hooks/useContactDirectory";
 import { C } from "@/lib/theme";
