@@ -2611,7 +2611,7 @@ export default function CalendarWorkspace() {
   const VIEW_LABELS: Record<ViewMode, string> = { day: "일", week: "주", month: "월", year: "년" };
 
   return (
-    <main className={`calendar-page-shell${embedded ? " calendar-page-shell--embedded" : ""}`} style={{ background: C.bg, color: C.txt }}>
+    <main ref={shellRef} className={`calendar-page-shell${embedded ? " calendar-page-shell--embedded" : ""}`} style={{ background: C.bg, color: C.txt, position: "relative" }}>
 
       {!embedded && (
         <GlobalHeader title="Schedule" description="촬영과 미팅 일정을 관리합니다." className="oa-header--calendar" pageActions={<>
