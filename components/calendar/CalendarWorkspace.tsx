@@ -17,6 +17,11 @@ import type { TaskListItem } from "@/lib/work-journal/types";
 /* ─── types ──────────────────────────────────────────── */
 type ViewMode = "day" | "week" | "month" | "year";
 
+// lib/prompter/remoteDisplayMode.ts와 같은 패턴 — localStorage 키 하나로 마지막 선택한
+// 뷰를 재방문 시에도 유지한다.
+const CALENDAR_VIEW_STORAGE_KEY = "olivia-calendar-view-v1";
+const isViewMode = (value: unknown): value is ViewMode => value === "day" || value === "week" || value === "month" || value === "year";
+
 type ConsultEntry = {
   hospital: string;
   summary: string;
