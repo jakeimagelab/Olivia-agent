@@ -101,6 +101,45 @@ export default function VoiceMemoPanel({ memoId, existingUrl, transcript, summar
   }, [localUrl, recording]);
 
   const audioUrl = localUrl || existingUrl;
+
+  if (compact) {
+    const hasContent = Boolean(audioUrl || transcript || summary);
+    return (
+      <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          {!recording ? (
+            <button
+              title={hasContent ? "음성 메모" : "음성 녹음"}
+              onClick={() => (hasContent ? setReviewOpen(v => !v) : void start())}
+              disabled={busy}
+              style={{ minHeight: 34, border: "none", borderRadius: 99, padding: hasContent ? "0 10px" : 0, width: hasContent ? undefined : 34, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, background: hasContent ? "#EDF5F3" : "#155855", color: hasContent ? "#155855" : "#fff", cursor: "pointer" }}
+            >
+              <Mic size={15} />
+              {hasContent ? (reviewOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />) : null}
+            </button>
+          ) : (
+            <>
+              <button aria-label={paused ? "이어 녹음" : "일시정지"} title={paused ? "이어 녹음" : "일시정지"} onClick={togglePause} style={{ width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: "#F4E8C8", color: "#6F5010", cursor: "pointer" }}>{paused ? <Play size={15} /> : <Pause size={15} />}</button>
+              <button aria-label="녹음 종료" title="녹음 종료" onClick={stop} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 12px", display: "flex", alignItems: "center", gap: 5, background: "#E85D2C", color: "#fff", fontSize: 11, fontWeight: 900, cursor: "pointer" }}><Square size={13} />{formatTime(seconds)}</button>
+            </>
+          )}
+        </div>
+        {reviewOpen && !recording ? (
+          <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 20, width: 320, maxWidth: "80vw", padding: 14, borderRadius: 14, background: "#fff", boxShadow: "0 12px 32px rgba(15,68,64,.22)" }}>
+            {audioUrl ? <audio controls src={audioUrl} style={{ width: "100%", height: 36 }} /> : null}
+            {localUrl && !audioUrl ? null : null}
+            {localUrl ? <button onClick={() => void process()} disabled={busy} style={{ marginTop: 8, minHeight: 32, border: "none", borderRadius: 99, padding: "0 14px", background: "#E85D2C", color: "#fff", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{busy ? "저장·분석 중…" : "저장 + AI 요약"}</button> : null}
+            {transcript || summary ? <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+              <label><span style={{ display: "block", color: "#607873", fontSize: 9, fontWeight: 900, letterSpacing: ".1em", marginBottom: 5 }}>TRANSCRIPT</span><textarea value={transcript} onChange={event => onTranscriptChange(event.target.value)} rows={4} style={{ width: "100%", border: "none", borderRadius: 10, padding: 10, background: "#EDF5F3", boxSizing: "border-box", resize: "vertical", font: "inherit", fontSize: 11, lineHeight: 1.6, outline: "none" }} /></label>
+              {summary ? <div><span style={{ display: "block", color: "#E85D2C", fontSize: 9, fontWeight: 900, letterSpacing: ".1em", marginBottom: 5 }}>AI SUMMARY</span><div style={{ whiteSpace: "pre-wrap", padding: 10, borderRadius: 10, background: "#FFF7F3", color: "#4A3931", fontSize: 11, lineHeight: 1.6 }}>{summary}</div></div> : null}
+            </div> : null}
+          </div>
+        ) : null}
+        {error ? <div role="alert" style={{ marginTop: 6, color: "#B42318", fontSize: 11, fontWeight: 800 }}>{error}</div> : null}
+      </div>
+    );
+  }
+
   return (
     <section style={{ padding: 6, borderRadius: 22, background: "rgba(21,88,85,.06)" }}>
       <div style={{ padding: 18, borderRadius: 16, background: "#fff" }}>
