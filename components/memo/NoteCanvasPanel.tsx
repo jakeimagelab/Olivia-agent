@@ -12,8 +12,9 @@ type Props = {
   onChange: (dataUrl: string) => void;
   // 텍스트/펜/음성을 화면을 나눠 따로 두지 않고, 같은 종이(캔버스) 위에서 도구만 바꿔가며
   // 쓰도록 통합했다 — textValue/onTextChange가 이 캔버스에 겹쳐지는 텍스트 레이어를 담당한다.
-  textValue: string;
-  onTextChange: (value: string) => void;
+  // 둘 다 없으면(예: 촬영화면의 펜 전용 모달) 텍스트 도구 자체를 안 보여주고 순수 필기 캔버스로 동작한다.
+  textValue?: string;
+  onTextChange?: (value: string) => void;
   voiceButton?: ReactNode;
 };
 
