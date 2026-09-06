@@ -39,11 +39,6 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
     focusWindow(appId);
   };
 
-  const openMemo = () => {
-    const app = getOliviaApp("memo");
-    if (app) handleDockClick(app.id, app.title, app.defaultSize.width, app.defaultSize.height);
-  };
-
   const openAllApps = () => {
     const app = getOliviaApp("all-apps");
     if (app) handleDockClick(app.id, app.title, app.defaultSize.width, app.defaultSize.height);
