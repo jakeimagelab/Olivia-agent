@@ -1414,25 +1414,9 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
       </div>
       );
 
-      // 데일리 루틴 내용 — embedded면 우측 패널, 아니면 기존처럼 그리드 밑에 그대로.
-      const dailyRoutineInner = (
-        <>
-          <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(900, isMobile), color: C.hint, letterSpacing: ".06em",
-            textTransform: "uppercase", marginBottom: 10 }}>⏰ 데일리 루틴</div>
-          <div style={{ display: "flex", flexWrap: embedded ? "nowrap" : "wrap", flexDirection: embedded ? "column" : "row", gap: embedded ? 10 : (isMobile ? 10 : 22) }}>
-            {DAILY_ROUTINE.map((r, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.teal, flexShrink: 0 }}/>
-                <span style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
-                <span style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(600, isMobile), color: C.txt, whiteSpace: "nowrap" }}>{r.label}</span>
-                {!embedded && i < DAILY_ROUTINE.length - 1 && (
-                  <div style={{ width: 14, height: 1, background: C.border, marginLeft: isMobile ? 2 : 14 }}/>
-                )}
-              </div>
-            ))}
-          </div>
-        </>
-      );
+      // 데일리 루틴은 이제 CalendarWorkspace 레벨(뷰 공통 하단 바)에서 한 번만 그린다 —
+      // 예전엔 여기서 embedded 우측 패널/비-embedded 하단 줄로 따로 그렸는데, 그러면 이제
+      // 바깥 하단 바와 중복된다.
 
       // 범례 — embedded면 상단 툴바(월 이동 버튼 옆), 아니면 기존처럼 그리드 밑에 그대로.
       // 이번 단계는 배치 이동만: 클릭 가능한 필터로 만들지 않고 색 설명 그대로 둔다.
