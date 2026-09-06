@@ -961,38 +961,43 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
         )}
       </div>
 
-      {/* ── 스크롤 영역 (할일 + 상담 메모 상하 배치) */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "18px 16px 32px" }}>
+      {/* ── 본문 — 할일(내용 많으면 이 부분만 스크롤)과 빠른 일정 등록(남는 세로 공간을 그대로
+          채움)을 나눠서, 패널 전체가 스크롤돼야만 챗 입력창이 보이던 문제를 없앤다. */}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "18px 16px 16px" }}>
 
         {/* 할일 섹션 */}
-        <SectionLabel badge={tasks.length}>📅 할일</SectionLabel>
-        {loading ? (
-          <div style={{ textAlign: "center", color: C.hint, padding: "24px 0", fontSize: 13 }}>불러오는 중…</div>
-        ) : tasks.length === 0 ? (
-          <div style={{ textAlign: "center", color: C.hint, padding: "16px 0 20px" }}>
-            <div style={{ fontSize: 24, marginBottom: 6 }}>📅</div>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>할일이 없어요</div>
-            <div style={{ fontSize: 12 }}>아래에서 추가하세요</div>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 14 }}>
-            {sorted.map(task => (
-              <TaskItem key={task.id} task={task}
-                onToggle={() => onToggle(task)} onDelete={() => onDelete(task.id)}
-                onEdit={onEdit}/>
-            ))}
-          </div>
-        )}
-        <AddTaskForm date={dateStr} onAdd={onAdd} triggerKey={autoOpenTrigger} defaultTime={autoSlotTime}/>
+        <div style={{ flexShrink: 1, minHeight: 0, maxHeight: "50%", overflowY: "auto" }}>
+          <SectionLabel badge={tasks.length}>📅 할일</SectionLabel>
+          {loading ? (
+            <div style={{ textAlign: "center", color: C.hint, padding: "24px 0", fontSize: 13 }}>불러오는 중…</div>
+          ) : tasks.length === 0 ? (
+            <div style={{ textAlign: "center", color: C.hint, padding: "16px 0 20px" }}>
+              <div style={{ fontSize: 24, marginBottom: 6 }}>📅</div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>할일이 없어요</div>
+              <div style={{ fontSize: 12 }}>아래에서 추가하세요</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 14 }}>
+              {sorted.map(task => (
+                <TaskItem key={task.id} task={task}
+                  onToggle={() => onToggle(task)} onDelete={() => onDelete(task.id)}
+                  onEdit={onEdit}/>
+              ))}
+            </div>
+          )}
+          <AddTaskForm date={dateStr} onAdd={onAdd} triggerKey={autoOpenTrigger} defaultTime={autoSlotTime}/>
+        </div>
 
         {/* 구분선 */}
-        <div style={{ margin: "24px 0 20px", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ margin: "16px 0 14px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <div style={{ flex: 1, height: 1, background: C.border }}/>
         </div>
 
-        {/* 미니 챗팅 — 상담메모(AI 분석 폼) 대신, 바로 일정 등록 요청용 */}
-        <SectionLabel>💬 빠른 일정 등록</SectionLabel>
-        <ScheduleChatPanel dateStr={dateStr} onAdd={onAdd} />
+        {/* 미니 챗팅 — 상담메모(AI 분석 폼) 대신, 바로 일정 등록 요청용. 남는 세로 공간을 꽉 채운다 */}
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <SectionLabel>💬 빠른 일정 등록</SectionLabel>
+          <ScheduleChatPanel dateStr={dateStr} onAdd={onAdd} />
+        </div>
       </div>
     </div>
   );
