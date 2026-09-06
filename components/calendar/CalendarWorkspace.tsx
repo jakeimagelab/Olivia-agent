@@ -2951,6 +2951,10 @@ export default function CalendarWorkspace() {
         .cal-cell:focus:not(:focus-visible) {
           outline: none;
         }
+        /* 창 폭이 좁으면 선택일 패널을 접는다(제안서 1.7 반응형 규칙과 같은 기준) */
+        @media (max-width: 900px) {
+          .calendar-day-side-panel { display: none; }
+        }
       `}</style>
     </main>
   );
