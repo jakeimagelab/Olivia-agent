@@ -29,6 +29,13 @@
 - `components/team-workspace/WorkspacePage.tsx` — 할 일/팀채팅 탭 SegmentedTabs 전환.
 - `components/memo/MemoWorkspace.tsx` — 모드 탭(일반/태블릿/음성) SegmentedTabs 전환.
 
+### 탭 버튼 통일 — 2차 배치 (라우팅 탭, `npm run build` 전체 통과 확인)
+
+- `app/(photo-studio)/layout.tsx`, `app/(conti-studio)/layout.tsx` — 6개/2개 라우트 전환 탭을
+  SegmentedTabs(href 옵션)로 교체.
+- `app/marketing/page.tsx`, `app/marketing/strategy/page.tsx`,
+  `app/marketing/strategy/[id]/page.tsx` — 홈/전략 탭 동일 패턴 적용.
+
 ## 구조 재설계 필요 — 이번 pass에서 손 안 댐 (다음 세션, 사용자 확인 필요)
 
 - `video-conti` (`app/(conti-studio)/video-conti/page.tsx`) — 4단계 스텝 위저드 구조. 유형 B의
