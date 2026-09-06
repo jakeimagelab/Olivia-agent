@@ -137,6 +137,16 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     component: ReviewStudioWindowContent,
   },
   {
+    id: "memo",
+    title: "메모",
+    icon: appIcon("memo"),
+    route: "/memo",
+    defaultSize: { width: 980, height: 700 },
+    minSize: { width: 640, height: 420 },
+    singleton: true,
+    component: MemoWindowContent,
+  },
+  {
     id: "olivia-chat",
     title: "Olivia",
     icon: appIcon("olivia"),
