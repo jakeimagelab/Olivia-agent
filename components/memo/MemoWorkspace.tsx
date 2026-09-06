@@ -228,24 +228,16 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
   const activeTemplate = useMemo(() => TEMPLATE_OPTIONS.find(option => option.type === templateType), [templateType]);
   const contiColumns = Math.min(4, Math.max(1, templateData.contiColumns ?? 2));
   const contiRows = Math.min(6, Math.max(1, templateData.contiRows ?? 3));
-  const resizeConti = (columns: number, rows: number) => setTemplateData(current => ({ ...current, contiColumns: columns, contiRows: rows, noteMode: "template" }));
+  const resizeConti = (columns: number, rows: number) => setTemplateData(current => ({ ...current, contiColumns: columns, contiRows: rows }));
 
   return (
     <main className={`pc-page${embedded ? " olivia-os-embedded-memo" : ""}`} style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      {!embedded ? <GlobalHeader title="메모" description="일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다." pageActions={<>
+      {!embedded ? <GlobalHeader title="메모" description="텍스트·필기·음성을 한 화면에서 함께 기록합니다." pageActions={<>
           <Link href="/trash" className="pc-btn pc-btn--secondary pc-btn--sm" aria-label="휴지통"><Trash2 size={14} /><span className="memo-header-action-label">휴지통</span></Link>
-          <button className="pc-btn pc-btn--orange pc-btn--sm" onClick={() => reset(mode)}><Plus size={15} />새 메모</button>
+          <button className="pc-btn pc-btn--orange pc-btn--sm" onClick={reset}><Plus size={15} />새 메모</button>
         </>} /> : null}
-      <div className="pc-content pc-content--wide" style={{ paddingBottom: 0 }}>
-        <SegmentedTabs<MemoMode>
-          ariaLabel="메모 모드 선택"
-          value={mode}
-          onChange={changeMode}
-          items={MODE_TABS.map((t) => ({ value: t.key as MemoMode, label: t.label, icon: t.icon }))}
-        />
-      </div>
 
-      <div className={`pc-content pc-content--wide memo-content${mode === "template" ? " memo-content--full" : ""}`}>
+      <div className="pc-content pc-content--wide memo-content memo-content--full">
         {dateParam ? <div className="memo-notice">캘린더 {dateParam} 일정에서 시작한 메모입니다.</div> : null}
         {status ? <div role="status" className={`memo-status ${status.ok ? "is-success" : "is-error"}`}>{status.text}</div> : null}
 
@@ -255,16 +247,15 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
               <strong>저장된 메모</strong><span>{memos.length}</span><span className="memo-history-sign">{historyOpen ? "−" : "+"}</span>
             </button>
             {historyOpen ? <div className="memo-history-list">
-              {memos.length === 0 ? <div className="memo-history-empty">아직 저장된 메모가 없습니다.</div> : memos.map(memo => {
-                const memoMode = modeFromMemo(memo);
-                return <div className="memo-history-row" key={memo.id}>
+              {memos.length === 0 ? <div className="memo-history-empty">아직 저장된 메모가 없습니다.</div> : memos.map(memo => (
+                <div className="memo-history-row" key={memo.id}>
                   <button className={`memo-history-item${currentId === memo.id ? " is-active" : ""}`} onClick={() => openMemo(memo)}>
-                    <span>{memo.title || defaultTitle(memoMode)}</span>
-                    <small>{MODE_INFO[memoMode].label} · {new Date(memo.updated_at || memo.created_at).toLocaleDateString("ko-KR")}</small>
+                    <span>{memo.title || DEFAULT_TITLE}</span>
+                    <small>{new Date(memo.updated_at || memo.created_at).toLocaleDateString("ko-KR")}</small>
                   </button>
                   <button className="memo-history-delete" aria-label="메모 삭제" onClick={() => void deleteMemo(memo)}>×</button>
-                </div>;
-              })}
+                </div>
+              ))}
             </div> : null}
           </aside>
 
@@ -272,36 +263,33 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
             <section className="pc-card pc-card--padded memo-editor-card">
               <div className="memo-editor-heading">
                 <div>
-                  <span className="memo-mode-label">{MODE_INFO[mode].label}</span>
-                  <p>{MODE_INFO[mode].description}</p>
+                  <span className="memo-mode-label">메모</span>
+                  <p>텍스트, 펜 필기, 음성 녹음을 구분 없이 한 캔버스에 같이 남길 수 있습니다.</p>
                 </div>
                 <span className="memo-shortcut">⌘S 저장</span>
               </div>
               <input className="memo-title-input" value={title} onChange={event => setTitle(event.target.value)} placeholder="메모 제목" />
 
-              {mode === "general" ? (
-                <textarea className="memo-general-textarea" aria-label="일반메모 내용" value={rawMemo} onChange={event => { setRawMemo(event.target.value); setTemplateData(current => ({ ...current, body: event.target.value, noteMode: "general" })); }} placeholder="내용을 입력하세요." />
-              ) : null}
+              <textarea className="memo-general-textarea" aria-label="메모 내용" value={rawMemo} onChange={event => setRawMemo(event.target.value)} placeholder="내용을 입력하세요." />
 
-              {mode === "template" ? <>
-                <div className="memo-template-picker" aria-label="태블릿 메모 양식 선택">
-                  {PEN_TEMPLATE_OPTIONS.map(option => <button key={option.type} className={templateType === option.type ? "is-active" : ""} onClick={() => chooseTemplate(option.type)}>
-                    <span>{option.mark}</span><strong>{option.label}</strong><small>{option.description}</small>
-                  </button>)}
-                </div>
-                {templateType === "conti" ? <div className="memo-conti-controls">
-                  {[{ c: 2, r: 2 }, { c: 2, r: 3 }, { c: 3, r: 3 }].map(preset => <button key={`${preset.c}x${preset.r}`} className={contiColumns === preset.c && contiRows === preset.r ? "is-active" : ""} onClick={() => resizeConti(preset.c, preset.r)}>{preset.c}×{preset.r}</button>)}
-                  <label>열 <input aria-label="콘티 열" type="number" min={1} max={4} value={contiColumns} onChange={event => resizeConti(Math.min(4, Math.max(1, Number(event.target.value))), contiRows)} /></label>
-                  <label>행 <input aria-label="콘티 행" type="number" min={1} max={6} value={contiRows} onChange={event => resizeConti(contiColumns, Math.min(6, Math.max(1, Number(event.target.value))))} /></label>
-                </div> : null}
-                <div className="memo-canvas-heading"><strong>{activeTemplate?.label} 펜 메모</strong><span>Apple Pencil, 터치, 마우스로 작성하세요.</span></div>
-                <NoteCanvasPanel key={`${currentId ?? "new"}-${templateType}`} ref={canvasRef} templateType={templateType} templateData={templateData} initialImage={initialCanvas} onChange={setCanvasDirty} />
-              </> : null}
+              <div className="memo-template-picker" aria-label="필기 캔버스 양식 선택">
+                {PEN_TEMPLATE_OPTIONS.map(option => <button key={option.type} className={templateType === option.type ? "is-active" : ""} onClick={() => chooseTemplate(option.type)}>
+                  <span>{option.mark}</span><strong>{option.label}</strong><small>{option.description}</small>
+                </button>)}
+              </div>
+              {templateType === "conti" ? <div className="memo-conti-controls">
+                {[{ c: 2, r: 2 }, { c: 2, r: 3 }, { c: 3, r: 3 }].map(preset => <button key={`${preset.c}x${preset.r}`} className={contiColumns === preset.c && contiRows === preset.r ? "is-active" : ""} onClick={() => resizeConti(preset.c, preset.r)}>{preset.c}×{preset.r}</button>)}
+                <label>열 <input aria-label="콘티 열" type="number" min={1} max={4} value={contiColumns} onChange={event => resizeConti(Math.min(4, Math.max(1, Number(event.target.value))), contiRows)} /></label>
+                <label>행 <input aria-label="콘티 행" type="number" min={1} max={6} value={contiRows} onChange={event => resizeConti(contiColumns, Math.min(6, Math.max(1, Number(event.target.value))))} /></label>
+              </div> : null}
+              <div className="memo-canvas-heading"><strong>{activeTemplate?.label} 펜 메모</strong><span>Apple Pencil, 터치, 마우스로 작성하세요.</span></div>
+              <NoteCanvasPanel key={`${currentId ?? "new"}-${templateType}`} ref={canvasRef} templateType={templateType} templateData={templateData} initialImage={initialCanvas} onChange={setCanvasDirty} />
 
-              {mode === "voice" ? <VoiceMemoPanel memoId={currentId} existingUrl={audioUrl} transcript={transcript} summary={audioSummary} ensureSaved={save} onTranscriptChange={setTranscript} onProcessed={values => { setAudioUrl(values.audioUrl); setTranscript(values.transcript); setAudioSummary(values.summary); void loadHistory(); }} /> : null}
+              <div className="memo-canvas-heading"><strong>음성 녹음</strong><span>대화를 녹음하면 AI가 텍스트로 변환하고 요약합니다.</span></div>
+              <VoiceMemoPanel memoId={currentId} existingUrl={audioUrl} transcript={transcript} summary={audioSummary} ensureSaved={save} onTranscriptChange={setTranscript} onProcessed={values => { setAudioUrl(values.audioUrl); setTranscript(values.transcript); setAudioSummary(values.summary); void loadHistory(); }} />
             </section>
 
-            {mode === "template" ? <section className="pc-card pc-card--padded memo-ai-card">
+            <section className="pc-card pc-card--padded memo-ai-card">
               <div><strong>AI 필기 정리</strong><p>원본 필기는 그대로 보존하고 텍스트 또는 정돈된 이미지로 변환합니다.</p></div>
               <div className="memo-ai-actions">
                 <button className="pc-btn pc-btn--primary" onClick={() => void transform("text")} disabled={Boolean(transforming)}>{transforming === "text" ? "정리 중…" : "텍스트로 정리"}</button>
@@ -309,10 +297,10 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
               </div>
               {aiText ? <div className="memo-ai-result"><div>{aiText}</div><button className="pc-btn pc-btn--primary pc-btn--sm" onClick={applyAiText}>메모에 반영</button></div> : null}
               {aiImage ? <figure className="memo-ai-image"><img src={aiImage} alt="AI가 정돈한 펜 메모" /><figcaption>AI 정돈 이미지 · 원본 필기는 보존됩니다.</figcaption></figure> : null}
-            </section> : null}
+            </section>
 
             <section className="pc-card pc-card--padded memo-save-card">
-              <button className="pc-btn pc-btn--primary pc-btn--lg" onClick={() => void save().catch(() => undefined)} disabled={saving}>{saving ? "저장 중…" : `${MODE_INFO[mode].label} 저장`}</button>
+              <button className="pc-btn pc-btn--primary pc-btn--lg" onClick={() => void save().catch(() => undefined)} disabled={saving}>{saving ? "저장 중…" : "메모 저장"}</button>
             </section>
           </div>
         </div>
