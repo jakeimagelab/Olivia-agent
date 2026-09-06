@@ -126,8 +126,14 @@ async function saveMemo(body: any) {
     transcript: String(body.transcript || "").slice(0, 200_000),
     audio_summary: String(body.audio_summary || "").slice(0, 20_000),
   };
+  // 마이그레이션(20260907_memo_context_link.sql) 미적용 대비 — 컬럼 자체가 없으면
+  // context_type/context_id를 뺀 값으로, select도 구컬럼셋으로 재시도한다.
+  const { context_type: _ct, context_id: _ci, ...valuesWithoutContext } = values;
   if (body.id) {
-    const { data, error } = await db.from("consultation_memos").update(values).eq("id", body.id).select(MEMO_FIELDS).single();
+    let { data, error } = await db.from("consultation_memos").update(values).eq("id", body.id).select(MEMO_FIELDS).single();
+    if (error?.code === UNDEFINED_COLUMN) {
+      ({ data, error } = await db.from("consultation_memos").update(valuesWithoutContext).eq("id", body.id).select(MEMO_FIELDS_BASE).single());
+    }
     if (error) throw error;
     await emitOliviaEventSafely(db, {
       eventType: "consultation.updated",
@@ -139,7 +145,10 @@ async function saveMemo(body: any) {
     });
     return data;
   }
-  const { data, error } = await db.from("consultation_memos").insert(values).select(MEMO_FIELDS).single();
+  let { data, error } = await db.from("consultation_memos").insert(values).select(MEMO_FIELDS).single();
+  if (error?.code === UNDEFINED_COLUMN) {
+    ({ data, error } = await db.from("consultation_memos").insert(valuesWithoutContext).select(MEMO_FIELDS_BASE).single());
+  }
   if (error) throw error;
   await emitOliviaEventSafely(db, {
     eventType: "consultation.memo_created",
