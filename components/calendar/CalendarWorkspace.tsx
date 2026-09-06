@@ -609,24 +609,27 @@ function EventPopover({ mode, date, task, anchor, bounds, isMobile, defaultTime,
 
   const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
 
+  // OS 창(embedded) 안에서는 이 캘린더 영역 자체가 화면보다 작을 수 있어서, position:fixed +
+  // window.innerWidth/innerHeight로 클램프하면 창 밖으로 팝업이 튀어나간다 — bounds(캘린더
+  // 루트 자신의 실제 크기)로 클램프하고 position:absolute로 그 루트 기준에 붙인다.
   const posStyle: React.CSSProperties = isMobile
-    ? { position: "fixed", inset: 0, zIndex: 500 }
+    ? { position: "absolute", inset: 0, zIndex: 500 }
     : (() => {
         const W = 340;
-        const maxH = typeof window !== "undefined" ? window.innerHeight - 32 : 600;
+        const containerW = bounds.w || 1024;
+        const containerH = bounds.h || 768;
+        const maxH = containerH - 32;
         let left = (anchor?.x ?? 200) + 14;
         let top = (anchor?.y ?? 200) - 20;
-        if (typeof window !== "undefined") {
-          if (left + W > window.innerWidth - 16) left = Math.max(16, window.innerWidth - W - 16);
-          if (top + 460 > window.innerHeight - 16) top = Math.max(16, window.innerHeight - 460 - 16);
-          if (top < 16) top = 16;
-        }
-        return { position: "fixed", left, top, zIndex: 500, width: W, maxHeight: maxH, overflowY: "auto" };
+        if (left + W > containerW - 16) left = Math.max(16, containerW - W - 16);
+        if (top + 460 > containerH - 16) top = Math.max(16, containerH - 460 - 16);
+        if (top < 16) top = 16;
+        return { position: "absolute", left, top, zIndex: 500, width: W, maxHeight: maxH, overflowY: "auto" };
       })();
 
   return (
     <>
-      <div style={{ position: "fixed", inset: 0, zIndex: 499, background: isMobile ? C.bg : "transparent" }}/>
+      <div style={{ position: "absolute", inset: 0, zIndex: 499, background: isMobile ? C.bg : "transparent" }}/>
       <div ref={ref} data-event-popover style={{
         ...posStyle,
         background: isMobile ? "transparent" : C.surface,
