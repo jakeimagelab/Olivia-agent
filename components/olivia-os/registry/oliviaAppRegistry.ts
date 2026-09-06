@@ -60,7 +60,10 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "calendar",
     title: "일정",
-    icon: appIcon("work-calendar"),
+    // 오늘 날짜가 실제로 찍혀 있는 아이콘(맥 캘린더 방식) — 다른 앱들처럼 정적 아이콘 하나로
+    // 고정하지 않고 컴포넌트를 그대로 넣는다. AppIcon이 이 값을 감싸는 tile 크기/모양만
+    // 통일해줄 뿐, 내용물이 무엇이든(정적 아이콘이든 이 컴포넌트든) 그대로 렌더한다.
+    icon: createElement(CalendarAppIcon),
     route: "/calendar",
     defaultSize: { width: 1050, height: 680 },
     minSize: { width: 640, height: 420 },
