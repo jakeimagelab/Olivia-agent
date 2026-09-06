@@ -41,11 +41,10 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
   const dateParam = searchParams.get("date") ?? "";
   const [memos, setMemos] = useState<ConsultationMemo[]>([]);
   const [historyOpen, setHistoryOpen] = useState(true);
-  const [mode, setMode] = useState<MemoMode>("general");
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [templateType, setTemplateType] = useState<MemoTemplateType>("blank");
-  const [templateData, setTemplateData] = useState<MemoTemplateData>(() => ({ ...emptyTemplateData("blank"), noteMode: "general" }));
+  const [templateData, setTemplateData] = useState<MemoTemplateData>(() => emptyTemplateData("blank"));
   const [rawMemo, setRawMemo] = useState("");
   const [transcript, setTranscript] = useState("");
   const [audioSummary, setAudioSummary] = useState("");
