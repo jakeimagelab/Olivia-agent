@@ -61,7 +61,7 @@ function defaultTitle(mode: MemoMode) {
   return "제목 없는 일반메모";
 }
 
-export function MemoWorkspace({ embedded = false }: { embedded?: boolean }) {
+export function MemoWorkspace({ embedded = false, contextType, contextId }: { embedded?: boolean; contextType?: MemoContextType; contextId?: string }) {
   const searchParams = useSearchParams();
   const dateParam = searchParams.get("date") ?? "";
   const [memos, setMemos] = useState<ConsultationMemo[]>([]);
