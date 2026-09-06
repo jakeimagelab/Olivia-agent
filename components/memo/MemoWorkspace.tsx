@@ -207,7 +207,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
     } finally {
       setSaving(false);
     }
-  }, [audioSummary, canvasDirty, currentId, loadHistory, mode, rawMemo, templateData, templateType, title, transcript]);
+  }, [audioSummary, canvasDirty, contextId, contextType, currentId, loadHistory, mode, rawMemo, templateData, templateType, title, transcript]);
 
   useSaveShortcut(() => { void save().catch(() => undefined); });
 
