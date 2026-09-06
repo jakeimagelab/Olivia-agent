@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowRight, Lightbulb, TrendingUp } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
