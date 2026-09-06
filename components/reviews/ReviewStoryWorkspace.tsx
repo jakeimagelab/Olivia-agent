@@ -15,8 +15,7 @@ import {
   type ReviewStoryDocument, type ReviewStoryElement, type ReviewStoryImageElement,
   type ReviewStoryTemplateConfig,
 } from "@/lib/reviewContent/storyDocument";
-import { renderReviewStoryDocument } from "@/lib/reviewContent/renderStoryDocument.client";
-import ReviewStoryCanvas from "./ReviewStoryCanvas";
+import ReviewStoryCanvas, { type ReviewStoryCanvasHandle } from "./ReviewStoryCanvas";
 import ReviewTemplateThumbnail from "./ReviewTemplateThumbnail";
 import styles from "./ReviewStoryWorkspace.module.css";
 
