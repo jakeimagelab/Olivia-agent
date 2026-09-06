@@ -127,7 +127,6 @@ export default function VoiceMemoPanel({ memoId, existingUrl, transcript, summar
         {reviewOpen && !recording ? (
           <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 20, width: 320, maxWidth: "80vw", padding: 14, borderRadius: 14, background: "#fff", boxShadow: "0 12px 32px rgba(15,68,64,.22)" }}>
             {audioUrl ? <audio controls src={audioUrl} style={{ width: "100%", height: 36 }} /> : null}
-            {localUrl && !audioUrl ? null : null}
             {localUrl ? <button onClick={() => void process()} disabled={busy} style={{ marginTop: 8, minHeight: 32, border: "none", borderRadius: 99, padding: "0 14px", background: "#E85D2C", color: "#fff", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{busy ? "저장·분석 중…" : "저장 + AI 요약"}</button> : null}
             {transcript || summary ? <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
               <label><span style={{ display: "block", color: "#607873", fontSize: 9, fontWeight: 900, letterSpacing: ".1em", marginBottom: 5 }}>TRANSCRIPT</span><textarea value={transcript} onChange={event => onTranscriptChange(event.target.value)} rows={4} style={{ width: "100%", border: "none", borderRadius: 10, padding: 10, background: "#EDF5F3", boxSizing: "border-box", resize: "vertical", font: "inherit", fontSize: 11, lineHeight: 1.6, outline: "none" }} /></label>
