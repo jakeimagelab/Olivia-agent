@@ -267,17 +267,13 @@ export function MemoWorkspace({ embedded = false }: { embedded?: boolean }) {
           <Link href="/trash" className="pc-btn pc-btn--secondary pc-btn--sm" aria-label="휴지통"><Trash2 size={14} /><span className="memo-header-action-label">휴지통</span></Link>
           <button className="pc-btn pc-btn--orange pc-btn--sm" onClick={() => reset(mode)}><Plus size={15} />새 메모</button>
         </>} /> : null}
-      <div className="pc-tabs pc-tabs--global">
-        {MODE_TABS.map((t) => (
-          <button
-            key={t.key}
-            className={`pc-tab${mode === t.key ? " pc-tab--active" : ""}`}
-            onClick={() => changeMode(t.key as MemoMode)}
-          >
-            <span className="pc-tab-icon">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
+      <div className="pc-content pc-content--wide" style={{ paddingBottom: 0 }}>
+        <SegmentedTabs<MemoMode>
+          ariaLabel="메모 모드 선택"
+          value={mode}
+          onChange={changeMode}
+          items={MODE_TABS.map((t) => ({ value: t.key as MemoMode, label: t.label, icon: t.icon }))}
+        />
       </div>
 
       <div className={`pc-content pc-content--wide memo-content${mode === "template" ? " memo-content--full" : ""}`}>
