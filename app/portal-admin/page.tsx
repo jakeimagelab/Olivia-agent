@@ -96,10 +96,17 @@ export default function PortalAdminPage() {
       />
 
       {/* 탭 */}
-      <div className="pc-tabs pc-tabs--global">
-        <button className={`pc-tab${tab === "links"     ? " pc-tab--active" : ""}`} onClick={() => setTab("links")}><Users size={13}/> 포털 링크 관리</button>
-        <button className={`pc-tab${tab === "revisions" ? " pc-tab--active" : ""}`} onClick={() => setTab("revisions")}><Edit2 size={13}/> 수정 요청</button>
-        <button className={`pc-tab${tab === "reviews"   ? " pc-tab--active" : ""}`} onClick={() => setTab("reviews")}><Star size={13}/> 고객 리뷰</button>
+      <div style={{ padding: "0 20px" }}>
+        <SegmentedTabs
+          ariaLabel="고객 포털 관리 탭 선택"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: "links", label: "포털 링크 관리", icon: <Users size={13} /> },
+            { value: "revisions", label: "수정 요청", icon: <Edit2 size={13} /> },
+            { value: "reviews", label: "고객 리뷰", icon: <Star size={13} /> },
+          ]}
+        />
       </div>
 
       <div style={{ maxWidth:1000, margin:"0 auto", padding:"24px 20px 80px" }}>
