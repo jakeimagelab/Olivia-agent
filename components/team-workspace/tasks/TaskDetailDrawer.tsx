@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { ExternalLink, Paperclip, X } from "lucide-react";
 import { C } from "@/lib/theme";
+import { MemoWorkspace } from "@/components/memo/MemoWorkspace";
 import type { TeamMember, TeamTask, TeamTaskChecklistItem } from "../types";
 import TaskChecklist from "./TaskChecklist";
 import TaskStatusBadge from "./TaskStatusBadge";
