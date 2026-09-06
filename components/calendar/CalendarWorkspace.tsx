@@ -1463,29 +1463,12 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
         {embedded && legendNode}
       </div>
 
-      {embedded ? (
-        <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", overflow: "hidden" }}>
-          <div style={{ flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            {weekdayRowNode}
-            {gridNode}
-          </div>
-          <div style={{ width: 210, flexShrink: 0, borderLeft: `1px solid ${C.border}`, overflowY: "auto",
-            padding: "14px 16px", background: C.surface }}>
-            {dailyRoutineInner}
-          </div>
+      {weekdayRowNode}
+      {gridNode}
+      {!embedded && (
+        <div style={{ background: C.surface, borderTop: "1px solid rgba(21,88,85,.1)" }}>
+          {legendNode}
         </div>
-      ) : (
-        <>
-          {weekdayRowNode}
-          {gridNode}
-          <div style={{ flex: "0 0 auto", minHeight: 56, maxHeight: 92, overflowY: "auto", background: C.surface,
-            borderTop: `1px solid ${C.border}`, padding: "12px 20px" }}>
-            {dailyRoutineInner}
-          </div>
-          <div style={{ background: C.surface, borderTop: "1px solid rgba(21,88,85,.1)" }}>
-            {legendNode}
-          </div>
-        </>
       )}
 
       {/* 복사/붙여넣기는 화면에 눈에 띄는 변화가 없어서 결과를 알려주는 토스트 */}
