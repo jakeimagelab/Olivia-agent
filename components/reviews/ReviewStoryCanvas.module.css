@@ -71,6 +71,12 @@
 
 .text { white-space: pre-wrap; overflow: hidden; overflow-wrap: break-word; }
 
+/* 형광펜 — 텍스트 박스 전체가 아니라 실제 글자 영역만 줄 단위로 이어지게. */
+.reviewTextHighlight {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 .inlineEditor {
   position: absolute;
   inset: 0;
