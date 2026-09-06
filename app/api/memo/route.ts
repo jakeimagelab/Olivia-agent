@@ -102,6 +102,8 @@ async function saveMemo(body: any) {
   const templateType = TEMPLATE_TYPES.has(body.template_type) ? body.template_type : "text";
   const values = {
     hospital_id: body.hospital_id || null,
+    context_type: body.context_type || null,
+    context_id: body.context_id || null,
     title: String(body.title || "").slice(0, 200),
     template_type: templateType,
     template_data: body.template_data && typeof body.template_data === "object" ? body.template_data : {},
