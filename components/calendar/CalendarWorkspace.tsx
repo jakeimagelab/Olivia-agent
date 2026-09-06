@@ -2880,7 +2880,7 @@ export default function CalendarWorkspace() {
         }}>
           <div style={{ fontSize: 10, fontWeight: 900, color: C.hint, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 8 }}>⏰ 데일리 루틴</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 22 }}>
-            {DAILY_ROUTINE_TOP.map((r, i) => (
+            {DAILY_ROUTINE.map((r, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.teal, flexShrink: 0 }}/>
                 <span style={{ fontSize: 12, fontWeight: 800, color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
