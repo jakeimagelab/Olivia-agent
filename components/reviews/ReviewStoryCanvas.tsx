@@ -352,9 +352,14 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
                 <span
                   ref={(node) => { if (node) textRefs.current.set(element.id, node); else textRefs.current.delete(element.id); }}
                   className={styles.text}
-                  style={{ display: "block", width: "100%", height: "100%", fontFamily: element.fontFamily, fontSize: element.fontSize * scale, fontWeight: element.fontWeight, color: element.color, textAlign: element.textAlign, lineHeight: element.lineHeight, letterSpacing: element.letterSpacing * scale, visibility: editingId === element.id ? "hidden" : "visible" }}
+                  style={{ display: "block", width: "100%", height: "100%", fontFamily: element.fontFamily, fontSize: element.fontSize * scale, fontWeight: element.fontWeight, fontStyle: element.italic ? "italic" : "normal", textDecoration: element.underline ? "underline" : "none", color: element.color, textAlign: element.textAlign, lineHeight: element.lineHeight, letterSpacing: element.letterSpacing * scale, visibility: editingId === element.id ? "hidden" : "visible" }}
                 >
-                  {element.text}
+                  <span
+                    className={styles.reviewTextHighlight}
+                    style={element.highlight ? { display: "inline", backgroundColor: element.highlightColor ?? "#FFF176" } : undefined}
+                  >
+                    {element.text}
+                  </span>
                 </span>
               ) : null}
               {element.type === "text" && editingId === element.id ? (
@@ -362,7 +367,7 @@ export default function ReviewStoryCanvas({ document, selectedElementId, assetUr
                   autoFocus
                   className={styles.inlineEditor}
                   value={element.text}
-                  style={{ fontFamily: element.fontFamily, fontSize: element.fontSize * scale, fontWeight: element.fontWeight, color: element.color, textAlign: element.textAlign, lineHeight: element.lineHeight, letterSpacing: element.letterSpacing * scale }}
+                  style={{ fontFamily: element.fontFamily, fontSize: element.fontSize * scale, fontWeight: element.fontWeight, fontStyle: element.italic ? "italic" : "normal", textDecoration: element.underline ? "underline" : "none", color: element.color, textAlign: element.textAlign, lineHeight: element.lineHeight, letterSpacing: element.letterSpacing * scale }}
                   onPointerDown={(event) => event.stopPropagation()}
                   onChange={(event) => {
                     const next = clone(document);
