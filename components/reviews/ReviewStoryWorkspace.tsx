@@ -658,6 +658,7 @@ export default function ReviewStoryWorkspace() {
           {activeContent && !["approved", "published"].includes(activeContent.status) ? <button className={styles.button} onClick={() => void approve()} disabled={Boolean(busy)}><Check size={14} /><span>대표 승인</span></button> : null}
           <button className={styles.button} onClick={() => void save()} disabled={Boolean(busy) || !activePage}><Save size={14} /><span>저장</span></button>
           <button className={styles.button} onClick={() => void saveTemplate()} disabled={Boolean(busy) || !activePage}><Sparkles size={14} /><span>템플릿으로 저장</span></button>
+          <button className={styles.button} onClick={() => void exportPdf()} disabled={Boolean(busy) || !activePage}><Download size={14} /><span>PDF 내보내기</span></button>
           <button className={`${styles.button} ${styles.primary}`} onClick={() => void exportPng()} disabled={Boolean(busy) || !activePage}><Download size={14} /><span>PNG 내보내기</span><ChevronDown size={12} /></button>
         </div>
       </header>
