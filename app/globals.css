@@ -8614,7 +8614,7 @@ main, .pc-console, .pc-page, .pc-page-content {
 .memo-title-input::placeholder { color: #a9b9b6; }
 .memo-general-textarea {
   width: 100%;
-  min-height: 440px;
+  min-height: 160px;
   margin-top: 18px;
   border: 1px solid rgba(21,88,85,.1);
   border-radius: 12px;
