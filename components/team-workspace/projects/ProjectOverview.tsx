@@ -42,6 +42,8 @@ export default function ProjectOverview({ projectId }: { projectId: string }) {
       <div style={{ height: 16 }} />
       <section className="team-card"><div className="team-card-header"><h3>전체 업무</h3><span style={{ fontSize: 11 }}>{data.tasks.length}건</span></div><div className="team-card-body"><ProjectTaskList tasks={data.tasks} onOpen={setSelectedId} /></div></section>
       <div style={{ height: 16 }} />
+      <section className="team-card"><div className="team-card-header"><h3>메모</h3></div><div className="team-card-body" style={{ padding: 0 }}><MemoWorkspace embedded contextType="project" contextId={projectId} /></div></section>
+      <div style={{ height: 16 }} />
       <section className="team-card"><div className="team-card-header"><h3>최근 활동</h3></div><div className="team-card-body">{data.recentEvents.length ? data.recentEvents.map((event) => <div key={event.id} style={{ padding: "8px 0", fontSize: 11, color: C.muted, borderBottom: `1px solid ${C.border}` }}>{event.team_tasks?.title} · {event.event_type} · {new Date(event.created_at).toLocaleString("ko-KR")}</div>) : <div className="team-empty">최근 활동이 없습니다.</div>}</div></section>
       <TaskDetailDrawer taskId={selectedId} onClose={() => setSelectedId(null)} onChanged={load} />
     </>
