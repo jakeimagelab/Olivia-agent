@@ -2860,7 +2860,36 @@ export default function CalendarWorkspace() {
               onSelectMonth={(y, m) => { setYear(y); setMonth(m); setViewMode("month"); }}/>
           </div>
         )}
+
+        {/* 선택 날짜 패널 — 연/월/주/일 뷰 공통. 예전엔 데일리 루틴이 이 자리(임베드 모드)나
+            그리드 밑 얇은 줄(독립 페이지)을 차지했는데, 그 자리를 선택일 일정+TO DO로 바꾸고
+            데일리 루틴은 항상 하단 전체너비 바로 내렸다(아래 참고). 900px 미만은 CSS로 접는다. */}
+        {!isMobile && (
+          <div className="calendar-day-side-panel" style={{ width: 300, flexShrink: 0, borderLeft: `1px solid ${C.border}`, overflow: "hidden", background: C.surface }}>
+            <DayPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
+              onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}/>
+          </div>
+        )}
       </div>
+
+      {/* 데일리 루틴 — 항상 하단 전체너비(예전엔 뷰마다 자리가 달랐다) */}
+      {!isMobile && (
+        <div className="calendar-daily-routine-bar" style={{
+          flexShrink: 0, maxWidth: 1440, margin: "0 auto", width: "100%", boxSizing: "border-box",
+          padding: "12px 20px", background: C.surface, borderTop: `1px solid ${C.border}`,
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 900, color: C.hint, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 8 }}>⏰ 데일리 루틴</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 22 }}>
+            {DAILY_ROUTINE_TOP.map((r, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.teal, flexShrink: 0 }}/>
+                <span style={{ fontSize: 12, fontWeight: 800, color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.txt, whiteSpace: "nowrap" }}>{r.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 일정 추가/수정 팝업 — 데스크탑은 클릭 위치 근처 카드, 모바일은 전체화면 시트 */}
       {popover && (
