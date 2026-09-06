@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
     const contextType = req.nextUrl.searchParams.get("context_type");
     const contextId = req.nextUrl.searchParams.get("context_id");
     const hasContextFilter = Boolean(contextType && contextId);
-    let { data, error } = await (() => {
+    let { data, error }: { data: any; error: any } = await (() => {
       const query = db.from("consultation_memos").select(MEMO_FIELDS).order("updated_at", { ascending: false });
       return hasContextFilter ? query.eq("context_type", contextType!).eq("context_id", contextId!) : query.limit(100);
     })();
