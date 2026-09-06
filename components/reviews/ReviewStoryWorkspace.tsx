@@ -264,6 +264,16 @@ export default function ReviewStoryWorkspace() {
     replaceActiveDocument(next, before);
   }, [activePage, replaceActiveDocument]);
 
+  // 캔버스 자체(요소 아님) 속성 — 지금은 배경색 하나뿐. 빈 캔버스 클릭 시 이미 onSelect(null)이
+  // 불려서(ReviewStoryCanvas) selectedElement가 비므로, 그 분기에 배경색 컨트롤을 얹는다.
+  const patchDocument = useCallback((patch: Partial<ReviewStoryDocument>) => {
+    if (!activePage) return;
+    const before = clone(activePage.document);
+    const next = clone(activePage.document);
+    Object.assign(next, patch);
+    replaceActiveDocument(next, before);
+  }, [activePage, replaceActiveDocument]);
+
   const undo = useCallback(() => {
     if (!activePage || !history.length) return;
     const previous = history[history.length - 1];
