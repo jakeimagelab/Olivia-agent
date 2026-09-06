@@ -2488,7 +2488,11 @@ export default function CalendarWorkspace() {
   const today    = new Date();
   const todayStr = toYMD(today);
 
-  const [viewMode,    setViewMode]    = useState<ViewMode>("month");
+  const [viewMode,    setViewMode]    = useState<ViewMode>(() => {
+    if (typeof window === "undefined") return "month";
+    const saved = window.localStorage.getItem(CALENDAR_VIEW_STORAGE_KEY);
+    return isViewMode(saved) ? saved : "month";
+  });
   const [year,        setYear]        = useState(today.getFullYear());
   const [month,       setMonth]       = useState(today.getMonth());
   const [weekDates,   setWeekDates]   = useState(() => getWeekDates(todayStr));
