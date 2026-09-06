@@ -131,7 +131,9 @@ const COMMON_SCENES = [
   },
 ] as const;
 
-const PAIN_COMMON_SCENES = [
+const PAIN_COMMON_SCENES: Array<{
+  name: string; keyword: string; description: string; roles: string[]; spaceType: string;
+}> = [
   {
     name: "C-ARM(씨암) 신경차단술", keyword: "집중하는 전문성",
     description: "허리·목 등 C-ARM 장비 앞에서 집중하는 모습 (방사선사 포함)",
@@ -157,7 +159,7 @@ const PAIN_COMMON_SCENES = [
     description: "도수치료, 충격파, 운동치료 장면",
     roles: ["치료사", "환자"], spaceType: "물리치료실",
   },
-] as const;
+];
 
 function buildCommonSeeds(): SceneTemplateSeedRow[] {
   const used = new Set<string>();
