@@ -10,7 +10,6 @@ import { DocumentsWindowContent } from "../apps/documents/DocumentsWindowContent
 import { QuoteBuilderWindowContent } from "../adapters/QuoteBuilderWindowContent";
 import { ContractBuilderWindowContent } from "../adapters/ContractBuilderWindowContent";
 import { ContiBuilderWindowContent } from "../adapters/ContiBuilderWindowContent";
-import { MemoWindowContent } from "../adapters/MemoWindowContent";
 import { TodayWindowContent } from "../adapters/TodayWindowContent";
 import { AllAppsWindowContent } from "../apps/all-apps/AllAppsWindowContent";
 import { LegacyRouteWindowContent } from "../adapters/LegacyRouteWindowContent";
