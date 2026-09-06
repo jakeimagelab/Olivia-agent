@@ -80,7 +80,6 @@ export function DesktopTopBar({ onOpenOverlay }: {
       ))}
     </>;
     if (openMenu === "도구") return <>
-      <button type="button" onClick={() => launch("memo")}>메모 열기</button>
       <button type="button" onClick={() => launch("today")}>오늘 열기</button>
       <button type="button" onClick={() => launch("olivia-chat")}>Olivia 열기</button>
       <button type="button" onClick={() => launch("all-apps")}>모든 앱</button>
