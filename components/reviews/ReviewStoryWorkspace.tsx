@@ -654,8 +654,12 @@ export default function ReviewStoryWorkspace() {
             <span className={styles.breadcrumbSep}>/</span>
             <span className={styles.breadcrumbCurrent}>콘텐츠 만들기</span>
           </nav>
-          <h1 className={styles.title}>리뷰 콘텐츠 제작</h1>
-          <p className={styles.subtitle}>선택한 리뷰를 다양한 스토리형 콘텐츠로 제작할 수 있습니다.</p>
+          {!isDesktopWindow && (
+            <>
+              <h1 className={styles.title}>리뷰 콘텐츠 제작</h1>
+              <p className={styles.subtitle}>선택한 리뷰를 다양한 스토리형 콘텐츠로 제작할 수 있습니다.</p>
+            </>
+          )}
         </div>
         <div className={styles.headerActions}>
           {activeContent?.status === "approved" ? <button className={`${styles.button} ${styles.primaryOrange}`} onClick={() => void publish()} disabled={Boolean(busy)}><Send size={14} /><span>Instagram 게시</span></button> : null}
