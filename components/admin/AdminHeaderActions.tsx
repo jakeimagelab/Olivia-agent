@@ -62,7 +62,6 @@ export default function AdminHeaderActions({ home = false }: AdminHeaderActionsP
         {panel === "quick" ? <div className="oa-header-popover oa-header-popover--quick">
           <span className="oa-header-popover__eyebrow">QUICK START</span>
           <Link href="/calendar" onClick={() => setPanel(null)}><i><CalendarPlus size={16}/></i><div><strong>일정 추가</strong><small>촬영과 미팅 일정을 등록합니다.</small></div></Link>
-          <Link href="/memo" onClick={() => setPanel(null)}><i><NotebookPen size={16}/></i><div><strong>메모 작성</strong><small>일반·템플릿·음성메모를 작성합니다.</small></div></Link>
           <Link href="/clients" onClick={() => setPanel(null)}><i><UserPlus size={16}/></i><div><strong>고객 등록</strong><small>신규 고객과 워크플로우를 시작합니다.</small></div></Link>
         </div> : null}
       </div>
