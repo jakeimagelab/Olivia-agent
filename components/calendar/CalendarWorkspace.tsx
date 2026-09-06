@@ -868,8 +868,8 @@ function ScheduleChatPanel({ dateStr, onAdd }: {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 320, maxHeight: 640, overflowY: "auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0 }}>
+      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 60, overflowY: "auto" }}>
         {messages.length === 0 ? (
           <div style={{ fontSize: 12, color: C.hint, lineHeight: 1.6 }}>"오후 2시 강남 촬영"처럼 편하게 적으면 바로 일정으로 등록돼요. 여러 줄로 길게 적어도 괜찮아요.</div>
         ) : messages.map((m, i) => (
@@ -880,17 +880,17 @@ function ScheduleChatPanel({ dateStr, onAdd }: {
           }}>{m.text}</div>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
           placeholder="일정을 편하게 입력하세요 (여러 줄 가능, Shift+Enter로 줄바꿈)"
           disabled={sending}
-          rows={4}
+          rows={3}
           style={{ flex: 1, fontSize: 12, color: C.txt, border: `1px solid ${C.border}`, borderRadius: 8,
             padding: "8px 10px", outline: "none", fontFamily: "inherit", background: "#FAFCFB",
-            resize: "vertical", lineHeight: 1.5, minHeight: 90 }}
+            resize: "vertical", lineHeight: 1.5, minHeight: 64 }}
         />
         <button onClick={() => void send()} disabled={sending || !input.trim()} className="pc-btn pc-btn--orange pc-btn--sm">전송</button>
       </div>
