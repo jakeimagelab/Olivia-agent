@@ -86,13 +86,19 @@ function TrendKeywordBrief() {
 }
 
 export default function MarketingDashboardPage() {
-  const router = useRouter();
   return (
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
       <GlobalHeader title="마케팅 대시보드" description="채널별 마케팅 전략과 지식 베이스를 관리합니다." />
-      <div className="pc-tabs pc-tabs--global">
-        <button className="pc-tab pc-tab--active">홈</button>
-        <button className="pc-tab" onClick={() => router.push("/marketing/strategy")}>전략</button>
+      <div style={{ padding: "20px 24px 0" }}>
+        <SegmentedTabs
+          ariaLabel="마케팅 섹션 선택"
+          value="home"
+          onChange={() => {}}
+          items={[
+            { value: "home", label: "홈" },
+            { value: "strategy", label: "전략", href: "/marketing/strategy" },
+          ]}
+        />
       </div>
       <div className="oa-page oa-tools-page">
         <div className="mkt-brief-row">
