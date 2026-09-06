@@ -2630,6 +2630,22 @@ export default function CalendarWorkspace() {
         </>} />
       )}
 
+      {/* OS 창(embedded) 안에는 GlobalHeader 자체가 없어서 연/월/주/일 탭이 화면에서 통째로
+          빠져 있었다 — standalone 페이지에만 있던 것과 똑같은 탭을 여기 별도로 넣는다. */}
+      {embedded && !isMobile && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", flexShrink: 0,
+          background: C.surface, borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 9, padding: 2, gap: 1 }}>
+            {(["day","week","month","year"] as ViewMode[]).map(v => (
+              <button key={v} onClick={() => setViewMode(v)}
+                className={`pc-btn pc-btn--sm ${viewMode === v ? "pc-btn--primary" : "pc-btn--ghost"}`}
+                style={{ border: "none" }}>{VIEW_LABELS[v]}</button>
+            ))}
+          </div>
+          <button onClick={goToday} className="pc-btn pc-btn--secondary pc-btn--sm">오늘</button>
+        </div>
+      )}
+
       {!embedded && !isMobile ? (
         <div className="calendar-mission-shell" style={{ maxWidth: 1440, margin: "0 auto 10px", width: "100%", padding: "0 20px" }}>
           <ActiveMissionBar />
