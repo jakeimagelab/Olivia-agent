@@ -9,6 +9,7 @@ import { getOliviaApp } from "../../registry/oliviaAppRegistry";
 import styles from "./AllAppsWindowContent.module.css";
 
 const TOOL_ICON_BY_HREF: Record<string, IconName> = {
+  "/memo": "memo",
   "/team-chat": "team-chat",
   "/calendar": "work-calendar",
   "/work-journal": "work-log",
