@@ -461,7 +461,7 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = fals
         style={{ fontSize: mfz(13, isMobile), border: `1px solid ${C.border}`,
           borderRadius: 8, padding: "6px 10px", outline: "none", background: "#FAFAFA", color: C.txt }}/>
       <ReminderControls enabled={reminderEnabled} minutes={reminderMinutes} hasTime={Boolean(time)} onEnabled={setReminderEnabled} onMinutes={setReminderMinutes} isMobile={isMobile}/>
-      <div style={{ display: "flex", gap: 6 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {Object.entries(CATS).map(([key, v]) => (
           <button key={key} onClick={() => { setCat(key as keyof typeof CATS); setCatTouched(true); }} style={{
             padding: "4px 10px", borderRadius: 99, fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), cursor: "pointer",
@@ -553,7 +553,7 @@ function EditTaskForm({ task, onSave, onCancel, isMobile = false }: {
         style={{ fontSize: mfz(13, isMobile), border: `1px solid ${C.border}`,
           borderRadius: 8, padding: "6px 10px", outline: "none", background: "#FAFAFA", color: C.txt }}/>
       <ReminderControls enabled={reminderEnabled} minutes={reminderMinutes} hasTime={Boolean(time)} onEnabled={setReminderEnabled} onMinutes={setReminderMinutes} isMobile={isMobile}/>
-      <div style={{ display: "flex", gap: 6 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {Object.entries(CATS).map(([key, v]) => (
           <button key={key} onClick={() => setCat(key as keyof typeof CATS)} style={{
             padding: "4px 10px", borderRadius: 99, fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), cursor: "pointer",
