@@ -2513,10 +2513,15 @@ export default function CalendarWorkspace() {
     }
   };
 
+  const popoverAnchor = (x: number, y: number) => {
+    const rect = shellRef.current?.getBoundingClientRect();
+    if (!rect) return { x, y, boundsW: window.innerWidth, boundsH: window.innerHeight };
+    return { x: x - rect.left, y: y - rect.top, boundsW: rect.width, boundsH: rect.height };
+  };
   const openAddPopover = (date: string, x: number, y: number, time?: string) =>
-    setPopover({ mode: "add", date, task: null, x, y, time });
+    setPopover({ mode: "add", date, task: null, time, ...popoverAnchor(x, y) });
   const openEditPopover = (task: CalTask, x: number, y: number) =>
-    setPopover({ mode: "edit", date: task.date, task, x, y });
+    setPopover({ mode: "edit", date: task.date, task, ...popoverAnchor(x, y) });
 
   const updateTaskFields = async (id: string, fields: Partial<CalTask>) => {
     await fetch("/api/calendar", { method: "PATCH", headers: { "Content-Type": "application/json" },
