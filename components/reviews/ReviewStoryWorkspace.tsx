@@ -16,6 +16,7 @@ import {
   type ReviewStoryTemplateConfig,
 } from "@/lib/reviewContent/storyDocument";
 import ReviewStoryCanvas, { type ReviewStoryCanvasHandle } from "./ReviewStoryCanvas";
+import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import ReviewTemplateThumbnail from "./ReviewTemplateThumbnail";
 import styles from "./ReviewStoryWorkspace.module.css";
 
