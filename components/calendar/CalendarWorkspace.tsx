@@ -1959,7 +1959,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
         if (moved < 6) {
           // 거의 움직이지 않았으면 드래그가 아니라 클릭 — 모바일은 전체화면 팝업, 데스크탑은 인라인 편집 폼
           setDragging(null);
-          if (isMobile && onOpenEdit) onOpenEdit(d.task, clientX, clientY);
+          if (isMobile && onOpenEdit) onOpenEdit(d.task, d.anchor.x, d.anchor.y);
           else setEditingId(d.task.id);
           return;
         }
