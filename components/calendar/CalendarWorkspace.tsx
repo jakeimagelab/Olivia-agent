@@ -1717,7 +1717,6 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                           task: t,
                           offsetX: e.clientX - rect.left,
                           offsetY: e.clientY - rect.top,
-                          anchor: { x: rect.right, y: rect.top },
                         });
                       }}
                       onTouchStart={e => {
@@ -1731,7 +1730,6 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                           task: t,
                           offsetX: touch.clientX - rect.left,
                           offsetY: touch.clientY - rect.top,
-                          anchor: { x: rect.right, y: rect.top },
                         });
                       }}
                       style={{
