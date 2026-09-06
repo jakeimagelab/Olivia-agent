@@ -359,21 +359,17 @@ export default function ImageDirectorPage() {
   return (
     <main className="pc-page">
       <GlobalHeader title="리얼 이미지 디렉터" description="올리비아가 촬영 디렉팅하고 OpenAI gpt-image-1로 실사 병원 이미지를 생성합니다." />
-      <div className="pc-tabs pc-tabs--global">
-        {[
-          { key: "real", icon: <ImagePlus size={15} />, label: "리얼 병원 이미지 생성" },
-          { key: "variation", icon: <Camera size={15} />, label: "실사진 기반 베리에이션" },
-          { key: "conti", icon: <FileImage size={15} />, label: "촬영 콘티 시안 생성" },
-        ].map((t) => (
-          <button
-            key={t.key}
-            className={`pc-tab${mode === t.key ? " pc-tab--active" : ""}`}
-            onClick={() => setMode(t.key as Mode)}
-          >
-            <span className="pc-tab-icon">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
+      <div style={{ padding: "0 32px" }}>
+        <SegmentedTabs<Mode>
+          ariaLabel="이미지 생성 모드 선택"
+          value={mode}
+          onChange={setMode}
+          items={[
+            { value: "real", icon: <ImagePlus size={15} />, label: "리얼 병원 이미지 생성" },
+            { value: "variation", icon: <Camera size={15} />, label: "실사진 기반 베리에이션" },
+            { value: "conti", icon: <FileImage size={15} />, label: "촬영 콘티 시안 생성" },
+          ]}
+        />
       </div>
 
       {/* Mode 설명 */}
