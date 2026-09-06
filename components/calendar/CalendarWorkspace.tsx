@@ -1218,10 +1218,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                       }}
                       onDoubleClick={e => {
                         e.stopPropagation();
-                        if (isMobile) return;
-                        // 클릭 좌표가 아니라 이 일정 pill 자체의 위치 기준(맥 캘린더 방식)
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        onOpenEdit(t, rect.right, rect.top);
+                        if (!isMobile) onOpenEdit(t, e.clientX, e.clientY);
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 4,
