@@ -173,8 +173,10 @@ describe("Deterministic Router — Navigation (N1-N5, GPT 미호출)", () => {
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
     expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/work-journal" }]);
   });
-  it("메모 열어줘 → 더 이상 독립 기능이 아니라 결정적 처리 없음(null, 2026-09 메모 통합)", () => {
-    expect(resolveDeterministicResponse("메모 열어줘", runtime, emptyContext)).toBeNull();
+  it("메모 열어줘 → /memo open", () => {
+    const result = resolveDeterministicResponse("메모 열어줘", runtime, emptyContext);
+    expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/memo" }]);
   });
   it("일정 열어줘 → /calendar open(짧은 별칭이라도 여는 동사 뒤 완전일치면 허용)", () => {
     const result = resolveDeterministicResponse("일정 열어줘", runtime, emptyContext);
