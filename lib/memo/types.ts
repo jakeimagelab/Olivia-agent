@@ -1,5 +1,8 @@
 export type MemoTemplateType = "text" | "cornell" | "todo" | "blank" | "grid" | "conti";
 export type MemoMode = "general" | "template" | "voice";
+// 메모를 독립 메뉴가 아니라 고객/프로젝트/일정/업무 안의 부속 기능으로 쓸 때의 소속 구분.
+// 지정 안 하면(기존 /memo 단독 페이지) 전역 메모로 그대로 동작한다.
+export type MemoContextType = "customer" | "project" | "schedule" | "todo" | "general";
 
 export type TodoItem = { id: string; text: string; done: boolean };
 
