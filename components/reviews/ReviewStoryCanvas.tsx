@@ -473,4 +473,6 @@ const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function Re
       </div>
     </div>
   );
-}
+});
+
+export default ReviewStoryCanvas;
