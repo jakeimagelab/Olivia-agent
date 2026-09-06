@@ -864,8 +864,8 @@ function ScheduleChatPanel({ dateStr, onAdd }: {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0 }}>
-      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 320, maxHeight: 640, overflowY: "auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 320, maxHeight: 640, overflowY: "auto" }}>
         {messages.length === 0 ? (
           <div style={{ fontSize: 12, color: C.hint, lineHeight: 1.6 }}>"오후 2시 강남 촬영"처럼 편하게 적으면 바로 일정으로 등록돼요. 여러 줄로 길게 적어도 괜찮아요.</div>
         ) : messages.map((m, i) => (
