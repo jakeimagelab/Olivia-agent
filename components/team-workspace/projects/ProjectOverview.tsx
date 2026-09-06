@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { C } from "@/lib/theme";
 import { MemoWorkspace } from "@/components/memo/MemoWorkspace";
 import type { TeamProject, TeamTask } from "../types";
