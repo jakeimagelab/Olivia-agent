@@ -1460,11 +1460,9 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       if (d) {
         const moved = Math.hypot(clientX - dragStartRef.current.x, clientY - dragStartRef.current.y);
         if (moved < 6) {
-          // 거의 움직이지 않았으면 드래그가 아니라 클릭으로 간주 — 편집 팝업을 연다.
-          // 커서 좌표가 아니라 그 일정 블록 자체의 위치(anchor, mousedown 시점에 저장)를
-          // 기준으로 띄운다(맥 캘린더 방식).
+          // 거의 움직이지 않았으면 드래그가 아니라 클릭으로 간주 — 편집 팝업을 연다
           setDragging(null);
-          onOpenEdit(d.task, d.anchor.x, d.anchor.y);
+          onOpenEdit(d.task, clientX, clientY);
           return;
         }
         // 박스 안 어디를 잡았든(offsetY) 실제로 화면에 보이는 박스의 "윗변"이 새 시작시간이 되어야
