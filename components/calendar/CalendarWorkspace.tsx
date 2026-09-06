@@ -2230,13 +2230,13 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
 
             {/* Event column */}
             <div style={{ flex: 1, position: "relative", borderLeft: `1px solid ${C.border}` }}>
-              {/* Hour slot backgrounds — click to add */}
+              {/* Hour slot backgrounds — 더블클릭으로 추가(맥 캘린더 방식) */}
               {HOURS.map(h => (
                 <div key={h}
                   style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}20`,
                     background: h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
                     cursor: dragging ? CURSOR_GRABBING : onOpenAdd ? "pointer" : "default" }}
-                  onClick={e => { if (!dragging) onOpenAdd?.(dateStr, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
+                  onDoubleClick={e => { if (!dragging) onOpenAdd?.(dateStr, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
                 />
               ))}
 
