@@ -270,9 +270,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
               </div>
               <input className="memo-title-input" value={title} onChange={event => setTitle(event.target.value)} placeholder="메모 제목" />
 
-              <textarea className="memo-general-textarea" aria-label="메모 내용" value={rawMemo} onChange={event => setRawMemo(event.target.value)} placeholder="내용을 입력하세요." />
-
-              <div className="memo-template-picker" aria-label="필기 캔버스 양식 선택">
+              <div className="memo-template-picker" aria-label="캔버스 종이 양식 선택">
                 {PEN_TEMPLATE_OPTIONS.map(option => <button key={option.type} className={templateType === option.type ? "is-active" : ""} onClick={() => chooseTemplate(option.type)}>
                   <span>{option.mark}</span><strong>{option.label}</strong><small>{option.description}</small>
                 </button>)}
@@ -282,11 +280,18 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
                 <label>열 <input aria-label="콘티 열" type="number" min={1} max={4} value={contiColumns} onChange={event => resizeConti(Math.min(4, Math.max(1, Number(event.target.value))), contiRows)} /></label>
                 <label>행 <input aria-label="콘티 행" type="number" min={1} max={6} value={contiRows} onChange={event => resizeConti(contiColumns, Math.min(6, Math.max(1, Number(event.target.value))))} /></label>
               </div> : null}
-              <div className="memo-canvas-heading"><strong>{activeTemplate?.label} 펜 메모</strong><span>Apple Pencil, 터치, 마우스로 작성하세요.</span></div>
-              <NoteCanvasPanel key={`${currentId ?? "new"}-${templateType}`} ref={canvasRef} templateType={templateType} templateData={templateData} initialImage={initialCanvas} onChange={setCanvasDirty} />
-
-              <div className="memo-canvas-heading"><strong>음성 녹음</strong><span>대화를 녹음하면 AI가 텍스트로 변환하고 요약합니다.</span></div>
-              <VoiceMemoPanel memoId={currentId} existingUrl={audioUrl} transcript={transcript} summary={audioSummary} ensureSaved={save} onTranscriptChange={setTranscript} onProcessed={values => { setAudioUrl(values.audioUrl); setTranscript(values.transcript); setAudioSummary(values.summary); void loadHistory(); }} />
+              <div className="memo-canvas-heading"><strong>{activeTemplate?.label}</strong><span>텍스트·펜·음성을 같은 캔버스 위에서 도구만 바꿔가며 남기세요.</span></div>
+              <NoteCanvasPanel
+                key={`${currentId ?? "new"}-${templateType}`}
+                ref={canvasRef}
+                templateType={templateType}
+                templateData={templateData}
+                initialImage={initialCanvas}
+                onChange={setCanvasDirty}
+                textValue={rawMemo}
+                onTextChange={setRawMemo}
+                voiceButton={<VoiceMemoPanel compact memoId={currentId} existingUrl={audioUrl} transcript={transcript} summary={audioSummary} ensureSaved={save} onTranscriptChange={setTranscript} onProcessed={values => { setAudioUrl(values.audioUrl); setTranscript(values.transcript); setAudioSummary(values.summary); void loadHistory(); }} />}
+              />
             </section>
 
             <section className="pc-card pc-card--padded memo-ai-card">
