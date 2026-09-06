@@ -72,13 +72,11 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
 
   useEffect(() => { void loadHistory(); }, [loadHistory]);
 
-  const reset = useCallback((nextMode: MemoMode = mode) => {
-    const nextType: MemoTemplateType = nextMode === "template" ? "blank" : "text";
-    setMode(nextMode);
+  const reset = useCallback(() => {
     setCurrentId(null);
     setTitle("");
-    setTemplateType(nextType);
-    setTemplateData({ ...emptyTemplateData(nextType), noteMode: nextMode });
+    setTemplateType("blank");
+    setTemplateData(emptyTemplateData("blank"));
     setRawMemo("");
     setTranscript("");
     setAudioSummary("");
@@ -88,31 +86,24 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
     setAiImage(null);
     setAiText("");
     setStatus(null);
-  }, [mode]);
-
-  const changeMode = (nextMode: MemoMode) => {
-    if (nextMode === mode && !currentId) return;
-    reset(nextMode);
-  };
+  }, []);
 
   const chooseTemplate = (type: MemoTemplateType) => {
     if (canvasDirty && !window.confirm("양식을 바꾸면 현재 필기가 초기화됩니다. 계속할까요?")) return;
     setTemplateType(type);
-    setTemplateData({ ...emptyTemplateData(type), noteMode: "template" });
+    setTemplateData(emptyTemplateData(type));
     setInitialCanvas(null);
     setCanvasDirty(null);
     setAiImage(null);
     setAiText("");
-    setRawMemo("");
   };
 
   const openMemo = (memo: ConsultationMemo) => {
-    const savedMode = modeFromMemo(memo);
-    setMode(savedMode);
+    const loadedType = memo.template_type === "text" ? "blank" : memo.template_type;
     setCurrentId(memo.id);
     setTitle(memo.title || "");
-    setTemplateType(savedMode === "template" ? memo.template_type : "text");
-    setTemplateData({ ...(memo.template_data || emptyTemplateData(memo.template_type)), noteMode: savedMode });
+    setTemplateType(loadedType);
+    setTemplateData(memo.template_data || emptyTemplateData(loadedType));
     setRawMemo(memo.raw_memo || "");
     setTranscript(memo.transcript || "");
     setAudioSummary(memo.audio_summary || "");
@@ -129,8 +120,6 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
     setSaving(true);
     setStatus(null);
     try {
-      const storedType = mode === "template" ? templateType : "text";
-      const storedData = { ...templateData, body: mode === "general" ? rawMemo : templateData.body, noteMode: mode };
       const response = await fetch("/api/memo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,10 +130,10 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
           hospital_id: contextType === "customer" ? contextId : undefined,
           context_type: contextType,
           context_id: contextId,
-          title: title.trim() || defaultTitle(mode),
-          template_type: storedType,
-          template_data: storedData,
-          raw_memo: mode === "voice" ? "" : rawMemo,
+          title: title.trim() || DEFAULT_TITLE,
+          template_type: templateType,
+          template_data: { ...templateData, body: rawMemo },
+          raw_memo: rawMemo,
           transcript,
           audio_summary: audioSummary,
         }),
@@ -154,7 +143,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
       const id = data.memo.id as string;
       setCurrentId(id);
 
-      if (mode === "template" && canvasDirty) {
+      if (canvasDirty) {
         const exported = canvasRef.current?.getDataUrl({
           background: canvasBackground(templateType),
           columns: templateData.contiColumns,
@@ -171,7 +160,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
         setCanvasDirty(null);
       }
 
-      setStatus({ ok: true, text: `${MODE_INFO[mode].label}를 저장했습니다.` });
+      setStatus({ ok: true, text: "메모를 저장했습니다." });
       void loadHistory();
       return id;
     } catch (error) {
@@ -181,7 +170,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
     } finally {
       setSaving(false);
     }
-  }, [audioSummary, canvasDirty, contextId, contextType, currentId, loadHistory, mode, rawMemo, templateData, templateType, title, transcript]);
+  }, [audioSummary, canvasDirty, contextId, contextType, currentId, loadHistory, rawMemo, templateData, templateType, title, transcript]);
 
   useSaveShortcut(() => { void save().catch(() => undefined); });
 
