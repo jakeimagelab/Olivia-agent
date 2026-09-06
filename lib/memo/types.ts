@@ -20,6 +20,8 @@ export type MemoTemplateData = {
 export type ConsultationMemo = {
   id: string;
   hospital_id: string | null;
+  context_type: MemoContextType | null;
+  context_id: string | null;
   title: string;
   template_type: MemoTemplateType;
   template_data: MemoTemplateData;
