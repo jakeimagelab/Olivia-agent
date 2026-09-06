@@ -218,7 +218,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || "삭제 실패");
       setMemos(rows => rows.filter(row => row.id !== memo.id));
-      if (currentId === memo.id) reset(mode);
+      if (currentId === memo.id) reset();
       setStatus({ ok: true, text: "메모를 휴지통으로 이동했습니다. 30일 안에 복원할 수 있습니다." });
     } catch (error) {
       setStatus({ ok: false, text: error instanceof Error ? error.message : "삭제 실패" });
