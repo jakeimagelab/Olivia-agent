@@ -21,21 +21,6 @@ type ViewMode = "day" | "week" | "month" | "year";
 const CALENDAR_VIEW_STORAGE_KEY = "olivia-calendar-view-v1";
 const isViewMode = (value: unknown): value is ViewMode => value === "day" || value === "week" || value === "month" || value === "year";
 
-type ConsultEntry = {
-  hospital: string;
-  summary: string;
-  items: string[];
-  budget: string;
-  savedAt: string;
-};
-
-type MemoExtracted = {
-  summary?: string; hospital_name?: string; manager_name?: string;
-  phone?: string; preferred_date?: string; budget?: string;
-  shooting_items?: string[]; special_notes?: string;
-  recommended_package?: string; next_action?: string;
-};
-
 type CalTask = {
   id: string; date: string; title: string; memo: string;
   category: keyof typeof CATS; completed: boolean; created_at: string;
