@@ -227,9 +227,16 @@ export default function MarketingStrategyListPage() {
             <Plus size={15} /> 새 전략
           </button>
         } />
-      <div className="pc-tabs pc-tabs--global">
-        <button className="pc-tab" onClick={() => router.push("/marketing")}>홈</button>
-        <button className="pc-tab pc-tab--active">전략</button>
+      <div style={{ padding: "20px 20px 0" }}>
+        <SegmentedTabs
+          ariaLabel="마케팅 섹션 선택"
+          value="strategy"
+          onChange={() => {}}
+          items={[
+            { value: "home", label: "홈", href: "/marketing" },
+            { value: "strategy", label: "전략" },
+          ]}
+        />
       </div>
 
       <div className="oa-page" style={{ maxWidth: 1160, margin: "0 auto", padding: `${SP.lg}px 20px 60px` }}>
