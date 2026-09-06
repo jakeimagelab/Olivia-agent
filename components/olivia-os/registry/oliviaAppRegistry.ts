@@ -1,5 +1,6 @@
 import { createElement, type ComponentType, type ReactNode } from "react";
-import { Icon, type IconName } from "@/components/Icon";
+import type { IconName } from "@/components/Icon";
+import { AppIcon } from "@/components/AppIcon";
 import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import { PhotoWorkspaceWindowContent } from "../adapters/PhotoWorkspaceWindowContent";
 import { ClientsWindowContent } from "../adapters/ClientsWindowContent";
