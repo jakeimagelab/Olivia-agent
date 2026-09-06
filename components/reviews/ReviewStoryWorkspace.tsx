@@ -740,7 +740,22 @@ export default function ReviewStoryWorkspace() {
         <aside className={`${styles.panel} ${styles.rightPanel}`} aria-label="요소 속성과 레이어">
           <section className={styles.section}>
             <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>요소 편집</h2>{selectedElement ? <span className={styles.count}>{selectedElement.name}</span> : null}</div>
-            {!selectedElement ? <div className={styles.propertyEmpty}>캔버스에서 텍스트나 사진을 선택하면<br />편집 도구가 표시됩니다.</div> : (
+            {!selectedElement ? (
+              <div className={styles.propertyEmpty}>
+                캔버스에서 텍스트나 사진을 선택하면<br />편집 도구가 표시됩니다.
+                {activePage ? (
+                  <label className={styles.field} style={{ marginTop: 14, textAlign: "left" }}>
+                    배경색
+                    <input
+                      className={styles.input}
+                      type="color"
+                      value={activePage.document.background}
+                      onChange={(event) => patchDocument({ background: event.target.value })}
+                    />
+                  </label>
+                ) : null}
+              </div>
+            ) : (
               <>
                 <div className={styles.styleTabs} role="tablist">
                   <button type="button" role="tab" aria-selected={rightTab === "props"} className={`${styles.styleTab} ${rightTab === "props" ? styles.styleTabActive : ""}`} onClick={() => setRightTab("props")}>속성</button>
