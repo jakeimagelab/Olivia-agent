@@ -467,8 +467,17 @@ export default function ReviewStoryWorkspace() {
     }
   };
 
+  // 화면에 보이는 ReviewStoryCanvas DOM을 그대로 캡처한다(canvasHandleRef.current.captureRaster) —
+  // 예전엔 canvas 2D로 텍스트를 다시 조판하는 별도 렌더러를 썼는데, 그게 브라우저 텍스트 레이아웃과
+  // 결과물 줄바꿈이 어긋나는 원인이었다(제안서 2-3). page는 항상 activePage이므로(호출부 확인됨)
+  // 지금 DOM에 그려진 것과 저장하려는 document가 항상 같다.
+  const canvasToBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG 생성에 실패했습니다.")), "image/png"));
+
   const uploadRenderedPage = async (page: StoryPage) => {
-    const blob = await renderReviewStoryDocument(page.document, { ...assetUrls, ...(page.assetUrls || {}) });
+    if (!canvasHandleRef.current) throw new Error("캔버스를 찾을 수 없습니다.");
+    const canvas = await canvasHandleRef.current.captureRaster(page.document.width);
+    const blob = await canvasToBlob(canvas);
     const session = await jsonRequest("/api/review-assets/upload-session", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ variantId: page.id, fileName: `review-story-${Date.now()}.png`, mimeType: "image/png", fileSize: blob.size }),
