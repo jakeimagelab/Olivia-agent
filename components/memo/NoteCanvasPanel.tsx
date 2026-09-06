@@ -1,7 +1,7 @@
 "use client";
 
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Circle, Maximize2, Minimize2, Minus, Redo2, Square, Trash2, Undo2 } from "lucide-react";
+import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowUpRight, Circle, Maximize2, Minimize2, Minus, Redo2, Square, Trash2, Type, Undo2 } from "lucide-react";
 import DrawingCanvas, { DRAW_COLORS, type DrawingCanvasHandle, type DrawShape, type PenType } from "@/components/DrawingCanvas";
 import type { MemoTemplateData, MemoTemplateType } from "@/lib/memo/types";
 
@@ -10,6 +10,11 @@ type Props = {
   templateData: MemoTemplateData;
   initialImage?: string | null;
   onChange: (dataUrl: string) => void;
+  // 텍스트/펜/음성을 화면을 나눠 따로 두지 않고, 같은 종이(캔버스) 위에서 도구만 바꿔가며
+  // 쓰도록 통합했다 — textValue/onTextChange가 이 캔버스에 겹쳐지는 텍스트 레이어를 담당한다.
+  textValue: string;
+  onTextChange: (value: string) => void;
+  voiceButton?: ReactNode;
 };
 
 const NOTE_PENS: { key: PenType; label: string }[] = [
