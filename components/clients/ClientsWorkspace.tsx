@@ -751,6 +751,12 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 
         {activeTab === "activity" && <PcrmActivityTimeline activities={activities} variant="full" />}
 
+        {activeTab === "memo" && (
+          <div className="pc-card" style={{ padding: 0, overflow: "hidden" }}>
+            <MemoWorkspace embedded contextType="customer" contextId={clientId} />
+          </div>
+        )}
+
         {activeTab === "info" && <InfoPanel client={client} onUpdate={load} />}
 
         {activeTab === "portal" && <ClientPortalTab clientId={clientId} workflowRunId={workflowRun?.id} />}
