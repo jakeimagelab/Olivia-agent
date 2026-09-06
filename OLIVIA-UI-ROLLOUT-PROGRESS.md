@@ -50,6 +50,22 @@
 - `broll-prompt` — 우측 패널은 있으나 좌측이 번호 배지 나열이지 접히는 아코디언은 아님. 저위험
   개선(아코디언화)은 가능하나 이번 pass 스코프 밖.
 
+## 유형 C — ScoreCard 통일 조사 결과 (대부분 보류)
+
+`channel-analyzer`를 직접 열어본 결과, 이미 `good`/`normal`/`risk` 톤 계산 로직이 있고
+`.channel-score.good/normal/risk` CSS 클래스로 색을 입히고 있었다. 그런데 이 점수가 **틸 배경
+카드(`--teal`) 위에** 떠 있어서, 색이 흰 배경 기준으로 설계된 `--score-good/normal/risk`
+토큰(#4C9A5C/#E9A227/#C0473F)으로 그대로 바꾸면 어두운 배경 위에서 대비가 떨어질 위험이 있다
+(지금 색은 `#75d6bb`/`#f6b23c`/`#ff8562` — 어두운 배경에서 잘 보이도록 이미 밝게 조정된 값으로
+보임). 브라우저로 대비를 직접 확인할 방법이 이번 세션엔 없어서(Playwright 미연결), **색 교체는
+보류**하고 안전한 것만 했다: "PHOTO CLINIC BRAND REPORT" 영문 이터브로우 제거(1.1 위반, 콘티의
+"Conti setup" 사례와 동일 패턴).
+
+나머지 12개 라우트(`channel-audit`, `ai-trust-gap`, `monthly-report`, `hospital-brand-image-
+diagnosis`, `report`, `diagnosis`, `trend-dashboard`, `review`, `review-studio`, `color-check`,
+`clients/reports`, `brand-analysis`)는 각각 점수를 어떤 배경 위에 어떤 방식으로 보여주는지
+개별 확인이 필요해서 이번 pass에서 손 안 댐 — 브라우저로 대비 확인 가능한 다음 세션에서 진행.
+
 ## ScoreCard 미적용 (점수 표시 자체가 없음, 제품 결정 필요)
 
 `brand-analysis`, `diagnosis`, `trend-dashboard`, `review`, `color-check`, `review-studio`,
