@@ -28,6 +28,7 @@ import ClientOverviewTab from "@/app/(client-hub)/clients/_components/detail/Cli
 import ClientScheduleTab from "@/app/(client-hub)/clients/_components/detail/ClientScheduleTab";
 import ClientRevisionsTab from "@/app/(client-hub)/clients/_components/detail/ClientRevisionsTab";
 import ClientPortalTab from "@/app/(client-hub)/clients/_components/detail/ClientPortalTab";
+import { MemoWorkspace } from "@/components/memo/MemoWorkspace";
 import MissionStatusBar from "@/components/olivia/ui/MissionStatusBar";
 import { C } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
