@@ -26,7 +26,7 @@ export function CalendarAppIcon() {
       }}>{weekday}</span>
       <span style={{
         flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-        width: "100%", background: "#fff", color: "#1C2B28", fontSize: 22, fontWeight: 900, lineHeight: 1,
+        width: "100%", background: "#fff", color: "#1C2B28", fontSize: 22, fontWeight: 400, lineHeight: 1,
       }}>{day}</span>
     </span>
   );
