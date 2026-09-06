@@ -130,7 +130,7 @@ async function saveMemo(body: any) {
   // context_type/context_id를 뺀 값으로, select도 구컬럼셋으로 재시도한다.
   const { context_type: _ct, context_id: _ci, ...valuesWithoutContext } = values;
   if (body.id) {
-    let { data, error } = await db.from("consultation_memos").update(values).eq("id", body.id).select(MEMO_FIELDS).single();
+    let { data, error }: { data: any; error: any } = await db.from("consultation_memos").update(values).eq("id", body.id).select(MEMO_FIELDS).single();
     if (error?.code === UNDEFINED_COLUMN) {
       ({ data, error } = await db.from("consultation_memos").update(valuesWithoutContext).eq("id", body.id).select(MEMO_FIELDS_BASE).single());
     }
