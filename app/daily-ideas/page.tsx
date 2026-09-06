@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import GlobalHeader from "@/components/GlobalHeader";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 
 const C = {
   teal: "#155855", orange: "#E85D2C",
