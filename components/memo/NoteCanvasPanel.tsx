@@ -79,23 +79,27 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
     <section ref={panelRef} aria-label="필기 팔레트" style={isFullscreen ? { background: "#FCFDFC", padding: 14, overflow: "hidden" } : undefined}>
       <div className="memo-draw-toolbar" style={{ display: "flex", gap: 9, alignItems: "center", flexWrap: "wrap", padding: 10, borderRadius: 16, background: "#EDF5F3", marginBottom: 10 }}>
         <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
-          {NOTE_PENS.map(pen => <button key={pen.key} title={pen.label} onClick={() => { setPenType(pen.key); setEraser(false); setShape("freehand"); }} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: !eraser && shape === "freehand" && penType === pen.key ? "#155855" : "transparent", color: !eraser && shape === "freehand" && penType === pen.key ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{pen.label}</button>)}
+          <button title="텍스트" onClick={activateTextTool} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 12px", display: "flex", alignItems: "center", gap: 5, background: textMode ? "#155855" : "transparent", color: textMode ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}><Type size={13} />텍스트</button>
+        </div>
+        {voiceButton}
+        <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
+          {NOTE_PENS.map(pen => <button key={pen.key} title={pen.label} onClick={() => activateDrawTool(() => { setPenType(pen.key); setEraser(false); setShape("freehand"); })} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: !textMode && !eraser && shape === "freehand" && penType === pen.key ? "#155855" : "transparent", color: !textMode && !eraser && shape === "freehand" && penType === pen.key ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{pen.label}</button>)}
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 7, color: "#607873", fontSize: 10, fontWeight: 800 }}>굵기 <input aria-label="펜 굵기" type="range" min={1} max={18} value={penSize} onChange={event => setPenSize(Number(event.target.value))} style={{ width: 90, accentColor: "#155855" }} /><span>{penSize}</span></label>
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          {DRAW_COLORS.map(item => <button key={item.color} aria-label={item.label} onClick={() => { setPenColor(item.color); setEraser(false); }} style={{ width: 22, height: 22, borderRadius: 99, border: penColor === item.color ? "3px solid #fff" : "2px solid transparent", boxShadow: penColor === item.color ? "0 0 0 2px #155855" : item.color === "#FFFFFF" ? "0 0 0 1px rgba(21,88,85,.2) inset" : "none", background: item.color, cursor: "pointer" }} />)}
+          {DRAW_COLORS.map(item => <button key={item.color} aria-label={item.label} onClick={() => activateDrawTool(() => { setPenColor(item.color); setEraser(false); })} style={{ width: 22, height: 22, borderRadius: 99, border: penColor === item.color ? "3px solid #fff" : "2px solid transparent", boxShadow: penColor === item.color ? "0 0 0 2px #155855" : item.color === "#FFFFFF" ? "0 0 0 1px rgba(21,88,85,.2) inset" : "none", background: item.color, cursor: "pointer" }} />)}
           <label style={{ display: "flex" }} title="커스텀 색상">
-            <input aria-label="커스텀 색상 선택" type="color" value={penColor} onChange={event => { setPenColor(event.target.value); setEraser(false); }} style={{ width: 24, height: 24, padding: 0, border: "none", borderRadius: 6, boxShadow: "0 0 0 1px rgba(21,88,85,.25)", cursor: "pointer", background: "none" }} />
+            <input aria-label="커스텀 색상 선택" type="color" value={penColor} onChange={event => activateDrawTool(() => { setPenColor(event.target.value); setEraser(false); })} style={{ width: 24, height: 24, padding: 0, border: "none", borderRadius: 6, boxShadow: "0 0 0 1px rgba(21,88,85,.25)", cursor: "pointer", background: "none" }} />
           </label>
         </div>
-        <button onClick={() => setEraser(value => !value)} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 11px", background: eraser ? "#E85D2C" : "#fff", color: eraser ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>지우개</button>
+        <button onClick={() => activateDrawTool(() => setEraser(value => !value))} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 11px", background: !textMode && eraser ? "#E85D2C" : "#fff", color: !textMode && eraser ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>지우개</button>
         {eraser ? <label style={{ display: "flex", alignItems: "center", gap: 6, color: "#607873", fontSize: 10 }}>크기 <input aria-label="지우개 크기" type="range" min={8} max={80} value={eraserSize} onChange={event => setEraserSize(Number(event.target.value))} style={{ width: 80, accentColor: "#E85D2C" }} /></label> : null}
         <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
           {SHAPE_OPTIONS.map(item => {
             const Icon = item.icon;
-            const active = shape === item.key;
+            const active = !textMode && shape === item.key;
             return (
-              <button key={item.key} aria-label={item.label} title={item.label} onClick={() => { setShape(active ? "freehand" : item.key); setEraser(false); }} style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: active ? "#155855" : "transparent", color: active ? "#fff" : "#155855", cursor: "pointer" }}>
+              <button key={item.key} aria-label={item.label} title={item.label} onClick={() => activateDrawTool(() => { setShape(shape === item.key ? "freehand" : item.key); setEraser(false); })} style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: active ? "#155855" : "transparent", color: active ? "#fff" : "#155855", cursor: "pointer" }}>
                 <Icon size={15} />
               </button>
             );
@@ -109,8 +113,24 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
         </div>
       </div>
       <div style={{ padding: 6, borderRadius: 22, background: "rgba(21,88,85,.06)" }}>
-        <div style={{ ...background, borderRadius: 16, overflow: "hidden" }}>
-          <DrawingCanvas ref={setRefs} penType={penType} penSize={penSize} penColor={penColor} isEraser={eraser} eraserSize={eraserSize} shape={shape} initialImage={initialImage} onStrokeEnd={dataUrl => { onChange(dataUrl); forceHistory(v => v + 1); }} style={{ display: "block", width: "100%", height: isFullscreen ? "calc(100vh - 104px)" : templateType === "conti" ? 560 : 430 }} />
+        <div style={{ ...background, borderRadius: 16, overflow: "hidden", position: "relative" }}>
+          <textarea
+            ref={textareaRef}
+            aria-label="메모 텍스트"
+            value={textValue}
+            onChange={event => onTextChange(event.target.value)}
+            placeholder={textMode ? "내용을 입력하세요…" : ""}
+            readOnly={!textMode}
+            tabIndex={textMode ? 0 : -1}
+            style={{
+              position: "absolute", inset: 0, width: "100%",
+              height: isFullscreen ? "calc(100vh - 104px)" : templateType === "conti" ? 560 : 430,
+              border: "none", outline: "none", resize: "none", background: "transparent",
+              padding: 18, boxSizing: "border-box", font: "inherit", fontSize: 14, lineHeight: 1.85, color: "#1C2B28",
+              pointerEvents: textMode ? "auto" : "none", zIndex: 1,
+            }}
+          />
+          <DrawingCanvas ref={setRefs} penType={penType} penSize={penSize} penColor={penColor} isEraser={eraser} eraserSize={eraserSize} shape={shape} initialImage={initialImage} onStrokeEnd={dataUrl => { onChange(dataUrl); forceHistory(v => v + 1); }} style={{ display: "block", width: "100%", height: isFullscreen ? "calc(100vh - 104px)" : templateType === "conti" ? 560 : 430, position: "relative", zIndex: 2, pointerEvents: textMode ? "none" : "auto", background: "transparent" }} />
         </div>
       </div>
     </section>
