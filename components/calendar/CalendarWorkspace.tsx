@@ -1692,12 +1692,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                     style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}20`,
                       background: isToday ? "#FFFAF9" : h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
                       cursor: dragging ? CURSOR_GRABBING : "pointer" }}
-                    onDoubleClick={e => {
-                      if (dragging) return;
-                      // 클릭 좌표가 아니라 그 시간대 칸 자체 위치 기준(맥 캘린더 방식)
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      onOpenAdd(ds, rect.right, rect.top, `${String(h).padStart(2,"0")}:00`);
-                    }}
+                    onDoubleClick={e => { if (!dragging) onOpenAdd(ds, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
                   />
                 ))}
 
