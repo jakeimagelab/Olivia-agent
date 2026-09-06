@@ -831,145 +831,76 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
   );
 }
 
-/* ─── ConsultMemoPanel ─────────────────────────────────── */
-function ConsultMemoPanel({ dateStr, consultations, onAdd }: {
+/* ─── ScheduleChatPanel — 상담 메모(AI 분석 폼) 대신 미니 챗팅 하나로 바로 일정을 등록한다.
+   새 NLU를 만들지 않고 붙여넣기 퀵등록(onPaste)이 이미 쓰는 lib/calendarPaste.ts의
+   parseClipboardTasks를 그대로 재사용한다 — "오후 2시 강남 촬영"처럼 자유롭게 치면
+   날짜/시간/제목/카테고리를 그 자리에서 추출해 /api/calendar에 바로 저장한다. ─── */
+function ScheduleChatPanel({ dateStr, onAdd }: {
   dateStr: string;
-  consultations: ConsultEntry[];
   onAdd: (t: CalTask) => void;
 }) {
-  const [rawMemo, setRawMemo] = useState("");
-  const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<MemoExtracted | null>(null);
-  const [edited, setEdited] = useState<MemoExtracted>({});
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [calError, setCalError] = useState("");
-  const [memoError, setMemoError] = useState("");
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setRawMemo(""); setResult(null); setSaved(false); setCalError(""); setMemoError("");
-  }, [dateStr]);
+  useEffect(() => { setMessages([]); setInput(""); }, [dateStr]);
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }); }, [messages]);
 
-  const analyze = async () => {
-    if (!rawMemo.trim()) { setMemoError("메모를 입력해주세요."); return; }
-    setAnalyzing(true); setMemoError("");
+  const send = async () => {
+    const text = input.trim();
+    if (!text || sending) return;
+    setMessages(prev => [...prev, { role: "user", text }]);
+    setInput("");
+    const [parsed] = parseClipboardTasks(text, dateStr);
+    if (!parsed) {
+      setMessages(prev => [...prev, { role: "assistant", text: "어떤 일정인지 못 알아들었어요. 예: '오후 2시 강남 촬영'" }]);
+      return;
+    }
+    setSending(true);
     try {
-      const res = await fetch("/api/memo", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ raw_memo: rawMemo }),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error);
-      setResult(data);
-      setEdited({ ...data, preferred_date: data.preferred_date || dateStr });
-    } catch (e: any) { setMemoError(e.message || "분석 실패"); }
-    finally { setAnalyzing(false); }
-  };
-
-  const saveToCalendar = async () => {
-    const date = edited.preferred_date?.match(/\d{4}-\d{2}-\d{2}/)?.[0] || dateStr;
-    setSaving(true); setCalError("");
-    try {
-      const title = [edited.hospital_name, "촬영 일정"].filter(Boolean).join(" ") || "촬영 일정";
-      const memo = [
-        edited.summary,
-        (edited.shooting_items ?? []).length ? "항목: " + (edited.shooting_items ?? []).join(", ") : "",
-        edited.budget ? "예산: " + edited.budget : "",
-        edited.special_notes,
-      ].filter(Boolean).join("\n");
-      const location = edited.hospital_name || null;
       const r = await fetch("/api/calendar", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, title, memo, category: "shooting", location }),
+        body: JSON.stringify({ date: parsed.date, title: parsed.title, memo: "", category: parsed.category, time: parsed.time, end_time: parsed.end_time, location: null }),
       });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error);
-      // Supabase의 calendar_tasks에 그대로 저장 — 상담 메모 카드는 이 목록에서 파생되므로
-      // 다른 컴퓨터에서도 동일하게 보인다 (localStorage 별도 저장 불필요).
-      onAdd({ id: d.id, date, title, memo, category: "shooting", completed: false,
-        created_at: new Date().toISOString(), time: null, end_time: null, location });
-      setSaved(true);
-    } catch (e: any) { setCalError(e.message || "저장 실패"); }
-    finally { setSaving(false); }
-  };
-
-  const upd = (key: keyof MemoExtracted, val: string) => setEdited(prev => ({ ...prev, [key]: val }));
-
-  const iStyle: React.CSSProperties = {
-    fontSize: 12, color: C.txt, border: "none", outline: "none",
-    borderBottom: `1px solid ${C.border}`, background: "transparent",
-    padding: "1px 0", fontFamily: "inherit", width: "100%",
+      onAdd({ id: d.id, date: parsed.date, title: parsed.title, memo: "", category: parsed.category, completed: false,
+        created_at: new Date().toISOString(), time: parsed.time, end_time: parsed.end_time, location: null,
+        reminder_due_at: d.reminder_due_at ?? null });
+      setMessages(prev => [...prev, { role: "assistant", text: `등록했어요 — ${parsed.date}${parsed.time ? ` ${parsed.time}` : ""} ${parsed.title}` }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { role: "assistant", text: e instanceof Error ? e.message : "등록에 실패했어요. 다시 시도해 주세요." }]);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {consultations.map((c, i) => (
-        <div key={i} style={{ background: "#FFF5F0", border: "1px solid #FACCB8", borderRadius: 10, padding: "10px 12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: "#E85D2C" }}>🏥 {c.hospital}</span>
-            <span style={{ fontSize: 9, color: C.hint, marginLeft: "auto" }}>{c.savedAt}</span>
-          </div>
-          {c.summary && <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>{c.summary}</div>}
-          {c.items?.length > 0 && <div style={{ fontSize: 11, color: C.hint, marginTop: 3 }}>항목: {c.items.join(", ")}</div>}
-          {c.budget && <div style={{ fontSize: 11, color: C.hint }}>예산: {c.budget}</div>}
-        </div>
-      ))}
-
-      {!result ? (
-        <>
-          <textarea value={rawMemo} onChange={e => setRawMemo(e.target.value)}
-            placeholder={`상담 내용을 자유롭게 메모하세요.\n\n예:\n강남 피부과 - 김실장 상담\n원장 프로필 + 공간사진 + 시술 연출\n7월 초 희망 / 예산 250~300`}
-            rows={9}
-            style={{ width: "100%", fontSize: 12, color: C.txt, border: `1px solid ${C.border}`,
-              borderRadius: 10, padding: "10px 12px", resize: "none", background: "#FAFCFB",
-              outline: "none", lineHeight: 1.75, fontFamily: "inherit", boxSizing: "border-box" }}/>
-          {memoError && <div style={{ fontSize: 11, color: "#E85D2C", background: "#FFF0EB", borderRadius: 7, padding: "6px 10px" }}>⚠ {memoError}</div>}
-          <button onClick={analyze} disabled={analyzing} className="pc-btn pc-btn--primary">
-            {analyzing ? "AI 분석 중…" : "✨ AI 분석하기"}
-          </button>
-        </>
-      ) : (
-        <>
-          <div style={{ background: C.teal, borderRadius: 10, padding: "12px 14px", color: "#fff" }}>
-            <div style={{ fontSize: 9, opacity: .6, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 3 }}>AI 분석 요약</div>
-            <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.65 }}>{edited.summary || "—"}</div>
-          </div>
-          <div className="pc-card pc-card--padded" style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-            {([
-              { key: "hospital_name"  as const, label: "병원명" },
-              { key: "manager_name"   as const, label: "담당자" },
-              { key: "phone"          as const, label: "연락처" },
-              { key: "preferred_date" as const, label: "희망일" },
-              { key: "budget"         as const, label: "예산" },
-              { key: "special_notes"  as const, label: "특이사항" },
-            ] as const).map(({ key, label }) => (
-              edited[key] ? (
-                <div key={key} style={{ display: "grid", gridTemplateColumns: "52px 1fr", gap: 6, alignItems: "center" }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: C.hint }}>{label}</span>
-                  <input value={String(edited[key] ?? "")} onChange={e => upd(key, e.target.value)} style={iStyle}/>
-                </div>
-              ) : null
-            ))}
-            {(edited.shooting_items ?? []).length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "52px 1fr", gap: 6 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: C.hint }}>항목</span>
-                <span style={{ fontSize: 12, color: C.txt }}>{(edited.shooting_items ?? []).join(", ")}</span>
-              </div>
-            )}
-          </div>
-          {calError && <div style={{ fontSize: 11, color: "#E85D2C", background: "#FFF0EB", borderRadius: 7, padding: "6px 10px" }}>⚠ {calError}</div>}
-          {saved ? (
-            <div style={{ padding: "9px 12px", background: "#E6F4EA", border: "1px solid #86EFAC", borderRadius: 9, fontSize: 12, color: "#166534", fontWeight: 700 }}>
-              ✅ 캘린더에 등록됐어요!
-            </div>
-          ) : (
-            <button onClick={saveToCalendar} disabled={saving} className="pc-btn pc-btn--orange">
-              {saving ? "등록 중…" : "📅 캘린더에 등록"}
-            </button>
-          )}
-          <button onClick={() => { setResult(null); setRawMemo(""); setSaved(false); }} className="pc-btn pc-btn--ghost pc-btn--sm">새 메모 작성</button>
-        </>
-      )}
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 220, overflowY: "auto" }}>
+        {messages.length === 0 ? (
+          <div style={{ fontSize: 12, color: C.hint, lineHeight: 1.6 }}>"오후 2시 강남 촬영"처럼 편하게 적으면 바로 일정으로 등록돼요.</div>
+        ) : messages.map((m, i) => (
+          <div key={i} style={{
+            alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+            background: m.role === "user" ? C.teal : "#F1F5F4", color: m.role === "user" ? "#fff" : C.txt,
+            borderRadius: 10, padding: "7px 11px", fontSize: 12, lineHeight: 1.5, maxWidth: "88%",
+          }}>{m.text}</div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
+          placeholder="일정을 편하게 입력하세요"
+          disabled={sending}
+          style={{ flex: 1, fontSize: 12, color: C.txt, border: `1px solid ${C.border}`, borderRadius: 8,
+            padding: "8px 10px", outline: "none", fontFamily: "inherit", background: "#FAFCFB" }}
+        />
+        <button onClick={() => void send()} disabled={sending || !input.trim()} className="pc-btn pc-btn--orange pc-btn--sm">전송</button>
+      </div>
     </div>
   );
 }
