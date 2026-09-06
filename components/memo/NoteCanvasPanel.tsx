@@ -38,7 +38,8 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
   };
   // 텍스트 입력과 펜 필기가 같은 종이 위에서 도구만 바꿔 쓰이도록 — 텍스트 도구가 켜지면
   // 캔버스는 pointer-events를 꺼서 클릭이 밑의 textarea로 그대로 전달되게 한다.
-  const [textMode, setTextMode] = useState(true);
+  const supportsText = Boolean(onTextChange);
+  const [textMode, setTextMode] = useState(supportsText);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [penType, setPenType] = useState<PenType>("ballpoint");
   const [penSize, setPenSize] = useState(3);
