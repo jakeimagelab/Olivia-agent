@@ -86,14 +86,15 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
 
   const loadHistory = useCallback(async () => {
     try {
-      const response = await fetch("/api/memo", { cache: "no-store" });
+      const query = contextType && contextId ? `?context_type=${encodeURIComponent(contextType)}&context_id=${encodeURIComponent(contextId)}` : "";
+      const response = await fetch(`/api/memo${query}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || "메모 조회 실패");
       setMemos(data.memos);
     } catch (error) {
       setStatus({ ok: false, text: error instanceof Error ? error.message : "메모 조회 실패" });
     }
-  }, []);
+  }, [contextType, contextId]);
 
   useEffect(() => { void loadHistory(); }, [loadHistory]);
 
