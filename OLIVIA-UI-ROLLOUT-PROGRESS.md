@@ -12,7 +12,22 @@
 
 ## 완료
 
-(작업하면서 아래에 추가)
+### 탭 버튼 통일 — 1차 배치 (state 기반, 검증 완료: tsc/eslint/vitest 735개 전부 통과)
+
+- `components/ui/SegmentedTabs.tsx` — `href?: string` 옵션 추가(라우팅 탭용, 하위호환).
+- `components/conti/ContiBuilder.tsx` — 하단 필드뷰 탭(콘티/체크/일정)의 활성 표시 오렌지→틸로
+  교체. (SegmentedTabs로 완전 전환은 안 함 — 이건 데스크톱 alt-top 탭이 아니라 모바일 하단
+  아이콘형 탭바라 구조가 다름. 색 규칙 위반만 고침.)
+- `app/daily-ideas/page.tsx` — 모바일 탭 SegmentedTabs 전환.
+- `app/library/page.tsx` — 카테고리 탭 SegmentedTabs 전환 + 중복 설명 문단 제거(GlobalHeader의
+  description과 완전히 같은 텍스트가 본문에도 있었음, 1.1 위반).
+- `app/image-generator/page.tsx` — 모드 탭 SegmentedTabs 전환.
+- `app/portal-admin/page.tsx` — 탭 SegmentedTabs 전환.
+- `app/mailing/page.tsx` — 6개 탭 SegmentedTabs 전환.
+- `app/sns-manager/page.tsx` — 유튜브 탭 딥링크(`?tab=youtube`)와 캘린더 탭 "준비중" 배지가
+  있어서 SegmentedTabs 프리미티브로 안 바꾸고, 같은 시각 스타일을 인라인으로 재현(기능 보존).
+- `components/team-workspace/WorkspacePage.tsx` — 할 일/팀채팅 탭 SegmentedTabs 전환.
+- `components/memo/MemoWorkspace.tsx` — 모드 탭(일반/태블릿/음성) SegmentedTabs 전환.
 
 ## 구조 재설계 필요 — 이번 pass에서 손 안 댐 (다음 세션, 사용자 확인 필요)
 
