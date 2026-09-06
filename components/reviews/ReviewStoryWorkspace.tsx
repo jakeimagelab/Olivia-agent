@@ -154,6 +154,7 @@ export default function ReviewStoryWorkspace() {
   const [lockAspectRatio, setLockAspectRatio] = useState(false);
   const workspaceRef = useRef<HTMLElement>(null);
   const [workspaceHeight, setWorkspaceHeight] = useState<number | null>(null);
+  const canvasHandleRef = useRef<ReviewStoryCanvasHandle>(null);
 
   // 위(GlobalHeader/PcrmSubNav) 높이가 "고객관리와 연결되지 않은 신규 작업입니다" 배너처럼
   // 조건부로 나타나는 요소 때문에 고정값이 아니다 — CSS calc(100dvh - Npx)로 고정폭을 빼면
