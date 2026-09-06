@@ -81,7 +81,10 @@ function resizeRect(origin: ReviewStoryElement, handle: ResizeHandle, dx: number
 const STAGE_PADDING = 64; // .stage의 좌우/상하 padding(32px×2) — 실제 사용 가능 영역 계산용
 const MAX_FIT_SCALE = 0.46;
 
-export default function ReviewStoryCanvas({ document, selectedElementId, assetUrls, zoom, lockAspectRatio, onSelect, onChange, onReplaceImage }: Props) {
+const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function ReviewStoryCanvas(
+  { document, selectedElementId, assetUrls, zoom, lockAspectRatio, onSelect, onChange, onReplaceImage },
+  captureHandleRef,
+) {
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasBoxRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 480, height: 600 });
