@@ -2742,7 +2742,8 @@ export default function CalendarWorkspace() {
         <EventPopover
           key={`${popover.mode}-${popover.task?.id ?? popover.date}-${popover.x}-${popover.y}`}
           mode={popover.mode} date={popover.date} task={popover.task}
-          anchor={{ x: popover.x, y: popover.y }} isMobile={isMobile} defaultTime={popover.time}
+          anchor={{ x: popover.x, y: popover.y }} bounds={{ w: popover.boundsW, h: popover.boundsH }}
+          isMobile={isMobile} defaultTime={popover.time}
           onClose={() => setPopover(null)}
           onAdd={addTask} onSave={editTask} onToggle={toggleTask}
           onDelete={id => { setPopover(null); requestDeleteTask(id); }}/>
