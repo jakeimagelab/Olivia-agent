@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
 export type SegmentedTabsItem<T extends string = string> = {
@@ -13,6 +14,10 @@ export type SegmentedTabsItem<T extends string = string> = {
   /* tabpanel과의 aria 연결이 필요할 때만 지정 — 생략하면 role/aria-selected만으로 동작한다. */
   id?: string;
   panelId?: string;
+  /* 다른 라우트로 이동하는 탭(예: 사진작업실 상단 탭이 실제로는 /photo-sorting, /video-sorting
+     같은 별개 페이지)일 때만 지정 — button 대신 next/link Link로 렌더해서 prefetch·새 탭 열기 같은
+     링크 시맨틱을 유지한다. 지정 안 하면 기존과 동일하게 button+onChange로 동작한다. */
+  href?: string;
 };
 
 type SegmentedTabsProps<T extends string> = {
