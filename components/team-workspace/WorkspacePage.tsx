@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { CheckSquare2, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import GlobalHeader from "@/components/GlobalHeader";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import TeamWorkspaceShell from "./TeamWorkspaceShell";
 
 type WorkspaceTab = "chat" | "tasks";
