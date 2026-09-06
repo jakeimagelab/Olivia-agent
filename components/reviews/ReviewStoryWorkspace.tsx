@@ -654,12 +654,12 @@ export default function ReviewStoryWorkspace() {
           <p className={styles.subtitle}>선택한 리뷰를 다양한 스토리형 콘텐츠로 제작할 수 있습니다.</p>
         </div>
         <div className={styles.headerActions}>
-          {activeContent?.status === "approved" ? <button className={`${styles.button} ${styles.primary}`} onClick={() => void publish()} disabled={Boolean(busy)}><Send size={14} /><span>Instagram 게시</span></button> : null}
+          {activeContent?.status === "approved" ? <button className={`${styles.button} ${styles.primaryOrange}`} onClick={() => void publish()} disabled={Boolean(busy)}><Send size={14} /><span>Instagram 게시</span></button> : null}
           {activeContent && !["approved", "published"].includes(activeContent.status) ? <button className={styles.button} onClick={() => void approve()} disabled={Boolean(busy)}><Check size={14} /><span>대표 승인</span></button> : null}
           <button className={styles.button} onClick={() => void save()} disabled={Boolean(busy) || !activePage}><Save size={14} /><span>저장</span></button>
           <button className={styles.button} onClick={() => void saveTemplate()} disabled={Boolean(busy) || !activePage}><Sparkles size={14} /><span>템플릿으로 저장</span></button>
           <button className={styles.button} onClick={() => void exportPdf()} disabled={Boolean(busy) || !activePage}><Download size={14} /><span>PDF 내보내기</span></button>
-          <button className={`${styles.button} ${styles.primary}`} onClick={() => void exportPng()} disabled={Boolean(busy) || !activePage}><Download size={14} /><span>PNG 내보내기</span><ChevronDown size={12} /></button>
+          <button className={styles.button} onClick={() => void exportPng()} disabled={Boolean(busy) || !activePage}><Download size={14} /><span>PNG 내보내기</span><ChevronDown size={12} /></button>
         </div>
       </header>
 
