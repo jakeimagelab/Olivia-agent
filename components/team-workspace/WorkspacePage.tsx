@@ -37,20 +37,16 @@ export default function WorkspacePage({
   return (
     <TeamWorkspaceShell>
       <GlobalHeader title="워크스페이스" description="팀 채팅·목표·프로젝트·리포트를 한 곳에서 관리합니다." />
-      <div className="pc-tabs pc-tabs--global">
-        {[
-          { key: "tasks", label: "할 일", icon: <CheckSquare2 size={15} /> },
-          { key: "chat", label: "팀채팅", icon: <MessageCircle size={15} /> },
-        ].map((t) => (
-          <button
-            key={t.key}
-            className={`pc-tab${activeTab === t.key ? " pc-tab--active" : ""}`}
-            onClick={() => changeTab(t.key)}
-          >
-            <span className="pc-tab-icon">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
+      <div className="pc-content" style={{ paddingBottom: 0 }}>
+        <SegmentedTabs
+          ariaLabel="워크스페이스 탭 선택"
+          value={activeTab}
+          onChange={changeTab}
+          items={[
+            { value: "tasks", label: "할 일", icon: <CheckSquare2 size={15} /> },
+            { value: "chat", label: "팀채팅", icon: <MessageCircle size={15} /> },
+          ]}
+        />
       </div>
 
       <div className="workspace-content">
