@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import {
-  NotebookPen, Calendar, ClipboardList, FileVideo, Users, Link2, Mail, Wand2,
+  Calendar, ClipboardList, FileVideo, Users, Link2, Mail, Wand2,
   BarChart2, Share2, Lightbulb, CalendarCheck, Sparkles, ScanSearch, ShieldCheck,
   ImageDown, Activity, TrendingUp, Globe2, Search, Trash2, Images, Trophy, MessageCircle, Mic,
   Fingerprint, Library, ImagePlus, PenTool, LayoutGrid, Megaphone,
