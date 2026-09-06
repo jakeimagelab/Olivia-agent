@@ -304,9 +304,16 @@ export default function StrategyDetailPage() {
   return (
     <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
       <GlobalHeader title="마케팅 대시보드" description="채널별 마케팅 전략과 지식 베이스를 관리합니다." />
-      <div className="pc-tabs pc-tabs--global">
-        <button className="pc-tab" onClick={() => router.push("/marketing")}>홈</button>
-        <button className="pc-tab pc-tab--active">전략</button>
+      <div style={{ padding: "20px 20px 0" }}>
+        <SegmentedTabs
+          ariaLabel="마케팅 섹션 선택"
+          value="strategy"
+          onChange={() => {}}
+          items={[
+            { value: "home", label: "홈", href: "/marketing" },
+            { value: "strategy", label: "전략" },
+          ]}
+        />
       </div>
 
       <div className="oa-page" style={{ maxWidth: 880, margin: "0 auto", padding: `${SP.lg}px 20px 60px` }}>
