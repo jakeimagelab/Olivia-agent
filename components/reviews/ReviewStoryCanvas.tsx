@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Crop, ImagePlus, Image as ImageIcon, Lock, MoveDown, MoveUp } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Bold, Crop, Highlighter, ImagePlus, Image as ImageIcon, Italic, Lock, MoveDown, MoveUp, Underline } from "lucide-react";
 import type { ReviewStoryDocument, ReviewStoryElement, ReviewStoryImageElement, ReviewStoryTextElement } from "@/lib/reviewContent/storyDocument";
 import { computeSnap, type Rect, type SmartGuide } from "@/lib/reviewContent/smartGuides";
 import styles from "./ReviewStoryCanvas.module.css";
