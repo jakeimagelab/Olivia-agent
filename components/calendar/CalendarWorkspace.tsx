@@ -12,6 +12,7 @@ import { parseClipboardTasks } from "@/lib/calendarPaste";
 import { categorizeByTitle } from "@/lib/calendarCategorize";
 import { useCalendarEmbedded } from "@/lib/calendarEmbedContext";
 import { getKoreanHoliday } from "@/lib/koreanHolidays";
+import type { TaskListItem } from "@/lib/work-journal/types";
 
 /* ─── types ──────────────────────────────────────────── */
 type ViewMode = "day" | "week" | "month" | "year";
