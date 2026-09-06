@@ -864,27 +864,29 @@ function ScheduleChatPanel({ dateStr, onAdd }: {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 6, minHeight: 260, maxHeight: 480, overflowY: "auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0 }}>
+      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 320, maxHeight: 640, overflowY: "auto" }}>
         {messages.length === 0 ? (
-          <div style={{ fontSize: 12, color: C.hint, lineHeight: 1.6 }}>"오후 2시 강남 촬영"처럼 편하게 적으면 바로 일정으로 등록돼요.</div>
+          <div style={{ fontSize: 12, color: C.hint, lineHeight: 1.6 }}>"오후 2시 강남 촬영"처럼 편하게 적으면 바로 일정으로 등록돼요. 여러 줄로 길게 적어도 괜찮아요.</div>
         ) : messages.map((m, i) => (
           <div key={i} style={{
             alignSelf: m.role === "user" ? "flex-end" : "flex-start",
             background: m.role === "user" ? C.teal : "#F1F5F4", color: m.role === "user" ? "#fff" : C.txt,
-            borderRadius: 10, padding: "7px 11px", fontSize: 12, lineHeight: 1.5, maxWidth: "88%",
+            borderRadius: 10, padding: "7px 11px", fontSize: 12, lineHeight: 1.5, maxWidth: "88%", whiteSpace: "pre-wrap",
           }}>{m.text}</div>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 6 }}>
-        <input
+      <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+        <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
-          placeholder="일정을 편하게 입력하세요"
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
+          placeholder="일정을 편하게 입력하세요 (여러 줄 가능, Shift+Enter로 줄바꿈)"
           disabled={sending}
+          rows={4}
           style={{ flex: 1, fontSize: 12, color: C.txt, border: `1px solid ${C.border}`, borderRadius: 8,
-            padding: "8px 10px", outline: "none", fontFamily: "inherit", background: "#FAFCFB" }}
+            padding: "8px 10px", outline: "none", fontFamily: "inherit", background: "#FAFCFB",
+            resize: "vertical", lineHeight: 1.5, minHeight: 90 }}
         />
         <button onClick={() => void send()} disabled={sending || !input.trim()} className="pc-btn pc-btn--orange pc-btn--sm">전송</button>
       </div>
