@@ -5,6 +5,7 @@ import { embedTexts } from "@/lib/conti-library/embeddings";
 import { buildLibraryQueryText, buildReferenceBlock, toReferenceSummary } from "@/lib/conti-library/promptBuilder";
 import { capByDistinctDocument, matchContiCaseScenes } from "@/lib/conti-library/search";
 import type { ContiCaseReference } from "@/lib/conti-library/types";
+import { PAIN_SPECS, SPEC_DEFAULTS, normalizeSpec } from "@/lib/conti/specDefaults";
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.OPENAI_API_KEY;
