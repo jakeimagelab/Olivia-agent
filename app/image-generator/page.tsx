@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import Link from "next/link";
 
 // ─────────────────────────────────────────────────────────────
