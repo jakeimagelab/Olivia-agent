@@ -24,7 +24,7 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
 
   const fixedDockApps = getDockApps();
   const fixedDockIds = new Set(fixedDockApps.map((app) => app.id));
-  const utilityDockIds = new Set(["memo", "all-apps", "olivia-chat"]);
+  const utilityDockIds = new Set(["all-apps", "olivia-chat"]);
   const runningExtraApps = Object.keys(windows)
     .filter((id) => !utilityDockIds.has(id) && !fixedDockIds.has(id))
     .map(getOliviaApp)
