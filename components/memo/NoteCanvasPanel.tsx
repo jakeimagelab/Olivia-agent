@@ -27,7 +27,7 @@ const SHAPE_OPTIONS: { key: DrawShape; label: string; icon: typeof Minus }[] = [
 ];
 
 const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanvasPanel(
-  { templateType, templateData, initialImage, onChange }, forwardedRef,
+  { templateType, templateData, initialImage, onChange, textValue, onTextChange, voiceButton }, forwardedRef,
 ) {
   const innerRef = useRef<DrawingCanvasHandle>(null);
   const setRefs = (value: DrawingCanvasHandle | null) => {
@@ -35,6 +35,10 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
     if (typeof forwardedRef === "function") forwardedRef(value);
     else if (forwardedRef) forwardedRef.current = value;
   };
+  // 텍스트 입력과 펜 필기가 같은 종이 위에서 도구만 바꿔 쓰이도록 — 텍스트 도구가 켜지면
+  // 캔버스는 pointer-events를 꺼서 클릭이 밑의 textarea로 그대로 전달되게 한다.
+  const [textMode, setTextMode] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [penType, setPenType] = useState<PenType>("ballpoint");
   const [penSize, setPenSize] = useState(3);
   const [penColor, setPenColor] = useState("#155855");
@@ -44,6 +48,9 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
   const [, forceHistory] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
+
+  const activateDrawTool = (apply: () => void) => { apply(); setTextMode(false); };
+  const activateTextTool = () => { setTextMode(true); requestAnimationFrame(() => textareaRef.current?.focus()); };
 
   useEffect(() => {
     const sync = () => setIsFullscreen(document.fullscreenElement === panelRef.current);
