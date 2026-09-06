@@ -982,21 +982,9 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
           <div style={{ flex: 1, height: 1, background: C.border }}/>
         </div>
 
-        {/* TO DO 섹션(업무일지 work_journal_tasks) */}
-        <TodoSection dateStr={dateStr} />
-
-        {/* 구분선 */}
-        <div style={{ margin: "24px 0 20px", display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ flex: 1, height: 1, background: C.border }}/>
-        </div>
-
-        {/* 상담 메모 섹션 */}
-        <SectionLabel badge={consultations.length}>📝 상담 메모</SectionLabel>
-        <ConsultMemoPanel
-          dateStr={dateStr}
-          consultations={consultations}
-          onAdd={onAdd}
-        />
+        {/* 미니 챗팅 — 상담메모(AI 분석 폼) 대신, 바로 일정 등록 요청용 */}
+        <SectionLabel>💬 빠른 일정 등록</SectionLabel>
+        <ScheduleChatPanel dateStr={dateStr} onAdd={onAdd} />
       </div>
     </div>
   );
