@@ -837,7 +837,9 @@ function ScheduleChatPanel({ dateStr, onAdd }: {
     if (!text || sending) return;
     setMessages(prev => [...prev, { role: "user", text }]);
     setInput("");
-    const [parsed] = parseClipboardTasks(text, dateStr);
+    // 여러 줄로 길게 적어도(날짜/시간이 다른 줄에 있어도) 한 건으로 보고 합쳐서 추출한다 —
+    // 줄바꿈 그대로 넘기면 parseClipboardTasks가 줄마다 별개 일정으로 쪼갠다.
+    const [parsed] = parseClipboardTasks(text.replace(/\n+/g, " "), dateStr);
     if (!parsed) {
       setMessages(prev => [...prev, { role: "assistant", text: "어떤 일정인지 못 알아들었어요. 예: '오후 2시 강남 촬영'" }]);
       return;
