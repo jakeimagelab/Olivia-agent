@@ -580,11 +580,12 @@ function EditTaskForm({ task, onSave, onCancel, isMobile = false }: {
 /* ─── EventPopover ────────────────────────────────────────
    셀/일정 클릭 시 뜨는 팝업 — 데스크탑은 클릭 위치 근처에 뜨는 카드,
    모바일은 전체화면 시트. 실제 입력폼은 기존 AddTaskForm/EditTaskForm을 그대로 재사용한다. */
-function EventPopover({ mode, date, task, anchor, isMobile, defaultTime, onClose, onAdd, onSave, onDelete, onToggle }: {
+function EventPopover({ mode, date, task, anchor, bounds, isMobile, defaultTime, onClose, onAdd, onSave, onDelete, onToggle }: {
   mode: "add" | "edit";
   date: string;
   task: CalTask | null;
   anchor: { x: number; y: number } | null;
+  bounds: { w: number; h: number };
   isMobile: boolean;
   defaultTime?: string;
   onClose: () => void;
