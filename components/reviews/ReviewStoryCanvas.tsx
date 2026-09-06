@@ -114,6 +114,33 @@ const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function Re
   ) || 0.3;
   const scale = fitScale * (Math.max(50, Math.min(160, zoom)) / 100);
 
+  useImperativeHandle(captureHandleRef, () => ({
+    captureRaster: async (targetWidthPx: number) => {
+      const node = canvasBoxRef.current;
+      if (!node) throw new Error("캔버스를 찾을 수 없습니다.");
+      await window.document.fonts.ready;
+      const images = Array.from(node.querySelectorAll("img"));
+      await Promise.all(images.map((img) => img.complete ? Promise.resolve() : new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+      })));
+      const { default: html2canvas } = await import("html2canvas");
+      // 편집 전용 UI(선택 테두리·핸들·회전 손잡이·플로팅 툴바·크롭 툴바)는 결과물에 안 나오게 —
+      // 지금 렌더링에 쓰는 것과 같은 styles 참조로 판별하므로 클래스명이 바뀌어도 항상 맞는다.
+      const editorChromeClasses = [
+        styles.selectionBorder, styles.handle, styles.rotateHandle, styles.angleTooltip,
+        styles.sizeTooltip, styles.floatingToolbar, styles.cropToolbar, styles.lockBadge,
+      ].filter(Boolean);
+      return html2canvas(node, {
+        scale: targetWidthPx / node.offsetWidth,
+        useCORS: true,
+        backgroundColor: null,
+        logging: false,
+        ignoreElements: (element) => editorChromeClasses.some((cls) => element.classList.contains(cls)),
+      });
+    },
+  }), []);
+
   const sorted = useMemo(() => [...document.elements].sort((a, b) => a.zIndex - b.zIndex), [document.elements]);
 
   // 텍스트 선택 박스가 저장된 template height(예: 후기 본문 300~500px)만큼 커 보이던 문제 —
