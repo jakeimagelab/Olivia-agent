@@ -2398,7 +2398,7 @@ ${header("타임테이블")}
                   flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
                   justifyContent: "center", gap: 3, border: "none", cursor: "pointer",
                   background: fieldViewTab === key ? "#EDF5F3" : "transparent",
-                  borderTop: `3px solid ${fieldViewTab === key ? "#E85D2C" : "transparent"}`,
+                  borderTop: `3px solid ${fieldViewTab === key ? "#155855" : "transparent"}`,
                   transition: "all 150ms",
                 }}>
                   <span style={{ fontSize: 20 }}>{icon}</span>
