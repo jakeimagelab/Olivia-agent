@@ -2,7 +2,7 @@
 
 import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
-import { Icon } from "@/components/Icon";
+import { AppIcon as ColorAppIcon } from "@/components/AppIcon";
 import { AppIcon } from "./AppIcon";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import styles from "./OliviaDesktop.module.css";
