@@ -35,4 +35,8 @@ describe("OLIVIA OS app registry navigation", () => {
       expect(app?.dockOrder).toBeUndefined();
     }
   });
+
+  it("no longer registers memo as an independent OS app (2026-09 — moved into customer/project/schedule/todo detail views)", () => {
+    expect(getOliviaApp("memo")).toBeUndefined();
+  });
 });
