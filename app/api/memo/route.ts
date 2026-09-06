@@ -82,7 +82,10 @@ export async function GET(req: NextRequest) {
     const db = getSupabaseAdmin();
     const id = req.nextUrl.searchParams.get("id");
     if (id) {
-      const { data, error } = await db.from("consultation_memos").select(MEMO_FIELDS).eq("id", id).maybeSingle();
+      let { data, error } = await db.from("consultation_memos").select(MEMO_FIELDS).eq("id", id).maybeSingle();
+      if (error?.code === UNDEFINED_COLUMN) {
+        ({ data, error } = await db.from("consultation_memos").select(MEMO_FIELDS_BASE).eq("id", id).maybeSingle());
+      }
       if (error) throw error;
       if (!data) return NextResponse.json({ ok: false, error: "메모를 찾을 수 없습니다." }, { status: 404 });
       const [memo] = await withSignedUrls([data]);
@@ -92,9 +95,16 @@ export async function GET(req: NextRequest) {
     // 없으면(기존 /memo 단독 페이지) 지금까지와 동일하게 최근 100개 전역 목록.
     const contextType = req.nextUrl.searchParams.get("context_type");
     const contextId = req.nextUrl.searchParams.get("context_id");
-    let query = db.from("consultation_memos").select(MEMO_FIELDS).order("updated_at", { ascending: false });
-    query = contextType && contextId ? query.eq("context_type", contextType).eq("context_id", contextId) : query.limit(100);
-    const { data, error } = await query;
+    const hasContextFilter = Boolean(contextType && contextId);
+    let { data, error } = await (() => {
+      const query = db.from("consultation_memos").select(MEMO_FIELDS).order("updated_at", { ascending: false });
+      return hasContextFilter ? query.eq("context_type", contextType!).eq("context_id", contextId!) : query.limit(100);
+    })();
+    if (error?.code === UNDEFINED_COLUMN) {
+      // 마이그레이션 미적용 — 컨텍스트 필터는 걸 수 없으니(그 컬럼 자체가 없음) 전역 목록으로
+      // 최대한 안전하게 폴백한다(빈 화면보다 낫다).
+      ({ data, error } = await db.from("consultation_memos").select(MEMO_FIELDS_BASE).order("updated_at", { ascending: false }).limit(100));
+    }
     if (error) throw error;
     return NextResponse.json({ ok: true, memos: await withSignedUrls(data ?? []) });
   } catch (error) {
