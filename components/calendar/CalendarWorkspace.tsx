@@ -1847,13 +1847,13 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
             return (
               <div key={colIdx} ref={el => { dayColRefs.current[colIdx] = el; }} style={{ position: "relative", borderLeft: `1px solid ${C.border}30` }}>
 
-                {/* Hour slot backgrounds — click to add */}
+                {/* Hour slot backgrounds — 더블클릭으로 추가(맥 캘린더 방식) */}
                 {HOURS.map(h => (
                   <div key={h}
                     style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}20`,
                       background: isToday ? "#FFFAF9" : h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
                       cursor: dragging ? CURSOR_GRABBING : "pointer" }}
-                    onClick={e => { if (!dragging) onOpenAdd(ds, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
+                    onDoubleClick={e => { if (!dragging) onOpenAdd(ds, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
                   />
                 ))}
 
