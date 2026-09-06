@@ -130,24 +130,16 @@ export default function LibraryPage() {
   return (
     <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       <GlobalHeader title="라이브러리" description="명언·비즈니스 영어·마케팅 사례·컨설팅 프레임워크·세계 이슈를 모아둔 개인 지식창고입니다." />
-      <div className="pc-tabs pc-tabs--global">
-        {CATEGORY_TABS.map((t) => (
-          <button
-            key={t.key}
-            className={`pc-tab${category === t.key ? " pc-tab--active" : ""}`}
-            onClick={() => setCategory(t.key)}
-          >
-            <span className="pc-tab-icon">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
+      <div className="pc-content" style={{ paddingBottom: 0 }}>
+        <SegmentedTabs
+          ariaLabel="라이브러리 카테고리 선택"
+          value={category}
+          onChange={setCategory}
+          items={CATEGORY_TABS.map((t) => ({ value: t.key, label: t.label, icon: t.icon }))}
+        />
       </div>
 
       <div className="pc-content">
-        <p style={{ fontSize: 13, color: C.muted, marginBottom: 18 }}>
-          명언 · 비즈니스 영어 · 마케팅 사례 · 컨설팅 전략 · 세계 이슈를 모아둔 개인 지식창고입니다.
-        </p>
-
         <div style={{ position: "relative", marginBottom: 20, maxWidth: 420 }}>
           <Search size={16} style={{ position: "absolute", left: 14, top: 12, color: C.hint }} />
           <input
