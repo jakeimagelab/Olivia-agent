@@ -35,17 +35,14 @@ export default function ContiStudioLayout({ children }: { children: React.ReactN
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)" }}>
       <GlobalHeader title="콘티/초상권 작성" description="사진 콘티(체크리스트·타임테이블)와 영상 콘티(씬·컷·손그림 스토리보드), 초상권 동의서를 한 화면에서 생성합니다." />
 
-      <nav className="pc-tabs pc-tabs--global" aria-label="콘티 기능">
-        {visibleTabs.map(t => (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={`pc-tab${t.matches.includes(pathname) ? " pc-tab--active" : ""}`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
+      <div style={{ padding: "20px 24px 0" }}>
+        <SegmentedTabs
+          ariaLabel="콘티 기능"
+          value={pathname}
+          onChange={() => {}}
+          items={visibleTabs.map(t => ({ value: t.matches[0] ?? t.href, label: t.label, href: t.href }))}
+        />
+      </div>
 
       <div className="pc-page-content">
         {children}
