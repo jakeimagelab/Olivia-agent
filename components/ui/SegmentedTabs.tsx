@@ -70,6 +70,23 @@ export default function SegmentedTabs<T extends string>({ items, value, onChange
     <div role="tablist" aria-label={ariaLabel} style={{ ...trackStyle, ...style }}>
       {items.map((item) => {
         const active = item.value === value;
+        if (item.href) {
+          return (
+            <Link
+              key={item.value}
+              href={item.href}
+              role="tab"
+              id={item.id}
+              aria-selected={active}
+              aria-controls={item.panelId}
+              title={item.title}
+              style={tabStyle(active)}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </Link>
+          );
+        }
         return (
           <button
             key={item.value}
