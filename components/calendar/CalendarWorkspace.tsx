@@ -615,14 +615,14 @@ function EventPopover({ mode, date, task, anchor, bounds, isMobile, defaultTime,
   const posStyle: React.CSSProperties = isMobile
     ? { position: "absolute", inset: 0, zIndex: 500 }
     : (() => {
-        const W = 340;
+        const W = 288;
         const containerW = bounds.w || 1024;
         const containerH = bounds.h || 768;
         const maxH = containerH - 32;
         let left = (anchor?.x ?? 200) + 14;
         let top = (anchor?.y ?? 200) - 20;
         if (left + W > containerW - 16) left = Math.max(16, containerW - W - 16);
-        if (top + 460 > containerH - 16) top = Math.max(16, containerH - 460 - 16);
+        if (top + 380 > containerH - 16) top = Math.max(16, containerH - 380 - 16);
         if (top < 16) top = 16;
         return { position: "absolute", left, top, zIndex: 500, width: W, maxHeight: maxH, overflowY: "auto" };
       })();
@@ -635,7 +635,7 @@ function EventPopover({ mode, date, task, anchor, bounds, isMobile, defaultTime,
         background: isMobile ? "transparent" : C.surface,
         borderRadius: isMobile ? 0 : 14,
         boxShadow: isMobile ? "none" : "0 20px 50px rgba(15,68,64,.28)",
-        padding: isMobile ? "16px 16px 32px" : 16,
+        padding: isMobile ? "16px 16px 32px" : 13,
       }}>
         {isMobile && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
