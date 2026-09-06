@@ -975,65 +975,6 @@ function ConsultMemoPanel({ dateStr, consultations, onAdd }: {
   );
 }
 
-/* ─── TodoSection — 선택 날짜의 업무일지(work_journal_tasks) TO DO. 캘린더 자체 일정
-   (calendar_tasks)과는 별개 테이블이라 새 API 없이 기존 /api/work-journal/tasks?date=를
-   그대로 재사용한다(업무일지 화면 가운데 컬럼과 같은 엔드포인트). ─── */
-function TodoSection({ dateStr }: { dateStr: string }) {
-  const [todos, setTodos] = useState<TaskListItem[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetch(`/api/work-journal/tasks?date=${dateStr}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => { if (!cancelled && d.ok) setTodos(d.tasks); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [dateStr]);
-
-  const toggle = async (task: TaskListItem) => {
-    const nextStatus = task.status === "done" ? "todo" : "done";
-    setTodos((prev) => prev.map((t) => t.id === task.id ? { ...t, status: nextStatus } : t));
-    await fetch(`/api/work-journal/tasks/${task.id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-  };
-
-  return (
-    <>
-      <SectionLabelStandalone badge={todos.length}>✅ TO DO</SectionLabelStandalone>
-      {loading ? (
-        <div style={{ textAlign: "center", color: C.hint, padding: "12px 0", fontSize: 13 }}>불러오는 중…</div>
-      ) : todos.length === 0 ? (
-        <div style={{ fontSize: 12, color: C.hint, padding: "4px 0 14px" }}>이 날짜의 업무일지 TO DO가 없습니다.</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 14 }}>
-          {todos.map((task) => (
-            <label key={task.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
-              <input type="checkbox" checked={task.status === "done"} onChange={() => void toggle(task)} />
-              <span style={{ flex: 1, color: task.status === "done" ? C.hint : C.txt, textDecoration: task.status === "done" ? "line-through" : "none" }}>{task.title}</span>
-              {task.checklistTotal > 0 && <span style={{ fontSize: 11, color: C.hint }}>{task.checklistDone}/{task.checklistTotal}</span>}
-            </label>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
-function SectionLabelStandalone({ children, badge }: { children: string; badge?: number }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
-      <span style={{ fontSize: 11, fontWeight: 900, color: C.teal, letterSpacing: ".04em" }}>{children}</span>
-      {badge != null && badge > 0 && (
-        <span style={{ background: C.teal, color: "#fff", fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99 }}>{badge}</span>
-      )}
-    </div>
-  );
-}
-
 /* ─── DayPanel (right side) ───────────────────────────── */
 function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd, onEdit,
   autoOpenTrigger, autoSlotTime }: {
