@@ -77,7 +77,7 @@ export function AllAppsWindowContent() {
           <div className={styles.grid}>
             {group.items.map((tool) => (
               <button type="button" key={tool.href} onClick={() => launchHref(tool.href, tool.title)} title={tool.desc}>
-                <AppIcon icon={<Icon name={TOOL_ICON_BY_HREF[tool.href] ?? "workspace"} size={24} aria-hidden focusable={false} />} size={42} /><span>{tool.title}</span>
+                <AppIcon icon={<ColorAppIcon name={TOOL_ICON_BY_HREF[tool.href] ?? "workspace"} size={24} aria-hidden focusable={false} />} size={42} /><span>{tool.title}</span>
               </button>
             ))}
           </div>
