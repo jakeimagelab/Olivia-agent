@@ -145,7 +145,7 @@ async function saveMemo(body: any) {
     });
     return data;
   }
-  let { data, error } = await db.from("consultation_memos").insert(values).select(MEMO_FIELDS).single();
+  let { data, error }: { data: any; error: any } = await db.from("consultation_memos").insert(values).select(MEMO_FIELDS).single();
   if (error?.code === UNDEFINED_COLUMN) {
     ({ data, error } = await db.from("consultation_memos").insert(valuesWithoutContext).select(MEMO_FIELDS_BASE).single());
   }
