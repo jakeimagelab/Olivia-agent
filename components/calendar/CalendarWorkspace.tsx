@@ -1891,7 +1891,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
   const timedLayout = useMemo(() => layoutOverlappingTasks(timed), [timed]);
 
   const [dragging, setDragging] = useState<{
-    task: CalTask; currentX: number; currentY: number; offsetX: number; offsetY: number; anchor: { x: number; y: number };
+    task: CalTask; currentX: number; currentY: number; offsetX: number; offsetY: number;
   } | null>(null);
   const draggingRef = useRef(dragging);
   draggingRef.current = dragging;
