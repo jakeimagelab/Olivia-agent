@@ -83,7 +83,13 @@ export async function GET(req: NextRequest) {
       const [memo] = await withSignedUrls([data]);
       return NextResponse.json({ ok: true, memo });
     }
-    const { data, error } = await db.from("consultation_memos").select(MEMO_FIELDS).order("updated_at", { ascending: false }).limit(100);
+    // contextType+contextId가 있으면 그 컨텍스트(고객/프로젝트/일정/업무)에 속한 메모만 반환한다 —
+    // 없으면(기존 /memo 단독 페이지) 지금까지와 동일하게 최근 100개 전역 목록.
+    const contextType = req.nextUrl.searchParams.get("context_type");
+    const contextId = req.nextUrl.searchParams.get("context_id");
+    let query = db.from("consultation_memos").select(MEMO_FIELDS).order("updated_at", { ascending: false });
+    query = contextType && contextId ? query.eq("context_type", contextType).eq("context_id", contextId) : query.limit(100);
+    const { data, error } = await query;
     if (error) throw error;
     return NextResponse.json({ ok: true, memos: await withSignedUrls(data ?? []) });
   } catch (error) {
