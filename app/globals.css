@@ -8687,7 +8687,7 @@ main, .pc-console, .pc-page, .pc-page-content {
   .memo-hero { align-items: flex-start; padding: 20px; }
   .memo-template-picker { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .memo-editor-card { padding: 18px; }
-  .memo-general-textarea { min-height: 360px; padding: 15px; }
+  .memo-general-textarea { min-height: 140px; padding: 15px; }
   .memo-save-card { padding: 14px; }
   .memo-save-card .pc-btn { width: 100%; min-width: 0; }
   .memo-canvas-heading { align-items: flex-start; flex-direction: column; }
