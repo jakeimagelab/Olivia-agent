@@ -2250,7 +2250,11 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                   style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}20`,
                     background: h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
                     cursor: dragging ? CURSOR_GRABBING : onOpenAdd ? "pointer" : "default" }}
-                  onDoubleClick={e => { if (!dragging) onOpenAdd?.(dateStr, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
+                  onDoubleClick={e => {
+                    if (dragging) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    onOpenAdd?.(dateStr, rect.right, rect.top, `${String(h).padStart(2,"0")}:00`);
+                  }}
                 />
               ))}
 
