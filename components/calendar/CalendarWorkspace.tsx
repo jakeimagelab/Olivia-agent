@@ -753,6 +753,14 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
           {task.memo}
         </div>
       )}
+      <details style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+        <summary style={{ fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), color: C.teal, padding: "8px 10px", cursor: "pointer" }}>메모</summary>
+        <div style={{ borderTop: `1px solid ${C.border}` }}>
+          <Suspense fallback={<div style={{ padding: 10, fontSize: 12, color: C.hint }}>불러오는 중...</div>}>
+            <MemoWorkspace embedded contextType="schedule" contextId={task.id} />
+          </Suspense>
+        </div>
+      </details>
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={shareCard} disabled={sharing} className="pc-btn pc-btn--sm" style={{ flex: 1, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, fontWeight: mfw(800, isMobile) }}>
           <Share2 size={13} style={{ marginRight: 4, verticalAlign: -2 }} />{sharing ? "생성 중..." : "공유"}
