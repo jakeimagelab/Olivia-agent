@@ -163,6 +163,10 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
         body: JSON.stringify({
           action: "save",
           id: currentId,
+          // 고객 컨텍스트는 기존 hospital_id 조회 경로와도 하위호환되도록 같이 채운다.
+          hospital_id: contextType === "customer" ? contextId : undefined,
+          context_type: contextType,
+          context_id: contextId,
           title: title.trim() || defaultTitle(mode),
           template_type: storedType,
           template_data: storedData,
