@@ -1630,13 +1630,20 @@ export default function MailingPage() {
   return (
     <main className="mailing-page" style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
       <GlobalHeader title="통합 메일링" description="견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다." />
-      <div className="pc-tabs pc-tabs--global">
-        <button className={`pc-tab${tab === "custom" ? " pc-tab--active" : ""}`} onClick={() => setTab("custom")}>✉️ 브랜드 메일</button>
-        <button className={`pc-tab${tab === "queue"  ? " pc-tab--active" : ""}`} onClick={() => setTab("queue")}>📥 임시저장 메일링</button>
-        <button className={`pc-tab${tab === "brand"  ? " pc-tab--active" : ""}`} onClick={() => setTab("brand")}>📷 파일 전달(리뷰)</button>
-        <button className={`pc-tab${tab === "review" ? " pc-tab--active" : ""}`} onClick={() => setTab("review")}>⭐ 후기 요청 메일</button>
-        <button className={`pc-tab${tab === "select" ? " pc-tab--active" : ""}`} onClick={() => setTab("select")}>📸 셀렉 갤러리</button>
-        <button className={`pc-tab${tab === "history" ? " pc-tab--active" : ""}`} onClick={() => setTab("history")}>📜 발송이력</button>
+      <div className="pc-content" style={{ paddingBottom: 0 }}>
+        <SegmentedTabs<Tab>
+          ariaLabel="메일링 탭 선택"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: "custom", label: "브랜드 메일", icon: "✉️" },
+            { value: "queue", label: "임시저장 메일링", icon: "📥" },
+            { value: "brand", label: "파일 전달(리뷰)", icon: "📷" },
+            { value: "review", label: "후기 요청 메일", icon: "⭐" },
+            { value: "select", label: "셀렉 갤러리", icon: "📸" },
+            { value: "history", label: "발송이력", icon: "📜" },
+          ]}
+        />
       </div>
 
       {tab === "custom" && <CustomBrandMailTab />}
