@@ -1482,24 +1482,41 @@ export default function SnsManagerPage() {
     <div className="sns-manager-page" style={{ minHeight: "100vh", background: C.bg }}>
       <GlobalHeader title="홍보 콘텐츠 제작" description="블로그·인스타·네이버 플레이스 홍보 콘텐츠를 클라이언트별로 제작합니다." />
 
-      {/* 탭 헤더 */}
-      <div className="pc-tabs pc-tabs--global">
-        {TABS.map(({ id, label, icon: Icon, status }) => id === "youtube" ? (
-          <a key={id} href="/sns-manager?tab=youtube"
-            className={`pc-tab${tab === id ? " pc-tab--active" : ""}`}
-            style={{ textDecoration: "none" }}>
-            <Icon size={13} />
-            {label}
-          </a>
-        ) : (
-          <button key={id} onClick={() => status === "active" && setTab(id as TabId)}
-            className={`pc-tab${tab === id ? " pc-tab--active" : ""}`}
-            style={{ cursor: status === "active" ? "pointer" : "default", color: status === "coming" ? "#C4C4C4" : undefined }}>
-            <Icon size={13} />
-            {label}
-            {status === "coming" && <span style={{ background: "#F3F4F6", color: "#9CA3AF", fontSize: 11, fontWeight: 700, padding: "2px 5px", borderRadius: 99, marginLeft: 2 }}>준비중</span>}
-          </button>
-        ))}
+      {/* 탭 헤더 — 유튜브 탭은 딥링크(?tab=youtube) 보존, 캘린더는 준비중 배지가 있어
+          SegmentedTabs 프리미티브(href/뱃지/disabled 미지원) 대신 같은 시각 규칙(1.2/1.3)을
+          인라인으로 재현한다. */}
+      <div style={{
+        display: "inline-flex", alignItems: "center", gap: 2, width: "max-content", maxWidth: "100%",
+        overflowX: "auto", padding: 3, borderRadius: 10, background: "rgba(21, 88, 85, .07)",
+        margin: "20px 24px 0",
+      }}>
+        {TABS.map(({ id, label, icon: Icon, status }) => {
+          const active = tab === id;
+          const tabStyle: React.CSSProperties = {
+            flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: 7,
+            border: 0, borderRadius: 8, padding: "7px 14px",
+            background: active ? "#fff" : "transparent",
+            color: status === "coming" ? "#C4C4C4" : active ? "var(--teal)" : "var(--muted)",
+            fontFamily: "inherit", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap",
+            cursor: status === "active" ? "pointer" : "default", textDecoration: "none",
+            boxShadow: active ? "0 1px 4px rgba(21, 88, 85, .18)" : "none",
+          };
+          if (id === "youtube") {
+            return (
+              <a key={id} href="/sns-manager?tab=youtube" style={tabStyle}>
+                <Icon size={13} />
+                {label}
+              </a>
+            );
+          }
+          return (
+            <button key={id} type="button" onClick={() => status === "active" && setTab(id as TabId)} style={tabStyle}>
+              <Icon size={13} />
+              {label}
+              {status === "coming" && <span style={{ background: "#F3F4F6", color: "#9CA3AF", fontSize: 11, fontWeight: 700, padding: "2px 5px", borderRadius: 99, marginLeft: 2 }}>준비중</span>}
+            </button>
+          );
+        })}
       </div>
 
       {/* 탭 내용 */}
