@@ -14,6 +14,7 @@ import { TodayWindowContent } from "../adapters/TodayWindowContent";
 import { AllAppsWindowContent } from "../apps/all-apps/AllAppsWindowContent";
 import { LegacyRouteWindowContent } from "../adapters/LegacyRouteWindowContent";
 import { CalendarAppIcon } from "../CalendarAppIcon";
+import { MemoWindowContent } from "../adapters/MemoWindowContent";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
 // conti는 Phase 3에서 레거시 70/30 시스템이 이미 쓰던 mode="modal" 빌더(QuoteBuilder 등)를
