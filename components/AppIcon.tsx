@@ -1,4 +1,4 @@
-import type { SVGProps } from 'react';
+import type { ReactElement, SVGProps } from 'react';
 import { ICON_NAMES, ICON_LABELS, ICON_GROUPS } from './Icon';
 import type { IconName } from './Icon';
 
