@@ -514,10 +514,11 @@ export default function ReviewStoryWorkspace() {
   };
 
   const exportPng = async () => {
-    if (!activePage) return notify("내보낼 스토리가 없습니다.", true);
+    if (!activePage || !canvasHandleRef.current) return notify("내보낼 스토리가 없습니다.", true);
     setBusy("export");
     try {
-      const blob = await renderReviewStoryDocument(activePage.document, { ...assetUrls, ...(activePage.assetUrls || {}) });
+      const canvas = await canvasHandleRef.current.captureRaster(activePage.document.width);
+      const blob = await canvasToBlob(canvas);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -527,6 +528,27 @@ export default function ReviewStoryWorkspace() {
       notify("1080×1350 PNG를 내보냈습니다.");
     } catch (exportError) {
       notify(exportError instanceof Error ? exportError.message : "PNG 내보내기에 실패했습니다.", true);
+    } finally { setBusy(""); }
+  };
+
+  const exportPdf = async () => {
+    if (!activePage || !canvasHandleRef.current) return notify("내보낼 스토리가 없습니다.", true);
+    setBusy("export");
+    try {
+      const canvas = await canvasHandleRef.current.captureRaster(activePage.document.width);
+      const { jsPDF } = await import("jspdf");
+      const { width, height } = activePage.document;
+      const pdf = new jsPDF({
+        orientation: width >= height ? "landscape" : "portrait",
+        unit: "px",
+        format: [width, height],
+        hotfixes: ["px_scaling"],
+      });
+      pdf.addImage(canvas.toDataURL("image/png", 1.0), "PNG", 0, 0, width, height, undefined, "FAST");
+      pdf.save(`${source.hospitalName || "review"}-story-${pages.findIndex((page) => page.id === activePage.id) + 1}.pdf`);
+      notify("PDF를 내보냈습니다.");
+    } catch (exportError) {
+      notify(exportError instanceof Error ? exportError.message : "PDF 내보내기에 실패했습니다.", true);
     } finally { setBusy(""); }
   };
 
