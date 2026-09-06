@@ -50,7 +50,7 @@ export const APP_ICON_BG: Record<IconName, string> = {
   'library': '#E85D2C',
 };
 
-const glyphs: Record<IconName, JSX.Element> = {
+const glyphs: Record<IconName, ReactElement> = {
   'today': (
     <>
       <rect x="2.5" y="3.5" width="19" height="18" rx="4.5" fill="#fff"/>
