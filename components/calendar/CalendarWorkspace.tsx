@@ -1247,10 +1247,14 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
               tabIndex={0}
               className="cal-cell"
               onFocus={() => setFocusedIdx(idx)}
-              onClick={e => {
+              onClick={() => {
+                // 한 번 클릭은 선택만(맥 캘린더 방식) — 추가하려면 더블클릭. 일정 pill의 기존
+                // 클릭/더블클릭 구분과 같은 규칙이다.
                 onSelectDate(dateStr); setSelectedTask(null);
                 if (isMobile) onNavigateDay?.(dateStr);
-                else onOpenAdd(dateStr, e.clientX, e.clientY);
+              }}
+              onDoubleClick={e => {
+                if (!isMobile) onOpenAdd(dateStr, e.clientX, e.clientY);
               }}
               onKeyDown={e => {
                 const cols = 7;
