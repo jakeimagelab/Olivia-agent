@@ -39,6 +39,11 @@ export type ReviewStoryTextElement = ReviewStoryElementBase & {
   textAlign: "left" | "center" | "right";
   lineHeight: number;
   letterSpacing: number;
+  // 기존 문서에는 없는 값 — optional로 둬서 하위호환(없으면 false/미지정과 동일하게 렌더).
+  italic?: boolean;
+  underline?: boolean;
+  highlight?: boolean;
+  highlightColor?: string;
 };
 
 export type ReviewStoryImageElement = ReviewStoryElementBase & {
