@@ -118,23 +118,25 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
       </div>
       <div style={{ padding: 6, borderRadius: 22, background: "rgba(21,88,85,.06)" }}>
         <div style={{ ...background, borderRadius: 16, overflow: "hidden", position: "relative" }}>
-          <textarea
-            ref={textareaRef}
-            aria-label="메모 텍스트"
-            value={textValue}
-            onChange={event => onTextChange(event.target.value)}
-            placeholder={textMode ? "내용을 입력하세요…" : ""}
-            readOnly={!textMode}
-            tabIndex={textMode ? 0 : -1}
-            style={{
-              position: "absolute", inset: 0, width: "100%",
-              height: isFullscreen ? "calc(100vh - 104px)" : templateType === "conti" ? 560 : 430,
-              border: "none", outline: "none", resize: "none", background: "transparent",
-              padding: 18, boxSizing: "border-box", font: "inherit", fontSize: 14, lineHeight: 1.85, color: "#1C2B28",
-              pointerEvents: textMode ? "auto" : "none", zIndex: 1,
-            }}
-          />
-          <DrawingCanvas ref={setRefs} penType={penType} penSize={penSize} penColor={penColor} isEraser={eraser} eraserSize={eraserSize} shape={shape} initialImage={initialImage} onStrokeEnd={dataUrl => { onChange(dataUrl); forceHistory(v => v + 1); }} style={{ display: "block", width: "100%", height: isFullscreen ? "calc(100vh - 104px)" : templateType === "conti" ? 560 : 430, position: "relative", zIndex: 2, pointerEvents: textMode ? "none" : "auto", background: "transparent" }} />
+          {supportsText ? (
+            <textarea
+              ref={textareaRef}
+              aria-label="메모 텍스트"
+              value={textValue}
+              onChange={event => onTextChange?.(event.target.value)}
+              placeholder={textMode ? "내용을 입력하세요…" : ""}
+              readOnly={!textMode}
+              tabIndex={textMode ? 0 : -1}
+              style={{
+                position: "absolute", inset: 0, width: "100%",
+                height: isFullscreen ? "calc(100vh - 104px)" : templateType === "conti" ? 560 : 430,
+                border: "none", outline: "none", resize: "none", background: "transparent",
+                padding: 18, boxSizing: "border-box", font: "inherit", fontSize: 14, lineHeight: 1.85, color: "#1C2B28",
+                pointerEvents: textMode ? "auto" : "none", zIndex: 1,
+              }}
+            />
+          ) : null}
+          <DrawingCanvas ref={setRefs} penType={penType} penSize={penSize} penColor={penColor} isEraser={eraser} eraserSize={eraserSize} shape={shape} initialImage={initialImage} onStrokeEnd={dataUrl => { onChange(dataUrl); forceHistory(v => v + 1); }} style={{ display: "block", width: "100%", height: isFullscreen ? "calc(100vh - 104px)" : templateType === "conti" ? 560 : 430, position: supportsText ? "relative" : "static", zIndex: 2, pointerEvents: textMode ? "none" : "auto", background: "transparent" }} />
         </div>
       </div>
     </section>
