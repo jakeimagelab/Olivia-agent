@@ -785,7 +785,7 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
             overflow: "hidden",
           }}
         >
-          <div style={{ height: 14, background: `linear-gradient(90deg, ${BRAND_TEAL} 0%, ${BRAND_TEAL} 50%, ${BRAND_ORANGE} 50%, ${BRAND_ORANGE} 100%)` }} />
+          <div style={{ height: 14, background: BRAND_TEAL }} />
           <div style={{ padding: "48px 48px 40px", display: "flex", flexDirection: "column", flex: 1 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 36 }}>
               <img src="/assets/photoclinic-mark.png" alt="" style={{ width: 52, height: 52, objectFit: "contain" }} />
