@@ -1090,12 +1090,8 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                 onSelectDate(dateStr); setSelectedTask(null);
                 if (isMobile) onNavigateDay?.(dateStr);
               }}
-              onDoubleClick={() => {
-                // 클릭한 좌표가 아니라 요일 칸 자체의 위치 기준으로 띄운다 — 칸의 어디를
-                // 더블클릭하든 항상 그 칸 바로 옆에 뜨게(맥 캘린더 방식).
-                if (isMobile) return;
-                const rect = cellRefs.current[idx]?.getBoundingClientRect();
-                onOpenAdd(dateStr, rect ? rect.right : 200, rect ? rect.top : 200);
+              onDoubleClick={e => {
+                if (!isMobile) onOpenAdd(dateStr, e.clientX, e.clientY);
               }}
               onKeyDown={e => {
                 const cols = 7;
