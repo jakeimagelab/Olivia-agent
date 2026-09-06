@@ -28,15 +28,11 @@ describe("OLIVIA OS app registry navigation", () => {
   });
 
   it("keeps non-Dock apps registered for All Apps", () => {
-    for (const appId of ["quote", "contract", "conti", "today", "all-apps", "legacy-route"]) {
+    for (const appId of ["quote", "contract", "conti", "memo", "today", "all-apps", "legacy-route"]) {
       const app = getOliviaApp(appId);
       expect(app).toBeDefined();
       expect(app?.desktopShortcutOrder).toBeUndefined();
       expect(app?.dockOrder).toBeUndefined();
     }
-  });
-
-  it("no longer registers memo as an independent OS app (2026-09 — moved into customer/project/schedule/todo detail views)", () => {
-    expect(getOliviaApp("memo")).toBeUndefined();
   });
 });
