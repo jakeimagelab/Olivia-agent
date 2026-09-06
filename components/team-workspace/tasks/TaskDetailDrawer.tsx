@@ -234,6 +234,14 @@ export default function TaskDetailDrawer({
               />
             </section>
             <section>
+              <h3 style={sectionTitle}>메모</h3>
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
+                <Suspense fallback={<div className="team-empty">불러오는 중...</div>}>
+                  <MemoWorkspace embedded contextType="todo" contextId={task.id} />
+                </Suspense>
+              </div>
+            </section>
+            <section>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <h3 style={{ ...sectionTitle, margin: 0 }}>결과물 첨부</h3>
                 <label className="team-button secondary" style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: "pointer" }}><Paperclip size={13} />{busy === "upload" ? "업로드 중" : "파일 추가"}<input type="file" hidden disabled={Boolean(busy)} onChange={(event) => upload(event.target.files?.[0] ?? null)} /></label>
