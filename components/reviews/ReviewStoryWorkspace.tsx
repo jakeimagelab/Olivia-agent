@@ -128,6 +128,9 @@ async function jsonRequest(url: string, init?: RequestInit) {
 }
 
 export default function ReviewStoryWorkspace() {
+  // OS 창 안에서는 타이틀바가 이미 "리뷰콘텐츠"를 보여주므로 본문 h1/설명은 중복이다
+  // (제안서 1.1) — standalone /review-studio 라우트에서는 그대로 유지.
+  const isDesktopWindow = useDesktopWindowMode();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [contents, setContents] = useState<ReviewContent[]>([]);
   const [layouts, setLayouts] = useState<LayoutAsset[]>([]);
