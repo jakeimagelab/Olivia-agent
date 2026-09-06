@@ -29,23 +29,12 @@ function dataUrlFile(dataUrl: string, name: string) {
   return new File([bytes], name, { type: mime });
 }
 
-function modeFromMemo(memo: ConsultationMemo): MemoMode {
-  const savedMode = memo.template_data?.noteMode;
-  if (savedMode === "general" || savedMode === "template" || savedMode === "voice") return savedMode;
-  if (memo.audio_path || memo.audio_summary || memo.transcript) return "voice";
-  return memo.template_type === "text" ? "general" : "template";
-}
-
 function canvasBackground(type: MemoTemplateType): CanvasExportOptions["background"] {
   if (type === "cornell" || type === "todo" || type === "grid" || type === "conti") return type;
   return "white";
 }
 
-function defaultTitle(mode: MemoMode) {
-  if (mode === "template") return "제목 없는 태블릿메모";
-  if (mode === "voice") return "제목 없는 음성메모";
-  return "제목 없는 일반메모";
-}
+const DEFAULT_TITLE = "제목 없는 메모";
 
 export function MemoWorkspace({ embedded = false, contextType, contextId }: { embedded?: boolean; contextType?: MemoContextType; contextId?: string }) {
   const searchParams = useSearchParams();
