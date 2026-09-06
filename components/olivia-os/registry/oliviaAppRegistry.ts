@@ -35,7 +35,7 @@ export type OliviaAppDefinition = {
   component: ComponentType<{ context?: WindowContext }>;
 };
 
-const appIcon = (name: IconName) => createElement(Icon, { name, size: 26, "aria-hidden": true, focusable: false });
+const appIcon = (name: IconName) => createElement(AppIcon, { name, size: 26, "aria-hidden": true, focusable: false });
 
 export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
