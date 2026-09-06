@@ -80,9 +80,11 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
   return (
     <section ref={panelRef} aria-label="필기 팔레트" style={isFullscreen ? { background: "#FCFDFC", padding: 14, overflow: "hidden" } : undefined}>
       <div className="memo-draw-toolbar" style={{ display: "flex", gap: 9, alignItems: "center", flexWrap: "wrap", padding: 10, borderRadius: 16, background: "#EDF5F3", marginBottom: 10 }}>
-        <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
-          <button title="텍스트" onClick={activateTextTool} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 12px", display: "flex", alignItems: "center", gap: 5, background: textMode ? "#155855" : "transparent", color: textMode ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}><Type size={13} />텍스트</button>
-        </div>
+        {supportsText ? (
+          <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
+            <button title="텍스트" onClick={activateTextTool} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 12px", display: "flex", alignItems: "center", gap: 5, background: textMode ? "#155855" : "transparent", color: textMode ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}><Type size={13} />텍스트</button>
+          </div>
+        ) : null}
         {voiceButton}
         <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
           {NOTE_PENS.map(pen => <button key={pen.key} title={pen.label} onClick={() => activateDrawTool(() => { setPenType(pen.key); setEraser(false); setShape("freehand"); })} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: !textMode && !eraser && shape === "freehand" && penType === pen.key ? "#155855" : "transparent", color: !textMode && !eraser && shape === "freehand" && penType === pen.key ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{pen.label}</button>)}
