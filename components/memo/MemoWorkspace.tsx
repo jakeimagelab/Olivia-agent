@@ -14,6 +14,7 @@ import {
   TEMPLATE_OPTIONS,
   emptyTemplateData,
   type ConsultationMemo,
+  type MemoContextType,
   type MemoMode,
   type MemoTemplateData,
   type MemoTemplateType,
