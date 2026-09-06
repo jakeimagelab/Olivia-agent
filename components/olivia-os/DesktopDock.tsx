@@ -53,7 +53,7 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
     <div className={styles.dock} role="toolbar" aria-label="Dock">
       <button type="button" className={styles.dockButton} onClick={toggleShowDesktop} aria-label="바탕화면 보기" data-tooltip="바탕화면 보기">
         <DockTooltip>바탕화면 보기</DockTooltip>
-        <AppIcon icon={<Icon name="today" size={26} aria-hidden focusable={false} />} size={48} />
+        <AppIcon icon={<ColorAppIcon name="today" size={26} aria-hidden focusable={false} />} size={48} />
       </button>
       <div className={styles.dockDivider} />
       {dockApps.map((app) => {
@@ -77,22 +77,22 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
       })}
       <button type="button" className={styles.dockButton} onClick={openMemo} aria-label="메모" data-tooltip="메모">
         <DockTooltip>메모</DockTooltip>
-        <AppIcon icon={<Icon name="memo" size={26} aria-hidden focusable={false} />} size={48} active={activeWindowId === "memo"} />
+        <AppIcon icon={<ColorAppIcon name="memo" size={26} aria-hidden focusable={false} />} size={48} active={activeWindowId === "memo"} />
         {windows.memo ? <span className={styles.dockIndicator} /> : null}
       </button>
       <div className={styles.dockDivider} />
       <button type="button" className={styles.dockButton} onClick={openAllApps} aria-label="모든 앱" data-tooltip="모든 앱">
         <DockTooltip>모든 앱</DockTooltip>
-        <AppIcon icon={<Icon name="workspace" size={26} aria-hidden focusable={false} />} size={48} active={activeWindowId === "all-apps"} />
+        <AppIcon icon={<ColorAppIcon name="workspace" size={26} aria-hidden focusable={false} />} size={48} active={activeWindowId === "all-apps"} />
         {windows["all-apps"] ? <span className={styles.dockIndicator} /> : null}
       </button>
       <button type="button" className={styles.dockButton} onClick={() => onOpenOverlay("wallpaper")} aria-label="배경화면" data-tooltip="배경화면">
         <DockTooltip>배경화면</DockTooltip>
-        <AppIcon icon={<Icon name="image-director" size={26} aria-hidden focusable={false} />} size={48} />
+        <AppIcon icon={<ColorAppIcon name="image-director" size={26} aria-hidden focusable={false} />} size={48} />
       </button>
       <button type="button" className={styles.dockButton} onClick={() => launchHref("/trash", "휴지통")} aria-label="휴지통" data-tooltip="휴지통">
         <DockTooltip>휴지통</DockTooltip>
-        <AppIcon icon={<Icon name="trash" size={26} aria-hidden focusable={false} />} size={48} active={windows["legacy-route"]?.context?.resourceId === "/trash"} />
+        <AppIcon icon={<ColorAppIcon name="trash" size={26} aria-hidden focusable={false} />} size={48} active={windows["legacy-route"]?.context?.resourceId === "/trash"} />
         {windows["legacy-route"]?.context?.resourceId === "/trash" ? <span className={styles.dockIndicator} /> : null}
       </button>
     </div>
