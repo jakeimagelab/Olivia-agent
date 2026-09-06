@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { AlignCenter, AlignLeft, AlignRight, Bold, Crop, Highlighter, ImagePlus, Image as ImageIcon, Italic, Lock, MoveDown, MoveUp, Underline } from "lucide-react";
 import type { ReviewStoryDocument, ReviewStoryElement, ReviewStoryImageElement, ReviewStoryTextElement } from "@/lib/reviewContent/storyDocument";
 import { computeSnap, type Rect, type SmartGuide } from "@/lib/reviewContent/smartGuides";
@@ -15,6 +15,14 @@ type Props = {
   onSelect: (id: string | null) => void;
   onChange: (document: ReviewStoryDocument, historyBase?: ReviewStoryDocument) => void;
   onReplaceImage?: () => void;
+};
+
+export type ReviewStoryCanvasHandle = {
+  // 미리보기로 보이는 이 DOM을 그대로 rasterize한다 — canvas 2D로 텍스트를 다시 조판하는
+  // 별도 렌더러를 쓰면 브라우저 텍스트 레이아웃과 결과물이 어긋난다(제안서 2-3). targetWidthPx는
+  // 원하는 출력 픽셀 폭(예: document.width) — 지금 화면 축소 비율과 무관하게 항상 그 해상도로
+  // 나온다.
+  captureRaster: (targetWidthPx: number) => Promise<HTMLCanvasElement>;
 };
 
 type ResizeHandle = "nw" | "ne" | "sw" | "se" | "w" | "e";
