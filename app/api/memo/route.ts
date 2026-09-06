@@ -10,7 +10,12 @@ export const maxDuration = 120;
 
 const ASSET_BUCKET = "consultation-assets";
 const TEMPLATE_TYPES = new Set(["text", "cornell", "todo", "blank", "grid", "conti"]);
-const MEMO_FIELDS = "id, hospital_id, context_type, context_id, title, template_type, template_data, raw_memo, summary, extracted_data, recommended_package, next_action, canvas_path, ai_image_path, audio_path, audio_duration_seconds, transcript, audio_summary, created_at, updated_at";
+const MEMO_FIELDS_BASE = "id, hospital_id, title, template_type, template_data, raw_memo, summary, extracted_data, recommended_package, next_action, canvas_path, ai_image_path, audio_path, audio_duration_seconds, transcript, audio_summary, created_at, updated_at";
+const MEMO_FIELDS = `id, hospital_id, context_type, context_id, title, template_type, template_data, raw_memo, summary, extracted_data, recommended_package, next_action, canvas_path, ai_image_path, audio_path, audio_duration_seconds, transcript, audio_summary, created_at, updated_at`;
+// 2026-09-07 마이그레이션(20260907_memo_context_link.sql)이 아직 Supabase에 반영 안 됐으면
+// context_type/context_id 컬럼이 없어 위 SELECT/INSERT가 통째로 실패해 메모 목록이 전부
+// 사라진 것처럼 보인다 — 그 특정 에러(42703 undefined_column)만 감지해 구컬럼셋으로 재시도한다.
+const UNDEFINED_COLUMN = "42703";
 
 const analysisSchema = {
   type: "object",
