@@ -12,6 +12,9 @@
 시키면서 마지막 것만 실제로 READY까지 갔다 — 이건 정상 동작(Vercel의 기존 배포 취소 정책)이라
 문제 아님. 아침에 olivia.photoclinic.kr이 최신 상태인지 한 번만 확인해주면 된다.
 
+**최종 확인**: `dpl_DNTvDQ4zsiD25Rh8rfvVFV1MFVxV`, 커밋 `9c28f6e1`(이번 pass의 마지막 커밋) 기준
+`readyState: READY`, `olivia.photoclinic.kr` alias 정상 연결 확인함. 배포 정상 복구됨.
+
 ## 완료
 
 ### 탭 버튼 통일 — 1차 배치 (state 기반, 검증 완료: tsc/eslint/vitest 735개 전부 통과)
