@@ -42,6 +42,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (typeof body.sort === "number") update.sort = body.sort;
   if (body.group_id !== undefined) update.group_id = body.group_id;
   if (Array.isArray(body.procedures)) update.procedures = body.procedures;
+  if (typeof body.completed === "boolean") update.completed = body.completed;
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ ok: false, error: "수정할 내용이 없습니다." }, { status: 400 });
