@@ -66,6 +66,8 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
   const [loading, setLoading] = useState(true);
   const [showSources, setShowSources] = useState(false);
   const [error, setError] = useState("");
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
 
   const draggedId = useRef<string | null>(null);
   const cellRefs = useRef<Map<string, HTMLInputElement | HTMLTextAreaElement>>(new Map());
