@@ -44,6 +44,7 @@ export const TOOLS_WORK: ToolDef[] = [
   // 패턴으로 등록한다.
   { title: "계약서 생성", desc: "견적 데이터를 이어받아 계약서 PDF를 생성하고 서명을 받습니다.", href: "/contract", icon: FileSignature, meta: "Contract Builder", orange: false, category: "tools", aliases: ["계약서", "계약서 작성", "계약", "계약서 만들어줘"] },
   { title: "콘티/초상권 작성", desc: "사진 콘티(체크리스트·타임테이블)와 영상 콘티(씬·컷·손그림 스토리보드), 초상권 동의서를 한 화면에서 생성합니다.", href: "/conti", icon: FileVideo, meta: "Storyboard Studio", orange: false, category: "tools", aliases: ["콘티", "콘티/초상권", "초상권"] },
+  { title: "콘티 (신규, 검증용)", desc: "체크 → AI 초안 → 사람이 마무리하는 새 콘티 생성 시스템. 확인되면 위 콘티/초상권 작성을 대체합니다.", href: "/conti-v2", icon: Sparkles, meta: "Storyboard Studio v2", orange: false, category: "tools", aliases: ["콘티 신규", "콘티v2"] },
   { title: "고객 관리", desc: "병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다.", href: "/clients", icon: Users, meta: "Client Management", orange: true, category: "crm", aliases: ["고객관리", "고객 관리", "고객", "고객 목록", "고객리스트", "CRM", "클라이언트"] },
   { title: "셀렉 갤러리", desc: "고객에게 촬영본을 전달하고 셀렉을 받는 갤러리를 관리합니다.", href: "/select-galleries", icon: Images, meta: "Select Gallery", orange: false, category: "crm", aliases: ["셀렉갤러리", "셀렉 갤러리", "갤러리"] },
   { title: "PER 리워드", desc: "고객 추천 리워드 적립·신청·후속 관리를 처리합니다.", href: "/per", icon: Trophy, meta: "PER Reward", orange: false, category: "crm", aliases: ["PER", "리워드"] },
