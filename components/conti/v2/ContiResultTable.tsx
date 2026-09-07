@@ -194,6 +194,25 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
     if (data.ok) setScenes((prev) => [...prev, data.scene]);
   }
 
+  async function createShareLink(audience: "customer" | "staff") {
+    setShareStatus("생성 중…");
+    try {
+      const res = await fetch(`/api/conti/runs/${runId}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audience }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error ?? "링크 생성 실패");
+      const url = `${window.location.origin}/conti-v2/share/${data.token}`;
+      await navigator.clipboard.writeText(url).catch(() => {});
+      setShareStatus(`${audience === "staff" ? "현장팀용" : "고객용"} 링크가 복사되었습니다`);
+    } catch (e) {
+      setShareStatus(e instanceof Error ? e.message : "링크 생성 실패");
+    }
+    setTimeout(() => setShareStatus(""), 3500);
+  }
+
   if (loading) {
     return <div style={{ padding: 40, textAlign: "center", color: "#7c9a95" }}>불러오는 중…</div>;
   }
