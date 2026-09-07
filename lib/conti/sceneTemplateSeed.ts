@@ -129,6 +129,11 @@ const COMMON_SCENES = [
     description: "원장님이 환자에게 진료 상담하는 모습. 카메라 응시 + 비응시(자연스러운) 두 가지 촬영. 모형·엑스레이 결과 설명, 가족 동반 연출도 포함.",
     roles: ["원장", "환자"], spaceType: "진료실", needsPatient: true, perDoctor: true,
   },
+  {
+    name: "실장 상담", minutes: 10, keyword: "세심한 상담",
+    description: "상담실장이 환자에게 상담하는 모습. 데스크에서 자연스럽게 설명하는 장면.",
+    roles: ["실장", "환자"], spaceType: "상담실", needsPatient: true, perDoctor: false,
+  },
 ] as const;
 
 const PAIN_COMMON_SCENES: Array<{
