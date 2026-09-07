@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, GripVertical, Plus, Share2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, GripVertical, Plus, Share2, Users } from "lucide-react";
 
 interface SceneRow {
   id: string;
