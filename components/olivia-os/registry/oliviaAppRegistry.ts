@@ -118,6 +118,18 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     component: ContiBuilderWindowContent,
   },
   {
+    // 검증용 임시 항목 — 새 결정론적 콘티 시스템이 확인되면 위 "conti" 항목을 이걸로
+    // 대체하고 이 항목은 지운다.
+    id: "conti-v2",
+    title: "콘티 (신규)",
+    icon: appIcon("storyboard"),
+    route: "/conti-v2",
+    defaultSize: { width: 1180, height: 780 },
+    minSize: { width: 720, height: 440 },
+    singleton: true,
+    component: ContiV2WindowContent,
+  },
+  {
     id: "documents",
     title: "문서함",
     icon: appIcon("library"),
