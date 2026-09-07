@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, GripVertical } from "lucide-react";
+import styles from "@/components/conti/v2/ContiV2.module.css";
 
 interface SceneRow {
   id: string;
@@ -74,6 +75,7 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
   const remainingMinutes = ordered.filter((s) => !s.completed).reduce((sum, s) => sum + (s.minutes ?? 0), 0);
   const currentScene = currentIndex >= 0 ? ordered[currentIndex] : null;
   const nextScene = currentIndex >= 0 ? ordered[currentIndex + 1] : null;
+  const progress = ordered.length ? completedCount / ordered.length : 0;
 
   async function patchScene(sceneId: string, body: Record<string, unknown>) {
     await fetch(`/api/conti/scenes/${sceneId}`, {
@@ -129,20 +131,20 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
         </span>
       </div>
 
-      {currentScene ? (
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(220px, .8fr)", gap: 12, marginBottom: 14 }}>
-          <div style={{ padding: "14px 16px", borderRadius: 12, background: "#155855", color: "#fff" }}>
-            <div style={{ fontSize: 10.5, fontWeight: 800, color: "rgba(255,255,255,.6)", marginBottom: 5 }}>현재 촬영 · {currentIndex + 1}/{ordered.length}</div>
-            <div style={{ fontSize: 18, fontWeight: 900 }}>{currentScene.name}</div>
-            <div style={{ marginTop: 5, fontSize: 12, color: "rgba(255,255,255,.72)" }}>{currentScene.space_text || "장소 미정"} · {currentScene.minutes != null ? `${currentScene.minutes}분` : "시간 미정"} · {currentScene.people_text || "필요 인원 미정"}</div>
+      <div className={styles.fieldProgress} aria-label={`촬영 진행률 ${Math.round(progress * 100)}%`}><span style={{ transform: `scaleX(${progress})` }} /></div>
+
+      {currentScene ? <div className={styles.fieldHeroGrid}>
+        <div className={styles.fieldCurrentShell}><section className={styles.fieldCurrentPanel}>
+          <span className={styles.fieldCurrentLabel}>Now Shooting · {currentIndex + 1}/{ordered.length}</span>
+          <h2>{currentScene.name}</h2>
+          <div className={styles.fieldMetaGrid}>
+            <div><small>장소</small><strong>{currentScene.space_text || "장소 미정"}</strong></div>
+            <div><small>예상 시간</small><strong>{currentScene.minutes != null ? `${currentScene.minutes}분` : "시간 미정"}</strong></div>
+            <div><small>필요 인원</small><strong>{currentScene.people_text || "필요 인원 미정"}</strong></div>
           </div>
-          <div style={{ padding: "14px 16px", borderRadius: 12, background: "#fff", border: "1px solid rgba(21,88,85,.12)" }}>
-            <div style={{ fontSize: 10.5, fontWeight: 800, color: "#7c9a95", marginBottom: 5 }}>다음 장면</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#1e3b38" }}>{nextScene?.name ?? "마지막 장면입니다"}</div>
-            {nextScene ? <div style={{ marginTop: 5, fontSize: 11.5, color: "#7c9a95" }}>{nextScene.space_text || "장소 미정"}</div> : null}
-          </div>
-        </div>
-      ) : null}
+        </section></div>
+        <div className={styles.fieldNextShell}><aside className={styles.fieldNextPanel}><span>UP NEXT</span><h3>{nextScene?.name ?? "마지막 장면입니다"}</h3>{nextScene ? <p>{nextScene.space_text || "장소 미정"} · {nextScene.minutes != null ? `${nextScene.minutes}분` : "시간 미정"}</p> : <p>모든 촬영을 마무리해 주세요.</p>}</aside></div>
+      </div> : null}
 
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${cardCols}, minmax(0, 1fr))`, gap: 14 }}>
         {ordered.map((scene, i) => {

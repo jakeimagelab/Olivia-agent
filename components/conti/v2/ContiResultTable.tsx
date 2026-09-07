@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Download, GripVertical, Plus, Share2, Trash2, Users } from "lucide-react";
+import styles from "@/components/conti/v2/ContiV2.module.css";
 
 interface SceneRow {
   id: string;
@@ -233,7 +234,15 @@ export default function ContiResultTable({ runId, onBack, onOpenField }: ContiRe
   const canShare = orderedScenes.length > 0;
 
   return (
-    <div style={{ background: "#FAF7F2", borderRadius: 16, border: "1px solid rgba(21,88,85,.1)", overflow: "hidden" }}>
+    <div className={styles.resultShell}>
+      <div className={styles.resultPanel}>
+      <div className={styles.resultSummary}>
+        <div className={styles.resultSummaryCopy}><span>AI SHOOTING PLAN</span><h2>촬영 콘티가 준비됐어요.</h2></div>
+        <div className={styles.resultMetrics}>
+          <div className={styles.resultMetric}><small>전체 장면</small><strong>{orderedScenes.length} SCENES</strong></div>
+          <div className={styles.resultMetric}><small>예상 촬영</small><strong>{Math.floor(totalMinutes / 60)}H {totalMinutes % 60}M</strong></div>
+        </div>
+      </div>
       {/* 상단 바 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 18px", borderBottom: "1px solid rgba(21,88,85,.1)", background: "#fff", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -260,8 +269,8 @@ export default function ContiResultTable({ runId, onBack, onOpenField }: ContiRe
       </div>
 
       {/* 표 */}
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+      <div className={styles.tableViewport}>
+        <table className={styles.resultTable}>
           <thead>
             <tr style={{ background: "#F0ECE3", textAlign: "left" }}>
               <th style={thStyle}></th>
@@ -370,6 +379,7 @@ export default function ContiResultTable({ runId, onBack, onOpenField }: ContiRe
             ) : null}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

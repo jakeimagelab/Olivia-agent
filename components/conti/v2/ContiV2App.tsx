@@ -5,6 +5,7 @@ import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import ContiCreateScreen from "@/components/conti/v2/ContiCreateScreen";
 import ContiResultTable from "@/components/conti/v2/ContiResultTable";
 import ContiFieldView from "@/components/conti/v2/ContiFieldView";
+import styles from "@/components/conti/v2/ContiV2.module.css";
 
 type ResultView = "table" | "field";
 
@@ -38,10 +39,10 @@ export default function ContiV2App({ clientId, workflowRunId, resourceId, onClos
   const handleGenerated = (id: string) => { setRunId(id); onPublished?.(); };
 
   return (
-    <div style={{ minHeight: "100%", background: "#F4F1EB", padding: "20px 24px 60px" }}>
+    <div className={styles.appShell}>
       {runId ? (
         <>
-          <div style={{ marginBottom: 14 }}>
+          <div className={styles.tabsDock}>
             <SegmentedTabs
               ariaLabel="결과 보기 방식"
               value={view}
