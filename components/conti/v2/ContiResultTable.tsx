@@ -325,18 +325,32 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={addScene} style={ghostButtonStyle}><Plus size={13} /> 장면 추가</button>
           <button type="button" disabled title="고객관리 공간 관리 화면은 아직 없습니다" style={{ ...ghostButtonStyle, opacity: .5, cursor: "not-allowed" }}>공간 정보 등록</button>
-          <button
-            type="button"
-            disabled={!canShare}
-            title={canShare ? undefined : "공란을 모두 채우면 활성화됩니다"}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, height: 34, padding: "0 16px",
-              borderRadius: 8, border: "1px solid #E85D2C", background: canShare ? "#E85D2C" : "#F2B79B",
-              color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: canShare ? "pointer" : "not-allowed",
-            }}
-          >
-            <Share2 size={13} /> 공유·PDF
-          </button>
+          {shareStatus ? <span style={{ fontSize: 11.5, color: "#5A7470", fontWeight: 700 }}>{shareStatus}</span> : null}
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              disabled={!canShare}
+              title={canShare ? undefined : "공란을 모두 채우면 활성화됩니다"}
+              onClick={() => setShareMenuOpen((v) => !v)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6, height: 34, padding: "0 16px",
+                borderRadius: 8, border: "1px solid #E85D2C", background: canShare ? "#E85D2C" : "#F2B79B",
+                color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: canShare ? "pointer" : "not-allowed",
+              }}
+            >
+              <Share2 size={13} /> 공유·PDF
+            </button>
+            {shareMenuOpen ? (
+              <div style={{ position: "absolute", bottom: "100%", right: 0, marginBottom: 6, background: "#fff", border: "1px solid rgba(21,88,85,.14)", borderRadius: 10, boxShadow: "0 12px 30px rgba(21,88,85,.14)", overflow: "hidden", minWidth: 160, zIndex: 20 }}>
+                <button type="button" onClick={() => { setShareMenuOpen(false); createShareLink("customer"); }} style={shareMenuItemStyle}>
+                  <Share2 size={13} /> 고객용 링크
+                </button>
+                <button type="button" onClick={() => { setShareMenuOpen(false); createShareLink("staff"); }} style={{ ...shareMenuItemStyle, borderTop: "1px solid rgba(21,88,85,.08)" }}>
+                  <Users size={13} /> 현장팀용 링크
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
