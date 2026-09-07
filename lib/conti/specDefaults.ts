@@ -144,3 +144,7 @@ export function normalizeSpec(s: string): string {
   if (s.includes("한방") || s.includes("한의")) return "한방병원";
   return s;
 }
+
+// scene_templates.specialty와 1:1로 맞는 정규화된 이름 목록 — 제작 화면 진료과 칩에 쓴다.
+// PDF 콘티 기준 실제 촬영 빈도 순으로 정렬(ContiBuilder.tsx의 SPECIALTY_OPTIONS와 동일 순서).
+export const SPECIALTY_LIST = Object.keys(SPEC_DEFAULTS);
