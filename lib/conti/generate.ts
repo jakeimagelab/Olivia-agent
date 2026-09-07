@@ -40,8 +40,9 @@ export interface GenerateContiInput {
   doctorCount: number;
   staffFlags: { siljang?: boolean; jikwon?: boolean };
   harmony: boolean;
-  // 대분류 → 체크된 세부 항목. scene_templates.category에 템플릿이 하나뿐이면
-  // "부모 장면 + 세부 시술 태그" 패턴(리프팅 → [울쎄라, 써마지]), 여러 개면
+  // "진료과::대분류" 합성키 → 체크된 세부 항목. 카테고리 이름("기본 장면" 등)이 여러
+  // 진료과에서 반복되므로 진료과를 키에 포함한다. scene_templates.category에 템플릿이
+  // 하나뿐이면 "부모 장면 + 세부 시술 태그" 패턴(리프팅 → [울쎄라, 써마지]), 여러 개면
   // "카테고리 안에서 개별 장면 선택" 패턴(default_name/scene_key로 매칭)으로 처리한다.
   checked: Record<string, string[]>;
 }
