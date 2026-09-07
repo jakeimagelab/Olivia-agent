@@ -65,7 +65,7 @@ export const ICON_LABELS: Record<IconName, string> = {
   'marketing-dashboard': '마케팅 대시보드',
   'quote': '견적서 생성',
   'contract': '계약서 생성',
-  'storyboard': '콘티/초상권 작성',
+  'storyboard': '콘티',
   'photo-studio': '사진 작업실',
   'select-match': '셀렉 & 매칭',
   'metadata-select': '메타데이터 셀렉',

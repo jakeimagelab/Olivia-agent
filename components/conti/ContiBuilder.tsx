@@ -10,7 +10,6 @@ import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import { addContiShots as addContiShotsShared, duplicateContiShot as duplicateContiShotShared, removeContiShot as removeContiShotShared, reorderContiShot as reorderContiShotShared, updateContiShot as updateContiShotShared } from "@/lib/conti/contiMutationService";
 import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
-import PortraitConsentPanel from "@/components/conti/PortraitConsentPanel";
 import ContiSetupForm from "@/components/conti/ContiSetupForm";
 import ContiSceneTable from "@/components/conti/ContiSceneTable";
 import ContiChecklist from "@/components/conti/ContiChecklist";
@@ -20,7 +19,7 @@ import ContiExportActions from "@/components/conti/ContiExportActions";
 import { getContiCategoryColor } from "@/components/conti/contiColors";
 import type { ChecklistRow, ContiFormState, ContiResult, ContiRow, LocationItem, PatientItem, SavedConti, ScheduleRow, StaffItem } from "@/components/conti/types";
 import {
-  CheckSquare, ClipboardList, FileSignature, Image as ImageIcon,
+  CheckSquare, ClipboardList, Image as ImageIcon,
   Clock, FileText, Link2, Minus, Pencil, Plus, Trash2
 } from "lucide-react";
 
@@ -85,9 +84,7 @@ export default function ContiBuilder({
   registerRequestClose?: (fn: () => void) => void;
 } = {}) {
   const isModal = mode === "modal";
-  // mode="modal"은 OLIVIA OS 창(ContiBuilderWindowContent)과 ClientsWorkspace.tsx의 기존
-  // 툴 모달 둘 다에서 쓴다 — QuoteBuilder.tsx와 같은 이유로 useDesktopWindowMode()로 구분해서
-  // 4단계(3단 레이아웃) 변경을 OS 창에만 적용하고 기존 툴 모달은 그대로 둔다.
+  // 레거시 호환용 모달/페이지 구현. 신규 사용자 진입점에서는 더 이상 호출하지 않는다.
   const isDesktopWindowMode = useDesktopWindowMode();
   const isDesktopWindow = isModal && isDesktopWindowMode;
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
@@ -113,8 +110,6 @@ export default function ContiBuilder({
   });
 
   const [loading,          setLoading]          = useState(false);
-  const [pageMode,         setPageMode]         = useState<"conti" | "portrait">("conti");
-  const [urlClientId,      setUrlClientId]      = useState<string | null>(null);
   const [urlWorkflowRunId, setUrlWorkflowRunId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -138,10 +133,6 @@ export default function ContiBuilder({
     const doctors      = params.get("doctors");
     const extras       = params.get("extras");
     const clientId     = params.get("client_id") || params.get("clientId");
-    const workspaceTool = params.get("tool");
-    if (workspaceTool === "portrait") setPageMode("portrait");
-    if (workspaceTool === "shooting") setPageMode("conti");
-    setUrlClientId(clientId);
     setUrlWorkflowRunId(params.get("workflowRunId"));
 
     if (clientId) {
@@ -669,7 +660,6 @@ export default function ContiBuilder({
   // 견적/계약과 달리 AI 생성 버튼을 눌러야 result가 생기므로 자동으로 채울 콘텐츠가 없다).
   useEffect(() => {
     if (!isModal) return;
-    setUrlClientId(modalClientId ?? null);
     setUrlWorkflowRunId(modalWorkflowRunId ?? null);
     if (resourceId) {
       const loadResource = () => fetch(`/api/conti/saves/${resourceId}`)
@@ -1392,30 +1382,14 @@ ${header("타임테이블")}
       ) : null}
       <div style={{
         width: "100%",
-        maxWidth: pageMode === "portrait" ? 1000 : (result && !fieldView ? 1880 : 1100),
+        maxWidth: result && !fieldView ? 1880 : 1100,
         margin: "0 auto",
         padding: "36px 24px",
         boxSizing: "border-box",
       }}>
 
-        {/* ══ 모드 전환: 콘티 작성 / 초상권 작성 ══ */}
-        <SegmentedTabs
-          ariaLabel="콘티 작성 모드 선택"
-          value={pageMode}
-          onChange={setPageMode}
-          style={{ marginBottom: 24 }}
-          items={[
-            { value: "conti", label: "촬영 콘티 작성", icon: <ClipboardList size={13} /> },
-            { value: "portrait", label: "초상권 동의서", icon: <FileSignature size={13} /> },
-          ]}
-        />
-
-        {pageMode === "portrait" && (
-          <PortraitConsentPanel clientId={urlClientId} workflowRunId={urlWorkflowRunId} hospitalName={form.hospitalName} />
-        )}
-
         {/* ══ 입력 폼 ══ */}
-        {pageMode === "conti" && !result && (
+        {!result && (
           <ContiSetupForm
             form={form}
             loading={loading}
@@ -1438,7 +1412,7 @@ ${header("타임테이블")}
           />
         )}
         {/* ══ 결과 ══ */}
-        {pageMode === "conti" && result && !fieldView && (
+        {result && !fieldView && (
           <section>
             <ContiSummaryBar title={resultTitle} form={form} rows={result.conti} />
             {/* 결과 헤더 */}
@@ -1973,7 +1947,7 @@ ${header("타임테이블")}
         )}
 
         {/* ══ 아이패드 현장 뷰 ══ */}
-        {pageMode === "conti" && result && fieldView && (
+        {result && fieldView && (
           <div style={{ position: "fixed", inset: 0, background: "#EDF5F3", zIndex: 200, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
             {/* 현장 뷰 헤더 */}
@@ -2440,7 +2414,7 @@ ${header("타임테이블")}
     )}
 
     {/* 불러오기 패널 */}
-    {pageMode === "conti" && showLoadPanel && (
+    {showLoadPanel && (
       <div style={{
         position: "fixed", inset: 0, zIndex: 500,
         background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center"

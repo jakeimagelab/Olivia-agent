@@ -202,6 +202,9 @@ export async function middleware(req: NextRequest) {
   if ((pathname === "/admin" || pathname.startsWith("/admin/")) && !isAdminSession) {
     return NextResponse.redirect(new URL("/", req.url));
   }
+  if (pathname === "/portrait-consent" && !isAdminSession) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
 
   // 팀 채팅 페이지 — 로그인 화면/초대 수락 화면은 세션 없이도 열려야 한다.
   // 그 외(/team-chat, /team-chat/rooms/...)는 관리자 세션 또는 팀원 개인 세션이 있어야 한다.
@@ -243,6 +246,7 @@ export const config = {
     "/calendar", "/calendar/:path*",
     "/quote", "/quote/:path*",
     "/conti", "/conti/:path*",
+    "/portrait-consent", "/portrait-consent/:path*",
     "/mailing", "/mailing/:path*",
     "/report", "/report/:path*",
     "/video-conti", "/video-conti/:path*",

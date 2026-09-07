@@ -5,12 +5,12 @@ import type { WorkspaceType } from "@/lib/store/workspaceStore";
 
 const loadQuoteBuilder = () => import("@/components/quote/QuoteBuilder");
 const loadContractBuilder = () => import("@/components/contract/ContractBuilder");
-const loadContiBuilder = () => import("@/components/conti/ContiBuilder");
+const loadConti = () => import("@/components/conti/v2/ContiWorkspaceAdapter");
 const loadPhotoWorkspace = () => import("@/components/photo-workspace/PhotoWorkspace");
 
 const QuoteBuilder = dynamic<WorkspaceBuilderProps>(() => loadQuoteBuilder().then((module) => module.default as ComponentType<WorkspaceBuilderProps>));
 const ContractBuilder = dynamic<WorkspaceBuilderProps>(() => loadContractBuilder().then((module) => module.default as ComponentType<WorkspaceBuilderProps>));
-const ContiBuilder = dynamic<WorkspaceBuilderProps>(() => loadContiBuilder().then((module) => module.default as ComponentType<WorkspaceBuilderProps>));
+const ContiWorkspace = dynamic<WorkspaceBuilderProps>(() => loadConti().then((module) => module.default));
 const PhotoWorkspace = dynamic<WorkspaceBuilderProps>(() => loadPhotoWorkspace().then((module) => module.default as ComponentType<WorkspaceBuilderProps>));
 
 // DynamicWorkspace가 if(type==='quote')/if(type==='contract') 하드코딩 없이 타입 → 컴포넌트를
@@ -47,7 +47,7 @@ export const workspaceRegistry: Partial<Record<Exclude<WorkspaceType, null>, Wor
   // 지우지 않았으므로 채팅에서 "견적서 열어줘"처럼 workspace로 띄우는 기능은 그대로 쓸 수 있다.
   quote: { label: "견적서 작성", icon: FileText, component: QuoteBuilder, preload: loadQuoteBuilder, directRoutes: [] },
   contract: { label: "계약서 작성", icon: FileSignature, component: ContractBuilder, preload: loadContractBuilder, directRoutes: ["/contract"] },
-  conti: { label: "콘티 작성", icon: Clapperboard, component: ContiBuilder, preload: loadContiBuilder, directRoutes: ["/conti"] },
+  conti: { label: "콘티", icon: Clapperboard, component: ContiWorkspace, preload: loadConti, directRoutes: ["/conti"] },
   // photo-sort의 실제 direct route(/photo-sorting)는 PhotoWorkspace(자체 탭/URL 체계를 가진
   // 상위 셸)가 그려서 70/30 스플릿을 쓰지 않는다 — directRoutes는 "이 경로는 등록된
   // 워크스페이스에 속한다"는 판정에만 쓰이고, OliviaWorkspaceShell은 photo-sort일 때 스플릿

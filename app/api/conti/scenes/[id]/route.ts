@@ -8,7 +8,7 @@ type Params = { params: Promise<{ id: string }> };
 
 const EDITABLE_FIELDS = [
   "name", "space_text", "minutes", "keyword", "description",
-  "people_text", "patient_role_text", "note",
+  "people_text", "patient_role_text", "preparation_text", "note",
 ] as const;
 type EditableField = (typeof EDITABLE_FIELDS)[number];
 
@@ -59,4 +59,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   return NextResponse.json({ ok: true, scene: updated });
+}
+
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const { id } = await params;
+  const db = getSupabaseAdmin();
+  const { error } = await db.from("conti_scenes").delete().eq("id", id);
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }

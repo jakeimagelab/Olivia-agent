@@ -14,6 +14,7 @@ interface SceneRow {
   description: string;
   procedures: string[];
   people_text: string;
+  preparation_text: string;
   note: string;
   completed: boolean;
 }
@@ -71,6 +72,8 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
   const currentIndex = ordered.findIndex((s) => !s.completed);
   const completedCount = ordered.filter((s) => s.completed).length;
   const remainingMinutes = ordered.filter((s) => !s.completed).reduce((sum, s) => sum + (s.minutes ?? 0), 0);
+  const currentScene = currentIndex >= 0 ? ordered[currentIndex] : null;
+  const nextScene = currentIndex >= 0 ? ordered[currentIndex + 1] : null;
 
   async function patchScene(sceneId: string, body: Record<string, unknown>) {
     await fetch(`/api/conti/scenes/${sceneId}`, {
@@ -126,6 +129,21 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
         </span>
       </div>
 
+      {currentScene ? (
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(220px, .8fr)", gap: 12, marginBottom: 14 }}>
+          <div style={{ padding: "14px 16px", borderRadius: 12, background: "#155855", color: "#fff" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: "rgba(255,255,255,.6)", marginBottom: 5 }}>현재 촬영 · {currentIndex + 1}/{ordered.length}</div>
+            <div style={{ fontSize: 18, fontWeight: 900 }}>{currentScene.name}</div>
+            <div style={{ marginTop: 5, fontSize: 12, color: "rgba(255,255,255,.72)" }}>{currentScene.space_text || "장소 미정"} · {currentScene.minutes != null ? `${currentScene.minutes}분` : "시간 미정"} · {currentScene.people_text || "필요 인원 미정"}</div>
+          </div>
+          <div style={{ padding: "14px 16px", borderRadius: 12, background: "#fff", border: "1px solid rgba(21,88,85,.12)" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: "#7c9a95", marginBottom: 5 }}>다음 장면</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#1e3b38" }}>{nextScene?.name ?? "마지막 장면입니다"}</div>
+            {nextScene ? <div style={{ marginTop: 5, fontSize: 11.5, color: "#7c9a95" }}>{nextScene.space_text || "장소 미정"}</div> : null}
+          </div>
+        </div>
+      ) : null}
+
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${cardCols}, minmax(0, 1fr))`, gap: 14 }}>
         {ordered.map((scene, i) => {
           const groupName = (scene.group_id && groupNameById.get(scene.group_id)) || "미지정";
@@ -170,8 +188,14 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
                 </div>
               ) : null}
               <div style={{ fontSize: 11, color: "#8a9d99" }}>
-                {[scene.keyword, scene.people_text, scene.note].filter(Boolean).join(" · ") || "-"}
+                {[scene.keyword, scene.people_text].filter(Boolean).join(" · ") || "-"}
               </div>
+              {showDescription && scene.preparation_text ? (
+                <div style={{ padding: "7px 9px", borderRadius: 7, background: "#F4F1EB", color: "#6b6355", fontSize: 11.5, lineHeight: 1.45 }}>
+                  <strong>준비</strong> · {scene.preparation_text}
+                </div>
+              ) : null}
+              {scene.note ? <div style={{ fontSize: 11, color: "#8a9d99" }}>메모 · {scene.note}</div> : null}
               {isCurrent ? (
                 <button
                   type="button"

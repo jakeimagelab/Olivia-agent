@@ -10,8 +10,8 @@ import { OliviaChatWindowContent } from "../adapters/OliviaChatWindowContent";
 import { DocumentsWindowContent } from "../apps/documents/DocumentsWindowContent";
 import { QuoteBuilderWindowContent } from "../adapters/QuoteBuilderWindowContent";
 import { ContractBuilderWindowContent } from "../adapters/ContractBuilderWindowContent";
-import { ContiBuilderWindowContent } from "../adapters/ContiBuilderWindowContent";
-import { ContiV2WindowContent } from "../adapters/ContiV2WindowContent";
+import { ContiWindowContent } from "../adapters/ContiWindowContent";
+import { PortraitConsentWindowContent } from "../adapters/PortraitConsentWindowContent";
 import { TodayWindowContent } from "../adapters/TodayWindowContent";
 import { AllAppsWindowContent } from "../apps/all-apps/AllAppsWindowContent";
 import { LegacyRouteWindowContent } from "../adapters/LegacyRouteWindowContent";
@@ -109,25 +109,23 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   },
   {
     id: "conti",
-    title: "콘티 스튜디오",
+    title: "콘티",
     icon: appIcon("storyboard"),
     route: "/conti",
     defaultSize: { width: 1100, height: 760 },
     minSize: { width: 720, height: 440 },
     singleton: true,
-    component: ContiBuilderWindowContent,
+    component: ContiWindowContent,
   },
   {
-    // 검증용 임시 항목 — 새 결정론적 콘티 시스템이 확인되면 위 "conti" 항목을 이걸로
-    // 대체하고 이 항목은 지운다.
-    id: "conti-v2",
-    title: "콘티 (신규)",
-    icon: appIcon("storyboard"),
-    route: "/conti-v2",
-    defaultSize: { width: 1180, height: 780 },
-    minSize: { width: 720, height: 440 },
+    id: "portrait-consent",
+    title: "초상권 동의서",
+    icon: appIcon("contract"),
+    route: "/portrait-consent",
+    defaultSize: { width: 1000, height: 720 },
+    minSize: { width: 640, height: 420 },
     singleton: true,
-    component: ContiV2WindowContent,
+    component: PortraitConsentWindowContent,
   },
   {
     id: "documents",

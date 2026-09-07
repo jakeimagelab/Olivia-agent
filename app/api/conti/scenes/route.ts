@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 const BLANK_FIELD_SOURCES = {
   name: "blank", space_text: "blank", minutes: "blank", keyword: "blank",
   description: "blank", people_text: "blank", patient_role_text: "blank", note: "blank",
+  preparation_text: "blank",
 };
 
 // 결과 표의 "장면 추가" — 템플릿 없이 빈 장면 한 줄을 맨 끝에 추가한다. 전부 blank로 시작해서
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
       procedures: [],
       people_text: "",
       patient_role_text: "",
+      preparation_text: "",
       note: "",
       template_id: null,
       field_sources: BLANK_FIELD_SOURCES,

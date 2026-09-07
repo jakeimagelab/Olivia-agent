@@ -46,17 +46,17 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
   {
     id: "conti",
     title: "콘티 스튜디오",
-    description: "촬영과 영상 기획, 편집 콘티와 동의서를 한 흐름으로.",
+    description: "촬영과 영상 기획을 한 흐름으로.",
     href: "/conti",
     icon: Clapperboard,
     accent: "blue",
-    aliases: ["콘티", "콘티/초상권 작성", "콘티/초상권", "콘티 작업실", "스토리보드 스튜디오"],
+    aliases: ["콘티", "촬영 콘티", "콘티 만들기", "촬영계획", "촬영 계획", "콘티 작업실", "스토리보드 스튜디오"],
     tools: [
-      { id: "shooting", title: "촬영 콘티", href: "/conti?tool=shooting", aliases: ["촬영 콘티", "사진 콘티"], sourceHrefs: ["/conti"] },
+      { id: "shooting", title: "촬영 콘티", href: "/conti", aliases: ["촬영 콘티", "사진 콘티"], sourceHrefs: ["/conti"] },
       { id: "video", title: "영상 콘티", href: "/video-conti", aliases: ["영상 콘티", "브랜드 영상 콘티"], sourceHrefs: ["/video-conti"] },
       { id: "youtube", title: "유튜브 편집", href: "/youtube-editing-conti", aliases: ["유튜브 편집 콘티", "편집 콘티"], sourceHrefs: ["/youtube-editing-conti"] },
       { id: "broll", title: "B-roll 프롬프트", href: "/broll-prompt", aliases: ["B롤", "비롤", "B-roll"], sourceHrefs: ["/broll-prompt"] },
-      { id: "portrait", title: "초상권", href: "/conti?tool=portrait", aliases: ["초상권", "초상권 동의서"], sourceHrefs: [] },
+      { id: "portrait", title: "초상권 동의서", href: "/portrait-consent", aliases: ["초상권", "초상권 동의서", "촬영 동의서"], sourceHrefs: ["/portrait-consent"] },
     ],
   },
   {

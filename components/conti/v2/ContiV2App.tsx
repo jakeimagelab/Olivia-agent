@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import ContiCreateScreen from "@/components/conti/v2/ContiCreateScreen";
 import ContiResultTable from "@/components/conti/v2/ContiResultTable";
@@ -8,11 +8,34 @@ import ContiFieldView from "@/components/conti/v2/ContiFieldView";
 
 type ResultView = "table" | "field";
 
-// 실제 화면 내용. 페이지 제목은 넣지 않는다 — OS 창 안에서는 창 타이틀바가, 독립 페이지에서는
-// app/conti-v2/page.tsx의 GlobalHeader가 이름을 보여준다.
-export default function ContiV2App() {
+// /conti와 OLIVIA OS 창이 함께 쓰는 단일 콘티 화면.
+export interface ContiV2AppProps {
+  clientId?: string;
+  workflowRunId?: string;
+  resourceId?: string;
+  onClose?: () => void;
+  onPublished?: () => void;
+  registerRequestClose?: (fn: () => void) => void;
+}
+
+export default function ContiV2App({ clientId, workflowRunId, resourceId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
   const [runId, setRunId] = useState<string | null>(null);
   const [view, setView] = useState<ResultView>("table");
+
+  useEffect(() => { if (registerRequestClose && onClose) registerRequestClose(onClose); }, [onClose, registerRequestClose]);
+
+  useEffect(() => {
+    if (!resourceId && !workflowRunId) return;
+    const query = new URLSearchParams();
+    if (resourceId) query.set("resourceId", resourceId);
+    if (workflowRunId) query.set("workflowRunId", workflowRunId);
+    if (clientId) query.set("clientId", clientId);
+    fetch(`/api/conti/runs?${query.toString()}`).then((response) => response.json()).then((data) => {
+      if (data.ok && data.run?.id) setRunId(data.run.id);
+    }).catch(() => {});
+  }, [clientId, resourceId, workflowRunId]);
+
+  const handleGenerated = (id: string) => { setRunId(id); onPublished?.(); };
 
   return (
     <div style={{ minHeight: "100%", background: "#F4F1EB", padding: "20px 24px 60px" }}>
@@ -30,13 +53,13 @@ export default function ContiV2App() {
             />
           </div>
           {view === "table" ? (
-            <ContiResultTable runId={runId} onBack={() => setRunId(null)} />
+            <ContiResultTable runId={runId} onBack={() => setRunId(null)} onOpenField={() => setView("field")} />
           ) : (
             <ContiFieldView runId={runId} onBack={() => setView("table")} />
           )}
         </>
       ) : (
-        <ContiCreateScreen onGenerated={setRunId} />
+        <ContiCreateScreen onGenerated={handleGenerated} initialClientId={clientId} workflowRunId={workflowRunId} resourceId={resourceId} />
       )}
     </div>
   );

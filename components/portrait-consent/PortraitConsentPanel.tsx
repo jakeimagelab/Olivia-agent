@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, FileSignature, Link2, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FileSignature, Link2, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { C, R, FS } from "@/lib/theme";
 import {
   DEFAULT_DETAIL_FIELDS,
@@ -144,32 +144,6 @@ export default function PortraitConsentPanel({
   const [shareLink, setShareLink] = useState<{ id: string; url: string } | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
 
-  // 초상권동의서는 워크플로우 12단계 카탈로그에 전용 단계가 없다 — 콘티 단계(conti)의 부속
-  // 문서로 취급해 "최종완료"도 conti 단계를 완료 처리한다(코드 요청서 2차 2번 항목, 구현 전
-  // 확인 완료 — 별도 승인 절차 신설하지 않음). 개별 동의서가 아니라 이 화면 전체("초상권 동의서
-  // 준비가 끝났다")에 대한 단일 완료 버튼이다.
-  const [completeState, setCompleteState] = useState<"idle" | "completing" | "done" | "error">("idle");
-  const [completeError, setCompleteError] = useState("");
-  const completeConsentStep = async () => {
-    if (!workflowRunId) { setCompleteError("연결된 프로젝트가 없습니다."); setCompleteState("error"); return; }
-    setCompleteState("completing"); setCompleteError("");
-    try {
-      const res = await fetch(`/api/workflow-runs/${workflowRunId}/complete-step`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stepKey: "conti" }),
-      });
-      const body = await res.json();
-      if (!body.ok) throw new Error(body.error || "최종완료 처리 실패");
-      setCompleteState("done");
-      setTimeout(() => setCompleteState("idle"), 3000);
-    } catch (err) {
-      setCompleteError(err instanceof Error ? err.message : "최종완료 처리 실패");
-      setCompleteState("error");
-      setTimeout(() => setCompleteState("idle"), 3000);
-    }
-  };
-
   const detailDocRef = useRef<HTMLDivElement>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const downloadPdf = async () => {
@@ -185,7 +159,7 @@ export default function PortraitConsentPanel({
     }
   };
 
-  const loadList = () => {
+  const loadList = useCallback(() => {
     setLoading(true);
     const qs = new URLSearchParams();
     if (clientId) qs.set("clientId", clientId);
@@ -194,9 +168,9 @@ export default function PortraitConsentPanel({
       .then((r) => r.json())
       .then((body) => { if (body.ok) setConsents(body.consents); })
       .finally(() => setLoading(false));
-  };
+  }, [clientId, workflowRunId]);
 
-  useEffect(() => { loadList(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [clientId, workflowRunId]);
+  useEffect(() => { loadList(); }, [loadList]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -310,23 +284,6 @@ export default function PortraitConsentPanel({
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button
-            type="button"
-            onClick={completeConsentStep}
-            disabled={completeState === "completing"}
-            title={completeState === "error" ? completeError : undefined}
-            style={{
-              ...btnPrimary,
-              background: completeState === "error" ? "#fff" : C.teal,
-              color: completeState === "error" ? "#c9581a" : "#fff",
-              borderColor: completeState === "error" ? "#E85D2C" : C.teal,
-              opacity: completeState === "completing" ? 0.7 : 1,
-              cursor: completeState === "completing" ? "not-allowed" : "pointer",
-            }}
-          >
-            <CheckCircle2 size={15} />
-            {completeState === "completing" ? "최종완료 처리 중..." : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "✕ 완료 실패" : "최종완료"}
-          </button>
           <button type="button" onClick={openCreate} style={btnPrimary}>
             <Plus size={15} /> 새 동의서 작성
           </button>

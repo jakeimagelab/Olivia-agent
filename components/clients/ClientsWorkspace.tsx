@@ -37,14 +37,14 @@ import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 
 // 견적서/계약서/콘티 빌더와 진행상세 모달은 실제로 모달을 열 때만 필요하다 — 고객 목록 첫 화면에는
 // 전혀 안 쓰이는데 지금까지는 정적 import라 항상 초기 JS 번들에 포함됐다. 모달 상태가 열리는
-// 순간에만 청크를 받아오도록 next/dynamic으로 분리(코드 요청서 17/18절, ContiBuilder가 특히 큼).
+// 실제 모달이 열린 순간에만 각 도구 청크를 받아오도록 next/dynamic으로 분리한다.
 const modalLoading = () => (
   <div className="pcrm-inline-project-state"><span className="pcrm-inline-project-spinner" /><p>불러오는 중...</p></div>
 );
 const ProgressDetailModal = dynamic(() => import("@/components/client-workspace/ProgressDetailModal"), { ssr: false, loading: modalLoading });
 const QuoteBuilder = dynamic(() => import("@/components/quote/QuoteBuilder"), { ssr: false, loading: modalLoading });
 const ContractBuilder = dynamic(() => import("@/components/contract/ContractBuilder"), { ssr: false, loading: modalLoading });
-const ContiBuilder = dynamic(() => import("@/components/conti/ContiBuilder"), { ssr: false, loading: modalLoading });
+const ContiWorkspace = dynamic(() => import("@/components/conti/v2/ContiWorkspaceAdapter"), { ssr: false, loading: modalLoading });
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { usePcrmHeaderActions } from "@/components/pcrm/PcrmHeaderActionsSlot";
 
@@ -414,7 +414,7 @@ function InlineClientProjectPanel({ clientId, embedded }: { clientId: string; em
       ) : null}
       {toolModal?.type === "conti" ? (
         <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 콘티 작성`}>
-          <ContiBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={setToolBuilderRequestClose} />
+          <ContiWorkspace clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={setToolBuilderRequestClose} />
         </WorkspaceModal>
       ) : null}
     </section>
@@ -436,7 +436,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
   const [linkCopyBusy, setLinkCopyBusy] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   // 코드 요청서 7차(2026-08-16) — resourceId까지 같이 들고 있어야 이미 있는 문서를 그대로
-  // 불러온다(버그: resourceId 없이 빌더를 열면 QuoteBuilder/ContractBuilder/ContiBuilder가
+  // 불러온다(버그: resourceId 없이 빌더를 열면 각 문서 도구가
   // 전부 빈 문서로 시작함 — 재현: 더힐피부과신사점, 콘티가 이미 있는데 "콘티 작성하기"를 누르면
   // 빈 콘티가 또 열림).
   const [toolModal, setToolModal] = useState<{ type: "quote" | "contract" | "conti"; resourceId?: string } | null>(null);
@@ -794,8 +794,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
 
       {toolModal?.type === "conti" ? (
         <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 콘티 작성`}>
-          <ContiBuilder
-            mode="modal"
+          <ContiWorkspace
             clientId={clientId}
             workflowRunId={workflowRun?.id}
             resourceId={toolModal.resourceId}

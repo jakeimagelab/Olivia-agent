@@ -84,7 +84,7 @@ export async function GET(
     ?? null;
 
   // 서로 의존관계 없는 조회들을 병렬로 — 매 라운드트립이 버퍼링을 키웠다.
-  const [activitiesRes, mailingsRes, quoteRes, contractRes, contiRes] = await Promise.all([
+  const [activitiesRes, mailingsRes, quoteRes, contractRes, contiV2Res] = await Promise.all([
     workflowRun?.id
       ? supabase.from("pcrm_activity_logs")
           .select("*")
@@ -108,9 +108,14 @@ export async function GET(
       ? supabase.from("contracts").select("id").eq("workflow_run_id", workflowRun.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     workflowRun?.id
-      ? supabase.from("conti_saves").select("id").eq("workflow_run_id", workflowRun.id).order("saved_at", { ascending: false }).limit(1).maybeSingle()
+      ? supabase.from("conti_runs").select("id").eq("workflow_run_id", workflowRun.id).order("updated_at", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
+  let contiRes = contiV2Res;
+  // 신규 V2 run이 아직 없는 과거 프로젝트는 기존 conti_saves id를 그대로 넘겨 호환한다.
+  if ((!contiRes.data || contiRes.error) && workflowRun?.id) {
+    contiRes = await supabase.from("conti_saves").select("id").eq("workflow_run_id", workflowRun.id).order("saved_at", { ascending: false }).limit(1).maybeSingle();
+  }
   const mailings = mailingsRes.data;
   const resourceIds = {
     quote: quoteRes.data?.id ?? null,

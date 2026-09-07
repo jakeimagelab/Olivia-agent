@@ -1082,10 +1082,11 @@ export async function findWorkflowConsistencyIssues(db: SupabaseClient): Promise
   if (error || !runs?.length) return [];
 
   const runIds = runs.map((run) => run.id);
-  const [quotesRes, contractsRes, contisRes, galleriesRes] = await Promise.all([
+  const [quotesRes, contractsRes, contisRes, contiRunsRes, galleriesRes] = await Promise.all([
     db.from("quotes").select("id, workflow_run_id").in("workflow_run_id", runIds),
     db.from("contracts").select("id, workflow_run_id").in("workflow_run_id", runIds),
     db.from("conti_saves").select("id, workflow_run_id").in("workflow_run_id", runIds),
+    db.from("conti_runs").select("id, workflow_run_id").in("workflow_run_id", runIds),
     db.from("photo_galleries").select("id, workflow_run_id, gallery_type").in("workflow_run_id", runIds),
   ]);
 
@@ -1099,7 +1100,7 @@ export async function findWorkflowConsistencyIssues(db: SupabaseClient): Promise
   };
   const quoteByRun = byRun(quotesRes.data);
   const contractByRun = byRun(contractsRes.data);
-  const contiByRun = byRun(contisRes.data);
+  const contiByRun = byRun([...(contisRes.data ?? []), ...(contiRunsRes.data ?? [])]);
 
   const originalTypes = new Set(["original", "original_photo", "original_video"]);
   const finalTypes = new Set(["retouched", "final_photo", "final_video"]);

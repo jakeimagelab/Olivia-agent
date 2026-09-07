@@ -33,7 +33,7 @@ export default function ContiStudioLayout({ children }: { children: React.ReactN
 
   return (
     <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)" }}>
-      <GlobalHeader title="콘티/초상권 작성" description="사진 콘티(체크리스트·타임테이블)와 영상 콘티(씬·컷·손그림 스토리보드), 초상권 동의서를 한 화면에서 생성합니다." />
+      <GlobalHeader title="콘티" description="진료과와 촬영 항목을 선택하면 실제 촬영 가능한 콘티를 자동으로 구성합니다." />
 
       <div style={{ padding: "20px 24px 0" }}>
         <SegmentedTabs

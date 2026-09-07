@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, GripVertical, Plus, Share2, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, GripVertical, Plus, Share2, Trash2, Users } from "lucide-react";
 
 interface SceneRow {
   id: string;
@@ -16,6 +16,7 @@ interface SceneRow {
   procedures: string[];
   people_text: string;
   patient_role_text: string;
+  preparation_text: string;
   note: string;
   template_id: string | null;
   field_sources: Record<string, string>;
@@ -31,7 +32,7 @@ interface GroupRow {
 
 const EDITABLE_KEYS = [
   "name", "space_text", "minutes", "keyword", "description",
-  "people_text", "patient_role_text", "note",
+  "people_text", "patient_role_text", "preparation_text", "note",
 ] as const;
 type EditableKey = (typeof EDITABLE_KEYS)[number];
 
@@ -52,15 +53,17 @@ const PLACEHOLDERS: Record<EditableKey, string> = {
   description: "AI가 채우지 못했어요",
   people_text: "필요 인원 미정",
   patient_role_text: "환자 역할",
+  preparation_text: "준비사항",
   note: "비고",
 };
 
 export interface ContiResultTableProps {
   runId: string;
   onBack: () => void;
+  onOpenField?: () => void;
 }
 
-export default function ContiResultTable({ runId, onBack }: ContiResultTableProps) {
+export default function ContiResultTable({ runId, onBack, onOpenField }: ContiResultTableProps) {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [scenes, setScenes] = useState<SceneRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,6 +197,13 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
     if (data.ok) setScenes((prev) => [...prev, data.scene]);
   }
 
+  async function deleteScene(sceneId: string) {
+    const snapshot = scenes;
+    setScenes((prev) => prev.filter((scene) => scene.id !== sceneId).map((scene, index) => ({ ...scene, sort: index })));
+    const res = await fetch(`/api/conti/scenes/${sceneId}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) setScenes(snapshot);
+  }
+
   async function createShareLink(audience: "customer" | "staff") {
     setShareStatus("생성 중…");
     try {
@@ -204,7 +214,7 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error ?? "링크 생성 실패");
-      const url = `${window.location.origin}/conti-v2/share/${data.token}`;
+      const url = `${window.location.origin}/conti/share/${data.token}`;
       await navigator.clipboard.writeText(url).catch(() => {});
       setShareStatus(`${audience === "staff" ? "현장팀용" : "고객용"} 링크가 복사되었습니다`);
     } catch (e) {
@@ -220,14 +230,14 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
     return <div style={{ padding: 40, textAlign: "center", color: "#DC2626" }}>⚠ {error}</div>;
   }
 
-  const canShare = blankCells.length === 0;
+  const canShare = orderedScenes.length > 0;
 
   return (
     <div style={{ background: "#FAF7F2", borderRadius: 16, border: "1px solid rgba(21,88,85,.1)", overflow: "hidden" }}>
       {/* 상단 바 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 18px", borderBottom: "1px solid rgba(21,88,85,.1)", background: "#fff", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button type="button" onClick={onBack} style={ghostButtonStyle}><ArrowLeft size={13} /> 뒤로</button>
+          <button type="button" onClick={onBack} style={ghostButtonStyle}><ArrowLeft size={13} /> 다시 생성</button>
           {blankCells.length > 0 ? (
             <>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#B64B2A" }}>채워야 할 칸 {blankCells.length}개</span>
@@ -240,6 +250,8 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {onOpenField ? <button type="button" onClick={onOpenField} style={ghostButtonStyle}>현장뷰</button> : null}
+          <button type="button" onClick={() => window.print()} style={ghostButtonStyle}><Download size={13} /> 다운로드</button>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#5A7470", cursor: "pointer" }}>
             <input type="checkbox" checked={showSources} onChange={(e) => setShowSources(e.target.checked)} />
             출처 보기
@@ -253,6 +265,7 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
           <thead>
             <tr style={{ background: "#F0ECE3", textAlign: "left" }}>
               <th style={thStyle}></th>
+              <th style={thStyle}></th>
               <th style={thStyle}>#</th>
               <th style={thStyle}>그룹</th>
               <th style={{ ...thStyle, minWidth: 140 }}>장면</th>
@@ -262,6 +275,7 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
               <th style={{ ...thStyle, minWidth: 220 }}>설명·시술</th>
               <th style={{ ...thStyle, minWidth: 110 }}>필요인원</th>
               <th style={{ ...thStyle, minWidth: 100 }}>환자역할</th>
+              <th style={{ ...thStyle, minWidth: 150 }}>준비사항</th>
               <th style={{ ...thStyle, minWidth: 100 }}>비고</th>
             </tr>
           </thead>
@@ -280,6 +294,9 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
                   style={{ background: i % 2 === 0 ? "#fff" : "#FCFAF6" }}
                 >
                   <td style={{ ...tdStyle, cursor: "grab", color: "#c3b8a8", width: 26 }}><GripVertical size={13} /></td>
+                  <td style={{ ...tdStyle, width: 26 }}>
+                    <button type="button" aria-label={`${scene.name || "장면"} 삭제`} onClick={() => deleteScene(scene.id)} style={{ border: 0, background: "transparent", color: "#b9aaa0", padding: 0, cursor: "pointer" }}><Trash2 size={13} /></button>
+                  </td>
                   <td style={{ ...tdStyle, color: "#a9998a", fontWeight: 700, width: 28 }}>{i + 1}</td>
                   {span ? (
                     <td rowSpan={span.span} style={{ ...tdStyle, background: `${accent}14`, borderLeft: `3px solid ${accent}`, color: accent, fontWeight: 800, verticalAlign: "top", whiteSpace: "nowrap" }}>
@@ -309,6 +326,7 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
                   </td>
                   <EditCell scene={scene} field="people_text" showSources={showSources} cellRefs={cellRefs} onCommit={updateField} />
                   <EditCell scene={scene} field="patient_role_text" showSources={showSources} cellRefs={cellRefs} onCommit={updateField} />
+                  <EditCell scene={scene} field="preparation_text" showSources={showSources} cellRefs={cellRefs} onCommit={updateField} />
                   <EditCell scene={scene} field="note" showSources={showSources} cellRefs={cellRefs} onCommit={updateField} />
                 </tr>
               );
@@ -330,7 +348,7 @@ export default function ContiResultTable({ runId, onBack }: ContiResultTableProp
             <button
               type="button"
               disabled={!canShare}
-              title={canShare ? undefined : "공란을 모두 채우면 활성화됩니다"}
+              title={canShare ? undefined : "장면을 먼저 추가하세요"}
               onClick={() => setShareMenuOpen((v) => !v)}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6, height: 34, padding: "0 16px",

@@ -7,44 +7,66 @@ import {
   type HospitalStaffRow,
   type SceneTemplateRow,
 } from "@/lib/conti/generate";
+import { buildCodeSceneTemplates, getDepartmentDefinition } from "@/lib/conti/departmentTaxonomy";
+import { enrichContiScenes } from "@/lib/conti/aiEnrichment";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// 새 결정론적 콘티 생성: checked 체크항목을 scene_templates에 매칭해 conti_runs/
-// conti_groups/conti_scenes에 저장한다. 기존 app/api/conti/route.ts(자유생성 GPT
-// 프롬프트)는 건드리지 않는다 — 이 라우트가 신규 시스템의 생성 진입점이다.
+export async function GET(request: NextRequest) {
+  const params = request.nextUrl.searchParams;
+  const resourceId = params.get("resourceId");
+  const workflowRunId = params.get("workflowRunId");
+  const clientId = params.get("clientId");
+  if (!resourceId && !workflowRunId && !clientId) return NextResponse.json({ ok: false, error: "조회 기준이 필요합니다." }, { status: 400 });
+
+  const db = getSupabaseAdmin();
+  let query = db.from("conti_runs").select("*").order("updated_at", { ascending: false }).limit(1);
+  if (resourceId) query = query.or(`id.eq.${resourceId},legacy_save_id.eq.${resourceId}`);
+  else if (workflowRunId) query = query.eq("workflow_run_id", workflowRunId);
+  else if (clientId) query = query.eq("hospital_id", clientId);
+  const { data, error } = await query.maybeSingle();
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, run: data ?? null });
+}
+
+// 새 결정론적 콘티 생성: checked를 고정 taxonomy에 매칭해 Scene 골격을 만들고,
+// 선택적으로 AI가 같은 Scene id 집합 안에서 촬영 정보를 보강한 뒤 저장한다.
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const {
     hospitalId,
-    specialties,
+    specialty,
     doctorCount,
     staffFlags,
     harmony,
     checked,
+    otherStaffRole,
+    extraItems,
+    workflowRunId,
+    resourceId,
   }: {
     hospitalId?: string | null;
-    specialties?: string[];
+    specialty?: string;
     doctorCount?: number;
-    staffFlags?: { siljang?: boolean; jikwon?: boolean };
+    staffFlags?: { siljang?: boolean; jikwon?: boolean; other?: boolean };
+    otherStaffRole?: string;
     harmony?: boolean;
     checked?: Record<string, string[]>;
+    extraItems?: string[];
+    workflowRunId?: string;
+    resourceId?: string;
   } = body ?? {};
 
-  if (!Array.isArray(specialties) || specialties.length === 0) {
-    return NextResponse.json({ ok: false, error: "specialties는 최소 1개 이상이어야 합니다." }, { status: 400 });
+  if (!specialty || !getDepartmentDefinition(specialty)) {
+    return NextResponse.json({ ok: false, error: "지원하는 진료과를 선택해야 합니다." }, { status: 400 });
   }
 
   const db = getSupabaseAdmin();
 
-  const { data: templateRows, error: templatesError } = await db
-    .from("scene_templates")
-    .select("id, specialty, category, scene_key, default_name, default_keyword, default_description, default_minutes, space_type, default_roles, needs_patient, per_doctor")
-    .in("specialty", Array.from(new Set([...specialties, "공통"])));
-  if (templatesError) {
-    return NextResponse.json({ ok: false, error: templatesError.message }, { status: 500 });
-  }
+  // Scene 골격은 고정 taxonomy만 사용한다. scene_templates는 향후 AI 참고 데이터일 뿐
+  // 체크 목록이나 Scene 존재 여부를 바꾸지 못한다.
+  const templates: SceneTemplateRow[] = buildCodeSceneTemplates(specialty);
 
   let hospitalSpaces: HospitalSpaceRow[] = [];
   let hospitalStaff: HospitalStaffRow[] = [];
@@ -53,35 +75,40 @@ export async function POST(request: NextRequest) {
       db.from("hospital_spaces").select("id, name, space_type, floor").eq("hospital_id", hospitalId),
       db.from("hospital_staff").select("id, name, role").eq("hospital_id", hospitalId),
     ]);
-    if (spacesError) return NextResponse.json({ ok: false, error: spacesError.message }, { status: 500 });
-    if (staffError) return NextResponse.json({ ok: false, error: staffError.message }, { status: 500 });
-    hospitalSpaces = spaceRows ?? [];
-    hospitalStaff = staffRows ?? [];
+    hospitalSpaces = spacesError ? [] : spaceRows ?? [];
+    hospitalStaff = staffError ? [] : staffRows ?? [];
   }
 
   const input: GenerateContiInput = {
-    specialties,
+    specialty,
     doctorCount: doctorCount && doctorCount > 0 ? doctorCount : 1,
-    staffFlags: staffFlags ?? {},
+    staffFlags: { siljang: Boolean(staffFlags?.siljang), jikwon: Boolean(staffFlags?.jikwon), other: Boolean(staffFlags?.other) },
+    otherStaffRole: typeof otherStaffRole === "string" ? otherStaffRole : "",
     harmony: Boolean(harmony),
     checked: checked ?? {},
+    extraItems: Array.isArray(extraItems) ? extraItems.filter((item): item is string => typeof item === "string") : [],
   };
 
-  const result = generateContiDraft(input, {
-    templates: (templateRows ?? []) as SceneTemplateRow[],
+  const skeleton = generateContiDraft(input, {
+    templates,
     hospitalSpaces,
     hospitalStaff,
   });
+  const result = { ...skeleton, scenes: await enrichContiScenes(skeleton.scenes) };
 
   const { data: run, error: runError } = await db
     .from("conti_runs")
     .insert({
       hospital_id: hospitalId ?? null,
-      specialty: specialties.join(","),
+      legacy_save_id: resourceId ?? null,
+      workflow_run_id: workflowRunId ?? null,
+      specialty,
       doctor_count: input.doctorCount,
       staff_flags: input.staffFlags,
+      other_staff_role: input.otherStaffRole,
       harmony: input.harmony,
       checked: input.checked,
+      custom_items: input.extraItems,
     })
     .select("*")
     .single();
@@ -94,6 +121,7 @@ export async function POST(request: NextRequest) {
     .insert(result.groups.map((g) => ({ run_id: run.id, name: g.name, sort: g.sort })))
     .select("id, name, sort");
   if (groupsError) {
+    await db.from("conti_runs").delete().eq("id", run.id);
     return NextResponse.json({ ok: false, error: groupsError.message }, { status: 500 });
   }
 
@@ -111,8 +139,9 @@ export async function POST(request: NextRequest) {
     procedures: s.procedures,
     people_text: s.peopleText,
     patient_role_text: s.patientRoleText,
+    preparation_text: s.preparationText,
     note: s.note,
-    template_id: s.templateId,
+    template_id: s.templateId?.startsWith("code:") ? null : s.templateId,
     field_sources: s.fieldSources,
   }));
 
@@ -121,6 +150,7 @@ export async function POST(request: NextRequest) {
     .insert(sceneRows)
     .select("*");
   if (scenesError) {
+    await db.from("conti_runs").delete().eq("id", run.id);
     return NextResponse.json({ ok: false, error: scenesError.message }, { status: 500 });
   }
 
