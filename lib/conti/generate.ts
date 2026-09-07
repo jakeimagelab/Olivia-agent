@@ -98,12 +98,23 @@ interface MatchedTemplate {
   procedures: string[];
 }
 
+// checked 키 파서 — "진료과::카테고리" 합성키를 기대한다. 같은 카테고리 이름("기본 장면" 등)이
+// 여러 진료과에서 반복되므로, 순수 카테고리 키만 쓰면 서로 다른 진료과의 체크 목록이 뒤섞인다.
+// 과거 형식(카테고리만)도 방어적으로 지원 — "::"가 없으면 전체 진료과에 대해 매칭을 시도한다.
+function parseCheckedKey(key: string): { specialty: string | null; category: string } {
+  const idx = key.indexOf("::");
+  if (idx === -1) return { specialty: null, category: key };
+  return { specialty: key.slice(0, idx), category: key.slice(idx + 2) };
+}
+
 // 1) checked → scene_templates 매칭
 function matchCheckedTemplates(input: GenerateContiInput, templates: SceneTemplateRow[]): MatchedTemplate[] {
   const matched: MatchedTemplate[] = [];
-  for (const specialty of input.specialties) {
-    for (const [category, items] of Object.entries(input.checked)) {
-      if (!items || items.length === 0) continue;
+  for (const [key, items] of Object.entries(input.checked)) {
+    if (!items || items.length === 0) continue;
+    const { specialty: keySpecialty, category } = parseCheckedKey(key);
+    const targetSpecialties = keySpecialty ? [keySpecialty] : input.specialties;
+    for (const specialty of targetSpecialties) {
       const candidates = templates.filter((t) => t.specialty === specialty && t.category === category);
       if (candidates.length === 0) continue;
       if (candidates.length === 1) {
