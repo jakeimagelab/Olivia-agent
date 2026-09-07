@@ -1,47 +1,15 @@
-"use client";
-
-import { useState } from "react";
 import GlobalHeader from "@/components/GlobalHeader";
-import SegmentedTabs from "@/components/ui/SegmentedTabs";
-import ContiCreateScreen from "@/components/conti/v2/ContiCreateScreen";
-import ContiResultTable from "@/components/conti/v2/ContiResultTable";
-import ContiFieldView from "@/components/conti/v2/ContiFieldView";
+import ContiV2App from "@/components/conti/v2/ContiV2App";
 
-type ResultView = "table" | "field";
-
-// 신규 결정론적 콘티 생성 시스템의 임시 진입점. 기존 /conti(ContiBuilder, 자유생성 GPT)는
-// 그대로 둔 채 별도 경로에서 검증한다 — 확인되면 이 화면이 /conti를 대체한다.
+// 신규 결정론적 콘티 생성 시스템. 주소를 직접 치고 들어오는 경우(북마크 등)를 위한 독립
+// 페이지 — 평소에는 OLIVIA OS 데스크탑에서 "모든 앱 → 콘티 (신규)"로 창을 띄워서 쓴다
+// (components/olivia-os/adapters/ContiV2WindowContent.tsx). 기존 /conti(ContiBuilder,
+// 자유생성 GPT)는 그대로 둔 채 검증한다 — 확인되면 이 화면이 /conti를 대체한다.
 export default function ContiV2Page() {
-  const [runId, setRunId] = useState<string | null>(null);
-  const [view, setView] = useState<ResultView>("table");
-
   return (
     <div style={{ minHeight: "100vh", background: "#F4F1EB" }}>
-      <GlobalHeader title="콘티 (신규)" description="체크 → AI 초안 → 사람이 마무리하는 콘티 생성 — 검증용 임시 경로입니다." />
-      <div style={{ padding: "20px 24px 60px" }}>
-        {runId ? (
-          <>
-            <div style={{ marginBottom: 14 }}>
-              <SegmentedTabs
-                ariaLabel="결과 보기 방식"
-                value={view}
-                onChange={setView}
-                items={[
-                  { value: "table", label: "결과 표" },
-                  { value: "field", label: "현장뷰" },
-                ]}
-              />
-            </div>
-            {view === "table" ? (
-              <ContiResultTable runId={runId} onBack={() => setRunId(null)} />
-            ) : (
-              <ContiFieldView runId={runId} onBack={() => setView("table")} />
-            )}
-          </>
-        ) : (
-          <ContiCreateScreen onGenerated={setRunId} />
-        )}
-      </div>
+      <GlobalHeader title="콘티 (신규)" description="체크 → AI 초안 → 사람이 마무리하는 콘티 생성 — 검증용입니다." />
+      <ContiV2App />
     </div>
   );
 }
