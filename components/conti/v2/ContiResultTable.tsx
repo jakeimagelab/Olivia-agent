@@ -55,11 +55,6 @@ const PLACEHOLDERS: Record<EditableKey, string> = {
   note: "비고",
 };
 
-const COLUMN_LABELS: Record<EditableKey, string> = {
-  name: "장면", space_text: "장소", minutes: "시간", keyword: "키워드",
-  description: "설명·시술", people_text: "필요인원", patient_role_text: "환자역할", note: "비고",
-};
-
 export interface ContiResultTableProps {
   runId: string;
   onBack: () => void;
