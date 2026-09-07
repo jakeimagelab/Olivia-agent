@@ -105,7 +105,7 @@ export default function ContiCreateScreen({ onGenerated }: ContiCreateScreenProp
   );
 
   const draft = useMemo(() => {
-    if (specialties.length === 0 || templates.length === 0) return null;
+    if (input.specialties.length === 0 || templates.length === 0) return null;
     return generateContiDraft(input, { templates, hospitalSpaces, hospitalStaff });
   }, [input, templates, hospitalSpaces, hospitalStaff]);
 
