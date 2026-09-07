@@ -19,6 +19,7 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
   "/quote": "quote",
   "/contract": "contract",
   "/conti": "storyboard",
+  "/conti-v2": "storyboard",
   "/clients": "clients",
   "/select-galleries": "select-gallery",
   "/per": "per-reward",
