@@ -161,9 +161,7 @@ select:focus {
   flex-direction: column;
   gap: 18px;
   overflow-y: auto;
-  background:
-    radial-gradient(circle at 20% 0%, rgba(255,255,255,.16), transparent 34%),
-    linear-gradient(180deg, #00615d 0%, #004946 45%, #003f3c 100%);
+  background: #004946;
   color: #ffffff;
   padding: 28px 22px;
 }
