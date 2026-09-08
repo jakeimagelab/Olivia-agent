@@ -604,13 +604,9 @@ select:focus {
   }
 }
 
-/* ── iOS 26 mesh gradient — 전체 페이지 공통 배경 ─── */
+/* 전체 페이지 공통 배경 — 그라데이션 없이 단색 */
 :root {
-  --mesh-bg:
-    radial-gradient(ellipse 130% 55% at 10% 0%,   rgba(21,88,85,.13)   0%, transparent 52%),
-    radial-gradient(ellipse 90%  60% at 90% 100%,  rgba(235,143,34,.09) 0%, transparent 50%),
-    radial-gradient(ellipse 80%  80% at 55% 50%,   rgba(86,155,140,.06) 0%, transparent 55%),
-    #f0f4f2;
+  --mesh-bg: #f0f4f2;
 }
 
 /* pc-header를 직접 자식으로 가진 모든 페이지 래퍼에 자동 적용 (main/div 모두) */
