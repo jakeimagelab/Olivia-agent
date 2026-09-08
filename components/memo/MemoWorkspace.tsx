@@ -306,10 +306,6 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
               {aiText ? <div className="memo-ai-result"><div>{aiText}</div><button className="pc-btn pc-btn--primary pc-btn--sm" onClick={applyAiText}>메모에 반영</button></div> : null}
               {aiImage ? <figure className="memo-ai-image"><img src={aiImage} alt="AI가 정돈한 펜 메모" /><figcaption>AI 정돈 이미지 · 원본 필기는 보존됩니다.</figcaption></figure> : null}
             </section>
-
-            <section className="pc-card pc-card--padded memo-save-card">
-              <button className="pc-btn pc-btn--primary pc-btn--lg" onClick={() => void save().catch(() => undefined)} disabled={saving}>{saving ? "저장 중…" : "메모 저장"}</button>
-            </section>
           </div>
         </div>
       </div>
