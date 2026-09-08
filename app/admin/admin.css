@@ -778,7 +778,7 @@
 .oa-daily-brief__next strong { overflow: hidden; color: #fff; text-overflow: ellipsis; white-space: nowrap; }
 .oa-daily-brief__progress { height: 3px; margin-top: 7px; border-radius: 99px; background: rgba(255,255,255,.1); }
 .oa-daily-brief__progress span { display: block; height: 100%; border-radius: inherit; background: #6ee7b7; transition: transform 520ms var(--command-ease); transform-origin: left; }
-.oa-daily-quote { height: 100%; min-height: 142px; display: flex; flex-direction: column; align-items: stretch; border-radius: 16px; padding: 14px 16px; background: linear-gradient(135deg,#155855 0%,#0d3e3b 100%); color: #fff; box-shadow: 0 0 0 3px rgba(21,88,85,.08), 0 14px 34px rgba(21,88,85,.18), inset 0 1px 0 rgba(255,255,255,.15); }
+.oa-daily-quote { height: 100%; min-height: 142px; display: flex; flex-direction: column; align-items: stretch; border-radius: 16px; padding: 14px 16px; background: #0d3e3b; color: #fff; box-shadow: 0 0 0 3px rgba(21,88,85,.08), 0 14px 34px rgba(21,88,85,.18), inset 0 1px 0 rgba(255,255,255,.15); }
 .oa-daily-quote__head { width: 100%; }
 .oa-daily-quote__actions { display: flex; align-items: center; gap: 7px; }
 .oa-daily-quote__actions > span { white-space: nowrap; }
