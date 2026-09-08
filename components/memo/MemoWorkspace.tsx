@@ -225,7 +225,6 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
     }
   };
 
-  const activeTemplate = useMemo(() => TEMPLATE_OPTIONS.find(option => option.type === templateType), [templateType]);
   const contiColumns = Math.min(4, Math.max(1, templateData.contiColumns ?? 2));
   const contiRows = Math.min(6, Math.max(1, templateData.contiRows ?? 3));
   const resizeConti = (columns: number, rows: number) => setTemplateData(current => ({ ...current, contiColumns: columns, contiRows: rows }));
