@@ -462,7 +462,7 @@ function GalleryPageInner() {
                     {thumbnailUrl ? (
                       <img src={thumbnailUrl} alt="" style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", display: "block" }} />
                     ) : (
-                      <div style={{ aspectRatio: "16 / 9", background: `linear-gradient(135deg, ${C.mint}, #D5EAE7)`, display: "grid", placeItems: "center" }}>
+                      <div style={{ aspectRatio: "16 / 9", background: "#D5EAE7", display: "grid", placeItems: "center" }}>
                         <span style={{ fontSize: 32 }}>📷</span>
                       </div>
                     )}
