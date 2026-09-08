@@ -4147,10 +4147,7 @@
   place-items: center;
   overflow: hidden;
   pointer-events: auto;
-  background:
-    radial-gradient(circle at 34% 39%, rgba(223,247,241,.3), transparent 30%),
-    radial-gradient(circle at 68% 62%, rgba(255,238,229,.18), transparent 28%),
-    #fcfdfc;
+  background: #fcfdfc;
 }
 .olivia-splash.is-handoff {
   animation: olivia-splash-release 1390ms cubic-bezier(.32,.72,0,1) forwards;
