@@ -106,7 +106,7 @@ function buildEmail(ideas: any, dateStr: string) {
 <div style="max-width:600px;margin:0 auto;padding:20px 16px;">
 
   <!-- 헤더 -->
-  <div style="background:linear-gradient(135deg,#155855,#1C3F3C);border-radius:16px 16px 0 0;padding:28px 32px;text-align:center;">
+  <div style="background:#155855;border-radius:16px 16px 0 0;padding:28px 32px;text-align:center;">
     <div style="font-size:10px;font-weight:700;letter-spacing:.2em;color:rgba(255,255,255,.5);text-transform:uppercase;margin-bottom:6px;">OLIVIA × PHOTO CLINIC</div>
     <div style="font-size:24px;font-weight:900;color:#fff;margin-bottom:4px;">오늘의 마케팅 아이디어 ✨</div>
     <div style="font-size:13px;color:rgba(255,255,255,.7);">${dateStr} (${dayOfWeek}요일)</div>
