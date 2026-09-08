@@ -148,7 +148,7 @@ function buildCampaignReportHtml(camp: any, records: any[]): string {
   return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"/>
 <style>
   body{font-family:Apple SD Gothic Neo,sans-serif;max-width:680px;margin:0 auto;padding:32px;color:#1C2B28;background:#fff;}
-  .header{background:linear-gradient(135deg,#155855,#22876A);color:#fff;border-radius:12px;padding:32px;text-align:center;margin-bottom:24px;}
+  .header{background:#155855;color:#fff;border-radius:12px;padding:32px;text-align:center;margin-bottom:24px;}
   .header h1{margin:0;font-size:24px;} .header p{margin:8px 0 0;opacity:.85;font-size:13px;}
   .big{font-size:36px;font-weight:800;margin:16px 0 4px;}
   .card{background:#F0F9F8;border-radius:10px;padding:20px 24px;margin-bottom:16px;}
