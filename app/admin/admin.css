@@ -2567,7 +2567,7 @@
   place-items: center;
   border-radius: 50%;
   color: #fff;
-  background: linear-gradient(145deg, #f58961, var(--olivia-orange));
+  background: var(--olivia-orange);
   box-shadow: 0 7px 22px rgba(232,93,44,.28), inset 0 1px 1px rgba(255,255,255,.45);
 }
 .olivia-floating-core--global { z-index: 10020; }
