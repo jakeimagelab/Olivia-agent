@@ -733,8 +733,8 @@
 .oa-issue-list > div { position: relative; overflow: hidden; background: #fff8f7; }
 .oa-issue-list > div::before { position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--command-danger); content: ""; }
 
-.oa-context-banner { min-height: 62px; margin-bottom: 14px; border-radius: 16px; padding: 11px 13px; background: linear-gradient(135deg,#155855,#1a6b64); color: #fff; }
-.oa-context-banner.is-linked { background: linear-gradient(135deg,#155855,#22876a); }
+.oa-context-banner { min-height: 62px; margin-bottom: 14px; border-radius: 16px; padding: 11px 13px; background: #1a6b64; color: #fff; }
+.oa-context-banner.is-linked { background: #22876a; }
 .oa-context-banner__icon { width: 35px; height: 35px; color: #fff; background: rgba(255,255,255,.14); }
 .oa-context-banner.is-linked .oa-context-banner__icon { color: #fff; background: rgba(255,255,255,.14); }
 .oa-context-banner__copy strong { color: #fff; font-size: 10px; }
