@@ -5971,9 +5971,7 @@ main:has(> .pc-header) {
 
 .image-generator-page {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 10% 0%, rgba(232, 93, 44, 0.1), transparent 34rem),
-    linear-gradient(135deg, rgba(229, 240, 238, 0.96), rgba(250, 247, 242, 0.98));
+  background: var(--ivory);
   padding: 28px;
 }
 
