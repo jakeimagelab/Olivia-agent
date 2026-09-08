@@ -65,7 +65,7 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
         <span>{Math.round((step / total) * 100)}%</span>
       </div>
       <div style={{ height: 5, background: C.border, borderRadius: 99, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${(step / total) * 100}%`, background: `linear-gradient(90deg, ${C.teal}, ${C.sage})`, borderRadius: 99, transition: "width .3s ease" }} />
+        <div style={{ height: "100%", width: `${(step / total) * 100}%`, background: C.teal, borderRadius: 99, transition: "width .3s ease" }} />
       </div>
     </div>
   );
