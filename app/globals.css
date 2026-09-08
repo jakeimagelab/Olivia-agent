@@ -1910,7 +1910,7 @@ main:has(> .pc-header) {
   border-color: transparent;
 }
 .admin-menu-card.orange:hover .admin-menu-action {
-  background: linear-gradient(135deg, var(--orange), #EB8F22);
+  background: var(--orange);
   box-shadow: 0 4px 12px rgba(232,93,44,.32);
 }
 
