@@ -137,7 +137,7 @@ export default function SecurityPage() {
               style={{
                 display: "flex", alignItems: "center", gap: 8, height: 40, padding: "0 18px",
                 borderRadius: 10, border: "none", cursor: supported ? "pointer" : "not-allowed",
-                background: !supported ? C.hint : `linear-gradient(135deg, ${C.orange}, ${C.gold})`,
+                background: !supported ? C.hint : C.orange,
                 color: "#fff", fontSize: 13, fontWeight: 800, fontFamily: "inherit",
                 boxShadow: supported ? "0 4px 14px rgba(232,93,44,.3)" : "none",
               }}
