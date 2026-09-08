@@ -69,7 +69,7 @@ function IdeaDetail({ idea }: { idea: DailyIdea }) {
   };
   return (
     <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ background: "linear-gradient(135deg,#EDF5F3,#E0F0EC)", border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
+      <div style={{ background: "#E0F0EC", border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px" }}>
         <div style={{ fontSize: 9, fontWeight: 800, color: C.teal, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 8 }}>📣 오늘의 마케팅 아이디어</div>
         <div style={{ fontSize: 15, fontWeight: 900, color: C.teal, marginBottom: 7 }}>{idea.marketing_idea.title}</div>
         <div style={{ fontSize: 12, color: "#3A5450", lineHeight: 1.65, marginBottom: 10 }}>{idea.marketing_idea.body}</div>
