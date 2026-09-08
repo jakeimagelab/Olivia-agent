@@ -99,11 +99,20 @@ export default function OliviaDesktop() {
     };
   }, []);
 
+  const syncWallpaperSettings = useCallback((body: { wallpaperMode?: WallpaperMode; customWallpaperDataUrl?: string }) => {
+    fetch("/api/desktop-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch((error) => console.error("[desktop-settings] 동기화 실패:", error));
+  }, []);
+
   const selectWallpaper = useCallback((mode: WallpaperMode) => {
     if (mode === "custom" && !customWallpaper) return;
     setWallpaper(mode);
     try { window.localStorage.setItem(WALLPAPER_KEY, mode); } catch { /* optional desktop preference */ }
-  }, [customWallpaper]);
+    syncWallpaperSettings({ wallpaperMode: mode });
+  }, [customWallpaper, syncWallpaperSettings]);
 
   const selectCustomWallpaper = useCallback(async (file: File) => {
     try {
@@ -114,10 +123,11 @@ export default function OliviaDesktop() {
         window.localStorage.setItem(CUSTOM_WALLPAPER_KEY, dataUrl);
         window.localStorage.setItem(WALLPAPER_KEY, "custom");
       } catch { /* 현재 세션에서는 그대로 사용할 수 있다 */ }
+      syncWallpaperSettings({ wallpaperMode: "custom", customWallpaperDataUrl: dataUrl });
     } catch {
       window.alert("PNG, JPG 또는 WebP 이미지를 선택해 주세요.");
     }
-  }, []);
+  }, [syncWallpaperSettings]);
 
   const openAllApps = useCallback(() => {
     const app = oliviaAppRegistry.find((candidate) => candidate.id === "all-apps");
