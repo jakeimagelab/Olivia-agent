@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
       ${statCard("✨","AI대화",counts.olivia_chat)}
     </tr></table>
 
-    <div style="margin-top:16px;background:linear-gradient(135deg,#155855,#1e7870);border-radius:12px;padding:16px 20px;">
+    <div style="margin-top:16px;background:#155855;border-radius:12px;padding:16px 20px;">
       <table style="width:100%;"><tr>
         <td style="color:rgba(255,255,255,.8);font-size:13px;font-weight:700;">총 활동</td>
         <td style="text-align:right;color:#fff;font-size:26px;font-weight:900;">${total}건</td>
