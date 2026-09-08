@@ -630,7 +630,7 @@ function ProviderPanel({
           <span>1~20회</span>
         </div>
       </div>
-      <div style={{ marginTop: 12, padding: 14, borderRadius: 12, background: `linear-gradient(135deg, #569082 0%, ${C.teal} 100%)`, color: "#fff" }}>
+      <div style={{ marginTop: 12, padding: 14, borderRadius: 12, background: C.teal, color: "#fff" }}>
         <div style={{ fontSize: 10, opacity: .7, fontWeight: 900, letterSpacing: ".08em" }}>ESTIMATED API REQUESTS</div>
         <div style={{ fontSize: 28, fontWeight: 900, marginTop: 2 }}>{estimatedRequests.toLocaleString("ko-KR")}</div>
         <div style={{ fontSize: 11, opacity: .76, marginTop: 3 }}>Provider Pricing 설정 필요</div>
