@@ -10,7 +10,6 @@ import NoteCanvasPanel from "@/components/memo/NoteCanvasPanel";
 import VoiceMemoPanel from "@/components/memo/VoiceMemoPanel";
 import {
   PEN_TEMPLATE_OPTIONS,
-  TEMPLATE_OPTIONS,
   emptyTemplateData,
   type ConsultationMemo,
   type MemoContextType,
