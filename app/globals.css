@@ -6324,7 +6324,7 @@ main:has(> .pc-header) {
   gap: 16px;
   border: 1px solid rgba(232, 93, 44, 0.2);
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(232, 93, 44, 0.08), rgba(255, 255, 255, 0.88));
+  background: rgba(255, 255, 255, 0.88);
   padding: 18px;
 }
 
