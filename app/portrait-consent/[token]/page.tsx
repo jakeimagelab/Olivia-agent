@@ -261,7 +261,7 @@ export default function PortraitConsentPortalPage() {
 
         {consent && consent.status !== "signed" && !submitted && (
           <div style={cardStyle}>
-            <div style={{ height: 6, background: `linear-gradient(90deg, ${C.teal}, ${C.orange})` }} />
+            <div style={{ height: 6, background: C.teal }} />
             <div style={{ padding: "28px 24px 8px" }}>
               <div style={{ fontSize: FS.xxl, fontWeight: 900, color: C.ink, textAlign: "center", marginBottom: 16 }}>{consent.title}</div>
               <p style={{ color: C.muted, fontSize: FS.md, lineHeight: 1.7, background: C.mint, borderRadius: R.md, padding: 16 }}>{consent.intro_text}</p>
