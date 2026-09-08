@@ -1136,7 +1136,7 @@ function buildContractHtml(q: QuoteData, signatureDataUrl = "", brand: ContractB
   .contract-page{width:794px;height:1123px;margin:0 auto 18px;padding:42px 56px;
                  background:#fff;overflow:hidden;position:relative;page-break-after:always;}
   .contract-page:last-child{margin-bottom:0;page-break-after:auto;}
-  .top-accent{height:6px;background:linear-gradient(90deg,${accent} 0 42%,${accent} 42% 58%,${ink} 58% 100%);
+  .top-accent{height:6px;background:${accent};
               border-radius:99px;margin-bottom:18px;}
   .header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:start;
           margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid ${ink};}
