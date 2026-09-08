@@ -161,7 +161,7 @@ export default function ReportPage() {
                         <span style={{ fontSize: 9, fontWeight: 800, color: "#155855" }}>{h.count}건</span>
                       </div>
                       <div style={{ height: 3, background: "#F3F4F6", borderRadius: 99, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#155855,#569082)", borderRadius: 99, transition: "width .5s ease" }} />
+                        <div style={{ height: "100%", width: `${pct}%`, background: "#155855", borderRadius: 99, transition: "width .5s ease" }} />
                       </div>
                     </div>
                   );
