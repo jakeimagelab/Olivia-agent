@@ -536,7 +536,7 @@
   gap: 9px;
   padding: 0 10px;
   border-bottom: 1px solid rgba(21, 88, 85, .09);
-  background: linear-gradient(180deg, #fff, #f7faf8);
+  background: #f7faf8;
 }
 
 .assistantMark {
