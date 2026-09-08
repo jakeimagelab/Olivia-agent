@@ -1003,7 +1003,7 @@ export default function RawSelectPage() {
     <div style={{ background: "#2A2A2A", minHeight: embedded ? 0 : "100vh", color: "rgba(255,255,255,.85)" }}>
 
       {/* 기능 안내 배너 */}
-      <div style={{ background: "linear-gradient(135deg, #1A4F4C 0%, #155855 100%)", color: "#fff", padding: "14px 24px" }}>
+      <div style={{ background: "#155855", color: "#fff", padding: "14px 24px" }}>
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
           <p style={{ margin: 0, fontSize: 11, lineHeight: 1.7, opacity: 0.8, maxWidth: 660 }}>
             AI가 최종 사진을 대신 고르는 기능이 아닙니다. 눈 감은 컷·흔들린 컷·조명 문제 컷·중복컷을 먼저 정리하고, 남은 JPG와 같은 파일명의 RAW를 자동으로 SELECT 폴더에 모아주는 셀렉 보조 기능입니다.
