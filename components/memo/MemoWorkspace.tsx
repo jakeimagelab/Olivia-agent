@@ -40,7 +40,8 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
   const searchParams = useSearchParams();
   const dateParam = searchParams.get("date") ?? "";
   const [memos, setMemos] = useState<ConsultationMemo[]>([]);
-  const [historyOpen, setHistoryOpen] = useState(true);
+  // 기본 접힘 — 화면을 열자마자 메모 작성 영역에 집중하도록(과거 메모는 필요할 때만 펼침).
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [templateType, setTemplateType] = useState<MemoTemplateType>("blank");
