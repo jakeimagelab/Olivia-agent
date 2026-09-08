@@ -663,6 +663,9 @@ function PhotoSortingInner({
   // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
   const [hasFS, setHasFS] = useState(false);
   useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
+  // 폴더 선택 실패를 화면에 보여준다 — 예전엔 catch가 비어 있어서 실패해도 아무 반응이 없었다
+  // (사용자 보고: "키 자체가 안먹혀" — 버튼을 눌러도 그냥 아무 일도 안 일어남).
+  const [dirPickError, setDirPickError] = useState("");
 
   /* ── field state ── */
   const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
