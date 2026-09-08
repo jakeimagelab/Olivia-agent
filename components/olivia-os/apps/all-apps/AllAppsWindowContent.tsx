@@ -58,34 +58,37 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
 export function AllAppsWindowContent() {
   const openApp = useOliviaDesktopStore((state) => state.openApp);
   const launchHref = useDesktopAppLauncher();
-  const groups = groupToolsByCategory(ALL_TOOLS);
+  const groups = groupToolsByCategory(ALL_TOOLS).filter((group) => group.items.length > 0);
+  const [activeCategory, setActiveCategory] = useState<NavCategory>(groups[0]?.category ?? "tools");
+  const activeGroup = groups.find((group) => group.category === activeCategory) ?? groups[0];
 
   const systemApps = [getOliviaApp("today"), getOliviaApp("olivia-chat")].filter((app) => app !== undefined);
 
   return (
     <div className={styles.root}>
-      <section className={styles.section}>
-        <h2>Desktop</h2>
-        <div className={styles.grid}>
-          {systemApps.map((app) => (
-            <button type="button" key={app.id} onClick={() => openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height })}>
-              <AppIcon icon={app.icon} size={42} /><span>{app.title}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-      {groups.map((group) => group.items.length ? (
-        <section className={styles.section} key={group.category}>
-          <h2>{group.label}</h2>
-          <div className={styles.grid}>
-            {group.items.map((tool) => (
-              <button type="button" key={tool.href} onClick={() => launchHref(tool.href, tool.title)} title={tool.desc}>
-                <AppIcon icon={<ColorAppIcon name={TOOL_ICON_BY_HREF[tool.href] ?? "workspace"} size={24} aria-hidden focusable={false} />} size={42} /><span>{tool.title}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null)}
+      <div className={styles.systemRow}>
+        {systemApps.map((app) => (
+          <button type="button" key={app.id} onClick={() => openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height })}>
+            <AppIcon icon={app.icon} size={36} /><span>{app.title}</span>
+          </button>
+        ))}
+      </div>
+
+      <SegmentedTabs
+        ariaLabel="앱 분류"
+        value={activeCategory}
+        onChange={setActiveCategory}
+        items={groups.map((group) => ({ value: group.category, label: group.label }))}
+        style={{ marginBottom: 16 }}
+      />
+
+      <div className={styles.grid}>
+        {activeGroup?.items.map((tool) => (
+          <button type="button" key={tool.href} onClick={() => launchHref(tool.href, tool.title)} title={tool.desc}>
+            <AppIcon icon={<ColorAppIcon name={TOOL_ICON_BY_HREF[tool.href] ?? "workspace"} size={24} aria-hidden focusable={false} />} size={42} /><span>{tool.title}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
