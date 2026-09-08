@@ -8684,9 +8684,6 @@ main, .pc-console, .pc-page, .pc-page-content {
   .memo-template-picker { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .memo-editor-card { padding: 18px; }
   .memo-general-textarea { min-height: 140px; padding: 15px; }
-  .memo-save-card { padding: 14px; }
-  .memo-save-card .pc-btn { width: 100%; min-width: 0; }
-  .memo-canvas-heading { align-items: flex-start; flex-direction: column; }
 }
 
 /* 2026-07 공통 헤더/탭 최종 우선순위 — 이전 반응형 선언보다 뒤에서 일관성을 보장한다. */
