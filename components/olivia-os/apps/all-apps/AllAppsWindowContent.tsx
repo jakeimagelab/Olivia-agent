@@ -1,9 +1,11 @@
 "use client";
 
-import { ALL_TOOLS, groupToolsByCategory } from "@/lib/toolNav";
+import { useState } from "react";
+import { ALL_TOOLS, groupToolsByCategory, type NavCategory } from "@/lib/toolNav";
 import type { IconName } from "@/components/Icon";
 import { AppIcon as ColorAppIcon } from "@/components/AppIcon";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import { useDesktopAppLauncher } from "../../useDesktopAppLauncher";
 import { AppIcon } from "../../AppIcon";
 import { getOliviaApp } from "../../registry/oliviaAppRegistry";
