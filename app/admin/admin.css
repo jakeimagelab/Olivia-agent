@@ -2967,9 +2967,7 @@
 .oa-shell { grid-template-columns: 246px minmax(0,1fr); }
 .oa-sidebar {
   border-right: 0;
-  background:
-    radial-gradient(circle at 105% 22%, rgba(63,196,173,.16), transparent 34%),
-    linear-gradient(165deg, #096158 0%, #064e47 58%, #043c37 100%);
+  background: #064e47;
   color: #fff;
 }
 .oa-sidebar__brand { min-height: 112px; border-bottom-color: rgba(255,255,255,.06); padding-inline: 26px; }
