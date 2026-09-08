@@ -866,7 +866,10 @@ function PhotoSortingInner({
           setStep(0);
         }
       }
-    } catch {}
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      setDirPickError("이전 작업을 이어서 열지 못했습니다. 같은 폴더가 맞는지 확인 후 다시 시도해주세요.");
+    }
   };
 
   const pickDir = async () => {
