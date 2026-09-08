@@ -283,7 +283,7 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
                 </div>
               </div>
               {/* 파일명 */}
-              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(0,0,0,.7))", padding: "14px 6px 4px", fontSize: 9, color: "rgba(255,255,255,.7)", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,.45)", padding: "14px 6px 4px", fontSize: 9, color: "rgba(255,255,255,.7)", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {img.original_file_name}
               </div>
             </div>
