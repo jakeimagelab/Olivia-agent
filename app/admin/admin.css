@@ -1938,7 +1938,7 @@
   max-height: 30px;
 }
 .pc-quick-action:hover {
-  background: linear-gradient(165deg, rgba(255,255,255,.92), rgba(255,255,255,.6));
+  background: rgba(255,255,255,.75);
   transform: translateY(-1px);
   box-shadow: 0 1px 0 rgba(255,255,255,.85) inset, 0 10px 22px rgba(20,60,55,.08);
 }
