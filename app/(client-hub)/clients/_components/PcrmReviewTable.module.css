@@ -224,8 +224,8 @@
 .rowMenu button:hover { background: #f6faf8; }
 .rowMenuDanger { color: #dc2626 !important; }
 
-.skeletonCell { height: 14px; border-radius: 6px; background: linear-gradient(90deg, #eef2f1 25%, #f7faf9 37%, #eef2f1 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
-@keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+.skeletonCell { height: 14px; border-radius: 6px; background: #eef2f1; animation: shimmer 1.4s ease-in-out infinite; }
+@keyframes shimmer { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 
 .emptyState { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 64px 20px; color: #8aa09b; font-size: 12.5px; }
 
