@@ -359,7 +359,7 @@ export default function StrategyDetailPage() {
           </div>
         </div>
 
-        <div style={{ background: "linear-gradient(135deg, #F5F0FF, #FFF)", borderRadius: R.lg, border: `1px solid #E4D9FF`, padding: 16, marginBottom: 20 }}>
+        <div style={{ background: "#F5F0FF", borderRadius: R.lg, border: `1px solid #E4D9FF`, padding: 16, marginBottom: 20 }}>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Sparkles size={16} color="#7C3AED" />
