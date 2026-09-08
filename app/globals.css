@@ -8135,28 +8135,6 @@ button .pc-ripple {
   position: relative;
   overflow: hidden;
 }
-.pc-sidebar::after {
-  content: "";
-  position: absolute;
-  top: -60%;
-  left: -40%;
-  width: 60%;
-  height: 200%;
-  background: linear-gradient(
-    105deg,
-    transparent 40%,
-    rgba(255,255,255,0.06) 50%,
-    transparent 60%
-  );
-  animation: pc-sidebar-shimmer 6s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes pc-sidebar-shimmer {
-  0%, 100% { transform: translateX(-30%) skewX(-8deg); opacity: 0; }
-  40%       { opacity: 1; }
-  50%       { transform: translateX(200%) skewX(-8deg); opacity: 1; }
-  60%       { opacity: 0; }
-}
 
 /* 카드 hover 부상 효과 */
 .admin-card,
