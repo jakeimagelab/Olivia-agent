@@ -5913,7 +5913,7 @@ main:has(> .pc-header) {
   display: grid;
   place-items: center;
   border-radius: 17px;
-  background: linear-gradient(145deg, #e4f5f0, #fff0df);
+  background: #e4f5f0;
   box-shadow: inset 0 1px 0 #fff, 0 9px 20px rgba(21, 88, 85, 0.1);
   font-size: 24px;
 }
