@@ -8667,8 +8667,6 @@ main, .pc-console, .pc-page, .pc-page-content {
 .memo-ai-image { margin: 0; }
 .memo-ai-image img { display: block; width: 100%; border-radius: 12px; }
 .memo-ai-image figcaption { margin-top: 7px; color: #607873; font-size: 10px; }
-.memo-save-card { display: flex; justify-content: flex-end; }
-.memo-save-card .pc-btn { min-width: 220px; }
 
 @media (max-width: 980px) {
   .memo-template-picker { grid-template-columns: repeat(3,minmax(0,1fr)); }
