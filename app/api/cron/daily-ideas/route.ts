@@ -148,7 +148,7 @@ function buildEmail(ideas: any, dateStr: string) {
     </div>
 
     <!-- 오늘의 미션 -->
-    <div style="background:linear-gradient(135deg,#E85D2C,#EB8F22);border-radius:14px;padding:20px 22px;text-align:center;">
+    <div style="background:#E85D2C;border-radius:14px;padding:20px 22px;text-align:center;">
       <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.7);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;">TODAY'S MISSION</div>
       <div style="font-size:18px;font-weight:900;color:#fff;margin-bottom:8px;">${ideas.mission.title}</div>
       <div style="font-size:12px;color:rgba(255,255,255,.85);line-height:1.7;margin-bottom:10px;">${ideas.mission.why}</div>
