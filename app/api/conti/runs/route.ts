@@ -13,6 +13,11 @@ import { enrichContiScenes } from "@/lib/conti/aiEnrichment";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function isMissingV2Column(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === "PGRST204" || /schema cache|column .* does not exist/i.test(error.message ?? "");
+}
+
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const resourceId = params.get("resourceId");
@@ -25,8 +30,15 @@ export async function GET(request: NextRequest) {
   if (resourceId) query = query.or(`id.eq.${resourceId},legacy_save_id.eq.${resourceId}`);
   else if (workflowRunId) query = query.eq("workflow_run_id", workflowRunId);
   else if (clientId) query = query.eq("hospital_id", clientId);
-  const { data, error } = await query.maybeSingle();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  let { data, error } = await query.maybeSingle();
+  // 신규 연결 컬럼이 아직 적용되지 않은 DB에서도 기존 hospital_id로 마지막 run을 찾는다.
+  if (error && isMissingV2Column(error)) {
+    if (!clientId) return NextResponse.json({ ok: true, run: null, legacySchema: true });
+    const fallback = await db.from("conti_runs").select("*").eq("hospital_id", clientId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    data = fallback.data;
+    error = fallback.error;
+  }
+  if (error) return NextResponse.json({ ok: false, error: "콘티를 불러오지 못했습니다." }, { status: 500 });
   return NextResponse.json({ ok: true, run: data ?? null });
 }
 
@@ -96,24 +108,30 @@ export async function POST(request: NextRequest) {
   });
   const result = { ...skeleton, scenes: await enrichContiScenes(skeleton.scenes) };
 
-  const { data: run, error: runError } = await db
-    .from("conti_runs")
-    .insert({
-      hospital_id: hospitalId ?? null,
-      legacy_save_id: resourceId ?? null,
-      workflow_run_id: workflowRunId ?? null,
-      specialty,
-      doctor_count: input.doctorCount,
-      staff_flags: input.staffFlags,
-      other_staff_role: input.otherStaffRole,
-      harmony: input.harmony,
-      checked: input.checked,
-      custom_items: input.extraItems,
-    })
-    .select("*")
-    .single();
+  const baseRunFields = {
+    hospital_id: hospitalId ?? null,
+    specialty,
+    doctor_count: input.doctorCount,
+    staff_flags: input.staffFlags,
+    harmony: input.harmony,
+    checked: input.checked,
+  };
+  const fullRunFields = {
+    ...baseRunFields,
+    legacy_save_id: resourceId ?? null,
+    workflow_run_id: workflowRunId ?? null,
+    other_staff_role: input.otherStaffRole,
+    custom_items: input.extraItems,
+  };
+
+  let runResult = await db.from("conti_runs").insert(fullRunFields).select("*").single();
+  // 운영 DB 마이그레이션이 늦어져도 핵심 콘티 생성은 중단하지 않는다.
+  if (runResult.error && isMissingV2Column(runResult.error)) {
+    runResult = await db.from("conti_runs").insert(baseRunFields).select("*").single();
+  }
+  const { data: run, error: runError } = runResult;
   if (runError || !run) {
-    return NextResponse.json({ ok: false, error: runError?.message ?? "run 생성 실패" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "콘티 저장 공간을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요." }, { status: 500 });
   }
 
   const { data: insertedGroups, error: groupsError } = await db
@@ -145,13 +163,18 @@ export async function POST(request: NextRequest) {
     field_sources: s.fieldSources,
   }));
 
-  const { data: insertedScenes, error: scenesError } = await db
-    .from("conti_scenes")
-    .insert(sceneRows)
-    .select("*");
+  let scenesResult = await db.from("conti_scenes").insert(sceneRows).select("*");
+  if (scenesResult.error && isMissingV2Column(scenesResult.error)) {
+    const legacySceneRows = sceneRows.map(({ preparation_text, ...scene }) => {
+      void preparation_text;
+      return scene;
+    });
+    scenesResult = await db.from("conti_scenes").insert(legacySceneRows).select("*");
+  }
+  const { data: insertedScenes, error: scenesError } = scenesResult;
   if (scenesError) {
     await db.from("conti_runs").delete().eq("id", run.id);
-    return NextResponse.json({ ok: false, error: scenesError.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "콘티 장면을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요." }, { status: 500 });
   }
 
   return NextResponse.json({
