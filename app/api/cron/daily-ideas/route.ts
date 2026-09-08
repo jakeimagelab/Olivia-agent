@@ -118,7 +118,7 @@ function buildEmail(ideas: any, dateStr: string) {
     <!-- 오늘의 마케팅 아이디어 -->
     <div style="margin-bottom:28px;">
       <div style="font-size:11px;font-weight:800;color:#155855;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;">📣 오늘의 마케팅 아이디어</div>
-      <div style="background:linear-gradient(135deg,#EDF5F3,#E0F0EC);border-radius:14px;padding:20px 22px;border:1px solid #C8DDD9;">
+      <div style="background:#E0F0EC;border-radius:14px;padding:20px 22px;border:1px solid #C8DDD9;">
         <div style="font-size:18px;font-weight:900;color:#155855;margin-bottom:10px;">${ideas.marketing_idea.title}</div>
         <div style="font-size:13px;color:#3A5450;line-height:1.8;margin-bottom:14px;">${ideas.marketing_idea.body}</div>
         <div style="background:#155855;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;">
