@@ -28,7 +28,7 @@ const fmtDate = (d: string) =>
 
 function MissionBadge({ mission }: { mission: Mission }) {
   return (
-    <div style={{ background: "linear-gradient(135deg,#E85D2C,#EB8F22)", borderRadius: 12, padding: "14px 16px" }}>
+    <div style={{ background: "#E85D2C", borderRadius: 12, padding: "14px 16px" }}>
       <div style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,.7)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>TODAY'S MISSION</div>
       <div style={{ fontSize: 15, fontWeight: 900, color: "#fff", marginBottom: 6 }}>{mission.title}</div>
       <div style={{ fontSize: 12, color: "rgba(255,255,255,.85)", lineHeight: 1.6, marginBottom: 10 }}>{mission.why}</div>
