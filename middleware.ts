@@ -27,6 +27,7 @@ async function hasValidTeamChatMemberSession(req: NextRequest): Promise<boolean>
 const protectedApiPrefixes = [
   "/api/admin",
   "/api/dashboard",
+  "/api/desktop-settings",
   "/api/trash",
   "/api/olivia",
   "/api/send-delivery",
