@@ -1088,17 +1088,15 @@ main:has(> .pc-header) {
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--teal), #1e7870);
+  background: var(--teal);
 }
 
 .admin-menu-card.orange::before {
-  background: linear-gradient(90deg, var(--orange), #EB8F22);
+  background: var(--orange);
 }
 
 .admin-menu-card.orange {
-  background:
-    radial-gradient(140% 100% at 100% 0%, rgba(232,93,44,.07) 0%, transparent 55%),
-    #ffffff;
+  background: #ffffff;
 }
 
 /* 채팅창과 같은 디자인 시스템으로 통일(요청) — 깨끗한 화이트 배경 + 공통 gradient-border
