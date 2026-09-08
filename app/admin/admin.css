@@ -3931,7 +3931,7 @@
   border: 0;
   border-radius: 14px;
   padding: 22px;
-  background: linear-gradient(145deg,#fffdfb,#fff6f0);
+  background: #fff6f0;
   box-shadow: none;
 }
 .pcrm-inline-project__next-action .pcrm-current-step-card__left { flex-basis: auto; }
