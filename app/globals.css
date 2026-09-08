@@ -459,13 +459,13 @@ select:focus {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: linear-gradient(135deg, #00615d, #004743);
+  background: #004743;
   color: #ffffff;
   box-shadow: 0 10px 20px rgba(21, 88, 85, .2);
 }
 
 .pc-menu-card.orange .pc-menu-icon {
-  background: linear-gradient(135deg, #f0642e, #e1501c);
+  background: #e1501c;
   box-shadow: 0 10px 20px rgba(232, 93, 44, .22);
 }
 
