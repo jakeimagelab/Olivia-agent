@@ -439,7 +439,7 @@ export default function InstaDesignPage() {
               {/* 생성 버튼 */}
               <button onClick={generateCaption} disabled={generating} style={{
                 width: "100%", height: 46, borderRadius: 10, border: "none",
-                background: generating ? "#E5E7EB" : `linear-gradient(135deg, ${C.orange}, #EB8F22)`,
+                background: generating ? "#E5E7EB" : C.orange,
                 color: generating ? "#9CA3AF" : "#fff",
                 fontSize: 14, fontWeight: 900, cursor: generating ? "not-allowed" : "pointer",
                 fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
