@@ -8597,6 +8597,7 @@ main, .pc-console, .pc-page, .pc-page-content {
 .memo-editor-heading p,
 .memo-ai-card p { margin: 5px 0 0; color: #607873; font-size: 11px; line-height: 1.6; }
 .memo-mode-label { color: var(--orange); font-size: 11px; font-weight: 600; letter-spacing: .08em; }
+.memo-editor-heading-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .memo-shortcut { color: #98aea9; font-size: 10px; white-space: nowrap; }
 .memo-title-input {
   width: 100%;
