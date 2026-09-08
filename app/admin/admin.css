@@ -711,7 +711,7 @@
 .oa-action-card__description { margin-top: 3px; font-size: 8.5px; }
 .oa-action-card__meta { margin-top: 4px; font-size: 7px; }
 
-.oa-recommendation { padding: 17px; background: linear-gradient(145deg,#155855 0%,#1d746c 100%); box-shadow: 0 0 0 3px rgba(21,88,85,.09), 0 18px 42px rgba(21,88,85,.2), inset 0 1px 0 rgba(255,255,255,.18); }
+.oa-recommendation { padding: 17px; background: #1d746c; box-shadow: 0 0 0 3px rgba(21,88,85,.09), 0 18px 42px rgba(21,88,85,.2), inset 0 1px 0 rgba(255,255,255,.18); }
 .oa-recommendation__header { margin-bottom: 12px; }
 .oa-recommendation__icon { width: 33px; height: 33px; border-radius: 11px; }
 .oa-recommendation__item { border-radius: 11px; padding: 8px; font-size: 8.5px; transition: transform 460ms var(--command-ease), background 460ms var(--command-ease); }
