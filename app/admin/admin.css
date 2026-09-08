@@ -2407,7 +2407,6 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow-floating);
-  background-image: radial-gradient(circle at 88% 22%, rgba(204,239,233,.18), transparent 32%);
   padding: 0 6px;
 }
 .olivia-conversation--home[data-message-count="0"] { height: 378px; }
