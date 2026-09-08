@@ -60,7 +60,7 @@ function DeliveryInner() {
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "28px 20px 60px" }}>
 
         {client && (
-          <div style={{ background: `linear-gradient(135deg, ${C.teal}, #0d3e3b)`, color: "#fff", borderRadius: 16, padding: "20px 24px", marginBottom: 24 }}>
+          <div style={{ background: C.teal, color: "#fff", borderRadius: 16, padding: "20px 24px", marginBottom: 24 }}>
             <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>Step 7 · 원본 데이터 전달</div>
             <div style={{ fontSize: 22, fontWeight: 900 }}>{client.name}</div>
             {client.email && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>전달 이메일: {client.email}</div>}
