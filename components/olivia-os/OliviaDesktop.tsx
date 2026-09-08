@@ -61,12 +61,29 @@ export default function OliviaDesktop() {
     document.body.style.cursor = "default";
     loadDesktopState(new Set(oliviaAppRegistry.map((app) => app.id)));
     try {
+      // localStorage를 먼저 읽어 화면을 바로 그린다(깜빡임 방지) — DB 조회가 끝나면 그 값으로
+      // 덮어써서 컴퓨터마다 배경이 다르던 문제를 없앤다(DB가 always-wins 소스).
       const savedWallpaper = window.localStorage.getItem(WALLPAPER_KEY);
       const savedCustomWallpaper = window.localStorage.getItem(CUSTOM_WALLPAPER_KEY) || undefined;
       setCustomWallpaper(savedCustomWallpaper);
       if (savedWallpaper === "custom" && savedCustomWallpaper) setWallpaper("custom");
       else if (savedWallpaper === "original" || savedWallpaper === "soft") setWallpaper(savedWallpaper);
     } catch { /* optional desktop preference */ }
+    fetch("/api/desktop-settings")
+      .then((response) => response.json())
+      .then((data) => {
+        if (!data.ok) return;
+        const { wallpaper_mode, custom_wallpaper_data_url } = data.settings;
+        if (custom_wallpaper_data_url) setCustomWallpaper(custom_wallpaper_data_url);
+        if (wallpaper_mode === "custom" ? custom_wallpaper_data_url : wallpaper_mode === "original" || wallpaper_mode === "soft") {
+          setWallpaper(wallpaper_mode);
+        }
+        try {
+          window.localStorage.setItem(WALLPAPER_KEY, wallpaper_mode);
+          if (custom_wallpaper_data_url) window.localStorage.setItem(CUSTOM_WALLPAPER_KEY, custom_wallpaper_data_url);
+        } catch { /* optional desktop preference */ }
+      })
+      .catch(() => { /* DB 미연결이어도 localStorage 값으로 계속 동작 */ });
     const ensureOliviaFrame = window.requestAnimationFrame(() => {
       const state = useOliviaDesktopStore.getState();
       if (state.windows["olivia-chat"]) return;
