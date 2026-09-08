@@ -9008,7 +9008,7 @@ main,
    그대로 둔다 — .olivia-os-chat-dock 조상 스코프로 한정). 전송 버튼(deep green 원형)은
    admin.css 기본값이 이미 이 요구사항과 일치해서 손대지 않는다. */
 .olivia-os-chat-dock .olivia-conversation {
-  background: linear-gradient(180deg, #FCFEFD 0%, #F5FAF8 100%);
+  background: #F5FAF8;
 }
 
 .olivia-os-chat-dock .olivia-composer {
