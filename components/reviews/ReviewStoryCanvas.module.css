@@ -56,7 +56,7 @@
   display: grid;
   place-items: center;
   color: #53716c;
-  background: linear-gradient(145deg, #dfece8, #cdded9);
+  background: #cdded9;
   font-weight: 700;
 }
 
