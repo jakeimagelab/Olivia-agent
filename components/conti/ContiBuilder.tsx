@@ -1874,7 +1874,7 @@ ${header("타임테이블")}
                                 </div>
                               ) : (
                                 <div style={{
-                                  background: "linear-gradient(135deg,#155855,#1e7870)",
+                                  background: "#1e7870",
                                   padding: "10px 12px",
                                   display: "flex", justifyContent: "space-between", alignItems: "center",
                                 }}>
