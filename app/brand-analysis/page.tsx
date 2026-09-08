@@ -493,7 +493,7 @@ export default function BrandAnalysisPage() {
       <div style={{ background: C.light, borderRadius: 99, height: 8, marginBottom: 12, overflow: "hidden" }}>
         <div style={{
           height: "100%", borderRadius: 99,
-          background: `linear-gradient(90deg, ${C.green}, ${C.sage})`,
+          background: C.green,
           width: `${progress}%`, transition: "width 2s ease",
         }} />
       </div>
