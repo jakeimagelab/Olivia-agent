@@ -870,8 +870,18 @@ function PhotoSortingInner({
   };
 
   const pickDir = async () => {
-    try { const h = await (window as any).showDirectoryPicker({ mode:"readwrite" }); setRootDir(h); }
-    catch (_) {}
+    setDirPickError("");
+    try {
+      const h = await (window as any).showDirectoryPicker({ mode:"readwrite" });
+      setRootDir(h);
+    } catch (err: any) {
+      if (err?.name === "AbortError") return; // 사용자가 선택 창에서 취소함 — 에러 아님
+      setDirPickError(
+        !hasFS
+          ? "이 브라우저는 폴더 선택을 지원하지 않습니다. Chrome 또는 Edge에서 https 주소로 접속해주세요."
+          : "폴더를 열지 못했습니다. 권한을 허용했는지, 주소가 https(또는 localhost)인지 확인 후 다시 시도해주세요."
+      );
+    }
   };
 
   // AI 사진 분류 2.0 — 폴더를 고르면 실제 정밀 분류(handleFieldSort, Vision 호출 포함)를 돌리기
