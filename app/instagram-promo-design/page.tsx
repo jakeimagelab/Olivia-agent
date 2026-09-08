@@ -511,7 +511,7 @@ export default function InstaDesignPage() {
             {/* 다운로드 */}
             <button onClick={download} style={{
               width: "100%", height: 46, borderRadius: 10, border: "none",
-              background: `linear-gradient(135deg, ${C.teal}, #1e7870)`,
+              background: C.teal,
               color: "#fff", fontSize: 14, fontWeight: 900, cursor: "pointer",
               fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               boxShadow: "0 4px 14px rgba(21,88,85,.25)",
