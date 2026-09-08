@@ -1072,9 +1072,7 @@ main:has(> .pc-header) {
   overflow: hidden;
   border: 1px solid rgba(21, 88, 85, 0.14);
   border-radius: 20px;
-  background:
-    radial-gradient(140% 100% at 100% 0%, rgba(21,88,85,.06) 0%, transparent 55%),
-    #ffffff;
+  background: #ffffff;
   color: inherit;
   padding: 20px;
   text-decoration: none;
