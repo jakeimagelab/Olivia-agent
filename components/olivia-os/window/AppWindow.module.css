@@ -35,7 +35,7 @@
   height: 38px;
   padding: 0 12px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, rgba(249, 249, 247, .98), rgba(243, 243, 240, .96));
+  background: rgba(246, 246, 243, .97);
   border-bottom: .5px solid rgba(35, 47, 44, .12);
   cursor: grab;
   user-select: none;
