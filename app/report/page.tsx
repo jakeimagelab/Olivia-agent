@@ -93,7 +93,7 @@ export default function ReportPage() {
             {/* 지표 6개: 총계 포함 한 줄 그리드 */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: 6, marginBottom: 13 }}>
               <div style={{
-                background: "linear-gradient(135deg, #155855, #1e7870)",
+                background: "#1e7870",
                 borderRadius: 8, padding: "10px 11px",
                 boxShadow: "0 4px 12px rgba(21,88,85,.18)",
               }}>
