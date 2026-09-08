@@ -2289,11 +2289,10 @@
 /* 워크스페이스 스켈레톤(Phase 4) — 실제 데이터 도착 전 자리채움 */
 .olivia-workspace-skeleton__pulse {
   display: block;
-  background: linear-gradient(90deg, rgba(21,88,85,.06) 25%, rgba(21,88,85,.12) 37%, rgba(21,88,85,.06) 63%);
-  background-size: 400% 100%;
+  background: rgba(21,88,85,.09);
   animation: olivia-skeleton-pulse 1.6s ease-in-out infinite;
 }
-@keyframes olivia-skeleton-pulse { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+@keyframes olivia-skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
 
 /* MissionStatusBar — UI/UX 통일 개편(2026-08-18) 공유 컴포넌트. Home/고객관리/캘린더/견적/콘티 공용.
    V2(2026-08-18) — 시안 18절의 grid-template-columns 6칸을 그대로 구현(래퍼 없이 직계 자식 6개:
