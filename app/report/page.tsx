@@ -132,7 +132,7 @@ export default function ReportPage() {
                         <div style={{
                           width: "100%", borderRadius: "4px 4px 0 0",
                           height: `${h}%`, minHeight: d.count > 0 ? 8 : 2,
-                          background: d.count > 0 ? "linear-gradient(180deg,#E85D2C,#EB8F22)" : "#E5E7EB",
+                          background: d.count > 0 ? "#E85D2C" : "#E5E7EB",
                           transition: "height .3s ease",
                         }} />
                         <div style={{ fontSize: 10, color: "#9CA3AF" }}>{dayLabel}</div>
