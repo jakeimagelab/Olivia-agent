@@ -280,7 +280,7 @@
   background: #123f3d;
   box-shadow: 0 28px 72px rgba(18,63,61,.19), inset 0 1px rgba(255,255,255,.08);
 }
-.previewHead { padding: 28px 28px 22px; background: linear-gradient(150deg, rgba(255,255,255,.055), transparent 54%); }
+.previewHead { padding: 28px 28px 22px; }
 .previewTitle { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
 .previewTitle h3 { margin: 7px 0 0; font-size: 20px; letter-spacing: -.04em; }
 .liveBadge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 9px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.7); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
