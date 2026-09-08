@@ -6433,7 +6433,7 @@ main:has(> .pc-header) {
   gap: 14px;
   border: 1px solid rgba(21, 88, 85, 0.14);
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(244, 251, 249, 0.92));
+  background: rgba(244, 251, 249, 0.92);
   padding: 18px;
 }
 
