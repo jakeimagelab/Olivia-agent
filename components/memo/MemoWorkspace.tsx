@@ -267,7 +267,10 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
                   <span className="memo-mode-label">메모</span>
                   <p>텍스트, 펜 필기, 음성 녹음을 구분 없이 한 캔버스에 같이 남길 수 있습니다.</p>
                 </div>
-                <span className="memo-shortcut">⌘S 저장</span>
+                <div className="memo-editor-heading-actions">
+                  <span className="memo-shortcut">⌘S</span>
+                  <button className="pc-btn pc-btn--primary pc-btn--sm" onClick={() => void save().catch(() => undefined)} disabled={saving}>{saving ? "저장 중…" : "저장"}</button>
+                </div>
               </div>
               <input className="memo-title-input" value={title} onChange={event => setTitle(event.target.value)} placeholder="메모 제목" />
 
@@ -281,7 +284,6 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
                 <label>열 <input aria-label="콘티 열" type="number" min={1} max={4} value={contiColumns} onChange={event => resizeConti(Math.min(4, Math.max(1, Number(event.target.value))), contiRows)} /></label>
                 <label>행 <input aria-label="콘티 행" type="number" min={1} max={6} value={contiRows} onChange={event => resizeConti(contiColumns, Math.min(6, Math.max(1, Number(event.target.value))))} /></label>
               </div> : null}
-              <div className="memo-canvas-heading"><strong>{activeTemplate?.label}</strong><span>텍스트·펜·음성을 같은 캔버스 위에서 도구만 바꿔가며 남기세요.</span></div>
               <NoteCanvasPanel
                 key={`${currentId ?? "new"}-${templateType}`}
                 ref={canvasRef}
