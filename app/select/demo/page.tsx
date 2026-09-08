@@ -197,7 +197,7 @@ function WebViewer({ onDone }: { onDone: (count: number) => void }) {
               <div style={{ position: "absolute", top: 4, right: 4 }}>
                 <span style={{ fontSize: 8, background: "rgba(0,0,0,.55)", color: "rgba(255,255,255,.7)", borderRadius: 3, padding: "2px 4px" }}>{img.scene_name}</span>
               </div>
-              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(0,0,0,.7))", padding: "12px 5px 3px", fontSize: 9, color: "rgba(255,255,255,.65)", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,.45)", padding: "12px 5px 3px", fontSize: 9, color: "rgba(255,255,255,.65)", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {img.original_file_name}
               </div>
             </div>
