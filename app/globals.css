@@ -8149,26 +8149,6 @@ button .pc-ripple {
   box-shadow: 0 10px 32px rgba(21,88,85,0.13) !important;
 }
 
-/* 헤더 액션 버튼 shine */
-.pc-header button,
-.pc-header-actions button {
-  position: relative;
-  overflow: hidden;
-}
-.pc-header button::after,
-.pc-header-actions button::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.22) 50%, transparent 60%);
-  transform: translateX(-100%);
-  transition: transform 400ms ease;
-}
-.pc-header button:hover::after,
-.pc-header-actions button:hover::after {
-  transform: translateX(100%);
-}
-
 /* 입력 포커스 glow */
 input:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(21,88,85,0.15), 0 2px 8px rgba(21,88,85,0.08) !important;
