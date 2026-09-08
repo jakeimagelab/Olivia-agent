@@ -803,7 +803,8 @@
 .oa-pixel-person__temple { right: 1px; top: 5px; width: 3px; height: 12px; background: rgba(88,48,34,.08); }
 .oa-pixel-person__cheek { top: 17px; width: 4px; height: 3px; background: rgba(186,82,69,.18); }
 .oa-pixel-person__cheek--left { left: 3px; }.oa-pixel-person__cheek--right { right: 3px; }
-.oa-pixel-person__glasses { left: 2px; top: 8px; width: 21px; height: 8px; border: 2px solid #273638; border-radius: 3px; background: linear-gradient(90deg,transparent 43%,#273638 43% 57%,transparent 57%); }
+.oa-pixel-person__glasses { left: 2px; top: 8px; width: 21px; height: 8px; border: 2px solid #273638; border-radius: 3px; }
+.oa-pixel-person__glasses::after { content: ""; position: absolute; left: 43%; right: 43%; top: 0; bottom: 0; background: #273638; }
 .oa-pixel-person__nose { left: 11px; top: 14px; width: 4px; height: 6px; border-left: 2px solid rgba(80,42,30,.28); border-bottom: 2px solid rgba(80,42,30,.2); }
 .oa-pixel-person__mouth { left: 9px; top: 23px; width: 8px; height: 2px; background: #9b554e; }
 .oa-pixel-person__moustache { left: 7px; top: 20px; width: 12px; height: 4px; background: var(--portrait-hair); clip-path: polygon(0 20%,45% 0,50% 55%,55% 0,100% 20%,80% 100%,50% 65%,20% 100%); z-index: 2; }
