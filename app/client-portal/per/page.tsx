@@ -66,7 +66,7 @@ export default function PortalPerPage() {
 
       <div style={{ maxWidth:780, margin:"0 auto", padding:"24px 16px 80px" }}>
         {/* 헤더 */}
-        <PortalCard style={{ marginBottom:14, background:`linear-gradient(135deg, ${G}, #22876A)`, color:"#fff", border:"none" }}>
+        <PortalCard style={{ marginBottom:14, background:G, color:"#fff", border:"none" }}>
           <div style={{ fontSize:11, opacity:.75, fontWeight:700, letterSpacing:.5, marginBottom:4 }}>PER · Photoclinic ESG Reward</div>
           <div style={{ fontSize:13, opacity:.8, marginBottom:12 }}>포토클리닉 이에스지 리워드</div>
           <div style={{ display:"flex", alignItems:"flex-end", gap:8, marginBottom:8 }}>
