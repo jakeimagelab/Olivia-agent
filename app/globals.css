@@ -6158,7 +6158,7 @@ main:has(> .pc-header) {
   align-items: start;
   border: 1px solid rgba(232, 93, 44, 0.24);
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(232, 93, 44, 0.08), rgba(255, 255, 255, 0.9));
+  background: rgba(255, 255, 255, 0.9);
   padding: 18px;
 }
 
