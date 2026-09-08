@@ -2392,7 +2392,7 @@
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.84);
   border-radius: 28px;
-  background: linear-gradient(155deg, rgba(255,255,255,.86), rgba(247,251,250,.72));
+  background: rgba(247,251,250,.79);
   box-shadow: 0 20px 55px rgba(21,88,85,.075), inset 0 1px 0 rgba(255,255,255,.92);
 }
 .olivia-conversation--workspace { border-radius: 22px; }
