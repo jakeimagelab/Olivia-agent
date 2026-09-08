@@ -2742,7 +2742,7 @@
   .home-simple-dashboard .pc-mini-calendar-wrap { padding: 0 0 14px; border-right: 0; border-bottom: 1px solid rgba(21,88,85,.07); }
 }
 .olivia-message.is-user { align-self: flex-end; flex-direction: row-reverse; }
-.olivia-message__avatar { width: 22px; height: 22px; flex: 0 0 22px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg,#f58961,var(--olivia-orange)); color: #fff; }
+.olivia-message__avatar { width: 22px; height: 22px; flex: 0 0 22px; display: grid; place-items: center; border-radius: 50%; background: var(--olivia-orange); color: #fff; }
 .olivia-message__body { min-width: 20px; padding: 9px 12px; border-radius: 15px 15px 15px 5px; background: rgba(255,255,255,.9); color: #243a36; box-shadow: 0 5px 18px rgba(21,88,85,.05); font-size: 11px; line-height: 1.6; }
 .olivia-message.is-user .olivia-message__body { border-radius: 15px 15px 5px 15px; background: var(--olivia-green); color: #fff; box-shadow: 0 7px 20px rgba(21,88,85,.16); }
 .olivia-message__body p { margin: 0; }
