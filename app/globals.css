@@ -7513,12 +7513,12 @@ main:has(> .pc-header) {
 }
 
 .pc-btn--stats {
-  background: linear-gradient(135deg, rgba(21,88,85,.1), rgba(232,93,44,.1));
+  background: rgba(21,88,85,.1);
   color: var(--deep-green);
   border: 1px solid rgba(21,88,85,.16);
 }
 .pc-btn--stats:hover {
-  background: linear-gradient(135deg, rgba(21,88,85,.16), rgba(232,93,44,.16));
+  background: rgba(21,88,85,.16);
   border-color: rgba(21,88,85,.3);
   color: var(--deep-green);
 }
