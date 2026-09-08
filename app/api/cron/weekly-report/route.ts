@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
     <div style="font-size:22px;font-weight:900;color:#fff;">주간 업무 리포트</div>
     <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:6px;">${weekStr}</div>
   </div>
-  <div style="height:4px;background:linear-gradient(90deg,#E85D2C,#EB8F22);"></div>
+  <div style="height:4px;background:#E85D2C;"></div>
 
   <div style="background:#fff;padding:28px 32px;">
     <div style="font-size:12px;font-weight:800;color:#155855;margin-bottom:16px;text-transform:uppercase;letter-spacing:.1em;">📊 이번 주 활동</div>
