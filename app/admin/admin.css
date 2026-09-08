@@ -3048,10 +3048,7 @@
   gap: 14px;
   padding: 0;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 34% 39%, rgba(223,247,241,.3), transparent 30%),
-    radial-gradient(circle at 68% 62%, rgba(255,238,229,.18), transparent 28%),
-    #fcfdfc;
+  background: #fcfdfc;
 }
 .olivia-agent-home__row { flex: 1 1 0; min-height: 0; display: flex; gap: 22px; padding: 28px 30px; overflow: hidden; }
 /* 예전엔 justify-content:center로 콘텐츠 전체를 세로 가운데 정렬했는데, 뷰포트가 콘텐츠보다
