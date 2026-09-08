@@ -92,7 +92,7 @@ export default function SecurityPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 12,
-            background: `linear-gradient(135deg, ${C.teal}, #1a8070)`,
+            background: C.teal,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}>
             <ShieldCheck size={20} color="#fff" />
