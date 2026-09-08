@@ -113,7 +113,7 @@ function ShootingInner() {
 
         {/* 클라이언트 헤더 */}
         {client ? (
-          <div style={{ background: `linear-gradient(135deg, ${C.teal}, #0d3e3b)`, color: "#fff", borderRadius: 16, padding: "20px 24px", marginBottom: 24 }}>
+          <div style={{ background: C.teal, color: "#fff", borderRadius: 16, padding: "20px 24px", marginBottom: 24 }}>
             <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>Step 5 · 촬영 진행 중</div>
             <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>{client.name}</div>
             <div style={{ fontSize: 12, opacity: 0.8, display: "flex", gap: 14 }}>
