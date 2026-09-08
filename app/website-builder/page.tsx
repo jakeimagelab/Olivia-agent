@@ -601,7 +601,7 @@ function DesignPicker({ intake, designPrefs, onPrefsChange, onGenerate, isGenera
 
       {/* AI Generate */}
       <div style={{
-        background: "linear-gradient(135deg, #155855 0%, #1C3F3C 100%)",
+        background: "#1C3F3C",
         borderRadius: 16, padding: "22px 28px", marginBottom: 28,
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20
       }}>
@@ -1209,7 +1209,7 @@ function CompletionView({ intake, content, customTheme, selectedTemplateId, onNe
 
       {/* 완료 카드 */}
       <div style={{
-        background: "linear-gradient(135deg, #155855 0%, #1C3F3C 100%)",
+        background: "#1C3F3C",
         borderRadius: 16, padding: "32px 36px", color: "#fff", marginBottom: 24
       }}>
         <CheckCircle2 size={40} color="#4ade80" style={{ marginBottom: 16 }} />
