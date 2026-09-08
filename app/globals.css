@@ -1512,7 +1512,7 @@ main:has(> .pc-header) {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, transparent, rgba(21, 88, 85, 0.88));
+  background: rgba(21, 88, 85, 0.55);
 }
 
 .design-preview-card div {
