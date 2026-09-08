@@ -49,7 +49,7 @@ export default function ContiV2App({ clientId, workflowRunId, resourceId, onClos
               onChange={setView}
               items={[
                 { value: "table", label: "결과 표" },
-                { value: "field", label: "현장뷰" },
+                { value: "field", label: "현장 모드" },
               ]}
             />
           </div>

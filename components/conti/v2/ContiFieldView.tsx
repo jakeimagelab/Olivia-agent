@@ -116,10 +116,11 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button type="button" onClick={onBack} style={ghostButtonStyle}><ArrowLeft size={13} /> 뒤로</button>
+          <button type="button" onClick={onBack} style={ghostButtonStyle}><ArrowLeft aria-hidden="true" size={13} /> 결과표로</button>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: "#5A7470" }}>카드 크기</span>
             <input
+              aria-label="현장 카드 크기"
               type="range" min={1} max={4} value={cardCols}
               onChange={(e) => setCardCols(Number(e.target.value))}
               style={{ width: 110 }}
@@ -127,7 +128,7 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
           </div>
         </div>
         <span style={{ fontSize: 12.5, fontWeight: 800, color: "#155855" }}>
-          {completedCount} / {ordered.length} 완료 · 남은 시간 약 {Math.floor(remainingMinutes / 60)}시간 {remainingMinutes % 60}분
+          {completedCount} / {ordered.length} 완료 · 남은 시간 약 {formatMinutes(remainingMinutes)}
         </span>
       </div>
 
@@ -135,7 +136,7 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
 
       {currentScene ? <div className={styles.fieldHeroGrid}>
         <div className={styles.fieldCurrentShell}><section className={styles.fieldCurrentPanel}>
-          <span className={styles.fieldCurrentLabel}>Now Shooting · {currentIndex + 1}/{ordered.length}</span>
+          <span className={styles.fieldCurrentLabel}>현재 촬영 · {currentIndex + 1}/{ordered.length}</span>
           <h2>{currentScene.name}</h2>
           <div className={styles.fieldMetaGrid}>
             <div><small>장소</small><strong>{currentScene.space_text || "장소 미정"}</strong></div>
@@ -143,7 +144,7 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
             <div><small>필요 인원</small><strong>{currentScene.people_text || "필요 인원 미정"}</strong></div>
           </div>
         </section></div>
-        <div className={styles.fieldNextShell}><aside className={styles.fieldNextPanel}><span>UP NEXT</span><h3>{nextScene?.name ?? "마지막 장면입니다"}</h3>{nextScene ? <p>{nextScene.space_text || "장소 미정"} · {nextScene.minutes != null ? `${nextScene.minutes}분` : "시간 미정"}</p> : <p>모든 촬영을 마무리해 주세요.</p>}</aside></div>
+        <div className={styles.fieldNextShell}><aside className={styles.fieldNextPanel}><span>다음 장면</span><h3>{nextScene?.name ?? "마지막 장면입니다"}</h3>{nextScene ? <p>{nextScene.space_text || "장소 미정"} · {nextScene.minutes != null ? `${nextScene.minutes}분` : "시간 미정"}</p> : <p>모든 촬영을 마무리해 주세요.</p>}</aside></div>
       </div> : null}
 
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${cardCols}, minmax(0, 1fr))`, gap: 14 }}>
@@ -208,7 +209,7 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
                     background: "#155855", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer",
                   }}
                 >
-                  <CheckCircle2 size={13} /> 촬영 완료 · 다음
+                  <CheckCircle2 aria-hidden="true" size={13} /> 촬영 완료하고 다음으로
                 </button>
               ) : null}
             </div>
@@ -220,3 +221,10 @@ export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
 }
 
 const ghostButtonStyle: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 5, height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(21,88,85,.16)", background: "#fff", color: "#155855", fontSize: 12, fontWeight: 700, cursor: "pointer" };
+
+function formatMinutes(minutes: number) {
+  if (minutes < 60) return `${minutes}분`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}시간 ${rest}분` : `${hours}시간`;
+}

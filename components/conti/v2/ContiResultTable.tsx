@@ -49,9 +49,9 @@ const GROUP_COLORS = ["#155855", "#E85D2C", "#3B6FB4", "#8A5EC2", "#B4823B", "#4
 const PLACEHOLDERS: Record<EditableKey, string> = {
   name: "장면 이름",
   space_text: "장소 미정",
-  minutes: "-",
+  minutes: "시간",
   keyword: "키워드 없음",
-  description: "AI가 채우지 못했어요",
+  description: "장면 설명을 입력해 주세요",
   people_text: "필요 인원 미정",
   patient_role_text: "환자 역할",
   preparation_text: "준비사항",
@@ -199,6 +199,7 @@ export default function ContiResultTable({ runId, onBack, onOpenField }: ContiRe
   }
 
   async function deleteScene(sceneId: string) {
+    if (!window.confirm("이 장면을 삭제할까요?")) return;
     const snapshot = scenes;
     setScenes((prev) => prev.filter((scene) => scene.id !== sceneId).map((scene, index) => ({ ...scene, sort: index })));
     const res = await fetch(`/api/conti/scenes/${sceneId}`, { method: "DELETE" }).catch(() => null);
@@ -237,21 +238,21 @@ export default function ContiResultTable({ runId, onBack, onOpenField }: ContiRe
     <div className={styles.resultShell}>
       <div className={styles.resultPanel}>
       <div className={styles.resultSummary}>
-        <div className={styles.resultSummaryCopy}><span>AI SHOOTING PLAN</span><h2>촬영 콘티가 준비됐어요.</h2></div>
+        <div className={styles.resultSummaryCopy}><span>AI 촬영 콘티</span><h2>촬영 콘티가 준비되었습니다.</h2></div>
         <div className={styles.resultMetrics}>
-          <div className={styles.resultMetric}><small>전체 장면</small><strong>{orderedScenes.length} SCENES</strong></div>
-          <div className={styles.resultMetric}><small>예상 촬영</small><strong>{Math.floor(totalMinutes / 60)}H {totalMinutes % 60}M</strong></div>
+          <div className={styles.resultMetric}><small>전체 장면</small><strong>{orderedScenes.length}개</strong></div>
+          <div className={styles.resultMetric}><small>예상 촬영 시간</small><strong>{formatMinutes(totalMinutes)}</strong></div>
         </div>
       </div>
       {/* 상단 바 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 18px", borderBottom: "1px solid rgba(21,88,85,.1)", background: "#fff", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button type="button" onClick={onBack} style={ghostButtonStyle}><ArrowLeft size={13} /> 다시 생성</button>
+          <button type="button" onClick={onBack} style={ghostButtonStyle}><ArrowLeft aria-hidden="true" size={13} /> 입력 다시하기</button>
           {blankCells.length > 0 ? (
             <>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#B64B2A" }}>채워야 할 칸 {blankCells.length}개</span>
               <button type="button" onClick={focusNextBlank} style={ghostButtonStyle}>
-                다음 빈칸으로 <ArrowRight size={13} />
+                다음 빈칸으로 <ArrowRight aria-hidden="true" size={13} />
               </button>
             </>
           ) : (
@@ -259,11 +260,11 @@ export default function ContiResultTable({ runId, onBack, onOpenField }: ContiRe
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {onOpenField ? <button type="button" onClick={onOpenField} style={ghostButtonStyle}>현장뷰</button> : null}
-          <button type="button" onClick={() => window.print()} style={ghostButtonStyle}><Download size={13} /> 다운로드</button>
+          {onOpenField ? <button type="button" onClick={onOpenField} style={ghostButtonStyle}>현장 모드</button> : null}
+          <button type="button" onClick={() => window.print()} style={ghostButtonStyle}><Download aria-hidden="true" size={13} /> PDF 저장</button>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#5A7470", cursor: "pointer" }}>
             <input type="checkbox" checked={showSources} onChange={(e) => setShowSources(e.target.checked)} />
-            출처 보기
+            작성 출처 표시
           </label>
         </div>
       </div>
@@ -276,14 +277,14 @@ export default function ContiResultTable({ runId, onBack, onOpenField }: ContiRe
               <th style={thStyle}></th>
               <th style={thStyle}></th>
               <th style={thStyle}>#</th>
-              <th style={thStyle}>그룹</th>
+              <th style={thStyle}>구분</th>
               <th style={{ ...thStyle, minWidth: 140 }}>장면</th>
               <th style={{ ...thStyle, minWidth: 110 }}>장소</th>
               <th style={{ ...thStyle, width: 60 }}>시간</th>
               <th style={{ ...thStyle, minWidth: 110 }}>키워드</th>
-              <th style={{ ...thStyle, minWidth: 220 }}>설명·시술</th>
+              <th style={{ ...thStyle, minWidth: 220 }}>장면 설명·세부 항목</th>
               <th style={{ ...thStyle, minWidth: 110 }}>필요인원</th>
-              <th style={{ ...thStyle, minWidth: 100 }}>환자역할</th>
+              <th style={{ ...thStyle, minWidth: 100 }}>환자 역할</th>
               <th style={{ ...thStyle, minWidth: 150 }}>준비사항</th>
               <th style={{ ...thStyle, minWidth: 100 }}>비고</th>
             </tr>
@@ -347,12 +348,11 @@ export default function ContiResultTable({ runId, onBack, onOpenField }: ContiRe
       {/* 하단 바 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 18px", borderTop: "1px solid rgba(21,88,85,.1)", background: "#fff", flexWrap: "wrap" }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: "#5A7470" }}>
-          총 {orderedScenes.length}장면 · {Math.floor(totalMinutes / 60)}시간 {totalMinutes % 60}분
+          총 {orderedScenes.length}장면 · {formatMinutes(totalMinutes)}
         </span>
         <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" onClick={addScene} style={ghostButtonStyle}><Plus size={13} /> 장면 추가</button>
-          <button type="button" disabled title="고객관리 공간 관리 화면은 아직 없습니다" style={{ ...ghostButtonStyle, opacity: .5, cursor: "not-allowed" }}>공간 정보 등록</button>
-          {shareStatus ? <span style={{ fontSize: 11.5, color: "#5A7470", fontWeight: 700 }}>{shareStatus}</span> : null}
+          <button type="button" onClick={addScene} style={ghostButtonStyle}><Plus aria-hidden="true" size={13} /> 장면 추가</button>
+          {shareStatus ? <span role="status" aria-live="polite" style={{ fontSize: 11.5, color: "#5A7470", fontWeight: 700 }}>{shareStatus}</span> : null}
           <div style={{ position: "relative" }}>
             <button
               type="button"
@@ -365,7 +365,7 @@ export default function ContiResultTable({ runId, onBack, onOpenField }: ContiRe
                 color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: canShare ? "pointer" : "not-allowed",
               }}
             >
-              <Share2 size={13} /> 공유·PDF
+              <Share2 aria-hidden="true" size={13} /> 공유하기
             </button>
             {shareMenuOpen ? (
               <div style={{ position: "absolute", bottom: "100%", right: 0, marginBottom: 6, background: "#fff", border: "1px solid rgba(21,88,85,.14)", borderRadius: 10, boxShadow: "0 12px 30px rgba(21,88,85,.14)", overflow: "hidden", minWidth: 160, zIndex: 20 }}>
@@ -435,3 +435,10 @@ const textareaStyle: React.CSSProperties = { width: "100%", border: 0, backgroun
 const tagStyle: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#EFEBE3", color: "#6b6355" };
 const ghostButtonStyle: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 5, height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(21,88,85,.16)", background: "#fff", color: "#155855", fontSize: 12, fontWeight: 700, cursor: "pointer" };
 const shareMenuItemStyle: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, background: "#fff", color: "#155855", fontSize: 12.5, fontWeight: 700, cursor: "pointer", textAlign: "left" };
+
+function formatMinutes(minutes: number) {
+  if (minutes < 60) return `${minutes}분`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}시간 ${rest}분` : `${hours}시간`;
+}

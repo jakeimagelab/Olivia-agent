@@ -103,18 +103,18 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
         <main className={styles.formPanel}>
           <header className={styles.formHero}>
             <div>
-              <span className={styles.eyebrow}>AI Shooting Plan</span>
-              <h2>촬영할 장면만<br />가볍게 골라주세요.</h2>
-              <p>진료과와 인원, 촬영 항목을 선택하면 현장에서 바로 쓸 수 있는 순서로 정리합니다.</p>
+              <span className={styles.eyebrow}>AI 콘티 자동 생성</span>
+              <h2>필요한 촬영 장면만<br />선택해 주세요.</h2>
+              <p>진료과와 참여 인원, 촬영 항목을 고르면 현장에서 바로 사용할 수 있는 순서로 자동 구성합니다.</p>
             </div>
-            <div className={styles.heroMark}><Camera size={27} strokeWidth={1.5} /></div>
+            <div className={styles.heroMark}><Camera aria-hidden="true" size={27} strokeWidth={1.5} /></div>
           </header>
 
           <div className={styles.formBody}>
-            <Field step="01" label="병원" optional><select value={hospitalId} onChange={(event) => setHospitalId(event.target.value)} className={styles.control}><option value="">병원 선택 안 함</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></Field>
-            <Field step="02" label="진료과"><select value={specialty} onChange={(event) => selectDepartment(event.target.value)} className={styles.control}><option value="">진료과 선택</option>{CONTI_DEPARTMENT_LIST.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
+            <Field step="01" label="병원" optional><select aria-label="병원 선택" name="conti-hospital" value={hospitalId} onChange={(event) => setHospitalId(event.target.value)} className={styles.control}><option value="">병원 연결 없이 만들기</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></Field>
+            <Field step="02" label="진료과"><select aria-label="진료과 선택" name="conti-specialty" value={specialty} onChange={(event) => selectDepartment(event.target.value)} className={styles.control}><option value="">진료과를 선택해 주세요</option>{CONTI_DEPARTMENT_LIST.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
             <Field step="03" label="의료진 수"><div className={styles.stepper}><button type="button" aria-label="의료진 수 줄이기" onClick={() => setDoctorCount((value) => Math.max(1, value - 1))}>−</button><strong>{doctorCount}명</strong><button type="button" aria-label="의료진 수 늘리기" onClick={() => setDoctorCount((value) => Math.min(10, value + 1))}>+</button></div></Field>
-            <Field step="04" label="직원 촬영"><div className={styles.choiceRow}><Choice label="실장" checked={staffFlags.siljang} onChange={() => setStaffFlags((value) => ({ ...value, siljang: !value.siljang }))} /><Choice label="직원" checked={staffFlags.jikwon} onChange={() => setStaffFlags((value) => ({ ...value, jikwon: !value.jikwon }))} /><Choice label="기타" checked={staffFlags.other} onChange={() => setStaffFlags((value) => ({ ...value, other: !value.other }))} /></div>{staffFlags.other ? <input value={otherStaffRole} onChange={(event) => setOtherStaffRole(event.target.value)} placeholder="촬영할 역할을 입력하세요" className={styles.control} /> : null}</Field>
+            <Field step="04" label="직원 촬영"><div className={styles.choiceRow}><Choice label="실장" checked={staffFlags.siljang} onChange={() => setStaffFlags((value) => ({ ...value, siljang: !value.siljang }))} /><Choice label="직원" checked={staffFlags.jikwon} onChange={() => setStaffFlags((value) => ({ ...value, jikwon: !value.jikwon }))} /><Choice label="기타" checked={staffFlags.other} onChange={() => setStaffFlags((value) => ({ ...value, other: !value.other }))} /></div>{staffFlags.other ? <input aria-label="기타 직원 역할" name="conti-other-staff-role" autoComplete="off" value={otherStaffRole} onChange={(event) => setOtherStaffRole(event.target.value)} placeholder="촬영할 역할을 입력해 주세요…" className={styles.control} /> : null}</Field>
             <Field step="05" label="하모니컷"><div className={styles.choiceRow}><Choice label="로비 하모니컷 촬영" checked={harmony} onChange={() => setHarmony((value) => !value)} /></div></Field>
 
             <Field step="06" label="촬영항목">
@@ -123,11 +123,20 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
                 return <div key={category.id} className={`${styles.category} ${selected ? styles.categorySelected : ""}`}>
                   <div className={styles.categoryHeader}>
                     <input id={`category-${category.id}`} className={styles.categoryToggle} type="checkbox" checked={selected} onChange={() => toggleCategory(category.id)} />
-                    <label className={styles.categoryCheck} htmlFor={`category-${category.id}`}><Check size={13} strokeWidth={2.2} /></label>
-                    <button type="button" className={styles.categoryButton} onClick={() => setOpenGroups((previous) => { const next = new Set(previous); if (open) next.delete(category.id); else next.add(category.id); return next; })}>
+                    <label className={styles.categoryCheck} htmlFor={`category-${category.id}`}><Check aria-hidden="true" size={13} strokeWidth={2.2} /></label>
+                    <button
+                      type="button"
+                      className={styles.categoryButton}
+                      aria-expanded={category.details.length ? open : undefined}
+                      aria-label={category.details.length ? `${category.label} 세부 항목 ${open ? "접기" : "펼치기"}` : `${category.label} 선택`}
+                      onClick={() => {
+                        if (!category.details.length) { toggleCategory(category.id); return; }
+                        setOpenGroups((previous) => { const next = new Set(previous); if (open) next.delete(category.id); else next.add(category.id); return next; });
+                      }}
+                    >
                       <span>{category.label}</span>
-                      <span className={styles.categoryMeta}>{category.details.length ? `${category.details.length}개 세부항목` : "장면 선택"}</span>
-                      {category.details.length ? <ChevronDown size={14} strokeWidth={1.6} style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform 420ms cubic-bezier(.32,.72,0,1)" }} /> : null}
+                      <span className={styles.categoryMeta}>{category.details.length ? `세부 항목 ${category.details.length}개` : "선택 가능"}</span>
+                      {category.details.length ? <ChevronDown aria-hidden="true" size={14} strokeWidth={1.6} style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform 420ms cubic-bezier(.32,.72,0,1)" }} /> : null}
                     </button>
                   </div>
                   {open && category.details.length > 0 ? <div className={styles.categoryDetails}>{category.details.map((detail) => <Choice detail key={detail} label={detail} checked={(checked[category.id] ?? []).includes(detail)} onChange={() => toggleDetail(category.id, detail)} />)}</div> : null}
@@ -136,15 +145,15 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
             </Field>
 
             <Field step="07" label="기타 항목" optional>
-              <div className={styles.extraRow}><input value={extraDraft} onChange={(event) => setExtraDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addExtraItem(); } }} placeholder="예: 장비 단독컷, 건물 외관" className={styles.control} /><button type="button" onClick={addExtraItem} className={styles.smallButton}><Plus size={13} strokeWidth={1.8} /> 추가</button></div>
-              {extraItems.length ? <div className={styles.extraTags}>{extraItems.map((item) => <span key={item} className={styles.extraTag}>{item}<button type="button" onClick={() => setExtraItems((values) => values.filter((value) => value !== item))} aria-label={`${item} 삭제`}><Trash2 size={10} strokeWidth={1.8} /></button></span>)}</div> : null}
+              <div className={styles.extraRow}><input aria-label="기타 촬영 항목" name="conti-extra-item" autoComplete="off" value={extraDraft} onChange={(event) => setExtraDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addExtraItem(); } }} placeholder="예: 장비 단독컷, 건물 외관…" className={styles.control} /><button type="button" onClick={addExtraItem} className={styles.smallButton}><Plus aria-hidden="true" size={13} strokeWidth={1.8} />항목 추가</button></div>
+              {extraItems.length ? <div className={styles.extraTags}>{extraItems.map((item) => <span key={item} className={styles.extraTag}>{item}<button type="button" onClick={() => setExtraItems((values) => values.filter((value) => value !== item))} aria-label={`${item} 삭제`}><Trash2 aria-hidden="true" size={10} strokeWidth={1.8} /></button></span>)}</div> : null}
             </Field>
           </div>
 
-          {error ? <p className={styles.error}>{error}</p> : null}
+          {error ? <p className={styles.error} role="alert">{error}</p> : null}
           <footer className={styles.formFooter}>
-            <span className={styles.selectionSummary}>대분류 {selectedCategories}개 · 세부 시술 {selectedDetails}개 선택</span>
-            <button type="button" disabled={!canGenerate} onClick={handleGenerate} className={styles.primaryButton}>{submitting ? "생성 중…" : "AI 콘티 생성"}<span className={styles.primaryIcon}><Sparkles size={15} strokeWidth={1.7} /></span></button>
+            <span className={styles.selectionSummary}>대분류 {selectedCategories}개 · 세부 항목 {selectedDetails}개 선택</span>
+            <button type="button" disabled={!canGenerate} onClick={handleGenerate} className={styles.primaryButton}>{submitting ? "콘티 생성 중…" : "콘티 자동 생성"}<span className={styles.primaryIcon}><Sparkles aria-hidden="true" size={15} strokeWidth={1.7} /></span></button>
           </footer>
         </main>
       </div>
@@ -152,15 +161,15 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
       <div className={styles.previewShell}>
         <aside className={styles.previewPanel}>
           <div className={styles.previewHead}>
-            <div className={styles.previewTitle}><div><span className={styles.eyebrow}>Live Preview</span><h3>예상 촬영 플랜</h3></div><span className={styles.liveBadge}>AUTO</span></div>
-            <div className={styles.previewStats}><div><strong>{draft?.scenes.length ?? 0}</strong><span>SCENES</span></div><div><strong>{totalMinutes}</strong><span>MINUTES</span></div></div>
+            <div className={styles.previewTitle}><div><span className={styles.eyebrow}>실시간 미리보기</span><h3>예상 촬영 순서</h3></div><span className={styles.liveBadge}>자동 구성</span></div>
+            <div className={styles.previewStats}><div><strong>{draft?.scenes.length ?? 0}</strong><span>장면</span></div><div><strong>{totalMinutes}</strong><span>예상 시간(분)</span></div></div>
           </div>
-          {draft?.scenes.length ? <div className={styles.sceneList}>{draft.scenes.map((scene, index) => <div key={scene.id} className={styles.sceneRow}><span className={styles.sceneNumber}>{String(index + 1).padStart(2, "0")}</span><div className={styles.sceneInfo}><strong>{scene.name}</strong><span>{scene.spaceText}{scene.procedures.length ? ` · ${scene.procedures.join(", ")}` : ""}</span></div><span className={styles.sceneTime}><Clock3 size={11} strokeWidth={1.6} /> {scene.minutes}분</span></div>)}</div> : <div className={styles.emptyPreview}>촬영항목을 선택하면<br />장면 순서와 예상 시간이 여기에 나타납니다.</div>}
+          {draft?.scenes.length ? <div className={styles.sceneList}>{draft.scenes.map((scene, index) => <div key={scene.id} className={styles.sceneRow}><span className={styles.sceneNumber}>{String(index + 1).padStart(2, "0")}</span><div className={styles.sceneInfo}><strong>{scene.name}</strong><span>{scene.spaceText}{scene.procedures.length ? ` · ${scene.procedures.join(", ")}` : ""}</span></div><span className={styles.sceneTime}><Clock3 aria-hidden="true" size={11} strokeWidth={1.6} /> {scene.minutes}분</span></div>)}</div> : <div className={styles.emptyPreview}>촬영항목을 선택하면<br />장면 순서와 예상 시간이 여기에 나타납니다.</div>}
         </aside>
       </div>
     </div>
   );
 }
 
-function Field({ step, label, optional, children }: { step: string; label: string; optional?: boolean; children: React.ReactNode }) { return <section className={styles.fieldSection}><div className={styles.fieldHeading}><span className={styles.stepNumber}>{step}</span><div><span className={styles.fieldLabel}>{label}</span>{optional ? <span className={styles.optional}>선택 입력</span> : null}</div></div><div className={styles.fieldContent}>{children}</div></section>; }
+function Field({ step, label, optional, children }: { step: string; label: string; optional?: boolean; children: React.ReactNode }) { return <section className={styles.fieldSection}><div className={styles.fieldHeading}><span className={styles.stepNumber}>{step}</span><div><span className={styles.fieldLabel}>{label}</span>{optional ? <span className={styles.optional}>선택 사항</span> : null}</div></div><div className={styles.fieldContent}>{children}</div></section>; }
 function Choice({ label, checked, onChange, detail = false }: { label: string; checked: boolean; onChange: () => void; detail?: boolean }) { return <label className={detail ? styles.detailChoice : styles.choice}><input type="checkbox" checked={checked} onChange={onChange} /><span>{label}</span></label>; }
