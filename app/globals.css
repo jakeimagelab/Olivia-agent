@@ -832,7 +832,7 @@ main:has(> .pc-header) {
   border: none;
   border-radius: 16px;
   padding: 18px 22px;
-  background: linear-gradient(135deg, var(--orange) 0%, var(--gold) 100%);
+  background: var(--orange);
   color: #fff;
   cursor: pointer;
   text-align: left;
