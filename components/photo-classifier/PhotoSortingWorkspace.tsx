@@ -2733,6 +2733,7 @@ function PhotoSortingInner({
                     <button onClick={pickDir} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
                       {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 폴더 선택</>}
                     </button>
+                    {dirPickError && <div style={{marginTop:8,padding:"8px 12px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>⚠️ {dirPickError}</div>}
                   </div>
                 </Card>
 
