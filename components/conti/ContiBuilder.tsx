@@ -1968,6 +1968,12 @@ ${header("타임테이블")}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexShrink: 0, alignItems: "center" }}>
+                <button onClick={openLoadPanel} style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "8px 16px", border: "1.5px solid rgba(255,255,255,0.35)",
+                  borderRadius: 10, background: "rgba(255,255,255,0.12)", color: "#fff",
+                  fontWeight: 800, fontSize: 13, cursor: "pointer"
+                }}>📂 불러오기</button>
                 <button onClick={handlePDF} style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
                   padding: "8px 16px", border: "1.5px solid rgba(255,255,255,0.35)",
