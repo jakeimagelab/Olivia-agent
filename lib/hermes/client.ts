@@ -182,6 +182,22 @@ export async function runHermesChat(input: {
     input.callbacks?.onToolResult?.(record);
   }
 
+  // client.search와 달리 quote tool은 실행 여부가 강제되지 않는다(모든 대화가 견적 작업은
+  // 아니므로) — 대신 실제로 호출된 것만 ground truth(내 MCP handler가 직접 기록한 감사)로
+  // toolCalls에 반영한다. Hermes의 finalText는 그대로 두고 rewrite하지 않는다.
+  for (const audit of consumeHermesToolCalls(requestId)) {
+    const mcpName = `mcp_olivia_${audit.toolName}`;
+    const existing = [...toolCalls.values()].find((call) => call.name === mcpName);
+    const record: HermesToolCallRecord = {
+      id: existing?.id ?? crypto.randomUUID(),
+      name: mcpName,
+      success: audit.result.success,
+      ...(audit.result.success ? { data: audit.result.data } : { error: audit.result.error }),
+    };
+    toolCalls.set(record.id, record);
+    input.callbacks?.onToolResult?.(record);
+  }
+
   if (verifiedSearch?.clients.length === 0) {
     finalText = "등록된 고객에서 찾지 못했습니다.";
   } else if (verifiedSearch && verifiedSearch.clients.length > 1) {
