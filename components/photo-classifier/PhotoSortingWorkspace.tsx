@@ -1825,6 +1825,16 @@ function PhotoSortingInner({
         selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
       });
     }
+    } catch (error) {
+      // 2026-09-10 수정 지시서 3번 — "완료"(폴더 정리 실행) 버튼 핸들러에 최상위 try/catch가
+      // 없어서, 폴더 핸들 획득 실패(권한 만료 등) 시 진행률 화면만 뜬 채 멈췄다. 일부 파일은
+      // 이미 이동됐을 수 있어(REPORT/file_operation_journal.json에 기록됨) 씬 검토로 되돌리고
+      // 그 사실을 안내한다.
+      const message = error instanceof Error ? error.message : String(error);
+      setCopyLog((previous) => [...previous, `❌ 오류: 폴더 정리를 완료하지 못했습니다 — ${message}`, "일부 파일은 이미 이동됐을 수 있어요 — REPORT 폴더의 file_operation_journal.json을 확인해주세요."]);
+      setStep(2);
+      setClassificationJobState("WAITING_REVIEW");
+    }
   }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir, boundaryDecisions, sceneCorrections, accuracyReport, department, gapMinutes]);
 
   // 프로필 제외 장면 타입 (이 타입이면 절대 프로필로 보내지 않음)
