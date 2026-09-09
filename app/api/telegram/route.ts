@@ -111,7 +111,7 @@ async function transcribeVoice(buffer: ArrayBuffer): Promise<string> {
 function getBaseUrl(req: NextRequest): string {
   if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
+  return req.nextUrl.origin;
 }
 
 // create_quote/update 계열 tool이 성공하면 미리보기 이미지를 렌더해서 사진+승인버튼으로 보낸다.
@@ -142,7 +142,63 @@ async function sendQuotePreview(base: string, chatId: number, quoteId: string, c
   }
 }
 
-async function handleCallbackQuery(req: NextRequest, callbackQuery: any) {
+async function runLegacyTelegramChat(input: {
+  base: string;
+  userText: string;
+  imageBase64?: string | null;
+  imageMime?: string;
+}) {
+  const history = await getHistory();
+  const messages = history.length > 0 && history[history.length - 1]?.role === "user" && history[history.length - 1]?.content === input.userText
+    ? history
+    : [...history, { role: "user" as const, content: input.userText }];
+  const oliviaRes = await fetch(`${input.base}/api/olivia`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+    body: JSON.stringify({
+      messages,
+      ...(input.imageBase64 ? { imageBase64: input.imageBase64, imageMime: input.imageMime || "image/jpeg" } : {}),
+      pageContext: "텔레그램 모바일 앱에서 접속 중. 승인 없이 도구를 바로 실행. 결과만 간결하게. 마크다운 최소화.",
+    }),
+  });
+  const data = await oliviaRes.json();
+  if (!oliviaRes.ok || !data.ok) throw new Error(data.error || "클라우드 Olivia 연결 실패");
+  if (data.type !== "tool_request") return data.text || "처리됐어요!";
+
+  const prefix = data.text ? data.text + "\n\n" : "";
+  const tools = Array.isArray(data.tools) && data.tools.length ? data.tools : [data.tool];
+  const lines: string[] = [];
+  for (const tool of tools) {
+    const label = TOOL_LABELS[tool?.name] || tool?.name || "작업";
+    try {
+      const execRes = await fetch(`${input.base}/api/olivia`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "", "x-base-url": input.base },
+        body: JSON.stringify({ pendingTool: tool }),
+      });
+      const execData = await execRes.json();
+      if (execData.ok && execData.toolResult) {
+        const result = execData.toolResult;
+        lines.push(result.action === "navigate"
+          ? (result.message || "완료됐어요!") + `\n🔗 ${String(result.url || "").startsWith("http") ? result.url : input.base + result.url}`
+          : (result.message || "완료됐어요!"));
+      } else {
+        lines.push(`⚠️ ${label} 실행 실패`);
+      }
+    } catch (error) {
+      lines.push(`⚠️ ${label} 실행 중 오류: ${error instanceof Error ? error.message : "알 수 없는 오류"}`);
+    }
+  }
+  return prefix + lines.join("\n\n");
+}
+
+async function sendTelegramText(chatId: number, reply: string) {
+  for (let i = 0; i < reply.length; i += 4000) {
+    await tgRequest("sendMessage", { chat_id: chatId, text: reply.slice(i, i + 4000) });
+  }
+}
+
+async function handleCallbackQuery(callbackQuery: any) {
   const chatId: number = callbackQuery.message?.chat?.id;
   const userId = String(callbackQuery.from?.id || "");
   const data: string = callbackQuery.data || "";
@@ -190,7 +246,7 @@ export async function POST(req: NextRequest) {
   try { update = await req.json(); } catch { return NextResponse.json({ ok: true }); }
 
   if (update.callback_query) {
-    await handleCallbackQuery(req, update.callback_query);
+    await handleCallbackQuery(update.callback_query);
     return NextResponse.json({ ok: true });
   }
 
@@ -260,52 +316,11 @@ export async function POST(req: NextRequest) {
   // 분석 가능)로 그대로 처리한다 — 텍스트 전용 메시지만 Hermes로 보낸다(스펙: Quote E2E via Telegram).
   if (imageBase64) {
     try {
-      const history = await getHistory();
-      const messages = [...history, { role: "user" as const, content: userText }];
-      const oliviaRes = await fetch(`${base}/api/olivia`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
-        body: JSON.stringify({ messages, imageBase64, imageMime, pageContext: "텔레그램 모바일 앱에서 접속 중. 승인 없이 도구를 바로 실행. 결과만 간결하게. 마크다운 최소화." }),
-      });
-      const data = await oliviaRes.json();
-      let reply: string;
-      if (!data.ok) {
-        reply = "⚠️ 오류: " + (data.error || "알 수 없는 오류");
-      } else if (data.type === "tool_request") {
-        const prefix = data.text ? data.text + "\n\n" : "";
-        const tools = Array.isArray(data.tools) && data.tools.length ? data.tools : [data.tool];
-        const lines: string[] = [];
-        for (const tool of tools) {
-          const label = TOOL_LABELS[tool?.name] || tool?.name || "작업";
-          try {
-            const execRes = await fetch(`${base}/api/olivia`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "", "x-base-url": base },
-              body: JSON.stringify({ pendingTool: tool }),
-            });
-            const execData = await execRes.json();
-            if (execData.ok && execData.toolResult) {
-              const result = execData.toolResult;
-              lines.push(result.action === "navigate"
-                ? (result.message || "완료됐어요!") + `\n🔗 ${String(result.url || "").startsWith("http") ? result.url : base + result.url}`
-                : (result.message || "완료됐어요!"));
-            } else {
-              lines.push(`⚠️ ${label} 실행 실패`);
-            }
-          } catch (e: any) {
-            lines.push(`⚠️ ${label} 실행 중 오류: ${e.message}`);
-          }
-        }
-        reply = prefix + lines.join("\n\n");
-      } else {
-        reply = data.text || "처리됐어요!";
-      }
+      const reply = await runLegacyTelegramChat({ base, userText, imageBase64, imageMime });
       await saveChat(chatIdStr, "assistant", reply);
-      for (let i = 0; i < reply.length; i += 4000) {
-        await tgRequest("sendMessage", { chat_id: chatId, text: reply.slice(i, i + 4000), parse_mode: "Markdown" });
-      }
-    } catch (e: any) {
-      await tgRequest("sendMessage", { chat_id: chatId, text: "⚠️ 연결 오류: " + e.message });
+      await sendTelegramText(chatId, reply);
+    } catch (error) {
+      await tgRequest("sendMessage", { chat_id: chatId, text: "⚠️ 연결 오류: " + (error instanceof Error ? error.message : "알 수 없는 오류") });
     }
     return NextResponse.json({ ok: true });
   }
@@ -319,12 +334,13 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
       body: JSON.stringify({ message: userText, conversationId: chatIdStr }),
     });
-    const result = await hermesRes.json() as HermesChatResult | { success: false; error: string };
+    const result = await hermesRes.json() as HermesChatResult | { success: false; error: string; fallbackSafe?: boolean };
 
     if (!result.success) {
+      if (result.fallbackSafe) throw new Error(result.error || "Hermes 연결 실패");
       const reply = "⚠️ 오류: " + (result.error || "알 수 없는 오류");
       await saveChat(chatIdStr, "assistant", reply);
-      await tgRequest("sendMessage", { chat_id: chatId, text: reply });
+      await sendTelegramText(chatId, reply);
       return NextResponse.json({ ok: true });
     }
 
@@ -343,13 +359,21 @@ export async function POST(req: NextRequest) {
     let sentPreview = false;
     if (quoteId) sentPreview = await sendQuotePreview(base, chatId, quoteId, reply);
 
-    if (!sentPreview) {
-      for (let i = 0; i < reply.length; i += 4000) {
-        await tgRequest("sendMessage", { chat_id: chatId, text: reply.slice(i, i + 4000) });
-      }
+    if (!sentPreview) await sendTelegramText(chatId, reply);
+  } catch (hermesError) {
+    console.warn("[telegram] Hermes unavailable; switching to cloud fallback", {
+      error: hermesError instanceof Error ? hermesError.message : "unknown",
+    });
+    try {
+      const reply = await runLegacyTelegramChat({ base, userText });
+      await saveChat(chatIdStr, "assistant", reply);
+      await sendTelegramText(chatId, reply);
+    } catch (fallbackError) {
+      await tgRequest("sendMessage", {
+        chat_id: chatId,
+        text: "⚠️ Olivia 연결 오류: " + (fallbackError instanceof Error ? fallbackError.message : "알 수 없는 오류"),
+      });
     }
-  } catch (e: any) {
-    await tgRequest("sendMessage", { chat_id: chatId, text: "⚠️ 연결 오류: " + e.message });
   }
 
   return NextResponse.json({ ok: true });

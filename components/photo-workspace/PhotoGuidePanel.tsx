@@ -68,7 +68,7 @@ export default function PhotoGuidePanel({ mode, selectMode, rawMatchView }: { mo
   const key = guideKey(mode, selectMode, rawMatchView);
   const steps = GUIDES[key];
   return (
-    <aside className={styles.guide} aria-label="사용 가이드">
+    <aside id="photo-workspace-guide" className={styles.guide} aria-label="사용 가이드">
       <h2>사용 가이드</h2>
       <ol className={styles.guideSteps}>
         {steps.map(({ icon: Icon, title, description }, index) => (

@@ -18,6 +18,17 @@ const CLIENT_SEARCH_TOOL = "mcp_olivia_client_search";
 const QUOTE_TOOL_NAMES = ["create_quote", "add_quote_item", "update_quote_item", "remove_quote_item", "apply_quote_discount", "publish_quote"];
 const QUOTE_MCP_TOOLS = new Set(QUOTE_TOOL_NAMES.map((name) => `mcp_olivia_${name}`));
 
+export class HermesChatError extends Error {
+  constructor(message: string, public readonly fallbackSafe: boolean) {
+    super(message);
+    this.name = "HermesChatError";
+  }
+}
+
+export function isHermesFallbackSafe(error: unknown): boolean {
+  return error instanceof HermesChatError && error.fallbackSafe;
+}
+
 export function getOliviaAgentEngine(): "legacy" | "hermes" {
   return process.env.OLIVIA_AGENT_ENGINE?.trim().toLowerCase() === "hermes" ? "hermes" : "legacy";
 }
@@ -25,7 +36,7 @@ export function getOliviaAgentEngine(): "legacy" | "hermes" {
 function getHermesConfig() {
   const baseUrl = process.env.HERMES_BASE_URL?.trim().replace(/\/+$/, "");
   const apiKey = process.env.HERMES_API_KEY?.trim();
-  if (!baseUrl || !apiKey) throw new Error("Hermes Agent 환경변수 설정을 확인해주세요.");
+  if (!baseUrl || !apiKey) throw new HermesChatError("Hermes Agent 환경변수 설정을 확인해주세요.", true);
   return { baseUrl, apiKey, model: process.env.HERMES_MODEL?.trim() || "hermes-agent" };
 }
 
@@ -85,16 +96,16 @@ export async function runHermesChat(input: {
   } catch {
     clearTimeout(timeout);
     input.signal?.removeEventListener("abort", abort);
-    if (controller.signal.aborted && !input.signal?.aborted) throw new Error("Hermes Agent 응답 시간이 초과되었습니다.");
-    throw new Error("Hermes Agent에 연결할 수 없습니다. Mac Studio Hermes Server 상태를 확인해주세요.");
+    if (controller.signal.aborted && !input.signal?.aborted) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", true);
+    throw new HermesChatError("Hermes Agent에 연결할 수 없습니다. Mac Studio Hermes Server 상태를 확인해주세요.", true);
   }
 
   if (!response.ok || !response.body) {
     clearTimeout(timeout);
     input.signal?.removeEventListener("abort", abort);
-    throw new Error(response.status === 401
+    throw new HermesChatError(response.status === 401
       ? "Hermes Agent 인증 설정을 확인해주세요."
-      : "Hermes Agent에 연결할 수 없습니다. Mac Studio Hermes Server 상태를 확인해주세요.");
+      : "Hermes Agent에 연결할 수 없습니다. Mac Studio Hermes Server 상태를 확인해주세요.", true);
   }
 
   const reader = response.body.getReader();
@@ -157,8 +168,8 @@ export async function runHermesChat(input: {
     }
     if (buffer.trim()) handleEvent(buffer);
   } catch {
-    if (controller.signal.aborted && !input.signal?.aborted) throw new Error("Hermes Agent 응답 시간이 초과되었습니다.");
-    throw new Error("Hermes Agent 응답을 받는 중 문제가 발생했습니다.");
+    if (controller.signal.aborted && !input.signal?.aborted) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", false);
+    throw new HermesChatError("Hermes Agent 응답을 받는 중 문제가 발생했습니다.", false);
   } finally {
     clearTimeout(timeout);
     input.signal?.removeEventListener("abort", abort);

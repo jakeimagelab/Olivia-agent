@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isClientSearchRequest, runHermesChat } from "@/lib/hermes/client";
+import { isClientSearchRequest, isHermesFallbackSafe, runHermesChat } from "@/lib/hermes/client";
 import { recordHermesClientSearch } from "@/lib/hermes/toolAudit";
 
 function sse(text: string) {
@@ -105,5 +105,26 @@ describe("Hermes chat adapter", () => {
     vi.stubGlobal("fetch", vi.fn(async () => sse("안녕하세요.")));
     const result = await runHermesChat({ message: "안녕" });
     expect(result.message).toBe("안녕하세요.");
+  });
+
+  it("연결 전 실패만 cloud fallback에 안전하다고 표시한다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("connection refused"); }));
+    const error = await runHermesChat({ message: "안녕" }).catch((caught) => caught);
+    expect(isHermesFallbackSafe(error)).toBe(true);
+  });
+
+  it("응답 스트림이 시작된 뒤 실패하면 cloud fallback을 차단한다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"진행"}}]}\n\n'));
+        controller.error(new Error("stream interrupted"));
+      },
+    }), { status: 200 })));
+    const error = await runHermesChat({ message: "안녕" }).catch((caught) => caught);
+    expect(isHermesFallbackSafe(error)).toBe(false);
   });
 });

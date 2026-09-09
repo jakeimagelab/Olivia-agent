@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { runHermesChat } from "@/lib/hermes/client";
+import { isHermesFallbackSafe, runHermesChat } from "@/lib/hermes/client";
 import type { HermesChatContext } from "@/lib/hermes/types";
 import { isAdminSession } from "@/lib/passkey";
 
@@ -43,6 +43,6 @@ export async function POST(request: NextRequest) {
     return Response.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Hermes Agent 요청에 실패했습니다.";
-    return Response.json({ success: false, error: message }, { status: 502 });
+    return Response.json({ success: false, error: message, fallbackSafe: isHermesFallbackSafe(error) }, { status: 502 });
   }
 }

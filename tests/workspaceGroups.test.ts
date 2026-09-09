@@ -40,13 +40,13 @@ describe("photo workspace tool deep links", () => {
   it("selects integrated photo modes directly", () => {
     expect(resolvePhotoWorkspaceToolState("ai-search")).toMatchObject({ mode: "select", selectMode: "ai" });
     expect(resolvePhotoWorkspaceToolState("classification")).toMatchObject({ mode: "classification" });
-    expect(resolvePhotoWorkspaceToolState("conversion")).toMatchObject({ mode: "conversion" });
-    expect(resolvePhotoWorkspaceToolState("retouch")).toMatchObject({ mode: "select", selectMode: "manual" });
+    expect(resolvePhotoWorkspaceToolState("conversion")).toBeUndefined();
+    expect(resolvePhotoWorkspaceToolState("retouch")).toMatchObject({ mode: "retouch", selectMode: "manual" });
   });
 
   it("keeps metadata matching and AI culling inside the photo workspace shell", () => {
-    expect(resolvePhotoWorkspaceToolState("metadata-match")).toMatchObject({ mode: "select", selectMode: "client" });
-    expect(resolvePhotoWorkspaceToolState("ai-cull")).toMatchObject({ mode: "select", selectMode: "manual" });
+    expect(resolvePhotoWorkspaceToolState("metadata-match")).toMatchObject({ mode: "metadata-select", selectMode: "client" });
+    expect(resolvePhotoWorkspaceToolState("ai-cull")).toMatchObject({ mode: "raw-match", selectMode: "manual", rawMatchView: "ai-cull" });
   });
 });
 

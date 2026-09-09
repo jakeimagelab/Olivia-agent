@@ -1,0 +1,16 @@
+.shell {
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.shell :global([role="tablist"]) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.shell :global([role="tablist"])::-webkit-scrollbar { display: none; }
+
+.shell[data-icons-only="true"] :global([role="tab"]) > span:last-child { display: none; }
+.shell[data-icons-only="true"] :global([role="tab"]) { gap: 0 !important; }

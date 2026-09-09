@@ -37,7 +37,7 @@ import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmations";
 import { buildContractRoundConfirmation } from "@/lib/olivia/output/contractConfirmations";
 import { resolveDocumentBrand } from "@/lib/olivia/brandResolver";
-import { getOliviaAgentEngine, runHermesChat } from "@/lib/hermes/client";
+import { getOliviaAgentEngine, isHermesFallbackSafe, runHermesChat } from "@/lib/hermes/client";
 import type { HermesChatMessage } from "@/lib/hermes/types";
 
 export const dynamic = "force-dynamic";
@@ -514,6 +514,7 @@ export async function POST(req: NextRequest) {
   const encoder = new TextEncoder();
   const responseStream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let activeAgentEngine: "hermes" | "legacy" = useHermes ? "hermes" : "legacy";
       let closed = false;
       let firstEventMs: number | undefined;
       let modelFirstTokenMs: number | undefined;
@@ -578,46 +579,63 @@ export async function POST(req: NextRequest) {
             if ((row.role !== "user" && row.role !== "assistant") || typeof row.content !== "string") return [];
             return [{ role: row.role, content: row.content }];
           });
-          const hermesResult = await runHermesChat({
-            message,
-            history: hermesHistory,
-            conversationId: conversation.id,
-            context: {
-              activeClientId: context.activeClientId,
-              activeProjectId: context.activeProjectId,
-              activeWorkspace: context.activeWorkspace,
-            },
-            signal: req.signal,
-            callbacks: {
-              onTextDelta: (delta) => send({ type: "text_delta", messageId, delta }),
-              onToolStart: (tool, toolCallId) => {
-                send({ type: "agent_status", status: "등록 고객을 검색하는 중…" });
-                send({ type: "tool_start", tool, toolCallId });
+          let hermesStartedOutput = false;
+          try {
+            const hermesResult = await runHermesChat({
+              message,
+              history: hermesHistory,
+              conversationId: conversation.id,
+              context: {
+                activeClientId: context.activeClientId,
+                activeProjectId: context.activeProjectId,
               },
-              onToolResult: (record) => send({
-                type: "tool_result",
-                tool: record.name,
-                toolCallId: record.id,
-                success: record.success,
-                result: record.result,
-              }),
-            },
-          });
-          await saveAssistantMessage(db, {
-            ownerId: owner.id,
-            conversationId: conversation.id,
-            role: "assistant",
-            content: hermesResult.message,
-            channel: "web",
-            metadata: {
-              blocks: [{ type: "text", text: hermesResult.message }],
-              agentEngine: "hermes",
-              hermesRunId: hermesResult.runId,
-              toolCalls: hermesResult.toolCalls.map(({ id, name, success }) => ({ id, name, success })),
-            },
-          });
-          send({ type: "message_complete", messageId, conversationId: conversation.id });
-          return;
+              signal: req.signal,
+              callbacks: {
+                onTextDelta: (delta) => {
+                  hermesStartedOutput = true;
+                  send({ type: "text_delta", messageId, delta });
+                },
+                onToolStart: (tool, toolCallId) => {
+                  hermesStartedOutput = true;
+                  send({ type: "agent_status", status: "등록 고객을 검색하는 중…" });
+                  send({ type: "tool_start", tool, toolCallId });
+                },
+                onToolResult: (record) => {
+                  hermesStartedOutput = true;
+                  send({
+                    type: "tool_result",
+                    tool: record.name,
+                    toolCallId: record.id,
+                    success: record.success,
+                    result: record.result,
+                  });
+                },
+              },
+            });
+            await saveAssistantMessage(db, {
+              ownerId: owner.id,
+              conversationId: conversation.id,
+              role: "assistant",
+              content: hermesResult.message,
+              channel: "web",
+              metadata: {
+                blocks: [{ type: "text", text: hermesResult.message }],
+                agentEngine: "hermes",
+                hermesRunId: hermesResult.runId,
+                toolCalls: hermesResult.toolCalls.map(({ id, name, success }) => ({ id, name, success })),
+              },
+            });
+            send({ type: "message_complete", messageId, conversationId: conversation.id });
+            return;
+          } catch (hermesError) {
+            if (req.signal.aborted || hermesStartedOutput || !isHermesFallbackSafe(hermesError) || !process.env.OPENAI_API_KEY || !model) throw hermesError;
+            activeAgentEngine = "legacy";
+            console.warn("[olivia-v2] Hermes unavailable before output; switching to cloud fallback", {
+              requestId,
+              error: hermesError instanceof Error ? hermesError.message : "unknown",
+            });
+            send({ type: "agent_status", status: "클라우드 Olivia로 연결을 전환하는 중…" });
+          }
         }
 
         if (databaseFastPath) {
@@ -810,7 +828,7 @@ export async function POST(req: NextRequest) {
           console.error("[olivia-v2] stream failed", error);
           send({
             type: "error",
-            message: useHermes && error instanceof Error
+            message: activeAgentEngine === "hermes" && error instanceof Error
               ? error.message
               : OLIVIA_FALLBACK_MESSAGES.streamFailure,
             retryable: true,
@@ -826,7 +844,8 @@ export async function POST(req: NextRequest) {
           modelFirstTokenMs: modelFirstTokenMs === undefined ? null : Math.round(modelFirstTokenMs),
           toolExecutionMs: Math.round(toolExecutionMs),
           totalMs: Math.round(performance.now() - requestStartedAt),
-          model: useHermes ? "hermes-agent" : deterministic || persistentAgentRun ? null : model,
+          model: activeAgentEngine === "hermes" ? "hermes-agent" : deterministic || persistentAgentRun ? null : model,
+          agentEngine: activeAgentEngine,
           requestClass,
           selectedToolCount: selectedTools.length,
           toolRounds,

@@ -81,7 +81,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     icon: appIcon("photo-studio"),
     route: "/photo-sorting",
     defaultSize: { width: 1200, height: 720 },
-    minSize: { width: 720, height: 440 },
+    minSize: { width: 420, height: 440 },
     singleton: true,
     desktopShortcutOrder: 3,
     dockOrder: 3,

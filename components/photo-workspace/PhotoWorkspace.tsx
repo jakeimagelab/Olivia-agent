@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import PhotoGuidePanel from "./PhotoGuidePanel";
 import PhotoSelectWorkspace from "./PhotoSelectWorkspace";
 import PhotoWorkspaceHeader from "./PhotoWorkspaceHeader";
@@ -38,6 +39,9 @@ const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client"]);
 const RAW_MATCH_VIEWS = new Set<RawMatchView>(["ai-cull", "match"]);
 
 function PhotoWorkspaceContent() {
+  const contentRef = useRef<HTMLElement>(null);
+  const [compact, setCompact] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -48,6 +52,20 @@ function PhotoWorkspaceContent() {
   const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : "select");
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : "ai");
   const rawMatchView = toolState?.rawMatchView ?? (rawRawMatchView && RAW_MATCH_VIEWS.has(rawRawMatchView) ? rawRawMatchView : "ai-cull");
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    const measure = () => {
+      const nextCompact = content.clientWidth < 900;
+      setCompact((current) => current === nextCompact ? current : nextCompact);
+      if (!nextCompact) setGuideOpen(false);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
 
   const updateQuery = (nextMode: PhotoWorkspaceMode, nextSelectMode = selectMode) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -67,10 +85,22 @@ function PhotoWorkspaceContent() {
 
   return (
     <div className={styles.page}>
-      <main className={styles.content}>
+      <main ref={contentRef} className={styles.content}>
         <PhotoWorkspaceHeader />
         <PhotoWorkspaceTabs value={mode} onChange={updateQuery} />
-        <div className={styles.workspaceGrid}>
+        {compact ? (
+          <button
+            type="button"
+            className={styles.guideToggle}
+            aria-expanded={guideOpen}
+            aria-controls="photo-workspace-guide"
+            onClick={() => setGuideOpen((open) => !open)}
+          >
+            {guideOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+            {guideOpen ? "사용 가이드 닫기" : "사용 가이드 보기"}
+          </button>
+        ) : null}
+        <div className={`${styles.workspaceGrid} ${compact ? styles.workspaceGridCompact : ""}`}>
           <section
             className={styles.workPanel}
             role="tabpanel"
@@ -101,7 +131,7 @@ function PhotoWorkspaceContent() {
             {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" /> : null}
             {mode === "retouch" ? <PhotoRetouchingWorkspace /> : null}
           </section>
-          <PhotoGuidePanel mode={mode} selectMode={selectMode} rawMatchView={rawMatchView} />
+          {!compact || guideOpen ? <PhotoGuidePanel mode={mode} selectMode={selectMode} rawMatchView={rawMatchView} /> : null}
         </div>
       </main>
     </div>

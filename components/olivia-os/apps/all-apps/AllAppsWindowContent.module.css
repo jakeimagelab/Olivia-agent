@@ -1,9 +1,19 @@
-.root { height: 100%; overflow: auto; padding: 20px; background: #f5f8f6; }
-.systemRow { display: flex; gap: 6px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid rgba(21,88,85,.1); }
-.systemRow button { min-width: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px; border: 0; border-radius: 12px; background: transparent; color: #29443e; cursor: pointer; }
-.systemRow button:hover { background: #e6f0ec; }
-.systemRow span { font-size: 10px; font-weight: 680; }
+.root { position: relative; height: 100%; overflow: auto; padding: 20px; background: #f5f8f6; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 4px 8px; }
-.grid button { min-width: 0; min-height: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 8px; border: 0; border-radius: 12px; background: transparent; color: #29443e; cursor: pointer; }
-.grid button:hover { background: #e6f0ec; }
-.grid span { max-width: 100%; overflow: hidden; font-size: 10px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+.appButton { position: relative; min-width: 0; min-height: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 8px; border: 0; border-radius: 12px; background: transparent; color: #29443e; cursor: pointer; -webkit-touch-callout: none; touch-action: manipulation; user-select: none; }
+.appButton:hover { background: #e6f0ec; }
+.appButton:focus-visible { outline: 2px solid #155855; outline-offset: 2px; }
+.appButton > span:last-child { max-width: 100%; overflow: hidden; font-size: 10px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+.iconWrap { position: relative; display: inline-flex; }
+.favoriteMark { position: absolute; right: -4px; top: -4px; padding: 2px; box-sizing: content-box; border-radius: 50%; background: #155855; color: #fff; box-shadow: 0 1px 5px rgba(21,88,85,.24); }
+.favoriteMenu { position: absolute; z-index: 20; width: 182px; padding: 5px; border: 1px solid rgba(21,88,85,.15); border-radius: 10px; background: #fff; box-shadow: 0 14px 36px rgba(3,30,27,.22); }
+.favoriteMenu button { width: 100%; min-height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: #29443e; font: 650 11px/1 inherit; text-align: left; cursor: pointer; }
+.favoriteMenu button:hover { background: #e6f0ec; color: #155855; }
+.favoriteMenu button:disabled { opacity: .55; cursor: wait; }
+.empty { min-height: 180px; display: grid; place-items: center; padding: 24px; color: #71857f; font-size: 12px; text-align: center; }
+.error { margin: -7px 0 12px; padding: 8px 10px; border: 1px solid rgba(232,93,44,.24); border-radius: 8px; background: #fff; color: #a43d1b; font-size: 11px; }
+
+@media (max-width: 560px) {
+  .root { padding: 14px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(82px, 1fr)); }
+}
