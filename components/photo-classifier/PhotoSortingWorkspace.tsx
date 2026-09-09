@@ -2658,6 +2658,12 @@ function PhotoSortingInner({
     await wr("summary.json", JSON.stringify(summary, null, 2));
     setStudioStats({ totalJpg:studioFiles.length, totalRaw:studioRawCount, totalGroups:personGroups.filter(g=>!g.isEtc).length, totalEtc:etcGroup?.files.length??0, totalNormal:personGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0) });
     setStep(6);
+    } catch (error) {
+      // 2026-09-10 수정 지시서 3번
+      const message = error instanceof Error ? error.message : String(error);
+      setStudioCopyLog((previous) => [...previous, `❌ 오류: 파일 정리를 완료하지 못했습니다 — ${message}`]);
+      setStep(4);
+    }
   }, [personGroups, rootDir, studioFiles, studioRawCount, studioFileMode]);
 
   /* ════════════════════════════════════════════
