@@ -7,7 +7,8 @@ import PhotoGuidePanel from "./PhotoGuidePanel";
 import PhotoSelectWorkspace from "./PhotoSelectWorkspace";
 import PhotoWorkspaceHeader from "./PhotoWorkspaceHeader";
 import PhotoWorkspaceTabs from "./PhotoWorkspaceTabs";
-import type { PhotoSelectMode, PhotoWorkspaceMode } from "./types";
+import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import type { PhotoSelectMode, PhotoWorkspaceMode, RawMatchView } from "./types";
 import { resolvePhotoWorkspaceToolState } from "./photoWorkspaceToolState";
 import styles from "./PhotoWorkspace.module.css";
 
@@ -18,10 +19,6 @@ const SelectMatchWorkspace = dynamic(() => import("./SelectMatchWorkspace").then
 const PhotoSortingWorkspace = dynamic(() => import("@/components/photo-classifier/PhotoSortingWorkspace"), {
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>사진 분류 도구를 불러오는 중...</div>,
-});
-const VideoConvertWorkspace = dynamic(() => import("./VideoConvertWorkspace").then((module) => module.VideoConvertWorkspace), {
-  ssr: false,
-  loading: () => <div className={styles.workspaceLoading}>파일 변환 도구를 불러오는 중...</div>,
 });
 const MetadataSelectWorkspace = dynamic(() => import("@/app/metadata-select/page"), {
   ssr: false,
@@ -36,8 +33,9 @@ const PhotoRetouchingWorkspace = dynamic(() => import("@/app/(photo-studio)/phot
   loading: () => <div className={styles.workspaceLoading}>사진 보정 도구를 불러오는 중...</div>,
 });
 
-const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["select", "raw-match", "classification", "conversion"]);
+const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["select", "metadata-select", "raw-match", "classification", "retouch"]);
 const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client"]);
+const RAW_MATCH_VIEWS = new Set<RawMatchView>(["ai-cull", "match"]);
 
 function PhotoWorkspaceContent() {
   const pathname = usePathname();
