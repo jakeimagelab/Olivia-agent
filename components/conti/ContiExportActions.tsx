@@ -25,8 +25,9 @@ type Props = {
 
 const secondary = { display: "inline-flex", alignItems: "center", gap: 7, padding: "0 14px", minHeight: 40, border: "1px solid rgba(21,88,85,.25)", borderRadius: 8, background: "#fff", color: "#155855", fontWeight: 800, fontSize: 13, cursor: "pointer" } as const;
 
-export default function ContiExportActions({ saveLoading, autoSaveState, shareLoading, shareCopied, generatingImages, downloadMenuOpen, completeState, completeError, onReset, onFieldView, onShare, onGenerateImages, onSave, onToggleDownloadMenu, onPDF, onExcel, onCompleteWorkflow }: Props) {
+export default function ContiExportActions({ saveLoading, autoSaveState, shareLoading, shareCopied, generatingImages, downloadMenuOpen, completeState, completeError, onOpenLoad, onReset, onFieldView, onShare, onGenerateImages, onSave, onToggleDownloadMenu, onPDF, onExcel, onCompleteWorkflow }: Props) {
   return <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+    <button type="button" onClick={onOpenLoad} style={secondary}><FileText size={15} /> 불러오기</button>
     <button type="button" onClick={onReset} style={secondary}><RotateCcw size={15} /> 다시 입력</button>
     <button type="button" onClick={onFieldView} style={secondary}>📋 현장 뷰</button>
     <button type="button" onClick={onShare} disabled={shareLoading} style={{ ...secondary, opacity: shareLoading ? .7 : 1 }}><Link2 size={15} />{shareLoading ? "링크 생성 중..." : shareCopied ? "복사됨!" : "현장뷰 공유"}</button>
