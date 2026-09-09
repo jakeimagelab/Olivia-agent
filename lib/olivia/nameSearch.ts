@@ -34,25 +34,28 @@ type FuzzyNameSearchParams = {
   limit?: number;
   candidateLimit?: number;
   filter?: (q: QueryBuilder) => QueryBuilder;
+  throwOnError?: boolean;
 };
 
 // 1) 기존 방식대로 ilike로 먼저 찾는다. 2) 0건이면 후보를 넓게 가져와서
 // 공백 제거 후 부분일치로 재비교한다 (candidateLimit 기본 500건까지).
 export async function fuzzyNameSearch<T = any>(params: FuzzyNameSearchParams): Promise<T[]> {
-  const { db, table, nameColumn, select, query, limit = 10, candidateLimit = 500, filter } = params;
+  const { db, table, nameColumn, select, query, limit = 10, candidateLimit = 500, filter, throwOnError = false } = params;
   const keyword = String(query ?? "").trim();
   if (!keyword) return [];
 
   let exactQuery: QueryBuilder = db.from(table).select(select);
   if (filter) exactQuery = filter(exactQuery);
   exactQuery = exactQuery.ilike(nameColumn, `%${keyword}%`).limit(limit);
-  const { data: exact } = await exactQuery;
+  const { data: exact, error: exactError } = await exactQuery;
+  if (exactError && throwOnError) throw new Error("검색 데이터 조회에 실패했습니다.");
   if (exact && exact.length > 0) return exact as T[];
 
   let candidateQuery: QueryBuilder = db.from(table).select(select);
   if (filter) candidateQuery = filter(candidateQuery);
   candidateQuery = candidateQuery.limit(candidateLimit);
-  const { data: candidates } = await candidateQuery;
+  const { data: candidates, error: candidateError } = await candidateQuery;
+  if (candidateError && throwOnError) throw new Error("검색 데이터 조회에 실패했습니다.");
   if (!candidates) return [];
 
   return (candidates as any[])

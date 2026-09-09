@@ -37,6 +37,8 @@ import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmations";
 import { buildContractRoundConfirmation } from "@/lib/olivia/output/contractConfirmations";
 import { resolveDocumentBrand } from "@/lib/olivia/brandResolver";
+import { getOliviaAgentEngine, runHermesChat } from "@/lib/hermes/client";
+import type { HermesChatMessage } from "@/lib/hermes/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -441,6 +443,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json() as Record<string, unknown>;
   const rawMessage = String(body.message || "").trim();
   if (!rawMessage) return Response.json({ ok: false, error: "메시지를 입력해주세요." }, { status: 400 });
+  const useHermes = getOliviaAgentEngine() === "hermes";
 
   const normalizedContext = normalizeContext(body.context);
   const resolvedBrand = resolveDocumentBrand({
@@ -489,7 +492,7 @@ export async function POST(req: NextRequest) {
   // 미적용 상태(테이블 없음)에서는 매 요청마다 실패하는 조회를 순차로 기다린 셈이라 더 심했다.
   const memoryScopes = getOliviaToolDomains(message, context, recentUserText);
   const databaseFastPath = hasDatabaseFastPath(message);
-  if (!deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
+  if (!useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
   }
 
@@ -505,6 +508,7 @@ export async function POST(req: NextRequest) {
     requestId,
     selectedToolCount: selectedTools.length,
     persistentAgentRun,
+    agentEngine: useHermes ? "hermes" : "legacy",
   });
 
   const encoder = new TextEncoder();
@@ -567,6 +571,54 @@ export async function POST(req: NextRequest) {
         historyMs = performance.now() - historyStartedAt;
 
         send({ type: "message_start", messageId, conversationId: conversation.id });
+
+        if (useHermes) {
+          send({ type: "agent_status", status: "Hermes가 요청을 판단하는 중…" });
+          const hermesHistory = history.flatMap((row): HermesChatMessage[] => {
+            if ((row.role !== "user" && row.role !== "assistant") || typeof row.content !== "string") return [];
+            return [{ role: row.role, content: row.content }];
+          });
+          const hermesResult = await runHermesChat({
+            message,
+            history: hermesHistory,
+            conversationId: conversation.id,
+            context: {
+              activeClientId: context.activeClientId,
+              activeProjectId: context.activeProjectId,
+              activeWorkspace: context.activeWorkspace,
+            },
+            signal: req.signal,
+            callbacks: {
+              onTextDelta: (delta) => send({ type: "text_delta", messageId, delta }),
+              onToolStart: (tool, toolCallId) => {
+                send({ type: "agent_status", status: "등록 고객을 검색하는 중…" });
+                send({ type: "tool_start", tool, toolCallId });
+              },
+              onToolResult: (record) => send({
+                type: "tool_result",
+                tool: record.name,
+                toolCallId: record.id,
+                success: record.success,
+                result: record.result,
+              }),
+            },
+          });
+          await saveAssistantMessage(db, {
+            ownerId: owner.id,
+            conversationId: conversation.id,
+            role: "assistant",
+            content: hermesResult.message,
+            channel: "web",
+            metadata: {
+              blocks: [{ type: "text", text: hermesResult.message }],
+              agentEngine: "hermes",
+              hermesRunId: hermesResult.runId,
+              toolCalls: hermesResult.toolCalls.map(({ id, name, success }) => ({ id, name, success })),
+            },
+          });
+          send({ type: "message_complete", messageId, conversationId: conversation.id });
+          return;
+        }
 
         if (databaseFastPath) {
           const fastText=await resolveDatabaseFastPath(db,message,context,oliviaRuntime.todayISO);
@@ -758,7 +810,9 @@ export async function POST(req: NextRequest) {
           console.error("[olivia-v2] stream failed", error);
           send({
             type: "error",
-            message: OLIVIA_FALLBACK_MESSAGES.streamFailure,
+            message: useHermes && error instanceof Error
+              ? error.message
+              : OLIVIA_FALLBACK_MESSAGES.streamFailure,
             retryable: true,
           });
         }
@@ -772,7 +826,7 @@ export async function POST(req: NextRequest) {
           modelFirstTokenMs: modelFirstTokenMs === undefined ? null : Math.round(modelFirstTokenMs),
           toolExecutionMs: Math.round(toolExecutionMs),
           totalMs: Math.round(performance.now() - requestStartedAt),
-          model: deterministic || persistentAgentRun ? null : model,
+          model: useHermes ? "hermes-agent" : deterministic || persistentAgentRun ? null : model,
           requestClass,
           selectedToolCount: selectedTools.length,
           toolRounds,
