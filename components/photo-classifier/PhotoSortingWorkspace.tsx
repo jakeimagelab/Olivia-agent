@@ -1323,6 +1323,15 @@ function PhotoSortingInner({
     if (fastAnalyzeMode && (aiNamingEnabled || departmentLogicEnabled) && newScenes.length > 0) {
       runSceneAiAnalysis(newScenes);
     }
+    } catch (error) {
+      // 2026-09-10 수정 지시서 3번 — 이 함수는 최상위 try/catch가 없어서, 폴더 핸들 획득 실패
+      // 등으로 예외가 나면 진행률 화면만 뜬 채 아무 반응도 없이 멈췄다(에러도 안 보이고 재시도도
+      // 못 함). 실패를 명확히 보여주고 재시도할 수 있는 상태로 되돌린다.
+      const message = error instanceof Error ? error.message : String(error);
+      setCopyLog((previous) => [...previous, `❌ 오류: 사진 분류를 진행하지 못했습니다 — ${message}`]);
+      setClassificationJobState("WAITING_REVIEW");
+      useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "error");
+    }
   }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal, isEmbedded, aiWeightProfile]);
 
   // 피부과 2차 분리: 강한 전환 신호 감지
