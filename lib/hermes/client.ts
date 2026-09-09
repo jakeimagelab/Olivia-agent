@@ -119,13 +119,14 @@ export async function runHermesChat(input: {
       const name = normalizeToolName(eventValue(payload, ["tool_name", "tool", "name"]));
       const id = eventValue(payload, ["tool_call_id", "toolCallId", "id"]) || crypto.randomUUID();
       const status = eventValue(payload, ["status", "phase", "state"]);
-      if (name === CLIENT_SEARCH_TOOL && !toolCalls.has(id)) {
-        const record = { id, name, success: false };
+      const tracked = name === CLIENT_SEARCH_TOOL || (name !== undefined && QUOTE_MCP_TOOLS.has(name));
+      if (tracked && !toolCalls.has(id)) {
+        const record = { id, name: name as string, success: false };
         toolCalls.set(id, record);
-        input.callbacks?.onToolStart?.(name, id);
+        input.callbacks?.onToolStart?.(name as string, id);
       }
-      if (name === CLIENT_SEARCH_TOOL && /complete|success|done/i.test(status ?? "")) {
-        const record = toolCalls.get(id) ?? { id, name, success: true };
+      if (tracked && /complete|success|done/i.test(status ?? "")) {
+        const record = toolCalls.get(id) ?? { id, name: name as string, success: true };
         record.success = true;
         toolCalls.set(id, record);
       }
