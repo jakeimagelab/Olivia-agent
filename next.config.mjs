@@ -5,6 +5,9 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/olivia/**": ["./lib/olivia/fonts/**"],
   },
+  // Quote 서버사이드 프리뷰 렌더링(app/api/quotes/[id]/render)이 @sparticuz/chromium의 네이티브
+  // 바이너리를 실행 시점에 그대로 실행해야 해서, Next가 번들링을 시도하지 않게 external로 둔다.
+  serverExternalPackages: ["@sparticuz/chromium", "playwright-core"],
   images: {
     remotePatterns: [
       {
