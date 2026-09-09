@@ -37,12 +37,6 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
     { icon: FolderTree, title: "Scene 분류", description: "장면과 유형 기준으로 폴더를 구성합니다." },
     { icon: FileCheck2, title: "결과 확인", description: "분류 결과를 검토하고 저장합니다." },
   ],
-  conversion: [
-    { icon: FolderOpen, title: "영상 폴더 선택", description: "변환할 고해상도 영상 폴더를 선택합니다." },
-    { icon: CheckSquare2, title: "대상 확인", description: "변환할 파일과 화질 설정을 확인합니다." },
-    { icon: FileOutput, title: "FHD 변환", description: "브라우저에서 1920×1080 MP4로 변환합니다." },
-    { icon: FileCheck2, title: "결과 확인", description: "FHD_변환 폴더의 결과를 확인합니다." },
-  ],
   metadata_match: [
     { icon: Images, title: "고객 선택본", description: "파일명이 변경된 고객 선택본 폴더를 고릅니다." },
     { icon: Clock, title: "촬영시간 확인", description: "EXIF 촬영시간으로 원본 JPG를 찾습니다." },
