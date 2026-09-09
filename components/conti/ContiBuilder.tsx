@@ -2241,21 +2241,19 @@ ${header("타임테이블")}
                               touchAction: "none",
                             }}
                           >
-                            {/* 카드 헤더 */}
-                            <div style={{
-                              background: isDone ? "#DCFCE7" : c.bg, padding: "11px 16px",
-                              display: "flex", alignItems: "center", justifyContent: "space-between",
-                            }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ color: isDone ? "#166534" : c.text, fontSize: 14, opacity: 0.5, marginRight: 2, cursor: "grab" }}>⠿</span>
-                                <span style={{ background: "rgba(0,0,0,0.12)", color: isDone ? "#166534" : c.text, fontSize: 11, fontWeight: 900, padding: "2px 9px", borderRadius: 99 }}>
-                                  {i + 1}순위
-                                </span>
-                                <span style={{ color: isDone ? "#166534" : c.text, fontWeight: 900, fontSize: 14 }}>{row.category}</span>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ background: "rgba(0,0,0,0.10)", color: isDone ? "#166534" : c.text, fontSize: 11, fontWeight: 800, padding: "3px 11px", borderRadius: 99 }}>⏱ {row.duration}</span>
-                                {/* 완료 체크박스 */}
+                            <ContiSceneCard
+                              index={i + 1}
+                              category={row.category}
+                              duration={row.duration}
+                              keyword={row.keyword}
+                              description={row.description}
+                              location={row.location}
+                              cameraAngle={row.cameraAngle}
+                              personnel={row.personnel}
+                              color={c}
+                              completed={isDone}
+                              headerLeft={<span style={{ color: isDone ? "#166534" : c.text, fontSize: 14, opacity: 0.5, cursor: "grab" }}>⠿</span>}
+                              headerRight={
                                 <label onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
                                   <input
                                     type="checkbox"
@@ -2267,29 +2265,8 @@ ${header("타임테이블")}
                                     {isDone ? "완료 ✓" : "완료"}
                                   </span>
                                 </label>
-                              </div>
-                            </div>
-                            {/* 카드 바디 */}
-                            <div style={{ padding: "14px 16px", display: "grid", gap: 10 }}>
-                              <div style={{ color: isDone ? "#15803D" : "#E85D2C", fontWeight: 900, fontSize: 15, textDecoration: isDone ? "line-through" : "none" }}>{row.keyword}</div>
-                              <p style={{ color: isDone ? "#6B7280" : "#3A5450", fontSize: 13, lineHeight: 1.7, margin: 0 }}>
-                                {row.description}
-                              </p>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 2 }}>
-                                <div style={{ background: "#EDF5F3", borderRadius: 9, padding: "8px 12px" }}>
-                                  <div style={{ color: "#7A9E9B", fontSize: 11, fontWeight: 700, marginBottom: 3 }}>📍 장소</div>
-                                  <div style={{ color: "#1C2B28", fontSize: 13, fontWeight: 700 }}>{row.location || "—"}</div>
-                                </div>
-                                <div style={{ background: "#EDF5F3", borderRadius: 9, padding: "8px 12px" }}>
-                                  <div style={{ color: "#7A9E9B", fontSize: 11, fontWeight: 700, marginBottom: 3 }}>📷 구도</div>
-                                  <div style={{ color: "#1C2B28", fontSize: 13, fontWeight: 700 }}>{row.cameraAngle || "—"}</div>
-                                </div>
-                                <div style={{ background: "#EDF5F3", borderRadius: 9, padding: "8px 12px", gridColumn: "1/-1" }}>
-                                  <div style={{ color: "#7A9E9B", fontSize: 11, fontWeight: 700, marginBottom: 3 }}>👥 필요인원</div>
-                                  <div style={{ color: "#1C2B28", fontSize: 13 }}>{row.personnel || "—"}</div>
-                                </div>
-                              </div>
-                            </div>
+                              }
+                            />
                           </div>
                         );
                       })}
