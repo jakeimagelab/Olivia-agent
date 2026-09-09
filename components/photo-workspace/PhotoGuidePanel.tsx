@@ -1,10 +1,9 @@
 import type { LucideIcon } from "lucide-react";
-import { CheckSquare2, Clock, FileCheck2, FileOutput, FolderOpen, FolderTree, Images, Link2, MessageCircle, Palette, ScanSearch, Scissors, Sparkles, Users } from "lucide-react";
-import type { PhotoSelectMode, PhotoWorkspaceMode } from "./types";
-import type { PhotoWorkspaceToolId } from "./photoWorkspaceToolState";
+import { CheckSquare2, Clock, FileCheck2, FolderOpen, FolderTree, Images, Link2, MessageCircle, Palette, ScanSearch, Scissors, Sparkles, Users } from "lucide-react";
+import type { PhotoSelectMode, PhotoWorkspaceMode, RawMatchView } from "./types";
 import styles from "./PhotoWorkspace.module.css";
 
-type GuideKey = "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "conversion" | "metadata_match" | "ai_cull" | "retouch";
+type GuideKey = "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "metadata_match" | "ai_cull" | "retouch";
 type GuideStep = { icon: LucideIcon; title: string; description: string };
 
 const GUIDES: Record<GuideKey, GuideStep[]> = {
