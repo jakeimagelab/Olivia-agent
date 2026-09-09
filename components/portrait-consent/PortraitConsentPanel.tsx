@@ -166,13 +166,13 @@ export default function PortraitConsentPanel({
   const loadList = useCallback(() => {
     setLoading(true);
     const qs = new URLSearchParams();
-    if (clientId) qs.set("clientId", clientId);
-    if (workflowRunId) qs.set("workflowRunId", workflowRunId);
+    if (!viewAll && clientId) qs.set("clientId", clientId);
+    if (!viewAll && workflowRunId) qs.set("workflowRunId", workflowRunId);
     fetch(`/api/conti/portrait-consents?${qs.toString()}`)
       .then((r) => r.json())
       .then((body) => { if (body.ok) setConsents(body.consents); })
       .finally(() => setLoading(false));
-  }, [clientId, workflowRunId]);
+  }, [clientId, workflowRunId, viewAll]);
 
   useEffect(() => { loadList(); }, [loadList]);
 
