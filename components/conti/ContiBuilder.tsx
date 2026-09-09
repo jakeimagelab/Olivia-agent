@@ -1450,6 +1450,7 @@ ${header("타임테이블")}
                 downloadMenuOpen={showDownloadMenu}
                 completeState={completeState}
                 completeError={completeError}
+                onOpenLoad={openLoadPanel}
                 onReset={() => setResult(null)}
                 onFieldView={() => setFieldView(true)}
                 onShare={handleShare}
