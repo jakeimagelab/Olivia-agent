@@ -73,5 +73,103 @@ export function createOliviaHermesMcpServer() {
     },
   );
 
+  server.registerTool(
+    "create_quote",
+    {
+      title: "견적서 생성",
+      description: "Create a new Olivia quote (견적서) for a hospital/client. Always call this before adding or editing items. Returns quoteId — remember it in this conversation and pass it as quoteId to every subsequent quote tool call.",
+      inputSchema: {
+        hospitalName: z.string().trim().min(1).max(120).describe("Hospital or client name the quote is for"),
+        contactName: z.string().trim().max(60).optional(),
+        phone: z.string().trim().max(40).optional(),
+        email: z.string().trim().max(120).optional(),
+        brand: z.enum(["photoclinic", "jakeimage"]).optional().describe("Document brand, defaults to photoclinic"),
+        requestId: z.string().uuid().optional().describe("Opaque Olivia request correlation id supplied in the system instruction"),
+      },
+    },
+    async ({ requestId, ...input }) => runQuoteTool("create_quote", input, requestId),
+  );
+
+  server.registerTool(
+    "add_quote_item",
+    {
+      title: "견적 항목 추가",
+      description: "Add a new line item to an existing quote. Requires the quoteId returned by create_quote. Never invent a unitPrice — ask the user if it wasn't given.",
+      inputSchema: {
+        quoteId: z.string().uuid().describe("Quote id returned by create_quote"),
+        name: z.string().trim().min(1).max(120),
+        unitPrice: z.union([z.string(), z.number()]).describe("Unit price in KRW, e.g. 500000"),
+        quantity: z.union([z.string(), z.number()]).optional(),
+        description: z.string().trim().max(200).optional(),
+        note: z.string().trim().max(200).optional(),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ quoteId, requestId, ...input }) => runQuoteTool("add_quote_item", input, requestId, quoteId),
+  );
+
+  server.registerTool(
+    "update_quote_item",
+    {
+      title: "견적 항목 수정",
+      description: "Update an existing quote line item's price, quantity, description, or note. Requires quoteId and a selector (item name or partial text) to find the target row; use position if selector is ambiguous.",
+      inputSchema: {
+        quoteId: z.string().uuid(),
+        selector: z.string().trim().max(120).optional().describe("Item name or partial text to find the target row"),
+        position: z.union([z.string(), z.number()]).optional().describe("Ordinal position if selector is ambiguous, e.g. 1 or '첫번째'"),
+        amount: z.union([z.string(), z.number()]).optional(),
+        quantity: z.union([z.string(), z.number()]).optional(),
+        description: z.string().trim().max(200).optional(),
+        note: z.string().trim().max(200).optional(),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ quoteId, requestId, ...input }) => runQuoteTool("update_quote_item", input, requestId, quoteId),
+  );
+
+  server.registerTool(
+    "remove_quote_item",
+    {
+      title: "견적 항목 삭제",
+      description: "Remove a line item from a quote. Requires quoteId and a selector or position to find the target item.",
+      inputSchema: {
+        quoteId: z.string().uuid(),
+        selector: z.string().trim().max(120).optional(),
+        position: z.union([z.string(), z.number()]).optional(),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ quoteId, requestId, ...input }) => runQuoteTool("remove_quote_item", input, requestId, quoteId),
+  );
+
+  server.registerTool(
+    "apply_quote_discount",
+    {
+      title: "견적 할인 적용",
+      description: "Apply or remove a discount on a quote. Provide either amount (KRW), percent (of item subtotal), or remove:true to clear the discount.",
+      inputSchema: {
+        quoteId: z.string().uuid(),
+        amount: z.union([z.string(), z.number()]).optional(),
+        percent: z.union([z.string(), z.number()]).optional(),
+        remove: z.boolean().optional(),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ quoteId, requestId, ...input }) => runQuoteTool("apply_quote_discount", input, requestId, quoteId),
+  );
+
+  server.registerTool(
+    "publish_quote",
+    {
+      title: "견적서 확정 공개",
+      description: "Finalize and publish a quote — links/creates the client if needed, opens the customer portal, and marks the quote ready for delivery. Only call this after the user has explicitly confirmed the quote is correct. This cannot be undone by calling it again with different data — create a new quote instead if the deal changes after publishing.",
+      inputSchema: {
+        quoteId: z.string().uuid(),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ quoteId, requestId }) => runQuoteTool("publish_quote", {}, requestId, quoteId),
+  );
+
   return server;
 }
