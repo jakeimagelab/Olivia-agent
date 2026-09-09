@@ -44,14 +44,24 @@ function PhotoWorkspaceContent() {
   const toolState = resolvePhotoWorkspaceToolState(searchParams.get("tool"));
   const rawMode = searchParams.get("mode") as PhotoWorkspaceMode | null;
   const rawSelectMode = searchParams.get("selectMode") as PhotoSelectMode | null;
+  const rawRawMatchView = searchParams.get("rawMatchView") as RawMatchView | null;
   const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : "select");
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : "ai");
+  const rawMatchView = toolState?.rawMatchView ?? (rawRawMatchView && RAW_MATCH_VIEWS.has(rawRawMatchView) ? rawRawMatchView : "ai-cull");
 
   const updateQuery = (nextMode: PhotoWorkspaceMode, nextSelectMode = selectMode) => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("tool");
     params.set("mode", nextMode);
     params.set("selectMode", nextSelectMode);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const updateRawMatchView = (next: RawMatchView) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("tool");
+    params.set("mode", "raw-match");
+    params.set("rawMatchView", next);
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -67,17 +77,31 @@ function PhotoWorkspaceContent() {
             id={`photo-workspace-panel-${mode}`}
             aria-labelledby={`photo-workspace-tab-${mode}`}
           >
-            {searchParams.get("tool") === "metadata-match" ? <MetadataSelectWorkspace /> : null}
-            {searchParams.get("tool") === "ai-cull" ? <RawSelectWorkspace /> : null}
-            {searchParams.get("tool") === "retouch" ? <PhotoRetouchingWorkspace /> : null}
-            {mode === "select" && !["metadata-match", "ai-cull", "retouch"].includes(searchParams.get("tool") ?? "") ? (
+            {mode === "select" ? (
               <PhotoSelectWorkspace value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
-            {mode === "raw-match" ? <SelectMatchWorkspace embedded initialView="raw" /> : null}
+            {mode === "metadata-select" ? <MetadataSelectWorkspace /> : null}
+            {mode === "raw-match" ? (
+              <>
+                <SegmentedTabs
+                  ariaLabel="AI 컷 정리 / RAW 매칭 선택"
+                  value={rawMatchView}
+                  onChange={updateRawMatchView}
+                  items={[
+                    { value: "ai-cull", label: "AI 컷 정리", id: "raw-match-view-ai-cull", panelId: "raw-match-panel" },
+                    { value: "match", label: "RAW 매칭", id: "raw-match-view-match", panelId: "raw-match-panel" },
+                  ]}
+                  style={{ marginBottom: 14 }}
+                />
+                <div id="raw-match-panel">
+                  {rawMatchView === "ai-cull" ? <RawSelectWorkspace /> : <SelectMatchWorkspace embedded initialView="raw" />}
+                </div>
+              </>
+            ) : null}
             {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" /> : null}
-            {mode === "conversion" ? <VideoConvertWorkspace embedded /> : null}
+            {mode === "retouch" ? <PhotoRetouchingWorkspace /> : null}
           </section>
-          <PhotoGuidePanel mode={mode} selectMode={selectMode} tool={searchParams.get("tool")} />
+          <PhotoGuidePanel mode={mode} selectMode={selectMode} rawMatchView={rawMatchView} />
         </div>
       </main>
     </div>
