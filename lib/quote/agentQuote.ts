@@ -69,7 +69,7 @@ export function buildAgentQuoteData(input: Record<string, any>, workflowRunId?: 
     items,
     ...amounts,
     depositRate: 50,
-    memos: input.memo || null,
+    memos: input.memo,
     workflowRunId,
     formState: { brand, selectedPackageId: packageId, profileCount: Number(input.profileCount) || 0, stagedCount: Number(input.stagedCount) || 0, source: "olivia-v2" },
   };
