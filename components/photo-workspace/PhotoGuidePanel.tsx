@@ -57,16 +57,15 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
   ],
 };
 
-function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode, tool?: string | null): GuideKey {
-  if (tool === "metadata-match") return "metadata_match";
-  if (tool === "ai-cull") return "ai_cull";
-  if (tool === "retouch") return "retouch";
+function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode, rawMatchView?: RawMatchView | null): GuideKey {
   if (mode === "select") return `select_${selectMode}` as GuideKey;
-  if (mode === "raw-match") return "raw_match";
-  return mode;
+  if (mode === "metadata-select") return "metadata_match";
+  if (mode === "retouch") return "retouch";
+  if (mode === "raw-match") return rawMatchView === "match" ? "raw_match" : "ai_cull";
+  return "classification";
 }
-export default function PhotoGuidePanel({ mode, selectMode, tool }: { mode: PhotoWorkspaceMode; selectMode: PhotoSelectMode; tool?: PhotoWorkspaceToolId | string | null }) {
-  const key = guideKey(mode, selectMode, tool);
+export default function PhotoGuidePanel({ mode, selectMode, rawMatchView }: { mode: PhotoWorkspaceMode; selectMode: PhotoSelectMode; rawMatchView?: RawMatchView | null }) {
+  const key = guideKey(mode, selectMode, rawMatchView);
   const steps = GUIDES[key];
   return (
     <aside className={styles.guide} aria-label="사용 가이드">
