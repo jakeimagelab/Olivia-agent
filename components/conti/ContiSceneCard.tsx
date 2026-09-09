@@ -44,6 +44,7 @@ export default function ContiSceneCard({
         borderBottom: `1px solid ${completed ? "rgba(22,101,52,0.15)" : "rgba(0,0,0,0.06)"}`,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+          {headerLeft}
           <span style={{
             display: "flex", alignItems: "center", justifyContent: "center",
             width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
