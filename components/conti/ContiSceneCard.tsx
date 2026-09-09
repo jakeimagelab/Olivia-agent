@@ -13,6 +13,8 @@ export type ContiSceneCardProps = {
   personnel?: string;
   color: ContiSceneCardColor;
   completed?: boolean;
+  /** 드래그 핸들 등 헤더 왼쪽(번호 배지 앞)에 끼워 넣는 슬롯 — 없으면 순수 읽기 전용 카드. */
+  headerLeft?: ReactNode;
   /** 편집 화면 전용 컨트롤(완료 체크박스 등)을 헤더 오른쪽에 끼워 넣는 슬롯 — 없으면 순수 읽기 전용 카드. */
   headerRight?: ReactNode;
 };
@@ -21,7 +23,7 @@ export type ContiSceneCardProps = {
 // 카드. 드래그/완료토글 같은 동작은 이 컴포넌트가 모르고, 호출부가 바깥 wrapper에서 처리한다.
 export default function ContiSceneCard({
   index, category, duration, keyword, description,
-  location, cameraAngle, personnel, color, completed, headerRight,
+  location, cameraAngle, personnel, color, completed, headerLeft, headerRight,
 }: ContiSceneCardProps) {
   const bodyColor = completed ? "#166534" : color.text;
   const headerBg = completed ? "#DCFCE7" : color.bg;
