@@ -13,6 +13,7 @@ import { generatePortraitConsentPdf } from "@/lib/portraitConsentPdf";
 
 interface ConsentListItem {
   id: string;
+  client_id: string | null;
   title: string;
   status: "draft" | "sent" | "signed";
   provider_name: string | null;
