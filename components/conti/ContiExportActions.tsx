@@ -11,6 +11,7 @@ type Props = {
   downloadMenuOpen: boolean;
   completeState: "idle" | "completing" | "done" | "error";
   completeError: string;
+  onOpenLoad: () => void;
   onReset: () => void;
   onFieldView: () => void;
   onShare: () => void;
