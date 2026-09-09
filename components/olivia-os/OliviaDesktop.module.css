@@ -640,6 +640,8 @@
 .desktop:has(.assistantCollapsed) .dockArea { right: calc(var(--desktop-edge) + 58px + var(--desktop-gap)); }
 
 .dock {
+  --dock-icon-size: 48px;
+  --dock-button-size: 52px;
   max-width: 100%;
   display: flex;
   align-items: flex-end;
@@ -657,8 +659,8 @@
 
 .dockButton {
   position: relative;
-  width: 52px;
-  flex: 0 0 52px;
+  width: var(--dock-button-size);
+  flex: 0 0 var(--dock-button-size);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -673,6 +675,8 @@
   transition: transform 180ms cubic-bezier(.22, 1, .36, 1);
 }
 .dockButton:hover { transform: translateY(-4px) scale(1.12); }
+.dock[data-icon-size="40"] .dockButton:hover,
+.dock[data-icon-size="34"] .dockButton:hover { transform: translateY(-3px); }
 .dockTooltip {
   position: absolute;
   left: 50%;
@@ -697,6 +701,15 @@
 .dockButton:focus-visible .dockTooltip { opacity: 1; transform: translate(-50%, 0) scale(1); }
 .dockDivider { width: 1px; align-self: stretch; flex: 0 0 1px; margin: 4px 3px 8px; background: rgba(255, 255, 255, .38); }
 .dockIndicator { position: absolute; bottom: 0; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.85); box-shadow: 0 1px 3px rgba(0,0,0,.32); }
+.dockScrollable {
+  width: 90%;
+  max-width: 90%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dockScrollable::-webkit-scrollbar { display: none; }
 
 .desktopContextMenuBackdrop { position: fixed; inset: 56px 0 0; z-index: 9900; }
 .desktopContextMenu { position: fixed; width: 210px; padding: 6px; border: 1px solid rgba(255,255,255,.7); border-radius: 11px; background: rgba(250,252,251,.97); box-shadow: 0 18px 46px rgba(2,31,28,.27), inset 0 1px 0 #fff; backdrop-filter: blur(18px); }
@@ -753,8 +766,6 @@
 @media (max-width: 1500px) {
   .desktop { --left-rail-width: 224px; --assistant-width: 350px; --desktop-gap: 14px; --desktop-edge: 14px; }
   .desktopBody { padding: 0; }
-  .dock { gap: 4px; padding-inline: 9px; }
-  .dockButton { width: 50px; flex-basis: 50px; }
   .assistantPanel { height: min(720px, calc(100% - 44px)); margin-top: 44px; }
 }
 
@@ -767,8 +778,7 @@
   .assistantPanel.assistantCollapsed { width: 54px; }
   .dockArea,
   .desktop:has(.assistantCollapsed) .dockArea { left: 8px; right: 8px; bottom: 9px; }
-  .dock { min-height: 68px; gap: 2px; padding: 7px 8px; border-radius: 17px; }
-  .dockButton { width: 43px; flex-basis: 43px; }
+  .dock { min-height: 68px; padding-block: 7px; border-radius: 17px; }
   .dockLabel { display: none; }
 }
 
@@ -776,17 +786,13 @@
   .menuBar { margin-left: 4px; }
   .menuBarGroup:nth-child(4), .menuBarGroup:nth-child(5) { display: none; }
   .topBarStatus { display: none; }
-  .dockButton { width: 40px; flex-basis: 40px; }
   .allAppsGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
   .topBar { padding-inline: 10px; }
   .menuBarGroup:nth-child(3), .menuBarGroup:nth-child(6) { display: none; }
-  .dock { overflow-x: auto; overflow-y: hidden; }
   .topBarClock { min-width: 58px; font-size: 10px; }
-  .dockButton { width: 37px; flex-basis: 37px; }
-  .dockDivider { display: none; }
   .wallpaperChoices { grid-template-columns: 1fr; }
   .desktopSearchOverlay { padding-top: 78px; }
   .allAppsGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
