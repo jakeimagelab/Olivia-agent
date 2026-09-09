@@ -16,6 +16,9 @@ import ContiChecklist from "@/components/conti/ContiChecklist";
 import ContiSchedule from "@/components/conti/ContiSchedule";
 import ContiSummaryBar from "@/components/conti/ContiSummaryBar";
 import ContiExportActions from "@/components/conti/ContiExportActions";
+import ContiSceneCard from "@/components/conti/ContiSceneCard";
+import ContiChecklistRow from "@/components/conti/ContiChecklistRow";
+import ContiScheduleBlock from "@/components/conti/ContiScheduleBlock";
 import { getContiCategoryColor } from "@/components/conti/contiColors";
 import type { ChecklistRow, ContiFormState, ContiResult, ContiRow, LocationItem, PatientItem, SavedConti, ScheduleRow, StaffItem } from "@/components/conti/types";
 import {
