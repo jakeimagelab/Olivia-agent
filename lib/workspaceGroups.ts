@@ -40,7 +40,6 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
       { id: "ai-search", title: "AI 사진검색", href: "/photo-sorting?tool=ai-search", aliases: ["AI 사진 검색", "사진 검색", "의미 검색"], sourceHrefs: [] },
       { id: "classification", title: "사진 분류", href: "/photo-sorting?tool=classification", aliases: ["사진분류", "Scene 분류", "씬 분류"], sourceHrefs: ["/photo-sorting"] },
       { id: "retouch", title: "사진 보정", href: "/photo-sorting?tool=retouch", aliases: ["사진보정", "색감 보정", "리터칭"], sourceHrefs: ["/photo-retouching"] },
-      { id: "conversion", title: "파일 변환", href: "/photo-sorting?tool=conversion", aliases: ["파일 변환", "4K FHD 변환", "영상 변환"], sourceHrefs: ["/video-convert"] },
     ],
   },
   {
