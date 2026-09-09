@@ -9,9 +9,27 @@ const LegacyAppChrome = dynamic(() => import("./LegacyAppChrome"));
 
 const OS_ROUTE_PATHS = new Set(["/", "/desktop", "/admin/dashboard/home"]);
 
+// 고객/현장 스태프 등 외부인에게 토큰 링크로 공개되는 읽기 전용 페이지들 — 내부 관리자
+// 사이드바(LegacyAppChrome)가 같이 보이면 안 되므로 아예 chrome 없이 페이지 자신의 전체
+// 화면 스타일만 그린다. 각 경로는 이미 자기 완결적인 배경/헤더를 갖고 있다.
+const BARE_PATH_PREFIXES = [
+  "/client-portal",
+  "/conti/view/",
+  "/conti/share/",
+  "/conti-v2/share/",
+  "/video-conti/view/",
+  "/portrait-consent/",
+  "/hospital-brand-image-diagnosis/shared/",
+  "/assistant/voice/",
+  "/team-chat/invite/",
+  "/select/",
+  "/s/",
+];
+
 export default function RootExperienceShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [embedded, setEmbedded] = useState(false);
+  const isBarePage = Boolean(pathname && BARE_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix)));
 
   useEffect(() => {
     const isEmbedded = window.self !== window.top;
