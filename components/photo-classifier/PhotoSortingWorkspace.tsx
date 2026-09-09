@@ -1692,6 +1692,7 @@ function PhotoSortingInner({
     setStep(3);
     setClassificationJobState("APPROVED");
     let lastUpdate = Date.now();
+    try {
 
     if (fastAnalyzeMode || fieldScenes.some((scene) => !scene.sceneDir)) {
       // 승인 전 계획 모드: 씬 검토 확정 후에만 실제 파일 이동 실행
