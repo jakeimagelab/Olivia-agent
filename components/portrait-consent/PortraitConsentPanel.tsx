@@ -129,6 +129,9 @@ export default function PortraitConsentPanel({
 }: { clientId: string | null; workflowRunId: string | null; hospitalName: string }) {
   const [consents, setConsents] = useState<ConsentListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // 고객 컨텍스트 없이 만들어진 예전 레코드는 clientId 필터에 안 걸린다 — "전체" 탭에서는
+  // 필터 없이 조회해서 그런 레코드도 볼 수 있게 한다(2026-09-10 수정 지시서 1번).
+  const [viewAll, setViewAll] = useState(false);
   const [detail, setDetail] = useState<ConsentDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
