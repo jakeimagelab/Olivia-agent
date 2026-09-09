@@ -887,6 +887,19 @@ function PhotoSortingInner({
     }
   };
 
+  // OLIVIA OS AppWindow 안에서는 창 포커스 처리와 React click 합성 사이에서 네이티브
+  // directory picker의 사용자 활성화가 유실될 수 있다. 포인터 입력은 pointerdown에서 즉시
+  // 실행하고, 키보드로 활성화한 버튼(detail === 0)은 click에서 실행해 중복 호출 없이 둘 다
+  // 지원한다.
+  const pickDirOnPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    void pickDir();
+  };
+
+  const pickDirOnKeyboardClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (event.detail === 0) void pickDir();
+  };
+
   // AI 사진 분류 2.0 — 폴더를 고르면 실제 정밀 분류(handleFieldSort, Vision 호출 포함)를 돌리기
   // 전에 먼저 가볍게 "이번 촬영엔 뭐가 중요한지" 물어본다. 이미지 전송 없음(메타데이터+이미
   // 캐시된 시각 feature만) — 새 Vision 호출·새 feature 추출 전부 안 함(스펙 §6/§29/§30).
@@ -2745,7 +2758,7 @@ function PhotoSortingInner({
                   <Card>
                     <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>폴더 선택</div>
                     <div style={{padding:20}}>
-                      <button onClick={pickDir} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
+                      <button type="button" onPointerDown={pickDirOnPointerDown} onClick={pickDirOnKeyboardClick} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
                         {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 폴더 선택</>}
                       </button>
                       {dirPickError && <div style={{marginTop:8,padding:"8px 12px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>⚠️ {dirPickError}</div>}
@@ -2785,7 +2798,7 @@ function PhotoSortingInner({
                 <Card>
                   <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>폴더 선택</div>
                   <div style={{padding:20}}>
-                    <button onClick={pickDir} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
+                    <button type="button" onPointerDown={pickDirOnPointerDown} onClick={pickDirOnKeyboardClick} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
                       {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 폴더 선택</>}
                     </button>
                     {dirPickError && <div style={{marginTop:8,padding:"8px 12px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>⚠️ {dirPickError}</div>}
@@ -2959,7 +2972,7 @@ function PhotoSortingInner({
             <Card>
               <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.purple}}>폴더 선택</div>
               <div style={{padding:20,display:"flex",flexDirection:"column",gap:14}}>
-                <button onClick={pickDir} style={{height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.purple,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
+                <button type="button" onPointerDown={pickDirOnPointerDown} onClick={pickDirOnKeyboardClick} style={{height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.purple,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
                   {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 백업 폴더 선택</>}
                 </button>
                 {dirPickError && <div style={{padding:"8px 12px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>⚠️ {dirPickError}</div>}

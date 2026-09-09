@@ -56,7 +56,11 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
       initial={{ opacity: 0, scale: 0.98, y: 8 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={oliviaMotion.page}
-      onPointerDownCapture={() => focusWindow(windowId)}
+      // 이미 활성화된 창 안의 버튼을 누를 때마다 z-index를 다시 올리면 pointerdown과 click
+      // 사이에 창 전체가 리렌더된다. 일반 버튼은 대부분 버티지만 네이티브 파일/폴더 선택처럼
+      // 사용자 활성화 타이밍에 민감한 API는 클릭이 유실될 수 있으므로, 비활성 창을 처음
+      // 포커스할 때만 store를 갱신한다.
+      onPointerDownCapture={() => { if (!isActive) focusWindow(windowId); }}
       data-app-window={win.appId}
       role="region"
       aria-label={win.title}
