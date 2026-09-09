@@ -2263,6 +2263,7 @@ function PhotoSortingInner({
     if (!rootDir) return;
     setStep(1); cancelRef.current = false;
     setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
+    try {
     const rawFiles: {name:string,handle:FileSystemFileHandle}[] = [];
     const jpgFiles: {name:string,handle:FileSystemFileHandle,mtime:number,fileSize:number}[] = [];
     for await (const [name, handle] of (rootDir as any).entries()) {
