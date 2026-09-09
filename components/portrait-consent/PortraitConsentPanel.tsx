@@ -321,6 +321,11 @@ export default function PortraitConsentPanel({
                   <span style={{ fontSize: FS.xs, fontWeight: 800, color: "#fff", background: STATUS_COLOR[c.status], borderRadius: R.full, padding: "3px 10px", flexShrink: 0 }}>
                     {STATUS_LABEL[c.status]}
                   </span>
+                  {!c.client_id && (
+                    <span style={{ fontSize: FS.xs, fontWeight: 800, color: C.hint, background: C.border, borderRadius: R.full, padding: "3px 10px", flexShrink: 0 }}>
+                      미분류
+                    </span>
+                  )}
                   {c.provider_name && <span style={{ fontSize: FS.xs, color: C.muted, flexShrink: 0 }}>{c.provider_name}</span>}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
