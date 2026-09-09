@@ -2309,6 +2309,13 @@ function PhotoSortingInner({
         status: "complete",
       });
     }
+    } catch (error) {
+      // 2026-09-10 수정 지시서 3번 — 스튜디오 모드도 같은 패턴(최상위 try/catch 없음)이라
+      // 동일하게 고친다.
+      const message = error instanceof Error ? error.message : String(error);
+      setStudioCopyLog((previous) => [...previous, `❌ 오류: 파일 분류를 진행하지 못했습니다 — ${message}`]);
+      setStep(0);
+    }
   }, [rootDir, studioOpts, studioSubMode, studioGroupSortMode, studioGapMinutes, isModal, isEmbedded]);
 
   // PHASE 4(채팅 핸드오프, 2026-08-30) — 채팅에서 설정을 다 모으고 [사진 분류 시작]을 누르면
