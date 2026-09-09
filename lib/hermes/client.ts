@@ -202,7 +202,7 @@ export async function runHermesChat(input: {
     finalText = "등록된 고객에서 찾지 못했습니다.";
   } else if (verifiedSearch && verifiedSearch.clients.length > 1) {
     finalText = `등록 고객 후보가 ${verifiedSearch.clients.length}곳 있습니다.\n${verifiedSearch.clients
-      .map((client, index) => `${index + 1}. ${client.name}${client.specialty ? ` · ${client.specialty}` : ""}`)
+      .map((client: OliviaClientSearchResult["clients"][number], index: number) => `${index + 1}. ${client.name}${client.specialty ? ` · ${client.specialty}` : ""}`)
       .join("\n")}`;
   } else if (verifiedSearch?.clients.length === 1 && !finalText.includes(verifiedSearch.clients[0].name)) {
     finalText = `${verifiedSearch.clients[0].name} 고객을 찾았습니다.`;
