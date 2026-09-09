@@ -2280,20 +2280,7 @@ ${header("타임테이블")}
               {fieldViewTab === "checklist" && (
                 <div style={{ display: "grid", gap: 10, maxWidth: 700, margin: "0 auto" }}>
                   {result.checklist.map((row, i) => (
-                    <label key={i} style={{
-                      display: "flex", alignItems: "center", gap: 14,
-                      background: "#fff", borderRadius: 12, padding: "14px 18px",
-                      cursor: "pointer", userSelect: "none",
-                      border: "1px solid #C8DDD9",
-                      boxShadow: "0 1px 6px rgba(21,88,85,0.06)",
-                    }}>
-                      <input type="checkbox" style={{ width: 22, height: 22, accentColor: "#155855", cursor: "pointer", flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
-                        <span style={{ color: "#7A9E9B", fontSize: 11, fontWeight: 700 }}>{row.category} · </span>
-                        <span style={{ color: "#1C2B28", fontSize: 14, fontWeight: 700 }}>{row.item}</span>
-                        {row.notes && <span style={{ color: "#9BB5B0", fontSize: 12, marginLeft: 6 }}>({row.notes})</span>}
-                      </div>
-                    </label>
+                    <ContiChecklistRow key={i} category={row.category} item={row.item} notes={row.notes} interactive />
                   ))}
                 </div>
               )}
@@ -2308,27 +2295,7 @@ ${header("타임테이블")}
                     };
                     return toMins(a.time) - toMins(b.time);
                   }).map((row, i) => (
-                    <div key={i} style={{
-                      display: "flex", alignItems: "stretch",
-                      background: "#fff", borderRadius: 12, overflow: "hidden",
-                      border: "1px solid #C8DDD9",
-                      boxShadow: "0 1px 6px rgba(21,88,85,0.06)",
-                    }}>
-                      <div style={{
-                        background: "#155855", padding: "14px 18px",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        minWidth: 100, flexShrink: 0,
-                      }}>
-                        <span style={{ color: "#fff", fontWeight: 900, fontSize: 14 }}>{row.time}</span>
-                      </div>
-                      <div style={{ padding: "14px 18px", flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ color: "#1C2B28", fontWeight: 800, fontSize: 15 }}>{row.activity}</span>
-                          {row.type && <span style={{ color: "#E85D2C", fontSize: 11, fontWeight: 700, background: "rgba(232,93,44,0.1)", padding: "2px 8px", borderRadius: 99 }}>{row.type}</span>}
-                        </div>
-                        {row.requirements && <div style={{ color: "#5A7470", fontSize: 13 }}>{row.requirements}</div>}
-                      </div>
-                    </div>
+                    <ContiScheduleBlock key={i} time={row.time} activity={row.activity} type={row.type} requirements={row.requirements} />
                   ))}
                 </div>
               )}
