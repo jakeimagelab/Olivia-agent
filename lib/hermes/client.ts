@@ -1,5 +1,6 @@
 import { buildHermesSystemPrompt } from "@/lib/hermes/systemPrompt";
 import { consumeHermesClientSearch, consumeHermesToolCalls } from "@/lib/hermes/toolAudit";
+import type { OliviaClientSearchResult } from "@/lib/olivia/clientSearch";
 import type {
   HermesCallbacks,
   HermesChatContext,
