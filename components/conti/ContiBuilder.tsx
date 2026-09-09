@@ -2227,16 +2227,14 @@ ${header("타임테이블")}
                               setDragOver(null);
                             }}
                             style={{
-                              background: isDone ? "#F0FDF4" : "#fff",
                               borderRadius: 16,
-                              border: isDraggingOver
+                              outline: isDraggingOver
                                 ? "2px dashed #155855"
                                 : selectedOliviaEntityId === (row.id || `shot:${i + 1}`)
                                   ? "2px solid #155855"
-                                  : isDone ? "1px solid #86EFAC" : "1px solid #C8DDD9",
-                              overflow: "hidden",
-                              boxShadow: isDraggingOver ? "0 0 0 3px rgba(21,88,85,0.15)" : "0 2px 14px rgba(21,88,85,0.08)",
-                              cursor: "grab", opacity: isDraggingOver ? 0.7 : isDone ? 0.72 : 1,
+                                  : "none",
+                              outlineOffset: 2,
+                              cursor: "grab", opacity: isDraggingOver ? 0.7 : 1,
                               transition: "all 200ms",
                               touchAction: "none",
                             }}
