@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { executeQuoteTool } from "@/lib/olivia/v2/toolExecutors/quote";
+import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
+import type { HermesChatResult, HermesToolCallRecord } from "@/lib/hermes/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -27,6 +30,20 @@ const TOOL_LABELS: Record<string, string> = {
   get_gallery:           "갤러리 조회",
   create_gallery:        "갤러리 등록",
 };
+
+// Hermes MCP tool 이름은 client.ts에서 "mcp_olivia_<tool>" 규칙으로 통일해 기록한다
+// (lib/hermes/client.ts의 QUOTE_MCP_TOOLS 참고) — Telegram에서도 같은 규칙으로 찾는다.
+const QUOTE_MUTATION_TOOLS = new Set([
+  "mcp_olivia_create_quote",
+  "mcp_olivia_add_quote_item",
+  "mcp_olivia_update_quote_item",
+  "mcp_olivia_remove_quote_item",
+  "mcp_olivia_apply_quote_discount",
+]);
+
+function quoteContext(quoteId?: string): OliviaContextSnapshot {
+  return { activeWorkspace: "quote", activeResourceId: quoteId, recentActions: [], revision: 0 };
+}
 
 async function tgRequest(method: string, body: object): Promise<any> {
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
@@ -97,11 +114,85 @@ function getBaseUrl(req: NextRequest): string {
   return "http://localhost:3000";
 }
 
+// create_quote/update 계열 tool이 성공하면 미리보기 이미지를 렌더해서 사진+승인버튼으로 보낸다.
+// 렌더가 실패해도(Playwright 콜드스타트 등) 텍스트 응답 자체는 이미 있으니 조용히 텍스트로만 보낸다.
+async function sendQuotePreview(base: string, chatId: number, quoteId: string, caption: string) {
+  try {
+    const renderRes = await fetch(`${base}/api/quotes/${quoteId}/render`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+      body: JSON.stringify({ format: "png" }),
+    });
+    const renderData = await renderRes.json();
+    if (!renderData.ok || !renderData.url) return false;
+    await tgRequest("sendPhoto", {
+      chat_id: chatId,
+      photo: renderData.url,
+      caption: caption.slice(0, 1024),
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "✅ 승인", callback_data: `quote_publish:${quoteId}` },
+          { text: "✏️ 수정 요청", callback_data: `quote_edit:${quoteId}` },
+        ]],
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function handleCallbackQuery(req: NextRequest, callbackQuery: any) {
+  const chatId: number = callbackQuery.message?.chat?.id;
+  const userId = String(callbackQuery.from?.id || "");
+  const data: string = callbackQuery.data || "";
+
+  if (ALLOWED_USER_ID && userId !== ALLOWED_USER_ID) {
+    await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id, text: "접근 권한이 없습니다." });
+    return;
+  }
+
+  const [action, quoteId] = data.split(":");
+  if (!quoteId) {
+    await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id });
+    return;
+  }
+
+  if (action === "quote_publish") {
+    await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id, text: "처리 중…" });
+    try {
+      const result = await executeQuoteTool("publish_quote", {}, quoteContext(quoteId));
+      const summary = typeof result.data?.summary === "string" ? result.data.summary : undefined;
+      await tgRequest("sendMessage", {
+        chat_id: chatId,
+        text: result.success ? (summary || "견적서를 확정 공개했어요.") : `⚠️ ${result.error || "승인 처리에 실패했어요."}`,
+      });
+      await saveChat(String(chatId), "assistant", result.success ? (summary || "견적서를 확정 공개했어요.") : `⚠️ ${result.error}`);
+    } catch (e: any) {
+      await tgRequest("sendMessage", { chat_id: chatId, text: `⚠️ 승인 처리 중 오류: ${e.message}` });
+    }
+    return;
+  }
+
+  if (action === "quote_edit") {
+    await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id });
+    await tgRequest("sendMessage", { chat_id: chatId, text: "네, 어떻게 수정할까요? (예: \"수량 2명으로 늘려줘\", \"10만원 할인해줘\")" });
+    return;
+  }
+
+  await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id });
+}
+
 export async function POST(req: NextRequest) {
   if (!BOT_TOKEN) return NextResponse.json({ ok: false, error: "TELEGRAM_BOT_TOKEN 미설정" });
 
   let update: any;
   try { update = await req.json(); } catch { return NextResponse.json({ ok: true }); }
+
+  if (update.callback_query) {
+    await handleCallbackQuery(req, update.callback_query);
+    return NextResponse.json({ ok: true });
+  }
 
   const message = update.message;
   if (!message) return NextResponse.json({ ok: true });
@@ -159,93 +250,106 @@ export async function POST(req: NextRequest) {
 
   await tgRequest("sendChatAction", { chat_id: chatId, action: "typing" });
 
-  // 이전 대화 히스토리 가져오기
-  const history = await getHistory();
-
   // 현재 메시지 히스토리에 추가
   const userContent = userText || (imageBase64 ? "[📷 사진 전송됨]" : "");
   await saveChat(chatIdStr, "user", userContent);
 
-  try {
-    const base = getBaseUrl(req);
+  const base = getBaseUrl(req);
 
-    // 히스토리 + 현재 메시지를 함께 전달
-    const messages = [
-      ...history,
-      { role: "user" as const, content: userText },
-    ];
-
-    const oliviaRes = await fetch(`${base}/api/olivia`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-key": process.env.INTERNAL_API_KEY || "",
-      },
-      body: JSON.stringify({
-        messages,
-        imageBase64,
-        imageMime,
-        pageContext: "텔레그램 모바일 앱에서 접속 중. 승인 없이 도구를 바로 실행. 결과만 간결하게. 마크다운 최소화.",
-      }),
-    });
-
-    const data = await oliviaRes.json();
-    let reply: string;
-
-    if (!data.ok) {
-      reply = "⚠️ 오류: " + (data.error || "알 수 없는 오류");
-    } else if (data.type === "tool_request") {
-      const prefix = data.text ? data.text + "\n\n" : "";
-      // 클로드가 한 번에 여러 도구(tool_use)를 요청할 수 있어(예: "일정 3개 등록해줘"),
-      // 첫 번째 것만 실행하면 나머지가 조용히 버려져 사용자가 다시 요청해야 했다 — 전부 순차 실행.
-      const tools = Array.isArray(data.tools) && data.tools.length ? data.tools : [data.tool];
-      const lines: string[] = [];
-      for (const tool of tools) {
-        const label = TOOL_LABELS[tool?.name] || tool?.name || "작업";
-        try {
-          const execRes = await fetch(`${base}/api/olivia`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-internal-key": process.env.INTERNAL_API_KEY || "",
-              "x-base-url": base,
-            },
-            body: JSON.stringify({ pendingTool: tool }),
-          });
-          const execData = await execRes.json();
-          if (execData.ok && execData.toolResult) {
-            const result = execData.toolResult;
-            lines.push(result.action === "navigate"
-              ? (result.message || "완료됐어요!") + `\n🔗 ${String(result.url || "").startsWith("http") ? result.url : base + result.url}`
-              : (result.message || "완료됐어요!"));
-          } else {
-            lines.push(`⚠️ ${label} 실행 실패`);
+  // 사진이 첨부된 메시지는 Hermes가 아직 멀티모달을 지원하지 않아 기존 레거시 경로(Claude, 이미지
+  // 분석 가능)로 그대로 처리한다 — 텍스트 전용 메시지만 Hermes로 보낸다(스펙: Quote E2E via Telegram).
+  if (imageBase64) {
+    try {
+      const history = await getHistory();
+      const messages = [...history, { role: "user" as const, content: userText }];
+      const oliviaRes = await fetch(`${base}/api/olivia`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+        body: JSON.stringify({ messages, imageBase64, imageMime, pageContext: "텔레그램 모바일 앱에서 접속 중. 승인 없이 도구를 바로 실행. 결과만 간결하게. 마크다운 최소화." }),
+      });
+      const data = await oliviaRes.json();
+      let reply: string;
+      if (!data.ok) {
+        reply = "⚠️ 오류: " + (data.error || "알 수 없는 오류");
+      } else if (data.type === "tool_request") {
+        const prefix = data.text ? data.text + "\n\n" : "";
+        const tools = Array.isArray(data.tools) && data.tools.length ? data.tools : [data.tool];
+        const lines: string[] = [];
+        for (const tool of tools) {
+          const label = TOOL_LABELS[tool?.name] || tool?.name || "작업";
+          try {
+            const execRes = await fetch(`${base}/api/olivia`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "", "x-base-url": base },
+              body: JSON.stringify({ pendingTool: tool }),
+            });
+            const execData = await execRes.json();
+            if (execData.ok && execData.toolResult) {
+              const result = execData.toolResult;
+              lines.push(result.action === "navigate"
+                ? (result.message || "완료됐어요!") + `\n🔗 ${String(result.url || "").startsWith("http") ? result.url : base + result.url}`
+                : (result.message || "완료됐어요!"));
+            } else {
+              lines.push(`⚠️ ${label} 실행 실패`);
+            }
+          } catch (e: any) {
+            lines.push(`⚠️ ${label} 실행 중 오류: ${e.message}`);
           }
-        } catch (e: any) {
-          lines.push(`⚠️ ${label} 실행 중 오류: ${e.message}`);
         }
+        reply = prefix + lines.join("\n\n");
+      } else {
+        reply = data.text || "처리됐어요!";
       }
-      reply = prefix + lines.join("\n\n");
-    } else {
-      reply = data.text || "처리됐어요!";
+      await saveChat(chatIdStr, "assistant", reply);
+      for (let i = 0; i < reply.length; i += 4000) {
+        await tgRequest("sendMessage", { chat_id: chatId, text: reply.slice(i, i + 4000), parse_mode: "Markdown" });
+      }
+    } catch (e: any) {
+      await tgRequest("sendMessage", { chat_id: chatId, text: "⚠️ 연결 오류: " + e.message });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  // 텍스트 메시지 — Hermes(Agent Engine)로 처리한다. conversationId를 chatId로 고정해서 Hermes
+  // 자신의 세션 기억(X-Hermes-Session-Key)이 "방금 만든 견적"을 다음 턴에도 기억하게 한다 —
+  // Olivia 쪽에 별도 "지금 편집 중인 견적" 상태를 새로 안 만든다.
+  try {
+    const hermesRes = await fetch(`${base}/api/hermes/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+      body: JSON.stringify({ message: userText, conversationId: chatIdStr }),
+    });
+    const result = await hermesRes.json() as HermesChatResult | { success: false; error: string };
+
+    if (!result.success) {
+      const reply = "⚠️ 오류: " + (result.error || "알 수 없는 오류");
+      await saveChat(chatIdStr, "assistant", reply);
+      await tgRequest("sendMessage", { chat_id: chatId, text: reply });
+      return NextResponse.json({ ok: true });
     }
 
-    // 응답 저장
+    const reply = result.message || "처리됐어요!";
     await saveChat(chatIdStr, "assistant", reply);
 
-    // 4096자 초과 시 분할 전송
-    for (let i = 0; i < reply.length; i += 4000) {
-      await tgRequest("sendMessage", {
-        chat_id: chatId,
-        text: reply.slice(i, i + 4000),
-        parse_mode: "Markdown",
-      });
+    // 실제로 실행된 tool 중 견적 생성/수정이 성공한 게 있으면 미리보기 이미지+승인버튼을 보낸다.
+    // result.message 텍스트만 보내는 대신, "실행됐다는 걸 실제로 확인한 뒤에만" 사진을 보낸다
+    // (verification 없이는 완료로 취급하지 않는다는 이 코드베이스의 원칙).
+    const toolCalls: HermesToolCallRecord[] = Array.isArray(result.toolCalls) ? result.toolCalls : [];
+    const quoteMutation = [...toolCalls].reverse().find((call) => QUOTE_MUTATION_TOOLS.has(call.name) && call.success);
+    const quoteId = quoteMutation && typeof quoteMutation.data === "object" && quoteMutation.data
+      ? (quoteMutation.data as Record<string, unknown>).quoteId as string | undefined
+      : undefined;
+
+    let sentPreview = false;
+    if (quoteId) sentPreview = await sendQuotePreview(base, chatId, quoteId, reply);
+
+    if (!sentPreview) {
+      for (let i = 0; i < reply.length; i += 4000) {
+        await tgRequest("sendMessage", { chat_id: chatId, text: reply.slice(i, i + 4000) });
+      }
     }
   } catch (e: any) {
-    await tgRequest("sendMessage", {
-      chat_id: chatId,
-      text: "⚠️ 연결 오류: " + e.message,
-    });
+    await tgRequest("sendMessage", { chat_id: chatId, text: "⚠️ 연결 오류: " + e.message });
   }
 
   return NextResponse.json({ ok: true });
