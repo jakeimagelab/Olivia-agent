@@ -2153,6 +2153,14 @@ function PhotoSortingInner({
     setFieldStats(prev => prev ? { ...prev, selectedJpg:selectedBasenames.size, selectedRawMoved:rawMoved, rawMissing } : null);
     setClassificationJobState("COMPLETED");
     setStep(6);
+    } catch (error) {
+      // 2026-09-10 수정 지시서 3번 — RAW SELECT 실행 버튼도 최상위 보호가 없어서 폴더 생성/스캔
+      // 실패 시 진행률 화면에 멈췄다.
+      const message = error instanceof Error ? error.message : String(error);
+      setCopyLog((previous) => [...previous, `❌ 오류: RAW 매칭을 완료하지 못했습니다 — ${message}`]);
+      setClassificationJobState("WAITING_REVIEW");
+      setStep(4);
+    }
   }, [rootDir, fieldRawBaseDir, rawSelectMode, fieldStats, fieldRawCount, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled]);
 
   /* ── 앱 내 셀렉 탭: 씬 썸네일 로딩 ── */
