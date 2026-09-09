@@ -294,6 +294,17 @@ export default function PortraitConsentPanel({
         </div>
       </div>
 
+      {clientId && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+          <button type="button" onClick={() => setViewAll(false)} style={{ ...btnGhost, background: !viewAll ? C.mint : "#fff", borderColor: !viewAll ? C.teal : C.border, color: !viewAll ? C.teal : C.ink }}>
+            {hospitalName || "현재 병원"}
+          </button>
+          <button type="button" onClick={() => setViewAll(true)} style={{ ...btnGhost, background: viewAll ? C.mint : "#fff", borderColor: viewAll ? C.teal : C.border, color: viewAll ? C.teal : C.ink }}>
+            전체
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ textAlign: "center", padding: "40px 0", color: C.hint, fontSize: FS.sm }}>불러오는 중…</div>
       ) : consents.length === 0 ? (
