@@ -2492,6 +2492,7 @@ function PhotoSortingInner({
     if (!rootDir || studioGroups.length === 0) return;
     setStep(5); cancelRef.current = false;
     const log: string[] = [];
+    try {
     const rootName = rootDir.name;
     const selectedJpgDir = await (rootDir as any).getDirectoryHandle(`분류_${rootName}`, { create:true });
     const reportDir      = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
