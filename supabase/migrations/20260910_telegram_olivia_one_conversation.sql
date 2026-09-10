@@ -48,12 +48,17 @@ grant select, insert, update, delete on table public.olivia_chat_messages to ser
 
 do $$
 begin
-  begin
-    alter publication supabase_realtime add table public.olivia_chat_messages;
-  exception
-    when duplicate_object then null;
-    when undefined_object then null;
-  end;
+  if exists (
+    select 1 from pg_publication where pubname = 'supabase_realtime'
+  ) and not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'olivia_chat_messages'
+  ) then
+    execute 'alter publication supabase_realtime add table public.olivia_chat_messages';
+  end if;
 end $$;
 
 notify pgrst, 'reload schema';
