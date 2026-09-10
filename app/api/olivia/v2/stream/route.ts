@@ -431,10 +431,19 @@ function toolStatus(name: string) {
   return "화면을 준비하는 중…";
 }
 
+function isInternalServerRequest(req: NextRequest): boolean {
+  const key = process.env.INTERNAL_API_KEY;
+  if (!key) return false;
+  return req.headers.get("x-internal-key") === key;
+}
+
 export async function POST(req: NextRequest) {
   const requestStartedAt = performance.now();
   const requestId = crypto.randomUUID();
-  const authenticated=isAdminSession(req);
+  // 관리자 세션(브라우저 쿠키) 또는 내부 서버 호출(Telegram의 Anthropic 크레딧 소진 시
+  // 대체 경로, app/api/telegram/route.ts와 동일한 x-internal-key 패턴) 둘 중 하나만
+  // 통과하면 된다 — Telegram은 브라우저 쿠키가 없다.
+  const authenticated = isAdminSession(req) || isInternalServerRequest(req);
   const authMs=performance.now()-requestStartedAt;
   if (!authenticated) {
     return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
