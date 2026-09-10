@@ -825,14 +825,18 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
   );
 }
 
+const CALENDAR_MUTATION_TOOLS = new Set([
+  "calendar_add", "calendar_add_bulk", "calendar_update", "calendar_complete", "calendar_delete",
+]);
+
 /* ─── ScheduleChatPanel — 상담 메모(AI 분석 폼) 대신 미니 챗팅 하나로 바로 일정을 등록한다.
-   새 NLU를 만들지 않고 붙여넣기 퀵등록(onPaste)이 이미 쓰는 lib/calendarPaste.ts의
-   parseClipboardTasks를 그대로 재사용한다 — "오후 2시 강남 촬영"처럼 자유롭게 치면
-   날짜/시간/제목/카테고리를 그 자리에서 추출해 /api/calendar에 바로 저장한다. ─── */
-function ScheduleChatPanel({ dateStr, onAdd }: {
-  dateStr: string;
-  onAdd: (t: CalTask) => void;
-}) {
+   예전엔 정규식 기반 parseClipboardTasks(lib/calendarPaste.ts)로 "오후 2시 강남 촬영" 같은
+   단일 패턴만 추출했는데, 여러 일정이 섞였거나 "다음주 화요일" 같은 상대 날짜, 기존 일정
+   수정/삭제 요청은 전혀 이해하지 못했다 — 이제 Hermes(브레인)에게 그대로 물어보고,
+   calendar_* MCP tool(lib/hermes/mcpServer.ts, executeCalendarTool 재사용)이 실제 DB
+   반영을 맡는다. 실행 결과는 항상 olivia-calendar-updated 이벤트로 알려서(이미 있던 전역
+   새로고침 메커니즘) 몇 건이 어떻게 바뀌었든 화면이 실제 DB 상태로 다시 동기화된다. ─── */
+function ScheduleChatPanel({ dateStr }: { dateStr: string }) {
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -844,29 +848,30 @@ function ScheduleChatPanel({ dateStr, onAdd }: {
   const send = async () => {
     const text = input.trim();
     if (!text || sending) return;
+    const history = messages.slice(-8).map(m => ({ role: m.role, content: m.text }));
     setMessages(prev => [...prev, { role: "user", text }]);
     setInput("");
-    // 여러 줄로 길게 적어도(날짜/시간이 다른 줄에 있어도) 한 건으로 보고 합쳐서 추출한다 —
-    // 줄바꿈 그대로 넘기면 parseClipboardTasks가 줄마다 별개 일정으로 쪼갠다.
-    const [parsed] = parseClipboardTasks(text.replace(/\n+/g, " "), dateStr);
-    if (!parsed) {
-      setMessages(prev => [...prev, { role: "assistant", text: "어떤 일정인지 못 알아들었어요. 예: '오후 2시 강남 촬영'" }]);
-      return;
-    }
     setSending(true);
     try {
-      const r = await fetch("/api/calendar", {
+      const today = new Date();
+      const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const r = await fetch("/api/hermes/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: parsed.date, title: parsed.title, memo: "", category: parsed.category, time: parsed.time, end_time: parsed.end_time, location: null }),
+        body: JSON.stringify({
+          message: text,
+          history,
+          context: { activeWorkspace: "calendar", todayDate, focusDate: dateStr },
+        }),
       });
       const d = await r.json();
-      if (!d.ok) throw new Error(d.error);
-      onAdd({ id: d.id, date: parsed.date, title: parsed.title, memo: "", category: parsed.category, completed: false,
-        created_at: new Date().toISOString(), time: parsed.time, end_time: parsed.end_time, location: null,
-        reminder_due_at: d.reminder_due_at ?? null });
-      setMessages(prev => [...prev, { role: "assistant", text: `등록했어요 — ${parsed.date}${parsed.time ? ` ${parsed.time}` : ""} ${parsed.title}` }]);
+      if (!d.success) throw new Error(d.error || "요청을 처리하지 못했어요.");
+      const toolCalls = Array.isArray(d.toolCalls) ? d.toolCalls as { name: string; success: boolean }[] : [];
+      if (toolCalls.some(call => call.success && CALENDAR_MUTATION_TOOLS.has(call.name))) {
+        window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
+      }
+      setMessages(prev => [...prev, { role: "assistant", text: d.message || "처리했어요." }]);
     } catch (e) {
-      setMessages(prev => [...prev, { role: "assistant", text: e instanceof Error ? e.message : "등록에 실패했어요. 다시 시도해 주세요." }]);
+      setMessages(prev => [...prev, { role: "assistant", text: e instanceof Error ? e.message : "요청 처리에 실패했어요. 다시 시도해 주세요." }]);
     } finally {
       setSending(false);
     }
