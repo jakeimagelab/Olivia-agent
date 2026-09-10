@@ -20,31 +20,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ ok: false, error: "견적서를 찾지 못했어요." }, { status: 404 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined)
-    || "http://127.0.0.1:3000";
-  const html = buildQuoteHtml(quote as Record<string, unknown>, { baseUrl });
+  const baseUrl = resolveServerBaseUrl();
 
-  let browser;
   try {
-    browser = await launchBrowser();
-    const page = await browser.newPage({ viewport: { width: 794, height: 1123 } });
-    await page.setContent(html, { waitUntil: "networkidle" });
-
-    let buffer: Buffer;
-    let contentType: string;
-    let ext: string;
-    if (format === "pdf") {
-      buffer = await page.pdf({ width: "794px", height: "1123px", printBackground: true });
-      contentType = "application/pdf";
-      ext = "pdf";
-    } else {
-      const el = await page.$(".quote-page");
-      const shot = el ? await el.screenshot({ type: "png" }) : await page.screenshot({ type: "png", fullPage: true });
-      buffer = Buffer.from(shot);
-      contentType = "image/png";
-      ext = "png";
-    }
+    const { buffer, contentType, ext } = await renderQuoteBuffer(quote as Record<string, unknown>, format, { baseUrl });
 
     const storagePath = `quote-render/${id}/${Date.now()}.${ext}`;
     const { error: uploadError } = await db.storage.from(BUCKET).upload(storagePath, buffer, {
