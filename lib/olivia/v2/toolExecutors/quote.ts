@@ -423,11 +423,40 @@ export async function executeQuoteTool(
     // 일어난 일을 버튼으로 미리 묻지 않는다).
     const quoteBeforePublish = await loadQuote(resourceId);
     const hadClientBefore = Boolean(quoteBeforePublish.client_id);
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:3000";
+    const baseUrl = resolveServerBaseUrl();
     const response = await fetch(`${baseUrl}/api/quotes/${resourceId}/publish`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     const payload = await response.json();
     if (!response.ok || !payload.ok) throw new Error(payload.error || "견적서를 공개하지 못했어요.");
     const newlyLinkedClientId = !hadClientBefore && payload.clientId ? (payload.clientId as string) : undefined;
+
+    // 최종 승인 시 PDF를 원본 보관함(workflow_artifacts)에 아카이브한다(스펙 M5). 이미 위에서
+    // 공개(발행) 자체는 끝났으므로, 여기서 실패해도 publish_quote 전체를 실패로 되돌리지 않고
+    // verification.details에만 실패 사실을 남긴다 — "실행→저장→재조회→검증" 중 재조회 단계는
+    // /api/workflow-artifacts가 upsert().select().single()로 돌려주는 실제 row 자체다.
+    let pdfArchived = false;
+    let workflowArtifactId: string | undefined;
+    try {
+      const { buffer } = await renderQuoteBuffer(quoteBeforePublish, "pdf", { baseUrl });
+      const quoteNumber = String(quoteBeforePublish.quote_number || resourceId);
+      const fileName = `${quoteNumber}.pdf`;
+      const form = new FormData();
+      form.set("file", new File([buffer], fileName, { type: "application/pdf" }));
+      form.set("fileName", fileName);
+      form.set("documentType", "quote");
+      form.set("sourceTable", "quotes");
+      form.set("sourceId", resourceId);
+      form.set("title", `${quoteBeforePublish.hospital_name || "견적서"} 견적서`);
+      if (payload.clientId) form.set("clientId", String(payload.clientId));
+      if (payload.workflowRunId) form.set("workflowRunId", String(payload.workflowRunId));
+      const archiveRes = await fetch(`${baseUrl}/api/workflow-artifacts`, { method: "POST", body: form });
+      const archiveBody = await archiveRes.json().catch(() => null);
+      if (archiveRes.ok && archiveBody?.ok && archiveBody.artifact?.id) {
+        pdfArchived = true;
+        workflowArtifactId = archiveBody.artifact.id as string;
+      }
+    } catch (archiveError) {
+      console.error("[publish_quote] PDF 아카이브 실패", archiveError);
+    }
     // publish_quote는 QUOTE_MUTATION_TOOLS(lib/olivia/output/quoteConfirmations.ts)에 있어서
     // 이 summary가 모델 자유 텍스트 대신 그대로 채팅에 나간다 — 신규 고객 등록 여부를 여기서
     // 바로 알려주면 별도 승인 카드 없이도 스펙 §31이 요구하는 "발행 직후 정확히 한 번" 안내를
