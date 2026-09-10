@@ -1376,7 +1376,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
      (세로는 커서에 1:1로 붙고, 가로는 어느 요일 컬럼 위에 있는지에 따라서만 스냅) — 15분 단위 스냅은
      실제로 손을 뗄 때(finishDrag)만 적용해 저장한다. */
   const [dragging, setDragging] = useState<{
-    task: CalTask; offsetX: number; offsetY: number;
+    task: CalTask; offsetX: number; offsetY: number; initialLeft: number; initialWidth: number;
   } | null>(null);
   const draggingRef  = useRef(dragging);
   draggingRef.current = dragging;
