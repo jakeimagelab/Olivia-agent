@@ -1006,7 +1006,7 @@ function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd
         {/* 미니 챗팅 — 상담메모(AI 분석 폼) 대신, 바로 일정 등록 요청용. 남는 세로 공간을 꽉 채운다 */}
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <SectionLabel>💬 빠른 일정 등록</SectionLabel>
-          <ScheduleChatPanel dateStr={dateStr} onAdd={onAdd} />
+          <ScheduleChatPanel dateStr={dateStr} />
         </div>
       </div>
     </div>
