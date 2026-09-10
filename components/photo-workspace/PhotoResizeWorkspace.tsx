@@ -189,10 +189,10 @@ export default function PhotoResizeWorkspace() {
             fontSize: 13.5, color: "#fff", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
             whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", direction: "rtl", textAlign: "left",
           }}>{currentPath || "폴더를 검색하는 중…"}</div>
-          <div style={{ height: 4, background: "rgba(255,255,255,.1)", borderRadius: 3, marginTop: 16, overflow: "hidden", position: "relative" }}>
+          <div style={{ height: 6, background: "rgba(255,255,255,.1)", borderRadius: 3, marginTop: 16, overflow: "hidden" }}>
             <div style={{
-              position: "absolute", height: "100%", width: "32%", background: "#2E9186", borderRadius: 3,
-              animation: "photoResizeSlide 1.4s ease-in-out infinite",
+              height: "100%", width: `${percent}%`, background: "#2E9186", borderRadius: 3,
+              transition: "width 220ms ease",
             }} />
           </div>
         </div>
