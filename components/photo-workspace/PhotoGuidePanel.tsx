@@ -55,12 +55,19 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
     { icon: Sparkles, title: "색감 분석", description: "기준 색상과 현재 사진의 차이를 분석합니다." },
     { icon: FileCheck2, title: "보정값 확인", description: "Photoshop과 Camera Raw 보정 가이드를 확인합니다." },
   ],
+  resize: [
+    { icon: FolderOpen, title: "폴더 선택", description: "리사이즈할 사진이 있는 폴더를 선택하세요." },
+    { icon: Scaling, title: "해상도·품질 지정", description: "긴 변 기준 해상도와 JPEG 품질을 고릅니다." },
+    { icon: FolderTree, title: "일괄 변환", description: "하위 폴더까지 찾아 결과 폴더에 같은 구조로 저장합니다." },
+    { icon: FileCheck2, title: "결과 확인", description: "완료·건너뜀·실패 건수와 실패 사유를 확인합니다." },
+  ],
 };
 
 function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode, rawMatchView?: RawMatchView | null): GuideKey {
   if (mode === "select") return `select_${selectMode}` as GuideKey;
   if (mode === "metadata-select") return "metadata_match";
   if (mode === "retouch") return "retouch";
+  if (mode === "resize") return "resize";
   if (mode === "raw-match") return rawMatchView === "match" ? "raw_match" : "ai_cull";
   return "classification";
 }
