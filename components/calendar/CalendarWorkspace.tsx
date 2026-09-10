@@ -1467,7 +1467,10 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         ghostTimeRef.current.textContent = end ? `${timeTarget.time}–${end}` : timeTarget.time;
       }
     };
-    positionGhost(dragPosRef.current.x, dragPosRef.current.y);
+    // 마운트 즉시 positionGhost를 부르면(예전 동작) 아직 커서가 움직이지 않았어도 가로가 곧바로
+    // "커서가 있는 요일 컬럼 폭"으로 스냅돼 버려서, 겹침 레이아웃으로 좁게 그려져 있던 박스를 잡는
+    // 순간 그 자리에서 바로 튀어 보였다 — 첫 프레임은 JSX가 그린 실제 rect 그대로 두고, 실제로
+    // 커서가 움직인 뒤에만(아래 onMouseMove/onTouchMove) 컬럼 스냅을 적용한다.
     const onMouseMove = (e: MouseEvent) => {
       dragPosRef.current = { x: e.clientX, y: e.clientY };
       positionGhost(e.clientX, e.clientY);
