@@ -234,13 +234,43 @@ export default function PhotoResizeWorkspace() {
         </div>
         <div style={{
           display: "flex", gap: 10, alignItems: "center", background: "rgba(255,255,255,.04)",
-          border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "13px 16px", marginBottom: 16,
+          border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "13px 16px", marginBottom: preview ? 10 : 16,
         }}>
           <FolderOpen size={16} color="rgba(255,255,255,.5)" />
-          <span style={{ flex: 1, fontSize: 13, color: "#fff", fontFamily: "ui-monospace, Menlo, monospace" }}>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: "#fff", fontFamily: "ui-monospace, Menlo, monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {rootDir?.name}/{resultFolderName({ longEdge, quality })}
           </span>
+          <button type="button" className={styles.mutedButton} onClick={() => void openResultPreview()} disabled={previewLoading}>
+            {previewLoading ? <Loader2 size={13} className="spin-icon" /> : null}
+            {preview ? "닫기" : "결과 폴더 보기"}
+          </button>
         </div>
+        {preview ? (
+          <div style={{ marginBottom: 16 }}>
+            {preview.length === 0 ? (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,.4)", padding: "10px 2px" }}>결과 폴더가 비어 있어요.</div>
+            ) : (
+              <>
+                <div style={{
+                  display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(84px, 1fr))", gap: 8,
+                  maxHeight: 260, overflowY: "auto", padding: 2,
+                }}>
+                  {preview.map((entry) => (
+                    <div key={entry.path} style={{ borderRadius: 8, overflow: "hidden", background: "rgba(255,255,255,.06)", aspectRatio: "1 / 1" }} title={entry.path}>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- FSA API가 준 로컬 blob URL이라 next/image 최적화 대상이 아니다 */}
+                      <img src={entry.url} alt={entry.path} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    </div>
+                  ))}
+                </div>
+                {preview.length >= PREVIEW_LIMIT ? (
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.35)", marginTop: 8 }}>
+                    처음 {PREVIEW_LIMIT}장만 미리 보여드려요. 전체 파일은 실제 폴더에서 확인해주세요.
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : null}
         {stats.failures.length > 0 ? (
           <div style={{ border: "1px solid rgba(212,87,75,.35)", borderRadius: 10, overflow: "hidden", marginBottom: 16 }}>
             <div
