@@ -107,3 +107,50 @@ export async function runPhotoResize(
   await walk(rootDir, resultDir, "", true);
   return stats;
 }
+
+/**
+ * 실제 변환 전에 대상 사진 총 개수를 먼저 센다 — 진행률 게이지를 "왔다갔다"가 아니라
+ * 실제 퍼센트로 채우려면 분모(총 개수)가 필요하다. 파일 내용은 읽지 않고 디렉터리 목록만
+ * 훑으므로 1,500장 기준으로도 몇 초 이내에 끝난다.
+ */
+export async function countSourcePhotos(
+  rootDir: FileSystemDirectoryHandle,
+  outputName: string,
+  shouldStop: () => boolean,
+): Promise<number> {
+  let total = 0;
+  async function walk(dir: FileSystemDirectoryHandle, isRoot: boolean) {
+    for await (const [name, handle] of (dir as any).entries() as AsyncIterable<[string, FileSystemHandle]>) {
+      if (shouldStop()) return;
+      if (handle.kind === "directory") {
+        if (isRoot && name === outputName) continue;
+        if (OUTPUT_FOLDER_PATTERN.test(name)) continue;
+        await walk(handle as FileSystemDirectoryHandle, false);
+        continue;
+      }
+      if (IMAGE_EXT.test(name)) total += 1;
+    }
+  }
+  await walk(rootDir, true);
+  return total;
+}
+
+export type PhotoPreviewEntry = { path: string; handle: FileSystemFileHandle };
+
+/** 결과 폴더 미리보기용 — 전부가 아니라 limit개까지만 찾으면 바로 멈춘다. */
+export async function listResultPhotos(resultDir: FileSystemDirectoryHandle, limit: number): Promise<PhotoPreviewEntry[]> {
+  const out: PhotoPreviewEntry[] = [];
+  async function walk(dir: FileSystemDirectoryHandle, relPath: string) {
+    for await (const [name, handle] of (dir as any).entries() as AsyncIterable<[string, FileSystemHandle]>) {
+      if (out.length >= limit) return;
+      if (handle.kind === "directory") {
+        await walk(handle as FileSystemDirectoryHandle, `${relPath}${name}/`);
+      } else if (IMAGE_EXT.test(name)) {
+        out.push({ path: `${relPath}${name}`, handle: handle as FileSystemFileHandle });
+      }
+      if (out.length >= limit) return;
+    }
+  }
+  await walk(resultDir, "");
+  return out;
+}
