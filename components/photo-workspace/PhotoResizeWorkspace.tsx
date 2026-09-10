@@ -168,7 +168,7 @@ export default function PhotoResizeWorkspace() {
     return (
       <div className={styles.aiPanel}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "40px 0", justifyContent: "center", color: "rgba(255,255,255,.6)" }}>
-          <Loader2 size={18} className="pc-spin" />
+          <Loader2 size={18} className="spin-icon" />
           <span style={{ fontSize: 13 }}>폴더를 살펴보는 중…</span>
         </div>
       </div>
