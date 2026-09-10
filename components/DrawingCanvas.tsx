@@ -191,8 +191,14 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
     };
     resize();
     if (initialImage) drawImageToFit(canvas, initialImage);
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    // window resize만 듣던 예전 방식은 브라우저 창 자체는 그대로인데 이 캔버스 박스만 커지거나
+    // 작아지는 경우(전체화면 토글, 패널/사이드바 접힘 등)를 놓쳤다 — 그럴 때 canvas.width/height
+    // (실제 비트맵 해상도)가 화면에 보이는 박스 크기보다 낡은 채로 남아서, getPos의 dpr 배율
+    // 가정이 깨지고 펜으로 찍은 위치와 실제 그려지는 위치가 어긋났다. ResizeObserver로 이
+    // 캔버스 자신의 렌더 박스 크기 변화를 직접 감시한다.
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
+    return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -200,8 +206,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    const dpr = dprRef.current;
-    return { x: (clientX - rect.left) * dpr, y: (clientY - rect.top) * dpr };
+    // dpr 고정 배율 대신, 실제 비트맵 해상도(canvas.width)와 지금 화면에 렌더된 박스 크기
+    // (rect.width)의 비율로 좌표를 변환한다 — 리사이즈 타이밍이 살짝 어긋나 있어도(ResizeObserver
+    // 콜백 처리 전 마지막 프레임 등) 항상 "지금 실제로 보이는 크기" 기준으로 정확히 맞는다.
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : dprRef.current;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : dprRef.current;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
   };
 
   const applyPenStyle = (ctx: CanvasRenderingContext2D, speed = 0, pressure = 0.5) => {
