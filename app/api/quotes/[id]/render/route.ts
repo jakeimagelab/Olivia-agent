@@ -42,7 +42,5 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   } catch (err) {
     const message = err instanceof Error ? err.message : "견적서를 렌더링하지 못했어요.";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
-  } finally {
-    await browser?.close().catch(() => {});
   }
 }
