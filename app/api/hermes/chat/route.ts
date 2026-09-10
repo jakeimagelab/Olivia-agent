@@ -31,6 +31,8 @@ export async function POST(request: NextRequest) {
     activeClientId: typeof rawContext.activeClientId === "string" ? rawContext.activeClientId : undefined,
     activeProjectId: typeof rawContext.activeProjectId === "string" ? rawContext.activeProjectId : undefined,
     activeWorkspace: typeof rawContext.activeWorkspace === "string" ? rawContext.activeWorkspace : undefined,
+    todayDate: typeof rawContext.todayDate === "string" ? rawContext.todayDate : undefined,
+    focusDate: typeof rawContext.focusDate === "string" ? rawContext.focusDate : undefined,
   };
 
   try {
