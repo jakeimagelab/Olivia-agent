@@ -3,10 +3,42 @@ import { z } from "zod/v4";
 import { searchOliviaClients } from "@/lib/olivia/clientSearch";
 import { recordHermesClientSearch, recordHermesToolCall } from "@/lib/hermes/toolAudit";
 import { executeQuoteTool } from "@/lib/olivia/v2/toolExecutors/quote";
+import { executeCalendarTool } from "@/lib/olivia/v2/toolExecutors/calendar";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 
 function quoteContext(quoteId?: string): OliviaContextSnapshot {
   return { activeWorkspace: "quote", activeResourceId: quoteId, recentActions: [], revision: 0 };
+}
+
+function calendarContext(): OliviaContextSnapshot {
+  return { activeWorkspace: "calendar", recentActions: [], revision: 0 };
+}
+
+// calendar_* 6종도 quote와 동일한 wrapper 규약을 쓴다 — executeCalendarTool(기존 v2 웹챗이 쓰는
+// 그 구현 그대로)을 감싸고, MCP 응답 모양+toolAudit 기록만 여기서 한다.
+async function runCalendarTool(toolName: string, input: Record<string, unknown>, requestId: string | undefined) {
+  try {
+    const result = await executeCalendarTool(toolName, input, calendarContext());
+    if (!result.success) {
+      recordHermesToolCall(requestId, toolName, { success: false, error: result.error || "요청을 처리하지 못했어요." });
+      return {
+        isError: true,
+        content: [{ type: "text" as const, text: JSON.stringify({ success: false, error: result.error }) }],
+      };
+    }
+    recordHermesToolCall(requestId, toolName, { success: true, data: result.data });
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result) }],
+      structuredContent: (result.data ?? {}) as Record<string, unknown>,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "요청을 처리하지 못했어요.";
+    recordHermesToolCall(requestId, toolName, { success: false, error: message });
+    return {
+      isError: true,
+      content: [{ type: "text" as const, text: JSON.stringify({ success: false, error: message }) }],
+    };
+  }
 }
 
 // Quote tool 6종이 전부 이 wrapper를 거친다 — executeQuoteTool(lib/olivia/v2/toolExecutors/quote.ts)의
