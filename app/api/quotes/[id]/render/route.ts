@@ -1,26 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { buildQuoteHtml } from "@/lib/quote/buildQuoteHtml";
+import { renderQuoteBuffer } from "@/lib/quote/renderQuotePdf";
+import { resolveServerBaseUrl } from "@/lib/baseUrl";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const BUCKET = "olivia-chat-attachments";
-
-// @sparticuz/chromium은 Vercel/Lambda용 리눅스 바이너리라 이 Mac에서 직접 실행되지 않는다 —
-// 로컬 개발에서는 `npx playwright install chromium`으로 받은 로컬 브라우저를 그대로 쓰고,
-// 실제 Vercel(프로덕션)에서만 @sparticuz/chromium의 executablePath를 쓴다.
-async function launchBrowser() {
-  const { chromium: playwrightChromium } = await import("playwright-core");
-  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-  if (isServerless) {
-    const chromium = (await import("@sparticuz/chromium")).default;
-    const executablePath = await chromium.executablePath();
-    return playwrightChromium.launch({ args: chromium.args, executablePath, headless: true });
-  }
-  return playwrightChromium.launch({ headless: true });
-}
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
