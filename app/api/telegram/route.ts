@@ -417,7 +417,7 @@ export async function POST(req: NextRequest) {
       error: hermesError instanceof Error ? hermesError.message : "unknown",
     });
     try {
-      const reply = await runLegacyTelegramChat({ base, userText });
+      const reply = await runV2TelegramChat({ base, userText });
       await saveChat(chatIdStr, "assistant", reply);
       await sendTelegramText(chatId, reply);
     } catch (fallbackError) {
