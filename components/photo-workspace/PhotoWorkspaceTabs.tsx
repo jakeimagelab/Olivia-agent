@@ -18,6 +18,7 @@ const WORKSPACES: Array<{
   { mode: "raw-match", title: "AI 컷 정리 / RAW 매칭", description: "AI로 컷을 정리하거나 선택한 JPG를 RAW 원본과 연결합니다.", icon: <AppIcon name="raw-select" size={15} aria-hidden="true" /> },
   { mode: "classification", title: "사진 분류", description: "촬영 사진을 Scene과 유형 기준으로 자동 분류합니다.", icon: <FolderTree size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "retouch", title: "사진 보정", description: "색감·톤 보정 작업을 처리합니다.", icon: <AppIcon name="retouch" size={15} aria-hidden="true" /> },
+  { mode: "resize", title: "사진 리사이즈", description: "폴더 전체 사진을 지정한 해상도·품질로 일괄 변환합니다.", icon: <Scaling size={15} strokeWidth={2} aria-hidden="true" /> },
 ];
 
 // OLIVIA OS Desktop UI 제안서 3단계 — 1차 작업 6단계에서 이 파일에 직접 구현했던 세그먼트
