@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { FolderTree, Images } from "lucide-react";
+import { FolderTree, Images, Scaling } from "lucide-react";
 import { AppIcon } from "@/components/AppIcon";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import type { PhotoWorkspaceMode } from "./types";
