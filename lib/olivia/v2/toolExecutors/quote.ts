@@ -486,7 +486,7 @@ export async function executeQuoteTool(
         persisted: true,
         resourceExists: true,
         linked: Boolean(payload.clientId || hadClientBefore),
-        details: { newlyLinkedClient: Boolean(newlyLinkedClientId), pdfArchived, workflowArtifactId },
+        details: { newlyLinkedClient: Boolean(newlyLinkedClientId), pdfArchived, workflowArtifactId: workflowArtifactId ?? null },
       }),
     };
   }
