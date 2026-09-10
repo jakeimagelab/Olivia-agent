@@ -209,7 +209,6 @@ export default function PhotoResizeWorkspace() {
             </button>
           </div>
         </div>
-        <style>{"@keyframes photoResizeSlide{0%{left:-32%}100%{left:100%}}"}</style>
       </div>
     );
   }
