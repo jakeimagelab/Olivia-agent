@@ -12,6 +12,8 @@ import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/ty
 import { text, activeResource } from "./common";
 import { createVerification } from "./verification";
 import { isKnownDocumentBrand } from "@/lib/olivia/brandResolver";
+import { renderQuoteBuffer } from "@/lib/quote/renderQuotePdf";
+import { resolveServerBaseUrl } from "@/lib/baseUrl";
 
 // request_quote_publish(승인 요청)와 publish_quote(완료 보고) 둘 다 항목별 요약이 필요해서
 // 뽑아냈다(스펙 §19-22) — 금액은 전부 quotes 테이블에 이미 저장된 실제 값이고 여기서
