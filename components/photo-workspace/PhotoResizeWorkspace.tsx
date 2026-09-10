@@ -1,11 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, FolderOpen, Loader2, OctagonMinus, Square } from "lucide-react";
-import { resultFolderName, runPhotoResize, type PhotoResizeStats } from "@/lib/photoResize/resizePhotos";
+import {
+  countSourcePhotos,
+  listResultPhotos,
+  resultFolderName,
+  runPhotoResize,
+  type PhotoResizeStats,
+} from "@/lib/photoResize/resizePhotos";
 import styles from "./PhotoWorkspace.module.css";
 
-type Phase = "idle" | "running" | "stopping" | "completed";
+type Phase = "idle" | "counting" | "running" | "stopping" | "completed";
+const PREVIEW_LIMIT = 24;
 
 const RESOLUTIONS = [2000, 3000, 4000, 4500] as const;
 const QUALITIES = [80, 90, 95, 100] as const;
