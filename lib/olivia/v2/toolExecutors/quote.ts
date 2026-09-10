@@ -440,7 +440,7 @@ export async function executeQuoteTool(
       const quoteNumber = String(quoteBeforePublish.quote_number || resourceId);
       const fileName = `${quoteNumber}.pdf`;
       const form = new FormData();
-      form.set("file", new File([buffer], fileName, { type: "application/pdf" }));
+      form.set("file", new File([new Uint8Array(buffer)], fileName, { type: "application/pdf" }));
       form.set("fileName", fileName);
       form.set("documentType", "quote");
       form.set("sourceTable", "quotes");
