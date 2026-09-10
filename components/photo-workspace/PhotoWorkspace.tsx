@@ -33,8 +33,12 @@ const PhotoRetouchingWorkspace = dynamic(() => import("@/app/(photo-studio)/phot
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>사진 보정 도구를 불러오는 중...</div>,
 });
+const PhotoResizeWorkspace = dynamic(() => import("./PhotoResizeWorkspace"), {
+  ssr: false,
+  loading: () => <div className={styles.workspaceLoading}>사진 리사이즈 도구를 불러오는 중...</div>,
+});
 
-const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["select", "metadata-select", "raw-match", "classification", "retouch"]);
+const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["select", "metadata-select", "raw-match", "classification", "retouch", "resize"]);
 const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client"]);
 const RAW_MATCH_VIEWS = new Set<RawMatchView>(["ai-cull", "match"]);
 
