@@ -203,5 +203,138 @@ export function createOliviaHermesMcpServer() {
     async ({ quoteId, requestId }) => runQuoteTool("publish_quote", {}, requestId, quoteId),
   );
 
+  const CATEGORY = z.enum(["shooting", "client", "admin", "personal", "general"]);
+
+  server.registerTool(
+    "calendar_list",
+    {
+      title: "일정 조회",
+      description: "List all calendar tasks for a single date. Date must already be resolved to YYYY-MM-DD (see date resolution rules).",
+      inputSchema: {
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("YYYY-MM-DD"),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ date, requestId }) => runCalendarTool("calendar_list", { date }, requestId),
+  );
+
+  server.registerTool(
+    "calendar_list_month",
+    {
+      title: "월간 일정 조회",
+      description: "List all calendar tasks for a whole month.",
+      inputSchema: {
+        month: z.string().regex(/^\d{4}-\d{2}$/).describe("YYYY-MM"),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ month, requestId }) => runCalendarTool("calendar_list_month", { month }, requestId),
+  );
+
+  server.registerTool(
+    "calendar_add",
+    {
+      title: "일정 추가",
+      description: "Add a single calendar task. Date must already be resolved to YYYY-MM-DD per the date resolution rules — never pass relative words like '내일'.",
+      inputSchema: {
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("YYYY-MM-DD, already resolved"),
+        title: z.string().trim().min(1).max(200),
+        time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional().describe("HH:mm, 24h"),
+        end_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
+        location: z.string().trim().max(200).optional(),
+        memo: z.string().trim().max(2000).optional(),
+        category: CATEGORY.optional().describe("Omit if unclear — it will be guessed from the title"),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ requestId, ...input }) => runCalendarTool("calendar_add", input, requestId),
+  );
+
+  server.registerTool(
+    "calendar_add_bulk",
+    {
+      title: "일정 여러 건 추가",
+      description: "Add multiple calendar tasks in one call, e.g. when the user pastes several lines that are each a separate event (dates may differ per item).",
+      inputSchema: {
+        tasks: z.array(z.object({
+          date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          title: z.string().trim().min(1).max(200),
+          time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
+          end_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
+          location: z.string().trim().max(200).optional(),
+          memo: z.string().trim().max(2000).optional(),
+          category: CATEGORY.optional(),
+        })).min(1).max(30),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ requestId, tasks }) => runCalendarTool("calendar_add_bulk", { tasks }, requestId),
+  );
+
+  server.registerTool(
+    "calendar_update",
+    {
+      title: "일정 수정",
+      description: "Update an existing calendar task. Provide id if known, otherwise date + matchTitle (partial title text) to locate it. If matchTitle matches more than one task, this call fails with the candidate list — ask the user which one before retrying.",
+      inputSchema: {
+        id: z.string().uuid().optional(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Required together with matchTitle when id is unknown"),
+        matchTitle: z.string().trim().min(1).max(200).optional(),
+        title: z.string().trim().max(200).optional(),
+        time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).nullable().optional(),
+        end_time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).nullable().optional(),
+        location: z.string().trim().max(200).nullable().optional(),
+        memo: z.string().trim().max(2000).optional(),
+        category: CATEGORY.optional(),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ requestId, ...input }) => runCalendarTool("calendar_update", input, requestId),
+  );
+
+  server.registerTool(
+    "calendar_complete",
+    {
+      title: "일정 완료 처리",
+      description: "Mark a calendar task as completed. Provide id if known, otherwise date + matchTitle.",
+      inputSchema: {
+        id: z.string().uuid().optional(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        matchTitle: z.string().trim().min(1).max(200).optional(),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ requestId, ...input }) => runCalendarTool("calendar_complete", input, requestId),
+  );
+
+  server.registerTool(
+    "calendar_delete",
+    {
+      title: "일정 삭제",
+      description: "Delete a calendar task (moved to trash, recoverable). Provide id if known, otherwise date + matchTitle. Only call this after the user explicitly asked to delete/cancel that event.",
+      inputSchema: {
+        id: z.string().uuid().optional(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        matchTitle: z.string().trim().min(1).max(200).optional(),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ requestId, ...input }) => runCalendarTool("calendar_delete", input, requestId),
+  );
+
+  server.registerTool(
+    "calendar_availability",
+    {
+      title: "일정 충돌 확인",
+      description: "Check whether a given date+time already has a conflicting task within a 1-hour window. Use this before adding a timed event if the user seems unsure whether they're free.",
+      inputSchema: {
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/),
+        requestId: z.string().uuid().optional(),
+      },
+    },
+    async ({ requestId, ...input }) => runCalendarTool("calendar_availability", input, requestId),
+  );
+
   return server;
 }
