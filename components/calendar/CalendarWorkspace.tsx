@@ -618,12 +618,17 @@ function EventPopover({ mode, date, task, anchor, bounds, isMobile, defaultTime,
         const W = 288;
         const containerW = bounds.w || 1024;
         const containerH = bounds.h || 768;
-        const maxH = containerH - 32;
+        // 폼 실제 높이(텔레그램 알람 힌트+카테고리 2줄+메모까지 포함하면 380px를 넘는 경우가
+        // 흔함)를 넉넉히 어림잡아 top을 먼저 정하고, maxHeight는 반드시 "그 top에서 컨테이너
+        // 바닥까지 남은 공간"으로 다시 계산한다 — 이전엔 top과 무관한 고정값(containerH-32)을
+        // 써서 top이 아래쪽일 때 팝업이 컨테이너 밖으로 넘쳐 등록 버튼이 통째로 잘렸다.
+        const estimatedH = 460;
         let left = (anchor?.x ?? 200) + 14;
         let top = (anchor?.y ?? 200) - 20;
         if (left + W > containerW - 16) left = Math.max(16, containerW - W - 16);
-        if (top + 380 > containerH - 16) top = Math.max(16, containerH - 380 - 16);
+        if (top + estimatedH > containerH - 16) top = Math.max(16, containerH - estimatedH - 16);
         if (top < 16) top = 16;
+        const maxH = Math.max(200, containerH - top - 16);
         return { position: "absolute", left, top, zIndex: 500, width: W, maxHeight: maxH, overflowY: "auto" };
       })();
 
