@@ -142,6 +142,58 @@ async function sendQuotePreview(base: string, chatId: number, quoteId: string, c
   }
 }
 
+// Hermes가 실패했을 때(맥스튜디오 꺼짐 등) 예전엔 구형 Anthropic 엔진(/api/olivia)으로
+// 대체했는데, 그 엔진은 별도로 관리되는 구형 경로라 Anthropic 크레딧이 끊기면 텔레그램 전체가
+// 죽는 사례가 있었다(2026-09-10). 이제 웹챗이 이미 쓰고 있는 v2 엔진(OpenAI, 이미지가 없는
+// 텍스트 메시지에만 해당 — 이미지 첨부는 여전히 runLegacyTelegramChat/Anthropic Vision을 쓴다)
+// 으로 대체한다. v2는 SSE 스트림이라 여기서 텍스트만 모아 하나의 최종 문자열로 만든다.
+async function runV2TelegramChat(input: { base: string; userText: string }): Promise<string> {
+  const res = await fetch(`${input.base}/api/olivia/v2/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+    body: JSON.stringify({
+      message: input.userText,
+      pageContext: "텔레그램 모바일 앱에서 접속 중. 승인 없이 도구를 바로 실행. 결과만 간결하게. 마크다운 최소화.",
+    }),
+  });
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || "Olivia 연결 실패");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalText = "";
+  let streamError: string | undefined;
+
+  const handleBlock = (block: string) => {
+    const line = block.split("\n").find((l) => l.startsWith("data:"));
+    if (!line) return;
+    let payload: { type?: string; delta?: string; message?: string } | undefined;
+    try { payload = JSON.parse(line.slice(5).trimStart()); } catch { return; }
+    if (!payload) return;
+    if (payload.type === "text_delta" && typeof payload.delta === "string") finalText += payload.delta;
+    if (payload.type === "error") streamError = payload.message || "Olivia 응답 중 오류가 발생했어요.";
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true }).replaceAll("\r\n", "\n");
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      handleBlock(buffer.slice(0, boundary));
+      buffer = buffer.slice(boundary + 2);
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+  if (buffer.trim()) handleBlock(buffer);
+
+  if (streamError) throw new Error(streamError);
+  return finalText.trim() || "처리됐어요!";
+}
+
 async function runLegacyTelegramChat(input: {
   base: string;
   userText: string;
