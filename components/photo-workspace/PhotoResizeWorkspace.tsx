@@ -89,10 +89,15 @@ export default function PhotoResizeWorkspace() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentPath, setCurrentPath] = useState("");
   const [stats, setStats] = useState<PhotoResizeStats>(EMPTY_STATS);
+  const [total, setTotal] = useState<number | null>(null);
   const [stopped, setStopped] = useState(false);
   const [notice, setNotice] = useState("");
   const [errOpen, setErrOpen] = useState(false);
+  const [preview, setPreview] = useState<{ path: string; url: string }[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const stopFlagRef = useRef(false);
+
+  useEffect(() => () => { preview?.forEach((entry) => URL.revokeObjectURL(entry.url)); }, [preview]);
 
   const selectFolder = async () => {
     try {
@@ -108,13 +113,19 @@ export default function PhotoResizeWorkspace() {
   };
 
   const start = async () => {
-    if (!rootDir || phase === "running") return;
+    if (!rootDir || phase === "running" || phase === "counting") return;
     stopFlagRef.current = false;
     setStopped(false);
     setStats(EMPTY_STATS);
     setCurrentPath("");
-    setPhase("running");
+    setTotal(null);
+    setPreview(null);
+    setPhase("counting");
     try {
+      const count = await countSourcePhotos(rootDir, resultFolderName({ longEdge, quality }), () => stopFlagRef.current);
+      if (stopFlagRef.current) { setPhase("completed"); return; }
+      setTotal(count);
+      setPhase("running");
       const result = await runPhotoResize(rootDir, { longEdge, quality }, () => stopFlagRef.current, {
         onProgress: (path, nextStats) => { setCurrentPath(path); setStats(nextStats); },
       });
@@ -134,11 +145,43 @@ export default function PhotoResizeWorkspace() {
 
   const reset = () => { setPhase("idle"); setNotice(""); };
 
+  const openResultPreview = async () => {
+    if (!rootDir || previewLoading) return;
+    if (preview) { preview.forEach((entry) => URL.revokeObjectURL(entry.url)); setPreview(null); return; }
+    setPreviewLoading(true);
+    try {
+      const resultDir = await rootDir.getDirectoryHandle(resultFolderName({ longEdge, quality }));
+      const entries = await listResultPhotos(resultDir, PREVIEW_LIMIT);
+      const withUrls = await Promise.all(entries.map(async (entry) => {
+        const file = await entry.handle.getFile();
+        return { path: entry.path, url: URL.createObjectURL(file) };
+      }));
+      setPreview(withUrls);
+    } catch {
+      setNotice("결과 폴더를 열지 못했어요.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  if (phase === "counting") {
+    return (
+      <div className={styles.aiPanel}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "40px 0", justifyContent: "center", color: "rgba(255,255,255,.6)" }}>
+          <Loader2 size={18} className="pc-spin" />
+          <span style={{ fontSize: 13 }}>폴더를 살펴보는 중…</span>
+        </div>
+      </div>
+    );
+  }
+
   if (phase === "running" || phase === "stopping") {
+    const done = stats.completed + stats.skipped + stats.failed;
+    const percent = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
     return (
       <div className={styles.aiPanel}>
         <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)", marginBottom: 14 }}>
-          {phase === "stopping" ? "중지하는 중…" : "변환 중"}
+          {phase === "stopping" ? "중지하는 중…" : `변환 중 · ${percent}%${total ? ` (${done.toLocaleString("ko-KR")}/${total.toLocaleString("ko-KR")})` : ""}`}
         </div>
         <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 11, padding: 18, marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)", marginBottom: 7 }}>현재 처리</div>
