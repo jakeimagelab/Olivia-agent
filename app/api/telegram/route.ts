@@ -2,7 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeQuoteTool } from "@/lib/olivia/v2/toolExecutors/quote";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
-import type { HermesChatResult, HermesToolCallRecord } from "@/lib/hermes/types";
+import { ensurePrimaryAssistantOwner, ensureTelegramOwnerConnection, isAuthorizedTelegramIdentity } from "@/lib/assistant/owners/service";
+import {
+  findAssistantMessageByExternalId,
+  getOrCreateAssistantConversation,
+  listAssistantMessages,
+  saveAssistantMessage,
+} from "@/lib/assistant/conversations/service";
+import {
+  claimTelegramWebhook,
+  deliverTelegramAssistantMessage,
+  finishTelegramWebhook,
+  telegramAssistantExternalId,
+  telegramInboundExternalId,
+  uploadTelegramAttachment,
+} from "@/lib/assistant/telegram/service";
+import { sanitizeOliviaAttachments, type OliviaChatAttachment } from "@/lib/olivia/chatAttachments";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -31,16 +46,6 @@ const TOOL_LABELS: Record<string, string> = {
   create_gallery:        "갤러리 등록",
 };
 
-// Hermes MCP tool 이름은 client.ts에서 "mcp_olivia_<tool>" 규칙으로 통일해 기록한다
-// (lib/hermes/client.ts의 QUOTE_MCP_TOOLS 참고) — Telegram에서도 같은 규칙으로 찾는다.
-const QUOTE_MUTATION_TOOLS = new Set([
-  "mcp_olivia_create_quote",
-  "mcp_olivia_add_quote_item",
-  "mcp_olivia_update_quote_item",
-  "mcp_olivia_remove_quote_item",
-  "mcp_olivia_apply_quote_discount",
-]);
-
 function quoteContext(quoteId?: string): OliviaContextSnapshot {
   return { activeWorkspace: "quote", activeResourceId: quoteId, recentActions: [], revision: 0 };
 }
@@ -51,35 +56,9 @@ async function tgRequest(method: string, body: object): Promise<any> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return res.json();
-}
-
-// 대화 히스토리 저장 (chat_id 포함)
-async function saveChat(chatId: string, role: "user" | "assistant", content: string) {
-  try {
-    const db = getSupabaseAdmin();
-    await db.from("olivia_chat_messages").insert({
-      role, content, source: "telegram", chat_id: chatId,
-    });
-  } catch {}
-}
-
-// 최근 대화 히스토리 조회 (최대 10개)
-// 올리비아는 맥/노트북 웹 채팅과 텔레그램에서 하나의 연속된 대화로 동작해야 하므로,
-// 텔레그램 채널로만 필터링하지 않고 채널 상관없이(source 무관) 가장 최근 대화를 가져온다.
-async function getHistory(): Promise<{ role: "user" | "assistant"; content: string }[]> {
-  try {
-    const db = getSupabaseAdmin();
-    const { data } = await db
-      .from("olivia_chat_messages")
-      .select("role, content")
-      .order("created_at", { ascending: false })
-      .limit(10);
-    if (!data || data.length === 0) return [];
-    return (data as { role: "user" | "assistant"; content: string }[]).reverse();
-  } catch {
-    return [];
-  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.ok) throw new Error(data?.description || `Telegram ${method} 요청 실패`);
+  return data;
 }
 
 async function getFilePath(fileId: string): Promise<string | null> {
@@ -142,17 +121,34 @@ async function sendQuotePreview(base: string, chatId: number, quoteId: string, c
   }
 }
 
-// Hermes가 실패했을 때(맥스튜디오 꺼짐 등) 예전엔 구형 Anthropic 엔진(/api/olivia)으로
-// 대체했는데, 그 엔진은 별도로 관리되는 구형 경로라 Anthropic 크레딧이 끊기면 텔레그램 전체가
-// 죽는 사례가 있었다(2026-09-10). 이제 웹챗이 이미 쓰고 있는 v2 엔진(OpenAI, 이미지가 없는
-// 텍스트 메시지에만 해당 — 이미지 첨부는 여전히 runLegacyTelegramChat/Anthropic Vision을 쓴다)
-// 으로 대체한다. v2는 SSE 스트림이라 여기서 텍스트만 모아 하나의 최종 문자열로 만든다.
-async function runV2TelegramChat(input: { base: string; userText: string }): Promise<string> {
+// 텍스트 메시지는 웹챗과 같은 v2 엔진을 사용한다. v2는 SSE 스트림이므로 여기서 최종 텍스트와
+// canonical message ID를 모은다. 이미지 첨부만 기존 Vision 경로를 유지한다.
+type TelegramTurnResult = {
+  text: string;
+  persistedMessageId: string;
+  quoteId?: string;
+};
+
+async function runV2TelegramChat(input: {
+  base: string;
+  userText: string;
+  conversationId: string;
+  persistedUserMessageId: string;
+  clientRequestId: string;
+  assistantExternalMessageId: string;
+  attachments: OliviaChatAttachment[];
+}): Promise<TelegramTurnResult> {
   const res = await fetch(`${input.base}/api/olivia/v2/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
     body: JSON.stringify({
       message: input.userText,
+      conversationId: input.conversationId,
+      persistedUserMessageId: input.persistedUserMessageId,
+      clientRequestId: input.clientRequestId,
+      assistantExternalMessageId: input.assistantExternalMessageId,
+      channel: "telegram",
+      attachments: input.attachments,
       pageContext: "텔레그램 모바일 앱에서 접속 중. 승인 없이 도구를 바로 실행. 결과만 간결하게. 마크다운 최소화.",
     }),
   });
@@ -166,15 +162,22 @@ async function runV2TelegramChat(input: { base: string; userText: string }): Pro
   let buffer = "";
   let finalText = "";
   let streamError: string | undefined;
+  let persistedMessageId = "";
+  let quoteId: string | undefined;
 
   const handleBlock = (block: string) => {
     const line = block.split("\n").find((l) => l.startsWith("data:"));
     if (!line) return;
-    let payload: { type?: string; delta?: string; message?: string } | undefined;
+    let payload: { type?: string; delta?: string; message?: string; persistedMessageId?: string; result?: unknown } | undefined;
     try { payload = JSON.parse(line.slice(5).trimStart()); } catch { return; }
     if (!payload) return;
     if (payload.type === "text_delta" && typeof payload.delta === "string") finalText += payload.delta;
     if (payload.type === "error") streamError = payload.message || "Olivia 응답 중 오류가 발생했어요.";
+    if (payload.type === "message_complete" && typeof payload.persistedMessageId === "string") persistedMessageId = payload.persistedMessageId;
+    if (payload.type === "tool_result" && payload.result && typeof payload.result === "object") {
+      const result = payload.result as Record<string, unknown>;
+      if (typeof result.quoteId === "string") quoteId = result.quoteId;
+    }
   };
 
   while (true) {
@@ -191,19 +194,18 @@ async function runV2TelegramChat(input: { base: string; userText: string }): Pro
   if (buffer.trim()) handleBlock(buffer);
 
   if (streamError) throw new Error(streamError);
-  return finalText.trim() || "처리됐어요!";
+  if (!persistedMessageId) throw new Error("Olivia 응답 저장 ID를 받지 못했어요.");
+  return { text: finalText.trim() || "처리됐어요!", persistedMessageId, quoteId };
 }
 
 async function runLegacyTelegramChat(input: {
   base: string;
   userText: string;
+  history: { role: "user" | "assistant"; content: string }[];
   imageBase64?: string | null;
   imageMime?: string;
 }) {
-  const history = await getHistory();
-  const messages = history.length > 0 && history[history.length - 1]?.role === "user" && history[history.length - 1]?.content === input.userText
-    ? history
-    : [...history, { role: "user" as const, content: input.userText }];
+  const messages = [...input.history, { role: "user" as const, content: input.userText }];
   const oliviaRes = await fetch(`${input.base}/api/olivia`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
@@ -250,15 +252,37 @@ async function sendTelegramText(chatId: number, reply: string) {
   }
 }
 
+async function deliverSavedReply(input: {
+  db: ReturnType<typeof getSupabaseAdmin>;
+  ownerId: string;
+  conversationId: string;
+  messageId: string;
+  externalRequestId: string;
+  chatId: number;
+  base: string;
+  reply: string;
+  quoteId?: string;
+}) {
+  await deliverTelegramAssistantMessage(input.db, {
+    ownerId: input.ownerId,
+    conversationId: input.conversationId,
+    messageId: input.messageId,
+    externalRequestId: input.externalRequestId,
+    send: async () => {
+      const sentPreview = input.quoteId
+        ? await sendQuotePreview(input.base, input.chatId, input.quoteId, input.reply)
+        : false;
+      if (!sentPreview) await sendTelegramText(input.chatId, input.reply);
+    },
+  });
+}
+
 async function handleCallbackQuery(callbackQuery: any) {
   const chatId: number = callbackQuery.message?.chat?.id;
+  if (!chatId) return;
+  const chatIdStr = String(chatId);
   const userId = String(callbackQuery.from?.id || "");
   const data: string = callbackQuery.data || "";
-
-  if (ALLOWED_USER_ID && userId !== ALLOWED_USER_ID) {
-    await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id, text: "접근 권한이 없습니다." });
-    return;
-  }
 
   const [action, quoteId] = data.split(":");
   if (!quoteId) {
@@ -266,28 +290,104 @@ async function handleCallbackQuery(callbackQuery: any) {
     return;
   }
 
+  const db = getSupabaseAdmin();
+  const owner = await ensurePrimaryAssistantOwner(db);
+  const identity = {
+    userId,
+    chatId: chatIdStr,
+    username: typeof callbackQuery.from?.username === "string" ? callbackQuery.from.username : undefined,
+  };
+  if (!await isAuthorizedTelegramIdentity(db, owner.id, identity, ALLOWED_USER_ID)) {
+    await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id, text: "접근 권한이 없습니다." });
+    return;
+  }
+  const connection = await ensureTelegramOwnerConnection(db, owner.id, {
+    ...identity,
+  });
+  const conversation = await getOrCreateAssistantConversation(db, owner.id);
+  const inboundExternalId = telegramInboundExternalId(chatIdStr, `callback:${callbackQuery.id}`);
+  const assistantExternalId = telegramAssistantExternalId(chatIdStr, `callback:${callbackQuery.id}`);
+  const claim = await claimTelegramWebhook(db, {
+    eventKey: `callback:${callbackQuery.id}`,
+    ownerId: owner.id,
+    channelConnectionId: connection.id,
+    sanitizedPayload: { callbackId: callbackQuery.id, chatId: chatIdStr, userId, action, quoteId },
+  });
+  if (!claim.claimed) {
+    await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id });
+    return;
+  }
+
+  const actionLabel = action === "quote_publish" ? "견적서 승인" : action === "quote_edit" ? "견적서 수정 요청" : data;
+  const userSaved = await saveAssistantMessage(db, {
+    ownerId: owner.id,
+    conversationId: conversation.id,
+    role: "user",
+    content: actionLabel,
+    channel: "telegram",
+    externalMessageId: inboundExternalId,
+    deliveryStatus: "accepted",
+    metadata: { resourceType: "quote", resourceId: quoteId, telegram: { callbackQueryId: callbackQuery.id } },
+  });
+
   if (action === "quote_publish") {
     await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id, text: "처리 중…" });
     try {
       const result = await executeQuoteTool("publish_quote", {}, quoteContext(quoteId));
       const summary = typeof result.data?.summary === "string" ? result.data.summary : undefined;
-      await tgRequest("sendMessage", {
-        chat_id: chatId,
-        text: result.success ? (summary || "견적서를 확정 공개했어요.") : `⚠️ ${result.error || "승인 처리에 실패했어요."}`,
+      const reply = result.success ? (summary || "견적서를 확정 공개했어요.") : `⚠️ ${result.error || "승인 처리에 실패했어요."}`;
+      const assistantSaved = await saveAssistantMessage(db, {
+        ownerId: owner.id,
+        conversationId: conversation.id,
+        role: "assistant",
+        content: reply,
+        channel: "telegram",
+        externalMessageId: assistantExternalId,
+        parentMessageId: userSaved.message.id,
+        deliveryStatus: "queued",
+        metadata: { blocks: [{ type: "text", text: reply }], resourceType: "quote", resourceId: quoteId },
       });
-      await saveChat(String(chatId), "assistant", result.success ? (summary || "견적서를 확정 공개했어요.") : `⚠️ ${result.error}`);
+      await deliverTelegramAssistantMessage(db, {
+        ownerId: owner.id,
+        conversationId: conversation.id,
+        messageId: assistantSaved.message.id,
+        externalRequestId: assistantExternalId,
+        send: () => sendTelegramText(chatId, reply),
+      });
+      await finishTelegramWebhook(db, claim.eventId, "processed");
     } catch (e: any) {
-      await tgRequest("sendMessage", { chat_id: chatId, text: `⚠️ 승인 처리 중 오류: ${e.message}` });
+      await finishTelegramWebhook(db, claim.eventId, "failed", "quote_publish_failed").catch(() => undefined);
+      await tgRequest("sendMessage", { chat_id: chatId, text: `⚠️ 승인 처리 중 오류: ${e.message}` }).catch(() => undefined);
     }
     return;
   }
 
   if (action === "quote_edit") {
     await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id });
-    await tgRequest("sendMessage", { chat_id: chatId, text: "네, 어떻게 수정할까요? (예: \"수량 2명으로 늘려줘\", \"10만원 할인해줘\")" });
+    const reply = "네, 어떻게 수정할까요? (예: \"수량 2명으로 늘려줘\", \"10만원 할인해줘\")";
+    const assistantSaved = await saveAssistantMessage(db, {
+      ownerId: owner.id,
+      conversationId: conversation.id,
+      role: "assistant",
+      content: reply,
+      channel: "telegram",
+      externalMessageId: assistantExternalId,
+      parentMessageId: userSaved.message.id,
+      deliveryStatus: "queued",
+      metadata: { blocks: [{ type: "text", text: reply }], resourceType: "quote", resourceId: quoteId },
+    });
+    await deliverTelegramAssistantMessage(db, {
+      ownerId: owner.id,
+      conversationId: conversation.id,
+      messageId: assistantSaved.message.id,
+      externalRequestId: assistantExternalId,
+      send: () => sendTelegramText(chatId, reply),
+    });
+    await finishTelegramWebhook(db, claim.eventId, "processed");
     return;
   }
 
+  await finishTelegramWebhook(db, claim.eventId, "ignored");
   await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id });
 }
 
@@ -297,135 +397,214 @@ export async function POST(req: NextRequest) {
   let update: any;
   try { update = await req.json(); } catch { return NextResponse.json({ ok: true }); }
 
-  if (update.callback_query) {
-    await handleCallbackQuery(update.callback_query);
+  const message = update.message;
+  if (!message) {
+    if (update.callback_query) await handleCallbackQuery(update.callback_query);
     return NextResponse.json({ ok: true });
   }
-
-  const message = update.message;
-  if (!message) return NextResponse.json({ ok: true });
 
   const chatId: number = message.chat.id;
   const chatIdStr = String(chatId);
   const userId = String(message.from?.id || "");
 
-  if (ALLOWED_USER_ID && userId !== ALLOWED_USER_ID) {
+  const db = getSupabaseAdmin();
+  const owner = await ensurePrimaryAssistantOwner(db);
+  const identity = {
+    userId,
+    chatId: chatIdStr,
+    username: typeof message.from?.username === "string" ? message.from.username : undefined,
+  };
+  if (!await isAuthorizedTelegramIdentity(db, owner.id, identity, ALLOWED_USER_ID)) {
     await tgRequest("sendMessage", { chat_id: chatId, text: "접근 권한이 없습니다." });
     return NextResponse.json({ ok: true });
   }
-
-  let userText = message.text || message.caption || "";
-  let imageBase64: string | null = null;
-  const imageMime = "image/jpeg";
-
-  // 사진 처리
-  if (message.photo) {
-    const photo = message.photo[message.photo.length - 1];
-    const url = await getFilePath(photo.file_id);
-    if (url) {
-      const buf = await fetch(url).then(r => r.arrayBuffer());
-      imageBase64 = Buffer.from(buf).toString("base64");
-      if (!userText) userText = "이 사진 분석해줘";
-    }
-  }
-
-  // 음성 처리
-  if (message.voice) {
-    const url = await getFilePath(message.voice.file_id);
-    if (url) {
-      const buf = await fetch(url).then(r => r.arrayBuffer());
-      userText = await transcribeVoice(buf);
-    }
-  }
-
-  // 이미지 파일 처리
-  if (message.document && message.document.mime_type?.startsWith("image/")) {
-    const url = await getFilePath(message.document.file_id);
-    if (url) {
-      const buf = await fetch(url).then(r => r.arrayBuffer());
-      imageBase64 = Buffer.from(buf).toString("base64");
-      if (!userText) userText = "이 사진 분석해줘";
-    }
-  }
-
-  if (!userText && !imageBase64) {
-    await tgRequest("sendMessage", {
-      chat_id: chatId,
-      text: "텍스트, 사진, 또는 음성 메시지를 보내주세요 💬📷🎙️",
-    });
-    return NextResponse.json({ ok: true });
-  }
-
-  await tgRequest("sendChatAction", { chat_id: chatId, action: "typing" });
-
-  // 현재 메시지 히스토리에 추가
-  const userContent = userText || (imageBase64 ? "[📷 사진 전송됨]" : "");
-  await saveChat(chatIdStr, "user", userContent);
+  const connection = await ensureTelegramOwnerConnection(db, owner.id, {
+    ...identity,
+  });
+  const conversation = await getOrCreateAssistantConversation(db, owner.id);
+  const telegramMessageId = String(message.message_id ?? update.update_id ?? "unknown");
+  const inboundExternalId = telegramInboundExternalId(chatIdStr, telegramMessageId);
+  const assistantExternalId = telegramAssistantExternalId(chatIdStr, telegramMessageId);
+  const claim = await claimTelegramWebhook(db, {
+    eventKey: String(update.update_id ?? inboundExternalId),
+    ownerId: owner.id,
+    channelConnectionId: connection.id,
+    sanitizedPayload: {
+      updateId: update.update_id ?? null,
+      messageId: telegramMessageId,
+      chatId: chatIdStr,
+      userId,
+      hasPhoto: Boolean(message.photo),
+      hasVoice: Boolean(message.voice),
+      hasDocument: Boolean(message.document),
+    },
+  });
+  if (!claim.claimed) return NextResponse.json({ ok: true, duplicate: true });
 
   const base = getBaseUrl(req);
-
-  // 사진이 첨부된 메시지는 Hermes가 아직 멀티모달을 지원하지 않아 기존 레거시 경로(Claude, 이미지
-  // 분석 가능)로 그대로 처리한다 — 텍스트 전용 메시지만 Hermes로 보낸다(스펙: Quote E2E via Telegram).
-  if (imageBase64) {
-    try {
-      const reply = await runLegacyTelegramChat({ base, userText, imageBase64, imageMime });
-      await saveChat(chatIdStr, "assistant", reply);
-      await sendTelegramText(chatId, reply);
-    } catch (error) {
-      await tgRequest("sendMessage", { chat_id: chatId, text: "⚠️ 연결 오류: " + (error instanceof Error ? error.message : "알 수 없는 오류") });
+  const existingAssistant = await findAssistantMessageByExternalId(db, {
+    ownerId: owner.id,
+    conversationId: conversation.id,
+    channel: "telegram",
+    externalMessageId: assistantExternalId,
+  });
+  if (existingAssistant) {
+    if (existingAssistant.delivery_status !== "delivered") {
+      const metadata = existingAssistant.metadata && typeof existingAssistant.metadata === "object"
+        ? existingAssistant.metadata as Record<string, unknown>
+        : {};
+      await deliverSavedReply({
+        db,
+        ownerId: owner.id,
+        conversationId: conversation.id,
+        messageId: existingAssistant.id,
+        externalRequestId: assistantExternalId,
+        chatId,
+        base,
+        reply: String(existingAssistant.content || "처리됐어요!"),
+        quoteId: metadata.resourceType === "quote" && typeof metadata.resourceId === "string" ? metadata.resourceId : undefined,
+      });
     }
-    return NextResponse.json({ ok: true });
+    await finishTelegramWebhook(db, claim.eventId, "processed");
+    return NextResponse.json({ ok: true, resumed: true });
   }
 
-  // 텍스트 메시지 — Hermes(Agent Engine)로 처리한다. conversationId를 chatId로 고정해서 Hermes
-  // 자신의 세션 기억(X-Hermes-Session-Key)이 "방금 만든 견적"을 다음 턴에도 기억하게 한다 —
-  // Olivia 쪽에 별도 "지금 편집 중인 견적" 상태를 새로 안 만든다.
-  try {
-    const hermesRes = await fetch(`${base}/api/hermes/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
-      body: JSON.stringify({ message: userText, conversationId: chatIdStr }),
-    });
-    const result = await hermesRes.json() as HermesChatResult | { success: false; error: string; fallbackSafe?: boolean };
+  const existingInbound = await findAssistantMessageByExternalId(db, {
+    ownerId: owner.id,
+    conversationId: conversation.id,
+    channel: "telegram",
+    externalMessageId: inboundExternalId,
+  });
 
-    if (!result.success) {
-      if (result.fallbackSafe) throw new Error(result.error || "Hermes 연결 실패");
-      const reply = "⚠️ 오류: " + (result.error || "알 수 없는 오류");
-      await saveChat(chatIdStr, "assistant", reply);
-      await sendTelegramText(chatId, reply);
+  let userText = existingInbound?.content || message.text || message.caption || "";
+  let imageBase64: string | null = null;
+  let imageMime = "image/jpeg";
+  const attachments: OliviaChatAttachment[] = sanitizeOliviaAttachments(existingInbound?.metadata?.attachments);
+  const attachmentFailures: string[] = [];
+
+  try {
+    if (message.photo) {
+      const photo = message.photo[message.photo.length - 1];
+      try {
+        const url = await getFilePath(photo.file_id);
+        if (!url) throw new Error("Telegram 사진 경로를 찾지 못했어요.");
+        const downloaded = await fetch(url).then((response) => response.arrayBuffer());
+        const bytes = new Uint8Array(downloaded as ArrayBuffer);
+        imageBase64 = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString("base64");
+        if (!existingInbound) {
+          attachments.push(await uploadTelegramAttachment(db, {
+            fileName: `telegram-photo-${telegramMessageId}.jpg`,
+            mimeType: imageMime,
+            bytes,
+          }));
+        }
+        if (!userText) userText = "이 사진 분석해줘";
+      } catch (error) {
+        attachmentFailures.push(error instanceof Error ? error.message : "Telegram 사진 저장 실패");
+      }
+    }
+
+    if (message.voice) {
+      const url = await getFilePath(message.voice.file_id);
+      if (url) {
+        try {
+          userText = await transcribeVoice(await fetch(url).then((response) => response.arrayBuffer()));
+        } catch (error) {
+          attachmentFailures.push(error instanceof Error ? error.message : "음성 인식 실패");
+        }
+      }
+    }
+
+    if (message.document) {
+      const mimeType = String(message.document.mime_type || "application/octet-stream");
+      const fileName = String(message.document.file_name || `telegram-file-${telegramMessageId}`);
+      try {
+        const url = await getFilePath(message.document.file_id);
+        if (!url) throw new Error("Telegram 파일 경로를 찾지 못했어요.");
+        const downloaded = await fetch(url).then((response) => response.arrayBuffer());
+        const bytes = new Uint8Array(downloaded as ArrayBuffer);
+        if (!existingInbound) attachments.push(await uploadTelegramAttachment(db, { fileName, mimeType, bytes }));
+        if (mimeType.startsWith("image/")) {
+          imageMime = mimeType;
+          imageBase64 = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString("base64");
+        }
+        if (!userText) userText = mimeType.startsWith("image/") ? "이 사진 분석해줘" : `[첨부파일] ${fileName}`;
+      } catch (error) {
+        attachmentFailures.push(error instanceof Error ? error.message : `${fileName} 저장 실패`);
+      }
+    }
+
+    if (!userText && !attachments.length) {
+      await finishTelegramWebhook(db, claim.eventId, "failed", "attachment_unavailable");
+      await tgRequest("sendMessage", { chat_id: chatId, text: attachmentFailures[0] || "텍스트, 사진, 파일 또는 음성 메시지를 보내주세요." });
       return NextResponse.json({ ok: true });
     }
 
-    const reply = result.message || "처리됐어요!";
-    await saveChat(chatIdStr, "assistant", reply);
-
-    // 실제로 실행된 tool 중 견적 생성/수정이 성공한 게 있으면 미리보기 이미지+승인버튼을 보낸다.
-    // result.message 텍스트만 보내는 대신, "실행됐다는 걸 실제로 확인한 뒤에만" 사진을 보낸다
-    // (verification 없이는 완료로 취급하지 않는다는 이 코드베이스의 원칙).
-    const toolCalls: HermesToolCallRecord[] = Array.isArray(result.toolCalls) ? result.toolCalls : [];
-    const quoteMutation = [...toolCalls].reverse().find((call) => QUOTE_MUTATION_TOOLS.has(call.name) && call.success);
-    const quoteId = quoteMutation && typeof quoteMutation.data === "object" && quoteMutation.data
-      ? (quoteMutation.data as Record<string, unknown>).quoteId as string | undefined
-      : undefined;
-
-    let sentPreview = false;
-    if (quoteId) sentPreview = await sendQuotePreview(base, chatId, quoteId, reply);
-
-    if (!sentPreview) await sendTelegramText(chatId, reply);
-  } catch (hermesError) {
-    console.warn("[telegram] Hermes unavailable; switching to cloud fallback", {
-      error: hermesError instanceof Error ? hermesError.message : "unknown",
+    await tgRequest("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => undefined);
+    const userContent = userText || `[첨부파일 ${attachments.length}개]`;
+    const userSaved = await saveAssistantMessage(db, {
+      ownerId: owner.id,
+      conversationId: conversation.id,
+      role: "user",
+      content: userContent,
+      channel: "telegram",
+      externalMessageId: inboundExternalId,
+      deliveryStatus: "accepted",
+      metadata: {
+        attachments,
+        ...(attachmentFailures.length ? { attachmentFailures } : {}),
+        telegram: { chatId: chatIdStr, messageId: telegramMessageId },
+      },
     });
-    try {
-      const reply = await runV2TelegramChat({ base, userText });
-      await saveChat(chatIdStr, "assistant", reply);
-      await sendTelegramText(chatId, reply);
-    } catch (fallbackError) {
-      await tgRequest("sendMessage", {
-        chat_id: chatId,
-        text: "⚠️ Olivia 연결 오류: " + (fallbackError instanceof Error ? fallbackError.message : "알 수 없는 오류"),
+
+    let turn: TelegramTurnResult;
+    if (imageBase64) {
+      const historyRows = await listAssistantMessages(db, owner.id, conversation.id, 30);
+      const history = historyRows
+        .filter((row) => row.id !== userSaved.message.id)
+        .flatMap((row): { role: "user" | "assistant"; content: string }[] =>
+          row.role === "user" || row.role === "assistant" ? [{ role: row.role, content: String(row.content || "") }] : []
+        );
+      const reply = await runLegacyTelegramChat({ base, userText: userContent, history, imageBase64, imageMime });
+      const assistantSaved = await saveAssistantMessage(db, {
+        ownerId: owner.id,
+        conversationId: conversation.id,
+        role: "assistant",
+        content: reply,
+        channel: "telegram",
+        externalMessageId: assistantExternalId,
+        parentMessageId: userSaved.message.id,
+        deliveryStatus: "queued",
+        metadata: { blocks: [{ type: "text", text: reply }], agentEngine: "legacy-vision" },
+      });
+      turn = { text: reply, persistedMessageId: assistantSaved.message.id };
+    } else {
+      turn = await runV2TelegramChat({
+        base,
+        userText: userContent,
+        conversationId: conversation.id,
+        persistedUserMessageId: userSaved.message.id,
+        clientRequestId: inboundExternalId,
+        assistantExternalMessageId: assistantExternalId,
+        attachments,
       });
     }
+
+    await deliverSavedReply({
+      db,
+      ownerId: owner.id,
+      conversationId: conversation.id,
+      messageId: turn.persistedMessageId,
+      externalRequestId: assistantExternalId,
+      chatId,
+      base,
+      reply: turn.text,
+      quoteId: turn.quoteId,
+    });
+    await finishTelegramWebhook(db, claim.eventId, "processed");
+  } catch (error) {
+    console.error("[telegram] canonical turn failed", error);
+    await finishTelegramWebhook(db, claim.eventId, "failed", "telegram_turn_failed").catch(() => undefined);
   }
 
   return NextResponse.json({ ok: true });

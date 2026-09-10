@@ -15,11 +15,13 @@ import { getInlineTool } from "@/lib/olivia/inline-tools";
 import OliviaChatContextBanner from "@/components/olivia/OliviaChatContextBanner";
 import { useOliviaDesktopEffectiveActiveApp } from "@/components/olivia-os/useOliviaDesktopEffectiveActiveApp";
 import { DESKTOP_APP_SUGGESTIONS } from "@/components/olivia-os/oliviaDesktopSuggestions";
+import { OliviaChatMessageAttachments } from "@/components/olivia/OliviaChatAttachments";
 
 const DEFAULT_SUGGESTIONS = ["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"];
 
 export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer" | "home"; showExpandToggle?: boolean; onMinimize?: () => void }) {
   const messages = useOliviaConversationStore((state) => state.messages);
+  const conversationId = useOliviaConversationStore((state) => state.conversationId);
   // OLIVIA OS Phase 3 §27 — 지금 포커스된(또는 Olivia 자신에 포커스가 가 있다면 직전에 보던)
   // Desktop 앱이 있으면 그 앱 전용 제안으로 바꾼다. Desktop 밖(다른 라우트)에서는 이 값이 항상
   // null이라 기존 기본값 그대로 나온다.
@@ -30,6 +32,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const isStreaming = useOliviaConversationStore((state) => state.isStreaming);
   const agentStatus = useOliviaConversationStore((state) => state.agentStatus);
   const hydrate = useOliviaConversationStore((state) => state.hydrate);
+  const refreshConversation = useOliviaConversationStore((state) => state.refreshConversation);
   const sendMessage = useOliviaConversationStore((state) => state.sendMessage);
   const stopResponse = useOliviaConversationStore((state) => state.stopResponse);
   const retryLast = useOliviaConversationStore((state) => state.retryLast);
@@ -81,6 +84,35 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   }, []);
 
   useEffect(() => { void hydrate(); }, [hydrate]);
+  useEffect(() => {
+    if (!conversationId) return;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        void refreshConversation().catch(() => undefined);
+      }, 80);
+    };
+    const onFocus = () => scheduleRefresh();
+    const onVisibility = () => { if (document.visibilityState === "visible") scheduleRefresh(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    let events: EventSource | undefined;
+    try {
+      events = new EventSource(`/api/olivia/v2/conversation/events?conversationId=${encodeURIComponent(conversationId)}`);
+      events.addEventListener("changed", scheduleRefresh);
+    } catch {
+      // 서버 Realtime 연결이 불가능해도 focus/visibility refetch는 유지한다.
+    }
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+      events?.close();
+    };
+  }, [conversationId, refreshConversation]);
   useEffect(() => {
     // 홈 채팅에 한정 — 촬영일이 지났는데 아직 "촬영" 단계인 프로젝트가 있으면 올리비아가
     // 먼저 물어보는 메시지를 대화 맨 끝에 꽂아 넣는다. 이미 같은 insight로 물어본 적 있으면
@@ -301,6 +333,9 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
               >
                 {message.role === "assistant" ? <span className="olivia-message__avatar"><OliviaIcon size={12} /></span> : null}
                 <div className="olivia-message__body">
+                  {message.channel && message.channel !== "web" ? (
+                    <span className="olivia-message__channel">{message.channel === "telegram" ? "Telegram" : message.channel}</span>
+                  ) : null}
                   {message.blocks.map((block, index) => {
                     if (block.type === "text") return <MarkdownText key={index} text={block.text} isUser={message.role === "user"} />;
                     if (block.type === "status") return <div key={index} className="olivia-message__status">{block.text}</div>;
@@ -332,6 +367,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                     }
                     return null;
                   })}
+                  <OliviaChatMessageAttachments attachments={message.attachments} />
                   {message.status === "streaming" && !messageText(message) ? <span className="olivia-typing"><i /><i /><i /></span> : null}
                 </div>
               </article>

@@ -8802,6 +8802,15 @@ main, .pc-console, .pc-page, .pc-page-content {
 }
 
 /* Olivia Chat attachments */
+.olivia-message__channel {
+  display: block;
+  width: fit-content;
+  margin-bottom: 4px;
+  color: #78908b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
 .olivia-chat-attachment-tray {
   display: flex;
   gap: 6px;

@@ -107,6 +107,31 @@ describe("Hermes chat adapter", () => {
     expect(result.message).toBe("안녕하세요.");
   });
 
+  it("uses the canonical conversation session and mixed-channel DB history", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const headers = init?.headers as Record<string, string>;
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> };
+      expect(headers["X-Hermes-Session-Key"]).toBe("olivia:conversation-uuid");
+      expect(body.messages).toEqual(expect.arrayContaining([
+        { role: "user", content: "Desktop에서 견적서를 열어줘" },
+        { role: "assistant", content: "견적서를 열었습니다." },
+        { role: "user", content: "그 견적 금액 알려줘" },
+      ]));
+      return sse("금액을 확인했어요.");
+    }));
+    const result = await runHermesChat({
+      message: "그 견적 금액 알려줘",
+      conversationId: "conversation-uuid",
+      history: [
+        { role: "user", content: "Desktop에서 견적서를 열어줘" },
+        { role: "assistant", content: "견적서를 열었습니다." },
+      ],
+    });
+    expect(result.message).toBe("금액을 확인했어요.");
+  });
+
   it("연결 전 실패만 cloud fallback에 안전하다고 표시한다", async () => {
     vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
     vi.stubEnv("HERMES_API_KEY", "secret");

@@ -150,3 +150,23 @@ export function chooseConversationMessages(cached: OliviaV2Message[], server: Ol
   const serverLast = validDate(server.at(-1)?.createdAt).getTime();
   return cached.length >= server.length && cachedLast >= serverLast ? cached : server;
 }
+
+function messageIdentity(message: OliviaV2Message) {
+  return message.clientRequestId || message.externalMessageId || message.id;
+}
+
+export function mergeConversationMessages(local: OliviaV2Message[], server: OliviaV2Message[]) {
+  const serverIdentities = new Set(server.flatMap((message) => [
+    message.id,
+    message.clientRequestId,
+    message.externalMessageId,
+  ].filter((value): value is string => Boolean(value))));
+  const pendingLocal = local.filter((message) =>
+    !serverIdentities.has(messageIdentity(message))
+    && (message.status === "sending" || message.status === "streaming" || message.status === "error")
+  );
+  return [...server, ...pendingLocal].sort((left, right) => {
+    const time = validDate(left.createdAt).getTime() - validDate(right.createdAt).getTime();
+    return time || left.id.localeCompare(right.id);
+  });
+}

@@ -23,6 +23,96 @@ export type KakaoExternalIdentity = {
   appUserId?: string;
 };
 
+export type TelegramExternalIdentity = {
+  userId: string;
+  chatId: string;
+  username?: string;
+};
+
+export async function isAuthorizedTelegramIdentity(
+  db: SupabaseClient,
+  ownerId: string,
+  identity: TelegramExternalIdentity,
+  configuredUserId?: string,
+) {
+  if (configuredUserId) return identity.userId === configuredUserId;
+
+  const { data: connection, error: connectionError } = await db
+    .from("assistant_channel_connections")
+    .select("id")
+    .eq("owner_id", ownerId)
+    .eq("channel", "telegram")
+    .eq("status", "active")
+    .eq("external_user_id_hash", hashAssistantSecret(`telegram:user:${identity.userId}`))
+    .eq("channel_user_key_hash", hashAssistantSecret(`telegram:chat:${identity.chatId}`))
+    .maybeSingle();
+  if (connectionError) throw new Error(`Telegram 인증 연결 조회 실패: ${connectionError.message}`);
+  if (connection) return true;
+
+  // 배포 전부터 사용하던 대표자 Telegram chat만 최초 1회 canonical connection으로 승격한다.
+  // 기존 기록도 없고 허용 ID도 없는 새 사용자는 primary owner로 연결하지 않는다.
+  const { data: legacyMessage, error: legacyError } = await db
+    .from("olivia_chat_messages")
+    .select("id")
+    .eq("source", "telegram")
+    .eq("chat_id", identity.chatId)
+    .limit(1)
+    .maybeSingle();
+  if (legacyError) throw new Error(`기존 Telegram 사용자 확인 실패: ${legacyError.message}`);
+  return Boolean(legacyMessage);
+}
+
+export async function ensureTelegramOwnerConnection(
+  db: SupabaseClient,
+  ownerId: string,
+  identity: TelegramExternalIdentity,
+): Promise<{ id: string; owner_id: string }> {
+  const externalUserIdHash = hashAssistantSecret(`telegram:user:${identity.userId}`);
+  const channelUserKeyHash = hashAssistantSecret(`telegram:chat:${identity.chatId}`);
+  const now = new Date().toISOString();
+  const values = {
+    owner_id: ownerId,
+    channel: "telegram",
+    status: "active",
+    external_user_id_hash: externalUserIdHash,
+    external_user_id_encrypted: encryptAssistantSecret(identity.userId),
+    channel_user_key_hash: channelUserKeyHash,
+    channel_user_key_encrypted: encryptAssistantSecret(identity.chatId),
+    metadata: { username: identity.username || null },
+    last_received_at: now,
+    disconnected_at: null,
+  };
+
+  const { data: existing, error: selectError } = await db
+    .from("assistant_channel_connections")
+    .select("id,owner_id")
+    .eq("owner_id", ownerId)
+    .eq("channel", "telegram")
+    .eq("status", "active")
+    .maybeSingle();
+  if (selectError) throw new Error(`Telegram 연결 조회 실패: ${selectError.message}`);
+
+  if (existing) {
+    const { data, error } = await db
+      .from("assistant_channel_connections")
+      .update(values)
+      .eq("id", existing.id)
+      .eq("owner_id", ownerId)
+      .select("id,owner_id")
+      .single();
+    if (error) throw new Error(`Telegram 연결 갱신 실패: ${error.message}`);
+    return data as { id: string; owner_id: string };
+  }
+
+  const { data, error } = await db
+    .from("assistant_channel_connections")
+    .insert({ ...values, connected_at: now })
+    .select("id,owner_id")
+    .single();
+  if (error) throw new Error(`Telegram 연결 저장 실패: ${error.message}`);
+  return data as { id: string; owner_id: string };
+}
+
 function createNumericLinkCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }

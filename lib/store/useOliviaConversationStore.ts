@@ -11,7 +11,8 @@ import { usePhotoClassificationActionsStore } from "@/lib/store/usePhotoClassifi
 import { getInlineTool, hasInProgressInlineTool } from "@/lib/olivia/inline-tools";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import type { OliviaMessageBlock, OliviaRunStreamPayload, OliviaStreamEvent, OliviaV2Message } from "@/lib/olivia/v2/types";
-import { chooseConversationMessages } from "@/lib/olivia/conversationTimeline";
+import { mergeConversationMessages } from "@/lib/olivia/conversationTimeline";
+import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
 
 export type { OliviaMessage } from "@/lib/olivia/v2/types";
 
@@ -46,6 +47,7 @@ export type OliviaConversationState = {
   setActiveTaskSessionId: (id?: string) => void;
   clearConversation: () => void;
   hydrate: () => Promise<void>;
+  refreshConversation: () => Promise<void>;
   startNewConversation: () => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   stopResponse: () => void;
@@ -64,6 +66,7 @@ let activeController: AbortController | null = null;
 // 구조적으로 안전하게 만든다).
 const pendingDeltas = new Map<string, { delta: string; timer: ReturnType<typeof setTimeout> | null }>();
 let hydrationPromise: Promise<void> | null = null;
+let refreshPromise: Promise<void> | null = null;
 let cacheTimer: ReturnType<typeof setTimeout> | null = null;
 
 const CONVERSATION_CACHE_KEY = "olivia:conversation:v2";
@@ -131,12 +134,16 @@ function normalizePersistedMessage(row: any): OliviaV2Message {
     : textBlock(String(row.content || ""));
   return {
     id: String(row.id || row.metadata?.clientRequestId || newId("message")),
-    clientRequestId: row.metadata?.clientRequestId,
+    clientRequestId: row.metadata?.clientRequestId || row.external_message_id,
     role: row.role === "user" ? "user" : "assistant",
     content: String(row.content || ""),
     blocks,
     createdAt: row.created_at || new Date().toISOString(),
     status: "complete",
+    channel: row.channel || row.source || "web",
+    externalMessageId: row.external_message_id || undefined,
+    deliveryStatus: row.delivery_status || undefined,
+    attachments: sanitizeOliviaAttachments(row.metadata?.attachments),
   };
 }
 
@@ -266,7 +273,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
             conversationId: data.conversationId ?? state.conversationId,
             messages: cached?.conversationId && data.conversationId && cached.conversationId !== data.conversationId
               ? persisted
-              : chooseConversationMessages(state.messages, persisted),
+              : mergeConversationMessages(state.messages, persisted),
             isHydrated: true,
           }));
           if (get().messages.some((message) => message.role === "user")) {
@@ -280,6 +287,28 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
       })();
     }
     await hydrationPromise;
+  },
+
+  refreshConversation: async () => {
+    if (refreshPromise) return refreshPromise;
+    refreshPromise = (async () => {
+      try {
+        const response = await fetch("/api/olivia/v2/conversation", { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error);
+        const persisted = Array.isArray(data.messages) ? data.messages.map(normalizePersistedMessage) : [];
+        set((state) => ({
+          conversationId: data.conversationId ?? state.conversationId,
+          messages: state.conversationId && data.conversationId && state.conversationId !== data.conversationId
+            ? persisted
+            : mergeConversationMessages(state.messages, persisted),
+          isHydrated: true,
+        }));
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+    return refreshPromise;
   },
 
   startNewConversation: async () => {

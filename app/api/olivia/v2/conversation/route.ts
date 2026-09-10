@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
-import { getOrCreateAssistantConversation, listAssistantMessages } from "@/lib/assistant/conversations/service";
+import { addSignedAssistantAttachments, getOrCreateAssistantConversation, listAssistantMessages } from "@/lib/assistant/conversations/service";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -15,7 +15,10 @@ export async function GET(req: NextRequest) {
     const db = getSupabaseAdmin();
     const owner = await ensurePrimaryAssistantOwner(db);
     const conversation = await getOrCreateAssistantConversation(db, owner.id);
-    const messages = await listAssistantMessages(db, owner.id, conversation.id, 100);
+    const messages = await addSignedAssistantAttachments(
+      db,
+      await listAssistantMessages(db, owner.id, conversation.id, 100),
+    );
     return NextResponse.json({ ok: true, conversationId: conversation.id, messages });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "대화를 불러오지 못했어요." }, { status: 500 });

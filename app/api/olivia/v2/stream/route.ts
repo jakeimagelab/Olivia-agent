@@ -39,6 +39,8 @@ import { buildContractRoundConfirmation } from "@/lib/olivia/output/contractConf
 import { resolveDocumentBrand } from "@/lib/olivia/brandResolver";
 import { getOliviaAgentEngine, isHermesFallbackSafe, runHermesChat } from "@/lib/hermes/client";
 import type { HermesChatMessage } from "@/lib/hermes/types";
+import type { AssistantChannel } from "@/lib/assistant/types";
+import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -431,6 +433,24 @@ function toolStatus(name: string) {
   return "화면을 준비하는 중…";
 }
 
+function resourceMetadataFromTool(toolName: string, data: Record<string, unknown> | undefined) {
+  if (!data) return {};
+  const candidates: Array<[string, unknown]> = [
+    ["quote", data.quoteId],
+    ["contract", data.contractId],
+    ["conti", data.contiId],
+    ["calendar", data.scheduleId],
+    [toolName.replace(/^mcp_olivia_/, "").replace(/^(?:create|update|open)_/, ""), data.resourceId],
+  ];
+  const matched = candidates.find(([, id]) => typeof id === "string" && id.length > 0);
+  if (!matched) return {};
+  return {
+    resourceType: matched[0],
+    resourceId: matched[1],
+    ...(typeof data.version === "number" ? { version: data.version } : {}),
+  };
+}
+
 function isInternalServerRequest(req: NextRequest): boolean {
   const key = process.env.INTERNAL_API_KEY;
   if (!key) return false;
@@ -443,7 +463,8 @@ export async function POST(req: NextRequest) {
   // 관리자 세션(브라우저 쿠키) 또는 내부 서버 호출(Telegram의 Anthropic 크레딧 소진 시
   // 대체 경로, app/api/telegram/route.ts와 동일한 x-internal-key 패턴) 둘 중 하나만
   // 통과하면 된다 — Telegram은 브라우저 쿠키가 없다.
-  const authenticated = isAdminSession(req) || isInternalServerRequest(req);
+  const internalRequest = isInternalServerRequest(req);
+  const authenticated = isAdminSession(req) || internalRequest;
   const authMs=performance.now()-requestStartedAt;
   if (!authenticated) {
     return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
@@ -453,6 +474,12 @@ export async function POST(req: NextRequest) {
   const rawMessage = String(body.message || "").trim();
   if (!rawMessage) return Response.json({ ok: false, error: "메시지를 입력해주세요." }, { status: 400 });
   const useHermes = getOliviaAgentEngine() === "hermes";
+  const messageChannel: AssistantChannel = internalRequest && body.channel === "telegram" ? "telegram" : "web";
+  const persistedUserMessageId = internalRequest ? optionalString(body.persistedUserMessageId) : undefined;
+  const assistantExternalMessageId = internalRequest
+    ? optionalString(body.assistantExternalMessageId)
+    : optionalString(body.responseId);
+  const inboundAttachments = sanitizeOliviaAttachments(body.attachments);
 
   const normalizedContext = normalizeContext(body.context);
   const resolvedBrand = resolveDocumentBrand({
@@ -564,17 +591,67 @@ export async function POST(req: NextRequest) {
         // 자체가 이 아래에서 일어나고 history/saveAssistantMessage도 그 판단과 무관하게 항상 먼저
         // 불러오던 기존 구조라, 같은 Promise.all에 얹어도 그 경로들의 지연 시간이 늘지 않는다(이미
         // 지불하던 병렬 호출 묶음에 하나 더 낀 것뿐 — 순차 대기가 아니다).
-        const [history, , conversationMetadataResult, taughtMemories] = await Promise.all([listAssistantMessages(db, owner.id, conversation.id, 30), saveAssistantMessage(db, {
-          ownerId: owner.id,
-          conversationId: conversation.id,
-          role: "user",
-          // 사용자가 실제로 타이핑한 원문을 저장한다(화면에도 이게 그대로 보임) — 별칭/지시어를
-          // 실명으로 치환한 message는 이 요청의 LLM 처리에만 쓰고 기록에는 안 남긴다.
-          content: rawMessage,
-          channel: "web",
-          externalMessageId: optionalString(body.clientRequestId) || crypto.randomUUID(),
-          metadata: { context, pageContext, requestClass, requestKind, routeDecision: deterministic?.routeDecision ?? "GPT_FALLBACK", resolvedMessage: message !== rawMessage ? message : undefined },
-        }), db.from("assistant_conversations").select("metadata").eq("id",conversation.id).maybeSingle(), listActiveMemories(db, { scopes: memoryScopes })]);
+        const userMessagePromise = persistedUserMessageId
+          ? db.from("olivia_chat_messages")
+            .select("id")
+            .eq("id", persistedUserMessageId)
+            .eq("owner_id", owner.id)
+            .eq("conversation_id", conversation.id)
+            .eq("role", "user")
+            .single()
+            .then(({ data, error }) => {
+              if (error || !data) throw new Error("저장된 Telegram 메시지를 찾지 못했어요.");
+              return { message: data, duplicate: true };
+            })
+          : saveAssistantMessage(db, {
+            ownerId: owner.id,
+            conversationId: conversation.id,
+            role: "user",
+            // 사용자가 실제로 타이핑한 원문을 저장한다(화면에도 이게 그대로 보임) — 별칭/지시어를
+            // 실명으로 치환한 message는 이 요청의 LLM 처리에만 쓰고 기록에는 안 남긴다.
+            content: rawMessage,
+            channel: messageChannel,
+            externalMessageId: optionalString(body.clientRequestId) || crypto.randomUUID(),
+            metadata: {
+              context,
+              pageContext,
+              requestClass,
+              requestKind,
+              routeDecision: deterministic?.routeDecision ?? "GPT_FALLBACK",
+              resolvedMessage: message !== rawMessage ? message : undefined,
+              ...(inboundAttachments.length ? { attachments: inboundAttachments } : {}),
+            },
+          });
+        const [historyRows, userMessageResult, conversationMetadataResult, taughtMemories] = await Promise.all([
+          listAssistantMessages(db, owner.id, conversation.id, 30),
+          userMessagePromise,
+          db.from("assistant_conversations").select("metadata").eq("id",conversation.id).maybeSingle(),
+          listActiveMemories(db, { scopes: memoryScopes }),
+        ]);
+        // Telegram inbound는 v2 호출 전에, Web inbound도 이 병렬 구간에서 canonical store에
+        // 저장된다. 현재 메시지가 history 조회에 잡히더라도 message 인자와 중복되지 않게 제외한다.
+        const userMessageId = String(userMessageResult.message.id);
+        const history = historyRows.filter((row) => row.id !== userMessageId);
+        const saveTurnAssistant = async (content: string, metadata: Record<string, unknown>) => {
+          const saved = await saveAssistantMessage(db, {
+            ownerId: owner.id,
+            conversationId: conversation.id,
+            role: "assistant",
+            content,
+            channel: messageChannel,
+            externalMessageId: assistantExternalMessageId,
+            parentMessageId: userMessageId,
+            deliveryStatus: messageChannel === "telegram" ? "queued" : undefined,
+            metadata,
+          });
+          send({
+            type: "message_complete",
+            messageId,
+            conversationId: conversation.id,
+            persistedMessageId: String(saved.message.id),
+          });
+          return saved.message;
+        };
         const compactSummary=typeof conversationMetadataResult.data?.metadata?.compactSummary==="string"
           ? conversationMetadataResult.data.metadata.compactSummary as string
           : undefined;
@@ -621,20 +698,17 @@ export async function POST(req: NextRequest) {
                 },
               },
             });
-            await saveAssistantMessage(db, {
-              ownerId: owner.id,
-              conversationId: conversation.id,
-              role: "assistant",
-              content: hermesResult.message,
-              channel: "web",
-              metadata: {
+            const resourceMetadata = hermesResult.toolCalls.reduce<Record<string, unknown>>((current, call) => {
+              if (!call.success || !call.data || typeof call.data !== "object") return current;
+              return { ...current, ...resourceMetadataFromTool(call.name, call.data as Record<string, unknown>) };
+            }, {});
+            await saveTurnAssistant(hermesResult.message, {
                 blocks: [{ type: "text", text: hermesResult.message }],
                 agentEngine: "hermes",
                 hermesRunId: hermesResult.runId,
                 toolCalls: hermesResult.toolCalls.map(({ id, name, success }) => ({ id, name, success })),
-              },
+                ...resourceMetadata,
             });
-            send({ type: "message_complete", messageId, conversationId: conversation.id });
             return;
           } catch (hermesError) {
             if (req.signal.aborted || hermesStartedOutput || !isHermesFallbackSafe(hermesError) || !process.env.OPENAI_API_KEY || !model) throw hermesError;
@@ -651,8 +725,7 @@ export async function POST(req: NextRequest) {
           const fastText=await resolveDatabaseFastPath(db,message,context,oliviaRuntime.todayISO);
           if(fastText){
             send({type:"text_delta",messageId,delta:fastText});
-            await saveAssistantMessage(db,{ownerId:owner.id,conversationId:conversation.id,role:"assistant",content:fastText,channel:"web",metadata:{blocks:[{type:"text",text:fastText}],routeDecision:"DATABASE_FAST_PATH"}});
-            send({type:"message_complete",messageId,conversationId:conversation.id});
+            await saveTurnAssistant(fastText,{blocks:[{type:"text",text:fastText}],routeDecision:"DATABASE_FAST_PATH"});
             return;
           }
         }
@@ -673,8 +746,7 @@ export async function POST(req: NextRequest) {
           const text = created.duplicate ? "이미 접수된 업무예요. Agent Center에서 진행 상황을 이어서 볼 수 있어요." : "업무를 접수했어요. 페이지를 이동하거나 창을 닫아도 계속 진행하며, 승인이 필요하면 멈추고 알려드릴게요.";
           send({ type: "run_created", run: { id: created.run.id, goal: created.run.goal, status: created.run.status, progress: created.run.progress, currentStepKey: created.run.current_step_key || undefined } });
           send({ type: "text_delta", messageId, delta: text });
-          await saveAssistantMessage(db, { ownerId: owner.id, conversationId: conversation.id, role: "assistant", content: text, channel: "web", metadata: { blocks: [{ type: "text", text }], agentRunId: created.run.id } });
-          send({ type: "message_complete", messageId, conversationId: conversation.id });
+          await saveTurnAssistant(text, { blocks: [{ type: "text", text }], agentRunId: created.run.id });
           return;
         }
 
@@ -682,16 +754,7 @@ export async function POST(req: NextRequest) {
         if (deterministic) {
           send({ type: "text_delta", messageId, delta: deterministic.text });
           for (const action of deterministic.uiActions) send({ type: "ui_action", action });
-          await saveAssistantMessage(db, {
-            ownerId: owner.id,
-            conversationId: conversation.id,
-            role: "assistant",
-            content: deterministic.text,
-            channel: "web",
-            parentMessageId: undefined,
-            metadata: { blocks: [{ type: "text", text: deterministic.text }], routeDecision: deterministic.routeDecision },
-          });
-          send({ type: "message_complete", messageId, conversationId: conversation.id });
+          await saveTurnAssistant(deterministic.text, { blocks: [{ type: "text", text: deterministic.text }], routeDecision: deterministic.routeDecision });
           return;
         }
 
@@ -722,6 +785,7 @@ export async function POST(req: NextRequest) {
         };
         let workingContext = context;
         let finalText = "";
+        let latestResourceMetadata: Record<string, unknown> = {};
         const executedToolCalls = new Set<string>();
 
         for (let round = 0; round < maxToolRounds(requestClass); round += 1) {
@@ -782,6 +846,12 @@ export async function POST(req: NextRequest) {
           });
           toolExecutionMs += performance.now() - toolStartedAt;
           for (const { call: toolCall, result: { execution, toolPayload } } of executions) {
+            if (execution.result.success) {
+              latestResourceMetadata = {
+                ...latestResourceMetadata,
+                ...resourceMetadataFromTool(toolCall.name, execution.result.data),
+              };
+            }
             outputs.push({
               type: "function_call_output",
               call_id: toolCall.id,
@@ -816,16 +886,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (!finalText.trim()) finalText = OLIVIA_FALLBACK_MESSAGES.emptyResponseFallback;
-        await saveAssistantMessage(db, {
-          ownerId: owner.id,
-          conversationId: conversation.id,
-          role: "assistant",
-          content: finalText,
-          channel: "web",
-          parentMessageId: undefined,
-          metadata: { blocks: [{ type: "text", text: finalText }], model, requestClass },
-        });
-        send({ type: "message_complete", messageId, conversationId: conversation.id });
+        await saveTurnAssistant(finalText, { blocks: [{ type: "text", text: finalText }], model, requestClass, ...latestResourceMetadata });
         const summaryLines=history.slice(-12).concat([{role:"assistant",content:finalText} as ConversationMessage])
           .map((row)=>`${row.role}: ${String(row.content||"").replace(/\s+/g," ").slice(0,180)}`);
         const nextSummary=[compactSummary,...summaryLines].filter(Boolean).join("\n").slice(-4000);

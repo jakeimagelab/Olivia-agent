@@ -34,6 +34,10 @@ export type OliviaMessage = {
   createdAt?: string;
   status?: "sending" | "streaming" | "complete" | "stopped" | "error";
   clientRequestId?: string;
+  channel?: "web" | "telegram" | "kakao" | "voice";
+  externalMessageId?: string;
+  deliveryStatus?: "queued" | "sent" | "accepted" | "delivered" | "failed";
+  attachments?: import("@/lib/olivia/chatAttachments").OliviaChatAttachment[];
 };
 
 export type OliviaV2Message = OliviaMessage;
@@ -116,7 +120,7 @@ export type OliviaStreamEvent =
   | { type: "tool_start"; tool: string; toolCallId: string }
   | { type: "tool_result"; tool: string; toolCallId: string; success: boolean; result?: unknown }
   | { type: "ui_action"; action: OliviaUiAction }
-  | { type: "message_complete"; messageId: string; conversationId?: string }
+  | { type: "message_complete"; messageId: string; conversationId?: string; persistedMessageId?: string }
   | { type: "run_created"; run: OliviaRunStreamPayload }
   | { type: "run_updated"; run: OliviaRunStreamPayload }
   | { type: "run_step_updated"; run: OliviaRunStreamPayload }
