@@ -134,6 +134,7 @@ function PhotoWorkspaceContent() {
             ) : null}
             {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" /> : null}
             {mode === "retouch" ? <PhotoRetouchingWorkspace /> : null}
+            {mode === "resize" ? <PhotoResizeWorkspace /> : null}
           </section>
           {!compact || guideOpen ? <PhotoGuidePanel mode={mode} selectMode={selectMode} rawMatchView={rawMatchView} /> : null}
         </div>
