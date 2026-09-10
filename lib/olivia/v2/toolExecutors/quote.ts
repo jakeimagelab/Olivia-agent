@@ -466,6 +466,7 @@ export async function executeQuoteTool(
       "",
       ...buildQuoteBreakdownLines(quoteBeforePublish),
       newlyLinkedClientId ? `\n${quoteBeforePublish.hospital_name || "해당 병원"}을 신규 고객으로 등록했어요.` : null,
+      !pdfArchived ? "\n⚠️ PDF 원본 보관에는 실패했어요 — 발행 자체는 정상 완료됐으니 나중에 다시 시도해주세요." : null,
     ].filter((line): line is string => line !== null).join("\n");
     return {
       tool: name,
@@ -476,6 +477,8 @@ export async function executeQuoteTool(
         ...payload,
         hospitalName: quoteBeforePublish.hospital_name,
         newlyLinkedClientId,
+        pdfArchived,
+        workflowArtifactId,
         summary,
       },
       verification: createVerification({
@@ -483,7 +486,7 @@ export async function executeQuoteTool(
         persisted: true,
         resourceExists: true,
         linked: Boolean(payload.clientId || hadClientBefore),
-        details: { newlyLinkedClient: Boolean(newlyLinkedClientId) },
+        details: { newlyLinkedClient: Boolean(newlyLinkedClientId), pdfArchived, workflowArtifactId },
       }),
     };
   }
