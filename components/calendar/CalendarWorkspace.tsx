@@ -1860,16 +1860,16 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       {dragging && (() => {
         const cat = CATS[dragging.task.category] ?? CATS.general;
         const height = Math.max(28, durationPx(dragging.task.time || "09:00", dragging.task.end_time));
-        const initialColIdx = weekDates.findIndex(d => toYMD(d) === dragging.task.date);
-        const initialColRect = initialColIdx >= 0 ? dayColRefs.current[initialColIdx]?.getBoundingClientRect() : null;
-        const initialWidth = initialColRect ? initialColRect.width - 4 : 130;
-        const initialLeft = initialColRect ? initialColRect.left + 2 : dragStartRef.current.x - dragging.offsetX;
+        // 겹치는 일정끼리는 컬럼 폭보다 좁게+옆으로 밀려서 그려진다(layoutOverlappingTasks) — ghost의
+        // 첫 프레임은 반드시 mousedown 시점에 잡아둔 실제 박스 rect(initialLeft/initialWidth)를 그대로
+        // 써야 한다. 예전엔 항상 "그 날짜 컬럼 전체 폭"으로 계산해서, 겹쳐서 좁게 그려져 있던 박스를
+        // 잡는 순간 폭이 갑자기 넓어지며 위치가 튀어 보였다.
         return (
           <div ref={ghostRef} style={{
             position: "fixed", left: 0, top: 0, pointerEvents: "none", zIndex: 9999,
             willChange: "transform",
-            width: initialWidth, height,
-            transform: `translate(${initialLeft}px,${dragStartRef.current.y - dragging.offsetY}px)`,
+            width: dragging.initialWidth, height,
+            transform: `translate(${dragging.initialLeft}px,${dragStartRef.current.y - dragging.offsetY}px)`,
             background: dragging.task.completed ? "#9CA3AF" : cat.color,
             borderRadius: 5, padding: "3px 6px 8px",
             boxShadow: "0 16px 34px rgba(0,0,0,.26), 0 5px 12px rgba(0,0,0,.18)",
