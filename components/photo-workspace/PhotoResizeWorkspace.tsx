@@ -143,7 +143,11 @@ export default function PhotoResizeWorkspace() {
     setPhase("stopping");
   };
 
-  const reset = () => { setPhase("idle"); setNotice(""); };
+  const reset = () => {
+    setPhase("idle");
+    setNotice("");
+    if (preview) { preview.forEach((entry) => URL.revokeObjectURL(entry.url)); setPreview(null); }
+  };
 
   const openResultPreview = async () => {
     if (!rootDir || previewLoading) return;
