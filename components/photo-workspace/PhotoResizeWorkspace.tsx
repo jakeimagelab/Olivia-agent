@@ -56,13 +56,14 @@ function ChipRow({ label, hint, value, options, custom, onSelect, onCustom }: {
             border: `1px solid ${isCustomActive ? "#155855" : "rgba(255,255,255,.14)"}`,
             background: isCustomActive ? "#155855" : "rgba(255,255,255,.04)",
             color: isCustomActive ? "#fff" : "rgba(255,255,255,.7)",
+            whiteSpace: "nowrap",
           }}>
             직접 입력
             <input
               type="number" min={500} max={10000} placeholder="0000"
               onFocus={() => onCustom(value)}
               onChange={(event) => { const n = Number(event.target.value); if (n > 0) onCustom(n); }}
-              style={{ width: 62, background: "transparent", border: "none", color: "inherit", font: "inherit", outline: "none" }}
+              style={{ width: 74, minWidth: 74, background: "transparent", border: "none", color: "inherit", font: "inherit", fontSize: 13, outline: "none" }}
             />
           </label>
         ) : null}
