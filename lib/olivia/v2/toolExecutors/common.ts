@@ -15,9 +15,38 @@ export function text(input: Record<string, unknown>, key: string) {
 // {tool, success, data} 모양으로 한 곳에서만 변환한다.
 export function fromLegacyResult(
   name: string,
-  result: { action?: string; message: string; [key: string]: unknown },
+  result: {
+    action?: string;
+    status?: string;
+    success?: boolean;
+    blocked?: boolean;
+    error?: string;
+    message: string;
+    [key: string]: unknown;
+  },
 ): OliviaToolResult {
-  const { message, action, ...rest } = result;
+  const { message, action, status, blocked, success: explicitSuccess, error: rawError, ...rest } = result;
+  const error = typeof rawError === "string" && rawError ? rawError : undefined;
+  const failureState = [action, status].some((value) => typeof value === "string" && /^(?:error|failed|blocked|not_found|ambiguous|db_error)$/i.test(value));
+  const success = explicitSuccess === false
+    ? false
+    : blocked === true
+      ? false
+      : Boolean(error)
+        ? false
+        : explicitSuccess === true
+          ? true
+          : !failureState;
+  if (!success) {
+    return {
+      tool: name,
+      success: false,
+      error: error || message || "요청을 처리하지 못했어요.",
+      code: blocked === true || action === "blocked" || status === "blocked" ? "BLOCKED" : status?.toUpperCase() || action?.toUpperCase() || "LEGACY_TOOL_FAILED",
+    };
+  }
+  // TODO(P1): action:"done"만 반환하는 남은 legacy 함수들이 success:true를
+  // 명시하면 이 호환 fallback을 제거한다.
   return { tool: name, success: true, data: { message, ...rest } };
 }
 

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // 라우트가 이미 함 — 중복 구현하지 않는다는 PHASE 3 계획을 그대로 검증).
 
 let contractRow: Record<string, any>;
+const publishContractServiceMock = vi.hoisted(() => vi.fn());
 
 function queryFor(table: string) {
   const row = table === "contracts" ? contractRow : null;
@@ -24,6 +25,7 @@ function queryFor(table: string) {
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({ from: (table: string) => queryFor(table) }),
 }));
+vi.mock("@/lib/publications/publishResource", () => ({ publishContractService: publishContractServiceMock }));
 
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
@@ -39,6 +41,7 @@ describe("publish_contract — 최종 생성 전 필수 확인(스펙 §28)", ()
 
   afterEach(() => {
     global.fetch = originalFetch;
+    publishContractServiceMock.mockReset();
   });
 
   it("서명이 없으면 최종 생성하지 않고 부족한 항목을 알려준다", async () => {
@@ -71,10 +74,10 @@ describe("publish_contract — 최종 생성 전 필수 확인(스펙 §28)", ()
       quote_data: { totalAmount: 1_980_000, shootDate: "2026-09-10" },
       status: "draft",
     };
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ ok: true, clientId: "client-1", workflowRunId: "project-1", portalUrl: "https://example.com/portal/abc" }),
-    })) as unknown as typeof fetch;
+    publishContractServiceMock.mockImplementationOnce(async () => {
+      Object.assign(contractRow, { status: "final", client_id: "client-1", workflow_run_id: "project-1" });
+      return { ok: true, clientId: "client-1", workflowRunId: "project-1", portalUrl: "https://example.com/portal/abc", publicationId: "pub-1", resource: contractRow };
+    });
 
     const execution = await callPublishContract();
     expect(execution.result.success).toBe(true);
@@ -88,10 +91,7 @@ describe("publish_contract — 최종 생성 전 필수 확인(스펙 §28)", ()
       quote_data: { totalAmount: 1_980_000, shootDate: "2026-09-10" },
       status: "draft",
     };
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ ok: false, error: "계약서에 연결된 프로젝트가 없습니다. 먼저 견적서를 공개해 프로젝트를 생성해주세요." }),
-    })) as unknown as typeof fetch;
+    publishContractServiceMock.mockRejectedValueOnce(new Error("계약서에 연결된 프로젝트가 없습니다. 먼저 견적서를 공개해 프로젝트를 생성해주세요."));
 
     const execution = await callPublishContract();
     expect(execution.result.success).toBe(false);

@@ -8,7 +8,7 @@ import { resumeAgentRunsForApproval } from "@/lib/olivia/agentRuns/service";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const APPROVABLE_TOOLS = new Set(["apply_quote_rebalance", "publish_quote", "apply_remove_conti_shot", "apply_send_mailing", "apply_feature_record_write"]);
+const APPROVABLE_TOOLS = new Set(["apply_quote_rebalance", "publish_quote", "publish_contract", "apply_remove_conti_shot", "remove_conti_scene_v2", "apply_send_mailing", "apply_feature_record_write"]);
 
 export async function POST(req: NextRequest) {
   if (!isAdminSession(req)) return NextResponse.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });

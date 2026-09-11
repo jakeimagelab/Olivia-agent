@@ -1,10 +1,11 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { moveRecordToTrash } from "@/lib/trash";
 import { categorizeByTitle } from "@/lib/calendarCategorize";
+import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 
 // lib/assistant/core/legacyOliviaCore.ts에서 그대로 옮긴 캘린더 CRUD — Olivia 채팅 도구
 // (레거시 Claude 경로, v2 OpenAI 경로) 양쪽이 같은 구현을 공유한다. 동작은 옮기기 전과
-// 완전히 동일하다(스키마 드리프트 시 time/location 컬럼 없이 재시도하는 fallback 포함).
+// 동일한 구현을 공유한다. 요청한 필드를 조용히 버리는 스키마 fallback은 허용하지 않는다.
 export async function listCalendarTasks(date: string) {
   const db = getSupabaseAdmin();
   const { data, error } = await db
@@ -14,6 +15,13 @@ export async function listCalendarTasks(date: string) {
     .order("time", { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+export async function getCalendarTask(id: string) {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db.from("calendar_tasks").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ?? null;
 }
 
 export async function addCalendarTask(input: any) {
@@ -26,21 +34,19 @@ export async function addCalendarTask(input: any) {
     title: input.title,
     memo: input.memo ?? "",
     category: input.category || categorizeByTitle(input.title ?? ""),
-    completed: false,
+    completed: input.completed ?? false,
+    time: input.time ?? null,
+    end_time: input.end_time ?? null,
+    location: input.location ?? null,
   };
 
-  let { data, error } = await db
+  const { data, error } = await db
     .from("calendar_tasks")
-    .insert({ ...base, time: input.time ?? null, location: input.location ?? null })
-    .select("id")
+    .insert(base)
+    .select("*")
     .single();
-
-  if (error && (error.message.includes("column") || error.code === "42703")) {
-    ({ data, error } = await db.from("calendar_tasks").insert(base).select("id").single());
-  }
-
-  if (error) throw new Error(error.message);
-  return data?.id;
+  if (error || !data) throw new OliviaToolError(error?.message || "일정을 저장하지 못했습니다.", "DB_ERROR");
+  return data as Record<string, unknown>;
 }
 
 export async function updateCalendarTask(input: Record<string, unknown>) {
@@ -48,27 +54,19 @@ export async function updateCalendarTask(input: Record<string, unknown>) {
   const { id, ...fields } = input;
   if (!id) throw new Error("수정할 일정 ID가 없습니다.");
 
-  let { error } = await db
+  const { data, error } = await db
     .from("calendar_tasks")
     .update({ ...fields, updated_at: new Date().toISOString() })
-    .eq("id", id);
-
-  if (error && (error.message.includes("column") || error.code === "42703")) {
-    const fallback = { ...fields };
-    delete fallback.time;
-    delete fallback.location;
-    ({ error } = await db
-      .from("calendar_tasks")
-      .update({ ...fallback, updated_at: new Date().toISOString() })
-      .eq("id", id));
-  }
-
-  if (error) throw new Error(error.message);
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error || !data) throw new OliviaToolError(error?.message || "일정을 수정하지 못했습니다.", "DB_ERROR");
+  return data as Record<string, unknown>;
 }
 
 export async function deleteCalendarTask(id: string) {
   const db = getSupabaseAdmin();
-  await moveRecordToTrash(db, "calendar_task", id);
+  return moveRecordToTrash(db, "calendar_task", id);
 }
 
 export async function resolveCalendarTaskId(input: any) {
@@ -79,10 +77,15 @@ export async function resolveCalendarTaskId(input: any) {
 
   const tasks: any[] = await listCalendarTasks(input.date);
   const keyword = String(input.matchTitle).trim().toLowerCase();
-  const found = tasks.find((task) => String(task.title || "").toLowerCase().includes(keyword));
+  const matches = tasks.filter((task) => String(task.title || "").toLowerCase().includes(keyword));
+  if (matches.length > 1) {
+    const candidates = matches.map((task) => ({ id: task.id, title: task.title, date: task.date, time: task.time ?? null }));
+    throw new OliviaToolError(`"${input.matchTitle}"와 일치하는 일정이 여러 개예요. 어느 일정을 수정할지 선택해주세요.`, "AMBIGUOUS", { candidates });
+  }
+  const found = matches[0];
   if (!found) {
     const list = tasks.map((task, index) => `${index + 1}. ${task.title} (${task.id})`).join("\n");
-    throw new Error(`${input.date}에서 "${input.matchTitle}" 일정을 찾지 못했어요.${list ? "\n\n가능한 일정:\n" + list : ""}`);
+    throw new OliviaToolError(`${input.date}에서 "${input.matchTitle}" 일정을 찾지 못했어요.${list ? "\n\n가능한 일정:\n" + list : ""}`, "NOT_FOUND", { candidates: tasks.map((task) => ({ id: task.id, title: task.title, time: task.time ?? null })) });
   }
 
   return found.id;

@@ -9,6 +9,7 @@ import {
 } from "@/lib/conti/generate";
 import { buildCodeSceneTemplates, getDepartmentDefinition } from "@/lib/conti/departmentTaxonomy";
 import { enrichContiScenes } from "@/lib/conti/aiEnrichment";
+import { createCanonicalConti } from "@/lib/conti/canonicalService";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -45,6 +46,28 @@ export async function GET(request: NextRequest) {
 // 새 결정론적 콘티 생성: checked를 고정 taxonomy에 매칭해 Scene 골격을 만들고,
 // 선택적으로 AI가 같은 Scene id 집합 안에서 촬영 정보를 보강한 뒤 저장한다.
 export async function POST(request: NextRequest) {
+  // Desktop API와 Hermes MCP가 기본적으로 같은 canonical service를 사용한다. 운영 중 긴급
+  // rollback이 필요할 때만 명시적으로 legacy를 선택하며, 새 기능은 아래 경로에 추가하지 않는다.
+  if (process.env.OLIVIA_CONTI_SERVICE_ENGINE !== "legacy") {
+    try {
+      const serviceBody = await request.clone().json();
+      return NextResponse.json(await createCanonicalConti({
+        hospitalId: serviceBody?.hospitalId,
+        specialty: serviceBody?.specialty,
+        doctorCount: serviceBody?.doctorCount,
+        staffFlags: serviceBody?.staffFlags,
+        otherStaffRole: serviceBody?.otherStaffRole,
+        harmony: serviceBody?.harmony,
+        checked: serviceBody?.checked,
+        extraItems: serviceBody?.extraItems,
+        workflowRunId: serviceBody?.workflowRunId,
+        resourceId: serviceBody?.resourceId,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "콘티 생성에 실패했습니다.";
+      return NextResponse.json({ ok: false, error: message }, { status: /지원하는 진료과/.test(message) ? 400 : 500 });
+    }
+  }
   const body = await request.json();
   const {
     hospitalId,

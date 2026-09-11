@@ -1,6 +1,6 @@
 import { buildHermesSystemPrompt } from "@/lib/hermes/systemPrompt";
 import { consumeHermesClientSearch, consumeHermesToolCalls } from "@/lib/hermes/toolAudit";
-import type { OliviaClientSearchResult } from "@/lib/olivia/clientSearch";
+import { clearHermesExecutionContext, registerHermesExecutionContext } from "@/lib/hermes/executionContext";
 import type {
   HermesCallbacks,
   HermesChatContext,
@@ -10,13 +10,6 @@ import type {
 } from "@/lib/hermes/types";
 
 const HERMES_TIMEOUT_MS = 60_000;
-const CLIENT_SEARCH_TOOL = "mcp_olivia_client_search";
-// Quote tool 6종 — MCP 서버 이름이 "olivia"라 Hermes가 진행 이벤트에서 client.search와 같은
-// mcp_olivia_<tool> 규칙으로 이름을 보낸다고 가정한다. 이 목록은 진행 상태(onToolStart) 표시용일
-// 뿐이고, 실제 성공/실패 판정은 아래 consumeHermesToolCalls()가 requestId로 돌려주는 감사 기록
-// (내가 만든 MCP handler가 직접 기록한 ground truth)로 한다 — SSE 이름 매칭이 어긋나도 검증은 안 깨진다.
-const QUOTE_TOOL_NAMES = ["create_quote", "add_quote_item", "update_quote_item", "remove_quote_item", "apply_quote_discount", "publish_quote"];
-const QUOTE_MCP_TOOLS = new Set(QUOTE_TOOL_NAMES.map((name) => `mcp_olivia_${name}`));
 
 export class HermesChatError extends Error {
   constructor(message: string, public readonly fallbackSafe: boolean) {
@@ -44,6 +37,15 @@ export function isClientSearchRequest(message: string) {
   return /(찾아|검색|조회|등록.*(?:고객|병원|의원|클리닉)|(?:고객|병원|의원|클리닉).*있[어는나]?)/i.test(message);
 }
 
+export function isMutationIntent(message: string) {
+  return /(추가|등록|생성|만들|수정|변경|삭제|저장|메모|완료|확정|발행|공개|넣어|남겨)/i.test(message)
+    || /^\s*(응|네|예|그래|좋아|진행해|확인|승인)(?:\s*[.!])?\s*$/i.test(message);
+}
+
+export function claimsMutationCompletion(message: string) {
+  return /(추가|등록|생성|만들|수정|변경|삭제|저장|완료|확정|발행|공개)(?:했|됐|되었습니다|했습니다|했어요|됐어요)/i.test(message);
+}
+
 function eventValue(payload: unknown, keys: string[]): string | undefined {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return undefined;
   const record = payload as Record<string, unknown>;
@@ -67,6 +69,7 @@ export async function runHermesChat(input: {
 }): Promise<HermesChatResult> {
   const config = getHermesConfig();
   const requestId = crypto.randomUUID();
+  registerHermesExecutionContext(requestId, input.context ?? { recentActions: [], revision: 0 }, input.conversationId);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HERMES_TIMEOUT_MS);
   const abort = () => controller.abort();
@@ -94,6 +97,7 @@ export async function runHermesChat(input: {
       cache: "no-store",
     });
   } catch {
+    clearHermesExecutionContext(requestId);
     clearTimeout(timeout);
     input.signal?.removeEventListener("abort", abort);
     if (controller.signal.aborted && !input.signal?.aborted) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", true);
@@ -101,6 +105,7 @@ export async function runHermesChat(input: {
   }
 
   if (!response.ok || !response.body) {
+    clearHermesExecutionContext(requestId);
     clearTimeout(timeout);
     input.signal?.removeEventListener("abort", abort);
     throw new HermesChatError(response.status === 401
@@ -112,6 +117,8 @@ export async function runHermesChat(input: {
   const decoder = new TextDecoder();
   const toolCalls = new Map<string, HermesToolCallRecord>();
   const searchRequest = isClientSearchRequest(input.message);
+  const mutationRequest = isMutationIntent(input.message);
+  const guardedResponse = searchRequest || mutationRequest;
   let buffer = "";
   let finalText = "";
 
@@ -131,7 +138,7 @@ export async function runHermesChat(input: {
       const name = normalizeToolName(eventValue(payload, ["tool_name", "tool", "name"]));
       const id = eventValue(payload, ["tool_call_id", "toolCallId", "id"]) || crypto.randomUUID();
       const status = eventValue(payload, ["status", "phase", "state"]);
-      const tracked = name === CLIENT_SEARCH_TOOL || (name !== undefined && QUOTE_MCP_TOOLS.has(name));
+      const tracked = name?.startsWith("mcp_olivia_") === true;
       if (tracked && !toolCalls.has(id)) {
         const record = { id, name: name as string, success: false };
         toolCalls.set(id, record);
@@ -150,7 +157,7 @@ export async function runHermesChat(input: {
     const content = choices?.[0]?.delta?.content;
     if (typeof content === "string" && content) {
       finalText += content;
-      if (!searchRequest) input.callbacks?.onTextDelta?.(content);
+      if (!guardedResponse) input.callbacks?.onTextDelta?.(content);
     }
   };
 
@@ -168,6 +175,7 @@ export async function runHermesChat(input: {
     }
     if (buffer.trim()) handleEvent(buffer);
   } catch {
+    clearHermesExecutionContext(requestId);
     if (controller.signal.aborted && !input.signal?.aborted) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", false);
     throw new HermesChatError("Hermes Agent 응답을 받는 중 문제가 발생했습니다.", false);
   } finally {
@@ -177,51 +185,112 @@ export async function runHermesChat(input: {
 
   const searchAudit = consumeHermesClientSearch(requestId);
   if (searchRequest && !searchAudit) {
+    clearHermesExecutionContext(requestId);
     throw new Error("고객 정보를 확인하려면 고객검색 도구 실행이 필요합니다.");
   }
-  if (searchAudit && !searchAudit.success) throw new Error("고객 검색에 실패했습니다.");
+  if (searchAudit && !searchAudit.success) {
+    clearHermesExecutionContext(requestId);
+    throw new Error(searchAudit.error || "고객 검색에 실패했습니다.");
+  }
   const verifiedSearch = searchAudit?.success ? searchAudit.result : undefined;
 
-  if (verifiedSearch) {
-    const existing = [...toolCalls.values()].find((call) => call.name === CLIENT_SEARCH_TOOL);
-    const record: HermesToolCallRecord = {
-      id: existing?.id ?? crypto.randomUUID(),
-      name: CLIENT_SEARCH_TOOL,
-      success: true,
-      result: verifiedSearch,
-    };
-    toolCalls.set(record.id, record);
-    input.callbacks?.onToolResult?.(record);
-  }
-
-  // client.search와 달리 quote tool은 실행 여부가 강제되지 않는다(모든 대화가 견적 작업은
-  // 아니므로) — 대신 실제로 호출된 것만 ground truth(내 MCP handler가 직접 기록한 감사)로
-  // toolCalls에 반영한다. Hermes의 finalText는 그대로 두고 rewrite하지 않는다.
-  for (const audit of consumeHermesToolCalls(requestId)) {
-    const mcpName = `mcp_olivia_${audit.toolName}`;
+  // 실제로 호출된 도구만 MCP handler의 감사 기록을 ground truth로 반영한다.
+  const toolAudits = consumeHermesToolCalls(requestId);
+  for (const audit of toolAudits) {
+    const mcpName = `mcp_olivia_${audit.toolName.replaceAll(".", "_")}`;
     const existing = [...toolCalls.values()].find((call) => call.name === mcpName);
     const record: HermesToolCallRecord = {
       id: existing?.id ?? crypto.randomUUID(),
       name: mcpName,
       success: audit.result.success,
       ...(audit.result.success ? { data: audit.result.data } : { error: audit.result.error }),
+      mode: audit.result.mode,
+      uiToolName: audit.result.uiToolName,
+      ...(!audit.result.success ? { code: audit.result.code, details: audit.result.details } : {}),
+      resourceType: audit.result.resourceType,
+      resourceId: audit.result.resourceId,
+      changedEntityId: audit.result.changedEntityId,
+      verification: audit.result.verification,
+      uiActions: audit.result.uiActions,
     };
     toolCalls.set(record.id, record);
     input.callbacks?.onToolResult?.(record);
+  }
+
+  // client.search는 초기 Hermes 연동부터 별도의 엄격한 감사 계약을 사용한다.
+  // 범용 audit과 함께 기록되는 실제 MCP 호출은 같은 record를 보강하고,
+  // 이전 bridge처럼 전용 audit만 남긴 호출도 계속 검증한다.
+  if (verifiedSearch) {
+    const clientSearchName = "mcp_olivia_client_search";
+    const existing = [...toolCalls.values()].find((call) => call.name === clientSearchName);
+    const record: HermesToolCallRecord = {
+      ...existing,
+      id: existing?.id ?? crypto.randomUUID(),
+      name: clientSearchName,
+      success: true,
+      mode: "read",
+      result: verifiedSearch,
+      data: verifiedSearch,
+      resourceType: "client",
+      verification: verifiedSearch.verification,
+    };
+    toolCalls.set(record.id, record);
+    if (!existing) input.callbacks?.onToolResult?.(record);
+  }
+
+  const mutationAudits = toolAudits.filter((audit) => audit.result.mode === "mutation");
+  // 같은 도구의 앞선 실패 뒤 재시도가 성공한 경우에는 마지막 실행이 authoritative하다.
+  // 서로 다른 도구가 섞인 복합 요청은 각 도구의 마지막 결과를 보존해 부분 성공을 판정한다.
+  const finalMutationByTool = new Map<string, (typeof mutationAudits)[number]>();
+  for (const audit of mutationAudits) finalMutationByTool.set(audit.toolName, audit);
+  const finalMutationAudits = [...finalMutationByTool.values()];
+  const failedMutations = finalMutationAudits.filter((audit) => !audit.result.success);
+  const successfulMutations = finalMutationAudits.filter((audit) => audit.result.success);
+  if (!finalText.trim()) {
+    finalText = "응답을 생성하지 못했습니다.";
+  }
+  // Hermes의 자연어가 낙관적으로 작성되더라도 Olivia MCP의 감사 결과가 실패라면
+  // 완료 문구를 그대로 전달하지 않는다. Tool audit이 최종 응답의 ground truth다.
+  if (failedMutations.length > 0 && successfulMutations.length > 0) {
+    const completed = successfulMutations
+      .map((audit) => {
+        const data = audit.result.data;
+        return data && typeof data === "object" && !Array.isArray(data) && typeof (data as Record<string, unknown>).summary === "string"
+          ? (data as Record<string, unknown>).summary as string
+          : undefined;
+      })
+      .filter((summary): summary is string => Boolean(summary));
+    const failures = failedMutations.map((audit) => audit.result.success ? undefined : audit.result.error).filter(Boolean);
+    finalText = `${completed.length > 0 ? completed.join(" ") : "일부 작업은 완료했습니다."}\n완료하지 못한 작업이 있습니다: ${failures.join(" / ")}`;
+  } else if (failedMutations.length > 0) {
+    const finalMutationAudit = failedMutations.at(-1)!;
+    const failedResult = finalMutationAudit.result;
+    if (failedResult.success) throw new Error("Hermes Tool 감사 결과를 판정하지 못했습니다.");
+    if (failedResult.code === "PARTIAL_SUCCESS") {
+      const data = failedResult.data as { requestedCount?: number; successCount?: number; failedCount?: number } | undefined;
+      finalText = data?.requestedCount != null
+        ? `${data.requestedCount}건 중 ${data.successCount ?? 0}건 저장, ${data.failedCount ?? 0}건 실패했습니다. ${failedResult.error}`
+        : `일부 단계만 완료되었습니다. ${failedResult.error}`;
+    } else {
+      finalText = `요청을 완료하지 못했습니다. ${failedResult.error}`;
+    }
+  } else if (mutationRequest && mutationAudits.length === 0 && claimsMutationCompletion(finalText)) {
+    finalText = "실제 Olivia Tool 실행 결과를 확인하지 못해 완료 여부를 확정할 수 없습니다.";
   }
 
   if (verifiedSearch?.clients.length === 0) {
     finalText = "등록된 고객에서 찾지 못했습니다.";
   } else if (verifiedSearch && verifiedSearch.clients.length > 1) {
     finalText = `등록 고객 후보가 ${verifiedSearch.clients.length}곳 있습니다.\n${verifiedSearch.clients
-      .map((client: OliviaClientSearchResult["clients"][number], index: number) => `${index + 1}. ${client.name}${client.specialty ? ` · ${client.specialty}` : ""}`)
+      .map((client, index) => `${index + 1}. ${client.name}${client.specialty ? ` · ${client.specialty}` : ""}`)
       .join("\n")}`;
   } else if (verifiedSearch?.clients.length === 1 && !finalText.includes(verifiedSearch.clients[0].name)) {
     finalText = `${verifiedSearch.clients[0].name} 고객을 찾았습니다.`;
-  } else if (!finalText.trim()) {
-    finalText = "응답을 생성하지 못했습니다.";
   }
-  if (searchRequest) input.callbacks?.onTextDelta?.(finalText);
+
+  if (guardedResponse) input.callbacks?.onTextDelta?.(finalText);
+
+  clearHermesExecutionContext(requestId);
 
   return {
     success: true,

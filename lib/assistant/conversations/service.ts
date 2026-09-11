@@ -141,6 +141,51 @@ export async function findAssistantMessageByExternalId(
   return data;
 }
 
+export async function findAssistantMessageByTelegramOutboundId(
+  db: SupabaseClient,
+  input: { ownerId: string; conversationId: string; outboundMessageId: string },
+) {
+  const { data, error } = await db
+    .from("olivia_chat_messages")
+    .select(MESSAGE_SELECT)
+    .eq("owner_id", input.ownerId)
+    .eq("conversation_id", input.conversationId)
+    .eq("channel", "telegram")
+    .contains("metadata", { telegram: { outboundMessageId: input.outboundMessageId } })
+    .maybeSingle();
+  if (error) throw new Error(`Telegram Reply 메시지 조회 실패: ${error.message}`);
+  return data;
+}
+
+export async function mergeAssistantMessageMetadata(
+  db: SupabaseClient,
+  input: { ownerId: string; conversationId: string; messageId: string; metadata: Record<string, unknown> },
+) {
+  const { data: current, error: readError } = await db.from("olivia_chat_messages")
+    .select("metadata").eq("id", input.messageId).eq("owner_id", input.ownerId).eq("conversation_id", input.conversationId).single();
+  if (readError || !current) throw new Error(`메시지 metadata 조회 실패: ${readError?.message || "not found"}`);
+  const currentMetadata = current.metadata && typeof current.metadata === "object" && !Array.isArray(current.metadata)
+    ? current.metadata as Record<string, unknown>
+    : {};
+  const currentTelegram = currentMetadata.telegram && typeof currentMetadata.telegram === "object" && !Array.isArray(currentMetadata.telegram)
+    ? currentMetadata.telegram as Record<string, unknown> : {};
+  const nextTelegram = input.metadata.telegram && typeof input.metadata.telegram === "object" && !Array.isArray(input.metadata.telegram)
+    ? input.metadata.telegram as Record<string, unknown> : undefined;
+  const merged = { ...currentMetadata, ...input.metadata, ...(nextTelegram ? { telegram: { ...currentTelegram, ...nextTelegram } } : {}) };
+  const { data: saved, error } = await db.from("olivia_chat_messages").update({ metadata: merged })
+    .eq("id", input.messageId).eq("owner_id", input.ownerId).eq("conversation_id", input.conversationId)
+    .select("metadata").single();
+  if (error || !saved) throw new Error(`메시지 metadata 저장 실패: ${error?.message || "not found"}`);
+  const savedMetadata = saved.metadata && typeof saved.metadata === "object" && !Array.isArray(saved.metadata)
+    ? saved.metadata as Record<string, unknown> : {};
+  const savedTelegram = savedMetadata.telegram && typeof savedMetadata.telegram === "object" && !Array.isArray(savedMetadata.telegram)
+    ? savedMetadata.telegram as Record<string, unknown> : {};
+  if (nextTelegram?.outboundMessageId && savedTelegram.outboundMessageId !== nextTelegram.outboundMessageId) {
+    throw new Error("Telegram Reply metadata 저장값을 검증하지 못했습니다.");
+  }
+  return savedMetadata;
+}
+
 export async function updateAssistantMessageDelivery(
   db: SupabaseClient,
   input: {

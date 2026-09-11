@@ -100,6 +100,7 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     return [...opened, { type: "OPEN_CLIENT_TASK", task: "contract_preview", flowId: resourceId }];
   },
   create_conti: async (args) => workspaceAction("conti", args),
+  create_conti_v2: async (args) => workspaceAction("conti", args),
   update_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
   add_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
   remove_quote_item: async ({ result }) => mutationActions("quote", result),
@@ -208,6 +209,24 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "이 컷을 삭제할까요?"), confirmLabel: "삭제", toolName: "apply_remove_conti_shot", toolInput: { selector: null, position: result.data?.targetIndex == null ? null : Number(result.data.targetIndex) + 1 } }];
   },
   apply_remove_conti_shot: async ({ result }) => mutationActions("conti", result),
+  update_conti_scene_v2: async ({ result }) => mutationActions("conti", result, "conti-scene"),
+  add_conti_scene_v2: async ({ result }) => mutationActions("conti", result, "conti-scene"),
+  reorder_conti_scene_v2: async ({ result }) => mutationActions("conti", result, "conti-scene"),
+  request_remove_conti_scene_v2: async ({ result }) => {
+    if (!result.success) return [];
+    const contiId = value(result.data, "contiId") || value(result.data, "resourceId");
+    const sceneId = value(result.data, "sceneId");
+    if (!contiId || !sceneId) return [];
+    return [{
+      type: "REQUEST_APPROVAL",
+      approvalId: crypto.randomUUID(),
+      summary: String(result.data?.summary || "이 장면을 삭제할까요?"),
+      confirmLabel: "삭제",
+      toolName: "remove_conti_scene_v2",
+      toolInput: { contiId, sceneId },
+    }];
+  },
+  remove_conti_scene_v2: async ({ result }) => mutationActions("conti", result),
   open_feature: async ({ result }) => {
     if (!result.success) return [];
     const href = value(result.data, "href");

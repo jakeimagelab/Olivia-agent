@@ -1,4 +1,6 @@
 import type { OliviaClientSearchResult } from "@/lib/olivia/clientSearch";
+import type { ToolExecutionMode } from "@/lib/olivia/v2/toolExecutors/verification";
+import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 
 type AuditEntry = {
   result: HermesClientSearchAudit;
@@ -12,8 +14,8 @@ export type HermesClientSearchAudit =
 // client.search 외의 tool(create_quote 등)이 실제로 실행/저장됐는지 기록하는 범용 감사.
 // client.search 전용 record/consume 함수는 그대로 두고(회귀 위험 최소화) 새 tool들만 이걸 쓴다.
 export type HermesToolAudit =
-  | { success: true; data?: unknown }
-  | { success: false; error: string };
+  | { success: true; mode: ToolExecutionMode; uiToolName?: string; data?: unknown; resourceType?: string; resourceId?: string; changedEntityId?: string; verification?: unknown; uiActions?: OliviaUiAction[] }
+  | { success: false; mode: ToolExecutionMode; uiToolName?: string; error: string; code?: string; details?: Record<string, unknown>; data?: unknown; resourceType?: string; resourceId?: string; changedEntityId?: string; verification?: unknown; uiActions?: OliviaUiAction[] };
 
 type GenericAuditEntry = { toolName: string; result: HermesToolAudit; createdAt: number };
 

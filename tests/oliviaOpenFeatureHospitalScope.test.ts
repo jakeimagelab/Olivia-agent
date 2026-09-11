@@ -46,9 +46,10 @@ describe("open_feature — 고객명이 있으면 고객관리 화면을 그 고
     expect(execution.result).toMatchObject({ success: true, data: { matched: true, href: "/clients" } });
   });
 
-  it("고객 스코프를 지원하지 않는 화면은 hospitalName이 있어도 그대로 연다", async () => {
+  it("복수 화면을 함께 지칭하면 hospitalName과 무관하게 임의로 하나를 열지 않는다", async () => {
     const execution = await call({ featureQuery: "콘티/초상권 작성", hospitalName: "미소로한의원" });
     expect(fuzzyNameSearchOne).not.toHaveBeenCalled();
-    expect(execution.result).toMatchObject({ success: true, data: { matched: true, href: "/conti" } });
+    expect(execution.result).toMatchObject({ success: true, data: { matched: false, ambiguous: true } });
+    expect(execution.result.data?.candidates).toEqual(expect.arrayContaining(["콘티 스튜디오", "초상권 동의서"]));
   });
 });

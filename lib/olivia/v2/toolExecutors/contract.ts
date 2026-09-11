@@ -5,6 +5,7 @@ import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/ty
 import { text, activeResource, latestResource } from "./common";
 import { loadQuote } from "./quote";
 import { createVerification } from "./verification";
+import { publishContractService } from "@/lib/publications/publishResource";
 
 async function loadContractRow(id: string) {
   const db = getSupabaseAdmin();
@@ -21,7 +22,7 @@ async function saveContractRow(id: string, data: Record<string, unknown>) {
 }
 
 export const CONTRACT_TOOL_NAMES = [
-  "create_contract", "update_contract_terms", "request_contract_signature",
+  "create_contract", "get_contract", "preview_contract", "update_contract_terms", "request_contract_signature",
   "request_contract_publish", "publish_contract", "download_contract_pdf",
 ] as const;
 
@@ -31,6 +32,17 @@ export async function executeContractTool(
   context: OliviaContextSnapshot,
 ): Promise<OliviaToolResult> {
   const db = getSupabaseAdmin();
+
+  if (name === "get_contract" || name === "preview_contract") {
+    const resourceId = text(input, "contractId") || activeResource(context, "contract");
+    const contract = await loadContractRow(resourceId);
+    return {
+      tool: name,
+      success: true,
+      data: { contractId: resourceId, resourceId, contract, summary: name === "preview_contract" ? "계약서 미리보기를 준비했어요." : "계약서를 불러왔어요." },
+      verification: createVerification({ executed: true, resourceExists: true }),
+    };
+  }
 
   if (name === "create_contract") {
     // 견적 우선순위(스펙 §3, 2026-08-30) — "이 견적으로 계약서 만들어줘"처럼 지금 보고 있는
@@ -99,6 +111,9 @@ export async function executeContractTool(
     if (input.specialTerms != null) patch.special_terms = String(input.specialTerms).trim();
     if (!Object.keys(patch).length) throw new Error("변경할 내용을 알려주세요.");
     const updatedResource = await saveContractRow(resourceId, patch);
+    for (const [key, value] of Object.entries(patch)) {
+      if (updatedResource[key] !== value) throw new Error(`계약 조건 저장 검증이 일치하지 않아요: ${key}`);
+    }
     const quoteData = (contract.quote_data && typeof contract.quote_data === "object") ? contract.quote_data as Record<string, unknown> : {};
     const totalAmount = Number(quoteData.totalAmount) || 0;
     const summary = depositRate != null
@@ -141,7 +156,7 @@ export async function executeContractTool(
     const resourceId = activeResource(context, "contract");
     const contract = await loadContractRow(resourceId);
     // 최종 생성 전 필수 확인(스펙 §28) — 부족한 항목만 짚어서 되묻는다. 실제 고객/프로젝트
-    // 연결 검증은 기존 /api/contracts/[id]/publish 라우트가 그대로 한다(중복 구현 안 함).
+    // 연결과 최종 재조회는 API Route도 공유하는 publishContractService가 처리한다.
     const quoteData = (contract.quote_data && typeof contract.quote_data === "object") ? contract.quote_data as Record<string, unknown> : {};
     const missing: string[] = [];
     if (!contract.hospital_name) missing.push("고객명");
@@ -149,20 +164,17 @@ export async function executeContractTool(
     if (!quoteData.shootDate) missing.push("촬영 예정일");
     if (!contract.signature_data_url) missing.push("대표 서명");
     if (missing.length) throw new Error(`아직 부족한 항목이 있어요: ${missing.join(", ")}`);
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:3000";
-    const response = await fetch(`${baseUrl}/api/contracts/${resourceId}/publish`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId: context.activeClientId, workflowRunId: context.activeProjectId }),
-    });
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) throw new Error(payload.error || "계약서를 최종 생성하지 못했어요.");
-    const updatedResource = await saveContractRow(resourceId, { status: "final" });
+    const payload = await publishContractService(resourceId, {
+      clientId: context.activeClientId,
+      workflowRunId: context.activeProjectId,
+      finalize: true,
+    }, db);
+    const updatedResource = payload.resource;
     return {
       tool: name, success: true,
       data: { resourceId, contractId: resourceId, updatedResource, ...payload, summary: "계약서를 최종 생성했어요." },
       // updatedResource.status(실제 저장된 값)가 "final"인지로 확인한다 — payload.ok만 믿지 않는다.
-      verification: createVerification({ executed: true, persisted: updatedResource.status === "final", resourceExists: true, linked: Boolean(context.activeClientId) }),
+      verification: createVerification({ executed: true, persisted: updatedResource.status === "final", resourceExists: true, linked: Boolean(payload.clientId && payload.workflowRunId) }),
     };
   }
 

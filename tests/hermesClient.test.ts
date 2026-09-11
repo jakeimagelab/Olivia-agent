@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isClientSearchRequest, isHermesFallbackSafe, runHermesChat } from "@/lib/hermes/client";
-import { recordHermesClientSearch } from "@/lib/hermes/toolAudit";
+import { getOliviaAgentEngine, isClientSearchRequest, isHermesFallbackSafe, isMutationIntent, runHermesChat } from "@/lib/hermes/client";
+import { recordHermesClientSearch, recordHermesToolCall } from "@/lib/hermes/toolAudit";
 
 function sse(text: string) {
   return new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`, {
@@ -21,6 +21,16 @@ describe("Hermes chat adapter", () => {
     expect(isClientSearchRequest("오늘 기분 어때?")).toBe(false);
   });
 
+  it("짧은 승인 답변도 mutation 가능 요청으로 취급한다", () => {
+    expect(isMutationIntent("응")).toBe(true);
+    expect(isMutationIntent("승인")).toBe(true);
+  });
+
+  it("OLIVIA_AGENT_ENGINE=hermes면 Hermes가 primary engine이다", () => {
+    vi.stubEnv("OLIVIA_AGENT_ENGINE", "hermes");
+    expect(getOliviaAgentEngine()).toBe("hermes");
+  });
+
   it("MCP 도구 실행 검증이 있으면 검색 결과를 반환한다", async () => {
     vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
     vi.stubEnv("HERMES_API_KEY", "secret");
@@ -31,6 +41,7 @@ describe("Hermes chat adapter", () => {
       expect(requestId).toBeTruthy();
       recordHermesClientSearch(requestId, { success: true, result: {
         success: true,
+        status: "FOUND",
         clients: [{ id: "1", name: "강재활의학과" }],
         verification: { executed: true, resourceExists: true, verifiedAt: new Date().toISOString() },
       } });
@@ -72,6 +83,7 @@ describe("Hermes chat adapter", () => {
       const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
       recordHermesClientSearch(requestId, { success: true, result: {
         success: true,
+        status: "NOT_FOUND",
         clients: [],
         verification: { executed: true, resourceExists: false, verifiedAt: new Date().toISOString() },
       } });
@@ -89,6 +101,7 @@ describe("Hermes chat adapter", () => {
       const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
       recordHermesClientSearch(requestId, { success: true, result: {
         success: true,
+        status: "AMBIGUOUS",
         clients: [{ id: "1", name: "강재활 강남점" }, { id: "2", name: "강재활 송파점" }],
         verification: { executed: true, resourceExists: true, verifiedAt: new Date().toISOString() },
       } });
@@ -105,6 +118,68 @@ describe("Hermes chat adapter", () => {
     vi.stubGlobal("fetch", vi.fn(async () => sse("안녕하세요.")));
     const result = await runHermesChat({ message: "안녕" });
     expect(result.message).toBe("안녕하세요.");
+  });
+
+  it("MCP audit가 실패면 Hermes의 낙관적인 완료 문구를 차단한다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesToolCall(requestId, "memo.create", {
+        success: false,
+        mode: "mutation",
+        error: "DB 저장 검증 실패",
+        resourceType: "memo",
+        verification: { persisted: false },
+      });
+      return sse("메모를 저장했습니다.");
+    }));
+
+    const result = await runHermesChat({ message: "메모해줘" });
+    expect(result.message).toBe("요청을 완료하지 못했습니다. DB 저장 검증 실패");
+    expect(result.toolCalls[0]).toMatchObject({
+      name: "mcp_olivia_memo_create",
+      success: false,
+      resourceType: "memo",
+      verification: { persisted: false },
+    });
+  });
+
+  it("같은 요청의 실패 뒤 mutation 재시도가 검증 성공하면 최종 성공을 허용한다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesToolCall(requestId, "calendar.add", { success: false, mode: "mutation", error: "일시 오류" });
+      recordHermesToolCall(requestId, "calendar.add", { success: true, mode: "mutation", data: { taskId: "task-1" }, verification: { executed: true, persisted: true } });
+      return sse("일정을 등록했습니다.");
+    }));
+    expect((await runHermesChat({ message: "일정 넣어줘" })).message).toBe("일정을 등록했습니다.");
+  });
+
+  it("서로 다른 복합 mutation의 성공과 실패를 부분 성공으로 보고한다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesToolCall(requestId, "create_quote", { success: true, mode: "mutation", data: { quoteId: "quote-1", summary: "견적서는 만들었습니다." }, verification: { executed: true, persisted: true } });
+      recordHermesToolCall(requestId, "calendar_add", { success: false, mode: "mutation", error: "일정 시간이 저장되지 않았습니다." });
+      return sse("두 작업을 모두 완료했습니다.");
+    }));
+    const result = await runHermesChat({ message: "견적 만들고 일정도 넣어줘" });
+    expect(result.message).toContain("견적서는 만들었습니다.");
+    expect(result.message).toContain("일정 시간이 저장되지 않았습니다.");
+    expect(result.message).not.toContain("모두 완료");
+  });
+
+  it("mutation tool 실행 없이 완료를 주장하면 완료 여부를 확정하지 않는다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async () => sse("일정을 등록했습니다.")));
+    expect((await runHermesChat({ message: "일정 넣어줘" })).message).toBe("실제 Olivia Tool 실행 결과를 확인하지 못해 완료 여부를 확정할 수 없습니다.");
   });
 
   it("uses the canonical conversation session and mixed-channel DB history", async () => {

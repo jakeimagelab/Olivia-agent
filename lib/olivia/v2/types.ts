@@ -96,6 +96,8 @@ export type OliviaToolResult = {
   success: boolean;
   data?: Record<string, unknown>;
   error?: string;
+  code?: string;
+  details?: Record<string, unknown>;
   verification?: OliviaToolVerification;
 };
 

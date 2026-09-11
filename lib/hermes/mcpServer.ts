@@ -5,6 +5,19 @@ import { recordHermesClientSearch, recordHermesToolCall } from "@/lib/hermes/too
 import { executeQuoteTool } from "@/lib/olivia/v2/toolExecutors/quote";
 import { executeCalendarTool } from "@/lib/olivia/v2/toolExecutors/calendar";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
+import { registerClientTools } from "@/lib/hermes/mcp/registerClientTools";
+import { registerWorkTools } from "@/lib/hermes/mcp/registerWorkTools";
+import { registerQuoteTools } from "@/lib/hermes/mcp/registerQuoteTools";
+import { registerContractTools } from "@/lib/hermes/mcp/registerContractTools";
+import { registerContiTools } from "@/lib/hermes/mcp/registerContiTools";
+import { registerMemoTools } from "@/lib/hermes/mcp/registerMemoTools";
+import { registerAnalysisTools } from "@/lib/hermes/mcp/registerAnalysisTools";
+import { registerWorkflowTools } from "@/lib/hermes/mcp/registerWorkflowTools";
+import { registerUiTools } from "@/lib/hermes/mcp/registerUiTools";
+import { runOliviaMcpExecution } from "@/lib/hermes/mcp/runTool";
+import { normalizeToolError } from "@/lib/olivia/v2/toolError";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { attachOliviaToolBridge } from "@/lib/hermes/mcp/oliviaToolBridge";
 
 function quoteContext(quoteId?: string): OliviaContextSnapshot {
   return { activeWorkspace: "quote", activeResourceId: quoteId, recentActions: [], revision: 0 };
@@ -17,28 +30,14 @@ function calendarContext(): OliviaContextSnapshot {
 // calendar_* 6종도 quote와 동일한 wrapper 규약을 쓴다 — executeCalendarTool(기존 v2 웹챗이 쓰는
 // 그 구현 그대로)을 감싸고, MCP 응답 모양+toolAudit 기록만 여기서 한다.
 async function runCalendarTool(toolName: string, input: Record<string, unknown>, requestId: string | undefined) {
-  try {
-    const result = await executeCalendarTool(toolName, input, calendarContext());
-    if (!result.success) {
-      recordHermesToolCall(requestId, toolName, { success: false, error: result.error || "요청을 처리하지 못했어요." });
-      return {
-        isError: true,
-        content: [{ type: "text" as const, text: JSON.stringify({ success: false, error: result.error }) }],
-      };
-    }
-    recordHermesToolCall(requestId, toolName, { success: true, data: result.data });
-    return {
-      content: [{ type: "text" as const, text: JSON.stringify(result) }],
-      structuredContent: (result.data ?? {}) as Record<string, unknown>,
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "요청을 처리하지 못했어요.";
-    recordHermesToolCall(requestId, toolName, { success: false, error: message });
-    return {
-      isError: true,
-      content: [{ type: "text" as const, text: JSON.stringify({ success: false, error: message }) }],
-    };
-  }
+  const mode = ["calendar_add", "calendar_add_bulk", "calendar_update", "calendar_complete", "calendar_delete"].includes(toolName) ? "mutation" : "read";
+  return runOliviaMcpExecution({
+    exposedToolName: toolName,
+    mode,
+    requestId,
+    input,
+    execute: () => executeCalendarTool(toolName, input, calendarContext()),
+  });
 }
 
 // Quote tool 6종이 전부 이 wrapper를 거친다 — executeQuoteTool(lib/olivia/v2/toolExecutors/quote.ts)의
@@ -50,31 +49,17 @@ async function runQuoteTool(
   requestId: string | undefined,
   quoteId?: string,
 ) {
-  try {
-    const result = await executeQuoteTool(toolName, input, quoteContext(quoteId));
-    if (!result.success) {
-      recordHermesToolCall(requestId, toolName, { success: false, error: result.error || "요청을 처리하지 못했어요." });
-      return {
-        isError: true,
-        content: [{ type: "text" as const, text: JSON.stringify({ success: false, error: result.error }) }],
-      };
-    }
-    recordHermesToolCall(requestId, toolName, { success: true, data: result.data });
-    return {
-      content: [{ type: "text" as const, text: JSON.stringify(result) }],
-      structuredContent: (result.data ?? {}) as Record<string, unknown>,
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "요청을 처리하지 못했어요.";
-    recordHermesToolCall(requestId, toolName, { success: false, error: message });
-    return {
-      isError: true,
-      content: [{ type: "text" as const, text: JSON.stringify({ success: false, error: message }) }],
-    };
-  }
+  const mode = ["create_quote", "add_quote_item", "update_quote_item", "remove_quote_item", "apply_quote_discount", "publish_quote"].includes(toolName) ? "mutation" : "read";
+  return runOliviaMcpExecution({
+    exposedToolName: toolName,
+    mode,
+    requestId,
+    input: { ...input, ...(quoteId ? { quoteId } : {}) },
+    execute: () => executeQuoteTool(toolName, input, quoteContext(quoteId)),
+  });
 }
 
-export function createOliviaHermesMcpServer() {
+function createLegacyOliviaHermesMcpServer() {
   const server = new McpServer({ name: "olivia", version: "0.1.0" });
 
   server.registerTool(
@@ -91,15 +76,25 @@ export function createOliviaHermesMcpServer() {
       try {
         const result = await searchOliviaClients(query);
         recordHermesClientSearch(requestId, { success: true, result });
+        recordHermesToolCall(requestId, "client.search", {
+          success: true,
+          mode: "read",
+          data: result,
+          resourceType: "client",
+          resourceId: result.clients.length === 1 ? result.clients[0].id : undefined,
+          verification: result.verification,
+        });
         return {
           content: [{ type: "text" as const, text: JSON.stringify(result) }],
           structuredContent: result as unknown as Record<string, unknown>,
         };
-      } catch {
-        recordHermesClientSearch(requestId, { success: false, error: "고객 검색에 실패했습니다." });
+      } catch (error) {
+        const failure = normalizeToolError(error);
+        recordHermesClientSearch(requestId, { success: false, error: failure.error });
+        recordHermesToolCall(requestId, "client.search", { success: false, mode: "read", ...failure, resourceType: "client" });
         return {
           isError: true,
-          content: [{ type: "text" as const, text: JSON.stringify({ success: false, error: "고객 검색에 실패했습니다." }) }],
+          content: [{ type: "text" as const, text: JSON.stringify({ success: false, ...failure }) }],
         };
       }
     },
@@ -336,5 +331,28 @@ export function createOliviaHermesMcpServer() {
     async ({ requestId, ...input }) => runCalendarTool("calendar_availability", input, requestId),
   );
 
+  registerClientTools(server);
+  registerWorkTools(server);
+  registerQuoteTools(server);
+  registerContractTools(server);
+  registerContiTools(server);
+  registerMemoTools(server);
+  registerAnalysisTools(server);
+  registerWorkflowTools(server);
+  registerUiTools(server);
+
+  return server;
+}
+
+// Olivia Tool Registry가 유일한 discovery/execution source다. 위 legacy builder는 롤백 비교를
+// 위해 당분간만 남기며 실제 endpoint에서는 호출하지 않는다.
+void createLegacyOliviaHermesMcpServer;
+
+export function createOliviaHermesMcpServer() {
+  const server = new Server(
+    { name: "olivia", version: "0.2.0" },
+    { capabilities: { tools: { listChanged: false } } },
+  );
+  attachOliviaToolBridge(server);
   return server;
 }

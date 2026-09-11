@@ -3,6 +3,7 @@ import { fuzzyNameSearch } from "@/lib/olivia/nameSearch";
 import { createVerification } from "@/lib/olivia/v2/toolExecutors/verification";
 import type { OliviaToolVerification } from "@/lib/olivia/v2/types";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 
 export type OliviaClientSearchItem = {
   id: string;
@@ -12,6 +13,7 @@ export type OliviaClientSearchItem = {
 
 export type OliviaClientSearchResult = {
   success: true;
+  status: "FOUND" | "NOT_FOUND" | "AMBIGUOUS";
   clients: OliviaClientSearchItem[];
   verification: OliviaToolVerification;
 };
@@ -30,15 +32,20 @@ export async function searchOliviaClients(
   if (!keyword) throw new Error("검색할 고객명을 입력해주세요.");
   if (keyword.length > 120) throw new Error("검색어가 너무 깁니다.");
 
-  const rows = await fuzzyNameSearch<ClientRow>({
-    db: options.db ?? getSupabaseAdmin(),
-    table: "clients",
-    nameColumn: "hospital_name",
-    select: "id,hospital_name,specialty",
-    query: keyword,
-    limit: Math.min(Math.max(options.limit ?? 10, 1), 20),
-    throwOnError: true,
-  });
+  let rows: ClientRow[];
+  try {
+    rows = await fuzzyNameSearch<ClientRow>({
+      db: options.db ?? getSupabaseAdmin(),
+      table: "clients",
+      nameColumn: "hospital_name",
+      select: "id,hospital_name,specialty",
+      query: keyword,
+      limit: Math.min(Math.max(options.limit ?? 10, 1), 20),
+      throwOnError: true,
+    });
+  } catch {
+    throw new OliviaToolError("고객 정보를 조회하지 못했습니다.", "DB_ERROR");
+  }
 
   const clients = rows.map((row) => ({
     id: row.id,
@@ -48,6 +55,7 @@ export async function searchOliviaClients(
 
   return {
     success: true,
+    status: clients.length === 0 ? "NOT_FOUND" : clients.length === 1 ? "FOUND" : "AMBIGUOUS",
     clients,
     verification: createVerification({
       executed: true,

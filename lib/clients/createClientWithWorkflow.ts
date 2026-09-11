@@ -32,7 +32,7 @@ async function startWorkflowRun(
     status: "active",
     started_at: new Date().toISOString(),
   }).select().single();
-  if (runError) throw new Error(runError.message);
+  if (runError || !run) throw new Error(runError?.message || "워크플로우 생성 결과를 확인하지 못했습니다.");
 
   if (run?.id) {
     await ensureStepRun(db, run.id, startStepKey, "in_progress");
@@ -65,24 +65,26 @@ export async function createClientWithWorkflow(db: SupabaseClient, input: Create
   const hospitalName = input.hospitalName.trim();
   if (!hospitalName) throw new Error("병원명 필수");
 
-  const { data: existing } = await db
+  const { data: existing, error: existingError } = await db
     .from("clients")
     .select("id,hospital_name")
     .ilike("hospital_name", hospitalName)
     .limit(1)
     .maybeSingle();
+  if (existingError) throw new Error(`기존 고객 조회 실패: ${existingError.message}`);
   if (existing) {
-    let { data: activeRun } = await db.from("workflow_runs")
+    let { data: activeRun, error: activeRunError } = await db.from("workflow_runs")
       .select("id,current_step_key")
       .eq("client_id", existing.id)
       .eq("status", "active")
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (activeRunError) throw new Error(`활성 워크플로우 조회 실패: ${activeRunError.message}`);
     if (!activeRun) {
       activeRun = await startWorkflowRun(db, existing.id, existing.hospital_name, input);
     }
-    await ensurePortalAccess({ clientId: existing.id }).catch((portalError) => console.error("[clients] 포털 확보 실패", portalError));
+    await ensurePortalAccess({ clientId: existing.id });
     return { client: existing, run: activeRun, created: false };
   }
 
@@ -107,10 +109,13 @@ export async function createClientWithWorkflow(db: SupabaseClient, input: Create
 
   const run = await startWorkflowRun(db, client.id, hospitalName, input);
 
+  // TODO(P1 transaction): client 생성 뒤 workflow/portal이 실패하면 현재는 부분 생성이 남을 수
+  // 있다. 다만 실패를 성공으로 숨기지는 않으며 호출자에게 그대로 전달한다.
+
   await linkUnassignedPhotoGalleries(db, { clientId: client.id, hospitalName, workflowRunId: run?.id ?? null })
     .catch((linkError) => console.error("[clients] 기존 촬영 갤러리 연결 실패", linkError));
 
-  await ensurePortalAccess({ clientId: client.id }).catch((portalError) => console.error("[clients] 포털 생성 실패", portalError));
+  await ensurePortalAccess({ clientId: client.id });
 
   return { client, run, created: true };
 }

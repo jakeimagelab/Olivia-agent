@@ -5,8 +5,10 @@ import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 import { ensurePrimaryAssistantOwner, ensureTelegramOwnerConnection, isAuthorizedTelegramIdentity } from "@/lib/assistant/owners/service";
 import {
   findAssistantMessageByExternalId,
+  findAssistantMessageByTelegramOutboundId,
   getOrCreateAssistantConversation,
   listAssistantMessages,
+  mergeAssistantMessageMetadata,
   saveAssistantMessage,
 } from "@/lib/assistant/conversations/service";
 import {
@@ -95,7 +97,7 @@ function getBaseUrl(req: NextRequest): string {
 
 // create_quote/update 계열 tool이 성공하면 미리보기 이미지를 렌더해서 사진+승인버튼으로 보낸다.
 // 렌더가 실패해도(Playwright 콜드스타트 등) 텍스트 응답 자체는 이미 있으니 조용히 텍스트로만 보낸다.
-async function sendQuotePreview(base: string, chatId: number, quoteId: string, caption: string) {
+async function sendQuotePreview(base: string, chatId: number, quoteId: string, caption: string): Promise<string | undefined> {
   try {
     const renderRes = await fetch(`${base}/api/quotes/${quoteId}/render`, {
       method: "POST",
@@ -103,8 +105,8 @@ async function sendQuotePreview(base: string, chatId: number, quoteId: string, c
       body: JSON.stringify({ format: "png" }),
     });
     const renderData = await renderRes.json();
-    if (!renderData.ok || !renderData.url) return false;
-    await tgRequest("sendPhoto", {
+    if (!renderData.ok || !renderData.url) return undefined;
+    const sent = await tgRequest("sendPhoto", {
       chat_id: chatId,
       photo: renderData.url,
       caption: caption.slice(0, 1024),
@@ -115,9 +117,9 @@ async function sendQuotePreview(base: string, chatId: number, quoteId: string, c
         ]],
       },
     });
-    return true;
+    return sent?.result?.message_id == null ? undefined : String(sent.result.message_id);
   } catch {
-    return false;
+    return undefined;
   }
 }
 
@@ -137,6 +139,7 @@ async function runV2TelegramChat(input: {
   clientRequestId: string;
   assistantExternalMessageId: string;
   attachments: OliviaChatAttachment[];
+  replyContext?: Record<string, unknown>;
 }): Promise<TelegramTurnResult> {
   const res = await fetch(`${input.base}/api/olivia/v2/stream`, {
     method: "POST",
@@ -149,6 +152,7 @@ async function runV2TelegramChat(input: {
       assistantExternalMessageId: input.assistantExternalMessageId,
       channel: "telegram",
       attachments: input.attachments,
+      replyContext: input.replyContext,
       pageContext: "텔레그램 모바일 앱에서 접속 중. 승인 없이 도구를 바로 실행. 결과만 간결하게. 마크다운 최소화.",
     }),
   });
@@ -246,10 +250,13 @@ async function runLegacyTelegramChat(input: {
   return prefix + lines.join("\n\n");
 }
 
-async function sendTelegramText(chatId: number, reply: string) {
+async function sendTelegramText(chatId: number, reply: string): Promise<string | undefined> {
+  let outboundMessageId: string | undefined;
   for (let i = 0; i < reply.length; i += 4000) {
-    await tgRequest("sendMessage", { chat_id: chatId, text: reply.slice(i, i + 4000) });
+    const sent = await tgRequest("sendMessage", { chat_id: chatId, text: reply.slice(i, i + 4000) });
+    if (sent?.result?.message_id != null) outboundMessageId = String(sent.result.message_id);
   }
+  return outboundMessageId;
 }
 
 async function deliverSavedReply(input: {
@@ -263,18 +270,27 @@ async function deliverSavedReply(input: {
   reply: string;
   quoteId?: string;
 }) {
+  let outboundMessageId: string | undefined;
   await deliverTelegramAssistantMessage(input.db, {
     ownerId: input.ownerId,
     conversationId: input.conversationId,
     messageId: input.messageId,
     externalRequestId: input.externalRequestId,
     send: async () => {
-      const sentPreview = input.quoteId
+      const previewMessageId = input.quoteId
         ? await sendQuotePreview(input.base, input.chatId, input.quoteId, input.reply)
-        : false;
-      if (!sentPreview) await sendTelegramText(input.chatId, input.reply);
+        : undefined;
+      outboundMessageId = previewMessageId || await sendTelegramText(input.chatId, input.reply);
     },
   });
+  if (outboundMessageId) {
+    await mergeAssistantMessageMetadata(input.db, {
+      ownerId: input.ownerId,
+      conversationId: input.conversationId,
+      messageId: input.messageId,
+      metadata: { telegram: { outboundMessageId } },
+    });
+  }
 }
 
 async function handleCallbackQuery(callbackQuery: any) {
@@ -352,7 +368,7 @@ async function handleCallbackQuery(callbackQuery: any) {
         conversationId: conversation.id,
         messageId: assistantSaved.message.id,
         externalRequestId: assistantExternalId,
-        send: () => sendTelegramText(chatId, reply),
+        send: async () => { await sendTelegramText(chatId, reply); },
       });
       await finishTelegramWebhook(db, claim.eventId, "processed");
     } catch (e: any) {
@@ -381,7 +397,7 @@ async function handleCallbackQuery(callbackQuery: any) {
       conversationId: conversation.id,
       messageId: assistantSaved.message.id,
       externalRequestId: assistantExternalId,
-      send: () => sendTelegramText(chatId, reply),
+      send: async () => { await sendTelegramText(chatId, reply); },
     });
     await finishTelegramWebhook(db, claim.eventId, "processed");
     return;
@@ -481,6 +497,27 @@ export async function POST(req: NextRequest) {
   let imageMime = "image/jpeg";
   const attachments: OliviaChatAttachment[] = sanitizeOliviaAttachments(existingInbound?.metadata?.attachments);
   const attachmentFailures: string[] = [];
+  const repliedTelegramMessageId = message.reply_to_message?.message_id == null
+    ? undefined
+    : String(message.reply_to_message.message_id);
+  const repliedMessage = repliedTelegramMessageId
+    ? await findAssistantMessageByTelegramOutboundId(db, {
+        ownerId: owner.id,
+        conversationId: conversation.id,
+        outboundMessageId: repliedTelegramMessageId,
+      })
+    : null;
+  const repliedMetadata = repliedMessage?.metadata && typeof repliedMessage.metadata === "object" && !Array.isArray(repliedMessage.metadata)
+    ? repliedMessage.metadata as Record<string, unknown>
+    : undefined;
+  const replyContext = repliedMetadata ? {
+    resourceType: repliedMetadata.resourceType,
+    resourceId: repliedMetadata.resourceId,
+    resourceVersion: repliedMetadata.resourceVersion ?? repliedMetadata.version,
+    workSessionId: repliedMetadata.workSessionId,
+    clientId: repliedMetadata.clientId,
+    projectId: repliedMetadata.projectId,
+  } : undefined;
 
   try {
     if (message.photo) {
@@ -553,7 +590,8 @@ export async function POST(req: NextRequest) {
       metadata: {
         attachments,
         ...(attachmentFailures.length ? { attachmentFailures } : {}),
-        telegram: { chatId: chatIdStr, messageId: telegramMessageId },
+        ...(replyContext ? { replyContext } : {}),
+        telegram: { chatId: chatIdStr, messageId: telegramMessageId, ...(repliedTelegramMessageId ? { repliedMessageId: repliedTelegramMessageId } : {}) },
       },
     });
 
@@ -587,6 +625,7 @@ export async function POST(req: NextRequest) {
         clientRequestId: inboundExternalId,
         assistantExternalMessageId: assistantExternalId,
         attachments,
+        replyContext,
       });
     }
 

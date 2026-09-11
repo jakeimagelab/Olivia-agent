@@ -9,12 +9,17 @@ import type {
 } from "@/lib/olivia/v2/types";
 import { OLIVIA_MEMORY_TYPES } from "@/lib/olivia/memory/types";
 import { normalizeToolError, OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
+import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 import { mergeVerification } from "./toolExecutors/verification";
 import { OPEN_FEATURE_RECORD_DOMAINS, FEATURE_RECORD_TOOL_NAMES, executeFeatureRecordTool } from "./toolExecutors/featureRecord";
 import { QUOTE_TOOL_NAMES, executeQuoteTool } from "./toolExecutors/quote";
 import { CONTRACT_TOOL_NAMES, executeContractTool } from "./toolExecutors/contract";
 import { CONTI_TOOL_NAMES, executeContiTool } from "./toolExecutors/conti";
+import { CONTI_V2_TOOL_NAMES, executeContiV2Tool } from "./toolExecutors/contiV2";
 import { CALENDAR_TOOL_NAMES, executeCalendarTool } from "./toolExecutors/calendar";
+import { WORK_TOOL_NAMES, executeWorkTool } from "./toolExecutors/work";
+import { MEMO_TOOL_NAMES, executeMemoTool } from "./toolExecutors/memo";
+import { ANALYSIS_TOOL_NAMES, executeAnalysisTool } from "./toolExecutors/analysis";
 import { WORKFLOW_TOOL_NAMES, executeWorkflowTool } from "./toolExecutors/workflow";
 import { MAILING_TOOL_NAMES, executeMailingTool } from "./toolExecutors/mailing";
 import { GALLERY_TOOL_NAMES, executeGalleryTool } from "./toolExecutors/gallery";
@@ -352,6 +357,36 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   // 기준으로 바로 분류를 실행하고, refine은 자연어로 이미 나온 분류 기준/결과를 조정한다.
   { type: "function", name: "start_ai_photo_classification", description: "지금 열려 있는 사진 분류 화면에서, 이미 선택된 폴더를 AI가 분석해 추천한 기준으로 자동 분류를 실행합니다. 폴더가 아직 선택되지 않았으면 실패합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: {}, required: [] } },
   { type: "function", name: "refine_photo_classification", description: "지금 열려 있는 사진 분류 화면의 AI 분류 기준이나 결과를 자연어 요청으로 조정합니다. 예: '같은 장소라도 모델 바뀌면 나눠줘', '너무 잘게 나눴어', '3번 Scene만 더 나눠줘'.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { message: { type: "string", description: "사용자의 자연어 요청 원문." } }, required: ["message"] } },
+  // Hermes와 OpenAI 경로가 함께 쓰는 canonical 확장 Tool. 정의는 이 registry 한 곳에만 둔다.
+  { type: "function", name: "client_search", description: "[READ] 등록 고객을 병원명/고객명으로 검색하고 FOUND, NOT_FOUND, AMBIGUOUS를 구분합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { query: { type: "string" } }, required: ["query"] } },
+  { type: "function", name: "client_get", description: "[READ] clientId 또는 현재 선택 고객의 상세 정보와 연결된 프로젝트/자료를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientId: { type: ["string", "null"] } }, required: ["clientId"] } },
+  { type: "function", name: "client_create", description: "[WRITE] 기존 Olivia 고객 생성 서비스로 고객과 기본 Workflow를 생성하고 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { hospitalName: { type: "string" }, contactName: { type: ["string", "null"] }, phone: { type: ["string", "null"] }, email: { type: ["string", "null"] }, specialty: { type: ["string", "null"] }, memo: { type: ["string", "null"] } }, required: ["hospitalName", "contactName", "phone", "email", "specialty", "memo"] } },
+  { type: "function", name: "client_update", description: "[WRITE] clientId 또는 현재 선택 고객의 전달된 필드만 수정하고 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientId: { type: ["string", "null"] }, hospitalName: { type: ["string", "null"] }, contactName: { type: ["string", "null"] }, phone: { type: ["string", "null"] }, email: { type: ["string", "null"] }, specialty: { type: ["string", "null"] }, memo: { type: ["string", "null"] } }, required: ["clientId", "hospitalName", "contactName", "phone", "email", "specialty", "memo"] } },
+  { type: "function", name: "get_quote", description: "[READ] quoteId 또는 현재 열린 견적서의 canonical 데이터를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { quoteId: { type: ["string", "null"] } }, required: ["quoteId"] } },
+  { type: "function", name: "get_contract", description: "[READ] contractId 또는 현재 열린 계약서의 canonical 데이터를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contractId: { type: ["string", "null"] } }, required: ["contractId"] } },
+  { type: "function", name: "preview_contract", description: "현재 계약서 canonical resource를 읽어 미리보기를 엽니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contractId: { type: ["string", "null"] } }, required: ["contractId"] } },
+  { type: "function", name: "work_list_today", description: "[READ] 지정 날짜의 오늘 업무 목록을 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { date: { type: "string" } }, required: ["date"] } },
+  { type: "function", name: "work_create", description: "[WRITE] 시간 약속이 아닌 오늘 업무를 생성하고 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { date: { type: "string" }, title: { type: "string" }, time: { type: ["string", "null"] }, assigneeName: { type: ["string", "null"] }, priority: { type: ["string", "null"] } }, required: ["date", "title", "time", "assigneeName", "priority"] } },
+  { type: "function", name: "work_complete", description: "[WRITE] 오늘 업무를 완료 처리하고 저장 상태를 재조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { taskId: { type: "string" } }, required: ["taskId"] } },
+  { type: "function", name: "memo_create", description: "[WRITE] 고객/업무에 연결된 메모를 저장하고 재조회 검증합니다. 명시적 독립 메모만 independent=true입니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { content: { type: "string" }, title: { type: ["string", "null"] }, clientId: { type: ["string", "null"] }, contextType: { type: ["string", "null"] }, contextId: { type: ["string", "null"] }, independent: { type: "boolean" } }, required: ["content", "title", "clientId", "contextType", "contextId", "independent"] } },
+  { type: "function", name: "memo_list", description: "[READ] 현재 고객/업무에 연결된 메모 목록을 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contextType: { type: ["string", "null"] }, contextId: { type: ["string", "null"] } }, required: ["contextType", "contextId"] } },
+  { type: "function", name: "memo_search", description: "[READ] 현재 고객/업무 메모 내용을 검색합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { query: { type: "string" }, contextType: { type: ["string", "null"] }, contextId: { type: ["string", "null"] } }, required: ["query", "contextType", "contextId"] } },
+  { type: "function", name: "memo_get", description: "[READ] memoId 또는 현재 메모를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { memoId: { type: ["string", "null"] } }, required: ["memoId"] } },
+  { type: "function", name: "memo_update", description: "[WRITE] memoId 또는 현재 메모를 수정하고 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { memoId: { type: ["string", "null"] }, content: { type: "string" }, title: { type: ["string", "null"] }, clientId: { type: ["string", "null"] }, contextType: { type: ["string", "null"] }, contextId: { type: ["string", "null"] } }, required: ["memoId", "content", "title", "clientId", "contextType", "contextId"] } },
+  { type: "function", name: "trend_analysis_run", description: "[WRITE] 기존 Olivia 트렌드 분석 경로를 실행하고 canonical 결과 resource를 생성합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { industry: { type: ["string", "null"] } }, required: ["industry"] } },
+  { type: "function", name: "trend_analysis_get_latest", description: "[READ] 업종의 최신 트렌드 분석 resource를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { industry: { type: ["string", "null"] } }, required: ["industry"] } },
+  { type: "function", name: "trend_analysis_preview", description: "업종의 최신 트렌드 분석 미리보기를 엽니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { industry: { type: ["string", "null"] } }, required: ["industry"] } },
+  { type: "function", name: "brand_analysis_run", description: "[WRITE] 기존 Olivia 브랜드 분석 서비스를 실행하고 canonical 결과 resource를 생성합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientId: { type: ["string", "null"] }, hospitalName: { type: ["string", "null"] }, specialty: { type: ["string", "null"] }, websiteUrl: { type: ["string", "null"] }, naverPlaceUrl: { type: ["string", "null"] }, instagramUrl: { type: ["string", "null"] } }, required: ["clientId", "hospitalName", "specialty", "websiteUrl", "naverPlaceUrl", "instagramUrl"] } },
+  { type: "function", name: "brand_analysis_get_latest", description: "[READ] 현재 고객의 최신 완료 브랜드 분석 resource를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientId: { type: ["string", "null"] }, hospitalName: { type: ["string", "null"] } }, required: ["clientId", "hospitalName"] } },
+  { type: "function", name: "brand_analysis_preview", description: "현재 브랜드 분석 canonical resource 미리보기를 엽니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { resourceId: { type: ["string", "null"] } }, required: ["resourceId"] } },
+  { type: "function", name: "create_conti_v2", description: "[WRITE] Desktop과 동일한 conti_runs/groups/scenes에 촬영 콘티를 생성하고 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientId: { type: ["string", "null"] }, hospitalName: { type: ["string", "null"] }, workflowRunId: { type: ["string", "null"] }, specialty: { type: ["string", "null"] }, doctorCount: { type: ["number", "null"] }, staffFlags: { type: "object" }, harmony: { type: "boolean" }, checked: { type: "object" }, extraItems: { type: "array", items: { type: "string" } } }, required: ["clientId", "hospitalName", "workflowRunId", "specialty", "doctorCount", "staffFlags", "harmony", "checked", "extraItems"] } },
+  { type: "function", name: "get_conti_v2", description: "[READ] 현재 canonical V2 콘티 전체를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] } }, required: ["contiId"] } },
+  { type: "function", name: "update_conti_scene_v2", description: "[WRITE] canonical 콘티의 장면 필드를 수정하고 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] }, sceneId: { type: ["string", "null"] }, position: { type: ["number", "null"] }, fields: { type: "object" } }, required: ["contiId", "sceneId", "position", "fields"] } },
+  { type: "function", name: "add_conti_scene_v2", description: "[WRITE] canonical 콘티에 장면을 추가하고 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] }, groupId: { type: ["string", "null"] }, fields: { type: "object" } }, required: ["contiId", "groupId", "fields"] } },
+  { type: "function", name: "request_remove_conti_scene_v2", description: "canonical 콘티 장면 삭제 승인을 요청합니다. 이 도구는 삭제를 실행하지 않습니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] }, sceneId: { type: ["string", "null"] }, position: { type: ["number", "null"] } }, required: ["contiId", "sceneId", "position"] } },
+  { type: "function", name: "reorder_conti_scene_v2", description: "[WRITE] canonical 콘티 장면 순서를 변경하고 전체 순서를 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] }, sceneId: { type: ["string", "null"] }, position: { type: ["number", "null"] }, targetPosition: { type: "number" } }, required: ["contiId", "sceneId", "position", "targetPosition"] } },
+  { type: "function", name: "get_conti_field_view_v2", description: "[READ] 현장용 canonical 콘티 보기를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] } }, required: ["contiId"] } },
+  { type: "function", name: "preview_conti_v2", description: "canonical V2 콘티 resource 미리보기를 엽니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] } }, required: ["contiId"] } },
 ];
 
 // ── Tool Router (구조 개편 2026-08-31) ────────────────────────────────────────────────
@@ -364,7 +399,11 @@ const DOMAIN_EXECUTORS: ReadonlyArray<readonly [ReadonlyArray<string>, ToolHandl
   [QUOTE_TOOL_NAMES, executeQuoteTool],
   [CONTRACT_TOOL_NAMES, executeContractTool],
   [CONTI_TOOL_NAMES, executeContiTool],
+  [CONTI_V2_TOOL_NAMES, executeContiV2Tool],
   [CALENDAR_TOOL_NAMES, executeCalendarTool],
+  [WORK_TOOL_NAMES, executeWorkTool],
+  [MEMO_TOOL_NAMES, executeMemoTool],
+  [ANALYSIS_TOOL_NAMES, executeAnalysisTool],
   [WORKFLOW_TOOL_NAMES, executeWorkflowTool],
   [MAILING_TOOL_NAMES, executeMailingTool],
   [GALLERY_TOOL_NAMES, executeGalleryTool],
@@ -421,6 +460,7 @@ export async function executeAgentTool(
         tool: toolCall.name,
         success: false,
         error: normalized.userMessage,
+        ...(error instanceof OliviaToolError ? { code: error.code, details: error.details } : {}),
         verification: mergeVerification(undefined, { executed: false }),
       },
       uiActions: [],

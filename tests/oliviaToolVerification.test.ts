@@ -81,13 +81,15 @@ vi.mock("@/lib/olivia/tools/documentLink", () => ({
 
 vi.mock("@/lib/olivia/tools/calendar", () => ({
   listCalendarTasks: vi.fn(async () => [] as any[]),
-  addCalendarTask: vi.fn(async () => "task-1"),
-  updateCalendarTask: vi.fn(async () => {}),
-  deleteCalendarTask: vi.fn(async () => {}),
+  addCalendarTask: vi.fn(async () => ({ id: "task-1", date: "2026-09-01", title: "미팅", completed: false })),
+  getCalendarTask: vi.fn(async () => ({ id: "task-1", date: "2026-09-01", title: "미팅", completed: false })),
+  updateCalendarTask: vi.fn(async () => ({ id: "task-1", date: "2026-09-01", title: "미팅", completed: false })),
+  deleteCalendarTask: vi.fn(async () => ({ id: "trash-1", source_id: "task-1" })),
   resolveCalendarTaskId: vi.fn(async () => "task-1"),
 }));
 
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
+import { fromLegacyResult } from "@/lib/olivia/v2/toolExecutors/common";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 
 const baseContext: OliviaContextSnapshot = { recentActions: [], revision: 0 };
@@ -180,6 +182,21 @@ describe("Tool 실행 결과 Verification (Agent 실행 구조 개편, 2026-08-3
     const execution = await call("calendar_list", { date: "2026-09-01" });
     expect(execution.result.success).toBe(true);
     expect(execution.result.verification).toBeUndefined();
+  });
+
+  it("F. legacy executor의 명시적 실패를 success로 변환하지 않는다", () => {
+    expect(fromLegacyResult("legacy", { action: "blocked", message: "승인이 필요해요." })).toMatchObject({
+      success: false,
+      error: "승인이 필요해요.",
+    });
+    expect(fromLegacyResult("legacy", { action: "done", message: "처리 실패", success: false, error: "DB 오류" })).toMatchObject({
+      success: false,
+      error: "DB 오류",
+    });
+    expect(fromLegacyResult("legacy", { action: "done", message: "승인 대기", blocked: true })).toMatchObject({
+      success: false,
+      code: "BLOCKED",
+    });
   });
 });
 

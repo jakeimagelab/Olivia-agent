@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // 이 summary가 모델 자유 텍스트 대신 그대로 채팅에 나간다(lib/olivia/output/quoteConfirmations.ts).
 
 let quoteRow: { id: string; hospital_name: string; client_id: string | null; items?: unknown; discount_amount?: number; total_amount?: number };
+const publishQuoteServiceMock = vi.hoisted(() => vi.fn());
+const archiveWorkflowPdfMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
@@ -20,6 +22,9 @@ vi.mock("@/lib/supabase", () => ({
     }),
   }),
 }));
+vi.mock("@/lib/publications/publishResource", () => ({ publishQuoteService: publishQuoteServiceMock }));
+vi.mock("@/lib/workflowArtifacts/archivePdf", () => ({ archiveWorkflowPdf: archiveWorkflowPdfMock }));
+vi.mock("@/lib/quote/renderQuotePdf", () => ({ renderQuoteBuffer: vi.fn(async () => ({ buffer: Buffer.from("pdf") })) }));
 
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
@@ -34,6 +39,9 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
   const originalFetch = global.fetch;
 
   beforeEach(() => {
+    publishQuoteServiceMock.mockReset();
+    archiveWorkflowPdfMock.mockReset().mockResolvedValue({ id: "artifact-1", status: "ready" });
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ ok: true, artifact: { id: "artifact-1" } }) })) as unknown as typeof fetch;
     quoteRow = {
       id: "quote-1", hospital_name: "유진스의원", client_id: null,
       items: [{ name: "스탠다드 패키지", detail: "프로필 + 연출사진" }],
@@ -46,10 +54,7 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
   });
 
   it("발행 전 client_id가 없었고 발행 후 새로 생겼으면 신규 등록 사실을 summary에 포함한다", async () => {
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ ok: true, clientId: "new-client-1", workflowRunId: "run-1", portalUrl: "https://example.com/portal/abc" }),
-    })) as unknown as typeof fetch;
+    publishQuoteServiceMock.mockResolvedValueOnce({ ok: true, clientId: "new-client-1", workflowRunId: "run-1", portalUrl: "https://example.com/portal/abc", publicationId: "pub-1", resource: quoteRow });
 
     const execution = await callPublishQuote();
     expect(execution.result.success).toBe(true);
@@ -66,10 +71,7 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
       items: [{ name: "스탠다드 패키지", detail: "프로필 + 연출사진" }],
       discount_amount: 0, total_amount: 1_350_000,
     };
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ ok: true, clientId: "existing-client-1", workflowRunId: "run-1", portalUrl: "https://example.com/portal/abc" }),
-    })) as unknown as typeof fetch;
+    publishQuoteServiceMock.mockResolvedValueOnce({ ok: true, clientId: "existing-client-1", workflowRunId: "run-1", portalUrl: "https://example.com/portal/abc", publicationId: "pub-1", resource: quoteRow });
 
     const execution = await callPublishQuote();
     expect(execution.result.success).toBe(true);
@@ -81,13 +83,17 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
   });
 
   it("발행 자체가 실패하면(ok:false) success:false로 실패를 그대로 보고한다 — 신규 등록 판단 로직이 실패를 가리지 않는다", async () => {
-    global.fetch = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ ok: false, error: "이미 처리 중인 견적입니다." }),
-    })) as unknown as typeof fetch;
+    publishQuoteServiceMock.mockRejectedValueOnce(new Error("이미 처리 중인 견적입니다."));
 
     const execution = await callPublishQuote();
     expect(execution.result.success).toBe(false);
     expect(execution.result.error).toMatch(/이미 처리 중인 견적입니다/);
+  });
+
+  it("공개 후 PDF 아카이브가 실패하면 전체 성공 대신 부분 성공으로 보고한다", async () => {
+    publishQuoteServiceMock.mockResolvedValueOnce({ ok: true, clientId: "new-client-1", workflowRunId: "run-1", portalUrl: "https://example.com/portal/abc", publicationId: "pub-1", resource: quoteRow });
+    archiveWorkflowPdfMock.mockRejectedValueOnce(new Error("archive failed"));
+    const execution = await callPublishQuote();
+    expect(execution.result).toMatchObject({ success: false, code: "PARTIAL_SUCCESS", verification: { persisted: false } });
   });
 });

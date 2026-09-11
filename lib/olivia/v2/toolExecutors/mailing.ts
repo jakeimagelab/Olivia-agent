@@ -9,6 +9,7 @@ import {
 import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text, fromLegacyResult } from "./common";
+import { createVerification } from "./verification";
 
 export const MAILING_TOOL_NAMES = [
   "list_mailing_queue", "send_mailing", "apply_send_mailing",
@@ -27,7 +28,7 @@ export async function executeMailingTool(
   if (name === "send_mailing") {
     const mailingId = text(input, "mailingId");
     if (!mailingId) throw new Error("발송할 메일 ID를 확인해주세요.");
-    return { tool: name, success: true, data: { mailingId, approvalRequired: true, summary: `메일(ID: ${mailingId})을 발송할까요? 실제 고객에게 전송됩니다.` } };
+    return { tool: name, success: true, data: { mailingId, approvalRequired: true, summary: `메일(ID: ${mailingId})을 발송할까요? 실제 고객에게 전송됩니다.` }, verification: createVerification({ executed: true, persisted: false }) };
   }
   if (name === "apply_send_mailing") {
     return fromLegacyResult(name, await sendMailing({ mailingId: text(input, "mailingId") }));

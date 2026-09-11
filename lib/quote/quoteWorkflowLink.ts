@@ -60,7 +60,9 @@ export async function resolveQuoteWorkflowLink(
   // 프로젝트(워크플로우) 자동 시작 — 이 견적서에 이미 연결된 프로젝트가 없을 때만 새로 만든다.
   let workflowRunId: string | null = quote.workflow_run_id ?? null;
   if (!workflowRunId) {
-    const { data: client } = await db.from("clients").select("hospital_name, contact_name").eq("id", clientId).maybeSingle();
+    const { data: client, error: clientError } = await db.from("clients").select("hospital_name, contact_name").eq("id", clientId).maybeSingle();
+    if (clientError) throw new Error(`고객 정보를 확인하지 못했습니다: ${clientError.message}`);
+    if (!client) throw new Error("연결할 고객을 찾을 수 없습니다.");
     const projectName = quote.title || `${quote.hospital_name || client?.hospital_name || "고객"} 촬영`;
     const { data: run, error: runError } = await db
       .from("workflow_runs")
@@ -79,7 +81,7 @@ export async function resolveQuoteWorkflowLink(
       })
       .select()
       .single();
-    if (runError) throw new Error(runError.message);
+    if (runError || !run) throw new Error(runError?.message || "워크플로우를 생성하지 못했습니다.");
     const newRunId = run.id as string;
     workflowRunId = newRunId;
     await ensureStepRun(db, newRunId, "quote", "in_progress");
@@ -91,7 +93,16 @@ export async function resolveQuoteWorkflowLink(
     });
   }
 
-  await db.from("quotes").update({ client_id: clientId, workflow_run_id: workflowRunId }).eq("id", quote.id);
+  const { data: linkedQuote, error: linkError } = await db
+    .from("quotes")
+    .update({ client_id: clientId, workflow_run_id: workflowRunId })
+    .eq("id", quote.id)
+    .select("id,client_id,workflow_run_id")
+    .single();
+  if (linkError || !linkedQuote) throw new Error(linkError?.message || "견적서 연결 정보를 저장하지 못했습니다.");
+  if (linkedQuote.client_id !== clientId || linkedQuote.workflow_run_id !== workflowRunId) {
+    throw new Error("견적서 연결 정보 저장 검증이 일치하지 않습니다.");
+  }
 
   return { status: "linked", clientId, workflowRunId };
 }

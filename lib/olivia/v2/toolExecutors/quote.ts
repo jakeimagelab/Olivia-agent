@@ -14,6 +14,8 @@ import { createVerification } from "./verification";
 import { isKnownDocumentBrand } from "@/lib/olivia/brandResolver";
 import { renderQuoteBuffer } from "@/lib/quote/renderQuotePdf";
 import { resolveServerBaseUrl } from "@/lib/baseUrl";
+import { publishQuoteService } from "@/lib/publications/publishResource";
+import { archiveWorkflowPdf } from "@/lib/workflowArtifacts/archivePdf";
 
 // request_quote_publish(승인 요청)와 publish_quote(완료 보고) 둘 다 항목별 요약이 필요해서
 // 뽑아냈다(스펙 §19-22) — 금액은 전부 quotes 테이블에 이미 저장된 실제 값이고 여기서
@@ -58,7 +60,7 @@ function quoteTarget(quote: Record<string, unknown>, input: Record<string, unkno
 }
 
 export const QUOTE_TOOL_NAMES = [
-  "create_quote", "start_quote_wizard", "update_quote_item", "add_quote_item", "remove_quote_item",
+  "create_quote", "get_quote", "start_quote_wizard", "update_quote_item", "add_quote_item", "remove_quote_item",
   "update_quote_note", "update_quote_info", "apply_quote_discount", "update_quote_vat_mode",
   "rebalance_quote_total", "apply_quote_rebalance", "preview_quote", "request_quote_publish",
   "download_quote_pdf", "publish_quote", "resolve_quote_client", "link_new_client_to_quote",
@@ -70,6 +72,12 @@ export async function executeQuoteTool(
   context: OliviaContextSnapshot,
 ): Promise<OliviaToolResult> {
   const db = getSupabaseAdmin();
+
+  if (name === "get_quote") {
+    const resourceId = text(input, "quoteId") || activeResource(context, "quote");
+    const quote = await loadQuote(resourceId);
+    return { tool: name, success: true, data: { quoteId: resourceId, resourceId, quote }, verification: createVerification({ executed: true, resourceExists: true }) };
+  }
 
   if (name === "start_quote_wizard") {
     // 서버 작업 없음 — flowId만 발급하면 클라이언트가 그 값으로 채팅 카드/스토어를 초기화한다
@@ -415,8 +423,8 @@ export async function executeQuoteTool(
 
   if (name === "publish_quote") {
     const resourceId = activeResource(context, "quote");
-    // 공개(POST .../publish)는 app/api/quotes/[id]/publish/route.ts 안에서
-    // resolveQuoteWorkflowLink()로 고객을 자동 매칭·생성까지 전부 마친 뒤에야 성공 응답을
+    // 공용 publishQuoteService는 API Route와 Agent가 함께 사용하며
+    // resolveQuoteWorkflowLink()로 고객을 자동 매칭·생성까지 전부 마친 뒤에야 성공 결과를
     // 준다 — "등록할까요?"라고 물어볼 시점이 이미 지나 있다(결정은 서버가 동기적으로 이미
     // 내렸다). 대신 발행 전/후 client_id를 비교해 "이번에 새로 연결/생성됐는지"만 판단하고,
     // 이미 벌어진 일을 정확히 보고한다("DON'T SAY IT. DO IT. THEN SAY IT" 원칙 — 아직 안
@@ -424,38 +432,29 @@ export async function executeQuoteTool(
     const quoteBeforePublish = await loadQuote(resourceId);
     const hadClientBefore = Boolean(quoteBeforePublish.client_id);
     const baseUrl = resolveServerBaseUrl();
-    const response = await fetch(`${baseUrl}/api/quotes/${resourceId}/publish`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) throw new Error(payload.error || "견적서를 공개하지 못했어요.");
+    const payload = await publishQuoteService(resourceId, {}, db);
     const newlyLinkedClientId = !hadClientBefore && payload.clientId ? (payload.clientId as string) : undefined;
 
-    // 최종 승인 시 PDF를 원본 보관함(workflow_artifacts)에 아카이브한다(스펙 M5). 이미 위에서
-    // 공개(발행) 자체는 끝났으므로, 여기서 실패해도 publish_quote 전체를 실패로 되돌리지 않고
-    // verification.details에만 실패 사실을 남긴다 — "실행→저장→재조회→검증" 중 재조회 단계는
-    // /api/workflow-artifacts가 upsert().select().single()로 돌려주는 실제 row 자체다.
+    // 최종 승인 시 PDF를 원본 보관함(workflow_artifacts)에 아카이브한다(스펙 M5). 공개 후
+    // 아카이브가 실패하면 PARTIAL_SUCCESS로 반환해 전체 성공으로 숨기지 않는다.
     let pdfArchived = false;
     let workflowArtifactId: string | undefined;
+    let pdfArchiveError: string | undefined;
     try {
       const { buffer } = await renderQuoteBuffer(quoteBeforePublish, "pdf", { baseUrl });
       const quoteNumber = String(quoteBeforePublish.quote_number || resourceId);
       const fileName = `${quoteNumber}.pdf`;
-      const form = new FormData();
-      form.set("file", new File([new Uint8Array(buffer)], fileName, { type: "application/pdf" }));
-      form.set("fileName", fileName);
-      form.set("documentType", "quote");
-      form.set("sourceTable", "quotes");
-      form.set("sourceId", resourceId);
-      form.set("title", `${quoteBeforePublish.hospital_name || "견적서"} 견적서`);
-      if (payload.clientId) form.set("clientId", String(payload.clientId));
-      if (payload.workflowRunId) form.set("workflowRunId", String(payload.workflowRunId));
-      const archiveRes = await fetch(`${baseUrl}/api/workflow-artifacts`, { method: "POST", body: form });
-      const archiveBody = await archiveRes.json().catch(() => null);
-      if (archiveRes.ok && archiveBody?.ok && archiveBody.artifact?.id) {
-        pdfArchived = true;
-        workflowArtifactId = archiveBody.artifact.id as string;
-      }
+      const artifact = await archiveWorkflowPdf({
+        buffer, fileName, documentType: "quote", sourceTable: "quotes", sourceId: resourceId,
+        title: `${quoteBeforePublish.hospital_name || "견적서"} 견적서`,
+        clientId: payload.clientId, workflowRunId: payload.workflowRunId,
+      }, db);
+      if (!artifact.id) throw new Error("PDF 원본 저장 결과에서 ID를 확인하지 못했습니다.");
+      pdfArchived = true;
+      workflowArtifactId = String(artifact.id);
     } catch (archiveError) {
-      console.error("[publish_quote] PDF 아카이브 실패", archiveError);
+      pdfArchiveError = archiveError instanceof Error ? archiveError.message : "PDF 원본 보관 실패";
+      console.error("[publish_quote] PDF 아카이브 실패", pdfArchiveError);
     }
     // publish_quote는 QUOTE_MUTATION_TOOLS(lib/olivia/output/quoteConfirmations.ts)에 있어서
     // 이 summary가 모델 자유 텍스트 대신 그대로 채팅에 나간다 — 신규 고객 등록 여부를 여기서
@@ -466,21 +465,32 @@ export async function executeQuoteTool(
       "",
       ...buildQuoteBreakdownLines(quoteBeforePublish),
       newlyLinkedClientId ? `\n${quoteBeforePublish.hospital_name || "해당 병원"}을 신규 고객으로 등록했어요.` : null,
-      !pdfArchived ? "\n⚠️ PDF 원본 보관에는 실패했어요 — 발행 자체는 정상 완료됐으니 나중에 다시 시도해주세요." : null,
+      !pdfArchived ? "\n⚠️ PDF 원본 보관에 실패했어요." : null,
     ].filter((line): line is string => line !== null).join("\n");
+    const data = {
+      resourceId,
+      quoteId: resourceId,
+      ...payload,
+      hospitalName: quoteBeforePublish.hospital_name,
+      newlyLinkedClientId,
+      pdfArchived,
+      workflowArtifactId,
+      summary,
+    };
+    if (!pdfArchived) {
+      return {
+        tool: name,
+        success: false,
+        code: "PARTIAL_SUCCESS",
+        error: `견적서 공개는 저장됐지만 PDF 원본 보관에 실패했어요.${pdfArchiveError ? ` ${pdfArchiveError}` : ""}`,
+        data,
+        verification: createVerification({ executed: true, persisted: false, resourceExists: true, linked: Boolean(payload.clientId || hadClientBefore), details: { publicationPersisted: true, pdfArchived: false } }),
+      };
+    }
     return {
       tool: name,
       success: true,
-      data: {
-        resourceId,
-        quoteId: resourceId,
-        ...payload,
-        hospitalName: quoteBeforePublish.hospital_name,
-        newlyLinkedClientId,
-        pdfArchived,
-        workflowArtifactId,
-        summary,
-      },
+      data,
       verification: createVerification({
         executed: true,
         persisted: true,

@@ -14,8 +14,12 @@ const MEMO_FIELDS_BASE = "id, hospital_id, title, template_type, template_data, 
 const MEMO_FIELDS = `id, hospital_id, context_type, context_id, title, template_type, template_data, raw_memo, summary, extracted_data, recommended_package, next_action, canvas_path, ai_image_path, audio_path, audio_duration_seconds, transcript, audio_summary, created_at, updated_at`;
 // 2026-09-07 마이그레이션(20260907_memo_context_link.sql)이 아직 Supabase에 반영 안 됐으면
 // context_type/context_id 컬럼이 없어 위 SELECT/INSERT가 통째로 실패해 메모 목록이 전부
-// 사라진 것처럼 보인다 — 그 특정 에러(42703 undefined_column)만 감지해 구컬럼셋으로 재시도한다.
-const UNDEFINED_COLUMN = "42703";
+// 사라진 것처럼 보인다 — DB/PostgREST의 missing-column 오류만 감지해 구컬럼셋으로 재시도한다.
+function isUndefinedColumn(error: { code?: string; message?: string } | null | undefined) {
+  return error?.code === "42703"
+    || error?.code === "PGRST204"
+    || /schema cache|column .* does not exist/i.test(error?.message ?? "");
+}
 
 const analysisSchema = {
   type: "object",
@@ -83,7 +87,7 @@ export async function GET(req: NextRequest) {
     const id = req.nextUrl.searchParams.get("id");
     if (id) {
       let { data, error } = await db.from("consultation_memos").select(MEMO_FIELDS).eq("id", id).maybeSingle();
-      if (error?.code === UNDEFINED_COLUMN) {
+      if (isUndefinedColumn(error)) {
         ({ data, error } = await db.from("consultation_memos").select(MEMO_FIELDS_BASE).eq("id", id).maybeSingle());
       }
       if (error) throw error;
@@ -100,7 +104,7 @@ export async function GET(req: NextRequest) {
       const query = db.from("consultation_memos").select(MEMO_FIELDS).order("updated_at", { ascending: false });
       return hasContextFilter ? query.eq("context_type", contextType!).eq("context_id", contextId!) : query.limit(100);
     })();
-    if (error?.code === UNDEFINED_COLUMN) {
+    if (isUndefinedColumn(error)) {
       // 마이그레이션 미적용 — 컨텍스트 필터는 걸 수 없으니(그 컬럼 자체가 없음) 전역 목록으로
       // 최대한 안전하게 폴백한다(빈 화면보다 낫다).
       ({ data, error } = await db.from("consultation_memos").select(MEMO_FIELDS_BASE).order("updated_at", { ascending: false }).limit(100));
@@ -128,10 +132,12 @@ async function saveMemo(body: any) {
   };
   // 마이그레이션(20260907_memo_context_link.sql) 미적용 대비 — 컬럼 자체가 없으면
   // context_type/context_id를 뺀 값으로, select도 구컬럼셋으로 재시도한다.
-  const { context_type: _ct, context_id: _ci, ...valuesWithoutContext } = values;
+  const valuesWithoutContext: Record<string, unknown> = { ...values };
+  delete valuesWithoutContext.context_type;
+  delete valuesWithoutContext.context_id;
   if (body.id) {
     let { data, error }: { data: any; error: any } = await db.from("consultation_memos").update(values).eq("id", body.id).select(MEMO_FIELDS).single();
-    if (error?.code === UNDEFINED_COLUMN) {
+    if (isUndefinedColumn(error)) {
       ({ data, error } = await db.from("consultation_memos").update(valuesWithoutContext).eq("id", body.id).select(MEMO_FIELDS_BASE).single());
     }
     if (error) throw error;
@@ -146,7 +152,7 @@ async function saveMemo(body: any) {
     return data;
   }
   let { data, error }: { data: any; error: any } = await db.from("consultation_memos").insert(values).select(MEMO_FIELDS).single();
-  if (error?.code === UNDEFINED_COLUMN) {
+  if (isUndefinedColumn(error)) {
     ({ data, error } = await db.from("consultation_memos").insert(valuesWithoutContext).select(MEMO_FIELDS_BASE).single());
   }
   if (error) throw error;

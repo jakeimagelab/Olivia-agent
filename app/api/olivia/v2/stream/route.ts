@@ -16,7 +16,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import { classifyOliviaRequest, routeOliviaModel } from "@/lib/olivia/v2/modelRouter";
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
-import type { OliviaContextSnapshot, OliviaStreamEvent, OliviaToolCall } from "@/lib/olivia/v2/types";
+import type { OliviaContextSnapshot, OliviaStreamEvent, OliviaToolCall, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { buildOliviaRuntimeContext } from "@/lib/olivia/runtime/buildRuntimeContext";
 import type { OliviaRuntimeContext } from "@/lib/olivia/runtime/types";
 import { resolveTemporalExpression } from "@/lib/olivia/runtime/temporalResolver";
@@ -38,9 +38,10 @@ import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmati
 import { buildContractRoundConfirmation } from "@/lib/olivia/output/contractConfirmations";
 import { resolveDocumentBrand } from "@/lib/olivia/brandResolver";
 import { getOliviaAgentEngine, isHermesFallbackSafe, runHermesChat } from "@/lib/hermes/client";
-import type { HermesChatMessage } from "@/lib/hermes/types";
 import type { AssistantChannel } from "@/lib/assistant/types";
 import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
+import { buildHermesRuntime, resourceSessionMetadata } from "@/lib/hermes/runtimeContext";
+import { resolveUiActions } from "@/lib/olivia/agent/uiActionResolvers";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -430,12 +431,25 @@ function toolStatus(name: string) {
   if (name === "save_agent_memory" || name === "update_agent_memory") return "업무 규칙을 기억하는 중…";
   if (name === "disable_agent_memory") return "업무 규칙을 정리하는 중…";
   if (name === "list_agent_memories") return "기억하고 있는 규칙을 확인하는 중…";
-  return "화면을 준비하는 중…";
+  const normalized = name.replaceAll(".", "_");
+  if (normalized.startsWith("client_")) return "고객 정보를 처리하는 중…";
+  if (normalized.startsWith("quote_") || normalized.includes("_quote")) return "견적서를 처리하는 중…";
+  if (normalized.startsWith("contract_") || normalized.includes("_contract")) return "계약서를 처리하는 중…";
+  if (normalized.startsWith("conti_") || normalized.includes("_conti")) return "콘티를 처리하는 중…";
+  if (normalized.startsWith("calendar_")) return "일정을 처리하는 중…";
+  if (normalized.startsWith("work_")) return "오늘 업무를 처리하는 중…";
+  if (normalized.startsWith("memo_")) return "메모를 처리하는 중…";
+  if (normalized.startsWith("workflow_")) return "업무 흐름을 확인하는 중…";
+  if (normalized.includes("analysis")) return "분석을 처리하는 중…";
+  if (normalized.startsWith("document_") || normalized.startsWith("gallery_")) return "자료를 확인하는 중…";
+  if (normalized.startsWith("ui_")) return "화면을 준비하는 중…";
+  return "요청을 처리하는 중…";
 }
 
-function resourceMetadataFromTool(toolName: string, data: Record<string, unknown> | undefined) {
+function resourceMetadataFromTool(toolName: string, data: Record<string, unknown> | undefined, explicitType?: string, explicitId?: string) {
   if (!data) return {};
   const candidates: Array<[string, unknown]> = [
+    [explicitType || "resource", explicitId],
     ["quote", data.quoteId],
     ["contract", data.contractId],
     ["conti", data.contiId],
@@ -447,7 +461,9 @@ function resourceMetadataFromTool(toolName: string, data: Record<string, unknown
   return {
     resourceType: matched[0],
     resourceId: matched[1],
-    ...(typeof data.version === "number" ? { version: data.version } : {}),
+    ...(typeof data.version === "number" ? { resourceVersion: data.version } : {}),
+    ...(typeof data.clientId === "string" ? { clientId: data.clientId } : {}),
+    ...(typeof data.workflowRunId === "string" ? { projectId: data.workflowRunId } : {}),
   };
 }
 
@@ -493,6 +509,9 @@ export async function POST(req: NextRequest) {
     ? { ...normalizedContext, brand: resolvedBrand }
     : normalizedContext;
   const pageContext = optionalString(body.pageContext);
+  const replyContext = body.replyContext && typeof body.replyContext === "object" && !Array.isArray(body.replyContext)
+    ? body.replyContext as Record<string, unknown>
+    : undefined;
 
   // Context Intelligence(코드 요청서 2026-08-17) — "히어" 같은 별칭이나 "그 병원"/"이거"/
   // "아까 거" 같은 지시어를, LLM을 부르기도 전에 결정론적으로(비용 없이) 실명으로 풀 수
@@ -619,6 +638,7 @@ export async function POST(req: NextRequest) {
               requestKind,
               routeDecision: deterministic?.routeDecision ?? "GPT_FALLBACK",
               resolvedMessage: message !== rawMessage ? message : undefined,
+              ...(replyContext ? { replyContext } : {}),
               ...(inboundAttachments.length ? { attachments: inboundAttachments } : {}),
             },
           });
@@ -661,20 +681,27 @@ export async function POST(req: NextRequest) {
 
         if (useHermes) {
           send({ type: "agent_status", status: "Hermes가 요청을 판단하는 중…" });
-          const hermesHistory = history.flatMap((row): HermesChatMessage[] => {
-            if ((row.role !== "user" && row.role !== "assistant") || typeof row.content !== "string") return [];
-            return [{ role: row.role, content: row.content }];
+          const hermesRuntime = buildHermesRuntime({
+            snapshot: context,
+            channel: messageChannel,
+            today: oliviaRuntime.todayISO,
+            message,
+            history,
+            replyContext,
           });
+          const hermesContextSnapshot: OliviaContextSnapshot = {
+            ...context,
+            activeClientId: hermesRuntime.context.activeClientId,
+            activeProjectId: hermesRuntime.context.activeProjectId,
+            activeResourceId: hermesRuntime.context.activeResourceId,
+          };
           let hermesStartedOutput = false;
           try {
             const hermesResult = await runHermesChat({
               message,
-              history: hermesHistory,
+              history: hermesRuntime.history,
               conversationId: conversation.id,
-              context: {
-                activeClientId: context.activeClientId,
-                activeProjectId: context.activeProjectId,
-              },
+              context: hermesRuntime.context,
               signal: req.signal,
               callbacks: {
                 onTextDelta: (delta) => {
@@ -683,7 +710,7 @@ export async function POST(req: NextRequest) {
                 },
                 onToolStart: (tool, toolCallId) => {
                   hermesStartedOutput = true;
-                  send({ type: "agent_status", status: "등록 고객을 검색하는 중…" });
+                  send({ type: "agent_status", status: toolStatus(tool.replace(/^mcp_olivia_/, "")) });
                   send({ type: "tool_start", tool, toolCallId });
                 },
                 onToolResult: (record) => {
@@ -693,20 +720,36 @@ export async function POST(req: NextRequest) {
                     tool: record.name,
                     toolCallId: record.id,
                     success: record.success,
-                    result: record.result,
+                    result: record.data ?? record.result ?? (record.error ? { success: false, error: record.error, code: record.code } : undefined),
                   });
                 },
               },
             });
-            const resourceMetadata = hermesResult.toolCalls.reduce<Record<string, unknown>>((current, call) => {
+            const rawResourceMetadata = hermesResult.toolCalls.reduce<Record<string, unknown>>((current, call) => {
               if (!call.success || !call.data || typeof call.data !== "object") return current;
-              return { ...current, ...resourceMetadataFromTool(call.name, call.data as Record<string, unknown>) };
+              return { ...current, ...resourceMetadataFromTool(call.name, call.data as Record<string, unknown>, call.resourceType, call.resourceId) };
             }, {});
+            const resourceMetadata = resourceSessionMetadata(rawResourceMetadata as Parameters<typeof resourceSessionMetadata>[0]);
+            for (const call of hermesResult.toolCalls) {
+              if (!call.success) continue;
+              if (call.uiActions?.length) {
+                for (const action of call.uiActions) send({ type: "ui_action", action });
+                continue;
+              }
+              const uiToolName = call.uiToolName || call.name.replace(/^mcp_olivia_/, "").replaceAll(".", "_");
+              const uiActions = await resolveUiActions({
+                toolCall: { id: call.id, name: uiToolName, arguments: "{}" },
+                input: {},
+                result: { tool: uiToolName, success: true, data: call.data && typeof call.data === "object" ? call.data as Record<string, unknown> : undefined, verification: call.verification as OliviaToolResult["verification"] },
+                context: hermesContextSnapshot,
+              });
+              for (const action of uiActions) send({ type: "ui_action", action });
+            }
             await saveTurnAssistant(hermesResult.message, {
                 blocks: [{ type: "text", text: hermesResult.message }],
                 agentEngine: "hermes",
                 hermesRunId: hermesResult.runId,
-                toolCalls: hermesResult.toolCalls.map(({ id, name, success }) => ({ id, name, success })),
+                toolCalls: hermesResult.toolCalls.map(({ id, name, success, mode, resourceType, resourceId, verification }) => ({ id, name, success, mode, resourceType, resourceId, verification })),
                 ...resourceMetadata,
             });
             return;

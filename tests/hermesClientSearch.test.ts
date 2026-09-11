@@ -36,6 +36,7 @@ describe("Hermes Olivia client.search", () => {
       db: fakeDb([{ id: "1", hospital_name: "강재활의학과", specialty: "재활의학과" }]) as never,
     });
     expect(result.clients).toEqual([{ id: "1", name: "강재활의학과", specialty: "재활의학과" }]);
+    expect(result.status).toBe("FOUND");
     expect(result.verification).toMatchObject({ executed: true, resourceExists: true });
   });
 
@@ -49,6 +50,7 @@ describe("Hermes Olivia client.search", () => {
   it("없는 고객은 성공한 0건 검색으로 검증한다", async () => {
     const result = await searchOliviaClients("존재하지않는병원123", { db: fakeDb([]) as never });
     expect(result.clients).toEqual([]);
+    expect(result.status).toBe("NOT_FOUND");
     expect(result.verification).toMatchObject({ executed: true, resourceExists: false });
   });
 
@@ -60,11 +62,12 @@ describe("Hermes Olivia client.search", () => {
       ]) as never,
     });
     expect(result.clients).toHaveLength(2);
+    expect(result.status).toBe("AMBIGUOUS");
   });
 
   it("DB 오류를 0건으로 가장하지 않는다", async () => {
     await expect(searchOliviaClients("강재활", { db: fakeDb([], true) as never }))
-      .rejects.toThrow("검색 데이터 조회에 실패했습니다.");
+      .rejects.toMatchObject({ message: "고객 정보를 조회하지 못했습니다.", code: "DB_ERROR" });
   });
 
   it("MCP bridge는 shared secret bearer만 허용한다", () => {
