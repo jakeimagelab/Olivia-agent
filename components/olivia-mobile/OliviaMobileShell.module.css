@@ -374,7 +374,7 @@
 .chatDock :global(.olivia-conversation--mobile) { height: 100%; min-height: 0; border: 0; border-radius: 0; background: #f7fbfa; box-shadow: none; }
 .chatDock :global(.olivia-conversation--mobile .olivia-conversation__header) { display: none; }
 .chatDock :global(.olivia-conversation--mobile .olivia-conversation__stage) { grid-template-columns: minmax(0,1fr); min-height: 0; }
-.chatDock :global(.olivia-conversation--mobile .olivia-conversation__stage.has-guide) { grid-template-columns: minmax(0,1fr) 44px; }
+.chatDock :global(.olivia-conversation--mobile .olivia-conversation__stage.has-guide) { grid-template-columns: minmax(0,1fr) 32px; }
 .chatDock :global(.olivia-conversation--mobile .olivia-conversation__main) { min-height: 0; padding: 0; }
 .chatDock :global(.olivia-conversation--mobile .olivia-engine-bg) { opacity: .18; }
 .chatDock :global(.olivia-conversation--mobile .olivia-conversation__messages) { gap: 14px; padding: 17px 14px 12px; }
@@ -399,12 +399,12 @@
 .chatDock :global(.olivia-resource-card--mobile span) { color: var(--mobile-muted); font-size: 10px; line-height: 1.45; }
 .chatDock :global(.olivia-resource-card--mobile b) { justify-self: start; margin-top: 3px; border-radius: 999px; padding: 5px 9px; background: var(--mobile-green); color: #fff; font-size: 9.5px; font-weight: 650; }
 .chatDock :global(.olivia-approval-card__actions button) { min-height: 44px; }
-.chatDock :global(.olivia-conversation--mobile .olivia-message-guide) { width: 44px; min-height: 0; padding: 8px 0; overflow: visible; background: var(--mobile-green-deep); cursor: default; }
-.chatDock :global(.olivia-conversation--mobile .olivia-message-guide__ticks) { justify-content: flex-start; gap: 0; padding-block: 4px; }
-.chatDock :global(.olivia-conversation--mobile .olivia-message-guide__ticks > button) { width: 44px; min-height: 44px; flex: 0 0 44px; display: grid; place-items: center; padding: 0; background: transparent; }
-.chatDock :global(.olivia-conversation--mobile .olivia-message-guide__ticks > button > span) { width: 23px; height: 4px; border-radius: 999px; transition: width 180ms cubic-bezier(.32,.72,0,1), opacity 180ms cubic-bezier(.32,.72,0,1); }
+.chatDock :global(.olivia-conversation--mobile .olivia-message-guide) { width: 32px; min-height: 0; padding: 4px 0; overflow: visible; background: var(--mobile-green-deep); cursor: default; }
+.chatDock :global(.olivia-conversation--mobile .olivia-message-guide__ticks) { justify-content: flex-start; gap: 0; padding-block: 2px; }
+.chatDock :global(.olivia-conversation--mobile .olivia-message-guide__ticks > button) { width: 32px; min-height: 22px; flex: 0 0 22px; display: grid; place-items: center; padding: 0; background: transparent; }
+.chatDock :global(.olivia-conversation--mobile .olivia-message-guide__ticks > button > span) { width: 17px; height: 3px; border-radius: 999px; transition: width 180ms cubic-bezier(.32,.72,0,1), opacity 180ms cubic-bezier(.32,.72,0,1); }
 .chatDock :global(.olivia-conversation--mobile .olivia-message-guide__ticks > button[aria-pressed="true"] > span),
-.chatDock :global(.olivia-conversation--mobile .olivia-message-guide__ticks > button.is-active > span) { width: 31px; }
+.chatDock :global(.olivia-conversation--mobile .olivia-message-guide__ticks > button.is-active > span) { width: 23px; }
 .chatDock :global(.olivia-conversation--mobile .olivia-message-guide__popover) { position: fixed; left: 14px; right: 14px; top: auto; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); width: auto; max-height: min(44dvh, 360px); overflow-y: auto; transform: none; border-radius: 18px; padding: 18px; }
 .chatDock :global(.olivia-conversation--mobile .olivia-message-guide__popover::after) { display: none; }
 .chatDock :global(.olivia-conversation--mobile .olivia-message-guide__close) { width: 44px; height: 44px; top: 5px; right: 5px; }
