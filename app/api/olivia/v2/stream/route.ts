@@ -24,7 +24,7 @@ import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRe
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
 import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
 import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
-import { getOliviaToolDomains, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
+import { buildCanonicalRecentUserText, getOliviaToolDomains, resolveRequiredFollowupTool, resolveToollessActionRetry, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
 import { listActiveMemories } from "@/lib/olivia/memory/repository";
 import { formatMemoryForPrompt } from "@/lib/olivia/memory/format";
 import type { OliviaMemoryRow } from "@/lib/olivia/memory/types";
@@ -538,7 +538,7 @@ export async function POST(req: NextRequest) {
   const model = routeOliviaModel(requestClass);
   const persistentAgentRun = shouldCreatePersistentAgentRun(message, requestClass);
   const recentUserText = optionalString(body.recentUserText);
-  const selectedTools = selectOliviaTools({ requestClass, message, context, recentText: recentUserText });
+  let selectedTools = selectOliviaTools({ requestClass, message, context, recentText: recentUserText });
   // Adaptive Memory용 scope만 여기서 미리 계산해둔다(순수 함수, DB 호출 없음) — 실제 조회는
   // 스트림 안에서 history 등 기존에 이미 병렬로 부르던 DB 호출들과 함께 묶는다. 예전엔 여기서
   // 바로 await listActiveMemories(...)를 했는데, deterministic/fast-path/persistentAgentRun처럼
@@ -652,6 +652,19 @@ export async function POST(req: NextRequest) {
         // 저장된다. 현재 메시지가 history 조회에 잡히더라도 message 인자와 중복되지 않게 제외한다.
         const userMessageId = String(userMessageResult.message.id);
         const history = historyRows.filter((row) => row.id !== userMessageId);
+        const canonicalRecentUserText = buildCanonicalRecentUserText(history);
+        const effectiveRecentUserText = [canonicalRecentUserText, recentUserText].filter(Boolean).join("\n");
+        selectedTools = selectOliviaTools({ requestClass, message, context, recentText: effectiveRecentUserText });
+        const requiredFollowupTool = requestClass === "TOOL_ACTION"
+          ? resolveRequiredFollowupTool({ message, recentText: effectiveRecentUserText, availableToolNames: selectedTools.map((tool) => tool.name) })
+          : undefined;
+        if (requiredFollowupTool || canonicalRecentUserText) {
+          console.info("[OliviaContext] canonical history restored", {
+            requestId,
+            requiredFollowupTool,
+            selectedToolCount: selectedTools.length,
+          });
+        }
         const saveTurnAssistant = async (content: string, metadata: Record<string, unknown>) => {
           const saved = await saveAssistantMessage(db, {
             ownerId: owner.id,
@@ -830,6 +843,7 @@ export async function POST(req: NextRequest) {
         let finalText = "";
         let latestResourceMetadata: Record<string, unknown> = {};
         const executedToolCalls = new Set<string>();
+        const cloudToolCalls: Array<{ id: string; name: string; success: boolean; verification?: OliviaToolResult["verification"] }> = [];
 
         for (let round = 0; round < maxToolRounds(requestClass); round += 1) {
           toolRounds = round + 1;
@@ -841,10 +855,20 @@ export async function POST(req: NextRequest) {
             onFirstToken: () => { if (modelFirstTokenMs === undefined) modelFirstTokenMs = performance.now() - requestStartedAt; },
           });
           if (!response.toolCalls.length) {
+            const forcedToolChoice = resolveToollessActionRetry(round, requiredFollowupTool, response.toolCalls.length);
+            if (forcedToolChoice) {
+              console.warn("[olivia-v2] tool action returned text without execution; forcing one retry", { requestId, requiredFollowupTool });
+              send({ type: "agent_status", status: toolStatus(forcedToolChoice.name) });
+              request = { ...request, tool_choice: forcedToolChoice };
+              continue;
+            }
             // 이 라운드엔 tool 호출이 없다 — 앞선 라운드에서 이미 실행·검증된 결과를 보고
             // 모델이 내놓는 최종 텍스트라 검증할 실행이 없다. 지금까지처럼 즉시 흘려보낸다.
-            finalText += response.text;
-            await flushTextAsDeltas(response.text, send, messageId);
+            const safeText = requiredFollowupTool && !executedToolCalls.size
+              ? "요청을 실행할 도구 결과를 받지 못했어요. 확인되지 않은 성공이나 실패로 답하지 않고 중단했습니다."
+              : response.text;
+            finalText += safeText;
+            await flushTextAsDeltas(safeText, send, messageId);
             break;
           }
           if (!response.responseId) throw new Error("OpenAI tool response ID가 없습니다.");
@@ -889,6 +913,7 @@ export async function POST(req: NextRequest) {
           });
           toolExecutionMs += performance.now() - toolStartedAt;
           for (const { call: toolCall, result: { execution, toolPayload } } of executions) {
+            cloudToolCalls.push({ id: toolCall.id, name: toolCall.name, success: execution.result.success, verification: execution.result.verification });
             if (execution.result.success) {
               latestResourceMetadata = {
                 ...latestResourceMetadata,
@@ -929,7 +954,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (!finalText.trim()) finalText = OLIVIA_FALLBACK_MESSAGES.emptyResponseFallback;
-        await saveTurnAssistant(finalText, { blocks: [{ type: "text", text: finalText }], model, requestClass, ...latestResourceMetadata });
+        await saveTurnAssistant(finalText, { blocks: [{ type: "text", text: finalText }], model, agentEngine: "cloud", requestClass, toolCalls: cloudToolCalls, ...latestResourceMetadata });
         const summaryLines=history.slice(-12).concat([{role:"assistant",content:finalText} as ConversationMessage])
           .map((row)=>`${row.role}: ${String(row.content||"").replace(/\s+/g," ").slice(0,180)}`);
         const nextSummary=[compactSummary,...summaryLines].filter(Boolean).join("\n").slice(-4000);

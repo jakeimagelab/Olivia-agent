@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getOliviaToolDomains, selectOliviaTools } from "./toolSelection";
+import { buildCanonicalRecentUserText, getOliviaToolDomains, resolveRequiredFollowupTool, resolveToollessActionRetry, selectOliviaTools } from "./toolSelection";
 import type { OliviaContextSnapshot } from "./types";
 import { getSelectedContiSceneId } from "./toolExecutors/conti";
 
@@ -42,6 +42,36 @@ describe("selectOliviaTools", () => {
   it("getOliviaToolDomains는 recentText와 message를 합쳐서 판단한다", () => {
     const domains = getOliviaToolDomains("해줘", baseContext, "콘티 10~15번 컷 추가해줘");
     expect(domains).toContain("conti");
+  });
+
+  it("canonical history의 최근 사용자 발화만 도구 선택 문맥으로 만든다", () => {
+    expect(buildCanonicalRecentUserText([
+      { role: "user", content: "Test 병원 견적서 만들어줘" },
+      { role: "assistant", content: "견적서를 만들었어요" },
+      { role: "user", content: "어떻게 확인해?" },
+    ])).toBe("Test 병원 견적서 만들어줘\n어떻게 확인해?");
+  });
+
+  it("견적 문맥 뒤 '다시 만들어줘'는 도구 없는 첫 응답을 create_quote 재시도로 복구한다", () => {
+    expect(resolveRequiredFollowupTool({
+      message: "다시 만들어줄래?",
+      recentText: "Test 병원 견적서 만들어줘\n어떻게 확인하면 돼?",
+      availableToolNames: ["create_quote", "list_temporary_documents"],
+    })).toBe("create_quote");
+  });
+
+  it("견적 생성 실패 원인 질문은 canonical 문서 DB 조회를 강제한다", () => {
+    expect(resolveRequiredFollowupTool({
+      message: "왜 생성이 안 돼?",
+      recentText: "Test 병원 견적서 만들어줘",
+      availableToolNames: ["create_quote", "search_documents", "list_temporary_documents"],
+    })).toBe("search_documents");
+  });
+
+  it("TOOL_ACTION 첫 라운드가 텍스트만 반환하면 확정 도구로 한 번 재시도한다", () => {
+    expect(resolveToollessActionRetry(0, "create_quote", 0)).toEqual({ type: "function", name: "create_quote" });
+    expect(resolveToollessActionRetry(1, "create_quote", 0)).toBeUndefined();
+    expect(resolveToollessActionRetry(0, "create_quote", 1)).toBeUndefined();
   });
 
   it("A. 견적 최종 승인이 가능하면 publish 도구를 후보에 포함한다", () => {

@@ -12,9 +12,9 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   window: ["maximize_active_window","close_active_window","minimize_active_window"],
   calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
   client: ["select_project","search_client_projects","get_project_status","memo_add","list_temporary_documents","link_temporary_document_client"],
-  quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
-  contract: ["create_contract","update_contract_terms","request_contract_signature","request_contract_publish","download_contract_pdf","link_document_to_client","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
-  conti: ["get_conti_status","create_conti","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
+  quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
+  contract: ["create_contract","update_contract_terms","request_contract_signature","request_contract_publish","download_contract_pdf","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
+  conti: ["get_conti_status","create_conti","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   workflow: ["get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
   mailing: ["list_mailing_queue","send_mailing","email_search","email_read","email_summarize","email_create_draft"],
   // start_select_match_flow가 빠져 있으면 "셀렉"/"사진" 키워드로 gallery 도메인이 잡혀도 모델이
@@ -95,6 +95,49 @@ export function getOliviaToolDomains(message:string, context:OliviaContextSnapsh
   if(workspace.includes("contract")) domains.add("contract");
   if(workspace.includes("photo-sort")) domains.add("photo_classification");
   return [...domains];
+}
+
+export function buildCanonicalRecentUserText(rows: Array<{ role?: string; content?: unknown }>, limit = 8) {
+  return rows
+    .filter((row) => row.role === "user" && typeof row.content === "string" && row.content.trim())
+    .slice(-limit)
+    .map((row) => String(row.content).trim())
+    .join("\n");
+}
+
+// 짧은 후속 명령에서 모델이 자유 텍스트만 내놓으면 도구 실행 없이 성공/실패를 지어낼 수 있다.
+// 최근 대화로 단일 문서 도메인이 확정되는 경우에만 한 번 강제 호출할 도구를 고른다.
+export function resolveRequiredFollowupTool(input: { message: string; recentText?: string; availableToolNames: readonly string[] }) {
+  const message = input.message.trim();
+  const recent = input.recentText || "";
+  const available = new Set(input.availableToolNames);
+  const candidates = [
+    { pattern: /(견적|단가|금액|할인|부가세|vat)/gi, create: "create_quote" },
+    { pattern: /(계약)/gi, create: "create_contract" },
+    { pattern: /(콘티|스토리보드|촬영\s*준비)/gi, create: "create_conti" },
+  ].map((candidate) => {
+    let lastIndex = -1;
+    for (const match of recent.matchAll(candidate.pattern)) lastIndex = match.index ?? lastIndex;
+    return { ...candidate, lastIndex };
+  }).filter((candidate) => candidate.lastIndex >= 0).sort((a, b) => b.lastIndex - a.lastIndex);
+  const domain = candidates[0];
+  if (!domain) return undefined;
+
+  const followupCreate = /(다시|그대로|그걸로|이대로|한번\s*더)/.test(message)
+    && /(만들|생성|작성|진행|해\s*줘|해줘)/.test(message)
+    && !/(왜|원인|이유|문제|안\s*돼|안됨|못)/.test(message);
+  if (followupCreate && available.has(domain.create)) return domain.create;
+
+  const asksForFailureFact = /(왜|원인|이유|문제)/.test(message)
+    && /(생성|저장|실행|안\s*돼|안됨|못)/.test(message);
+  if (asksForFailureFact && available.has("search_documents")) return "search_documents";
+  if (asksForFailureFact && available.has("list_temporary_documents")) return "list_temporary_documents";
+  return undefined;
+}
+
+export function resolveToollessActionRetry(round: number, requiredTool: string | undefined, toolCallCount: number) {
+  if (round !== 0 || !requiredTool || toolCallCount > 0) return undefined;
+  return { type: "function" as const, name: requiredTool };
 }
 
 export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message:string;context:OliviaContextSnapshot;tools?:FunctionTool[];recentText?:string}){
