@@ -21,6 +21,7 @@ import {
 } from "@/lib/assistant/telegram/service";
 import { sanitizeOliviaAttachments, type OliviaChatAttachment } from "@/lib/olivia/chatAttachments";
 import { getTemporaryDocument, linkTemporaryDocumentsForHospital, updateTemporaryDocumentStatus } from "@/lib/olivia/documents/temporaryDocuments";
+import { readPendingAction } from "@/lib/olivia/conversation/dialogueState";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -98,7 +99,7 @@ function getBaseUrl(req: NextRequest): string {
 
 // create_quote/update 계열 tool이 성공하면 미리보기 이미지를 렌더해서 사진+승인버튼으로 보낸다.
 // 렌더가 실패해도(Playwright 콜드스타트 등) 텍스트 응답 자체는 이미 있으니 조용히 텍스트로만 보낸다.
-async function sendQuotePreview(base: string, chatId: number, quoteId: string, caption: string): Promise<string | undefined> {
+async function sendQuotePreview(base: string, chatId: number, quoteId: string, caption: string, pendingApproval?: TelegramPendingApproval): Promise<string | undefined> {
   try {
     const renderRes = await fetch(`${base}/api/quotes/${quoteId}/render`, {
       method: "POST",
@@ -112,7 +113,10 @@ async function sendQuotePreview(base: string, chatId: number, quoteId: string, c
       photo: renderData.url,
       caption: caption.slice(0, 1024),
       reply_markup: {
-        inline_keyboard: [[
+        inline_keyboard: [pendingApproval ? [
+          { text: `✅ ${pendingApproval.confirmLabel}`, callback_data: `olivia_approve:${pendingApproval.approvalId}` },
+          { text: "⏳ 보류", callback_data: `olivia_defer:${pendingApproval.approvalId}` },
+        ] : [
           { text: "✅ 승인", callback_data: `quote_publish:${quoteId}` },
           { text: "✏️ 수정 요청", callback_data: `quote_edit:${quoteId}` },
         ]],
@@ -125,6 +129,7 @@ async function sendQuotePreview(base: string, chatId: number, quoteId: string, c
 }
 
 type TelegramGeneratedDocument = { temporaryDocumentId: string; documentType: string; resourceId: string; status?: string };
+type TelegramPendingApproval = { approvalId: string; summary: string; confirmLabel: string };
 
 async function sendTemporaryDocumentPreview(base: string, chatId: number, document: TelegramGeneratedDocument, caption: string): Promise<string | undefined> {
   const renderRes = await fetch(`${base}/api/temporary-documents/${document.temporaryDocumentId}/preview`, {
@@ -156,6 +161,7 @@ type TelegramTurnResult = {
   persistedMessageId: string;
   quoteId?: string;
   generatedDocument?: TelegramGeneratedDocument;
+  pendingApproval?: TelegramPendingApproval;
 };
 
 async function runV2TelegramChat(input: {
@@ -180,7 +186,7 @@ async function runV2TelegramChat(input: {
       channel: "telegram",
       attachments: input.attachments,
       replyContext: input.replyContext,
-      pageContext: "텔레그램 모바일 앱에서 접속 중. 승인 없이 도구를 바로 실행. 결과만 간결하게. 마크다운 최소화.",
+      pageContext: "텔레그램 모바일 앱에서 접속 중. 공통 대화의 승인 상태를 그대로 사용. 결과만 간결하게. 마크다운 최소화.",
     }),
   });
   if (!res.ok || !res.body) {
@@ -196,16 +202,23 @@ async function runV2TelegramChat(input: {
   let persistedMessageId = "";
   let quoteId: string | undefined;
   let generatedDocument: TelegramGeneratedDocument | undefined;
+  let pendingApproval: TelegramPendingApproval | undefined;
 
   const handleBlock = (block: string) => {
     const line = block.split("\n").find((l) => l.startsWith("data:"));
     if (!line) return;
-    let payload: { type?: string; delta?: string; message?: string; persistedMessageId?: string; result?: unknown } | undefined;
+    let payload: { type?: string; delta?: string; message?: string; persistedMessageId?: string; result?: unknown; action?: unknown } | undefined;
     try { payload = JSON.parse(line.slice(5).trimStart()); } catch { return; }
     if (!payload) return;
     if (payload.type === "text_delta" && typeof payload.delta === "string") finalText += payload.delta;
     if (payload.type === "error") streamError = payload.message || "Olivia 응답 중 오류가 발생했어요.";
     if (payload.type === "message_complete" && typeof payload.persistedMessageId === "string") persistedMessageId = payload.persistedMessageId;
+    if (payload.type === "ui_action" && payload.action && typeof payload.action === "object") {
+      const action = payload.action as Record<string, unknown>;
+      if (action.type === "REQUEST_APPROVAL" && typeof action.approvalId === "string" && typeof action.summary === "string") {
+        pendingApproval = { approvalId: action.approvalId, summary: action.summary, confirmLabel: typeof action.confirmLabel === "string" ? action.confirmLabel : "진행" };
+      }
+    }
     if (payload.type === "tool_result" && payload.result && typeof payload.result === "object") {
       const result = payload.result as Record<string, unknown>;
       if (typeof result.quoteId === "string") quoteId = result.quoteId;
@@ -235,7 +248,7 @@ async function runV2TelegramChat(input: {
 
   if (streamError) throw new Error(streamError);
   if (!persistedMessageId) throw new Error("Olivia 응답 저장 ID를 받지 못했어요.");
-  return { text: finalText.trim() || "처리됐어요!", persistedMessageId, quoteId, generatedDocument };
+  return { text: finalText.trim() || "처리됐어요!", persistedMessageId, quoteId, generatedDocument, pendingApproval };
 }
 
 async function runLegacyTelegramChat(input: {
@@ -252,7 +265,7 @@ async function runLegacyTelegramChat(input: {
     body: JSON.stringify({
       messages,
       ...(input.imageBase64 ? { imageBase64: input.imageBase64, imageMime: input.imageMime || "image/jpeg" } : {}),
-      pageContext: "텔레그램 모바일 앱에서 접속 중. 승인 없이 도구를 바로 실행. 결과만 간결하게. 마크다운 최소화.",
+      pageContext: "텔레그램 모바일 앱에서 접속 중. 공통 대화의 승인 상태를 그대로 사용. 결과만 간결하게. 마크다운 최소화.",
     }),
   });
   const data = await oliviaRes.json();
@@ -286,10 +299,10 @@ async function runLegacyTelegramChat(input: {
   return prefix + lines.join("\n\n");
 }
 
-async function sendTelegramText(chatId: number, reply: string): Promise<string | undefined> {
+async function sendTelegramText(chatId: number, reply: string, replyMarkup?: object): Promise<string | undefined> {
   let outboundMessageId: string | undefined;
   for (let i = 0; i < reply.length; i += 4000) {
-    const sent = await tgRequest("sendMessage", { chat_id: chatId, text: reply.slice(i, i + 4000) });
+    const sent = await tgRequest("sendMessage", { chat_id: chatId, text: reply.slice(i, i + 4000), ...(i === 0 && replyMarkup ? { reply_markup: replyMarkup } : {}) });
     if (sent?.result?.message_id != null) outboundMessageId = String(sent.result.message_id);
   }
   return outboundMessageId;
@@ -306,6 +319,7 @@ async function deliverSavedReply(input: {
   reply: string;
   quoteId?: string;
   generatedDocument?: TelegramGeneratedDocument;
+  pendingApproval?: TelegramPendingApproval;
 }) {
   let outboundMessageId: string | undefined;
   await deliverTelegramAssistantMessage(input.db, {
@@ -317,8 +331,12 @@ async function deliverSavedReply(input: {
       try {
         const previewMessageId = input.generatedDocument
           ? await sendTemporaryDocumentPreview(input.base, input.chatId, input.generatedDocument, input.reply)
-          : input.quoteId ? await sendQuotePreview(input.base, input.chatId, input.quoteId, input.reply) : undefined;
-        outboundMessageId = previewMessageId || await sendTelegramText(input.chatId, input.reply);
+          : input.quoteId ? await sendQuotePreview(input.base, input.chatId, input.quoteId, input.reply, input.pendingApproval) : undefined;
+        const approvalMarkup = input.pendingApproval ? { inline_keyboard: [[
+          { text: `✅ ${input.pendingApproval.confirmLabel}`, callback_data: `olivia_approve:${input.pendingApproval.approvalId}` },
+          { text: "⏳ 보류", callback_data: `olivia_defer:${input.pendingApproval.approvalId}` },
+        ]] } : undefined;
+        outboundMessageId = previewMessageId || await sendTelegramText(input.chatId, input.reply, approvalMarkup);
       } catch (error) {
         const reason = error instanceof Error ? error.message : "이미지 생성 실패";
         outboundMessageId = await sendTelegramText(input.chatId, `${input.reply}\n\n⚠️ 문서는 임시문서함에 저장됐지만 이미지 미리보기를 만들지 못했어요: ${reason}`);
@@ -330,12 +348,16 @@ async function deliverSavedReply(input: {
       ownerId: input.ownerId,
       conversationId: input.conversationId,
       messageId: input.messageId,
-      metadata: { telegram: { outboundMessageId }, ...(input.generatedDocument ? { temporaryDocumentId: input.generatedDocument.temporaryDocumentId, resourceType: input.generatedDocument.documentType, resourceId: input.generatedDocument.resourceId } : {}) },
+      metadata: {
+        telegram: { outboundMessageId },
+        ...(input.generatedDocument ? { temporaryDocumentId: input.generatedDocument.temporaryDocumentId, resourceType: input.generatedDocument.documentType, resourceId: input.generatedDocument.resourceId } : {}),
+        ...(input.pendingApproval ? { pendingApproval: input.pendingApproval } : {}),
+      },
     });
   }
 }
 
-async function handleCallbackQuery(callbackQuery: any) {
+async function handleCallbackQuery(callbackQuery: any, base: string) {
   const chatId: number = callbackQuery.message?.chat?.id;
   if (!chatId) return;
   const chatIdStr = String(chatId);
@@ -377,7 +399,7 @@ async function handleCallbackQuery(callbackQuery: any) {
   }
 
   const isTemporaryAction = action.startsWith("temp_");
-  const actionLabel = action === "quote_publish" ? "견적서 승인" : action === "quote_edit" ? "견적서 수정 요청" : action === "temp_review" ? "임시문서 내용 확인" : action === "temp_link" ? "고객등록 승인" : action === "temp_defer" ? "임시문서 보류" : action === "temp_edit" ? "임시문서 수정 요청" : data;
+  const actionLabel = action === "quote_publish" ? "견적서 승인" : action === "quote_edit" ? "견적서 수정 요청" : action === "temp_review" ? "임시문서 내용 확인" : action === "temp_link" ? "고객등록 승인" : action === "temp_defer" ? "임시문서 보류" : action === "temp_edit" ? "임시문서 수정 요청" : action === "olivia_approve" ? "응, 진행해줘" : action === "olivia_defer" ? "일단 보류" : data;
   const userSaved = await saveAssistantMessage(db, {
     ownerId: owner.id,
     conversationId: conversation.id,
@@ -386,8 +408,48 @@ async function handleCallbackQuery(callbackQuery: any) {
     channel: "telegram",
     externalMessageId: inboundExternalId,
     deliveryStatus: "accepted",
-    metadata: { resourceType: isTemporaryAction ? "temporary_document" : "quote", resourceId, telegram: { callbackQueryId: callbackQuery.id } },
+    metadata: {
+      ...(isTemporaryAction
+        ? { resourceType: "temporary_document", resourceId }
+        : action === "olivia_approve" || action === "olivia_defer"
+          ? { approvalId: resourceId }
+          : { resourceType: "quote", resourceId }),
+      telegram: { callbackQueryId: callbackQuery.id },
+    },
   });
+
+  if (action === "olivia_approve" || action === "olivia_defer") {
+    await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id, text: "처리 중…" });
+    const { data: conversationRow } = await db.from("assistant_conversations").select("metadata").eq("id", conversation.id).eq("owner_id", owner.id).maybeSingle();
+    const pending = readPendingAction(conversationRow?.metadata);
+    if (!pending || pending.id !== resourceId || pending.status !== "pending") {
+      const reply = "이미 처리됐거나 더 이상 유효하지 않은 요청이에요.";
+      const assistantSaved = await saveAssistantMessage(db, {
+        ownerId: owner.id, conversationId: conversation.id, role: "assistant", content: reply, channel: "telegram",
+        externalMessageId: assistantExternalId, parentMessageId: userSaved.message.id, deliveryStatus: "queued", metadata: { blocks: [{ type: "text", text: reply }] },
+      });
+      await deliverSavedReply({ db, ownerId: owner.id, conversationId: conversation.id, messageId: assistantSaved.message.id, externalRequestId: assistantExternalId, chatId, base, reply });
+      await finishTelegramWebhook(db, claim.eventId, "processed");
+      return;
+    }
+    try {
+      const turn = await runV2TelegramChat({
+        base,
+        userText: actionLabel,
+        conversationId: conversation.id,
+        persistedUserMessageId: userSaved.message.id,
+        clientRequestId: inboundExternalId,
+        assistantExternalMessageId: assistantExternalId,
+        attachments: [],
+      });
+      await deliverSavedReply({ db, ownerId: owner.id, conversationId: conversation.id, messageId: turn.persistedMessageId, externalRequestId: assistantExternalId, chatId, base, reply: turn.text, quoteId: turn.quoteId, generatedDocument: turn.generatedDocument, pendingApproval: turn.pendingApproval });
+      await finishTelegramWebhook(db, claim.eventId, "processed");
+    } catch {
+      await finishTelegramWebhook(db, claim.eventId, "failed", "olivia_approval_failed").catch(() => undefined);
+      await sendTelegramText(chatId, "지금은 처리하지 못했어요. 기존 내용은 그대로예요. 다시 해볼까요?").catch(() => undefined);
+    }
+    return;
+  }
 
   if (isTemporaryAction) {
     await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id, text: "처리 중…" });
@@ -499,7 +561,7 @@ export async function POST(req: NextRequest) {
 
   const message = update.message;
   if (!message) {
-    if (update.callback_query) await handleCallbackQuery(update.callback_query);
+    if (update.callback_query) await handleCallbackQuery(update.callback_query, getBaseUrl(req));
     return NextResponse.json({ ok: true });
   }
 
@@ -566,6 +628,7 @@ export async function POST(req: NextRequest) {
         generatedDocument: typeof metadata.temporaryDocumentId === "string" && typeof metadata.resourceId === "string"
           ? { temporaryDocumentId: metadata.temporaryDocumentId, documentType: typeof metadata.resourceType === "string" ? metadata.resourceType : "document", resourceId: metadata.resourceId }
           : undefined,
+        pendingApproval: metadata.pendingApproval && typeof metadata.pendingApproval === "object" ? metadata.pendingApproval as TelegramPendingApproval : undefined,
       });
     }
     await finishTelegramWebhook(db, claim.eventId, "processed");
@@ -727,6 +790,7 @@ export async function POST(req: NextRequest) {
       reply: turn.text,
       quoteId: turn.quoteId,
       generatedDocument: turn.generatedDocument,
+      pendingApproval: turn.pendingApproval,
     });
     await finishTelegramWebhook(db, claim.eventId, "processed");
   } catch (error) {

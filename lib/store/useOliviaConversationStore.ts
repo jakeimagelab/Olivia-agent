@@ -53,7 +53,7 @@ export type OliviaConversationState = {
   stopResponse: () => void;
   retryLast: () => Promise<void>;
   approveAction: (approvalId: string, toolName: string, toolInput: Record<string, unknown>) => Promise<void>;
-  cancelApproval: (approvalId: string) => void;
+  cancelApproval: (approvalId: string) => Promise<void>;
   setClientTaskBlockState: (flowId: string, state: "pending" | "in_progress" | "done" | "cancelled" | "error") => void;
   confirmShootConfirmation: (insightId: string) => Promise<void>;
   snoozeShootConfirmation: (insightId: string) => Promise<void>;
@@ -643,20 +643,36 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
       const response = await fetch("/api/olivia/v2/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approvalId, toolName, toolInput, context: getOliviaContextSnapshot(pathname) }),
+        body: JSON.stringify({ approvalId, toolName, toolInput, conversationId: get().conversationId, context: getOliviaContextSnapshot(pathname) }),
       });
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "승인 작업에 실패했어요.");
       for (const action of payload.uiActions || []) executeOliviaAction(action);
       notifyAgentCenter();
       set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "approval" && block.approvalId === approvalId ? { ...block, state: "approved" as const } : block) })) }));
+      await get().refreshConversation();
     } catch {
       set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "approval" && block.approvalId === approvalId ? { ...block, state: "error" as const } : block) })) }));
+      await get().refreshConversation().catch(() => undefined);
     } finally {
       set({ agentStatus: undefined });
     }
   },
-  cancelApproval: (approvalId) => set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "approval" && block.approvalId === approvalId ? { ...block, state: "cancelled" as const } : block) })) })),
+  cancelApproval: async (approvalId) => {
+    try {
+      const response = await fetch("/api/olivia/v2/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approvalId, decision: "reject", conversationId: get().conversationId }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "취소하지 못했어요.");
+      set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "approval" && block.approvalId === approvalId ? { ...block, state: "cancelled" as const } : block) })) }));
+      await get().refreshConversation();
+    } catch {
+      set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "approval" && block.approvalId === approvalId ? { ...block, state: "error" as const } : block) })) }));
+    }
+  },
   setClientTaskBlockState: (flowId, blockState) => set((state) => ({ messages: state.messages.map((message) => ({ ...message, blocks: message.blocks.map((block) => block.type === "client_task" && block.flowId === flowId ? { ...block, state: blockState } : block) })) })),
 
   confirmShootConfirmation: async (insightId) => {

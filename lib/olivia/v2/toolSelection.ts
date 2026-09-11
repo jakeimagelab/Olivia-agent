@@ -124,6 +124,7 @@ export function restoreDocumentContextFromHistory(
       activeResourceId: context.activeResourceId || resourceId,
       currentDocumentType: context.currentDocumentType || workspace,
       currentDocumentId: context.currentDocumentId || resourceId,
+      activeClientName: context.activeClientName || (typeof metadata.resourceTitle === "string" ? metadata.resourceTitle : undefined),
       activeClientId: context.activeClientId || (typeof metadata.clientId === "string" ? metadata.clientId : undefined),
       activeProjectId: context.activeProjectId || (typeof metadata.projectId === "string" ? metadata.projectId : undefined),
     };

@@ -186,6 +186,68 @@ export async function mergeAssistantMessageMetadata(
   return savedMetadata;
 }
 
+export async function mergeAssistantConversationMetadata(
+  db: SupabaseClient,
+  input: { ownerId: string; conversationId: string; metadata: Record<string, unknown> },
+) {
+  const { data: current, error: readError } = await db
+    .from("assistant_conversations")
+    .select("metadata")
+    .eq("id", input.conversationId)
+    .eq("owner_id", input.ownerId)
+    .single();
+  if (readError || !current) throw new Error(`대화 metadata 조회 실패: ${readError?.message || "not found"}`);
+  const currentMetadata = current.metadata && typeof current.metadata === "object" && !Array.isArray(current.metadata)
+    ? current.metadata as Record<string, unknown>
+    : {};
+  const merged = { ...currentMetadata, ...input.metadata };
+  const { data: saved, error } = await db
+    .from("assistant_conversations")
+    .update({ metadata: merged })
+    .eq("id", input.conversationId)
+    .eq("owner_id", input.ownerId)
+    .select("metadata")
+    .single();
+  if (error || !saved) throw new Error(`대화 metadata 저장 실패: ${error?.message || "not found"}`);
+  return saved.metadata && typeof saved.metadata === "object" && !Array.isArray(saved.metadata)
+    ? saved.metadata as Record<string, unknown>
+    : {};
+}
+
+export async function updateAssistantApprovalBlockState(
+  db: SupabaseClient,
+  input: {
+    ownerId: string;
+    conversationId: string;
+    approvalId: string;
+    state: "approved" | "cancelled" | "error";
+  },
+) {
+  const { data: rows, error: readError } = await db.from("olivia_chat_messages")
+    .select("id,metadata")
+    .eq("owner_id", input.ownerId)
+    .eq("conversation_id", input.conversationId)
+    .eq("role", "assistant")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (readError) throw new Error(`승인 메시지 조회 실패: ${readError.message}`);
+  for (const row of rows ?? []) {
+    const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+      ? row.metadata as Record<string, unknown>
+      : {};
+    const blocks = Array.isArray(metadata.blocks) ? metadata.blocks : [];
+    if (!blocks.some((block) => block && typeof block === "object" && (block as Record<string, unknown>).approvalId === input.approvalId)) continue;
+    const nextBlocks = blocks.map((block) => block && typeof block === "object" && (block as Record<string, unknown>).approvalId === input.approvalId
+      ? { ...(block as Record<string, unknown>), state: input.state }
+      : block);
+    const { error } = await db.from("olivia_chat_messages").update({ metadata: { ...metadata, blocks: nextBlocks } })
+      .eq("id", row.id).eq("owner_id", input.ownerId).eq("conversation_id", input.conversationId);
+    if (error) throw new Error(`승인 메시지 상태 저장 실패: ${error.message}`);
+    return true;
+  }
+  return false;
+}
+
 export async function updateAssistantMessageDelivery(
   db: SupabaseClient,
   input: {

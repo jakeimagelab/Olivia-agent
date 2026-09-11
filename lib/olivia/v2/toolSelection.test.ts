@@ -90,13 +90,14 @@ describe("selectOliviaTools", () => {
 
   it("Telegram의 빈 화면 context를 최근 assistant 문서 metadata로 복원한다", () => {
     expect(restoreDocumentContextFromHistory(baseContext, [
-      { metadata: { resourceType: "quote", resourceId: "quote-lina", clientId: "client-lina" } },
+      { metadata: { resourceType: "quote", resourceId: "quote-lina", resourceTitle: "리나클리닉", clientId: "client-lina" } },
     ])).toMatchObject({
       activeWorkspace: "quote",
       activeResourceId: "quote-lina",
       currentDocumentType: "quote",
       currentDocumentId: "quote-lina",
       activeClientId: "client-lina",
+      activeClientName: "리나클리닉",
     });
   });
 

@@ -9,7 +9,9 @@ import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
 import {
   getOrCreateAssistantConversation,
   listAssistantMessages,
+  mergeAssistantConversationMetadata,
   saveAssistantMessage,
+  updateAssistantApprovalBlockState,
 } from "@/lib/assistant/conversations/service";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -24,7 +26,7 @@ import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRe
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
 import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
 import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
-import { buildCanonicalRecentUserText, getOliviaToolDomains, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
+import { buildCanonicalRecentUserText, getOliviaToolDomains, isReadOnlyOliviaTool, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
 import { listActiveMemories } from "@/lib/olivia/memory/repository";
 import { formatMemoryForPrompt } from "@/lib/olivia/memory/format";
 import type { OliviaMemoryRow } from "@/lib/olivia/memory/types";
@@ -42,6 +44,17 @@ import type { AssistantChannel } from "@/lib/assistant/types";
 import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
 import { buildHermesRuntime, resourceSessionMetadata } from "@/lib/hermes/runtimeContext";
 import { resolveUiActions } from "@/lib/olivia/agent/uiActionResolvers";
+import {
+  pendingActionBlock,
+  pendingActionFromUiAction,
+  pendingActionPromptContext,
+  readPendingAction,
+  resolvePendingActionContext,
+  resolvePendingActionTurn,
+  transitionPendingAction,
+  type OliviaPendingAction,
+} from "@/lib/olivia/conversation/dialogueState";
+import { renderOliviaOutcome, renderVerifiedToolRound, toolResultOutcome } from "@/lib/olivia/conversation/response";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -72,6 +85,9 @@ ${olderSummary ? `\n<이전_대화_요약>\n대화가 길어져 아래는 더 �
 ${taughtMemories.length ? `\n<taught_business_rules>\n사용자가 채팅으로 가르친 활성 업무 규칙이다. 아래 <operating_rules>의 일반 원칙보다 이 규칙을 우선 적용한다.\n${taughtMemories.map(formatMemoryForPrompt).join("\n")}\n</taught_business_rules>\n` : ""}
 
 <operating_rules>
+- 사용자와 자연스럽게 대화한다. 짧은 요청에는 한두 문장으로 짧게 답하고, 사용자가 설명을 요구하지 않았으면 내부 판단 과정이나 요청 내용을 풀어서 반복하지 않는다.
+- 실행 결과는 “됐어요. …했어요.”처럼 결과부터 말한다. “조정 적용 요청”, “도구 실행”, “현재 확인할 수 없음” 같은 운영·시스템 용어를 사용자에게 노출하지 않는다.
+- 사용자의 말을 명령문으로 바꾸어 되풀이하지 않는다. 이미 동의한 일을 다시 승인받지 않고, 필요한 정보가 하나뿐이면 질문도 하나만 한다.
 - 현재 Context를 먼저 사용한다. 이미 선택된 고객/프로젝트를 다시 묻지 않는다.
 - Workspace가 열려 있으면 해당 Resource를 우선 대상으로 본다.
 - 선택 항목이 명확하면 “이거”, “그거”, “50으로”의 우선 참조 대상으로 본다.
@@ -462,6 +478,10 @@ function resourceMetadataFromTool(toolName: string, data: Record<string, unknown
   return {
     resourceType: matched[0],
     resourceId: matched[1],
+    ...((typeof data.hospitalName === "string" && data.hospitalName) || (typeof data.title === "string" && data.title)
+      ? { resourceTitle: (data.hospitalName || data.title) as string }
+      : {}),
+    ...(typeof data.temporaryDocumentId === "string" ? { temporaryDocumentId: data.temporaryDocumentId } : {}),
     ...(typeof data.version === "number" ? { resourceVersion: data.version } : {}),
     ...(typeof data.clientId === "string" ? { clientId: data.clientId } : {}),
     ...(typeof data.workflowRunId === "string" ? { projectId: data.workflowRunId } : {}),
@@ -653,7 +673,16 @@ export async function POST(req: NextRequest) {
         // 저장된다. 현재 메시지가 history 조회에 잡히더라도 message 인자와 중복되지 않게 제외한다.
         const userMessageId = String(userMessageResult.message.id);
         const history = historyRows.filter((row) => row.id !== userMessageId);
-        const effectiveContext = restoreDocumentContextFromHistory(context, history);
+        let effectiveContext = restoreDocumentContextFromHistory(context, history);
+        const conversationMetadata = conversationMetadataResult.data?.metadata && typeof conversationMetadataResult.data.metadata === "object"
+          ? conversationMetadataResult.data.metadata as Record<string, unknown>
+          : {};
+        let pendingAction = readPendingAction(conversationMetadata);
+        const pendingTurn = resolvePendingActionTurn(rawMessage, pendingAction);
+        const pendingPromptHint = pendingTurn === "correction" && pendingAction
+          ? `[사용자가 수정한 직전 승인안]\n${pendingAction.prompt}\n기존 입력은 실행하지 말고 이번 메시지의 새 조건으로 다시 계산하거나 확인한다.`
+          : pendingActionPromptContext(pendingAction);
+        if (pendingAction) effectiveContext = resolvePendingActionContext(effectiveContext, pendingAction);
         const canonicalRecentUserText = buildCanonicalRecentUserText(history);
         const effectiveRecentUserText = [canonicalRecentUserText, recentUserText].filter(Boolean).join("\n");
         selectedTools = selectOliviaTools({ requestClass, message, context: effectiveContext, recentText: effectiveRecentUserText });
@@ -687,12 +716,84 @@ export async function POST(req: NextRequest) {
           });
           return saved.message;
         };
-        const compactSummary=typeof conversationMetadataResult.data?.metadata?.compactSummary==="string"
-          ? conversationMetadataResult.data.metadata.compactSummary as string
+        const compactSummary=typeof conversationMetadata.compactSummary==="string"
+          ? conversationMetadata.compactSummary
           : undefined;
         historyMs = performance.now() - historyStartedAt;
 
         send({ type: "message_start", messageId, conversationId: conversation.id });
+
+        // 승인을 기다리는 작업에 대한 짧은 답은 모델/Hermes에 다시 해석시키지 않는다. 대화에
+        // 저장된 정확한 tool/input/대상을 그대로 사용해야 채널이나 런타임 상태가 달라도 같은
+        // 작업이 실행된다.
+        if (pendingAction && pendingTurn !== "none" && pendingTurn !== "correction") {
+          if (pendingTurn === "reject" || pendingTurn === "defer") {
+            let text = pendingTurn === "defer"
+              ? renderOliviaOutcome({ status: "deferred", targetTitle: pendingAction.target?.title })
+              : renderOliviaOutcome({ status: "rejected" });
+            let toolCall: Record<string, unknown> | undefined;
+            const temporaryDocumentId = typeof pendingAction.toolInput.temporaryDocumentId === "string"
+              ? pendingAction.toolInput.temporaryDocumentId
+              : undefined;
+            if (pendingTurn === "defer" && temporaryDocumentId) {
+              const deferred = await executeAgentTool({
+                id: `${pendingAction.id}:defer`,
+                name: "defer_temporary_document",
+                arguments: JSON.stringify({ temporaryDocumentId }),
+              }, resolvePendingActionContext(effectiveContext, pendingAction));
+              toolCall = { id: `${pendingAction.id}:defer`, name: "defer_temporary_document", success: deferred.result.success, verification: deferred.result.verification };
+              text = renderOliviaOutcome(toolResultOutcome(deferred.result, pendingAction));
+            }
+            pendingAction = transitionPendingAction(pendingAction, pendingTurn === "defer" ? "deferred" : "rejected");
+            await mergeAssistantConversationMetadata(db, { ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction } });
+            await updateAssistantApprovalBlockState(db, { ownerId: owner.id, conversationId: conversation.id, approvalId: pendingAction.id, state: "cancelled" });
+            send({ type: "text_delta", messageId, delta: text });
+            await saveTurnAssistant(text, { blocks: [{ type: "text", text }], dialogueResolution: pendingTurn, ...(toolCall ? { toolCalls: [toolCall] } : {}) });
+            return;
+          }
+
+          pendingAction = transitionPendingAction(pendingAction, "approved");
+          await mergeAssistantConversationMetadata(db, { ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction } });
+          const pendingContext = resolvePendingActionContext(effectiveContext, pendingAction);
+          send({ type: "agent_status", status: toolStatus(pendingAction.toolName) });
+          send({ type: "tool_start", tool: pendingAction.toolName, toolCallId: pendingAction.id });
+          const execution = await executeAgentTool({ id: pendingAction.id, name: pendingAction.toolName, arguments: JSON.stringify(pendingAction.toolInput) }, pendingContext);
+          const toolPayload = execution.result.success
+            ? execution.result.data || {}
+            : { message: execution.result.error || OLIVIA_FALLBACK_MESSAGES.toolFailureGeneric };
+          send({ type: "tool_result", tool: pendingAction.toolName, toolCallId: pendingAction.id, success: execution.result.success, result: toolPayload });
+
+          let nextPendingAction: OliviaPendingAction | undefined;
+          let workingPendingContext = pendingContext;
+          for (const action of execution.uiActions) {
+            send({ type: "ui_action", action });
+            nextPendingAction = pendingActionFromUiAction(action, workingPendingContext) || nextPendingAction;
+            workingPendingContext = updateWorkingContext(workingPendingContext, action);
+          }
+          const text = nextPendingAction
+            ? renderOliviaOutcome({ status: "needs_confirmation", prompt: nextPendingAction.prompt })
+            : renderOliviaOutcome(toolResultOutcome(execution.result, pendingAction));
+          const resolvedAction = nextPendingAction || transitionPendingAction(pendingAction, execution.result.success ? "completed" : "failed");
+          await mergeAssistantConversationMetadata(db, { ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction: resolvedAction } });
+          await updateAssistantApprovalBlockState(db, { ownerId: owner.id, conversationId: conversation.id, approvalId: pendingAction.id, state: execution.result.success ? "approved" : "error" });
+          send({ type: "text_delta", messageId, delta: text });
+          const approvalBlock = pendingActionBlock(nextPendingAction);
+          await saveTurnAssistant(text, {
+            blocks: [{ type: "text", text }, ...(approvalBlock ? [approvalBlock] : [])],
+            dialogueResolution: "approve",
+            toolCalls: [{ id: pendingAction.id, name: pendingAction.toolName, success: execution.result.success, verification: execution.result.verification }],
+            ...resourceMetadataFromTool(pendingAction.toolName, execution.result.data),
+          });
+          return;
+        }
+
+        // “아니, 240으로”처럼 조건을 고친 발화는 이전 승인안을 무효화한 뒤 일반 도구 해석으로
+        // 넘긴다. 새 조정안이 승인을 요구하면 아래 공통 UI action 수집 과정이 새 pending action을 만든다.
+        if (pendingAction && pendingTurn === "correction") {
+          pendingAction = transitionPendingAction(pendingAction, "rejected");
+          await mergeAssistantConversationMetadata(db, { ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction } });
+          await updateAssistantApprovalBlockState(db, { ownerId: owner.id, conversationId: conversation.id, approvalId: pendingAction.id, state: "cancelled" });
+        }
 
         if (useHermes) {
           send({ type: "agent_status", status: "Hermes가 요청을 판단하는 중…" });
@@ -701,7 +802,7 @@ export async function POST(req: NextRequest) {
             channel: messageChannel,
             today: oliviaRuntime.todayISO,
             message,
-            history,
+            history: pendingPromptHint ? [...history, { role: "assistant", content: pendingPromptHint }] : history,
             replyContext,
           });
           const hermesContextSnapshot: OliviaContextSnapshot = {
@@ -719,10 +820,9 @@ export async function POST(req: NextRequest) {
               context: hermesRuntime.context,
               signal: req.signal,
               callbacks: {
-                onTextDelta: (delta) => {
-                  hermesStartedOutput = true;
-                  send({ type: "text_delta", messageId, delta });
-                },
+                // Hermes의 자유 텍스트는 도구 결과가 확정되기 전에는 사용자에게 보내지 않는다.
+                // 성공 후 아래에서 검증된 결과와 합쳐 한 번만 출력한다.
+                onTextDelta: () => undefined,
                 onToolStart: (tool, toolCallId) => {
                   hermesStartedOutput = true;
                   send({ type: "agent_status", status: toolStatus(tool.replace(/^mcp_olivia_/, "")) });
@@ -745,10 +845,14 @@ export async function POST(req: NextRequest) {
               return { ...current, ...resourceMetadataFromTool(call.name, call.data as Record<string, unknown>, call.resourceType, call.resourceId) };
             }, {});
             const resourceMetadata = resourceSessionMetadata(rawResourceMetadata as Parameters<typeof resourceSessionMetadata>[0]);
+            let nextPendingAction: OliviaPendingAction | undefined;
             for (const call of hermesResult.toolCalls) {
               if (!call.success) continue;
               if (call.uiActions?.length) {
-                for (const action of call.uiActions) send({ type: "ui_action", action });
+                for (const action of call.uiActions) {
+                  send({ type: "ui_action", action });
+                  nextPendingAction = pendingActionFromUiAction(action, hermesContextSnapshot) || nextPendingAction;
+                }
                 continue;
               }
               const uiToolName = call.uiToolName || call.name.replace(/^mcp_olivia_/, "").replaceAll(".", "_");
@@ -758,15 +862,37 @@ export async function POST(req: NextRequest) {
                 result: { tool: uiToolName, success: true, data: call.data && typeof call.data === "object" ? call.data as Record<string, unknown> : undefined, verification: call.verification as OliviaToolResult["verification"] },
                 context: hermesContextSnapshot,
               });
-              for (const action of uiActions) send({ type: "ui_action", action });
+              for (const action of uiActions) {
+                send({ type: "ui_action", action });
+                nextPendingAction = pendingActionFromUiAction(action, hermesContextSnapshot) || nextPendingAction;
+              }
             }
-            await saveTurnAssistant(hermesResult.message, {
-                blocks: [{ type: "text", text: hermesResult.message }],
+            const hermesApprovalBlock = pendingActionBlock(nextPendingAction);
+            const hermesToolEntries = hermesResult.toolCalls.map((call) => ({
+              toolName: call.uiToolName || call.name.replace(/^mcp_olivia_/, "").replaceAll(".", "_"),
+              result: {
+                tool: call.name,
+                success: call.success,
+                data: call.data && typeof call.data === "object" ? call.data as Record<string, unknown> : undefined,
+                error: call.error,
+                verification: call.verification as OliviaToolResult["verification"],
+              } satisfies OliviaToolResult,
+            }));
+            const hermesVerifiedText = hermesToolEntries.length && !hermesToolEntries.some(({ toolName }) => isReadOnlyOliviaTool(toolName))
+              ? renderVerifiedToolRound(hermesToolEntries)
+              : null;
+            const hermesText = nextPendingAction?.prompt || hermesVerifiedText || hermesResult.message;
+            await flushTextAsDeltas(hermesText, send, messageId);
+            await saveTurnAssistant(hermesText, {
+                blocks: [{ type: "text", text: hermesText }, ...(hermesApprovalBlock ? [hermesApprovalBlock] : [])],
                 agentEngine: "hermes",
                 hermesRunId: hermesResult.runId,
                 toolCalls: hermesResult.toolCalls.map(({ id, name, success, mode, resourceType, resourceId, verification }) => ({ id, name, success, mode, resourceType, resourceId, verification })),
                 ...resourceMetadata,
             });
+            if (nextPendingAction) {
+              await mergeAssistantConversationMetadata(db, { ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction: nextPendingAction } });
+            }
             return;
           } catch (hermesError) {
             if (req.signal.aborted || hermesStartedOutput || !isHermesFallbackSafe(hermesError) || !process.env.OPENAI_API_KEY || !model) throw hermesError;
@@ -837,7 +963,7 @@ export async function POST(req: NextRequest) {
         // 실행 순서 자체는 항상 모델이 나열한 순서 그대로 보장된다(2026-08-15, 코드 요청서 1번 항목).
         let request: StreamingRequest = {
           instructions,
-          input: toInputMessages(history, message, effectiveContext, pageContext, temporalHint),
+          input: toInputMessages(history, message, effectiveContext, [pageContext, pendingPromptHint].filter(Boolean).join("\n\n") || undefined, temporalHint),
           tools: selectedTools,
           parallel_tool_calls: true,
           ...(requiredFollowupTool ? { tool_choice: { type: "function" as const, name: requiredFollowupTool } } : {}),
@@ -845,6 +971,8 @@ export async function POST(req: NextRequest) {
         let workingContext = effectiveContext;
         let finalText = "";
         let latestResourceMetadata: Record<string, unknown> = {};
+        let nextPendingAction: OliviaPendingAction | undefined;
+        let hasRenderedVerifiedOutcome = false;
         const executedToolCalls = new Set<string>();
         const cloudToolCalls: Array<{ id: string; name: string; success: boolean; verification?: OliviaToolResult["verification"] }> = [];
 
@@ -867,7 +995,9 @@ export async function POST(req: NextRequest) {
             }
             // 이 라운드엔 tool 호출이 없다 — 앞선 라운드에서 이미 실행·검증된 결과를 보고
             // 모델이 내놓는 최종 텍스트라 검증할 실행이 없다. 지금까지처럼 즉시 흘려보낸다.
-            const safeText = requiredFollowupTool && !executedToolCalls.size
+            const safeText = hasRenderedVerifiedOutcome
+              ? ""
+              : requiredFollowupTool && !executedToolCalls.size
               ? "요청을 실행할 도구 결과를 받지 못했어요. 확인되지 않은 성공이나 실패로 답하지 않고 중단했습니다."
               : response.text;
             finalText += safeText;
@@ -909,6 +1039,7 @@ export async function POST(req: NextRequest) {
             // DB 작업과 tool_result가 완료된 뒤에만 UI Action을 전송한다.
             for (const action of execution.uiActions) {
               send({ type: "ui_action", action });
+              nextPendingAction = pendingActionFromUiAction(action, workingContext) || nextPendingAction;
               workingContext = updateWorkingContext(workingContext, action);
               console.info("[olivia-v2] ui action", { type: action.type });
             }
@@ -942,11 +1073,17 @@ export async function POST(req: NextRequest) {
           const contractConfirmation = quoteConfirmation ? null : buildContractRoundConfirmation(
             executions.map(({ call, result: { execution } }) => ({ toolName: call.name, result: execution.result }))
           );
-          const roundText = quoteConfirmation ?? contractConfirmation ?? response.text;
+          const generalConfirmation = quoteConfirmation || contractConfirmation || executions.some(({ call }) => isReadOnlyOliviaTool(call.name))
+            ? null
+            : renderVerifiedToolRound(executions.map(({ result: { execution } }) => ({ result: execution.result })));
+          const verifiedRoundText = nextPendingAction?.prompt ?? quoteConfirmation ?? contractConfirmation ?? generalConfirmation;
+          const roundText = verifiedRoundText ?? response.text;
+          if (verifiedRoundText) hasRenderedVerifiedOutcome = true;
           finalText += roundText;
           await flushTextAsDeltas(roundText, send, messageId);
 
           send({ type: "agent_status", status: "결과를 정리하는 중…" });
+          if (nextPendingAction) break;
           request = {
             instructions,
             previous_response_id: response.responseId,
@@ -957,11 +1094,15 @@ export async function POST(req: NextRequest) {
         }
 
         if (!finalText.trim()) finalText = OLIVIA_FALLBACK_MESSAGES.emptyResponseFallback;
-        await saveTurnAssistant(finalText, { blocks: [{ type: "text", text: finalText }], model, agentEngine: "cloud", requestClass, toolCalls: cloudToolCalls, ...latestResourceMetadata });
+        const approvalBlock = pendingActionBlock(nextPendingAction);
+        await saveTurnAssistant(finalText, { blocks: [{ type: "text", text: finalText }, ...(approvalBlock ? [approvalBlock] : [])], model, agentEngine: "cloud", requestClass, toolCalls: cloudToolCalls, ...latestResourceMetadata });
+        if (nextPendingAction) {
+          await mergeAssistantConversationMetadata(db, { ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction: nextPendingAction } });
+        }
         const summaryLines=history.slice(-12).concat([{role:"assistant",content:finalText} as ConversationMessage])
           .map((row)=>`${row.role}: ${String(row.content||"").replace(/\s+/g," ").slice(0,180)}`);
         const nextSummary=[compactSummary,...summaryLines].filter(Boolean).join("\n").slice(-4000);
-        await db.from("assistant_conversations").update({metadata:{...(conversationMetadataResult.data?.metadata||{}),compactSummary:nextSummary,summaryCursor:new Date().toISOString()}}).eq("id",conversation.id);
+        await mergeAssistantConversationMetadata(db, { ownerId: owner.id, conversationId: conversation.id, metadata: { compactSummary: nextSummary, summaryCursor: new Date().toISOString() } });
       } catch (error) {
         if (req.signal.aborted) {
           console.info("[olivia-v2] response cancelled");

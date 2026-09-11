@@ -346,7 +346,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                       <span>{block.summary}</span>
                       {(!block.state || block.state === "pending") ? <div className="olivia-approval-card__actions">
                         <button type="button" onClick={() => void approveAction(block.approvalId, block.toolName, block.toolInput)}>{block.confirmLabel}</button>
-                        <button type="button" onClick={() => cancelApproval(block.approvalId)}>취소</button>
+                        <button type="button" onClick={() => void cancelApproval(block.approvalId)}>취소</button>
                       </div> : null}
                     </div>;
                     if (block.type === "shoot_confirm") return <div key={index} className="olivia-approval-card">

@@ -54,6 +54,21 @@ function resolveFeatureRecordAction(result: OliviaToolResult): OliviaUiAction[] 
   return href ? [{ type: "OPEN_FEATURE", href }] : [];
 }
 
+function temporaryDocumentApproval(result: OliviaToolResult): OliviaUiAction[] {
+  if (!result.success) return [];
+  const temporaryDocumentId = value(result.data, "temporaryDocumentId");
+  if (!temporaryDocumentId) return [];
+  const hospitalName = value(result.data, "hospitalName") || "이 문서";
+  return [{
+    type: "REQUEST_APPROVAL",
+    approvalId: crypto.randomUUID(),
+    summary: `${hospitalName} 문서를 임시문서함에 저장했어요. 내용을 승인할까요?`,
+    confirmLabel: "내용 승인",
+    toolName: "approve_temporary_document",
+    toolInput: { temporaryDocumentId },
+  }];
+}
+
 export const uiActionResolvers: Record<string, UiActionResolver> = {
   select_project: async ({ result }) => {
     if (!result.success) return [];
@@ -75,7 +90,7 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     // 번들에 딸려 들어간다(start_select_match_flow 리졸버에도 같은 이유로 적용된 규칙).
     const resourceId = value(args.result.data, "resourceId") || value(args.result.data, "quoteId");
     if (!resourceId) return opened;
-    return [...opened, { type: "OPEN_CLIENT_TASK", task: "quote_preview", flowId: resourceId }];
+    return [...opened, { type: "OPEN_CLIENT_TASK", task: "quote_preview", flowId: resourceId }, ...temporaryDocumentApproval(args.result)];
   },
   start_quote_wizard: async ({ result }) => {
     if (!result.success) return [];
@@ -97,10 +112,10 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     // Preview 카드를 띄운다.
     const resourceId = value(args.result.data, "resourceId") || value(args.result.data, "contractId");
     if (!resourceId) return opened;
-    return [...opened, { type: "OPEN_CLIENT_TASK", task: "contract_preview", flowId: resourceId }];
+    return [...opened, { type: "OPEN_CLIENT_TASK", task: "contract_preview", flowId: resourceId }, ...temporaryDocumentApproval(args.result)];
   },
-  create_conti: async (args) => workspaceAction("conti", args),
-  create_conti_v2: async (args) => workspaceAction("conti", args),
+  create_conti: async (args) => [...workspaceAction("conti", args), ...temporaryDocumentApproval(args.result)],
+  create_conti_v2: async (args) => [...workspaceAction("conti", args), ...temporaryDocumentApproval(args.result)],
   update_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
   add_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
   remove_quote_item: async ({ result }) => mutationActions("quote", result),
@@ -162,6 +177,19 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   request_contract_publish: async ({ result }) => {
     if (!result.success) return [];
     return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "계약서를 최종 생성할까요?"), confirmLabel: "최종 생성", toolName: "publish_contract", toolInput: {} }];
+  },
+  approve_temporary_document: async ({ result }) => {
+    if (!result.success || !result.data?.approvalRequired) return [];
+    const temporaryDocumentId = value(result.data, "temporaryDocumentId");
+    if (!temporaryDocumentId) return [];
+    return [{
+      type: "REQUEST_APPROVAL",
+      approvalId: crypto.randomUUID(),
+      summary: String(result.data.summary || "이 문서의 병원을 고객으로 등록할까요?"),
+      confirmLabel: "고객등록",
+      toolName: "link_temporary_document_client",
+      toolInput: { temporaryDocumentId },
+    }];
   },
   publish_contract: async ({ result }) => mutationActions("contract", result),
   download_contract_pdf: async ({ result, context }) => {
