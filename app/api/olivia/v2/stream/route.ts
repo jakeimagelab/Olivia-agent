@@ -796,7 +796,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (useHermes) {
-          send({ type: "agent_status", status: "Hermes가 요청을 판단하는 중…" });
+          send({ type: "agent_status", status: "Olivia가 요청을 확인하는 중…" });
           const hermesRuntime = buildHermesRuntime({
             snapshot: effectiveContext,
             channel: messageChannel,

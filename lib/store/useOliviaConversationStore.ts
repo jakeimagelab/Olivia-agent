@@ -12,7 +12,8 @@ import { getInlineTool, hasInProgressInlineTool } from "@/lib/olivia/inline-tool
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import type { OliviaMessageBlock, OliviaRunStreamPayload, OliviaStreamEvent, OliviaV2Message } from "@/lib/olivia/v2/types";
 import { mergeConversationMessages } from "@/lib/olivia/conversationTimeline";
-import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
+import { sanitizeOliviaAttachments, type OliviaChatAttachment } from "@/lib/olivia/chatAttachments";
+import { resourceReferenceFromToolResult } from "@/lib/olivia/mobile/resources";
 
 export type { OliviaMessage } from "@/lib/olivia/v2/types";
 
@@ -49,7 +50,7 @@ export type OliviaConversationState = {
   hydrate: () => Promise<void>;
   refreshConversation: () => Promise<void>;
   startNewConversation: () => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: OliviaChatAttachment[]) => Promise<void>;
   stopResponse: () => void;
   retryLast: () => Promise<void>;
   approveAction: (approvalId: string, toolName: string, toolInput: Record<string, unknown>) => Promise<void>;
@@ -129,9 +130,22 @@ function textBlock(text: string): OliviaMessageBlock[] {
 }
 
 function normalizePersistedMessage(row: any): OliviaV2Message {
-  const blocks = Array.isArray(row.metadata?.blocks) && row.metadata.blocks.length
+  const persistedBlocks = Array.isArray(row.metadata?.blocks) && row.metadata.blocks.length
     ? row.metadata.blocks
     : textBlock(String(row.content || ""));
+  const resourceType = String(row.metadata?.resourceType || "");
+  const normalizedResourceType = resourceType === "conti" ? "storyboard" : resourceType;
+  const resourceId = typeof row.metadata?.resourceId === "string" ? row.metadata.resourceId : "";
+  const hasResourceCard = persistedBlocks.some((block: OliviaMessageBlock) => block.type === "resource_card");
+  const blocks: OliviaMessageBlock[] = row.role !== "user" && resourceId && ["quote", "contract", "storyboard", "document"].includes(normalizedResourceType) && !hasResourceCard
+    ? [...persistedBlocks, {
+      type: "resource_card",
+      resourceType: normalizedResourceType,
+      resourceId,
+      temporaryDocumentId: typeof row.metadata?.temporaryDocumentId === "string" ? row.metadata.temporaryDocumentId : undefined,
+      title: typeof row.metadata?.resourceTitle === "string" ? row.metadata.resourceTitle : undefined,
+    }]
+    : persistedBlocks;
   return {
     id: String(row.id || row.metadata?.clientRequestId || newId("message")),
     clientRequestId: row.metadata?.clientRequestId || row.external_message_id,
@@ -320,8 +334,9 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
     set({ conversationId: data.conversationId });
   },
 
-  sendMessage: async (rawContent) => {
-    const content = rawContent.trim();
+  sendMessage: async (rawContent, rawAttachments = []) => {
+    const attachments = sanitizeOliviaAttachments(rawAttachments);
+    const content = rawContent.trim() || (attachments.length ? "첨부파일을 확인해줘." : "");
     if (!content || get().isSending) return;
     // "해줘"/"그냥해"처럼 키워드 없는 짧은 후속 확인 메시지만 보고 도구 목록을 고르면(server의
     // selectOliviaTools) 방금 전 메시지("견적서 만들어줘")에서 이미 정해진 주제(견적)의 도구가
@@ -341,6 +356,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
       blocks: textBlock(content),
       createdAt: new Date().toISOString(),
       status: "complete",
+      attachments,
     };
     const responseId = newId("response");
     const assistantMessage: OliviaV2Message = {
@@ -374,6 +390,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           clientRequestId,
           responseId,
           message: content,
+          attachments,
           recentUserText,
           context,
           pageContext: buildOliviaPageContext(pathname),
@@ -396,6 +413,22 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           // 도구 호출마다 마지막 도구를 기록한다(open_feature처럼 순수 조회성 도구는 다음 요청의
           // 참조 대상으로 삼기엔 약하지만, 실패보다 기록해두는 쪽이 더 유용해서 성공 시 전부 기록).
           if (event.success) useOliviaContextStore.getState().setLastToolIntent(event.tool);
+          const resource = event.success ? resourceReferenceFromToolResult(event.tool, event.result) : null;
+          if (resource) {
+            const workspace = resource.resourceType === "storyboard" ? "conti" : resource.resourceType;
+            useOliviaContextStore.getState().setWorkspace(workspace, resource.resourceId);
+            useOliviaContextStore.getState().setCurrentDocument(resource.resourceId, workspace, resource.title);
+            set((state) => ({
+              messages: state.messages.map((message) => message.id === responseId && !message.blocks.some((block) => block.type === "resource_card" && block.resourceId === resource.resourceId)
+                ? { ...message, blocks: [...message.blocks, { type: "resource_card", resourceType: resource.resourceType, resourceId: resource.resourceId, temporaryDocumentId: resource.temporaryDocumentId, title: resource.title, summary: resource.summary }] }
+                : message),
+            }));
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("olivia-resource-updated", { detail: resource }));
+            }
+          } else if (event.success && typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("olivia-resource-updated", { detail: { tool: event.tool } }));
+          }
           // 문서를 열었거나(open_document) 검색 결과가 1건으로 확실하면(search_documents) "이
           // 문서"/"여기에"류 후속 요청이 다시 검색하지 않고 바로 그 문서를 가리키도록 기록한다.
           if (event.success && event.tool === "open_document") {

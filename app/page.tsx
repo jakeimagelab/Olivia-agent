@@ -4,7 +4,7 @@ import Image from "next/image";
 import { type FormEvent, useEffect, useState } from "react";
 import { Fingerprint, LockKeyhole } from "lucide-react";
 import { browserSupportsWebAuthn, startAuthentication } from "@simplewebauthn/browser";
-import OliviaDesktop from "@/components/olivia-os/OliviaDesktop";
+import OliviaAdaptiveRoot from "@/components/olivia-mobile/OliviaAdaptiveRoot";
 
 function LoginScreen({ onAuth }: { onAuth: () => void }) {
   const [mode, setMode] = useState<"passkey" | "password">("password");
@@ -146,5 +146,5 @@ export default function Home() {
   if (status === "unauthenticated") {
     return <LoginScreen onAuth={() => setStatus("authenticated")} />;
   }
-  return <OliviaDesktop />;
+  return <OliviaAdaptiveRoot />;
 }

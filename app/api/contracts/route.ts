@@ -7,6 +7,21 @@ import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+export async function GET(req: NextRequest) {
+  try {
+    const limit = Math.min(100, Math.max(1, Number(req.nextUrl.searchParams.get("limit") || 50)));
+    const { data, error } = await getSupabaseAdmin()
+      .from("contracts")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return NextResponse.json({ ok: true, contracts: data ?? [] });
+  } catch (error) {
+    return NextResponse.json({ ok: false, contracts: [], error: error instanceof Error ? error.message : "계약서 조회 실패" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const body = await req.json();

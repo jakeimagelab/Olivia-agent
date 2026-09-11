@@ -1,0 +1,25 @@
+.loading {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: #f6faf9;
+}
+
+.loading span {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(21, 88, 85, .15);
+  border-top-color: #155855;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading span { animation: none; }
+}
+

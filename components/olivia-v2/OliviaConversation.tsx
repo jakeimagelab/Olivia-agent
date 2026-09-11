@@ -15,18 +15,25 @@ import { getInlineTool } from "@/lib/olivia/inline-tools";
 import OliviaChatContextBanner from "@/components/olivia/OliviaChatContextBanner";
 import { useOliviaDesktopEffectiveActiveApp } from "@/components/olivia-os/useOliviaDesktopEffectiveActiveApp";
 import { DESKTOP_APP_SUGGESTIONS } from "@/components/olivia-os/oliviaDesktopSuggestions";
-import { OliviaChatMessageAttachments } from "@/components/olivia/OliviaChatAttachments";
+import { OliviaChatAttachmentTray, OliviaChatMessageAttachments, type PendingOliviaAttachment } from "@/components/olivia/OliviaChatAttachments";
+import { getSupabase } from "@/lib/supabase";
+import {
+  OLIVIA_ATTACHMENT_MAX_FILES,
+  validateOliviaAttachmentBatch,
+  type OliviaChatAttachment,
+} from "@/lib/olivia/chatAttachments";
 
 const DEFAULT_SUGGESTIONS = ["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"];
+const MOBILE_SUGGESTIONS = ["견적 만들어줘", "오늘 일정 알려줘", "메모 남겨줘"];
 
-export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer" | "home"; showExpandToggle?: boolean; onMinimize?: () => void }) {
+export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer" | "home" | "mobile"; showExpandToggle?: boolean; onMinimize?: () => void }) {
   const messages = useOliviaConversationStore((state) => state.messages);
   const conversationId = useOliviaConversationStore((state) => state.conversationId);
   // OLIVIA OS Phase 3 §27 — 지금 포커스된(또는 Olivia 자신에 포커스가 가 있다면 직전에 보던)
   // Desktop 앱이 있으면 그 앱 전용 제안으로 바꾼다. Desktop 밖(다른 라우트)에서는 이 값이 항상
   // null이라 기존 기본값 그대로 나온다.
   const effectiveDesktopApp = useOliviaDesktopEffectiveActiveApp();
-  const suggestions = (effectiveDesktopApp && DESKTOP_APP_SUGGESTIONS[effectiveDesktopApp.appId]) || DEFAULT_SUGGESTIONS;
+  const suggestions = variant === "mobile" ? MOBILE_SUGGESTIONS : (effectiveDesktopApp && DESKTOP_APP_SUGGESTIONS[effectiveDesktopApp.appId]) || DEFAULT_SUGGESTIONS;
   const isHydrated = useOliviaConversationStore((state) => state.isHydrated);
   const isSending = useOliviaConversationStore((state) => state.isSending);
   const isStreaming = useOliviaConversationStore((state) => state.isStreaming);
@@ -54,13 +61,14 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const input = useOliviaConversationStore((state) => state.draft);
   const setInput = useOliviaConversationStore((state) => state.setDraft);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef(new Map<string, HTMLElement>());
   const scrollFrameRef = useRef<number | null>(null);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isComposingRef = useRef(false);
   const exchanges = useMemo(() => buildConversationExchanges(messages), [messages]);
-  const showConversationGuide = variant !== "home" && exchanges.length >= 4;
+  const showConversationGuide = variant !== "home" && variant !== "mobile" && exchanges.length >= 4;
   const exchangeByUserMessageId = useMemo(() => {
     const map = new Map<string, (typeof exchanges)[number]>();
     for (const exchange of exchanges) map.set(exchange.userMessageId, exchange);
@@ -69,6 +77,10 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const [activeMessageId, setActiveMessageId] = useState<string>();
   const [selectedGuideId, setSelectedGuideId] = useState<string>();
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingOliviaAttachment[]>([]);
+  const pendingAttachmentsRef = useRef<PendingOliviaAttachment[]>([]);
+  pendingAttachmentsRef.current = pendingAttachments;
+  const [attachmentError, setAttachmentError] = useState("");
   const lastMessageCountRef = useRef(0);
   // 페이지를 처음 열어서 캐시/서버 기록이 아직 하나도 안 채워진 0 → N으로 바뀌는 첫 순간을
   // 따로 구분한다. 이걸 안 하면 "방금 내가 보낸 메시지"랑 똑같은 조건(0에서 늘어남)으로 오인해서,
@@ -175,7 +187,10 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
     list.scrollTo({ top: list.scrollHeight, behavior: "auto" });
     setShowJumpToBottom(false);
   }, [messages, isStreaming, agentStatus]);
-  useEffect(() => () => { if (blurTimerRef.current) clearTimeout(blurTimerRef.current); }, []);
+  useEffect(() => () => {
+    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    for (const item of pendingAttachmentsRef.current) if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+  }, []);
   useEffect(() => {
     if (!activeMessageId && exchanges.length) setActiveMessageId(exchanges.at(-1)?.userMessageId);
   }, [activeMessageId, exchanges]);
@@ -227,18 +242,73 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   }, []);
 
   const isHome = variant === "home";
+  const isMobile = variant === "mobile";
   const isEmpty = messages.length === 0;
   // 채팅창 테두리 애니메이션 상태 — 실제 대화 상태(isStreaming/chatFocused/입력값)에만
   // 연결한다. 가짜 setTimeout으로 만든 상태가 아니라 스토어가 이미 들고 있는 값 그대로다.
   const borderState = isStreaming ? "thinking" : chatFocused || input.trim().length > 0 ? "typing" : "idle";
 
   const submit = () => {
+    const attachments = pendingAttachments.flatMap((item) => item.status === "ready" && item.attachment ? [item.attachment] : []);
     const content = input.trim();
-    if (!content || isSending) return;
+    if ((!content && !attachments.length) || isSending || pendingAttachments.some((item) => item.status === "uploading")) return;
     setInput("");
+    for (const item of pendingAttachments) if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    setPendingAttachments([]);
+    setAttachmentError("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-    void sendMessage(content);
+    void sendMessage(content, attachments);
   };
+
+  const uploadAttachment = useCallback(async (localId: string, file: File) => {
+    setPendingAttachments((items) => items.map((item) => item.localId === localId ? { ...item, status: "uploading", error: undefined } : item));
+    try {
+      const sessionResponse = await fetch("/api/olivia/attachments/upload-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, mimeType: file.type || "application/octet-stream", fileSize: file.size }),
+      });
+      const session = await sessionResponse.json().catch(() => null);
+      if (!sessionResponse.ok || !session?.ok) throw new Error(session?.error || "첨부를 준비하지 못했어요.");
+      const { error: uploadError } = await getSupabase().storage.from(session.bucket)
+        .uploadToSignedUrl(session.storagePath, session.token, file, { contentType: file.type || "application/octet-stream", upsert: false });
+      if (uploadError) throw uploadError;
+      const signResponse = await fetch("/api/olivia/attachments/sign", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ storagePath: session.storagePath }),
+      });
+      const signed = await signResponse.json().catch(() => null);
+      if (!signResponse.ok || !signed?.ok) throw new Error(signed?.error || "첨부를 확인하지 못했어요.");
+      const attachment: OliviaChatAttachment = {
+        id: session.id, storagePath: session.storagePath, fileName: session.fileName,
+        mimeType: session.mimeType, sizeBytes: session.sizeBytes, kind: session.kind,
+        analysisStatus: session.analysisStatus, downloadUrl: signed.downloadUrl,
+      };
+      setPendingAttachments((items) => items.map((item) => item.localId === localId ? { ...item, status: "ready", attachment } : item));
+    } catch (error) {
+      setPendingAttachments((items) => items.map((item) => item.localId === localId ? { ...item, status: "error", error: error instanceof Error ? error.message : "업로드하지 못했어요." } : item));
+    }
+  }, []);
+
+  const addAttachments = (files: File[]) => {
+    const currentFiles = pendingAttachments.map((item) => item.file);
+    const selected = files.slice(0, Math.max(0, OLIVIA_ATTACHMENT_MAX_FILES - currentFiles.length));
+    const validationError = validateOliviaAttachmentBatch([...currentFiles, ...selected]);
+    if (validationError) { setAttachmentError(validationError); return; }
+    setAttachmentError("");
+    const next = selected.map((file) => ({
+      localId: crypto.randomUUID(), file,
+      previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+      status: "uploading" as const,
+    }));
+    setPendingAttachments((items) => [...items, ...next]);
+    void Promise.all(next.map((item) => uploadAttachment(item.localId, item.file)));
+  };
+
+  const removeAttachment = (localId: string) => setPendingAttachments((items) => {
+    const target = items.find((item) => item.localId === localId);
+    if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+    return items.filter((item) => item.localId !== localId);
+  });
 
   const onInput = (value: string) => {
     setInput(value);
@@ -274,7 +344,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             <span className={`olivia-core-mark${isStreaming ? " is-thinking" : ""}`}><OliviaIcon size={15} /></span>
             <div>
               <strong>{isHome ? "Olivia Agent" : "OLIVIA"}</strong>
-              <small>{isStreaming ? agentStatus || "답변 작성 중…" : isHome ? "업무 파트너" : "Context-aware agent"}</small>
+              <small>{isStreaming ? agentStatus || "답변 작성 중…" : isMobile ? "업무 명령 채팅" : isHome ? "업무 파트너" : "Context-aware agent"}</small>
             </div>
           </div>
           <div className="olivia-conversation__controls">
@@ -304,8 +374,8 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         {!isHydrated && messages.length === 0 ? <div className="olivia-conversation__empty">대화를 불러오는 중…</div> : null}
         {isHydrated && messages.length === 0 && !isHome ? (
           <div className="olivia-conversation__welcome">
-            <span>OLIVIA AGENT</span>
-            <h1>무엇을 도와드릴까요?</h1><p>업무 질문, 요약, 계획, 문서 작성까지 무엇이든 물어보세요.</p>
+            <span>{isMobile ? "OLIVIA" : "OLIVIA AGENT"}</span>
+            <h1>무엇을 도와드릴까요?</h1><p>{isMobile ? "Olivia에게 업무를 지시하세요." : "업무 질문, 요약, 계획, 문서 작성까지 무엇이든 물어보세요."}</p>
             {/* home variant는 칩을 컴포저 "아래"로 옮긴다(레퍼런스 순서: 제목→입력창→칩) —
                 다른 variant(drawer/workspace)는 기존 순서(제목→칩→입력창) 그대로 유지. */}
             <div className="olivia-conversation__suggestions">
@@ -339,7 +409,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                   {message.blocks.map((block, index) => {
                     if (block.type === "text") return <MarkdownText key={index} text={block.text} isUser={message.role === "user"} />;
                     if (block.type === "status") return <div key={index} className="olivia-message__status">{block.text}</div>;
-                    if (block.type === "resource_card") return <div key={index} className="olivia-resource-card"><strong>{block.title || block.resourceType}</strong><span>{block.summary || block.resourceId}</span></div>;
+                    if (block.type === "resource_card") return isMobile ? <button key={index} type="button" className="olivia-resource-card olivia-resource-card--mobile" onClick={() => window.dispatchEvent(new CustomEvent("olivia-mobile-open-resource", { detail: block }))}><strong>{block.title || (block.resourceType === "quote" ? "견적서" : block.resourceType === "contract" ? "계약서" : "문서")}</strong><span>{block.summary || "미리보기"}</span><b>미리보기</b></button> : <div key={index} className="olivia-resource-card"><strong>{block.title || block.resourceType}</strong><span>{block.summary || block.resourceId}</span></div>;
                     if (block.type === "error") return <div key={index} className="olivia-message__error">{block.message}<button type="button" onClick={() => void retryLast()}>다시 시도</button></div>;
                     if (block.type === "approval") return <div key={index} className="olivia-approval-card">
                       <strong>{block.state === "approved" ? "처리했어요" : block.state === "cancelled" ? "취소했어요" : block.state === "error" ? "처리하지 못했어요" : "확인이 필요해요"}</strong>
@@ -383,7 +453,14 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         </button>
       ) : null}
 
-      <div className="olivia-composer-shell">
+      <div className={`olivia-composer-shell${isMobile ? " olivia-composer-shell--mobile" : ""}`}>
+        {isMobile ? <>
+          <input ref={fileInputRef} type="file" hidden multiple accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.zip" onChange={(event) => { addAttachments(Array.from(event.target.files || [])); event.target.value = ""; }} />
+          <OliviaChatAttachmentTray items={pendingAttachments} onRemove={removeAttachment} onRetry={(localId) => { const item = pendingAttachments.find((candidate) => candidate.localId === localId); if (item) void uploadAttachment(localId, item.file); }} />
+          {attachmentError ? <div className="olivia-chat-attachment-error">{attachmentError}</div> : null}
+        </> : null}
+        <div className={isMobile ? "olivia-mobile-composer-row" : undefined}>
+        {isMobile ? <button type="button" className="olivia-chat-attach-button" aria-label="사진 또는 파일 첨부" onClick={() => fileInputRef.current?.click()} disabled={pendingAttachments.length >= OLIVIA_ATTACHMENT_MAX_FILES}><Plus size={19} /></button> : null}
         <div className="olivia-composer">
           <textarea
             ref={textareaRef}
@@ -408,10 +485,11 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             className={isStreaming ? "is-stop" : "is-send"}
             aria-label={isStreaming ? "응답 중지" : "전송"}
             onClick={isStreaming ? stopResponse : submit}
-            disabled={!isStreaming && !input.trim()}
+            disabled={!isStreaming && !input.trim() && !pendingAttachments.some((item) => item.status === "ready")}
           >
             {isStreaming ? <Square size={13} fill="currentColor" /> : <ArrowUp size={16} />}
           </button>
+        </div>
         </div>
       </div>
       {isHome && isEmpty ? (

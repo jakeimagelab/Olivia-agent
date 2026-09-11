@@ -11,7 +11,7 @@ export type OliviaLayoutMode =
 export type OliviaMessageBlock =
   | { type: "text"; text: string }
   | { type: "status"; text: string }
-  | { type: "resource_card"; resourceType: string; resourceId: string; title?: string; summary?: string }
+  | { type: "resource_card"; resourceType: string; resourceId: string; temporaryDocumentId?: string; title?: string; summary?: string }
   | { type: "approval"; approvalId: string; summary: string; toolName: string; toolInput: Record<string, unknown>; confirmLabel: string; state?: "pending" | "approved" | "cancelled" | "error" }
   | { type: "action"; label: string; action: OliviaUiAction }
   // 채팅 안에서 실제 작업(파일시스템 접근 등 브라우저 전용 로직)을 끝까지 수행하는 카드 —
