@@ -10,6 +10,21 @@ describe("Olivia Agent quote domain", () => {
     expect(quote.depositAmount + quote.balanceAmount).toBe(quote.totalAmount);
   });
 
+  it("applies a percentage discount and keeps complimentary work as a zero-price line", () => {
+    const quote = buildAgentQuoteData({
+      hospitalName: "연세라이프구강내과치과의원",
+      packageId: "premium",
+      discountRate: 10,
+      serviceItems: ["작품사진 별도 촬영"],
+      shootDate: null,
+    });
+    expect(quote.items).toHaveLength(2);
+    expect(quote.items[1]).toMatchObject({ name: "작품사진 별도 촬영", subtotal: 0, note: "서비스" });
+    expect(quote.discountAmount).toBe(200_000);
+    expect(quote.totalAmount).toBe(1_800_000);
+    expect(quote).not.toHaveProperty("shootDate");
+  });
+
   it("interprets 50 as 500,000 won and recalculates an exact profile item", () => {
     const source = [{ id: "profile_shoot", name: "프로필촬영", unitPrice: 350_000, qty: 1, subtotal: 350_000 }];
     const updated = updateQuoteItemPrice(source, "프로필", 50);

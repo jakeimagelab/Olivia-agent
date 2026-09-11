@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { DESKTOP_DOCK_SAFE_AREA, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { computeSnapZone, resolveSnapBounds } from "./snapZones";
+import { findDockParent, resolveDockLayout, WINDOW_DOCK_GAP, type WindowDockLayout } from "./windowDocking";
 
 const MIN_VISIBLE_HEADER = 40;
 const EDGE_GAP = 12;
@@ -22,6 +23,9 @@ export function useWindowInteractions(
   const snapWindow = useOliviaDesktopStore((state) => state.snapWindow);
   const unsnapWindow = useOliviaDesktopStore((state) => state.unsnapWindow);
   const setDragHint = useOliviaDesktopStore((state) => state.setDragHint);
+  const setDockHint = useOliviaDesktopStore((state) => state.setDockHint);
+  const dockWindow = useOliviaDesktopStore((state) => state.dockWindow);
+  const undockWindow = useOliviaDesktopStore((state) => state.undockWindow);
   const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => () => cleanupRef.current?.(), []);
@@ -52,6 +56,8 @@ export function useWindowInteractions(
     let originWidth = win.width;
     let originHeight = win.height;
 
+    if (win.appId === "olivia-chat" && win.parentWindowId) undockWindow(windowId);
+
     if (win.snapMode !== "none") {
       const restored = win.previousBounds ?? { x: win.x, y: win.y, width: minWidth * 1.5, height: minHeight * 1.5 };
       originWidth = Math.min(restored.width, workspaceRect.width * 0.82);
@@ -64,6 +70,7 @@ export function useWindowInteractions(
     }
 
     let finished = false;
+    let pendingDock: { parentId: string; layout: WindowDockLayout } | null = null;
     const finish = (applySnap: boolean) => {
       if (finished) return;
       finished = true;
@@ -77,11 +84,14 @@ export function useWindowInteractions(
       document.body.style.cursor = previousCursor;
       setInteracting(false);
       const hint = useOliviaDesktopStore.getState().dragHint;
-      if (applySnap && hint) {
+      if (applySnap && pendingDock) {
+        dockWindow(windowId, pendingDock.parentId, pendingDock.layout);
+      } else if (applySnap && hint) {
         const bounds = resolveSnapBounds(hint, workspace.clientWidth, workspace.clientHeight, DESKTOP_DOCK_SAFE_AREA);
         snapWindow(windowId, hint, bounds);
       }
       setDragHint(null);
+      setDockHint(null);
       cleanupRef.current = null;
     };
     const move = (pointerEvent: PointerEvent) => {
@@ -90,7 +100,19 @@ export function useWindowInteractions(
       const nextX = Math.max(-(originWidth - MIN_VISIBLE_HEADER), Math.min(workspaceRect.width - MIN_VISIBLE_HEADER, originX + localX - localStartX));
       const nextY = Math.max(0, Math.min(workspaceRect.height - MIN_VISIBLE_HEADER, originY + localY - localStartY));
       moveWindow(windowId, Math.round(nextX), Math.round(nextY));
-      setDragHint(computeSnapZone(localX, localY, workspaceRect.width, workspaceRect.height));
+      if (win.appId === "olivia-chat") {
+        const state = useOliviaDesktopStore.getState();
+        const childBounds = { x: nextX, y: nextY, width: originWidth, height: originHeight };
+        const parent = findDockParent(childBounds, Object.values(state.windows), windowId);
+        const layout = parent ? resolveDockLayout(parent, childBounds, workspaceRect.width, workspaceRect.height, DESKTOP_DOCK_SAFE_AREA, minWidth) : null;
+        pendingDock = parent && layout ? { parentId: parent.id, layout } : null;
+        setDockHint(pendingDock ? { parentWindowId: pendingDock.parentId, bounds: pendingDock.layout.child } : null);
+        setDragHint(pendingDock ? null : computeSnapZone(localX, localY, workspaceRect.width, workspaceRect.height));
+      } else {
+        pendingDock = null;
+        setDockHint(null);
+        setDragHint(computeSnapZone(localX, localY, workspaceRect.width, workspaceRect.height));
+      }
     };
     const up = () => finish(true);
     const cancel = () => finish(false);
@@ -98,7 +120,7 @@ export function useWindowInteractions(
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up, { once: true });
     window.addEventListener("pointercancel", cancel, { once: true });
-  }, [focusWindow, minHeight, minWidth, moveWindow, resizeWindow, setDragHint, setInteracting, snapWindow, unsnapWindow, windowId, workspaceRef]);
+  }, [dockWindow, focusWindow, minHeight, minWidth, moveWindow, resizeWindow, setDockHint, setDragHint, setInteracting, snapWindow, undockWindow, unsnapWindow, windowId, workspaceRef]);
 
   const beginResize = useCallback((event: React.PointerEvent, handle: ResizeHandle) => {
     event.preventDefault();
@@ -122,7 +144,9 @@ export function useWindowInteractions(
     const startY = event.clientY;
     const originWidth = win.width;
     const originHeight = win.height;
-    const maxWidth = Math.max(minWidth, workspace.clientWidth - win.x - EDGE_GAP);
+    const dockedChild = Object.values(useOliviaDesktopStore.getState().windows).find((candidate) => candidate.parentWindowId === windowId);
+    const followerWidth = dockedChild ? dockedChild.width + WINDOW_DOCK_GAP : 0;
+    const maxWidth = Math.max(minWidth, workspace.clientWidth - win.x - EDGE_GAP - followerWidth);
     const maxHeight = Math.max(minHeight, workspace.clientHeight - DESKTOP_DOCK_SAFE_AREA - win.y - EDGE_GAP);
     let finished = false;
     const finish = () => {

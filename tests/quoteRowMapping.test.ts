@@ -43,6 +43,19 @@ describe("quoteRowToFormState", () => {
     expect(state.customer.hospitalName).toBe("히어산부인과");
   });
 
+  it("Agent가 저장한 부분 formState도 안전한 전체 폼으로 복원한다", () => {
+    const state = quoteRowToFormState(structuredRow({
+      contact_name: "유지원 원장님",
+      phone: "010-9582-2728",
+      form_state: { brand: "photoclinic", selectedPackageId: "premium", discountRate: 10 },
+    }));
+    expect(state.customer).toMatchObject({ hospitalName: "히어산부인과", managerName: "유지원 원장님", phone: "010-9582-2728" });
+    expect(state.selectedSingleItemIds).toEqual([]);
+    expect(state.customItems).toEqual([]);
+    expect(state.benefitItems).toEqual([]);
+    expect(state.discountRate).toBe(10);
+  });
+
   it("agentOverrideItems가 서 있으면 items[]를 customItems/benefitItems로 펼치고 패키지/인원수를 0으로 되돌린다", () => {
     const row = structuredRow({
       items: [{ id: "a", name: "영상촬영", subtotal: 500_000 }, { id: "b", name: "액자 서비스", subtotal: 0 }],

@@ -25,7 +25,37 @@ describe("OLIVIA OS desktop store", () => {
   });
 
   it("invalidates fixed-layout persisted window geometry", () => {
-    expect(DESKTOP_STATE_VERSION).toBe(3);
+    expect(DESKTOP_STATE_VERSION).toBe(4);
+  });
+
+  it("moves a docked Olivia child with its main window and detaches it independently", () => {
+    const store = useOliviaDesktopStore.getState();
+    store.openApp({ appId: "quote", title: "견적서", width: 700, height: 500 });
+    store.openApp({ appId: "olivia-chat", title: "Olivia", width: 360, height: 500 });
+    store.dockWindow("olivia-chat", "quote", {
+      parent: { x: 50, y: 40, width: 700, height: 500 },
+      child: { x: 758, y: 40, width: 360, height: 500 },
+    });
+    store.moveWindow("quote", 80, 70);
+    expect(useOliviaDesktopStore.getState().windows["olivia-chat"]).toMatchObject({ x: 788, y: 70, parentWindowId: "quote" });
+
+    store.undockWindow("olivia-chat");
+    store.moveWindow("quote", 100, 90);
+    expect(useOliviaDesktopStore.getState().windows["olivia-chat"]).toMatchObject({ x: 788, y: 70, parentWindowId: undefined });
+  });
+
+  it("minimizes and restores a docked Olivia child with its main window", () => {
+    const store = useOliviaDesktopStore.getState();
+    store.openApp({ appId: "quote", title: "견적서", width: 700, height: 500 });
+    store.openApp({ appId: "olivia-chat", title: "Olivia", width: 360, height: 500 });
+    store.dockWindow("olivia-chat", "quote", {
+      parent: { x: 50, y: 40, width: 700, height: 500 },
+      child: { x: 758, y: 40, width: 360, height: 500 },
+    });
+    store.minimizeWindow("quote");
+    expect(useOliviaDesktopStore.getState().windows["olivia-chat"].minimized).toBe(true);
+    store.restoreWindow("quote");
+    expect(useOliviaDesktopStore.getState().windows["olivia-chat"].minimized).toBe(false);
   });
 
   it("places Olivia at the right edge on its first open", () => {

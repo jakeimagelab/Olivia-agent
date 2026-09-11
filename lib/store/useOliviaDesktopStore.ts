@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { resolveSnapBounds, type SnapMode } from "@/components/olivia-os/window/snapZones";
+import { followDockedParent, type WindowDockLayout } from "@/components/olivia-os/window/windowDocking";
 
 // OLIVIA OS Phase 0/1/2 — Desktop Shell의 Window Manager 상태. 기존 lib/store/*.ts 컨벤션(순수
 // zustand 싱글턴, 하위 폴더 없음)을 그대로 따른다. 기존 lib/store/workspaceStore.ts(Olivia Chat
@@ -33,6 +34,7 @@ export type OliviaWindowState = {
   zIndex: number;
   context?: WindowContext;
   previousBounds?: { x: number; y: number; width: number; height: number };
+  parentWindowId?: string;
 };
 
 // WindowLayer는 Top Bar 아래의 DesktopSurface 자체가 좌표 원점이다. Dock만 Surface 위에
@@ -72,6 +74,7 @@ type OliviaDesktopState = {
   nextZIndex: number;
   // 드래그 중 "지금 놓으면 어디로 스냅될지" 힌트 — 영속화 대상 아님, SnapZoneOverlay가 구독.
   dragHint: Exclude<SnapMode, "none"> | null;
+  dockHint: { parentWindowId: string; bounds: SnapBounds } | null;
   // Show Desktop이 임시로 minimize한 창 id 목록 — 다시 누르면 정확히 이것만 복원한다(사용자가
   // 그 사이 개별적으로 최소화한 창까지 잘못 복원하지 않기 위해, 스펙 2-11).
   showDesktopStash: string[] | null;
@@ -89,6 +92,9 @@ type OliviaDesktopState = {
   snapWindow: (id: string, mode: Exclude<SnapMode, "none">, bounds: SnapBounds) => void;
   unsnapWindow: (id: string) => void;
   setDragHint: (hint: Exclude<SnapMode, "none"> | null) => void;
+  setDockHint: (hint: { parentWindowId: string; bounds: SnapBounds } | null) => void;
+  dockWindow: (childId: string, parentId: string, layout: WindowDockLayout) => void;
+  undockWindow: (childId: string) => void;
   toggleShowDesktop: () => void;
   setWorkspaceSize: (width: number, height: number) => void;
   reconcileWorkspace: (width: number, height: number) => void;
@@ -100,6 +106,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
   openCount: 0,
   nextZIndex: Z_BASE,
   dragHint: null,
+  dockHint: null,
   showDesktopStash: null,
   workspaceWidth: 0,
   workspaceHeight: 0,
@@ -163,6 +170,9 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
   closeWindow: (id) => set((state) => {
     const rest = { ...state.windows };
     delete rest[id];
+    for (const [windowId, win] of Object.entries(rest)) {
+      if (win.parentWindowId === id) rest[windowId] = { ...win, parentWindowId: undefined };
+    }
     return { windows: rest, activeWindowId: state.activeWindowId === id ? null : state.activeWindowId };
   }),
 
@@ -189,20 +199,30 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
   moveWindow: (id, x, y) => set((state) => {
     const win = state.windows[id];
     if (!win) return state;
-    return { windows: { ...state.windows, [id]: { ...win, x, y } } };
+    const windows = { ...state.windows, [id]: { ...win, x, y } };
+    const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
+    if (child) windows[child.id] = { ...child, x: child.x + (x - win.x), y: child.y + (y - win.y) };
+    return { windows };
   }),
 
   resizeWindow: (id, width, height) => set((state) => {
     const win = state.windows[id];
     if (!win) return state;
-    return { windows: { ...state.windows, [id]: { ...win, width, height } } };
+    const nextParent = { ...win, width, height };
+    const windows = { ...state.windows, [id]: nextParent };
+    const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
+    if (child) windows[child.id] = { ...child, ...followDockedParent(nextParent, child) };
+    return { windows };
   }),
 
   minimizeWindow: (id) => set((state) => {
     const win = state.windows[id];
     if (!win) return state;
+    const windows = { ...state.windows, [id]: { ...win, minimized: true } };
+    const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
+    if (child) windows[child.id] = { ...child, minimized: true };
     return {
-      windows: { ...state.windows, [id]: { ...win, minimized: true } },
+      windows,
       activeWindowId: state.activeWindowId === id ? null : state.activeWindowId,
     };
   }),
@@ -211,7 +231,10 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     set((state) => {
       const win = state.windows[id];
       if (!win) return state;
-      return { windows: { ...state.windows, [id]: { ...win, minimized: false } } };
+      const windows = { ...state.windows, [id]: { ...win, minimized: false } };
+      const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
+      if (child) windows[child.id] = { ...child, minimized: false };
+      return { windows };
     });
     get().focusWindow(id);
   },
@@ -225,16 +248,46 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     const previousBounds = win.snapMode === "none"
       ? { x: win.x, y: win.y, width: win.width, height: win.height }
       : win.previousBounds;
-    return { windows: { ...state.windows, [id]: { ...win, ...bounds, snapMode: mode, previousBounds } } };
+    const nextParent = { ...win, ...bounds, snapMode: mode, previousBounds };
+    const windows = { ...state.windows, [id]: nextParent };
+    const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
+    if (child) windows[child.id] = { ...child, ...followDockedParent(nextParent, child) };
+    return { windows };
   }),
 
   unsnapWindow: (id) => set((state) => {
     const win = state.windows[id];
     if (!win || win.snapMode === "none" || !win.previousBounds) return state;
-    return { windows: { ...state.windows, [id]: { ...win, ...win.previousBounds, snapMode: "none", previousBounds: undefined } } };
+    const nextParent = { ...win, ...win.previousBounds, snapMode: "none" as const, previousBounds: undefined };
+    const windows = { ...state.windows, [id]: nextParent };
+    const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
+    if (child) windows[child.id] = { ...child, ...followDockedParent(nextParent, child) };
+    return { windows };
   }),
 
   setDragHint: (hint) => set({ dragHint: hint }),
+  setDockHint: (hint) => set({ dockHint: hint }),
+
+  dockWindow: (childId, parentId, layout) => set((state) => {
+    const child = state.windows[childId];
+    const parent = state.windows[parentId];
+    if (!child || !parent || child.appId !== "olivia-chat" || parent.appId === "olivia-chat") return state;
+    return {
+      windows: {
+        ...state.windows,
+        [parentId]: { ...parent, ...layout.parent, snapMode: "none", previousBounds: undefined },
+        [childId]: { ...child, ...layout.child, snapMode: "none", previousBounds: undefined, parentWindowId: parentId },
+      },
+      dockHint: null,
+      dragHint: null,
+    };
+  }),
+
+  undockWindow: (childId) => set((state) => {
+    const child = state.windows[childId];
+    if (!child?.parentWindowId) return state;
+    return { windows: { ...state.windows, [childId]: { ...child, parentWindowId: undefined } }, dockHint: null };
+  }),
 
   // Dock 첫 버튼(Home/Desktop) — 토글. 처음 누르면 지금 떠 있는 창들만 minimize하고 그 id를
   // stash, 다시 누르면 정확히 그 창들만 복원한다("창 전체 닫기"와 혼동 금지, 스펙 2-11).
@@ -265,6 +318,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     let changed = false;
     const windows = { ...state.windows };
     for (const [id, win] of Object.entries(windows)) {
+      if (win.parentWindowId) continue;
       if (win.snapMode !== "none") {
         const bounds = resolveSnapBounds(win.snapMode, workspaceWidth, workspaceHeight, DESKTOP_DOCK_SAFE_AREA);
         windows[id] = { ...win, ...bounds };
@@ -280,6 +334,17 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
         changed = true;
       }
     }
+    for (const [id, win] of Object.entries(windows)) {
+      if (!win.parentWindowId) continue;
+      const parent = windows[win.parentWindowId];
+      if (!parent) {
+        windows[id] = { ...win, parentWindowId: undefined };
+        changed = true;
+        continue;
+      }
+      windows[id] = { ...win, ...followDockedParent(parent, win) };
+      changed = true;
+    }
     return changed ? { windows } : state;
   }),
 }));
@@ -289,12 +354,13 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
 // 들이지 않고 수동 localStorage read/write로 구현한다. FileSystemHandle/File/Blob/DOM
 // 참조/ReactNode/함수는 OliviaWindowState 자체에 애초에 없으므로(각 앱의 내부 상태일 뿐) 직렬화
 // 위험이 구조적으로 없다.
-export const DESKTOP_STATE_VERSION = 3;
+export const DESKTOP_STATE_VERSION = 4;
 const MAX_RESTORED_WINDOWS = 20;
 
 type PersistedWindow = {
   appId: string; title: string; x: number; y: number; width: number; height: number;
   minimized: boolean; snapMode: SnapMode; previousBounds?: SnapBounds; context?: WindowContext;
+  parentWindowId?: string;
 };
 type PersistedState = { version: number; windows: PersistedWindow[]; activeAppId: string | null };
 
@@ -316,6 +382,7 @@ export function saveDesktopState() {
       windows: top.map((win) => ({
         appId: win.appId, title: win.title, x: win.x, y: win.y, width: win.width, height: win.height,
         minimized: win.minimized, snapMode: win.snapMode, previousBounds: win.previousBounds, context: win.context,
+        parentWindowId: win.parentWindowId,
       })),
       activeAppId: activeWindowId,
     };
@@ -349,6 +416,7 @@ export function loadDesktopState(knownAppIds: Set<string>) {
         x: win.x, y: win.y, width: win.width, height: win.height,
         minimized: Boolean(win.minimized), snapMode: win.snapMode ?? "none", previousBounds: win.previousBounds,
         context: win.context,
+        parentWindowId: win.parentWindowId && valid.some((candidate) => candidate.appId === win.parentWindowId) ? win.parentWindowId : undefined,
         zIndex,
       };
     }
@@ -364,7 +432,7 @@ export function loadDesktopState(knownAppIds: Set<string>) {
 export function resetDesktopSession() {
   useOliviaDesktopStore.setState({
     windows: {}, activeWindowId: null, openCount: 0, nextZIndex: Z_BASE,
-    dragHint: null, showDesktopStash: null,
+    dragHint: null, dockHint: null, showDesktopStash: null,
   });
   if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
 }

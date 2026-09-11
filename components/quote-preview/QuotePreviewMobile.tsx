@@ -74,13 +74,14 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export default function QuotePreviewMobile({ token, initialQuote }: { token: string; initialQuote: PreviewQuote }) {
+export default function QuotePreviewMobile({ token, initialQuote }: { token?: string; initialQuote: PreviewQuote }) {
   const [quote, setQuote] = useState(initialQuote);
   const [connected, setConnected] = useState(true);
   const quoteRef = useRef(quote);
   quoteRef.current = quote;
 
   useEffect(() => {
+    if (!token) return;
     let cancelled = false;
     const tick = async () => {
       try {
@@ -137,7 +138,7 @@ export default function QuotePreviewMobile({ token, initialQuote }: { token: str
                 background: connected ? "#8FE3B0" : "#999",
               }}
             />
-            {connected ? "실시간 연결됨" : "연결 확인 중"}
+            {token ? (connected ? "실시간 연결됨" : "연결 확인 중") : "7일 미리보기"}
           </div>
         </div>
         <div style={{ color: "#fff", fontWeight: 900, fontSize: 19, marginTop: 6 }}>

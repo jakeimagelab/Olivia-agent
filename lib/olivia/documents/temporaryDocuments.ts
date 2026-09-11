@@ -142,7 +142,7 @@ export async function linkTemporaryDocumentsForHospital(db: SupabaseClient, temp
 }
 
 export function temporaryDocumentRoute(row: Pick<TemporaryDocumentRow, "source_table" | "source_id">) {
-  if (row.source_table === "quotes") return `/quote?id=${encodeURIComponent(row.source_id)}`;
+  if (row.source_table === "quotes") return `/quote?resourceId=${encodeURIComponent(row.source_id)}`;
   if (row.source_table === "contracts") return `/contract?resourceId=${encodeURIComponent(row.source_id)}`;
   if (row.source_table === "conti_runs") return `/conti?resourceId=${encodeURIComponent(row.source_id)}`;
   return `/admin/documents?artifactId=${encodeURIComponent(row.source_id)}`;

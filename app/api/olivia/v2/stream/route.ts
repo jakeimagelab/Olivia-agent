@@ -973,6 +973,7 @@ export async function POST(req: NextRequest) {
         let latestResourceMetadata: Record<string, unknown> = {};
         let nextPendingAction: OliviaPendingAction | undefined;
         let hasRenderedVerifiedOutcome = false;
+        let deferredFailureText = "";
         const executedToolCalls = new Set<string>();
         const cloudToolCalls: Array<{ id: string; name: string; success: boolean; verification?: OliviaToolResult["verification"] }> = [];
 
@@ -999,7 +1000,7 @@ export async function POST(req: NextRequest) {
               ? ""
               : requiredFollowupTool && !executedToolCalls.size
               ? "요청을 실행할 도구 결과를 받지 못했어요. 확인되지 않은 성공이나 실패로 답하지 않고 중단했습니다."
-              : response.text;
+              : response.text || deferredFailureText;
             finalText += safeText;
             await flushTextAsDeltas(safeText, send, messageId);
             break;
@@ -1078,6 +1079,26 @@ export async function POST(req: NextRequest) {
             : renderVerifiedToolRound(executions.map(({ result: { execution } }) => ({ result: execution.result })));
           const verifiedRoundText = nextPendingAction?.prompt ?? quoteConfirmation ?? contractConfirmation ?? generalConfirmation;
           const roundText = verifiedRoundText ?? response.text;
+          const roundOnlyFailed = executions.length > 0
+            && executions.every(({ result: { execution } }) => !execution.result.success);
+          // 모델이 잘못 채운 선택 인자 때문에 첫 호출이 실패한 뒤, 다음 라운드에서 스스로
+          // 고쳐 재시도하는 경우가 있다. 이 중간 실패를 즉시 사용자에게 보내면 최종 성공 문구와
+          // 붙어서 "실패했습니다...저장했어요"처럼 모순된 답이 된다. 마지막 기회까지 잠시
+          // 보류하고, 뒤 라운드가 성공하면 버린다. 끝까지 실패할 때만 실제 오류를 보여준다.
+          if (roundOnlyFailed && !nextPendingAction && round + 1 < maxToolRounds(requestClass)) {
+            deferredFailureText = roundText;
+            request = {
+              instructions,
+              previous_response_id: response.responseId,
+              input: outputs,
+              tools: selectedTools,
+              parallel_tool_calls: true,
+            };
+            continue;
+          }
+          if (executions.some(({ result: { execution } }) => execution.result.success)) {
+            deferredFailureText = "";
+          }
           if (verifiedRoundText) hasRenderedVerifiedOutcome = true;
           finalText += roundText;
           await flushTextAsDeltas(roundText, send, messageId);
@@ -1093,7 +1114,7 @@ export async function POST(req: NextRequest) {
           };
         }
 
-        if (!finalText.trim()) finalText = OLIVIA_FALLBACK_MESSAGES.emptyResponseFallback;
+        if (!finalText.trim()) finalText = deferredFailureText || OLIVIA_FALLBACK_MESSAGES.emptyResponseFallback;
         const approvalBlock = pendingActionBlock(nextPendingAction);
         await saveTurnAssistant(finalText, { blocks: [{ type: "text", text: finalText }, ...(approvalBlock ? [approvalBlock] : [])], model, agentEngine: "cloud", requestClass, toolCalls: cloudToolCalls, ...latestResourceMetadata });
         if (nextPendingAction) {

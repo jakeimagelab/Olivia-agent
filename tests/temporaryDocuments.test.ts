@@ -54,7 +54,7 @@ describe("temporary document inbox", () => {
   });
 
   it("고객 ID가 없어도 원본 문서 화면으로 이동하는 링크를 만든다", () => {
-    expect(temporaryDocumentRoute({ source_table: "quotes", source_id: "q1" })).toBe("/quote?id=q1");
+    expect(temporaryDocumentRoute({ source_table: "quotes", source_id: "q1" })).toBe("/quote?resourceId=q1");
     expect(temporaryDocumentRoute({ source_table: "contracts", source_id: "c1" })).toBe("/contract?resourceId=c1");
     expect(temporaryDocumentRoute({ source_table: "conti_runs", source_id: "r1" })).toBe("/conti?resourceId=r1");
   });

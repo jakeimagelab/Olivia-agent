@@ -10,6 +10,7 @@ function contextFromHref(href: string): WindowContext {
   return {
     clientId: params.get("clientId") ?? params.get("id") ?? undefined,
     projectId: params.get("projectId") ?? params.get("workflowRunId") ?? undefined,
+    resourceId: params.get("resourceId") ?? undefined,
   };
 }
 

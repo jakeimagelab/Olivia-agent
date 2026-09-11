@@ -15,6 +15,7 @@ import { useQuoteStore } from "@/lib/store/useQuoteStore";
 import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
 import { packages, singleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
+import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 import {
   Building2,
   CheckCircle2,
@@ -184,7 +185,7 @@ const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => 
   depositRate: row.deposit_rate ?? 50,
   memos: row.memos ?? null,
   status: row.status ?? "draft",
-  formState: row.form_state ?? undefined,
+  formState: row.form_state ? quoteRowToFormState(row) : undefined,
   updatedAt: row.updated_at ?? undefined,
 });
 
@@ -1108,11 +1109,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     await completeQuoteStep(saved.id);
   };
 
-  // ── Workspace Modal 전용 동작 (mode==="modal"일 때만 개입, mode==="page"는 전부 no-op) ──
+  // ── 기존 문서/고객 프리필 ──
 
   // 1) 프리필: resourceId가 있으면 기존 견적서를 불러오고, clientId만 있으면 고객 정보만 채운다.
   useEffect(() => {
-    if (!isModal) return;
     const loadResource = () => {
       if (!resourceId) return;
       fetch(`/api/quotes/${resourceId}`)
@@ -1157,6 +1157,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         window.removeEventListener("olivia-quote-preview", onPreview);
       };
     }
+    if (!isModal) return;
     if (clientId) {
       fetch(`/api/clients/${clientId}/workspace`)
         .then((res) => res.json())

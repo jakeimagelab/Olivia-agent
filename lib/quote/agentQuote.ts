@@ -11,6 +11,8 @@ type QuoteLineItem = {
   note?: string;
 };
 
+type AgentExtraItem = { name?: unknown; detail?: unknown; amount?: unknown; quantity?: unknown };
+
 function resolveBrand(value: unknown): Brand {
   return value === "jakeimage" ? "jakeimage" : "photoclinic";
 }
@@ -56,22 +58,72 @@ export function buildAgentQuoteData(input: Record<string, any>, workflowRunId?: 
     const qty = Number(input.stagedCount);
     items.push({ id: "staged_shoot", name: "연출 인원 추가", detail: `${qty}인`, unitPrice: 250_000, qty, subtotal: qty * 250_000, note: "추가 옵션" });
   }
-  const amounts = calculateQuoteAmounts(items);
-  return {
-    hospitalName: String(input.hospitalName || "").trim(),
+  const customItems = (Array.isArray(input.extraItems) ? input.extraItems : []) as AgentExtraItem[];
+  customItems.forEach((item, index) => {
+    const amount = Math.max(0, Number(item.amount) || 0);
+    const qty = Math.max(1, Number(item.quantity) || 1);
+    const name = String(item.name || "추가 항목").trim();
+    items.push({ id: `custom:${index}:${name}`, name, detail: String(item.detail || ""), unitPrice: amount, qty, subtotal: amount * qty, note: "추가 항목" });
+  });
+  const serviceItems = (Array.isArray(input.serviceItems) ? input.serviceItems : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+  serviceItems.forEach((name, index) => {
+    items.push({ id: `benefit:${index}:${name}`, name, detail: "", unitPrice: 0, qty: 1, subtotal: 0, note: "서비스" });
+  });
+  const discountRate = Math.min(100, Math.max(0, Number(input.discountRate) || 0));
+  const gross = items.reduce((sum, item) => sum + item.subtotal, 0);
+  const discountAmount = Math.round(gross * discountRate / 100);
+  const amounts = calculateQuoteAmounts(items, discountAmount);
+  const quoteDate = dateInSeoul();
+  const validUntil = dateInSeoul(14);
+  const optional = Object.fromEntries(Object.entries({
     contactName: input.contactName,
     phone: input.phone,
     email: input.email,
     shootDate: input.shootDate,
-    quoteDate: dateInSeoul(),
-    validUntil: dateInSeoul(14),
+    memos: input.memo,
+    workflowRunId,
+  }).filter(([, value]) => value !== null && value !== undefined));
+  return {
+    hospitalName: String(input.hospitalName || "").trim(),
+    ...optional,
+    quoteDate,
+    validUntil,
     title: BRAND_CONFIG[brand].defaultQuoteTitle,
     items,
     ...amounts,
+    discountAmount,
     depositRate: 50,
-    memos: input.memo,
-    workflowRunId,
-    formState: { brand, selectedPackageId: packageId, profileCount: Number(input.profileCount) || 0, stagedCount: Number(input.stagedCount) || 0, source: "olivia-v2" },
+    formState: {
+      brand,
+      customer: {
+        hospitalName: String(input.hospitalName || "").trim(),
+        managerName: String(input.contactName || ""),
+        phone: String(input.phone || ""),
+        email: String(input.email || ""),
+        quoteDate,
+        validUntil,
+        shootDate: String(input.shootDate || ""),
+      },
+      quoteTitle: BRAND_CONFIG[brand].defaultQuoteTitle,
+      selectedPackageId: packageId,
+      selectedSingleItemIds: [],
+      singleItemAmounts: {},
+      profileCount: Number(input.profileCount) || 0,
+      stagedCount: Number(input.stagedCount) || 0,
+      combinedProfileStagedCount: 0,
+      floorCount: 0,
+      largeHospital: false,
+      droneCount: 0,
+      customItems: customItems.map((item, index) => ({ id: `custom:${index}`, name: String(item.name || "추가 항목"), detail: String(item.detail || ""), amount: Math.max(0, Number(item.amount) || 0) })),
+      benefitItems: serviceItems.map((name, index) => ({ id: `benefit:${index}`, name })),
+      discountRate,
+      extraDiscount: 0,
+      memo: String(input.memo || ""),
+      depositRate: 50,
+      source: "olivia-v2",
+    },
   };
 }
 

@@ -17,6 +17,8 @@ const BARE_PATH_PREFIXES = [
   "/conti/view/",
   "/conti/share/",
   "/conti-v2/share/",
+  "/document-preview/m/",
+  "/quote-preview/m/",
   "/video-conti/view/",
   "/portrait-consent/",
   "/hospital-brand-image-diagnosis/shared/",

@@ -3572,14 +3572,22 @@
 .olivia-conversation--workspace .olivia-message-guide__ticks > button,
 .olivia-conversation--drawer .olivia-message-guide__ticks > button { min-height: 14px; flex: 0 0 14px; }
 .olivia-message-guide__popover {
-  right: 52px;
-  top: clamp(124px,42%,360px);
+  right: 48px;
+  top: clamp(96px,var(--olivia-guide-popover-y,42%),calc(100% - 96px));
   width: min(300px,calc(100vw - 96px));
   z-index: 12;
   padding: 18px;
   border-color: rgba(21,88,85,.1);
   border-radius: 18px;
   box-shadow: 0 22px 58px rgba(9,35,31,.24);
+}
+.olivia-message-guide__popover::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -10px;
+  width: 10px;
+  height: 100%;
 }
 .olivia-message-guide__popover time { font-size: 10px; }
 .olivia-message-guide__topic { font-size: 9px; }

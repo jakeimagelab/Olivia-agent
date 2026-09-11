@@ -16,8 +16,7 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
   const items = Array.isArray(row.items) ? row.items : [];
 
   if (formState && !formState.agentOverrideItems) {
-    return {
-      customer: formState.customer ?? {
+    const fallbackCustomer = {
         hospitalName: row.hospital_name || "",
         managerName: row.contact_name || "",
         phone: row.phone || "",
@@ -26,7 +25,9 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
         validUntil: row.valid_until || "",
         shootDate: row.shoot_date || "",
         quoteNumber: row.quote_number || "",
-      },
+      };
+    return {
+      customer: { ...fallbackCustomer, ...(formState.customer ?? {}) },
       brand: (formState.brand ?? "photoclinic") as Brand,
       quoteTitle: formState.quoteTitle ?? "",
       selectedPackageId: formState.selectedPackageId ?? null,

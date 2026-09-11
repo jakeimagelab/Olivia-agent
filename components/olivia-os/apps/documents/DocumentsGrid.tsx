@@ -2,6 +2,7 @@
 
 import { Clapperboard, File, FileSignature, FileText, Images, StickyNote } from "lucide-react";
 import type { OliviaDocumentType } from "@/lib/olivia/documents/types";
+import { useDesktopAppLauncher } from "../../useDesktopAppLauncher";
 import styles from "./DocumentsWindowContent.module.css";
 
 export type DocumentRow = {
@@ -13,6 +14,7 @@ export type DocumentRow = {
   status?: string | null;
   updatedAt?: string | null;
   route?: string | null;
+  metadata?: { temporaryDocumentId?: string; sourceId?: string; sourceTable?: string };
 };
 
 const TYPE_ICON: Record<OliviaDocumentType, React.ComponentType<{ size?: number }>> = {
@@ -69,6 +71,7 @@ function groupDocuments(documents: DocumentRow[]) {
 }
 
 export function DocumentsGrid({ documents, loading }: { documents: DocumentRow[]; loading: boolean }) {
+  const launchHref = useDesktopAppLauncher();
   if (loading) {
     return <div className={styles.gridEmpty}>불러오는 중...</div>;
   }
@@ -93,6 +96,14 @@ export function DocumentsGrid({ documents, loading }: { documents: DocumentRow[]
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.card}
+                  onClick={(event) => {
+                    if (!doc.route) return;
+                    event.preventDefault();
+                    launchHref(doc.route, doc.title, {
+                      resourceId: doc.metadata?.sourceId,
+                      resourceType: doc.type,
+                    });
+                  }}
                 >
                   <div className={styles.cardIcon}><Icon size={22} /></div>
                   <div className={styles.cardTitle}>{doc.title}</div>
