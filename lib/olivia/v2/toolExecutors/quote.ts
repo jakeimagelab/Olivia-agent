@@ -339,7 +339,13 @@ export async function executeQuoteTool(
   }
 
   if (name === "apply_quote_rebalance") {
-    return executeQuoteTool("apply_quote_discount", { amount: input.discountAmount, percent: null, remove: false }, context);
+    let discountAmount = input.discountAmount;
+    if (discountAmount == null && input.targetTotal != null) {
+      const proposal = await executeQuoteTool("rebalance_quote_total", { targetTotal: input.targetTotal }, context);
+      discountAmount = proposal.data?.proposedDiscountAmount;
+    }
+    if (discountAmount == null) throw new Error("승인한 목표 총액 또는 조정 할인액을 확인해주세요.");
+    return executeQuoteTool("apply_quote_discount", { amount: discountAmount, percent: null, remove: false }, context);
   }
 
   if (name === "preview_quote") {

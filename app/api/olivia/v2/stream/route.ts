@@ -24,7 +24,7 @@ import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRe
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
 import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
 import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
-import { buildCanonicalRecentUserText, getOliviaToolDomains, resolveRequiredFollowupTool, resolveToollessActionRetry, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
+import { buildCanonicalRecentUserText, getOliviaToolDomains, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
 import { listActiveMemories } from "@/lib/olivia/memory/repository";
 import { formatMemoryForPrompt } from "@/lib/olivia/memory/format";
 import type { OliviaMemoryRow } from "@/lib/olivia/memory/types";
@@ -88,6 +88,7 @@ ${taughtMemories.length ? `\n<taught_business_rules>\n사용자가 채팅으로 
 - 캘린더 일정의 분류 색상은 촬영=shooting, 고객=client, 행정=admin, 개인=personal, 기타=general 다섯 가지뿐이다. "OO 일정 개인으로 바꿔줘"/"저 색으로"처럼 이 이름을 말하면 calendar_update의 category만 그 값으로 채워 바로 실행한다 — 어떤 색인지 되묻지 않는다.
 - "두 번째 항목"/"마지막 컷"/"맨 아래"/"첫 번째"처럼 순서를 가리키는 표현은 직접 인덱스를 계산하지 말고, 사용자가 말한 표현 그대로 position 파라미터에 넣는다(코드가 순서를 해석한다).
 - 총액 맞추기, 견적 공개, 콘티 컷 삭제는 승인 도구를 호출하며 승인 전 완료했다고 말하지 않는다.
+- rebalance_quote_total이 "적용할까요?"라고 물은 뒤 사용자가 "맞아", "하면 돼", "해 줘", "오케이"처럼 동의하면 이미 승인한 것이다. 다시 승인이나 재요청을 요구하지 말고 apply_quote_rebalance를 즉시 호출한다. 목표 총액이 승인 문장이나 최근 대화에 있으면 targetTotal로 전달한다.
 - add_conti_shots로 여러 항목(명단, 목록 등)을 추가할 때는 items 배열의 각 원소에 그 항목만의 값(category/keyword/personnel/location/description/notes)을 넣는다 — 여러 사람/항목의 정보를 한 description에 합쳐서 넣거나 모든 항목에 같은 텍스트를 복사하지 않는다. 원본에 없는 정보(예: "102호니까 1층일 것")는 필드 값으로 절대 저장하지 않는다 — 추측이 필요하면 답변 문장에서만 "~일 가능성이 높지만 확인되지 않았다"처럼 언급하고 원본 표현(예: "102호") 그대로 저장한다. items가 2개 이상이면, 사용자가 "바로 반영해줘"처럼 즉시 실행을 명시하지 않는 한 실제 도구 호출 전에 "N개 항목을 이렇게 추가할게요: ..." 식으로 각 항목을 요약해 확인부터 구한다.
 - 단가가 없는 새 견적 항목의 금액을 임의 생성하지 않는다.
 - 단순 수정 결과는 변경 항목과 새 총액만 짧게 말한다.
@@ -652,9 +653,10 @@ export async function POST(req: NextRequest) {
         // 저장된다. 현재 메시지가 history 조회에 잡히더라도 message 인자와 중복되지 않게 제외한다.
         const userMessageId = String(userMessageResult.message.id);
         const history = historyRows.filter((row) => row.id !== userMessageId);
+        const effectiveContext = restoreDocumentContextFromHistory(context, history);
         const canonicalRecentUserText = buildCanonicalRecentUserText(history);
         const effectiveRecentUserText = [canonicalRecentUserText, recentUserText].filter(Boolean).join("\n");
-        selectedTools = selectOliviaTools({ requestClass, message, context, recentText: effectiveRecentUserText });
+        selectedTools = selectOliviaTools({ requestClass, message, context: effectiveContext, recentText: effectiveRecentUserText });
         const requiredFollowupTool = requestClass === "TOOL_ACTION"
           ? resolveRequiredFollowupTool({ message, recentText: effectiveRecentUserText, availableToolNames: selectedTools.map((tool) => tool.name) })
           : undefined;
@@ -695,7 +697,7 @@ export async function POST(req: NextRequest) {
         if (useHermes) {
           send({ type: "agent_status", status: "Hermes가 요청을 판단하는 중…" });
           const hermesRuntime = buildHermesRuntime({
-            snapshot: context,
+            snapshot: effectiveContext,
             channel: messageChannel,
             today: oliviaRuntime.todayISO,
             message,
@@ -703,7 +705,7 @@ export async function POST(req: NextRequest) {
             replyContext,
           });
           const hermesContextSnapshot: OliviaContextSnapshot = {
-            ...context,
+            ...effectiveContext,
             activeClientId: hermesRuntime.context.activeClientId,
             activeProjectId: hermesRuntime.context.activeProjectId,
             activeResourceId: hermesRuntime.context.activeResourceId,
@@ -778,7 +780,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (databaseFastPath) {
-          const fastText=await resolveDatabaseFastPath(db,message,context,oliviaRuntime.todayISO);
+          const fastText=await resolveDatabaseFastPath(db,message,effectiveContext,oliviaRuntime.todayISO);
           if(fastText){
             send({type:"text_delta",messageId,delta:fastText});
             await saveTurnAssistant(fastText,{blocks:[{type:"text",text:fastText}],routeDecision:"DATABASE_FAST_PATH"});
@@ -790,14 +792,14 @@ export async function POST(req: NextRequest) {
           const created = await createAgentRun(db, {
             ownerId: owner.id,
             conversationId: conversation.id,
-            clientId: context.activeClientId,
-            workflowRunId: context.activeProjectId,
+            clientId: effectiveContext.activeClientId,
+            workflowRunId: effectiveContext.activeProjectId,
             goal: rawMessage,
             runType: inferPersistentRunType(message),
             source: "chat",
             idempotencyKey: optionalString(body.clientRequestId) || requestId,
-            context: context as unknown as Record<string, unknown>,
-            metadata: { requestClass, pageContext, clientName: context.activeClientName || inferPersistentRunClientName(message) },
+            context: effectiveContext as unknown as Record<string, unknown>,
+            metadata: { requestClass, pageContext, clientName: effectiveContext.activeClientName || inferPersistentRunClientName(message) },
           });
           const text = created.duplicate ? "이미 접수된 업무예요. Agent Center에서 진행 상황을 이어서 볼 수 있어요." : "업무를 접수했어요. 페이지를 이동하거나 창을 닫아도 계속 진행하며, 승인이 필요하면 멈추고 알려드릴게요.";
           send({ type: "run_created", run: { id: created.run.id, goal: created.run.goal, status: created.run.status, progress: created.run.progress, currentStepKey: created.run.current_step_key || undefined } });
@@ -835,11 +837,12 @@ export async function POST(req: NextRequest) {
         // 실행 순서 자체는 항상 모델이 나열한 순서 그대로 보장된다(2026-08-15, 코드 요청서 1번 항목).
         let request: StreamingRequest = {
           instructions,
-          input: toInputMessages(history, message, context, pageContext, temporalHint),
+          input: toInputMessages(history, message, effectiveContext, pageContext, temporalHint),
           tools: selectedTools,
           parallel_tool_calls: true,
+          ...(requiredFollowupTool ? { tool_choice: { type: "function" as const, name: requiredFollowupTool } } : {}),
         };
-        let workingContext = context;
+        let workingContext = effectiveContext;
         let finalText = "";
         let latestResourceMetadata: Record<string, unknown> = {};
         const executedToolCalls = new Set<string>();

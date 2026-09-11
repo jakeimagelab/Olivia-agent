@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCanonicalRecentUserText, getOliviaToolDomains, resolveRequiredFollowupTool, resolveToollessActionRetry, selectOliviaTools } from "./toolSelection";
+import { buildCanonicalRecentUserText, getOliviaToolDomains, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "./toolSelection";
 import type { OliviaContextSnapshot } from "./types";
 import { getSelectedContiSceneId } from "./toolExecutors/conti";
 
@@ -72,6 +72,32 @@ describe("selectOliviaTools", () => {
     expect(resolveToollessActionRetry(0, "create_quote", 0)).toEqual({ type: "function", name: "create_quote" });
     expect(resolveToollessActionRetry(1, "create_quote", 0)).toBeUndefined();
     expect(resolveToollessActionRetry(0, "create_quote", 1)).toBeUndefined();
+  });
+
+  it("총액 조정 승인과 짧은 실행 요청을 apply_quote_rebalance로 복원한다", () => {
+    const availableToolNames = ["rebalance_quote_total", "apply_quote_rebalance"];
+    expect(resolveRequiredFollowupTool({
+      message: "맞아 230만원으로 맞추면 돼",
+      recentText: "리나 클리닉 견적서 총액 230만원으로 조정",
+      availableToolNames,
+    })).toBe("apply_quote_rebalance");
+    expect(resolveRequiredFollowupTool({
+      message: "해 줘",
+      recentText: "리나 클리닉 견적서 230만원으로 맞추면 돼",
+      availableToolNames,
+    })).toBe("apply_quote_rebalance");
+  });
+
+  it("Telegram의 빈 화면 context를 최근 assistant 문서 metadata로 복원한다", () => {
+    expect(restoreDocumentContextFromHistory(baseContext, [
+      { metadata: { resourceType: "quote", resourceId: "quote-lina", clientId: "client-lina" } },
+    ])).toMatchObject({
+      activeWorkspace: "quote",
+      activeResourceId: "quote-lina",
+      currentDocumentType: "quote",
+      currentDocumentId: "quote-lina",
+      activeClientId: "client-lina",
+    });
   });
 
   it("A. 견적 최종 승인이 가능하면 publish 도구를 후보에 포함한다", () => {

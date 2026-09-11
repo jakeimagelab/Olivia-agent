@@ -80,4 +80,10 @@ describe("Olivia Context와 Model Router", () => {
     expect(classifyOliviaRequest("50으로", context)).toBe("TOOL_ACTION");
     expect(classifyOliviaRequest("브랜드 전략 전체 분석해줘", context)).toBe("REASONING");
   });
+
+  it("Telegram의 짧은 승인·실행 표현을 TOOL_ACTION으로 분류한다", () => {
+    const context: OliviaContextSnapshot = { recentActions: [], revision: 0 };
+    expect(classifyOliviaRequest("해 줘", context)).toBe("TOOL_ACTION");
+    expect(classifyOliviaRequest("맞아 230만원으로 맞추면 돼", context)).toBe("TOOL_ACTION");
+  });
 });
