@@ -1,7 +1,7 @@
 # Olivia Mobile OS 개선 구현 계획
 
 1. 모바일 Home Header만 포토클리닉 마크·딥그린 Surface로 변경하고, 기능별 Header에는 로고를 넣지 않는다.
-2. Quick Menu와 Bottom Navigation을 Desktop `AppIcon`·`CalendarAppIcon`으로 교체하고 하단 바를 오렌지로 변경한다.
+2. Quick Menu와 Bottom Navigation을 Desktop `AppIcon`·`CalendarAppIcon`으로 유지하고 하단 바는 기존 White·Mint 스타일로 복원한다.
 3. 각 기능 Header 제목을 16px로 조정하고 화면별 Subtitle을 연결한다.
 4. Desktop Quote/Contract 문서 Renderer를 공용화하고 Mobile Preview가 같은 Renderer를 사용하게 한다.
 5. 기존 Olivia Conversation Guide를 모바일 채팅 오른쪽 Rail과 탭 기반 패널로 연결한다.
