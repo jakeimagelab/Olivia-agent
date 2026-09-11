@@ -88,7 +88,7 @@ export default function MobileMemo() {
 
   return (
     <section className={styles.screenWithHeader} aria-label="모바일 메모">
-      <MobileHeader title="메모" onAdd={() => setDraft({ title: "", body: "", clientId: "" })} />
+      <MobileHeader title="메모" subtitle="아이디어와 업무 기록을 정리하세요." onAdd={() => setDraft({ title: "", body: "", clientId: "" })} />
       <div className={styles.scrollBody}>
         <label className={styles.searchField}><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="메모 검색" /></label>
         <div className={styles.listHeading}><h3>최근 메모</h3><span>{filtered.length}</span></div>
@@ -113,4 +113,3 @@ export default function MobileMemo() {
     </section>
   );
 }
-

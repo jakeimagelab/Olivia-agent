@@ -51,9 +51,10 @@ export const OliviaConversationNavigator = memo(function OliviaConversationNavig
 type GuideProps = NavigationProps & {
   selectedId?: string;
   onSelect: (messageId?: string) => void;
+  mobile?: boolean;
 };
 
-export const OliviaConversationGuide = memo(function OliviaConversationGuide({ exchanges, activeId, selectedId, onNavigate, onSelect }: GuideProps) {
+export const OliviaConversationGuide = memo(function OliviaConversationGuide({ exchanges, activeId, selectedId, onNavigate, onSelect, mobile = false }: GuideProps) {
   const selected = exchanges.find((exchange) => exchange.userMessageId === selectedId);
   const lastWheelAtRef = useRef(0);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -107,12 +108,13 @@ export const OliviaConversationGuide = memo(function OliviaConversationGuide({ e
   return (
     <aside
       className="olivia-message-guide"
-      aria-label="긴 대화 위치 가이드"
-      title="마우스를 올려 내용을 보고, 휠로 대화 위치를 이동하세요"
+      aria-label={mobile ? "대화 기록 네비게이터" : "긴 대화 위치 가이드"}
+      title={mobile ? "탭해서 대화 내용을 확인하세요" : "마우스를 올려 내용을 보고, 휠로 대화 위치를 이동하세요"}
+      data-mobile={mobile ? "true" : undefined}
       style={popoverTop == null ? undefined : ({ "--olivia-guide-popover-y": `${popoverTop}px` } as CSSProperties)}
-      onMouseEnter={cancelClose}
-      onMouseLeave={scheduleClose}
-      onWheel={handleWheel}
+      onMouseEnter={mobile ? undefined : cancelClose}
+      onMouseLeave={mobile ? undefined : scheduleClose}
+      onWheel={mobile ? undefined : handleWheel}
     >
       <div className="olivia-message-guide__ticks">
         {exchanges.map((exchange) => (
@@ -124,14 +126,14 @@ export const OliviaConversationGuide = memo(function OliviaConversationGuide({ e
             aria-label={`${exchange.timeLabel} ${exchange.topicLabel} · ${exchange.userText}`}
             aria-pressed={selectedId === exchange.userMessageId}
             aria-haspopup="dialog"
-            onMouseEnter={(event) => selectFromTick(event, exchange.userMessageId)}
-            onFocus={() => onSelect(exchange.userMessageId)}
+            onMouseEnter={mobile ? undefined : (event) => selectFromTick(event, exchange.userMessageId)}
+            onFocus={mobile ? undefined : () => onSelect(exchange.userMessageId)}
             onClick={() => onSelect(selectedId === exchange.userMessageId ? undefined : exchange.userMessageId)}
           ><span aria-hidden="true" /></button>
         ))}
       </div>
       {selected ? (
-        <div className="olivia-message-guide__popover" role="dialog" aria-modal="false" aria-label="대화 내용 미리보기" onMouseEnter={cancelClose}>
+        <div className="olivia-message-guide__popover" role="dialog" aria-modal="false" aria-label="대화 내용 미리보기" onMouseEnter={mobile ? undefined : cancelClose}>
           <button className="olivia-message-guide__close" type="button" onClick={() => onSelect(undefined)} aria-label="닫기"><X size={13} /></button>
           <time><Clock3 size={11} /> {selected.dateLabel} {selected.timeLabel}</time>
           <span className="olivia-message-guide__topic" data-topic={selected.topicKey}>{selected.topicLabel}</span>

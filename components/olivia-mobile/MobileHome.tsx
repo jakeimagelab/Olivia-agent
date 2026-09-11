@@ -1,18 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  CalendarDays,
   ChevronRight,
   Clock3,
   Eye,
-  FileArchive,
-  FileSignature,
-  MessageCircle,
   Sparkles,
-  StickyNote,
 } from "lucide-react";
-import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
+import { AppIcon as DesktopAppIcon, type IconName } from "@/components/AppIcon";
+import { CalendarAppIcon } from "@/components/olivia-os/CalendarAppIcon";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type { MobilePrimaryView, MobileResourceType } from "@/lib/olivia/mobile/navigation";
@@ -30,13 +27,44 @@ import styles from "./OliviaMobileShell.module.css";
 type CalendarTask = { id: string; title: string; time?: string | null; location?: string | null };
 
 const QUICK_ITEMS = [
-  { id: "calendar", label: "캘린더", description: "오늘 일정 확인", Icon: CalendarDays },
-  { id: "memo", label: "메모", description: "아이디어 / 업무 기록", Icon: StickyNote },
-  { id: "quote-contract", label: "견적/계약", description: "작성 및 진행 상태", Icon: FileSignature },
-  { id: "library", label: "문서함", description: "파일 한곳에", Icon: FileArchive },
-  { id: "chat", label: "올리비아 채팅", description: "Olivia에게 업무 지시", Icon: MessageCircle },
-  { id: "preview", label: "미리보기", description: "현재 작업 결과 확인", Icon: Eye },
+  { id: "calendar", label: "캘린더", description: "오늘 일정 확인" },
+  { id: "memo", label: "메모", description: "아이디어 / 업무 기록", iconName: "memo" },
+  { id: "quote-contract", label: "견적/계약", description: "작성 및 진행 상태" },
+  { id: "library", label: "문서함", description: "파일 한곳에", iconName: "library" },
+  { id: "chat", label: "올리비아 채팅", description: "Olivia에게 업무 지시", iconName: "olivia" },
+  { id: "preview", label: "미리보기", description: "현재 작업 결과 확인" },
 ] as const;
+
+function QuickMenuIcon({
+  id,
+  iconName,
+  resource,
+}: {
+  id: typeof QUICK_ITEMS[number]["id"];
+  iconName?: IconName;
+  resource: MobileResource | null;
+}) {
+  if (id === "calendar") return <CalendarAppIcon />;
+  if (id === "quote-contract") return (
+    <span className={styles.quickIconPair} aria-hidden="true">
+      <DesktopAppIcon name="quote" size={31} />
+      <DesktopAppIcon name="contract" size={31} />
+    </span>
+  );
+  if (id === "preview") {
+    const resourceIcon: IconName | undefined = resource?.type === "quote"
+      ? "quote"
+      : resource?.type === "contract"
+        ? "contract"
+        : resource?.type === "storyboard"
+          ? "storyboard"
+          : resource
+            ? "library"
+            : undefined;
+    return resourceIcon ? <DesktopAppIcon name={resourceIcon} size={42} /> : <Eye size={21} strokeWidth={1.7} />;
+  }
+  return iconName ? <DesktopAppIcon name={iconName} size={42} /> : null;
+}
 
 function seoulDate() {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
@@ -148,18 +176,20 @@ export default function MobileHome({
   };
 
   return (
-    <section className={styles.screen} aria-label="Olivia 모바일 홈">
-      <div className={styles.homeBrand}>
-        <span className={styles.homeBrandMark}><OliviaIcon size={20} /></span>
-        <strong>OLIVIA</strong>
-      </div>
+    <section className={`${styles.screen} ${styles.homeScreen}`} aria-label="Olivia 모바일 홈">
+      <header className={styles.homeHeader}>
+        <div className={styles.homeBrand}>
+          <span className={styles.homeBrandMark}><Image src="/assets/photoclinic-mark.png" alt="" width={30} height={30} priority /></span>
+          <span><strong>PHOTO CLINIC</strong><small>OLIVIA MOBILE</small></span>
+        </div>
+      </header>
       <div className={styles.homeGreeting}>
         <h1>안녕하세요,<br />오늘도 좋은 하루 되세요! <span>👋</span></h1>
         <p>포토클리닉 스튜디오</p>
       </div>
 
       <button type="button" className={`${styles.card} ${styles.todayCard}`} onClick={() => onNavigate("calendar")}>
-        <span className={styles.todayIcon}><CalendarDays size={20} /></span>
+        <span className={styles.todayIcon}><CalendarAppIcon /></span>
         <span><strong>오늘 일정</strong><small>{loading ? "일정을 확인하고 있어요." : `${todayTasks.length}개의 일정이 있어요.`}</small></span>
         <ChevronRight size={20} />
       </button>
@@ -175,9 +205,9 @@ export default function MobileHome({
       <section className={styles.homeSection}>
         <h2 className={styles.sectionLabel}>빠른 메뉴</h2>
         <div className={styles.quickGrid}>
-          {QUICK_ITEMS.map(({ id, label, description, Icon }) => (
+          {QUICK_ITEMS.map(({ id, label, description, ...item }) => (
             <button type="button" key={id} onClick={() => handleQuick(id)}>
-              <span><Icon size={20} strokeWidth={1.7} /></span>
+              <span className={styles.quickIcon}><QuickMenuIcon id={id} iconName={"iconName" in item ? item.iconName : undefined} resource={resource} /></span>
               <strong>{label}</strong>
               <small>{id === "preview" && !resource ? "현재 작업 없음" : description}</small>
             </button>

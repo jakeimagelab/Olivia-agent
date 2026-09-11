@@ -68,7 +68,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isComposingRef = useRef(false);
   const exchanges = useMemo(() => buildConversationExchanges(messages), [messages]);
-  const showConversationGuide = variant !== "home" && variant !== "mobile" && exchanges.length >= 4;
+  const showConversationGuide = variant !== "home" && exchanges.length >= 4;
   const exchangeByUserMessageId = useMemo(() => {
     const map = new Map<string, (typeof exchanges)[number]>();
     for (const exchange of exchanges) map.set(exchange.userMessageId, exchange);
@@ -364,7 +364,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       {variant === "workspace" ? <OliviaChatContextBanner /> : null}
 
       <div className={`olivia-conversation__stage${showConversationGuide ? " has-guide" : ""}`}>
-        {isHome ? null : <OliviaConversationNavigator exchanges={exchanges} activeId={activeMessageId} onNavigate={scrollToMessage} />}
+        {isHome || isMobile ? null : <OliviaConversationNavigator exchanges={exchanges} activeId={activeMessageId} onNavigate={scrollToMessage} />}
         <div className="olivia-conversation__main">
       <OliviaEngineBackground active={isStreaming} />
       <div ref={listRef} className="olivia-conversation__messages" aria-live="polite">
@@ -499,7 +499,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         </div>
       ) : null}
         </div>
-        {showConversationGuide ? <OliviaConversationGuide exchanges={exchanges} activeId={activeMessageId} selectedId={selectedGuideId} onNavigate={scrollToMessage} onSelect={setSelectedGuideId} /> : null}
+        {showConversationGuide ? <OliviaConversationGuide exchanges={exchanges} activeId={activeMessageId} selectedId={selectedGuideId} onNavigate={scrollToMessage} onSelect={setSelectedGuideId} mobile={isMobile} /> : null}
       </div>
     </section>
   );

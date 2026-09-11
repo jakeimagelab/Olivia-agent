@@ -2743,7 +2743,16 @@
 }
 .olivia-message.is-user { align-self: flex-end; flex-direction: row-reverse; }
 .olivia-message__avatar { width: 22px; height: 22px; flex: 0 0 22px; display: grid; place-items: center; border-radius: 50%; background: var(--olivia-orange); color: #fff; }
-.olivia-message__body { min-width: 20px; padding: 9px 12px; border-radius: 15px 15px 15px 5px; background: rgba(255,255,255,.9); color: #243a36; box-shadow: 0 5px 18px rgba(21,88,85,.05); font-size: 11px; line-height: 1.6; }
+.olivia-message__body { min-width: 20px; padding: 9px 12px; border-radius: 15px 15px 15px 5px; background: rgba(255,255,255,.9); color: #243a36; box-shadow: 0 5px 18px rgba(21,88,85,.05); font-size: 11px; line-height: 1.6; -webkit-user-select: text; user-select: text; }
+.olivia-message__body :where(div,span,p,ol,ul,li,strong,em,code,pre,a) { -webkit-user-select: text; user-select: text; }
+.olivia-message__body :where(button,button *),
+.olivia-message__body :where([role="button"],[role="button"] *),
+.olivia-resource-card,
+.olivia-resource-card *,
+.olivia-chat-message-attachments > a,
+.olivia-chat-message-attachments > a *,
+.olivia-approval-card__actions,
+.olivia-approval-card__actions * { -webkit-user-select: none; user-select: none; }
 .olivia-message.is-user .olivia-message__body { border-radius: 15px 15px 5px 15px; background: var(--olivia-green); color: #fff; box-shadow: 0 7px 20px rgba(21,88,85,.16); }
 .olivia-message__body p { margin: 0; }
 .olivia-message__error { color: #9e4327; }

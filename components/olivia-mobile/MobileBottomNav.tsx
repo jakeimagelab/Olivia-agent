@@ -1,15 +1,16 @@
 "use client";
 
-import { CalendarDays, FileText, Home, MessageCircle, StickyNote } from "lucide-react";
+import { AppIcon as DesktopAppIcon, type IconName } from "@/components/AppIcon";
+import { CalendarAppIcon } from "@/components/olivia-os/CalendarAppIcon";
 import type { MobilePrimaryView } from "@/lib/olivia/mobile/navigation";
 import styles from "./OliviaMobileShell.module.css";
 
-const ITEMS: Array<{ view: MobilePrimaryView; label: string; Icon: typeof Home }> = [
-  { view: "home", label: "홈", Icon: Home },
-  { view: "calendar", label: "캘린더", Icon: CalendarDays },
-  { view: "memo", label: "메모", Icon: StickyNote },
-  { view: "documents", label: "문서", Icon: FileText },
-  { view: "chat", label: "올리비아 채팅", Icon: MessageCircle },
+const ITEMS: Array<{ view: MobilePrimaryView; label: string; iconName?: IconName; calendar?: boolean }> = [
+  { view: "home", label: "홈", iconName: "today" },
+  { view: "calendar", label: "캘린더", calendar: true },
+  { view: "memo", label: "메모", iconName: "memo" },
+  { view: "documents", label: "문서", iconName: "library" },
+  { view: "chat", label: "올리비아 채팅", iconName: "olivia" },
 ];
 
 export default function MobileBottomNav({
@@ -21,7 +22,7 @@ export default function MobileBottomNav({
 }) {
   return (
     <nav className={styles.bottomNav} aria-label="모바일 주요 메뉴">
-      {ITEMS.map(({ view, label, Icon }) => (
+      {ITEMS.map(({ view, label, iconName, calendar }) => (
         <button
           key={view}
           type="button"
@@ -29,11 +30,12 @@ export default function MobileBottomNav({
           aria-current={activeView === view ? "page" : undefined}
           onClick={() => onNavigate(view)}
         >
-          <Icon size={20} strokeWidth={1.8} />
-          <span>{label}</span>
+          <span className={styles.bottomNavIcon} aria-hidden="true">
+            {calendar ? <CalendarAppIcon /> : iconName ? <DesktopAppIcon name={iconName} size={28} /> : null}
+          </span>
+          <span className={styles.bottomNavLabel}>{label}</span>
         </button>
       ))}
     </nav>
   );
 }
-

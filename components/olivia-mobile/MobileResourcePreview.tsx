@@ -5,7 +5,8 @@ import { Download, MessageCircle, Share2 } from "lucide-react";
 import type { MobileNavigationState } from "@/lib/olivia/mobile/navigation";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import MobileHeader from "./MobileHeader";
-import { MobileContractDocument, MobileGenericDocument, MobileQuoteDocument } from "./MobileResourceDocument";
+import { MobileGenericDocument } from "./MobileResourceDocument";
+import { MobileCanonicalContractDocument, MobileCanonicalQuoteDocument } from "./MobileCanonicalDocuments";
 import styles from "./OliviaMobileShell.module.css";
 
 type PreviewNavigation = Extract<MobileNavigationState, { view: "preview" }>;
@@ -33,6 +34,7 @@ export default function MobileResourcePreview({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState<"share" | "download" | null>(null);
   const paperRef = useRef<HTMLDivElement>(null);
+  const contractFrameRef = useRef<HTMLIFrameElement>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -102,6 +104,28 @@ export default function MobileResourcePreview({
         anchor.href = payload.url;
         anchor.download = "견적서.pdf";
         anchor.click();
+      } else if (resource.resourceType === "contract" && contractFrameRef.current?.contentDocument) {
+        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
+        const frameDocument = contractFrameRef.current.contentDocument;
+        if (frameDocument.fonts?.ready) await frameDocument.fonts.ready;
+        await Promise.all(Array.from(frameDocument.images).map((image) => image.complete ? Promise.resolve() : new Promise<void>((resolve) => {
+          image.onload = () => resolve();
+          image.onerror = () => resolve();
+        })));
+        const pages = Array.from(frameDocument.querySelectorAll<HTMLElement>(".contract-page"));
+        if (!pages.length) throw new Error("계약서 페이지를 찾지 못했어요.");
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+        for (const [index, page] of pages.entries()) {
+          const rect = page.getBoundingClientRect();
+          const canvas = await html2canvas(page, {
+            scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false,
+            width: Math.ceil(rect.width), height: Math.ceil(rect.height), windowWidth: Math.ceil(rect.width), windowHeight: Math.ceil(rect.height),
+            scrollX: 0, scrollY: 0,
+          });
+          if (index > 0) pdf.addPage();
+          pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 210, 297);
+        }
+        pdf.save("Olivia_계약서.pdf");
       } else if (paperRef.current) {
         const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
         const canvas = await html2canvas(paperRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
@@ -135,10 +159,10 @@ export default function MobileResourcePreview({
 
   return (
     <section className={`${styles.screenWithHeader} ${styles.previewScreen}`} aria-label="모바일 문서 미리보기">
-      <MobileHeader title="미리보기" onBack={onBack} onMore={() => void share()} />
+      <MobileHeader title="미리보기" subtitle="현재 문서의 최신 내용을 확인하세요." onBack={onBack} onMore={() => void share()} />
       <div className={styles.previewScroll}>
         {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void load()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>최신 문서를 불러오고 있어요...</div> : data ? <div ref={paperRef}>
-          {resource.resourceType === "quote" ? <MobileQuoteDocument quote={data} /> : resource.resourceType === "contract" ? <MobileContractDocument contract={data} /> : <MobileGenericDocument document={data} resourceType={resource.resourceType} />}
+          {resource.resourceType === "quote" ? <MobileCanonicalQuoteDocument quote={data} /> : resource.resourceType === "contract" ? <MobileCanonicalContractDocument contract={data} frameRef={contractFrameRef} /> : <MobileGenericDocument document={data} resourceType={resource.resourceType} />}
         </div> : null}
       </div>
       {notice ? <div className={styles.previewNotice}>{notice}</div> : null}

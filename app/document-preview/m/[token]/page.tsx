@@ -1,24 +1,9 @@
 import { notFound } from "next/navigation";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import QuotePreviewMobile, { type PreviewQuote } from "@/components/quote-preview/QuotePreviewMobile";
+import { MobileCanonicalContractDocument, MobileCanonicalQuoteDocument } from "@/components/olivia-mobile/MobileCanonicalDocuments";
 import { verifyTemporaryDocumentShareToken } from "@/lib/olivia/documents/temporaryDocumentShares";
 
 export const dynamic = "force-dynamic";
-
-function quotePreview(row: Record<string, unknown>): PreviewQuote {
-  const form = row.form_state && typeof row.form_state === "object" ? row.form_state as Record<string, unknown> : {};
-  return {
-    quoteNumber: String(row.quote_number || ""), title: String(row.title || ""), hospitalName: String(row.hospital_name || ""),
-    quoteDate: String(row.quote_date || ""), shootDate: String(row.shoot_date || ""), validUntil: String(row.valid_until || ""),
-    items: Array.isArray(row.items) ? row.items as PreviewQuote["items"] : [], supplyAmount: Number(row.supply_amount) || 0,
-    discountAmount: Number(row.discount_amount) || 0, vat: Number(row.vat) || 0, totalAmount: Number(row.total_amount) || 0,
-    depositAmount: Number(row.deposit_amount) || 0, balanceAmount: Number(row.balance_amount) || 0,
-    depositRate: Number(row.deposit_rate) || 50, memos: String(row.memos || ""), status: String(row.status || "draft"),
-    brand: form.brand === "jakeimage" ? "jakeimage" : "photoclinic", updatedAt: String(row.updated_at || ""),
-  };
-}
-
-const won = (value: unknown) => `${(Number(value) || 0).toLocaleString("ko-KR")}원`;
 
 function MobileDocument({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return <main style={{ minHeight: "100vh", background: "#FAF7F2", fontFamily: "Pretendard, sans-serif", color: "#222" }}>
@@ -28,26 +13,6 @@ function MobileDocument({ title, subtitle, children }: { title: string; subtitle
     </header>
     <div style={{ maxWidth: 620, margin: "0 auto", padding: 14 }}>{children}</div>
   </main>;
-}
-
-function ContractPreview({ row }: { row: Record<string, unknown> }) {
-  const quote = row.quote_data && typeof row.quote_data === "object" ? row.quote_data as Record<string, unknown> : {};
-  const items = Array.isArray(quote.items) ? quote.items as Record<string, unknown>[] : [];
-  const hospital = String(row.hospital_name || quote.hospitalName || "고객");
-  return <MobileDocument title={`${hospital} 계약서`} subtitle="촬영 계약서">
-    <section style={{ background: "white", borderRadius: 12, padding: 14, border: "1px solid rgba(21,88,85,.12)" }}>
-      <p style={{ marginTop: 0, fontSize: 13, color: "#667" }}>담당자 {String(row.contact_name || quote.contactName || "-")} · {String(row.email || quote.email || "-")}</p>
-      {items.map((item, index) => <div key={String(item.id || index)} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 0", borderTop: "1px solid #eee", fontSize: 13 }}>
-        <span>{String(item.name || "계약 항목")}</span><b>{won(item.subtotal)}</b>
-      </div>)}
-      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 14, marginTop: 4, borderTop: "2px solid #155855" }}><b>총 계약금액</b><b style={{ color: "#E85D2C", fontSize: 19 }}>{won(quote.totalAmount ?? quote.total_amount)}</b></div>
-    </section>
-    {[row.payment_terms, row.delivery_terms, row.special_terms].filter(Boolean).length ? <section style={{ marginTop: 12, background: "white", borderRadius: 12, padding: 14, fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
-      {row.payment_terms ? <p><b>결제 조건</b><br />{String(row.payment_terms)}</p> : null}
-      {row.delivery_terms ? <p><b>납품 조건</b><br />{String(row.delivery_terms)}</p> : null}
-      {row.special_terms ? <p><b>특약</b><br />{String(row.special_terms)}</p> : null}
-    </section> : null}
-  </MobileDocument>;
 }
 
 function ContiPreview({ run, groups, scenes }: { run: Record<string, unknown>; groups: Record<string, unknown>[]; scenes: Record<string, unknown>[] }) {
@@ -71,8 +36,8 @@ export default async function TemporaryDocumentPreview({ params }: { params: Pro
   if (!document) notFound();
   const { data: source } = await db.from(document.source_table).select("*").eq("id", document.source_id).maybeSingle();
   if (!source) notFound();
-  if (document.source_table === "quotes") return <QuotePreviewMobile initialQuote={quotePreview(source)} />;
-  if (document.source_table === "contracts") return <ContractPreview row={source} />;
+  if (document.source_table === "quotes") return <MobileDocument title="견적서" subtitle="7일 문서 미리보기"><MobileCanonicalQuoteDocument quote={source} /></MobileDocument>;
+  if (document.source_table === "contracts") return <MobileDocument title="계약서" subtitle="7일 문서 미리보기"><MobileCanonicalContractDocument contract={source} /></MobileDocument>;
   if (document.source_table === "conti_runs") {
     const [{ data: groups }, { data: scenes }] = await Promise.all([
       db.from("conti_groups").select("*").eq("run_id", document.source_id).order("sort"),

@@ -23,6 +23,7 @@
 - 모바일의 상단 헤더 배경은 Olivia Deep Green을 사용한다.
 - 브랜드 이미지는 Desktop Top Bar와 같은 `/assets/photoclinic-mark.png`를 사용한다.
 - 마크 옆에는 `PHOTO CLINIC`을 표시한다. 배경과 대비가 약한 전체 로고 이미지를 억지로 축소하지 않는다.
+- 포토클리닉 로고는 Home Header에만 표시한다. 기능별 Header에는 반복해서 넣지 않는다.
 - Home의 기존 Olivia Sparkle 배지는 포토클리닉 마크로 교체한다.
 - 기능별 Header의 뒤로가기·추가·더보기 아이콘은 흰색 계열로 표시한다.
 

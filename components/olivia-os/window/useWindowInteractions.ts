@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, type Dispatch, type RefObject, type Set
 import { DESKTOP_DOCK_SAFE_AREA, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { computeSnapZone, resolveSnapBounds } from "./snapZones";
 import { findDockParent, resolveDockLayout, WINDOW_DOCK_GAP, type WindowDockLayout } from "./windowDocking";
+import { bindWindowInteractionCancellation } from "./windowInteractionCleanup";
 
 const MIN_VISIBLE_HEADER = 40;
 const EDGE_GAP = 12;
@@ -71,9 +72,11 @@ export function useWindowInteractions(
 
     let finished = false;
     let pendingDock: { parentId: string; layout: WindowDockLayout } | null = null;
+    let releaseCancellationListeners = () => {};
     const finish = (applySnap: boolean) => {
       if (finished) return;
       finished = true;
+      releaseCancellationListeners();
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancel);
@@ -116,6 +119,10 @@ export function useWindowInteractions(
     };
     const up = () => finish(true);
     const cancel = () => finish(false);
+    releaseCancellationListeners = bindWindowInteractionCancellation({
+      captureTarget,
+      onCancel: cancel,
+    });
     cleanupRef.current = () => finish(false);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up, { once: true });
@@ -149,9 +156,11 @@ export function useWindowInteractions(
     const maxWidth = Math.max(minWidth, workspace.clientWidth - win.x - EDGE_GAP - followerWidth);
     const maxHeight = Math.max(minHeight, workspace.clientHeight - DESKTOP_DOCK_SAFE_AREA - win.y - EDGE_GAP);
     let finished = false;
+    let releaseCancellationListeners = () => {};
     const finish = () => {
       if (finished) return;
       finished = true;
+      releaseCancellationListeners();
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", finish);
@@ -170,6 +179,10 @@ export function useWindowInteractions(
       const nextHeight = handle === "e" ? originHeight : Math.min(maxHeight, Math.max(minHeight, originHeight + dy));
       resizeWindow(windowId, Math.round(nextWidth), Math.round(nextHeight));
     };
+    releaseCancellationListeners = bindWindowInteractionCancellation({
+      captureTarget,
+      onCancel: finish,
+    });
     cleanupRef.current = finish;
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finish, { once: true });

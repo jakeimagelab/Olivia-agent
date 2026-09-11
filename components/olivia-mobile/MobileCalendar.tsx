@@ -135,7 +135,7 @@ export default function MobileCalendar() {
 
   return (
     <section className={styles.screenWithHeader} aria-label="모바일 캘린더">
-      <MobileHeader title="캘린더" onAdd={() => setDraft(emptyDraft(selectedDate))} />
+      <MobileHeader title="캘린더" subtitle="오늘과 다가오는 일정을 확인하세요." onAdd={() => setDraft(emptyDraft(selectedDate))} />
       <div className={styles.scrollBody}>
         <div className={styles.segmented}>
           {VIEW_LABELS.map((item) => <button key={item.id} type="button" className={view === item.id ? styles.segmentedActive : undefined} onClick={() => { setView(item.id); if (item.id === "today") setSelectedDate(dateKey()); }}>{item.label}</button>)}

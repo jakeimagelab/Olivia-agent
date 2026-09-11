@@ -132,7 +132,7 @@ export default function MobileDocuments({
 
   return (
     <section className={styles.screenWithHeader} aria-label="모바일 문서">
-      <MobileHeader title="문서" />
+      <MobileHeader title="문서" subtitle="견적·계약과 저장된 문서를 확인하세요." />
       <div className={styles.scrollBody}>
         <div className={styles.segmented}>
           <button type="button" className={section === "quote-contract" ? styles.segmentedActive : undefined} onClick={() => setSection("quote-contract")}>견적/계약</button>
