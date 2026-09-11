@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
-import { buildAgentQuoteData } from "@/lib/quote/agentQuote";
-import { parseKoreanCount, parseKoreanMoney, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
+import { buildAgentQuoteData, formatIncludedService, type QuoteIncludedService } from "@/lib/quote/agentQuote";
+import { parseKoreanCount, parseKoreanMoney, parseKoreanPercent, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
 import { addQuoteItem, quoteItems, recalculateQuote, removeQuoteItem, resolveQuoteItem, updateQuoteItem, type QuoteItem } from "@/lib/quote/quoteMutationService";
 import { linkNewClientToQuote, resolveQuoteClient } from "@/lib/olivia/tools/quoteClientLink";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
@@ -56,9 +56,36 @@ function quoteTarget(quote: Record<string, unknown>, input: Record<string, unkno
   return matches[0];
 }
 
+function quoteFormState(quote: Record<string, unknown>) {
+  return quote.form_state && typeof quote.form_state === "object" && !Array.isArray(quote.form_state)
+    ? quote.form_state as Record<string, any>
+    : {};
+}
+
+function quoteDiscountAmount(items: QuoteItem[], quote: Record<string, unknown>, formState = quoteFormState(quote)) {
+  const discount = formState.discount && typeof formState.discount === "object"
+    ? formState.discount as Record<string, unknown>
+    : null;
+  if (discount?.type === "percent") {
+    const subtotal = items.reduce((sum, item) => sum + Math.max(0, Number(item.subtotal) || 0), 0);
+    return Math.round(subtotal * Math.min(100, Math.max(0, Number(discount.value) || 0)) / 100);
+  }
+  return Number(quote.discount_amount) || 0;
+}
+
+function serviceType(value: unknown): QuoteIncludedService["type"] | undefined {
+  return (["profile", "staged", "group", "interior", "video", "other"] as const)
+    .find((candidate) => candidate === value);
+}
+
+function serviceCount(value: unknown, current: number | null | undefined) {
+  if (value == null) return current ?? null;
+  return parseKoreanCount(value as string | number) ?? current ?? null;
+}
+
 export const QUOTE_TOOL_NAMES = [
   "create_quote", "get_quote", "start_quote_wizard", "update_quote_item", "add_quote_item", "remove_quote_item",
-  "update_quote_note", "update_quote_info", "apply_quote_discount", "update_quote_vat_mode",
+  "update_quote_note", "update_quote_info", "update_quote_service", "apply_quote_discount", "update_quote_vat_mode",
   "rebalance_quote_total", "apply_quote_rebalance", "preview_quote", "request_quote_publish",
   "download_quote_pdf", "publish_quote", "resolve_quote_client", "link_new_client_to_quote",
 ] as const;
@@ -106,7 +133,7 @@ export async function executeQuoteTool(
       ...input,
       brand: isKnownDocumentBrand(context.brand) ? context.brand : input.brand,
       hospitalName,
-    }, workflowRunId);
+    }, workflowRunId, context.currentRequestText);
     if (clientId) (quoteData as Record<string, unknown>).clientId = clientId;
     const execution = await executeOliviaCrud(db, {
       operation: "create",
@@ -169,8 +196,23 @@ export async function executeQuoteTool(
       detail: input.description == null ? undefined : String(input.description),
       note: input.note == null ? undefined : String(input.note),
     });
-    const amounts = recalculateQuote(mutation.items, quote);
-    const updatedResource = await saveQuote(resourceId, { items: mutation.items, form_state: { ...((quote.form_state && typeof quote.form_state === "object") ? quote.form_state as Record<string, unknown> : {}), agentOverrideItems: true }, ...{
+    const existingFormState = quoteFormState(quote);
+    const isCustomPrimary = mutation.after.id === "custom:primary";
+    const formState = {
+      ...existingFormState,
+      agentOverrideItems: true,
+      ...(isCustomPrimary ? {
+        pricingMode: mutation.after.qty > 1 ? "custom_unit" : existingFormState.pricingMode,
+        pricing: {
+          ...(existingFormState.pricing && typeof existingFormState.pricing === "object" ? existingFormState.pricing : {}),
+          quantity: mutation.after.qty,
+          unitPrice: mutation.after.unitPrice,
+        },
+      } : {}),
+    };
+    const discountAmount = quoteDiscountAmount(mutation.items, quote, formState);
+    const amounts = recalculateQuote(mutation.items, { ...quote, form_state: formState }, discountAmount);
+    const updatedResource = await saveQuote(resourceId, { items: mutation.items, discount_amount: discountAmount, form_state: formState, ...{
       supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount,
       deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount,
     } });
@@ -202,8 +244,10 @@ export async function executeQuoteTool(
     const quantity = input.quantity == null ? 1 : parseKoreanCount(input.quantity as string | number);
     if (!quantity) throw new Error("추가할 수량을 확인해주세요.");
     const mutation = addQuoteItem(quote.items, { id: `agent:${crypto.randomUUID()}`, name: text(input, "name"), unitPrice: amount, qty: quantity, detail: text(input, "description"), note: text(input, "note") });
-    const amounts = recalculateQuote(mutation.items, quote);
-    const updatedResource = await saveQuote(resourceId, { items: mutation.items, form_state: { ...((quote.form_state && typeof quote.form_state === "object") ? quote.form_state as Record<string, unknown> : {}), agentOverrideItems: true }, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
+    const formState = { ...quoteFormState(quote), agentOverrideItems: true };
+    const discountAmount = quoteDiscountAmount(mutation.items, quote, formState);
+    const amounts = recalculateQuote(mutation.items, { ...quote, form_state: formState }, discountAmount);
+    const updatedResource = await saveQuote(resourceId, { items: mutation.items, discount_amount: discountAmount, form_state: formState, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
     return {
       tool: name, success: true,
       data: { resourceId, quoteId: resourceId, changedEntityId: mutation.created.id, updatedResource, summary: `${mutation.created.name} 항목을 추가했어요.`, totalAmount: amounts.totalAmount },
@@ -216,8 +260,10 @@ export async function executeQuoteTool(
     const quote = await loadQuote(resourceId);
     const target = quoteTarget(quote, input, context);
     const mutation = removeQuoteItem(quote.items, target.index);
-    const amounts = recalculateQuote(mutation.items, quote);
-    const updatedResource = await saveQuote(resourceId, { items: mutation.items, form_state: { ...((quote.form_state && typeof quote.form_state === "object") ? quote.form_state as Record<string, unknown> : {}), agentOverrideItems: true }, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
+    const formState = { ...quoteFormState(quote), agentOverrideItems: true };
+    const discountAmount = quoteDiscountAmount(mutation.items, quote, formState);
+    const amounts = recalculateQuote(mutation.items, { ...quote, form_state: formState }, discountAmount);
+    const updatedResource = await saveQuote(resourceId, { items: mutation.items, discount_amount: discountAmount, form_state: formState, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
     return {
       tool: name, success: true,
       data: { resourceId, quoteId: resourceId, changedEntityId: mutation.removed.id, before: mutation.removed, updatedResource, summary: `${mutation.removed.name} 항목을 뺐어요.`, totalAmount: amounts.totalAmount },
@@ -286,15 +332,85 @@ export async function executeQuoteTool(
     };
   }
 
+  if (name === "update_quote_service") {
+    const resourceId = activeResource(context, "quote");
+    const quote = await loadQuote(resourceId);
+    const formState = quoteFormState(quote);
+    const services = Array.isArray(formState.includedServices)
+      ? formState.includedServices.map((service: QuoteIncludedService) => ({ ...service }))
+      : [];
+    const requestedType = serviceType(input.serviceType);
+    const selector = text(input, "selector").replace(/\s+/g, "");
+    const matches = services.flatMap((service: QuoteIncludedService, index: number) => {
+      const typeMatches = requestedType ? service.type === requestedType : false;
+      const labelMatches = selector ? service.label.replace(/\s+/g, "").includes(selector) || selector.includes(service.label.replace(/\s+/g, "")) : false;
+      return typeMatches || labelMatches ? [{ service, index }] : [];
+    });
+    if (matches.length !== 1) {
+      throw new Error(matches.length > 1 ? "수정할 포함 서비스가 여러 개예요. 서비스 이름을 더 정확히 알려주세요." : "수정할 포함 서비스를 찾지 못했어요.");
+    }
+    const target = matches[0];
+    let nextServices: QuoteIncludedService[];
+    if (input.remove) {
+      nextServices = services.filter((_: QuoteIncludedService, index: number) => index !== target.index);
+    } else {
+      const next: QuoteIncludedService = {
+        ...target.service,
+        type: requestedType || target.service.type,
+        label: input.label == null ? target.service.label : String(input.label).trim() || target.service.label,
+        personCount: serviceCount(input.personCount, target.service.personCount),
+        cutCount: serviceCount(input.cutCount, target.service.cutCount),
+        conceptCount: serviceCount(input.conceptCount, target.service.conceptCount),
+        deliverableCount: serviceCount(input.deliverableCount, target.service.deliverableCount),
+        description: input.description == null ? target.service.description ?? null : String(input.description).trim() || null,
+      };
+      nextServices = services.map((service: QuoteIncludedService, index: number) => index === target.index ? next : service);
+    }
+    const paidItems = quoteItems(quote.items).filter((item) => !String(item.id || "").startsWith("service:"));
+    const serviceItems: QuoteItem[] = nextServices.map((service, index) => ({
+      id: `service:${service.type}:${index}`,
+      name: formatIncludedService(service),
+      detail: "",
+      unitPrice: 0,
+      qty: 1,
+      subtotal: 0,
+      note: "포함 서비스",
+    }));
+    const items = [...paidItems, ...serviceItems];
+    const nextFormState = {
+      ...formState,
+      includedServices: nextServices,
+      benefitItems: nextServices.map((service, index) => ({ id: `service:${service.type}:${index}`, name: formatIncludedService(service) })),
+    };
+    const updatedResource = await saveQuote(resourceId, { items, form_state: nextFormState });
+    return {
+      tool: name,
+      success: true,
+      data: {
+        resourceId,
+        quoteId: resourceId,
+        changedEntityId: `service:${target.service.type}:${target.index}`,
+        updatedResource,
+        summary: input.remove ? `${target.service.label}을 포함 서비스에서 뺐어요.` : `${formatIncludedService(nextServices[target.index])}으로 수정했어요.`,
+        totalAmount: Number(updatedResource.total_amount) || 0,
+      },
+      verification: createVerification({ executed: true, persisted: true, resourceExists: true, details: { totalAmount: Number(updatedResource.total_amount) || 0 } }),
+    };
+  }
+
   if (name === "apply_quote_discount") {
     const resourceId = activeResource(context, "quote");
     const quote = await loadQuote(resourceId);
     const items = Array.isArray(quote.items) ? quote.items as QuoteItem[] : [];
     const subtotal = items.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
-    const amount = input.remove ? 0 : input.percent != null ? Math.round(subtotal * Number(input.percent) / 100) : parseKoreanMoney(input.amount as string | number);
+    const percent = input.percent == null ? undefined : parseKoreanPercent(input.percent as string | number);
+    if (input.percent != null && percent === undefined) throw new Error("할인율은 0~100 사이로 알려주세요.");
+    const amount = input.remove ? 0 : percent != null ? Math.round(subtotal * percent / 100) : parseKoreanMoney(input.amount as string | number);
     if (amount === undefined || amount < 0) throw new Error("할인 금액을 확인해주세요.");
-    const amounts = recalculateQuote(items, quote, amount);
-    const updatedResource = await saveQuote(resourceId, { discount_amount: amount, form_state: { ...((quote.form_state && typeof quote.form_state === "object") ? quote.form_state as Record<string, unknown> : {}), extraDiscount: amount }, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
+    const discount = input.remove ? null : percent != null ? { type: "percent", value: percent } : { type: "amount", value: amount };
+    const nextFormState = { ...quoteFormState(quote), discount, discountRate: percent || 0, extraDiscount: percent == null ? amount : 0 };
+    const amounts = recalculateQuote(items, { ...quote, form_state: nextFormState }, amount);
+    const updatedResource = await saveQuote(resourceId, { discount_amount: amount, form_state: nextFormState, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
     return {
       tool: name, success: true,
       data: { resourceId, quoteId: resourceId, discountAmount: amount, updatedResource, summary: amount ? `${amount.toLocaleString("ko-KR")}원 할인을 적용했어요.` : "할인을 제거했어요.", totalAmount: amounts.totalAmount },

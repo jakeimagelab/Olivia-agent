@@ -57,15 +57,16 @@ export async function POST(req: NextRequest) {
     const clientId = body.clientId || await resolveClientId(supabase, body.hospitalName);
     const workflowRunId = await resolveWorkflowRunId(supabase, body.workflowRunId, clientId);
 
+    const provided = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
     const payload = {
       quote_number:    body.quoteNumber,
       title:           body.title ?? "",
       hospital_name:   body.hospitalName ?? "",
       client_id:       clientId,
       workflow_run_id: workflowRunId,
-      contact_name:    body.contactName ?? "",
-      phone:           body.phone ?? "",
-      email:           body.email ?? "",
+      contact_name:    provided("contactName") ? body.contactName : "",
+      phone:           provided("phone") ? body.phone : "",
+      email:           provided("email") ? body.email : "",
       quote_date:      body.quoteDate ?? "",
       shoot_date:      body.shootDate ?? null,
       valid_until:     body.validUntil ?? "",
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
       deposit_amount:  body.depositAmount ?? 0,
       balance_amount:  body.balanceAmount ?? 0,
       deposit_rate:    body.depositRate ?? 50,
+      package_id:      body.packageId ?? body.formState?.selectedPackageId ?? null,
       memos:           body.memos ?? null,
       form_state:      body.formState ?? null,
     };

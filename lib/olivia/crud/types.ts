@@ -20,6 +20,8 @@ export type OliviaCrudValueType = "string" | "number" | "boolean" | "object" | "
 
 export type OliviaCrudFieldRule = {
   type: OliviaCrudValueType;
+  /** `null` 자체가 "값을 비워 둠"이라는 유효한 입력인 필드. */
+  nullable?: boolean;
   requiredOnCreate?: boolean;
   enum?: readonly string[];
   min?: number;

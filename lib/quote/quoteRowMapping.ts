@@ -68,7 +68,7 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
 
   return {
     customer,
-    brand: "photoclinic",
+    brand: formState?.brand === "jakeimage" ? "jakeimage" : "photoclinic",
     quoteTitle: row.title || "",
     selectedPackageId: null,
     selectedSingleItemIds: [],

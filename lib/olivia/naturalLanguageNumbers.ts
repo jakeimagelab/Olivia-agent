@@ -9,7 +9,9 @@ function compact(value: string) {
 }
 
 function parseSimpleKoreanNumber(value: string): number | undefined {
-  const source = compact(value).replace(/(개|명|번|번째|컷)$/g, "");
+  // 호출부가 필드의 의미(인원/컷/컨셉/납품 장수)를 이미 알고 있는 상태에서 숫자만
+  // 정규화한다. 단위를 버린 숫자를 다른 필드에 재사용하지 않는 것이 중요하다.
+  const source = compact(value).replace(/(개|명|인|번|번째|컷|장|컨셉)$/g, "");
   if (/^\d+(?:\.\d+)?$/.test(source)) return Number(source);
   if (KOREAN_DIGITS[source] !== undefined) return KOREAN_DIGITS[source];
 
@@ -64,6 +66,15 @@ export function parseKoreanMoney(value: string | number): number | undefined {
 export function parseKoreanCount(value: string | number): number | undefined {
   const amount = typeof value === "number" ? value : parseSimpleKoreanNumber(value);
   return amount !== undefined && Number.isInteger(amount) && amount > 0 ? amount : undefined;
+}
+
+export function parseKoreanPercent(value: string | number): number | undefined {
+  const source = typeof value === "number"
+    ? value
+    : parseSimpleKoreanNumber(String(value).trim().replace(/\s*(?:%|프로|퍼센트)$/i, ""));
+  return source !== undefined && Number.isFinite(source) && source >= 0 && source <= 100
+    ? source
+    : undefined;
 }
 
 export function parseShotPosition(value: string | number): number | undefined {

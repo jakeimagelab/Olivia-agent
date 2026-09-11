@@ -84,7 +84,7 @@ async function resolveClient(
   opts: { createIfMissing?: boolean } = {},
 ) {
   if (typeof clientId === "string" && clientId) {
-    const { data } = await db.from("clients").select("id,hospital_name,contact_name,email").eq("id", clientId).maybeSingle();
+    const { data } = await db.from("clients").select("id,hospital_name,contact_name,phone,email").eq("id", clientId).maybeSingle();
     if (data) return data as Row;
   }
   if (typeof hospitalName === "string" && hospitalName.trim()) {
@@ -94,7 +94,7 @@ async function resolveClient(
     if (rows.length === 0 && opts.createIfMissing) {
       const { data: created, error } = await db.from("clients")
         .insert({ hospital_name: hospitalName.trim() })
-        .select("id,hospital_name,contact_name,email")
+        .select("id,hospital_name,contact_name,phone,email")
         .single();
       if (!error && created) return created as Row;
     }
@@ -215,14 +215,15 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
     const { data: existingQuote, error: existingQuoteError } = await db.from("quotes").select("id").eq("quote_number", number).limit(1).maybeSingle();
     if (existingQuoteError) dbError(existingQuoteError, "견적번호 중복 확인에 실패했습니다.");
     if (existingQuote) throw new OliviaCrudError(`견적번호 ${number}이 이미 존재합니다. 기존 견적을 수정해주세요.`, "INVALID_INPUT", { id: existingQuote.id });
+    const explicitlyProvided = (key: string) => Object.prototype.hasOwnProperty.call(data, key);
     const { data: row, error } = await db.from("quotes").insert({
       quote_number: number,
       title: data.title || "",
       hospital_name: client?.hospital_name || data.hospitalName,
       client_id: client?.id || null,
-      contact_name: data.contactName || client?.contact_name || "",
-      phone: data.phone || "",
-      email: data.email || client?.email || "",
+      contact_name: explicitlyProvided("contactName") ? data.contactName : client?.contact_name || null,
+      phone: explicitlyProvided("phone") ? data.phone : client?.phone || null,
+      email: explicitlyProvided("email") ? data.email : client?.email || null,
       quote_date: data.quoteDate || new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()),
       shoot_date: data.shootDate || null,
       valid_until: data.validUntil || "",
@@ -234,6 +235,7 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
       deposit_amount: data.depositAmount || 0,
       balance_amount: data.balanceAmount || 0,
       deposit_rate: data.depositRate ?? 50,
+      package_id: data.packageId ?? null,
       memos: data.memos || null,
       form_state: data.formState || null,
       workflow_run_id: data.workflowRunId || null,

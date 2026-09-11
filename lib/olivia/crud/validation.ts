@@ -31,6 +31,10 @@ export function validateOliviaCrudRequest(input: OliviaCrudRequest) {
   for (const [key, rawValue] of Object.entries(input.data)) {
     const rule = definition.fields[key];
     if (!rule || rawValue === undefined) continue;
+    if (rawValue === null && rule.nullable) {
+      data[key] = null;
+      continue;
+    }
     const value = normalizeValue(rawValue, rule.type);
     if (!matchesType(value, rule.type)) {
       errors.push(`${key} 형식이 올바르지 않습니다.`);

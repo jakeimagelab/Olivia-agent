@@ -5,6 +5,7 @@ const string = (maxLength = 2_000, requiredOnCreate = false) => ({
   maxLength,
   requiredOnCreate,
 });
+const nullableString = (maxLength = 2_000) => ({ type: "string" as const, maxLength, nullable: true });
 const number = (min = 0, max = Number.MAX_SAFE_INTEGER) => ({ type: "number" as const, min, max });
 const boolean = { type: "boolean" as const };
 const object = { type: "object" as const };
@@ -85,9 +86,9 @@ export const OLIVIA_CRUD_REGISTRY: Readonly<Record<OliviaCrudDomain, OliviaCrudD
       quoteNumber: string(100),
       title: string(240),
       hospitalName: string(200, true),
-      contactName: string(120),
-      phone: string(40),
-      email: string(320),
+      contactName: nullableString(120),
+      phone: nullableString(40),
+      email: nullableString(320),
       quoteDate: string(40),
       shootDate: string(40),
       validUntil: string(40),
@@ -99,6 +100,7 @@ export const OLIVIA_CRUD_REGISTRY: Readonly<Record<OliviaCrudDomain, OliviaCrudD
       depositAmount: number(),
       balanceAmount: number(),
       depositRate: number(0, 100),
+      packageId: nullableString(80),
       memos: string(10_000),
       formState: object,
       workflowRunId: string(80),

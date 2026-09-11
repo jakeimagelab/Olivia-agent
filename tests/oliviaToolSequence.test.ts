@@ -202,6 +202,32 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
     expect(execution.result.success).toBe(false);
   });
 
+  it("포함 서비스 수정은 새 견적을 만들지 않고 현재 quoteId의 row만 갱신한다", async () => {
+    Object.assign(quoteRow, {
+      items: [
+        { id: "custom:primary", name: "브랜드 촬영", unitPrice: 300_000, qty: 10, subtotal: 3_000_000 },
+        { id: "service:profile:0", name: "프로필 촬영 10명 2컷", unitPrice: 0, qty: 1, subtotal: 0 },
+      ],
+      form_state: {
+        pricingMode: "custom_unit",
+        includedServices: [{ type: "profile", label: "프로필 촬영", personCount: 10, cutCount: 2 }],
+      },
+    });
+    const execution = await executeAgentTool({
+      id: "quote-service-update",
+      name: "update_quote_service",
+      arguments: JSON.stringify({ selector: "프로필", serviceType: "profile", label: null, personCount: null, cutCount: 3, conceptCount: null, deliverableCount: null, description: null, remove: false }),
+    }, { ...context, activeWorkspace: "quote", activeResourceId: quoteRow.id });
+
+    expect(execution.result).toMatchObject({ success: true, data: { quoteId: quoteRow.id, resourceId: quoteRow.id } });
+    expect(quoteRow.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "custom:primary", subtotal: 3_000_000 }),
+      expect.objectContaining({ id: "service:profile:0", name: "프로필 촬영 10명 3컷", subtotal: 0 }),
+    ]));
+    expect(executionLog.filter((entry) => entry === "db:quote")).toHaveLength(0);
+    expect(executionLog).toContain("db:update:quotes");
+  });
+
   it("콘티 컷 추가는 같은 result JSON을 저장한 뒤 refresh한다", async () => {
     const execution = await executeAgentTool({ id: "conti-add", name: "add_conti_shots", arguments: JSON.stringify({ items: [{ category: "상담", keyword: null, personnel: null, location: null, description: null, notes: null }, { category: "상담", keyword: null, personnel: null, location: null, description: null, notes: null }], insertAfter: null }) }, {
       ...context, activeWorkspace: "conti", activeResourceId: contiRow.id,

@@ -48,6 +48,15 @@ describe("Olivia 기능별 생성·수정 검증", () => {
     expect(result.permission).toBe("owner_only");
   });
 
+  it("견적의 명시적 null 연락처와 packageId를 삭제하지 않는다", () => {
+    const result = validateOliviaCrudRequest({
+      operation: "create",
+      domain: "quote",
+      data: { hospitalName: "BGN성형외과", contactName: null, phone: null, email: null, packageId: null },
+    });
+    expect(result.data).toMatchObject({ contactName: null, phone: null, email: null, packageId: null });
+  });
+
   it("일반 메모와 일정은 별도 도메인 필드를 가진다", () => {
     const memo = validateOliviaCrudRequest({ operation: "create", domain: "memo", data: { rawMemo: "고객이 따뜻한 톤을 원함", date: "2026-07-20" } });
     expect(memo.data).toEqual({ rawMemo: "고객이 따뜻한 톤을 원함" });

@@ -92,6 +92,7 @@ export function buildHermesRuntime(input: {
   const activeProjectId = replyResource?.projectId || input.snapshot.activeProjectId || recentResource?.projectId;
   const context: HermesChatContext = {
     ...input.snapshot,
+    currentRequestText: input.message,
     today: input.today,
     todayDate: input.today,
     channel: input.channel,

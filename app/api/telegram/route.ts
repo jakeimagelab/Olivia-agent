@@ -23,6 +23,7 @@ import { sanitizeOliviaAttachments, type OliviaChatAttachment } from "@/lib/oliv
 import { getTemporaryDocument, linkTemporaryDocumentsForHospital, updateTemporaryDocumentStatus } from "@/lib/olivia/documents/temporaryDocuments";
 import { readPendingAction } from "@/lib/olivia/conversation/dialogueState";
 import { createTemporaryDocumentShare } from "@/lib/olivia/documents/temporaryDocumentShares";
+import { formatTelegramQuoteSummary, loadTelegramQuoteSummary } from "@/lib/quote/telegramQuoteSummary";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -98,17 +99,14 @@ function getBaseUrl(req: NextRequest): string {
   return req.nextUrl.origin;
 }
 
-// create_quote/update 계열 tool이 성공하면 이미지 렌더링 대신 7일짜리 실제 문서 URL을 보낸다.
-// 한글 폰트가 빠진 서버 PNG와 렌더 콜드스타트 오류를 모두 피하고, 항상 최신 DB 문서를 연다.
-async function sendQuotePreview(base: string, chatId: number, quoteId: string, caption: string, pendingApproval?: TelegramPendingApproval): Promise<string | undefined> {
+// 생성과 후속 수정 모두 같은 quoteId의 최신 canonical row를 다시 읽어 요약한다. 모델이 만든
+// 일반 caption이나 과거 A4 축소본을 견적의 source of truth로 사용하지 않는다.
+async function sendQuotePreview(base: string, chatId: number, quoteId: string, pendingApproval?: TelegramPendingApproval): Promise<string | undefined> {
   const db = getSupabaseAdmin();
-  const { data: document } = await db.from("temporary_documents")
-    .select("id")
-    .eq("source_table", "quotes")
-    .eq("source_id", quoteId)
-    .maybeSingle();
-  if (!document) return undefined;
-  const share = await createTemporaryDocumentShare(db, document.id, base);
+  const summary = await loadTelegramQuoteSummary(db, quoteId);
+  const shareResponse = await fetch(`${base}/api/quotes/${encodeURIComponent(quoteId)}/share`, { method: "POST" });
+  const share = await shareResponse.json().catch(() => null) as { ok?: boolean; url?: string; error?: string } | null;
+  if (!shareResponse.ok || !share?.ok || !share.url) throw new Error(share?.error || "견적서 링크를 만들지 못했어요.");
   const actions = pendingApproval ? [
     { text: `✅ ${pendingApproval.confirmLabel}`, callback_data: `olivia_approve:${pendingApproval.approvalId}` },
     { text: "⏳ 보류", callback_data: `olivia_defer:${pendingApproval.approvalId}` },
@@ -118,8 +116,8 @@ async function sendQuotePreview(base: string, chatId: number, quoteId: string, c
   ];
   const sent = await tgRequest("sendMessage", {
     chat_id: chatId,
-    text: `${caption.slice(0, 3800)}\n\n아래 링크에서 실제 견적서를 확인할 수 있어요. 링크는 7일간 유효해요.`,
-    reply_markup: { inline_keyboard: [[{ text: "📄 견적서 미리보기", url: share.url }], actions] },
+    text: formatTelegramQuoteSummary(summary).slice(0, 4000),
+    reply_markup: { inline_keyboard: [[{ text: "📄 전체 견적서 보기", url: share.url }], actions] },
   });
   return sent?.result?.message_id == null ? undefined : String(sent.result.message_id);
 }
@@ -321,9 +319,11 @@ async function deliverSavedReply(input: {
     externalRequestId: input.externalRequestId,
     send: async () => {
       try {
-        const previewMessageId = input.generatedDocument
-          ? await sendTemporaryDocumentPreview(input.base, input.chatId, input.generatedDocument, input.reply)
-          : input.quoteId ? await sendQuotePreview(input.base, input.chatId, input.quoteId, input.reply, input.pendingApproval) : undefined;
+        const previewMessageId = input.quoteId
+          ? await sendQuotePreview(input.base, input.chatId, input.quoteId, input.pendingApproval)
+          : input.generatedDocument
+            ? await sendTemporaryDocumentPreview(input.base, input.chatId, input.generatedDocument, input.reply)
+            : undefined;
         const approvalMarkup = input.pendingApproval ? { inline_keyboard: [[
           { text: `✅ ${input.pendingApproval.confirmLabel}`, callback_data: `olivia_approve:${input.pendingApproval.approvalId}` },
           { text: "⏳ 보류", callback_data: `olivia_defer:${input.pendingApproval.approvalId}` },
@@ -331,7 +331,7 @@ async function deliverSavedReply(input: {
         outboundMessageId = previewMessageId || await sendTelegramText(input.chatId, input.reply, approvalMarkup);
       } catch (error) {
         const reason = error instanceof Error ? error.message : "미리보기 링크 생성 실패";
-        outboundMessageId = await sendTelegramText(input.chatId, `${input.reply}\n\n문서는 임시문서함에 저장했지만 미리보기 링크를 만들지 못했어요: ${reason}`);
+        outboundMessageId = await sendTelegramText(input.chatId, `${input.reply}\n\n문서는 저장했지만 미리보기 링크를 만들지 못했어요: ${reason}`);
       }
     },
   });

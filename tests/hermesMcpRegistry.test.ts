@@ -27,4 +27,14 @@ describe("Olivia Hermes MCP registry", () => {
     expect((exposed.inputSchema.properties as Record<string, unknown>).requestId).toBeTruthy();
     expect(source.parameters!.properties).not.toHaveProperty("requestId");
   });
+
+  it("create_quote MCP schema가 자연어 견적 V2 필드와 서비스 수정 도구를 노출한다", () => {
+    const createQuote = listHermesOliviaTools().find((tool) => tool.name === "create_quote")!;
+    const properties = createQuote.inputSchema.properties as Record<string, unknown>;
+    expect(properties).toHaveProperty("pricingMode");
+    expect(properties).toHaveProperty("customUnitPrice");
+    expect(properties).toHaveProperty("customTotalPrice");
+    expect(properties).toHaveProperty("includedServices");
+    expect(listHermesOliviaTools().map((tool) => tool.name)).toContain("update_quote_service");
+  });
 });

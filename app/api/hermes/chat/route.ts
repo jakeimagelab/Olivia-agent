@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     selectedSceneId: typeof rawContext.selectedSceneId === "string" ? rawContext.selectedSceneId : undefined,
     selectedScheduleId: typeof rawContext.selectedScheduleId === "string" ? rawContext.selectedScheduleId : undefined,
     brand: typeof rawContext.brand === "string" ? rawContext.brand : undefined,
+    currentRequestText: message,
     permissions: rawContext.permissions && typeof rawContext.permissions === "object" ? rawContext.permissions as HermesChatContext["permissions"] : undefined,
     workSession: rawContext.workSession && typeof rawContext.workSession === "object" ? rawContext.workSession as HermesChatContext["workSession"] : undefined,
   };
