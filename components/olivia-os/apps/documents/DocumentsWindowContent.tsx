@@ -23,7 +23,8 @@ export function DocumentsWindowContent() {
       const params = new URLSearchParams();
       const trimmed = query.trim();
       if (trimmed) params.set("q", trimmed);
-      if (category !== "all") params.set("type", category as OliviaDocumentType);
+      if (category === "temporary") params.set("temporary", "true");
+      else if (category !== "all") params.set("type", category as OliviaDocumentType);
       // DocumentSearchPanel과 달리 파인더 창은 열자마자 목록이 채워져 있어야 한다(빈 화면으로
       // 시작하지 않음) — 쿼리 없이도 항상 호출한다(searchDocuments 기본값에 맡김).
       fetch(`/api/documents/search?${params.toString()}`, { signal: controller.signal })

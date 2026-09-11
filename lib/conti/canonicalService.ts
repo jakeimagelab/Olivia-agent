@@ -13,6 +13,7 @@ export type CanonicalContiPayload = {
 
 export type CreateCanonicalContiInput = {
   hospitalId?: string | null;
+  hospitalName?: string | null;
   specialty: string;
   doctorCount?: number;
   staffFlags?: { siljang?: boolean; jikwon?: boolean; other?: boolean };
@@ -68,7 +69,7 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
   const skeleton = generateContiDraft(input, { templates, hospitalSpaces, hospitalStaff });
   const generated = { ...skeleton, scenes: await enrichContiScenes(skeleton.scenes) };
   const baseRunFields = { hospital_id: source.hospitalId ?? null, specialty: source.specialty, doctor_count: input.doctorCount, staff_flags: input.staffFlags, harmony: input.harmony, checked: input.checked };
-  const fullRunFields = { ...baseRunFields, legacy_save_id: source.resourceId ?? null, workflow_run_id: source.workflowRunId ?? null, other_staff_role: input.otherStaffRole, custom_items: input.extraItems };
+  const fullRunFields = { ...baseRunFields, hospital_name: source.hospitalName ?? "", legacy_save_id: source.resourceId ?? null, workflow_run_id: source.workflowRunId ?? null, other_staff_role: input.otherStaffRole, custom_items: input.extraItems };
   let runResult = await db.from("conti_runs").insert(fullRunFields).select("*").single();
   if (runResult.error && isMissingV2Column(runResult.error)) runResult = await db.from("conti_runs").insert(baseRunFields).select("*").single();
   if (runResult.error || !runResult.data) throw new Error("콘티 저장 공간을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.");

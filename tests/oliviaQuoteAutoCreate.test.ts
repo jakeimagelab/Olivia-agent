@@ -1,34 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 요청서 시나리오(37번 테스트): "앞으로 견적 요청에 고객이 없으면 자동등록하고 프로젝트도
-// 만든 다음 견적서까지 바로 만들어"라는 규칙이 활성화돼 있을 때, create_quote가 실제로
-// createClientWithWorkflow를 호출해서 고객/프로젝트를 만들고, 그 clientId가 견적 생성
-// 데이터에 실려 가는지 확인한다. 정책이 없을 때는(마이그레이션 미적용 포함) 기존과 완전히
-// 같은 동작(자동 생성 없음)을 유지하는지도 함께 확인한다.
+vi.mock("@/lib/olivia/documents/temporaryDocuments", () => ({
+  registerTemporaryDocument: vi.fn(async (_db, input: any) => ({ temporaryDocument: { id: `temp-${input.sourceId}`, status: input.clientId ? "linked" : "pending_review", client_id: input.clientId ?? null, workflow_run_id: input.workflowRunId ?? null }, clientResolution: input.clientId ? "existing" : "pending" })),
+  findExactDocumentClient: vi.fn(async () => null),
+}));
+
+// 임시문서함 정책: 과거 adaptive memory에 고객 자동등록 규칙이 남아 있어도 신규 고객은
+// 문서 내용 승인 전에는 생성하지 않는다. create_quote는 원본 초안만 만들고 공통 임시문서
+// 등록기가 기존 고객 정확 일치 여부를 결정한다.
 
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({}) }));
 
-const listActiveMemoriesMock = vi.fn(async (..._args: any[]) => [] as any[]);
+const listActiveMemoriesMock = vi.fn(async () => [] as any[]);
 vi.mock("@/lib/olivia/memory/repository", () => ({
-  listActiveMemories: (...args: any[]) => listActiveMemoriesMock(...args),
+  listActiveMemories: () => listActiveMemoriesMock(),
   recordMemoryOutcome: vi.fn(async () => {}),
 }));
 
-const fuzzyNameSearchMock = vi.fn(async (..._args: any[]) => [] as any[]);
+const fuzzyNameSearchMock = vi.fn(async () => [] as any[]);
 vi.mock("@/lib/olivia/nameSearch", () => ({
-  fuzzyNameSearch: (...args: any[]) => fuzzyNameSearchMock(...args),
+  fuzzyNameSearch: () => fuzzyNameSearchMock(),
   fuzzyNameSearchOne: vi.fn(async () => null),
   fuzzyIncludes: (target: unknown, query: unknown) => String(target ?? "").includes(String(query ?? "")),
   normalizeSearchText: (value: unknown) => String(value ?? "").toLowerCase(),
 }));
 
-const createClientWithWorkflowMock = vi.fn(async (..._args: any[]) => ({
+const createClientWithWorkflowMock = vi.fn(async () => ({
   client: { id: "new-client-1", hospital_name: "유진스의원" },
   run: { id: "new-run-1" },
   created: true,
 }));
 vi.mock("@/lib/clients/createClientWithWorkflow", () => ({
-  createClientWithWorkflow: (...args: any[]) => createClientWithWorkflowMock(...args),
+  createClientWithWorkflow: () => createClientWithWorkflowMock(),
 }));
 
 let lastCrudCall: any = null;
@@ -57,7 +60,7 @@ function callCreateQuote(hospitalName: string) {
   );
 }
 
-describe("create_quote — Adaptive Memory Execution Policy", () => {
+describe("create_quote — temporary document client approval policy", () => {
   beforeEach(() => {
     lastCrudCall = null;
     listActiveMemoriesMock.mockClear();
@@ -65,7 +68,7 @@ describe("create_quote — Adaptive Memory Execution Policy", () => {
     createClientWithWorkflowMock.mockClear();
   });
 
-  it("규칙이 없으면(정책 없음) 자동 생성 없이 기존과 동일하게 동작한다", async () => {
+  it("규칙이 없으면 신규 고객을 만들지 않고 임시문서로 저장한다", async () => {
     listActiveMemoriesMock.mockResolvedValueOnce([]);
     const execution = await callCreateQuote("유진스의원");
     expect(createClientWithWorkflowMock).not.toHaveBeenCalled();
@@ -73,7 +76,7 @@ describe("create_quote — Adaptive Memory Execution Policy", () => {
     expect(execution.result.success).toBe(true);
   });
 
-  it("자동등록 규칙이 활성화돼 있고 신규 고객이면 createClientWithWorkflow로 고객+프로젝트를 만들고 견적에 clientId를 싣는다", async () => {
+  it("과거 자동등록 규칙이 있어도 승인 전에는 고객과 프로젝트를 만들지 않는다", async () => {
     listActiveMemoriesMock.mockResolvedValueOnce([
       {
         id: "mem-1", memory_type: "business_rule", key: "quote_auto_client_project_creation",
@@ -83,18 +86,15 @@ describe("create_quote — Adaptive Memory Execution Policy", () => {
         created_at: "2026-08-24T00:00:00Z", updated_at: "2026-08-24T00:00:00Z",
       },
     ]);
-    fuzzyNameSearchMock.mockResolvedValueOnce([]); // 기존 고객 없음 → 신규 생성 경로
     const execution = await callCreateQuote("유진스의원");
-    expect(createClientWithWorkflowMock).toHaveBeenCalledTimes(1);
-    expect(createClientWithWorkflowMock.mock.calls[0][1]).toMatchObject({ hospitalName: "유진스의원" });
-    expect(lastCrudCall.data.clientId).toBe("new-client-1");
-    expect(lastCrudCall.data.workflowRunId).toBe("new-run-1");
+    expect(createClientWithWorkflowMock).not.toHaveBeenCalled();
+    expect(lastCrudCall.data.clientId).toBeUndefined();
+    expect(lastCrudCall.data.workflowRunId).toBeUndefined();
     expect(execution.result.success).toBe(true);
-    // 요청서 4번 — "고객을 먼저 등록해주세요"류 실패 응답이 아니라 실제로 성공해야 한다.
-    expect(execution.result.error).toBeUndefined();
+    expect(execution.result.data).toMatchObject({ temporaryDocumentStatus: "pending_review" });
   });
 
-  it("비슷한 고객이 2명 이상이면 자동 생성하지 않고 확인을 요청한다(중복 생성 금지)", async () => {
+  it("비슷한 고객 후보가 있어도 fuzzy 매칭으로 선연결하지 않는다", async () => {
     listActiveMemoriesMock.mockResolvedValueOnce([
       {
         id: "mem-1", memory_type: "business_rule", key: "quote_auto_client_project_creation",
@@ -110,7 +110,8 @@ describe("create_quote — Adaptive Memory Execution Policy", () => {
     ]);
     const execution = await callCreateQuote("유진스의원");
     expect(createClientWithWorkflowMock).not.toHaveBeenCalled();
-    expect(execution.result.success).toBe(false);
-    expect(execution.result.error).toMatch(/비슷한 고객이/);
+    expect(fuzzyNameSearchMock).not.toHaveBeenCalled();
+    expect(execution.result.success).toBe(true);
+    expect(lastCrudCall.data.clientId).toBeUndefined();
   });
 });

@@ -4,10 +4,6 @@ import { buildAgentQuoteData } from "@/lib/quote/agentQuote";
 import { parseKoreanCount, parseKoreanMoney, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
 import { addQuoteItem, quoteItems, recalculateQuote, removeQuoteItem, resolveQuoteItem, updateQuoteItem, type QuoteItem } from "@/lib/quote/quoteMutationService";
 import { linkNewClientToQuote, resolveQuoteClient } from "@/lib/olivia/tools/quoteClientLink";
-import { fuzzyNameSearch } from "@/lib/olivia/nameSearch";
-import { createClientWithWorkflow } from "@/lib/clients/createClientWithWorkflow";
-import { listActiveMemories, recordMemoryOutcome } from "@/lib/olivia/memory/repository";
-import { resolveExecutionPolicy } from "@/lib/olivia/memory/executionPolicy";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text, activeResource } from "./common";
 import { createVerification } from "./verification";
@@ -16,6 +12,7 @@ import { renderQuoteBuffer } from "@/lib/quote/renderQuotePdf";
 import { resolveServerBaseUrl } from "@/lib/baseUrl";
 import { publishQuoteService } from "@/lib/publications/publishResource";
 import { archiveWorkflowPdf } from "@/lib/workflowArtifacts/archivePdf";
+import { registerTemporaryDocument } from "@/lib/olivia/documents/temporaryDocuments";
 
 // request_quote_publish(승인 요청)와 publish_quote(완료 보고) 둘 다 항목별 요약이 필요해서
 // 뽑아냈다(스펙 §19-22) — 금액은 전부 quotes 테이블에 이미 저장된 실제 값이고 여기서
@@ -97,38 +94,11 @@ export async function executeQuoteTool(
     const hospitalName = text(input, "hospitalName") || context.activeClientName;
     if (!hospitalName) throw new Error("견적을 만들 고객을 먼저 알려주세요.");
 
-    // Adaptive Memory Execution Policy — "앞으로 견적 요청에 고객이 없으면 자동등록해" 같은
-    // 사용자가 가르친 규칙이 활성화돼 있으면, 고객/프로젝트가 없어도 등록해달라고 되묻지 않고
-    // 여기서 직접 찾거나 만든다. 규칙이 없으면(마이그레이션 미적용 포함) 정책 값이 전부 falsy라
-    // 아래 분기가 전혀 실행되지 않고 기존 동작 그대로다.
-    const quoteMemories = await listActiveMemories(db, { scopes: ["quote"] });
-    const policy = resolveExecutionPolicy(quoteMemories);
-    let clientId = context.activeClientId;
-    let workflowRunId = context.activeProjectId;
-    let clientCreated = false;
-    if (!clientId && (policy.autoCreateClient || policy.autoCreateProject)) {
-      const candidates = await fuzzyNameSearch<{ id: string; hospital_name: string }>({
-        db, table: "clients", nameColumn: "hospital_name", select: "id,hospital_name", query: hospitalName, limit: 5,
-      });
-      if (candidates.length > 1) {
-        return {
-          tool: name,
-          success: false,
-          error: `"${hospitalName}"와 비슷한 고객이 ${candidates.length}명 있어요(${candidates.map((c) => c.hospital_name).join(", ")}). 어느 고객인지 확인해주세요.`,
-        };
-      }
-      if (policy.autoCreateClient || candidates.length === 1) {
-        const created = await createClientWithWorkflow(db, {
-          hospitalName: candidates[0]?.hospital_name || hospitalName,
-          contactName: text(input, "contactName") || null,
-          phone: text(input, "phone") || null,
-          email: text(input, "email") || null,
-        });
-        clientId = created.client.id;
-        workflowRunId = created.run?.id;
-        clientCreated = candidates.length === 0;
-      }
-    }
+    // 새 고객은 문서 내용 승인 뒤에만 등록한다. 현재 컨텍스트에 이미 확정된 고객이 있으면
+    // 그대로 연결하고, 그렇지 않으면 원본 견적부터 만든 뒤 공통 임시문서 등록기가 정확 일치
+    // 고객만 자동 연결한다.
+    const clientId = context.activeClientId;
+    const workflowRunId = context.activeProjectId;
 
     // 요청 초입에서 확정한 실제 Context 브랜드가 모델 인자보다 우선한다. Context가 없을 때만
     // create_quote가 직접 받은 brand를 사용하고, 둘 다 없으면 기존 기본값(photoclinic)을 유지한다.
@@ -138,22 +108,24 @@ export async function executeQuoteTool(
       hospitalName,
     }, workflowRunId);
     if (clientId) (quoteData as Record<string, unknown>).clientId = clientId;
-    let execution;
-    try {
-      execution = await executeOliviaCrud(db, {
-        operation: "create",
-        domain: "quote",
-        data: quoteData,
-        requestText: `${hospitalName} 견적 생성`,
-      });
-    } catch (error) {
-      const usedMemory = quoteMemories.find((memory) => memory.key === "quote_auto_client_project_creation");
-      if (usedMemory) await recordMemoryOutcome(db, usedMemory.id, { success: false });
-      throw error;
-    }
-    const usedMemory = quoteMemories.find((memory) => memory.key === "quote_auto_client_project_creation");
-    if (usedMemory) await recordMemoryOutcome(db, usedMemory.id, { success: true });
+    const execution = await executeOliviaCrud(db, {
+      operation: "create",
+      domain: "quote",
+      data: quoteData,
+      requestText: `${hospitalName} 견적 생성`,
+    });
     const record = execution.record || {};
+    const registered = await registerTemporaryDocument(db, {
+      documentType: "quote",
+      sourceTable: "quotes",
+      sourceId: execution.recordId,
+      title: String(record.title || `${record.hospital_name || hospitalName} 견적서`),
+      hospitalName: String(record.hospital_name || hospitalName),
+      clientId: typeof record.client_id === "string" ? record.client_id : clientId,
+      workflowRunId: typeof record.workflow_run_id === "string" ? record.workflow_run_id : workflowRunId,
+      metadata: { totalAmount: Number(record.total_amount) || 0, quoteNumber: record.quote_number || null },
+    });
+    const temporaryDocument = registered.temporaryDocument;
     // executeOliviaCrud의 create는 insert().select().single()로 실제 저장된 row를 돌려받는다 —
     // execution.recordId가 있다는 것 자체가 이미 실제 DB round-trip으로 확인된 결과다(스펙 §13).
     return {
@@ -164,15 +136,21 @@ export async function executeQuoteTool(
         resourceId: execution.recordId,
         totalAmount: record.total_amount,
         hospitalName: record.hospital_name,
-        clientId: record.client_id,
-        workflowRunId: record.workflow_run_id,
+        clientId: temporaryDocument.client_id,
+        workflowRunId: temporaryDocument.workflow_run_id,
+        temporaryDocumentId: temporaryDocument.id,
+        temporaryDocumentStatus: temporaryDocument.status,
+        clientResolution: registered.clientResolution,
+        summary: temporaryDocument.status === "linked"
+          ? `${record.hospital_name || hospitalName} 견적서를 저장하고 기존 고객에게 연결했어요.`
+          : `${record.hospital_name || hospitalName} 견적서를 임시문서함에 저장했어요. 내용을 확인해주세요.`,
       },
       verification: createVerification({
         executed: true,
         persisted: Boolean(execution.recordId),
         resourceExists: Boolean(execution.recordId),
-        linked: Boolean(record.client_id),
-        details: { clientCreated },
+        linked: temporaryDocument.status === "linked",
+        details: { temporaryDocumentId: temporaryDocument.id, temporaryDocumentStatus: temporaryDocument.status },
       }),
     };
   }

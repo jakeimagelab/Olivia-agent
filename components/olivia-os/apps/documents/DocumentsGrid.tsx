@@ -33,6 +33,15 @@ const STATUS_VARIANT: Record<string, string> = {
   완료: "green", 승인: "green", 확정: "green",
   진행중: "orange", 대기: "orange", 검토중: "orange",
   취소: "red", 거절: "red", 반려: "red",
+  linked: "green", pending_review: "orange", content_approved: "orange", pending_client: "orange", failed: "red",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  pending_review: "내용 확인 전",
+  content_approved: "내용 승인됨",
+  pending_client: "고객등록 대기",
+  linked: "고객 연결됨",
+  failed: "연결 실패",
 };
 
 function statusVariant(status?: string | null) {
@@ -91,7 +100,7 @@ export function DocumentsGrid({ documents, loading }: { documents: DocumentRow[]
                   <div className={styles.cardFooter}>
                     {doc.status && (
                       <span className={`oa-status-badge oa-status-badge--${statusVariant(doc.status)}`}>
-                        {doc.status}
+                        {STATUS_LABEL[doc.status] || doc.status}
                       </span>
                     )}
                     <span className={styles.cardDate}>{formatDate(doc.updatedAt)}</span>

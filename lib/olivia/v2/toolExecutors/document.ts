@@ -8,6 +8,7 @@ import { DOCUMENT_TYPE_LABELS, normalizeDocumentTypeHint, type OliviaDocumentRef
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text } from "./common";
 import { createVerification } from "./verification";
+import { getTemporaryDocument, linkTemporaryDocumentsForHospital, listTemporaryDocuments, temporaryDocumentRoute, updateTemporaryDocumentStatus } from "@/lib/olivia/documents/temporaryDocuments";
 
 function toDocSummary(doc: OliviaDocumentRef) {
   return {
@@ -22,7 +23,10 @@ function toDocSummary(doc: OliviaDocumentRef) {
   };
 }
 
-export const DOCUMENT_TOOL_NAMES = ["open_feature", "search_documents", "get_recent_documents", "open_document"] as const;
+export const DOCUMENT_TOOL_NAMES = [
+  "open_feature", "search_documents", "get_recent_documents", "open_document",
+  "list_temporary_documents", "approve_temporary_document", "defer_temporary_document", "link_temporary_document_client",
+] as const;
 
 export async function executeDocumentTool(
   name: string,
@@ -145,6 +149,49 @@ export async function executeDocumentTool(
       return { tool: name, success: true, data: { href: `/clients?clientId=${clientId}`, summary: "관련 고객 화면을 열었어요." }, verification: createVerification({ executed: true, resourceExists: true }) };
     }
     throw new Error("지원하지 않는 문서 종류예요.");
+  }
+
+  if (name === "list_temporary_documents") {
+    const documents = await listTemporaryDocuments(db, { query: text(input, "hospitalName") || text(input, "query") || undefined, limit: input.limit == null ? 20 : Number(input.limit) });
+    return {
+      tool: name,
+      success: true,
+      data: {
+        documents: documents.map((document) => ({
+          temporaryDocumentId: document.id,
+          documentType: document.document_type,
+          title: document.title,
+          hospitalName: document.hospital_name,
+          status: document.status,
+          resourceId: document.source_id,
+          href: temporaryDocumentRoute(document),
+        })),
+        summary: documents.length ? `임시문서 ${documents.length}개를 찾았어요.` : "조건에 맞는 임시문서가 없어요.",
+      },
+      verification: createVerification({ executed: true, resourceExists: documents.length > 0 }),
+    };
+  }
+
+  if (name === "approve_temporary_document") {
+    const temporaryDocumentId = text(input, "temporaryDocumentId");
+    const document = await updateTemporaryDocumentStatus(db, temporaryDocumentId, "pending_client", { contentApprovedAt: new Date().toISOString() });
+    return { tool: name, success: true, data: { temporaryDocumentId, document, approvalRequired: true, summary: `${document.hospital_name}을 고객으로 등록할까요?` }, verification: createVerification({ executed: true, persisted: true, resourceExists: true }) };
+  }
+
+  if (name === "defer_temporary_document") {
+    const temporaryDocumentId = text(input, "temporaryDocumentId");
+    const document = await updateTemporaryDocumentStatus(db, temporaryDocumentId, "pending_review", { deferredAt: new Date().toISOString() });
+    return { tool: name, success: true, data: { temporaryDocumentId, document, summary: "임시문서함에 그대로 보관했어요." }, verification: createVerification({ executed: true, persisted: true, resourceExists: true }) };
+  }
+
+  if (name === "link_temporary_document_client") {
+    const temporaryDocumentId = text(input, "temporaryDocumentId");
+    const before = await getTemporaryDocument(db, temporaryDocumentId);
+    const result = await linkTemporaryDocumentsForHospital(db, temporaryDocumentId);
+    const summary = result.failed.length
+      ? `${result.client.hospital_name} 고객을 등록하고 ${result.linked.length}개 문서를 연결했지만 ${result.failed.length}개는 임시문서함에 남았어요.`
+      : `${result.client.hospital_name} 고객을 등록하고 관련 임시문서 ${result.linked.length}개를 모두 연결했어요.`;
+    return { tool: name, success: result.failed.length === 0, ...(result.failed.length ? { code: "PARTIAL_SUCCESS", error: summary } : {}), data: { temporaryDocumentId, hospitalName: before.hospital_name, clientId: result.client.id, workflowRunId: result.workflowRunId, linkedCount: result.linked.length, failedCount: result.failed.length, summary }, verification: createVerification({ executed: true, persisted: true, linked: result.linked.length > 0, resourceExists: true, details: { linkedCount: result.linked.length, failedCount: result.failed.length } }) };
   }
 
   throw new Error("지원하지 않는 Olivia 작업이에요.");

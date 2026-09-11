@@ -1,10 +1,11 @@
-import { searchOliviaClients } from "@/lib/olivia/clientSearch";
 import { DEPARTMENT_TAXONOMY, getDepartmentDefinition } from "@/lib/conti/departmentTaxonomy";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { callOliviaApi } from "./http";
 import { text } from "./common";
 import { createVerification } from "./verification";
 import { addCanonicalContiScene, createCanonicalConti, deleteCanonicalContiScene, getCanonicalConti, updateCanonicalContiScene, type CanonicalContiPayload } from "@/lib/conti/canonicalService";
+import { findExactDocumentClient, registerTemporaryDocument } from "@/lib/olivia/documents/temporaryDocuments";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 type ContiPayload = CanonicalContiPayload;
 
@@ -53,10 +54,8 @@ export async function executeContiV2Tool(name: string, input: Record<string, unk
     let specialty = text(input, "specialty");
     const hospitalName = text(input, "hospitalName") || context.activeClientName;
     if (!clientId && hospitalName) {
-      const found = await searchOliviaClients(hospitalName);
-      if (found.clients.length !== 1) throw new Error(found.clients.length ? "비슷한 고객이 여러 곳이에요. 고객을 먼저 확정해주세요." : "등록된 고객을 찾지 못했어요.");
-      clientId = found.clients[0].id;
-      specialty ||= found.clients[0].specialty || "";
+      const exact = await findExactDocumentClient(getSupabaseAdmin(), hospitalName);
+      if (exact) clientId = exact.id;
     }
     if (clientId && !specialty) {
       const detail = await callOliviaApi<{ ok: boolean; client: Record<string, unknown> }>(`/api/clients/${clientId}`);
@@ -70,12 +69,23 @@ export async function executeContiV2Tool(name: string, input: Record<string, unk
     if (!Object.keys(checked as object).length && !extraItems.length && !Object.values(staffFlags as object).some(Boolean) && !input.harmony) {
       throw new Error("콘티에 넣을 촬영 항목을 하나 이상 알려주세요.");
     }
-    const created = await createCanonicalConti({ hospitalId: clientId || null, workflowRunId: text(input, "workflowRunId") || context.activeProjectId || null, specialty, doctorCount: Number(input.doctorCount) || 1, staffFlags, harmony: Boolean(input.harmony), checked: checked as Record<string, string[]>, extraItems: extraItems as string[] });
+    const created = await createCanonicalConti({ hospitalId: clientId || null, hospitalName: hospitalName || null, workflowRunId: text(input, "workflowRunId") || context.activeProjectId || null, specialty, doctorCount: Number(input.doctorCount) || 1, staffFlags, harmony: Boolean(input.harmony), checked: checked as Record<string, string[]>, extraItems: extraItems as string[] });
     const runId = String(created.run.id || "");
     if (!runId) throw new Error("콘티 저장 결과에서 ID를 확인하지 못했어요.");
     const readBack = await loadConti(runId);
     if (readBack.run.specialty !== specialty || readBack.scenes.length !== created.scenes.length) throw new Error("콘티 저장 검증 값이 요청 결과와 일치하지 않아요.");
-    return { tool: name, success: true, data: { contiId: runId, resourceId: runId, run: readBack.run, groups: readBack.groups, scenes: readBack.scenes, summary: `${readBack.scenes.length}개 장면의 콘티를 만들었어요.` }, verification: createVerification({ executed: true, persisted: true, resourceExists: true, linked: Boolean(clientId), details: { sceneCount: readBack.scenes.length } }) };
+    const registered = await registerTemporaryDocument(getSupabaseAdmin(), {
+      documentType: "conti",
+      sourceTable: "conti_runs",
+      sourceId: runId,
+      title: `${hospitalName || "미지정 병원"} 촬영 콘티`,
+      hospitalName: hospitalName || "",
+      clientId,
+      workflowRunId: text(input, "workflowRunId") || context.activeProjectId,
+      metadata: { sceneCount: readBack.scenes.length, specialty },
+    });
+    const temporaryDocument = registered.temporaryDocument;
+    return { tool: name, success: true, data: { contiId: runId, resourceId: runId, run: readBack.run, groups: readBack.groups, scenes: readBack.scenes, temporaryDocumentId: temporaryDocument.id, temporaryDocumentStatus: temporaryDocument.status, clientResolution: registered.clientResolution, summary: temporaryDocument.status === "linked" ? `${readBack.scenes.length}개 장면의 콘티를 만들고 기존 고객에게 연결했어요.` : `${readBack.scenes.length}개 장면의 콘티를 임시문서함에 저장했어요. 내용을 확인해주세요.` }, verification: createVerification({ executed: true, persisted: true, resourceExists: true, linked: temporaryDocument.status === "linked", details: { sceneCount: readBack.scenes.length, temporaryDocumentId: temporaryDocument.id, temporaryDocumentStatus: temporaryDocument.status } }) };
   }
 
   const runId = contiId(input, context);

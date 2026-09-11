@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchDocuments } from "@/lib/olivia/documents/searchDocuments";
 import { normalizeDocumentTypeHint } from "@/lib/olivia/documents/types";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { listTemporaryDocuments, temporaryDocumentRoute } from "@/lib/olivia/documents/temporaryDocuments";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +12,23 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const params = new URL(req.url).searchParams;
+    if (params.get("temporary") === "true") {
+      const rows = await listTemporaryDocuments(getSupabaseAdmin(), {
+        query: params.get("q") || undefined,
+        limit: params.get("limit") ? Number(params.get("limit")) : 50,
+      });
+      const documents = rows.map((row) => ({
+        id: `temporary:${row.id}`,
+        type: row.document_type === "conti" ? "storyboard" : row.document_type,
+        title: row.title,
+        clientName: row.hospital_name,
+        status: row.status,
+        updatedAt: row.updated_at,
+        route: temporaryDocumentRoute(row),
+        metadata: { temporaryDocumentId: row.id, sourceTable: row.source_table, sourceId: row.source_id },
+      }));
+      return NextResponse.json({ ok: true, documents });
+    }
     const documents = await searchDocuments({
       query: params.get("q") || undefined,
       clientName: params.get("clientName") || undefined,

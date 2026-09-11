@@ -11,10 +11,10 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   // 안 겹쳐서 별도 도메인이 필요하다("크게 보여줘"만 navigation과 우연히 겹침, 문제 없음).
   window: ["maximize_active_window","close_active_window","minimize_active_window"],
   calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
-  client: ["select_project","search_client_projects","get_project_status","memo_add"],
-  quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote"],
-  contract: ["create_contract","update_contract_terms","request_contract_signature","request_contract_publish","download_contract_pdf","link_document_to_client"],
-  conti: ["get_conti_status","create_conti","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client"],
+  client: ["select_project","search_client_projects","get_project_status","memo_add","list_temporary_documents","link_temporary_document_client"],
+  quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
+  contract: ["create_contract","update_contract_terms","request_contract_signature","request_contract_publish","download_contract_pdf","link_document_to_client","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
+  conti: ["get_conti_status","create_conti","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   workflow: ["get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
   mailing: ["list_mailing_queue","send_mailing","email_search","email_read","email_summarize","email_create_draft"],
   // start_select_match_flow가 빠져 있으면 "셀렉"/"사진" 키워드로 gallery 도메인이 잡혀도 모델이

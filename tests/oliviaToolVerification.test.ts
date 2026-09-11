@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/olivia/documents/temporaryDocuments", () => ({
+  registerTemporaryDocument: vi.fn(async (_db, input: any) => ({ temporaryDocument: { id: `temp-${input.sourceId}`, status: input.clientId ? "linked" : "pending_review", client_id: input.clientId ?? null, workflow_run_id: input.workflowRunId ?? null }, clientResolution: input.clientId ? "existing" : "pending" })),
+  findExactDocumentClient: vi.fn(async () => null),
+  getTemporaryDocument: vi.fn(), listTemporaryDocuments: vi.fn(), linkTemporaryDocumentsForHospital: vi.fn(), temporaryDocumentRoute: vi.fn(), updateTemporaryDocumentStatus: vi.fn(),
+}));
+
 // Agent 실행 구조 개편(2026-08-31) — toolExecutor.ts를 domain executor로 쪼개고
 // OliviaToolResult에 verification을 추가한 작업의 회귀 테스트. "실행했다고 생각함"이 아니라
 // "실제 결과를 확인함"을 검증한다(스펙 §29 A-E) — 실제 DB round-trip이 성공/실패했을 때

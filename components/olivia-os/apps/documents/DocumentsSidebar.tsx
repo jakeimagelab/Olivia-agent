@@ -5,14 +5,16 @@ import type { OliviaDocumentType } from "@/lib/olivia/documents/types";
 import { DOCUMENT_TYPE_LABELS } from "@/lib/olivia/documents/types";
 import styles from "./DocumentsWindowContent.module.css";
 
-export type DocumentCategory = OliviaDocumentType | "all";
+export type DocumentCategory = OliviaDocumentType | "temporary" | "all";
 
 // /api/documents/search가 실제로 채워주는 타입만 골랐다(searchDocuments.ts의
 // ALL_SEARCHABLE_TYPES) — 결과가 절대 안 나오는 카테고리를 사이드바에 두지 않는다.
-const CATEGORIES: DocumentCategory[] = ["all", "quote", "contract", "storyboard", "memo", "gallery"];
+const CATEGORIES: DocumentCategory[] = ["all", "temporary", "quote", "contract", "storyboard", "memo", "gallery"];
 
 function categoryLabel(category: DocumentCategory) {
-  return category === "all" ? "전체" : DOCUMENT_TYPE_LABELS[category];
+  if (category === "all") return "전체";
+  if (category === "temporary") return "임시문서";
+  return DOCUMENT_TYPE_LABELS[category];
 }
 
 export function DocumentsSidebar({

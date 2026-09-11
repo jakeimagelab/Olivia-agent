@@ -6,6 +6,7 @@ import { text, activeResource, latestResource } from "./common";
 import { loadQuote } from "./quote";
 import { createVerification } from "./verification";
 import { publishContractService } from "@/lib/publications/publishResource";
+import { registerTemporaryDocument } from "@/lib/olivia/documents/temporaryDocuments";
 
 async function loadContractRow(id: string) {
   const db = getSupabaseAdmin();
@@ -77,6 +78,17 @@ export async function executeContractTool(
       requestText: `${finalHospitalName} 계약서 생성`,
     });
     const record = execution.record || {};
+    const registered = await registerTemporaryDocument(db, {
+      documentType: "contract",
+      sourceTable: "contracts",
+      sourceId: execution.recordId,
+      title: `${record.hospital_name || finalHospitalName} 계약서`,
+      hospitalName: String(record.hospital_name || finalHospitalName),
+      clientId: typeof record.client_id === "string" ? record.client_id : context.activeClientId,
+      workflowRunId: typeof record.workflow_run_id === "string" ? record.workflow_run_id : context.activeProjectId,
+      metadata: { quoteNumber: record.quote_number || null },
+    });
+    const temporaryDocument = registered.temporaryDocument;
     return {
       tool: name,
       success: true,
@@ -84,14 +96,21 @@ export async function executeContractTool(
         contractId: execution.recordId,
         resourceId: execution.recordId,
         hospitalName: record.hospital_name,
-        clientId: record.client_id || context.activeClientId,
-        workflowRunId: record.workflow_run_id || context.activeProjectId,
+        clientId: temporaryDocument.client_id,
+        workflowRunId: temporaryDocument.workflow_run_id,
+        temporaryDocumentId: temporaryDocument.id,
+        temporaryDocumentStatus: temporaryDocument.status,
+        clientResolution: registered.clientResolution,
+        summary: temporaryDocument.status === "linked"
+          ? `${record.hospital_name || finalHospitalName} 계약서를 저장하고 기존 고객에게 연결했어요.`
+          : `${record.hospital_name || finalHospitalName} 계약서를 임시문서함에 저장했어요. 내용을 확인해주세요.`,
       },
       verification: createVerification({
         executed: true,
         persisted: Boolean(execution.recordId),
         resourceExists: Boolean(execution.recordId),
-        linked: Boolean(record.client_id || context.activeClientId),
+        linked: temporaryDocument.status === "linked",
+        details: { temporaryDocumentId: temporaryDocument.id, temporaryDocumentStatus: temporaryDocument.status },
       }),
     };
   }

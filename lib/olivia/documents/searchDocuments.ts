@@ -92,11 +92,15 @@ async function fetchContracts(db: SupabaseClient, clientId?: string, projectId?:
 }
 
 async function fetchConti(db: SupabaseClient, clientId?: string, projectId?: string | null, clientNameFilter?: string | null): Promise<OliviaDocumentRef[]> {
-  let q = db.from("conti_saves").select("id, hospital_name, title, client_id, workflow_run_id, saved_at").order("saved_at", { ascending: false }).limit(CANDIDATE_LIMIT);
-  q = applyClientFilter(q, clientId, clientNameFilter);
-  if (projectId) q = q.eq("workflow_run_id", projectId);
-  const { data } = await q;
-  return (data || []).map((row: Row): OliviaDocumentRef => ({
+  let legacyQuery = db.from("conti_saves").select("id, hospital_name, title, client_id, workflow_run_id, saved_at").order("saved_at", { ascending: false }).limit(CANDIDATE_LIMIT);
+  legacyQuery = applyClientFilter(legacyQuery, clientId, clientNameFilter);
+  if (projectId) legacyQuery = legacyQuery.eq("workflow_run_id", projectId);
+  let canonicalQuery = db.from("conti_runs").select("id,hospital_name,hospital_id,workflow_run_id,specialty,created_at,updated_at").order("updated_at", { ascending: false }).limit(CANDIDATE_LIMIT);
+  if (clientId) canonicalQuery = canonicalQuery.eq("hospital_id", clientId);
+  else if (clientNameFilter) canonicalQuery = canonicalQuery.ilike("hospital_name", `%${clientNameFilter}%`);
+  if (projectId) canonicalQuery = canonicalQuery.eq("workflow_run_id", projectId);
+  const [legacyResult, canonicalResult] = await Promise.all([legacyQuery, canonicalQuery]);
+  const legacy = (legacyResult.data || []).map((row: Row): OliviaDocumentRef => ({
     id: `conti:${row.id}`,
     type: "storyboard",
     title: pick(row, "title") || `${row.hospital_name || "고객"} 콘티`,
@@ -111,6 +115,22 @@ async function fetchConti(db: SupabaseClient, clientId?: string, projectId?: str
     searchableText: [row.title, row.hospital_name].filter(Boolean).join(" "),
     route: row.client_id ? `/clients?clientId=${row.client_id}` : null,
   }));
+  const canonical = (canonicalResult.data || []).map((row: Row): OliviaDocumentRef => ({
+    id: `conti_run:${row.id}`,
+    type: "storyboard",
+    title: `${row.hospital_name || "고객"} 촬영 콘티${row.specialty ? ` · ${row.specialty}` : ""}`,
+    clientId: row.hospital_id ?? null,
+    clientName: row.hospital_name ?? null,
+    projectId: row.workflow_run_id ?? null,
+    sourceType: "conti_runs",
+    sourceId: row.id,
+    status: null,
+    createdAt: row.created_at ?? null,
+    updatedAt: row.updated_at ?? row.created_at ?? null,
+    searchableText: [row.hospital_name, row.specialty].filter(Boolean).join(" "),
+    route: `/conti?resourceId=${row.id}`,
+  }));
+  return [...canonical, ...legacy];
 }
 
 async function fetchMemos(db: SupabaseClient, clientId?: string, resolvedClientName?: string | null): Promise<OliviaDocumentRef[]> {

@@ -20,6 +20,7 @@ import {
   uploadTelegramAttachment,
 } from "@/lib/assistant/telegram/service";
 import { sanitizeOliviaAttachments, type OliviaChatAttachment } from "@/lib/olivia/chatAttachments";
+import { getTemporaryDocument, linkTemporaryDocumentsForHospital, updateTemporaryDocumentStatus } from "@/lib/olivia/documents/temporaryDocuments";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -123,12 +124,38 @@ async function sendQuotePreview(base: string, chatId: number, quoteId: string, c
   }
 }
 
+type TelegramGeneratedDocument = { temporaryDocumentId: string; documentType: string; resourceId: string; status?: string };
+
+async function sendTemporaryDocumentPreview(base: string, chatId: number, document: TelegramGeneratedDocument, caption: string): Promise<string | undefined> {
+  const renderRes = await fetch(`${base}/api/temporary-documents/${document.temporaryDocumentId}/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-internal-key": process.env.INTERNAL_API_KEY || "" },
+  });
+  const renderData = await renderRes.json().catch(() => null);
+  if (!renderRes.ok || !renderData?.ok || !renderData.url) {
+    throw new Error(renderData?.error || "문서 이미지 생성에 실패했습니다.");
+  }
+  const pending = document.status !== "linked";
+  const sent = await tgRequest("sendPhoto", {
+    chat_id: chatId,
+    photo: renderData.url,
+    caption: caption.slice(0, 1024),
+    ...(pending ? { reply_markup: { inline_keyboard: [[
+      { text: "✅ 내용 확인", callback_data: `temp_review:${document.temporaryDocumentId}` },
+      { text: "✏️ 수정 요청", callback_data: `temp_edit:${document.temporaryDocumentId}` },
+      { text: "⏳ 보류", callback_data: `temp_defer:${document.temporaryDocumentId}` },
+    ]] } } : {}),
+  });
+  return sent?.result?.message_id == null ? undefined : String(sent.result.message_id);
+}
+
 // 텍스트 메시지는 웹챗과 같은 v2 엔진을 사용한다. v2는 SSE 스트림이므로 여기서 최종 텍스트와
 // canonical message ID를 모은다. 이미지 첨부만 기존 Vision 경로를 유지한다.
 type TelegramTurnResult = {
   text: string;
   persistedMessageId: string;
   quoteId?: string;
+  generatedDocument?: TelegramGeneratedDocument;
 };
 
 async function runV2TelegramChat(input: {
@@ -168,6 +195,7 @@ async function runV2TelegramChat(input: {
   let streamError: string | undefined;
   let persistedMessageId = "";
   let quoteId: string | undefined;
+  let generatedDocument: TelegramGeneratedDocument | undefined;
 
   const handleBlock = (block: string) => {
     const line = block.split("\n").find((l) => l.startsWith("data:"));
@@ -181,6 +209,14 @@ async function runV2TelegramChat(input: {
     if (payload.type === "tool_result" && payload.result && typeof payload.result === "object") {
       const result = payload.result as Record<string, unknown>;
       if (typeof result.quoteId === "string") quoteId = result.quoteId;
+      if (typeof result.temporaryDocumentId === "string" && typeof result.resourceId === "string") {
+        generatedDocument = {
+          temporaryDocumentId: result.temporaryDocumentId,
+          documentType: typeof result.documentType === "string" ? result.documentType : typeof result.quoteId === "string" ? "quote" : typeof result.contractId === "string" ? "contract" : "conti",
+          resourceId: result.resourceId,
+          status: typeof result.temporaryDocumentStatus === "string" ? result.temporaryDocumentStatus : undefined,
+        };
+      }
     }
   };
 
@@ -199,7 +235,7 @@ async function runV2TelegramChat(input: {
 
   if (streamError) throw new Error(streamError);
   if (!persistedMessageId) throw new Error("Olivia 응답 저장 ID를 받지 못했어요.");
-  return { text: finalText.trim() || "처리됐어요!", persistedMessageId, quoteId };
+  return { text: finalText.trim() || "처리됐어요!", persistedMessageId, quoteId, generatedDocument };
 }
 
 async function runLegacyTelegramChat(input: {
@@ -269,6 +305,7 @@ async function deliverSavedReply(input: {
   base: string;
   reply: string;
   quoteId?: string;
+  generatedDocument?: TelegramGeneratedDocument;
 }) {
   let outboundMessageId: string | undefined;
   await deliverTelegramAssistantMessage(input.db, {
@@ -277,10 +314,15 @@ async function deliverSavedReply(input: {
     messageId: input.messageId,
     externalRequestId: input.externalRequestId,
     send: async () => {
-      const previewMessageId = input.quoteId
-        ? await sendQuotePreview(input.base, input.chatId, input.quoteId, input.reply)
-        : undefined;
-      outboundMessageId = previewMessageId || await sendTelegramText(input.chatId, input.reply);
+      try {
+        const previewMessageId = input.generatedDocument
+          ? await sendTemporaryDocumentPreview(input.base, input.chatId, input.generatedDocument, input.reply)
+          : input.quoteId ? await sendQuotePreview(input.base, input.chatId, input.quoteId, input.reply) : undefined;
+        outboundMessageId = previewMessageId || await sendTelegramText(input.chatId, input.reply);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "이미지 생성 실패";
+        outboundMessageId = await sendTelegramText(input.chatId, `${input.reply}\n\n⚠️ 문서는 임시문서함에 저장됐지만 이미지 미리보기를 만들지 못했어요: ${reason}`);
+      }
     },
   });
   if (outboundMessageId) {
@@ -288,7 +330,7 @@ async function deliverSavedReply(input: {
       ownerId: input.ownerId,
       conversationId: input.conversationId,
       messageId: input.messageId,
-      metadata: { telegram: { outboundMessageId } },
+      metadata: { telegram: { outboundMessageId }, ...(input.generatedDocument ? { temporaryDocumentId: input.generatedDocument.temporaryDocumentId, resourceType: input.generatedDocument.documentType, resourceId: input.generatedDocument.resourceId } : {}) },
     });
   }
 }
@@ -300,8 +342,8 @@ async function handleCallbackQuery(callbackQuery: any) {
   const userId = String(callbackQuery.from?.id || "");
   const data: string = callbackQuery.data || "";
 
-  const [action, quoteId] = data.split(":");
-  if (!quoteId) {
+  const [action, resourceId] = data.split(":");
+  if (!resourceId) {
     await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id });
     return;
   }
@@ -327,14 +369,15 @@ async function handleCallbackQuery(callbackQuery: any) {
     eventKey: `callback:${callbackQuery.id}`,
     ownerId: owner.id,
     channelConnectionId: connection.id,
-    sanitizedPayload: { callbackId: callbackQuery.id, chatId: chatIdStr, userId, action, quoteId },
+    sanitizedPayload: { callbackId: callbackQuery.id, chatId: chatIdStr, userId, action, resourceId },
   });
   if (!claim.claimed) {
     await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id });
     return;
   }
 
-  const actionLabel = action === "quote_publish" ? "견적서 승인" : action === "quote_edit" ? "견적서 수정 요청" : data;
+  const isTemporaryAction = action.startsWith("temp_");
+  const actionLabel = action === "quote_publish" ? "견적서 승인" : action === "quote_edit" ? "견적서 수정 요청" : action === "temp_review" ? "임시문서 내용 확인" : action === "temp_link" ? "고객등록 승인" : action === "temp_defer" ? "임시문서 보류" : action === "temp_edit" ? "임시문서 수정 요청" : data;
   const userSaved = await saveAssistantMessage(db, {
     ownerId: owner.id,
     conversationId: conversation.id,
@@ -343,13 +386,54 @@ async function handleCallbackQuery(callbackQuery: any) {
     channel: "telegram",
     externalMessageId: inboundExternalId,
     deliveryStatus: "accepted",
-    metadata: { resourceType: "quote", resourceId: quoteId, telegram: { callbackQueryId: callbackQuery.id } },
+    metadata: { resourceType: isTemporaryAction ? "temporary_document" : "quote", resourceId, telegram: { callbackQueryId: callbackQuery.id } },
   });
+
+  if (isTemporaryAction) {
+    await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id, text: "처리 중…" });
+    try {
+      const document = await getTemporaryDocument(db, resourceId);
+      let reply: string;
+      let replyMarkup: object | undefined;
+      if (action === "temp_review") {
+        await updateTemporaryDocumentStatus(db, resourceId, "pending_client", { contentApprovedAt: new Date().toISOString() });
+        reply = `${document.hospital_name}을 고객으로 등록할까요?`;
+        replyMarkup = { inline_keyboard: [[
+          { text: "✅ 고객등록", callback_data: `temp_link:${resourceId}` },
+          { text: "⏳ 나중에", callback_data: `temp_defer:${resourceId}` },
+        ]] };
+      } else if (action === "temp_link") {
+        const result = await linkTemporaryDocumentsForHospital(db, resourceId);
+        reply = result.failed.length
+          ? `${result.client.hospital_name} 고객을 등록하고 ${result.linked.length}개 문서를 연결했지만 ${result.failed.length}개는 임시문서함에 남았어요.`
+          : `${result.client.hospital_name} 고객을 등록하고 관련 문서 ${result.linked.length}개를 모두 연결했어요.`;
+      } else if (action === "temp_defer") {
+        await updateTemporaryDocumentStatus(db, resourceId, "pending_review", { deferredAt: new Date().toISOString() });
+        reply = "알겠어요. 문서는 임시문서함에 그대로 보관할게요.";
+      } else {
+        reply = "네, 수정할 내용을 메시지로 알려주세요.";
+      }
+      const assistantSaved = await saveAssistantMessage(db, {
+        ownerId: owner.id, conversationId: conversation.id, role: "assistant", content: reply, channel: "telegram",
+        externalMessageId: assistantExternalId, parentMessageId: userSaved.message.id, deliveryStatus: "queued",
+        metadata: { blocks: [{ type: "text", text: reply }], resourceType: document.document_type, resourceId: document.source_id, temporaryDocumentId: resourceId },
+      });
+      await deliverTelegramAssistantMessage(db, {
+        ownerId: owner.id, conversationId: conversation.id, messageId: assistantSaved.message.id, externalRequestId: assistantExternalId,
+        send: async () => { await tgRequest("sendMessage", { chat_id: chatId, text: reply, ...(replyMarkup ? { reply_markup: replyMarkup } : {}) }); },
+      });
+      await finishTelegramWebhook(db, claim.eventId, "processed");
+    } catch (error) {
+      await finishTelegramWebhook(db, claim.eventId, "failed", "temporary_document_action_failed").catch(() => undefined);
+      await tgRequest("sendMessage", { chat_id: chatId, text: `⚠️ 임시문서 처리 중 오류: ${error instanceof Error ? error.message : "알 수 없는 오류"}` }).catch(() => undefined);
+    }
+    return;
+  }
 
   if (action === "quote_publish") {
     await tgRequest("answerCallbackQuery", { callback_query_id: callbackQuery.id, text: "처리 중…" });
     try {
-      const result = await executeQuoteTool("publish_quote", {}, quoteContext(quoteId));
+      const result = await executeQuoteTool("publish_quote", {}, quoteContext(resourceId));
       const summary = typeof result.data?.summary === "string" ? result.data.summary : undefined;
       const reply = result.success ? (summary || "견적서를 확정 공개했어요.") : `⚠️ ${result.error || "승인 처리에 실패했어요."}`;
       const assistantSaved = await saveAssistantMessage(db, {
@@ -361,7 +445,7 @@ async function handleCallbackQuery(callbackQuery: any) {
         externalMessageId: assistantExternalId,
         parentMessageId: userSaved.message.id,
         deliveryStatus: "queued",
-        metadata: { blocks: [{ type: "text", text: reply }], resourceType: "quote", resourceId: quoteId },
+        metadata: { blocks: [{ type: "text", text: reply }], resourceType: "quote", resourceId },
       });
       await deliverTelegramAssistantMessage(db, {
         ownerId: owner.id,
@@ -390,7 +474,7 @@ async function handleCallbackQuery(callbackQuery: any) {
       externalMessageId: assistantExternalId,
       parentMessageId: userSaved.message.id,
       deliveryStatus: "queued",
-      metadata: { blocks: [{ type: "text", text: reply }], resourceType: "quote", resourceId: quoteId },
+      metadata: { blocks: [{ type: "text", text: reply }], resourceType: "quote", resourceId },
     });
     await deliverTelegramAssistantMessage(db, {
       ownerId: owner.id,
@@ -479,6 +563,9 @@ export async function POST(req: NextRequest) {
         base,
         reply: String(existingAssistant.content || "처리됐어요!"),
         quoteId: metadata.resourceType === "quote" && typeof metadata.resourceId === "string" ? metadata.resourceId : undefined,
+        generatedDocument: typeof metadata.temporaryDocumentId === "string" && typeof metadata.resourceId === "string"
+          ? { temporaryDocumentId: metadata.temporaryDocumentId, documentType: typeof metadata.resourceType === "string" ? metadata.resourceType : "document", resourceId: metadata.resourceId }
+          : undefined,
       });
     }
     await finishTelegramWebhook(db, claim.eventId, "processed");
@@ -639,6 +726,7 @@ export async function POST(req: NextRequest) {
       base,
       reply: turn.text,
       quoteId: turn.quoteId,
+      generatedDocument: turn.generatedDocument,
     });
     await finishTelegramWebhook(db, claim.eventId, "processed");
   } catch (error) {
