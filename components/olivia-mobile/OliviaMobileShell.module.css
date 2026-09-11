@@ -97,9 +97,9 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   padding: 6px 6px env(safe-area-inset-bottom, 0px);
-  border-top: 1px solid rgba(255, 255, 255, .2);
-  background: rgba(232, 93, 44, .97);
-  box-shadow: 0 -8px 24px rgba(121, 43, 17, .14);
+  border-top: 1px solid var(--mobile-line);
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 -8px 24px rgba(20, 63, 57, .04);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -111,12 +111,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   border: 0;
   border-radius: 13px;
   padding: 4px 1px;
   background: transparent;
-  color: rgba(255,255,255,.72);
+  color: #84938f;
   font: inherit;
 }
 
@@ -125,15 +125,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: clamp(8px, 2.4vw, 9.5px);
+  font-size: clamp(8px, 2.55vw, 10px);
   font-weight: 600;
   letter-spacing: -.03em;
 }
 
-.bottomNavIcon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; transition: transform 180ms cubic-bezier(.32,.72,0,1); }
-.bottomNavIcon > svg { width: 28px; height: 28px; filter: drop-shadow(0 2px 4px rgba(87, 27, 8, .16)); }
-.bottomNav .bottomNavActive { color: #fff; background: rgba(255,255,255,.17); }
-.bottomNav .bottomNavActive .bottomNavIcon { transform: translateY(-1px); }
+.bottomNavIcon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; }
+.bottomNavIcon > svg { width: 28px; height: 28px; }
+.bottomNav .bottomNavActive { color: var(--mobile-green); background: var(--mobile-mint); }
 
 .sectionLabel { margin: 0 0 10px; color: var(--mobile-ink); font-size: 17px; font-weight: 680; letter-spacing: -.025em; }
 .muted { color: var(--mobile-muted); }
