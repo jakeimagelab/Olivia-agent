@@ -16,6 +16,7 @@ import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/q
 import { packages, singleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
+import { getQuoteRailNameSize } from "@/lib/quote/quoteTypography";
 import {
   Building2,
   CheckCircle2,
@@ -1798,7 +1799,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                 </div>
                 <div className="rail-address">
                   <span>TO.</span>
-                  <strong>{customer.hospitalName || cfg.entityLabel}</strong>
+                  <strong className={`rail-customer-name rail-customer-name--${getQuoteRailNameSize(customer.hospitalName || cfg.entityLabel)}`}>
+                    {customer.hospitalName || cfg.entityLabel}
+                  </strong>
                   <small>{customer.managerName || "담당자"}</small>
                 </div>
                 <div className="rail-notice">

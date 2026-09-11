@@ -2445,13 +2445,16 @@ main:has(> .pc-header) {
 
 .quote-page {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 180px 1fr;
   width: 1123px;
   min-height: 794px;
   margin: 0;
   overflow: hidden;
   background: #ffffff;
   color: #222222;
+  font-family: var(--font-nanum-square, "NanumSquare"), "NanumSquare", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
   border: 1px solid #9eb3b0;
   box-shadow: 0 0 0 1px rgba(21, 88, 85, 0.08);
   transform-origin: top left;
@@ -2527,9 +2530,23 @@ main:has(> .pc-header) {
   display: block;
   color: #ffffff;
   padding: 7px 16px 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  overflow-wrap: anywhere;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.rail-address .rail-customer-name--compact {
+  font-size: 12px;
+  letter-spacing: -0.04em;
+}
+
+.rail-address .rail-customer-name--tight {
+  font-size: 11px;
+  letter-spacing: -0.055em;
 }
 
 .rail-address small {
@@ -2643,8 +2660,10 @@ main:has(> .pc-header) {
 .invoice-meta div {
   display: grid;
   grid-template-columns: 130px 1fr;
+  align-items: center;
   gap: 20px;
   font-size: 11px;
+  line-height: 1.15;
 }
 
 .invoice-meta span {
@@ -2683,9 +2702,10 @@ main:has(> .pc-header) {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 9px;
+  min-height: 28px;
+  padding: 0 9px;
   font-size: 10.5px;
-  line-height: 1.25;
+  line-height: 1.15;
 }
 
 .client-strip span svg {
@@ -2734,10 +2754,11 @@ main:has(> .pc-header) {
 
 .quote-table th {
   height: 32px;
-  padding-top: 7px;
-  padding-bottom: 7px;
+  padding-top: 0;
+  padding-bottom: 0;
   background: var(--deep-green);
   color: #ffffff;
+  line-height: 1;
   text-align: center;
   font-weight: 600;
 }
@@ -2787,12 +2808,13 @@ main:has(> .pc-header) {
 
 .category-row td {
   height: 32px;
-  padding-top: 7px;
-  padding-bottom: 7px;
+  padding-top: 0;
+  padding-bottom: 0;
   padding-left: 16px;
   background: #fbf1e2;
   color: #2c2a26;
   font-weight: 600;
+  line-height: 1;
   text-align: left !important;
   border-bottom: 0;
   border-left: 4px solid var(--orange-soft);
@@ -2864,10 +2886,12 @@ main:has(> .pc-header) {
   display: grid;
   grid-template-columns: 1fr 110px;
   align-items: center;
+  min-height: 27px;
   border: 1px solid var(--quote-tint-border);
   background: #fdfbf8;
   margin-bottom: 5px;
-  padding: 4px 4px;
+  padding: 0 4px;
+  line-height: 1;
 }
 
 .payment-row strong {
@@ -2935,6 +2959,7 @@ main:has(> .pc-header) {
   align-items: center;
   min-height: 20px;
   color: #222222;
+  line-height: 1;
 }
 
 .total-box span {
