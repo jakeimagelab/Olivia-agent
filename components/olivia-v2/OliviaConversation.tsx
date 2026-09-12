@@ -5,6 +5,7 @@ import { ArrowUp, Maximize2, Minimize2, Minus, Paperclip, Plus, Search, Square }
 import { MarkdownText, OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { messageText } from "@/lib/olivia/v2/types";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
+import { useOliviaChatDockStore } from "@/lib/store/useOliviaChatDockStore";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { buildConversationExchanges } from "@/lib/olivia/conversationTimeline";
 import { OliviaConversationGuide, OliviaConversationNavigator } from "@/components/olivia-v2/OliviaConversationNavigation";
@@ -29,6 +30,7 @@ const MOBILE_SUGGESTIONS = ["견적 만들어줘", "오늘 일정 알려줘", "�
 export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer" | "home" | "mobile"; showExpandToggle?: boolean; onMinimize?: () => void }) {
   const messages = useOliviaConversationStore((state) => state.messages);
   const conversationId = useOliviaConversationStore((state) => state.conversationId);
+  const activeDockId = useOliviaChatDockStore((state) => state.activeDockId);
   // OLIVIA OS Phase 3 §27 — 지금 포커스된(또는 Olivia 자신에 포커스가 가 있다면 직전에 보던)
   // Desktop 앱이 있으면 그 앱 전용 제안으로 바꾼다. Desktop 밖(다른 라우트)에서는 이 값이 항상
   // null이라 기존 기본값 그대로 나온다.
@@ -94,6 +96,41 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
     list.scrollTo({ top: list.scrollHeight, behavior });
     setShowJumpToBottom(false);
   }, []);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || typeof IntersectionObserver === "undefined") return;
+    let wasVisible = false;
+    let frame: number | null = null;
+    const observer = new IntersectionObserver(([entry]) => {
+      const isVisible = Boolean(
+        entry?.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0,
+      );
+      if (isVisible && !wasVisible) {
+        if (frame != null) cancelAnimationFrame(frame);
+        // OliviaConversation은 닫힐 때 unmount되지 않고 폭 0 또는 display:none 상태로 남는다.
+        // 다시 보이는 첫 프레임에 새 컨테이너의 실제 높이가 확정되므로 그때 최신 대화로 맞춘다.
+        frame = requestAnimationFrame(() => {
+          frame = null;
+          scrollToBottom("auto");
+        });
+      }
+      wasVisible = isVisible;
+    });
+    observer.observe(list);
+    return () => {
+      observer.disconnect();
+      if (frame != null) cancelAnimationFrame(frame);
+    };
+  }, [scrollToBottom]);
+
+  useEffect(() => {
+    if (!activeDockId) return;
+    // 하나의 persistent portal host가 홈/워크스페이스/OS 창 사이를 이동하므로 메시지 배열은
+    // 그대로다. dock 변경 자체를 진입으로 보고, 이동이 끝난 다음 프레임에 최신 대화를 보인다.
+    const frame = requestAnimationFrame(() => scrollToBottom("auto"));
+    return () => cancelAnimationFrame(frame);
+  }, [activeDockId, scrollToBottom]);
 
   useEffect(() => { void hydrate(); }, [hydrate]);
   useEffect(() => {

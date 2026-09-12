@@ -339,15 +339,69 @@
 .design_quote { background: #efe7dc; color: #315b55; }
 .blankPreview { border: 1px dashed #c5d7d2; background: #faf8f3; }
 
-.aiForm { display: grid; gap: 16px; }
+.aiForm {
+  --green: #155855;
+  --green-dark: #103f3c;
+  --mint: #eaf4f2;
+  --line: rgba(21, 88, 85, 0.14);
+  display: grid;
+  gap: 16px;
+}
 .aiForm fieldset { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
 .aiForm legend { margin-bottom: 8px; color: #315b55; font-size: 10px; font-weight: 850; }
 .chipRow { display: flex; flex-wrap: wrap; gap: 7px; }
 .chipRow button { min-height: 32px; border: 1px solid #dfe9e6; border-radius: 999px; padding: 0 12px; background: #fff; color: #657b76; font: 750 10px var(--font-sans); cursor: pointer; }
 .chipRow .chipActive { border-color: #155855; background: #eaf4f2; color: #155855; }
 .checkRow { display: flex; flex-wrap: wrap; gap: 8px 14px; }
-.checkRow label { color: #617873; font-size: 10px; font-weight: 700; }
-.generateBackgroundButton { justify-self: end; min-width: 132px; }
+.checkRow label {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 7px;
+  padding: 3px 6px;
+  color: #526e68;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.checkRow label:hover { background: #f0f7f5; color: #155855; }
+.checkRow input {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: grid;
+  place-content: center;
+  margin: 0;
+  border: 1px solid #9db4af;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+.checkRow input::before {
+  content: "";
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  opacity: 0;
+  transform: translateY(-1px) rotate(45deg) scale(.8);
+}
+.checkRow input:checked { border-color: #155855; background: #155855; }
+.checkRow input:checked::before { opacity: 1; }
+.checkRow input:focus-visible { outline: 3px solid rgba(21,88,85,.2); outline-offset: 2px; }
+.generateBackgroundButton {
+  justify-self: end;
+  min-width: 148px;
+  min-height: 40px;
+  background: #155855;
+  border-color: #155855;
+  color: #fff;
+  box-shadow: 0 7px 18px rgba(21,88,85,.16);
+}
+.generateBackgroundButton:not(:disabled):hover { background: #103f3c; border-color: #103f3c; }
+.generateBackgroundButton:disabled { opacity: .58; background: #155855; border-color: #155855; color: #fff; }
 .resultTitle { margin: 2px 0 -6px; color: #315b55; font-size: 10px; font-weight: 850; }
 .backgroundResults { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 4px; }
 .backgroundResults button { overflow: hidden; display: grid; gap: 0; border: 1px solid #dfe9e6; border-radius: 10px; padding: 0; background: #fff; cursor: pointer; }
