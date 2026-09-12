@@ -330,6 +330,15 @@
   .rightPanel { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; max-height: 320px; }
 }
 
+/* 공통 헤더/배너가 함께 보이는 720~800px 높이의 데스크톱 창에서는 남은 높이에 모든 행을
+   억지로 압축하면 canonical canvas가 썸네일처럼 작아진다. 편집 영역의 최소 작업 높이를
+   유지하고 workspace 안에서 세로 스크롤하게 해 실제 편집 크기를 보존한다. */
+@media (max-height: 820px) and (min-width: 761px) {
+  .workspace { overflow-y: auto; }
+  .editorGrid { height: 620px; min-height: 620px; }
+  .panel { max-height: 620px; }
+}
+
 @media (max-width: 760px) {
   .workspace { height: auto; overflow: visible; grid-template-rows: auto auto; padding-inline: 12px; }
   .header { align-items: flex-start; padding: 14px 0; }
