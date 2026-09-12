@@ -957,6 +957,25 @@ export default function ReviewStoryWorkspace() {
           </section>
 
           <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>캔버스 비율</h2>
+              <span className={styles.count}>{activePage ? `${activePage.document.width}×${activePage.document.height}` : "페이지 생성 후 선택"}</span>
+            </div>
+            <label className={styles.canvasRatioField}>
+              <span>팔레트 크기</span>
+              <select
+                className={styles.select}
+                value={activePage ? reviewStoryCanvasRatio(activePage.document) : "4:5"}
+                aria-label="팔레트 비율"
+                disabled={!activePage}
+                onChange={(event) => changeCanvasRatio(event.target.value as ReviewStoryCanvasRatio)}
+              >
+                {CANVAS_RATIO_OPTIONS.map(([ratio, size]) => <option key={ratio} value={ratio}>{size.label} · {size.width}×{size.height}</option>)}
+              </select>
+            </label>
+          </section>
+
+          <section className={styles.section}>
             <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>템플릿 선택</h2><span className={styles.count}>{selectedTemplateIds.length}개 선택</span></div>
             <div className={styles.templateGrid}>
               {layouts.map((layout) => {
@@ -1008,30 +1027,18 @@ export default function ReviewStoryWorkspace() {
                 <button className={styles.iconButton} onClick={undo} disabled={!history.length} aria-label="실행 취소"><Undo2 size={15} /></button>
                 <button className={styles.iconButton} onClick={redo} disabled={!future.length} aria-label="다시 실행"><Redo2 size={15} /></button>
               </div>
-              <label className={styles.ratioControl}>
-                <span>비율</span>
-                <select
-                  value={activePage ? reviewStoryCanvasRatio(activePage.document) : "4:5"}
-                  aria-label="팔레트 비율"
-                  disabled={!activePage}
-                  onChange={(event) => changeCanvasRatio(event.target.value as ReviewStoryCanvasRatio)}
-                >
-                  {CANVAS_RATIO_OPTIONS.map(([ratio, size]) => <option key={ratio} value={ratio}>{size.label} · {size.width}×{size.height}</option>)}
-                </select>
-              </label>
-              <span className={styles.toolbarDivider} />
               {selectedElement?.type === "text" ? (
                 <>
                   <span className={styles.contextLabel}><Type size={14} /> 텍스트</span>
                   <select className={styles.toolbarSelect} value={selectedElement.fontFamily} aria-label="글꼴" onChange={(event) => patchElement(selectedElement.id, { fontFamily: event.target.value } as Partial<ReviewStoryElement>)}>{FONT_OPTIONS.map((font) => <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>{font.label}</option>)}</select>
-                  <ToolbarRange label="크기" value={selectedElement.fontSize} min={8} max={240} step={1} onChange={(value) => patchElement(selectedElement.id, { fontSize: value } as Partial<ReviewStoryElement>)} />
+                  <ToolbarRange label="크기" value={selectedElement.fontSize} min={8} max={120} step={1} onChange={(value) => patchElement(selectedElement.id, { fontSize: value } as Partial<ReviewStoryElement>)} />
                   <label className={styles.colorTool} title="글자 색상"><Palette size={14} /><input type="color" value={selectedElement.color} onChange={(event) => patchElement(selectedElement.id, { color: event.target.value } as Partial<ReviewStoryElement>)} /></label>
                   <button className={`${styles.toolButton} ${selectedElement.fontWeight >= 700 ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { fontWeight: selectedElement.fontWeight >= 700 ? 400 : 700 } as Partial<ReviewStoryElement>)} aria-label="굵게"><Bold size={14} /></button>
                   <button className={`${styles.toolButton} ${selectedElement.italic ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { italic: !selectedElement.italic } as Partial<ReviewStoryElement>)} aria-label="기울임"><Italic size={14} /></button>
                   <button className={`${styles.toolButton} ${selectedElement.underline ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { underline: !selectedElement.underline } as Partial<ReviewStoryElement>)} aria-label="밑줄"><Underline size={14} /></button>
                   {([{"value":"left","icon":AlignLeft},{"value":"center","icon":AlignCenter},{"value":"right","icon":AlignRight}] as const).map(({ value, icon: Icon }) => <button key={value} className={`${styles.toolButton} ${selectedElement.textAlign === value ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { textAlign: value } as Partial<ReviewStoryElement>)} aria-label={`${value} 정렬`}><Icon size={14} /></button>)}
-                  <ToolbarRange label="행간" value={selectedElement.lineHeight} min={0.8} max={3} step={0.05} format={(value) => value.toFixed(2)} onChange={(value) => patchElement(selectedElement.id, { lineHeight: value } as Partial<ReviewStoryElement>)} />
-                  <ToolbarRange label="자간" value={selectedElement.letterSpacing} min={-12} max={24} step={0.2} format={(value) => `${value.toFixed(1)}`} onChange={(value) => patchElement(selectedElement.id, { letterSpacing: value } as Partial<ReviewStoryElement>)} />
+                  <ToolbarRange label="행간" value={selectedElement.lineHeight} min={0.8} max={2.2} step={0.02} format={(value) => value.toFixed(2)} onChange={(value) => patchElement(selectedElement.id, { lineHeight: value } as Partial<ReviewStoryElement>)} />
+                  <ToolbarRange label="자간" value={selectedElement.letterSpacing} min={-5} max={12} step={0.1} format={(value) => `${value.toFixed(1)}`} onChange={(value) => patchElement(selectedElement.id, { letterSpacing: value } as Partial<ReviewStoryElement>)} />
                   <label className={`${styles.wrapToggle} ${selectedElement.autoWrap !== false ? styles.wrapToggleActive : ""}`} title="한글 단어와 문장부호를 고려해 자동으로 줄바꿈합니다.">
                     <input type="checkbox" checked={selectedElement.autoWrap !== false} onChange={(event) => patchElement(selectedElement.id, { autoWrap: event.target.checked } as Partial<ReviewStoryElement>)} />
                     자동 줄바꿈

@@ -125,6 +125,7 @@
   outline: none;
 }
 .input:focus, .textarea:focus, .select:focus { border-color: rgba(21,88,85,.55); box-shadow: 0 0 0 3px rgba(21,88,85,.07); }
+.select:disabled { color: #9aaba7; cursor: not-allowed; }
 .textarea { min-height: 118px; resize: vertical; line-height: 1.6; }
 .twoCols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
@@ -165,6 +166,8 @@
 .templateLabel { color: #58706b; font-size: 9.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
 
 .generateBox { padding: 15px 16px 18px; background: #f6faf8; }
+.canvasRatioField { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; color: #6b807c; font-size: 10px; font-weight: 750; }
+.canvasRatioField .select { min-width: 0; padding-block: 8px; }
 .stepper { display: flex; align-items: center; justify-content: space-between; gap: 7px; margin: 11px 0; }
 .stepperValue { min-width: 45px; text-align: center; color: var(--green); font-size: 14px; font-weight: 850; }
 
@@ -226,27 +229,11 @@
 .colorTool { width: 34px; padding: 0; position: relative; overflow: hidden; }
 .colorToolWide { position: relative; overflow: hidden; }
 .colorTool input, .colorToolWide input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-.ratioControl {
-  height: 32px;
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding-left: 7px;
-  border: 1px solid #e1ebe8;
-  border-radius: 8px;
-  background: #fff;
-  color: #718681;
-  font-size: 8px;
-  font-weight: 800;
-}
-.ratioControl select { width: 156px; height: 30px; border: 0; outline: 0; background: transparent; color: #315b55; padding: 0 7px 0 0; font: 700 9px var(--font-sans); }
-.ratioControl:focus-within { border-color: rgba(21,88,85,.48); box-shadow: 0 0 0 2px rgba(21,88,85,.06); }
 .toolbarRange {
   height: 32px;
-  flex: 0 0 116px;
+  flex: 0 0 124px;
   display: grid;
-  grid-template-columns: auto minmax(42px, 1fr) 30px;
+  grid-template-columns: auto minmax(52px, 1fr) 28px;
   align-items: center;
   gap: 5px;
   padding: 0 6px;
@@ -257,7 +244,13 @@
   font-size: 8px;
   font-weight: 800;
 }
-.toolbarRange input { width: 100%; min-width: 42px; margin: 0; accent-color: #155855; cursor: pointer; }
+.toolbarRange input { width: 100%; min-width: 52px; height: 10px; margin: 0; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer; }
+.toolbarRange input::-webkit-slider-runnable-track { height: 2px; border-radius: 999px; background: #c8d8d4; }
+.toolbarRange input::-webkit-slider-thumb { width: 10px; height: 10px; margin-top: -4px; border: 0; border-radius: 50%; -webkit-appearance: none; background: #155855; box-shadow: 0 0 0 2px #fff; }
+.toolbarRange input::-moz-range-track { height: 2px; border: 0; border-radius: 999px; background: #c8d8d4; }
+.toolbarRange input::-moz-range-progress { height: 2px; border-radius: 999px; background: #155855; }
+.toolbarRange input::-moz-range-thumb { width: 10px; height: 10px; border: 0; border-radius: 50%; background: #155855; box-shadow: 0 0 0 2px #fff; }
+.toolbarRange input:focus-visible { outline: 2px solid rgba(21,88,85,.22); outline-offset: 3px; }
 .toolbarRange output { color: #315b55; font-size: 8px; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
 .wrapToggle {
   height: 32px;

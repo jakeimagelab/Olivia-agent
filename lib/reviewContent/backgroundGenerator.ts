@@ -21,6 +21,50 @@ export interface BackgroundGenerator {
   generate(input: BackgroundGenerationInput): Promise<GeneratedBackground[]>;
 }
 
+type GeneratedImageData = { b64_json?: string | null };
+
+export function buildBackgroundGenerationRequest(
+  input: BackgroundGenerationInput,
+  model: string,
+): OpenAI.ImageGenerateParams {
+  const count = Math.max(1, Math.min(3, input.count));
+  const gptImageModel = /^(gpt-image|chatgpt-image)/.test(model);
+  if (!gptImageModel) {
+    throw new Error("AI 배경 모델은 GPT Image 계열로 설정해 주세요.");
+  }
+  return {
+    model,
+    prompt: buildBackgroundPrompt(input),
+    n: count,
+    size: "1024x1536",
+    quality: "medium",
+    output_format: "png",
+  };
+}
+
+export function decodeGeneratedBackgrounds(
+  data: GeneratedImageData[] | undefined,
+  expectedCount: number,
+  model: string,
+  dimensions = { width: 1024, height: 1536 },
+): GeneratedBackground[] {
+  const count = Math.max(1, Math.min(3, expectedCount));
+  const encodedImages = (data || [])
+    .map((image) => image.b64_json)
+    .filter((encoded): encoded is string => Boolean(encoded));
+  if (encodedImages.length !== count) {
+    throw new Error(`AI 배경 ${count}개 중 ${encodedImages.length}개만 반환되었습니다.`);
+  }
+  return encodedImages.map((encoded) => ({
+    bytes: Buffer.from(encoded, "base64"),
+    mimeType: "image/png" as const,
+    width: dimensions.width,
+    height: dimensions.height,
+    provider: "openai",
+    model,
+  }));
+}
+
 const STYLE_LABELS = {
   minimal: "minimal premium editorial background with generous negative space",
   clinic: "clean and trustworthy premium clinic brand background",
@@ -63,38 +107,20 @@ class OpenAIBackgroundGenerator implements BackgroundGenerator {
   private readonly model: string;
 
   constructor(apiKey: string) {
-    this.client = new OpenAI({ apiKey });
-    this.model = process.env.REVIEW_BACKGROUND_MODEL || "gpt-image-1";
+    this.client = new OpenAI({ apiKey: apiKey.trim() });
+    this.model = process.env.REVIEW_BACKGROUND_MODEL || process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
   }
 
   async generate(input: BackgroundGenerationInput) {
-    const prompt = buildBackgroundPrompt(input);
-    const count = Math.max(1, Math.min(3, input.count));
-    return Promise.all(Array.from({ length: count }, async () => {
-      const response = await this.client.images.generate({
-        model: this.model,
-        prompt,
-        n: 1,
-        size: "1024x1536",
-        quality: "medium",
-        response_format: "b64_json",
-      });
-      const encoded = response.data?.[0]?.b64_json;
-      if (!encoded) throw new Error("AI 배경 이미지가 반환되지 않았습니다.");
-      return {
-        bytes: Buffer.from(encoded, "base64"),
-        mimeType: "image/png" as const,
-        width: 1024,
-        height: 1536,
-        provider: "openai",
-        model: this.model,
-      };
-    }));
+    const request = buildBackgroundGenerationRequest(input, this.model);
+    const response = await this.client.images.generate(request);
+    const [width, height] = request.size === "1024x1536" ? [1024, 1536] : [1024, 1024];
+    return decodeGeneratedBackgrounds(response.data, request.n || 1, this.model, { width, height });
   }
 }
 
 export function getBackgroundGenerator(): BackgroundGenerator {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("AI 배경 생성 API가 아직 연결되지 않았습니다.");
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) throw new Error("배포 환경에 AI 배경 생성용 OpenAI API 키가 연결되지 않았습니다.");
   return new OpenAIBackgroundGenerator(apiKey);
 }
