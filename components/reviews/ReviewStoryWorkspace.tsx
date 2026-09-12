@@ -1036,12 +1036,20 @@ export default function ReviewStoryWorkspace() {
                   <button className={`${styles.toolButton} ${selectedElement.fontWeight >= 700 ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { fontWeight: selectedElement.fontWeight >= 700 ? 400 : 700 } as Partial<ReviewStoryElement>)} aria-label="굵게"><Bold size={14} /></button>
                   <button className={`${styles.toolButton} ${selectedElement.italic ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { italic: !selectedElement.italic } as Partial<ReviewStoryElement>)} aria-label="기울임"><Italic size={14} /></button>
                   <button className={`${styles.toolButton} ${selectedElement.underline ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { underline: !selectedElement.underline } as Partial<ReviewStoryElement>)} aria-label="밑줄"><Underline size={14} /></button>
-                  {([{"value":"left","icon":AlignLeft},{"value":"center","icon":AlignCenter},{"value":"right","icon":AlignRight}] as const).map(({ value, icon: Icon }) => <button key={value} className={`${styles.toolButton} ${selectedElement.textAlign === value ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { textAlign: value } as Partial<ReviewStoryElement>)} aria-label={`${value} 정렬`}><Icon size={14} /></button>)}
+                  {([{"value":"left","icon":AlignLeft},{"value":"center","icon":AlignCenter},{"value":"right","icon":AlignRight}] as const).map(({ value, icon: Icon }) => <button key={value} className={`${styles.toolButton} ${styles.alignmentButton} ${selectedElement.textAlign === value ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { textAlign: value } as Partial<ReviewStoryElement>)} aria-label={`${value} 정렬`}><Icon size={14} /></button>)}
+                  <button
+                    className={`${styles.toolButton} ${styles.compactAlignButton} ${styles.toolActive}`}
+                    onClick={() => patchElement(selectedElement.id, { textAlign: selectedElement.textAlign === "left" ? "center" : selectedElement.textAlign === "center" ? "right" : "left" } as Partial<ReviewStoryElement>)}
+                    aria-label={`정렬 변경 · 현재 ${selectedElement.textAlign === "left" ? "왼쪽" : selectedElement.textAlign === "center" ? "가운데" : "오른쪽"}`}
+                    title="정렬 변경"
+                  >
+                    {selectedElement.textAlign === "left" ? <AlignLeft size={14} /> : selectedElement.textAlign === "center" ? <AlignCenter size={14} /> : <AlignRight size={14} />}
+                  </button>
                   <ToolbarRange label="행간" value={selectedElement.lineHeight} min={0.8} max={2.2} step={0.02} format={(value) => value.toFixed(2)} onChange={(value) => patchElement(selectedElement.id, { lineHeight: value } as Partial<ReviewStoryElement>)} />
                   <ToolbarRange label="자간" value={selectedElement.letterSpacing} min={-5} max={12} step={0.1} format={(value) => `${value.toFixed(1)}`} onChange={(value) => patchElement(selectedElement.id, { letterSpacing: value } as Partial<ReviewStoryElement>)} />
-                  <label className={`${styles.wrapToggle} ${selectedElement.autoWrap !== false ? styles.wrapToggleActive : ""}`} title="한글 단어와 문장부호를 고려해 자동으로 줄바꿈합니다.">
+                  <label className={`${styles.wrapToggle} ${selectedElement.autoWrap !== false ? styles.wrapToggleActive : ""}`} title="한글 단어와 문장부호를 고려해 자동으로 줄바꿈합니다." aria-label="자동 줄바꿈">
                     <input type="checkbox" checked={selectedElement.autoWrap !== false} onChange={(event) => patchElement(selectedElement.id, { autoWrap: event.target.checked } as Partial<ReviewStoryElement>)} />
-                    자동 줄바꿈
+                    <span className={styles.wrapToggleLabel}>자동 줄바꿈</span>
                   </label>
                   <button className={`${styles.toolButton} ${selectedElement.highlight ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { highlight: !selectedElement.highlight } as Partial<ReviewStoryElement>)} aria-label="형광펜"><Highlighter size={14} /></button>
                   <button className={styles.toolButton} onClick={deleteSelectedElement} disabled={selectedElement.locked} aria-label="삭제"><Trash2 size={14} /></button>
