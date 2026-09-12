@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, MapPin, Plus, Trash2 } from "lucide-react";
+import type { CalendarTodo } from "@/lib/calendarTodos";
 import MobileHeader from "./MobileHeader";
 import styles from "./OliviaMobileShell.module.css";
 
@@ -69,6 +70,12 @@ export default function MobileCalendar() {
   const [error, setError] = useState("");
   const [draft, setDraft] = useState<CalendarDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [todos, setTodos] = useState<CalendarTodo[]>([]);
+  const [todosLoading, setTodosLoading] = useState(true);
+  const [todoError, setTodoError] = useState("");
+  const [todoTitle, setTodoTitle] = useState("");
+  const [todoSaving, setTodoSaving] = useState(false);
+  const [todoBusyId, setTodoBusyId] = useState<string | null>(null);
 
   const monthKey = selectedDate.slice(0, 7);
   const load = useCallback(async () => {
@@ -86,17 +93,42 @@ export default function MobileCalendar() {
     }
   }, [monthKey]);
 
+  const loadTodos = useCallback(async () => {
+    setTodosLoading(true);
+    setTodoError("");
+    try {
+      const response = await fetch("/api/calendar/todos", { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || "할 일을 불러오지 못했어요.");
+      setTodos(payload.todos || []);
+    } catch (loadError) {
+      setTodoError(loadError instanceof Error ? loadError.message : "할 일을 불러오지 못했어요.");
+    } finally {
+      setTodosLoading(false);
+    }
+  }, []);
+
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void loadTodos(); }, [loadTodos]);
   useEffect(() => {
-    const refresh = () => void load();
+    const refresh = () => { void load(); void loadTodos(); };
     window.addEventListener("olivia-resource-updated", refresh);
-    return () => window.removeEventListener("olivia-resource-updated", refresh);
-  }, [load]);
+    window.addEventListener("olivia-calendar-updated", refresh);
+    return () => {
+      window.removeEventListener("olivia-resource-updated", refresh);
+      window.removeEventListener("olivia-calendar-updated", refresh);
+    };
+  }, [load, loadTodos]);
 
   const selectedTasks = useMemo(() => tasks.filter((task) => task.date === selectedDate), [selectedDate, tasks]);
   const week = useMemo(() => getWeek(selectedDate), [selectedDate]);
   const monthGrid = useMemo(() => getMonthGrid(selectedDate), [selectedDate]);
   const taskDates = useMemo(() => new Set(tasks.map((task) => task.date)), [tasks]);
+  const sortedTodos = useMemo(() => [...todos].sort((left, right) =>
+    Number(left.completed) - Number(right.completed)
+      || left.sortOrder - right.sortOrder
+      || left.createdAt.localeCompare(right.createdAt)
+  ), [todos]);
 
   const move = (direction: -1 | 1) => {
     const amount = view === "month" ? 30 : view === "week" ? 7 : 1;
@@ -133,6 +165,71 @@ export default function MobileCalendar() {
     }
   };
 
+  const addTodo = async () => {
+    const title = todoTitle.trim();
+    if (!title || todoSaving) return;
+    setTodoSaving(true);
+    setTodoError("");
+    try {
+      const response = await fetch("/api/calendar/todos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || "할 일을 추가하지 못했어요.");
+      setTodos((current) => [...current, payload.todo as CalendarTodo]);
+      setTodoTitle("");
+      window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
+    } catch (saveError) {
+      setTodoError(saveError instanceof Error ? saveError.message : "할 일을 추가하지 못했어요.");
+    } finally {
+      setTodoSaving(false);
+    }
+  };
+
+  const toggleTodo = async (todo: CalendarTodo) => {
+    if (todoBusyId) return;
+    const completed = !todo.completed;
+    setTodoBusyId(todo.id);
+    setTodoError("");
+    setTodos((current) => current.map((item) => item.id === todo.id ? { ...item, completed } : item));
+    try {
+      const response = await fetch("/api/calendar/todos", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: todo.id, completed }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || "완료 상태를 바꾸지 못했어요.");
+      setTodos((current) => current.map((item) => item.id === todo.id ? payload.todo as CalendarTodo : item));
+      window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
+    } catch (saveError) {
+      setTodos((current) => current.map((item) => item.id === todo.id ? todo : item));
+      setTodoError(saveError instanceof Error ? saveError.message : "완료 상태를 바꾸지 못했어요.");
+    } finally {
+      setTodoBusyId(null);
+    }
+  };
+
+  const deleteTodo = async (todo: CalendarTodo) => {
+    if (todoBusyId) return;
+    setTodoBusyId(todo.id);
+    setTodoError("");
+    setTodos((current) => current.filter((item) => item.id !== todo.id));
+    try {
+      const response = await fetch(`/api/calendar/todos?id=${encodeURIComponent(todo.id)}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || "할 일을 삭제하지 못했어요.");
+      window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
+    } catch (saveError) {
+      setTodos((current) => current.some((item) => item.id === todo.id) ? current : [...current, todo]);
+      setTodoError(saveError instanceof Error ? saveError.message : "할 일을 삭제하지 못했어요.");
+    } finally {
+      setTodoBusyId(null);
+    }
+  };
+
   return (
     <section className={styles.screenWithHeader} aria-label="모바일 캘린더">
       <MobileHeader title="캘린더" subtitle="오늘과 다가오는 일정을 확인하세요." onAdd={() => setDraft(emptyDraft(selectedDate))} />
@@ -163,6 +260,29 @@ export default function MobileCalendar() {
             <ChevronRight size={18} />
           </button>)}</div>
         ) : <div className={styles.emptyState}><CalendarDays size={22} /><span>{selectedDate === dateKey() ? "오늘 예정된 일정이 없어요." : "이날 예정된 일정이 없어요."}</span></div>}
+
+        <section className={styles.todoSection} aria-labelledby="mobile-calendar-todos">
+          <div className={styles.listHeading}>
+            <h3 id="mobile-calendar-todos">할 일</h3>
+            <span>{todos.length}</span>
+          </div>
+          <form className={styles.todoComposer} onSubmit={(event) => { event.preventDefault(); void addTodo(); }}>
+            <input value={todoTitle} onChange={(event) => setTodoTitle(event.target.value)} placeholder="새 할 일을 입력하세요" maxLength={160} aria-label="새 할 일" />
+            <button type="submit" disabled={todoSaving || !todoTitle.trim()} aria-label="할 일 추가"><Plus size={18} /></button>
+          </form>
+          {todoError ? <div className={styles.todoError}><span>{todoError}</span><button type="button" onClick={() => void loadTodos()}>다시 시도</button></div> : null}
+          {todosLoading ? <div className={styles.todoEmpty}>할 일을 확인하고 있어요...</div> : sortedTodos.length ? (
+            <div className={styles.todoList}>{sortedTodos.map((todo) => (
+              <div key={todo.id} className={todo.completed ? styles.todoCompleted : undefined}>
+                <button type="button" className={styles.todoToggle} disabled={todoBusyId === todo.id} onClick={() => void toggleTodo(todo)} aria-label={`${todo.title} ${todo.completed ? "미완료로 변경" : "완료"}`} aria-pressed={todo.completed}>
+                  {todo.completed ? <Check size={13} /> : null}
+                </button>
+                <span>{todo.title}</span>
+                <button type="button" className={styles.todoDelete} disabled={todoBusyId === todo.id} onClick={() => void deleteTodo(todo)} aria-label={`${todo.title} 삭제`}><Trash2 size={15} /></button>
+              </div>
+            ))}</div>
+          ) : <div className={styles.todoEmpty}>등록된 할 일이 없어요.</div>}
+        </section>
       </div>
 
       {draft ? <div className={styles.sheetBackdrop} onPointerDown={() => setDraft(null)}>
