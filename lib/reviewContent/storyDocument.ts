@@ -1,6 +1,15 @@
 export const REVIEW_STORY_WIDTH = 1080;
 export const REVIEW_STORY_HEIGHT = 1350;
 
+export const REVIEW_STORY_CANVAS_SIZES = {
+  "4:5": { width: REVIEW_STORY_WIDTH, height: REVIEW_STORY_HEIGHT, label: "4:5 · 인스타그램" },
+  "3:4": { width: REVIEW_STORY_WIDTH, height: 1440, label: "3:4" },
+  "2:3": { width: REVIEW_STORY_WIDTH, height: 1620, label: "2:3" },
+  "1:1": { width: REVIEW_STORY_WIDTH, height: 1080, label: "1:1" },
+} as const;
+
+export type ReviewStoryCanvasRatio = keyof typeof REVIEW_STORY_CANVAS_SIZES;
+
 export type ReviewStoryBinding =
   | "headline"
   | "reviewBody"
@@ -44,6 +53,9 @@ export type ReviewStoryTextElement = ReviewStoryElementBase & {
   underline?: boolean;
   highlight?: boolean;
   highlightColor?: string;
+  // true 또는 미지정이면 한글 단어·문장부호를 고려해 text box 너비 안에서 자동 줄바꿈한다.
+  // false는 사용자가 입력한 줄바꿈만 유지한다. optional은 기존 저장 문서와의 호환을 위함이다.
+  autoWrap?: boolean;
 };
 
 export type ReviewStoryImageElement = ReviewStoryElementBase & {
@@ -90,8 +102,8 @@ export type ReviewStoryBackgroundImage = {
 
 export type ReviewStoryDocument = {
   version: 1;
-  width: typeof REVIEW_STORY_WIDTH;
-  height: typeof REVIEW_STORY_HEIGHT;
+  width: number;
+  height: number;
   background: string;
   backgroundImage?: ReviewStoryBackgroundImage;
   elements: ReviewStoryElement[];
@@ -307,6 +319,48 @@ export function duplicateStoryElement(element: ReviewStoryElement, id: string): 
   return { ...clone(element), id, name: `${element.name} 복사본`, x: element.x + 20, y: element.y + 20, zIndex: element.zIndex + 1 };
 }
 
+export function reviewStoryCanvasRatio(document: Pick<ReviewStoryDocument, "width" | "height">): ReviewStoryCanvasRatio {
+  const match = (Object.entries(REVIEW_STORY_CANVAS_SIZES) as Array<[ReviewStoryCanvasRatio, (typeof REVIEW_STORY_CANVAS_SIZES)[ReviewStoryCanvasRatio]]>)
+    .find(([, size]) => size.width === document.width && size.height === document.height);
+  return match?.[0] || "4:5";
+}
+
+/**
+ * 캔버스 비율만 바꾼다. 텍스트/이미지 크기는 늘이지 않고, 위·가운데·아래 기준점에 따라
+ * 세로 위치만 재배치한다. 캔버스 전체 높이를 차지하던 레이어만 새 높이에 맞춰 연장한다.
+ */
+export function resizeReviewStoryDocument(document: ReviewStoryDocument, ratio: ReviewStoryCanvasRatio): ReviewStoryDocument {
+  const target = REVIEW_STORY_CANVAS_SIZES[ratio];
+  if (document.width === target.width && document.height === target.height) return clone(document);
+
+  const next = clone(document);
+  const oldHeight = Math.max(1, document.height);
+  const heightDelta = target.height - oldHeight;
+  next.width = target.width;
+  next.height = target.height;
+  next.elements = next.elements.map((element) => {
+    const bottomGap = oldHeight - (element.y + element.height);
+    const fillsCanvasHeight = element.y <= 1 && Math.abs(bottomGap) <= 1;
+    if (fillsCanvasHeight) return { ...element, y: 0, height: target.height };
+
+    const bottomY = element.y + element.height;
+    let nextY = element.y;
+    // 본문처럼 박스 중심은 가운데여도 하단 정보와 한 묶음인 큰 요소가 있다. 요소의 끝점이
+    // 아래 1/3에 닿으면 하단 여백을 보존해 병원명/URL과의 기존 간격을 함께 유지한다.
+    if (bottomY >= oldHeight * (2 / 3)) {
+      nextY = target.height - bottomGap - element.height;
+    } else if (element.y > oldHeight / 3) {
+      nextY = element.y + heightDelta / 2;
+    }
+    // 큰 장식 레이어는 좁은 비율에서 일부가 잘릴 수 있으므로, 최소 24px은 잡을 수 있게
+    // 남기되 음수 좌표를 허용한다. 그래야 비율을 되돌렸을 때 원래 좌표도 정확히 복원된다.
+    const minY = Math.min(0, -element.height + 24);
+    const maxY = Math.max(0, target.height - 24);
+    return { ...element, y: Math.round(Math.max(minY, Math.min(maxY, nextY))) };
+  });
+  return next;
+}
+
 export function toReviewStoryTemplateDocument(document: ReviewStoryDocument) {
   const next = clone(document);
   next.elements = next.elements.map((element) => {
@@ -327,5 +381,7 @@ export function splitReviewForPages(text: string, count: number) {
 export function isReviewStoryDocument(value: unknown): value is ReviewStoryDocument {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<ReviewStoryDocument>;
-  return candidate.version === 1 && candidate.width === REVIEW_STORY_WIDTH && candidate.height === REVIEW_STORY_HEIGHT && Array.isArray(candidate.elements);
+  const supportedSize = Object.values(REVIEW_STORY_CANVAS_SIZES)
+    .some((size) => candidate.width === size.width && candidate.height === size.height);
+  return candidate.version === 1 && supportedSize && Array.isArray(candidate.elements);
 }

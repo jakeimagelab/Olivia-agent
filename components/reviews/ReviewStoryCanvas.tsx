@@ -3,6 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type CSSProperties } from "react";
 import { AlignCenter, AlignLeft, AlignRight, Bold, Crop, Highlighter, ImagePlus, Italic, Lock, MoveDown, MoveUp, Underline } from "lucide-react";
 import type { ReviewStoryDocument, ReviewStoryElement, ReviewStoryImageElement, ReviewStoryTextElement } from "@/lib/reviewContent/storyDocument";
+import { reviewCanvasTextStyle } from "@/lib/reviewContent/canvasLayout";
 import { computeSnap, type Rect, type SmartGuide } from "@/lib/reviewContent/smartGuides";
 import ReviewCanvasRenderer from "./canvas/ReviewCanvasRenderer";
 import ReviewCanvasExportHost, { type ReviewCanvasExportHostHandle } from "./canvas/ReviewCanvasExportHost";
@@ -20,7 +21,7 @@ type Props = {
 };
 
 export type ReviewStoryCanvasHandle = {
-  // Editor와 같은 ReviewCanvasRenderer를 offscreen 1080×1350 DOM에 마운트하고 그대로
+  // Editor와 같은 ReviewCanvasRenderer를 선택한 논리 크기의 offscreen DOM에 마운트하고 그대로
   // rasterize한다. targetWidthPx는 원하는 출력 픽셀 폭(예: 1080/2160)이며 Editor의 visual
   // zoom과 무관하다. 별도 export markup이나 텍스트 재조판은 이 경로에 존재하지 않는다.
   captureRaster: (targetWidthPx: number) => Promise<HTMLCanvasElement>;
@@ -293,7 +294,7 @@ const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function Re
             autoFocus
             className={styles.inlineEditor}
             value={element.text}
-            style={{ fontFamily: element.fontFamily, fontSize: element.fontSize, fontWeight: element.fontWeight, fontStyle: element.italic ? "italic" : "normal", textDecoration: element.underline ? "underline" : "none", color: element.color, textAlign: element.textAlign, lineHeight: element.lineHeight, letterSpacing: element.letterSpacing }}
+            style={reviewCanvasTextStyle(element)}
             onPointerDown={(event) => event.stopPropagation()}
             onChange={(event) => {
               const next = clone(document);

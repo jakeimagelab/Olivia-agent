@@ -13,9 +13,10 @@ import { createMailingDraft } from "@/lib/mailingQueue";
 import {
   createBlankReviewStoryDocument, createReviewCoverDocument, createReviewDesignDocument,
   createReviewStoryDocument, duplicateStoryElement, isReviewStoryDocument,
+  resizeReviewStoryDocument, REVIEW_STORY_CANVAS_SIZES, reviewStoryCanvasRatio,
   toReviewStoryTemplateDocument,
   type ReviewCoverPreset, type ReviewDesignPreset, type ReviewStoryDocument, type ReviewStoryElement,
-  type ReviewStoryImageElement, type ReviewStoryPageType, type ReviewStoryTemplateConfig,
+  type ReviewStoryCanvasRatio, type ReviewStoryImageElement, type ReviewStoryPageType, type ReviewStoryTemplateConfig,
 } from "@/lib/reviewContent/storyDocument";
 import ReviewStoryCanvas, { type ReviewStoryCanvasHandle } from "./ReviewStoryCanvas";
 import ReviewCanvasThumbnail from "./canvas/ReviewCanvasThumbnail";
@@ -105,13 +106,28 @@ const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 // app/layout.tsx에서 이미 전역으로 로드해 둔 폰트만 나열한다(새 웹폰트 로딩 없음).
 const FONT_OPTIONS = [
   { value: "var(--font-sans)", label: "Pretendard (기본)" },
+  { value: "'NanumSquare', 'Noto Sans KR', sans-serif", label: "나눔스퀘어" },
   { value: "'Noto Sans KR', sans-serif", label: "Noto Sans KR" },
+  { value: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif", label: "Apple SD 고딕" },
   { value: "'Nanum Myeongjo', serif", label: "나눔명조" },
+  { value: "Georgia, 'Nanum Myeongjo', serif", label: "Georgia 세리프" },
   { value: "'Black Han Sans', sans-serif", label: "Black Han Sans" },
   { value: "'Do Hyeon', sans-serif", label: "Do Hyeon" },
   { value: "'Gothic A1', sans-serif", label: "Gothic A1" },
   { value: "'Song Myung', serif", label: "Song Myung" },
 ];
+
+const CANVAS_RATIO_OPTIONS = Object.entries(REVIEW_STORY_CANVAS_SIZES) as Array<[
+  ReviewStoryCanvasRatio,
+  (typeof REVIEW_STORY_CANVAS_SIZES)[ReviewStoryCanvasRatio],
+]>;
+
+const TEMPLATE_PREVIEW_SOURCE = {
+  reviewText: "고객의 이야기가 자연스럽게 담기는 리뷰 콘텐츠입니다.",
+  hospitalName: "OLIVIA CLINIC",
+  doctorName: "",
+  date: "2026.09.12",
+};
 
 const COVER_PRESETS: Array<{ value: ReviewCoverPreset; label: string; description: string }> = [
   { value: "minimal", label: "미니멀", description: "여백과 타이포 중심" },
@@ -176,6 +192,26 @@ async function jsonRequest(url: string, init?: RequestInit) {
   return data;
 }
 
+function ToolbarRange({
+  label, value, min, max, step, onChange, format = (current) => String(current),
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+  format?: (value: number) => string;
+}) {
+  return (
+    <label className={styles.toolbarRange} title={`${label} ${format(value)}`}>
+      <span>{label}</span>
+      <input type="range" min={min} max={max} step={step} value={value} aria-label={label} onChange={(event) => onChange(Number(event.target.value))} />
+      <output>{format(value)}</output>
+    </label>
+  );
+}
+
 export default function ReviewStoryWorkspace() {
   // OS 창 안에서는 타이틀바가 이미 "리뷰콘텐츠"를 보여주므로 본문 h1/설명은 중복이다
   // (제안서 1.1) — standalone /review-studio 라우트에서는 그대로 유지.
@@ -238,6 +274,10 @@ export default function ReviewStoryWorkspace() {
   const activePage = useMemo(() => pages.find((page) => page.id === activePageId) || pages[0] || null, [pages, activePageId]);
   const selectedElement = useMemo(() => activePage?.document.elements.find((element) => element.id === selectedElementId) || null, [activePage, selectedElementId]);
   const selectedReview = useMemo(() => reviews.find((review) => review.id === selectedReviewId) || null, [reviews, selectedReviewId]);
+  const templatePreviews = useMemo(() => new Map(layouts.map((layout) => [
+    layout.id,
+    createReviewStoryDocument(TEMPLATE_PREVIEW_SOURCE, layout.layout_config || {}),
+  ])), [layouts]);
 
   useEffect(() => { setRightTab("props"); }, [selectedElementId]);
 
@@ -342,6 +382,16 @@ export default function ReviewStoryWorkspace() {
     replaceActiveDocument(next, before);
   }, [activePage, replaceActiveDocument]);
 
+  const changeCanvasRatio = useCallback((ratio: ReviewStoryCanvasRatio) => {
+    if (!activePage) return;
+    const before = clone(activePage.document);
+    const next = resizeReviewStoryDocument(activePage.document, ratio);
+    replaceActiveDocument(next, before);
+    setSelectedElementId(null);
+    const size = REVIEW_STORY_CANVAS_SIZES[ratio];
+    notify(`${size.label} · ${size.width}×${size.height}로 변경했습니다.`);
+  }, [activePage, notify, replaceActiveDocument]);
+
   const addTextLayer = useCallback(() => {
     if (!activePage) return;
     const before = clone(activePage.document);
@@ -434,7 +484,8 @@ export default function ReviewStoryWorkspace() {
   const applyTemplate = useCallback((layout: LayoutAsset) => {
     if (!activePage) return;
     const before = clone(activePage.document);
-    const next = createReviewStoryDocument({ ...source, photo: photos[0], photos }, layout.layout_config || {});
+    const templateDocument = createReviewStoryDocument({ ...source, photo: photos[0], photos }, layout.layout_config || {});
+    const next = resizeReviewStoryDocument(templateDocument, reviewStoryCanvasRatio(activePage.document));
     replaceActiveDocument(next, before);
     setSelectedElementId(null);
     setStudioModal(null);
@@ -635,7 +686,7 @@ export default function ReviewStoryWorkspace() {
   };
 
   // Editor와 Export가 함께 쓰는 ReviewCanvasRenderer의 canonical DOM을 캡처한다. Export Host는
-  // 화면 zoom을 받지 않으므로 1080×1350 좌표·줄바꿈·crop이 그대로 유지되고, 고화질 출력은
+  // 화면 zoom을 받지 않으므로 선택한 캔버스 좌표·줄바꿈·crop이 그대로 유지되고, 고화질 출력은
   // raster scale만 2배가 된다. page는 항상 activePage라 현재 편집 문서와 snapshot도 같다.
   const canvasToBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG 생성에 실패했습니다.")), "image/png"));
@@ -742,7 +793,7 @@ export default function ReviewStoryWorkspace() {
     try {
       await jsonRequest("/api/review-layout-assets", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description: "리뷰 스토리 편집기에서 저장", ratio: "4:5", assetType: "builtin", layoutConfig: { template: "text_only", background: activePage.document.background, editorDocument: toReviewStoryTemplateDocument(activePage.document) } }),
+        body: JSON.stringify({ name, description: "리뷰 스토리 편집기에서 저장", ratio: reviewStoryCanvasRatio(activePage.document), assetType: "builtin", layoutConfig: { template: "text_only", background: activePage.document.background, editorDocument: toReviewStoryTemplateDocument(activePage.document) } }),
       });
       await load(activeContentId);
       notify("현재 레이아웃을 기존 템플릿 보관함에 저장했습니다.");
@@ -850,8 +901,8 @@ export default function ReviewStoryWorkspace() {
             <button className={styles.button} onClick={() => setPngMenuOpen((open) => !open)} disabled={Boolean(busy) || !activePage} aria-haspopup="menu" aria-expanded={pngMenuOpen}><Download size={14} /><span>PNG 내보내기</span><ChevronDown size={12} /></button>
             {pngMenuOpen ? (
               <div className={styles.exportMenuPopover} role="menu">
-                <button type="button" role="menuitem" onClick={() => void exportPng(1)}><strong>기본 PNG</strong><span>1080 × 1350</span></button>
-                <button type="button" role="menuitem" onClick={() => void exportPng(2)}><strong>고화질 PNG</strong><span>2160 × 2700</span></button>
+                <button type="button" role="menuitem" onClick={() => void exportPng(1)}><strong>기본 PNG</strong><span>{activePage.document.width} × {activePage.document.height}</span></button>
+                <button type="button" role="menuitem" onClick={() => void exportPng(2)}><strong>고화질 PNG</strong><span>{activePage.document.width * 2} × {activePage.document.height * 2}</span></button>
               </div>
             ) : null}
           </div>
@@ -908,7 +959,7 @@ export default function ReviewStoryWorkspace() {
           <section className={styles.section}>
             <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>템플릿 선택</h2><span className={styles.count}>{selectedTemplateIds.length}개 선택</span></div>
             <div className={styles.templateGrid}>
-              {layouts.map((layout, index) => {
+              {layouts.map((layout) => {
                 const selected = selectedTemplateIds.includes(layout.id);
                 return (
                   <button
@@ -920,7 +971,8 @@ export default function ReviewStoryWorkspace() {
                       // 그 레이아웃으로 바뀐다 — 현재 후기/병원/사진 데이터를 그대로 새 geometry에 다시 바인딩.
                       if (activePage) {
                         const before = clone(activePage.document);
-                        const next = createReviewStoryDocument({ ...source, photos: photos.slice(0, 3) }, layout.layout_config || {});
+                        const templateDocument = createReviewStoryDocument({ ...source, photo: photos[0], photos: photos.slice(0, 3) }, layout.layout_config || {});
+                        const next = resizeReviewStoryDocument(templateDocument, reviewStoryCanvasRatio(activePage.document));
                         replaceActiveDocument(next, before);
                         setSelectedElementId(null);
                       }
@@ -929,10 +981,8 @@ export default function ReviewStoryWorkspace() {
                     <span className={styles.templateThumb}>
                       {layout.thumbnailUrl ? (
                         <img src={layout.thumbnailUrl} alt={layout.name} />
-                      ) : layout.layout_config?.editorDocument ? (
-                        <ReviewTemplateThumbnail document={layout.layout_config.editorDocument} />
                       ) : (
-                        <span className={styles.templateThumbFallback}>{String.fromCharCode(65 + (index % 26))}</span>
+                        <ReviewTemplateThumbnail document={templatePreviews.get(layout.id)!} />
                       )}
                       {selected ? <span className={styles.templateCheck}><Check size={11} /></span> : null}
                     </span>
@@ -958,19 +1008,34 @@ export default function ReviewStoryWorkspace() {
                 <button className={styles.iconButton} onClick={undo} disabled={!history.length} aria-label="실행 취소"><Undo2 size={15} /></button>
                 <button className={styles.iconButton} onClick={redo} disabled={!future.length} aria-label="다시 실행"><Redo2 size={15} /></button>
               </div>
+              <label className={styles.ratioControl}>
+                <span>비율</span>
+                <select
+                  value={activePage ? reviewStoryCanvasRatio(activePage.document) : "4:5"}
+                  aria-label="팔레트 비율"
+                  disabled={!activePage}
+                  onChange={(event) => changeCanvasRatio(event.target.value as ReviewStoryCanvasRatio)}
+                >
+                  {CANVAS_RATIO_OPTIONS.map(([ratio, size]) => <option key={ratio} value={ratio}>{size.label} · {size.width}×{size.height}</option>)}
+                </select>
+              </label>
               <span className={styles.toolbarDivider} />
               {selectedElement?.type === "text" ? (
                 <>
                   <span className={styles.contextLabel}><Type size={14} /> 텍스트</span>
-                  <select className={styles.toolbarSelect} value={selectedElement.fontFamily} aria-label="글꼴" onChange={(event) => patchElement(selectedElement.id, { fontFamily: event.target.value } as Partial<ReviewStoryElement>)}>{FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select>
-                  <input className={styles.toolbarNumber} type="number" min="8" max="240" value={selectedElement.fontSize} aria-label="글자 크기" onChange={(event) => patchElement(selectedElement.id, { fontSize: Number(event.target.value) } as Partial<ReviewStoryElement>)} />
+                  <select className={styles.toolbarSelect} value={selectedElement.fontFamily} aria-label="글꼴" onChange={(event) => patchElement(selectedElement.id, { fontFamily: event.target.value } as Partial<ReviewStoryElement>)}>{FONT_OPTIONS.map((font) => <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>{font.label}</option>)}</select>
+                  <ToolbarRange label="크기" value={selectedElement.fontSize} min={8} max={240} step={1} onChange={(value) => patchElement(selectedElement.id, { fontSize: value } as Partial<ReviewStoryElement>)} />
                   <label className={styles.colorTool} title="글자 색상"><Palette size={14} /><input type="color" value={selectedElement.color} onChange={(event) => patchElement(selectedElement.id, { color: event.target.value } as Partial<ReviewStoryElement>)} /></label>
                   <button className={`${styles.toolButton} ${selectedElement.fontWeight >= 700 ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { fontWeight: selectedElement.fontWeight >= 700 ? 400 : 700 } as Partial<ReviewStoryElement>)} aria-label="굵게"><Bold size={14} /></button>
                   <button className={`${styles.toolButton} ${selectedElement.italic ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { italic: !selectedElement.italic } as Partial<ReviewStoryElement>)} aria-label="기울임"><Italic size={14} /></button>
                   <button className={`${styles.toolButton} ${selectedElement.underline ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { underline: !selectedElement.underline } as Partial<ReviewStoryElement>)} aria-label="밑줄"><Underline size={14} /></button>
                   {([{"value":"left","icon":AlignLeft},{"value":"center","icon":AlignCenter},{"value":"right","icon":AlignRight}] as const).map(({ value, icon: Icon }) => <button key={value} className={`${styles.toolButton} ${selectedElement.textAlign === value ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { textAlign: value } as Partial<ReviewStoryElement>)} aria-label={`${value} 정렬`}><Icon size={14} /></button>)}
-                  <label className={styles.compactField} title="행간">행간<input type="number" min="0.8" max="3" step="0.05" value={selectedElement.lineHeight} onChange={(event) => patchElement(selectedElement.id, { lineHeight: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label>
-                  <label className={styles.compactField} title="자간">자간<input type="number" step="0.2" value={selectedElement.letterSpacing} onChange={(event) => patchElement(selectedElement.id, { letterSpacing: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label>
+                  <ToolbarRange label="행간" value={selectedElement.lineHeight} min={0.8} max={3} step={0.05} format={(value) => value.toFixed(2)} onChange={(value) => patchElement(selectedElement.id, { lineHeight: value } as Partial<ReviewStoryElement>)} />
+                  <ToolbarRange label="자간" value={selectedElement.letterSpacing} min={-12} max={24} step={0.2} format={(value) => `${value.toFixed(1)}`} onChange={(value) => patchElement(selectedElement.id, { letterSpacing: value } as Partial<ReviewStoryElement>)} />
+                  <label className={`${styles.wrapToggle} ${selectedElement.autoWrap !== false ? styles.wrapToggleActive : ""}`} title="한글 단어와 문장부호를 고려해 자동으로 줄바꿈합니다.">
+                    <input type="checkbox" checked={selectedElement.autoWrap !== false} onChange={(event) => patchElement(selectedElement.id, { autoWrap: event.target.checked } as Partial<ReviewStoryElement>)} />
+                    자동 줄바꿈
+                  </label>
                   <button className={`${styles.toolButton} ${selectedElement.highlight ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { highlight: !selectedElement.highlight } as Partial<ReviewStoryElement>)} aria-label="형광펜"><Highlighter size={14} /></button>
                   <button className={styles.toolButton} onClick={deleteSelectedElement} disabled={selectedElement.locked} aria-label="삭제"><Trash2 size={14} /></button>
                 </>
@@ -1074,14 +1139,14 @@ export default function ReviewStoryWorkspace() {
         <p className={styles.modalIntro}>빈 페이지에서 시작하거나 기존 템플릿에 현재 콘텐츠 정보를 넣어 새 페이지로 추가할 수 있습니다.</p>
         <div className={styles.choiceGrid}>
           <button className={styles.choiceCard} disabled={Boolean(busy)} onClick={() => void createPage({ pageType: "free", pageName: "빈 페이지", document: createBlankReviewStoryDocument() })}><span className={`${styles.choicePreview} ${styles.blankPreview}`}><Plus size={22} /></span><strong>빈 페이지</strong><small>텍스트와 이미지를 직접 추가</small></button>
-          {layouts.slice(0, 5).map((layout) => <button key={layout.id} className={styles.choiceCard} disabled={Boolean(busy)} onClick={() => void createPage({ pageType: "review", pageName: layout.name, document: createReviewStoryDocument({ ...source, photo: photos[0], photos }, layout.layout_config || {}), layoutAssetId: layout.id })}><span className={styles.choicePreview}>{layout.thumbnailUrl ? <img src={layout.thumbnailUrl} alt="" /> : layout.layout_config?.editorDocument ? <ReviewTemplateThumbnail document={layout.layout_config.editorDocument} /> : <LayoutTemplate size={22} />}</span><strong>{layout.name}</strong><small>{layout.description || "리뷰 템플릿"}</small></button>)}
+          {layouts.slice(0, 5).map((layout) => <button key={layout.id} className={styles.choiceCard} disabled={Boolean(busy)} onClick={() => void createPage({ pageType: "review", pageName: layout.name, document: createReviewStoryDocument({ ...source, photo: photos[0], photos }, layout.layout_config || {}), layoutAssetId: layout.id })}><span className={styles.choicePreview}>{layout.thumbnailUrl ? <img src={layout.thumbnailUrl} alt="" /> : <ReviewTemplateThumbnail document={templatePreviews.get(layout.id)!} />}</span><strong>{layout.name}</strong><small>{layout.description || "리뷰 템플릿"}</small></button>)}
         </div>
       </Modal>
 
       <Modal open={studioModal === "template"} onClose={() => setStudioModal(null)} title="템플릿 변경" width={760}>
         <p className={styles.modalIntro}>현재 후기·병원·사진 데이터는 유지하면서 선택한 페이지의 레이아웃만 변경합니다.</p>
         <div className={styles.choiceGrid}>
-          {layouts.map((layout) => <button key={layout.id} className={styles.choiceCard} onClick={() => applyTemplate(layout)}><span className={styles.choicePreview}>{layout.thumbnailUrl ? <img src={layout.thumbnailUrl} alt="" /> : layout.layout_config?.editorDocument ? <ReviewTemplateThumbnail document={layout.layout_config.editorDocument} /> : <LayoutTemplate size={22} />}</span><strong>{layout.name}</strong><small>{layout.description || "리뷰 템플릿"}</small></button>)}
+          {layouts.map((layout) => <button key={layout.id} className={styles.choiceCard} onClick={() => applyTemplate(layout)}><span className={styles.choicePreview}>{layout.thumbnailUrl ? <img src={layout.thumbnailUrl} alt="" /> : <ReviewTemplateThumbnail document={templatePreviews.get(layout.id)!} />}</span><strong>{layout.name}</strong><small>{layout.description || "리뷰 템플릿"}</small></button>)}
         </div>
       </Modal>
 

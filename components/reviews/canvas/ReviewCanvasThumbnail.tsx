@@ -20,7 +20,7 @@ export default function ReviewCanvasThumbnail({ document, assetUrls = {}, classN
   }, [document.width]);
 
   return (
-    <span ref={rootRef} className={`${styles.thumbnail} ${className}`}>
+    <span ref={rootRef} className={`${styles.thumbnail} ${className}`} style={{ aspectRatio: `${document.width} / ${document.height}` }}>
       <span className={styles.scale} style={{ transform: `scale(${scale})` }}>
         <ReviewCanvasRenderer document={document} assetUrls={assetUrls} />
       </span>

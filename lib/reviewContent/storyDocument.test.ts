@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   createBlankReviewStoryDocument, createReviewCoverDocument, createReviewDesignDocument,
-  createReviewStoryDocument, duplicateStoryElement, splitReviewForPages, toReviewStoryTemplateDocument,
+  createReviewStoryDocument, duplicateStoryElement, isReviewStoryDocument, resizeReviewStoryDocument,
+  reviewStoryCanvasRatio, splitReviewForPages, toReviewStoryTemplateDocument,
 } from "./storyDocument";
 
 describe("review story document", () => {
@@ -49,5 +50,46 @@ describe("review story document", () => {
     expect(design.elements.length).toBeGreaterThan(0);
     expect(design.width).toBe(blank.width);
     expect(design.height).toBe(blank.height);
+  });
+
+  it.each([
+    ["4:5", 1350],
+    ["3:4", 1440],
+    ["2:3", 1620],
+    ["1:1", 1080],
+  ] as const)("resizes the canvas to %s while preserving anchored content", (ratio, height) => {
+    const source = createReviewStoryDocument({ reviewText: "후기", hospitalName: "병원" }, { template: "text_only" });
+    const bottom = source.elements.find((element) => element.id === "url")!;
+    const bottomGap = source.height - (bottom.y + bottom.height);
+    const resized = resizeReviewStoryDocument(source, ratio);
+    const nextBottom = resized.elements.find((element) => element.id === "url")!;
+
+    expect(resized.width).toBe(1080);
+    expect(resized.height).toBe(height);
+    expect(reviewStoryCanvasRatio(resized)).toBe(ratio);
+    expect(resized.height - (nextBottom.y + nextBottom.height)).toBe(bottomGap);
+    expect(isReviewStoryDocument(resized)).toBe(true);
+  });
+
+  it("extends a full-height image instead of stretching text layers", () => {
+    const source = createReviewStoryDocument({ reviewText: "후기", hospitalName: "병원" }, { template: "photo_overlay" });
+    const resized = resizeReviewStoryDocument(source, "2:3");
+    const image = resized.elements.find((element) => element.type === "image");
+    const review = resized.elements.find((element) => element.id === "review");
+
+    expect(image?.height).toBe(1620);
+    expect(review?.height).toBe(source.elements.find((element) => element.id === "review")?.height);
+  });
+
+  it("keeps the spacing between a long body box and bottom metadata", () => {
+    const source = createReviewStoryDocument({ reviewText: "긴 후기 ".repeat(20), hospitalName: "병원" }, { template: "photo_bottom" });
+    const sourceReview = source.elements.find((element) => element.id === "review")!;
+    const sourceClinic = source.elements.find((element) => element.id === "clinic")!;
+    const resized = resizeReviewStoryDocument(source, "1:1");
+    const review = resized.elements.find((element) => element.id === "review")!;
+    const clinic = resized.elements.find((element) => element.id === "clinic")!;
+
+    expect(clinic.y - (review.y + review.height)).toBe(sourceClinic.y - (sourceReview.y + sourceReview.height));
+    expect(resizeReviewStoryDocument(resized, "4:5").elements.find((element) => element.id === "review")?.y).toBe(sourceReview.y);
   });
 });

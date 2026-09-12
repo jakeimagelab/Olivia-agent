@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { ReviewStoryDocument, ReviewStoryElement, ReviewStoryImageElement, ReviewStoryTextElement } from "./storyDocument";
 
 export function reviewCanvasElementStyle(element: ReviewStoryElement) {
@@ -20,7 +21,8 @@ export function reviewCanvasImageStyle(element: ReviewStoryImageElement) {
   };
 }
 
-export function reviewCanvasTextStyle(element: ReviewStoryTextElement) {
+export function reviewCanvasTextStyle(element: ReviewStoryTextElement): CSSProperties {
+  const autoWrap = element.autoWrap !== false;
   return {
     fontFamily: element.fontFamily,
     fontSize: `${element.fontSize}px`,
@@ -31,6 +33,11 @@ export function reviewCanvasTextStyle(element: ReviewStoryTextElement) {
     textAlign: element.textAlign,
     lineHeight: element.lineHeight,
     letterSpacing: `${element.letterSpacing}px`,
+    whiteSpace: autoWrap ? "pre-wrap" : "pre",
+    wordBreak: autoWrap ? "keep-all" : "normal",
+    overflowWrap: autoWrap ? "break-word" : "normal",
+    lineBreak: autoWrap ? "strict" : "auto",
+    textWrap: autoWrap ? "pretty" : "nowrap",
   };
 }
 

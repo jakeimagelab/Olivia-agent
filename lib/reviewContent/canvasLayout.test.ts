@@ -32,4 +32,24 @@ describe("review canvas canonical layout", () => {
       expect(reviewCanvasTextStyle({ ...text, fontSize: 42, lineHeight: 1.6, letterSpacing: -0.8 })).toMatchObject({ fontSize: "42px", lineHeight: 1.6, letterSpacing: "-0.8px" });
     }
   });
+
+  it("uses Korean-friendly automatic wrapping and preserves manual-only mode", () => {
+    const text = documentValue.elements.find((element) => element.type === "text");
+    expect(text?.type).toBe("text");
+    if (text?.type !== "text") return;
+
+    expect(reviewCanvasTextStyle(text)).toMatchObject({
+      whiteSpace: "pre-wrap",
+      wordBreak: "keep-all",
+      overflowWrap: "break-word",
+      lineBreak: "strict",
+      textWrap: "pretty",
+    });
+    expect(reviewCanvasTextStyle({ ...text, autoWrap: false })).toMatchObject({
+      whiteSpace: "pre",
+      wordBreak: "normal",
+      overflowWrap: "normal",
+      textWrap: "nowrap",
+    });
+  });
 });

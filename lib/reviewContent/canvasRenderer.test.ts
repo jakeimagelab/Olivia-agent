@@ -22,5 +22,7 @@ describe("ReviewCanvasRenderer", () => {
     expect(html).toContain("object-position:37% 62%");
     expect(html).toContain("transform:scale(1.35)");
     expect(html).toContain("font-size:24px");
+    expect(html).toContain("word-break:keep-all");
+    expect(html).toContain("text-wrap:pretty");
   });
 });
