@@ -21,6 +21,32 @@ function isMissingV2Column(error: { code?: string; message?: string } | null): b
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
+  if (params.get("list") === "1") {
+    const db = getSupabaseAdmin();
+    const limit = Math.min(Math.max(Number(params.get("limit")) || 30, 1), 60);
+    const search = (params.get("query") ?? "").trim().toLocaleLowerCase("ko-KR");
+    const runsResult = await db.from("conti_runs").select("*").order("updated_at", { ascending: false }).limit(limit);
+    if (runsResult.error) return NextResponse.json({ ok: false, error: "이전 콘티를 불러오지 못했습니다." }, { status: 500 });
+    const rawRuns = runsResult.data ?? [];
+    const hospitalNames = new Map<string, string>();
+    const hospitalIds = [...new Set(rawRuns.map((run) => run.hospital_id).filter(Boolean))];
+    if (hospitalIds.length) {
+      const clientsResult = await db.from("clients").select("id,hospital_name").in("id", hospitalIds);
+      if (!clientsResult.error) for (const client of clientsResult.data ?? []) hospitalNames.set(client.id, client.hospital_name || "");
+    }
+    const runs = rawRuns.filter((run) => {
+      if (!search) return true;
+      return [run.hospital_name || hospitalNames.get(run.hospital_id), run.specialty].filter(Boolean).join(" ").toLocaleLowerCase("ko-KR").includes(search);
+    });
+    const runIds = runs.map((run) => run.id);
+    const sceneCounts = new Map<string, number>();
+    if (runIds.length) {
+      const scenesResult = await db.from("conti_scenes").select("run_id").in("run_id", runIds);
+      if (scenesResult.error) return NextResponse.json({ ok: false, error: "이전 콘티 장면을 확인하지 못했습니다." }, { status: 500 });
+      for (const scene of scenesResult.data ?? []) sceneCounts.set(scene.run_id, (sceneCounts.get(scene.run_id) ?? 0) + 1);
+    }
+    return NextResponse.json({ ok: true, runs: runs.map((run) => ({ ...run, hospital_name: run.hospital_name || hospitalNames.get(run.hospital_id) || "", scene_count: sceneCounts.get(run.id) ?? 0 })) });
+  }
   const resourceId = params.get("resourceId");
   const workflowRunId = params.get("workflowRunId");
   const clientId = params.get("clientId");

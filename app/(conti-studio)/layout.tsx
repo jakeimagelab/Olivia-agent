@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import GlobalHeader from "@/components/GlobalHeader";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import contiStyles from "@/components/conti/v2/ContiV2.module.css";
 
 function readCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
@@ -39,7 +40,7 @@ export default function ContiStudioLayout({ children }: { children: React.ReactN
         />
       </div>
 
-      <div className="pc-page-content">
+      <div className={`pc-page-content ${contiStyles.routeStyleAnchor}`}>
         {children}
       </div>
     </div>

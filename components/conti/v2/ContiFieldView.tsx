@@ -1,230 +1,116 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CheckCircle2, GripVertical } from "lucide-react";
+import { useMemo, useState } from "react";
+import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { ArrowLeft, Check, GripVertical, Share2, SlidersHorizontal } from "lucide-react";
+import ContiSceneCard from "@/components/conti/ContiSceneCard";
+import type { ContiSceneRow } from "@/components/conti/v2/types";
+import type { ContiStudioController } from "@/components/conti/v2/useContiStudio";
+import { parsePreparationText } from "@/lib/conti/deriveChecklist";
+import { resolveSceneVisual } from "@/lib/conti/sceneVisualLibrary";
+import type { ContiFieldCardSize } from "@/lib/conti/studioState";
 import styles from "@/components/conti/v2/ContiV2.module.css";
 
-interface SceneRow {
-  id: string;
-  group_id: string | null;
-  sort: number;
-  name: string;
-  space_text: string;
-  minutes: number | null;
-  keyword: string;
-  description: string;
-  procedures: string[];
-  people_text: string;
-  preparation_text: string;
-  note: string;
-  completed: boolean;
-}
+type FieldTab = "cards" | "checklist" | "schedule";
+const CARD_SIZES: ContiFieldCardSize[] = ["compact", "normal", "large"];
 
-interface GroupRow {
-  id: string;
-  name: string;
-  sort: number;
-}
+export default function ContiFieldView({ controller, onBack }: { controller: ContiStudioController; onBack: () => void }) {
+  const [tab, setTab] = useState<FieldTab>("cards");
+  const [shareStatus, setShareStatus] = useState("");
+  const document = controller.document;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 140, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const groupById = useMemo(() => new Map((document?.groups ?? []).map((group, index) => [group.id, { name: group.name, color: GROUP_COLORS[index % GROUP_COLORS.length] }])), [document?.groups]);
+  if (!document) return null;
+  const activeDocument = document;
+  const completed = activeDocument.scenes.filter((scene) => scene.completed).length;
+  const total = activeDocument.scenes.length;
+  const progress = total ? completed / total : 0;
+  const cardSize = activeDocument.studioState.fieldCardSize;
+  const fieldTitle = activeDocument.run.hospital_name?.trim() || `${specialtyLabel(activeDocument.run.specialty)} 촬영 콘티`;
 
-const GROUP_COLORS = ["#155855", "#E85D2C", "#3B6FB4", "#8A5EC2", "#B4823B", "#4C9E6E", "#B1477D", "#5C7CBE"];
-
-export interface ContiFieldViewProps {
-  runId: string;
-  onBack: () => void;
-}
-
-export default function ContiFieldView({ runId, onBack }: ContiFieldViewProps) {
-  const [groups, setGroups] = useState<GroupRow[]>([]);
-  const [scenes, setScenes] = useState<SceneRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [cardCols, setCardCols] = useState(2);
-  const draggedId = useRef<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetch(`/api/conti/runs/${runId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (!data.ok) throw new Error(data.error ?? "불러오기 실패");
-        setGroups(data.groups ?? []);
-        setScenes(data.scenes ?? []);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "불러오기 실패"))
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [runId]);
-
-  const groupNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    groups.forEach((g) => map.set(g.id, g.name));
-    return map;
-  }, [groups]);
-
-  const groupColorByName = useMemo(() => {
-    const map = new Map<string, string>();
-    groups.forEach((g, i) => map.set(g.name, GROUP_COLORS[i % GROUP_COLORS.length]));
-    return map;
-  }, [groups]);
-
-  const ordered = useMemo(() => [...scenes].sort((a, b) => a.sort - b.sort), [scenes]);
-  const currentIndex = ordered.findIndex((s) => !s.completed);
-  const completedCount = ordered.filter((s) => s.completed).length;
-  const remainingMinutes = ordered.filter((s) => !s.completed).reduce((sum, s) => sum + (s.minutes ?? 0), 0);
-  const currentScene = currentIndex >= 0 ? ordered[currentIndex] : null;
-  const nextScene = currentIndex >= 0 ? ordered[currentIndex + 1] : null;
-  const progress = ordered.length ? completedCount / ordered.length : 0;
-
-  async function patchScene(sceneId: string, body: Record<string, unknown>) {
-    await fetch(`/api/conti/scenes/${sceneId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }).catch(() => {});
+  function handleDragEnd(event: DragEndEvent) {
+    if (event.over && event.active.id !== event.over.id) controller.reorderScenes(String(event.active.id), String(event.over.id));
   }
 
-  function markComplete(sceneId: string) {
-    setScenes((prev) => prev.map((s) => (s.id === sceneId ? { ...s, completed: true } : s)));
-    patchScene(sceneId, { completed: true });
+  async function share() {
+    setShareStatus("공유 링크 생성 중…");
+    try {
+      const response = await fetch(`/api/conti/runs/${activeDocument.run.id}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ audience: "staff" }) });
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error ?? "공유 링크 생성 실패");
+      await navigator.clipboard.writeText(`${window.location.origin}/conti/share/${body.token}`);
+      setShareStatus("현장팀 링크가 복사되었습니다.");
+    } catch (caught) { setShareStatus(caught instanceof Error ? caught.message : "공유 링크 생성 실패"); }
+    setTimeout(() => setShareStatus(""), 3000);
   }
-
-  function handleDrop(targetId: string) {
-    const fromId = draggedId.current;
-    draggedId.current = null;
-    if (!fromId || fromId === targetId) return;
-    setScenes((prev) => {
-      const list = [...prev].sort((a, b) => a.sort - b.sort);
-      const fromIdx = list.findIndex((s) => s.id === fromId);
-      const toIdx = list.findIndex((s) => s.id === targetId);
-      if (fromIdx === -1 || toIdx === -1) return prev;
-      const [moved] = list.splice(fromIdx, 1);
-      list.splice(toIdx, 0, moved);
-      const reindexed = list.map((s, i) => ({ ...s, sort: i }));
-      reindexed.forEach((s) => patchScene(s.id, { sort: s.sort }));
-      return reindexed;
-    });
-  }
-
-  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "#7c9a95" }}>불러오는 중…</div>;
-  if (error) return <div style={{ padding: 40, textAlign: "center", color: "#DC2626" }}>⚠ {error}</div>;
-
-  const showDescription = cardCols <= 2;
 
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button type="button" onClick={onBack} style={ghostButtonStyle}><ArrowLeft aria-hidden="true" size={13} /> 결과표로</button>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#5A7470" }}>카드 크기</span>
-            <input
-              aria-label="현장 카드 크기"
-              type="range" min={1} max={4} value={cardCols}
-              onChange={(e) => setCardCols(Number(e.target.value))}
-              style={{ width: 110 }}
-            />
-          </div>
+    <div className={styles.fieldWorkspace}>
+      <header className={styles.fieldHeader}>
+        <div className={styles.fieldTitle}><button type="button" onClick={onBack} aria-label="편집 화면으로"><ArrowLeft size={19} /></button><div><span>FIELD VIEW</span><h2>{fieldTitle}</h2></div></div>
+        <div className={styles.fieldProgressCopy}><strong>{completed} / {total} 완료</strong><div><span style={{ transform: `scaleX(${progress})` }} /></div></div>
+        <div className={styles.fieldHeaderActions}>{shareStatus ? <span role="status">{shareStatus}</span> : null}<button type="button" onClick={() => void share()}><Share2 size={16} />공유</button></div>
+      </header>
+
+      <div className={styles.fieldControls}>
+        <div className={styles.fieldTabs} role="tablist" aria-label="현장뷰 메뉴">
+          {([['cards', '촬영 카드'], ['checklist', '준비사항'], ['schedule', '촬영스케줄']] as const).map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={tab === value} className={tab === value ? styles.fieldTabActive : undefined} onClick={() => setTab(value)}>{label}{value === "checklist" ? <small>{controller.checklist.filter((item) => item.completed).length}/{controller.checklist.length}</small> : null}</button>)}
         </div>
-        <span style={{ fontSize: 12.5, fontWeight: 800, color: "#155855" }}>
-          {completedCount} / {ordered.length} 완료 · 남은 시간 약 {formatMinutes(remainingMinutes)}
-        </span>
+        {tab === "cards" ? <label className={styles.cardSizeControl}><SlidersHorizontal size={15} /><span>카드 크기</span><small>작게</small><input type="range" min={0} max={2} step={1} value={CARD_SIZES.indexOf(cardSize)} onChange={(event) => controller.setFieldCardSize(CARD_SIZES[Number(event.target.value)])} /><small>크게</small></label> : null}
       </div>
 
-      <div className={styles.fieldProgress} aria-label={`촬영 진행률 ${Math.round(progress * 100)}%`}><span style={{ transform: `scaleX(${progress})` }} /></div>
-
-      {currentScene ? <div className={styles.fieldHeroGrid}>
-        <div className={styles.fieldCurrentShell}><section className={styles.fieldCurrentPanel}>
-          <span className={styles.fieldCurrentLabel}>현재 촬영 · {currentIndex + 1}/{ordered.length}</span>
-          <h2>{currentScene.name}</h2>
-          <div className={styles.fieldMetaGrid}>
-            <div><small>장소</small><strong>{currentScene.space_text || "장소 미정"}</strong></div>
-            <div><small>예상 시간</small><strong>{currentScene.minutes != null ? `${currentScene.minutes}분` : "시간 미정"}</strong></div>
-            <div><small>필요 인원</small><strong>{currentScene.people_text || "필요 인원 미정"}</strong></div>
-          </div>
-        </section></div>
-        <div className={styles.fieldNextShell}><aside className={styles.fieldNextPanel}><span>다음 장면</span><h3>{nextScene?.name ?? "마지막 장면입니다"}</h3>{nextScene ? <p>{nextScene.space_text || "장소 미정"} · {nextScene.minutes != null ? `${nextScene.minutes}분` : "시간 미정"}</p> : <p>모든 촬영을 마무리해 주세요.</p>}</aside></div>
-      </div> : null}
-
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${cardCols}, minmax(0, 1fr))`, gap: 14 }}>
-        {ordered.map((scene, i) => {
-          const groupName = (scene.group_id && groupNameById.get(scene.group_id)) || "미지정";
-          const accent = groupColorByName.get(groupName) ?? "#9aa8a4";
-          const isCurrent = i === currentIndex;
-          return (
-            <div
-              key={scene.id}
-              draggable
-              onDragStart={() => { draggedId.current = scene.id; }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(scene.id)}
-              style={{
-                position: "relative",
-                background: "#fff",
-                borderRadius: 12,
-                border: isCurrent ? "2px solid #E85D2C" : "1px solid rgba(21,88,85,.12)",
-                borderLeft: `5px solid ${accent}`,
-                padding: "14px 16px",
-                opacity: scene.completed ? 0.45 : 1,
-                boxShadow: isCurrent ? "0 8px 24px rgba(232,93,44,.14)" : "0 4px 14px rgba(21,58,52,.04)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 13.5, fontWeight: 800, color: "#1e3b38" }}>{scene.name || "(이름 없음)"}</span>
-                <GripVertical size={13} color="#c3b8a8" style={{ cursor: "grab", flex: "0 0 auto" }} />
-              </div>
-              <div style={{ fontSize: 11.5, color: "#7c9a95", fontWeight: 700 }}>
-                {scene.space_text || "장소 미정"} · {scene.minutes != null ? `${scene.minutes}분` : "시간 미정"}
-              </div>
-              {showDescription && scene.description ? (
-                <p style={{ fontSize: 12, color: "#526d68", lineHeight: 1.5, margin: 0 }}>{scene.description}</p>
-              ) : null}
-              {scene.procedures.length > 0 ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {scene.procedures.map((p) => (
-                    <span key={p} style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 99, background: "#EFEBE3", color: "#6b6355" }}>{p}</span>
-                  ))}
-                </div>
-              ) : null}
-              <div style={{ fontSize: 11, color: "#8a9d99" }}>
-                {[scene.keyword, scene.people_text].filter(Boolean).join(" · ") || "-"}
-              </div>
-              {showDescription && scene.preparation_text ? (
-                <div style={{ padding: "7px 9px", borderRadius: 7, background: "#F4F1EB", color: "#6b6355", fontSize: 11.5, lineHeight: 1.45 }}>
-                  <strong>준비</strong> · {scene.preparation_text}
-                </div>
-              ) : null}
-              {scene.note ? <div style={{ fontSize: 11, color: "#8a9d99" }}>메모 · {scene.note}</div> : null}
-              {isCurrent ? (
-                <button
-                  type="button"
-                  onClick={() => markComplete(scene.id)}
-                  style={{
-                    marginTop: 4, alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6,
-                    height: 32, padding: "0 14px", borderRadius: 8, border: "1px solid #155855",
-                    background: "#155855", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer",
-                  }}
-                >
-                  <CheckCircle2 aria-hidden="true" size={13} /> 촬영 완료하고 다음으로
-                </button>
-              ) : null}
+      {tab === "cards" ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={document.scenes.map((scene) => scene.id)} strategy={rectSortingStrategy}>
+            <div className={`${styles.fieldCardGrid} ${styles[`fieldCardGrid_${cardSize}`]}`}>
+              {document.scenes.map((scene, index) => {
+                const group = scene.group_id ? groupById.get(scene.group_id) : undefined;
+                const visual = document.studioState.sceneMeta[scene.id]?.visual ?? resolveSceneVisual({ specialty: document.run.specialty, name: scene.name, keyword: scene.keyword, procedures: scene.procedures });
+                return <SortableFieldCard key={scene.id} scene={scene} index={index + 1} groupName={group?.name || "미지정"} groupColor={group?.color || "#155855"} imageUrl={visual.imageUrl} cameraAngle={document.studioState.sceneMeta[scene.id]?.cameraAngle} onComplete={controller.toggleSceneComplete} />;
+              })}
             </div>
-          );
-        })}
-      </div>
+          </SortableContext>
+        </DndContext>
+      ) : null}
+
+      {tab === "checklist" ? <section className={styles.fieldChecklist}>{controller.checklist.length ? controller.checklist.map((item) => <label key={item.id} className={item.completed ? styles.fieldChecklistDone : undefined}><input type="checkbox" checked={item.completed} onChange={() => controller.toggleChecklistItem(item.id)} /><span><Check size={15} /></span><strong>{item.label}</strong><small>{item.linkedSceneIds.length ? `${item.linkedSceneIds.length}개 Scene에서 사용` : "직접 추가"}</small></label>) : <p>등록된 준비사항이 없습니다.</p>}</section> : null}
+
+      {tab === "schedule" ? <section className={styles.fieldSchedule}><header><label>촬영 시작 <input type="time" value={document.studioState.scheduleStartTime ?? ""} onChange={(event) => controller.setScheduleStartTime(event.target.value)} /></label><span>순서를 바꾸면 시간이 자동으로 다시 계산됩니다.</span></header>{controller.schedule.map((row) => <article key={row.sceneId}><span>{String(row.order).padStart(2, "0")}</span><time>{row.startTime && row.endTime ? `${row.startTime}–${row.endTime}` : `${row.minutes}분`}</time><div><strong>{row.name}</strong><small>{row.location}</small></div></article>)}</section> : null}
     </div>
   );
 }
 
-const ghostButtonStyle: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 5, height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(21,88,85,.16)", background: "#fff", color: "#155855", fontSize: 12, fontWeight: 700, cursor: "pointer" };
+function SortableFieldCard({ scene, index, groupName, groupColor, imageUrl, cameraAngle, onComplete }: { scene: ContiSceneRow; index: number; groupName: string; groupColor: string; imageUrl?: string; cameraAngle?: string; onComplete: (sceneId: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id });
+  return <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? .62 : undefined, zIndex: isDragging ? 4 : undefined }}>
+    <ContiSceneCard
+      index={index}
+      category={scene.name || "이름 없는 Scene"}
+      duration={scene.minutes != null ? `${scene.minutes}분` : undefined}
+      keyword={scene.keyword || groupName}
+      description={scene.description}
+      location={scene.space_text}
+      cameraAngle={cameraAngle}
+      personnel={scene.people_text}
+      imageUrl={imageUrl}
+      preparationItems={parsePreparationText(scene.preparation_text)}
+      color={{ bg: `${groupColor}18`, text: groupColor }}
+      completed={scene.completed}
+      headerLeft={<button type="button" className={styles.fieldDragHandle} aria-label={`${scene.name} 순서 이동`} {...attributes} {...listeners}><GripVertical size={17} /></button>}
+      headerRight={<button type="button" className={`${styles.fieldCompleteButton} ${scene.completed ? styles.fieldCompleteButtonDone : ""}`} onClick={() => onComplete(scene.id)}><span><Check size={12} /></span>{scene.completed ? "완료" : "완료 체크"}</button>}
+    />
+  </div>;
+}
 
-function formatMinutes(minutes: number) {
-  if (minutes < 60) return `${minutes}분`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest ? `${hours}시간 ${rest}분` : `${hours}시간`;
+const GROUP_COLORS = ["#155855", "#E85D2C", "#3B6FB4", "#8A5EC2", "#B4823B", "#4C9E6E", "#B1477D", "#5C7CBE"];
+
+function specialtyLabel(value?: string | null) {
+  const labels: Record<string, string> = { dermatology: "피부과", orthopedics: "정형외과", ophthalmology: "안과", "plastic-surgery": "성형외과", rehabilitation: "재활의학과", dental: "치과", internal: "내과", pediatrics: "소아과", gynecology: "산부인과" };
+  return value ? labels[value] || value : "촬영";
 }

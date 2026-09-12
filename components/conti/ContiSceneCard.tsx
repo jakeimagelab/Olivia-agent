@@ -11,6 +11,8 @@ export type ContiSceneCardProps = {
   location?: string;
   cameraAngle?: string;
   personnel?: string;
+  imageUrl?: string;
+  preparationItems?: string[];
   color: ContiSceneCardColor;
   completed?: boolean;
   /** 드래그 핸들 등 헤더 왼쪽(번호 배지 앞)에 끼워 넣는 슬롯 — 없으면 순수 읽기 전용 카드. */
@@ -23,7 +25,7 @@ export type ContiSceneCardProps = {
 // 카드. 드래그/완료토글 같은 동작은 이 컴포넌트가 모르고, 호출부가 바깥 wrapper에서 처리한다.
 export default function ContiSceneCard({
   index, category, duration, keyword, description,
-  location, cameraAngle, personnel, color, completed, headerLeft, headerRight,
+  location, cameraAngle, personnel, imageUrl, preparationItems, color, completed, headerLeft, headerRight,
 }: ContiSceneCardProps) {
   const bodyColor = completed ? "#166534" : color.text;
   const headerBg = completed ? "#DCFCE7" : color.bg;
@@ -38,6 +40,12 @@ export default function ContiSceneCard({
       opacity: completed ? 0.72 : 1,
       transition: "opacity 200ms",
     }}>
+      {imageUrl ? (
+        <div style={{ aspectRatio: "16 / 8.4", overflow: "hidden", background: "#EDF5F3" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- controlled local Conti visual library assets */}
+          <img src={imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        </div>
+      ) : null}
       <div style={{
         background: headerBg, padding: "12px 16px",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
@@ -78,6 +86,11 @@ export default function ContiSceneCard({
           <ContiSceneMiniField icon="📷" label="구도" value={cameraAngle} />
           <ContiSceneMiniField icon="👥" label="필요인원" value={personnel} span2 />
         </div>
+        {preparationItems?.length ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {preparationItems.map((item) => <span key={item} style={{ borderRadius: 99, padding: "4px 8px", background: "#F4EFE7", color: "#6B6355", fontSize: 10.5, fontWeight: 750 }}>준비 · {item}</span>)}
+          </div>
+        ) : null}
       </div>
     </div>
   );

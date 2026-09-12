@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Camera, Check, ChevronDown, Clock3, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Check, ChevronDown, Clock3, FileUp, History, Plus, Sparkles, Trash2 } from "lucide-react";
 import { generateContiDraft, type GenerateContiInput, type HospitalSpaceRow, type HospitalStaffRow } from "@/lib/conti/generate";
 import { buildCodeSceneTemplates, CONTI_DEPARTMENT_LIST, getDepartmentDefinition } from "@/lib/conti/departmentTaxonomy";
+import ContiPreviousDrawer from "@/components/conti/v2/ContiPreviousDrawer";
 import styles from "@/components/conti/v2/ContiV2.module.css";
 
 interface ClientOption { id: string; name: string }
@@ -13,11 +14,12 @@ export interface ContiCreateScreenProps {
   initialClientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  onOpenExisting?: (runId: string) => void;
 }
 
 const emptyStaff = { siljang: false, jikwon: false, other: false };
 
-export default function ContiCreateScreen({ onGenerated, initialClientId, workflowRunId, resourceId }: ContiCreateScreenProps) {
+export default function ContiCreateScreen({ onGenerated, initialClientId, workflowRunId, resourceId, onOpenExisting }: ContiCreateScreenProps) {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [hospitalId, setHospitalId] = useState(initialClientId ?? "");
   const [specialty, setSpecialty] = useState("");
@@ -33,6 +35,9 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
   const [hospitalStaff, setHospitalStaff] = useState<HospitalStaffRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [previousOpen, setPreviousOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/clients").then((response) => response.json()).then((data) => {
@@ -93,6 +98,23 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
     finally { setSubmitting(false); }
   }
 
+  async function handleImport(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 4.4 * 1024 * 1024) { setError("파일은 4.4MB 이하로 준비해 주세요."); return; }
+    setImporting(true); setError("");
+    try {
+      const formData = new FormData(); formData.append("file", file);
+      const parsedResponse = await fetch("/api/conti/parse-pdf", { method: "POST", body: formData });
+      const parsed = await parsedResponse.json().catch(() => ({}));
+      if (!parsedResponse.ok || !parsed.ok) throw new Error(parsed.error ?? "파일을 인식하지 못했습니다.");
+      const importResponse = await fetch("/api/conti/runs/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hospitalId: hospitalId || null, hospitalName: clients.find((client) => client.id === hospitalId)?.name, workflowRunId, title: file.name.replace(/\.(pdf|jpe?g|png|gif|webp)$/i, ""), conti: parsed.conti ?? [], checklist: parsed.checklist ?? [], schedule: parsed.schedule ?? [] }) });
+      const imported = await importResponse.json().catch(() => ({}));
+      if (!importResponse.ok || !imported.ok || !imported.run?.id) throw new Error(imported.error ?? "가져온 콘티를 저장하지 못했습니다.");
+      onGenerated(imported.run.id);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "콘티 가져오기에 실패했습니다."); }
+    finally { setImporting(false); if (importInputRef.current) importInputRef.current.value = ""; }
+  }
+
   const selectedCategories = Object.keys(checked).length;
   const selectedDetails = Object.values(checked).reduce((sum, items) => sum + items.length, 0);
   const canGenerate = Boolean(specialty) && (selectedCategories > 0 || staffFlags.siljang || staffFlags.jikwon || (staffFlags.other && otherStaffRole.trim()) || harmony || extraItems.length > 0) && !submitting;
@@ -107,7 +129,12 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
               <h2>필요한 촬영 장면만<br />선택해 주세요.</h2>
               <p>진료과와 참여 인원, 촬영 항목을 고르면 현장에서 바로 사용할 수 있는 순서로 자동 구성합니다.</p>
             </div>
-            <div className={styles.heroMark}><Camera aria-hidden="true" size={27} strokeWidth={1.5} /></div>
+            <div className={styles.heroActions}>
+              <button type="button" onClick={() => setPreviousOpen(true)} className={styles.previousButton}><History aria-hidden="true" size={14} />이전 콘티 보기</button>
+              <button type="button" disabled={importing} onClick={() => importInputRef.current?.click()} className={styles.previousButton}><FileUp aria-hidden="true" size={14} />{importing ? "파일 인식 중…" : "PDF / 이미지 불러오기"}</button>
+              <input ref={importInputRef} hidden type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => void handleImport(event.target.files?.[0])} />
+              <div className={styles.heroMark}><Camera aria-hidden="true" size={27} strokeWidth={1.5} /></div>
+            </div>
           </header>
 
           <div className={styles.formBody}>
@@ -167,6 +194,7 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
           {draft?.scenes.length ? <div className={styles.sceneList}>{draft.scenes.map((scene, index) => <div key={scene.id} className={styles.sceneRow}><span className={styles.sceneNumber}>{String(index + 1).padStart(2, "0")}</span><div className={styles.sceneInfo}><strong>{scene.name}</strong><span>{scene.spaceText}{scene.procedures.length ? ` · ${scene.procedures.join(", ")}` : ""}</span></div><span className={styles.sceneTime}><Clock3 aria-hidden="true" size={11} strokeWidth={1.6} /> {scene.minutes}분</span></div>)}</div> : <div className={styles.emptyPreview}>촬영항목을 선택하면<br />장면 순서와 예상 시간이 여기에 나타납니다.</div>}
         </aside>
       </div>
+      <ContiPreviousDrawer open={previousOpen} onClose={() => setPreviousOpen(false)} onOpen={(runId) => { setPreviousOpen(false); (onOpenExisting ?? onGenerated)(runId); }} />
     </div>
   );
 }
