@@ -22,9 +22,13 @@ export async function PATCH(req: NextRequest, context: Params) {
   if (!current) return NextResponse.json({ ok: false, error: "스토리 페이지를 찾지 못했습니다." }, { status: 404 });
 
   const patch: Record<string, unknown> = {};
+  const metadata = { ...(current.generation_metadata || {}) };
+  let metadataChanged = false;
   if ("editorDocument" in body) {
     if (!isReviewStoryDocument(body.editorDocument)) return NextResponse.json({ ok: false, error: "편집 문서 형식이 올바르지 않습니다." }, { status: 400 });
-    patch.generation_metadata = { ...(current.generation_metadata || {}), editorDocument: body.editorDocument, editedAt: new Date().toISOString() };
+    metadata.editorDocument = body.editorDocument;
+    metadata.editedAt = new Date().toISOString();
+    metadataChanged = true;
   }
   if ("imageStoragePath" in body) {
     const imageStoragePath = String(body.imageStoragePath || "");
@@ -33,7 +37,10 @@ export async function PATCH(req: NextRequest, context: Params) {
     }
     patch.image_storage_path = imageStoragePath;
     patch.mime_type = "image/png";
+    metadata.canonicalRenderedAt = new Date().toISOString();
+    metadataChanged = true;
   }
+  if (metadataChanged) patch.generation_metadata = metadata;
   if (Number.isInteger(body.sortOrder)) patch.sort_order = Math.max(0, Number(body.sortOrder));
   if (!Object.keys(patch).length) return NextResponse.json({ ok: false, error: "수정할 내용이 없습니다." }, { status: 400 });
 

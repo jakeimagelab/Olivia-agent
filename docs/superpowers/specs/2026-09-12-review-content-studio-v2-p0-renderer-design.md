@@ -68,7 +68,7 @@ Canvas 2D 전면 재작성은 텍스트 편집과 기존 DOM 기능을 크게 �
 - 기존 `ReviewStoryDocument version: 1`을 유지한다.
 - 기존 `generation_metadata.editorDocument` 저장 위치를 유지한다.
 - 기존 문서 데이터는 변환 없이 그대로 열고 저장한다.
-- 문서를 먼저 저장하고 Canonical preview PNG를 나중에 연결할 수 있도록 `review_content_variants.image_storage_path`의 `NOT NULL` 제약만 완화한다. 기존 행과 경로는 변경하지 않는다.
+- 운영 DB의 기존 `review_content_variants.image_storage_path NOT NULL` 제약은 유지한다. 문서 우선 생성 시 유효한 pending sentinel 경로를 저장하고, Canonical PNG가 저장되기 전에는 asset 서명과 승인을 차단한다.
 - 별도의 Export layout state를 만들지 않는다.
 - Editor zoom은 문서에 저장하지 않고 viewport 표현에만 사용한다.
 
@@ -101,19 +101,12 @@ Editor와 Export는 `CanvasImageLayer`에서 같은 값과 같은 CSS를 사용�
 `generate-variants`가 Editor와 다른 SVG/Sharp 디자인을 최종 PNG처럼 생성하는 경로를 제거한다.
 
 1. 서버는 기존 템플릿과 리뷰 데이터로 `ReviewStoryDocument`를 생성한다.
-2. variant/page 레코드와 `generation_metadata.editorDocument`를 먼저 저장한다. 이때 `image_storage_path`는 `null`일 수 있다.
+2. variant/page 레코드와 `generation_metadata.editorDocument`를 먼저 저장한다. 기존 DB 제약과 호환되도록 `image_storage_path`에는 아직 실제 파일이 아닌 pending sentinel 경로를 기록한다.
 3. 클라이언트는 공용 Renderer로 문서를 렌더링한다.
 4. 같은 capture 함수로 미리보기 PNG를 만들어 기존 review asset storage에 저장한다.
 5. 썸네일 생성이 실패해도 `editorDocument`는 남으며 저장 재시도로 복구할 수 있다.
 
-이를 위해 다음 호환 마이그레이션을 추가한다.
-
-```sql
-alter table public.review_content_variants
-  alter column image_storage_path drop not null;
-```
-
-조회 API와 서명 함수는 `null` 경로를 허용한다. Page Strip은 PNG가 아직 없으면 `editorDocument` 기반 라이브 썸네일을 표시한다. 기존 데이터와 API의 나머지 형태는 유지한다. 초기 SVG/Sharp는 편집·저장·내보내기의 Source of Truth로 사용하지 않는다.
+별도 운영 DB 마이그레이션은 필요하지 않다. 조회 API와 서명 함수는 pending 경로를 실제 asset으로 취급하지 않는다. Page Strip은 PNG가 아직 없으면 `editorDocument` 기반 라이브 썸네일을 표시하며, 저장된 Canonical PNG 경로와 `canonicalRenderedAt`이 모두 있어야 새 Renderer 시안을 승인할 수 있다. 기존 데이터와 API의 나머지 형태는 유지한다. 초기 SVG/Sharp는 편집·저장·내보내기의 Source of Truth로 사용하지 않는다.
 
 ## Resource Ready
 

@@ -2,13 +2,31 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const REVIEW_CONTENT_BUCKET = "review-content-assets";
 export const REVIEW_ASSET_PATH = /^(references|variants)\/[0-9a-f-]{36}\/[a-zA-Z0-9._-]{1,180}$/;
+const PENDING_CANONICAL_FILE = "pending-canonical.png";
 
 export function validReviewAssetPath(path: string) {
   return REVIEW_ASSET_PATH.test(path);
 }
 
+export function pendingReviewVariantPath(variantId: string) {
+  return `variants/${variantId}/${PENDING_CANONICAL_FILE}`;
+}
+
+export function isPendingReviewAssetPath(path?: string | null) {
+  return Boolean(path?.endsWith(`/${PENDING_CANONICAL_FILE}`));
+}
+
+export function reviewVariantHasCanonicalAsset(variant: {
+  image_storage_path?: string | null;
+  generation_metadata?: Record<string, any> | null;
+}) {
+  if (!variant.image_storage_path || isPendingReviewAssetPath(variant.image_storage_path)) return false;
+  if (variant.generation_metadata?.renderer !== "review-canvas-renderer") return true;
+  return Boolean(variant.generation_metadata.canonicalRenderedAt);
+}
+
 export async function signReviewAsset(db: SupabaseClient, storagePath?: string | null, expiresIn = 60 * 30) {
-  if (!storagePath || !validReviewAssetPath(storagePath)) return null;
+  if (!storagePath || isPendingReviewAssetPath(storagePath) || !validReviewAssetPath(storagePath)) return null;
   const { data, error } = await db.storage.from(REVIEW_CONTENT_BUCKET).createSignedUrl(storagePath, expiresIn);
   if (error) return null;
   return data?.signedUrl || null;

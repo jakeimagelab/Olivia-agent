@@ -1,0 +1,16 @@
+.thumbnail {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+
+.scale {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  transform-origin: top left;
+  pointer-events: none;
+}

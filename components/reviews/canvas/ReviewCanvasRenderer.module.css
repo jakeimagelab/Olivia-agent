@@ -1,0 +1,62 @@
+.canvas {
+  position: relative;
+  flex: 0 0 auto;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+}
+
+.element {
+  position: absolute;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  transform-origin: center;
+}
+
+.imageFrame {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.image,
+.blurOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  color: #53716c;
+  background: #cdded9;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.text {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.reviewTextHighlight {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}

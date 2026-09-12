@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { reviewVariantHasCanonicalAsset } from "@/lib/reviewContent/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,8 +15,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ conten
   if (!content || !["variants_ready", "waiting_approval"].includes(content.status)) {
     return NextResponse.json({ ok: false, error: "승인 가능한 상태가 아닙니다." }, { status: 409 });
   }
-  const { data: variant } = await db.from("review_content_variants").select("id,layout_asset_id").eq("id", variantId).eq("review_content_id", contentId).maybeSingle();
+  const { data: variant } = await db.from("review_content_variants").select("id,layout_asset_id,image_storage_path,generation_metadata").eq("id", variantId).eq("review_content_id", contentId).maybeSingle();
   if (!variant) return NextResponse.json({ ok: false, error: "선택한 시안을 찾지 못했습니다." }, { status: 404 });
+  if (!reviewVariantHasCanonicalAsset(variant)) {
+    return NextResponse.json({ ok: false, error: "리뷰 콘텐츠 스튜디오에서 현재 디자인을 먼저 저장해 주세요." }, { status: 409 });
+  }
   const now = new Date().toISOString();
   const { error } = await db.from("review_contents").update({
     status: "approved",

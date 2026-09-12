@@ -2,9 +2,8 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { renderReviewVariant, type ReviewLayoutConfig } from "@/lib/reviewContent/renderVariant";
-import { REVIEW_CONTENT_BUCKET, signReviewAsset } from "@/lib/reviewContent/storage";
 import { createReviewStoryDocument, splitReviewForPages, type ReviewStoryTemplateConfig } from "@/lib/reviewContent/storyDocument";
+import { pendingReviewVariantPath } from "@/lib/reviewContent/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,28 +45,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ conten
   for (let index = 0; index < requestedCount; index += 1) {
     const layout = layouts[index % layouts.length];
     const id = randomUUID();
-    const storagePath = `variants/${id}/review-${contentId}.png`;
-    const buffer = await renderReviewVariant({
-      reviewText,
-      hospitalName,
-      writerName: review.writer_name,
-      config: layout.layout_config as ReviewLayoutConfig,
-    });
-    const { error: uploadError } = await db.storage.from(REVIEW_CONTENT_BUCKET).upload(storagePath, buffer, {
-      contentType: "image/png",
-      upsert: false,
-    });
-    if (uploadError) return NextResponse.json({ ok: false, error: uploadError.message }, { status: 500 });
     const { data: variant, error: variantError } = await db.from("review_content_variants").insert({
       id,
       review_content_id: contentId,
       layout_asset_id: layout.id,
-      image_storage_path: storagePath,
+      image_storage_path: pendingReviewVariantPath(id),
       mime_type: "image/png",
       width: 1080,
       height: 1350,
       generation_metadata: {
-        renderer: "svg-sharp",
+        renderer: "review-canvas-renderer",
         layoutName: layout.name,
         editorDocument: createReviewStoryDocument({
           reviewText: pageCopy[index] || reviewText,
@@ -79,7 +66,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ conten
       sort_order: index,
     }).select("*").single();
     if (variantError) return NextResponse.json({ ok: false, error: variantError.message }, { status: 500 });
-    variants.push({ ...variant, imageUrl: await signReviewAsset(db, storagePath) });
+    variants.push({ ...variant, imageUrl: null, assetUrls: {} });
   }
   await db.from("review_contents").update({ status: "variants_ready" }).eq("id", contentId);
   return NextResponse.json({ ok: true, variants });

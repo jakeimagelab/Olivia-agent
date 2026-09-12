@@ -63,6 +63,12 @@
 .title { margin: 0; color: var(--green-dark); font-size: 20px; letter-spacing: -0.03em; }
 .subtitle { margin: 4px 0 0; color: #6b807c; font-size: 12px; }
 .headerActions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+.exportMenu { position: relative; }
+.exportMenuPopover { position: absolute; right: 0; top: calc(100% + 6px); z-index: 90; min-width: 164px; display: grid; gap: 3px; border: 1px solid var(--line); border-radius: 10px; padding: 5px; background: #fff; box-shadow: 0 14px 34px rgba(21,55,51,.14); }
+.exportMenuPopover button { display: grid; gap: 2px; border: 0; border-radius: 7px; padding: 8px 10px; background: transparent; color: var(--green-dark); text-align: left; cursor: pointer; }
+.exportMenuPopover button:hover { background: var(--mint); }
+.exportMenuPopover strong { font-size: 10.5px; }
+.exportMenuPopover span { color: #81928e; font-size: 9px; }
 
 .button,
 .iconButton {
@@ -203,7 +209,7 @@
 .storyList { display: flex; gap: 6px; overflow-x: auto; padding: 2px; }
 .storyThumb { flex: 0 0 58px; border: 1px solid var(--line); border-radius: 6px; background: #f5f8f7; padding: 3px; cursor: pointer; }
 .storyThumbActive { border-color: var(--green); background: var(--mint); box-shadow: 0 0 0 1px var(--green); }
-.storyPreview { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; border-radius: 4px; background: #dce9e6; }
+.storyPreview { border-radius: 4px; background: #dce9e6; }
 .storyNumber { display: block; margin-top: 3px; color: #667c77; font-size: 8px; font-weight: 800; text-align: center; }
 .emptyStrip { padding: 10px 4px; color: #849692; font-size: 10.5px; }
 

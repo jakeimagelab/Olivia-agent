@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ImagePlus, Instagram, RefreshCw, Send, Sparkles, Upload } from "lucide-react";
 import { C, R } from "@/lib/theme";
 import { getSupabase } from "@/lib/supabase";
+import { isReviewStoryDocument, type ReviewStoryDocument } from "@/lib/reviewContent/storyDocument";
+import ReviewCanvasThumbnail from "./canvas/ReviewCanvasThumbnail";
 
 type LayoutAsset = {
   id: string;
@@ -17,6 +19,8 @@ type Variant = {
   id: string;
   imageUrl?: string | null;
   is_selected?: boolean;
+  generation_metadata?: { editorDocument?: ReviewStoryDocument };
+  assetUrls?: Record<string, string>;
   review_layout_assets?: LayoutAsset | null;
 };
 
@@ -303,7 +307,9 @@ export default function ReviewAutomationPanel({ refreshKey }: { refreshKey?: str
                       border: `3px solid ${selected === variant.id ? C.orange : "transparent"}`,
                       background: C.mint, cursor: "pointer",
                     }}>
-                      {variant.imageUrl ? <img src={variant.imageUrl} alt={`${hospital} 리뷰 콘텐츠 시안`} style={{ display: "block", width: "100%", aspectRatio: "4/5", objectFit: "cover" }} /> : null}
+                      {isReviewStoryDocument(variant.generation_metadata?.editorDocument)
+                        ? <ReviewCanvasThumbnail document={variant.generation_metadata.editorDocument} assetUrls={variant.assetUrls || {}} />
+                        : variant.imageUrl ? <img src={variant.imageUrl} alt={`${hospital} 리뷰 콘텐츠 시안`} style={{ display: "block", width: "100%", aspectRatio: "4/5", objectFit: "cover" }} /> : null}
                       {selected === variant.id ? <span style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: "50%", display: "grid", placeItems: "center", background: C.orange, color: C.white }}><Check size={14} /></span> : null}
                     </button>
                   ))}

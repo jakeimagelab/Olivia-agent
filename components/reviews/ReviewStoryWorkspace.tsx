@@ -16,6 +16,7 @@ import {
   type ReviewStoryTemplateConfig,
 } from "@/lib/reviewContent/storyDocument";
 import ReviewStoryCanvas, { type ReviewStoryCanvasHandle } from "./ReviewStoryCanvas";
+import ReviewCanvasThumbnail from "./canvas/ReviewCanvasThumbnail";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import ReviewTemplateThumbnail from "./ReviewTemplateThumbnail";
 import styles from "./ReviewStoryWorkspace.module.css";
@@ -48,7 +49,7 @@ type LayoutAsset = {
 
 type Variant = {
   id: string;
-  image_storage_path: string;
+  image_storage_path: string | null;
   imageUrl?: string | null;
   sort_order: number;
   is_selected?: boolean;
@@ -148,6 +149,7 @@ export default function ReviewStoryWorkspace() {
   // 아무리 넓어져도 캔버스가 화면을 뒤덮지 않는다.
   const [zoom, setZoom] = useState(100);
   const [busy, setBusy] = useState("");
+  const [pngMenuOpen, setPngMenuOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [history, setHistory] = useState<ReviewStoryDocument[]>([]);
@@ -471,10 +473,9 @@ export default function ReviewStoryWorkspace() {
     }
   };
 
-  // 화면에 보이는 ReviewStoryCanvas DOM을 그대로 캡처한다(canvasHandleRef.current.captureRaster) —
-  // 예전엔 canvas 2D로 텍스트를 다시 조판하는 별도 렌더러를 썼는데, 그게 브라우저 텍스트 레이아웃과
-  // 결과물 줄바꿈이 어긋나는 원인이었다(제안서 2-3). page는 항상 activePage이므로(호출부 확인됨)
-  // 지금 DOM에 그려진 것과 저장하려는 document가 항상 같다.
+  // Editor와 Export가 함께 쓰는 ReviewCanvasRenderer의 canonical DOM을 캡처한다. Export Host는
+  // 화면 zoom을 받지 않으므로 1080×1350 좌표·줄바꿈·crop이 그대로 유지되고, 고화질 출력은
+  // raster scale만 2배가 된다. page는 항상 activePage라 현재 편집 문서와 snapshot도 같다.
   const canvasToBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG 생성에 실패했습니다.")), "image/png"));
 
@@ -496,7 +497,10 @@ export default function ReviewStoryWorkspace() {
   };
 
   const save = async () => {
-    if (!activeContent || !activePage) return notify("먼저 스토리를 생성해 주세요.", true);
+    if (!activeContent || !activePage) {
+      notify("먼저 스토리를 생성해 주세요.", true);
+      return false;
+    }
     setBusy("save");
     notify("편집 내용과 PNG 미리보기를 저장하고 있습니다.");
     try {
@@ -512,24 +516,27 @@ export default function ReviewStoryWorkspace() {
       });
       await load(activeContent.id);
       notify("편집 내용과 PNG 미리보기를 저장했습니다.");
+      return true;
     } catch (saveError) {
       notify(saveError instanceof Error ? saveError.message : "저장에 실패했습니다.", true);
+      return false;
     } finally { setBusy(""); }
   };
 
-  const exportPng = async () => {
+  const exportPng = async (outputScale = 1) => {
     if (!activePage || !canvasHandleRef.current) return notify("내보낼 스토리가 없습니다.", true);
     setBusy("export");
+    setPngMenuOpen(false);
     try {
-      const canvas = await canvasHandleRef.current.captureRaster(activePage.document.width);
+      const canvas = await canvasHandleRef.current.captureRaster(activePage.document.width * outputScale);
       const blob = await canvasToBlob(canvas);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `${source.hospitalName || "review"}-story-${pages.findIndex((page) => page.id === activePage.id) + 1}.png`;
+      anchor.download = `${source.hospitalName || "review"}-story-${pages.findIndex((page) => page.id === activePage.id) + 1}${outputScale === 2 ? "-2x" : ""}.png`;
       anchor.click();
       URL.revokeObjectURL(url);
-      notify("1080×1350 PNG를 내보냈습니다.");
+      notify(`${canvas.width}×${canvas.height} PNG를 내보냈습니다.`);
     } catch (exportError) {
       notify(exportError instanceof Error ? exportError.message : "PNG 내보내기에 실패했습니다.", true);
     } finally { setBusy(""); }
@@ -577,7 +584,8 @@ export default function ReviewStoryWorkspace() {
     if (!activeContent || !activePage) return;
     setBusy("approve");
     try {
-      await save();
+      const saved = await save();
+      if (!saved) return;
       await jsonRequest(`/api/review-contents/${activeContent.id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ variantId: activePage.id }) });
       await load(activeContent.id);
       notify("현재 스토리를 대표 시안으로 승인했습니다.");
@@ -667,7 +675,15 @@ export default function ReviewStoryWorkspace() {
           <button className={styles.button} onClick={() => void save()} disabled={Boolean(busy) || !activePage}><Save size={14} /><span>저장</span></button>
           <button className={styles.button} onClick={() => void saveTemplate()} disabled={Boolean(busy) || !activePage}><Sparkles size={14} /><span>템플릿으로 저장</span></button>
           <button className={styles.button} onClick={() => void exportPdf()} disabled={Boolean(busy) || !activePage}><Download size={14} /><span>PDF 내보내기</span></button>
-          <button className={styles.button} onClick={() => void exportPng()} disabled={Boolean(busy) || !activePage}><Download size={14} /><span>PNG 내보내기</span><ChevronDown size={12} /></button>
+          <div className={styles.exportMenu}>
+            <button className={styles.button} onClick={() => setPngMenuOpen((open) => !open)} disabled={Boolean(busy) || !activePage} aria-haspopup="menu" aria-expanded={pngMenuOpen}><Download size={14} /><span>PNG 내보내기</span><ChevronDown size={12} /></button>
+            {pngMenuOpen ? (
+              <div className={styles.exportMenuPopover} role="menu">
+                <button type="button" role="menuitem" onClick={() => void exportPng(1)}><strong>기본 PNG</strong><span>1080 × 1350</span></button>
+                <button type="button" role="menuitem" onClick={() => void exportPng(2)}><strong>고화질 PNG</strong><span>2160 × 2700</span></button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -773,7 +789,7 @@ export default function ReviewStoryWorkspace() {
 
           <section className={styles.storyStrip} aria-label="생성된 스토리">
             <div className={styles.storyStripHeader}><h2 className={styles.sectionTitle}>생성된 스토리 ({pages.length}장)</h2><div className={styles.toolbarGroup}><button className={styles.iconButton} onClick={() => void reorderPage(-1)} disabled={!activePage}><ArrowUp size={13} /></button><button className={styles.iconButton} onClick={() => void reorderPage(1)} disabled={!activePage}><ArrowDown size={13} /></button><button className={styles.iconButton} onClick={() => void removePage()} disabled={!activePage || pages.length <= 1}><Trash2 size={13} /></button></div></div>
-            {pages.length ? <div className={styles.storyList}>{pages.map((page, index) => <button key={page.id} type="button" draggable className={`${styles.storyThumb} ${activePage?.id === page.id ? styles.storyThumbActive : ""}`} title="드래그해서 페이지 순서 변경" onDragStart={(event) => event.dataTransfer.setData("text/review-page", page.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void movePageTo(event.dataTransfer.getData("text/review-page"), page.id); }} onClick={() => { setActivePageId(page.id); setSelectedElementId(null); setHistory([]); setFuture([]); }}><img className={styles.storyPreview} src={page.imageUrl || ""} alt={`${index + 1}번 스토리`} /><span className={styles.storyNumber}>{String(index + 1).padStart(2, "0")}{page.is_selected ? " · 대표" : ""}</span></button>)}</div> : <div className={styles.emptyStrip}>아직 생성된 스토리가 없습니다.</div>}
+            {pages.length ? <div className={styles.storyList}>{pages.map((page, index) => <button key={page.id} type="button" draggable className={`${styles.storyThumb} ${activePage?.id === page.id ? styles.storyThumbActive : ""}`} title="드래그해서 페이지 순서 변경" onDragStart={(event) => event.dataTransfer.setData("text/review-page", page.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void movePageTo(event.dataTransfer.getData("text/review-page"), page.id); }} onClick={() => { setActivePageId(page.id); setSelectedElementId(null); setHistory([]); setFuture([]); }}><ReviewCanvasThumbnail className={styles.storyPreview} document={page.document} assetUrls={{ ...assetUrls, ...(page.assetUrls || {}) }} /><span className={styles.storyNumber}>{String(index + 1).padStart(2, "0")}{page.is_selected ? " · 대표" : ""}</span></button>)}</div> : <div className={styles.emptyStrip}>아직 생성된 스토리가 없습니다.</div>}
           </section>
         </section>
 

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { renderReviewVariant, type ReviewLayoutConfig } from "@/lib/reviewContent/renderVariant";
-import { REVIEW_CONTENT_BUCKET } from "@/lib/reviewContent/storage";
+import { createReviewStoryDocument, type ReviewStoryTemplateConfig } from "@/lib/reviewContent/storyDocument";
+import { pendingReviewVariantPath } from "@/lib/reviewContent/storage";
 import { reviewText } from "@/lib/reviewContent/reviewContentService";
 
 type CreateOliviaCampaignInput = {
@@ -109,26 +109,25 @@ export async function createOliviaReviewCampaign(
     for (let index = 0; index < layouts.length; index += 1) {
       const layout = layouts[index];
       const variantId = randomUUID();
-      const storagePath = `variants/${variantId}/review-${content.id}.png`;
-      const image = await renderReviewVariant({
-        reviewText: reviewText(review),
-        hospitalName,
-        writerName: review.writer_name,
-        config: layout.layout_config as ReviewLayoutConfig,
-      });
-      const { error: uploadError } = await db.storage
-        .from(REVIEW_CONTENT_BUCKET)
-        .upload(storagePath, image, { contentType: "image/png", upsert: false });
-      if (uploadError) throw new Error(uploadError.message);
       const { error: variantError } = await db.from("review_content_variants").insert({
         id: variantId,
         review_content_id: content.id,
         layout_asset_id: layout.id,
-        image_storage_path: storagePath,
+        image_storage_path: pendingReviewVariantPath(variantId),
         mime_type: "image/png",
         width: 1080,
         height: 1350,
-        generation_metadata: { renderer: "svg-sharp", source: "olivia_chat", layoutName: layout.name },
+        generation_metadata: {
+          renderer: "review-canvas-renderer",
+          source: "olivia_chat",
+          layoutName: layout.name,
+          editorDocument: createReviewStoryDocument({
+            reviewText: reviewText(review),
+            hospitalName,
+            doctorName: review.writer_name || "",
+            date: review.delivered_at || "",
+          }, layout.layout_config as ReviewStoryTemplateConfig),
+        },
         sort_order: index,
       });
       if (variantError) throw new Error(variantError.message);
@@ -142,7 +141,7 @@ export async function createOliviaReviewCampaign(
       client_id: review.client_id,
       workflow_run_id: review.workflow_run_id || null,
       log_type: "review_content_created",
-      message: `[리뷰 콘텐츠] 올리비아가 ${hospitalName} 리뷰를 선택해 이미지 시안 3개를 준비했습니다.`,
+      message: `[리뷰 콘텐츠] 올리비아가 ${hospitalName} 리뷰를 선택해 편집 가능한 시안 3개를 준비했습니다.`,
       success: true,
     }),
   ]);
@@ -153,7 +152,7 @@ export async function createOliviaReviewCampaign(
     hospitalName,
     action: "navigate",
     url: `/review-studio?contentId=${content.id}`,
-    message: `${hospitalName} 리뷰를 선택해 Instagram 이미지 시안 3개를 만들었어요. 리뷰 콘텐츠 화면에서 시안을 선택하고 대표 승인할 수 있습니다.`,
+    message: `${hospitalName} 리뷰를 선택해 편집 가능한 시안 3개를 만들었어요. 리뷰 콘텐츠 화면에서 디자인을 확인하고 대표 승인할 수 있습니다.`,
     dataChanged: ["reviews", "review_contents"],
   };
 }

@@ -1,9 +1,11 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Crop, Highlighter, ImagePlus, Image as ImageIcon, Italic, Lock, MoveDown, MoveUp, Underline } from "lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type CSSProperties } from "react";
+import { AlignCenter, AlignLeft, AlignRight, Bold, Crop, Highlighter, ImagePlus, Italic, Lock, MoveDown, MoveUp, Underline } from "lucide-react";
 import type { ReviewStoryDocument, ReviewStoryElement, ReviewStoryImageElement, ReviewStoryTextElement } from "@/lib/reviewContent/storyDocument";
 import { computeSnap, type Rect, type SmartGuide } from "@/lib/reviewContent/smartGuides";
+import ReviewCanvasRenderer from "./canvas/ReviewCanvasRenderer";
+import ReviewCanvasExportHost, { type ReviewCanvasExportHostHandle } from "./canvas/ReviewCanvasExportHost";
 import styles from "./ReviewStoryCanvas.module.css";
 
 type Props = {
@@ -18,10 +20,9 @@ type Props = {
 };
 
 export type ReviewStoryCanvasHandle = {
-  // 미리보기로 보이는 이 DOM을 그대로 rasterize한다 — canvas 2D로 텍스트를 다시 조판하는
-  // 별도 렌더러를 쓰면 브라우저 텍스트 레이아웃과 결과물이 어긋난다(제안서 2-3). targetWidthPx는
-  // 원하는 출력 픽셀 폭(예: document.width) — 지금 화면 축소 비율과 무관하게 항상 그 해상도로
-  // 나온다.
+  // Editor와 같은 ReviewCanvasRenderer를 offscreen 1080×1350 DOM에 마운트하고 그대로
+  // rasterize한다. targetWidthPx는 원하는 출력 픽셀 폭(예: 1080/2160)이며 Editor의 visual
+  // zoom과 무관하다. 별도 export markup이나 텍스트 재조판은 이 경로에 존재하지 않는다.
   captureRaster: (targetWidthPx: number) => Promise<HTMLCanvasElement>;
 };
 
@@ -30,30 +31,6 @@ type ResizeHandle = "nw" | "ne" | "sw" | "se" | "w" | "e";
 const clone = (value: ReviewStoryDocument) => JSON.parse(JSON.stringify(value)) as ReviewStoryDocument;
 const rectOf = (element: ReviewStoryElement): Rect => ({ x: element.x, y: element.y, width: element.width, height: element.height });
 const SNAP_THRESHOLD = 7; // logical px — 레퍼런스 스펙(6~8px) 기준
-
-function maskStyle(element: ReviewStoryImageElement, inverted = false): React.CSSProperties {
-  if (!element.edgeBlend?.enabled || !element.edgeBlend.directions.length) return {};
-  const percent = Math.max(4, Math.min(48, (element.edgeBlend.size / Math.max(element.width, element.height)) * 100));
-  const alpha = Math.max(0, Math.min(0.95, element.edgeBlend.strength / 100));
-  const gradients = element.edgeBlend.directions.map((direction) => {
-    const transparent = `rgba(0,0,0,${inverted ? 1 : 1 - alpha})`;
-    const solid = `rgba(0,0,0,${inverted ? 0 : 1})`;
-    if (direction === "top") return `linear-gradient(to bottom, ${transparent} 0%, ${solid} ${percent}%)`;
-    if (direction === "bottom") return `linear-gradient(to top, ${transparent} 0%, ${solid} ${percent}%)`;
-    if (direction === "left") return `linear-gradient(to right, ${transparent} 0%, ${solid} ${percent}%)`;
-    return `linear-gradient(to left, ${transparent} 0%, ${solid} ${percent}%)`;
-  });
-  return {
-    WebkitMaskImage: gradients.join(","),
-    WebkitMaskComposite: "source-in",
-    maskImage: gradients.join(","),
-    maskComposite: "intersect",
-  };
-}
-
-function sourceFor(element: ReviewStoryImageElement, assetUrls: Record<string, string>) {
-  return element.storagePath ? assetUrls[element.storagePath] || element.src : element.src;
-}
 
 function resizeRect(origin: ReviewStoryElement, handle: ResizeHandle, dx: number, dy: number, lockRatio: boolean): Rect {
   const ratio = origin.width / Math.max(1, origin.height);
@@ -86,7 +63,8 @@ const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function Re
   captureHandleRef,
 ) {
   const stageRef = useRef<HTMLDivElement>(null);
-  const canvasBoxRef = useRef<HTMLDivElement>(null);
+  const canvasViewportRef = useRef<HTMLDivElement>(null);
+  const exportHostRef = useRef<ReviewCanvasExportHostHandle>(null);
   const [stageSize, setStageSize] = useState({ width: 480, height: 600 });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [cropModeId, setCropModeId] = useState<string | null>(null);
@@ -116,32 +94,10 @@ const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function Re
 
   useImperativeHandle(captureHandleRef, () => ({
     captureRaster: async (targetWidthPx: number) => {
-      const node = canvasBoxRef.current;
-      if (!node) throw new Error("캔버스를 찾을 수 없습니다.");
-      await window.document.fonts.ready;
-      const images = Array.from(node.querySelectorAll("img"));
-      await Promise.all(images.map((img) => img.complete ? Promise.resolve() : new Promise<void>((resolve) => {
-        img.onload = () => resolve();
-        img.onerror = () => resolve();
-      })));
-      const { default: html2canvas } = await import("html2canvas");
-      // 편집 전용 UI(선택 테두리·핸들·회전 손잡이·플로팅 툴바·크롭 툴바)는 결과물에 안 나오게 —
-      // 지금 렌더링에 쓰는 것과 같은 styles 참조로 판별하므로 클래스명이 바뀌어도 항상 맞는다.
-      const editorChromeClasses = [
-        styles.selectionBorder, styles.handle, styles.rotateHandle, styles.angleTooltip,
-        styles.sizeTooltip, styles.floatingToolbar, styles.cropToolbar, styles.lockBadge,
-      ].filter(Boolean);
-      return html2canvas(node, {
-        scale: targetWidthPx / node.offsetWidth,
-        useCORS: true,
-        backgroundColor: null,
-        logging: false,
-        ignoreElements: (element) => editorChromeClasses.some((cls) => element.classList.contains(cls)),
-      });
+      if (!exportHostRef.current) throw new Error("내보내기 캔버스를 찾을 수 없습니다.");
+      return exportHostRef.current.captureRaster(targetWidthPx);
     },
   }), []);
-
-  const sorted = useMemo(() => [...document.elements].sort((a, b) => a.zIndex - b.zIndex), [document.elements]);
 
   // 텍스트 선택 박스가 저장된 template height(예: 후기 본문 300~500px)만큼 커 보이던 문제 —
   // 실제 렌더된 글자 영역만 측정해서 선택 테두리는 그 크기로, 드래그/리사이즈 판정은 저장된
@@ -150,7 +106,7 @@ const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function Re
     const next: Record<string, { width: number; height: number }> = {};
     let changed = false;
     textRefs.current.forEach((node, id) => {
-      const rect = { width: node.scrollWidth / scale, height: node.scrollHeight / scale };
+      const rect = { width: node.scrollWidth, height: node.scrollHeight };
       next[id] = rect;
       const prev = textBoxById[id];
       if (!prev || Math.abs(prev.width - rect.width) > 0.5 || Math.abs(prev.height - rect.height) > 0.5) changed = true;
@@ -212,7 +168,7 @@ const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function Re
     event.preventDefault();
     event.stopPropagation();
     if (element.locked) return;
-    const canvasBox = canvasBoxRef.current?.getBoundingClientRect();
+    const canvasBox = canvasViewportRef.current?.getBoundingClientRect();
     if (!canvasBox) return;
     const centerScreen = {
       x: canvasBox.left + (element.x + element.width / 2) * scale,
@@ -320,184 +276,175 @@ const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function Re
     void elementId;
   };
 
+  const renderElementChrome = (element: ReviewStoryElement) => {
+    const selected = selectedElementId === element.id;
+    const isCropping = cropModeId === element.id && element.type === "image";
+    const textBox = element.type === "text" ? textBoxById[element.id] : null;
+    const selectionStyle: CSSProperties | null = selected && element.type === "text" && textBox
+      ? { position: "absolute", left: 0, top: 0, width: `${(textBox.width / element.width) * 100}%`, height: `${(textBox.height / element.height) * 100}%` }
+      : null;
+
+    return (
+      <>
+        {element.type === "text" && editingId === element.id ? (
+          <textarea
+            autoFocus
+            className={styles.inlineEditor}
+            value={element.text}
+            style={{ fontFamily: element.fontFamily, fontSize: element.fontSize, fontWeight: element.fontWeight, fontStyle: element.italic ? "italic" : "normal", textDecoration: element.underline ? "underline" : "none", color: element.color, textAlign: element.textAlign, lineHeight: element.lineHeight, letterSpacing: element.letterSpacing }}
+            onPointerDown={(event) => event.stopPropagation()}
+            onChange={(event) => {
+              const next = clone(document);
+              next.elements = next.elements.map((item) => item.id === element.id && item.type === "text" ? { ...item, text: event.target.value } : item);
+              onChange(next);
+            }}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Escape") { event.preventDefault(); cancelTextEdit(element.id); }
+              else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); commitTextEdit(); }
+            }}
+            onBlur={commitTextEdit}
+          />
+        ) : null}
+
+        {isCropping ? (
+          <div className={styles.cropToolbar} onPointerDown={(event) => event.stopPropagation()}>
+            <button type="button" className={styles.cropButton} onClick={() => adjustCropZoom(element, -0.05)}>-</button>
+            <span>확대/이동</span>
+            <button type="button" className={styles.cropButton} onClick={() => adjustCropZoom(element, 0.05)}>+</button>
+            <button type="button" className={`${styles.cropButton} ${styles.cropDone}`} onClick={() => setCropModeId(null)}>완료</button>
+          </div>
+        ) : null}
+
+        {selected && !element.locked && !isCropping ? (
+          <>
+            <span className={styles.selectionBorder} style={selectionStyle ?? undefined} />
+            {element.type === "image" || element.type === "shape" ? (
+              <>
+                <span className={`${styles.handle} ${styles.handleNw}`} onPointerDown={(event) => beginPointerAction(event, element, "nw")} />
+                <span className={`${styles.handle} ${styles.handleNe}`} onPointerDown={(event) => beginPointerAction(event, element, "ne")} />
+                <span className={`${styles.handle} ${styles.handleSw}`} onPointerDown={(event) => beginPointerAction(event, element, "sw")} />
+                <span className={`${styles.handle} ${styles.handleSe}`} onPointerDown={(event) => beginPointerAction(event, element, "se")} />
+              </>
+            ) : (
+              <>
+                <span className={`${styles.handle} ${styles.handleW}`} onPointerDown={(event) => beginPointerAction(event, element, "w")} />
+                <span className={`${styles.handle} ${styles.handleE}`} onPointerDown={(event) => beginPointerAction(event, element, "e")} />
+                <span className={`${styles.handle} ${styles.handleSe}`} onPointerDown={(event) => beginPointerAction(event, element, "se")} />
+              </>
+            )}
+            <span className={styles.rotateHandle} onPointerDown={(event) => beginRotate(event, element)} />
+            {rotationTooltip !== null ? <span className={styles.angleTooltip}>{rotationTooltip}°</span> : null}
+            {resizeTooltip ? <span className={styles.sizeTooltip}>{resizeTooltip.width} × {resizeTooltip.height}</span> : null}
+
+            <div className={styles.floatingToolbar} onPointerDown={(event) => event.stopPropagation()}>
+              {element.type === "text" ? (
+                <>
+                  <button type="button" className={`${styles.toolbarBtn} ${element.textAlign === "left" ? styles.toolbarBtnActive : ""}`} aria-label="왼쪽 정렬" onClick={() => commitPatch(element.id, { textAlign: "left" })}><AlignLeft size={13} /></button>
+                  <button type="button" className={`${styles.toolbarBtn} ${element.textAlign === "center" ? styles.toolbarBtnActive : ""}`} aria-label="가운데 정렬" onClick={() => commitPatch(element.id, { textAlign: "center" })}><AlignCenter size={13} /></button>
+                  <button type="button" className={`${styles.toolbarBtn} ${element.textAlign === "right" ? styles.toolbarBtnActive : ""}`} aria-label="오른쪽 정렬" onClick={() => commitPatch(element.id, { textAlign: "right" })}><AlignRight size={13} /></button>
+                  <span className={styles.toolbarDivider} />
+                  <button type="button" className={`${styles.toolbarBtn} ${element.fontWeight >= 700 ? styles.toolbarBtnActive : ""}`} aria-label="굵게" onClick={() => commitPatch(element.id, { fontWeight: element.fontWeight >= 700 ? 400 : 700 })}><Bold size={13} /></button>
+                  <button type="button" data-active={element.italic} className={`${styles.toolbarBtn} ${element.italic ? styles.toolbarBtnActive : ""}`} aria-label="기울임" onClick={() => commitPatch(element.id, { italic: !element.italic })}><Italic size={13} /></button>
+                  <button type="button" data-active={element.underline} className={`${styles.toolbarBtn} ${element.underline ? styles.toolbarBtnActive : ""}`} aria-label="밑줄" onClick={() => commitPatch(element.id, { underline: !element.underline })}><Underline size={13} /></button>
+                  <button type="button" data-active={element.highlight} className={`${styles.toolbarBtn} ${element.highlight ? styles.toolbarBtnActive : ""}`} aria-label="형광펜" onClick={() => commitPatch(element.id, { highlight: !element.highlight })}><Highlighter size={13} /></button>
+                </>
+              ) : element.type === "image" ? (
+                <>
+                  <button type="button" className={styles.toolbarBtn} aria-label="사진 교체" onClick={() => onReplaceImage?.()}><ImagePlus size={13} /></button>
+                  <button type="button" className={styles.toolbarBtn} aria-label="자르기" onClick={() => setCropModeId(element.id)}><Crop size={13} /></button>
+                  <span className={styles.toolbarDivider} />
+                  <button type="button" className={styles.toolbarBtn} aria-label="맨 앞으로" onClick={() => bringToFront(element)}><MoveUp size={13} /></button>
+                  <button type="button" className={styles.toolbarBtn} aria-label="맨 뒤로" onClick={() => sendToBack(element)}><MoveDown size={13} /></button>
+                </>
+              ) : null}
+            </div>
+          </>
+        ) : null}
+        {selected && element.locked ? <span className={styles.lockBadge}><Lock size={11} /></span> : null}
+      </>
+    );
+  };
+
   return (
     <div ref={stageRef} className={styles.stage} onPointerDown={() => { onSelect(null); setCropModeId(null); }}>
       <div
-        ref={canvasBoxRef}
-        className={styles.canvas}
-        style={{ background: document.background, width: `${Math.round(document.width * scale)}px` }}
+        ref={canvasViewportRef}
+        className={styles.canvasViewport}
+        style={{ width: document.width * scale, height: document.height * scale }}
         role="application"
         aria-label="리뷰 스토리 편집 캔버스"
       >
-        {sorted.map((element) => {
-          if (element.hidden) return null;
-          const selected = selectedElementId === element.id;
-          const commonStyle: React.CSSProperties = {
-            left: `${(element.x / document.width) * 100}%`,
-            top: `${(element.y / document.height) * 100}%`,
-            width: `${(element.width / document.width) * 100}%`,
-            height: `${(element.height / document.height) * 100}%`,
-            opacity: element.opacity,
-            zIndex: element.zIndex,
-            transform: `rotate(${element.rotation}deg)`,
-          };
-          const isCropping = cropModeId === element.id && element.type === "image";
-          // 텍스트는 실제 렌더된 글자 영역(측정값)에 맞춰 선택 테두리를 그린다 — 저장된 template
-          // height가 넉넉해도 선택 박스가 그만큼 커 보이지 않게.
-          const textBox = element.type === "text" ? textBoxById[element.id] : null;
-          const selectionStyle: React.CSSProperties | null = selected && element.type === "text" && textBox
-            ? { position: "absolute", left: 0, top: 0, width: `${(textBox.width / element.width) * 100}%`, height: `${(textBox.height / element.height) * 100}%` }
-            : null;
-          return (
-            <div
-              key={element.id}
-              role="button"
-              tabIndex={0}
-              className={`${styles.element} ${element.locked ? styles.locked : ""}`}
-              style={commonStyle}
-              aria-label={`${element.name} 선택`}
-              onKeyDown={(event) => {
+        <div
+          className={styles.canvasScale}
+          style={{
+            width: document.width,
+            height: document.height,
+            transform: `scale(${scale})`,
+            "--editor-inverse-scale": 1 / scale,
+            "--editor-handle-size": `${6 / scale}px`,
+            "--editor-border-width": `${1 / scale}px`,
+            "--editor-rotate-offset": `${-14 / scale}px`,
+            "--editor-rotate-line-width": `${1 / scale}px`,
+            "--editor-rotate-line-height": `${8 / scale}px`,
+          } as CSSProperties}
+        >
+          <ReviewCanvasRenderer
+            document={document}
+            assetUrls={assetUrls}
+            className={styles.canvas}
+            hiddenTextElementId={editingId}
+            registerTextNode={(id, node) => { if (node) textRefs.current.set(id, node); else textRefs.current.delete(id); }}
+            elementClassName={(element) => `${styles.editorElement} ${element.locked ? styles.locked : ""}`}
+            elementProps={(element) => ({
+              role: "button",
+              tabIndex: 0,
+              "aria-label": `${element.name} 선택`,
+              onKeyDown: (event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   onSelect(element.id);
                 }
-              }}
-              onPointerDown={(event) => isCropping ? undefined : beginPointerAction(event, element, "move")}
-              onDoubleClick={(event) => {
+              },
+              onPointerDown: (event) => cropModeId === element.id && element.type === "image" ? undefined : beginPointerAction(event, element, "move"),
+              onDoubleClick: (event) => {
                 event.stopPropagation();
                 if (element.locked) return;
                 if (element.type === "text") beginTextEdit(element);
                 if (element.type === "image") setCropModeId(element.id);
-              }}
+              },
+            })}
+            imageFrameProps={(element) => ({
+              onPointerDown: (event) => cropModeId === element.id ? beginCropDrag(event, element) : undefined,
+              onWheel: (event) => {
+                if (cropModeId === element.id) {
+                  event.preventDefault();
+                  adjustCropZoom(element, event.deltaY < 0 ? 0.05 : -0.05);
+                }
+              },
+            })}
+            renderElementChrome={renderElementChrome}
+          />
+          {activeGuides.map((guide, index) => guide.type === "vertical" ? (
+            <span
+              key={index}
+              className={styles.guideVertical}
+              style={{ left: guide.position, top: guide.start ?? 0, height: (guide.end ?? document.height) - (guide.start ?? 0) }}
             >
-              {element.type === "shape" ? <span style={{ display: "block", width: "100%", height: "100%", borderRadius: element.radius * scale, background: element.fill }} /> : null}
-              {element.type === "image" ? (
-                <span
-                  className={styles.imageFrame}
-                  style={element.edgeBlend?.type === "gradient" ? maskStyle(element) : undefined}
-                  onPointerDown={(event) => isCropping ? beginCropDrag(event, element) : undefined}
-                  onWheel={(event) => { if (isCropping) { event.preventDefault(); adjustCropZoom(element, event.deltaY < 0 ? 0.05 : -0.05); } }}
-                >
-                  {sourceFor(element, assetUrls) ? (
-                    <>
-                      <img className={styles.image} src={sourceFor(element, assetUrls)} alt="" draggable={false} style={{ objectPosition: `${element.cropX}% ${element.cropY}%`, transform: `scale(${element.scale})`, cursor: isCropping ? "move" : undefined }} />
-                      {element.edgeBlend?.enabled && element.edgeBlend.type === "blur" ? <img className={styles.blurOverlay} src={sourceFor(element, assetUrls)} alt="" draggable={false} style={{ objectPosition: `${element.cropX}% ${element.cropY}%`, transform: `scale(${element.scale})`, filter: `blur(${Math.max(2, element.edgeBlend.strength / 5) * scale}px)`, ...maskStyle(element, true) }} /> : null}
-                    </>
-                  ) : <span className={styles.placeholder}><ImageIcon size={42 * scale} /> 사진을 추가하세요</span>}
-                </span>
-              ) : null}
-              {element.type === "text" ? (
-                <span
-                  ref={(node) => { if (node) textRefs.current.set(element.id, node); else textRefs.current.delete(element.id); }}
-                  className={styles.text}
-                  style={{ display: "block", width: "100%", height: "100%", fontFamily: element.fontFamily, fontSize: element.fontSize * scale, fontWeight: element.fontWeight, fontStyle: element.italic ? "italic" : "normal", textDecoration: element.underline ? "underline" : "none", color: element.color, textAlign: element.textAlign, lineHeight: element.lineHeight, letterSpacing: element.letterSpacing * scale, visibility: editingId === element.id ? "hidden" : "visible" }}
-                >
-                  <span
-                    className={styles.reviewTextHighlight}
-                    style={element.highlight ? { display: "inline", backgroundColor: element.highlightColor ?? "#FFF176" } : undefined}
-                  >
-                    {element.text}
-                  </span>
-                </span>
-              ) : null}
-              {element.type === "text" && editingId === element.id ? (
-                <textarea
-                  autoFocus
-                  className={styles.inlineEditor}
-                  value={element.text}
-                  style={{ fontFamily: element.fontFamily, fontSize: element.fontSize * scale, fontWeight: element.fontWeight, fontStyle: element.italic ? "italic" : "normal", textDecoration: element.underline ? "underline" : "none", color: element.color, textAlign: element.textAlign, lineHeight: element.lineHeight, letterSpacing: element.letterSpacing * scale }}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onChange={(event) => {
-                    const next = clone(document);
-                    next.elements = next.elements.map((item) => item.id === element.id && item.type === "text" ? { ...item, text: event.target.value } : item);
-                    onChange(next);
-                  }}
-                  onKeyDown={(event) => {
-                    event.stopPropagation();
-                    if (event.key === "Escape") { event.preventDefault(); cancelTextEdit(element.id); }
-                    else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); commitTextEdit(); }
-                  }}
-                  onBlur={commitTextEdit}
-                />
-              ) : null}
-
-              {isCropping ? (
-                <div className={styles.cropToolbar} onPointerDown={(event) => event.stopPropagation()}>
-                  <button type="button" className={styles.cropButton} onClick={() => adjustCropZoom(element as ReviewStoryImageElement, -0.05)}>-</button>
-                  <span>확대/이동</span>
-                  <button type="button" className={styles.cropButton} onClick={() => adjustCropZoom(element as ReviewStoryImageElement, 0.05)}>+</button>
-                  <button type="button" className={`${styles.cropButton} ${styles.cropDone}`} onClick={() => setCropModeId(null)}>완료</button>
-                </div>
-              ) : null}
-
-              {selected && !element.locked && !isCropping ? (
-                <>
-                  <span className={styles.selectionBorder} style={selectionStyle ?? undefined} />
-                  {element.type === "image" || element.type === "shape" ? (
-                    <>
-                      <span className={`${styles.handle} ${styles.handleNw}`} onPointerDown={(event) => beginPointerAction(event, element, "nw")} />
-                      <span className={`${styles.handle} ${styles.handleNe}`} onPointerDown={(event) => beginPointerAction(event, element, "ne")} />
-                      <span className={`${styles.handle} ${styles.handleSw}`} onPointerDown={(event) => beginPointerAction(event, element, "sw")} />
-                      <span className={`${styles.handle} ${styles.handleSe}`} onPointerDown={(event) => beginPointerAction(event, element, "se")} />
-                    </>
-                  ) : (
-                    <>
-                      <span className={`${styles.handle} ${styles.handleW}`} onPointerDown={(event) => beginPointerAction(event, element, "w")} />
-                      <span className={`${styles.handle} ${styles.handleE}`} onPointerDown={(event) => beginPointerAction(event, element, "e")} />
-                      <span className={`${styles.handle} ${styles.handleSe}`} onPointerDown={(event) => beginPointerAction(event, element, "se")} />
-                    </>
-                  )}
-                  <span className={styles.rotateHandle} onPointerDown={(event) => beginRotate(event, element)} />
-                  {rotationTooltip !== null ? <span className={styles.angleTooltip}>{rotationTooltip}°</span> : null}
-                  {resizeTooltip ? <span className={styles.sizeTooltip}>{resizeTooltip.width} × {resizeTooltip.height}</span> : null}
-
-                  <div className={styles.floatingToolbar} onPointerDown={(event) => event.stopPropagation()}>
-                    {element.type === "text" ? (
-                      <>
-                        <button type="button" className={`${styles.toolbarBtn} ${element.textAlign === "left" ? styles.toolbarBtnActive : ""}`} aria-label="왼쪽 정렬" onClick={() => commitPatch(element.id, { textAlign: "left" })}><AlignLeft size={13} /></button>
-                        <button type="button" className={`${styles.toolbarBtn} ${element.textAlign === "center" ? styles.toolbarBtnActive : ""}`} aria-label="가운데 정렬" onClick={() => commitPatch(element.id, { textAlign: "center" })}><AlignCenter size={13} /></button>
-                        <button type="button" className={`${styles.toolbarBtn} ${element.textAlign === "right" ? styles.toolbarBtnActive : ""}`} aria-label="오른쪽 정렬" onClick={() => commitPatch(element.id, { textAlign: "right" })}><AlignRight size={13} /></button>
-                        <span className={styles.toolbarDivider} />
-                        <button type="button" className={`${styles.toolbarBtn} ${element.fontWeight >= 700 ? styles.toolbarBtnActive : ""}`} aria-label="굵게" onClick={() => commitPatch(element.id, { fontWeight: element.fontWeight >= 700 ? 400 : 700 })}><Bold size={13} /></button>
-                        <button type="button" data-active={element.italic} className={`${styles.toolbarBtn} ${element.italic ? styles.toolbarBtnActive : ""}`} aria-label="기울임" onClick={() => commitPatch(element.id, { italic: !element.italic })}><Italic size={13} /></button>
-                        <button type="button" data-active={element.underline} className={`${styles.toolbarBtn} ${element.underline ? styles.toolbarBtnActive : ""}`} aria-label="밑줄" onClick={() => commitPatch(element.id, { underline: !element.underline })}><Underline size={13} /></button>
-                        <button type="button" data-active={element.highlight} className={`${styles.toolbarBtn} ${element.highlight ? styles.toolbarBtnActive : ""}`} aria-label="형광펜" onClick={() => commitPatch(element.id, { highlight: !element.highlight })}><Highlighter size={13} /></button>
-                      </>
-                    ) : element.type === "image" ? (
-                      <>
-                        <button type="button" className={styles.toolbarBtn} aria-label="사진 교체" onClick={() => onReplaceImage?.()}><ImagePlus size={13} /></button>
-                        <button type="button" className={styles.toolbarBtn} aria-label="자르기" onClick={() => setCropModeId(element.id)}><Crop size={13} /></button>
-                        <span className={styles.toolbarDivider} />
-                        <button type="button" className={styles.toolbarBtn} aria-label="맨 앞으로" onClick={() => bringToFront(element)}><MoveUp size={13} /></button>
-                        <button type="button" className={styles.toolbarBtn} aria-label="맨 뒤로" onClick={() => sendToBack(element)}><MoveDown size={13} /></button>
-                      </>
-                    ) : null}
-                  </div>
-                </>
-              ) : null}
-              {selected && element.locked ? <span className={styles.lockBadge}><Lock size={11} /></span> : null}
-            </div>
-          );
-        })}
-
-        {activeGuides.map((guide, index) => guide.type === "vertical" ? (
-          <span
-            key={index}
-            className={styles.guideVertical}
-            style={{ left: `${(guide.position / document.width) * 100}%`, top: `${((guide.start ?? 0) / document.height) * 100}%`, height: `${(((guide.end ?? document.height) - (guide.start ?? 0)) / document.height) * 100}%` }}
-          >
-            {guide.label ? <span className={styles.guideLabel}>{guide.label}</span> : null}
-          </span>
-        ) : (
-          <span
-            key={index}
-            className={styles.guideHorizontal}
-            style={{ top: `${(guide.position / document.height) * 100}%`, left: `${((guide.start ?? 0) / document.width) * 100}%`, width: `${(((guide.end ?? document.width) - (guide.start ?? 0)) / document.width) * 100}%` }}
-          >
-            {guide.label ? <span className={styles.guideLabel}>{guide.label}</span> : null}
-          </span>
-        ))}
+              {guide.label ? <span className={styles.guideLabel}>{guide.label}</span> : null}
+            </span>
+          ) : (
+            <span
+              key={index}
+              className={styles.guideHorizontal}
+              style={{ top: guide.position, left: guide.start ?? 0, width: (guide.end ?? document.width) - (guide.start ?? 0) }}
+            >
+              {guide.label ? <span className={styles.guideLabel}>{guide.label}</span> : null}
+            </span>
+          ))}
+        </div>
       </div>
+      <ReviewCanvasExportHost ref={exportHostRef} document={document} assetUrls={assetUrls} />
     </div>
   );
 });
