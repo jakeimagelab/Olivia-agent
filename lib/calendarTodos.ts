@@ -7,6 +7,16 @@ export type CalendarTodo = {
   updatedAt: string;
 };
 
+export const LEGACY_CALENDAR_TODO_DATE = "9999-12-31";
+export const LEGACY_CALENDAR_TODO_MEMO = "__olivia_calendar_todo__";
+
+export function isCalendarTodoTableMissing(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  return error.code === "PGRST205"
+    || error.code === "42P01"
+    || /calendar_todos.*(schema cache|does not exist|could not find)/i.test(error.message ?? "");
+}
+
 export function normalizeCalendarTodoTitle(value: unknown) {
   const title = String(value ?? "").normalize("NFC").trim();
   if (!title) return { ok: false as const, error: "할 일을 입력해주세요." };

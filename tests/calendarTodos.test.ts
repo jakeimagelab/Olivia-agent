@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeCalendarTodoTitle, rowToCalendarTodo } from "@/lib/calendarTodos";
+import { isCalendarTodoTableMissing, normalizeCalendarTodoTitle, rowToCalendarTodo } from "@/lib/calendarTodos";
 
 describe("calendar todos", () => {
   it("normalizes valid titles", () => {
@@ -14,5 +14,11 @@ describe("calendar todos", () => {
   it("serializes database rows", () => {
     expect(rowToCalendarTodo({ id: "todo-1", title: "확인", completed: true, sort_order: 2, created_at: "a", updated_at: "b" }))
       .toEqual({ id: "todo-1", title: "확인", completed: true, sortOrder: 2, createdAt: "a", updatedAt: "b" });
+  });
+
+  it("detects only missing-table errors for the compatibility path", () => {
+    expect(isCalendarTodoTableMissing({ code: "PGRST205", message: "Could not find the table calendar_todos in the schema cache" })).toBe(true);
+    expect(isCalendarTodoTableMissing({ code: "42P01", message: "relation does not exist" })).toBe(true);
+    expect(isCalendarTodoTableMissing({ code: "42501", message: "permission denied" })).toBe(false);
   });
 });
