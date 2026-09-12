@@ -1,8 +1,8 @@
 "use client";
 // 캘린더 UI/UX 개편 (팝업 추가/수정, 전체화면 그리드, 모바일 드릴다운 내비게이션)
 
-import Link from "next/link";
 import { Suspense, useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { BarChart3, ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, Share2, X } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
@@ -12,6 +12,14 @@ import { parseClipboardTasks } from "@/lib/calendarPaste";
 import { categorizeByTitle } from "@/lib/calendarCategorize";
 import { useCalendarEmbedded } from "@/lib/calendarEmbedContext";
 import { getKoreanHoliday } from "@/lib/koreanHolidays";
+import type { CalendarTodo } from "@/lib/calendarTodos";
+import {
+  calendarClientTopForTime,
+  calendarDayColumnAtX,
+  calendarTimeFromClientY,
+  preserveCalendarDuration,
+  type CalendarDragGrid,
+} from "@/lib/calendarDrag";
 
 /* ─── types ──────────────────────────────────────────── */
 type ViewMode = "day" | "week" | "month" | "year";
@@ -30,11 +38,11 @@ type CalTask = {
 
 /* ─── constants ───────────────────────────────────────── */
 const C = {
-  teal: "#0F4440", orange: "#E85D2C",
-  bg: "#C8DBD8", surface: "#FFFFFF", border: "#93BAB4",
+  teal: "#0F4440", orange: "#B7791F",
+  bg: "#DCE9E6", surface: "#FFFFFF", border: "#A9C6C1",
   cellBg: "#FAFCFB",
-  muted: "#3D5C58", hint: "#6B9E98", txt: "#111E1C", mint: "#E4F2EF",
-  todayRed: "#E8392C",
+  muted: "#3D5C58", hint: "#6B8F89", txt: "#111E1C", mint: "#E4F2EF",
+  todayRed: "#155855",
 };
 
 // 공유 카드 전용 — 포토클리닉 공식 브랜드 컬러(로고와 동일한 값)를 그대로 고정해서 쓴다.
@@ -44,11 +52,11 @@ const BRAND_ORANGE = "#E85D2C";
 // 이 키(shooting/client/admin/personal/general)는 app/api/olivia/v2/stream/route.ts의
 // 시스템 프롬프트 캘린더 카테고리 안내와 동기화돼야 한다 — 값을 추가/변경하면 거기도 같이 고친다.
 const CATS: Record<string, { label: string; color: string; bg: string }> = {
-  shooting: { label: "촬영",    color: "#E85D2C", bg: "#FFF0EB" },
-  client:   { label: "고객",    color: "#155855", bg: "#EAF4F2" },
-  admin:    { label: "행정",    color: "#EB8F22", bg: "#FFF3E0" },
-  personal: { label: "개인",    color: "#000000", bg: "#ECECEC" },
-  general:  { label: "기타",    color: "#5A7470", bg: "#F3F4F6" },
+  shooting: { label: "촬영",    color: "#197064", bg: "#E7F4F1" },
+  client:   { label: "고객",    color: "#3B7F77", bg: "#EDF7F5" },
+  admin:    { label: "행정",    color: "#A76E18", bg: "#FBF4E6" },
+  personal: { label: "개인",    color: "#426D9C", bg: "#EDF3FA" },
+  general:  { label: "기타",    color: "#647A76", bg: "#F1F4F3" },
 };
 
 /* 일정 드래그용 커스텀 마우스 커서 — 기본 OS grab/grabbing 손 아이콘 대신 그라디언트+그림자로
@@ -237,7 +245,7 @@ function ReminderControls({ enabled, minutes, hasTime, onEnabled, onMinutes, isM
   isMobile?: boolean;
 }) {
   return (
-    <div style={{ display: "grid", gap: 8, border: `1px solid ${enabled ? "#E85D2C55" : C.border}`, borderRadius: 10, padding: "10px 11px", background: enabled ? "#FFF7F2" : "#FAFCFB" }}>
+    <div style={{ display: "grid", gap: 8, border: `1px solid ${enabled ? "#B7791F55" : C.border}`, borderRadius: 10, padding: "10px 11px", background: enabled ? "#FFF9ED" : "#FAFCFB" }}>
       <label style={{ display: "flex", alignItems: "center", gap: 8, color: hasTime ? C.txt : C.hint, fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), cursor: hasTime ? "pointer" : "not-allowed" }}>
         <input type="checkbox" checked={enabled} disabled={!hasTime} onChange={(event) => onEnabled(event.target.checked)} style={{ accentColor: C.orange }} />
         <span>🔔 올리비아 텔레그램 알람</span>
@@ -825,197 +833,110 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
   );
 }
 
-const CALENDAR_MUTATION_TOOLS = new Set([
-  "calendar_add", "calendar_add_bulk", "calendar_update", "calendar_complete", "calendar_delete",
-]);
-
-/* ─── ScheduleChatPanel — 상담 메모(AI 분석 폼) 대신 미니 챗팅 하나로 바로 일정을 등록한다.
-   예전엔 정규식 기반 parseClipboardTasks(lib/calendarPaste.ts)로 "오후 2시 강남 촬영" 같은
-   단일 패턴만 추출했는데, 여러 일정이 섞였거나 "다음주 화요일" 같은 상대 날짜, 기존 일정
-   수정/삭제 요청은 전혀 이해하지 못했다 — 이제 Hermes(브레인)에게 그대로 물어보고,
-   calendar_* MCP tool(lib/hermes/mcpServer.ts, executeCalendarTool 재사용)이 실제 DB
-   반영을 맡는다. 실행 결과는 항상 olivia-calendar-updated 이벤트로 알려서(이미 있던 전역
-   새로고침 메커니즘) 몇 건이 어떻게 바뀌었든 화면이 실제 DB 상태로 다시 동기화된다. ─── */
-function ScheduleChatPanel({ dateStr }: { dateStr: string }) {
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setMessages([]); setInput(""); }, [dateStr]);
-  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }); }, [messages]);
-
-  const send = async () => {
-    const text = input.trim();
-    if (!text || sending) return;
-    const history = messages.slice(-8).map(m => ({ role: m.role, content: m.text }));
-    setMessages(prev => [...prev, { role: "user", text }]);
-    setInput("");
-    setSending(true);
-    try {
-      const today = new Date();
-      const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      const r = await fetch("/api/hermes/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          history,
-          context: { activeWorkspace: "calendar", todayDate, focusDate: dateStr },
-        }),
-      });
-      const d = await r.json();
-      if (!d.success) throw new Error(d.error || "요청을 처리하지 못했어요.");
-      const toolCalls = Array.isArray(d.toolCalls) ? d.toolCalls as { name: string; success: boolean }[] : [];
-      if (toolCalls.some(call => call.success && CALENDAR_MUTATION_TOOLS.has(call.name))) {
-        window.dispatchEvent(new CustomEvent("olivia-calendar-updated"));
-      }
-      setMessages(prev => [...prev, { role: "assistant", text: d.message || "처리했어요." }]);
-    } catch (e) {
-      setMessages(prev => [...prev, { role: "assistant", text: e instanceof Error ? e.message : "요청 처리에 실패했어요. 다시 시도해 주세요." }]);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0 }}>
-      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 60, overflowY: "auto" }}>
-        {messages.length === 0 ? (
-          <div style={{ fontSize: 12, color: C.hint, lineHeight: 1.6 }}>"오후 2시 강남 촬영"처럼 편하게 적으면 바로 일정으로 등록돼요. 여러 줄로 길게 적어도 괜찮아요.</div>
-        ) : messages.map((m, i) => (
-          <div key={i} style={{
-            alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-            background: m.role === "user" ? C.teal : "#F1F5F4", color: m.role === "user" ? "#fff" : C.txt,
-            borderRadius: 10, padding: "7px 11px", fontSize: 12, lineHeight: 1.5, maxWidth: "88%", whiteSpace: "pre-wrap",
-          }}>{m.text}</div>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
-        <textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
-          placeholder="일정을 편하게 입력하세요 (여러 줄 가능, Shift+Enter로 줄바꿈)"
-          disabled={sending}
-          rows={3}
-          style={{ flex: 1, fontSize: 12, color: C.txt, border: `1px solid ${C.border}`, borderRadius: 8,
-            padding: "8px 10px", outline: "none", fontFamily: "inherit", background: "#FAFCFB",
-            resize: "vertical", lineHeight: 1.5, minHeight: 64 }}
-        />
-        <button onClick={() => void send()} disabled={sending || !input.trim()} className="pc-btn pc-btn--orange pc-btn--sm">전송</button>
-      </div>
-    </div>
-  );
-}
-
-/* ─── DayPanel (right side) ───────────────────────────── */
-function DayPanel({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd, onEdit,
-  autoOpenTrigger, autoSlotTime }: {
+/* ─── ProductivityPanel (right side) ─────────────────── */
+function ProductivityPanel({ dateStr, tasks, loading, todayStr, todos, todosLoading, todoError,
+  onToggleTodo, onAddTodo, onDeleteTodo }: {
   dateStr: string; tasks: CalTask[]; loading: boolean; todayStr: string;
-  onToggle: (t: CalTask) => void; onDelete: (id: string) => void; onAdd: (t: CalTask) => void;
-  onEdit: (t: CalTask) => void; autoOpenTrigger?: number; autoSlotTime?: string;
+  todos: CalendarTodo[]; todosLoading: boolean; todoError: string;
+  onToggleTodo: (todo: CalendarTodo) => Promise<void>;
+  onAddTodo: (title: string) => Promise<boolean>;
+  onDeleteTodo: (id: string) => Promise<void>;
 }) {
   const isToday = dateStr === todayStr;
   const d = new Date(dateStr + "T12:00:00");
   const dow = d.getDay();
   const dateLabel = `${d.getMonth()+1}월 ${d.getDate()}일 ${WEEKDAYS[dow]}`;
-  const done = tasks.filter(t => t.completed).length;
+  const [adding, setAdding] = useState(false);
+  const [todoTitle, setTodoTitle] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const sorted = useMemo(() => [...tasks].sort((a, b) => {
-    if (a.completed !== b.completed) return Number(a.completed) - Number(b.completed);
+  const sortedTasks = useMemo(() => [...tasks].sort((a, b) => {
     return (a.time ?? "99:99").localeCompare(b.time ?? "99:99");
   }), [tasks]);
+  const sortedTodos = useMemo(() => [...todos].sort((a, b) =>
+    Number(a.completed) - Number(b.completed) || a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt)
+  ), [todos]);
 
-  const SectionLabel = ({ children, badge }: { children: string; badge?: number }) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
-      <span style={{ fontSize: 11, fontWeight: 900, color: C.teal, letterSpacing: ".04em" }}>{children}</span>
-      {badge != null && badge > 0 && (
-        <span style={{ background: C.teal, color: "#fff", fontSize: 9, fontWeight: 800,
-          padding: "1px 6px", borderRadius: 99 }}>{badge}</span>
-      )}
-    </div>
-  );
+  const submitTodo = async () => {
+    const title = todoTitle.trim();
+    if (!title || saving) return;
+    setSaving(true);
+    const ok = await onAddTodo(title);
+    setSaving(false);
+    if (ok) { setTodoTitle(""); setAdding(false); }
+  };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: C.surface }}>
-
-      {/* ── 날짜 헤더 */}
-      <div style={{ padding: "18px 20px 14px", flexShrink: 0,
-        background: isToday ? "#FFF5F0" : "#FAFCFB",
-        borderBottom: `1.5px solid ${C.border}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+    <aside className="calendar-productivity-panel" style={{ display: "flex", flexDirection: "column", height: "100%", background: C.surface }}>
+      <div style={{ padding: "16px 18px 13px", flexShrink: 0, background: isToday ? C.mint : "#FAFCFB", borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           {isToday && (
-            <span style={{ fontSize: 10, fontWeight: 900, color: "#fff",
-              background: C.todayRed, padding: "2px 9px", borderRadius: 99 }}>오늘</span>
+            <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", background: C.teal, padding: "2px 8px", borderRadius: 99 }}>오늘</span>
           )}
-          <span style={{ fontSize: 18, fontWeight: 900, color: C.txt, letterSpacing: "-0.4px", flex: 1 }}>
-            {dateLabel}
-          </span>
+          <strong style={{ fontSize: 16, color: C.txt, letterSpacing: "-.03em" }}>{dateLabel}</strong>
         </div>
-        {tasks.length > 0 ? (
-          <>
-            <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>
-              전체 {tasks.length}개 ·{" "}
-              <span style={{ color: C.teal, fontWeight: 800 }}>완료 {done}개</span>
-              {done === tasks.length && (
-                <span style={{ marginLeft: 7, color: "#059669", fontWeight: 800 }}>🎉 완료!</span>
-              )}
-            </div>
-            <div style={{ height: 3, background: "#E0EDEB", borderRadius: 99, marginTop: 8, overflow: "hidden" }}>
-              <div style={{ height: "100%", background: C.teal, borderRadius: 99,
-                width: `${(done / tasks.length) * 100}%`, transition: "width .4s ease" }}/>
-            </div>
-          </>
-        ) : (
-          <div style={{ fontSize: 12, color: C.hint }}>일정 없음</div>
-        )}
+        <div style={{ marginTop: 4, fontSize: 11, color: C.muted }}>선택한 날짜의 일정과 공용 할 일을 한눈에 확인하세요.</div>
       </div>
 
-      {/* ── 본문 — 할일(내용 많으면 이 부분만 스크롤)과 빠른 일정 등록(남는 세로 공간을 그대로
-          채움)을 나눠서, 패널 전체가 스크롤돼야만 챗 입력창이 보이던 문제를 없앤다. */}
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "18px 16px 16px" }}>
-
-        {/* 할일 섹션 */}
-        <div style={{ flexShrink: 1, minHeight: 0, maxHeight: "50%", overflowY: "auto" }}>
-          <SectionLabel badge={tasks.length}>📅 할일</SectionLabel>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 14px 18px" }}>
+        <section aria-labelledby="calendar-today-heading">
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+            <strong id="calendar-today-heading" style={{ flex: 1, color: C.teal, fontSize: 12 }}>오늘 일정</strong>
+            <span style={{ minWidth: 24, padding: "2px 7px", borderRadius: 99, background: C.mint, color: C.teal, fontSize: 10, fontWeight: 800, textAlign: "center" }}>{tasks.length}</span>
+          </div>
           {loading ? (
-            <div style={{ textAlign: "center", color: C.hint, padding: "24px 0", fontSize: 13 }}>불러오는 중…</div>
+            <div style={{ color: C.hint, padding: "18px 4px", fontSize: 12 }}>일정을 불러오는 중…</div>
           ) : tasks.length === 0 ? (
-            <div style={{ textAlign: "center", color: C.hint, padding: "16px 0 20px" }}>
-              <div style={{ fontSize: 24, marginBottom: 6 }}>📅</div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>할일이 없어요</div>
-              <div style={{ fontSize: 12 }}>아래에서 추가하세요</div>
-            </div>
+            <div style={{ border: `1px dashed ${C.border}`, borderRadius: 11, padding: "20px 12px", color: C.hint, fontSize: 11.5, textAlign: "center", background: "#FAFCFB" }}>오늘 등록된 일정이 없습니다</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginBottom: 14 }}>
-              {sorted.map(task => (
-                <TaskItem key={task.id} task={task}
-                  onToggle={() => onToggle(task)} onDelete={() => onDelete(task.id)}
-                  onEdit={onEdit}/>
-              ))}
+            <div style={{ display: "grid", gap: 7 }}>
+              {sortedTasks.map(task => {
+                const cat = CATS[task.category] ?? CATS.general;
+                return <div key={task.id} style={{ display: "grid", gridTemplateColumns: "45px minmax(0,1fr)", gap: 9, padding: "9px 10px", border: `1px solid ${cat.color}20`, borderRadius: 10, background: cat.bg }}>
+                  <strong style={{ color: cat.color, fontSize: 10.5, paddingTop: 1 }}>{task.time?.slice(0, 5) ?? "종일"}</strong>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: C.txt, fontSize: 11.5, fontWeight: 750, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.completed ? "line-through" : undefined, opacity: task.completed ? .58 : 1 }}>{task.title}</div>
+                    <div style={{ display: "flex", gap: 5, marginTop: 3, color: C.muted, fontSize: 9.5 }}>
+                      <span>{cat.label}</span>{task.location ? <span>· {task.location}</span> : null}
+                    </div>
+                  </div>
+                </div>;
+              })}
             </div>
           )}
-          <AddTaskForm date={dateStr} onAdd={onAdd} triggerKey={autoOpenTrigger} defaultTime={autoSlotTime}/>
-        </div>
+        </section>
 
-        {/* 구분선 */}
-        <div style={{ margin: "16px 0 14px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          <div style={{ flex: 1, height: 1, background: C.border }}/>
-        </div>
+        <div style={{ height: 1, background: `${C.border}80`, margin: "18px 0" }}/>
 
-        {/* 미니 챗팅 — 상담메모(AI 분석 폼) 대신, 바로 일정 등록 요청용. 남는 세로 공간을 꽉 채운다 */}
-        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <SectionLabel>💬 빠른 일정 등록</SectionLabel>
-          <ScheduleChatPanel dateStr={dateStr} />
-        </div>
+        <section aria-labelledby="calendar-todo-heading">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <strong id="calendar-todo-heading" style={{ flex: 1, color: C.teal, fontSize: 12 }}>해야 할 일</strong>
+            <span style={{ color: C.hint, fontSize: 9.5 }}>{todos.filter(todo => !todo.completed).length}개 남음</span>
+            <button type="button" onClick={() => setAdding(value => !value)} style={{ display: "inline-flex", alignItems: "center", gap: 3, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 8px", background: C.surface, color: C.teal, fontSize: 10, fontWeight: 800, cursor: "pointer" }}><Plus size={12}/> 할 일 추가</button>
+          </div>
+          {adding ? <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            <input autoFocus value={todoTitle} maxLength={160} onChange={event => setTodoTitle(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); void submitTodo(); } }} placeholder="할 일을 입력하세요" style={{ minWidth: 0, flex: 1, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 9px", color: C.txt, font: "inherit", fontSize: 11, outline: "none" }}/>
+            <button type="button" onClick={() => void submitTodo()} disabled={saving || !todoTitle.trim()} style={{ border: 0, borderRadius: 8, padding: "0 10px", background: C.teal, color: "#fff", fontSize: 10, fontWeight: 800, cursor: "pointer", opacity: saving || !todoTitle.trim() ? .45 : 1 }}>추가</button>
+          </div> : null}
+          {todoError ? <div role="alert" style={{ color: "#9A514A", background: "#FBF2F0", borderRadius: 8, padding: "7px 9px", fontSize: 10.5, marginBottom: 8 }}>{todoError}</div> : null}
+          {todosLoading ? <div style={{ color: C.hint, padding: "18px 4px", fontSize: 12 }}>할 일을 불러오는 중…</div> : sortedTodos.length === 0 ? (
+            <div style={{ border: `1px dashed ${C.border}`, borderRadius: 11, padding: "18px 12px", color: C.hint, fontSize: 11.5, textAlign: "center", background: "#FAFCFB" }}>등록된 할 일이 없습니다</div>
+          ) : <div style={{ display: "grid", gap: 5 }}>
+            {sortedTodos.map(todo => <div key={todo.id} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 36, padding: "6px 7px", borderRadius: 9, background: todo.completed ? "#F4F7F6" : C.surface, border: `1px solid ${todo.completed ? "#E4EAE8" : `${C.border}70`}` }}>
+              <button type="button" aria-label={todo.completed ? `${todo.title} 미완료로 변경` : `${todo.title} 완료`} onClick={() => void onToggleTodo(todo)} style={{ width: 19, height: 19, borderRadius: 6, border: `1.5px solid ${todo.completed ? C.teal : C.border}`, background: todo.completed ? C.teal : "transparent", color: "#fff", display: "grid", placeItems: "center", flexShrink: 0, cursor: "pointer" }}>{todo.completed ? <Check size={11} strokeWidth={3}/> : null}</button>
+              <span style={{ flex: 1, minWidth: 0, color: todo.completed ? C.hint : C.txt, fontSize: 11.5, textDecoration: todo.completed ? "line-through" : undefined, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{todo.title}</span>
+              <button type="button" aria-label={`${todo.title} 삭제`} onClick={() => void onDeleteTodo(todo.id)} style={{ border: 0, padding: 3, background: "transparent", color: C.hint, cursor: "pointer", display: "flex" }}><Trash2 size={12}/></button>
+            </div>)}
+          </div>}
+        </section>
       </div>
-    </div>
+    </aside>
   );
 }
 
 
 /* ─── MonthView ───────────────────────────────────────── */
-function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onUpdateTask, onCreateTask, onRequestDelete, onPrev, onNext, onOpenAdd, onOpenEdit, isMobile = false, onNavigateDay, onNavigateYear, embedded = false }: {
+function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectDate, onUpdateTask, onCreateTask, onRequestDelete, onPrev, onNext, onOpenAdd, onOpenEdit, isMobile = false, onNavigateDay, onNavigateYear }: {
   year: number; month: number; todayStr: string; selectedDate: string;
   tasksByDate: Record<string, CalTask[]>;
   onSelectDate: (d: string) => void;
@@ -1028,9 +949,6 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
   isMobile?: boolean;
   onNavigateDay?: (date: string) => void;
   onNavigateYear?: () => void;
-  /* OLIVIA OS 1차 작업 지시서 5단계 — OS 창(embedded)에서만 데일리 루틴을 우측 패널로,
-     범례를 상단 툴바로 옮긴다. /calendar 풀페이지는 기본값 false라 전혀 안 바뀐다. */
-  embedded?: boolean;
 }) {
   const { cells } = buildMonthCells(year, month);
   const [dragTask,     setDragTask]     = useState<CalTask | null>(null);
@@ -1076,7 +994,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
         background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0 }}>
         {WEEKDAYS.map((w, i) => (
           <div key={w} style={{ textAlign: "center", fontSize: mfz(12, isMobile), fontWeight: mfw(900, isMobile), padding: "8px 0 7px",
-            color: i===0 ? "#C0201A" : i===6 ? "#1D4ED8" : C.muted }}>
+            color: i===0 ? "#9A655E" : i===6 ? "#426D9C" : C.muted }}>
             {w}
           </div>
         ))}
@@ -1163,7 +1081,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
               }}
               style={{
                 overflow: "hidden", padding: "6px 5px 4px", cursor: "pointer",
-                background: isDragOver ? "#D4EDE8" : isToday ? "rgba(232,93,44,.05)" : isSelected ? "#EAF4F2" : dimmed ? "#F3F6F5" : C.surface,
+                background: isDragOver ? "#D4EDE8" : isToday ? "#F0F8F6" : isSelected ? "#EAF4F2" : dimmed ? "#F3F6F5" : C.surface,
                 transition: "background .1s",
                 outline: isDragOver ? `2px solid ${C.teal}` : isSelected ? `2px solid ${C.teal}` : "none",
                 outlineOffset: "-2px",
@@ -1172,14 +1090,14 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
               <div style={{ display: "flex", justifyContent: "flex-end", paddingRight: 2, marginBottom: 3 }}>
                 <div style={{
                   width: 26, height: 26, borderRadius: "50%",
-                  background: isToday ? "#e85d2c" : "transparent",
+                  background: isToday ? C.todayRed : "transparent",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                   <span style={{
                     fontSize: mfz(14, isMobile),
                     fontWeight: mfw(isToday ? 900 : isSelected ? 800 : 600, isMobile),
                     opacity: dimmed ? 0.38 : 1,
-                    color: isToday ? "#fff" : (dow===0 || holidayName) ? "#C0201A" : dow===6 ? "#1D4ED8" : C.txt,
+                    color: isToday ? "#fff" : (dow===0 || holidayName) ? "#9A655E" : dow===6 ? "#426D9C" : C.txt,
                   }}>{cell.day}</span>
                 </div>
               </div>
@@ -1188,7 +1106,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                   아니라 빨간색이 우선). 셀 폭이 좁으므로 한 줄로 줄여서 보여준다. */}
               {holidayName && (
                 <div style={{
-                  fontSize: mfz(isMobile ? 8.5 : 9.5, isMobile), fontWeight: mfw(800, isMobile), color: "#C0201A", lineHeight: 1.2,
+                  fontSize: mfz(isMobile ? 8.5 : 9.5, isMobile), fontWeight: mfw(800, isMobile), color: "#9A655E", lineHeight: 1.2,
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                   opacity: dimmed ? 0.5 : 1, marginBottom: 2,
                 }}>{holidayName}</div>
@@ -1282,10 +1200,9 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
       // 예전엔 여기서 embedded 우측 패널/비-embedded 하단 줄로 따로 그렸는데, 그러면 이제
       // 바깥 하단 바와 중복된다.
 
-      // 범례 — embedded면 상단 툴바(월 이동 버튼 옆), 아니면 기존처럼 그리드 밑에 그대로.
-      // 이번 단계는 배치 이동만: 클릭 가능한 필터로 만들지 않고 색 설명 그대로 둔다.
+      // 범례는 월간 그리드 아래 한 곳에만 표시한다.
       const legendNode = (
-        <div style={{ display: "flex", gap: 14, padding: embedded ? 0 : "10px 20px", flexWrap: "wrap", flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 14, padding: "10px 20px", flexWrap: "wrap", flexShrink: 0 }}>
           {Object.entries(CATS).map(([, v]) => (
             <div key={v.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: v.color }}/>
@@ -1300,9 +1217,9 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
       margin: "14px 20px", border: "1px solid rgba(21,88,85,.12)", borderRadius: 16,
       boxShadow: "0 5px 18px rgba(21,88,85,.055)" }}>
 
-      {/* ── Month nav header — embedded면 범례를 여기, 월 이동 버튼 옆에 둔다 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px 12px",
-        background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0, flexWrap: embedded ? "wrap" : "nowrap" }}>
+      {/* ── Month nav header — 모바일에서 공통 툴바 대신 사용한다. */}
+      <div className="calendar-view-local-nav" style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px 12px",
+        background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0, flexWrap: "nowrap" }}>
         <button onClick={onPrev} style={{ width: 34, height: 34, border: "1px solid rgba(21,88,85,.14)", borderRadius: 9,
           background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#155855" }}>
           <ChevronLeft size={16}/>
@@ -1324,16 +1241,13 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
           background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#155855" }}>
           <ChevronRight size={16}/>
         </button>
-        {embedded && legendNode}
       </div>
 
       {weekdayRowNode}
       {gridNode}
-      {!embedded && (
-        <div style={{ background: C.surface, borderTop: "1px solid rgba(21,88,85,.1)" }}>
-          {legendNode}
-        </div>
-      )}
+      <div style={{ background: C.surface, borderTop: "1px solid rgba(21,88,85,.1)" }}>
+        {legendNode}
+      </div>
 
       {/* 복사/붙여넣기는 화면에 눈에 띄는 변화가 없어서 결과를 알려주는 토스트 */}
       {toast && (
@@ -1402,34 +1316,19 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
      드래그 중엔 매 mousemove마다 getBoundingClientRect()를 (컬럼 7개분) 다시 계산하면 강제 리플로우가
      초당 수십~수백 번 발생해서 ghost의 direct DOM transform 갱신과 경합하며 떨림의 원인이 될 수 있다.
      cached를 넘기면 드래그 시작 시점에 1회 캐시해둔 rect를 재사용해 리플로우를 피한다. */
-  const getPosTarget = (clientX: number, clientY: number, cached?: { rect: DOMRect; colRects: (DOMRect | null)[] }) => {
+  const getPosTarget = (clientX: number, clientY: number, grabbedOffsetY = 0, cached?: { rect: DOMRect; colRects: (DOMRect | null)[] }) => {
     const el = scrollRef.current;
     if (!el) return null;
     const rect = cached?.rect ?? el.getBoundingClientRect();
-    const scrollTop = el.scrollTop;
     const colRects = cached?.colRects ?? dayColRefs.current.map(c => c?.getBoundingClientRect() ?? null);
-    let colIdx = -1;
-    for (let i = 0; i < 7; i++) {
-      const cr = colRects[i];
-      if (!cr) continue;
-      if (clientX >= cr.left && clientX < cr.right) { colIdx = i; break; }
-    }
-    if (colIdx === -1) {
-      const relX = clientX - rect.left - TL_W;
-      colIdx = Math.max(0, Math.min(6, Math.floor(relX / ((rect.width - TL_W) / 7))));
-    }
-    const relY = clientY - rect.top + scrollTop;
-    const totalMins = Math.round((relY / HOUR_HEIGHT * 60) / 15) * 15;
-    const absoluteMinutes = Math.max(
-      CALENDAR_START_HOUR * 60,
-      Math.min(CALENDAR_END_HOUR * 60 - 15, CALENDAR_START_HOUR * 60 + totalMins),
-    );
-    const h = Math.floor(absoluteMinutes / 60);
-    const m = absoluteMinutes % 60;
+    const colIdx = calendarDayColumnAtX(clientX, colRects);
+    if (colIdx < 0) return null;
+    const grid: CalendarDragGrid = { top: rect.top, scrollTop: el.scrollTop, hourHeight: HOUR_HEIGHT, startHour: CALENDAR_START_HOUR, endHour: CALENDAR_END_HOUR };
     return {
       date: toYMD(weekDatesRef.current[colIdx]),
-      time: `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`,
+      time: calendarTimeFromClientY(clientY, grabbedOffsetY, grid),
       colIdx,
+      top: calendarClientTopForTime(calendarTimeFromClientY(clientY, grabbedOffsetY, grid), grid),
     };
   };
 
@@ -1450,21 +1349,20 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       if (!ghostRef.current || !d) return;
       // 세로는 커서 위치를 그대로 따라가고(부드러움), 가로만 현재 커서가 있는 요일 컬럼 폭/위치에 맞춰
       // 스냅한다 — 진짜 박스처럼 보이면서도 어느 요일에 놓일지 계속 눈으로 확인할 수 있다.
-      const target = getPosTarget(x, y, cachedRects);
-      const timeTarget = getPosTarget(x, y - d.offsetY, cachedRects);
+      const target = getPosTarget(x, y, d.offsetY, cachedRects);
       const colRect = target && cachedRects ? cachedRects.colRects[target.colIdx] : null;
       const left = colRect ? colRect.left + 2 : x - d.offsetX;
-      const top = y - d.offsetY;
+      const top = target?.top ?? y - d.offsetY;
       ghostRef.current.style.transform = `translate(${left}px,${top}px)`;
       if (colRect) ghostRef.current.style.width = `${colRect.width - 4}px`;
-      if (ghostTimeRef.current && timeTarget) {
+      if (ghostTimeRef.current && target) {
         const duration = d.task.time && d.task.end_time
           ? Math.max(0, timeToMinutes(d.task.end_time) - timeToMinutes(d.task.time))
           : 0;
         const end = duration
-          ? minutesToTime(Math.min(CALENDAR_END_HOUR * 60, timeToMinutes(timeTarget.time) + duration))
+          ? minutesToTime(Math.min(CALENDAR_END_HOUR * 60, timeToMinutes(target.time) + duration))
           : "";
-        ghostTimeRef.current.textContent = end ? `${timeTarget.time}–${end}` : timeTarget.time;
+        ghostTimeRef.current.textContent = end ? `${target.time}–${end}` : target.time;
       }
     };
     // 마운트 즉시 positionGhost를 부르면(예전 동작) 아직 커서가 움직이지 않았어도 가로가 곧바로
@@ -1496,18 +1394,12 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         // 계산되는 버그가 있었다(예: 박스 중간을 잡고 30분 내리면 실제로는 1시간+ 밀려 보임).
         // ghost의 시각적 top(=clientY - offsetY)과 반드시 같은 좌표를 써야 눈에 보이는 위치와
         // 저장되는 시간이 일치한다.
-        const target = getPosTarget(clientX, clientY - d.offsetY, cachedRects);
+        const target = getPosTarget(clientX, clientY, d.offsetY, cachedRects);
         if (target && (target.date !== d.task.date || target.time !== d.task.time)) {
           // 통째로 이동 — 기존 소요시간(예: 10시~12시 = 2시간)을 그대로 유지한 채 새 시작시간으로 옮긴다
           const fields: Partial<CalTask> = { date: target.date, time: target.time };
-          if (d.task.end_time && d.task.time) {
-            const durationMins = timeToMinutes(d.task.end_time) - timeToMinutes(d.task.time);
-            if (durationMins > 0) {
-              fields.end_time = minutesToTime(
-                Math.min(CALENDAR_END_HOUR * 60, timeToMinutes(target.time) + durationMins),
-              );
-            }
-          }
+          const preservedEnd = d.task.time ? preserveCalendarDuration(d.task.time, d.task.end_time, target.time, CALENDAR_END_HOUR) : null;
+          if (preservedEnd) fields.end_time = preservedEnd;
           onUpdateTask(d.task.id, fields);
         }
       }
@@ -1611,7 +1503,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
       cursor: dragging ? CURSOR_GRABBING : undefined }}>
 
       {/* Nav */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px 10px", flexShrink: 0,
+      <div className="calendar-view-local-nav" style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px 10px", flexShrink: 0,
         background: C.surface, borderBottom: `1px solid ${C.border}` }}>
         <button onClick={onPrev} style={{ width: 30, height: 30, border: `1px solid ${C.border}`, borderRadius: 7,
           background: C.mint, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
@@ -1639,17 +1531,17 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
             <div key={i} onClick={() => onSelectDate(ds)}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "6px 2px", cursor: "pointer" }}>
               <span style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(700, isMobile), marginBottom: 2,
-                color: (dow===0 || holidayName) ? "#DC2626" : dow===6 ? "#2563EB" : C.muted }}>{WEEKDAYS[dow]}</span>
+                color: (dow===0 || holidayName) ? "#9A655E" : dow===6 ? "#426D9C" : C.muted }}>{WEEKDAYS[dow]}</span>
               <div style={{ width: 26, height: 26, borderRadius: "50%",
                 background: isToday ? C.todayRed : isSelected ? C.teal : "transparent",
                 display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ fontSize: mfz(13, isMobile), fontWeight: mfw((isToday||isSelected) ? 900 : 700, isMobile),
-                  color: (isToday||isSelected) ? "#fff" : (dow===0 || holidayName) ? "#DC2626" : dow===6 ? "#2563EB" : C.txt }}>
+                  color: (isToday||isSelected) ? "#fff" : (dow===0 || holidayName) ? "#9A655E" : dow===6 ? "#426D9C" : C.txt }}>
                   {d.getDate()}
                 </span>
               </div>
               {holidayName ? (
-                <span style={{ fontSize: mfz(isMobile ? 7.5 : 8.5, isMobile), fontWeight: mfw(800, isMobile), color: "#DC2626", marginTop: 2,
+                <span style={{ fontSize: mfz(isMobile ? 7.5 : 8.5, isMobile), fontWeight: mfw(800, isMobile), color: "#9A655E", marginTop: 2,
                   maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{holidayName}</span>
               ) : cnt > 0 && !isToday && !isSelected && (
                 <div style={{ width: 4, height: 4, borderRadius: "50%", background: C.teal, marginTop: 2 }}/>
@@ -1714,7 +1606,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                 {HOURS.map(h => (
                   <div key={h}
                     style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}20`,
-                      background: isToday ? "#FFFAF9" : h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
+                      background: isToday ? "#F4FAF8" : h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
                       cursor: dragging ? CURSOR_GRABBING : "pointer" }}
                     onDoubleClick={e => { if (!dragging) onOpenAdd(ds, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
                   />
@@ -1772,7 +1664,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                         overflow: "hidden",
                         cursor: isDraggingThis ? CURSOR_GRABBING : CURSOR_GRAB,
                         zIndex: isDraggingThis ? 2 : 10,
-                        opacity: isDraggingThis ? 0.2 : t.completed ? 0.7 : 1,
+                        opacity: isDraggingThis ? 0 : t.completed ? 0.7 : 1,
                         boxShadow: "0 1px 4px rgba(0,0,0,.15)",
                         transition: isResizing ? "none" : "opacity .15s, box-shadow .15s",
                         touchAction: "none",
@@ -1867,7 +1759,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         // 첫 프레임은 반드시 mousedown 시점에 잡아둔 실제 박스 rect(initialLeft/initialWidth)를 그대로
         // 써야 한다. 예전엔 항상 "그 날짜 컬럼 전체 폭"으로 계산해서, 겹쳐서 좁게 그려져 있던 박스를
         // 잡는 순간 폭이 갑자기 넓어지며 위치가 튀어 보였다.
-        return (
+        return createPortal((
           <div ref={ghostRef} style={{
             position: "fixed", left: 0, top: 0, pointerEvents: "none", zIndex: 9999,
             willChange: "transform",
@@ -1893,7 +1785,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
               </div>
             )}
           </div>
-        );
+        ), document.body);
       })()}
     </div>
   );
@@ -1922,6 +1814,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
 
   const [dragging, setDragging] = useState<{
     task: CalTask; currentX: number; currentY: number; offsetX: number; offsetY: number;
+    initialLeft: number; initialWidth: number;
   } | null>(null);
   const draggingRef = useRef(dragging);
   draggingRef.current = dragging;
@@ -1931,19 +1824,22 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
   const TL_W  = isMobile ? 32 : 44;
   const MIN_H = isMobile ? 44 : 28;
 
-  const getTimeFromY = (clientY: number): string | null => {
+  const getDragGrid = (): CalendarDragGrid | null => {
     const el = scrollRef.current;
     if (!el) return null;
     const rect = el.getBoundingClientRect();
-    const relY = clientY - rect.top + el.scrollTop;
-    const totalMins = Math.round((relY / HOUR_HEIGHT * 60) / 15) * 15;
-    const absoluteMinutes = Math.max(
-      CALENDAR_START_HOUR * 60,
-      Math.min(CALENDAR_END_HOUR * 60 - 15, CALENDAR_START_HOUR * 60 + totalMins),
-    );
-    const h = Math.floor(absoluteMinutes / 60);
-    const m = absoluteMinutes % 60;
-    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+    return {
+      top: rect.top,
+      scrollTop: el.scrollTop,
+      hourHeight: HOUR_HEIGHT,
+      startHour: CALENDAR_START_HOUR,
+      endHour: CALENDAR_END_HOUR,
+    };
+  };
+
+  const getTimeFromY = (clientY: number, grabbedOffsetY = 0): string | null => {
+    const grid = getDragGrid();
+    return grid ? calendarTimeFromClientY(clientY, grabbedOffsetY, grid) : null;
   };
 
   const timeToTop = (time: string) => {
@@ -1982,18 +1878,14 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
         }
         // 박스 안 어디를 잡았든(offsetY) 화면에 보이는 박스의 윗변이 새 시작시간이 되어야 한다 —
         // 커서 좌표를 그대로 넣으면 잡은 지점만큼 항상 더 밀려서 계산되는 버그가 있었다.
-        const newTime = getTimeFromY(clientY - d.offsetY);
+        const newTime = getTimeFromY(clientY, d.offsetY);
         if (newTime && newTime !== (d.task.time ?? "")) {
           // 통째로 이동 — 기존 소요시간을 그대로 유지한 채 새 시작시간으로 옮긴다
           const fields: Partial<CalTask> = { time: newTime };
-          if (d.task.end_time && d.task.time) {
-            const durationMins = timeToMinutes(d.task.end_time) - timeToMinutes(d.task.time);
-            if (durationMins > 0) {
-              fields.end_time = minutesToTime(
-                Math.min(CALENDAR_END_HOUR * 60, timeToMinutes(newTime) + durationMins),
-              );
-            }
-          }
+          const preservedEnd = d.task.time
+            ? preserveCalendarDuration(d.task.time, d.task.end_time, newTime, CALENDAR_END_HOUR)
+            : null;
+          if (preservedEnd) fields.end_time = preservedEnd;
           onUpdateTask(d.task.id, fields);
         }
       }
@@ -2014,7 +1906,11 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDraggingActive]);
 
-  const dropTime = dragging ? getTimeFromY(dragging.currentY) : null;
+  const dropTime = dragging ? getTimeFromY(dragging.currentY, dragging.offsetY) : null;
+  const dragGrid = dragging ? getDragGrid() : null;
+  const dragGhostTop = dragging && dropTime && dragGrid
+    ? calendarClientTopForTime(dropTime, dragGrid)
+    : dragging ? dragging.currentY - dragging.offsetY : 0;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
@@ -2034,7 +1930,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
       )}
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12,
+      <div className="calendar-view-local-nav" style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12,
         padding: isMobile ? "10px 12px 8px" : "14px 24px 12px", flexShrink: 0 }}>
         <button onClick={onPrev} style={{ width: isMobile ? 36 : 30, height: isMobile ? 36 : 30,
           border: `1px solid ${C.border}`, borderRadius: 7, background: C.surface,
@@ -2044,12 +1940,12 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
         <div style={{ flex: 1, textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             {isToday && <span style={{ fontSize: mfz(isMobile ? 10 : 11, isMobile), fontWeight: mfw(800, isMobile), color: C.todayRed,
-              background: "#FFF0EE", padding: "2px 9px", borderRadius: 99 }}>오늘</span>}
-            <span style={{ fontSize: mfz(isMobile ? 15 : 18, isMobile), fontWeight: mfw(900, isMobile), color: holidayName ? "#C0201A" : C.teal }}>
+              background: C.mint, padding: "2px 9px", borderRadius: 99 }}>오늘</span>}
+            <span style={{ fontSize: mfz(isMobile ? 15 : 18, isMobile), fontWeight: mfw(900, isMobile), color: holidayName ? "#9A655E" : C.teal }}>
               {d.getMonth()+1}월 {d.getDate()}일 {WEEKDAYS[dow]}요일
             </span>
-            {holidayName && <span style={{ fontSize: mfz(isMobile ? 10 : 11, isMobile), fontWeight: mfw(800, isMobile), color: "#C0201A",
-              background: "#FFF0EE", padding: "2px 9px", borderRadius: 99 }}>{holidayName}</span>}
+            {holidayName && <span style={{ fontSize: mfz(isMobile ? 10 : 11, isMobile), fontWeight: mfw(800, isMobile), color: "#9A655E",
+              background: "#F7EFED", padding: "2px 9px", borderRadius: 99 }}>{holidayName}</span>}
           </div>
         </div>
         <button onClick={onNext} style={{ width: isMobile ? 36 : 30, height: isMobile ? 36 : 30,
@@ -2107,19 +2003,6 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                 />
               ))}
 
-              {/* Drop indicator */}
-              {dropTime && dragging && (
-                <div style={{
-                  position: "absolute",
-                  top: timeToTop(dropTime),
-                  left: 2, right: 2,
-                  height: Math.max(MIN_H, durationPx(dropTime, dragging.task.end_time)),
-                  background: "rgba(15,68,64,.08)",
-                  border: `2px dashed ${C.teal}`,
-                  borderRadius: 5, pointerEvents: "none", zIndex: 5, transition: "top .05s",
-                }}/>
-              )}
-
               {/* Absolute-positioned timed events */}
               {timed.map(t => {
                 const cat = CATS[t.category] ?? CATS.general;
@@ -2143,14 +2026,16 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                       dragStartRef.current = { x: e.clientX, y: e.clientY };
                       setDragging({ task: t, currentX: e.clientX, currentY: e.clientY,
-                        offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top });
+                        offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top,
+                        initialLeft: rect.left, initialWidth: rect.width });
                     }}
                     onTouchStart={e => {
                       const touch = e.touches[0];
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                       dragStartRef.current = { x: touch.clientX, y: touch.clientY };
                       setDragging({ task: t, currentX: touch.clientX, currentY: touch.clientY,
-                        offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
+                        offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top,
+                        initialLeft: rect.left, initialWidth: rect.width });
                     }}
                     style={{
                       position: "absolute", top,
@@ -2162,7 +2047,7 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                       overflow: "hidden",
                       cursor: isDraggingThis ? CURSOR_GRABBING : CURSOR_GRAB,
                       zIndex: isDraggingThis ? 2 : 10,
-                      opacity: isDraggingThis ? 0.2 : t.completed ? 0.7 : 1,
+                      opacity: isDraggingThis ? 0 : t.completed ? 0.7 : 1,
                       boxShadow: "0 1px 4px rgba(0,0,0,.15)",
                       transition: "opacity .15s",
                       touchAction: "none",
@@ -2219,30 +2104,33 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
       {/* Ghost card */}
       {dragging && (() => {
         const cat = CATS[dragging.task.category] ?? CATS.general;
-        return (
+        const height = Math.max(MIN_H, durationPx(dragging.task.time || "09:00", dragging.task.end_time));
+        const endTime = dropTime && dragging.task.time
+          ? preserveCalendarDuration(dragging.task.time, dragging.task.end_time, dropTime, CALENDAR_END_HOUR)
+          : dragging.task.end_time;
+        return createPortal((
           <div style={{
             position: "fixed", left: 0, top: 0, pointerEvents: "none", zIndex: 9999,
             willChange: "transform",
-            transform: `translate(${dragging.currentX - dragging.offsetX}px, ${dragging.currentY - dragging.offsetY}px) rotate(2deg) scale(1.05)`,
+            width: dragging.initialWidth, height,
+            transform: `translate(${dragging.initialLeft}px, ${dragGhostTop}px)`,
+            background: dragging.task.completed ? "#9CA3AF" : cat.color,
+            borderRadius: 6, padding: isMobile ? "5px 8px 12px" : "4px 8px 10px",
+            boxShadow: "0 14px 32px rgba(0,0,0,.25), 0 3px 10px rgba(0,0,0,.16)", overflow: "hidden",
           }}>
-            <div style={{
-              width: 140, background: cat.color, borderRadius: 6, padding: "5px 10px 10px",
-              boxShadow: "0 10px 32px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.18)", overflow: "hidden",
-            }}>
               <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(800, isMobile), color: "#fff",
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {dragging.task.time?.slice(0,5)} {dragging.task.title}
+                {(dropTime ?? dragging.task.time)?.slice(0,5)} {dragging.task.title}
               </div>
-              {dragging.task.end_time && (
+              {endTime && (
                 <div style={{ fontSize: mfz(9, isMobile), color: "rgba(255,255,255,.75)", marginTop: 1 }}>
-                  ~ {dragging.task.end_time.slice(0,5)}
+                  ~ {endTime.slice(0,5)}
                 </div>
               )}
               <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 5,
                 background: "rgba(0,0,0,.15)", borderRadius: "0 0 6px 6px" }}/>
-            </div>
           </div>
-        );
+        ), document.body);
       })()}
     </div>
   );
@@ -2267,7 +2155,7 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)" }}>
         {WEEKDAYS.map((w, i) => (
           <div key={w} style={{ textAlign: "center", fontSize: mfz(7.5, isMobile), fontWeight: mfw(700, isMobile), paddingBottom: 2,
-            color: i===0 ? "#DC2626" : i===6 ? "#2563EB" : C.hint }}>{w}</div>
+            color: i===0 ? "#9A655E" : i===6 ? "#426D9C" : C.hint }}>{w}</div>
         ))}
         {cells.map((cell, idx) => {
           if (!cell.isCurrent) return <div key={idx}/>;
@@ -2292,7 +2180,7 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
                 <span style={{ fontSize: mfz(8, isMobile), fontWeight: mfw(isToday || isSelected ? 900 : 600, isMobile),
-                  color: isToday || isSelected ? "#fff" : (dow===0 || isHoliday) ? "#DC2626" : dow===6 ? "#2563EB" : C.txt }}>
+                  color: isToday || isSelected ? "#fff" : (dow===0 || isHoliday) ? "#9A655E" : dow===6 ? "#426D9C" : C.txt }}>
                   {cell.day}
                 </span>
               </div>
@@ -2317,7 +2205,7 @@ function YearView({ year, todayStr, tasksByDate, selectedDate, onSelectDate, onP
 }) {
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px 20px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+      <div className="calendar-view-local-nav" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
         <button onClick={onPrev} style={{ width: 30, height: 30, border: `1px solid ${C.border}`, borderRadius: 7,
           background: C.surface, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.teal }}>
           <ChevronLeft size={14}/>
@@ -2362,6 +2250,9 @@ export default function CalendarWorkspace() {
   const [allTasks,    setAllTasks]    = useState<CalTask[]>([]);
   const [dayTasks,    setDayTasks]    = useState<CalTask[]>([]);
   const [dayLoading,  setDayLoading]  = useState(false);
+  const [calendarTodos, setCalendarTodos] = useState<CalendarTodo[]>([]);
+  const [todosLoading, setTodosLoading] = useState(true);
+  const [todoError, setTodoError] = useState("");
   const [isMobile,    setIsMobile]    = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false); // 일정 분석(카테고리별 건수) 팝업
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null); // 삭제 확인 팝업 대상 태스크 id
@@ -2462,12 +2353,27 @@ export default function CalendarWorkspace() {
     setDayLoading(false);
   }, []);
 
+  const loadTodos = useCallback(async () => {
+    setTodosLoading(true);
+    try {
+      const response = await fetch("/api/calendar/todos");
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "할 일을 불러오지 못했습니다.");
+      setCalendarTodos(data.todos as CalendarTodo[]);
+      setTodoError("");
+    } catch (error) {
+      setTodoError(error instanceof Error ? error.message : "할 일을 불러오지 못했습니다.");
+    } finally {
+      setTodosLoading(false);
+    }
+  }, []);
+
   // refresh trigger (from OliviaChat)
   useEffect(() => {
     const handler = () => {
       loadedKeys.current.clear();
       const key = `${year}-${String(month+1).padStart(2,"0")}`;
-      const r = fetch(`/api/calendar?month=${key}`).then(res => res.json()).then(d => {
+      void fetch(`/api/calendar?month=${key}`).then(res => res.json()).then(d => {
         if (d.ok) setAllTasks(d.tasks as CalTask[]);
       });
       loadDay(selectedDate);
@@ -2482,6 +2388,7 @@ export default function CalendarWorkspace() {
   }, [year, month, viewMode, loadMonth, loadYear]);
 
   useEffect(() => { loadDay(selectedDate); }, [selectedDate, loadDay]);
+  useEffect(() => { void loadTodos(); }, [loadTodos]);
 
   // sync dayTasks from allTasks for month/week views
   useEffect(() => {
@@ -2580,6 +2487,53 @@ export default function CalendarWorkspace() {
     setAllTasks(ts => [...ts, task]); setDayTasks(ts => [...ts, task]);
   };
 
+  const addCalendarTodo = async (title: string) => {
+    try {
+      const response = await fetch("/api/calendar/todos", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "할 일을 추가하지 못했습니다.");
+      setCalendarTodos(items => [...items, data.todo as CalendarTodo]);
+      setTodoError("");
+      return true;
+    } catch (error) {
+      setTodoError(error instanceof Error ? error.message : "할 일을 추가하지 못했습니다.");
+      return false;
+    }
+  };
+
+  const toggleCalendarTodo = async (todo: CalendarTodo) => {
+    const completed = !todo.completed;
+    setCalendarTodos(items => items.map(item => item.id === todo.id ? { ...item, completed } : item));
+    try {
+      const response = await fetch("/api/calendar/todos", {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: todo.id, completed }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "완료 상태를 바꾸지 못했습니다.");
+      setCalendarTodos(items => items.map(item => item.id === todo.id ? data.todo as CalendarTodo : item));
+      setTodoError("");
+    } catch (error) {
+      setCalendarTodos(items => items.map(item => item.id === todo.id ? todo : item));
+      setTodoError(error instanceof Error ? error.message : "완료 상태를 바꾸지 못했습니다.");
+    }
+  };
+
+  const deleteCalendarTodo = async (id: string) => {
+    const previous = calendarTodos;
+    setCalendarTodos(items => items.filter(item => item.id !== id));
+    try {
+      const response = await fetch(`/api/calendar/todos?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "할 일을 삭제하지 못했습니다.");
+      setTodoError("");
+    } catch (error) {
+      setCalendarTodos(previous);
+      setTodoError(error instanceof Error ? error.message : "할 일을 삭제하지 못했습니다.");
+    }
+  };
+
   // 삭제는 항상 확인 팝업을 거치도록 통일 — 트래시 아이콘, 키보드 Delete 모두 이 경로를 탐
   const taskById = useMemo(() => {
     const map: Record<string, CalTask> = {};
@@ -2635,43 +2589,45 @@ export default function CalendarWorkspace() {
   }, [confirmDeleteId, popover, selectedDate, showStatsModal]); // createTask only uses functional state updates
 
   const VIEW_LABELS: Record<ViewMode, string> = { day: "일", week: "주", month: "월", year: "년" };
+  const periodLabel = useMemo(() => {
+    if (viewMode === "year") return `${year}년`;
+    if (viewMode === "month") return `${year}년 ${monthLabel(month)}`;
+    if (viewMode === "day") {
+      const date = new Date(`${selectedDate}T12:00:00`);
+      return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+    }
+    const start = weekDates[0];
+    const end = weekDates[6];
+    return start.getMonth() === end.getMonth()
+      ? `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}–${end.getDate()}일`
+      : `${start.getMonth() + 1}월 ${start.getDate()}일–${end.getMonth() + 1}월 ${end.getDate()}일`;
+  }, [month, selectedDate, viewMode, weekDates, year]);
 
   return (
     <main ref={shellRef} className={`calendar-page-shell${embedded ? " calendar-page-shell--embedded" : ""}`} style={{ background: C.bg, color: C.txt, position: "relative" }}>
 
       {!embedded && (
-        <GlobalHeader title="Schedule" description="촬영과 미팅 일정을 관리합니다." className="oa-header--calendar" pageActions={<>
-            {/* view mode tabs — 모바일에서는 숨기고 연/월/일 드릴다운 내비게이션으로 대체 */}
-            {!isMobile && (
-              <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`,
-                borderRadius: 10, padding: 2, gap: 1 }}>
-                {(["day","week","month","year"] as ViewMode[]).map(v => (
-                  <button key={v} onClick={() => setViewMode(v)}
-                    className={`pc-btn pc-btn--sm ${viewMode === v ? "pc-btn--primary" : "pc-btn--ghost"}`}
-                    style={{ border: "none" }}>{VIEW_LABELS[v]}</button>
-                ))}
-              </div>
-            )}
-            <button onClick={goToday} className="pc-btn pc-btn--secondary pc-btn--sm">오늘</button>
-            <button onClick={() => setShowStatsModal(v => !v)} className="pc-btn pc-btn--stats pc-btn--sm">
-              <BarChart3 size={15} strokeWidth={2} />{!isMobile && " 일정 분석"}
-            </button>
-        </>} />
+        <GlobalHeader title="Schedule" description="촬영과 미팅 일정을 관리합니다." className="oa-header--calendar" />
       )}
 
-      {/* OS 창(embedded) 안에는 GlobalHeader 자체가 없어서 연/월/주/일 탭이 화면에서 통째로
-          빠져 있었다 — standalone 페이지에만 있던 것과 똑같은 탭을 여기 별도로 넣는다. */}
-      {embedded && !isMobile && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", flexShrink: 0,
-          background: C.surface, borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ display: "flex", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 9, padding: 2, gap: 1 }}>
-            {(["day","week","month","year"] as ViewMode[]).map(v => (
-              <button key={v} onClick={() => setViewMode(v)}
-                className={`pc-btn pc-btn--sm ${viewMode === v ? "pc-btn--primary" : "pc-btn--ghost"}`}
-                style={{ border: "none" }}>{VIEW_LABELS[v]}</button>
-            ))}
+      {!isMobile && (
+        <div className="calendar-main-toolbar">
+          <div className="calendar-main-toolbar__nav">
+            <button type="button" onClick={prevPeriod} aria-label="이전 기간"><ChevronLeft size={15}/></button>
+            <button type="button" onClick={goToday} className="calendar-main-toolbar__today">오늘</button>
+            <button type="button" onClick={nextPeriod} aria-label="다음 기간"><ChevronRight size={15}/></button>
           </div>
-          <button onClick={goToday} className="pc-btn pc-btn--secondary pc-btn--sm">오늘</button>
+          <div className="calendar-main-toolbar__center">
+            <strong>{periodLabel}</strong>
+            <div className="calendar-main-toolbar__views" aria-label="캘린더 보기 방식">
+              {(["day", "week", "month", "year"] as ViewMode[]).map(mode => (
+                <button type="button" key={mode} onClick={() => setViewMode(mode)} aria-pressed={viewMode === mode} className={viewMode === mode ? "is-active" : ""}>{VIEW_LABELS[mode]}</button>
+              ))}
+            </div>
+          </div>
+          <div className="calendar-main-toolbar__actions">
+            <button type="button" onClick={() => setShowStatsModal(value => !value)}><BarChart3 size={14}/> 일정 분석</button>
+          </div>
         </div>
       )}
 
@@ -2696,7 +2652,7 @@ export default function CalendarWorkspace() {
               onRequestDelete={requestDeleteTask}
               onPrev={prevPeriod} onNext={nextPeriod}
               onOpenAdd={openAddPopover} onOpenEdit={openEditPopover}
-              isMobile={isMobile} onNavigateDay={navigateToDay} onNavigateYear={navigateToYear} embedded={embedded}/>
+              isMobile={isMobile} onNavigateDay={navigateToDay} onNavigateYear={navigateToYear}/>
           </div>
         )}
 
@@ -2738,8 +2694,9 @@ export default function CalendarWorkspace() {
             데일리 루틴은 항상 하단 전체너비 바로 내렸다(아래 참고). 900px 미만은 CSS로 접는다. */}
         {!isMobile && (
           <div className="calendar-day-side-panel" style={{ width: 300, flexShrink: 0, borderLeft: `1px solid ${C.border}`, overflow: "hidden", background: C.surface }}>
-            <DayPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
-              onToggle={toggleTask} onDelete={requestDeleteTask} onAdd={addTask} onEdit={editTask}/>
+            <ProductivityPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
+              todos={calendarTodos} todosLoading={todosLoading} todoError={todoError}
+              onToggleTodo={toggleCalendarTodo} onAddTodo={addCalendarTodo} onDeleteTodo={deleteCalendarTodo}/>
           </div>
         )}
       </div>
@@ -2856,10 +2813,6 @@ export default function CalendarWorkspace() {
         }
         .cal-cell:focus:not(:focus-visible) {
           outline: none;
-        }
-        /* 창 폭이 좁으면 선택일 패널을 접는다(제안서 1.7 반응형 규칙과 같은 기준) */
-        @media (max-width: 900px) {
-          .calendar-day-side-panel { display: none; }
         }
       `}</style>
     </main>

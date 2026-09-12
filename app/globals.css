@@ -1154,7 +1154,62 @@ main:has(> .pc-header) {
     font-weight: 400 !important;
   }
 }
-.calendar-page-content { flex: 1 1 0; min-height: 0; }
+.calendar-page-content {
+  flex: 1 1 0;
+  min-height: 0;
+  container: calendar-workspace / inline-size;
+}
+.calendar-main-toolbar {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) auto minmax(170px, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 68px;
+  padding: 9px 20px;
+  border-bottom: 1px solid rgba(21,88,85,.12);
+  background: rgba(255,255,255,.97);
+  flex: 0 0 auto;
+}
+.calendar-main-toolbar__nav,
+.calendar-main-toolbar__actions,
+.calendar-main-toolbar__views { display: flex; align-items: center; gap: 5px; }
+.calendar-main-toolbar__nav button,
+.calendar-main-toolbar__actions button,
+.calendar-main-toolbar__views button {
+  min-width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(21,88,85,.13);
+  border-radius: 8px;
+  padding: 0 9px;
+  background: #fff;
+  color: #355a54;
+  font: 700 11px/1 var(--font-sans);
+  cursor: pointer;
+}
+.calendar-main-toolbar__nav button:hover,
+.calendar-main-toolbar__actions button:hover,
+.calendar-main-toolbar__views button:hover { background: #edf6f3; color: #0f4440; }
+.calendar-main-toolbar__today { min-width: 46px !important; }
+.calendar-main-toolbar__center { display: grid; justify-items: center; gap: 6px; }
+.calendar-main-toolbar__center > strong { color: #183d38; font-size: 14px; font-weight: 800; letter-spacing: -.025em; white-space: nowrap; }
+.calendar-main-toolbar__views { padding: 2px; border: 1px solid rgba(21,88,85,.14); border-radius: 9px; background: #edf4f2; }
+.calendar-main-toolbar__views button { min-width: 34px; height: 27px; border: 0; background: transparent; box-shadow: none; }
+.calendar-main-toolbar__views button.is-active { background: #0f4440; color: #fff; box-shadow: 0 3px 9px rgba(15,68,64,.18); }
+.calendar-main-toolbar__actions { justify-content: flex-end; }
+
+@media (min-width: 768px) {
+  .calendar-view-local-nav { display: none !important; }
+}
+
+@container calendar-workspace (max-width: 820px) {
+  .calendar-day-side-panel { display: none !important; }
+}
 
 .admin-menu-card:hover {
   box-shadow:
