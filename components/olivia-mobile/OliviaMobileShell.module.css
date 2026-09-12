@@ -100,13 +100,14 @@
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .72);
   border-radius: 22px;
-  background: rgba(246, 251, 249, .86);
+  background: rgba(246, 251, 249, .5);
   box-shadow: 0 16px 40px rgba(9, 52, 47, .2), inset 0 1px 0 rgba(255,255,255,.92), 0 0 0 1px rgba(21,88,85,.08);
   backdrop-filter: blur(28px) saturate(160%);
   -webkit-backdrop-filter: blur(28px) saturate(160%);
 }
 
 .bottomNav button {
+  position: relative;
   min-width: 0;
   min-height: 52px;
   display: flex;
@@ -137,7 +138,19 @@
 
 .bottomNavIcon { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 9px; }
 .bottomNavIcon > svg { width: 25px; height: 25px; }
-.bottomNav .bottomNavActive { color: var(--mobile-green); background: rgba(222, 240, 235, .84); box-shadow: inset 0 1px 0 rgba(255,255,255,.72); }
+.bottomNav .bottomNavActive { color: #84938f; background: transparent; box-shadow: none; }
+.bottomNav .bottomNavActive::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--mobile-orange);
+  box-shadow: 0 1px 3px rgba(232, 93, 44, .35);
+  transform: translateX(-50%);
+}
 
 .sectionLabel { margin: 0 0 10px; color: var(--mobile-ink); font-size: 17px; font-weight: 680; letter-spacing: -.025em; }
 .muted { color: var(--mobile-muted); }
@@ -194,7 +207,7 @@
 .homeBrand strong { color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .1em; }
 .homeBrand small { color: rgba(255,255,255,.56); font-size: 7px; font-weight: 600; letter-spacing: .13em; }
 .homeGreeting { margin: 10px 0 10px; }
-.homeGreeting h1 { margin: 0; color: var(--mobile-ink); font-size: clamp(20px, 5.75vw, 24px); font-weight: 660; line-height: 1.15; letter-spacing: -.045em; }
+.homeGreeting h1 { margin: 0; color: var(--mobile-ink); font-size: clamp(17px, 4.8875vw, 20.4px); font-weight: 660; line-height: 1.15; letter-spacing: -.045em; }
 .homeGreeting h1 span { font-size: .8em; }
 .homeGreeting p { margin: 4px 0 0; color: var(--mobile-muted); font-size: 10px; }
 
