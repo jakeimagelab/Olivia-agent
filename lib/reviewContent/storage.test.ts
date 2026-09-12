@@ -21,4 +21,9 @@ describe("review content canonical asset compatibility", () => {
       generation_metadata: { renderer: "svg-sharp" },
     })).toBe(true);
   });
+
+  it("accepts controlled AI background storage paths", () => {
+    expect(validReviewAssetPath(`generated/${variantId}/review-background.png`)).toBe(true);
+    expect(validReviewAssetPath("https://provider.example/image.png")).toBe(false);
+  });
 });

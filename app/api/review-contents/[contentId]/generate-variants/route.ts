@@ -55,6 +55,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ conten
       height: 1350,
       generation_metadata: {
         renderer: "review-canvas-renderer",
+        pageType: "review",
+        pageName: "리뷰 페이지",
         layoutName: layout.name,
         editorDocument: createReviewStoryDocument({
           reviewText: pageCopy[index] || reviewText,

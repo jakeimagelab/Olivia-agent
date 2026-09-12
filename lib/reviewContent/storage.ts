@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const REVIEW_CONTENT_BUCKET = "review-content-assets";
-export const REVIEW_ASSET_PATH = /^(references|variants)\/[0-9a-f-]{36}\/[a-zA-Z0-9._-]{1,180}$/;
+export const REVIEW_ASSET_PATH = /^(references|variants|generated)\/[0-9a-f-]{36}\/[a-zA-Z0-9._-]{1,180}$/;
 const PENDING_CANONICAL_FILE = "pending-canonical.png";
 
 export function validReviewAssetPath(path: string) {
@@ -37,8 +37,9 @@ export async function signReviewDocumentAssets(
   metadata?: Record<string, any> | null,
 ) {
   const elements = metadata?.editorDocument?.elements;
-  if (!Array.isArray(elements)) return {} as Record<string, string>;
-  const paths = Array.from(new Set(elements
+  const backgroundPath = metadata?.editorDocument?.backgroundImage?.storagePath;
+  if (!Array.isArray(elements) && typeof backgroundPath !== "string") return {} as Record<string, string>;
+  const paths = Array.from(new Set([...(Array.isArray(elements) ? elements : []), { storagePath: backgroundPath }]
     .map((element: any) => typeof element?.storagePath === "string" ? element.storagePath : "")
     .filter((value: string) => validReviewAssetPath(value))));
   const signed = await Promise.all(paths.map(async (storagePath) => [storagePath, await signReviewAsset(db, storagePath)] as const));

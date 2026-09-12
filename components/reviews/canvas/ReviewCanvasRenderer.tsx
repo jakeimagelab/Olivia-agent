@@ -24,6 +24,12 @@ function sourceFor(element: ReviewStoryImageElement, assetUrls: Record<string, s
   return element.storagePath ? assetUrls[element.storagePath] || element.src : element.src;
 }
 
+function backgroundSource(documentValue: ReviewStoryDocument, assetUrls: Record<string, string>) {
+  const background = documentValue.backgroundImage;
+  if (!background) return undefined;
+  return assetUrls[background.storagePath] || background.src;
+}
+
 function remoteImage(src?: string) {
   return Boolean(src && /^https?:\/\//i.test(src));
 }
@@ -108,6 +114,7 @@ export default function ReviewCanvasRenderer({
   renderElementChrome,
 }: Props) {
   const sorted = [...documentValue.elements].sort((a, b) => a.zIndex - b.zIndex);
+  const backgroundImage = backgroundSource(documentValue, assetUrls);
   return (
     <div
       ref={rootRef}
@@ -115,6 +122,22 @@ export default function ReviewCanvasRenderer({
       style={{ width: documentValue.width, height: documentValue.height, background: documentValue.background }}
       data-review-canvas-renderer
     >
+      {backgroundImage && documentValue.backgroundImage ? (
+        <img
+          className={styles.backgroundImage}
+          crossOrigin={remoteImage(backgroundImage) ? "anonymous" : undefined}
+          src={backgroundImage}
+          alt=""
+          data-review-asset-name="페이지 배경"
+          draggable={false}
+          style={{
+            objectFit: documentValue.backgroundImage.fit,
+            objectPosition: `${documentValue.backgroundImage.positionX}% ${documentValue.backgroundImage.positionY}%`,
+            opacity: documentValue.backgroundImage.opacity,
+            transform: `scale(${documentValue.backgroundImage.scale})`,
+          }}
+        />
+      ) : null}
       {sorted.map((element) => {
         if (element.hidden) return null;
         return (

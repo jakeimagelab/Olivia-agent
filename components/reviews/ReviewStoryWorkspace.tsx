@@ -3,22 +3,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Building2, Check, ChevronDown,
-  Download, Eye, EyeOff, Highlighter, ImagePlus, Italic, Lock, Minus, Plus, Quote, Redo2, Save, Send,
-  Sparkles, Star, Trash2, Underline, Undo2, Unlock, Upload, ZoomIn, ZoomOut,
+  AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Bold, Building2, Check, ChevronDown,
+  Crop, Download, Eye, EyeOff, GripVertical, Highlighter, ImagePlus, Italic, Layers3, LayoutTemplate,
+  Lock, Minus, MoreHorizontal, Palette, Plus, Quote, Redo2, Save, Send, SlidersHorizontal,
+  Sparkles, Star, Trash2, Type, Underline, Undo2, Unlock, Upload, WandSparkles, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import {
+  createBlankReviewStoryDocument, createReviewCoverDocument, createReviewDesignDocument,
   createReviewStoryDocument, duplicateStoryElement, isReviewStoryDocument,
   toReviewStoryTemplateDocument,
-  type ReviewStoryDocument, type ReviewStoryElement, type ReviewStoryImageElement,
-  type ReviewStoryTemplateConfig,
+  type ReviewCoverPreset, type ReviewDesignPreset, type ReviewStoryDocument, type ReviewStoryElement,
+  type ReviewStoryImageElement, type ReviewStoryPageType, type ReviewStoryTemplateConfig,
 } from "@/lib/reviewContent/storyDocument";
 import ReviewStoryCanvas, { type ReviewStoryCanvasHandle } from "./ReviewStoryCanvas";
 import ReviewCanvasThumbnail from "./canvas/ReviewCanvasThumbnail";
+import ReviewCanvasExportHost, { type ReviewCanvasExportHostHandle } from "./canvas/ReviewCanvasExportHost";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import ReviewTemplateThumbnail from "./ReviewTemplateThumbnail";
+import Modal from "@/components/ui/Modal";
 import styles from "./ReviewStoryWorkspace.module.css";
 
 type Review = {
@@ -80,7 +84,21 @@ type ReviewContent = {
 };
 
 type PhotoAsset = { id: string; name: string; src: string; storagePath: string };
-type StoryPage = Variant & { document: ReviewStoryDocument };
+type StoryPage = Variant & {
+  document: ReviewStoryDocument;
+  pageType: ReviewStoryPageType;
+  pageName: string;
+};
+
+type GeneratedBackgroundAsset = {
+  assetId: string;
+  storagePath: string;
+  url: string;
+  mimeType: string;
+  width?: number;
+  height?: number;
+  source: "ai";
+};
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -94,6 +112,30 @@ const FONT_OPTIONS = [
   { value: "'Gothic A1', sans-serif", label: "Gothic A1" },
   { value: "'Song Myung', serif", label: "Song Myung" },
 ];
+
+const COVER_PRESETS: Array<{ value: ReviewCoverPreset; label: string; description: string }> = [
+  { value: "minimal", label: "미니멀", description: "여백과 타이포 중심" },
+  { value: "editorial", label: "에디토리얼", description: "세리프와 따뜻한 아이보리" },
+  { value: "photo", label: "포토 커버", description: "대표 사진을 가득 사용" },
+  { value: "typography", label: "타이포그래피", description: "딥그린 브랜드 문구" },
+];
+
+const DESIGN_PRESETS: Array<{ value: ReviewDesignPreset; label: string; description: string }> = [
+  { value: "cta", label: "CTA 카드", description: "상담과 예약을 자연스럽게 유도" },
+  { value: "brand", label: "브랜드 문구", description: "브랜드 메시지를 크게 강조" },
+  { value: "quote", label: "스토리 카드", description: "감성적인 인용 문구 페이지" },
+];
+
+const AI_STYLE_OPTIONS = [
+  ["minimal", "미니멀"], ["clinic", "클리닉"], ["editorial", "에디토리얼"],
+  ["luxury", "럭셔리"], ["natural", "내추럴"],
+] as const;
+const AI_TONE_OPTIONS = [
+  ["white", "화이트"], ["cream", "크림"], ["mint", "민트"], ["beige", "베이지"], ["deep-green", "딥그린"],
+] as const;
+const AI_TEXTURE_OPTIONS = [
+  ["paper", "종이 질감"], ["shadow", "은은한 그림자"], ["botanical", "식물 / 자연"], ["marble", "마블"], ["fabric", "패브릭"],
+] as const;
 
 function contentSource(content: ReviewContent) {
   const review = content.client_reviews || {};
@@ -110,10 +152,16 @@ function pagesFromContent(content: ReviewContent, layouts: LayoutAsset[]): Story
   return [...(content.review_content_variants || [])]
     .sort((a, b) => a.sort_order - b.sort_order)
     .map((variant) => {
-      const stored = variant.generation_metadata?.editorDocument;
+      const metadata = variant.generation_metadata || {};
+      const stored = metadata.editorDocument;
       const layout = variant.review_layout_assets || layouts.find((item) => item.id === variant.layout_asset_id);
+      const pageType: ReviewStoryPageType = (["review", "cover", "free"] as const).includes(metadata.pageType)
+        ? metadata.pageType
+        : "review";
       return {
         ...variant,
+        pageType,
+        pageName: metadata.pageName || (pageType === "cover" ? "커버 페이지" : pageType === "free" ? "자유 페이지" : "리뷰 페이지"),
         document: isReviewStoryDocument(stored)
           ? clone(stored)
           : createReviewStoryDocument(source, layout?.layout_config || {}),
@@ -156,11 +204,18 @@ export default function ReviewStoryWorkspace() {
   const [future, setFuture] = useState<ReviewStoryDocument[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [source, setSource] = useState({ hospitalName: "", doctorName: "", date: "", reviewText: "" });
-  const [rightTab, setRightTab] = useState<"props" | "style">("props");
+  const [rightTab, setRightTab] = useState<"props" | "layers">("props");
   const [lockAspectRatio, setLockAspectRatio] = useState(false);
+  const [studioModal, setStudioModal] = useState<"cover" | "page" | "design" | "template" | "ai" | null>(null);
+  const [aiStyle, setAiStyle] = useState<"minimal" | "clinic" | "editorial" | "luxury" | "natural">("minimal");
+  const [aiTone, setAiTone] = useState<"white" | "cream" | "mint" | "beige" | "deep-green">("cream");
+  const [aiTextures, setAiTextures] = useState<string[]>(["paper", "shadow"]);
+  const [aiPrompt, setAiPrompt] = useState("은은한 창문 그림자와 따뜻한 아이보리 종이 질감");
+  const [backgroundAssets, setBackgroundAssets] = useState<GeneratedBackgroundAsset[]>([]);
   const workspaceRef = useRef<HTMLElement>(null);
   const [workspaceHeight, setWorkspaceHeight] = useState<number | null>(null);
   const canvasHandleRef = useRef<ReviewStoryCanvasHandle>(null);
+  const exportHostRefs = useRef<Map<string, ReviewCanvasExportHostHandle>>(new Map());
 
   // 위(GlobalHeader/PcrmSubNav) 높이가 "고객관리와 연결되지 않은 신규 작업입니다" 배너처럼
   // 조건부로 나타나는 요소 때문에 고정값이 아니다 — CSS calc(100dvh - Npx)로 고정폭을 빼면
@@ -185,6 +240,13 @@ export default function ReviewStoryWorkspace() {
   const selectedReview = useMemo(() => reviews.find((review) => review.id === selectedReviewId) || null, [reviews, selectedReviewId]);
 
   useEffect(() => { setRightTab("props"); }, [selectedElementId]);
+
+  useEffect(() => {
+    if (studioModal !== "ai" || backgroundAssets.length) return;
+    void jsonRequest("/api/review-content/background/generate", { cache: "no-store" })
+      .then((result) => setBackgroundAssets(result.assets || []))
+      .catch(() => undefined);
+  }, [backgroundAssets.length, studioModal]);
 
   const notify = useCallback((value: string, isError = false) => {
     setMessage(value);
@@ -279,6 +341,105 @@ export default function ReviewStoryWorkspace() {
     Object.assign(next, patch);
     replaceActiveDocument(next, before);
   }, [activePage, replaceActiveDocument]);
+
+  const addTextLayer = useCallback(() => {
+    if (!activePage) return;
+    const before = clone(activePage.document);
+    const next = clone(activePage.document);
+    const id = crypto.randomUUID();
+    next.elements.push({
+      id, name: "새 텍스트", type: "text", x: 190, y: 560, width: 700, height: 180,
+      rotation: 0, opacity: 1, zIndex: Math.max(0, ...next.elements.map((element) => element.zIndex)) + 1,
+      text: "텍스트를 입력하세요", fontFamily: "var(--font-sans)", fontSize: 56, fontWeight: 700,
+      color: "#173734", textAlign: "center", lineHeight: 1.4, letterSpacing: -1,
+    });
+    replaceActiveDocument(next, before);
+    setSelectedElementId(id);
+  }, [activePage, replaceActiveDocument]);
+
+  const addImageLayer = useCallback(() => {
+    if (!activePage) return;
+    const before = clone(activePage.document);
+    const next = clone(activePage.document);
+    const id = crypto.randomUUID();
+    next.elements.push({
+      id, name: "새 이미지", type: "image", x: 190, y: 300, width: 700, height: 700,
+      rotation: 0, opacity: 0.2, zIndex: Math.max(0, ...next.elements.map((element) => element.zIndex)) + 1,
+      fit: "cover", cropX: 50, cropY: 50, scale: 1,
+    });
+    replaceActiveDocument(next, before);
+    setSelectedElementId(id);
+    photoInputRef.current?.click();
+  }, [activePage, replaceActiveDocument]);
+
+  const createPage = useCallback(async (input: {
+    pageType: ReviewStoryPageType;
+    pageName: string;
+    document: ReviewStoryDocument;
+    layoutAssetId?: string;
+    designPreset?: string;
+  }) => {
+    if (!activeContentId) return notify("먼저 리뷰 페이지를 생성해 주세요.", true);
+    setBusy("page");
+    try {
+      const result = await jsonRequest(`/api/review-contents/${activeContentId}/pages`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageType: input.pageType, pageName: input.pageName, editorDocument: input.document,
+          layoutAssetId: input.layoutAssetId, designPreset: input.designPreset,
+        }),
+      });
+      const nextPage: StoryPage = { ...result.page, pageType: input.pageType, pageName: input.pageName, document: input.document };
+      setPages((current) => [...current, nextPage]);
+      setActivePageId(nextPage.id);
+      setSelectedElementId(null);
+      setHistory([]);
+      setFuture([]);
+      setStudioModal(null);
+      notify(`${input.pageName}를 추가했습니다.`);
+    } catch (pageError) {
+      notify(pageError instanceof Error ? pageError.message : "페이지를 추가하지 못했습니다.", true);
+    } finally { setBusy(""); }
+  }, [activeContentId, notify]);
+
+  const generateBackgrounds = useCallback(async () => {
+    setBusy("ai-background");
+    notify("AI가 텍스트 없는 배경 3가지를 만들고 있습니다.");
+    try {
+      const result = await jsonRequest("/api/review-content/background/generate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ style: aiStyle, tone: aiTone, textures: aiTextures, prompt: aiPrompt, count: 3 }),
+      });
+      setBackgroundAssets(result.assets || []);
+      notify("AI 배경 3가지를 준비했습니다. 하나를 선택해 적용하세요.");
+    } catch (backgroundError) {
+      notify(backgroundError instanceof Error ? backgroundError.message : "AI 배경을 만들지 못했습니다.", true);
+    } finally { setBusy(""); }
+  }, [aiPrompt, aiStyle, aiTextures, aiTone, notify]);
+
+  const applyBackgroundAsset = useCallback((asset: GeneratedBackgroundAsset) => {
+    if (!activePage) return;
+    setAssetUrls((current) => ({ ...current, [asset.storagePath]: asset.url }));
+    patchDocument({
+      backgroundImage: {
+        assetId: asset.assetId, storagePath: asset.storagePath, src: asset.url, fit: "cover",
+        positionX: 50, positionY: 50, scale: 1, opacity: 1, source: "ai",
+        mimeType: asset.mimeType, width: asset.width, height: asset.height,
+      },
+    });
+    setStudioModal(null);
+    notify("AI 배경을 현재 페이지에 적용했습니다.");
+  }, [activePage, notify, patchDocument]);
+
+  const applyTemplate = useCallback((layout: LayoutAsset) => {
+    if (!activePage) return;
+    const before = clone(activePage.document);
+    const next = createReviewStoryDocument({ ...source, photo: photos[0], photos }, layout.layout_config || {});
+    replaceActiveDocument(next, before);
+    setSelectedElementId(null);
+    setStudioModal(null);
+    notify(`${layout.name} 템플릿을 현재 페이지에 적용했습니다.`);
+  }, [activePage, notify, photos, replaceActiveDocument, source]);
 
   const undo = useCallback(() => {
     if (!activePage || !history.length) return;
@@ -479,9 +640,14 @@ export default function ReviewStoryWorkspace() {
   const canvasToBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG 생성에 실패했습니다.")), "image/png"));
 
+  const capturePage = async (page: StoryPage, targetWidthPx: number = page.document.width) => {
+    const host = exportHostRefs.current.get(page.id);
+    if (!host) throw new Error("내보내기 캔버스를 준비하는 중입니다. 잠시 후 다시 시도해 주세요.");
+    return host.captureRaster(targetWidthPx);
+  };
+
   const uploadRenderedPage = async (page: StoryPage) => {
-    if (!canvasHandleRef.current) throw new Error("캔버스를 찾을 수 없습니다.");
-    const canvas = await canvasHandleRef.current.captureRaster(page.document.width);
+    const canvas = await capturePage(page);
     const blob = await canvasToBlob(canvas);
     const session = await jsonRequest("/api/review-assets/upload-session", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -524,11 +690,11 @@ export default function ReviewStoryWorkspace() {
   };
 
   const exportPng = async (outputScale = 1) => {
-    if (!activePage || !canvasHandleRef.current) return notify("내보낼 스토리가 없습니다.", true);
+    if (!activePage) return notify("내보낼 스토리가 없습니다.", true);
     setBusy("export");
     setPngMenuOpen(false);
     try {
-      const canvas = await canvasHandleRef.current.captureRaster(activePage.document.width * outputScale);
+      const canvas = await capturePage(activePage, activePage.document.width * outputScale);
       const blob = await canvasToBlob(canvas);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -543,21 +709,26 @@ export default function ReviewStoryWorkspace() {
   };
 
   const exportPdf = async () => {
-    if (!activePage || !canvasHandleRef.current) return notify("내보낼 스토리가 없습니다.", true);
+    if (!activePage || !pages.length) return notify("내보낼 스토리가 없습니다.", true);
     setBusy("export");
     try {
-      const canvas = await canvasHandleRef.current.captureRaster(activePage.document.width);
       const { jsPDF } = await import("jspdf");
-      const { width, height } = activePage.document;
+      const firstPage = pages[0];
+      const { width, height } = firstPage.document;
       const pdf = new jsPDF({
         orientation: width >= height ? "landscape" : "portrait",
         unit: "px",
         format: [width, height],
         hotfixes: ["px_scaling"],
       });
-      pdf.addImage(canvas.toDataURL("image/png", 1.0), "PNG", 0, 0, width, height, undefined, "FAST");
-      pdf.save(`${source.hospitalName || "review"}-story-${pages.findIndex((page) => page.id === activePage.id) + 1}.pdf`);
-      notify("PDF를 내보냈습니다.");
+      for (let index = 0; index < pages.length; index += 1) {
+        const page = pages[index];
+        const canvas = await capturePage(page, page.document.width);
+        if (index > 0) pdf.addPage([page.document.width, page.document.height], page.document.width >= page.document.height ? "landscape" : "portrait");
+        pdf.addImage(canvas.toDataURL("image/png", 1.0), "PNG", 0, 0, page.document.width, page.document.height, undefined, "FAST");
+      }
+      pdf.save(`${source.hospitalName || "review"}-review-content.pdf`);
+      notify(`${pages.length}페이지 PDF를 내보냈습니다.`);
     } catch (exportError) {
       notify(exportError instanceof Error ? exportError.message : "PDF 내보내기에 실패했습니다.", true);
     } finally { setBusy(""); }
@@ -664,8 +835,8 @@ export default function ReviewStoryWorkspace() {
           </nav>
           {!isDesktopWindow && (
             <>
-              <h1 className={styles.title}>리뷰 콘텐츠 제작</h1>
-              <p className={styles.subtitle}>선택한 리뷰를 다양한 스토리형 콘텐츠로 제작할 수 있습니다.</p>
+              <h1 className={styles.title}>리뷰 콘텐츠 만들기</h1>
+              <p className={styles.subtitle}>하나의 캔버스에서 편집하고, 같은 디자인으로 PNG와 PDF를 내보냅니다.</p>
             </>
           )}
         </div>
@@ -780,96 +951,158 @@ export default function ReviewStoryWorkspace() {
           </div>
         </aside>
 
-        <section className={styles.center} aria-label="스토리 편집기">
+        <section className={styles.center} aria-label="리뷰 콘텐츠 편집기">
           <div className={styles.toolbar}>
-            <div className={styles.toolbarGroup}><button className={styles.iconButton} onClick={undo} disabled={!history.length} aria-label="실행 취소"><Undo2 size={15} /></button><button className={styles.iconButton} onClick={redo} disabled={!future.length} aria-label="다시 실행"><Redo2 size={15} /></button></div>
-            <div className={styles.toolbarGroup}><button className={styles.iconButton} onClick={() => setZoom((value) => Math.max(50, value - 10))} aria-label="축소"><ZoomOut size={14} /></button><span className={styles.zoomLabel}>{zoom}%</span><button className={styles.iconButton} onClick={() => setZoom((value) => Math.min(160, value + 10))} aria-label="확대"><ZoomIn size={14} /></button><button className={styles.button} onClick={() => setZoom(100)}>맞춤</button></div>
+            <div className={styles.contextTools}>
+              <div className={styles.toolbarGroup}>
+                <button className={styles.iconButton} onClick={undo} disabled={!history.length} aria-label="실행 취소"><Undo2 size={15} /></button>
+                <button className={styles.iconButton} onClick={redo} disabled={!future.length} aria-label="다시 실행"><Redo2 size={15} /></button>
+              </div>
+              <span className={styles.toolbarDivider} />
+              {selectedElement?.type === "text" ? (
+                <>
+                  <span className={styles.contextLabel}><Type size={14} /> 텍스트</span>
+                  <select className={styles.toolbarSelect} value={selectedElement.fontFamily} aria-label="글꼴" onChange={(event) => patchElement(selectedElement.id, { fontFamily: event.target.value } as Partial<ReviewStoryElement>)}>{FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}</select>
+                  <input className={styles.toolbarNumber} type="number" min="8" max="240" value={selectedElement.fontSize} aria-label="글자 크기" onChange={(event) => patchElement(selectedElement.id, { fontSize: Number(event.target.value) } as Partial<ReviewStoryElement>)} />
+                  <label className={styles.colorTool} title="글자 색상"><Palette size={14} /><input type="color" value={selectedElement.color} onChange={(event) => patchElement(selectedElement.id, { color: event.target.value } as Partial<ReviewStoryElement>)} /></label>
+                  <button className={`${styles.toolButton} ${selectedElement.fontWeight >= 700 ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { fontWeight: selectedElement.fontWeight >= 700 ? 400 : 700 } as Partial<ReviewStoryElement>)} aria-label="굵게"><Bold size={14} /></button>
+                  <button className={`${styles.toolButton} ${selectedElement.italic ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { italic: !selectedElement.italic } as Partial<ReviewStoryElement>)} aria-label="기울임"><Italic size={14} /></button>
+                  <button className={`${styles.toolButton} ${selectedElement.underline ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { underline: !selectedElement.underline } as Partial<ReviewStoryElement>)} aria-label="밑줄"><Underline size={14} /></button>
+                  {([{"value":"left","icon":AlignLeft},{"value":"center","icon":AlignCenter},{"value":"right","icon":AlignRight}] as const).map(({ value, icon: Icon }) => <button key={value} className={`${styles.toolButton} ${selectedElement.textAlign === value ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { textAlign: value } as Partial<ReviewStoryElement>)} aria-label={`${value} 정렬`}><Icon size={14} /></button>)}
+                  <label className={styles.compactField} title="행간">행간<input type="number" min="0.8" max="3" step="0.05" value={selectedElement.lineHeight} onChange={(event) => patchElement(selectedElement.id, { lineHeight: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label>
+                  <label className={styles.compactField} title="자간">자간<input type="number" step="0.2" value={selectedElement.letterSpacing} onChange={(event) => patchElement(selectedElement.id, { letterSpacing: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label>
+                  <button className={`${styles.toolButton} ${selectedElement.highlight ? styles.toolActive : ""}`} onClick={() => patchElement(selectedElement.id, { highlight: !selectedElement.highlight } as Partial<ReviewStoryElement>)} aria-label="형광펜"><Highlighter size={14} /></button>
+                  <button className={styles.toolButton} onClick={deleteSelectedElement} disabled={selectedElement.locked} aria-label="삭제"><Trash2 size={14} /></button>
+                </>
+              ) : selectedElement?.type === "image" ? (
+                <>
+                  <span className={styles.contextLabel}><ImagePlus size={14} /> 이미지</span>
+                  <button className={styles.toolTextButton} onClick={() => photoInputRef.current?.click()}><ImagePlus size={14} /> 교체</button>
+                  <button className={styles.toolTextButton} onClick={() => canvasHandleRef.current?.startImageCrop(selectedElement.id)}><Crop size={14} /> 자르기</button>
+                  <div className={styles.fitToggle}><button className={(selectedElement.fit || "cover") === "cover" ? styles.toolActive : ""} onClick={() => patchElement(selectedElement.id, { fit: "cover", scale: Math.max(1, selectedElement.scale) } as Partial<ReviewStoryElement>)}>채우기</button><button className={selectedElement.fit === "contain" ? styles.toolActive : ""} onClick={() => patchElement(selectedElement.id, { fit: "contain", scale: 1 } as Partial<ReviewStoryElement>)}>맞추기</button></div>
+                  <button className={styles.toolTextButton} onClick={() => patchElement(selectedElement.id, { cropX: 50, cropY: 50, scale: 1 } as Partial<ReviewStoryElement>)}>위치 초기화</button>
+                  <button className={styles.toolButton} onClick={deleteSelectedElement} disabled={selectedElement.locked} aria-label="삭제"><Trash2 size={14} /></button>
+                </>
+              ) : selectedElement?.type === "shape" ? (
+                <>
+                  <span className={styles.contextLabel}><SlidersHorizontal size={14} /> 장식</span>
+                  <label className={styles.colorTool} title="장식 색상"><Palette size={14} /><input type="color" value={selectedElement.fill} onChange={(event) => patchElement(selectedElement.id, { fill: event.target.value } as Partial<ReviewStoryElement>)} /></label>
+                  <button className={styles.toolButton} onClick={deleteSelectedElement} disabled={selectedElement.locked} aria-label="삭제"><Trash2 size={14} /></button>
+                </>
+              ) : (
+                <>
+                  <button className={styles.toolTextButton} onClick={addTextLayer}><Type size={14} /> 텍스트</button>
+                  <button className={styles.toolTextButton} onClick={addImageLayer}><ImagePlus size={14} /> 이미지</button>
+                  <label className={styles.colorToolWide}><Palette size={14} /> 배경<input type="color" value={activePage?.document.background || "#ffffff"} onChange={(event) => patchDocument({ background: event.target.value })} /></label>
+                  <button className={styles.aiToolButton} onClick={() => setStudioModal("ai")} disabled={!activePage}><WandSparkles size={14} /> AI 배경</button>
+                  <button className={styles.toolTextButton} onClick={() => setStudioModal("template")} disabled={!activePage}><LayoutTemplate size={14} /> 템플릿</button>
+                </>
+              )}
+            </div>
           </div>
           {activePage ? <ReviewStoryCanvas ref={canvasHandleRef} document={activePage.document} selectedElementId={selectedElementId} assetUrls={{ ...assetUrls, ...(activePage.assetUrls || {}) }} zoom={zoom} lockAspectRatio={lockAspectRatio} onSelect={setSelectedElementId} onChange={replaceActiveDocument} onReplaceImage={() => photoInputRef.current?.click()} /> : <div className={styles.propertyEmpty} style={{ alignSelf: "center", justifySelf: "center" }}><Sparkles size={28} /><br />왼쪽에서 후기를 확인하고<br />템플릿을 선택해 주세요.</div>}
+          {activePage ? <div className={styles.canvasZoom}><button onClick={() => setZoom((value) => Math.max(50, value - 10))} aria-label="축소"><ZoomOut size={13} /></button><span>{zoom}%</span><button onClick={() => setZoom((value) => Math.min(160, value + 10))} aria-label="확대"><ZoomIn size={13} /></button><button onClick={() => setZoom(100)}>맞춤</button></div> : null}
 
-          <section className={styles.storyStrip} aria-label="생성된 스토리">
-            <div className={styles.storyStripHeader}><h2 className={styles.sectionTitle}>생성된 스토리 ({pages.length}장)</h2><div className={styles.toolbarGroup}><button className={styles.iconButton} onClick={() => void reorderPage(-1)} disabled={!activePage}><ArrowUp size={13} /></button><button className={styles.iconButton} onClick={() => void reorderPage(1)} disabled={!activePage}><ArrowDown size={13} /></button><button className={styles.iconButton} onClick={() => void removePage()} disabled={!activePage || pages.length <= 1}><Trash2 size={13} /></button></div></div>
-            {pages.length ? <div className={styles.storyList}>{pages.map((page, index) => <button key={page.id} type="button" draggable className={`${styles.storyThumb} ${activePage?.id === page.id ? styles.storyThumbActive : ""}`} title="드래그해서 페이지 순서 변경" onDragStart={(event) => event.dataTransfer.setData("text/review-page", page.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void movePageTo(event.dataTransfer.getData("text/review-page"), page.id); }} onClick={() => { setActivePageId(page.id); setSelectedElementId(null); setHistory([]); setFuture([]); }}><ReviewCanvasThumbnail className={styles.storyPreview} document={page.document} assetUrls={{ ...assetUrls, ...(page.assetUrls || {}) }} /><span className={styles.storyNumber}>{String(index + 1).padStart(2, "0")}{page.is_selected ? " · 대표" : ""}</span></button>)}</div> : <div className={styles.emptyStrip}>아직 생성된 스토리가 없습니다.</div>}
+          <section className={styles.storyStrip} aria-label="콘텐츠 페이지">
+            <div className={styles.storyStripHeader}><h2 className={styles.sectionTitle}>페이지 ({activePage ? pages.findIndex((page) => page.id === activePage.id) + 1 : 0}/{pages.length})</h2><div className={styles.toolbarGroup}><button className={styles.iconButton} onClick={() => void reorderPage(-1)} disabled={!activePage} aria-label="앞으로 이동"><ArrowUp size={13} /></button><button className={styles.iconButton} onClick={() => void reorderPage(1)} disabled={!activePage} aria-label="뒤로 이동"><ArrowDown size={13} /></button><button className={styles.iconButton} onClick={() => void removePage()} disabled={!activePage || pages.length <= 1} aria-label="페이지 삭제"><Trash2 size={13} /></button></div></div>
+            <div className={styles.storyList}>
+              {pages.map((page, index) => <button key={page.id} type="button" draggable className={`${styles.storyThumb} ${activePage?.id === page.id ? styles.storyThumbActive : ""}`} title="드래그해서 페이지 순서 변경" onDragStart={(event) => event.dataTransfer.setData("text/review-page", page.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void movePageTo(event.dataTransfer.getData("text/review-page"), page.id); }} onClick={() => { setActivePageId(page.id); setSelectedElementId(null); setHistory([]); setFuture([]); }}><ReviewCanvasThumbnail className={styles.storyPreview} document={page.document} assetUrls={{ ...assetUrls, ...(page.assetUrls || {}) }} /><span className={styles.storyNumber}>{String(index + 1).padStart(2, "0")} · {page.pageName}{page.is_selected ? " · 대표" : ""}</span></button>)}
+              <button type="button" className={styles.pageAction} onClick={() => setStudioModal("cover")} disabled={!activeContent}><Plus size={17} /><strong>커버 추가</strong><span>첫 페이지용</span></button>
+              <button type="button" className={styles.pageAction} onClick={() => setStudioModal("page")} disabled={!activeContent}><Plus size={17} /><strong>페이지 추가</strong><span>빈 페이지/템플릿</span></button>
+              <button type="button" className={styles.pageAction} onClick={() => setStudioModal("design")} disabled={!activeContent}><Layers3 size={17} /><strong>디자인 추가</strong><span>CTA·브랜드</span></button>
+            </div>
           </section>
         </section>
 
         <aside className={`${styles.panel} ${styles.rightPanel}`} aria-label="요소 속성과 레이어">
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>요소 편집</h2>{selectedElement ? <span className={styles.count}>{selectedElement.name}</span> : null}</div>
-            {!selectedElement ? (
-              <div className={styles.propertyEmpty}>
-                캔버스에서 텍스트나 사진을 선택하면<br />편집 도구가 표시됩니다.
-                {activePage ? (
-                  <label className={styles.field} style={{ marginTop: 14, textAlign: "left" }}>
-                    배경색
-                    <input
-                      className={styles.input}
-                      type="color"
-                      value={activePage.document.background}
-                      onChange={(event) => patchDocument({ background: event.target.value })}
-                    />
-                  </label>
-                ) : null}
-              </div>
-            ) : (
-              <>
-                <div className={styles.styleTabs} role="tablist">
-                  <button type="button" role="tab" aria-selected={rightTab === "props"} className={`${styles.styleTab} ${rightTab === "props" ? styles.styleTabActive : ""}`} onClick={() => setRightTab("props")}>속성</button>
-                  <button type="button" role="tab" aria-selected={rightTab === "style"} className={`${styles.styleTab} ${rightTab === "style" ? styles.styleTabActive : ""}`} onClick={() => setRightTab("style")}>스타일</button>
-                </div>
-
-                {rightTab === "props" ? (
-                  <>
-                    <h3 className={styles.subheading}>위치 및 크기</h3>
-                    <div className={styles.propertyGrid}>
-                      {(["x", "y", "width", "height"] as const).map((key) => <label key={key} className={styles.field}>{key.toUpperCase()}<input className={styles.input} type="number" value={Math.round(selectedElement[key])} onChange={(event) => patchElement(selectedElement.id, { [key]: Number(event.target.value) })} /></label>)}
-                    </div>
-                    <label className={styles.checkboxField}><input type="checkbox" checked={lockAspectRatio} onChange={(event) => setLockAspectRatio(event.target.checked)} /> 비율 유지</label>
-                    <label className={styles.field}>회전 {selectedElement.rotation}°<input className={styles.range} type="range" min="-180" max="180" value={selectedElement.rotation} onChange={(event) => patchElement(selectedElement.id, { rotation: Number(event.target.value) })} /></label>
-                    <label className={styles.field}>불투명도 {Math.round(selectedElement.opacity * 100)}%<input className={styles.range} type="range" min="0" max="100" value={Math.round(selectedElement.opacity * 100)} onChange={(event) => patchElement(selectedElement.id, { opacity: Number(event.target.value) / 100 })} /></label>
-                    {selectedElement.type === "text" ? (
-                      <label className={styles.field}>내용<textarea className={styles.textarea} value={selectedElement.text} onChange={(event) => patchElement(selectedElement.id, { text: event.target.value } as Partial<ReviewStoryElement>)} /></label>
-                    ) : null}
-                    {selectedElement.type === "image" ? <ImagePropsFields element={selectedElement} patch={(value) => patchElement(selectedElement.id, value as Partial<ReviewStoryElement>)} onReplace={() => photoInputRef.current?.click()} /> : null}
-                  </>
-                ) : (
-                  <>
-                    {selectedElement.type === "text" ? (
-                      <>
-                        <label className={styles.field}>글꼴
-                          <select className={styles.select} value={selectedElement.fontFamily} onChange={(event) => patchElement(selectedElement.id, { fontFamily: event.target.value } as Partial<ReviewStoryElement>)}>
-                            {FONT_OPTIONS.map((font) => <option key={font.value} value={font.value}>{font.label}</option>)}
-                          </select>
-                        </label>
-                        <div className={styles.propertyGrid}><label className={styles.field}>크기<input className={styles.input} type="number" value={selectedElement.fontSize} onChange={(event) => patchElement(selectedElement.id, { fontSize: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label><label className={styles.field}>굵기<select className={styles.select} value={selectedElement.fontWeight} onChange={(event) => patchElement(selectedElement.id, { fontWeight: Number(event.target.value) } as Partial<ReviewStoryElement>)}><option value="400">Regular</option><option value="600">Semi Bold</option><option value="700">Bold</option><option value="800">Extra Bold</option></select></label><label className={styles.field}>행간<input className={styles.input} type="number" min="0.8" max="3" step="0.05" value={selectedElement.lineHeight} onChange={(event) => patchElement(selectedElement.id, { lineHeight: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label><label className={styles.field}>자간<input className={styles.input} type="number" step="0.2" value={selectedElement.letterSpacing} onChange={(event) => patchElement(selectedElement.id, { letterSpacing: Number(event.target.value) } as Partial<ReviewStoryElement>)} /></label></div>
-                        <label className={styles.field}>텍스트 색상<input className={styles.input} type="color" value={selectedElement.color} onChange={(event) => patchElement(selectedElement.id, { color: event.target.value } as Partial<ReviewStoryElement>)} /></label>
-                        <div className={styles.segmented}>{([{ value: "left", icon: AlignLeft }, { value: "center", icon: AlignCenter }, { value: "right", icon: AlignRight }] as const).map(({ value, icon: Icon }) => <button key={value} className={`${styles.segment} ${selectedElement.textAlign === value ? styles.segmentActive : ""}`} onClick={() => patchElement(selectedElement.id, { textAlign: value } as Partial<ReviewStoryElement>)}><Icon size={13} /></button>)}</div>
-                        <div className={styles.segmented}>
-                          <button type="button" data-active={selectedElement.italic} className={`${styles.segment} ${selectedElement.italic ? styles.segmentActive : ""}`} onClick={() => patchElement(selectedElement.id, { italic: !selectedElement.italic } as Partial<ReviewStoryElement>)}><Italic size={13} /></button>
-                          <button type="button" data-active={selectedElement.underline} className={`${styles.segment} ${selectedElement.underline ? styles.segmentActive : ""}`} onClick={() => patchElement(selectedElement.id, { underline: !selectedElement.underline } as Partial<ReviewStoryElement>)}><Underline size={13} /></button>
-                          <button type="button" data-active={selectedElement.highlight} className={`${styles.segment} ${selectedElement.highlight ? styles.segmentActive : ""}`} onClick={() => patchElement(selectedElement.id, { highlight: !selectedElement.highlight } as Partial<ReviewStoryElement>)}><Highlighter size={13} /></button>
-                        </div>
-                        {selectedElement.highlight ? (
-                          <label className={styles.field}>형광펜 색상<input className={styles.input} type="color" value={selectedElement.highlightColor ?? "#FFF176"} onChange={(event) => patchElement(selectedElement.id, { highlightColor: event.target.value } as Partial<ReviewStoryElement>)} /></label>
-                        ) : null}
-                      </>
-                    ) : null}
-                    {selectedElement.type === "image" ? <ImageStyleFields element={selectedElement} patch={(value) => patchElement(selectedElement.id, value as Partial<ReviewStoryElement>)} /> : null}
-                  </>
-                )}
-              </>
-            )}
-          </section>
-
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>레이어</h2><span className={styles.count}>{activePage?.document.elements.length || 0}개</span></div>
-            <div className={styles.layers}>
-              {[...(activePage?.document.elements || [])].sort((a, b) => b.zIndex - a.zIndex).map((element) => <div key={element.id} className={`${styles.layer} ${selectedElementId === element.id ? styles.layerSelected : ""}`} onClick={() => setSelectedElementId(element.id)}><button className={styles.layerIcon} aria-label={element.hidden ? "레이어 표시" : "레이어 숨기기"} onClick={(event) => { event.stopPropagation(); patchElement(element.id, { hidden: !element.hidden }); }}>{element.hidden ? <EyeOff size={13} /> : <Eye size={13} />}</button><span>{element.name}</span><button className={styles.layerIcon} aria-label={element.locked ? "잠금 해제" : "잠금"} onClick={(event) => { event.stopPropagation(); patchElement(element.id, { locked: !element.locked }); }}>{element.locked ? <Lock size={12} /> : <Unlock size={12} />}</button></div>)}
-            </div>
-            <div className={styles.layerFooter}><button className={styles.iconButton} onClick={() => moveLayer(1)} disabled={!selectedElement}><ArrowUp size={13} /></button><button className={styles.iconButton} onClick={() => moveLayer(-1)} disabled={!selectedElement}><ArrowDown size={13} /></button><button className={styles.iconButton} onClick={deleteSelectedElement} disabled={!selectedElement || selectedElement.locked}><Trash2 size={13} /></button></div>
-          </section>
+          <div className={styles.rightTabs} role="tablist">
+            <button type="button" role="tab" aria-selected={rightTab === "props"} className={rightTab === "props" ? styles.rightTabActive : ""} onClick={() => setRightTab("props")}><SlidersHorizontal size={14} /> 요소 설정</button>
+            <button type="button" role="tab" aria-selected={rightTab === "layers"} className={rightTab === "layers" ? styles.rightTabActive : ""} onClick={() => setRightTab("layers")}><Layers3 size={14} /> 레이어</button>
+          </div>
+          {rightTab === "props" ? (
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>{selectedElement ? selectedElement.name : "페이지 배경"}</h2>{selectedElement ? <span className={styles.count}>정밀 설정</span> : null}</div>
+              {!selectedElement ? (
+                activePage ? <>
+                  <label className={styles.field}>배경색<input className={styles.input} type="color" value={activePage.document.background} onChange={(event) => patchDocument({ background: event.target.value })} /></label>
+                  <button className={`${styles.button} ${styles.aiPanelButton}`} onClick={() => setStudioModal("ai")}><WandSparkles size={14} /> AI 배경 생성</button>
+                  {activePage.document.backgroundImage ? <>
+                    <label className={styles.field}>배경 확대 {activePage.document.backgroundImage.scale.toFixed(2)}×<input className={styles.range} type="range" min="1" max="2.5" step="0.05" value={activePage.document.backgroundImage.scale} onChange={(event) => patchDocument({ backgroundImage: { ...activePage.document.backgroundImage!, scale: Number(event.target.value) } })} /></label>
+                    <div className={styles.propertyGrid}><label className={styles.field}>가로 위치<input className={styles.range} type="range" min="0" max="100" value={activePage.document.backgroundImage.positionX} onChange={(event) => patchDocument({ backgroundImage: { ...activePage.document.backgroundImage!, positionX: Number(event.target.value) } })} /></label><label className={styles.field}>세로 위치<input className={styles.range} type="range" min="0" max="100" value={activePage.document.backgroundImage.positionY} onChange={(event) => patchDocument({ backgroundImage: { ...activePage.document.backgroundImage!, positionY: Number(event.target.value) } })} /></label></div>
+                    <label className={styles.field}>불투명도 {Math.round(activePage.document.backgroundImage.opacity * 100)}%<input className={styles.range} type="range" min="0" max="100" value={Math.round(activePage.document.backgroundImage.opacity * 100)} onChange={(event) => patchDocument({ backgroundImage: { ...activePage.document.backgroundImage!, opacity: Number(event.target.value) / 100 } })} /></label>
+                    <button className={styles.button} onClick={() => patchDocument({ backgroundImage: undefined })}><Trash2 size={13} /> 배경 이미지 제거</button>
+                  </> : <p className={styles.propertyHint}>캔버스 요소를 선택하면 위치와 크기를 정밀하게 조절할 수 있습니다.</p>}
+                </> : <div className={styles.propertyEmpty}>페이지를 먼저 만들어 주세요.</div>
+              ) : <>
+                <h3 className={styles.subheading}>위치 및 크기</h3>
+                <div className={styles.propertyGrid}>{(["x", "y", "width", "height"] as const).map((key) => <label key={key} className={styles.field}>{key.toUpperCase()}<input className={styles.input} type="number" value={Math.round(selectedElement[key])} onChange={(event) => patchElement(selectedElement.id, { [key]: Number(event.target.value) })} /></label>)}</div>
+                <label className={styles.checkboxField}><input type="checkbox" checked={lockAspectRatio} onChange={(event) => setLockAspectRatio(event.target.checked)} /> 비율 유지</label>
+                <label className={styles.field}>회전 {selectedElement.rotation}°<input className={styles.range} type="range" min="-180" max="180" value={selectedElement.rotation} onChange={(event) => patchElement(selectedElement.id, { rotation: Number(event.target.value) })} /></label>
+                <label className={styles.field}>불투명도 {Math.round(selectedElement.opacity * 100)}%<input className={styles.range} type="range" min="0" max="100" value={Math.round(selectedElement.opacity * 100)} onChange={(event) => patchElement(selectedElement.id, { opacity: Number(event.target.value) / 100 })} /></label>
+                {selectedElement.type === "text" ? <label className={styles.field}>내용<textarea className={styles.textarea} value={selectedElement.text} onChange={(event) => patchElement(selectedElement.id, { text: event.target.value } as Partial<ReviewStoryElement>)} /></label> : null}
+                {selectedElement.type === "image" ? <><ImagePropsFields element={selectedElement} patch={(value) => patchElement(selectedElement.id, value as Partial<ReviewStoryElement>)} onReplace={() => photoInputRef.current?.click()} /><ImageStyleFields element={selectedElement} patch={(value) => patchElement(selectedElement.id, value as Partial<ReviewStoryElement>)} /></> : null}
+              </>}
+            </section>
+          ) : (
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}><h2 className={styles.sectionTitle}>레이어</h2><span className={styles.count}>{activePage?.document.elements.length || 0}개</span></div>
+              <div className={styles.layers}>{[...(activePage?.document.elements || [])].sort((a, b) => b.zIndex - a.zIndex).map((element) => <div key={element.id} className={`${styles.layer} ${selectedElementId === element.id ? styles.layerSelected : ""}`} onClick={() => setSelectedElementId(element.id)}><GripVertical size={12} className={styles.layerGrip} /><button className={styles.layerIcon} aria-label={element.hidden ? "레이어 표시" : "레이어 숨기기"} onClick={(event) => { event.stopPropagation(); patchElement(element.id, { hidden: !element.hidden }); }}>{element.hidden ? <EyeOff size={13} /> : <Eye size={13} />}</button><span>{element.name}</span><button className={styles.layerIcon} aria-label={element.locked ? "잠금 해제" : "잠금"} onClick={(event) => { event.stopPropagation(); patchElement(element.id, { locked: !element.locked }); }}>{element.locked ? <Lock size={12} /> : <Unlock size={12} />}</button><MoreHorizontal size={13} /></div>)}</div>
+              <div className={styles.backgroundLayer} onClick={() => setSelectedElementId(null)}><Palette size={13} /><span>배경</span></div>
+              <div className={styles.layerFooter}><button className={styles.iconButton} onClick={() => moveLayer(1)} disabled={!selectedElement}><ArrowUp size={13} /></button><button className={styles.iconButton} onClick={() => moveLayer(-1)} disabled={!selectedElement}><ArrowDown size={13} /></button><button className={styles.iconButton} onClick={deleteSelectedElement} disabled={!selectedElement || selectedElement.locked}><Trash2 size={13} /></button></div>
+            </section>
+          )}
         </aside>
       </div>
+
+      {pages.map((page) => (
+        <ReviewCanvasExportHost
+          key={`export-${page.id}`}
+          ref={(handle) => { if (handle) exportHostRefs.current.set(page.id, handle); else exportHostRefs.current.delete(page.id); }}
+          document={page.document}
+          assetUrls={{ ...assetUrls, ...(page.assetUrls || {}) }}
+        />
+      ))}
+
+      <Modal open={studioModal === "cover"} onClose={() => setStudioModal(null)} title="커버 추가" width={720}>
+        <p className={styles.modalIntro}>기존 리뷰 페이지는 그대로 두고 새 커버 페이지를 추가합니다. 병원 정보와 날짜만 재사용하며 후기 본문은 복사하지 않습니다.</p>
+        <div className={styles.choiceGrid}>
+          {COVER_PRESETS.map((preset) => <button key={preset.value} className={styles.choiceCard} disabled={Boolean(busy)} onClick={() => void createPage({ pageType: "cover", pageName: `${preset.label} 커버`, document: createReviewCoverDocument({ ...source, photo: photos[0], photos }, preset.value), designPreset: preset.value })}><span className={`${styles.choicePreview} ${styles[`cover_${preset.value}`]}`}><strong>Aa</strong></span><strong>{preset.label}</strong><small>{preset.description}</small></button>)}
+        </div>
+      </Modal>
+
+      <Modal open={studioModal === "page"} onClose={() => setStudioModal(null)} title="페이지 추가" width={760}>
+        <p className={styles.modalIntro}>빈 페이지에서 시작하거나 기존 템플릿에 현재 콘텐츠 정보를 넣어 새 페이지로 추가할 수 있습니다.</p>
+        <div className={styles.choiceGrid}>
+          <button className={styles.choiceCard} disabled={Boolean(busy)} onClick={() => void createPage({ pageType: "free", pageName: "빈 페이지", document: createBlankReviewStoryDocument() })}><span className={`${styles.choicePreview} ${styles.blankPreview}`}><Plus size={22} /></span><strong>빈 페이지</strong><small>텍스트와 이미지를 직접 추가</small></button>
+          {layouts.slice(0, 5).map((layout) => <button key={layout.id} className={styles.choiceCard} disabled={Boolean(busy)} onClick={() => void createPage({ pageType: "review", pageName: layout.name, document: createReviewStoryDocument({ ...source, photo: photos[0], photos }, layout.layout_config || {}), layoutAssetId: layout.id })}><span className={styles.choicePreview}>{layout.thumbnailUrl ? <img src={layout.thumbnailUrl} alt="" /> : layout.layout_config?.editorDocument ? <ReviewTemplateThumbnail document={layout.layout_config.editorDocument} /> : <LayoutTemplate size={22} />}</span><strong>{layout.name}</strong><small>{layout.description || "리뷰 템플릿"}</small></button>)}
+        </div>
+      </Modal>
+
+      <Modal open={studioModal === "template"} onClose={() => setStudioModal(null)} title="템플릿 변경" width={760}>
+        <p className={styles.modalIntro}>현재 후기·병원·사진 데이터는 유지하면서 선택한 페이지의 레이아웃만 변경합니다.</p>
+        <div className={styles.choiceGrid}>
+          {layouts.map((layout) => <button key={layout.id} className={styles.choiceCard} onClick={() => applyTemplate(layout)}><span className={styles.choicePreview}>{layout.thumbnailUrl ? <img src={layout.thumbnailUrl} alt="" /> : layout.layout_config?.editorDocument ? <ReviewTemplateThumbnail document={layout.layout_config.editorDocument} /> : <LayoutTemplate size={22} />}</span><strong>{layout.name}</strong><small>{layout.description || "리뷰 템플릿"}</small></button>)}
+        </div>
+      </Modal>
+
+      <Modal open={studioModal === "design"} onClose={() => setStudioModal(null)} title="디자인 추가" width={650}>
+        <p className={styles.modalIntro}>후기 페이지와 별개로 CTA, 브랜드 문구, 스토리 카드 디자인을 추가합니다.</p>
+        <div className={styles.choiceGrid}>
+          {DESIGN_PRESETS.map((preset) => <button key={preset.value} className={styles.choiceCard} disabled={Boolean(busy)} onClick={() => void createPage({ pageType: "free", pageName: preset.label, document: createReviewDesignDocument(source, preset.value), designPreset: preset.value })}><span className={`${styles.choicePreview} ${styles[`design_${preset.value}`]}`}><strong>{preset.value === "cta" ? "→" : preset.value === "brand" ? "O" : "“"}</strong></span><strong>{preset.label}</strong><small>{preset.description}</small></button>)}
+        </div>
+      </Modal>
+
+      <Modal open={studioModal === "ai"} onClose={() => setStudioModal(null)} title="AI 배경 생성" width={760}>
+        <p className={styles.modalIntro}>텍스트는 이미지에 넣지 않고, 편집 가능한 레이어로 유지합니다. 생성 결과는 Olivia 스토리지에 저장된 뒤 캔버스에 적용됩니다.</p>
+        <div className={styles.aiForm}>
+          <fieldset><legend>스타일</legend><div className={styles.chipRow}>{AI_STYLE_OPTIONS.map(([value, label]) => <button type="button" key={value} className={aiStyle === value ? styles.chipActive : ""} onClick={() => setAiStyle(value)}>{label}</button>)}</div></fieldset>
+          <fieldset><legend>컬러톤</legend><div className={styles.chipRow}>{AI_TONE_OPTIONS.map(([value, label]) => <button type="button" key={value} className={aiTone === value ? styles.chipActive : ""} onClick={() => setAiTone(value)}>{label}</button>)}</div></fieldset>
+          <fieldset><legend>텍스처</legend><div className={styles.checkRow}>{AI_TEXTURE_OPTIONS.map(([value, label]) => <label key={value}><input type="checkbox" checked={aiTextures.includes(value)} onChange={(event) => setAiTextures((current) => event.target.checked ? [...current, value] : current.filter((item) => item !== value))} /> {label}</label>)}</div></fieldset>
+          <label className={styles.field}>원하는 분위기<textarea className={styles.textarea} value={aiPrompt} onChange={(event) => setAiPrompt(event.target.value)} maxLength={500} /></label>
+          <button className={`${styles.button} ${styles.primary} ${styles.generateBackgroundButton}`} onClick={() => void generateBackgrounds()} disabled={Boolean(busy)}><WandSparkles size={15} />{busy === "ai-background" ? "3개 생성 중…" : "3개 생성"}</button>
+          {backgroundAssets.length ? <><h3 className={styles.resultTitle}>저장된 배경 / 생성 결과</h3><div className={styles.backgroundResults}>{backgroundAssets.map((asset, index) => <button type="button" key={asset.assetId} onClick={() => applyBackgroundAsset(asset)}><img src={asset.url} alt={`AI 배경 ${index + 1}`} /><span>{String(index + 1).padStart(2, "0")} · 적용</span></button>)}</div></> : null}
+        </div>
+      </Modal>
     </main>
   );
 }

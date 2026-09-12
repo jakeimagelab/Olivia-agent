@@ -14,6 +14,7 @@ export function reviewCanvasElementStyle(element: ReviewStoryElement) {
 
 export function reviewCanvasImageStyle(element: ReviewStoryImageElement) {
   return {
+    objectFit: element.fit || "cover",
     objectPosition: `${element.cropX}% ${element.cropY}%`,
     transform: `scale(${element.scale})`,
   };

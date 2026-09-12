@@ -50,6 +50,7 @@ export type ReviewStoryImageElement = ReviewStoryElementBase & {
   type: "image";
   src?: string;
   storagePath?: string;
+  fit?: "cover" | "contain";
   cropX: number;
   cropY: number;
   scale: number;
@@ -70,11 +71,29 @@ export type ReviewStoryShapeElement = ReviewStoryElementBase & {
 
 export type ReviewStoryElement = ReviewStoryTextElement | ReviewStoryImageElement | ReviewStoryShapeElement;
 
+export type ReviewStoryPageType = "review" | "cover" | "free";
+
+export type ReviewStoryBackgroundImage = {
+  assetId: string;
+  storagePath: string;
+  src?: string;
+  fit: "cover" | "contain";
+  positionX: number;
+  positionY: number;
+  scale: number;
+  opacity: number;
+  source: "ai" | "upload" | "template";
+  mimeType?: string;
+  width?: number;
+  height?: number;
+};
+
 export type ReviewStoryDocument = {
   version: 1;
   width: typeof REVIEW_STORY_WIDTH;
   height: typeof REVIEW_STORY_HEIGHT;
   background: string;
+  backgroundImage?: ReviewStoryBackgroundImage;
   elements: ReviewStoryElement[];
 };
 
@@ -184,6 +203,80 @@ export function createReviewStoryDocument(
   }
 
   return { version: 1, width: REVIEW_STORY_WIDTH, height: REVIEW_STORY_HEIGHT, background, elements };
+}
+
+function pageTextElement(
+  id: string,
+  name: string,
+  text: string,
+  position: Pick<ReviewStoryElementBase, "x" | "y" | "width" | "height" | "zIndex">,
+  style: Partial<ReviewStoryTextElement> = {},
+): ReviewStoryTextElement {
+  const element = textElement(id, name, "headline", text, position, style);
+  delete element.binding;
+  return element;
+}
+
+export type ReviewCoverPreset = "minimal" | "editorial" | "photo" | "typography";
+
+export function createReviewCoverDocument(source: ReviewStorySource, preset: ReviewCoverPreset): ReviewStoryDocument {
+  const dark = preset === "photo";
+  const background = preset === "editorial" ? "#EFE7DC" : preset === "typography" ? "#155855" : "#FAF8F3";
+  const elements: ReviewStoryElement[] = [];
+
+  if (preset === "photo") {
+    const photo = source.photos?.[0] || source.photo;
+    elements.push({
+      id: "cover-photo",
+      name: "커버 사진",
+      binding: "photo1",
+      type: "image",
+      x: 0,
+      y: 0,
+      width: REVIEW_STORY_WIDTH,
+      height: REVIEW_STORY_HEIGHT,
+      rotation: 0,
+      opacity: photo?.src || photo?.storagePath ? 1 : 0.16,
+      zIndex: 1,
+      src: photo?.src,
+      storagePath: photo?.storagePath,
+      fit: "cover",
+      cropX: 50,
+      cropY: 50,
+      scale: 1,
+    });
+    elements.push({ id: "cover-shade", name: "사진 음영", type: "shape", x: 0, y: 0, width: REVIEW_STORY_WIDTH, height: REVIEW_STORY_HEIGHT, rotation: 0, opacity: 0.38, zIndex: 2, fill: "#092E2C", radius: 0, locked: true });
+  }
+
+  const center = preset === "minimal" || preset === "typography";
+  const headlineColor = dark || preset === "typography" ? "#FFFFFF" : "#173734";
+  const subColor = dark || preset === "typography" ? "#DDEAE7" : "#58716C";
+  elements.push(
+    pageTextElement("cover-kicker", "커버 상단 문구", "OLIVIA · REVIEW STORY", { x: 94, y: preset === "editorial" ? 116 : 250, width: 892, height: 54, zIndex: 4 }, { fontSize: 24, fontWeight: 700, color: subColor, textAlign: center ? "center" : "left", letterSpacing: 4 }),
+    pageTextElement("cover-title", "커버 제목", "고객의 이야기,\n더 특별한 콘텐츠로", { x: 94, y: preset === "editorial" ? 300 : 415, width: 892, height: 300, zIndex: 5 }, { fontFamily: preset === "editorial" ? "'Nanum Myeongjo', serif" : "var(--font-sans)", fontSize: preset === "typography" ? 90 : 74, fontWeight: preset === "editorial" ? 400 : 700, color: headlineColor, textAlign: center ? "center" : "left", lineHeight: 1.24, letterSpacing: -2 }),
+    pageTextElement("cover-clinic", "병원명", source.hospitalName, { x: 94, y: 1045, width: 892, height: 80, zIndex: 5 }, { fontSize: 32, fontWeight: 700, color: headlineColor, textAlign: center ? "center" : "left" }),
+    pageTextElement("cover-date", "리뷰 날짜", source.date || "", { x: 94, y: 1130, width: 892, height: 52, zIndex: 5 }, { fontSize: 23, fontWeight: 500, color: subColor, textAlign: center ? "center" : "left", letterSpacing: 1 }),
+  );
+  return { version: 1, width: REVIEW_STORY_WIDTH, height: REVIEW_STORY_HEIGHT, background, elements };
+}
+
+export function createBlankReviewStoryDocument(background = "#FAF8F3"): ReviewStoryDocument {
+  return { version: 1, width: REVIEW_STORY_WIDTH, height: REVIEW_STORY_HEIGHT, background, elements: [] };
+}
+
+export type ReviewDesignPreset = "cta" | "brand" | "quote";
+
+export function createReviewDesignDocument(source: ReviewStorySource, preset: ReviewDesignPreset): ReviewStoryDocument {
+  const documentValue = createBlankReviewStoryDocument(preset === "brand" ? "#155855" : "#F7F4EE");
+  const dark = preset === "brand";
+  const title = preset === "cta" ? "당신의 이야기도\n들려주세요" : preset === "quote" ? "좋은 경험은\n오래 기억됩니다" : "HEALTHY SKIN,\nBRIGHTER TOMORROW";
+  documentValue.elements = [
+    pageTextElement("design-kicker", "디자인 상단 문구", preset === "cta" ? "BOOK YOUR MOMENT" : "PHOTOCLINIC", { x: 90, y: 170, width: 900, height: 54, zIndex: 2 }, { fontSize: 24, fontWeight: 700, color: dark ? "#BFD4CF" : "#67817C", textAlign: "center", letterSpacing: 5 }),
+    pageTextElement("design-title", "디자인 문구", title, { x: 90, y: 390, width: 900, height: 330, zIndex: 3 }, { fontFamily: preset === "quote" ? "'Nanum Myeongjo', serif" : "var(--font-sans)", fontSize: 78, fontWeight: preset === "quote" ? 400 : 700, color: dark ? "#FFFFFF" : "#173734", textAlign: "center", lineHeight: 1.25, letterSpacing: -2 }),
+    pageTextElement("design-clinic", "병원명", source.hospitalName, { x: 90, y: 1010, width: 900, height: 70, zIndex: 3 }, { fontSize: 30, fontWeight: 700, color: dark ? "#EAF4F2" : "#315B55", textAlign: "center" }),
+    pageTextElement("design-url", "브랜드 URL", "photoclinic.kr", { x: 90, y: 1110, width: 900, height: 50, zIndex: 3 }, { fontSize: 22, fontWeight: 500, color: dark ? "#BFD4CF" : "#78908B", textAlign: "center", letterSpacing: 3 }),
+  ];
+  return documentValue;
 }
 
 export function bindReviewStoryDocument(document: ReviewStoryDocument, source: ReviewStorySource) {

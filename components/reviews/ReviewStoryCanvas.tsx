@@ -24,6 +24,7 @@ export type ReviewStoryCanvasHandle = {
   // rasterize한다. targetWidthPx는 원하는 출력 픽셀 폭(예: 1080/2160)이며 Editor의 visual
   // zoom과 무관하다. 별도 export markup이나 텍스트 재조판은 이 경로에 존재하지 않는다.
   captureRaster: (targetWidthPx: number) => Promise<HTMLCanvasElement>;
+  startImageCrop: (elementId: string) => void;
 };
 
 type ResizeHandle = "nw" | "ne" | "sw" | "se" | "w" | "e";
@@ -97,6 +98,7 @@ const ReviewStoryCanvas = forwardRef<ReviewStoryCanvasHandle, Props>(function Re
       if (!exportHostRef.current) throw new Error("내보내기 캔버스를 찾을 수 없습니다.");
       return exportHostRef.current.captureRaster(targetWidthPx);
     },
+    startImageCrop: (elementId: string) => setCropModeId(elementId),
   }), []);
 
   // 텍스트 선택 박스가 저장된 template height(예: 후기 본문 300~500px)만큼 커 보이던 문제 —

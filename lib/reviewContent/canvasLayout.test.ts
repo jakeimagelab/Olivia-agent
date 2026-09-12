@@ -26,7 +26,7 @@ describe("review canvas canonical layout", () => {
     expect(image?.type).toBe("image");
     expect(text?.type).toBe("text");
     if (image?.type === "image") {
-      expect(reviewCanvasImageStyle({ ...image, cropX: 37, cropY: 62, scale: 1.35 })).toEqual({ objectPosition: "37% 62%", transform: "scale(1.35)" });
+      expect(reviewCanvasImageStyle({ ...image, cropX: 37, cropY: 62, scale: 1.35 })).toEqual({ objectFit: "cover", objectPosition: "37% 62%", transform: "scale(1.35)" });
     }
     if (text?.type === "text") {
       expect(reviewCanvasTextStyle({ ...text, fontSize: 42, lineHeight: 1.6, letterSpacing: -0.8 })).toMatchObject({ fontSize: "42px", lineHeight: 1.6, letterSpacing: "-0.8px" });
