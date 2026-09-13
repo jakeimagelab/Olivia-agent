@@ -55,7 +55,9 @@ values (
   'voice-recordings',
   'voice-recordings',
   false,
-  157286400,
+  -- 현재 OpenAI diarization 처리 한도와 Supabase 프로젝트 업로드 상한에 맞춘다.
+  -- 장시간 녹음 chunk 업로드를 도입할 때 함께 상향한다.
+  26214400,
   array['audio/mp4', 'audio/m4a', 'audio/x-m4a', 'audio/webm', 'audio/mpeg', 'audio/wav', 'audio/x-wav']
 )
 on conflict (id) do update set
