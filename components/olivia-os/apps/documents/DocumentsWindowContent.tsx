@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { OliviaDocumentType } from "@/lib/olivia/documents/types";
+import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import { DocumentsSidebar, type DocumentCategory } from "./DocumentsSidebar";
 import { DocumentsGrid, type DocumentRow } from "./DocumentsGrid";
 import styles from "./DocumentsWindowContent.module.css";
@@ -10,7 +11,7 @@ import styles from "./DocumentsWindowContent.module.css";
 // 태그가 붙은 평평한(flat) 문서 목록뿐이다. 가짜 폴더 백엔드를 만드는 대신, 이 평평한 데이터를
 // 프로젝트별로 그룹핑해서 파인더처럼 "보이게"만 한다(DocumentsGrid.tsx의 groupBy).
 // DocumentSearchPanel.tsx와 같은 엔드포인트/디바운스 패턴을 그대로 재사용한다 — 새 API 없음.
-export function DocumentsWindowContent() {
+export function DocumentsWindowContent({ surface = "desktop" }: { context?: WindowContext; surface?: "desktop" | "tablet" }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<DocumentCategory>("all");
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
@@ -37,9 +38,9 @@ export function DocumentsWindowContent() {
   }, [query, category]);
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} data-documents-surface={surface}>
       <DocumentsSidebar query={query} onQueryChange={setQuery} category={category} onCategoryChange={setCategory} />
-      <DocumentsGrid documents={documents} loading={loading} />
+      <DocumentsGrid documents={documents} loading={loading} surface={surface} />
     </div>
   );
 }

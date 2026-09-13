@@ -10,6 +10,7 @@ import styles from "@/components/conti/v2/ContiV2.module.css";
 interface ClientOption { id: string; name: string }
 
 export interface ContiCreateScreenProps {
+  surface?: "default" | "tablet";
   onGenerated: (runId: string) => void;
   initialClientId?: string;
   workflowRunId?: string;
@@ -19,7 +20,7 @@ export interface ContiCreateScreenProps {
 
 const emptyStaff = { siljang: false, jikwon: false, other: false };
 
-export default function ContiCreateScreen({ onGenerated, initialClientId, workflowRunId, resourceId, onOpenExisting }: ContiCreateScreenProps) {
+export default function ContiCreateScreen({ surface = "default", onGenerated, initialClientId, workflowRunId, resourceId, onOpenExisting }: ContiCreateScreenProps) {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [hospitalId, setHospitalId] = useState(initialClientId ?? "");
   const [specialty, setSpecialty] = useState("");
@@ -120,7 +121,7 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
   const canGenerate = Boolean(specialty) && (selectedCategories > 0 || staffFlags.siljang || staffFlags.jikwon || (staffFlags.other && otherStaffRole.trim()) || harmony || extraItems.length > 0) && !submitting;
 
   return (
-    <div className={styles.createLayout}>
+    <div className={styles.createLayout} data-conti-surface={surface}>
       <div className={styles.formShell}>
         <main className={styles.formPanel}>
           <header className={styles.formHero}>
@@ -129,13 +130,20 @@ export default function ContiCreateScreen({ onGenerated, initialClientId, workfl
               <h2>필요한 촬영 장면만<br />선택해 주세요.</h2>
               <p>진료과와 참여 인원, 촬영 항목을 고르면 현장에서 바로 사용할 수 있는 순서로 자동 구성합니다.</p>
             </div>
-            <div className={styles.heroActions}>
+            {surface === "default" ? <div className={styles.heroActions}>
               <button type="button" onClick={() => setPreviousOpen(true)} className={styles.previousButton}><History aria-hidden="true" size={14} />이전 콘티 보기</button>
               <button type="button" disabled={importing} onClick={() => importInputRef.current?.click()} className={styles.previousButton}><FileUp aria-hidden="true" size={14} />{importing ? "파일 인식 중…" : "PDF / 이미지 불러오기"}</button>
               <input ref={importInputRef} hidden type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => void handleImport(event.target.files?.[0])} />
               <div className={styles.heroMark}><Camera aria-hidden="true" size={27} strokeWidth={1.5} /></div>
-            </div>
+            </div> : null}
           </header>
+
+          {surface === "tablet" ? <div className={styles.tabletUtilityBar} aria-label="콘티 도구">
+            <button type="button" onClick={() => setPreviousOpen(true)}><History aria-hidden="true" size={15} />이전 콘티 보기</button>
+            <button type="button" disabled={importing} onClick={() => importInputRef.current?.click()}><FileUp aria-hidden="true" size={15} />{importing ? "파일 인식 중…" : "PDF / 이미지 불러오기"}</button>
+            <button type="button" className={styles.tabletCameraButton} aria-label="카메라로 콘티 불러오기" onClick={() => importInputRef.current?.click()}><Camera aria-hidden="true" size={17} /></button>
+            <input ref={importInputRef} hidden type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => void handleImport(event.target.files?.[0])} />
+          </div> : null}
 
           <div className={styles.formBody}>
             <Field step="01" label="병원" optional><select aria-label="병원 선택" name="conti-hospital" value={hospitalId} onChange={(event) => setHospitalId(event.target.value)} className={styles.control}><option value="">병원 연결 없이 만들기</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></Field>

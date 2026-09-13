@@ -160,3 +160,57 @@
   font-size: 9.5px;
   color: #9BB5B0;
 }
+
+/* Document type visual language: these tiles identify the file kind; they are
+   intentionally not clickable app icons. */
+.typeIcon {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 12px;
+}
+.typeIcon_quote { color: #2F9255; background: #EAF7EF; }
+.typeIcon_contract { color: #EF6666; background: #FFF0EF; }
+.typeIcon_storyboard { color: #7650D8; background: #F2ECFF; }
+.typeIcon_general { color: #5793E7; background: #EDF4FF; }
+.typeIcon_memo { color: #B37A26; background: #FFF7E7; }
+.typeIcon_gallery { color: #278F87; background: #E8F7F4; }
+.typeIcon_other { color: #788783; background: #F0F3F2; }
+
+.root[data-documents-surface="tablet"] {
+  grid-template-columns: minmax(180px, 200px) minmax(0, 1fr);
+  font-family: var(--font-sans);
+}
+
+.root[data-documents-surface="tablet"] .sidebar {
+  padding: 16px 12px;
+  gap: 12px;
+  background: #fbfcfb;
+}
+
+.root[data-documents-surface="tablet"] .searchBox { min-height: 42px; border-radius: 11px; }
+.root[data-documents-surface="tablet"] .searchInput { font-size: 13px; font-weight: 300; }
+.root[data-documents-surface="tablet"] .categoryList { gap: 4px; }
+.root[data-documents-surface="tablet"] .categoryItem { min-height: 44px; padding: 0 12px; border-radius: 10px; font-size: 12px; font-weight: 450; }
+.root[data-documents-surface="tablet"] .categoryItemActive { background: #eff7f5; font-weight: 650; }
+
+.root[data-documents-surface="tablet"] .gridScroll { padding: 18px 20px; }
+.root[data-documents-surface="tablet"] .group { margin-bottom: 24px; }
+.root[data-documents-surface="tablet"] .groupTitle { margin-bottom: 11px; color: #315f59; font-size: 13px; font-weight: 650; }
+.root[data-documents-surface="tablet"] .grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.root[data-documents-surface="tablet"] .card { gap: 8px; padding: 14px; border-radius: 15px; border-color: rgba(21, 88, 85, .09); box-shadow: 0 5px 16px rgba(21, 88, 85, .025); }
+.root[data-documents-surface="tablet"] .cardTitle { color: #1c2b28; font-size: 13px; font-weight: 650; }
+.root[data-documents-surface="tablet"] .cardSubtitle { color: #5a7470; font-size: 11px; font-weight: 300; }
+.root[data-documents-surface="tablet"] .cardDate { font-size: 10px; font-weight: 300; }
+.root[data-documents-surface="tablet"] .cardFooter { min-height: 24px; }
+
+@media (max-width: 720px) {
+  .root[data-documents-surface="tablet"] { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .root[data-documents-surface="tablet"] .sidebar { border-right: 0; border-bottom: 1px solid rgba(21, 88, 85, .1); }
+  .root[data-documents-surface="tablet"] .categoryList { flex-direction: row; overflow-x: auto; padding-bottom: 2px; }
+  .root[data-documents-surface="tablet"] .categoryItem { min-width: max-content; }
+  .root[data-documents-surface="tablet"] .gridScroll { padding: 14px; }
+}

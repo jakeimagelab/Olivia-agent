@@ -1,9 +1,10 @@
 "use client";
 
-import { Clapperboard, File, FileSignature, FileText, Images, StickyNote } from "lucide-react";
 import type { OliviaDocumentType } from "@/lib/olivia/documents/types";
 import { useDesktopAppLauncher } from "../../useDesktopAppLauncher";
+import { DocumentTypeIcon } from "./DocumentTypeIcon";
 import styles from "./DocumentsWindowContent.module.css";
+import { Clapperboard, File, FileSignature, FileText, Images, StickyNote } from "lucide-react";
 
 export type DocumentRow = {
   id: string;
@@ -70,7 +71,7 @@ function groupDocuments(documents: DocumentRow[]) {
   return Array.from(groups.entries());
 }
 
-export function DocumentsGrid({ documents, loading }: { documents: DocumentRow[]; loading: boolean }) {
+export function DocumentsGrid({ documents, loading, surface = "desktop" }: { documents: DocumentRow[]; loading: boolean; surface?: "desktop" | "tablet" }) {
   const launchHref = useDesktopAppLauncher();
   if (loading) {
     return <div className={styles.gridEmpty}>불러오는 중...</div>;
@@ -105,7 +106,7 @@ export function DocumentsGrid({ documents, loading }: { documents: DocumentRow[]
                     });
                   }}
                 >
-                  <div className={styles.cardIcon}><Icon size={22} /></div>
+                  {surface === "tablet" ? <DocumentTypeIcon type={doc.type} /> : <div className={styles.cardIcon}><Icon size={22} /></div>}
                   <div className={styles.cardTitle}>{doc.title}</div>
                   <div className={styles.cardSubtitle}>{doc.clientName || doc.projectName || "-"}</div>
                   <div className={styles.cardFooter}>

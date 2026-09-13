@@ -21,6 +21,7 @@ function workspaceKey(clientId?: string, workflowRunId?: string, resourceId?: st
 
 // /conti와 OLIVIA OS 창이 함께 쓰는 단일 콘티 화면.
 export interface ContiV2AppProps {
+  surface?: "default" | "tablet";
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
@@ -30,7 +31,7 @@ export interface ContiV2AppProps {
   registerRequestClose?: (fn: () => void) => void;
 }
 
-export default function ContiV2App({ clientId, workflowRunId, resourceId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
+export default function ContiV2App({ surface = "default", clientId, workflowRunId, resourceId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
   const persistenceKey = workspaceKey(clientId, workflowRunId, resourceId ?? initialRunId);
   const retained = retainedWorkspaces.get(persistenceKey);
   const [runId, setRunId] = useState<string | null>(() => retained?.runId ?? initialRunId ?? null);
@@ -92,7 +93,7 @@ export default function ContiV2App({ clientId, workflowRunId, resourceId, initia
   if (resolvingInitial || (runId && controller.loading)) return <div className={styles.studioLoading}>콘티 스튜디오를 준비하는 중…</div>;
 
   return (
-    <div className={styles.appShell}>
+    <div className={styles.appShell} data-conti-surface={surface}>
       {runId ? (
         <>
           {view === "table" ? (
@@ -110,7 +111,7 @@ export default function ContiV2App({ clientId, workflowRunId, resourceId, initia
           )}
         </>
       ) : (
-        <ContiCreateScreen onGenerated={handleGenerated} onOpenExisting={openRun} initialClientId={clientId} workflowRunId={workflowRunId} resourceId={legacyResourceId} />
+        <ContiCreateScreen surface={surface} onGenerated={handleGenerated} onOpenExisting={openRun} initialClientId={clientId} workflowRunId={workflowRunId} resourceId={legacyResourceId} />
       )}
     </div>
   );

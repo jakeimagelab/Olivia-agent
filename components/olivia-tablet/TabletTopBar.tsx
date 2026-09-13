@@ -23,8 +23,7 @@ export default function TabletTopBar({ app, onHome }: { app: TabletAppDefinition
         </button>
         <span className={styles.topBarDivider} aria-hidden="true" />
         <div className={styles.appIdentity}>
-          {app.id === "home" ? <span>좋은 하루예요.</span> : null}
-          <strong>{app.id === "home" ? "오늘의 업무" : app.title}</strong>
+          <strong>{app.id === "home" ? "좋은 하루예요." : app.title}</strong>
         </div>
       </div>
       <div className={styles.topBarMeta}>

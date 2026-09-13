@@ -527,3 +527,89 @@
   .choice span,
   .detailChoice span { transition: none; }
 }
+
+/* Tablet-only presentation polish. Desktop and standalone /conti keep the
+   original layout and typography because every rule is rooted in the surface
+   attribute supplied by the Tablet adapter. */
+.appShell[data-conti-surface="tablet"] {
+  min-height: 100%;
+  padding: 16px 18px 28px;
+  background: #faf9f6;
+  font-family: var(--font-sans);
+}
+
+.appShell[data-conti-surface="tablet"] .createLayout {
+  grid-template-columns: minmax(0, 1.08fr) minmax(390px, .92fr);
+  gap: 16px;
+  max-width: none;
+}
+
+.appShell[data-conti-surface="tablet"] .formShell,
+.appShell[data-conti-surface="tablet"] .previewShell {
+  padding: 0;
+  border: 1px solid rgba(21, 88, 85, .09);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(21, 88, 85, .045);
+}
+
+.appShell[data-conti-surface="tablet"] .formPanel,
+.appShell[data-conti-surface="tablet"] .previewPanel {
+  border-radius: 17px;
+  box-shadow: none;
+}
+
+.appShell[data-conti-surface="tablet"] .formHero {
+  min-height: 148px;
+  padding: 24px 26px;
+}
+
+.appShell[data-conti-surface="tablet"] .formHero h2,
+.appShell[data-conti-surface="tablet"] .previewTitle h3 { font-weight: 650; }
+.appShell[data-conti-surface="tablet"] .formHero p,
+.appShell[data-conti-surface="tablet"] .hint,
+.appShell[data-conti-surface="tablet"] .optional { font-weight: 300; }
+
+.tabletUtilityBar {
+  min-height: 48px;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-bottom: 1px solid rgba(21, 88, 85, .08);
+  background: #fbfdfc;
+}
+
+.tabletUtilityBar button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(21, 88, 85, .1);
+  border-radius: 10px;
+  padding: 0 11px;
+  color: #315f59;
+  background: #fff;
+  font: 450 10px/1 var(--font-sans);
+  cursor: pointer;
+}
+
+.tabletUtilityBar button:hover { background: #eff7f5; }
+.tabletUtilityBar button:disabled { opacity: .55; cursor: wait; }
+.tabletUtilityBar .tabletCameraButton { width: 36px; justify-content: center; padding: 0; color: #155855; }
+
+.appShell[data-conti-surface="tablet"] .formBody { padding: 8px 24px 2px; }
+.appShell[data-conti-surface="tablet"] .fieldSection { gap: 14px; padding: 15px 0; }
+.appShell[data-conti-surface="tablet"] .fieldLabel,
+.appShell[data-conti-surface="tablet"] .categoryButton,
+.appShell[data-conti-surface="tablet"] .previewTitle h3 { font-weight: 450; }
+.appShell[data-conti-surface="tablet"] .categoryButton strong,
+.appShell[data-conti-surface="tablet"] .choice span,
+.appShell[data-conti-surface="tablet"] .detailChoice span { font-weight: 450; }
+.appShell[data-conti-surface="tablet"] .previewHead { padding: 24px 24px 18px; }
+.appShell[data-conti-surface="tablet"] .sceneList { max-height: none; }
+
+@container (max-width: 900px) {
+  .appShell[data-conti-surface="tablet"] .createLayout { grid-template-columns: 1fr; }
+  .appShell[data-conti-surface="tablet"] .previewShell { position: static; }
+}

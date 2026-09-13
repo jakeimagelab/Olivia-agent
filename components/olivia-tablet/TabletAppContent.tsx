@@ -58,13 +58,14 @@ export default function TabletAppContent({ activeApp, navigation, onNavigate }: 
       <TabletAppFrame compact scroll="page">
         <TabletConti
           key={navigation.resourceId ?? "new-conti"}
+          surface="tablet"
           initialRunId={navigation.resourceId}
           clientId={navigation.clientId}
           workflowRunId={navigation.workflowRunId}
         />
       </TabletAppFrame>
     ); break;
-    case "documents": content = <TabletAppFrame><TabletDocuments /></TabletAppFrame>; break;
+    case "documents": content = <TabletAppFrame><TabletDocuments surface="tablet" /></TabletAppFrame>; break;
     case "olivia-chat": content = <TabletAppFrame><OliviaChatDockTarget id="tablet-os" priority={75} className={styles.tabletChatDock} /></TabletAppFrame>; break;
     case "review-studio": content = <TabletAppFrame compact><TabletReview /></TabletAppFrame>; break;
     case "memo": content = <TabletAppFrame><TabletMemo /></TabletAppFrame>; break;
