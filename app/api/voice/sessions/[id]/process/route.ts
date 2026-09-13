@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { runHermesChat } from "@/lib/hermes/client";
 import {
   isUuid,
   VOICE_PROCESSABLE_STATUSES,
   VOICE_RECORDINGS_BUCKET,
   VOICE_TRANSCRIPTION_MAX_BYTES,
 } from "@/lib/voice/config";
-import { buildTranscriptText, extractVoiceSummary, normalizeTranscriptSegments } from "@/lib/voice/processing";
+import { buildTranscriptText, normalizeTranscriptSegments } from "@/lib/voice/processing";
+import { summarizeVoiceRecording } from "@/lib/voice/summarizer";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { TranscriptSegment, VoiceStatus } from "@/lib/voice/types";
 
@@ -88,33 +88,6 @@ async function transcribeRecording(recording: Record<string, unknown>): Promise<
   return { segments, transcriptText: buildTranscriptText(segments, fallbackText) };
 }
 
-async function organizeWithHermes(id: string, transcriptText: string) {
-  const analysisInstruction = `다음 내용은 Olivia 음성기록의 분석 대상 원문이다.\n\n${transcriptText}\n\n` +
-    `다른 Olivia 정보는 조회하지 말고 어떤 도구도 사용하지 않는다. 원문에 없는 사실을 추가하거나 추측하지 않는다. ` +
-    `반복어와 불필요한 구어 표현만 정리하되 고유명사, 이름, 숫자, 가격, 날짜는 가능한 그대로 유지한다.\n\n` +
-    `반드시 아래 JSON 하나만 출력한다.\n` +
-    `{\n  "title": "짧고 명확한 제목",\n  "summary": "전체 내용을 3~5문장으로 요약",\n` +
-    `  "key_points": ["핵심 내용"],\n  "action_items": ["대화에서 실제로 언급된 후속 행동"]\n}\n` +
-    `할 일이 명확하지 않으면 action_items는 빈 배열이다.`;
-
-  const hermes = await runHermesChat({
-    conversationId: `voice-recording:${id}`,
-    history: [{ role: "user", content: analysisInstruction }],
-    message: "위 음성 기록만 읽고 지정한 JSON 하나로 정리해줘.",
-    context: {
-      recentActions: [],
-      revision: 0,
-      activeWorkspace: "voice-recorder",
-      canEdit: false,
-      canFinalize: false,
-    },
-  });
-  if (hermes.toolCalls.length > 0) {
-    throw new Error("음성 정리 과정에서 허용되지 않은 도구 호출이 감지됐습니다.");
-  }
-  return extractVoiceSummary(hermes.message);
-}
-
 export async function POST(_request: Request, context: RouteContext) {
   const { id } = await context.params;
   if (!isUuid(id)) return NextResponse.json({ error: "기록 ID가 올바르지 않습니다." }, { status: 400 });
@@ -166,7 +139,8 @@ export async function POST(_request: Request, context: RouteContext) {
     }
 
     try {
-      const organized = await organizeWithHermes(id, transcriptText);
+      const organizedResult = await summarizeVoiceRecording(id, transcriptText);
+      const organized = organizedResult.summary;
       const { error: updateError } = await supabase.from("voice_recordings").update({
         title: organized.title || recording.title || "음성 기록",
         summary: organized.summary,
@@ -177,13 +151,20 @@ export async function POST(_request: Request, context: RouteContext) {
         error_message: null,
       }).eq("id", id);
       if (updateError) throw updateError;
-      return NextResponse.json({ success: true, id, status: "completed" });
-    } catch (hermesError) {
-      console.error("[VOICE HERMES]", hermesError);
+      return NextResponse.json({
+        success: true,
+        id,
+        status: "completed",
+        summaryProvider: organizedResult.provider,
+      });
+    } catch (summaryError) {
+      console.error("[VOICE SUMMARY]", summaryError);
       await supabase.from("voice_recordings").update({
         status: "transcribed",
         processed_at: new Date().toISOString(),
-        error_message: hermesError instanceof Error ? `내용 정리 대기: ${hermesError.message}`.slice(0, 4_000) : "내용 정리 대기",
+        error_message: summaryError instanceof Error
+          ? `내용 정리 대기: ${summaryError.message}`.slice(0, 4_000)
+          : "내용 정리 대기",
       }).eq("id", id);
       return NextResponse.json({ success: true, id, status: "transcribed", summaryPending: true });
     }

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { preferredMimeType } from "@/lib/voice/browserRecorder";
 import { baseAudioMimeType, extensionFromMime, VOICE_TRANSCRIPTION_MAX_BYTES } from "@/lib/voice/config";
 import { buildTranscriptText, defaultSpeakerName, extractVoiceSummary, normalizeTranscriptSegments } from "@/lib/voice/processing";
+import { extractOpenAIResponseText, VOICE_SUMMARY_SCHEMA } from "@/lib/voice/summarizer";
 import { resolveFeatureIntent } from "@/lib/olivia/features/resolver";
 
 describe("Olivia voice recorder format selection", () => {
@@ -48,6 +49,15 @@ describe("Olivia voice transcript preservation", () => {
     expect(extractVoiceSummary('```json\n{"title":"미팅","summary":"요약","key_points":["A"],"action_items":[]}\n```'))
       .toEqual({ title: "미팅", summary: "요약", key_points: ["A"], action_items: [] });
   });
+
+  it("reads a strict OpenAI Responses payload for the offline-Hermes fallback", () => {
+    const json = '{"title":"미팅","summary":"정리","key_points":["핵심"],"action_items":[]}';
+    expect(extractOpenAIResponseText({
+      output: [{ content: [{ type: "output_text", text: json }] }],
+    })).toBe(json);
+    expect(VOICE_SUMMARY_SCHEMA.additionalProperties).toBe(false);
+    expect(VOICE_SUMMARY_SCHEMA.required).toEqual(["title", "summary", "key_points", "action_items"]);
+  });
 });
 
 describe("Olivia voice integration guardrails", () => {
@@ -75,9 +85,11 @@ describe("Olivia voice integration guardrails", () => {
     expect(processRoute).toContain('form.append("model", "gpt-4o-transcribe-diarize")');
     expect(processRoute).toContain('form.append("response_format", "diarized_json")');
     expect(processRoute).toContain('form.append("chunking_strategy", "auto")');
-    expect(processRoute).toContain("canEdit: false");
-    expect(processRoute).toContain("canFinalize: false");
-    expect(processRoute).toContain("hermes.toolCalls.length > 0");
+    const summarizer = readFileSync("lib/voice/summarizer.ts", "utf8");
+    expect(summarizer).toContain("canEdit: false");
+    expect(summarizer).toContain("canFinalize: false");
+    expect(summarizer).toContain("hermes.toolCalls.length > 0");
+    expect(summarizer).toContain('provider: "openai"');
     expect(processRoute).toContain('status: "transcribed"');
   });
 
