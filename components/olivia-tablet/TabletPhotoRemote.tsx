@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { CircleDot, FolderOpen, MonitorUp, Radio, Send } from "lucide-react";
 import { AppIcon, type IconName } from "@/components/AppIcon";
+import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
+import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import styles from "./OliviaTabletShell.module.css";
 
 const REMOTE_TOOLS: Array<{ id: string; title: string; description: string; icon: IconName }> = [
@@ -15,6 +17,8 @@ const REMOTE_TOOLS: Array<{ id: string; title: string; description: string; icon
 
 export default function TabletPhotoRemote() {
   const [selectedTool, setSelectedTool] = useState(REMOTE_TOOLS[0].id);
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
+  const [remoteSelection, setRemoteSelection] = useState<RemoteNasSelection | null>(null);
   const selected = REMOTE_TOOLS.find((tool) => tool.id === selectedTool) ?? REMOTE_TOOLS[0];
 
   return (
@@ -42,16 +46,29 @@ export default function TabletPhotoRemote() {
         </div>
         <aside className={styles.remoteRequest}>
           <header><small>REMOTE REQUEST</small><h3>{selected.title}</h3></header>
-          <div className={styles.folderPreview}>
+          <button type="button" className={styles.folderPreview} onClick={() => setSourcePickerOpen(true)}>
             <FolderOpen size={23} strokeWidth={1.6} />
-            <span><small>작업 폴더</small><strong>폴더를 선택하지 않았습니다.</strong></span>
-          </div>
+            <span>
+              <small>작업 폴더</small>
+              <strong>{remoteSelection?.displayPath || remoteSelection?.rootName || "Mac Studio NAS에서 선택"}</strong>
+            </span>
+          </button>
           <label><span>작업 옵션</span><select defaultValue="default" disabled><option value="default">Mac Studio 연결 후 선택</option></select></label>
           <label><span>작업 메모</span><textarea placeholder="Mac Studio에 전달할 지시사항" disabled /></label>
           <button type="button" className={styles.remoteSend} disabled><Send size={17} /> Mac Studio로 보내기</button>
           <p>Mac Studio 연결이 준비되면 전송할 수 있습니다.</p>
         </aside>
       </section>
+
+      {sourcePickerOpen ? (
+        <PhotoSourcePicker
+          onCancel={() => setSourcePickerOpen(false)}
+          onSelectRemote={(selection) => {
+            setRemoteSelection(selection);
+            setSourcePickerOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

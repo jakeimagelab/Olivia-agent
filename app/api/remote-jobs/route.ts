@@ -84,6 +84,42 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  if (action === "PHOTO_SORT") {
+    const sourceFolder = requestedPayload.source_folder;
+
+    if (typeof sourceFolder !== "string") {
+      return Response.json(
+        { ok: false, error: "PHOTO_SORT에는 source_folder 상대경로가 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const safeSourceFolder = normalizeRemoteNasRelativePath(sourceFolder);
+      if (!safeSourceFolder) {
+        return Response.json(
+          { ok: false, error: "NAS Root가 아닌 촬영 폴더를 선택해주세요." },
+          { status: 400 }
+        );
+      }
+
+      // Worker가 반환한 NFD 상대경로는 그대로 유지한다. 브라우저에서 절대경로를
+      // 보내거나 NAS Root 밖으로 이동하는 path segment만 차단한다.
+      payload = {
+        ...requestedPayload,
+        source_folder: safeSourceFolder,
+      };
+    } catch (error) {
+      return Response.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : "올바르지 않은 NAS 작업 경로입니다.",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   const targetWorker =
     typeof body.target_worker === "string" &&
     body.target_worker.trim()

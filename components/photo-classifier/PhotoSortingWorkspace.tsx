@@ -39,11 +39,40 @@ import FolderAnalysisSummary from "./ai-auto/FolderAnalysisSummary";
 import ClassificationPrompt from "./ai-auto/ClassificationPrompt";
 import SceneProposalList from "./ai-auto/SceneProposalList";
 import ClassificationProfilePanel from "./ai-auto/ClassificationProfilePanel";
+import PhotoSourcePicker from "./PhotoSourcePicker";
+import { usePhotoSourceSurface } from "./usePhotoSourceSurface";
+import type { RemoteNasSelection } from "@/lib/remote-nas/types";
+import {
+  PHOTO_EXECUTION_MODE_STORAGE_KEY,
+  photoSourceModesForSurface,
+  resolvePhotoExecutionMode,
+  type ExecutionMode,
+} from "@/lib/photo-classifier/photoSource";
+import {
+  runRemotePhotoSort,
+  type RemotePhotoSortJob,
+} from "@/lib/photo-classifier/remotePhotoSort";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
 ═══════════════════════════════════════════════ */
 type PhotoMode = "field" | "studio";
+
+const REMOTE_PHOTO_SORT_STATUS_LABEL: Record<RemotePhotoSortJob["status"], string> = {
+  QUEUED: "Mac Studio 작업 대기 중",
+  RUNNING: "Mac Studio 작업 중",
+  COMPLETED: "작업 완료",
+  FAILED: "작업 실패",
+};
+
+function isSimulatedRemoteResult(result: unknown): boolean {
+  if (!result) return false;
+  if (typeof result === "string") return result.toUpperCase().includes("SIMULATED");
+  if (typeof result !== "object" || Array.isArray(result)) return false;
+  return Object.values(result).some(
+    (value) => typeof value === "string" && value.toUpperCase() === "SIMULATED",
+  );
+}
 
 /* ── Studio-mode types ── */
 type StudioLightingStatus = "normal" | "etc_dark" | "etc_black" | "etc_test";
@@ -645,6 +674,7 @@ function PhotoSortingInner({
   const router = useRouter();
   const clientId = isModal ? (modalClientId ?? "") : (sp.get("clientId") ?? sp.get("client_id") ?? "");
   const workflowRunId = isModal ? (modalWorkflowRunId ?? "") : (sp.get("workflowRunId") ?? "");
+  const photoSourceSurface = usePhotoSourceSurface();
 
   /* ── shared state ── */
   const [photoMode,  setPhotoMode]  = useState<PhotoMode>("field");
@@ -666,6 +696,29 @@ function PhotoSortingInner({
   // 폴더 선택 실패를 화면에 보여준다 — 예전엔 catch가 비어 있어서 실패해도 아무 반응이 없었다
   // (사용자 보고: "키 자체가 안먹혀" — 버튼을 눌러도 그냥 아무 일도 안 일어남).
   const [dirPickError, setDirPickError] = useState("");
+  const [photoSourcePickerOpen, setPhotoSourcePickerOpen] = useState(false);
+  const [remoteSelection, setRemoteSelection] = useState<RemoteNasSelection | null>(null);
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>("LOCAL_DIRECT");
+  const [remotePhotoSortJob, setRemotePhotoSortJob] = useState<RemotePhotoSortJob | null>(null);
+  const [remotePhotoSortError, setRemotePhotoSortError] = useState("");
+  const [remotePhotoSortSubmitting, setRemotePhotoSortSubmitting] = useState(false);
+  const remotePhotoSortAbortRef = useRef<AbortController | null>(null);
+  const remotePhotoSortActive =
+    remotePhotoSortSubmitting || remotePhotoSortJob?.status === "QUEUED" || remotePhotoSortJob?.status === "RUNNING";
+
+  useEffect(() => {
+    let storedMode: string | null = null;
+    try {
+      storedMode = localStorage.getItem(PHOTO_EXECUTION_MODE_STORAGE_KEY);
+    } catch {}
+    setExecutionMode(resolvePhotoExecutionMode(photoSourceSurface, storedMode));
+  }, [photoSourceSurface]);
+
+  useEffect(() => () => {
+    const controller = remotePhotoSortAbortRef.current;
+    remotePhotoSortAbortRef.current = null;
+    controller?.abort();
+  }, []);
 
   /* ── field state ── */
   const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
@@ -877,6 +930,7 @@ function PhotoSortingInner({
     try {
       const h = await (window as any).showDirectoryPicker({ mode:"readwrite" });
       setRootDir(h);
+      setPhotoSourcePickerOpen(false);
     } catch (err: any) {
       if (err?.name === "AbortError") return; // 사용자가 선택 창에서 취소함 — 에러 아님
       setDirPickError(
@@ -887,18 +941,102 @@ function PhotoSortingInner({
     }
   };
 
-  // OLIVIA OS AppWindow 안에서는 창 포커스 처리와 React click 합성 사이에서 네이티브
-  // directory picker의 사용자 활성화가 유실될 수 있다. 포인터 입력은 pointerdown에서 즉시
-  // 실행하고, 키보드로 활성화한 버튼(detail === 0)은 click에서 실행해 중복 호출 없이 둘 다
-  // 지원한다.
-  const pickDirOnPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0) return;
-    void pickDir();
+  const chooseExecutionMode = (nextMode: ExecutionMode) => {
+    if (!photoSourceModesForSurface(photoSourceSurface).includes(nextMode)) return;
+    setExecutionMode(nextMode);
+    setDirPickError("");
+    setPhotoSourcePickerOpen(false);
+    if (nextMode === "REMOTE_WORKER") {
+      setAiShootingPattern(null);
+      setAiSceneProposals([]);
+      setAiScanFileCount(0);
+      aiScanEntriesRef.current = [];
+    }
+    try {
+      localStorage.setItem(PHOTO_EXECUTION_MODE_STORAGE_KEY, nextMode);
+    } catch {}
   };
 
-  const pickDirOnKeyboardClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const openPhotoSourcePicker = () => {
+    setDirPickError("");
+    setPhotoSourcePickerOpen(true);
+  };
+
+  const selectRemoteFolder = (selection: RemoteNasSelection) => {
+    setRemoteSelection(selection);
+    setRemotePhotoSortJob(null);
+    setRemotePhotoSortError("");
+    setDirPickError("");
+    setPhotoSourcePickerOpen(false);
+  };
+
+  const handleFolderPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (executionMode === "LOCAL_DIRECT" && event.button === 0) void pickDir();
+  };
+
+  const handleFolderClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (executionMode === "REMOTE_WORKER") {
+      openPhotoSourcePicker();
+      return;
+    }
+    // Pointer로 연 Finder를 click에서 다시 열지 않고, 키보드 활성화만 보완한다.
     if (event.detail === 0) void pickDir();
   };
+
+  const handleRemotePhotoSort = useCallback(async () => {
+    if (!remoteSelection?.path) {
+      setRemotePhotoSortError("NAS Root가 아닌 촬영 폴더를 선택해주세요.");
+      return;
+    }
+
+    remotePhotoSortAbortRef.current?.abort();
+    const controller = new AbortController();
+    remotePhotoSortAbortRef.current = controller;
+    setRemotePhotoSortJob(null);
+    setRemotePhotoSortError("");
+    setRemotePhotoSortSubmitting(true);
+
+    try {
+      await runRemotePhotoSort({
+        // 화면 표시용 displayPath가 아니라 Worker가 반환한 raw relative path다.
+        source_folder: remoteSelection.path,
+        shooting_mode: photoMode,
+        department,
+        gap_minutes: photoMode === "studio" ? studioGapMinutes : gapMinutes,
+        classification_ui_mode: classificationUiMode,
+        fast_analyze_mode: fastAnalyzeMode,
+        department_logic_enabled: departmentLogicEnabled,
+        ai_naming_enabled: aiNamingEnabled,
+        quality_analysis_enabled: qualityAnalysisEnabled,
+        profile_classification_enabled: profileClassificationEnabled,
+      }, {
+        signal: controller.signal,
+        onJob: setRemotePhotoSortJob,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setRemotePhotoSortError(
+        error instanceof Error ? error.message : "Mac Studio 사진 분류 작업에 실패했습니다.",
+      );
+    } finally {
+      if (remotePhotoSortAbortRef.current === controller) {
+        remotePhotoSortAbortRef.current = null;
+        setRemotePhotoSortSubmitting(false);
+      }
+    }
+  }, [
+    remoteSelection,
+    photoMode,
+    department,
+    studioGapMinutes,
+    gapMinutes,
+    classificationUiMode,
+    fastAnalyzeMode,
+    departmentLogicEnabled,
+    aiNamingEnabled,
+    qualityAnalysisEnabled,
+    profileClassificationEnabled,
+  ]);
 
   // AI 사진 분류 2.0 — 폴더를 고르면 실제 정밀 분류(handleFieldSort, Vision 호출 포함)를 돌리기
   // 전에 먼저 가볍게 "이번 촬영엔 뭐가 중요한지" 물어본다. 이미지 전송 없음(메타데이터+이미
@@ -958,10 +1096,10 @@ function PhotoSortingInner({
   }, [rootDir, department, gapMinutes]);
 
   useEffect(() => {
-    if (!rootDir || photoMode !== "field" || classificationUiMode !== "ai-auto") return;
+    if (executionMode !== "LOCAL_DIRECT" || !rootDir || photoMode !== "field" || classificationUiMode !== "ai-auto") return;
     runAiFolderAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rootDir, photoMode, classificationUiMode]);
+  }, [executionMode, rootDir, photoMode, classificationUiMode]);
 
   // 자연어 재조정 — 화이트리스트 필드(ClassificationOverrides)만 파싱해 현재 profile에 머지한다
   // (스펙 §20, 임의 코드 실행 없음). Step0에서 아직 분류 전이면 미리보기만 갱신하고, 이미 결과를
@@ -2696,6 +2834,115 @@ function PhotoSortingInner({
     </div>
   );
 
+  const renderPhotoSourceControl = (emptyLabel: string) => {
+    const availableModes = photoSourceModesForSurface(photoSourceSurface);
+    const selected = executionMode === "LOCAL_DIRECT" ? Boolean(rootDir) : Boolean(remoteSelection);
+    const simulated = remotePhotoSortJob?.status === "COMPLETED"
+      && isSimulatedRemoteResult(remotePhotoSortJob.result);
+
+    return (
+      <>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:800,color:C.muted,marginBottom:7}}>작업 위치</div>
+          <div style={{display:"grid",gridTemplateColumns:availableModes.length > 1 ? "1fr 1fr" : "1fr",gap:8}}>
+            {availableModes.includes("LOCAL_DIRECT") ? (
+              <button
+                type="button"
+                disabled={remotePhotoSortActive}
+                onClick={() => chooseExecutionMode("LOCAL_DIRECT")}
+                style={{
+                  minHeight:48,padding:"8px 11px",borderRadius:9,cursor:remotePhotoSortActive?"not-allowed":"pointer",
+                  border:`1.5px solid ${executionMode === "LOCAL_DIRECT" ? C.teal : C.border}`,
+                  background:executionMode === "LOCAL_DIRECT" ? C.light : C.white,
+                  color:executionMode === "LOCAL_DIRECT" ? C.teal : C.muted,
+                  fontFamily:"inherit",fontSize:11,fontWeight:800,textAlign:"left",opacity:remotePhotoSortActive ? .62 : 1,
+                }}
+              >
+                💻 이 기기에서 작업
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={remotePhotoSortActive}
+              onClick={() => chooseExecutionMode("REMOTE_WORKER")}
+              style={{
+                minHeight:48,padding:"8px 11px",borderRadius:9,cursor:remotePhotoSortActive?"not-allowed":"pointer",
+                border:`1.5px solid ${executionMode === "REMOTE_WORKER" ? C.teal : C.border}`,
+                background:executionMode === "REMOTE_WORKER" ? C.light : C.white,
+                color:executionMode === "REMOTE_WORKER" ? C.teal : C.muted,
+                fontFamily:"inherit",fontSize:11,fontWeight:800,textAlign:"left",opacity:remotePhotoSortActive ? .62 : 1,
+              }}
+            >
+              🖥 Mac Studio 원격 작업
+            </button>
+          </div>
+          {photoSourceSurface !== "desktop" ? (
+            <div style={{fontSize:10,color:C.hint,marginTop:6}}>모바일·태블릿에서는 Mac Studio 원격 작업만 지원합니다.</div>
+          ) : null}
+        </div>
+
+        <button
+          type="button"
+          disabled={remotePhotoSortActive}
+          onPointerDown={handleFolderPointerDown}
+          onClick={handleFolderClick}
+          style={{
+            width:"100%", minHeight:52, border:`1.5px dashed ${C.border}`, borderRadius:10,
+            background:C.white, cursor:remotePhotoSortActive?"not-allowed":"pointer", fontSize:13, fontWeight:700,
+            color:selected?C.green:C.teal, display:"flex", alignItems:"center", textAlign:"left",
+            gap:10, padding:"10px 18px", fontFamily:"inherit",opacity:remotePhotoSortActive ? .64 : 1,
+          }}
+        >
+          {executionMode === "LOCAL_DIRECT" && rootDir ? (
+            <><span>✅</span>{rootDir.name}</>
+          ) : executionMode === "REMOTE_WORKER" && remoteSelection ? (
+            <><span>✅</span>{remoteSelection.rootName}{remoteSelection.displayPath ? ` > ${remoteSelection.displayPath.replaceAll("/", " > ")}` : ""}</>
+          ) : executionMode === "REMOTE_WORKER" ? (
+            <><span>🖥</span>NAS 작업 폴더 선택</>
+          ) : (
+            <><span>📂</span>{emptyLabel}</>
+          )}
+        </button>
+
+        {executionMode === "REMOTE_WORKER" && remoteSelection ? (
+          <div style={{marginTop:8,padding:"9px 12px",background:"#FFF7F2",borderRadius:8,fontSize:11,color:"#9A4B2B",border:"1px solid #FFD9C9",lineHeight:1.55}}>
+            이 경로의 파일은 브라우저로 전송하지 않고 Mac Studio에서 처리합니다.
+          </div>
+        ) : null}
+
+        {executionMode === "REMOTE_WORKER" && (remotePhotoSortSubmitting || remotePhotoSortJob || remotePhotoSortError) ? (
+          <div
+            aria-live="polite"
+            style={{
+              marginTop:8,padding:"10px 12px",borderRadius:8,fontSize:11,lineHeight:1.55,
+              background:remotePhotoSortError||remotePhotoSortJob?.status==="FAILED"?"#FFF3F0":remotePhotoSortJob?.status==="COMPLETED"?"#F0FDF4":"#EFF7F5",
+              color:remotePhotoSortError||remotePhotoSortJob?.status==="FAILED"?"#B42318":remotePhotoSortJob?.status==="COMPLETED"?"#166534":C.teal,
+              border:`1px solid ${remotePhotoSortError||remotePhotoSortJob?.status==="FAILED"?"#FFD1C7":remotePhotoSortJob?.status==="COMPLETED"?"#BBF7D0":C.border}`,
+            }}
+          >
+            <strong>
+              {remotePhotoSortError
+                ? "작업 실패"
+                : remotePhotoSortJob
+                  ? REMOTE_PHOTO_SORT_STATUS_LABEL[remotePhotoSortJob.status]
+                  : "Mac Studio 작업 요청 중"}
+              {simulated ? " · DRY RUN" : ""}
+            </strong>
+            {remotePhotoSortJob?.message ? <div>{remotePhotoSortJob.message}</div> : null}
+            {remotePhotoSortError ? <div>{remotePhotoSortError}</div> : null}
+            {remotePhotoSortJob?.id ? <div style={{marginTop:2,opacity:.62}}>작업 ID {remotePhotoSortJob.id}</div> : null}
+          </div>
+        ) : null}
+
+        {dirPickError ? (
+          <div style={{marginTop:8,padding:"8px 12px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>
+            ⚠️ {dirPickError}
+          </div>
+        ) : null}
+      </>
+    );
+  };
+
   /* ════════════════════════════════════════════
      STEP 0 — 설정 (FIELD)
   ═══════════════════════════════════════════ */
@@ -2709,7 +2956,7 @@ function PhotoSortingInner({
       <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth: aiAutoActive ? 1120 : 700}}>
 
         {/* 이전 작업 복원 배너 */}
-        {savedSession && (
+        {savedSession && photoSourceSurface === "desktop" && (
           <div style={{background:"#E8F0F5",border:"1.5px solid #B8CBD8",borderRadius:12,padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:18}}>💾</span>
@@ -2758,10 +3005,7 @@ function PhotoSortingInner({
                   <Card>
                     <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>폴더 선택</div>
                     <div style={{padding:20}}>
-                      <button type="button" onPointerDown={pickDirOnPointerDown} onClick={pickDirOnKeyboardClick} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
-                        {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 폴더 선택</>}
-                      </button>
-                      {dirPickError && <div style={{marginTop:8,padding:"8px 12px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>⚠️ {dirPickError}</div>}
+                      {renderPhotoSourceControl("RAW+JPG 혼합 폴더 선택")}
                     </div>
                   </Card>
 
@@ -2785,8 +3029,13 @@ function PhotoSortingInner({
                 <div style={{display:"flex",flexDirection:"column",gap:16}}>
                   <FolderAnalysisSummary analyzing={aiAnalyzing} pattern={aiShootingPattern} fileCount={aiScanFileCount} />
                   <SceneProposalList proposals={aiSceneProposals} />
-                  {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
-                  <Btn onClick={handleFieldSort} disabled={!rootDir||!hasFS||aiAnalyzing}>AI 자동 분류 시작 →</Btn>
+                  {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
+                  <Btn
+                    onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
+                    disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS||aiAnalyzing) : (!remoteSelection?.path||remotePhotoSortActive)}
+                  >
+                    {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "AI 자동 분류 시작 →"}
+                  </Btn>
                 </div>
 
                 {/* RIGHT — 추천 기준(쉬운 말) + 고급 설정 진입 */}
@@ -2798,10 +3047,7 @@ function PhotoSortingInner({
                 <Card>
                   <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>폴더 선택</div>
                   <div style={{padding:20}}>
-                    <button type="button" onPointerDown={pickDirOnPointerDown} onClick={pickDirOnKeyboardClick} style={{width:"100%",height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.teal,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
-                      {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 폴더 선택</>}
-                    </button>
-                    {dirPickError && <div style={{marginTop:8,padding:"8px 12px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>⚠️ {dirPickError}</div>}
+                    {renderPhotoSourceControl("RAW+JPG 혼합 폴더 선택")}
                   </div>
                 </Card>
 
@@ -2899,8 +3145,13 @@ function PhotoSortingInner({
                   </div>
                 </Card>
 
-                {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
-                <Btn onClick={handleFieldSort} disabled={!rootDir||!hasFS}>현장촬영 분류 시작 →</Btn>
+                {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
+                <Btn
+                  onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
+                  disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||remotePhotoSortActive)}
+                >
+                  {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "현장촬영 분류 시작 →"}
+                </Btn>
               </>
             )}
           </>
@@ -2972,10 +3223,7 @@ function PhotoSortingInner({
             <Card>
               <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.purple}}>폴더 선택</div>
               <div style={{padding:20,display:"flex",flexDirection:"column",gap:14}}>
-                <button type="button" onPointerDown={pickDirOnPointerDown} onClick={pickDirOnKeyboardClick} style={{height:52,border:`1.5px dashed ${C.border}`,borderRadius:10,background:C.white,cursor:"pointer",fontSize:13,fontWeight:700,color:rootDir?C.green:C.purple,display:"flex",alignItems:"center",gap:10,padding:"0 18px",fontFamily:"inherit"}}>
-                  {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>RAW+JPG 혼합 백업 폴더 선택</>}
-                </button>
-                {dirPickError && <div style={{padding:"8px 12px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>⚠️ {dirPickError}</div>}
+                {renderPhotoSourceControl("RAW+JPG 혼합 백업 폴더 선택")}
                 <div>
                   <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:6}}>조명 불량 ETC 기준</div>
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
@@ -3000,8 +3248,14 @@ function PhotoSortingInner({
                 </div>
               </div>
             </Card>
-            {!hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 파일 시스템 접근이 가능합니다.</div>}
-            <Btn style={{background:C.purple}} onClick={handleStudioSort} disabled={!rootDir||!hasFS}>스튜디오 분류 시작 →</Btn>
+            {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
+            <Btn
+              style={{background:C.purple}}
+              onClick={executionMode === "LOCAL_DIRECT" ? handleStudioSort : handleRemotePhotoSort}
+              disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||remotePhotoSortActive)}
+            >
+              {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "스튜디오 분류 시작 →"}
+            </Btn>
           </>
         )}
       </div>
@@ -4007,6 +4261,13 @@ function PhotoSortingInner({
           {photoMode==="studio" && step===6 && <StudioStep6/>}
         </div>
       </div>
+
+      {photoSourcePickerOpen ? (
+        <PhotoSourcePicker
+          onCancel={() => setPhotoSourcePickerOpen(false)}
+          onSelectRemote={selectRemoteFolder}
+        />
+      ) : null}
     </div>
   );
 }

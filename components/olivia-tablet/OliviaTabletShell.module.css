@@ -296,10 +296,10 @@
 .remoteRequest { display: flex; flex-direction: column; gap: 14px; }
 .remoteRequest header small { color: #849b96; font-size: 8px; font-weight: 850; letter-spacing: 0.15em; }
 .remoteRequest h3 { margin: 4px 0 0; font-size: 18px; letter-spacing: -0.035em; }
-.folderPreview { min-height: 66px; padding: 12px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; border-radius: 14px; color: #78908b; background: #f5f8f7; }
+.folderPreview { width: 100%; min-height: 66px; padding: 12px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; border: 1px solid transparent; border-radius: 14px; color: #e85d2c; background: #fff5f0; text-align: left; cursor: pointer; }
 .folderPreview > span { display: grid; gap: 3px; }
 .folderPreview small { font-size: 9px; }
-.folderPreview strong { color: #506b66; font-size: 11px; }
+.folderPreview strong { overflow: hidden; color: #506b66; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .remoteRequest label { display: grid; gap: 6px; color: #607b76; font-size: 10px; font-weight: 740; }
 .remoteRequest select, .remoteRequest textarea { width: 100%; min-height: 46px; padding: 0 12px; border: 1px solid var(--olivia-border); border-radius: 12px; color: #819792; background: #fafbfa; }
 .remoteRequest textarea { min-height: 78px; padding-top: 11px; resize: none; }

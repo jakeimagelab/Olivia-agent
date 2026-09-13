@@ -1,0 +1,23 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 43, 39, 0.28);
+  backdrop-filter: blur(8px);
+}
+
+.loading {
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+  color: #6e8580;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .overlay { padding: 0; background: #faf9f6; backdrop-filter: none; }
+}
