@@ -4,6 +4,7 @@ import { Check, FolderOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import RemoteNasBrowser from "@/components/remote-nas/RemoteNasBrowser";
+import { remoteWorkerNasDataSource } from "@/lib/remote-nas/remoteNasDataSource";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import styles from "./page.module.css";
 
@@ -14,6 +15,7 @@ export default function RemoteFilesPage() {
   return (
     <main className={styles.page}>
       <RemoteNasBrowser
+        dataSource={remoteWorkerNasDataSource}
         onCancel={() => router.push("/")}
         onSelect={(_path, nextSelection) => setSelection(nextSelection)}
       />

@@ -21,8 +21,12 @@ import {
   parentRemoteNasPath,
   toRemoteNasDisplayPath,
 } from "@/lib/remote-nas/path";
-import { mockRemoteNasDataSource } from "@/lib/remote-nas/remoteNasDataSource";
+import {
+  mockRemoteNasDataSource,
+  RemoteNasDataSourceError,
+} from "@/lib/remote-nas/remoteNasDataSource";
 import type {
+  RemoteNasConnectionState,
   RemoteNasDataSource,
   RemoteNasEntry,
   RemoteNasFolderResult,
@@ -87,6 +91,7 @@ export default function RemoteNasBrowser({
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorConnection, setErrorConnection] = useState<RemoteNasConnectionState | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const deferredQuery = useDeferredValue(query);
 
@@ -96,14 +101,17 @@ export default function RemoteNasBrowser({
 
     setLoading(true);
     setError("");
+    setErrorConnection(null);
     dataSource.listFolder(currentPath, { signal: controller.signal })
       .then((nextResult) => {
         if (!active) return;
         setResult(nextResult);
+        setErrorConnection(null);
       })
       .catch((cause: unknown) => {
         if (!active || (cause instanceof DOMException && cause.name === "AbortError")) return;
         setError(cause instanceof Error ? cause.message : "NAS 폴더를 불러오지 못했습니다.");
+        if (cause instanceof RemoteNasDataSourceError) setErrorConnection(cause.connection);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -148,11 +156,13 @@ export default function RemoteNasBrowser({
 
   const totalEntries = result?.path === currentPath ? result.entries.length : 0;
   const displayLocation = currentPath ? toRemoteNasDisplayPath(currentPath) : "NAS Root";
-  const sourceIsMock = result?.connection.source === "mock";
-  const macStudioState = result?.connection.macStudio ?? "unknown";
-  const nasState = result?.connection.nas ?? "unknown";
-  const macStudioLabel = macStudioState === "offline" ? "Offline" : macStudioState === "online" ? "Online" : "Checking";
-  const nasLabel = nasState === "disconnected" ? "Disconnected" : nasState === "connected" ? "Connected" : "Checking";
+  const connection = errorConnection ?? result?.connection;
+  const sourceIsMock = connection?.source === "mock";
+  const macStudioState = connection?.macStudio ?? "unknown";
+  const nasState = connection?.nas ?? "unknown";
+  const unknownLabel = error ? "Unknown" : "Checking";
+  const macStudioLabel = macStudioState === "offline" ? "Offline" : macStudioState === "online" ? "Online" : unknownLabel;
+  const nasLabel = nasState === "disconnected" ? "Disconnected" : nasState === "connected" ? "Connected" : unknownLabel;
 
   return (
     <section className={styles.browser} aria-label="원격 NAS 파일 브라우저">
