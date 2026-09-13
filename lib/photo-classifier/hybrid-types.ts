@@ -124,12 +124,15 @@ export type SceneBoundaryDecision = {
   needsReview: boolean;
 };
 
-export type TimestampedFile = {
+export type TimestampedPhoto = {
   name: string;
-  handle: FileSystemFileHandle;
   mtime: number;
   timestampSource: TimestampSource;
   warning?: string;
+};
+
+export type TimestampedFile = TimestampedPhoto & {
+  handle: FileSystemFileHandle;
 };
 
 export type CandidateSegment = { startIndex: number; endIndex: number; hardBoundaryAfter: boolean };

@@ -52,6 +52,11 @@ import {
   runRemotePhotoSort,
   type RemotePhotoSortJob,
 } from "@/lib/photo-classifier/remotePhotoSort";
+import {
+  JPG_PHOTO_EXTENSIONS,
+  PROFILE_EXCLUDED_SCENE_TYPES,
+  RAW_PHOTO_EXTENSIONS,
+} from "@/lib/photo-classifier/constants";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -132,8 +137,8 @@ interface PersonGroup {
 /* ════════════════════════════════════════════════
    CONSTANTS
 ═══════════════════════════════════════════════ */
-const RAW_EXTS = new Set(["arw","cr3","cr2","nef","raf","dng","orf","rw2"]);
-const JPG_EXTS = new Set(["jpg","jpeg"]);
+const RAW_EXTS = RAW_PHOTO_EXTENSIONS;
+const JPG_EXTS = JPG_PHOTO_EXTENSIONS;
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — handleFieldSort만
 // 이 id로 startJob을 부른다(스튜디오 모드 handleStudioSort는 범위 밖, 이 id로 등록 안 함).
 const PHOTO_CLASSIFY_JOB_ID = "photo-classify";
@@ -1989,12 +1994,7 @@ function PhotoSortingInner({
   }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir, boundaryDecisions, sceneCorrections, accuracyReport, department, gapMinutes]);
 
   // 프로필 제외 장면 타입 (이 타입이면 절대 프로필로 보내지 않음)
-  const PROFILE_EXCLUDE_TYPES = new Set([
-    "injection_treatment","laser_treatment","device_treatment","lifting_laser_treatment",
-    "doctor_treatment","surgery_scene","implant_surgery","dental_treatment",
-    "doctor_consultation","manager_consultation","skin_care","physical_therapy",
-    "c_arm_procedure","ultrasound_procedure","xray","shockwave_manual_therapy",
-  ]);
+  const PROFILE_EXCLUDE_TYPES = PROFILE_EXCLUDED_SCENE_TYPES;
 
   const runSecondaryAnalysis = async (scenes: FieldScene[]) => {
     const total = scenes.reduce((s,sc)=>s+sc.fileCount,0);

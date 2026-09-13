@@ -1,5 +1,11 @@
 import type { LocalVisualFeatures } from "./hybrid-types";
 
+export type PixelImageData = {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+};
+
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
 function normalize(values: number[]): number[] {
@@ -18,7 +24,7 @@ function samplePixel(data: Uint8ClampedArray, width: number, height: number, xRa
   return [data[offset], data[offset + 1], data[offset + 2]] as const;
 }
 
-export function extractVisualFeaturesFromImageData(imageData: ImageData): LocalVisualFeatures {
+export function extractVisualFeaturesFromImageData(imageData: PixelImageData): LocalVisualFeatures {
   const { data, width, height } = imageData;
   const histogram = new Array<number>(64).fill(0);
   let brightnessTotal = 0;

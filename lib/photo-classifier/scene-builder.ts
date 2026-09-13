@@ -11,42 +11,77 @@ export function simpleSceneFolderName(index: number, sceneType: HybridSceneType 
   return `${String(index).padStart(2, "0")}_${LABELS[sceneType]}`;
 }
 
-export function buildFieldScenesFromBoundaries(
-  files: SceneFile[],
+export type SceneRange = {
+  index: number;
+  startIndex: number;
+  endIndex: number;
+  sceneType: HybridSceneType;
+  folderName: string;
+  aiConfidence: number | null;
+  boundaryBefore?: SceneBoundaryDecision;
+};
+
+/**
+ * File-handle-independent Scene plan shared by browser and Node runners.
+ * `endIndex` is exclusive, matching Array#slice.
+ */
+export function buildSceneRangesFromBoundaries(
+  totalImages: number,
   decisions: SceneBoundaryDecision[],
-): FieldScene[] {
+): SceneRange[] {
   const splitByIndex = new Map(decisions.filter((decision) => decision.decision !== "merge")
     .map((decision) => [decision.boundaryIndex, decision]));
-  const starts = [0, ...Array.from(splitByIndex.keys()).sort((a, b) => a - b), files.length];
-  const scenes: FieldScene[] = [];
+  const starts = [0, ...Array.from(splitByIndex.keys()).sort((a, b) => a - b), totalImages];
   const firstAnalysis = decisions.find((decision) => decision.aiAnalysis)?.aiAnalysis;
+  const ranges: SceneRange[] = [];
+
   for (let part = 0; part < starts.length - 1; part++) {
-    const sceneFiles = files.slice(starts[part], starts[part + 1]);
-    if (sceneFiles.length === 0) continue;
-    const index = scenes.length + 1;
+    if (starts[part] >= starts[part + 1]) continue;
+    const index = ranges.length + 1;
     const boundaryBefore = splitByIndex.get(starts[part]);
     const sceneType = part === 0
       ? firstAnalysis?.beforeSceneType ?? "etc"
       : boundaryBefore?.aiAnalysis?.afterSceneType ?? "etc";
-    const folderName = simpleSceneFolderName(index, sceneType);
-    scenes.push({
+    ranges.push({
       index,
-      folderName,
-      editedName: folderName,
+      startIndex: starts[part],
+      endIndex: starts[part + 1],
+      sceneType,
+      folderName: simpleSceneFolderName(index, sceneType),
+      aiConfidence: (part === 0 ? firstAnalysis?.confidence : boundaryBefore?.aiAnalysis?.confidence) ?? null,
+      boundaryBefore,
+    });
+  }
+
+  return ranges;
+}
+
+export function buildFieldScenesFromBoundaries(
+  files: SceneFile[],
+  decisions: SceneBoundaryDecision[],
+): FieldScene[] {
+  const scenes: FieldScene[] = [];
+  for (const range of buildSceneRangesFromBoundaries(files.length, decisions)) {
+    const sceneFiles = files.slice(range.startIndex, range.endIndex);
+    if (sceneFiles.length === 0) continue;
+    scenes.push({
+      index: range.index,
+      folderName: range.folderName,
+      editedName: range.folderName,
       startTime: sceneFiles[0].mtime,
       endTime: sceneFiles[sceneFiles.length - 1].mtime,
       fileCount: sceneFiles.length,
       files: sceneFiles,
       sceneDir: null,
       sceneType: null,
-      suggestedName: folderName,
-      aiConfidence: (part === 0 ? firstAnalysis?.confidence : boundaryBefore?.aiAnalysis?.confidence) ?? null,
-      aiReason: boundaryBefore?.reasons.join(" · ") ?? null,
+      suggestedName: range.folderName,
+      aiConfidence: range.aiConfidence,
+      aiReason: range.boundaryBefore?.reasons.join(" · ") ?? null,
       subScenes: [],
       profileCount: 0,
       qualityRejectCount: 0,
       nameLoading: false,
-      boundaryBefore,
+      boundaryBefore: range.boundaryBefore,
       approved: false,
     });
   }

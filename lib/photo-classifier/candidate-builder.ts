@@ -1,10 +1,10 @@
 import type {
   CandidateSegment, LocalVisualFeatures, SceneClassificationSettings,
-  TimestampedFile, VisualBoundaryCandidate,
+  TimestampedPhoto, VisualBoundaryCandidate,
 } from "./hybrid-types";
 import { medianVisualFeatures, visualChangeScore } from "./visual-feature";
 
-export function sortTimestampedFiles<T extends TimestampedFile>(files: T[]): T[] {
+export function sortTimestampedFiles<T extends TimestampedPhoto>(files: T[]): T[] {
   return [...files].sort((left, right) => {
     const timeDifference = left.mtime - right.mtime;
     return timeDifference !== 0
@@ -13,7 +13,7 @@ export function sortTimestampedFiles<T extends TimestampedFile>(files: T[]): T[]
   });
 }
 
-export function buildCandidateSegments(files: TimestampedFile[], hardGapMinutes: number): CandidateSegment[] {
+export function buildCandidateSegments(files: TimestampedPhoto[], hardGapMinutes: number): CandidateSegment[] {
   if (files.length === 0) return [];
   const hardGapMs = hardGapMinutes * 60_000;
   const segments: CandidateSegment[] = [];
@@ -28,7 +28,7 @@ export function buildCandidateSegments(files: TimestampedFile[], hardGapMinutes:
 }
 
 export function buildVisualBoundaryCandidates(
-  files: TimestampedFile[],
+  files: TimestampedPhoto[],
   features: LocalVisualFeatures[],
   settings: SceneClassificationSettings,
 ): VisualBoundaryCandidate[] {
