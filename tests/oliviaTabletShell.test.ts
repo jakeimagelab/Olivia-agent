@@ -63,14 +63,46 @@ describe("Olivia Tablet Shell", () => {
     expect(appContent).toContain("data-tablet-active-app");
   });
 
-  it("uses the compact one-screen Home and orange-dot-only Dock state", () => {
+  it("uses a fixed-size scrollable Dock and a compact one-screen Home", () => {
     const css = readFileSync("components/olivia-tablet/OliviaTabletShell.module.css", "utf8");
     const home = readFileSync("components/olivia-tablet/TabletHome.tsx", "utf8");
     expect(css).toMatch(/\.dockButtonActive\s*\{[^}]*background:\s*transparent/);
     expect(css).toMatch(/\.dockIndicator\s*\{[^}]*var\(--olivia-orange\)/);
-    expect(css).toMatch(/grid-template-columns:\s*repeat\(13,/);
+    expect(css).toMatch(/\.dockScroll\s*\{[^}]*display:\s*flex/);
+    expect(css).toMatch(/\.dockScroll\s*\{[^}]*overflow-x:\s*auto/);
+    expect(css).toMatch(/\.dockButton\s*\{[^}]*flex:\s*0 0 66px/);
+    expect(css).toMatch(/\.dockLabel\s*\{[^}]*font-size:\s*10px/);
     expect(css).toMatch(/\.homeScroll\s*\{[^}]*overflow:\s*hidden/);
+    expect(home).toContain("좋은 하루예요.");
     expect(home).toContain('onNavigate("conti")');
     expect(home).not.toContain('window.location.href = "/conti"');
+  });
+
+  it("renders one Tablet header and the real workspace without a second Hero", () => {
+    const topBar = readFileSync("components/olivia-tablet/TabletTopBar.tsx", "utf8");
+    const frame = readFileSync("components/olivia-tablet/TabletAppFrame.tsx", "utf8");
+    const css = readFileSync("components/olivia-tablet/OliviaTabletShell.module.css", "utf8");
+    expect(topBar).toContain('/assets/photoclinic-mark.png');
+    expect(topBar).not.toContain("TABLET");
+    expect(frame).toContain("data-tablet-app-frame");
+    expect(frame).not.toContain("unifiedHero");
+    expect(frame).not.toContain("OLIVIA TABLET");
+    expect(css).toMatch(/\.appViewport\s*\{[^}]*top:\s*calc\(64px/);
+    expect(css).toMatch(/\.appViewport\s*\{[^}]*bottom:\s*calc\(88px/);
+    expect(css).toMatch(/\.appViewport\s*\{[^}]*border-radius:\s*0/);
+  });
+
+  it("keeps Tablet workspace density separate from Desktop mode", () => {
+    const shell = readFileSync("components/olivia-tablet/OliviaTabletShell.tsx", "utf8");
+    const appContent = readFileSync("components/olivia-tablet/TabletAppContent.tsx", "utf8");
+    const clientsAdapter = readFileSync("components/olivia-os/adapters/ClientsWindowContent.tsx", "utf8");
+    const photoRemote = readFileSync("components/olivia-tablet/TabletPhotoRemote.tsx", "utf8");
+    expect(shell).toContain('OliviaUiSurfaceProvider value="tablet"');
+    expect(appContent).toContain("<TabletClients />");
+    expect(clientsAdapter).toContain("useOliviaUiSurface");
+    expect(clientsAdapter).toContain('value={resolvedSurface === "desktop"}');
+    expect(photoRemote).toContain("연결 준비 중");
+    expect(photoRemote).not.toContain("setConnected");
+    expect(photoRemote).not.toContain("UI PREVIEW");
   });
 });

@@ -87,16 +87,15 @@ export default function TabletHome({ onNavigate }: {
 
   return (
     <div className={styles.homeScroll}>
-      <section className={styles.homeHero}>
-        <div>
-          <p>OLIVIA · TOUCH WORKSPACE</p>
-          <h1>오늘의 일을<br />한눈에 이어가세요.</h1>
-          <span>{currentContext ? `현재 맥락 · ${currentContext}` : "현재 연결된 고객이나 작업이 없습니다."}</span>
+      <section className={styles.homeIntro}>
+        <div className={styles.homeGreeting}>
+          <h1>좋은 하루예요.</h1>
+          <span>{currentContext ? `현재 이어서 보는 작업 · ${currentContext}` : "오늘 필요한 업무를 바로 확인해 보세요."}</span>
         </div>
-        <button type="button" className={styles.chatHeroAction} onClick={() => onNavigate("olivia-chat")}>
-          <span><AppIcon name="olivia" size={46} /></span>
+        <button type="button" className={styles.homeChatAction} onClick={() => onNavigate("olivia-chat")}>
+          <AppIcon name="olivia" size={38} />
           <span><small>{isSending ? "Olivia가 작업 중입니다" : "Olivia 채팅"}</small><strong>대화로 업무 이어가기</strong></span>
-          <ArrowUpRight size={20} strokeWidth={1.7} />
+          <ArrowUpRight size={18} strokeWidth={1.7} />
         </button>
       </section>
 
@@ -148,6 +147,20 @@ export default function TabletHome({ onNavigate }: {
                 <ArrowUpRight size={16} />
               </button>
             )) : <p className={styles.homeEmpty}>최근 콘티가 없습니다.</p>}
+          </div>
+        </article>
+
+        <article className={`${styles.homeCard} ${styles.currentWorkCard}`}>
+          <header>
+            <span className={styles.cardIcon}><AppIcon name="today" size={25} /></span>
+            <div><small>NOW</small><h2>현재 작업</h2></div>
+            <button type="button" onClick={() => onNavigate(currentClientName ? "customer" : "olivia-chat")}>
+              {currentClientName ? "고객 열기" : "대화하기"} <ArrowUpRight size={15} />
+            </button>
+          </header>
+          <div className={styles.currentWorkSummary}>
+            <strong>{currentContext || "연결된 작업이 없습니다."}</strong>
+            <span>{currentClientName ? "현재 고객 맥락을 유지하고 있습니다." : activeWorkspace ? "현재 작업 공간을 이어서 사용할 수 있습니다." : "Olivia 채팅에서 새로운 업무를 시작할 수 있습니다."}</span>
           </div>
         </article>
       </section>

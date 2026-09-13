@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { PcrmHeaderActionsProvider } from "@/components/pcrm/PcrmHeaderActionsSlot";
 import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
+import { useOliviaUiSurface, type OliviaUiSurface } from "@/lib/olivia/surfaceContext";
 import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 
 // ClientsWorkspace는 GlobalHeader를 직접 그리지 않는다. standalone route의 (client-hub)
@@ -15,12 +16,25 @@ const ClientsWorkspace = dynamic(() => import("@/components/clients/ClientsWorks
   loading: () => <div style={{ padding: 24, fontSize: 12, color: "#5A7470" }}>고객관리를 준비하는 중...</div>,
 });
 
-export function ClientsWindowContent({ context }: { context?: WindowContext }) {
+export function ClientsWindowContent({
+  context,
+  surface,
+}: {
+  context?: WindowContext;
+  surface?: OliviaUiSurface;
+}) {
+  const inheritedSurface = useOliviaUiSurface();
+  const resolvedSurface = surface ?? inheritedSurface;
+
   return (
-    <DesktopWindowProvider value={true}>
+    <DesktopWindowProvider value={resolvedSurface === "desktop"}>
       <PcrmHeaderActionsProvider>
         <div className="olivia-os-clients-window" style={{ width: "100%", height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
-          <ClientsWorkspace initialClientId={context?.clientId} initialWorkflowRunId={context?.projectId} />
+          <ClientsWorkspace
+            initialClientId={context?.clientId}
+            initialWorkflowRunId={context?.projectId}
+            surface={resolvedSurface}
+          />
         </div>
       </PcrmHeaderActionsProvider>
     </DesktopWindowProvider>

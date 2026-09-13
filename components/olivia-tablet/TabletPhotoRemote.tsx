@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, CircleDot, FolderOpen, MonitorUp, Radio, Send } from "lucide-react";
+import { CircleDot, FolderOpen, MonitorUp, Radio, Send } from "lucide-react";
 import { AppIcon, type IconName } from "@/components/AppIcon";
 import styles from "./OliviaTabletShell.module.css";
 
@@ -15,27 +15,23 @@ const REMOTE_TOOLS: Array<{ id: string; title: string; description: string; icon
 
 export default function TabletPhotoRemote() {
   const [selectedTool, setSelectedTool] = useState(REMOTE_TOOLS[0].id);
-  const [connected, setConnected] = useState(true);
   const selected = REMOTE_TOOLS.find((tool) => tool.id === selectedTool) ?? REMOTE_TOOLS[0];
 
   return (
     <div className={styles.remoteScroll}>
-      <section className={styles.remoteHero}>
-        <div>
-          <span className={styles.remoteBadge}><Radio size={13} /> 리모트 · UI PREVIEW</span>
-          <h2>선택과 지시는 아이패드에서,<br />실제 처리는 Mac Studio에서.</h2>
-          <p>이번 V1은 Remote Controller 화면만 제공합니다. 실제 폴더 전송과 처리는 아직 실행하지 않습니다.</p>
+      <section className={styles.remoteStatusBar}>
+        <span className={styles.remoteBadge}><Radio size={13} /> 리모트</span>
+        <span className={styles.connectionIcon}><MonitorUp size={22} strokeWidth={1.6} /></span>
+        <div className={styles.remoteMachine}>
+          <strong>Mac Studio — 압구정 스튜디오</strong>
+          <span>선택과 지시는 아이패드에서, 실제 처리는 Mac Studio에서 실행됩니다.</span>
         </div>
-        <button type="button" className={`${styles.connectionCard} ${connected ? styles.connectionOn : styles.connectionOff}`} onClick={() => setConnected((value) => !value)} aria-pressed={connected}>
-          <span className={styles.connectionIcon}><MonitorUp size={25} strokeWidth={1.6} /></span>
-          <span><small>MAC STUDIO</small><strong>압구정 스튜디오</strong><em><CircleDot size={12} /> {connected ? "연결 상태 예시" : "연결 안 됨 예시"}</em></span>
-          <ChevronDown size={17} />
-        </button>
+        <span className={styles.connectionPending}><CircleDot size={12} /> 연결 준비 중</span>
       </section>
 
       <section className={styles.remoteWorkspace}>
         <div className={styles.remoteTools}>
-          <header><span>작업 종류</span><small>Desktop의 실제 기능만 표시합니다.</small></header>
+          <header><span>작업 종류</span><small>Mac Studio에 요청할 작업을 선택하세요.</small></header>
           <div className={styles.remoteToolGrid}>
             {REMOTE_TOOLS.map((tool) => (
               <button type="button" key={tool.id} className={selectedTool === tool.id ? styles.remoteToolActive : ""} onClick={() => setSelectedTool(tool.id)}>
@@ -53,7 +49,7 @@ export default function TabletPhotoRemote() {
           <label><span>작업 옵션</span><select defaultValue="default" disabled><option value="default">Mac Studio 연결 후 선택</option></select></label>
           <label><span>작업 메모</span><textarea placeholder="Mac Studio에 전달할 지시사항" disabled /></label>
           <button type="button" className={styles.remoteSend} disabled><Send size={17} /> Mac Studio로 보내기</button>
-          <p>Remote API와 실행기는 V1 범위에 포함되지 않아 전송 버튼을 비활성화했습니다.</p>
+          <p>Mac Studio 연결이 준비되면 전송할 수 있습니다.</p>
         </aside>
       </section>
     </div>

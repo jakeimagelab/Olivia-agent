@@ -52,10 +52,10 @@ export default function TabletAppContent({ activeApp, navigation, onNavigate }: 
 }) {
   let content;
   switch (activeApp) {
-    case "customer": content = <TabletAppFrame appId="customer"><TabletClients /></TabletAppFrame>; break;
-    case "calendar": content = <TabletAppFrame appId="calendar"><TabletCalendar /></TabletAppFrame>; break;
+    case "customer": content = <TabletAppFrame><TabletClients /></TabletAppFrame>; break;
+    case "calendar": content = <TabletAppFrame><TabletCalendar /></TabletAppFrame>; break;
     case "conti": content = (
-      <TabletAppFrame appId="conti" compact>
+      <TabletAppFrame compact>
         <TabletConti
           key={navigation.resourceId ?? "new-conti"}
           initialRunId={navigation.resourceId}
@@ -64,14 +64,14 @@ export default function TabletAppContent({ activeApp, navigation, onNavigate }: 
         />
       </TabletAppFrame>
     ); break;
-    case "documents": content = <TabletAppFrame appId="documents"><TabletDocuments /></TabletAppFrame>; break;
-    case "olivia-chat": content = <TabletAppFrame appId="olivia-chat"><OliviaChatDockTarget id="tablet-os" priority={75} className={styles.tabletChatDock} /></TabletAppFrame>; break;
-    case "review-studio": content = <TabletAppFrame appId="review-studio" compact><TabletReview /></TabletAppFrame>; break;
-    case "memo": content = <TabletAppFrame appId="memo"><TabletMemo /></TabletAppFrame>; break;
-    case "quote-contract": content = <TabletAppFrame appId="quote-contract" compact><TabletQuoteContract /></TabletAppFrame>; break;
-    case "channel-analysis": content = <TabletAppFrame appId="channel-analysis"><TabletRouteFrame href="/channel-analyzer" title="병원 채널분석" /></TabletAppFrame>; break;
-    case "brand-image": content = <TabletAppFrame appId="brand-image"><TabletRouteFrame href="/hospital-brand-image-diagnosis" title="브랜드이미지" /></TabletAppFrame>; break;
-    case "voice": content = <TabletAppFrame appId="voice"><TabletVoice /></TabletAppFrame>; break;
+    case "documents": content = <TabletAppFrame><TabletDocuments /></TabletAppFrame>; break;
+    case "olivia-chat": content = <TabletAppFrame><OliviaChatDockTarget id="tablet-os" priority={75} className={styles.tabletChatDock} /></TabletAppFrame>; break;
+    case "review-studio": content = <TabletAppFrame compact><TabletReview /></TabletAppFrame>; break;
+    case "memo": content = <TabletAppFrame><TabletMemo /></TabletAppFrame>; break;
+    case "quote-contract": content = <TabletAppFrame compact><TabletQuoteContract /></TabletAppFrame>; break;
+    case "channel-analysis": content = <TabletAppFrame><TabletRouteFrame href="/channel-analyzer" title="병원 채널분석" /></TabletAppFrame>; break;
+    case "brand-image": content = <TabletAppFrame><TabletRouteFrame href="/hospital-brand-image-diagnosis" title="브랜드이미지" /></TabletAppFrame>; break;
+    case "voice": content = <TabletAppFrame><TabletVoice /></TabletAppFrame>; break;
     case "photo-workspace": content = <TabletPhotoRemote />; break;
     default: content = <TabletHome onNavigate={onNavigate} />;
   }

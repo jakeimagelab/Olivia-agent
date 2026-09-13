@@ -34,6 +34,7 @@ import { C } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "@/app/(client-hub)/clients/_hooks/useClientRoster";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
+import type { OliviaUiSurface } from "@/lib/olivia/surfaceContext";
 
 // 견적서/계약서/콘티 빌더와 진행상세 모달은 실제로 모달을 열 때만 필요하다 — 고객 목록 첫 화면에는
 // 전혀 안 쓰이는데 지금까지는 정적 import라 항상 초기 JS 번들에 포함됐다. 모달 상태가 열리는
@@ -96,10 +97,16 @@ const MAIL_COLOR: Record<string, string> = {
   draft: C.hint, ready: C.orange, sent: C.green, failed: "#DC2626",
 };
 
-export default function ClientsWorkspace({ initialClientId, initialWorkflowRunId }: { initialClientId?: string; initialWorkflowRunId?: string } = {}) {
+type ClientsWorkspaceProps = {
+  initialClientId?: string;
+  initialWorkflowRunId?: string;
+  surface?: OliviaUiSurface;
+};
+
+export default function ClientsWorkspace({ initialClientId, initialWorkflowRunId, surface = "desktop" }: ClientsWorkspaceProps = {}) {
   return (
     <Suspense fallback={<SpinBox />}>
-      <ClientsInner initialClientId={initialClientId} initialWorkflowRunId={initialWorkflowRunId} />
+      <ClientsInner initialClientId={initialClientId} initialWorkflowRunId={initialWorkflowRunId} surface={surface} />
     </Suspense>
   );
 }
@@ -113,10 +120,10 @@ function SpinBox() {
   );
 }
 
-function ClientsInner({ initialClientId, initialWorkflowRunId }: { initialClientId?: string; initialWorkflowRunId?: string }) {
+function ClientsInner({ initialClientId, initialWorkflowRunId, surface }: ClientsWorkspaceProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const embedded = useDesktopWindowMode();
+  const embedded = useDesktopWindowMode() || surface === "tablet";
   if (embedded) return <ClientWorkspaceView embedded openNewOnLoad={false} initialClientId={initialClientId ?? null} />;
   const id = searchParams.get("id");
   const workflowRunId = initialWorkflowRunId ?? searchParams.get("workflowRunId");

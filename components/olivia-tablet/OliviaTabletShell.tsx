@@ -8,6 +8,7 @@ import {
   type TabletNavigationContext,
   type TabletNavigationState,
 } from "@/lib/olivia/tablet/navigation";
+import { OliviaUiSurfaceProvider } from "@/lib/olivia/surfaceContext";
 import TabletAppContent from "./TabletAppContent";
 import TabletDock from "./TabletDock";
 import TabletTopBar from "./TabletTopBar";
@@ -45,10 +46,12 @@ export default function OliviaTabletShell() {
   const app = getTabletApp(activeApp);
 
   return (
-    <main className={styles.shell} data-olivia-tablet-shell>
-      <TabletTopBar app={app} onHome={() => navigate("home")} />
-      <TabletAppContent activeApp={activeApp} navigation={navigation} onNavigate={navigate} />
-      <TabletDock activeApp={activeApp} onNavigate={navigate} />
-    </main>
+    <OliviaUiSurfaceProvider value="tablet">
+      <main className={styles.shell} data-olivia-tablet-shell>
+        <TabletTopBar app={app} onHome={() => navigate("home")} />
+        <TabletAppContent activeApp={activeApp} navigation={navigation} onNavigate={navigate} />
+        <TabletDock activeApp={activeApp} onNavigate={navigate} />
+      </main>
+    </OliviaUiSurfaceProvider>
   );
 }
