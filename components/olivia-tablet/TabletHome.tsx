@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, CheckCircle2, Clock3, FileText, MessageCircleMore, RefreshCw } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Clock3, FileText, RefreshCw } from "lucide-react";
 import { AppIcon } from "@/components/AppIcon";
 import { CalendarAppIcon } from "@/components/olivia-os/CalendarAppIcon";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
-import type { TabletAppId } from "@/lib/olivia/tablet/navigation";
+import type { TabletAppId, TabletNavigationContext } from "@/lib/olivia/tablet/navigation";
 import styles from "./OliviaTabletShell.module.css";
 
 type HomeTask = { id: string; title: string; time?: string | null; location?: string | null };
@@ -41,11 +41,12 @@ function formatUpdated(value?: string) {
   return new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
-export default function TabletHome({ onNavigate }: { onNavigate: (app: TabletAppId) => void }) {
+export default function TabletHome({ onNavigate }: {
+  onNavigate: (app: TabletAppId, context?: TabletNavigationContext) => void;
+}) {
   const activeWorkspace = useOliviaContextStore((state) => state.activeWorkspace);
   const currentClientName = useOliviaContextStore((state) => state.activeClientName);
   const isSending = useOliviaConversationStore((state) => state.isSending);
-  const messages = useOliviaConversationStore((state) => state.messages);
   const [data, setData] = useState<HomeData>(EMPTY_HOME);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -139,10 +140,10 @@ export default function TabletHome({ onNavigate }: { onNavigate: (app: TabletApp
         </article>
 
         <article className={styles.homeCard}>
-          <header><span className={styles.cardIcon}><AppIcon name="storyboard" size={25} /></span><div><small>FIELD</small><h2>최근 콘티</h2></div><button type="button" onClick={() => { window.location.href = "/conti"; }}>콘티 열기 <ArrowUpRight size={15} /></button></header>
+          <header><span className={styles.cardIcon}><AppIcon name="storyboard" size={25} /></span><div><small>FIELD</small><h2>최근 콘티</h2></div><button type="button" onClick={() => onNavigate("conti")}>콘티 열기 <ArrowUpRight size={15} /></button></header>
           <div className={styles.homeList}>
             {loading ? <p className={styles.homeEmpty}>콘티를 확인하고 있습니다.</p> : data.contis.length ? data.contis.slice(0, 3).map((conti) => (
-              <button type="button" key={conti.id} className={styles.contiRow} onClick={() => { window.location.href = `/conti?resourceId=${encodeURIComponent(conti.id)}`; }}>
+              <button type="button" key={conti.id} className={styles.contiRow} onClick={() => onNavigate("conti", { resourceId: conti.id })}>
                 <span><strong>{conti.hospital_name || "연결되지 않은 콘티"}</strong><small>{conti.specialty || "진료과 미지정"} · {conti.scene_count ?? 0} Scene</small></span>
                 <ArrowUpRight size={16} />
               </button>
@@ -150,10 +151,6 @@ export default function TabletHome({ onNavigate }: { onNavigate: (app: TabletApp
           </div>
         </article>
       </section>
-
-      <button type="button" className={styles.homeChatStrip} onClick={() => onNavigate("olivia-chat")}>
-        <MessageCircleMore size={20} /><span><strong>최근 대화 {messages.length ? `${messages.length}개 메시지` : "없음"}</strong><small>Olivia와 이어서 이야기하기</small></span><ArrowUpRight size={18} />
-      </button>
     </div>
   );
 }

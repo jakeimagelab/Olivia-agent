@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { resolveOliviaSurface, shouldUseOliviaMobileSurface } from "@/lib/olivia/mobile/adaptiveSurface";
-import { buildTabletNavigationUrl, parseTabletNavigation } from "@/lib/olivia/tablet/navigation";
+import { buildTabletNavigationUrl, parseTabletNavigation, parseTabletNavigationState } from "@/lib/olivia/tablet/navigation";
 import { TABLET_APPS, resolveTabletAppIconSource } from "@/components/olivia-tablet/tabletApps";
 
 describe("Olivia Tablet Shell", () => {
@@ -32,12 +32,24 @@ describe("Olivia Tablet Shell", () => {
     expect(buildTabletNavigationUrl(`https://olivia.photoclinic.kr${href}`, "home")).not.toContain("tabletApp");
   });
 
+  it("keeps the selected Conti inside Tablet navigation", () => {
+    const href = buildTabletNavigationUrl(
+      "https://olivia.photoclinic.kr/?tabletPreview=1",
+      "conti",
+      { resourceId: "conti-run-123", clientId: "client-7" },
+    );
+    const state = parseTabletNavigationState(new URL(href, "https://olivia.photoclinic.kr").search);
+    expect(state).toEqual({ app: "conti", resourceId: "conti-run-123", clientId: "client-7", workflowRunId: undefined });
+    expect(href).not.toContain("/conti?");
+  });
+
   it("uses registry icons where the Desktop app exists and shared Olivia icons otherwise", () => {
     expect(resolveTabletAppIconSource("calendar")).toEqual({ kind: "registry", appId: "calendar" });
+    expect(resolveTabletAppIconSource("conti")).toEqual({ kind: "registry", appId: "conti" });
     expect(resolveTabletAppIconSource("customer")).toEqual({ kind: "registry", appId: "customer" });
     expect(resolveTabletAppIconSource("channel-analysis")).toEqual({ kind: "shared", iconName: "channel-analysis" });
     expect(TABLET_APPS.map((app) => app.id)).toEqual([
-      "home", "customer", "calendar", "documents", "olivia-chat", "review-studio", "memo", "quote-contract",
+      "home", "customer", "calendar", "conti", "documents", "olivia-chat", "review-studio", "memo", "quote-contract",
       "channel-analysis", "brand-image", "voice", "photo-workspace",
     ]);
   });
@@ -49,5 +61,16 @@ describe("Olivia Tablet Shell", () => {
     expect(appContent).not.toContain("useOliviaDesktopStore");
     expect(shell).toContain("buildTabletNavigationUrl");
     expect(appContent).toContain("data-tablet-active-app");
+  });
+
+  it("uses the compact one-screen Home and orange-dot-only Dock state", () => {
+    const css = readFileSync("components/olivia-tablet/OliviaTabletShell.module.css", "utf8");
+    const home = readFileSync("components/olivia-tablet/TabletHome.tsx", "utf8");
+    expect(css).toMatch(/\.dockButtonActive\s*\{[^}]*background:\s*transparent/);
+    expect(css).toMatch(/\.dockIndicator\s*\{[^}]*var\(--olivia-orange\)/);
+    expect(css).toMatch(/grid-template-columns:\s*repeat\(13,/);
+    expect(css).toMatch(/\.homeScroll\s*\{[^}]*overflow:\s*hidden/);
+    expect(home).toContain('onNavigate("conti")');
+    expect(home).not.toContain('window.location.href = "/conti"');
   });
 });

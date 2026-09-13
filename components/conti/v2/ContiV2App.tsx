@@ -24,18 +24,19 @@ export interface ContiV2AppProps {
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  initialRunId?: string;
   onClose?: () => void;
   onPublished?: () => void;
   registerRequestClose?: (fn: () => void) => void;
 }
 
-export default function ContiV2App({ clientId, workflowRunId, resourceId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
-  const persistenceKey = workspaceKey(clientId, workflowRunId, resourceId);
+export default function ContiV2App({ clientId, workflowRunId, resourceId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
+  const persistenceKey = workspaceKey(clientId, workflowRunId, resourceId ?? initialRunId);
   const retained = retainedWorkspaces.get(persistenceKey);
-  const [runId, setRunId] = useState<string | null>(() => retained?.runId ?? null);
+  const [runId, setRunId] = useState<string | null>(() => retained?.runId ?? initialRunId ?? null);
   const [view, setView] = useState<ResultView>(() => retained?.view ?? "table");
-  const [legacyResourceId, setLegacyResourceId] = useState<string | undefined>(resourceId);
-  const [resolvingInitial, setResolvingInitial] = useState(Boolean(!retained && (resourceId || workflowRunId)));
+  const [legacyResourceId, setLegacyResourceId] = useState<string | undefined>(initialRunId ? undefined : resourceId);
+  const [resolvingInitial, setResolvingInitial] = useState(Boolean(!retained && !initialRunId && (resourceId || workflowRunId)));
   const controller = useContiStudio(runId);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function ContiV2App({ clientId, workflowRunId, resourceId, onClos
 
   useEffect(() => {
     if (retainedWorkspaces.has(persistenceKey)) { setResolvingInitial(false); return; }
+    if (initialRunId) { setResolvingInitial(false); return; }
     if (!resourceId && !workflowRunId) { setResolvingInitial(false); return; }
     const query = new URLSearchParams();
     if (resourceId) query.set("resourceId", resourceId);
@@ -63,7 +65,7 @@ export default function ContiV2App({ clientId, workflowRunId, resourceId, onClos
         setRunId(data.run.id);
       }
     }).catch(() => {}).finally(() => setResolvingInitial(false));
-  }, [clientId, persistenceKey, resourceId, workflowRunId]);
+  }, [clientId, initialRunId, persistenceKey, resourceId, workflowRunId]);
 
   const handleGenerated = (id: string) => {
     retainedWorkspaces.set(persistenceKey, { runId: id, view: "table" });
