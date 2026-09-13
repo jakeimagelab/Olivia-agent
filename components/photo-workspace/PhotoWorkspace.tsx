@@ -12,6 +12,8 @@ import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import type { PhotoSelectMode, PhotoWorkspaceMode, RawMatchView } from "./types";
 import { resolvePhotoWorkspaceToolState } from "./photoWorkspaceToolState";
 import styles from "./PhotoWorkspace.module.css";
+import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
+import RemoteUnsupportedNotice from "./RemoteUnsupportedNotice";
 
 const SelectMatchWorkspace = dynamic(() => import("./SelectMatchWorkspace").then((module) => module.SelectMatchWorkspace), {
   ssr: false,
@@ -56,6 +58,8 @@ function PhotoWorkspaceContent() {
   const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : "select");
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : "ai");
   const rawMatchView = toolState?.rawMatchView ?? (rawRawMatchView && RAW_MATCH_VIEWS.has(rawRawMatchView) ? rawRawMatchView : "ai-cull");
+  const { executionMode } = usePhotoStudioExecution();
+  const remoteUnavailable = executionMode === "REMOTE_WORKER" && mode !== "classification";
 
   useEffect(() => {
     const content = contentRef.current;
@@ -104,18 +108,19 @@ function PhotoWorkspaceContent() {
             {guideOpen ? "사용 가이드 닫기" : "사용 가이드 보기"}
           </button>
         ) : null}
-        <div className={`${styles.workspaceGrid} ${compact ? styles.workspaceGridCompact : ""}`}>
+        <div className={`${styles.workspaceGrid} ${compact || remoteUnavailable ? styles.workspaceGridCompact : ""}`}>
           <section
             className={styles.workPanel}
             role="tabpanel"
             id={`photo-workspace-panel-${mode}`}
             aria-labelledby={`photo-workspace-tab-${mode}`}
           >
-            {mode === "select" ? (
+            {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "select" ? "사진 셀렉" : mode === "metadata-select" ? "메타데이터 셀렉" : mode === "raw-match" ? "AI 컷 정리 / RAW 매칭" : mode === "retouch" ? "사진 보정" : "사진 리사이즈"} /> : null}
+            {!remoteUnavailable && mode === "select" ? (
               <PhotoSelectWorkspace value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
-            {mode === "metadata-select" ? <MetadataSelectWorkspace /> : null}
-            {mode === "raw-match" ? (
+            {!remoteUnavailable && mode === "metadata-select" ? <MetadataSelectWorkspace /> : null}
+            {!remoteUnavailable && mode === "raw-match" ? (
               <>
                 <SegmentedTabs
                   ariaLabel="AI 컷 정리 / RAW 매칭 선택"
@@ -132,11 +137,11 @@ function PhotoWorkspaceContent() {
                 </div>
               </>
             ) : null}
-            {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" /> : null}
-            {mode === "retouch" ? <PhotoRetouchingWorkspace /> : null}
-            {mode === "resize" ? <PhotoResizeWorkspace /> : null}
+            {!remoteUnavailable && mode === "classification" ? <PhotoSortingWorkspace mode="embedded" /> : null}
+            {!remoteUnavailable && mode === "retouch" ? <PhotoRetouchingWorkspace /> : null}
+            {!remoteUnavailable && mode === "resize" ? <PhotoResizeWorkspace /> : null}
           </section>
-          {!compact || guideOpen ? <PhotoGuidePanel mode={mode} selectMode={selectMode} rawMatchView={rawMatchView} /> : null}
+          {!remoteUnavailable && (!compact || guideOpen) ? <PhotoGuidePanel mode={mode} selectMode={selectMode} rawMatchView={rawMatchView} /> : null}
         </div>
       </main>
     </div>

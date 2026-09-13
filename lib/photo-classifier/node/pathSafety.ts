@@ -118,7 +118,11 @@ async function ensureSafeDestinationParent(workRoot: string, destination: string
   }
 }
 
-async function copyTreeExclusive(source: string, destination: string): Promise<TreeSummary> {
+async function copyTreeExclusive(
+  source: string,
+  destination: string,
+  onCopied?: (summary: TreeSummary, fileName: string) => void,
+): Promise<TreeSummary> {
   await mkdir(destination, { recursive: false });
   const summary: TreeSummary = { files: 0, bytes: 0 };
 
@@ -149,6 +153,7 @@ async function copyTreeExclusive(source: string, destination: string): Promise<T
       await utimes(destinationPath, sourceMetadata.atime, sourceMetadata.mtime);
       summary.files += 1;
       summary.bytes += sourceMetadata.size;
+      onCopied?.(summary, entry.name);
     }
   };
 
@@ -203,7 +208,14 @@ export async function prepareRemotePhotoWorkFolder(
   const sourceSummary = await inspectSafeTree(source);
   await ensureSafeDestinationParent(workRoot, destination);
   onProgress?.({ stage: "STAGING", current: 0, total: sourceSummary.files, message: "NAS 원본을 WORK_ROOT로 복사 중입니다." });
-  const copiedSummary = await copyTreeExclusive(source, destination);
+  const copiedSummary = await copyTreeExclusive(source, destination, (summary, fileName) => {
+    onProgress?.({
+      stage: "STAGING",
+      current: summary.files,
+      total: sourceSummary.files,
+      message: `NAS 원본 복사: ${fileName}`,
+    });
+  });
   if (copiedSummary.files !== sourceSummary.files || copiedSummary.bytes !== sourceSummary.bytes) {
     throw new Error("NAS 작업 폴더 복사 검증에 실패했습니다.");
   }

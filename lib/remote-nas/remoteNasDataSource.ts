@@ -139,6 +139,7 @@ function isHiddenSystemItem(rawName: string): boolean {
 export function mapRemoteWorkerFolderResult(
   value: unknown,
   requestedPath: string,
+  foldersOnly = false,
 ): RemoteNasFolderResult {
   const result = parseWorkerResult(value);
 
@@ -181,6 +182,7 @@ export function mapRemoteWorkerFolderResult(
           ? "file"
           : null;
       if (!kind) return [];
+      if (foldersOnly && kind !== "directory") return [];
 
       const displayName = (typeof entryValue.displayName === "string" && entryValue.displayName
         ? entryValue.displayName
@@ -229,6 +231,7 @@ export function createRemoteWorkerNasDataSource(
   return {
     async listFolder(relativePath: string, requestOptions?: ListRemoteNasFolderOptions): Promise<RemoteNasFolderResult> {
       const signal = requestOptions?.signal;
+      const foldersOnly = requestOptions?.foldersOnly === true;
       const path = normalizeRemoteNasRelativePath(relativePath);
       throwIfAborted(signal);
 
@@ -239,7 +242,10 @@ export function createRemoteWorkerNasDataSource(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "LIST_FOLDER",
-            payload: { remote_path: path },
+            payload: {
+              remote_path: path,
+              ...(foldersOnly ? { folders_only: true } : {}),
+            },
           }),
           signal,
         });
@@ -315,7 +321,7 @@ export function createRemoteWorkerNasDataSource(
 
         if (job.status === "COMPLETED") {
           try {
-            return mapRemoteWorkerFolderResult(job.result, path);
+            return mapRemoteWorkerFolderResult(job.result, path, foldersOnly);
           } catch (error) {
             throw new RemoteNasDataSourceError(
               error instanceof Error ? error.message : "NAS 폴더 결과를 읽지 못했습니다.",
@@ -444,7 +450,9 @@ export function createMockRemoteNasDataSource(options: { delayMs?: number } = {}
         rootName: REMOTE_NAS_ROOT_NAME,
         path,
         displayPath: toRemoteNasDisplayPath(path),
-        entries: sortRemoteNasEntries(nodes.map((node) => toEntry(path, node))),
+        entries: sortRemoteNasEntries(nodes
+          .filter((node) => !requestOptions?.foldersOnly || node.kind === "directory")
+          .map((node) => toEntry(path, node))),
         connection: { macStudio: "online", nas: "connected", source: "mock" },
         readOnly: true,
       };

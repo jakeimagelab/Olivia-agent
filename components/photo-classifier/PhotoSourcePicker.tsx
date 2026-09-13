@@ -24,6 +24,7 @@ export default function PhotoSourcePicker({
     <div className={styles.overlay} role="dialog" aria-modal="true" aria-label="Mac Studio NAS 작업 폴더 선택">
       <RemoteNasBrowser
         dataSource={remoteWorkerNasDataSource}
+        foldersOnly
         onCancel={onCancel}
         onSelect={(_path, selection) => onSelectRemote(selection)}
       />

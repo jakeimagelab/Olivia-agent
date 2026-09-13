@@ -4,6 +4,7 @@ import {
   getConfiguredWorkerId,
   isAuthorizedWorker,
 } from "@/lib/remoteWorkerAuth";
+import { parseRemoteJobProgress } from "@/lib/remote-jobs/progress";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -33,9 +34,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!["COMPLETED", "FAILED"].includes(status)) {
+  if (!["RUNNING", "COMPLETED", "FAILED"].includes(status)) {
     return Response.json(
       { ok: false, error: "Invalid status" },
+      { status: 400 }
+    );
+  }
+
+  let progress = null;
+  try {
+    progress = parseRemoteJobProgress(body.progress);
+  } catch (error) {
+    return Response.json(
+      { ok: false, error: error instanceof Error ? error.message : "Invalid progress" },
+      { status: 400 }
+    );
+  }
+
+  if (status === "RUNNING" && !progress && typeof body.message !== "string") {
+    return Response.json(
+      { ok: false, error: "RUNNING report에는 progress 또는 message가 필요합니다." },
       { status: 400 }
     );
   }
@@ -43,10 +61,11 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
 
+    const now = new Date().toISOString();
     const updateData: Record<string, unknown> = {
       status,
-      updated_at: new Date().toISOString(),
-      completed_at: new Date().toISOString(),
+      updated_at: now,
+      ...(status === "RUNNING" ? {} : { completed_at: now }),
     };
 
     if (typeof body.message === "string") {
@@ -56,6 +75,8 @@ export async function POST(request: NextRequest) {
     if (body.result !== undefined) {
       updateData.result = body.result;
     }
+
+    if (progress) updateData.progress = progress;
 
     if (status === "FAILED" && typeof body.error === "string") {
       updateData.error = body.error;
@@ -67,7 +88,7 @@ export async function POST(request: NextRequest) {
       .eq("id", jobId)
       .eq("target_worker", getConfiguredWorkerId())
       .eq("status", "RUNNING")
-      .select("id,status")
+      .select("id,status,action")
       .maybeSingle();
 
     if (error) throw error;
@@ -78,6 +99,22 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const nasConnected = data.action === "LIST_FOLDER" && status === "COMPLETED"
+      ? true
+      : typeof body.nas_connected === "boolean"
+        ? body.nas_connected
+        : undefined;
+    const { error: heartbeatError } = await supabase
+      .from("remote_workers")
+      .upsert({
+        worker_id: getConfiguredWorkerId(),
+        last_seen_at: now,
+        worker_status: status === "RUNNING" ? "busy" : "idle",
+        updated_at: now,
+        ...(nasConnected === undefined ? {} : { nas_connected: nasConnected }),
+      }, { onConflict: "worker_id" });
+    if (heartbeatError) console.warn("[worker/report heartbeat]", heartbeatError.message);
 
     return Response.json({
       ok: true,

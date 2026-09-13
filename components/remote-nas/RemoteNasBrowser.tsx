@@ -39,6 +39,7 @@ export type RemoteNasBrowserProps = {
   initialPath?: string;
   onSelect?: (path: string, selection: RemoteNasSelection) => void;
   onCancel?: () => void;
+  foldersOnly?: boolean;
 };
 
 const REMOTE_NAS_DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
@@ -85,6 +86,7 @@ export default function RemoteNasBrowser({
   initialPath = "",
   onSelect,
   onCancel,
+  foldersOnly = false,
 }: RemoteNasBrowserProps) {
   const [currentPath, setCurrentPath] = useState(() => normalizeRemoteNasRelativePath(initialPath));
   const [result, setResult] = useState<RemoteNasFolderResult | null>(null);
@@ -102,7 +104,7 @@ export default function RemoteNasBrowser({
     setLoading(true);
     setError("");
     setErrorConnection(null);
-    dataSource.listFolder(currentPath, { signal: controller.signal })
+    dataSource.listFolder(currentPath, { signal: controller.signal, foldersOnly })
       .then((nextResult) => {
         if (!active) return;
         setResult(nextResult);
@@ -121,7 +123,7 @@ export default function RemoteNasBrowser({
       active = false;
       controller.abort();
     };
-  }, [currentPath, dataSource, reloadKey]);
+  }, [currentPath, dataSource, foldersOnly, reloadKey]);
 
   const breadcrumbs = useMemo(() => buildRemoteNasBreadcrumbs(currentPath), [currentPath]);
   const visibleEntries = useMemo(() => {
@@ -165,7 +167,7 @@ export default function RemoteNasBrowser({
   const nasLabel = nasState === "disconnected" ? "Disconnected" : nasState === "connected" ? "Connected" : unknownLabel;
 
   return (
-    <section className={styles.browser} aria-label="원격 NAS 파일 브라우저">
+    <section className={`${styles.browser} ${foldersOnly ? styles.folderPicker : ""}`} aria-label={foldersOnly ? "원격 NAS 폴더 선택기" : "원격 NAS 파일 브라우저"}>
       <header className={styles.header}>
         <button type="button" className={styles.backButton} onClick={handleBack} aria-label={currentPath ? "상위 폴더로 이동" : "원격 파일 브라우저 닫기"}>
           {currentPath ? <ChevronLeft size={21} aria-hidden="true" /> : <X size={19} aria-hidden="true" />}
@@ -230,7 +232,7 @@ export default function RemoteNasBrowser({
         {loading ? <div className={styles.loadingBar} aria-hidden="true"><i /></div> : null}
 
         <div className={styles.columnHeader} aria-hidden="true">
-          <span>이름</span><span>종류</span><span>크기</span><span>수정일</span>
+          <span>{foldersOnly ? "폴더명" : "이름"}</span>{!foldersOnly ? <><span>종류</span><span>크기</span><span>수정일</span></> : null}
         </div>
 
         <div className={styles.entries} role="list">
@@ -256,12 +258,10 @@ export default function RemoteNasBrowser({
               <>
                 <span className={styles.entryName}>
                   <i className={entry.kind === "directory" ? styles.folderIcon : styles.fileIcon}><EntryIcon entry={entry} /></i>
-                  <span><strong>{entry.displayName}</strong><small>{getEntryType(entry)} · {formatFileSize(entry.sizeBytes)} · {formatModifiedAt(entry.modifiedAt)}</small></span>
+                  <span><strong>{entry.displayName}</strong>{!foldersOnly ? <small>{getEntryType(entry)} · {formatFileSize(entry.sizeBytes)} · {formatModifiedAt(entry.modifiedAt)}</small> : null}</span>
                   {entry.kind === "directory" ? <ChevronRight className={styles.entryChevron} size={16} aria-hidden="true" /> : null}
                 </span>
-                <span className={styles.entryMeta}>{getEntryType(entry)}</span>
-                <span className={styles.entryMeta}>{formatFileSize(entry.sizeBytes)}</span>
-                <span className={styles.entryMeta}>{formatModifiedAt(entry.modifiedAt)}</span>
+                {!foldersOnly ? <><span className={styles.entryMeta}>{getEntryType(entry)}</span><span className={styles.entryMeta}>{formatFileSize(entry.sizeBytes)}</span><span className={styles.entryMeta}>{formatModifiedAt(entry.modifiedAt)}</span></> : null}
               </>
             );
 
@@ -287,7 +287,7 @@ export default function RemoteNasBrowser({
 
       <footer className={styles.footer}>
         <div className={styles.footerMeta}>
-          <strong>{query ? `${visibleEntries.length} / ${totalEntries}` : totalEntries}개 항목</strong>
+          <strong>{query ? `${visibleEntries.length} / ${totalEntries}` : totalEntries}개 {foldersOnly ? "폴더" : "항목"}</strong>
           <span><LockKeyhole size={13} strokeWidth={1.8} aria-hidden="true" /> 읽기 전용</span>
         </div>
         <div className={styles.footerActions}>

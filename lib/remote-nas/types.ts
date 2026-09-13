@@ -34,6 +34,8 @@ export type RemoteNasFolderResult = {
 
 export type ListRemoteNasFolderOptions = {
   signal?: AbortSignal;
+  /** Folder-picker mode: Worker should skip file metadata and return directories only. */
+  foldersOnly?: boolean;
 };
 
 /** UI가 의존하는 유일한 조회 계약. 후속 LIST_FOLDER adapter가 이 인터페이스를 구현한다. */

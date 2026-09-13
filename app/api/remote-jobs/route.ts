@@ -59,10 +59,18 @@ export async function POST(request: NextRequest) {
 
   if (action === "LIST_FOLDER") {
     const remotePath = requestedPayload.remote_path;
+    const foldersOnly = requestedPayload.folders_only;
 
     if (typeof remotePath !== "string") {
       return Response.json(
         { ok: false, error: "LIST_FOLDER에는 remote_path 문자열이 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    if (foldersOnly !== undefined && typeof foldersOnly !== "boolean") {
+      return Response.json(
+        { ok: false, error: "folders_only는 boolean이어야 합니다." },
         { status: 400 }
       );
     }
@@ -72,6 +80,7 @@ export async function POST(request: NextRequest) {
       // traversal만 차단하고 LIST_FOLDER에 불필요한 payload 필드는 전달하지 않는다.
       payload = {
         remote_path: normalizeRemoteNasRelativePath(remotePath),
+        ...(foldersOnly === true ? { folders_only: true } : {}),
       };
     } catch (error) {
       return Response.json(
@@ -184,7 +193,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase
         .from("remote_jobs")
         .select(
-          "id,action,target_worker,status,result,message,error,created_at,started_at,completed_at"
+          "id,action,target_worker,status,result,progress,message,error,created_at,started_at,completed_at"
         )
         .eq("id", jobId)
         .maybeSingle();
@@ -207,7 +216,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("remote_jobs")
       .select(
-        "id,action,target_worker,status,message,error,created_at,started_at,completed_at"
+        "id,action,target_worker,status,progress,message,error,created_at,started_at,completed_at"
       )
       .order("created_at", { ascending: false })
       .limit(30);

@@ -5,6 +5,7 @@ create table if not exists public.remote_jobs (
   target_worker text not null default 'jake-macstudio-01',
   status text not null default 'QUEUED',
   result jsonb,
+  progress jsonb not null default '{}'::jsonb,
   message text,
   error text,
   claimed_at timestamptz,
@@ -66,3 +67,17 @@ revoke all on function public.claim_remote_job(text) from public;
 revoke all on function public.claim_remote_job(text) from anon;
 revoke all on function public.claim_remote_job(text) from authenticated;
 grant execute on function public.claim_remote_job(text) to service_role;
+
+create table if not exists public.remote_workers (
+  worker_id text primary key,
+  last_seen_at timestamptz not null default now(),
+  worker_status text not null default 'online'
+    check (worker_status in ('online', 'idle', 'busy', 'error')),
+  nas_connected boolean,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.remote_workers enable row level security;
+
+revoke all on table public.remote_workers from anon;
+revoke all on table public.remote_workers from authenticated;

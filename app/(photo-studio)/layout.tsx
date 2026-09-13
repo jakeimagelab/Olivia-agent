@@ -4,6 +4,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import GlobalHeader from "@/components/GlobalHeader";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import PhotoStudioExecutionBar from "@/components/photo-workspace/PhotoStudioExecutionBar";
+import { PhotoStudioExecutionProvider, usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
+import RemoteUnsupportedNotice from "@/components/photo-workspace/RemoteUnsupportedNotice";
 
 function readCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
@@ -30,6 +33,16 @@ const TITLE: Record<string, { title: string; description: string }> = {
 
 const MESH_BG = "#f0f4f2";
 
+function PhotoStudioRouteContent({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const { executionMode } = usePhotoStudioExecution();
+  if (executionMode === "REMOTE_WORKER" && pathname !== "/photo-sorting") {
+    const feature = TITLE[pathname]?.title ?? "이 기능";
+    return <RemoteUnsupportedNotice feature={feature} />;
+  }
+  return <>{children}</>;
+}
+
 export default function PhotoStudioLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const unifiedWorkspace = pathname === "/photo-sorting";
@@ -42,21 +55,24 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
   const visibleTabs = shareScope ? PHOTO_TABS.filter((t) => t.matches.includes(shareScope)) : PHOTO_TABS;
 
   return (
-    <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)" }}>
-      {!unifiedWorkspace ? <GlobalHeader title={meta.title} description={meta.description} /> : null}
+    <PhotoStudioExecutionProvider>
+      <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)" }}>
+        {!unifiedWorkspace ? <GlobalHeader title={meta.title} description={meta.description} /> : null}
 
-      {!unifiedWorkspace ? <div style={{ padding: "20px 24px 0" }}>
-        <SegmentedTabs
-          ariaLabel="사진 작업 기능"
-          value={pathname}
-          onChange={() => {}}
-          items={visibleTabs.map(t => ({ value: t.matches[0] ?? t.href, label: t.label, href: t.href }))}
-        />
-      </div> : null}
+        {!unifiedWorkspace ? <div style={{ padding: "20px 24px 0" }}>
+          <SegmentedTabs
+            ariaLabel="사진 작업 기능"
+            value={pathname}
+            onChange={() => {}}
+            items={visibleTabs.map(t => ({ value: t.matches[0] ?? t.href, label: t.label, href: t.href }))}
+          />
+        </div> : null}
 
-      <div className={unifiedWorkspace ? undefined : "pc-page-content"}>
-        {children}
+        <PhotoStudioExecutionBar />
+        <div className={unifiedWorkspace ? undefined : "pc-page-content"}>
+          <PhotoStudioRouteContent>{children}</PhotoStudioRouteContent>
+        </div>
       </div>
-    </div>
+    </PhotoStudioExecutionProvider>
   );
 }

@@ -54,4 +54,13 @@ describe("Remote NAS mock data source", () => {
     expect(result.entries[0]).toMatchObject({ kind: "directory", displayName: "PREVIEW" });
     await expect(dataSource.listFolder("outside-root")).rejects.toThrow("찾을 수 없습니다");
   });
+
+  it("returns only directories in folder-picker mode, including an empty folder", async () => {
+    const result = await dataSource.listFolder("0819_진보형교수님", { foldersOnly: true });
+    expect(result.entries.every((entry) => entry.kind === "directory")).toBe(true);
+
+    const empty = await dataSource.listFolder("0911_WINF", { foldersOnly: true });
+    expect(empty.entries).toEqual([]);
+    expect(empty.path).toBe("0911_WINF");
+  });
 });

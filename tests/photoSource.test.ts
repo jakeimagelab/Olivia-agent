@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  LEGACY_PHOTO_EXECUTION_MODE_STORAGE_KEY,
+  PHOTO_STUDIO_EXECUTION_MODE_STORAGE_KEY,
   canUseLocalPhotoSource,
   photoSourceModesForSurface,
+  readPhotoStudioExecutionMode,
   resolvePhotoExecutionMode,
 } from "@/lib/photo-classifier/photoSource";
 
@@ -27,5 +30,18 @@ describe("photo source surface policy", () => {
     expect(resolvePhotoExecutionMode("desktop", "REMOTE_WORKER")).toBe("REMOTE_WORKER");
     expect(resolvePhotoExecutionMode("desktop", "LOCAL_DIRECT")).toBe("LOCAL_DIRECT");
     expect(resolvePhotoExecutionMode("desktop", null)).toBe("LOCAL_DIRECT");
+  });
+
+  it("migrates the previous classifier-only storage key", () => {
+    const values = new Map([[LEGACY_PHOTO_EXECUTION_MODE_STORAGE_KEY, "REMOTE_WORKER"]]);
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+
+    expect(readPhotoStudioExecutionMode(storage)).toBe("REMOTE_WORKER");
+    expect(values.get(PHOTO_STUDIO_EXECUTION_MODE_STORAGE_KEY)).toBe("REMOTE_WORKER");
+    expect(values.has(LEGACY_PHOTO_EXECUTION_MODE_STORAGE_KEY)).toBe(false);
   });
 });

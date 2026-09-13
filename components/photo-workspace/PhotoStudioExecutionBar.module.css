@@ -1,0 +1,47 @@
+.shell {
+  border-bottom: 1px solid rgba(21, 88, 85, .1);
+  background: #fafcfb;
+}
+
+.inner {
+  width: 100%;
+  max-width: 1540px;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 0 auto;
+  padding: 8px clamp(24px, 2.8vw, 46px);
+}
+
+.modeGroup, .modes, .remoteState, .remoteState > span, .remoteState button { display: flex; align-items: center; }
+.modeGroup { gap: 11px; flex: 0 0 auto; }
+.label { color: #60736f; font-size: 11px; font-weight: 800; }
+.modes { gap: 5px; padding: 3px; border: 1px solid rgba(21, 88, 85, .12); border-radius: 11px; background: #fff; }
+.modes button { min-height: 34px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 8px; padding: 0 12px; background: transparent; color: #70837e; font: 750 11px/1 inherit; cursor: pointer; }
+.modes button[aria-pressed="true"] { background: #eaf4f2; color: #155855; }
+.modes button:focus-visible, .remoteState button:focus-visible { outline: 3px solid rgba(21, 88, 85, .16); outline-offset: 2px; }
+
+.remoteState { min-width: 0; flex: 1; gap: 10px; color: #617670; font-size: 10px; }
+.remoteState > span { gap: 5px; white-space: nowrap; }
+.remoteState i { width: 7px; height: 7px; border-radius: 50%; background: #c4cfcc; }
+.remoteState [data-state="online"] i { background: #28a579; }
+.remoteState [data-state="offline"] i { background: #d65b4a; }
+.remoteState small { color: #879a95; white-space: nowrap; }
+.remoteState button { min-height: 28px; gap: 5px; border: 1px solid rgba(21, 88, 85, .12); border-radius: 8px; padding: 0 9px; background: #fff; color: #155855; font: 700 9.5px/1 inherit; cursor: pointer; }
+
+@media (max-width: 900px) {
+  .inner { align-items: stretch; flex-direction: column; gap: 8px; padding: 9px 16px; }
+  .modeGroup { justify-content: space-between; }
+  .modes { flex: 1; }
+  .modes button { flex: 1; justify-content: center; min-height: 40px; }
+  .remoteState { flex-wrap: wrap; }
+}
+
+@media (max-width: 520px) {
+  .label { display: none; }
+  .modeGroup { width: 100%; }
+  .modes { width: 100%; }
+  .modes button { padding: 0 8px; font-size: 10.5px; }
+  .remoteState small { width: 100%; }
+}

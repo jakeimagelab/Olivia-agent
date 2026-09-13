@@ -27,6 +27,10 @@ const DEPARTMENTS = new Set<MedicalDepartment>([
 
 type CliValues = Record<string, string>;
 
+// Remote Bridge가 이 prefix 뒤 JSON을 그대로 /api/worker/report의 progress로 전달한다.
+// 최종 machine result는 기존대로 stdout 한 줄 JSON만 사용한다.
+export const REMOTE_PHOTO_PROGRESS_PREFIX = "OLIVIA_REMOTE_PROGRESS ";
+
 function parseArguments(args: string[]): CliValues {
   const values: CliValues = {};
   for (let index = 0; index < args.length; index++) {
@@ -98,10 +102,7 @@ async function main(): Promise<void> {
   const values = parseArguments(process.argv.slice(2));
   const result = await runRemotePhotoSortRunner(inputFromArguments(values), {
     onProgress: (progress) => {
-      const count = progress.current !== undefined && progress.total !== undefined
-        ? ` ${progress.current}/${progress.total}`
-        : "";
-      process.stderr.write(`[${progress.stage}]${count} ${progress.message}\n`);
+      process.stderr.write(`${REMOTE_PHOTO_PROGRESS_PREFIX}${JSON.stringify(progress)}\n`);
     },
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);

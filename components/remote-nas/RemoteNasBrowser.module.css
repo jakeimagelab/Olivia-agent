@@ -18,6 +18,13 @@
   box-shadow: 0 22px 60px rgba(21, 88, 85, 0.09);
 }
 
+.folderPicker .columnHeader,
+.folderPicker .entryRow { grid-template-columns: minmax(0, 1fr); }
+
+.folderPicker .entryRow { min-height: 54px; }
+
+.folderPicker .entryName strong { font-size: 13px; }
+
 .header {
   min-height: 76px;
   padding: 12px 18px;

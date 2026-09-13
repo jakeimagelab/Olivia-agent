@@ -73,6 +73,40 @@ describe("Remote Worker NAS data source", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("requests folders only and defensively removes file entries", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        job: { id: "018e2f30-92af-78b1-8f21-67f4404f5027", action: "LIST_FOLDER", status: "QUEUED" },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        job: {
+          id: "018e2f30-92af-78b1-8f21-67f4404f5027",
+          action: "LIST_FOLDER",
+          status: "COMPLETED",
+          result: {
+            ok: true,
+            root: "Workstation(M.2SSD)",
+            path: "촬영",
+            entries: [
+              { name: "JPG", type: "folder", path: "촬영/JPG" },
+              { name: "IMG_0001.JPG", type: "file", path: "촬영/IMG_0001.JPG", size: 10 },
+            ],
+          },
+        },
+      }));
+    const source = createRemoteWorkerNasDataSource({ fetcher, pollIntervalMs: 0 });
+
+    const result = await source.listFolder("촬영", { foldersOnly: true });
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
+      action: "LIST_FOLDER",
+      payload: { remote_path: "촬영", folders_only: true },
+    });
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0]).toMatchObject({ kind: "directory", path: "촬영/JPG" });
+  });
+
   it("surfaces a Worker failure with online/unknown connection state", async () => {
     const fetcher = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse({

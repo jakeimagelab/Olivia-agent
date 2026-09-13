@@ -19,6 +19,22 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
     const workerId = getConfiguredWorkerId();
+    const now = new Date().toISOString();
+    const nasHeader = request.headers.get("x-olivia-nas-connected")?.trim().toLowerCase();
+    const nasConnected = nasHeader === "true" ? true : nasHeader === "false" ? false : undefined;
+
+    const { error: heartbeatError } = await supabase
+      .from("remote_workers")
+      .upsert({
+        worker_id: workerId,
+        last_seen_at: now,
+        worker_status: "online",
+        updated_at: now,
+        ...(nasConnected === undefined ? {} : { nas_connected: nasConnected }),
+      }, { onConflict: "worker_id" });
+
+    // Migration 적용 전에도 기존 Worker job claim은 계속 동작해야 한다.
+    if (heartbeatError) console.warn("[worker/next heartbeat]", heartbeatError.message);
 
     const { data, error } = await supabase.rpc("claim_remote_job", {
       p_worker_id: workerId,
@@ -27,6 +43,18 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     const job = Array.isArray(data) ? data[0] : null;
+
+    if (!heartbeatError) {
+      const { error: statusError } = await supabase
+        .from("remote_workers")
+        .update({
+          worker_status: job ? "busy" : "idle",
+          last_seen_at: now,
+          updated_at: now,
+        })
+        .eq("worker_id", workerId);
+      if (statusError) console.warn("[worker/next status]", statusError.message);
+    }
 
     if (!job) {
       return Response.json({});
