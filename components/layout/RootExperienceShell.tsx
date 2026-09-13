@@ -9,9 +9,9 @@ const LegacyAppChrome = dynamic(() => import("./LegacyAppChrome"));
 
 const OS_ROUTE_PATHS = new Set(["/", "/desktop", "/admin/dashboard/home"]);
 
-// 고객/현장 스태프 등 외부인에게 토큰 링크로 공개되는 읽기 전용 페이지들 — 내부 관리자
-// 사이드바(LegacyAppChrome)가 같이 보이면 안 되므로 아예 chrome 없이 페이지 자신의 전체
-// 화면 스타일만 그린다. 각 경로는 이미 자기 완결적인 배경/헤더를 갖고 있다.
+// 외부 공유 화면과 Remote Files처럼 자기 완결적인 전체화면 도구는 내부 관리자
+// 사이드바(LegacyAppChrome)가 같이 보이면 안 되므로 chrome 없이 페이지 자신의 전체
+// 화면 스타일만 그린다. 공개 여부와 인증은 각 route/middleware가 별도로 결정한다.
 const BARE_PATH_PREFIXES = [
   "/client-portal",
   "/conti/view/",
@@ -24,6 +24,7 @@ const BARE_PATH_PREFIXES = [
   "/portrait-consent/",
   "/hospital-brand-image-diagnosis/shared/",
   "/assistant/voice/",
+  "/remote-files",
   "/team-chat/invite/",
   "/select/",
   "/s/",

@@ -210,6 +210,9 @@ export async function middleware(req: NextRequest) {
   if ((pathname === "/voice-recorder" || pathname.startsWith("/voice-recorder/")) && !isAdminSession) {
     return NextResponse.redirect(new URL("/", req.url));
   }
+  if ((pathname === "/remote-files" || pathname.startsWith("/remote-files/")) && !isAdminSession) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
 
   // 팀 채팅 페이지 — 로그인 화면/초대 수락 화면은 세션 없이도 열려야 한다.
   // 그 외(/team-chat, /team-chat/rooms/...)는 관리자 세션 또는 팀원 개인 세션이 있어야 한다.
@@ -278,6 +281,7 @@ export const config = {
     "/portal-admin", "/portal-admin/:path*",
     "/link-generator", "/link-generator/:path*",
     "/work-journal", "/work-journal/:path*",
+    "/remote-files", "/remote-files/:path*",
     "/conti-library", "/conti-library/:path*",
     "/voice-recorder", "/voice-recorder/:path*",
   ],
