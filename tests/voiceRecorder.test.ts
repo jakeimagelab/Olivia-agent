@@ -55,6 +55,10 @@ describe("Olivia voice integration guardrails", () => {
     const result = resolveFeatureIntent("회의 녹음 열어줘");
     expect(result.kind).toBe("match");
     if (result.kind === "match") expect(result.tool.href).toBe("/voice-recorder");
+
+    const mobileHome = readFileSync("components/olivia-mobile/MobileHome.tsx", "utf8");
+    expect(mobileHome).toContain('href="/voice-recorder"');
+    expect(mobileHome).toContain('aria-label="음성 기록 열기"');
   });
 
   it("keeps Hermes read-only and preserves transcribed fallback", () => {

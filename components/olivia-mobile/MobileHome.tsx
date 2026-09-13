@@ -1,11 +1,13 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
   Clock3,
   Eye,
+  Mic,
   Sparkles,
 } from "lucide-react";
 import { AppIcon as DesktopAppIcon, type IconName } from "@/components/AppIcon";
@@ -182,6 +184,10 @@ export default function MobileHome({
           <span className={styles.homeBrandMark}><Image src="/assets/photoclinic-mark.png" alt="" width={30} height={30} priority /></span>
           <span><strong>PHOTO CLINIC</strong><small>OLIVIA MOBILE</small></span>
         </div>
+        <Link href="/voice-recorder" className={styles.voiceShortcut} aria-label="음성 기록 열기">
+          <Mic size={17} />
+          <span>음성 기록</span>
+        </Link>
       </header>
       <div className={styles.homeGreeting}>
         <h1>안녕하세요,<br />오늘도 좋은 하루 되세요! <span>👋</span></h1>
