@@ -105,4 +105,18 @@ describe("Olivia Tablet Shell", () => {
     expect(photoRemote).not.toContain("setConnected");
     expect(photoRemote).not.toContain("UI PREVIEW");
   });
+
+  it("assigns one explicit scroll owner to long Tablet workspaces", () => {
+    const appContent = readFileSync("components/olivia-tablet/TabletAppContent.tsx", "utf8");
+    const frame = readFileSync("components/olivia-tablet/TabletAppFrame.tsx", "utf8");
+    const css = readFileSync("components/olivia-tablet/OliviaTabletShell.module.css", "utf8");
+    const review = readFileSync("components/reviews/ReviewStoryWorkspace.tsx", "utf8");
+
+    expect(frame).toContain('scroll?: "contained" | "page"');
+    expect(appContent).toContain('<TabletAppFrame compact scroll="page">');
+    expect(css).toMatch(/\.tabletAppFramePage\s*\{[^}]*overflow-y:\s*auto/);
+    expect(css).toMatch(/\.segmentContent\s*\{[^}]*overflow-y:\s*auto/);
+    expect(review).toContain("useOliviaUiSurface");
+    expect(review).toContain("node.parentElement?.clientHeight");
+  });
 });

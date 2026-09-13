@@ -95,6 +95,17 @@
 }
 .tabletAppFrameCompact { background: #faf9f6; }
 .tabletAppFrame > * { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.tabletAppFramePage {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.tabletAppFramePage > * {
+  height: auto;
+  min-height: 100%;
+  box-sizing: border-box;
+}
 
 .dockOuter {
   position: absolute;
@@ -246,8 +257,15 @@
 .segmentBar { display: flex; align-items: center; justify-content: center; gap: 4px; border-bottom: 1px solid var(--olivia-border); background: #fbfcfb; }
 .segmentBar button { min-width: 112px; min-height: 42px; padding: 0 20px; border: 0; border-radius: 13px; color: #728a85; background: transparent; font-size: 13px; font-weight: 760; cursor: pointer; }
 .segmentBar button[aria-selected="true"] { color: var(--olivia-green); background: var(--olivia-mint); box-shadow: inset 0 0 0 1px rgba(21, 88, 85, 0.08); }
-.segmentContent { min-width: 0; min-height: 0; overflow: hidden; }
-.segmentContent > * { width: 100%; height: 100%; }
+.segmentContent {
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.segmentContent > * { width: 100%; height: auto; min-height: 100%; box-sizing: border-box; }
 
 .disabledScreen { display: grid; place-content: center; justify-items: center; gap: 10px; padding: 30px; text-align: center; background: #fbfaf7; }
 .disabledIcon { margin-bottom: 8px; padding: 8px; border: 1px solid var(--olivia-border); border-radius: 22px; background: #fff; opacity: 0.52; }

@@ -21,7 +21,7 @@ export const TABLET_APPS: TabletAppDefinition[] = [
   { id: "quote-contract", title: "견적·계약", registryAppId: "quote", fallbackIcon: "quote" },
   { id: "channel-analysis", title: "병원 채널분석", fallbackIcon: "channel-analysis" },
   { id: "brand-image", title: "브랜드이미지", fallbackIcon: "brand-image-diagnosis" },
-  { id: "voice", title: "AI 음성", fallbackIcon: "prompter", disabled: true },
+  { id: "voice", title: "음성 기록", fallbackIcon: "prompter" },
   { id: "photo-workspace", title: "사진작업실", registryAppId: "photo-workspace", fallbackIcon: "photo-studio" },
 ];
 

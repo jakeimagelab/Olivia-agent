@@ -55,7 +55,7 @@ export default function TabletAppContent({ activeApp, navigation, onNavigate }: 
     case "customer": content = <TabletAppFrame><TabletClients /></TabletAppFrame>; break;
     case "calendar": content = <TabletAppFrame><TabletCalendar /></TabletAppFrame>; break;
     case "conti": content = (
-      <TabletAppFrame compact>
+      <TabletAppFrame compact scroll="page">
         <TabletConti
           key={navigation.resourceId ?? "new-conti"}
           initialRunId={navigation.resourceId}

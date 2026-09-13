@@ -22,6 +22,7 @@ import ReviewStoryCanvas, { type ReviewStoryCanvasHandle } from "./ReviewStoryCa
 import ReviewCanvasThumbnail from "./canvas/ReviewCanvasThumbnail";
 import ReviewCanvasExportHost, { type ReviewCanvasExportHostHandle } from "./canvas/ReviewCanvasExportHost";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
+import { useOliviaUiSurface } from "@/lib/olivia/surfaceContext";
 import ReviewTemplateThumbnail from "./ReviewTemplateThumbnail";
 import Modal from "@/components/ui/Modal";
 import styles from "./ReviewStoryWorkspace.module.css";
@@ -250,6 +251,7 @@ export default function ReviewStoryWorkspace() {
   const [backgroundAssets, setBackgroundAssets] = useState<GeneratedBackgroundAsset[]>([]);
   const workspaceRef = useRef<HTMLElement>(null);
   const [workspaceHeight, setWorkspaceHeight] = useState<number | null>(null);
+  const uiSurface = useOliviaUiSurface();
   const canvasHandleRef = useRef<ReviewStoryCanvasHandle>(null);
   const exportHostRefs = useRef<Map<string, ReviewCanvasExportHostHandle>>(new Map());
 
@@ -262,13 +264,22 @@ export default function ReviewStoryWorkspace() {
     if (!node) return;
     // 760px 이하는 CSS 미디어쿼리가 이 영역을 height:auto(자연 스크롤)로 되돌리는 모바일 스택
     // 레이아웃이라, 그 구간에서는 인라인 높이를 넣지 않아야 CSS가 이긴다.
-    const update = () => setWorkspaceHeight(window.innerWidth > 760 ? window.innerHeight - node.getBoundingClientRect().top : null);
+    const update = () => {
+      if (window.innerWidth <= 760) {
+        setWorkspaceHeight(null);
+        return;
+      }
+      const availableHeight = uiSurface === "tablet"
+        ? node.parentElement?.clientHeight ?? window.innerHeight - node.getBoundingClientRect().top
+        : window.innerHeight - node.getBoundingClientRect().top;
+      setWorkspaceHeight(availableHeight);
+    };
     update();
     window.addEventListener("resize", update);
     const observer = new ResizeObserver(update);
-    observer.observe(document.body);
+    observer.observe(uiSurface === "tablet" && node.parentElement ? node.parentElement : document.body);
     return () => { window.removeEventListener("resize", update); observer.disconnect(); };
-  }, []);
+  }, [uiSurface]);
 
   const activeContent = useMemo(() => contents.find((item) => item.id === activeContentId) || null, [contents, activeContentId]);
   const activePage = useMemo(() => pages.find((page) => page.id === activePageId) || pages[0] || null, [pages, activePageId]);

@@ -30,6 +30,7 @@ export const TOOLS_WORK: ToolDef[] = [
   // 2026-09 요청으로 잠깐 독립 메뉴에서 뺐다가(고객/프로젝트/일정/업무 상세로만) 사용자가 못 찾겠다고
   // 해서 도로 살렸다 — 이제 둘 다 된다: 메뉴에서도 열리고, 각 상세 화면 안에서도 그 컨텍스트로 쓸 수 있다.
   { title: "메모", desc: "일반 텍스트, 펜 템플릿, AI 음성 요약으로 기록을 정리합니다.", href: "/memo", icon: NotebookPen, meta: "Memo", orange: true, category: "dashboard", aliases: ["메모", "메모장", "노트"] },
+  { title: "음성 기록", desc: "미팅을 녹음하고 화자를 구분해 내용을 자동 정리합니다.", href: "/voice-recorder", icon: Mic, meta: "Olivia Recorder", orange: false, category: "dashboard", aliases: ["녹음", "음성녹음", "음성 녹음", "음성 기록", "음성기록", "미팅 녹음", "회의 녹음", "녹음기", "레코더"] },
   { title: "팀 채팅", desc: "스튜디오 팀원들과 채팅방을 만들어 대화하고 파일을 주고받습니다.", href: "/team-chat", icon: MessageCircle, meta: "Team Chat", orange: false, category: "dashboard", aliases: ["팀채팅", "팀 채팅", "팀 대화"] },
   { title: "업무 캘린더", desc: "날짜별 촬영·미팅·행정 할일을 한 화면에서 관리합니다.", href: "/calendar", icon: Calendar, meta: "Task Calendar", orange: false, category: "dashboard", aliases: ["캘린더", "일정", "달력", "스케줄"] },
   { title: "업무일지", desc: "촬영 일정별 To-do와 장비·렌탈 준비사항을 관리합니다.", href: "/work-journal", icon: ClipboardList, meta: "Shoot Log", orange: false, category: "dashboard", aliases: ["업무일지", "촬영 준비"] },
