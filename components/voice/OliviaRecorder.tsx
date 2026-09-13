@@ -49,7 +49,15 @@ async function readError(response: Response, fallback: string) {
   }
 }
 
-export default function OliviaRecorder({ embedded = false }: { embedded?: boolean }) {
+export default function OliviaRecorder({
+  embedded = false,
+  mobileShell = false,
+  onOpenResult,
+}: {
+  embedded?: boolean;
+  mobileShell?: boolean;
+  onOpenResult?: (id: string) => void;
+}) {
   const engineRef = useRef<OliviaBrowserRecorder | null>(null);
   const timerRef = useRef<number | null>(null);
   const pollingRef = useRef<number | null>(null);
@@ -415,6 +423,148 @@ export default function OliviaRecorder({ embedded = false }: { embedded?: boolea
 
   const recordingActive = stage === "recording" || stage === "paused";
 
+  if (mobileShell) {
+    return (
+      <main className={styles.mobileRecorder} data-voice-stage={stage}>
+        <section className={styles.mobileRecorderContent} aria-live="polite">
+          {stage === "idle" ? (
+            <div className={styles.mobileIdle}>
+              <div className={styles.mobileIntroCard}>
+                <span className={styles.mobileIntroIcon}><Mic size={20} /></span>
+                <span className={styles.mobileIntroCopy}>
+                  <strong>새 음성 기록</strong>
+                  <small>대화와 회의를 녹음하면 Olivia가 정리해요.</small>
+                </span>
+                <span className={styles.mobilePrivateBadge}><ShieldCheck size={13} /> 비공개</span>
+              </div>
+
+              {staleSession ? (
+                <div className={styles.mobileRecoveryNotice}>
+                  <AlertCircle size={17} />
+                  <span><strong>완료되지 않은 이전 녹음이 있어요.</strong><small>브라우저가 종료됐다면 오디오는 복구되지 않을 수 있어요.</small></span>
+                  <button type="button" onClick={() => {
+                    clearPending(staleSession.id);
+                    setStaleSession(null);
+                  }}>확인</button>
+                </div>
+              ) : null}
+
+              <div className={styles.mobileReadyCard}>
+                <span className={styles.mobileReadyPill}>녹음 준비됨</span>
+                <div className={styles.mobileIdleWaveform} aria-hidden="true">
+                  {[18, 31, 47, 26, 58, 38, 72, 45, 28, 62, 82, 52, 34, 68, 43, 76, 55, 35, 60, 29, 48, 24, 37, 19].map((height, index) => (
+                    <i key={index} style={{ height: `${height}%` }} />
+                  ))}
+                </div>
+                <h2>지금 대화를 기록해보세요</h2>
+                <p>녹음을 마치면 화자를 구분하고<br />핵심 내용과 할 일을 정리합니다.</p>
+              </div>
+
+              <div className={styles.mobileFeatureRow} aria-label="음성 기록 저장 항목">
+                <span>원본 보존</span>
+                <i />
+                <span>화자 구분</span>
+                <i />
+                <span>AI 요약</span>
+              </div>
+
+              <button type="button" className={styles.mobileStartButton} onClick={() => void start()}>
+                <span><Mic size={21} /></span>
+                <strong>녹음 시작</strong>
+                <small>마이크 권한을 확인합니다</small>
+              </button>
+              <p className={styles.mobileConsent}>상대방에게 녹음 사실을 알리고 동의를 받은 뒤 시작해주세요.</p>
+            </div>
+          ) : null}
+
+          {stage === "starting" ? (
+            <MobileProcessing icon="mic" title="마이크를 준비하고 있어요" detail="브라우저의 마이크 사용을 허용해주세요." />
+          ) : null}
+
+          {recordingActive ? (
+            <div className={styles.mobileRecording}>
+              <div className={styles.mobileRecordingTopline}>
+                <span className={styles.mobileRecordingState}>
+                  <i className={stage === "paused" ? styles.mobilePausedDot : styles.mobileLiveDot} />
+                  {stage === "paused" ? "일시정지" : "녹음 중"}
+                </span>
+                <span className={styles.mobilePrivateBadge}><ShieldCheck size={13} /> 비공개 저장</span>
+              </div>
+
+              <time className={styles.mobileTimer}>{formatTime(elapsed)}</time>
+              <p className={styles.mobileTimerCaption}>{stage === "paused" ? "녹음이 잠시 멈췄어요" : "대화를 안전하게 기록하고 있어요"}</p>
+
+              <div className={styles.mobileWaveCard}>
+                <div className={styles.mobileWaveform} aria-label="실시간 음성 파형">
+                  {waveform.map((value, index) => (
+                    <i key={index} style={{ height: `${Math.max(7, value * 100)}%` }} />
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.mobileSpeakerCard}>
+                <span className={styles.mobileSpeakerAvatar}>{speakerHint.match(/\d+/)?.[0] || "…"}</span>
+                <span>
+                  <small>현재 화자 추정</small>
+                  <strong>{speakerHint}</strong>
+                </span>
+                <em>{confidence > 0 ? `${Math.round(confidence * 100)}%` : "분석 중"}</em>
+              </div>
+
+              {notice ? <p className={styles.mobileNotice}><AlertCircle size={15} /> {notice}</p> : null}
+
+              <div className={styles.mobileRecordingActions}>
+                {stage === "recording" ? (
+                  <button type="button" className={styles.mobilePauseButton} onClick={pause}><Pause size={19} /> 일시정지</button>
+                ) : (
+                  <button type="button" className={styles.mobilePauseButton} onClick={resume}><Play size={19} /> 계속 녹음</button>
+                )}
+                <button type="button" className={styles.mobileStopButton} onClick={() => void stop()}><Square size={17} fill="currentColor" /> 종료하고 저장</button>
+              </div>
+            </div>
+          ) : null}
+
+          {stage === "uploading" ? (
+            <MobileProcessing title="녹음을 안전하게 저장하고 있어요" detail="원본 파일을 Olivia에 보관하고 있어요. 이 화면을 닫지 말아주세요." />
+          ) : null}
+          {stage === "processing" ? (
+            <MobileProcessing title="대화 내용을 정리하고 있어요" detail="화자를 구분하고 핵심 내용과 할 일을 찾고 있어요." />
+          ) : null}
+
+          {stage === "complete" ? (
+            <div className={styles.mobileResultState}>
+              <span className={styles.mobileResultIcon}><Check size={29} /></span>
+              <span className={styles.mobileResultEyebrow}>{finalStatus === "transcribed" ? "전사 저장 완료" : "정리 완료"}</span>
+              <h2>{finalStatus === "transcribed" ? "대화 기록을 안전하게 저장했어요" : "음성 기록 정리가 끝났어요"}</h2>
+              <p>{finalStatus === "transcribed" ? "전체 대화와 화자 정보는 보존됐어요. AI 요약은 나중에 다시 진행할 수 있어요." : "화자별 대화와 AI 요약, 발견된 할 일을 확인해보세요."}</p>
+              {sessionId ? (
+                onOpenResult ? (
+                  <button type="button" className={styles.mobileResultButton} onClick={() => onOpenResult(sessionId)}>정리된 기록 보기</button>
+                ) : <Link href={`/voice-recorder/${sessionId}`} className={styles.mobileResultButton}>정리된 기록 보기</Link>
+              ) : null}
+            </div>
+          ) : null}
+
+          {stage === "error" ? (
+            <div className={styles.mobileResultState}>
+              <span className={`${styles.mobileResultIcon} ${styles.mobileResultIconError}`}><AlertCircle size={29} /></span>
+              <span className={styles.mobileResultEyebrow}>확인이 필요해요</span>
+              <h2>{errorMessage || "음성 처리 중 문제가 발생했습니다."}</h2>
+              <p>{uploadedRef.current || retryMode === "process" ? "업로드된 원본과 전사 결과는 그대로 보존되어 있어요." : "연결 상태와 마이크 권한을 확인해주세요."}</p>
+              <div className={styles.mobileErrorActions}>
+                {retryMode ? <button type="button" onClick={() => void retry()}><RotateCcw size={17} /> 다시 시도</button> : null}
+                {sessionId && (uploadedRef.current || retryMode === "process") ? (
+                  onOpenResult ? <button type="button" onClick={() => onOpenResult(sessionId)}>기록 확인</button> : <Link href={`/voice-recorder/${sessionId}`}>기록 확인</Link>
+                ) : null}
+                {!retryMode ? <button type="button" onClick={() => setStage("idle")}>처음으로</button> : null}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className={`${styles.root} ${embedded ? styles.embedded : ""}`} data-voice-stage={stage}>
       <section className={styles.card} aria-live="polite">
@@ -495,7 +645,9 @@ export default function OliviaRecorder({ embedded = false }: { embedded?: boolea
             <p>{finalStatus === "transcribed" ? "TRANSCRIPT SAVED" : "READY"}</p>
             <h2>{finalStatus === "transcribed" ? "전사 결과를 안전하게 저장했어요" : "정리가 완료됐어요"}</h2>
             <span>{finalStatus === "transcribed" ? "Hermes 요약은 현재 대기 중이며 기록 화면에서 다시 시도할 수 있어요." : "화자별 대화와 핵심 내용, 후속 할 일을 확인해보세요."}</span>
-            {sessionId ? <Link href={`/voice-recorder/${sessionId}`} className={styles.resultLink}>기록 보기</Link> : null}
+            {sessionId ? onOpenResult ? (
+              <button type="button" className={styles.resultLink} onClick={() => onOpenResult(sessionId)}>기록 보기</button>
+            ) : <Link href={`/voice-recorder/${sessionId}`} className={styles.resultLink}>기록 보기</Link> : null}
           </div>
         ) : null}
 
@@ -507,7 +659,9 @@ export default function OliviaRecorder({ embedded = false }: { embedded?: boolea
             {uploadedRef.current || retryMode === "process" ? <span>업로드된 원본과 전사 결과는 삭제하지 않았습니다.</span> : null}
             <div className={styles.errorActions}>
               {retryMode ? <button type="button" onClick={() => void retry()}><RotateCcw size={17} /> 다시 시도</button> : null}
-              {sessionId && (uploadedRef.current || retryMode === "process") ? <Link href={`/voice-recorder/${sessionId}`}>기록 확인</Link> : null}
+              {sessionId && (uploadedRef.current || retryMode === "process") ? onOpenResult ? (
+                <button type="button" onClick={() => onOpenResult(sessionId)}>기록 확인</button>
+              ) : <Link href={`/voice-recorder/${sessionId}`}>기록 확인</Link> : null}
               {!retryMode ? <button type="button" onClick={() => setStage("idle")}>처음으로</button> : null}
             </div>
           </div>
@@ -524,6 +678,32 @@ function Processing({ title, detail }: { title: string; detail: string }) {
       <p>OLIVIA IS WORKING</p>
       <h2>{title}</h2>
       <span>{detail}</span>
+    </div>
+  );
+}
+
+function MobileProcessing({
+  title,
+  detail,
+  icon,
+}: {
+  title: string;
+  detail: string;
+  icon?: "mic";
+}) {
+  return (
+    <div className={styles.mobileProcessing}>
+      <span className={styles.mobileProcessingVisual}>
+        {icon === "mic" ? <Mic size={25} /> : <span className={styles.mobileSpinner} />}
+      </span>
+      <span className={styles.mobileResultEyebrow}>OLIVIA</span>
+      <h2>{title}</h2>
+      <p>{detail}</p>
+      <div className={styles.mobileProcessingSteps} aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </div>
     </div>
   );
 }

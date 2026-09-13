@@ -29,7 +29,7 @@ function statusCopy(status: VoiceStatus) {
   return "정리가 완료됐어요.";
 }
 
-export default function VoiceRecordingDetail({ id }: { id: string }) {
+export default function VoiceRecordingDetail({ id, embedded = false }: { id: string; embedded?: boolean }) {
   const [recording, setRecording] = useState<VoiceRecording | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -105,12 +105,12 @@ export default function VoiceRecordingDetail({ id }: { id: string }) {
   }, [id, load]);
 
   if (loading) {
-    return <main className={styles.loading}><span /><p>음성 기록을 불러오고 있어요.</p></main>;
+    return <main className={`${styles.loading} ${embedded ? styles.embeddedLoading : ""}`}><span /><p>음성 기록을 불러오고 있어요.</p></main>;
   }
 
   if (!recording) {
     return (
-      <main className={styles.loading}>
+      <main className={`${styles.loading} ${embedded ? styles.embeddedLoading : ""}`}>
         <AlertCircle size={36} />
         <p>{error || "기록을 찾을 수 없습니다."}</p>
         <Link href="/voice-recorder">음성 기록으로 돌아가기</Link>
@@ -122,12 +122,12 @@ export default function VoiceRecordingDetail({ id }: { id: string }) {
   const processing = ["recording", "uploading", "uploaded", "diarizing", "summarizing"].includes(recording.status);
 
   return (
-    <main className={styles.root}>
+    <main className={`${styles.root} ${embedded ? styles.embedded : ""}`}>
       <div className={styles.container}>
         <header className={styles.header}>
-          <Link href="/voice-recorder" aria-label="음성 기록으로 돌아가기"><ArrowLeft size={20} /></Link>
+          {embedded ? null : <Link href="/voice-recorder" aria-label="음성 기록으로 돌아가기"><ArrowLeft size={20} /></Link>}
           <div>
-            <p>OLIVIA VOICE RECORD</p>
+            <p>{embedded ? "음성 기록 결과" : "OLIVIA VOICE RECORD"}</p>
             <h1>{recording.title || "음성 기록"}</h1>
             <span>
               {new Date(recording.recorded_at).toLocaleString("ko-KR", { dateStyle: "long", timeStyle: "short" })}
@@ -160,7 +160,7 @@ export default function VoiceRecordingDetail({ id }: { id: string }) {
 
         {recording.summary ? (
           <section className={`${styles.section} ${styles.summary}`}>
-            <header><span><Sparkles size={19} /></span><div><small>AI SUMMARY</small><h2>AI 요약</h2></div></header>
+            <header><span><Sparkles size={19} /></span><div><small>{embedded ? "내용 정리" : "AI SUMMARY"}</small><h2>AI 요약</h2></div></header>
             <p>{recording.summary}</p>
           </section>
         ) : null}
@@ -168,14 +168,14 @@ export default function VoiceRecordingDetail({ id }: { id: string }) {
         <div className={styles.insightGrid}>
           {recording.key_points?.length > 0 ? (
             <section className={styles.section}>
-              <header><span><ListChecks size={19} /></span><div><small>KEY POINTS</small><h2>핵심 내용</h2></div></header>
+              <header><span><ListChecks size={19} /></span><div><small>{embedded ? "주요 내용" : "KEY POINTS"}</small><h2>핵심 내용</h2></div></header>
               <ul>{recording.key_points.map((item, index) => <li key={`${item}-${index}`}><i>{index + 1}</i><span>{item}</span></li>)}</ul>
             </section>
           ) : null}
 
           {recording.action_items?.length > 0 ? (
             <section className={`${styles.section} ${styles.actions}`}>
-              <header><span><CheckSquare size={19} /></span><div><small>ACTION CANDIDATES</small><h2>발견된 할 일</h2></div></header>
+              <header><span><CheckSquare size={19} /></span><div><small>{embedded ? "후속 작업 후보" : "ACTION CANDIDATES"}</small><h2>발견된 할 일</h2></div></header>
               <p>아직 실제 To-do에는 등록되지 않았습니다.</p>
               <ul>{recording.action_items.map((item, index) => <li key={`${item}-${index}`}><i aria-hidden="true" /><span>{item}</span></li>)}</ul>
             </section>
@@ -184,7 +184,7 @@ export default function VoiceRecordingDetail({ id }: { id: string }) {
 
         {speakers.length > 0 ? (
           <section className={styles.speakerSection}>
-            <header><div><small>SPEAKERS</small><h2>화자 이름</h2></div><span>이름을 바꾸면 이 기록의 모든 대화에 함께 적용됩니다.</span></header>
+            <header><div><small>{embedded ? "대화 참여자" : "SPEAKERS"}</small><h2>화자 이름</h2></div><span>이름을 바꾸면 이 기록의 모든 대화에 함께 적용됩니다.</span></header>
             <div className={styles.speakerList}>
               {speakers.map((speaker) => {
                 const displayName = speakerNames[speaker] || defaultSpeakerName(speaker, speakers);
@@ -209,7 +209,7 @@ export default function VoiceRecordingDetail({ id }: { id: string }) {
         ) : null}
 
         <section className={styles.transcriptSection}>
-          <header><div><small>FULL TRANSCRIPT</small><h2>전체 대화</h2></div><span>{recording.transcript_segments?.length ?? 0}개 구간</span></header>
+          <header><div><small>{embedded ? "화자별 기록" : "FULL TRANSCRIPT"}</small><h2>전체 대화</h2></div><span>{recording.transcript_segments?.length ?? 0}개 구간</span></header>
           <div className={styles.transcriptList}>
             {recording.transcript_segments?.length > 0 ? recording.transcript_segments.map((segment, index) => {
               const name = speakerNames[segment.speaker] || defaultSpeakerName(segment.speaker, speakers);

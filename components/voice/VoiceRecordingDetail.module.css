@@ -79,6 +79,21 @@
   .speakerRow input { min-width: 150px; flex: 1; }
   .transcriptList article { padding: 14px; }
   .transcriptList article p { margin-left: 0; }
+  .root.embedded {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding: 10px 14px calc(82px + env(safe-area-inset-bottom, 0px));
+    -webkit-overflow-scrolling: touch;
+  }
+  .embedded .header {
+    min-height: auto;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 12px 2px 14px;
+  }
+  .embedded .header h1 { font-size: 21px; }
+  .embeddedLoading { height: 100%; min-height: 0; padding-bottom: 82px; }
 }
 
 @media (prefers-reduced-motion: reduce) { .root * { animation-duration: .01ms !important; } }

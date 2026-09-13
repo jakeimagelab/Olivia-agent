@@ -1,11 +1,11 @@
-export type MobilePrimaryView = "home" | "calendar" | "memo" | "documents" | "chat";
+export type MobilePrimaryView = "home" | "calendar" | "memo" | "documents" | "chat" | "voice";
 export type MobileResourceType = "quote" | "contract" | "document" | "storyboard";
 
 export type MobileNavigationState =
   | { view: MobilePrimaryView }
   | { view: "preview"; resourceType: MobileResourceType; resourceId: string; temporaryDocumentId?: string };
 
-const PRIMARY_VIEWS = new Set<MobilePrimaryView>(["home", "calendar", "memo", "documents", "chat"]);
+const PRIMARY_VIEWS = new Set<MobilePrimaryView>(["home", "calendar", "memo", "documents", "chat", "voice"]);
 const RESOURCE_TYPES = new Set<MobileResourceType>(["quote", "contract", "document", "storyboard"]);
 
 export function parseMobileNavigation(search: string): MobileNavigationState {
@@ -45,4 +45,3 @@ export function buildMobileNavigationUrl(currentHref: string, state: MobileNavig
 export function primaryViewForNavigation(state: MobileNavigationState): MobilePrimaryView | null {
   return state.view === "preview" ? null : state.view;
 }
-

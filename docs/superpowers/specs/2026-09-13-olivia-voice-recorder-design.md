@@ -17,6 +17,8 @@
 
 브라우저 `MediaRecorder`를 사용하고 MP4/M4A를 우선 선택한다. Web Audio analyser는 waveform과 화면용 화자 추정에만 쓰며, 최종 화자 정보는 OpenAI diarization 결과만 신뢰한다. 녹음 세션과 서명 업로드 정보를 `localStorage`에 임시 백업하고 성공 후 제거한다.
 
+모바일 Olivia에서는 독립 페이지로 이탈하지 않고 `mobileView=voice` 화면에서 기존 모바일 Header와 Dock 사이에 동일한 `OliviaRecorder`를 렌더한다. 완료 결과도 같은 모바일 Surface 안에서 열며, Tablet과 Desktop은 기존 진입 구조를 유지한다.
+
 ## 서버
 
 신규 `/api/voice` 경로는 기존 관리자 세션 미들웨어로 보호한다. 서버만 service-role과 OpenAI/Hermes 자격 증명을 사용한다. 사용자는 제한된 단일 경로 signed upload URL로 원본을 올리고, 조회 시에는 짧은 수명의 signed download URL을 받는다.

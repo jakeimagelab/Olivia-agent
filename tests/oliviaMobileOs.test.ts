@@ -26,6 +26,7 @@ describe("Olivia Mobile OS", () => {
       view: "preview", resourceType: "quote", resourceId: "quote-1", temporaryDocumentId: "temp-1",
     });
     expect(buildMobileNavigationUrl(`https://olivia.photoclinic.kr${href}`, { view: "chat" })).not.toContain("resourceId");
+    expect(parseMobileNavigation("?mobileView=voice")).toEqual({ view: "voice" });
   });
 
   it("normalizes canonical document references without creating a copied resource", () => {

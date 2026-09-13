@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import MobileBottomNav from "./MobileBottomNav";
 import MobileHome from "./MobileHome";
@@ -16,6 +17,10 @@ import {
   type MobilePrimaryView,
 } from "@/lib/olivia/mobile/navigation";
 import styles from "./OliviaMobileShell.module.css";
+
+const MobileVoice = dynamic(() => import("./MobileVoice"), {
+  loading: () => <div className={styles.mobileFeatureLoading}>음성 기록을 준비하고 있어요...</div>,
+});
 
 function currentNavigation(): MobileNavigationState {
   return typeof window === "undefined" ? { view: "home" } : parseMobileNavigation(window.location.search);
@@ -63,6 +68,8 @@ export default function OliviaMobileShell() {
       ? <MobileCalendar />
       : navigation.view === "memo"
         ? <MobileMemo />
+        : navigation.view === "voice"
+          ? <MobileVoice onBack={() => navigate({ view: "home" }, "replace")} />
         : navigation.view === "documents"
           ? <MobileDocuments initialSection={documentsSection} onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />
           : <MobileOliviaChat onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />;
