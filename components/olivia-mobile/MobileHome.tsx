@@ -30,6 +30,7 @@ type CalendarTask = { id: string; title: string; time?: string | null; location?
 const QUICK_ITEMS = [
   { id: "calendar", label: "캘린더", description: "오늘 일정 확인" },
   { id: "memo", label: "메모", description: "아이디어 / 업무 기록", iconName: "memo" },
+  { id: "photo-workspace", label: "사진작업실", description: "Mac Studio 원격 작업", iconName: "photo-studio" },
   { id: "quote-contract", label: "견적/계약", description: "작성 및 진행 상태" },
   { id: "library", label: "문서함", description: "파일 한곳에", iconName: "library" },
   { id: "chat", label: "올리비아 채팅", description: "Olivia에게 업무 지시", iconName: "olivia" },

@@ -9,6 +9,7 @@ import MobileMemo from "./MobileMemo";
 import MobileDocuments, { type MobileDocumentsSection } from "./MobileDocuments";
 import MobileOliviaChat from "./MobileOliviaChat";
 import MobileResourcePreview from "./MobileResourcePreview";
+import { OliviaUiSurfaceProvider } from "@/lib/olivia/surfaceContext";
 import {
   buildMobileNavigationUrl,
   parseMobileNavigation,
@@ -20,6 +21,9 @@ import styles from "./OliviaMobileShell.module.css";
 
 const MobileVoice = dynamic(() => import("./MobileVoice"), {
   loading: () => <div className={styles.mobileFeatureLoading}>음성 기록을 준비하고 있어요...</div>,
+});
+const MobilePhotoWorkspace = dynamic(() => import("./MobilePhotoWorkspace"), {
+  loading: () => <div className={styles.mobileFeatureLoading}>사진작업실을 준비하고 있어요...</div>,
 });
 
 function currentNavigation(): MobileNavigationState {
@@ -70,16 +74,20 @@ export default function OliviaMobileShell() {
         ? <MobileMemo />
         : navigation.view === "voice"
           ? <MobileVoice onBack={() => navigate({ view: "home" }, "replace")} />
+        : navigation.view === "photo-workspace"
+          ? <MobilePhotoWorkspace onBack={() => navigate({ view: "home" }, "replace")} />
         : navigation.view === "documents"
           ? <MobileDocuments initialSection={documentsSection} onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />
           : <MobileOliviaChat onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />;
 
   return (
-    <main className={styles.shell} data-olivia-mobile-shell>
-      <div className={styles.viewport}>{screen}</div>
-      {navigation.view === "preview" ? null : (
-        <MobileBottomNav activeView={primaryViewForNavigation(navigation)} onNavigate={navigatePrimary} />
-      )}
-    </main>
+    <OliviaUiSurfaceProvider value="mobile">
+      <main className={styles.shell} data-olivia-mobile-shell>
+        <div className={styles.viewport}>{screen}</div>
+        {navigation.view === "preview" ? null : (
+          <MobileBottomNav activeView={primaryViewForNavigation(navigation)} onNavigate={navigatePrimary} />
+        )}
+      </main>
+    </OliviaUiSurfaceProvider>
   );
 }

@@ -44,7 +44,13 @@ const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["select", "metadata-select"
 const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client"]);
 const RAW_MATCH_VIEWS = new Set<RawMatchView>(["ai-cull", "match"]);
 
-function PhotoWorkspaceContent() {
+function PhotoWorkspaceContent({
+  hideHeader = false,
+  initialMode = "select",
+}: {
+  hideHeader?: boolean;
+  initialMode?: PhotoWorkspaceMode;
+}) {
   const contentRef = useRef<HTMLElement>(null);
   const [compact, setCompact] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -55,7 +61,7 @@ function PhotoWorkspaceContent() {
   const rawMode = searchParams.get("mode") as PhotoWorkspaceMode | null;
   const rawSelectMode = searchParams.get("selectMode") as PhotoSelectMode | null;
   const rawRawMatchView = searchParams.get("rawMatchView") as RawMatchView | null;
-  const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : "select");
+  const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialMode);
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : "ai");
   const rawMatchView = toolState?.rawMatchView ?? (rawRawMatchView && RAW_MATCH_VIEWS.has(rawRawMatchView) ? rawRawMatchView : "ai-cull");
   const { executionMode } = usePhotoStudioExecution();
@@ -94,7 +100,7 @@ function PhotoWorkspaceContent() {
   return (
     <div className={styles.page}>
       <main ref={contentRef} className={styles.content}>
-        <PhotoWorkspaceHeader />
+        {hideHeader ? null : <PhotoWorkspaceHeader />}
         <PhotoWorkspaceTabs value={mode} onChange={updateQuery} />
         {compact ? (
           <button
@@ -148,6 +154,16 @@ function PhotoWorkspaceContent() {
   );
 }
 
-export default function PhotoWorkspace() {
-  return <Suspense fallback={<div className={styles.workspaceLoading}>사진작업실을 준비하는 중...</div>}><PhotoWorkspaceContent /></Suspense>;
+export default function PhotoWorkspace({
+  hideHeader = false,
+  initialMode = "select",
+}: {
+  hideHeader?: boolean;
+  initialMode?: PhotoWorkspaceMode;
+} = {}) {
+  return (
+    <Suspense fallback={<div className={styles.workspaceLoading}>사진작업실을 준비하는 중...</div>}>
+      <PhotoWorkspaceContent hideHeader={hideHeader} initialMode={initialMode} />
+    </Suspense>
+  );
 }

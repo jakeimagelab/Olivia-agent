@@ -1,11 +1,19 @@
-export type MobilePrimaryView = "home" | "calendar" | "memo" | "documents" | "chat" | "voice";
+export type MobilePrimaryView = "home" | "calendar" | "memo" | "documents" | "chat" | "voice" | "photo-workspace";
 export type MobileResourceType = "quote" | "contract" | "document" | "storyboard";
 
 export type MobileNavigationState =
   | { view: MobilePrimaryView }
   | { view: "preview"; resourceType: MobileResourceType; resourceId: string; temporaryDocumentId?: string };
 
-const PRIMARY_VIEWS = new Set<MobilePrimaryView>(["home", "calendar", "memo", "documents", "chat", "voice"]);
+const PRIMARY_VIEWS = new Set<MobilePrimaryView>([
+  "home",
+  "calendar",
+  "memo",
+  "documents",
+  "chat",
+  "voice",
+  "photo-workspace",
+]);
 const RESOURCE_TYPES = new Set<MobileResourceType>(["quote", "contract", "document", "storyboard"]);
 
 export function parseMobileNavigation(search: string): MobileNavigationState {

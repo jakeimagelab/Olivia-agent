@@ -27,6 +27,9 @@ describe("Olivia Mobile OS", () => {
     });
     expect(buildMobileNavigationUrl(`https://olivia.photoclinic.kr${href}`, { view: "chat" })).not.toContain("resourceId");
     expect(parseMobileNavigation("?mobileView=voice")).toEqual({ view: "voice" });
+    expect(parseMobileNavigation("?mobileView=photo-workspace")).toEqual({ view: "photo-workspace" });
+    expect(buildMobileNavigationUrl("https://olivia.photoclinic.kr/", { view: "photo-workspace" }))
+      .toContain("mobileView=photo-workspace");
   });
 
   it("normalizes canonical document references without creating a copied resource", () => {
