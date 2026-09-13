@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { preferredMimeType } from "@/lib/voice/browserRecorder";
+import { analyzeWaveformFrame, preferredMimeType } from "@/lib/voice/browserRecorder";
 import { baseAudioMimeType, extensionFromMime, VOICE_TRANSCRIPTION_MAX_BYTES } from "@/lib/voice/config";
 import { buildTranscriptText, defaultSpeakerName, extractVoiceSummary, normalizeTranscriptSegments } from "@/lib/voice/processing";
 import { extractOpenAIResponseText, VOICE_SUMMARY_SCHEMA } from "@/lib/voice/summarizer";
@@ -25,6 +25,19 @@ describe("Olivia voice recorder format selection", () => {
     expect(baseAudioMimeType("audio/webm;codecs=opus")).toBe("audio/webm");
     expect(extensionFromMime("audio/mpeg")).toBe("mp3");
     expect(VOICE_TRANSCRIPTION_MAX_BYTES).toBe(25 * 1024 * 1024);
+  });
+
+  it("keeps silence calm while making quiet iPhone speech visibly responsive", () => {
+    const silence = analyzeWaveformFrame(new Uint8Array(256).fill(128));
+    expect(Math.max(...silence.values)).toBeCloseTo(0.05);
+
+    const quietSpeech = Uint8Array.from({ length: 256 }, (_, index) => (
+      Math.round(128 + Math.sin(index / 3) * (index % 19 < 8 ? 7 : 2))
+    ));
+    const active = analyzeWaveformFrame(quietSpeech, silence.values, silence.ceiling);
+    expect(active.rms).toBeGreaterThan(0.012);
+    expect(Math.max(...active.values)).toBeGreaterThan(0.12);
+    expect(new Set(active.values.map((value) => value.toFixed(3))).size).toBeGreaterThan(3);
   });
 });
 

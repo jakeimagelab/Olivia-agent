@@ -16,6 +16,52 @@ export function preferredMimeType(recorderType: typeof MediaRecorder | undefined
   return RECORDER_MIME_CANDIDATES.find((type) => recorderType.isTypeSupported(type)) ?? "";
 }
 
+export function analyzeWaveformFrame(
+  timeData: Uint8Array,
+  previous: number[] = Array(48).fill(0.05),
+  previousCeiling = 0.025,
+): { values: number[]; rms: number; ceiling: number } {
+  const bars = 48;
+  if (timeData.length === 0) {
+    return { values: Array(bars).fill(0.05), rms: 0, ceiling: previousCeiling };
+  }
+
+  let rmsTotal = 0;
+  for (let i = 0; i < timeData.length; i += 1) {
+    const normalized = (timeData[i] - 128) / 128;
+    rmsTotal += normalized * normalized;
+  }
+  const rms = Math.sqrt(rmsTotal / timeData.length);
+
+  // iPhone microphone input can be much quieter than desktop input. A slowly
+  // decaying adaptive ceiling keeps quiet speech visible without animating
+  // digital silence into a fake waveform.
+  const ceiling = Math.max(0.015, rms * 2.2, previousCeiling * 0.96);
+  const silent = rms < 0.0035;
+  const values = Array.from({ length: bars }, (_, bar) => {
+    const start = Math.floor((bar * timeData.length) / bars);
+    const end = Math.max(start + 1, Math.floor(((bar + 1) * timeData.length) / bars));
+    let localTotal = 0;
+    let localPeak = 0;
+
+    for (let i = start; i < Math.min(end, timeData.length); i += 1) {
+      const amplitude = Math.abs((timeData[i] - 128) / 128);
+      localTotal += amplitude * amplitude;
+      localPeak = Math.max(localPeak, amplitude);
+    }
+
+    const sampleCount = Math.max(1, Math.min(end, timeData.length) - start);
+    const localRms = Math.sqrt(localTotal / sampleCount);
+    const target = silent
+      ? 0.05
+      : Math.max(0.06, Math.min(1, ((localRms * 0.72) + (localPeak * 0.28)) / ceiling));
+    const previousValue = Number.isFinite(previous[bar]) ? previous[bar] : 0.05;
+    return Math.max(0.05, Math.min(1, previousValue * 0.52 + target * 0.48));
+  });
+
+  return { values, rms, ceiling };
+}
+
 export class OliviaBrowserRecorder {
   private stream?: MediaStream;
   private recorder?: MediaRecorder;
@@ -28,6 +74,8 @@ export class OliviaBrowserRecorder {
   private currentSpeaker = -1;
   private candidateSpeaker = -1;
   private candidateStartedAt = 0;
+  private waveformCeiling = 0.025;
+  private smoothedWaveform: number[] = Array(48).fill(0.05);
   public mimeType = "";
 
   constructor(private callbacks: RecorderCallbacks = {}) {}
@@ -79,6 +127,8 @@ export class OliviaBrowserRecorder {
       this.speakerProfiles = [];
       this.currentSpeaker = -1;
       this.candidateSpeaker = -1;
+      this.waveformCeiling = 0.025;
+      this.smoothedWaveform = Array(48).fill(0.05);
       this.recorder.ondataavailable = (event) => {
         if (event.data.size > 0) this.chunks.push(event.data);
       };
@@ -99,13 +149,15 @@ export class OliviaBrowserRecorder {
     this.recorder.requestData();
     this.recorder.pause();
     this.paused = true;
-    this.callbacks.onWaveform?.(Array(48).fill(0.05));
+    this.smoothedWaveform = Array(48).fill(0.05);
+    this.callbacks.onWaveform?.(this.smoothedWaveform);
   }
 
   resume() {
     if (this.recorder?.state !== "paused") return;
     this.recorder.resume();
     this.paused = false;
+    if (this.context?.state === "suspended") void this.context.resume();
   }
 
   requestData() {
@@ -153,23 +205,13 @@ export class OliviaBrowserRecorder {
     this.analyser.getByteTimeDomainData(timeData);
     this.analyser.getByteFrequencyData(frequencyData);
 
-    const bars = 48;
-    const step = Math.max(1, Math.floor(timeData.length / bars));
-    const waveform: number[] = [];
-    let rmsTotal = 0;
-    for (let i = 0; i < timeData.length; i += 1) {
-      const normalized = (timeData[i] - 128) / 128;
-      rmsTotal += normalized * normalized;
-    }
-    const rms = Math.sqrt(rmsTotal / timeData.length);
-    for (let i = 0; i < bars; i += 1) {
-      const value = Math.abs(timeData[Math.min(i * step, timeData.length - 1)] - 128) / 128;
-      waveform.push(Math.max(0.05, Math.min(1, value * 3.5)));
-    }
-    this.callbacks.onWaveform?.(waveform);
+    const frame = analyzeWaveformFrame(timeData, this.smoothedWaveform, this.waveformCeiling);
+    this.smoothedWaveform = frame.values;
+    this.waveformCeiling = frame.ceiling;
+    this.callbacks.onWaveform?.(frame.values);
 
     // 화면용 추정일 뿐이다. 저장되는 최종 화자는 종료 후 diarization 결과가 결정한다.
-    if (rms > 0.045) {
+    if (frame.rms > 0.012) {
       const signature = this.createSignature(frequencyData);
       const { index, distance } = this.closestProfile(signature);
       let estimated = index;
