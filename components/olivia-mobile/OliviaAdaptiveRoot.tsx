@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { shouldUseOliviaMobileSurface } from "@/lib/olivia/mobile/adaptiveSurface";
+import { resolveOliviaSurface, type OliviaSurface } from "@/lib/olivia/mobile/adaptiveSurface";
 import styles from "./OliviaAdaptiveRoot.module.css";
 
 const OliviaDesktop = dynamic(() => import("@/components/olivia-os/OliviaDesktop"), {
@@ -12,26 +12,29 @@ const OliviaMobileShell = dynamic(() => import("./OliviaMobileShell"), {
   ssr: false,
   loading: () => <SurfaceLoading />,
 });
-
-type Surface = "mobile" | "desktop" | null;
+const OliviaTabletShell = dynamic(() => import("@/components/olivia-tablet/OliviaTabletShell"), {
+  ssr: false,
+  loading: () => <SurfaceLoading />,
+});
 
 function SurfaceLoading() {
   return <main className={styles.loading} aria-label="Olivia를 여는 중"><span /></main>;
 }
 
-function readSurface(): Exclude<Surface, null> {
-  const forceMobilePreview = process.env.NODE_ENV !== "production"
-    && new URLSearchParams(window.location.search).get("mobilePreview") === "1";
-  return shouldUseOliviaMobileSurface({
+function readSurface(): OliviaSurface {
+  const params = new URLSearchParams(window.location.search);
+  const previewEnabled = process.env.NODE_ENV !== "production";
+  return resolveOliviaSurface({
     width: window.innerWidth,
     height: window.innerHeight,
     coarsePointer: window.matchMedia("(pointer: coarse)").matches,
-    forceMobilePreview,
-  }) ? "mobile" : "desktop";
+    forceMobilePreview: previewEnabled && params.get("mobilePreview") === "1",
+    forceTabletPreview: previewEnabled && params.get("tabletPreview") === "1",
+  });
 }
 
 export default function OliviaAdaptiveRoot() {
-  const [surface, setSurface] = useState<Surface>(null);
+  const [surface, setSurface] = useState<OliviaSurface | null>(null);
 
   useEffect(() => {
     const viewportQuery = window.matchMedia("(max-width: 820px)");
@@ -50,9 +53,15 @@ export default function OliviaAdaptiveRoot() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("olivia-mobile-os", surface === "mobile");
-    return () => document.documentElement.classList.remove("olivia-mobile-os");
+    document.documentElement.classList.toggle("olivia-tablet-os", surface === "tablet");
+    return () => {
+      document.documentElement.classList.remove("olivia-mobile-os");
+      document.documentElement.classList.remove("olivia-tablet-os");
+    };
   }, [surface]);
 
   if (!surface) return <SurfaceLoading />;
-  return surface === "mobile" ? <OliviaMobileShell /> : <OliviaDesktop />;
+  if (surface === "mobile") return <OliviaMobileShell />;
+  if (surface === "tablet") return <OliviaTabletShell />;
+  return <OliviaDesktop />;
 }

@@ -79,12 +79,14 @@ export default function OliviaWorkspaceShell() {
   const isSplitActive = isOliviaWorkspaceSplitActive({ hasWorkspace, mode: layoutMode, pendingWorkspaceOpen });
   const chatVariant = activeDockId === "mobile-os"
     ? "mobile"
+    : activeDockId === "tablet-os"
+    ? "workspace"
     : isFullscreen || activeDockId === "floating"
     ? "drawer"
     : isHome ? (isSplitActive ? "workspace" : "home") : "workspace";
   // Desktop OS에서는 AppWindow 자체가 이동/크기 조절/최대화를 담당한다. 안쪽 채팅 헤더에
   // 별도의 "대화 크게" 제어를 다시 노출하면 같은 동작이 중복되므로 OS dock에서만 숨긴다.
-  const showExpandToggle = activeDockId === "desktop-os" || activeDockId === "mobile-os" ? false : isHome ? isSplitActive : true;
+  const showExpandToggle = activeDockId === "desktop-os" || activeDockId === "mobile-os" || activeDockId === "tablet-os" ? false : isHome ? isSplitActive : true;
   const chatPortal = portalHost
     ? createPortal(<OliviaConversation variant={chatVariant} showExpandToggle={showExpandToggle} />, portalHost)
     : null;
