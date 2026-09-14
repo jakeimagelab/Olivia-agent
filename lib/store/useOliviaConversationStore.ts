@@ -77,6 +77,18 @@ const CONVERSATION_CACHE_KEY = "olivia:conversation:v2";
 // tool_start 시점에 미리 알아서 워크스페이스 자리에 스켈레톤을 보여주기 위한 용도(Phase 4).
 const WORKSPACE_OPENING_TOOLS = new Set(["create_quote", "create_contract", "create_conti", "show_workspace"]);
 
+// CalendarWorkspace listens for this browser event so a calendar opened beside
+// Olivia Chat can refresh immediately after a successful chat mutation.  The
+// database write is still the source of truth; this is only the local UI
+// invalidation signal (a page reload remains safe and fetches the same rows).
+const CALENDAR_MUTATION_TOOLS = new Set([
+  "calendar_add",
+  "calendar_add_bulk",
+  "calendar_update",
+  "calendar_complete",
+  "calendar_delete",
+]);
+
 type ConversationCache = {
   version: 2;
   conversationId?: string;
@@ -409,6 +421,14 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           if (WORKSPACE_OPENING_TOOLS.has(event.tool)) set({ pendingWorkspaceOpen: true });
         } else if (event.type === "tool_result") {
           notifyAgentCenter();
+          if (event.success && CALENDAR_MUTATION_TOOLS.has(event.tool) && typeof window !== "undefined") {
+            const result = event.result && typeof event.result === "object" && !Array.isArray(event.result)
+              ? event.result as { taskId?: string; resourceId?: string }
+              : {};
+            window.dispatchEvent(new CustomEvent("olivia-calendar-updated", {
+              detail: { tool: event.tool, taskId: result.taskId || result.resourceId },
+            }));
+          }
           // "그거 다시 해줘"/"그것도" 같은 팔로우업이 방금 실행된 도구를 가리킬 수 있게, 성공한
           // 도구 호출마다 마지막 도구를 기록한다(open_feature처럼 순수 조회성 도구는 다음 요청의
           // 참조 대상으로 삼기엔 약하지만, 실패보다 기록해두는 쪽이 더 유용해서 성공 시 전부 기록).
