@@ -2,6 +2,8 @@
 // 직접 호출하지만, 나중에 Olivia 채팅 도구가 같은 기능을 필요로 하면 이 함수를 그대로
 // import해서 쓸 수 있도록 UI 상태와 완전히 분리해뒀다(요청서의 "PhotoResizeService" 구조).
 
+import { preserveJpegMetadata } from "./jpegMetadata";
+
 export type PhotoResizeOptions = {
   /** 긴 변 기준 목표 해상도(px). 원본이 이보다 작으면 확대하지 않는다. */
   longEdge: number;
@@ -39,6 +41,10 @@ async function fileExists(dir: FileSystemDirectoryHandle, name: string): Promise
 }
 
 async function resizeImageFile(file: File, options: PhotoResizeOptions): Promise<Blob> {
+  // OffscreenCanvas creates a fresh JPEG and strips EXIF/XMP/ICC metadata.
+  // Read the original bytes once so the encoded result can retain the source
+  // metadata (capture time, camera/lens data, color profile, etc.).
+  const sourceBytes = new Uint8Array(await file.arrayBuffer());
   const bitmap = await createImageBitmap(file);
   try {
     const scale = Math.min(1, options.longEdge / Math.max(bitmap.width, bitmap.height));
@@ -48,7 +54,14 @@ async function resizeImageFile(file: File, options: PhotoResizeOptions): Promise
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("캔버스를 만들지 못했습니다.");
     ctx.drawImage(bitmap, 0, 0, width, height);
-    return await canvas.convertToBlob({ type: "image/jpeg", quality: Math.min(1, Math.max(0.01, options.quality / 100)) });
+    const encoded = await canvas.convertToBlob({ type: "image/jpeg", quality: Math.min(1, Math.max(0.01, options.quality / 100)) });
+    const encodedBytes = new Uint8Array(await encoded.arrayBuffer());
+    const metadataRestored = preserveJpegMetadata(sourceBytes, encodedBytes);
+    // Copy into a plain ArrayBuffer so the Blob constructor remains compatible
+    // with TypeScript's SharedArrayBuffer-aware DOM typings.
+    const blobBytes = new ArrayBuffer(metadataRestored.byteLength);
+    new Uint8Array(blobBytes).set(metadataRestored);
+    return new Blob([blobBytes], { type: "image/jpeg" });
   } finally {
     bitmap.close();
   }

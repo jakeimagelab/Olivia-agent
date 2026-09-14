@@ -20,6 +20,8 @@ export type BackgroundJob = {
   // 함수의 반복문은 이미 이 객체의 .current를 매 반복 확인하므로, 여기서 값을 true로 바꾸기만
   // 하면 컴포넌트가 unmount된 상태에서도 새 취소 배관 없이 기존 로직이 그대로 반응한다.
   cancelRef: { current: boolean };
+  /** 서버에서 실행되어 브라우저가 직접 중단할 수 없는 작업은 false로 표시한다. */
+  cancelable?: boolean;
 };
 
 type BackgroundJobsState = {

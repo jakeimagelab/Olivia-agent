@@ -52,7 +52,7 @@ function JobCard({ job }: { job: BackgroundJob }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 10.5, color: C.muted }}>
         <span>{statusText ? statusText : job.msg || `${job.cur}/${job.total}`}</span>
-        {job.status === "running" ? (
+        {job.status === "running" && job.cancelable !== false ? (
           <button
             type="button"
             onClick={(event) => { event.stopPropagation(); cancelJob(job.id); }}

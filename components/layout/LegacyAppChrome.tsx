@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import BackgroundJobsWidget from "@/components/olivia/BackgroundJobsWidget";
+import PhotoStudioBackgroundJobBridge from "@/components/photo-workspace/PhotoStudioBackgroundJobBridge";
 import CursorEffect from "@/components/CursorEffect";
 import GlobalClientContextBridge from "@/components/GlobalClientContextBridge";
 import GlobalFeatureSidebar from "@/components/GlobalFeatureSidebar";
@@ -43,6 +44,7 @@ export default function LegacyAppChrome({ children }: { children: ReactNode }) {
           </GlobalFeatureSidebar>
         </div>
         <OliviaWorkspaceShell />
+        <PhotoStudioBackgroundJobBridge />
         <BackgroundJobsWidget />
       </div>
     </>
