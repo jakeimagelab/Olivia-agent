@@ -1,6 +1,7 @@
 export const PHOTO_PROJECT_STATUSES = [
   "READY", "APPROVED", "DEFERRED", "REVIEW_REQUIRED", "ERROR",
   "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "COPY_COMPLETED", "COPY_FAILED",
+  "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING", "CLASSIFY_COMPLETED", "CLASSIFY_FAILED",
 ] as const;
 export type PhotoProjectStatus = (typeof PHOTO_PROJECT_STATUSES)[number];
 
@@ -13,6 +14,9 @@ export const PHOTO_EVENT_TYPES = [
   "PHOTO_COPY_STARTED",
   "PHOTO_COPY_COMPLETED",
   "PHOTO_COPY_FAILED",
+  "PHOTO_CLASSIFICATION_STARTED",
+  "PHOTO_CLASSIFICATION_COMPLETED",
+  "PHOTO_CLASSIFICATION_FAILED",
 ] as const;
 export type PhotoProjectEventType = (typeof PHOTO_EVENT_TYPES)[number];
 
@@ -39,6 +43,13 @@ export type PhotoStorageProject = {
   copy_error: string | null;
   copy_progress: Record<string, unknown>;
   copy_job_id: string | null;
+  scene_count: number;
+  classified_jpg_count: number;
+  classification_started_at: string | null;
+  classification_completed_at: string | null;
+  classification_error: string | null;
+  classification_progress: Record<string, unknown>;
+  classify_job_id: string | null;
 };
 
 export type PhotoStorageEvent = {

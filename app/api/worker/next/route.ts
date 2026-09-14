@@ -30,6 +30,12 @@ export async function GET(request: NextRequest) {
     });
     if (stageClaimError) console.warn("[worker/next photo-stage claim]", stageClaimError.message);
 
+    // JPG staging이 끝난 프로젝트는 별도 승인 없이 기존 Scene Runner로 넘긴다.
+    const { error: classifyClaimError } = await supabase.rpc("claim_copy_completed_photo_project", {
+      p_worker_id: workerId,
+    });
+    if (classifyClaimError) console.warn("[worker/next photo-classify claim]", classifyClaimError.message);
+
     const { error: heartbeatError } = await supabase
       .from("remote_workers")
       .upsert({

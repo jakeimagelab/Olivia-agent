@@ -6,6 +6,7 @@ import {
 } from "@/lib/remoteWorkerAuth";
 import { parseRemoteJobProgress } from "@/lib/remote-jobs/progress";
 import { syncPhotoStageProject } from "@/lib/photo-storage/copySync";
+import { syncPhotoClassificationProject } from "@/lib/photo-storage/classificationSync";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -116,6 +117,22 @@ export async function POST(request: NextRequest) {
         // Job report 자체는 성공시켜 Worker가 재전송 루프에 빠지지 않게 하되,
         // 프로젝트 lifecycle 동기화 실패는 서버 로그에서 확인할 수 있게 남긴다.
         console.warn("[worker/report photo-stage project sync]", projectError instanceof Error ? projectError.message : projectError);
+      }
+    }
+
+    if (data.action === "PHOTO_CLASSIFY_WORK") {
+      try {
+        await syncPhotoClassificationProject(supabase, {
+          jobId: data.id,
+          jobStatus: status as "RUNNING" | "COMPLETED" | "FAILED",
+          payload: (data.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {}) as Record<string, unknown>,
+          progress,
+          result: body.result,
+          error: typeof body.error === "string" ? body.error : null,
+          message: typeof body.message === "string" ? body.message : null,
+        });
+      } catch (projectError) {
+        console.warn("[worker/report photo-classify project sync]", projectError instanceof Error ? projectError.message : projectError);
       }
     }
 

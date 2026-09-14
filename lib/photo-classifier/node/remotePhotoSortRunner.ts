@@ -86,6 +86,8 @@ export type RemotePhotoSortRunnerDependencies = {
   roots?: RunnerRoots;
   ai?: Partial<AiAdapter>;
   onProgress?: (progress: RunnerProgress) => void;
+  /** PHASE 5: SSD2에는 RAW를 건드리지 않고 JPG만 분류한다. */
+  preserveRaw?: boolean;
 };
 
 const defaultAi: AiAdapter = {
@@ -535,12 +537,16 @@ async function organizeWorkCopy(input: {
   roots: RunnerRoots;
   ai: AiAdapter;
   onProgress?: (progress: RunnerProgress) => void;
+  preserveRaw?: boolean;
 }): Promise<void> {
   const rawDirectory = path.join(input.workFolder, "RAW");
   const jpgDirectory = path.join(input.workFolder, "JPG");
   const selectDirectory = path.join(input.workFolder, "SELECT", "JPG_SELECT");
   const reportDirectory = path.join(input.workFolder, "REPORT");
-  for (const directory of [rawDirectory, jpgDirectory, path.dirname(selectDirectory), selectDirectory, reportDirectory]) {
+  const outputDirectories = input.preserveRaw
+    ? [jpgDirectory, path.dirname(selectDirectory), selectDirectory, reportDirectory]
+    : [rawDirectory, jpgDirectory, path.dirname(selectDirectory), selectDirectory, reportDirectory];
+  for (const directory of outputDirectories) {
     await assertSafeWorkMutation(directory, input.roots);
     await mkdir(directory, { recursive: false });
   }
@@ -555,8 +561,9 @@ async function organizeWorkCopy(input: {
   }, input.roots);
 
   let completed = 0;
-  const total = input.raw.length + input.scenes.reduce((sum, scene) => sum + scene.files.length, 0);
-  for (const entry of input.raw) {
+  const total = (input.preserveRaw ? 0 : input.raw.length) + input.scenes.reduce((sum, scene) => sum + scene.files.length, 0);
+  if (!input.preserveRaw) {
+    for (const entry of input.raw) {
     const destination = path.join(rawDirectory, entry.name);
     try {
       await moveInsideWorkCopy({ source: entry.path, destination, roots: input.roots });
@@ -585,6 +592,7 @@ async function organizeWorkCopy(input: {
     completed += 1;
     input.onProgress?.({ stage: "ORGANIZING", current: completed, total, message: `RAW 정리: ${entry.name}` });
     await flushJournal();
+    }
   }
 
   for (const scene of input.scenes) {
@@ -867,6 +875,7 @@ export async function runRemotePhotoSortRunner(
     roots,
     ai,
     onProgress: dependencies.onProgress,
+    preserveRaw: dependencies.preserveRaw,
   });
 
   dependencies.onProgress?.({ stage: "VERIFYING", message: "분류 결과의 파일 수를 검증하고 있습니다." });

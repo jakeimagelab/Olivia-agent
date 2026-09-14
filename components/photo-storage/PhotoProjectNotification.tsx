@@ -16,7 +16,7 @@ export default function PhotoProjectNotification() {
   const { projects, events, lastAction, approve, defer, retry } = usePhotoProjectNotifications();
   const [busy, setBusy] = useState<"approve" | "defer" | "retry" | null>(null);
   const [dismissedReview, setDismissedReview] = useState<string[]>([]);
-  const pending = projects.filter((project) => ["READY", "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "COPY_FAILED"].includes(project.status) || (project.status === "REVIEW_REQUIRED" && !dismissedReview.includes(project.id)));
+  const pending = projects.filter((project) => ["READY", "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "COPY_FAILED", "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING", "CLASSIFY_FAILED"].includes(project.status) || (project.status === "REVIEW_REQUIRED" && !dismissedReview.includes(project.id)));
   const project = pending[0];
   const event = project ? events.find((candidate) => candidate.project_id === project.id && candidate.status === "OPEN") : undefined;
 
@@ -38,8 +38,12 @@ export default function PhotoProjectNotification() {
     return <div className={styles.statusToast} role="status"><Check size={16} /><span>{lastAction.project.project_name} · {lastAction.action === "APPROVED" ? "분류 승인됨 · 작업 대기" : "나중에 처리하도록 보류됨"}</span></div>;
   }
   if (!project) {
-    const completed = projects.find((candidate) => candidate.status === "COPY_COMPLETED" && Date.now() - new Date(candidate.updated_at).getTime() < 10 * 60_000);
-    return completed ? <div className={styles.statusToast} role="status"><Check size={16} /><span>{completed.project_name} · JPG 복사가 완료되었습니다.</span></div> : null;
+    const completed = projects.find((candidate) => ["COPY_COMPLETED", "CLASSIFY_COMPLETED"].includes(candidate.status) && Date.now() - new Date(candidate.updated_at).getTime() < 10 * 60_000);
+    if (!completed) return null;
+    const message = completed.status === "CLASSIFY_COMPLETED"
+      ? `${completed.project_name} · 사진 분류가 완료되었습니다. (${completed.scene_count}개 Scene)`
+      : `${completed.project_name} · JPG 복사가 완료되었습니다.`;
+    return <div className={styles.statusToast} role="status"><Check size={16} /><span>{message}</span></div>;
   }
 
   if (project.status === "COPY_QUEUED" || project.status === "COPYING" || project.status === "COPY_VERIFYING") {
@@ -53,8 +57,22 @@ export default function PhotoProjectNotification() {
     return <aside className={styles.card} role="status"><div className={styles.icon}><HardDrive size={20} /></div><div className={styles.content}><p className={styles.eyebrow}>사진 작업 상태</p><h2>{project.project_name} · {title}</h2><p className={styles.detail}>{current.toLocaleString("ko-KR")} / {total.toLocaleString("ko-KR")}장 · {percent}%{totalBytes > 0 ? ` · ${formatBytes(copiedBytes)} / ${formatBytes(totalBytes)}` : ""}</p><div className={styles.progressTrack}><span style={{ width: `${percent}%` }} /></div><p className={styles.progressMessage}>{typeof progress.message === "string" ? progress.message : "Mac Studio 작업 상태를 확인하고 있습니다."}</p></div></aside>;
   }
 
-  if (project.status === "COPY_FAILED") {
-    return <aside className={styles.card} role="alert"><div className={styles.icon}><HardDrive size={20} /></div><div className={styles.content}><p className={styles.eyebrow}>복사 확인 필요</p><h2>{project.project_name} JPG 복사 중 문제가 발생했습니다.</h2><p className={styles.detail}>{project.copy_error || "원본은 변경되지 않았습니다."}</p><button className={styles.primaryButton} type="button" disabled={Boolean(busy)} onClick={() => void runAction("retry")}>{busy === "retry" ? "재요청 중..." : "다시 시도"}</button></div></aside>;
+  if (project.status === "CLASSIFY_QUEUED" || project.status === "CLASSIFYING" || project.status === "CLASSIFY_VERIFYING") {
+    const progress = project.classification_progress || {};
+    const current = typeof progress.current === "number" ? progress.current : project.classified_jpg_count;
+    const total = typeof progress.total === "number" ? progress.total : project.jpg_count;
+    const percent = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
+    const title = project.status === "CLASSIFY_QUEUED"
+      ? "사진 분류를 준비하고 있습니다."
+      : project.status === "CLASSIFY_VERIFYING"
+        ? "분류 결과를 확인하고 있습니다."
+        : "Mac Studio에서 사진을 자동 분류하고 있습니다.";
+    return <aside className={styles.card} role="status"><div className={styles.icon}><HardDrive size={20} /></div><div className={styles.content}><p className={styles.eyebrow}>사진 작업 상태</p><h2>{project.project_name} · {title}</h2><p className={styles.detail}>{current.toLocaleString("ko-KR")} / {total.toLocaleString("ko-KR")}장 · {percent}%</p><div className={styles.progressTrack}><span style={{ width: `${percent}%` }} /></div><p className={styles.progressMessage}>{typeof progress.message === "string" ? progress.message : "Mac Studio 작업 상태를 확인하고 있습니다."}</p></div></aside>;
+  }
+
+  if (project.status === "COPY_FAILED" || project.status === "CLASSIFY_FAILED") {
+    const isClassification = project.status === "CLASSIFY_FAILED";
+    return <aside className={styles.card} role="alert"><div className={styles.icon}><HardDrive size={20} /></div><div className={styles.content}><p className={styles.eyebrow}>{isClassification ? "분류 확인 필요" : "복사 확인 필요"}</p><h2>{isClassification ? `${project.project_name} 사진 분류 중 문제가 발생했습니다.` : `${project.project_name} JPG 복사 중 문제가 발생했습니다.`}</h2><p className={styles.detail}>{isClassification ? (project.classification_error || "분류 결과를 확인해야 합니다.") : (project.copy_error || "원본은 변경되지 않았습니다.")}</p><button className={styles.primaryButton} type="button" disabled={Boolean(busy)} onClick={() => void runAction("retry")}>{busy === "retry" ? "재요청 중..." : "다시 시도"}</button></div></aside>;
   }
 
   if (project.status === "REVIEW_REQUIRED") {

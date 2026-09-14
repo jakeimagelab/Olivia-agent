@@ -13,27 +13,47 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (!UUID_PATTERN.test(id)) return Response.json({ ok: false, error: "올바르지 않은 프로젝트 ID입니다." }, { status: 400 });
   try {
     const db = getSupabaseAdmin();
+    const { data: current, error: readError } = await db.from("photo_storage_projects").select("*").eq("id", id).maybeSingle();
+    if (readError) throw readError;
+    if (!current) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
+    const targetStatus = current.status === "CLASSIFY_FAILED" ? "COPY_COMPLETED" : current.status === "COPY_FAILED" ? "APPROVED" : null;
+    if (!targetStatus) {
+      if (current.status === "APPROVED") return Response.json({ ok: true, project: current, idempotent: true });
+      return Response.json({ ok: false, error: "복사 또는 분류 실패 상태에서만 다시 시도할 수 있습니다.", project: current }, { status: 409 });
+    }
     const { data: updated, error } = await db
       .from("photo_storage_projects")
-      .update({ status: "APPROVED", copy_error: null, copy_progress: {}, copy_started_at: null, copy_completed_at: null, copy_job_id: null, updated_at: new Date().toISOString() })
+      .update({
+        status: targetStatus,
+        ...(targetStatus === "APPROVED" ? { copy_error: null, copy_progress: {}, copy_started_at: null, copy_completed_at: null, copy_job_id: null } : {}),
+        classification_error: null,
+        classification_progress: {},
+        classification_started_at: null,
+        classification_completed_at: null,
+        classify_job_id: null,
+        scene_count: targetStatus === "APPROVED" ? 0 : current.scene_count,
+        classified_jpg_count: targetStatus === "APPROVED" ? 0 : 0,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", id)
-      .in("status", ["COPY_FAILED"])
+      .eq("status", current.status)
       .select("*")
       .maybeSingle();
     if (error) throw error;
     if (!updated) {
-      const { data: current, error: readError } = await db.from("photo_storage_projects").select("*").eq("id", id).maybeSingle();
-      if (readError) throw readError;
-      if (!current) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
-      if (current.status !== "APPROVED") return Response.json({ ok: false, error: "복사 실패 상태에서만 다시 시도할 수 있습니다.", project: current }, { status: 409 });
-      return Response.json({ ok: true, project: current, idempotent: true });
+      const { data: latest, error: latestError } = await db.from("photo_storage_projects").select("*").eq("id", id).maybeSingle();
+      if (latestError) throw latestError;
+      if (!latest) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
+      if (latest.status === targetStatus) return Response.json({ ok: true, project: latest, idempotent: true });
+      return Response.json({ ok: false, error: "프로젝트 상태가 변경되었습니다.", project: latest }, { status: 409 });
     }
     await acknowledgePhotoStorageEvents(db, id);
-    await ensurePhotoStorageEvent(db, { projectId: id, projectName: updated.project_name, status: "APPROVED" });
+    if (targetStatus === "APPROVED") {
+      await ensurePhotoStorageEvent(db, { projectId: id, projectName: updated.project_name, status: "APPROVED" });
+    }
     return Response.json({ ok: true, project: updated, idempotent: false });
   } catch (error) {
     console.error("[photo-storage retry]", error);
-    return Response.json({ ok: false, error: "복사를 다시 요청하지 못했습니다." }, { status: 500 });
+    return Response.json({ ok: false, error: "작업을 다시 요청하지 못했습니다." }, { status: 500 });
   }
 }
-

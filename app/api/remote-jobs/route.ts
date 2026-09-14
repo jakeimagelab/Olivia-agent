@@ -13,6 +13,7 @@ const ALLOWED_ACTIONS = new Set([
   "COPY_TEST",
   "LIST_FOLDER",
   "PHOTO_STAGE_JPG",
+  "PHOTO_CLASSIFY_WORK",
 ]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -146,6 +147,34 @@ export async function POST(request: NextRequest) {
       };
     } catch (error) {
       return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 staging 경로입니다." }, { status: 400 });
+    }
+  }
+
+  if (action === "PHOTO_CLASSIFY_WORK") {
+    const projectId = requestedPayload.project_id;
+    const workRelativePath = requestedPayload.work_relative_path;
+    if (typeof projectId !== "string" || !UUID_PATTERN.test(projectId)) {
+      return Response.json({ ok: false, error: "PHOTO_CLASSIFY_WORK에는 올바른 project_id가 필요합니다." }, { status: 400 });
+    }
+    try {
+      const safeWorkPath = validatePhotoProjectRelativePath(workRelativePath);
+      payload = {
+        project_id: projectId,
+        work_relative_path: safeWorkPath,
+        ...(requestedPayload.shooting_mode === "studio" || requestedPayload.shooting_mode === "field"
+          ? { shooting_mode: requestedPayload.shooting_mode } : {}),
+        ...(typeof requestedPayload.department === "string" ? { department: requestedPayload.department } : {}),
+        ...(typeof requestedPayload.gap_minutes === "number" ? { gap_minutes: requestedPayload.gap_minutes } : {}),
+        ...(requestedPayload.classification_ui_mode === "advanced" || requestedPayload.classification_ui_mode === "ai-auto"
+          ? { classification_ui_mode: requestedPayload.classification_ui_mode } : {}),
+        ...(typeof requestedPayload.fast_analyze_mode === "boolean" ? { fast_analyze_mode: requestedPayload.fast_analyze_mode } : {}),
+        ...(typeof requestedPayload.department_logic_enabled === "boolean" ? { department_logic_enabled: requestedPayload.department_logic_enabled } : {}),
+        ...(typeof requestedPayload.ai_naming_enabled === "boolean" ? { ai_naming_enabled: requestedPayload.ai_naming_enabled } : {}),
+        ...(typeof requestedPayload.quality_analysis_enabled === "boolean" ? { quality_analysis_enabled: requestedPayload.quality_analysis_enabled } : {}),
+        ...(typeof requestedPayload.profile_classification_enabled === "boolean" ? { profile_classification_enabled: requestedPayload.profile_classification_enabled } : {}),
+      };
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 SSD2 작업 경로입니다." }, { status: 400 });
     }
   }
 

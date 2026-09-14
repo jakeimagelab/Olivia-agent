@@ -49,6 +49,9 @@ export function eventForStatus(status: PhotoProjectStatus): { type: PhotoProject
   if (status === "COPY_QUEUED" || status === "COPYING" || status === "COPY_VERIFYING") return { type: "PHOTO_COPY_STARTED", message: "JPG 원본 복사를 시작했습니다.", requiresAction: false };
   if (status === "COPY_COMPLETED") return { type: "PHOTO_COPY_COMPLETED", message: "JPG 복사가 완료되었습니다.", requiresAction: false };
   if (status === "COPY_FAILED") return { type: "PHOTO_COPY_FAILED", message: "JPG 복사 중 문제가 발생했습니다. 원본은 변경되지 않았습니다.", requiresAction: true };
+  if (status === "CLASSIFY_QUEUED" || status === "CLASSIFYING" || status === "CLASSIFY_VERIFYING") return { type: "PHOTO_CLASSIFICATION_STARTED", message: "사진 자동 분류를 시작했습니다.", requiresAction: false };
+  if (status === "CLASSIFY_COMPLETED") return { type: "PHOTO_CLASSIFICATION_COMPLETED", message: "사진 자동 분류가 완료되었습니다.", requiresAction: false };
+  if (status === "CLASSIFY_FAILED") return { type: "PHOTO_CLASSIFICATION_FAILED", message: "사진 분류 중 문제가 발생했습니다. 확인이 필요합니다.", requiresAction: true };
   return { type: "PHOTO_PROJECT_DEFERRED", message: "촬영 프로젝트를 나중에 처리하도록 보류했습니다.", requiresAction: false };
 }
 
