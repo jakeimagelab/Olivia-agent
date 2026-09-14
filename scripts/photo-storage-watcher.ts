@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
+import { loadEnvConfig } from "@next/env";
 import { PhotoStorageWatcher, type PhotoWatcherReadyReport } from "@/lib/photo-classifier/node/photoWatcher";
 import { resolveServerBaseUrl } from "@/lib/baseUrl";
+
+loadEnvConfig(process.cwd());
 
 function optionValue(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);
@@ -21,17 +24,27 @@ const once = args.includes("--once");
 async function main(): Promise<void> {
   const reportUrl = process.env.OLIVIA_PHOTO_STORAGE_REPORT_URL?.trim()
     || `${resolveServerBaseUrl()}/api/photo-storage/projects/report`;
+  const workerToken = process.env.OLIVIA_WORKER_TOKEN?.trim();
+  if (!workerToken) {
+    console.error("[PHOTO_WATCHER] ERROR OLIVIA_WORKER_TOKEN이 설정되어 있지 않습니다.");
+    process.exitCode = 1;
+    return;
+  }
+  const workerId = process.env.OLIVIA_WORKER_ID?.trim() || "jake-macstudio-01";
+
   const watcher = new PhotoStorageWatcher({
     intervalSeconds: positiveNumber(optionValue(args, "--interval-seconds"), "--interval-seconds"),
     stableSeconds: positiveNumber(optionValue(args, "--stable-seconds"), "--stable-seconds"),
     statePath: optionValue(args, "--state-path"),
     lockPath: optionValue(args, "--lock-path"),
     reportReady: async (report: PhotoWatcherReadyReport) => {
-      const internalKey = process.env.INTERNAL_API_KEY?.trim();
-      if (!internalKey) throw new Error("INTERNAL_API_KEY가 설정되어 있지 않아 서버 동기화를 건너뛸 수 없습니다.");
       const response = await fetch(reportUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-internal-key": internalKey },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${workerToken}`,
+          "x-olivia-worker": workerId,
+        },
         body: JSON.stringify({
           project_name: report.projectName,
           source_relative_path: report.sourceRelativePath,
