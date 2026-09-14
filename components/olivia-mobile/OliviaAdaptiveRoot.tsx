@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { resolveOliviaSurface, type OliviaSurface } from "@/lib/olivia/mobile/adaptiveSurface";
+import { PhotoProjectNotificationProvider } from "@/components/photo-storage/PhotoProjectNotificationProvider";
+import PhotoProjectNotification from "@/components/photo-storage/PhotoProjectNotification";
 import styles from "./OliviaAdaptiveRoot.module.css";
 
 const OliviaDesktop = dynamic(() => import("@/components/olivia-os/OliviaDesktop"), {
@@ -61,7 +63,10 @@ export default function OliviaAdaptiveRoot() {
   }, [surface]);
 
   if (!surface) return <SurfaceLoading />;
-  if (surface === "mobile") return <OliviaMobileShell />;
-  if (surface === "tablet") return <OliviaTabletShell />;
-  return <OliviaDesktop />;
+  return (
+    <PhotoProjectNotificationProvider>
+      <PhotoProjectNotification />
+      {surface === "mobile" ? <OliviaMobileShell /> : surface === "tablet" ? <OliviaTabletShell /> : <OliviaDesktop />}
+    </PhotoProjectNotificationProvider>
+  );
 }

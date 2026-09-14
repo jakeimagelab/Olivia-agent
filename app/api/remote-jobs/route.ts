@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
 import { normalizeRemoteNasRelativePath } from "@/lib/remote-nas/path";
+import { validatePhotoProjectRelativePath } from "@/lib/photo-storage/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,6 +12,7 @@ const ALLOWED_ACTIONS = new Set([
   "PHOTO_SORT",
   "COPY_TEST",
   "LIST_FOLDER",
+  "PHOTO_STAGE_JPG",
 ]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -126,6 +128,24 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+  }
+
+  if (action === "PHOTO_STAGE_JPG") {
+    const projectId = requestedPayload.project_id;
+    const sourceRelativePath = requestedPayload.source_relative_path;
+    const destinationRelativePath = requestedPayload.destination_relative_path;
+    if (typeof projectId !== "string" || !UUID_PATTERN.test(projectId)) {
+      return Response.json({ ok: false, error: "PHOTO_STAGE_JPG에는 올바른 project_id가 필요합니다." }, { status: 400 });
+    }
+    try {
+      payload = {
+        project_id: projectId,
+        source_relative_path: validatePhotoProjectRelativePath(sourceRelativePath),
+        destination_relative_path: validatePhotoProjectRelativePath(destinationRelativePath),
+      };
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 staging 경로입니다." }, { status: 400 });
     }
   }
 

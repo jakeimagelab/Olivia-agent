@@ -21,6 +21,17 @@ describe("remote job progress", () => {
     expect(() => parseRemoteJobProgress({ stage: "DELETING", message: "x" })).toThrow();
     expect(() => parseRemoteJobProgress({ stage: "STAGING", current: 2, total: 1, message: "x" })).toThrow();
   });
+
+  it("accepts JPG staging progress and byte counters", () => {
+    expect(parseRemoteJobProgress({
+      stage: "COPYING",
+      current: 3,
+      total: 10,
+      copiedBytes: 300,
+      totalBytes: 1000,
+      message: "JPG 복사 중",
+    })).toMatchObject({ stage: "COPYING", current: 3, total: 10, copiedBytes: 300, totalBytes: 1000 });
+  });
 });
 
 describe("remote worker presence", () => {

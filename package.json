@@ -9,7 +9,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit --incremental false",
     "test": "vitest run",
-    "remote:photo-sort": "node --import tsx scripts/remote-photo-sort-runner.ts"
+    "remote:photo-sort": "node --import tsx scripts/remote-photo-sort-runner.ts",
+    "photo:prepare-source": "node --import tsx scripts/prepare-photo-source.ts",
+    "photo:watch": "node --import tsx scripts/photo-storage-watcher.ts",
+    "photo:stage-jpg": "node --import tsx scripts/photo-stage-jpg-runner.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

@@ -1,5 +1,7 @@
 export const REMOTE_JOB_PROGRESS_STAGES = [
   "STAGING",
+  "PREPARING",
+  "COPYING",
   "SCANNING",
   "ANALYZING",
   "ORGANIZING",
@@ -13,6 +15,8 @@ export type RemoteJobProgress = {
   current?: number;
   total?: number;
   message: string;
+  copiedBytes?: number;
+  totalBytes?: number;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -44,14 +48,21 @@ export function parseRemoteJobProgress(value: unknown): RemoteJobProgress | null
 
   const current = optionalCount(value.current, "current");
   const total = optionalCount(value.total, "total");
+  const copiedBytes = optionalCount(value.copiedBytes, "copiedBytes");
+  const totalBytes = optionalCount(value.totalBytes, "totalBytes");
   if (current !== undefined && total !== undefined && current > total) {
     throw new Error("current는 total보다 클 수 없습니다.");
+  }
+  if (copiedBytes !== undefined && totalBytes !== undefined && copiedBytes > totalBytes) {
+    throw new Error("copiedBytes는 totalBytes보다 클 수 없습니다.");
   }
 
   return {
     stage: stage as RemoteJobProgressStage,
     ...(current === undefined ? {} : { current }),
     ...(total === undefined ? {} : { total }),
+    ...(copiedBytes === undefined ? {} : { copiedBytes }),
+    ...(totalBytes === undefined ? {} : { totalBytes }),
     message,
   };
 }

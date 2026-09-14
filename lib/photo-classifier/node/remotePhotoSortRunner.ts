@@ -38,10 +38,10 @@ import {
   readNodePhotoTimestamp,
 } from "./imageAdapter";
 import {
-  DEFAULT_REMOTE_PHOTO_ROOTS,
   assertSafeWorkMutation,
   prepareRemotePhotoWorkFolder,
 } from "./pathSafety";
+import { getStorageRoots } from "./storageConfig";
 import type {
   NodePhotoEntry,
   NodePhotoScene,
@@ -830,7 +830,7 @@ export async function runRemotePhotoSortRunner(
     throw new Error("gap_minutes는 0보다 큰 숫자여야 합니다.");
   }
 
-  const roots = dependencies.roots ?? DEFAULT_REMOTE_PHOTO_ROOTS;
+  const roots = dependencies.roots ?? getStorageRoots();
   const ai: AiAdapter = { ...defaultAi, ...dependencies.ai };
   const prepared = await prepareRemotePhotoWorkFolder({
     sourceFolder: "sourceFolder" in input ? input.sourceFolder : undefined,

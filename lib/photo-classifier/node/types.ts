@@ -47,7 +47,9 @@ export type RemotePhotoSortFailure = {
 export type RemotePhotoSortResult = RemotePhotoSortSuccess | RemotePhotoSortFailure;
 
 export type RunnerProgress = {
-  stage: "STAGING" | "SCANNING" | "ANALYZING" | "ORGANIZING" | "VERIFYING";
+  stage: "STAGING" | "PREPARING" | "COPYING" | "SCANNING" | "ANALYZING" | "ORGANIZING" | "VERIFYING";
+  copiedBytes?: number;
+  totalBytes?: number;
   current?: number;
   total?: number;
   message: string;

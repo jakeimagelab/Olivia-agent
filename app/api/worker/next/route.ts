@@ -23,6 +23,13 @@ export async function GET(request: NextRequest) {
     const nasHeader = request.headers.get("x-olivia-nas-connected")?.trim().toLowerCase();
     const nasConnected = nasHeader === "true" ? true : nasHeader === "false" ? false : undefined;
 
+    // 승인된 촬영 프로젝트를 원격 실행 큐로 넘기는 claim은 DB 함수가 원자적으로 수행한다.
+    // migration이 아직 적용되지 않은 환경에서도 기존 job polling은 계속 동작해야 한다.
+    const { error: stageClaimError } = await supabase.rpc("claim_approved_photo_project", {
+      p_worker_id: workerId,
+    });
+    if (stageClaimError) console.warn("[worker/next photo-stage claim]", stageClaimError.message);
+
     const { error: heartbeatError } = await supabase
       .from("remote_workers")
       .upsert({

@@ -15,14 +15,7 @@ import type {
   RunnerProgress,
   RunnerRoots,
 } from "./types";
-
-export const REMOTE_PHOTO_SOURCE_ROOT = "/Volumes/Workstation(M.2SSD)";
-export const REMOTE_PHOTO_WORK_ROOT = "/Users/jakemacstudio/Desktop/Olivia_Work_Test";
-
-export const DEFAULT_REMOTE_PHOTO_ROOTS: RunnerRoots = {
-  sourceRoot: REMOTE_PHOTO_SOURCE_ROOT,
-  workRoot: REMOTE_PHOTO_WORK_ROOT,
-};
+import { getStorageRoots } from "./storageConfig";
 
 const OUTPUT_DIRECTORIES = ["RAW", "JPG", "SELECT", "REPORT", "PROFILE"] as const;
 
@@ -171,15 +164,16 @@ export async function assertUnprocessedWorkFolder(workFolder: string): Promise<v
 
 export async function prepareRemotePhotoWorkFolder(
   input: { sourceFolder?: string; workFolder?: string },
-  roots: RunnerRoots = DEFAULT_REMOTE_PHOTO_ROOTS,
+  roots?: RunnerRoots,
   onProgress?: (progress: RunnerProgress) => void,
 ): Promise<PreparedWorkFolder> {
+  const resolvedRoots = roots ?? getStorageRoots();
   if (Boolean(input.sourceFolder) === Boolean(input.workFolder)) {
     throw new Error("--source-folder 또는 --work-folder 중 하나만 지정해야 합니다.");
   }
 
   if (input.workFolder) {
-    const workRoot = await requireDirectory(roots.workRoot, "WORK_ROOT");
+    const workRoot = await requireDirectory(resolvedRoots.workRoot, "WORK_ROOT");
     const workFolder = await requireDirectory(input.workFolder, "작업 폴더");
     assertWithin(workRoot, workFolder, "작업 폴더");
     await inspectSafeTree(workFolder);
@@ -192,12 +186,12 @@ export async function prepareRemotePhotoWorkFolder(
   }
 
   const relativeSource = normalizeSourceFolder(input.sourceFolder ?? "");
-  const sourceRoot = await requireDirectory(roots.sourceRoot, "SOURCE_ROOT");
+  const sourceRoot = await requireDirectory(resolvedRoots.sourceRoot, "SOURCE_ROOT");
   const source = await requireDirectory(path.resolve(sourceRoot, relativeSource), "NAS 원본 폴더");
   assertWithin(sourceRoot, source, "NAS 원본 폴더");
 
-  await mkdir(roots.workRoot, { recursive: true });
-  const workRoot = await requireDirectory(roots.workRoot, "WORK_ROOT");
+  await mkdir(resolvedRoots.workRoot, { recursive: true });
+  const workRoot = await requireDirectory(resolvedRoots.workRoot, "WORK_ROOT");
   const destination = path.resolve(workRoot, relativeSource);
   assertWithin(workRoot, destination, "작업 목적지");
   if (await pathExists(destination)) {
@@ -228,13 +222,14 @@ export async function prepareRemotePhotoWorkFolder(
   };
 }
 
-export async function resolveSafeWorkRoot(roots: RunnerRoots = DEFAULT_REMOTE_PHOTO_ROOTS): Promise<string> {
-  return requireDirectory(roots.workRoot, "WORK_ROOT");
+export async function resolveSafeWorkRoot(roots?: RunnerRoots): Promise<string> {
+  const resolvedRoots = roots ?? getStorageRoots();
+  return requireDirectory(resolvedRoots.workRoot, "WORK_ROOT");
 }
 
 export async function assertSafeWorkMutation(
   target: string,
-  roots: RunnerRoots = DEFAULT_REMOTE_PHOTO_ROOTS,
+  roots?: RunnerRoots,
 ): Promise<void> {
   const workRoot = await resolveSafeWorkRoot(roots);
   const parent = await realpath(path.dirname(target)).catch(() => path.dirname(target));
