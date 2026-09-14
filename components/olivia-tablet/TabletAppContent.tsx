@@ -76,5 +76,11 @@ export default function TabletAppContent({ activeApp, navigation, onNavigate }: 
     case "photo-workspace": content = <TabletPhotoRemote />; break;
     default: content = <TabletHome onNavigate={onNavigate} />;
   }
-  return <div className={styles.appViewport} data-tablet-active-app={activeApp}>{content}</div>;
+  return (
+    <div className={styles.appViewport} data-tablet-active-app={activeApp}>
+      <div key={activeApp} className={styles.appTransition} data-tablet-app-transition>
+        {content}
+      </div>
+    </div>
+  );
 }

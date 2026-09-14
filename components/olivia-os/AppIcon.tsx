@@ -8,15 +8,16 @@ import styles from "./AppIcon.module.css";
 // 방식을 대체한다. registry의 icon 필드 자체(ReactNode)는 그대로 두고, 표시 방식만 통일한다.
 // 새 wallpaper 위에서 바로가기/Dock 각각 살짝 다른 유리감을 준다(variant), Dock은 활성 상태
 // 표시도 tile 레벨에서 담당한다(active).
-export function AppIcon({ icon, size = 44, variant = "dock", active = false }: {
+export function AppIcon({ icon, size = 44, variant = "dock", active = false, className }: {
   icon: ReactNode;
   size?: number;
   variant?: "shortcut" | "dock";
   active?: boolean;
+  className?: string;
 }) {
   return (
     <span
-      className={`${styles.tile} ${variant === "shortcut" ? styles.shortcut : styles.dock} ${active ? styles.active : ""}`}
+      className={`${styles.tile} ${variant === "shortcut" ? styles.shortcut : styles.dock} ${active ? styles.active : ""} ${className ?? ""}`}
       style={{ width: size, height: size, borderRadius: variant === "dock" ? 12 : Math.round(size * 0.28) }}
     >
       {icon}

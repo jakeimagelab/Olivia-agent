@@ -366,7 +366,7 @@
   overflow: hidden;
   color: #254b47;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 300;
   letter-spacing: -0.025em;
   text-align: center;
   text-overflow: ellipsis;
@@ -375,6 +375,98 @@
 
 .homeAppButton:disabled { opacity: 0.42; cursor: not-allowed; }
 .homeAppButton:focus-visible { outline: 3px solid rgba(21, 88, 85, 0.22); outline-offset: 8px; border-radius: 16px; }
+
+/* iPad launcher controls: settings stay local to this tablet surface. */
+.tabletHome {
+  position: relative;
+  place-items: stretch;
+  align-content: start;
+  justify-items: center;
+  gap: 18px;
+  padding: clamp(16px, 2.6vw, 30px) clamp(18px, 4vw, 56px) 20px;
+  overflow: auto;
+  background: #faf9f6;
+  transition: background 240ms ease;
+}
+.wallpaperMint { background: radial-gradient(circle at 25% 18%, rgba(218, 241, 233, .98), rgba(250, 247, 242, .96) 48%, #f5f4ef 100%); }
+.wallpaperIvory { background: radial-gradient(circle at 72% 16%, rgba(255, 252, 244, .98), #faf7f2 48%, #f2f0eb 100%); }
+.wallpaperGreen { background: radial-gradient(circle at 28% 18%, rgba(191, 226, 213, .98), rgba(235, 247, 242, .98) 45%, #e5eee9 100%); }
+.wallpaperSunset { background: radial-gradient(circle at 75% 18%, rgba(255, 231, 215, .96), rgba(250, 247, 242, .97) 48%, #f1efeb 100%); }
+.homeLauncherHeader { position: relative; z-index: 2; width: min(100%, 1050px); min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.homeLauncherIdentity { display: grid; gap: 2px; }
+.homeLauncherIdentity span { color: rgba(21, 88, 85, .6); font-size: 9px; font-weight: 800; letter-spacing: .18em; }
+.homeLauncherIdentity strong { color: #17312d; font-size: 18px; font-weight: 650; letter-spacing: -.04em; }
+.homeControls { display: flex; align-items: center; gap: 6px; }
+.homeControlButton { min-height: 40px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(21, 88, 85, .12); border-radius: 12px; color: #35635d; background: rgba(255, 255, 255, .68); font-size: 11px; font-weight: 450; cursor: pointer; backdrop-filter: blur(12px); }
+.homeControlButton:active { transform: scale(.97); background: rgba(239, 247, 245, .95); }
+.homePopover { position: absolute; top: calc(100% + 8px); right: 0; width: min(300px, calc(100vw - 36px)); padding: 14px; display: grid; gap: 8px; border: 1px solid rgba(21, 88, 85, .12); border-radius: 16px; background: rgba(255, 255, 255, .94); box-shadow: 0 18px 42px rgba(21, 88, 85, .14); backdrop-filter: blur(18px); }
+.homePopover > strong { color: #17312d; font-size: 13px; font-weight: 650; }
+.homePopover > span { color: #78908b; font-size: 10px; font-weight: 300; }
+.homePopoverOption { min-height: 48px; padding: 7px 8px; display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 8px; border: 0; border-radius: 11px; color: #29443f; text-align: left; background: transparent; cursor: pointer; }
+.homePopoverOption:hover, .homePopoverOption[aria-pressed="true"] { background: var(--olivia-mint); }
+.homePopoverOption > span:last-child { display: grid; gap: 2px; }
+.homePopoverOption strong { font-size: 11px; font-weight: 450; }
+.homePopoverOption small { color: #78908b; font-size: 9px; font-weight: 300; }
+.homePopoverCheck { width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid rgba(21, 88, 85, .2); border-radius: 7px; color: #fff; background: #fff; }
+.homePopoverCheckActive { border-color: var(--olivia-green); background: var(--olivia-green); }
+.wallpaperOptions { display: flex; gap: 9px; }
+.wallpaperOption { width: 42px; height: 32px; border: 2px solid transparent; border-radius: 10px; cursor: pointer; }
+.wallpaperOptionActive { border-color: var(--olivia-green); box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--olivia-green); }
+.wallpaperSwatchMint { background: linear-gradient(135deg, #d9f0e8, #faf7f2); }
+.wallpaperSwatchIvory { background: linear-gradient(135deg, #fffdf7, #eae7df); }
+.wallpaperSwatchGreen { background: linear-gradient(135deg, #bfe1d4, #e8f3ee); }
+.wallpaperSwatchSunset { background: linear-gradient(135deg, #ffe4d1, #f8f3ef); }
+.homeAppGrid { width: min(100%, 1050px); grid-template-columns: repeat(6, minmax(90px, 1fr)); column-gap: clamp(18px, 2vw, 26px); row-gap: clamp(26px, 3.4vh, 36px); }
+.homeAppButton { min-height: 104px; gap: 8px; }
+.homeAppButton > span:first-child { width: 62px; height: 62px; filter: saturate(1.12); }
+.homeIconTile { background: transparent !important; border: 0; box-shadow: none; backdrop-filter: none; }
+.homeAppButton > span:last-child { font-weight: 300; }
+.homeAppGroups { width: min(100%, 1050px); display: grid; gap: 18px; }
+.homeAppGroup { padding: 12px 14px 16px; border: 1px solid rgba(21, 88, 85, .08); border-radius: 18px; background: rgba(255, 255, 255, .3); }
+.homeAppGroup h2 { margin: 0 0 8px; color: rgba(21, 88, 85, .64); font-size: 10px; font-weight: 450; letter-spacing: .08em; }
+.homeAppGroup .homeAppGrid { width: 100%; }
+.homeWidgets { width: min(100%, 1050px); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.homeWidgetCard { min-height: 112px; padding: 12px 14px; border: 1px solid rgba(21, 88, 85, .1); border-radius: 16px; background: rgba(255, 255, 255, .72); backdrop-filter: blur(12px); }
+.homeWidgetCard > header { display: flex; align-items: center; gap: 8px; }
+.homeWidgetCard > header > div { min-width: 0; display: grid; gap: 1px; }
+.homeWidgetCard small { color: #86a09a; font-size: 8px; font-weight: 650; letter-spacing: .12em; }
+.homeWidgetCard h2 { margin: 0; color: #17312d; font-size: 14px; font-weight: 450; }
+.homeWidgetIcon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; color: var(--olivia-green); background: var(--olivia-mint); }
+.homeWidgetCount { margin-left: auto; color: var(--olivia-green); font-size: 13px; font-weight: 650; }
+.homeWidgetCard > p { margin: 10px 0 0; color: #8aa09c; font-size: 10px; font-weight: 300; }
+.homeWidgetList { margin-top: 8px; display: grid; gap: 4px; }
+.homeWidgetList > div { min-width: 0; display: flex; align-items: center; gap: 7px; color: #496760; font-size: 10px; font-weight: 300; }
+.homeWidgetList time { width: 38px; flex: 0 0 auto; color: var(--olivia-green); font-size: 9px; font-weight: 450; }
+.homeWidgetList > div > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.todoBullet { width: 16px; height: 16px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid rgba(21, 88, 85, .24); border-radius: 5px; background: #fff; }
+.todoBulletDone { color: #fff; border-color: var(--olivia-green); background: var(--olivia-green); }
+.todoDone { color: #99aaa6; text-decoration: line-through; }
+.homeHint { display: inline-flex; align-items: center; gap: 5px; color: rgba(83, 112, 105, .58); font-size: 9px; font-weight: 300; }
+
+.appTransition { width: 100%; height: 100%; animation: tabletAppOpen 260ms cubic-bezier(.32, .72, 0, 1); transform-origin: 50% 12%; }
+@keyframes tabletAppOpen { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+.routeFrame { position: relative; width: 100%; height: 100%; overflow: hidden; background: #faf9f6; }
+.routeFrameIframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; opacity: 0; transition: opacity 180ms ease; }
+.routeFrameLoaded { opacity: 1; }
+.routeFrameLoading { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; color: #69837e; background: #faf9f6; font-size: 13px; font-weight: 300; }
+
+.dockOuter { background: rgba(255, 255, 255, .5); box-shadow: 0 18px 48px rgba(21, 88, 85, .2), 0 4px 14px rgba(21, 88, 85, .08), inset 0 1px rgba(255, 255, 255, .8); }
+
+@media (orientation: portrait) {
+  .homeAppGrid { grid-template-columns: repeat(5, minmax(90px, 1fr)); max-width: 720px; }
+}
+@media (max-width: 720px) {
+  .homeLauncherHeader { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .homeControls { width: 100%; }
+  .homeControlButton { flex: 1; justify-content: center; }
+  .homePopover { left: 0; right: auto; top: 94px; }
+  .homeAppGrid { grid-template-columns: repeat(4, minmax(76px, 1fr)); column-gap: 12px; row-gap: 24px; }
+  .homeAppButton { min-width: 76px; }
+  .homeAppButton > span:first-child { width: 58px; height: 58px; }
+  .homeWidgets { grid-template-columns: 1fr; }
+  .homeAppGroup { padding-inline: 8px; }
+}
 
 @media (orientation: portrait) {
   .homeAppGrid { grid-template-columns: repeat(5, minmax(90px, 1fr)); max-width: 700px; }
