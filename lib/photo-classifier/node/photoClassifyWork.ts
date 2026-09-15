@@ -47,7 +47,7 @@ export type PhotoClassifyWorkFailure = {
 
 export type PhotoClassifyWorkResult = PhotoClassifyWorkSuccess | PhotoClassifyWorkFailure;
 
-type PhotoSnapshot = { relativePath: string; name: string; size: number };
+type PhotoSnapshot = { name: string; size: number };
 
 const DEFAULT_MIN_FREE_BYTES = 30 * 1024 ** 3;
 const MIN_SAFETY_MARGIN_BYTES = 1024 ** 3;
