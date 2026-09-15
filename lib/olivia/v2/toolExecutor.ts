@@ -28,6 +28,7 @@ import { DOCUMENT_TOOL_NAMES, executeDocumentTool } from "./toolExecutors/docume
 import { MEMORY_TOOL_NAMES, executeMemoryTool } from "./toolExecutors/memory";
 import { TASK_SESSION_TOOL_NAMES, executeTaskSessionTool } from "./toolExecutors/taskSession";
 import { PHOTO_CLASSIFICATION_TOOL_NAMES, executePhotoClassificationTool } from "./toolExecutors/photoClassification";
+import { PHOTO_STORAGE_TOOL_NAMES, executePhotoStorageTool } from "./toolExecutors/photoStorage";
 import { COMMON_TOOL_NAMES, executeCommonTool } from "./toolExecutors/common";
 
 // 코드 요청서(2026-08-15) 3번 항목 — CRUD 엔진(lib/olivia/crud)은 12개 도메인을 지원하지만
