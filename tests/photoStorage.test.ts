@@ -50,7 +50,7 @@ function createFakeSupabase(store: { projects: Row[]; events: Row[] }) {
       const fake = tables[table];
       return {
         update: (patch: Row) => fake.query("update", patch),
-        select: (cols?: string) => fake.query("select", undefined) as ReturnType<typeof fake.query> & { _cols?: string },
+        select: () => fake.query("select"),
         insert: (row: Row) => fake.query("insert", row),
       };
     },
