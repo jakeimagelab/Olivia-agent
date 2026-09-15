@@ -142,7 +142,7 @@ async function collectClassifiedOutput(sceneRoot: string): Promise<ClassifiedOut
       }
       if (!JPG_PHOTO_EXTENSIONS.has(extension(fileEntry.name))) continue;
       const metadata = await stat(path.join(sceneDirectory, fileEntry.name));
-      files.push({ relativePath: `${sceneEntry.name}/${fileEntry.name}`, name: fileEntry.name, size: metadata.size });
+      files.push({ name: fileEntry.name, size: metadata.size });
       nameCounts.set(fileEntry.name, (nameCounts.get(fileEntry.name) ?? 0) + 1);
     }
   }
