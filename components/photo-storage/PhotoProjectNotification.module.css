@@ -3,7 +3,13 @@
 .content { min-width: 0; padding-right: 5px; }
 .eyebrow { margin: 0; color: #e85d2c; font-size: 11px; font-weight: 750; letter-spacing: .03em; }
 .content h2 { margin: 4px 0 0; font-size: 15px; line-height: 1.45; font-weight: 700; }
+.projectTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail { margin: 8px 0 0; color: #6b8580; font-size: 12px; }
+.cardDanger { border-color: rgba(178,58,18,.22); }
+.iconDanger { background: #fdeeea; color: #b23a12; }
+.eyebrowDanger { color: #b23a12; }
+.conflictList { list-style: none; margin: 8px 0 0; padding: 0; max-height: 120px; overflow-y: auto; display: grid; gap: 4px; }
+.conflictList li { font-size: 11px; color: #6b8580; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { display: flex; gap: 8px; margin-top: 14px; }
 .primaryButton, .secondaryButton { min-height: 38px; border-radius: 10px; padding: 0 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .primaryButton { border: 1px solid #155855; background: #155855; color: white; }
