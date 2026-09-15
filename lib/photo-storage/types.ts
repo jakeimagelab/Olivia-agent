@@ -1,5 +1,7 @@
 export const PHOTO_PROJECT_STATUSES = [
-  "READY", "APPROVED", "DEFERRED", "REVIEW_REQUIRED", "ERROR",
+  "READY", "DEFERRED", "REVIEW_REQUIRED", "ERROR",
+  "MERGE_APPROVED", "MERGING", "MERGE_COMPLETED", "MERGE_FAILED",
+  "CLASSIFY_APPROVED",
   "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "COPY_COMPLETED", "COPY_FAILED",
   "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING", "CLASSIFY_COMPLETED", "CLASSIFY_FAILED",
 ] as const;
@@ -17,6 +19,10 @@ export const PHOTO_EVENT_TYPES = [
   "PHOTO_CLASSIFICATION_STARTED",
   "PHOTO_CLASSIFICATION_COMPLETED",
   "PHOTO_CLASSIFICATION_FAILED",
+  "PHOTO_MERGE_STARTED",
+  "PHOTO_MERGE_COMPLETED",
+  "PHOTO_MERGE_FAILED",
+  "PHOTO_PROJECT_CLASSIFY_APPROVED",
 ] as const;
 export type PhotoProjectEventType = (typeof PHOTO_EVENT_TYPES)[number];
 
@@ -50,6 +56,16 @@ export type PhotoStorageProject = {
   classification_error: string | null;
   classification_progress: Record<string, unknown>;
   classify_job_id: string | null;
+  merge_job_id: string | null;
+  merge_started_at: string | null;
+  merge_completed_at: string | null;
+  merged_jpg_count: number;
+  merge_conflict_count: number;
+  raw_untouched_count: number;
+  merge_error: string | null;
+  merge_progress: Record<string, unknown>;
+  merge_approved_at: string | null;
+  classify_approved_at: string | null;
 };
 
 export type PhotoStorageEvent = {
