@@ -42,6 +42,7 @@ import {
   prepareRemotePhotoWorkFolder,
 } from "./pathSafety";
 import { getStorageRoots } from "./storageConfig";
+import { SCENE_CLASSIFIED_DIRECTORY } from "./storageLayout";
 import type {
   NodePhotoEntry,
   NodePhotoScene,
