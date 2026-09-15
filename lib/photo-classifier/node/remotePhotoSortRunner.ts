@@ -816,6 +816,91 @@ async function organizeWorkCopy(input: {
   ]);
 }
 
+const SCENE_COPY_TEMP_SUFFIX = ".olivia-part";
+
+/**
+ * PHASE 6 copy 출력: workFolder(JPG전체)는 절대 건드리지 않고, 씬별분류/<Scene>/에
+ * COPYFILE_EXCL로 복사한다. 같은 파일이 두 Scene에 들어가는 것을 방지하고, 임시
+ * 파일은 검증 후 rename하며 실패 시 즉시 unlink한다.
+ */
+async function organizeSceneCopy(input: {
+  jpgInputFolder: string;
+  sceneOutputFolder: string;
+  scenes: NodePhotoScene[];
+  decisions: SceneBoundaryDecision[];
+  options: RemotePhotoSortRunnerInput;
+  warnings: RunnerWarning[];
+  roots: RunnerRoots;
+  onProgress?: (progress: RunnerProgress) => void;
+}): Promise<void> {
+  const reportDirectory = path.join(input.sceneOutputFolder, "_REPORT");
+  await assertSafeWorkMutation(input.sceneOutputFolder, input.roots);
+  await mkdir(input.sceneOutputFolder, { recursive: false });
+  await assertSafeWorkMutation(reportDirectory, input.roots);
+  await mkdir(reportDirectory, { recursive: false });
+
+  const placed = new Set<string>();
+  let completed = 0;
+  const total = input.scenes.reduce((sum, scene) => sum + scene.files.length, 0);
+
+  for (const scene of input.scenes) {
+    const folderName = safeSceneFolderName(scene.editedName, scene.folderName);
+    scene.editedName = folderName;
+    const sceneDirectory = path.join(input.sceneOutputFolder, folderName);
+    await assertSafeWorkMutation(sceneDirectory, input.roots);
+    await mkdir(sceneDirectory, { recursive: false });
+    for (const entry of scene.files) {
+      if (placed.has(entry.name)) throw new Error(`파일이 두 Scene에 중복 배치되었습니다: ${entry.name}`);
+      placed.add(entry.name);
+      const destination = path.join(sceneDirectory, entry.name);
+      const temporary = path.join(sceneDirectory, `.${entry.name}${SCENE_COPY_TEMP_SUFFIX}`);
+      await assertSafeWorkMutation(temporary, input.roots);
+      await assertSafeWorkMutation(destination, input.roots);
+      try {
+        await copyFile(entry.path, temporary, fsConstants.COPYFILE_EXCL);
+        const [sourceMetadata, temporaryMetadata] = await Promise.all([stat(entry.path), stat(temporary)]);
+        if (sourceMetadata.size !== temporaryMetadata.size) throw new Error(`${entry.name} 복사 검증에 실패했습니다.`);
+        await rename(temporary, destination);
+      } catch (error) {
+        await unlink(temporary).catch(() => undefined);
+        throw error;
+      }
+      completed += 1;
+      input.onProgress?.({ stage: "ORGANIZING", current: completed, total, message: `${folderName}: ${entry.name}` });
+    }
+  }
+
+  await Promise.all([
+    writeAtomicJson(path.join(reportDirectory, "scene_report.json"), {
+      version: 1,
+      scenes: input.scenes.map((scene) => ({
+        index: scene.index,
+        folderName: scene.editedName,
+        startTime: new Date(scene.startTime).toISOString(),
+        endTime: new Date(scene.endTime).toISOString(),
+        fileCount: scene.files.length,
+        sceneType: scene.sceneType,
+        aiConfidence: scene.aiConfidence,
+        aiReason: scene.aiReason,
+        files: scene.files.map((entry) => entry.name),
+      })),
+      createdAt: new Date().toISOString(),
+    }, input.roots),
+    writeAtomicJson(path.join(reportDirectory, "summary.json"), {
+      mode: "field",
+      classificationMode: input.options.fastAnalyzeMode ? "fast" : "precise",
+      outputMode: "copy",
+      department: input.options.department,
+      classificationUiMode: input.options.classificationUiMode,
+      totalJpg: total,
+      totalScenes: input.scenes.length,
+      reviewBoundaryCount: input.decisions.filter((decision) => decision.needsReview).length,
+      warnings: input.warnings,
+      createdAt: new Date().toISOString(),
+    }, input.roots),
+  ]);
+}
+
 async function countPhotosRecursively(directory: string): Promise<number> {
   let total = 0;
   for (const entry of await readdir(directory, { withFileTypes: true })) {
