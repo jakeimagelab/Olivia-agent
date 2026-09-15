@@ -13,7 +13,13 @@ export async function GET(request: NextRequest) {
     const requestedStatus = request.nextUrl.searchParams.get("status")?.toUpperCase();
     const statuses = requestedStatus && PHOTO_PROJECT_STATUSES.includes(requestedStatus as (typeof PHOTO_PROJECT_STATUSES)[number])
       ? [requestedStatus]
-      : ["READY", "APPROVED", "DEFERRED", "REVIEW_REQUIRED", "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "COPY_COMPLETED", "COPY_FAILED", "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING", "CLASSIFY_COMPLETED", "CLASSIFY_FAILED"];
+      : [
+        "READY", "DEFERRED", "REVIEW_REQUIRED",
+        "MERGE_APPROVED", "MERGING", "MERGE_COMPLETED", "MERGE_FAILED",
+        "CLASSIFY_APPROVED",
+        "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "COPY_COMPLETED", "COPY_FAILED",
+        "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING", "CLASSIFY_COMPLETED", "CLASSIFY_FAILED",
+      ];
     const { data: projects, error } = await db
       .from("photo_storage_projects")
       .select("*")
