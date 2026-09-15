@@ -105,7 +105,7 @@ async function collectFlatJpgSnapshot(folder: string): Promise<{ files: PhotoSna
     }
     if (!entry.isFile() || !JPG_PHOTO_EXTENSIONS.has(extension(entry.name))) continue;
     const metadata = await stat(path.join(folder, entry.name));
-    files.push({ relativePath: entry.name, name: entry.name, size: metadata.size });
+    files.push({ name: entry.name, size: metadata.size });
   }
   files.sort((left, right) => left.name.localeCompare(right.name, "en", { numeric: true, sensitivity: "base" }));
   return { files, hasSubdirectory };
