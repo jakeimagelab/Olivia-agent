@@ -1,9 +1,10 @@
-import { lstat, readFile, readdir, realpath, stat } from "node:fs/promises";
+import { lstat, readdir, realpath, stat, statfs } from "node:fs/promises";
 import path from "node:path";
 import { JPG_PHOTO_EXTENSIONS } from "@/lib/photo-classifier/constants";
 import { runRemotePhotoSortRunner, type RemotePhotoSortRunnerDependencies } from "./remotePhotoSortRunner";
 import { resolveSafeWorkRoot } from "./pathSafety";
 import { getStorageRoots } from "./storageConfig";
+import { JPG_INTEGRATED_DIRECTORY, SCENE_CLASSIFIED_DIRECTORY } from "./storageLayout";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { RemotePhotoSortRunnerOptions, RunnerProgress, RunnerRoots } from "./types";
 
@@ -48,6 +49,9 @@ export type PhotoClassifyWorkResult = PhotoClassifyWorkSuccess | PhotoClassifyWo
 
 type PhotoSnapshot = { relativePath: string; name: string; size: number };
 
+const DEFAULT_MIN_FREE_BYTES = 30 * 1024 ** 3;
+const MIN_SAFETY_MARGIN_BYTES = 1024 ** 3;
+
 function extension(name: string): string {
   return name.split(".").pop()?.toLowerCase() ?? "";
 }
@@ -68,7 +72,7 @@ function isInside(root: string, target: string): boolean {
   return relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
 
-async function resolveWorkFolder(relativePath: string, roots: RunnerRoots): Promise<{ root: string; folder: string }> {
+async function resolveProjectFolder(relativePath: string, roots: RunnerRoots): Promise<{ root: string; projectFolder: string }> {
   const root = await resolveSafeWorkRoot(roots);
   const candidate = path.resolve(root, ...relativePath.split("/"));
   if (!isInside(root, candidate)) throw new Error("분류 작업 폴더가 WORK_ROOT 밖입니다.");
@@ -76,72 +80,103 @@ async function resolveWorkFolder(relativePath: string, roots: RunnerRoots): Prom
   if (metadata.isSymbolicLink() || !metadata.isDirectory()) throw new Error("분류 작업 폴더가 안전한 폴더가 아닙니다.");
   const canonical = await realpath(candidate);
   if (!isInside(root, canonical)) throw new Error("분류 작업 폴더가 WORK_ROOT 밖을 가리킵니다.");
-  return { root, folder: canonical };
+  return { root, projectFolder: canonical };
 }
 
-async function collectJpgSnapshot(root: string): Promise<PhotoSnapshot[]> {
+async function resolveFlatJpgFolder(projectFolder: string, name: string): Promise<string> {
+  const candidate = path.join(projectFolder, name);
+  const metadata = await lstat(candidate).catch(() => null);
+  if (!metadata) throw new Error(`${name} 폴더를 찾을 수 없습니다. JPG 통합이 먼저 완료되어야 합니다.`);
+  if (metadata.isSymbolicLink() || !metadata.isDirectory()) throw new Error(`${name}이 안전한 폴더가 아닙니다.`);
+  const canonical = await realpath(candidate);
+  if (!isInside(projectFolder, canonical)) throw new Error(`${name}이 프로젝트 밖을 가리킵니다.`);
+  return canonical;
+}
+
+/** JPG전체는 평면 구조여야 한다 — 하위 폴더가 있으면 REVIEW_REQUIRED로 처리한다. */
+async function collectFlatJpgSnapshot(folder: string): Promise<{ files: PhotoSnapshot[]; hasSubdirectory: boolean }> {
   const files: PhotoSnapshot[] = [];
-  const visit = async (directory: string, relativeDirectory: string): Promise<void> => {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      const fullPath = path.join(directory, entry.name);
-      if (entry.isSymbolicLink()) throw new Error(`분류 대상에 심볼릭 링크가 있습니다: ${entry.name}`);
-      if (entry.isDirectory()) {
-        await visit(fullPath, path.posix.join(relativeDirectory, entry.name));
-        continue;
-      }
-      if (!entry.isFile() || !JPG_PHOTO_EXTENSIONS.has(extension(entry.name))) continue;
-      const metadata = await stat(fullPath);
-      files.push({ relativePath: path.posix.join(relativeDirectory, entry.name), name: entry.name, size: metadata.size });
+  let hasSubdirectory = false;
+  for (const entry of await readdir(folder, { withFileTypes: true })) {
+    if (entry.isSymbolicLink()) throw new Error(`분류 대상에 심볼릭 링크가 있습니다: ${entry.name}`);
+    if (entry.isDirectory()) {
+      hasSubdirectory = true;
+      continue;
     }
-  };
-  await visit(root, "");
-  return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath, "en", { numeric: true, sensitivity: "base" }));
-}
-
-async function readExistingSceneCount(folder: string): Promise<number> {
-  try {
-    const report = JSON.parse(await readFile(path.join(folder, "REPORT", "summary.json"), "utf8")) as { totalScenes?: unknown };
-    if (typeof report.totalScenes === "number" && Number.isSafeInteger(report.totalScenes) && report.totalScenes >= 0) return report.totalScenes;
-  } catch {
-    // A partial report is handled by the file-count verification below.
+    if (!entry.isFile() || !JPG_PHOTO_EXTENSIONS.has(extension(entry.name))) continue;
+    const metadata = await stat(path.join(folder, entry.name));
+    files.push({ relativePath: entry.name, name: entry.name, size: metadata.size });
   }
-  try {
-    const entries = await readdir(path.join(folder, "JPG"), { withFileTypes: true });
-    return entries.filter((entry) => entry.isDirectory() && entry.name !== "00_QUALITY_EXCLUDED").length;
-  } catch {
-    return 0;
-  }
-}
-
-async function hasExistingOutputDirectory(folder: string): Promise<boolean> {
-  for (const name of ["RAW", "JPG", "SELECT", "REPORT", "PROFILE"]) {
-    const metadata = await lstat(path.join(folder, name)).catch(() => null);
-    if (metadata) return true;
-  }
-  return false;
+  files.sort((left, right) => left.name.localeCompare(right.name, "en", { numeric: true, sensitivity: "base" }));
+  return { files, hasSubdirectory };
 }
 
 function totalBytes(files: PhotoSnapshot[]): number {
   return files.reduce((sum, file) => sum + file.size, 0);
 }
 
-function sameManagedSnapshot(before: PhotoSnapshot[], after: PhotoSnapshot[]): boolean {
+function isTempFileName(name: string): boolean {
+  return name.startsWith(".") && name.endsWith(".olivia-part");
+}
+
+type ClassifiedOutput = { files: PhotoSnapshot[]; sceneCount: number; duplicateNames: string[]; tempFileCount: number };
+
+/** 씬별분류/ 하위를 재귀 스캔해 파일 목록·Scene 폴더 수·중복 배치·임시 파일 잔존 여부를 모은다. */
+async function collectClassifiedOutput(sceneRoot: string): Promise<ClassifiedOutput> {
+  const files: PhotoSnapshot[] = [];
+  const nameCounts = new Map<string, number>();
+  let tempFileCount = 0;
+  let sceneCount = 0;
+  for (const sceneEntry of await readdir(sceneRoot, { withFileTypes: true })) {
+    if (sceneEntry.name === "_REPORT") continue;
+    if (sceneEntry.isSymbolicLink()) throw new Error(`씬별분류에 심볼릭 링크가 있습니다: ${sceneEntry.name}`);
+    if (!sceneEntry.isDirectory()) continue;
+    sceneCount += 1;
+    const sceneDirectory = path.join(sceneRoot, sceneEntry.name);
+    for (const fileEntry of await readdir(sceneDirectory, { withFileTypes: true })) {
+      if (fileEntry.isSymbolicLink()) throw new Error(`씬별분류에 심볼릭 링크가 있습니다: ${sceneEntry.name}/${fileEntry.name}`);
+      if (!fileEntry.isFile()) continue;
+      if (isTempFileName(fileEntry.name)) {
+        tempFileCount += 1;
+        continue;
+      }
+      if (!JPG_PHOTO_EXTENSIONS.has(extension(fileEntry.name))) continue;
+      const metadata = await stat(path.join(sceneDirectory, fileEntry.name));
+      files.push({ relativePath: `${sceneEntry.name}/${fileEntry.name}`, name: fileEntry.name, size: metadata.size });
+      nameCounts.set(fileEntry.name, (nameCounts.get(fileEntry.name) ?? 0) + 1);
+    }
+  }
+  const duplicateNames = Array.from(nameCounts.entries()).filter(([, count]) => count > 1).map(([name]) => name);
+  return { files, sceneCount, duplicateNames, tempFileCount };
+}
+
+/** 분류 완료 전 모두 통과해야 하는 무결성 검증. 실패해도 씬별분류는 지우지 않는다. */
+function verifyClassifiedOutput(inputBefore: PhotoSnapshot[], output: ClassifiedOutput): string | null {
+  if (output.tempFileCount > 0) return "씬별분류에 완료되지 않은 임시 파일이 남아 있습니다.";
+  if (output.duplicateNames.length > 0) return `일부 파일이 두 Scene에 중복 배치되었습니다: ${output.duplicateNames.slice(0, 5).join(", ")}`;
+  if (output.files.length !== inputBefore.length) {
+    return `씬별분류 파일 수가 JPG전체와 다릅니다 (JPG전체 ${inputBefore.length}장 · 씬별분류 ${output.files.length}장).`;
+  }
+  const inputByName = new Map(inputBefore.map((file) => [file.name, file.size]));
+  for (const file of output.files) {
+    const expectedSize = inputByName.get(file.name);
+    if (expectedSize === undefined) return `씬별분류에 JPG전체에 없는 파일이 있습니다: ${file.name}`;
+    if (expectedSize !== file.size) return `${file.name}의 크기가 JPG전체와 다릅니다.`;
+  }
+  return null;
+}
+
+function sameFlatSnapshot(before: PhotoSnapshot[], after: PhotoSnapshot[]): boolean {
   if (before.length !== after.length) return false;
-  const beforeNames = new Map<string, number>();
-  for (const file of before) beforeNames.set(file.name, (beforeNames.get(file.name) ?? 0) + 1);
-  const afterNames = new Map<string, number>();
-  for (const file of after) afterNames.set(file.name, (afterNames.get(file.name) ?? 0) + 1);
-  if (beforeNames.size !== afterNames.size) return false;
-  for (const [name, count] of beforeNames) if (afterNames.get(name) !== count) return false;
-  return totalBytes(before) === totalBytes(after);
+  return before.every((file, index) => after[index]?.name === file.name && after[index]?.size === file.size);
 }
 
-function hasNestedJpg(files: PhotoSnapshot[]): boolean {
-  return files.some((file) => file.relativePath.includes("/"));
-}
-
-function hasRootJpg(files: PhotoSnapshot[]): boolean {
-  return files.some((file) => !file.relativePath.includes("/"));
+function configuredMinFreeBytes(): number {
+  const configured = process.env.OLIVIA_WORK_MIN_FREE_GB?.trim();
+  if (!configured) return DEFAULT_MIN_FREE_BYTES;
+  const gb = Number(configured);
+  if (!Number.isFinite(gb) || gb < 0) throw new Error("OLIVIA_WORK_MIN_FREE_GB는 0 이상의 숫자여야 합니다.");
+  return gb * 1024 ** 3;
 }
 
 export async function runPhotoClassifyWork(
@@ -150,37 +185,59 @@ export async function runPhotoClassifyWork(
 ): Promise<PhotoClassifyWorkResult> {
   const workRelativePath = validateRelativePath(input.workRelativePath);
   const roots = input.roots ?? getStorageRoots();
-  const { root, folder } = await resolveWorkFolder(workRelativePath, roots);
-  const before = await collectJpgSnapshot(folder);
-  const fail = (status: PhotoClassifyWorkFailure["status"], error: string): PhotoClassifyWorkFailure => ({
+  const { root, projectFolder } = await resolveProjectFolder(workRelativePath, roots);
+
+  const fail = (status: PhotoClassifyWorkFailure["status"], jpgCount: number, error: string): PhotoClassifyWorkFailure => ({
     ok: false,
     status,
     workRelativePath,
-    jpgCount: before.length,
+    jpgCount,
     error,
   });
 
-  if (!before.length) return fail("CLASSIFY_FAILED", "SSD2 작업 폴더에 분류할 JPG/JPEG가 없습니다.");
-  if (hasNestedJpg(before)) {
-    // Worker 재시작 후 이미 출력이 완성된 경우에는 다시 분류하지 않고 결과를
-    // 검증해 완료로 복구한다. 부분/불일치 output은 REVIEW_REQUIRED로 남긴다.
-    const hasRoot = hasRootJpg(before);
-    if (!hasRoot && input.expectedJpgCount !== undefined && input.expectedJpgBytes !== undefined
-      && before.length === input.expectedJpgCount && totalBytes(before) === input.expectedJpgBytes) {
-      return {
-        ok: true,
-        status: "CLASSIFY_COMPLETED",
-        projectPath: workRelativePath,
-        workRelativePath,
-        jpgCount: before.length,
-        sceneCount: await readExistingSceneCount(folder),
-        durationMs: 0,
-      };
-    }
-    return fail("REVIEW_REQUIRED", "분류 대상 JPG가 프로젝트 하위 폴더에 이미 존재합니다.");
+  let jpgInputFolder: string;
+  try {
+    jpgInputFolder = await resolveFlatJpgFolder(projectFolder, JPG_INTEGRATED_DIRECTORY);
+  } catch (error) {
+    return fail("CLASSIFY_FAILED", 0, error instanceof Error ? error.message : String(error));
   }
-  if (await hasExistingOutputDirectory(folder)) {
-    return fail("REVIEW_REQUIRED", "SSD2 작업 폴더에 기존 분류 output이 있어 재분류하지 않습니다.");
+
+  const { files: before, hasSubdirectory } = await collectFlatJpgSnapshot(jpgInputFolder);
+  if (hasSubdirectory) return fail("REVIEW_REQUIRED", before.length, "JPG전체 하위에 폴더가 있습니다. JPG전체는 평면 구조여야 합니다.");
+  if (!before.length) return fail("CLASSIFY_FAILED", 0, "SSD2 JPG전체에 분류할 JPG/JPEG가 없습니다.");
+
+  const sceneOutputFolder = path.join(projectFolder, SCENE_CLASSIFIED_DIRECTORY);
+  const sceneOutputExists = Boolean(await lstat(sceneOutputFolder).catch(() => null));
+
+  if (sceneOutputExists) {
+    // Worker 재시작 후 이미 출력이 있는 경우: 다시 분류하지 않고 결과를 검증해
+    // 완료로 복구하거나(정확히 일치) REVIEW_REQUIRED로 남긴다. 부분 결과는 지우지 않는다.
+    const output = await collectClassifiedOutput(sceneOutputFolder);
+    const verificationError = verifyClassifiedOutput(before, output);
+    if (verificationError) return fail("REVIEW_REQUIRED", before.length, verificationError);
+    return {
+      ok: true,
+      status: "CLASSIFY_COMPLETED",
+      projectPath: workRelativePath,
+      workRelativePath,
+      jpgCount: before.length,
+      sceneCount: output.sceneCount,
+      durationMs: 0,
+    };
+  }
+
+  // 씬별분류는 JPG전체를 복사로 복제하므로 프로젝트당 SSD2 사용량이 약 2배가 된다.
+  // 파일을 하나도 만들기 전에 여유 공간을 확인한다.
+  const requiredBytes = totalBytes(before);
+  const safetyMargin = Math.max(requiredBytes * 0.05, MIN_SAFETY_MARGIN_BYTES, configuredMinFreeBytes());
+  const filesystem = await statfs(root);
+  const availableBytes = Number(filesystem.bavail) * Number(filesystem.bsize);
+  if (!Number.isFinite(availableBytes) || availableBytes < requiredBytes + safetyMargin) {
+    return fail(
+      "CLASSIFY_FAILED",
+      before.length,
+      `Agentstation 저장 공간이 부족합니다. 현재 여유 ${(availableBytes / 1024 ** 3).toFixed(1)}GB, 필요 ${(requiredBytes / 1024 ** 3).toFixed(1)}GB + 안전 여유 ${(safetyMargin / 1024 ** 3).toFixed(1)}GB`,
+    );
   }
 
   // workFolder 모드에서는 Runner가 source staging을 호출하지 않는다. sourceRoot도
@@ -198,18 +255,24 @@ export async function runPhotoClassifyWork(
       aiNamingEnabled: input.aiNamingEnabled,
       qualityAnalysisEnabled: input.qualityAnalysisEnabled,
       profileClassificationEnabled: input.profileClassificationEnabled,
-      workFolder: folder,
+      workFolder: jpgInputFolder,
     }, {
       ...dependencies,
       roots: isolatedRoots,
       preserveRaw: true,
+      outputMode: "copy",
     });
 
-    const after = await collectJpgSnapshot(folder);
-    if (hasRootJpg(after)) return fail("REVIEW_REQUIRED", "분류 후 프로젝트 루트에 JPG가 남아 있습니다.");
-    if (!sameManagedSnapshot(before, after)) {
-      return fail("REVIEW_REQUIRED", "분류 전후 JPG 파일 수·이름·용량이 일치하지 않습니다.");
+    // JPG전체가 분류 도중 한 장도 이동·삭제되지 않았는지 먼저 확인한다(읽기 전용 불변식).
+    const { files: after, hasSubdirectory: afterHasSubdirectory } = await collectFlatJpgSnapshot(jpgInputFolder);
+    if (afterHasSubdirectory || !sameFlatSnapshot(before, after)) {
+      return fail("REVIEW_REQUIRED", before.length, "분류 후 JPG전체의 파일 수·이름·용량이 분류 전과 다릅니다.");
     }
+
+    const output = await collectClassifiedOutput(sceneOutputFolder);
+    const verificationError = verifyClassifiedOutput(before, output);
+    if (verificationError) return fail("REVIEW_REQUIRED", before.length, verificationError);
+
     return {
       ok: true,
       status: "CLASSIFY_COMPLETED",
@@ -220,7 +283,7 @@ export async function runPhotoClassifyWork(
       durationMs: Date.now() - startedAt,
     };
   } catch (error) {
-    return fail("CLASSIFY_FAILED", error instanceof Error ? error.message : String(error));
+    return fail("CLASSIFY_FAILED", before.length, error instanceof Error ? error.message : String(error));
   }
 }
 
