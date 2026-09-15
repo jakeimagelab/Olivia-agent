@@ -133,6 +133,23 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  if (action === "PHOTO_PREPARE_SOURCE") {
+    const projectId = requestedPayload.project_id;
+    const sourceRelativePath = requestedPayload.source_relative_path;
+    if (typeof projectId !== "string" || !UUID_PATTERN.test(projectId)) {
+      return Response.json({ ok: false, error: "PHOTO_PREPARE_SOURCE에는 올바른 project_id가 필요합니다." }, { status: 400 });
+    }
+    try {
+      const safeSourcePath = validatePhotoProjectRelativePath(sourceRelativePath);
+      payload = {
+        project_id: projectId,
+        source_relative_path: safeSourcePath,
+      };
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 통합 경로입니다." }, { status: 400 });
+    }
+  }
+
   if (action === "PHOTO_STAGE_JPG") {
     const projectId = requestedPayload.project_id;
     const sourceRelativePath = requestedPayload.source_relative_path;
