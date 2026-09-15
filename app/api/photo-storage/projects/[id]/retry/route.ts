@@ -16,10 +16,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const { data: current, error: readError } = await db.from("photo_storage_projects").select("*").eq("id", id).maybeSingle();
     if (readError) throw readError;
     if (!current) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
+    // REVIEW_REQUIRED는 merge/copy/classify 중 어느 단계에서 멈췄는지를 해당 단계의
+    // error 컬럼으로 판별한다(그 단계에서만 채워지고, 이후 단계로 넘어갈 때 초기화된다).
+    const reviewStageTarget = current.status === "REVIEW_REQUIRED"
+      ? (current.merge_error ? "MERGE_APPROVED" : current.copy_error ? "CLASSIFY_APPROVED" : current.classification_error ? "COPY_COMPLETED" : null)
+      : null;
     const targetStatus = current.status === "CLASSIFY_FAILED" ? "COPY_COMPLETED"
       : current.status === "COPY_FAILED" ? "CLASSIFY_APPROVED"
       : current.status === "MERGE_FAILED" ? "MERGE_APPROVED"
-      : null;
+      : reviewStageTarget;
     if (!targetStatus) {
       if (current.status === "CLASSIFY_APPROVED" || current.status === "MERGE_APPROVED") return Response.json({ ok: true, project: current, idempotent: true });
       return Response.json({ ok: false, error: "통합·복사·분류 실패 상태에서만 다시 시도할 수 있습니다.", project: current }, { status: 409 });
