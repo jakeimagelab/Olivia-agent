@@ -45,8 +45,12 @@ const boundarySchema = {
     additionalProperties: false,
     required: [
       "peopleCount", "hasDoctor", "hasPatient", "hasStaff", "dominantPersonChanged", "personChangeConfidence",
+      "primaryClinicianChanged", "primaryClinicianChangeConfidence",
       "locationType", "locationChanged", "locationChangeConfidence", "equipmentPresent", "equipmentCategory",
-      "equipmentChanged", "equipmentChangeConfidence", "handpiecePresent", "syringePresent", "treatmentBedPresent",
+      "roomChanged", "roomChangeConfidence", "equipmentChanged", "equipmentChangeConfidence",
+      "primaryMedicalDeviceChanged", "primaryMedicalDeviceChangeConfidence",
+      "primaryMedicalDeviceIdBefore", "primaryMedicalDeviceIdAfter",
+      "handpiecePresent", "syringePresent", "treatmentBedPresent",
       "consultationDeskPresent", "patientPose", "beforePatientPose", "afterPatientPose", "shotDistance",
       "beforeShotDistance", "afterShotDistance", "sceneType", "beforeSceneType", "afterSceneType",
       "sceneTypeChanged", "confidence", "reasons",
@@ -58,13 +62,21 @@ const boundarySchema = {
       hasStaff: { type: "boolean" },
       dominantPersonChanged: { type: "boolean" },
       personChangeConfidence: { type: "number", minimum: 0, maximum: 1 },
+      primaryClinicianChanged: { type: "boolean" },
+      primaryClinicianChangeConfidence: { type: "number", minimum: 0, maximum: 1 },
       locationType: { type: "string", enum: boundaryEnums.location },
       locationChanged: { type: "boolean" },
       locationChangeConfidence: { type: "number", minimum: 0, maximum: 1 },
+      roomChanged: { type: "boolean" },
+      roomChangeConfidence: { type: "number", minimum: 0, maximum: 1 },
       equipmentPresent: { type: "boolean" },
       equipmentCategory: { type: "string", enum: boundaryEnums.equipment },
       equipmentChanged: { type: "boolean" },
       equipmentChangeConfidence: { type: "number", minimum: 0, maximum: 1 },
+      primaryMedicalDeviceChanged: { type: "boolean" },
+      primaryMedicalDeviceChangeConfidence: { type: "number", minimum: 0, maximum: 1 },
+      primaryMedicalDeviceIdBefore: { type: ["string", "null"] },
+      primaryMedicalDeviceIdAfter: { type: ["string", "null"] },
       handpiecePresent: { type: "boolean" },
       syringePresent: { type: "boolean" },
       treatmentBedPresent: { type: "boolean" },
@@ -108,22 +120,26 @@ sceneType/beforeSceneType/afterSceneType은 profile/consultation/treatment/skin_
 - 인테리어 → 상담 / 인테리어 → 프로필
 
 [Scene 유지 — 아래는 같은 장면으로 유지, sceneTypeChanged=false]
-- 같은 상담실에서 상담자만 바뀜(실장→원장 등) — 장소·목적이 같으면 유지
-- 같은 시술 중 구도만 바뀜(와이드↔클로즈업, 각도 변경)
-- 같은 공간에서 촬영 렌즈/거리만 바뀜
+- 같은 주체 의료진·장비·장소에서 구도만 바뀜(와이드↔클로즈업, 각도 변경)
+- 보조 직원이 등장하거나 퇴장함, 사람 수가 바뀜
+- 같은 공간에서 촬영 렌즈/거리·포즈·행동·소도구만 바뀜
 
 판정 우선순위:
-1. 주요 환자 또는 의료진 그룹이 바뀌었는지
+1. 주체 의료진(primary clinician)이 바뀌었는지. 원장 A→원장 B는 같은 장소·고객이어도 NEW SCENE이다.
+   단, 보조 직원의 추가/퇴장과 사람 수 변화는 주체 의료진 변경으로 보지 않는다.
 2. 상담실·시술실 등 장소(배경)가 바뀌었는지 — 단, 배경 변화 하나만으로는 분리하지 않는다.
    대표 촬영 특성상 같은 공간에서는 배경이 완전히 바뀌는 촬영을 거의 하지 않으므로, 배경이
    크게 달라졌다면 강한 분리 후보로 참고하되, 반드시 촬영목적(sceneType) 또는 인물의 행동
    또는 장비 변화가 함께 있어야 실제로 분리하세요.
-3. 대형 장비·핸드피스·주사기·베드·상담 데스크가 등장하거나 종류가 바뀌었는지
+3. 주요 의료 장비의 category와 가능한 device ID가 바뀌었는지. Thermage FLX→Soprano Titanium처럼
+   장비 정체성이 바뀌면 같은 원장·고객·장소여도 NEW SCENE이다. 거울·펜·태블릿·제품박스·단독 주사기 등은 제외한다.
 4. 상담에서 시술, 앉음에서 누움 같은 의미 전환인지 (위 강한 변경 목록 참고)
 5. 단순한 와이드·클로즈업 또는 반대 방향 촬영인지 (Scene 유지)
 
-사람 이름이나 신원을 추측하지 마세요. 같은 사람인지 여부는 전후 그룹의 익명 시각적 연속성만 판단하세요.
-같은 사람·장소·장비에서 구도만 바뀌었으면 changed 필드를 false로 유지하세요.
+사람 이름이나 신원을 추측하지 마세요. 화자/의료진은 익명 ID로만 비교하세요.
+primaryClinicianChanged는 주체 원장/의료진이 바뀐 경우에만 true로 설정하세요.
+roomChanged는 구도·렌즈 변화가 아니라 고정 구조가 다른 실제 공간 변화일 때만 true입니다.
+같은 주체 의료진·장소·주요 장비에서 구도만 바뀌었으면 changed 필드를 false로 유지하세요.
 reasons는 경계 판단 이유를 짧은 한국어로 반환하세요.`;
 }
 

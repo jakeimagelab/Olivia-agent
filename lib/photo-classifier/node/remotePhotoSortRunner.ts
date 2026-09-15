@@ -132,7 +132,7 @@ async function mapWithConcurrency<T, R>(
 
 async function scanWorkFolder(
   workFolder: string,
-  fastAnalyzeMode: boolean,
+  _fastAnalyzeMode: boolean,
   onProgress?: (progress: RunnerProgress) => void,
 ): Promise<{ raw: NodePhotoEntry[]; jpg: NodePhotoEntry[] }> {
   const directoryEntries = await readdir(workFolder, { withFileTypes: true });
@@ -165,25 +165,17 @@ async function scanWorkFolder(
       continue;
     }
 
-    if (fastAnalyzeMode) {
-      jpg.push({
-        name: entry.name,
-        path: filePath,
-        size: metadata.size,
-        mtime: metadata.mtimeMs,
-        timestampSource: "mtime",
-      });
-    } else {
-      const timestamp = await readNodePhotoTimestamp(filePath);
-      jpg.push({
-        name: entry.name,
-        path: filePath,
-        size: metadata.size,
-        mtime: timestamp.timestamp,
-        timestampSource: timestamp.source,
-        warning: timestamp.warning,
-      });
-    }
+    // Scene ordering always prefers EXIF DateTimeOriginal. Fast mode skips
+    // expensive visual/AI work, but it must not change the capture-time source.
+    const timestamp = await readNodePhotoTimestamp(filePath);
+    jpg.push({
+      name: entry.name,
+      path: filePath,
+      size: metadata.size,
+      mtime: timestamp.timestamp,
+      timestampSource: timestamp.source,
+      warning: timestamp.warning,
+    });
   }
 
   return { raw, jpg: sortTimestampedFiles(jpg) };
@@ -192,7 +184,9 @@ async function scanWorkFolder(
 function buildFastScenes(entries: NodePhotoEntry[], gapMinutes: number): NodePhotoScene[] {
   if (!entries.length) return [];
   const groups: NodePhotoEntry[][] = [[entries[0]]];
-  const gapMs = gapMinutes * 60_000;
+  // Fast mode still obeys the v1 five-minute hard split floor. The legacy
+  // setting remains accepted for compatibility but cannot split earlier.
+  const gapMs = Math.max(5, gapMinutes) * 60_000;
   for (let index = 1; index < entries.length; index++) {
     if (entries[index].mtime - entries[index - 1].mtime > gapMs) groups.push([entries[index]]);
     else groups[groups.length - 1].push(entries[index]);
@@ -328,10 +322,11 @@ async function classifyPrecise(
     }
   }
 
-  const effectiveGapMinutes = weightProfile?.absoluteTimeGapMinutes ?? input.gapMinutes;
+  // Scene Engine v1 owns the time bands: 3–5 minutes always invokes AI and
+  // anything over five minutes is a hard split. Natural-language folder
+  // overrides may still tune thresholds/weights, but cannot weaken this rule.
   const settings = {
     ...getClassificationSettings(input.department === "dermatology" ? "dermatology" : "default", "precise"),
-    hardGapMinutes: effectiveGapMinutes,
     ...(weightProfile ? {
       splitThreshold: weightProfile.splitThreshold,
       reviewThreshold: weightProfile.reviewThreshold,

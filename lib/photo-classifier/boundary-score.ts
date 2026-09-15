@@ -26,10 +26,6 @@ export const BOUNDARY_WEIGHTS: SceneBoundaryFeatures = {
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
-function changed<T>(left: T, right: T, unknown: T) {
-  return left !== unknown && right !== unknown && left !== right;
-}
-
 export function boundaryFeaturesFromAnalysis(
   candidate: VisualBoundaryCandidate,
   analysis: SceneFrameAnalysis | null,
@@ -48,17 +44,26 @@ export function boundaryFeaturesFromAnalysis(
       shotDistanceChangeScore: 0,
     };
   }
+  const primaryClinicianChanged = analysis.primaryClinicianChanged ?? false;
+  const primaryClinicianConfidence = analysis.primaryClinicianChangeConfidence ?? 0;
+  const roomChanged = analysis.roomChanged ?? analysis.locationChanged;
+  const roomConfidence = analysis.roomChangeConfidence ?? analysis.locationChangeConfidence;
+  const primaryDeviceChanged = analysis.primaryMedicalDeviceChanged
+    ?? (analysis.equipmentChanged && Boolean(analysis.equipmentPresent));
+  const primaryDeviceConfidence = analysis.primaryMedicalDeviceChangeConfidence
+    ?? analysis.equipmentChangeConfidence;
   return {
     timeGapScore,
-    personChangeScore: analysis.dominantPersonChanged ? clamp01(analysis.personChangeConfidence) : 0,
-    locationChangeScore: analysis.locationChanged ? clamp01(analysis.locationChangeConfidence) : 0,
-    equipmentChangeScore: analysis.equipmentChanged ? clamp01(analysis.equipmentChangeConfidence) : 0,
-    poseChangeScore: changed(analysis.beforePatientPose, analysis.afterPatientPose, "unknown")
-      ? analysis.beforePatientPose === "sitting" && analysis.afterPatientPose === "lying" ? 1 : 0.65
-      : 0,
+    // Generic people-count/group changes are deliberately soft. Only the
+    // primary clinician identity is a reliable medical-scene boundary.
+    personChangeScore: primaryClinicianChanged ? clamp01(primaryClinicianConfidence) : 0,
+    locationChangeScore: roomChanged ? clamp01(roomConfidence) : 0,
+    equipmentChangeScore: primaryDeviceChanged ? clamp01(primaryDeviceConfidence) : 0,
+    // Pose, camera angle and shot distance are protected SAME_SCENE signals.
+    poseChangeScore: 0,
     sceneTypeChangeScore: analysis.sceneTypeChanged ? 1 : 0,
     visualChangeScore: candidate.visualChangeScore,
-    shotDistanceChangeScore: changed(analysis.beforeShotDistance, analysis.afterShotDistance, "unknown") ? 0.7 : 0,
+    shotDistanceChangeScore: 0,
   };
 }
 
@@ -72,31 +77,36 @@ export function calculateBoundaryScore(features: SceneBoundaryFeatures, weights:
 function forcedReasons(analysis: SceneFrameAnalysis | null): string[] {
   if (!analysis) return [];
   const reasons: string[] = [];
-  const person = analysis.dominantPersonChanged && analysis.personChangeConfidence >= 0.7;
-  const location = analysis.locationChanged && analysis.locationChangeConfidence >= 0.7;
-  const equipment = analysis.equipmentChanged && analysis.equipmentChangeConfidence >= 0.7;
-  if (analysis.dominantPersonChanged && analysis.personChangeConfidence >= 0.88) reasons.push("주요 환자·인물 그룹이 변경됨");
-  if (analysis.locationChanged && analysis.locationChangeConfidence >= 0.92) reasons.push("촬영 장소가 명확히 변경됨");
-  if (analysis.equipmentChanged && analysis.equipmentChangeConfidence >= 0.92) reasons.push("주요 의료 장비가 명확히 변경됨");
-  if (person && location) reasons.push("주요 인물과 장소가 함께 변경됨");
-  if (person && equipment) reasons.push("주요 인물과 장비가 함께 변경됨");
+  const clinician = (analysis.primaryClinicianChanged ?? false)
+    && (analysis.primaryClinicianChangeConfidence ?? 0) >= 0.75;
+  const location = (analysis.roomChanged ?? analysis.locationChanged)
+    && (analysis.roomChangeConfidence ?? analysis.locationChangeConfidence) >= 0.82;
+  const equipment = (analysis.primaryMedicalDeviceChanged
+    ?? (analysis.equipmentChanged && Boolean(analysis.equipmentPresent)))
+    && (analysis.primaryMedicalDeviceChangeConfidence ?? analysis.equipmentChangeConfidence) >= 0.82;
+  if (clinician) reasons.push("주체 의료진이 변경됨");
+  if (location) reasons.push("촬영 장소가 명확히 변경됨");
+  if (equipment) {
+    const before = analysis.primaryMedicalDeviceIdBefore;
+    const after = analysis.primaryMedicalDeviceIdAfter;
+    reasons.push(before && after ? `주요 의료 장비 변경(${before} → ${after})` : "주요 의료 장비가 명확히 변경됨");
+  }
+  if (clinician && location) reasons.push("주체 의료진과 장소가 함께 변경됨");
+  if (clinician && equipment) reasons.push("주체 의료진과 장비가 함께 변경됨");
   if (location && equipment) reasons.push("장소와 장비가 함께 변경됨");
   if (isStrongTransition(analysis.beforeSceneType, analysis.afterSceneType)) {
     reasons.push(`촬영목적 전환(${analysis.beforeSceneType} → ${analysis.afterSceneType})으로 강한 Scene 변경`);
-  }
-  if (analysis.beforePatientPose === "sitting" && analysis.afterPatientPose === "lying" && analysis.equipmentPresent) {
-    reasons.push("환자가 앉은 자세에서 누운 자세로 바뀌고 장비가 등장함");
   }
   return reasons;
 }
 
 function shouldHoldSameScene(analysis: SceneFrameAnalysis | null) {
   if (!analysis) return false;
-  return !analysis.dominantPersonChanged
-    && !analysis.locationChanged
-    && !analysis.equipmentChanged
+  return !(analysis.primaryClinicianChanged ?? false)
+    && !(analysis.roomChanged ?? analysis.locationChanged)
+    && !(analysis.primaryMedicalDeviceChanged ?? (analysis.equipmentChanged && Boolean(analysis.equipmentPresent)))
     && !analysis.sceneTypeChanged
-    && changed(analysis.beforeShotDistance, analysis.afterShotDistance, "unknown");
+    ;
 }
 
 export function decideBoundary(args: {

@@ -9,6 +9,11 @@ export type SceneClassificationSettings = {
   profile: ClassificationProfile;
   hardGapMinutes: number;
   softGapSeconds: number;
+  /** Scene v1 time bands. These are intentionally explicit so a user-provided
+   * legacy gap value cannot weaken the five-minute hard split rule. */
+  sameSceneMaxSeconds: number;
+  aiBoundaryStartSeconds: number;
+  aiBoundaryEndSeconds: number;
   splitThreshold: number;
   reviewThreshold: number;
   minimumSceneImages: number;
@@ -72,13 +77,23 @@ export type SceneFrameAnalysis = {
   hasStaff: boolean;
   dominantPersonChanged: boolean;
   personChangeConfidence: number;
+  /** AI's primary clinician signal. Generic people-count changes are not a split signal. */
+  primaryClinicianChanged?: boolean;
+  primaryClinicianChangeConfidence?: number;
   locationType: LocationType;
   locationChanged: boolean;
   locationChangeConfidence: number;
+  roomChanged?: boolean;
+  roomChangeConfidence?: number;
   equipmentPresent: boolean;
   equipmentCategory: EquipmentCategory;
   equipmentChanged: boolean;
   equipmentChangeConfidence: number;
+  /** Device identity is more useful than a broad equipment category. */
+  primaryMedicalDeviceChanged?: boolean;
+  primaryMedicalDeviceChangeConfidence?: number;
+  primaryMedicalDeviceIdBefore?: string | null;
+  primaryMedicalDeviceIdAfter?: string | null;
   handpiecePresent: boolean;
   syringePresent: boolean;
   treatmentBedPresent: boolean;

@@ -80,7 +80,7 @@ function decision(input: Partial<SceneBoundaryDecision> & Pick<SceneBoundaryDeci
 describe("hybrid photo classification", () => {
   it("uses the approved boundary weights and dermatology defaults", () => {
     expect(Object.values(BOUNDARY_WEIGHTS).reduce((sum, value) => sum + value, 0)).toBeCloseTo(1);
-    expect(DERMATOLOGY_PRECISE_SETTINGS).toMatchObject({ hardGapMinutes: 3.5, softGapSeconds: 25, splitThreshold: 0.72, reviewThreshold: 0.55, minimumSceneImages: 2, scanWindowSize: 3 });
+    expect(DERMATOLOGY_PRECISE_SETTINGS).toMatchObject({ hardGapMinutes: 5, softGapSeconds: 10, sameSceneMaxSeconds: 10, aiBoundaryStartSeconds: 180, aiBoundaryEndSeconds: 300, splitThreshold: 0.72, reviewThreshold: 0.55, minimumSceneImages: 2, scanWindowSize: 3 });
   });
 
   it("sorts by capture time and uses names as a stable fallback", () => {
@@ -100,10 +100,25 @@ describe("hybrid photo classification", () => {
     expect(candidates.some((item) => item.boundaryIndex >= 58 && item.boundaryIndex <= 62)).toBe(true);
   });
 
+  it("always sends a 3–5 minute gap to AI even when visual change is low", () => {
+    const files = [file("a.jpg", 0), file("b.jpg", 4 * 60_000)];
+    const candidates = buildVisualBoundaryCandidates(files, [feature(0), feature(0)], DERMATOLOGY_PRECISE_SETTINGS);
+    expect(candidates).toMatchObject([{ hardGap: false, requiresAi: true }]);
+  });
+
+  it("hard-splits only after five minutes", () => {
+    const candidates = buildVisualBoundaryCandidates(
+      [file("a.jpg", 0), file("b.jpg", 5 * 60_000 + 1)],
+      [feature(0), feature(0)],
+      DERMATOLOGY_PRECISE_SETTINGS,
+    );
+    expect(candidates).toMatchObject([{ hardGap: true, requiresAi: false }]);
+  });
+
   it.each([
-    ["5분 이내 환자 변경", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.95 })],
-    ["5분 이내 의료진 변경", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.9, hasPatient: false, hasStaff: true })],
-    ["5분 이내 장비 변경", analysis({ equipmentPresent: true, equipmentCategory: "laser_device", equipmentChanged: true, equipmentChangeConfidence: 0.95 })],
+    ["주체 의료진 변경", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.95, primaryClinicianChanged: true, primaryClinicianChangeConfidence: 0.95 })],
+    ["주체 의료진 변경(환자 없음)", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.9, primaryClinicianChanged: true, primaryClinicianChangeConfidence: 0.9, hasPatient: false, hasStaff: true })],
+    ["주요 장비 ID 변경", analysis({ equipmentPresent: true, equipmentCategory: "laser_device", equipmentChanged: true, equipmentChangeConfidence: 0.95, primaryMedicalDeviceChanged: true, primaryMedicalDeviceChangeConfidence: 0.95, primaryMedicalDeviceIdBefore: "thermage_flx", primaryMedicalDeviceIdAfter: "soprano_titanium" })],
     ["5분 이내 장소 변경", analysis({ locationType: "laser_room", locationChanged: true, locationChangeConfidence: 0.95 })],
     ["상담에서 시술(레이저)", analysis({ equipmentPresent: true, beforeSceneType: "consultation", afterSceneType: "treatment", sceneType: "treatment", sceneTypeChanged: true })],
     ["상담에서 시술(주사)", analysis({ syringePresent: true, beforeSceneType: "consultation", afterSceneType: "treatment", sceneType: "treatment", sceneTypeChanged: true })],
@@ -112,9 +127,7 @@ describe("hybrid photo classification", () => {
     ["시술에서 인테리어", analysis({ beforeSceneType: "treatment", afterSceneType: "interior", sceneType: "interior", sceneTypeChanged: true })],
     ["인테리어에서 상담", analysis({ beforeSceneType: "interior", afterSceneType: "consultation", sceneType: "consultation", sceneTypeChanged: true })],
     ["인테리어에서 프로필", analysis({ beforeSceneType: "interior", afterSceneType: "profile", sceneType: "profile", sceneTypeChanged: true })],
-    ["앉음에서 누움과 장비 등장", analysis({ equipmentPresent: true, beforePatientPose: "sitting", afterPatientPose: "lying", patientPose: "lying" })],
-    ["다른 환자 같은 장소와 장비", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.94 })],
-    ["같은 환자 다른 장소", analysis({ locationChanged: true, locationChangeConfidence: 0.95, locationType: "laser_room" })],
+    ["다른 방", analysis({ locationChanged: true, locationChangeConfidence: 0.95, roomChanged: true, roomChangeConfidence: 0.95 })],
   ])("forces a split for %s", (_, frameAnalysis) => {
     const result = decideBoundary({ candidate: candidate(), analysis: frameAnalysis, settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
     expect(result.decision).toBe("split");
@@ -126,6 +139,9 @@ describe("hybrid photo classification", () => {
     ["같은 장소에서 촬영 방향 변경", analysis({ beforeShotDistance: "wide", afterShotDistance: "full", shotDistance: "full" })],
     ["같은 환자의 다른 구도", analysis({ beforeShotDistance: "medium", afterShotDistance: "closeup", shotDistance: "closeup" })],
     ["장비 디테일 컷", analysis({ equipmentPresent: true, equipmentCategory: "laser_device", handpiecePresent: true, beforeShotDistance: "wide", afterShotDistance: "macro", shotDistance: "macro" })],
+    ["보조 의료진 추가", analysis({ hasStaff: true, peopleCount: 3 })],
+    ["일반 인물 그룹 변화(주체 의료진 동일)", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.95, hasStaff: true })],
+    ["자세·행동 변화", analysis({ beforePatientPose: "sitting", afterPatientPose: "lying", patientPose: "lying" })],
   ])("keeps one scene for %s", (_, frameAnalysis) => {
     const result = decideBoundary({ candidate: candidate({ visualChangeScore: 0.8 }), analysis: frameAnalysis, settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
     expect(result.decision).toBe("merge");
@@ -139,6 +155,17 @@ describe("hybrid photo classification", () => {
   it("falls back to local visual evidence when the API fails", () => {
     const result = decideBoundary({ candidate: candidate({ visualChangeScore: 0.8 }), analysis: null, aiFailed: true, settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
     expect(result).toMatchObject({ decision: "split", source: "ai_fallback", needsReview: true });
+  });
+
+  it("protects a same-scene composition change under ten seconds", () => {
+    const result = decideBoundary({
+      candidate: candidate({ timeGapMs: 9_000, visualChangeScore: 0.95 }),
+      analysis: analysis({ beforeShotDistance: "wide", afterShotDistance: "closeup", shotDistance: "closeup" }),
+      settings: DERMATOLOGY_PRECISE_SETTINGS,
+      beforeFileName: "a.jpg",
+      afterFileName: "b.jpg",
+    });
+    expect(result.decision).toBe("merge");
   });
 
   it("merges an unstable two-photo scene unless its boundary is strong", () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { PhotoStorageWatcher, type PhotoWatcherState } from "@/lib/photo-classifier/node/photoWatcher";
@@ -69,7 +69,7 @@ describe("SSD1 photo watcher", () => {
     await expect(readFile(path.join(project, "A001.JPG"), "utf8")).resolves.toBe("one");
   });
 
-  it("prepares a new project only after the injected stable duration", async () => {
+  it("reports a new project READY after stable duration without mutating SSD1", async () => {
     const { roots, statePath, lockPath } = await testRoots();
     const baselineWatcher = new PhotoStorageWatcher({ roots, statePath, lockPath, stableSeconds: 1, logger: () => undefined });
     await baselineWatcher.scanOnce();
@@ -86,10 +86,11 @@ describe("SSD1 photo watcher", () => {
     expect(result.readyProjects).toEqual(["0914_OO클리닉"]);
     expect((await readState(statePath)).projects["0914_OO클리닉"].status).toBe("READY");
     await expect(readFile(path.join(project, "A001.ARW"), "utf8")).resolves.toBe("raw");
-    await expect(readFile(path.join(project, "JPG원본", "A001.JPG"), "utf8")).resolves.toBe("jpg");
+    await expect(readFile(path.join(project, "A001.JPG"), "utf8")).resolves.toBe("jpg");
+    await expect(stat(path.join(project, "JPG전체"))).rejects.toThrow();
   });
 
-  it("restarts stabilization when files change during final revalidation", async () => {
+  it("restarts stabilization when a fingerprint changes", async () => {
     const { roots, statePath, lockPath } = await testRoots();
     const baselineWatcher = new PhotoStorageWatcher({ roots, statePath, lockPath, stableSeconds: 1, logger: () => undefined });
     await baselineWatcher.scanOnce();
@@ -98,13 +99,12 @@ describe("SSD1 photo watcher", () => {
     await writeFile(path.join(project, "A001.ARW"), "raw");
     await writeFile(path.join(project, "A001.JPG"), "jpg");
     let current = new Date("2026-09-14T00:00:00.000Z");
-    let injected = false;
     const watcher = new PhotoStorageWatcher({
       roots, statePath, lockPath, stableSeconds: 1, now: () => current, logger: () => undefined,
-      beforePrepare: async () => { if (!injected) { injected = true; await writeFile(path.join(project, "A002.JPG"), "new"); } },
     });
     await watcher.scanOnce();
     await watcher.scanOnce();
+    await writeFile(path.join(project, "A002.JPG"), "new");
     current = new Date(current.getTime() + 1001);
     const result = await watcher.scanOnce();
     expect(result.readyProjects).toEqual([]);
@@ -113,22 +113,22 @@ describe("SSD1 photo watcher", () => {
     expect((await watcher.scanOnce()).readyProjects).toEqual(["race"]);
   });
 
-  it("returns REVIEW_REQUIRED without overwriting duplicate JPGs", async () => {
+  it("does not inspect or mutate JPG merge conflicts", async () => {
     const { roots, statePath, lockPath } = await testRoots();
     const baselineWatcher = new PhotoStorageWatcher({ roots, statePath, lockPath, stableSeconds: 1, logger: () => undefined });
     await baselineWatcher.scanOnce();
     const project = path.join(roots.sourceRoot, "conflict");
-    await mkdir(path.join(project, "JPG원본"), { recursive: true });
+    await mkdir(path.join(project, "JPG전체"), { recursive: true });
     await writeFile(path.join(project, "A001.JPG"), "source");
-    await writeFile(path.join(project, "JPG원본", "A001.JPG"), "existing");
+    await writeFile(path.join(project, "JPG전체", "A001.JPG"), "existing");
     let current = new Date("2026-09-14T00:00:00.000Z");
     const watcher = new PhotoStorageWatcher({ roots, statePath, lockPath, stableSeconds: 1, now: () => current, logger: () => undefined });
     await watcher.scanOnce();
     await watcher.scanOnce();
     current = new Date(current.getTime() + 1001);
-    expect((await watcher.scanOnce()).reviewProjects).toEqual(["conflict"]);
+    expect((await watcher.scanOnce()).readyProjects).toEqual(["conflict"]);
     await expect(readFile(path.join(project, "A001.JPG"), "utf8")).resolves.toBe("source");
-    await expect(readFile(path.join(project, "JPG원본", "A001.JPG"), "utf8")).resolves.toBe("existing");
+    await expect(readFile(path.join(project, "JPG전체", "A001.JPG"), "utf8")).resolves.toBe("existing");
   });
 
   it("reports READY once and keeps a failed server sync pending", async () => {

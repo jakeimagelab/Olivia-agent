@@ -1149,13 +1149,11 @@ function PhotoSortingInner({
     classificationAbortRef.current?.abort();
     const abortController = new AbortController();
     classificationAbortRef.current = abortController;
-    // AI 사진 분류 2.0 — aiWeightProfile이 있으면(=Step0에서 AI 자동 분류로 폴더를 분석했으면)
-    // 하드갭 분/threshold를 그 프로필로 덮어쓴다. 없으면(고급 설정 모드거나 아직 분석 전) 기존
-    // 그대로 gapMinutes/부서 프리셋만 사용 — 동작이 100% 예전과 같다(회귀 없음).
+    // Scene Engine v1 — AI 폴더 분석은 threshold/weight만 조정한다.
+    // hard gap은 5분 규칙으로 고정되어 3–5분은 AI, 5분 초과는 강제 분리한다.
     const effectiveGapMinutes = aiWeightProfile?.absoluteTimeGapMinutes ?? gapMinutes;
     const preciseSettings = {
       ...getClassificationSettings(department === "dermatology" ? "dermatology" : "default", "precise"),
-      hardGapMinutes: effectiveGapMinutes,
       ...(aiWeightProfile ? { splitThreshold: aiWeightProfile.splitThreshold, reviewThreshold: aiWeightProfile.reviewThreshold } : {}),
     };
 
@@ -1173,22 +1171,18 @@ function PhotoSortingInner({
         rawFiles.push({ name, handle: handle as FileSystemFileHandle });
       } else if (JPG_EXTS.has(ext)) {
         const file = await (handle as FileSystemFileHandle).getFile();
-        if (fastAnalyzeMode) {
-          // 빠른 모드: lastModified 사용, EXIF 건너뜀
-          jpgEntries.push({ name, handle: handle as FileSystemFileHandle, file, mtime: file.lastModified, timestampSource: "mtime" });
-        } else {
-          // 정밀 모드: EXIF 읽기
-          setClassificationJobState("READING_EXIF");
-          const exif = await readPhotoTimestamp(file);
-          jpgEntries.push({
-            name,
-            handle: handle as FileSystemFileHandle,
-            file,
-            mtime: exif?.timestamp ?? file.lastModified,
-            timestampSource: exif?.source ?? "mtime",
-            warning: exif ? undefined : "EXIF 촬영시간 없음 — mtime 사용",
-          });
-        }
+        // Scene Engine v1: 빠른 모드도 capture ordering만큼은 EXIF
+        // DateTimeOriginal을 우선한다. 빠른 모드는 이후의 시각/AI 분석만 줄인다.
+        setClassificationJobState("READING_EXIF");
+        const exif = await readPhotoTimestamp(file);
+        jpgEntries.push({
+          name,
+          handle: handle as FileSystemFileHandle,
+          file,
+          mtime: exif?.timestamp ?? file.lastModified,
+          timestampSource: exif?.source ?? "mtime",
+          warning: exif ? undefined : "EXIF 촬영시간 없음 — mtime 사용",
+        });
         if (Date.now() - lastUpdate > 300) {
           setProgress({ cur:0, total:0, msg:`스캔: ${name}` });
           lastUpdate = Date.now();
@@ -1201,7 +1195,7 @@ function PhotoSortingInner({
     // ③ JPG → 시간순 정렬 → Scene 분리
     const sortedEntries = sortTimestampedFiles(jpgEntries);
     jpgEntries.splice(0, jpgEntries.length, ...sortedEntries);
-    const gapMs = effectiveGapMinutes * 60 * 1000;
+    const gapMs = Math.max(5, effectiveGapMinutes) * 60 * 1000;
     const groups: typeof jpgEntries[] = jpgEntries.length > 0 ? [[jpgEntries[0]]] : [];
     for (let i = 1; i < jpgEntries.length; i++) {
       if (jpgEntries[i].mtime - jpgEntries[i-1].mtime > gapMs) groups.push([jpgEntries[i]]);

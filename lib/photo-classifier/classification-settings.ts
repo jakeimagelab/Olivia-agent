@@ -3,8 +3,11 @@ import type { ClassificationProfile, SceneClassificationSettings } from "./hybri
 export const DERMATOLOGY_PRECISE_SETTINGS: SceneClassificationSettings = {
   mode: "precise",
   profile: "dermatology",
-  hardGapMinutes: 3.5,
-  softGapSeconds: 25,
+  hardGapMinutes: 5,
+  softGapSeconds: 10,
+  sameSceneMaxSeconds: 10,
+  aiBoundaryStartSeconds: 180,
+  aiBoundaryEndSeconds: 300,
   splitThreshold: 0.72,
   reviewThreshold: 0.55,
   minimumSceneImages: 2,

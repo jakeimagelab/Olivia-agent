@@ -13,7 +13,6 @@ import {
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { JPG_PHOTO_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo-classifier/constants";
-import { preparePrimaryPhotoProject, type SourceProjectPrepResult } from "./sourceProjectPrep";
 import { getStorageRoots } from "./storageConfig";
 import type { RunnerRoots } from "./types";
 
@@ -21,7 +20,7 @@ export type PhotoWatcherProjectStatus =
   | "SEEN_EXISTING"
   | "DETECTED"
   | "STABILIZING"
-  | "PREPARING"
+  | "PREPARING" // legacy state; read-only watcher never enters it
   | "READY"
   | "REVIEW_REQUIRED"
   | "CHANGED_EXISTING"
@@ -32,6 +31,8 @@ export type PhotoProjectFingerprint = {
   totalBytes: number;
   latestModifiedAt: number;
   rawCount: number;
+  jpgCount: number;
+  jpgBytes: number;
   jpgRootCount: number;
   jpgOriginalCount: number;
 };
@@ -87,7 +88,6 @@ export type PhotoStorageWatcherOptions = {
   stableSeconds?: number;
   now?: () => Date;
   logger?: (message: string) => void;
-  beforePrepare?: (projectPath: string) => Promise<void> | void;
   reportReady?: (report: PhotoWatcherReadyReport) => Promise<void>;
 };
 
@@ -107,6 +107,8 @@ function sameFingerprint(left: PhotoProjectFingerprint | null, right: PhotoProje
     && left.totalBytes === right.totalBytes
     && left.latestModifiedAt === right.latestModifiedAt
     && left.rawCount === right.rawCount
+    && left.jpgCount === right.jpgCount
+    && left.jpgBytes === right.jpgBytes
     && left.jpgRootCount === right.jpgRootCount
     && left.jpgOriginalCount === right.jpgOriginalCount;
 }
@@ -163,51 +165,6 @@ function redactedError(message: string, roots: RunnerRoots): string {
   return message.replaceAll(roots.sourceRoot, "[SOURCE_ROOT]").replaceAll(roots.workRoot, "[WORK_ROOT]");
 }
 
-type RawSnapshot = Map<string, { size: number; mtimeMs: number }>;
-
-async function rawSnapshot(projectRoot: string): Promise<RawSnapshot> {
-  const snapshot: RawSnapshot = new Map();
-  const visit = async (directory: string, relativeDirectory: string): Promise<void> => {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      const fullPath = path.join(directory, entry.name);
-      const relativePath = path.join(relativeDirectory, entry.name).split(path.sep).join("/");
-      if (entry.isSymbolicLink()) throw new Error(`RAW 검사 중 심볼릭 링크가 발견되었습니다: ${relativePath}`);
-      if (entry.isDirectory()) {
-        await visit(fullPath, relativePath);
-        continue;
-      }
-      if (!entry.isFile() || !RAW_PHOTO_EXTENSIONS.has(extension(entry.name))) continue;
-      const metadata = await stat(fullPath);
-      snapshot.set(relativePath, { size: metadata.size, mtimeMs: metadata.mtimeMs });
-    }
-  };
-  await visit(projectRoot, "");
-  return snapshot;
-}
-
-async function jpgOriginalBytes(projectRoot: string): Promise<number> {
-  const directory = path.join(projectRoot, "JPG원본");
-  let total = 0;
-  try {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      if (!entry.isFile() || !JPG_PHOTO_EXTENSIONS.has(extension(entry.name))) continue;
-      total += (await stat(path.join(directory, entry.name))).size;
-    }
-  } catch (error) {
-    if (errorCode(error) !== "ENOENT") throw error;
-  }
-  return total;
-}
-
-function sameRawSnapshot(before: RawSnapshot, after: RawSnapshot): boolean {
-  if (before.size !== after.size) return false;
-  for (const [name, value] of before) {
-    const next = after.get(name);
-    if (!next || next.size !== value.size || next.mtimeMs !== value.mtimeMs) return false;
-  }
-  return true;
-}
-
 /** 재귀 fingerprint. 심볼릭 링크는 추적하지 않고 안전 오류로 처리한다. */
 export async function fingerprintPhotoProject(projectRoot: string): Promise<PhotoProjectFingerprint> {
   const rootMetadata = await lstat(projectRoot);
@@ -218,6 +175,8 @@ export async function fingerprintPhotoProject(projectRoot: string): Promise<Phot
     totalBytes: 0,
     latestModifiedAt: 0,
     rawCount: 0,
+    jpgCount: 0,
+    jpgBytes: 0,
     jpgRootCount: 0,
     jpgOriginalCount: 0,
   };
@@ -238,8 +197,12 @@ export async function fingerprintPhotoProject(projectRoot: string): Promise<Phot
       fingerprint.totalBytes += metadata.size;
       fingerprint.latestModifiedAt = Math.max(fingerprint.latestModifiedAt, metadata.mtimeMs);
       if (RAW_PHOTO_EXTENSIONS.has(fileExtension)) fingerprint.rawCount += 1;
-      if (JPG_PHOTO_EXTENSIONS.has(fileExtension) && relativeDirectory === "") fingerprint.jpgRootCount += 1;
-      if (JPG_PHOTO_EXTENSIONS.has(fileExtension) && (relativeDirectory === "JPG원본" || relativeDirectory.startsWith("JPG원본/"))) fingerprint.jpgOriginalCount += 1;
+      if (JPG_PHOTO_EXTENSIONS.has(fileExtension)) {
+        fingerprint.jpgCount += 1;
+        fingerprint.jpgBytes += metadata.size;
+        if (relativeDirectory === "") fingerprint.jpgRootCount += 1;
+      }
+      if (JPG_PHOTO_EXTENSIONS.has(fileExtension) && (relativeDirectory === "JPG원본" || relativeDirectory.startsWith("JPG원본/") || relativeDirectory === "JPG전체" || relativeDirectory.startsWith("JPG전체/"))) fingerprint.jpgOriginalCount += 1;
     }
   };
 
@@ -269,7 +232,6 @@ export class PhotoStorageWatcher {
   private readonly stableMs: number;
   private readonly now: () => Date;
   private readonly logger: (message: string) => void;
-  private readonly beforePrepare?: (projectPath: string) => Promise<void> | void;
   private readonly reportReady?: (report: PhotoWatcherReadyReport) => Promise<void>;
   private state: PhotoWatcherState | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -288,7 +250,6 @@ export class PhotoStorageWatcher {
     this.stableMs = stableSeconds * 1000;
     this.now = options.now ?? (() => new Date());
     this.logger = options.logger ?? ((message) => console.log(message));
-    this.beforePrepare = options.beforePrepare;
     this.reportReady = options.reportReady;
   }
 
@@ -353,73 +314,47 @@ export class PhotoStorageWatcher {
     }
   }
 
-  private async prepareStableProject(sourceRoot: string, projectName: string, current: PhotoProjectFingerprint): Promise<"READY" | "REVIEW_REQUIRED" | "STABILIZING" | "ERROR"> {
+  private async markStableProject(sourceRoot: string, projectName: string, current: PhotoProjectFingerprint): Promise<"READY" | "STABILIZING" | "ERROR"> {
     const projectRoot = path.join(sourceRoot, projectName);
-    const beforePrepare = await fingerprintPhotoProject(projectRoot);
-    if (!sameFingerprint(current, beforePrepare)) {
+    // Final read-only revalidation closes the race between the stable scan and
+    // the READY report. No source preparation or filesystem mutation occurs.
+    let revalidated: PhotoProjectFingerprint;
+    try {
+      revalidated = await fingerprintPhotoProject(projectRoot);
+    } catch (error) {
+      // A folder disappearing between scans is intentionally not treated as
+      // deletion. Keep the prior project state and let the next scan decide.
+      if (errorCode(error) === "ENOENT") return "STABILIZING";
+      const entry = this.state!.projects[projectName];
+      entry.status = "ERROR";
+      entry.errorMessage = redactedError(safeError(error), this.roots);
+      this.log(`ERROR ${projectName}: ${entry.errorMessage}`);
+      return "ERROR";
+    }
+    if (!sameFingerprint(current, revalidated)) {
       const entry = this.state!.projects[projectName];
       entry.status = "STABILIZING";
-      entry.fingerprint = beforePrepare;
+      entry.fingerprint = revalidated;
       entry.stableSince = this.now().toISOString();
       entry.lastSeenAt = this.now().toISOString();
       this.log(`파일 변화 감지, 안정화 재시작: ${projectName}`);
       return "STABILIZING";
     }
 
-    await this.beforePrepare?.(projectName);
-    const revalidated = await fingerprintPhotoProject(projectRoot);
-    if (!sameFingerprint(beforePrepare, revalidated)) {
-      const entry = this.state!.projects[projectName];
-      entry.status = "STABILIZING";
-      entry.fingerprint = revalidated;
-      entry.stableSince = this.now().toISOString();
-      entry.lastSeenAt = this.now().toISOString();
-      this.log(`prepare 직전 파일 변화, 안정화 재시작: ${projectName}`);
-      return "STABILIZING";
-    }
-
     const entry = this.state!.projects[projectName];
-    entry.status = "PREPARING";
+    entry.status = "READY";
+    entry.fingerprint = revalidated;
+    entry.preparedAt = null;
+    entry.stableSince = null;
     entry.errorMessage = null;
+    entry.summary = { rawCount: revalidated.rawCount, jpgCount: revalidated.jpgCount, jpgMoved: 0 };
+    entry.serverSyncStatus = this.reportReady ? "PENDING" : undefined;
+    entry.serverSyncError = null;
     entry.lastSeenAt = this.now().toISOString();
-    await this.persist();
     this.log(`backup stable: ${projectName}`);
-    this.log(`preparing JPG source: ${projectName}`);
-
-    try {
-      const rawBefore = await rawSnapshot(projectRoot);
-      const prepared: SourceProjectPrepResult = await preparePrimaryPhotoProject(projectName, { roots: this.roots });
-      const rawAfter = await rawSnapshot(projectRoot);
-      const after = await fingerprintPhotoProject(projectRoot);
-      if (!sameRawSnapshot(rawBefore, rawAfter)) throw new Error("RAW 보호 검증에 실패했습니다.");
-
-      entry.fingerprint = after;
-      entry.lastSeenAt = this.now().toISOString();
-      entry.summary = { rawCount: after.rawCount, jpgCount: after.jpgOriginalCount, jpgMoved: prepared.jpgMoved };
-      if (prepared.conflicts.length > 0) {
-        entry.status = "REVIEW_REQUIRED";
-        entry.errorMessage = `${prepared.conflicts.length}개 JPG 충돌`;
-        for (const conflict of prepared.conflicts) this.log(`REVIEW_REQUIRED duplicate JPG ${path.basename(conflict.source)}`);
-        entry.serverSyncStatus = this.reportReady ? "PENDING" : undefined;
-        await this.syncReadyProject(projectName, entry);
-        return "REVIEW_REQUIRED";
-      }
-      if (after.jpgRootCount !== 0) throw new Error("JPG원본 정리 후 프로젝트 루트 JPG가 남아 있습니다.");
-      entry.status = "READY";
-      entry.preparedAt = this.now().toISOString();
-      entry.stableSince = null;
-      entry.errorMessage = null;
-      entry.serverSyncStatus = this.reportReady ? "PENDING" : undefined;
-      entry.serverSyncError = null;
-      this.log(`READY raw=${after.rawCount} jpg=${after.jpgOriginalCount}: ${projectName}`);
-      await this.syncReadyProject(projectName, entry);
-      return "READY";
-    } catch (error) {
-      entry.status = "ERROR";
-      entry.errorMessage = redactedError(safeError(error), this.roots);
-      this.log(`ERROR ${projectName}: ${entry.errorMessage}`);
-      return "ERROR";
-    }
+    this.log(`READY raw=${revalidated.rawCount} jpg=${revalidated.jpgCount}: ${projectName}`);
+    await this.syncReadyProject(projectName, entry);
+    return "READY";
   }
 
   private async syncReadyProject(projectName: string, entry: PhotoWatcherProjectState): Promise<void> {
@@ -429,8 +364,8 @@ export class PhotoStorageWatcher {
         projectName,
         sourceRelativePath: projectName,
         rawCount: entry.summary?.rawCount ?? entry.fingerprint.rawCount,
-        jpgCount: entry.summary?.jpgCount ?? entry.fingerprint.jpgOriginalCount,
-        jpgBytes: await jpgOriginalBytes(path.join(this.roots.sourceRoot, projectName)),
+        jpgCount: entry.summary?.jpgCount ?? entry.fingerprint.jpgCount,
+        jpgBytes: entry.fingerprint.jpgBytes,
         fingerprint: JSON.stringify(entry.fingerprint),
         preparedAt: entry.preparedAt,
         status: entry.status,
@@ -594,9 +529,8 @@ export class PhotoStorageWatcher {
         const stableDuration = now.getTime() - new Date(previous.stableSince).getTime();
         this.log(`stabilizing ${Math.max(0, Math.floor(stableDuration / 1000))}/${Math.floor(this.stableMs / 1000)} sec: ${projectName}`);
         if (stableDuration >= this.stableMs) {
-          const finalStatus = await this.prepareStableProject(sourceRoot, projectName, fingerprint);
+          const finalStatus = await this.markStableProject(sourceRoot, projectName, fingerprint);
           if (finalStatus === "READY") result.readyProjects.push(projectName);
-          if (finalStatus === "REVIEW_REQUIRED") result.reviewProjects.push(projectName);
           if (finalStatus === "ERROR") result.errors.push(projectName);
         }
       }
