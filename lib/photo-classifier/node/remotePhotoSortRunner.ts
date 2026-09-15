@@ -952,6 +952,8 @@ export async function runRemotePhotoSortRunner(
   }
   if (!scenes.length) throw new Error("Scene 계획을 생성하지 못했습니다.");
 
+  const expectedPhotoCount = scanned.raw.length + scanned.jpg.length;
+
   if (dependencies.outputMode === "copy") {
     // PHASE 6: workFolder(JPG전체)는 읽기 전용으로 두고, 나란한 씬별분류/에 복사한다.
     // 파일 수·이름·용량 무결성 검증은 호출부(photoClassifyWork.ts)가 수행한다.
@@ -981,7 +983,6 @@ export async function runRemotePhotoSortRunner(
     });
 
     dependencies.onProgress?.({ stage: "VERIFYING", message: "분류 결과의 파일 수를 검증하고 있습니다." });
-    const expectedPhotoCount = scanned.raw.length + scanned.jpg.length;
     const actualPhotoCount = await countPhotosRecursively(prepared.workFolder);
     if (expectedPhotoCount !== actualPhotoCount) {
       throw new Error(`최종 파일 수 검증에 실패했습니다 (${expectedPhotoCount} → ${actualPhotoCount}).`);
