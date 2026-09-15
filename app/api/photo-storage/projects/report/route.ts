@@ -45,9 +45,10 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (existingError) throw existingError;
 
-    // 사용자가 승인/보류한 상태는 Watcher 재시작·재전송으로 READY로 되돌리지 않는다.
-    const preservedStatus: PhotoProjectStatus = existing?.status === "APPROVED" || existing?.status === "DEFERRED"
-      ? existing.status
+    // 사용자가 승인했거나 이미 파이프라인이 진행 중인 상태는 Watcher 재시작·재전송으로
+    // READY 등으로 되돌리지 않는다. Watcher는 READY/REVIEW_REQUIRED/ERROR만 보고한다.
+    const preservedStatus: PhotoProjectStatus = existing && !REPORTABLE_STATUSES.has(existing.status as PhotoProjectStatus)
+      ? existing.status as PhotoProjectStatus
       : statusValue;
     const patch = {
       project_name: projectName,
