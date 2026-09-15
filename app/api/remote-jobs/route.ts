@@ -140,10 +140,15 @@ export async function POST(request: NextRequest) {
       return Response.json({ ok: false, error: "PHOTO_STAGE_JPG에는 올바른 project_id가 필요합니다." }, { status: 400 });
     }
     try {
+      const safeSourcePath = validatePhotoProjectRelativePath(sourceRelativePath);
+      const safeDestinationPath = validatePhotoProjectRelativePath(destinationRelativePath);
+      if (safeDestinationPath !== safeSourcePath) {
+        return Response.json({ ok: false, error: "PHOTO_STAGE_JPG는 동일한 프로젝트 경로의 JPG전체로만 복사할 수 있습니다." }, { status: 400 });
+      }
       payload = {
         project_id: projectId,
-        source_relative_path: validatePhotoProjectRelativePath(sourceRelativePath),
-        destination_relative_path: validatePhotoProjectRelativePath(destinationRelativePath),
+        source_relative_path: safeSourcePath,
+        destination_relative_path: safeDestinationPath,
       };
     } catch (error) {
       return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 staging 경로입니다." }, { status: 400 });

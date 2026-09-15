@@ -30,11 +30,14 @@ export async function GET(request: NextRequest) {
     });
     if (stageClaimError) console.warn("[worker/next photo-stage claim]", stageClaimError.message);
 
-    // JPG staging이 끝난 프로젝트는 별도 승인 없이 기존 Scene Runner로 넘긴다.
-    const { error: classifyClaimError } = await supabase.rpc("claim_copy_completed_photo_project", {
-      p_worker_id: workerId,
-    });
-    if (classifyClaimError) console.warn("[worker/next photo-classify claim]", classifyClaimError.message);
+    // PHASE 3에서는 SSD1 JPG전체 → SSD2 JPG전체 COPY까지만 수행한다.
+    // Scene 분류 자동 연결은 다음 PHASE에서 명시적으로 opt-in한다.
+    if (process.env.OLIVIA_ENABLE_PHOTO_CLASSIFICATION_AUTOMATION === "1") {
+      const { error: classifyClaimError } = await supabase.rpc("claim_copy_completed_photo_project", {
+        p_worker_id: workerId,
+      });
+      if (classifyClaimError) console.warn("[worker/next photo-classify claim]", classifyClaimError.message);
+    }
 
     const { error: heartbeatError } = await supabase
       .from("remote_workers")
