@@ -426,6 +426,10 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   { type: "function", name: "reorder_conti_scene_v2", description: "[WRITE] canonical 콘티 장면 순서를 변경하고 전체 순서를 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] }, sceneId: { type: ["string", "null"] }, position: { type: ["number", "null"] }, targetPosition: { type: "number" } }, required: ["contiId", "sceneId", "position", "targetPosition"] } },
   { type: "function", name: "get_conti_field_view_v2", description: "[READ] 현장용 canonical 콘티 보기를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] } }, required: ["contiId"] } },
   { type: "function", name: "preview_conti_v2", description: "canonical V2 콘티 resource 미리보기를 엽니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contiId: { type: ["string", "null"] } }, required: ["contiId"] } },
+
+  { type: "function", name: "list_photo_storage_projects", description: "[READ] 최근 촬영 프로젝트(사진 스토리지 원격 파이프라인)의 상태를 목록으로 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: {}, required: [] } },
+  { type: "function", name: "get_photo_storage_status", description: "[READ] 프로젝트 이름 또는 ID로 사진 스토리지 파이프라인(JPG 통합→복사→분류)의 현재 상태·장수·마지막 오류·최근 이벤트를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { projectId: { type: ["string", "null"] }, projectName: { type: ["string", "null"] } }, required: ["projectId", "projectName"] } },
+  { type: "function", name: "retry_photo_storage_project", description: "JPG 통합·복사·분류 중 실패했거나(MERGE_FAILED/COPY_FAILED/CLASSIFY_FAILED) 확인이 필요한(REVIEW_REQUIRED) 촬영 프로젝트를 해당 단계부터 다시 시도합니다. 승인이 필요한 단계(READY/MERGE_COMPLETED)는 이 도구로 진행시킬 수 없습니다 — 그 승인은 항상 사용자가 화면에서 직접 눌러야 합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { projectId: { type: "string" } }, required: ["projectId"] } },
 ];
 
 // ── Tool Router (구조 개편 2026-08-31) ────────────────────────────────────────────────
