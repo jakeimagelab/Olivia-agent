@@ -452,6 +452,7 @@ const DOMAIN_EXECUTORS: ReadonlyArray<readonly [ReadonlyArray<string>, ToolHandl
   [TASK_SESSION_TOOL_NAMES, executeTaskSessionTool],
   [FEATURE_RECORD_TOOL_NAMES, executeFeatureRecordTool],
   [PHOTO_CLASSIFICATION_TOOL_NAMES, executePhotoClassificationTool],
+  [PHOTO_STORAGE_TOOL_NAMES, executePhotoStorageTool],
   [COMMON_TOOL_NAMES, executeCommonTool],
 ];
 
