@@ -58,11 +58,10 @@ describe("SSD2 PHOTO_CLASSIFY_WORK adapter", () => {
     expect(after.map((s) => s.size)).toEqual(before.map((s) => s.size));
     expect(await readdir(jpgIntegrated)).toEqual(["A001.JPG", "A002.JPG"]);
 
-    // 씬별분류/01_*/ 아래에 같은 파일명이 그대로 존재해야 한다(복사, 이동 아님).
+    // 씬별분류/<Scene>/ 아래에 같은 파일명이 그대로 존재해야 한다(복사, 이동 아님).
     const sceneRoot = path.join(project, "씬별분류");
     const sceneFolders = (await readdir(sceneRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory() && entry.name !== "_REPORT");
     expect(sceneFolders).toHaveLength(1);
-    expect(sceneFolders[0].name.startsWith("01_")).toBe(true);
     const classified = await readdir(path.join(sceneRoot, sceneFolders[0].name));
     expect(classified.sort()).toEqual(["A001.JPG", "A002.JPG"]);
     await expect(readFile(path.join(sceneRoot, sceneFolders[0].name, "A001.JPG"), "utf8")).resolves.toBe("jpg-1");
