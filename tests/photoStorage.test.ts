@@ -14,7 +14,7 @@ function createFakeTable(rows: Row[]) {
         neq(col: string, val: unknown) { filters.push((row) => row[col] !== val); return builder; },
         order() { return builder; },
         limit() { return builder; },
-        select(_cols?: string) { return builder; },
+        select() { return builder; },
         async maybeSingle() {
           if (operation === "insert") {
             const inserted = { id: `evt-${rows.length + 1}`, ...payload };
