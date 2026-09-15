@@ -2261,6 +2261,11 @@ export default function CalendarWorkspace() {
     boundsW: number; boundsH: number;
   } | null>(null);
   const loadedKeys = useRef<Set<string>>(new Set());
+  // 채팅에서 삭제→재등록처럼 갱신 이벤트가 짧은 시간에 연속으로 오면
+  // 이전 fetch가 더 늦게 도착해 최신 월간 그리드를 덮어쓸 수 있다. 요청 번호가
+  // 가장 최신인 응답만 상태에 반영해 월간/일간 화면이 같은 DB 스냅샷을 유지한다.
+  const monthRefreshRequest = useRef(0);
+  const dayRefreshRequest = useRef(0);
   // OS 창(embedded) 안에서는 framer-motion이 창 자체에 transform을 걸어두기 때문에, 팝업이
   // position:fixed를 쓰면 "브라우저 전체 화면" 기준이 아니라 이 창 기준으로 붙으면서도 클램프
   // 계산은 여전히 window.innerWidth/innerHeight(전체 화면)를 썼다 — 기본 창 크기(창이 화면보다
@@ -2346,11 +2351,25 @@ export default function CalendarWorkspace() {
   }, []);
 
   const loadDay = useCallback(async (date: string) => {
+    const requestId = ++dayRefreshRequest.current;
     setDayLoading(true);
-    const r = await fetch(`/api/calendar?date=${date}`);
-    const d = await r.json();
-    if (d.ok) setDayTasks(d.tasks as CalTask[]);
-    setDayLoading(false);
+    try {
+      const r = await fetch(`/api/calendar?date=${date}`, { cache: "no-store" });
+      const d = await r.json();
+      if (requestId === dayRefreshRequest.current && d.ok) setDayTasks(d.tasks as CalTask[]);
+    } finally {
+      if (requestId === dayRefreshRequest.current) setDayLoading(false);
+    }
+  }, []);
+
+  const refreshMonth = useCallback(async (y: number, m: number) => {
+    const requestId = ++monthRefreshRequest.current;
+    const key = `${y}-${String(m + 1).padStart(2, "0")}`;
+    const response = await fetch(`/api/calendar?month=${key}`, { cache: "no-store" });
+    const data = await response.json();
+    // 연속 변경 중 먼저 시작된 오래된 응답은 버린다.
+    if (requestId !== monthRefreshRequest.current || !data.ok) return;
+    setAllTasks(data.tasks as CalTask[]);
   }, []);
 
   const loadTodos = useCallback(async () => {
@@ -2372,15 +2391,12 @@ export default function CalendarWorkspace() {
   useEffect(() => {
     const handler = () => {
       loadedKeys.current.clear();
-      const key = `${year}-${String(month+1).padStart(2,"0")}`;
-      void fetch(`/api/calendar?month=${key}`).then(res => res.json()).then(d => {
-        if (d.ok) setAllTasks(d.tasks as CalTask[]);
-      });
-      loadDay(selectedDate);
+      void refreshMonth(year, month);
+      void loadDay(selectedDate);
     };
     window.addEventListener("olivia-calendar-updated", handler);
     return () => window.removeEventListener("olivia-calendar-updated", handler);
-  }, [year, month, selectedDate, loadDay]);
+  }, [year, month, selectedDate, loadDay, refreshMonth]);
 
   useEffect(() => {
     if (viewMode === "year") loadYear(year);
