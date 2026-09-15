@@ -1,14 +1,18 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
-import { acknowledgePhotoStorageEvents, ensurePhotoStorageEvent } from "@/lib/photo-storage/server";
+import { acknowledgePhotoStorageEvents, ensurePhotoStorageEvent, isInternalPhotoStorageRequest } from "@/lib/photo-storage/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
+  // 재시도는 헤르메스(Olivia MCP)의 retry_photo_storage_project 도구도 내부 호출한다.
+  // 승인(READY/MERGE_COMPLETED 전이)은 이 경로로 들어오지 않으므로 계속 admin 세션만 요구한다.
+  if (!isAdminSession(request) && !isInternalPhotoStorageRequest(request)) {
+    return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
+  }
   const { id } = await context.params;
   if (!UUID_PATTERN.test(id)) return Response.json({ ok: false, error: "올바르지 않은 프로젝트 ID입니다." }, { status: 400 });
   try {
