@@ -16,23 +16,27 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const { data: current, error: readError } = await db.from("photo_storage_projects").select("*").eq("id", id).maybeSingle();
     if (readError) throw readError;
     if (!current) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
-    const targetStatus = current.status === "CLASSIFY_FAILED" ? "COPY_COMPLETED" : current.status === "COPY_FAILED" ? "APPROVED" : null;
+    const targetStatus = current.status === "CLASSIFY_FAILED" ? "COPY_COMPLETED"
+      : current.status === "COPY_FAILED" ? "CLASSIFY_APPROVED"
+      : current.status === "MERGE_FAILED" ? "MERGE_APPROVED"
+      : null;
     if (!targetStatus) {
-      if (current.status === "APPROVED") return Response.json({ ok: true, project: current, idempotent: true });
-      return Response.json({ ok: false, error: "복사 또는 분류 실패 상태에서만 다시 시도할 수 있습니다.", project: current }, { status: 409 });
+      if (current.status === "CLASSIFY_APPROVED" || current.status === "MERGE_APPROVED") return Response.json({ ok: true, project: current, idempotent: true });
+      return Response.json({ ok: false, error: "통합·복사·분류 실패 상태에서만 다시 시도할 수 있습니다.", project: current }, { status: 409 });
     }
     const { data: updated, error } = await db
       .from("photo_storage_projects")
       .update({
         status: targetStatus,
-        ...(targetStatus === "APPROVED" ? { copy_error: null, copy_progress: {}, copy_started_at: null, copy_completed_at: null, copy_job_id: null } : {}),
+        ...(targetStatus === "CLASSIFY_APPROVED" ? { copy_error: null, copy_progress: {}, copy_started_at: null, copy_completed_at: null, copy_job_id: null } : {}),
+        ...(targetStatus === "MERGE_APPROVED" ? { merge_error: null, merge_progress: {}, merge_started_at: null, merge_completed_at: null, merge_job_id: null, merged_jpg_count: 0, merge_conflict_count: 0, raw_untouched_count: 0 } : {}),
         classification_error: null,
         classification_progress: {},
         classification_started_at: null,
         classification_completed_at: null,
         classify_job_id: null,
-        scene_count: targetStatus === "APPROVED" ? 0 : current.scene_count,
-        classified_jpg_count: targetStatus === "APPROVED" ? 0 : 0,
+        scene_count: targetStatus === "CLASSIFY_APPROVED" ? 0 : current.scene_count,
+        classified_jpg_count: 0,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -48,8 +52,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return Response.json({ ok: false, error: "프로젝트 상태가 변경되었습니다.", project: latest }, { status: 409 });
     }
     await acknowledgePhotoStorageEvents(db, id);
-    if (targetStatus === "APPROVED") {
-      await ensurePhotoStorageEvent(db, { projectId: id, projectName: updated.project_name, status: "APPROVED" });
+    if (targetStatus === "CLASSIFY_APPROVED" || targetStatus === "MERGE_APPROVED") {
+      await ensurePhotoStorageEvent(db, { projectId: id, projectName: updated.project_name, status: targetStatus });
     }
     return Response.json({ ok: true, project: updated, idempotent: false });
   } catch (error) {
