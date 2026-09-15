@@ -103,6 +103,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (data.action === "PHOTO_PREPARE_SOURCE") {
+      try {
+        await syncPhotoMergeProject(supabase, {
+          jobId: data.id,
+          jobStatus: status as "RUNNING" | "COMPLETED" | "FAILED",
+          payload: (data.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {}) as Record<string, unknown>,
+          progress,
+          result: body.result,
+          error: typeof body.error === "string" ? body.error : null,
+          message: typeof body.message === "string" ? body.message : null,
+        });
+      } catch (projectError) {
+        console.warn("[worker/report photo-prepare-source project sync]", projectError instanceof Error ? projectError.message : projectError);
+      }
+    }
+
     if (data.action === "PHOTO_STAGE_JPG") {
       try {
         await syncPhotoStageProject(supabase, {
