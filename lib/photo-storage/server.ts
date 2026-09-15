@@ -45,7 +45,11 @@ export function eventForStatus(status: PhotoProjectStatus): { type: PhotoProject
   if (status === "READY") return { type: "PHOTO_PROJECT_READY", message: "촬영 파일이 확인되었습니다.", requiresAction: true };
   if (status === "REVIEW_REQUIRED") return { type: "PHOTO_PROJECT_REVIEW_REQUIRED", message: "촬영 파일을 확인해야 합니다.", requiresAction: true };
   if (status === "ERROR") return { type: "PHOTO_PROJECT_ERROR", message: "촬영 프로젝트 처리 중 오류가 발생했습니다.", requiresAction: true };
-  if (status === "APPROVED") return { type: "PHOTO_PROJECT_APPROVED", message: "자동 분류가 승인되었습니다. 작업 대기 상태입니다.", requiresAction: false };
+  if (status === "MERGE_APPROVED") return { type: "PHOTO_PROJECT_APPROVED", message: "JPG 통합이 승인되었습니다.", requiresAction: false };
+  if (status === "MERGING") return { type: "PHOTO_MERGE_STARTED", message: "SSD1에서 JPG를 통합하고 있습니다.", requiresAction: false };
+  if (status === "MERGE_COMPLETED") return { type: "PHOTO_MERGE_COMPLETED", message: "원본 통합이 완료되었습니다. 사진 분류를 시작할까요?", requiresAction: true };
+  if (status === "MERGE_FAILED") return { type: "PHOTO_MERGE_FAILED", message: "JPG 통합 중 문제가 발생했습니다. 원본은 그대로입니다.", requiresAction: true };
+  if (status === "CLASSIFY_APPROVED") return { type: "PHOTO_PROJECT_CLASSIFY_APPROVED", message: "사진 분류가 승인되었습니다. 작업 대기 상태입니다.", requiresAction: false };
   if (status === "COPY_QUEUED" || status === "COPYING" || status === "COPY_VERIFYING") return { type: "PHOTO_COPY_STARTED", message: "JPG 원본 복사를 시작했습니다.", requiresAction: false };
   if (status === "COPY_COMPLETED") return { type: "PHOTO_COPY_COMPLETED", message: "JPG 복사가 완료되었습니다.", requiresAction: false };
   if (status === "COPY_FAILED") return { type: "PHOTO_COPY_FAILED", message: "JPG 복사 중 문제가 발생했습니다. 원본은 변경되지 않았습니다.", requiresAction: true };
