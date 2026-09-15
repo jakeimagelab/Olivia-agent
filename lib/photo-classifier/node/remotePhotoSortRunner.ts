@@ -89,6 +89,12 @@ export type RemotePhotoSortRunnerDependencies = {
   onProgress?: (progress: RunnerProgress) => void;
   /** PHASE 5: SSD2에는 RAW를 건드리지 않고 JPG만 분류한다. */
   preserveRaw?: boolean;
+  /**
+   * PHASE 6: "copy"는 workFolder(JPG전체)를 읽기 전용으로 두고 결과를
+   * workFolder와 나란한 씬별분류/ 폴더에 복사로 만든다. 기본값 "move"는
+   * 기존 RAW/JPG/<scene>/SELECT/REPORT 이동식 출력을 그대로 유지한다.
+   */
+  outputMode?: "move" | "copy";
 };
 
 const defaultAi: AiAdapter = {
