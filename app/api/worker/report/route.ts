@@ -5,6 +5,7 @@ import {
   isAuthorizedWorker,
 } from "@/lib/remoteWorkerAuth";
 import { parseRemoteJobProgress } from "@/lib/remote-jobs/progress";
+import { syncPhotoMergeProject } from "@/lib/photo-storage/mergeSync";
 import { syncPhotoStageProject } from "@/lib/photo-storage/copySync";
 import { syncPhotoClassificationProject } from "@/lib/photo-storage/classificationSync";
 
