@@ -844,6 +844,10 @@ export async function POST(req: NextRequest) {
                 },
               },
             });
+            // hermesProvider(OliviaBrain)는 현재 "message" variant만 반환한다 — Hermes MCP 루프가
+            // Tool 실행까지 자체적으로 끝내고 최종 텍스트를 주기 때문이다(§4/§11). tool_call/plan은
+            // 향후 Provider 확장을 위해 타입에만 예약해둔 상태라, 여기서 명시적으로 좁혀 사용한다.
+            if (hermesResult.type !== "message") throw new Error("Hermes Brain이 지원하지 않는 응답 형식을 반환했습니다.");
             const rawResourceMetadata = hermesResult.toolCalls.reduce<Record<string, unknown>>((current, call) => {
               if (!call.success || !call.data || typeof call.data !== "object") return current;
               return { ...current, ...resourceMetadataFromTool(call.name, call.data as Record<string, unknown>, call.resourceType, call.resourceId) };
