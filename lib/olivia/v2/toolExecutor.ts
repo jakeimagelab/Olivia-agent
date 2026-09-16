@@ -7,7 +7,7 @@ import type {
   OliviaToolCall,
   OliviaToolResult,
 } from "@/lib/olivia/v2/types";
-import { OLIVIA_MEMORY_TYPES } from "@/lib/olivia/memory/types";
+import { OLIVIA_MEMORY_TYPES, OLIVIA_PROMOTABLE_MEMORY_TYPES } from "@/lib/olivia/memory/types";
 import { normalizeToolError, OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 import { mergeVerification } from "./toolExecutors/verification";
