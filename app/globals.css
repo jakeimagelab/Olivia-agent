@@ -2778,7 +2778,9 @@ main:has(> .pc-header) {
 
 .client-strip strong {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-weight: 600;
   color: #2c2a26;
 }
