@@ -78,6 +78,9 @@ function forcedReasons(analysis: SceneFrameAnalysis | null): string[] {
   const reasons: string[] = [];
   const clinician = (analysis.primaryClinicianChanged ?? false)
     && (analysis.primaryClinicianChangeConfidence ?? 0) >= 0.75;
+  // 장소/방 변경은 단독으로는 강제 분리 트리거가 아니다 — 카메라 구도·배경 변화만으로
+  // roomChanged가 높은 확신으로 찍히는 경우가 많다. 가중치 신호(locationChangeScore)로만
+  // 반영하고, 다른 강제 사유(의료진/장비/목적)와 함께일 때만 설명 문구에 곁들인다.
   const location = (analysis.roomChanged ?? analysis.locationChanged)
     && (analysis.roomChangeConfidence ?? analysis.locationChangeConfidence) >= 0.82;
   const equipment = (analysis.primaryMedicalDeviceChanged
@@ -86,7 +89,6 @@ function forcedReasons(analysis: SceneFrameAnalysis | null): string[] {
   const handpiece = (analysis.primaryHandpieceChanged ?? false)
     && (analysis.primaryHandpieceChangeConfidence ?? 0) >= 0.80;
   if (clinician) reasons.push("주체 의료진이 변경됨");
-  if (location) reasons.push("촬영 장소가 명확히 변경됨");
   if (equipment) {
     const before = analysis.primaryMedicalDeviceIdBefore;
     const after = analysis.primaryMedicalDeviceIdAfter;
