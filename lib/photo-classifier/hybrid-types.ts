@@ -160,7 +160,6 @@ export type VisualBoundaryCandidate = {
   timeGapMs: number;
   visualChangeScore: number;
   hardGap: boolean;
-  strongGap: boolean;
   requiresAi: boolean;
 };
 
