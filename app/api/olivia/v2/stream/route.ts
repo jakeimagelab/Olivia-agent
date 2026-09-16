@@ -889,7 +889,7 @@ export async function POST(req: NextRequest) {
             const hermesVerifiedText = hermesToolEntries.length && !hermesToolEntries.some(({ toolName }) => isReadOnlyOliviaTool(toolName))
               ? renderVerifiedToolRound(hermesToolEntries)
               : null;
-            const hermesText = nextPendingAction?.prompt || hermesVerifiedText || hermesResult.message;
+            const hermesText = nextPendingAction?.prompt || hermesVerifiedText || hermesResult.text;
             await flushTextAsDeltas(hermesText, send, messageId);
             await saveTurnAssistant(hermesText, {
                 blocks: [{ type: "text", text: hermesText }, ...(hermesApprovalBlock ? [hermesApprovalBlock] : [])],
