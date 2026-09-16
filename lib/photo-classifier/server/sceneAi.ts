@@ -138,6 +138,7 @@ sceneType/beforeSceneType/afterSceneType은 profile/consultation/treatment/skin_
 - 같은 주체 의료진·장비·장소·목적에서 구도만 바뀜(와이드↔클로즈업, 각도 변경)
 - 보조 직원이 등장하거나 퇴장함, 사람 수가 바뀜. 이것만으로 primary clinician change가 아닙니다.
 - 같은 공간에서 촬영 렌즈/거리·포즈·행동·소도구만 바뀜
+- 카메라 위치·각도·줌·크롭·구도·밝기/노출·배경 구성만 달라 보임(카메라 시점 변화는 방이 바뀐 것이 아닙니다)
 
 판정 우선순위:
 1. 주체 의료진(primary clinician)이 바뀌었는지. 원장 A→원장 B는 같은 장소·고객이어도 NEW SCENE이다.
@@ -148,9 +149,16 @@ sceneType/beforeSceneType/afterSceneType은 profile/consultation/treatment/skin_
 4. 상담에서 시술, 시술에서 거울 확인/설명 등 촬영 목적의 의미 전환인지
 5. 단순한 와이드·클로즈업 또는 반대 방향 촬영인지 (Scene 유지)
 
+[roomChanged 판정 — 중요]
+Camera viewpoint changes are NOT room changes. 카메라 위치·각도·줌·크롭·거리·구도·밝기/노출·배경 구성·
+소품 배치·환자 자세·촬영자 위치가 달라 보인다는 것만으로 방이 바뀌었다고 추론하지 마세요
+(Do not infer a room change from background composition alone). roomChanged=true는 벽·창문·고정
+가구·바닥재 등 고정 구조 자체가 다른 실제 공간이라는 근거가 있을 때만 설정하세요
+(Only mark roomChanged=true when there is evidence that the physical room/location itself changed).
+같은 주체 의료진·장비·촬영목적이 유지된다면 배경이 달라 보여도 SAME_SCENE 쪽으로 판단을 기울이세요.
+
 사람 이름이나 신원을 추측하지 마세요. 화자/의료진은 익명 ID로만 비교하세요.
 primaryClinicianChanged는 주체 원장/의료진이 바뀐 경우에만 true로 설정하세요.
-roomChanged는 구도·렌즈 변화가 아니라 고정 구조가 다른 실제 공간 변화일 때만 true입니다.
 같은 주체 의료진·장소·주요 장비에서 구도만 바뀌었으면 changed 필드를 false로 유지하세요.
 reasons는 경계 판단 이유를 짧은 한국어로 반환하세요.`;
 }
