@@ -16,6 +16,7 @@ export type BrainChatInput = {
   context?: HermesChatContext;
   signal?: AbortSignal;
   callbacks?: {
+    onTextDelta?: (delta: string) => void;
     onToolStart?: (tool: string, toolCallId: string) => void;
     onToolResult?: (record: HermesToolCallRecord) => void;
   };
