@@ -66,7 +66,7 @@ function analysis(overrides: Partial<SceneFrameAnalysis> = {}): SceneFrameAnalys
 }
 
 function candidate(overrides: Partial<VisualBoundaryCandidate> = {}): VisualBoundaryCandidate {
-  return { boundaryIndex: 10, timeGapMs: 10_000, visualChangeScore: 0.55, hardGap: false, strongGap: false, requiresAi: true, ...overrides };
+  return { boundaryIndex: 10, timeGapMs: 10_000, visualChangeScore: 0.55, hardGap: false, requiresAi: true, ...overrides };
 }
 
 function decision(input: Partial<SceneBoundaryDecision> & Pick<SceneBoundaryDecision, "boundaryIndex" | "score" | "decision">): SceneBoundaryDecision {
