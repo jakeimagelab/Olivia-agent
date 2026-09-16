@@ -39,7 +39,6 @@ export function buildVisualBoundaryCandidates(
   const sameSceneMaxMs = settings.sameSceneMaxSeconds * 1_000;
   const aiBoundaryStartMs = settings.aiBoundaryStartSeconds * 1_000;
   const aiBoundaryEndMs = settings.aiBoundaryEndSeconds * 1_000;
-  const strongSplitStartMs = settings.strongSplitStartSeconds * 1_000;
   for (let index = 1; index < files.length; index++) {
     const before = features.slice(Math.max(0, index - windowSize), index);
     const after = features.slice(index, Math.min(features.length, index + windowSize));
@@ -47,16 +46,15 @@ export function buildVisualBoundaryCandidates(
     const score = visualChangeScore(medianVisualFeatures(before), medianVisualFeatures(after));
     const timeGapMs = Math.max(0, files[index].mtime - files[index - 1].mtime);
     const hardGap = timeGapMs >= hardGapMs;
-    const strongGap = !hardGap && timeGapMs >= strongSplitStartMs;
-    // Scene Engine v2 uses explicit, non-overlapping time bands. Gaps from
-    // 60–180 seconds require semantic AI verification; 180–300 seconds are
-    // forced splits and must never be merged by AI.
+    // Scene Engine v2 time bands: 0–180s biases SAME_SCENE by default;
+    // 180–300s always requires semantic (Hermes) review, it is never an
+    // automatic split; 300s+ is the only time-based forced split (hardGap).
     const inMandatoryAiBand = timeGapMs >= aiBoundaryStartMs && timeGapMs < aiBoundaryEndMs;
     const inShortBand = timeGapMs <= sameSceneMaxMs;
     const visualCandidate = score >= settings.localCandidateThreshold
       || (timeGapMs >= softGapMs && score >= settings.softGapVisualThreshold);
-    const requiresAi = !hardGap && !strongGap && (inMandatoryAiBand || visualCandidate || (!inShortBand && timeGapMs >= softGapMs && score >= settings.softGapVisualThreshold));
-    if (hardGap || strongGap || requiresAi) results.push({ boundaryIndex: index, timeGapMs, visualChangeScore: score, hardGap, strongGap, requiresAi });
+    const requiresAi = !hardGap && (inMandatoryAiBand || visualCandidate || (!inShortBand && timeGapMs >= softGapMs && score >= settings.softGapVisualThreshold));
+    if (hardGap || requiresAi) results.push({ boundaryIndex: index, timeGapMs, visualChangeScore: score, hardGap, requiresAi });
   }
   return results;
 }
