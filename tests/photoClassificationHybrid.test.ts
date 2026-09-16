@@ -86,6 +86,12 @@ describe("hybrid photo classification", () => {
         [feature(0), feature(0)],
         DERMATOLOGY_PRECISE_SETTINGS,
       )[0];
+      // 시간 간격이 짧고(0~180초 SAME_SCENE 기본 편향 구간) 시각 변화가 전혀 없으면 후보 자체가
+      // 만들어지지 않는다 — 이미 암묵적으로 같은 Scene이라 AI 호출조차 필요 없다는 뜻이다.
+      if (!candidateResult) {
+        expect(example.expectedDecision, `${example.beforeFile} → ${example.afterFile}`).toBe("merge");
+        continue;
+      }
       const result = decideBoundary({
         candidate: candidateResult,
         analysis: example.expectedDecision === "merge" ? analysis({ confidence: 0.9 }) : null,
