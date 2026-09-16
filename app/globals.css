@@ -2749,6 +2749,7 @@ main:has(> .pc-header) {
 .client-strip div {
   display: grid;
   grid-template-columns: 80px 1fr;
+  min-width: 0; /* 이 칸 자체도 min-width:0이 없으면 내용 길이만큼 트랙이 늘어나 옆 칸을 밀어낸다. */
   min-height: 28px;
   border-right: 1px solid rgba(235, 117, 76, 0.32);
   border-bottom: 1px solid rgba(235, 117, 76, 0.32);
