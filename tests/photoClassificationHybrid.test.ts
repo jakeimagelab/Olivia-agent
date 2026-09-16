@@ -7,6 +7,7 @@ import { evaluateSceneBoundaries } from "@/lib/photo-classifier/evaluation/metri
 import { buildFieldScenesFromBoundaries, simpleSceneFolderName } from "@/lib/photo-classifier/scene-builder";
 import { parseExifTimestamp } from "@/lib/photo-classifier/timestamp";
 import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
+import sceneV2GroundTruth from "./fixtures/dermatology-scene-v2-ground-truth.json";
 import type {
   HybridSceneType, LocalVisualFeatures, SceneBoundaryDecision, SceneFrameAnalysis,
   TimestampedFile, VisualBoundaryCandidate,
@@ -65,7 +66,7 @@ function analysis(overrides: Partial<SceneFrameAnalysis> = {}): SceneFrameAnalys
 }
 
 function candidate(overrides: Partial<VisualBoundaryCandidate> = {}): VisualBoundaryCandidate {
-  return { boundaryIndex: 10, timeGapMs: 10_000, visualChangeScore: 0.55, hardGap: false, requiresAi: true, ...overrides };
+  return { boundaryIndex: 10, timeGapMs: 10_000, visualChangeScore: 0.55, hardGap: false, strongGap: false, requiresAi: true, ...overrides };
 }
 
 function decision(input: Partial<SceneBoundaryDecision> & Pick<SceneBoundaryDecision, "boundaryIndex" | "score" | "decision">): SceneBoundaryDecision {
@@ -78,9 +79,27 @@ function decision(input: Partial<SceneBoundaryDecision> & Pick<SceneBoundaryDeci
 }
 
 describe("hybrid photo classification", () => {
+  it("matches the high-confidence boundaries extracted from the failure ZIP", () => {
+    for (const example of sceneV2GroundTruth) {
+      const candidateResult = buildVisualBoundaryCandidates(
+        [file(example.beforeFile, 0), file(example.afterFile, example.timeGapSeconds * 1_000)],
+        [feature(0), feature(0)],
+        DERMATOLOGY_PRECISE_SETTINGS,
+      )[0];
+      const result = decideBoundary({
+        candidate: candidateResult,
+        analysis: example.expectedDecision === "merge" ? analysis({ confidence: 0.9 }) : null,
+        settings: DERMATOLOGY_PRECISE_SETTINGS,
+        beforeFileName: example.beforeFile,
+        afterFileName: example.afterFile,
+      });
+      expect(result.decision, `${example.beforeFile} → ${example.afterFile}`).toBe(example.expectedDecision);
+    }
+  });
+
   it("uses the approved boundary weights and dermatology defaults", () => {
     expect(Object.values(BOUNDARY_WEIGHTS).reduce((sum, value) => sum + value, 0)).toBeCloseTo(1);
-    expect(DERMATOLOGY_PRECISE_SETTINGS).toMatchObject({ hardGapMinutes: 5, softGapSeconds: 10, sameSceneMaxSeconds: 10, aiBoundaryStartSeconds: 180, aiBoundaryEndSeconds: 300, splitThreshold: 0.72, reviewThreshold: 0.55, minimumSceneImages: 2, scanWindowSize: 3 });
+    expect(DERMATOLOGY_PRECISE_SETTINGS).toMatchObject({ hardGapMinutes: 5, softGapSeconds: 10, sameSceneMaxSeconds: 10, aiBoundaryStartSeconds: 60, aiBoundaryEndSeconds: 180, strongSplitStartSeconds: 180, splitThreshold: 0.72, reviewThreshold: 0.55, minimumSceneImages: 2, scanWindowSize: 3 });
   });
 
   it("sorts by capture time and uses names as a stable fallback", () => {
@@ -100,10 +119,54 @@ describe("hybrid photo classification", () => {
     expect(candidates.some((item) => item.boundaryIndex >= 58 && item.boundaryIndex <= 62)).toBe(true);
   });
 
-  it("always sends a 3–5 minute gap to AI even when visual change is low", () => {
-    const files = [file("a.jpg", 0), file("b.jpg", 4 * 60_000)];
+  it("always sends a 60–180 second gap to AI even when visual change is low", () => {
+    const files = [file("a.jpg", 0), file("b.jpg", 90 * 1_000)];
     const candidates = buildVisualBoundaryCandidates(files, [feature(0), feature(0)], DERMATOLOGY_PRECISE_SETTINGS);
-    expect(candidates).toMatchObject([{ hardGap: false, requiresAi: true }]);
+    expect(candidates).toMatchObject([{ hardGap: false, strongGap: false, requiresAi: true }]);
+  });
+
+  it.each([198, 272, 190, 208, 219])("forces the verified %ss gap as a strong split", (gapSeconds) => {
+    const files = [file("before.jpg", 0), file("after.jpg", gapSeconds * 1_000)];
+    const [candidateResult] = buildVisualBoundaryCandidates(files, [feature(0), feature(0)], DERMATOLOGY_PRECISE_SETTINGS);
+    expect(candidateResult).toMatchObject({ hardGap: false, strongGap: true, requiresAi: false });
+    const result = decideBoundary({ candidate: candidateResult, analysis: null, settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "before.jpg", afterFileName: "after.jpg" });
+    expect(result).toMatchObject({ decision: "split", forced: true, source: "strong_gap" });
+  });
+
+  it("allows a high-confidence SAME decision for the 88 second staff-only change", () => {
+    const result = decideBoundary({
+      candidate: candidate({ timeGapMs: 88_000, visualChangeScore: 0.9 }),
+      analysis: analysis({ hasStaff: true, peopleCount: 3, confidence: 0.9 }),
+      settings: DERMATOLOGY_PRECISE_SETTINGS,
+      beforeFileName: "R5K00213.JPG",
+      afterFileName: "R5K00214.JPG",
+    });
+    expect(result.decision).toBe("merge");
+  });
+
+  it("reviews a 60–180 second boundary when AI confidence is low", () => {
+    const result = decideBoundary({ candidate: candidate({ timeGapMs: 88_000, visualChangeScore: 0.1 }), analysis: analysis({ confidence: 0.6 }), settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
+    expect(result).toMatchObject({ decision: "review", needsReview: true });
+  });
+
+  it.each([
+    ["primary clinician", analysis({ primaryClinicianChanged: true, primaryClinicianChangeConfidence: 0.9 })],
+    ["primary device", analysis({ primaryMedicalDeviceChanged: true, primaryMedicalDeviceChangeConfidence: 0.9 })],
+    ["primary handpiece", analysis({ primaryHandpieceChanged: true, primaryHandpieceChangeConfidence: 0.9 })],
+  ])("splits a semantic change within 60 seconds: %s", (_, frameAnalysis) => {
+    const result = decideBoundary({ candidate: candidate({ timeGapMs: 30_000 }), analysis: frameAnalysis, settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
+    expect(result).toMatchObject({ decision: "split", forced: true });
+  });
+
+  it("splits treatment to consultation as a meaningful purpose transition", () => {
+    const result = decideBoundary({ candidate: candidate({ timeGapMs: 30_000 }), analysis: analysis({ beforeSceneType: "treatment", afterSceneType: "consultation", sceneType: "consultation", sceneTypeChanged: true }), settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
+    expect(result).toMatchObject({ decision: "split", forced: true });
+  });
+
+  it("does not let the minimum-scene stabilizer remove a strong gap", () => {
+    const strong = decision({ boundaryIndex: 1, score: 0.1, decision: "split", forced: true, source: "strong_gap" });
+    const stabilized = stabilizeBoundaries([strong], 5, 3);
+    expect(stabilized[0]).toMatchObject({ decision: "split", forced: true, source: "strong_gap" });
   });
 
   it("hard-splits only after five minutes", () => {
@@ -113,6 +176,15 @@ describe("hybrid photo classification", () => {
       DERMATOLOGY_PRECISE_SETTINGS,
     );
     expect(candidates).toMatchObject([{ hardGap: true, requiresAi: false }]);
+  });
+
+  it("treats exactly five minutes as a hard gap", () => {
+    const [candidateResult] = buildVisualBoundaryCandidates(
+      [file("a.jpg", 0), file("b.jpg", 5 * 60_000)],
+      [feature(0), feature(0)],
+      DERMATOLOGY_PRECISE_SETTINGS,
+    );
+    expect(candidateResult).toMatchObject({ hardGap: true, strongGap: false, requiresAi: false });
   });
 
   it.each([

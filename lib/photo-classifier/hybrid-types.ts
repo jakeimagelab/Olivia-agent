@@ -14,6 +14,8 @@ export type SceneClassificationSettings = {
   sameSceneMaxSeconds: number;
   aiBoundaryStartSeconds: number;
   aiBoundaryEndSeconds: number;
+  /** Gaps at or above this threshold are forced boundaries without AI. */
+  strongSplitStartSeconds: number;
   splitThreshold: number;
   reviewThreshold: number;
   minimumSceneImages: number;
@@ -94,6 +96,10 @@ export type SceneFrameAnalysis = {
   primaryMedicalDeviceChangeConfidence?: number;
   primaryMedicalDeviceIdBefore?: string | null;
   primaryMedicalDeviceIdAfter?: string | null;
+  primaryHandpieceChanged?: boolean;
+  primaryHandpieceChangeConfidence?: number;
+  primaryHandpieceIdBefore?: string | null;
+  primaryHandpieceIdAfter?: string | null;
   handpiecePresent: boolean;
   syringePresent: boolean;
   treatmentBedPresent: boolean;
@@ -123,7 +129,7 @@ export type SceneBoundaryFeatures = {
   shotDistanceChangeScore: number;
 };
 
-export type BoundaryDecisionSource = "hard_gap" | "local" | "ai" | "ai_fallback" | "user";
+export type BoundaryDecisionSource = "hard_gap" | "strong_gap" | "local" | "ai" | "ai_fallback" | "user";
 
 export type SceneBoundaryDecision = {
   boundaryIndex: number;
@@ -156,6 +162,7 @@ export type VisualBoundaryCandidate = {
   timeGapMs: number;
   visualChangeScore: number;
   hardGap: boolean;
+  strongGap: boolean;
   requiresAi: boolean;
 };
 

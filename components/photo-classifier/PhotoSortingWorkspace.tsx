@@ -720,7 +720,7 @@ function PhotoSortingInner({
   const [departmentLogicEnabled,     setDepartmentLogicEnabled]     = useState(true);
   const [aiNamingEnabled,            setAiNamingEnabled]            = useState(false);
   const [qualityAnalysisEnabled,     setQualityAnalysisEnabled]     = useState(false);
-  const [profileClassificationEnabled, setProfileClassificationEnabled] = useState(true);
+  const [profileClassificationEnabled, setProfileClassificationEnabled] = useState(false);
   const [rawSelectMode,              setRawSelectMode]              = useState<"move"|"copy">("move");
   const [fieldScenes,                setFieldScenes]                = useState<FieldScene[]>([]);
   const [fieldRawCount,              setFieldRawCount]              = useState(0);
@@ -1149,8 +1149,8 @@ function PhotoSortingInner({
     classificationAbortRef.current?.abort();
     const abortController = new AbortController();
     classificationAbortRef.current = abortController;
-    // Scene Engine v1 — AI 폴더 분석은 threshold/weight만 조정한다.
-    // hard gap은 5분 규칙으로 고정되어 3–5분은 AI, 5분 초과는 강제 분리한다.
+    // Scene Engine v2 — AI 폴더 분석은 threshold/weight만 조정한다.
+    // 60–180초는 mandatory AI, 180초 이상은 가중치와 무관하게 강제 분리한다.
     const effectiveGapMinutes = aiWeightProfile?.absoluteTimeGapMinutes ?? gapMinutes;
     const preciseSettings = {
       ...getClassificationSettings(department === "dermatology" ? "dermatology" : "default", "precise"),
@@ -1322,7 +1322,7 @@ function PhotoSortingInner({
             if (globalIndex <= 0 || globalIndex >= jpgEntries.length || existingBoundaryIndexes.has(globalIndex)) continue;
             existingBoundaryIndexes.add(globalIndex);
             const timeGapMs = Math.max(0, jpgEntries[globalIndex].mtime - jpgEntries[globalIndex - 1].mtime);
-            candidates.push({ boundaryIndex: globalIndex, timeGapMs, visualChangeScore: 0, hardGap: false, requiresAi: true });
+            candidates.push({ boundaryIndex: globalIndex, timeGapMs, visualChangeScore: 0, hardGap: false, strongGap: false, requiresAi: true });
           }
         } catch {
           // 목적 스캔 실패는 치명적이지 않음 — 시각적 경계 후보만으로 계속 진행
@@ -1344,7 +1344,7 @@ function PhotoSortingInner({
             const response = await withTimeout(fetch("/api/photo-scene-boundary-analyze", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ department, boundaryIndex, before, after, options: { useHighModel } }),
+              body: JSON.stringify({ department, boundaryIndex, before, after, timeGapSeconds: (jpgEntries[boundaryIndex]?.mtime - jpgEntries[boundaryIndex - 1]?.mtime) / 1_000, options: { useHighModel } }),
               signal: abortController.signal,
             }), 60_000, "AI 경계 분석");
             const data = await response.json();
@@ -1380,7 +1380,7 @@ function PhotoSortingInner({
             ? decideBoundary({ candidate, analysis: cachedDecision.aiAnalysis ?? null, settings: preciseSettings, beforeFileName, afterFileName, weights })
             : cachedDecision;
         }
-        if (candidate.hardGap) {
+        if (candidate.hardGap || candidate.strongGap) {
           verified += 1;
           setProgress({ cur: verified, total: candidates.length, msg: `경계 검증 ${verified}/${candidates.length}${estimatedRemaining(verified, candidates.length, boundaryStartedAt)}` });
           const hardDecision = decideBoundary({ candidate, analysis: null, settings: preciseSettings, beforeFileName, afterFileName, weights });
