@@ -32,6 +32,8 @@ export const BLOCKED_TOOLS = new Set([
 export const APPROVAL_TOOLS = new Set([
   "rebalance_quote_total", "request_quote_publish", "request_contract_publish",
   "request_remove_conti_scene_v2", "send_mailing",
+  // §9 "최종 Rule 승인은 Olivia/User가 한다" — Hermes가 스스로 규칙을 확정할 수 없게 한다.
+  "approve_agent_memory_rule",
 ]);
 
 export const CLIENT_ONLY_TOOLS = new Set([
