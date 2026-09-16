@@ -51,13 +51,14 @@ import type {
   RunnerProgress,
   RunnerRoots,
 } from "./types";
-import { analyzeFolderPattern } from "@/lib/photo-classifier/server/folderPatternAi";
-import {
+import type { analyzeFolderPattern } from "@/lib/photo-classifier/server/folderPatternAi";
+import { analyzeProfilePhoto } from "@/lib/photo-classifier/server/sceneAi";
+import type {
   analyzePhotoScene,
-  analyzeProfilePhoto,
   analyzeSceneBoundary,
   scanScenePurposes,
 } from "@/lib/photo-classifier/server/sceneAi";
+import { resolvePhotoSceneBrain } from "@/lib/photo-classifier/brain";
 
 type Operation = {
   type: "copy_remove";
@@ -329,9 +330,8 @@ async function classifyPrecise(
     }
   }
 
-  // Scene Engine v1 owns the time bands: 3–5 minutes always invokes AI and
-  // anything over five minutes is a hard split. Natural-language folder
-  // overrides may still tune thresholds/weights, but cannot weaken this rule.
+  // Scene Engine v2 owns the explicit time bands. Folder-pattern weights may
+  // tune scoring, but cannot weaken mandatory AI or forced gap boundaries.
   const settings = {
     ...getClassificationSettings(input.department === "dermatology" ? "dermatology" : "default", "precise"),
     ...(weightProfile ? {
@@ -373,6 +373,7 @@ async function classifyPrecise(
             timeGapMs: Math.max(0, entries[boundaryIndex].mtime - entries[boundaryIndex - 1].mtime),
             visualChangeScore: 0,
             hardGap: false,
+            strongGap: false,
             requiresAi: true,
           });
         }
@@ -397,7 +398,7 @@ async function classifyPrecise(
     });
     const beforeFileName = entries[candidate.boundaryIndex - 1]?.name ?? "";
     const afterFileName = entries[candidate.boundaryIndex]?.name ?? "";
-    if (candidate.hardGap) {
+    if (candidate.hardGap || candidate.strongGap) {
       return decideBoundary({
         candidate,
         analysis: null,
@@ -433,7 +434,13 @@ async function classifyPrecise(
           base64: await createNodeApiImage(entry.path, { maxSize: 1080, quality: 0.82 }),
         }))),
       ]);
-      return ai.boundary({ department: input.department, before, after, useHighModel });
+      return ai.boundary({
+        department: input.department,
+        before,
+        after,
+        useHighModel,
+        timeGapSeconds: candidate.timeGapMs / 1_000,
+      });
     };
 
     try {
