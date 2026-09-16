@@ -2747,12 +2747,22 @@ main:has(> .pc-header) {
 }
 
 .client-strip div {
-  display: grid;
-  grid-template-columns: 80px 1fr;
-  min-width: 0; /* 이 칸 자체도 min-width:0이 없으면 내용 길이만큼 트랙이 늘어나 옆 칸을 밀어낸다. */
+  /* grid-in-grid로 두면 브라우저가 내용 길이만큼 트랙을 늘려버려(min-width:0을 셀에 줘도
+     소용없음) 옆 칸을 밀어낸다 — label|value를 flex로 바꿔야 value가 실제로 줄어든다. */
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
   min-height: 28px;
   border-right: 1px solid rgba(235, 117, 76, 0.32);
   border-bottom: 1px solid rgba(235, 117, 76, 0.32);
+}
+
+.client-strip span {
+  flex: 0 0 80px;
+}
+
+.client-strip strong {
+  flex: 1 1 auto;
 }
 
 .client-strip span,
