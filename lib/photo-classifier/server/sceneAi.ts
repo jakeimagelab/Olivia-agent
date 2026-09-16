@@ -1,3 +1,9 @@
+// Olivia OS 2.0 — 이 파일은 "Vision observation adapter"다(요청서 §8). 최종 split/merge/review
+// 판단은 여기서 하지 않는다 — boundary-score.ts의 decideBoundary/forcedReasons가 순수 로컬
+// 로직으로 담당하고, 이 파일이 반환하는 SceneFrameAnalysis/PhotoSceneAnalysisOutput은 그
+// 판단의 입력이 되는 "관찰 결과"일 뿐이다. lib/photo-classifier/brain/hermesPhotoBrain.ts가
+// 애매한 경계에서 이 관찰 결과를 Hermes에게 보강시킬 때도 이 함수들을 그대로 호출한다 —
+// Vision Tool 구현 자체는 여기서 바뀌지 않는다.
 import {
   COMMON_SYSTEM_PROMPT,
   SCENE_MODEL,
@@ -50,6 +56,8 @@ const boundarySchema = {
       "roomChanged", "roomChangeConfidence", "equipmentChanged", "equipmentChangeConfidence",
       "primaryMedicalDeviceChanged", "primaryMedicalDeviceChangeConfidence",
       "primaryMedicalDeviceIdBefore", "primaryMedicalDeviceIdAfter",
+      "primaryHandpieceChanged", "primaryHandpieceChangeConfidence",
+      "primaryHandpieceIdBefore", "primaryHandpieceIdAfter",
       "handpiecePresent", "syringePresent", "treatmentBedPresent",
       "consultationDeskPresent", "patientPose", "beforePatientPose", "afterPatientPose", "shotDistance",
       "beforeShotDistance", "afterShotDistance", "sceneType", "beforeSceneType", "afterSceneType",
@@ -77,6 +85,10 @@ const boundarySchema = {
       primaryMedicalDeviceChangeConfidence: { type: "number", minimum: 0, maximum: 1 },
       primaryMedicalDeviceIdBefore: { type: ["string", "null"] },
       primaryMedicalDeviceIdAfter: { type: ["string", "null"] },
+      primaryHandpieceChanged: { type: "boolean" },
+      primaryHandpieceChangeConfidence: { type: "number", minimum: 0, maximum: 1 },
+      primaryHandpieceIdBefore: { type: ["string", "null"] },
+      primaryHandpieceIdAfter: { type: ["string", "null"] },
       handpiecePresent: { type: "boolean" },
       syringePresent: { type: "boolean" },
       treatmentBedPresent: { type: "boolean" },
@@ -97,14 +109,16 @@ const boundarySchema = {
   },
 } as const;
 
-function boundaryPrompt(department: MedicalDepartment): string {
+function boundaryPrompt(department: MedicalDepartment, timeGapSeconds?: number): string {
   const config = getDepartmentConfig(department);
   const sceneGuide = config.sceneTypes
     .filter((rule) => rule.sceneType !== "etc")
     .map((rule) => `- ${rule.displayName}: ${rule.description} / 단서 ${rule.visualCues.join(", ")}`)
     .join("\n");
 
-  return `당신은 병원 촬영의 Scene 경계를 판정합니다. BEFORE 사진 묶음과 AFTER 사진 묶음이 실제로 다른 촬영 장면인지 비교하세요.
+  return `당신은 병원 촬영의 Scene 경계를 판정합니다. Scene은 같은 카테고리의 사진 모음이 아니라 시간적으로 연속된 하나의 촬영 에피소드입니다. BEFORE 사진 묶음과 AFTER 사진 묶음이 실제로 다른 촬영 장면인지 비교하세요.
+
+촬영 공백: ${timeGapSeconds == null ? "알 수 없음" : `${timeGapSeconds.toFixed(1)}초`}
 
 진료과: ${config.displayName}
 장면 참고:
@@ -114,26 +128,24 @@ sceneType/beforeSceneType/afterSceneType은 profile/consultation/treatment/skin_
 프로필 여부를 가장 먼저 검토하세요 — 사람 1명 이상(단독이든 여러 명이든 무관) + 환자 없음 + 카메라를 의식한 포즈 +
 시술/상담/의료행위 행동 없음이면 인원수와 무관하게 profile입니다.
 
-[강한 Scene 변경 — 아래 전환이면 sceneTypeChanged=true, 높은 확신도로 분리]
-- 상담 → 시술 / 상담 → 프로필
-- 시술 → 프로필 / 시술 → 인테리어
-- 인테리어 → 상담 / 인테리어 → 프로필
+[Scene 정의]
+- 같은 환자·공간·장비이고 모두 treatment라는 이유만으로 같은 Scene으로 판단하지 마세요.
+- 주체 의료진, 주요 의료장비, 주요 핸드피스, 실제 촬영 목적 중 하나가 명확히 변경되면 NEW SCENE입니다.
+- 시술 → 거울 확인/설명/상담은 같은 환자와 공간이어도 촬영 목적 전환이므로 NEW SCENE입니다.
+- 상담↔시술, 상담↔프로필, 상담↔피부관리, 시술↔프로필, 시술↔피부관리, 인테리어↔상담/프로필/시술 등 비-etc 목적 전환은 분리 후보입니다.
 
 [Scene 유지 — 아래는 같은 장면으로 유지, sceneTypeChanged=false]
-- 같은 주체 의료진·장비·장소에서 구도만 바뀜(와이드↔클로즈업, 각도 변경)
-- 보조 직원이 등장하거나 퇴장함, 사람 수가 바뀜
+- 같은 주체 의료진·장비·장소·목적에서 구도만 바뀜(와이드↔클로즈업, 각도 변경)
+- 보조 직원이 등장하거나 퇴장함, 사람 수가 바뀜. 이것만으로 primary clinician change가 아닙니다.
 - 같은 공간에서 촬영 렌즈/거리·포즈·행동·소도구만 바뀜
 
 판정 우선순위:
 1. 주체 의료진(primary clinician)이 바뀌었는지. 원장 A→원장 B는 같은 장소·고객이어도 NEW SCENE이다.
    단, 보조 직원의 추가/퇴장과 사람 수 변화는 주체 의료진 변경으로 보지 않는다.
-2. 상담실·시술실 등 장소(배경)가 바뀌었는지 — 단, 배경 변화 하나만으로는 분리하지 않는다.
-   대표 촬영 특성상 같은 공간에서는 배경이 완전히 바뀌는 촬영을 거의 하지 않으므로, 배경이
-   크게 달라졌다면 강한 분리 후보로 참고하되, 반드시 촬영목적(sceneType) 또는 인물의 행동
-   또는 장비 변화가 함께 있어야 실제로 분리하세요.
-3. 주요 의료 장비의 category와 가능한 device ID가 바뀌었는지. Thermage FLX→Soprano Titanium처럼
+2. 상담실·시술실 등 실제 고정 구조가 다른 장소인지. 카메라 구도/렌즈 변화는 장소 변경이 아닙니다.
+3. 주요 의료 장비의 category와 가능한 device ID, 주요 핸드피스가 바뀌었는지. Thermage FLX→Soprano Titanium처럼
    장비 정체성이 바뀌면 같은 원장·고객·장소여도 NEW SCENE이다. 거울·펜·태블릿·제품박스·단독 주사기 등은 제외한다.
-4. 상담에서 시술, 앉음에서 누움 같은 의미 전환인지 (위 강한 변경 목록 참고)
+4. 상담에서 시술, 시술에서 거울 확인/설명 등 촬영 목적의 의미 전환인지
 5. 단순한 와이드·클로즈업 또는 반대 방향 촬영인지 (Scene 유지)
 
 사람 이름이나 신원을 추측하지 마세요. 화자/의료진은 익명 ID로만 비교하세요.
@@ -152,6 +164,7 @@ async function analyzeBoundaryWithModel(input: {
   before: SceneAiImage[];
   after: SceneAiImage[];
   highModel: boolean;
+  timeGapSeconds?: number;
 }): Promise<SceneFrameAnalysis> {
   const imageBlock = (side: "BEFORE" | "AFTER", images: SceneAiImage[]) => [
     { type: "text" as const, text: `${side} (${images.length}장)` },
@@ -163,7 +176,7 @@ async function analyzeBoundaryWithModel(input: {
   const response = await getOpenAIClient().chat.completions.create({
     model: input.highModel ? SCENE_MODEL_HIGH : SCENE_MODEL,
     messages: [
-      { role: "system", content: boundaryPrompt(input.department) },
+      { role: "system", content: boundaryPrompt(input.department, input.timeGapSeconds) },
       {
         role: "user",
         content: [...imageBlock("BEFORE", input.before), ...imageBlock("AFTER", input.after)],
@@ -180,6 +193,7 @@ export async function analyzeSceneBoundary(input: {
   before: SceneAiImage[];
   after: SceneAiImage[];
   useHighModel?: boolean;
+  timeGapSeconds?: number;
 }): Promise<SceneFrameAnalysis> {
   if (input.before.length === 0 || input.after.length === 0) {
     throw new Error("경계 분석에는 앞뒤 이미지가 모두 필요합니다.");
