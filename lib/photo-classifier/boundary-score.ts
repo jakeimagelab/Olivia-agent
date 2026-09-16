@@ -138,18 +138,18 @@ export function decideBoundary(args: {
   const ruleReasons = forcedReasons(analysis);
   let score = calculateBoundaryScore(features, args.weights);
   if (!analysis && args.aiFailed) score = candidate.visualChangeScore;
-  if (shouldHoldSameScene(analysis, candidate.timeGapMs)) score = Math.max(0, score - 0.15);
+  if (shouldHoldSameScene(analysis)) score = Math.max(0, score - 0.15);
 
   const hardGap = candidate.hardGap;
-  const strongGap = !hardGap && candidate.strongGap;
+  // 180~300초 구간은 항상 의미 판단(Hermes) 대상이다 — 시간만으로는 자동 분리하지 않는다.
   const mandatoryAi = candidate.timeGapMs >= settings.aiBoundaryStartSeconds * 1_000
     && candidate.timeGapMs < settings.aiBoundaryEndSeconds * 1_000;
-  const forced = hardGap || strongGap || ruleReasons.length > 0;
+  const forced = hardGap || ruleReasons.length > 0;
   let decision: SceneBoundaryDecision["decision"];
-  if (hardGap || strongGap || ruleReasons.length > 0) {
+  if (hardGap || ruleReasons.length > 0) {
     decision = "split";
   } else if (mandatoryAi) {
-    // 60–180초 경계는 AI가 높은 확신으로 SAME이라고 할 때만 병합한다.
+    // 180–300초 경계는 AI가 높은 확신으로 SAME이라고 할 때만 병합한다.
     // AI 오류/낮은 확신을 로컬 점수로 덮어쓰면 장시간 촬영이 합쳐지는 문제가 재발한다.
     decision = args.aiFailed || !analysis
       ? "review"
@@ -161,9 +161,7 @@ export function decideBoundary(args: {
   }
   const reasons = hardGap
     ? [`시간 간격 ${Math.round(candidate.timeGapMs / 1_000)}초로 HARD 강제 분리`]
-    : strongGap
-      ? [`시간 간격 ${Math.round(candidate.timeGapMs / 1_000)}초로 STRONG 강제 분리`]
-      : [...ruleReasons, ...(analysis?.reasons ?? []), mandatoryAi ? `60~180초 AI 경계 검증(${analysis?.confidence?.toFixed(2) ?? "실패"})` : `경계 점수 ${score.toFixed(2)}`];
+    : [...ruleReasons, ...(analysis?.reasons ?? []), mandatoryAi ? `180~300초 AI 의미 검증(${analysis?.confidence?.toFixed(2) ?? "실패"})` : `경계 점수 ${score.toFixed(2)}`];
   return {
     boundaryIndex: candidate.boundaryIndex,
     beforeFileName: args.beforeFileName,
@@ -171,7 +169,7 @@ export function decideBoundary(args: {
     score,
     decision,
     forced,
-    source: hardGap ? "hard_gap" : strongGap ? "strong_gap" : analysis ? "ai" : args.aiFailed ? "ai_fallback" : "local",
+    source: hardGap ? "hard_gap" : analysis ? "ai" : args.aiFailed ? "ai_fallback" : "local",
     reasons,
     features,
     aiAnalysis: analysis,
