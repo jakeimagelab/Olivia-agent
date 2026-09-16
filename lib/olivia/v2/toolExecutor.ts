@@ -384,6 +384,41 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
       required: ["scope"],
     },
   },
+  // ── Olivia OS 2.0 §9 — 규칙 후보 제안/승인. Hermes가 반복되는 패턴을 발견했을 때 바로
+  // save_agent_memory로 적용하지 않고, 먼저 제안한 뒤 사용자의 명시적 승인을 거치게 한다.
+  {
+    type: "function",
+    name: "propose_agent_memory_rule",
+    description: "Hermes가 반복적으로 관찰한 패턴을 공식 업무 규칙 '후보'로 제안합니다. 바로 적용되지 않고 사용자 승인(approve_agent_memory_rule) 전까지는 아무 동작에도 영향을 주지 않습니다. 확실하지 않은 규칙을 함부로 save_agent_memory로 저장하지 말고 이 도구로 먼저 제안하세요.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        key: { type: "string", description: "영문 snake_case 짧은 식별자." },
+        scope: { type: ["string", "null"] },
+        proposedType: { type: "string", enum: [...OLIVIA_PROMOTABLE_MEMORY_TYPES], description: "승인되면 적용될 규칙 종류." },
+        proposedValue: { type: "string", description: "승인되면 적용될 규칙 내용 JSON 문자열." },
+        reason: { type: "string", description: "왜 이 규칙을 제안하는지 근거(관찰한 사례 등)." },
+      },
+      required: ["key", "scope", "proposedType", "proposedValue", "reason"],
+    },
+  },
+  {
+    type: "function",
+    name: "approve_agent_memory_rule",
+    description: "[WRITE] 제안된 규칙 후보를 공식 업무 규칙으로 확정합니다. 사용자가 명시적으로 승인했을 때만 호출하세요 — 최종 승인은 항상 사용자의 몫입니다.",
+    strict: true,
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        key: { type: "string" },
+        scope: { type: ["string", "null"] },
+      },
+      required: ["key", "scope"],
+    },
+  },
   // ── 사진 분류 씬 편집(PHASE 4, 2026-08-30) — 실제 실행은 지금 열려 있는 PhotoSortingWorkspace
   // 안에서만 가능하다(파일시스템 핸들이 클라이언트에만 있음). 이 도구들은 "지금 화면이 열려
   // 있는지"만 확인하고 실제 실행은 client_task 이후 ui_action(RENAME/MERGE/SPLIT_PHOTO_SCENE)이
