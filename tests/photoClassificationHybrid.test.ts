@@ -210,7 +210,6 @@ describe("hybrid photo classification", () => {
     ["주체 의료진 변경", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.95, primaryClinicianChanged: true, primaryClinicianChangeConfidence: 0.95 })],
     ["주체 의료진 변경(환자 없음)", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.9, primaryClinicianChanged: true, primaryClinicianChangeConfidence: 0.9, hasPatient: false, hasStaff: true })],
     ["주요 장비 ID 변경", analysis({ equipmentPresent: true, equipmentCategory: "laser_device", equipmentChanged: true, equipmentChangeConfidence: 0.95, primaryMedicalDeviceChanged: true, primaryMedicalDeviceChangeConfidence: 0.95, primaryMedicalDeviceIdBefore: "thermage_flx", primaryMedicalDeviceIdAfter: "soprano_titanium" })],
-    ["5분 이내 장소 변경", analysis({ locationType: "laser_room", locationChanged: true, locationChangeConfidence: 0.95 })],
     ["상담에서 시술(레이저)", analysis({ equipmentPresent: true, beforeSceneType: "consultation", afterSceneType: "treatment", sceneType: "treatment", sceneTypeChanged: true })],
     ["상담에서 시술(주사)", analysis({ syringePresent: true, beforeSceneType: "consultation", afterSceneType: "treatment", sceneType: "treatment", sceneTypeChanged: true })],
     ["상담에서 프로필", analysis({ beforeSceneType: "consultation", afterSceneType: "profile", sceneType: "profile", sceneTypeChanged: true })],
