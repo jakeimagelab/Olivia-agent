@@ -402,7 +402,7 @@ async function classifyPrecise(
     });
     const beforeFileName = entries[candidate.boundaryIndex - 1]?.name ?? "";
     const afterFileName = entries[candidate.boundaryIndex]?.name ?? "";
-    if (candidate.hardGap || candidate.strongGap) {
+    if (candidate.hardGap) {
       return decideBoundary({
         candidate,
         analysis: null,
