@@ -99,7 +99,8 @@ describe("hybrid photo classification", () => {
 
   it("uses the approved boundary weights and dermatology defaults", () => {
     expect(Object.values(BOUNDARY_WEIGHTS).reduce((sum, value) => sum + value, 0)).toBeCloseTo(1);
-    expect(DERMATOLOGY_PRECISE_SETTINGS).toMatchObject({ hardGapMinutes: 5, softGapSeconds: 10, sameSceneMaxSeconds: 10, aiBoundaryStartSeconds: 60, aiBoundaryEndSeconds: 180, strongSplitStartSeconds: 180, splitThreshold: 0.72, reviewThreshold: 0.55, minimumSceneImages: 2, scanWindowSize: 3 });
+    expect(DERMATOLOGY_PRECISE_SETTINGS).toMatchObject({ hardGapMinutes: 5, softGapSeconds: 10, sameSceneMaxSeconds: 10, aiBoundaryStartSeconds: 180, aiBoundaryEndSeconds: 300, splitThreshold: 0.72, reviewThreshold: 0.55, minimumSceneImages: 2, scanWindowSize: 3 });
+    expect(DERMATOLOGY_PRECISE_SETTINGS).not.toHaveProperty("strongSplitStartSeconds");
   });
 
   it("sorts by capture time and uses names as a stable fallback", () => {
