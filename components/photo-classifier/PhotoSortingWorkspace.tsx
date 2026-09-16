@@ -1380,7 +1380,7 @@ function PhotoSortingInner({
             ? decideBoundary({ candidate, analysis: cachedDecision.aiAnalysis ?? null, settings: preciseSettings, beforeFileName, afterFileName, weights })
             : cachedDecision;
         }
-        if (candidate.hardGap || candidate.strongGap) {
+        if (candidate.hardGap) {
           verified += 1;
           setProgress({ cur: verified, total: candidates.length, msg: `경계 검증 ${verified}/${candidates.length}${estimatedRemaining(verified, candidates.length, boundaryStartedAt)}` });
           const hardDecision = decideBoundary({ candidate, analysis: null, settings: preciseSettings, beforeFileName, afterFileName, weights });
