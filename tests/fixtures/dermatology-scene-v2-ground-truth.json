@@ -1,0 +1,44 @@
+[
+  {
+    "beforeFile": "R5K09558.JPG",
+    "afterFile": "R5K09559.JPG",
+    "timeGapSeconds": 198,
+    "expectedDecision": "review",
+    "reason": "180~300초 구간은 시간만으로 자동 분리하지 않고 AI 의미 검증(review) 대상이다"
+  },
+  {
+    "beforeFile": "R5K09783.JPG",
+    "afterFile": "R5K09784.JPG",
+    "timeGapSeconds": 272,
+    "expectedDecision": "review",
+    "reason": "180~300초 구간은 시간만으로 자동 분리하지 않고 AI 의미 검증(review) 대상이다"
+  },
+  {
+    "beforeFile": "R5K09932.JPG",
+    "afterFile": "R5K09933.JPG",
+    "timeGapSeconds": 190,
+    "expectedDecision": "review",
+    "reason": "180~300초 구간은 시간만으로 자동 분리하지 않고 AI 의미 검증(review) 대상이다"
+  },
+  {
+    "beforeFile": "R5K00015.JPG",
+    "afterFile": "R5K00016.JPG",
+    "timeGapSeconds": 208,
+    "expectedDecision": "review",
+    "reason": "180~300초 구간은 시간만으로 자동 분리하지 않고 AI 의미 검증(review) 대상이다"
+  },
+  {
+    "beforeFile": "R5K00183.JPG",
+    "afterFile": "R5K00184.JPG",
+    "timeGapSeconds": 219,
+    "expectedDecision": "review",
+    "reason": "180~300초 구간은 시간만으로 자동 분리하지 않고 AI 의미 검증(review) 대상이다"
+  },
+  {
+    "beforeFile": "R5K00213.JPG",
+    "afterFile": "R5K00214.JPG",
+    "timeGapSeconds": 88,
+    "expectedDecision": "merge",
+    "reason": "같은 의료진·환자·공간·장비·목적, 보조직원만 추가"
+  }
+]
