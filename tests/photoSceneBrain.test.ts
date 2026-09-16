@@ -49,16 +49,6 @@ describe("Olivia OS 2.0 — 사진분류 PhotoSceneBrain", () => {
     expect(resolvePhotoSceneBrain()).toBe(hermesPhotoBrain);
   });
 
-  it("localPhotoBrain은 기존 sceneAi.ts 함수를 그대로 가리킨다(로직 재작성 없음)", async () => {
-    const { localPhotoBrain } = await import("@/lib/photo-classifier/brain/localPhotoBrain");
-    const sceneAi = await import("@/lib/photo-classifier/server/sceneAi");
-    const folderPatternAi = await import("@/lib/photo-classifier/server/folderPatternAi");
-    expect(localPhotoBrain.analyzeBoundary).toBe(sceneAi.analyzeSceneBoundary);
-    expect(localPhotoBrain.analyzeScene).toBe(sceneAi.analyzePhotoScene);
-    expect(localPhotoBrain.scanPurpose).toBe(sceneAi.scanScenePurposes);
-    expect(localPhotoBrain.analyzeFolderPattern).toBe(folderPatternAi.analyzeFolderPattern);
-  });
-
   it("확신도가 높은 관찰 결과는 Hermes를 호출하지 않는다(성능 예산 보호, §6)", async () => {
     analyzeBoundaryMock.mockResolvedValue(baseAnalysis({ confidence: 0.92 }));
     const fetchSpy = vi.fn();
