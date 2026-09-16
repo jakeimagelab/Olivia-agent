@@ -1,12 +1,15 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { OLIVIA_MEMORY_TYPES, type OliviaMemoryType } from "@/lib/olivia/memory/types";
+import { OLIVIA_MEMORY_TYPES, OLIVIA_PROMOTABLE_MEMORY_TYPES, type OliviaMemoryType } from "@/lib/olivia/memory/types";
 import { createMemory, deactivateMemory, findMemoryByKeyScope, listActiveMemories, updateMemory } from "@/lib/olivia/memory/repository";
 import { formatMemoryForUser } from "@/lib/olivia/memory/format";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text } from "./common";
 import { createVerification } from "./verification";
 
-export const MEMORY_TOOL_NAMES = ["save_agent_memory", "update_agent_memory", "disable_agent_memory", "list_agent_memories"] as const;
+export const MEMORY_TOOL_NAMES = [
+  "save_agent_memory", "update_agent_memory", "disable_agent_memory", "list_agent_memories",
+  "propose_agent_memory_rule", "approve_agent_memory_rule",
+] as const;
 
 export async function executeMemoryTool(
   name: string,
