@@ -48,7 +48,7 @@ const UI_TOOLS = new Set([
 ]);
 
 export function getHermesToolPolicy(toolName: string): HermesToolPolicy {
-  if (BLOCKED_TOOLS.has(toolName)) return "blocked";
+  if (isDangerousToolName(toolName) || BLOCKED_TOOLS.has(toolName)) return "blocked";
   if (APPROVAL_TOOLS.has(toolName)) return "approval";
   return "open";
 }
