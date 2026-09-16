@@ -217,11 +217,20 @@ describe("hybrid photo classification", () => {
     ["시술에서 인테리어", analysis({ beforeSceneType: "treatment", afterSceneType: "interior", sceneType: "interior", sceneTypeChanged: true })],
     ["인테리어에서 상담", analysis({ beforeSceneType: "interior", afterSceneType: "consultation", sceneType: "consultation", sceneTypeChanged: true })],
     ["인테리어에서 프로필", analysis({ beforeSceneType: "interior", afterSceneType: "profile", sceneType: "profile", sceneTypeChanged: true })],
-    ["다른 방", analysis({ locationChanged: true, locationChangeConfidence: 0.95, roomChanged: true, roomChangeConfidence: 0.95 })],
-  ])("forces a split for %s", (_, frameAnalysis) => {
+    ["장소 변경 + 주체 의료진 변경(결합 신호)", analysis({ locationChanged: true, locationChangeConfidence: 0.95, roomChanged: true, roomChangeConfidence: 0.95, primaryClinicianChanged: true, primaryClinicianChangeConfidence: 0.95 })],
+  ])("TEST 6 — forces a split for %s", (_, frameAnalysis) => {
     const result = decideBoundary({ candidate: candidate(), analysis: frameAnalysis, settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
     expect(result.decision).toBe("split");
     expect(result.forced).toBe(true);
+  });
+
+  it.each([
+    ["5분 이내 장소 변경(단독)", analysis({ locationType: "laser_room", locationChanged: true, locationChangeConfidence: 0.95 })],
+    ["다른 방으로 보임(단독, roomChanged)", analysis({ locationChanged: true, locationChangeConfidence: 0.95, roomChanged: true, roomChangeConfidence: 0.95 })],
+  ])("TEST 7 — location/room change alone never forces a split: %s", (_, frameAnalysis) => {
+    const result = decideBoundary({ candidate: candidate(), analysis: frameAnalysis, settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
+    expect(result.decision).not.toBe("split");
+    expect(result.forced).toBe(false);
   });
 
   it.each([
@@ -232,8 +241,56 @@ describe("hybrid photo classification", () => {
     ["보조 의료진 추가", analysis({ hasStaff: true, peopleCount: 3 })],
     ["일반 인물 그룹 변화(주체 의료진 동일)", analysis({ dominantPersonChanged: true, personChangeConfidence: 0.95, hasStaff: true })],
     ["자세·행동 변화", analysis({ beforePatientPose: "sitting", afterPatientPose: "lying", patientPose: "lying" })],
-  ])("keeps one scene for %s", (_, frameAnalysis) => {
+    ["카메라 앵글만 변경(같은 방·의료진·장비·목적)", analysis({ beforeShotDistance: "wide", afterShotDistance: "wide", locationType: "treatment_room", locationChanged: false, roomChanged: false })],
+    ["배경 구성만 달라 보임(방 변경 미확정)", analysis({ locationChanged: true, locationChangeConfidence: 0.4, roomChanged: false, roomChangeConfidence: 0.3 })],
+  ])("TEST 8 — keeps one scene for %s", (_, frameAnalysis) => {
     const result = decideBoundary({ candidate: candidate({ visualChangeScore: 0.8 }), analysis: frameAnalysis, settings: DERMATOLOGY_PRECISE_SETTINGS, beforeFileName: "a.jpg", afterFileName: "b.jpg" });
+    expect(result.decision).toBe("merge");
+  });
+
+  it("TEST 9 — a very high visualChangeScore alone (no confirmed semantic change) never justifies a split", () => {
+    const result = decideBoundary({
+      candidate: candidate({ timeGapMs: 20_000, visualChangeScore: 0.99 }),
+      analysis: analysis(),
+      settings: DERMATOLOGY_PRECISE_SETTINGS,
+      beforeFileName: "a.jpg",
+      afterFileName: "b.jpg",
+    });
+    expect(result.decision).not.toBe("split");
+    expect(result.forced).toBe(false);
+  });
+
+  it("TEST 10 — the SAME_SCENE bias applies past the old 60-second cutoff when clinician/device/purpose are unchanged", () => {
+    const result = decideBoundary({
+      candidate: candidate({ timeGapMs: 150_000, visualChangeScore: 0.95 }),
+      analysis: analysis(),
+      settings: DERMATOLOGY_PRECISE_SETTINGS,
+      beforeFileName: "a.jpg",
+      afterFileName: "b.jpg",
+    });
+    expect(result.decision).toBe("merge");
+  });
+
+  it("TEST 11 — a confirmed room change combined with a real semantic signal still splits", () => {
+    const result = decideBoundary({
+      candidate: candidate(),
+      analysis: analysis({ roomChanged: true, roomChangeConfidence: 0.95, primaryMedicalDeviceChanged: true, primaryMedicalDeviceChangeConfidence: 0.9 }),
+      settings: DERMATOLOGY_PRECISE_SETTINGS,
+      beforeFileName: "a.jpg",
+      afterFileName: "b.jpg",
+    });
+    expect(result.decision).toBe("split");
+    expect(result.forced).toBe(true);
+  });
+
+  it("TEST 12 — a low-confidence room-change flicker does not disable the SAME_SCENE hold", () => {
+    const result = decideBoundary({
+      candidate: candidate({ timeGapMs: 120_000, visualChangeScore: 0.7 }),
+      analysis: analysis({ roomChanged: true, roomChangeConfidence: 0.4 }),
+      settings: DERMATOLOGY_PRECISE_SETTINGS,
+      beforeFileName: "a.jpg",
+      afterFileName: "b.jpg",
+    });
     expect(result.decision).toBe("merge");
   });
 
