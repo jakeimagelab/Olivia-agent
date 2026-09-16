@@ -108,12 +108,18 @@ function forcedReasons(analysis: SceneFrameAnalysis | null): string[] {
   return reasons;
 }
 
-function shouldHoldSameScene(analysis: SceneFrameAnalysis | null, timeGapMs: number) {
+// 시간 창(<60초)에 묶지 않는다 — 주체 의료진/장비/촬영목적이 그대로이고 방 전환이
+// "확정"(높은 확신)되지 않았다면, 구도·배경만 달라 보이는 visualChangeScore가 아무리
+// 높아도 같은 Scene으로 강하게 편향시킨다. "사진이 달라 보이는가"가 아니라
+// "실제 촬영 Scene이 바뀌었는가"를 기준으로 판단한다.
+function shouldHoldSameScene(analysis: SceneFrameAnalysis | null) {
   if (!analysis) return false;
-  if (timeGapMs >= 60_000) return false;
+  const confirmedRoomChange = (analysis.roomChanged ?? analysis.locationChanged)
+    && (analysis.roomChangeConfidence ?? analysis.locationChangeConfidence) >= 0.82;
   return !(analysis.primaryClinicianChanged ?? false)
-    && !(analysis.roomChanged ?? analysis.locationChanged)
+    && !confirmedRoomChange
     && !(analysis.primaryMedicalDeviceChanged ?? (analysis.equipmentChanged && Boolean(analysis.equipmentPresent)))
+    && !(analysis.primaryHandpieceChanged ?? false)
     && !analysis.sceneTypeChanged
     ;
 }
