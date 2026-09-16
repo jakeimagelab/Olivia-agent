@@ -202,7 +202,8 @@ describe("hybrid photo classification", () => {
       [feature(0), feature(0)],
       DERMATOLOGY_PRECISE_SETTINGS,
     );
-    expect(candidateResult).toMatchObject({ hardGap: true, strongGap: false, requiresAi: false });
+    expect(candidateResult).toMatchObject({ hardGap: true, requiresAi: false });
+    expect(candidateResult).not.toHaveProperty("strongGap");
   });
 
   it.each([
