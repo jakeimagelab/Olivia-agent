@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createOliviaHermesMcpServer } from "@/lib/hermes/mcpServer";
 import { OLIVIA_V2_TOOLS } from "@/lib/olivia/v2/toolExecutor";
-import { listHermesOliviaTools } from "@/lib/hermes/mcp/oliviaToolBridge";
+import { executeHermesOliviaTool, listHermesOliviaTools } from "@/lib/hermes/mcp/oliviaToolBridge";
 import { BLOCKED_TOOLS, getHermesToolPolicy, isDangerousToolName } from "@/lib/hermes/mcp/exposurePolicy";
 
 describe("Olivia Hermes MCP registry", () => {
