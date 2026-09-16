@@ -15,7 +15,7 @@ export type HermesToolPolicy = "open" | "approval" | "blocked";
 // 강제한다(어떤 Tool도 그 함수를 우회할 수 없다). 이 파일은 "위험한 이름의 Tool을 실수로
 // Hermes에 노출하는 것" 자체를 막는 두 번째 방어선이다 — 이름 패턴에 걸리면 개별적으로
 // BLOCKED_TOOLS에 추가하는 걸 깜빡해도 자동으로 차단된다.
-const DANGEROUS_NAME_PATTERN = /delete_(raw|file|photo|document)s?\b|move_raw|remove_raw|(raw|file|photo).*delete|exec(ute)?_shell|run_shell|shell_command|system_config|format_disk/i;
+const DANGEROUS_NAME_PATTERN = /delete.*_?(raw|file|photo|document)|(raw|file|photo|document).*delete|move.*_raw|remove.*_raw|exec(ute)?_shell|run_shell|shell_command|system_config|format_disk/i;
 
 export function isDangerousToolName(toolName: string): boolean {
   return DANGEROUS_NAME_PATTERN.test(toolName);
