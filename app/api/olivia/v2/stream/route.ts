@@ -817,7 +817,7 @@ export async function POST(req: NextRequest) {
           };
           let hermesStartedOutput = false;
           try {
-            const hermesResult = await runHermesChat({
+            const hermesResult = await hermesProvider.chat({
               message,
               history: hermesRuntime.history,
               conversationId: conversation.id,
