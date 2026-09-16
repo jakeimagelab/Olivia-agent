@@ -903,7 +903,7 @@ export async function POST(req: NextRequest) {
             }
             return;
           } catch (hermesError) {
-            if (req.signal.aborted || hermesStartedOutput || !isHermesFallbackSafe(hermesError) || !process.env.OPENAI_API_KEY || !model) throw hermesError;
+            if (req.signal.aborted || hermesStartedOutput || !isBrainFallbackSafe(hermesError) || !process.env.OPENAI_API_KEY || !model) throw hermesError;
             activeAgentEngine = "legacy";
             console.warn("[olivia-v2] Hermes unavailable before output; switching to cloud fallback", {
               requestId,
