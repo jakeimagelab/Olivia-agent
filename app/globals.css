@@ -2739,7 +2739,9 @@ main:has(> .pc-header) {
 
 .client-strip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* 병원명/이메일은 값이 길어지기 쉬워 나머지보다 넉넉히 준다 — 4등분이면
+     긴 병원명이 줄바뀜되면서 행 높이가 늘어나 옆 칸 텍스트까지 밀려 보였다. */
+  grid-template-columns: 1.6fr 1fr 1fr 1.3fr;
   border-top: 1px solid rgba(235, 117, 76, 0.32);
   border-left: 1px solid rgba(235, 117, 76, 0.32);
 }
