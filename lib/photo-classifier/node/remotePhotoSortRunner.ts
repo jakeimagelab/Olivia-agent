@@ -378,7 +378,6 @@ async function classifyPrecise(
             timeGapMs: Math.max(0, entries[boundaryIndex].mtime - entries[boundaryIndex - 1].mtime),
             visualChangeScore: 0,
             hardGap: false,
-            strongGap: false,
             requiresAi: true,
           });
         }
