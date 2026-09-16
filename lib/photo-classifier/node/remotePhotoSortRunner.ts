@@ -98,11 +98,16 @@ export type RemotePhotoSortRunnerDependencies = {
   outputMode?: "move" | "copy";
 };
 
+// Olivia OS 2.0 — 요청서 §14: Hermes(PRIMARY) -> OpenAI Vision(TOOL/FALLBACK) -> Local.
+// resolvePhotoSceneBrain()은 OLIVIA_PHOTO_HERMES_BRAIN 플래그로 hermesPhotoBrain/localPhotoBrain을
+// 고른다 — 기본값(플래그 off)은 지금까지의 OpenAI 직접 호출과 100% 동일하다. profile(프로필
+// 판정)은 Anthropic 기반의 별개 관심사라 이 선택과 무관하게 그대로 둔다.
+const photoBrain = resolvePhotoSceneBrain();
 const defaultAi: AiAdapter = {
-  folderPattern: analyzeFolderPattern,
-  purposeScan: scanScenePurposes,
-  boundary: analyzeSceneBoundary,
-  scene: analyzePhotoScene,
+  folderPattern: photoBrain.analyzeFolderPattern,
+  purposeScan: photoBrain.scanPurpose,
+  boundary: photoBrain.analyzeBoundary,
+  scene: photoBrain.analyzeScene,
   profile: analyzeProfilePhoto,
 };
 
