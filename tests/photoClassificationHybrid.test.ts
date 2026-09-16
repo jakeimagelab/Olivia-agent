@@ -181,10 +181,10 @@ describe("hybrid photo classification", () => {
     expect(result).toMatchObject({ decision: "split", forced: true });
   });
 
-  it("does not let the minimum-scene stabilizer remove a strong gap", () => {
-    const strong = decision({ boundaryIndex: 1, score: 0.1, decision: "split", forced: true, source: "strong_gap" });
+  it("does not let the minimum-scene stabilizer remove a forced hard-gap boundary", () => {
+    const strong = decision({ boundaryIndex: 1, score: 0.1, decision: "split", forced: true, source: "hard_gap" });
     const stabilized = stabilizeBoundaries([strong], 5, 3);
-    expect(stabilized[0]).toMatchObject({ decision: "split", forced: true, source: "strong_gap" });
+    expect(stabilized[0]).toMatchObject({ decision: "split", forced: true, source: "hard_gap" });
   });
 
   it("hard-splits only after five minutes", () => {
