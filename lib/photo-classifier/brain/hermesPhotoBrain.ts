@@ -98,13 +98,20 @@ async function callHermesForJson(userPrompt: string): Promise<Record<string, unk
 function boundaryReviewPrompt(analysis: SceneFrameAnalysis, timeGapSeconds?: number): string {
   return `[Vision Tool 관찰 결과]\n${JSON.stringify(analysis, null, 2)}\n\n`
     + `촬영 공백: ${timeGapSeconds == null ? "알 수 없음" : `${timeGapSeconds.toFixed(1)}초`}\n\n`
-    + `[NEW SCENE 판단 기준]\n`
-    + `- 주체 의료진 변경(보조 직원 등장/퇴장, 사람 수 변화는 제외)\n`
-    + `- 주요 의료장비/핸드피스 변경(같은 장비의 각도 변화는 제외)\n`
-    + `- 실제 공간 변경(카메라 각도·줌 변화는 제외)\n`
-    + `- 촬영목적 변경(상담↔시술↔프로필↔피부관리↔인테리어)\n`
+    + `질문은 "사진이 달라 보이는가"가 아니라 "실제 촬영 Scene이 바뀌었는가"입니다.\n\n`
+    + `[분리 신호 우선순위 — 위에서부터 순서대로만 판단 근거로 사용]\n`
+    + `1. 주체 의료진 변경(보조 직원 등장/퇴장, 사람 수 변화는 제외)\n`
+    + `2. 주요 의료장비/핸드피스 변경(같은 장비의 각도 변화는 제외)\n`
+    + `3. 촬영목적 변경(상담↔시술↔프로필↔피부관리↔인테리어)\n`
+    + `4. 실제 공간(방) 정체성 변경 — 벽·창문·고정 가구 등 고정 구조 자체가 다른 공간이라는\n`
+    + `   근거가 있을 때만. Camera viewpoint changes are NOT room changes: 카메라 위치·각도·줌·\n`
+    + `   크롭·거리·구도·밝기/노출·배경 구성만 달라 보이는 것으로는 roomChanged=true를 주지 마세요\n`
+    + `   (Do not infer a room change from background composition alone).\n`
     + `[SAME_SCENE 우선 — 절대 분리 사유로 쓰지 말 것]\n`
-    + `- 와이드↔클로즈업, 카메라 좌우 이동, 렌즈/거리/포즈 변경, 사람 수 변화, 소도구 변화\n\n`
+    + `- 와이드↔클로즈업, 카메라 좌우 이동, 렌즈/거리/포즈/줌/크롭/구도 변경, 사람 수 변화,\n`
+    + `  소도구/배경 구성/밝기·노출/환자 자세/촬영자 위치 변화\n`
+    + `- 주체 의료진·주요 장비·촬영목적이 모두 동일하다면, 방이 확실히 바뀌었다는 근거가 없는 한\n`
+    + `  SAME_SCENE 쪽으로 판단을 기울이세요.\n\n`
     + `위 관찰 결과의 confidence가 낮거나 애매합니다. 관찰 결과가 이 기준에 맞게 정확한지 검토하고, `
     + `고칠 값이 있으면 그 필드만 포함한 JSON을 반환하세요(예: {"primaryClinicianChanged": false, "confidence": 0.8, "reasons": ["보조 직원 변화일 뿐 주체 의료진은 동일"]}). `
     + `고칠 게 없으면 {}만 반환하세요.`;
