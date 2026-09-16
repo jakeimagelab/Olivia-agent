@@ -48,6 +48,23 @@ describe("Olivia Hermes MCP registry", () => {
     expect(source.parameters!.properties).not.toHaveProperty("requestId");
   });
 
+  // 요청서 §18-5 — Hermes가 존재하지 않는 Tool을 호출해도 앱은 안전하게 실패해야 한다.
+  it("존재하지 않는 Tool 호출은 예외를 던지지 않고 안전하게 실패한다", async () => {
+    const response = await executeHermesOliviaTool({ toolName: "no_such_tool_at_all", input: {} });
+    expect(response.isError).toBe(true);
+    const payload = JSON.parse(response.content[0].text as string);
+    expect(payload).toMatchObject({ success: false, code: "TOOL_NOT_AVAILABLE" });
+  });
+
+  // 차단된 Tool(BLOCKED_TOOLS/DANGEROUS)은 존재하더라도 실행 자체가 거부되어야 한다(§6 DENY).
+  it("BLOCKED 정책의 Tool은 존재해도 실행이 거부된다", async () => {
+    const blockedName = [...BLOCKED_TOOLS][0];
+    const response = await executeHermesOliviaTool({ toolName: blockedName, input: {} });
+    expect(response.isError).toBe(true);
+    const payload = JSON.parse(response.content[0].text as string);
+    expect(payload.success).toBe(false);
+  });
+
   it("create_quote MCP schema가 자연어 견적 V2 필드와 서비스 수정 도구를 노출한다", () => {
     const createQuote = listHermesOliviaTools().find((tool) => tool.name === "create_quote")!;
     const properties = createQuote.inputSchema.properties as Record<string, unknown>;
