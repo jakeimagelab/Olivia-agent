@@ -1322,7 +1322,7 @@ function PhotoSortingInner({
             if (globalIndex <= 0 || globalIndex >= jpgEntries.length || existingBoundaryIndexes.has(globalIndex)) continue;
             existingBoundaryIndexes.add(globalIndex);
             const timeGapMs = Math.max(0, jpgEntries[globalIndex].mtime - jpgEntries[globalIndex - 1].mtime);
-            candidates.push({ boundaryIndex: globalIndex, timeGapMs, visualChangeScore: 0, hardGap: false, strongGap: false, requiresAi: true });
+            candidates.push({ boundaryIndex: globalIndex, timeGapMs, visualChangeScore: 0, hardGap: false, requiresAi: true });
           }
         } catch {
           // 목적 스캔 실패는 치명적이지 않음 — 시각적 경계 후보만으로 계속 진행
