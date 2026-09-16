@@ -91,12 +91,13 @@ export async function createMemory(db: SupabaseClient, input: CreateMemoryInput)
   return data as OliviaMemoryRow;
 }
 
-export async function updateMemory(db: SupabaseClient, id: string, patch: Partial<{ value: Record<string, unknown>; priority: number; scope: string | null; isActive: boolean }>): Promise<OliviaMemoryRow | null> {
+export async function updateMemory(db: SupabaseClient, id: string, patch: Partial<{ value: Record<string, unknown>; priority: number; scope: string | null; isActive: boolean; memoryType: OliviaMemoryType }>): Promise<OliviaMemoryRow | null> {
   const payload: Record<string, unknown> = {};
   if (patch.value !== undefined) payload.value = patch.value;
   if (patch.priority !== undefined) payload.priority = patch.priority;
   if (patch.scope !== undefined) payload.scope = patch.scope;
   if (patch.isActive !== undefined) payload.is_active = patch.isActive;
+  if (patch.memoryType !== undefined) payload.memory_type = patch.memoryType;
   const { data, error } = await db.from("olivia_agent_memory").update(payload).eq("id", id).select("*").single();
   if (error) {
     if (isMissingTableError(error)) throw new Error("Agent Memory 테이블이 아직 없어요. 관리자가 마이그레이션을 적용해야 합니다.");
