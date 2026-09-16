@@ -14,8 +14,6 @@ export type SceneClassificationSettings = {
   sameSceneMaxSeconds: number;
   aiBoundaryStartSeconds: number;
   aiBoundaryEndSeconds: number;
-  /** Gaps at or above this threshold are forced boundaries without AI. */
-  strongSplitStartSeconds: number;
   splitThreshold: number;
   reviewThreshold: number;
   minimumSceneImages: number;
