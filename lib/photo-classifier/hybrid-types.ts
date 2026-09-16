@@ -127,7 +127,7 @@ export type SceneBoundaryFeatures = {
   shotDistanceChangeScore: number;
 };
 
-export type BoundaryDecisionSource = "hard_gap" | "strong_gap" | "local" | "ai" | "ai_fallback" | "user";
+export type BoundaryDecisionSource = "hard_gap" | "local" | "ai" | "ai_fallback" | "user";
 
 export type SceneBoundaryDecision = {
   boundaryIndex: number;
