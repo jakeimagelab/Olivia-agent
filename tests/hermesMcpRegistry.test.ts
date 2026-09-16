@@ -20,6 +20,26 @@ describe("Olivia Hermes MCP registry", () => {
     expect(getHermesToolPolicy("future_olivia_tool")).toBe("open");
   });
 
+  // Olivia OS 2.0 §7 — DANGEROUS는 이름 패턴만으로도 코드 레벨에서 차단되어야 한다(Prompt 의존 금지).
+  it.each([
+    "delete_raw_photos", "move_raw_files", "remove_raw_asset", "raw_file_delete",
+    "exec_shell", "run_shell", "shell_command_run", "system_config_update", "format_disk_now",
+  ])("위험한 이름의 Tool '%s'는 이름만으로 자동 차단된다", (toolName) => {
+    expect(isDangerousToolName(toolName)).toBe(true);
+    expect(getHermesToolPolicy(toolName)).toBe("blocked");
+  });
+
+  it("정상적인 파일/사진 관련 Tool 이름은 위험 패턴에 걸리지 않는다", () => {
+    for (const toolName of ["list_photo_storage_projects", "get_photo_storage_status", "retry_photo_storage_project", "download_quote_pdf"]) {
+      expect(isDangerousToolName(toolName)).toBe(false);
+    }
+  });
+
+  it("실제 등록된 Tool 중 위험 이름 패턴에 걸리는 것이 없다(회귀 방지)", () => {
+    const flagged = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => isDangerousToolName(name));
+    expect(flagged).toEqual([]);
+  });
+
   it("requestId만 MCP correlation 필드로 schema에 자동 합성한다", () => {
     const source = OLIVIA_V2_TOOLS.find((tool) => tool.name === "calendar_add")!;
     const exposed = listHermesOliviaTools().find((tool) => tool.name === "calendar_add")!;
