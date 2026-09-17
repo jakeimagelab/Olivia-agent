@@ -597,6 +597,9 @@ export async function POST(req: NextRequest) {
       // 레거시 GPT로 시작(=Hermes 시도조차 안 함) 셋을 명확히 구분한다. 사용자에게는 이 구분이
       // 전혀 보이지 않으므로 개발/디버깅 전용이다(운영 로그 + non-production message_complete에만 노출).
       let chatRouteLabel: "HERMES" | "FALLBACK" | "LEGACY_GPT" | undefined;
+      // Secure Tunnel 개편 §6 — Hermes가 요청됐지만(requestedEngine) 실제로는 legacy로
+      // 처리됐을 때(actualEngine) 그 이유를 diagnostics에 남긴다.
+      let fallbackReason: string | undefined;
       let closed = false;
       let firstEventMs: number | undefined;
       let modelFirstTokenMs: number | undefined;
