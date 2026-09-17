@@ -124,7 +124,15 @@ export type OliviaStreamEvent =
   | { type: "tool_start"; tool: string; toolCallId: string }
   | { type: "tool_result"; tool: string; toolCallId: string; success: boolean; result?: unknown }
   | { type: "ui_action"; action: OliviaUiAction }
-  | { type: "message_complete"; messageId: string; conversationId?: string; persistedMessageId?: string }
+  | {
+      type: "message_complete";
+      messageId: string;
+      conversationId?: string;
+      persistedMessageId?: string;
+      /** [임시 진단] 이번 응답을 실제로 만든 Brain. production에서는 절대 채우지 않는다 —
+       * 사용자에게 내부 구조를 노출하지 않기 위한 개발 전용 필드. */
+      chatRoute?: "HERMES" | "FALLBACK" | "LEGACY_GPT";
+    }
   | { type: "run_created"; run: OliviaRunStreamPayload }
   | { type: "run_updated"; run: OliviaRunStreamPayload }
   | { type: "run_step_updated"; run: OliviaRunStreamPayload }
