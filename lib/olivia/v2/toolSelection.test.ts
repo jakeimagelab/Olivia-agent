@@ -143,4 +143,43 @@ describe("selectOliviaTools", () => {
     });
     expect(tools.map((tool) => tool.name)).toContain("update_contract_terms");
   });
+
+  it("견적 도메인에 update_quote_payment_terms가 포함된다", () => {
+    const tools = selectOliviaTools({ requestClass: "TOOL_ACTION", message: "선금 30%로 바꿔줘", context: baseContext });
+    expect(tools.map((tool) => tool.name)).toContain("update_quote_payment_terms");
+  });
+});
+
+// Olivia OS 채팅/견적서 수정 로직 개선 — TEST 5. "왜 안 바뀌었어?"류 후속 항의는 새 Intent로
+// 재분류하지 않고 직전 turn의 Tool 실행 기록을 복기시킨다.
+describe("isFollowupComplaint / buildLastActionFollowupHint", () => {
+  it("후속 항의 표현을 감지한다", () => {
+    expect(isFollowupComplaint("왜 안 바꾸는 거야?")).toBe(true);
+    expect(isFollowupComplaint("아직 안 바뀌었는데?")).toBe(true);
+    expect(isFollowupComplaint("그게 아니잖아")).toBe(true);
+    expect(isFollowupComplaint("잔금 100%로 바꿔줘")).toBe(false);
+  });
+
+  it("후속 항의이고 직전 assistant turn에 Tool 기록이 있으면 힌트를 만든다", () => {
+    const rows = [
+      { role: "user", metadata: undefined },
+      {
+        role: "assistant",
+        metadata: { toolCalls: [{ name: "mcp_olivia_update_quote_note", success: true, resourceType: "quote" }] },
+      },
+    ];
+    const hint = buildLastActionFollowupHint("왜 안 바뀌었어?", rows);
+    expect(hint).toContain("update_quote_note(성공, quote)");
+    expect(hint).toContain("직전 작업 기록");
+  });
+
+  it("후속 항의가 아니면 힌트를 만들지 않는다", () => {
+    const rows = [{ role: "assistant", metadata: { toolCalls: [{ name: "update_quote_note", success: false }] } }];
+    expect(buildLastActionFollowupHint("잔금 100%로 바꿔줘", rows)).toBeNull();
+  });
+
+  it("직전 assistant turn에 Tool 기록이 없으면 힌트를 만들지 않는다", () => {
+    const rows = [{ role: "assistant", metadata: {} }];
+    expect(buildLastActionFollowupHint("왜 안 바뀌었어?", rows)).toBeNull();
+  });
 });
