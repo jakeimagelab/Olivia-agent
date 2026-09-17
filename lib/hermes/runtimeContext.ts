@@ -132,6 +132,8 @@ export function buildHermesRuntime(input: {
       ? { canEdit: input.snapshot.canEdit, canFinalize: input.snapshot.canFinalize }
       : undefined,
     workSession,
+    memories: input.memories,
+    compactConversationSummary: input.compactConversationSummary,
   };
 
   const related = workSessionId
