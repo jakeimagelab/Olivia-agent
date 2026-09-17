@@ -154,7 +154,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     setQuoteTitle: dirtySetter("quoteTitle"),
     setSelectedPackageId: dirtySetter("selectedPackageId"),
     setSelectedSingleItemIds: dirtySetter("selectedSingleItemIds"),
-    setSingleItemAmounts: dirtySetter("singleItemAmounts"),
+    setSingleItemNotes: dirtySetter("singleItemNotes"),
     setProfileCount: dirtySetter("profileCount"),
     setStagedCount: dirtySetter("stagedCount"),
     setCombinedProfileStagedCount: dirtySetter("combinedProfileStagedCount"),
