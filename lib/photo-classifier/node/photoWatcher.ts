@@ -376,6 +376,9 @@ export class PhotoStorageWatcher {
         preparedAt: entry.preparedAt,
         status: entry.status,
         message: entry.errorMessage,
+        fileCount: entry.fingerprint.fileCount,
+        totalBytes: entry.fingerprint.totalBytes,
+        firstSeenAt: entry.firstSeenAt,
       });
       entry.serverSyncStatus = "SYNCED";
       entry.serverSyncError = null;
