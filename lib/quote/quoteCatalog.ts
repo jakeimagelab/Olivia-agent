@@ -44,6 +44,7 @@ export const packages: PackageOption[] = [
   }
 ];
 
+// 포토클리닉 단일항목 — 고정 단가 버튼으로 표시된다(QuoteBuilder.tsx의 brand !== "jakeimage" 분기).
 export const singleItems: SingleItem[] = [
   {
     id: "studio-profile",
@@ -71,6 +72,42 @@ export const singleItems: SingleItem[] = [
     price: 1800000
   }
 ];
+
+// 제이크이미지연구소 단일항목 — QuoteBuilder.tsx의 brand === "jakeimage" 분기는 이 price를
+// 화면에 쓰지 않는다(항목을 선택하면 "금액 직접 입력" 칸이 뜨고 singleItemAmounts[id]를 그대로
+// 쓴다) — 그래서 price는 전부 0(미사용 placeholder)이다. 브랜드필름 + 포인트영상은 "영상촬영"
+// 하나로 통합했다.
+export const jakeimageSingleItems: SingleItem[] = [
+  {
+    id: "studio-profile",
+    name: "프로필촬영",
+    price: 0
+  },
+  {
+    id: "sketch",
+    name: "스케치촬영",
+    price: 0
+  },
+  {
+    id: "directing",
+    name: "연출 촬영",
+    price: 0
+  },
+  {
+    id: "interior",
+    name: "인테리어 촬영",
+    price: 0
+  },
+  {
+    id: "video-shoot",
+    name: "영상촬영",
+    price: 0
+  }
+];
+
+export function getSingleItems(brand: Brand): SingleItem[] {
+  return brand === "jakeimage" ? jakeimageSingleItems : singleItems;
+}
 
 export const BRAND_CONFIG: Record<Brand, {
   label: string;
