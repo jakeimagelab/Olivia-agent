@@ -33,7 +33,7 @@ export type QuoteFormState = {
 
 const QUOTE_FORM_KEYS = [
   "customer", "brand", "quoteTitle", "selectedPackageId", "selectedSingleItemIds",
-  "singleItemAmounts", "profileCount", "stagedCount", "combinedProfileStagedCount",
+  "singleItemNotes", "profileCount", "stagedCount", "combinedProfileStagedCount",
   "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems",
   "discountRate", "extraDiscount", "memo", "depositRate",
 ] as const satisfies readonly (keyof QuoteFormState)[];
