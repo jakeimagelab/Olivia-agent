@@ -60,6 +60,58 @@ function logHermesError({ requestId, errorType, httpStatus, startedAt }: HermesE
   });
 }
 
+export type HermesHealthResult = {
+  online: boolean;
+  status?: string;
+  service?: string;
+  host?: string;
+  httpStatus?: number;
+  elapsedMs: number;
+  error?: string;
+};
+
+// Secure Tunnel 개편 §3 — Hermes는 이미 GET /health를 갖고 있다(docs/hermes-client-search-poc-
+// setup.md에 curl 예시로 문서화돼 있음, 새로 만들 필요 없음). 채팅 요청과 완전히 분리된 짧은
+// timeout(5초)을 써서, 이 health check 자체가 채팅 응답을 느리게 만들지 않는다.
+export async function checkHermesHealth(): Promise<HermesHealthResult> {
+  const startedAt = performance.now();
+  let config: { baseUrl: string; apiKey: string; model: string };
+  try {
+    config = getHermesConfig();
+  } catch (error) {
+    return { online: false, elapsedMs: Math.round(performance.now() - startedAt), error: error instanceof Error ? error.message : "Hermes 설정을 확인해주세요." };
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HERMES_HEALTH_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${config.baseUrl}/health`, {
+      headers: { Authorization: `Bearer ${config.apiKey}` },
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    const elapsedMs = Math.round(performance.now() - startedAt);
+    if (!response.ok) return { online: false, httpStatus: response.status, elapsedMs };
+    const body: unknown = await response.json().catch(() => ({}));
+    const record = body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : {};
+    return {
+      online: true,
+      status: typeof record.status === "string" ? record.status : undefined,
+      service: typeof record.service === "string" ? record.service : undefined,
+      host: typeof record.host === "string" ? record.host : undefined,
+      httpStatus: response.status,
+      elapsedMs,
+    };
+  } catch (error) {
+    return {
+      online: false,
+      elapsedMs: Math.round(performance.now() - startedAt),
+      error: controller.signal.aborted ? "Hermes health check 시간이 초과되었습니다." : (error instanceof Error ? error.message : "Hermes에 연결할 수 없습니다."),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // 문서/파일/일정 등 다른 검색 대상이 함께 언급되면 "찾아/검색/조회"가 있어도 고객 검색이 아니다
 // — "사진 찾아줘"/"파일 검색해줘"/"견적서 찾아줘"까지 고객검색으로 오판하면 client.search Tool을
 // 강제하다가(§아래 guardedResponse) 정상적인 문서 검색 요청을 에러로 막아버린다.
