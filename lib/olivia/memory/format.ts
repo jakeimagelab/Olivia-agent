@@ -36,3 +36,54 @@ export function formatMemoryForUser(memory: OliviaMemoryRow): string {
   const summary = JSON.stringify(value);
   return `${memory.key}: ${summary.length > 120 ? `${summary.slice(0, 120)}…` : summary}`;
 }
+
+// Olivia OS 2.0 — Hermes Chat Intelligence Upgrade §2/§3. Hermes에게 넘길 Memory는 raw row가
+// 아니라 이 좁은 모양만 노출한다("모든 Memory를 무조건 넣지 않는다" — caller가 scope로 이미
+// 걸러서 넘긴 것만 여기서 형태만 다듬는다). rule_candidate는 아직 공식 규칙이 아니므로
+// status로 구분해 Hermes가 강제 규칙과 미승인 후보를 혼동하지 않게 한다.
+export type HermesMemoryEntry = {
+  id: string;
+  type: OliviaMemoryType;
+  scope: string | null;
+  content: string;
+  status: "approved" | "candidate";
+  source: string | null;
+};
+
+export function toHermesMemoryEntry(memory: OliviaMemoryRow): HermesMemoryEntry {
+  return {
+    id: memory.id,
+    type: memory.memory_type,
+    scope: memory.scope,
+    content: `${memory.key}: ${JSON.stringify(memory.value)}`,
+    status: memory.memory_type === "rule_candidate" ? "candidate" : "approved",
+    source: memory.source,
+  };
+}
+
+// approved는 강제 규칙으로, candidate는 참고용 후보로 명확히 분리해서 System Prompt에 넣는다
+// (요청서 §3 "Hermes에게 둘의 차이를 명확히 전달한다").
+export function formatHermesMemoryBlock(entries: HermesMemoryEntry[]): string {
+  if (!entries.length) return "";
+  const approved = entries.filter((entry) => entry.status === "approved");
+  const candidates = entries.filter((entry) => entry.status === "candidate");
+  const line = (entry: HermesMemoryEntry) => `- [scope=${entry.scope ?? "전체"}] ${entry.content}`;
+  const blocks: string[] = [];
+  if (approved.length) {
+    blocks.push([
+      "<approved_rules>",
+      "사용자가 이미 승인했거나 확정한 업무 규칙이다. 아래 일반 원칙보다 우선 적용하고 반드시 지킨다.",
+      ...approved.map(line),
+      "</approved_rules>",
+    ].join("\n"));
+  }
+  if (candidates.length) {
+    blocks.push([
+      "<rule_candidates>",
+      "아직 공식 규칙으로 승인되지 않은 반복 패턴 후보다. 참고만 하고 강제 규칙처럼 적용하지 않는다 — approved_rules와 충돌하면 approved_rules를 따른다.",
+      ...candidates.map(line),
+      "</rule_candidates>",
+    ].join("\n"));
+  }
+  return blocks.join("\n");
+}
