@@ -193,6 +193,44 @@ describe("SSD1 photo watcher", () => {
     await first.stop();
   });
 
+  // Olivia OS 2.0 PHASE 6 §5-1 — NAS가 자동 생성하는 휴지통/썸네일 캐시 폴더는 baseline/신규
+  // 감지 어느 쪽에서도 project로 취급하면 안 된다.
+  it("ignores NAS system folders like #recycle/@eaDir", async () => {
+    const { roots, statePath, lockPath } = await testRoots();
+    await mkdir(path.join(roots.sourceRoot, "#recycle"));
+    await mkdir(path.join(roots.sourceRoot, "@eaDir"));
+    await mkdir(path.join(roots.sourceRoot, "0917_real_project"));
+    await writeFile(path.join(roots.sourceRoot, "0917_real_project", "A001.JPG"), "jpg");
+    const watcher = new PhotoStorageWatcher({ roots, statePath, lockPath, stableSeconds: 1, logger: () => undefined });
+    await watcher.scanOnce();
+    const state = await readState(statePath);
+    expect(Object.keys(state.projects)).toEqual(["0917_real_project"]);
+  });
+
+  // Olivia OS 2.0 PHASE 6 §8 — nas-backup-watcher.ts가 BACKUP_READY payload(fileCount/
+  // totalBytes)를 만들 때 이 값들을 그대로 쓴다.
+  it("includes fileCount/totalBytes/firstSeenAt in the ready report", async () => {
+    const { roots, statePath, lockPath } = await testRoots();
+    const baselineWatcher = new PhotoStorageWatcher({ roots, statePath, lockPath, stableSeconds: 1, logger: () => undefined });
+    await baselineWatcher.scanOnce();
+    const project = path.join(roots.sourceRoot, "0917_backup_test");
+    await mkdir(project);
+    await writeFile(path.join(project, "A001.JPG"), "12345");
+    await writeFile(path.join(project, "A002.JPG"), "1234567890");
+    let current = new Date("2026-09-17T00:00:00.000Z");
+    let reported: { fileCount: number; totalBytes: number; firstSeenAt: string } | undefined;
+    const watcher = new PhotoStorageWatcher({
+      roots, statePath, lockPath, stableSeconds: 1, now: () => current, logger: () => undefined,
+      reportReady: async (report) => { reported = report; },
+    });
+    await watcher.scanOnce();
+    await watcher.scanOnce();
+    current = new Date(current.getTime() + 1001);
+    await watcher.scanOnce();
+    expect(reported).toMatchObject({ fileCount: 2, totalBytes: 15 });
+    expect(reported?.firstSeenAt).toBeTruthy();
+  });
+
   it("marks a project symlink as ERROR instead of following it", async () => {
     const { base, roots, statePath, lockPath } = await testRoots();
     const outside = path.join(base, "outside");
