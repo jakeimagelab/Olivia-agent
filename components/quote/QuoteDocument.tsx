@@ -4,7 +4,7 @@
 
 import type { ReactNode, Ref } from "react";
 import { Building2, Mail, MapPin, Phone, Quote, Receipt, UserRound } from "lucide-react";
-import { BRAND_CONFIG, packages, singleItems } from "@/lib/quote/quoteCatalog";
+import { BRAND_CONFIG, packages, getSingleItems } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 import type { BenefitItem, Brand, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
