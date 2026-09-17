@@ -61,6 +61,12 @@ export type PhotoWatcherReadyReport = {
   preparedAt: string | null;
   status: "READY" | "REVIEW_REQUIRED";
   message?: string | null;
+  /** Olivia OS 2.0 PHASE 6 — NAS Backup Watcher(§8)가 fileCount/totalBytes를 그대로 쓸 수
+   * 있도록 전체 fingerprint 총합을 추가로 실어 보낸다. 기존 reportReady 소비자(photo-storage
+   * 리포터)는 이 필드를 참조하지 않으므로 기존 동작에는 영향이 없다. */
+  fileCount: number;
+  totalBytes: number;
+  firstSeenAt: string;
 };
 
 export type PhotoWatcherState = {
