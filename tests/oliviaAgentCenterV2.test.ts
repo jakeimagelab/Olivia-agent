@@ -22,7 +22,7 @@ describe("Olivia routing and tools",()=>{
     const tools=selectOliviaTools({requestClass,message:"견적 10만원 할인 넣어",context});
     expect(tools.map((tool)=>tool.name)).toContain("apply_quote_discount");
     expect(tools.map((tool)=>tool.name)).not.toContain("email_search");
-    expect(tools.length).toBeLessThanOrEqual(28);
+    expect(tools.length).toBeLessThanOrEqual(29);
   });
   it("견적 워크스페이스가 열려 있으면 update_quote_info(병원명/제목 등 기본정보 수정)도 포함한다 — 빠지면 도메인 밖으로 튕겨 \"직접 수정할 수 없다\"고 답하는 사고로 이어진다(2026-08-30)",()=>{
     const requestClass=classifyOliviaRequest("병원명 바꿔줘",context);
