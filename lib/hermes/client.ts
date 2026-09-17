@@ -299,14 +299,30 @@ export async function runHermesChat(input: {
     finalText = "실제 Olivia Tool 실행 결과를 확인하지 못해 완료 여부를 확정할 수 없습니다.";
   }
 
+  // §7 "NO UI ACTION = NO SUCCESS CLAIM" — "열었어요"/"바꿨어요" 같은 화면 전환 완료 주장은
+  // 실제로 성공한 Tool 중 하나라도 uiActions를 만들어냈을 때만 허용한다. open_document/
+  // show_workspace처럼 화면을 바꾸는 Tool은 MCP 실행 시점에 이미 uiActions가 채워져 있으므로
+  // (executeAgentTool → resolveUiActions, lib/hermes/mcp/oliviaToolBridge.ts) 이 시점에 grounding이
+  // 가능하다. mutation 완료 문구와 겹치지 않게 claimsUiExecutionCompletion()은 별도 표현만 본다.
+  const dispatchedUiActionCount = [...toolCalls.values()]
+    .filter((call) => call.success)
+    .reduce((sum, call) => sum + (call.uiActions?.length ?? 0), 0);
+  if (uiExecutionRequest && dispatchedUiActionCount === 0 && claimsUiExecutionCompletion(finalText)) {
+    finalText = "아직 화면을 실제로 바꾸지는 못했어요. 다시 열어볼게요.";
+  }
+
   if (verifiedSearch?.clients.length === 0) {
     finalText = "등록된 고객에서 찾지 못했습니다.";
   } else if (verifiedSearch && verifiedSearch.clients.length > 1) {
     finalText = `등록 고객 후보가 ${verifiedSearch.clients.length}곳 있습니다.\n${verifiedSearch.clients
       .map((client, index) => `${index + 1}. ${client.name}${client.specialty ? ` · ${client.specialty}` : ""}`)
       .join("\n")}`;
-  } else if (verifiedSearch?.clients.length === 1 && !finalText.includes(verifiedSearch.clients[0].name)) {
-    finalText = `${verifiedSearch.clients[0].name} 고객을 찾았습니다.`;
+  } else if (verifiedSearch?.clients.length === 1) {
+    // §11 "검색 결과가 최종 답변을 덮어쓰는 구조 수정" — Tool audit은 사실 검증 용도지, Hermes가
+    // 이미 옳게 답했다면(예: "찾았고 최근 견적서도 열었어요") 이름이 문자 그대로 없다는 이유만으로
+    // 통째로 덮어쓰지 않는다. 실제 검색 결과와 모순되는 부정 답변이거나 빈 텍스트일 때만 보정한다.
+    const contradictsFoundResult = !finalText.trim() || /(찾지\s*못|없습니다|없어요|모르겠)/.test(finalText);
+    if (contradictsFoundResult) finalText = `${verifiedSearch.clients[0].name} 고객을 찾았습니다.`;
   }
 
   if (guardedResponse) input.callbacks?.onTextDelta?.(finalText);
