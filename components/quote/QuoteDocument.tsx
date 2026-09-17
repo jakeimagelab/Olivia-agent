@@ -60,7 +60,7 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
   const state = quoteRowToFormState(row);
   const cfg = BRAND_CONFIG[state.brand];
   const packageItem = packages.find((item) => item.id === state.selectedPackageId);
-  const selectedSingles = singleItems.filter((item) => state.selectedSingleItemIds.includes(item.id));
+  const selectedSingles = getSingleItems(state.brand).filter((item) => state.selectedSingleItemIds.includes(item.id));
   const singleLines = selectedSingles.map((item) => ({
     id: item.id,
     name: item.name,
