@@ -13,7 +13,7 @@ import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useQuoteStore } from "@/lib/store/useQuoteStore";
 import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
-import { packages, singleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
+import { packages, getSingleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 import QuoteDocument, { type QuoteDocumentData } from "@/components/quote/QuoteDocument";
