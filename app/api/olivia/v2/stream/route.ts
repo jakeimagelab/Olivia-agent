@@ -1208,6 +1208,12 @@ export async function POST(req: NextRequest) {
           totalMs: Math.round(performance.now() - requestStartedAt),
           model: activeAgentEngine === "hermes" ? "hermes-agent" : deterministic || persistentAgentRun ? null : model,
           agentEngine: activeAgentEngine,
+          // Secure Tunnel 개편 §6 — useHermes(이번 요청이 Hermes를 쓰려고 했는지)와
+          // activeAgentEngine(실제로 어떤 Brain이 응답을 만들었는지)이 다르면 폴백이 일어난
+          // 것이다. fallbackReason은 폴백이 없었으면 undefined(JSON에서 생략).
+          requestedEngine: useHermes ? "hermes" : "legacy",
+          actualEngine: activeAgentEngine,
+          ...(fallbackReason ? { fallbackReason } : {}),
           requestClass,
           selectedToolCount: selectedTools.length,
           toolRounds,
