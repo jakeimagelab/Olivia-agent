@@ -183,11 +183,11 @@ export function buildQuoteHtml(quote: Record<string, unknown>, opts: { baseUrl?:
 
 <div class="pay-boxes">
   <div class="pay-box">
-    <div class="pt">계약금 (선금 ${Number(quote.deposit_rate) || 50}%)</div>
+    <div class="pt">계약금 (선금 ${depositRateOf(quote)}%)</div>
     <div class="pa">${fmt(quote.deposit_amount)}원</div>
   </div>
   <div class="pay-box">
-    <div class="pt">잔금 (${100 - (Number(quote.deposit_rate) || 50)}%)</div>
+    <div class="pt">잔금 (${100 - depositRateOf(quote)}%)</div>
     <div class="pa">${fmt(quote.balance_amount)}원</div>
   </div>
 </div>
