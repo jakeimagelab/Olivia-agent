@@ -10,6 +10,16 @@ export type QuoteItem = {
 
 export type QuoteItemMatch = { index: number; item: QuoteItem };
 
+// deposit_rate=0(전액 잔금)은 정상 값이다 — `Number(quote.deposit_rate) || 50`처럼 coercion
+// 뒤에 `||`/`??`를 걸면 Number(0)도 falsy라 0이 항상 50으로 되돌아간다(Olivia OS 채팅/견적서
+// 수정 로직 개선 §4/§13 TEST 7). null/undefined인지 원본 값에서 먼저 판별한 뒤에만 기본값을 쓴다.
+export function depositRateOf(quote: Record<string, unknown>): number {
+  const raw = quote?.deposit_rate;
+  if (raw === null || raw === undefined) return 50;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 50;
+}
+
 function normalized(value: unknown) {
   return String(value || "").toLowerCase().replace(/[\s/_-]+/g, "");
 }
