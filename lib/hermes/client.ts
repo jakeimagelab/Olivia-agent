@@ -321,7 +321,9 @@ export async function runHermesChat(input: {
     // §11 "검색 결과가 최종 답변을 덮어쓰는 구조 수정" — Tool audit은 사실 검증 용도지, Hermes가
     // 이미 옳게 답했다면(예: "찾았고 최근 견적서도 열었어요") 이름이 문자 그대로 없다는 이유만으로
     // 통째로 덮어쓰지 않는다. 실제 검색 결과와 모순되는 부정 답변이거나 빈 텍스트일 때만 보정한다.
-    const contradictsFoundResult = !finalText.trim() || /(찾지\s*못|없습니다|없어요|모르겠)/.test(finalText);
+    const contradictsFoundResult = !finalText.trim()
+      || finalText === "응답을 생성하지 못했습니다."
+      || /(찾지\s*못|없습니다|없어요|모르겠)/.test(finalText);
     if (contradictsFoundResult) finalText = `${verifiedSearch.clients[0].name} 고객을 찾았습니다.`;
   }
 
