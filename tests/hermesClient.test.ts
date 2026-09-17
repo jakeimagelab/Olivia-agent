@@ -278,7 +278,7 @@ describe("Hermes chat adapter", () => {
     vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
     vi.stubEnv("HERMES_API_KEY", "secret");
     vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> };
       const system = body.messages.find((message) => message.role === "system")?.content ?? "";
       const requestId = system.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
       recordHermesClientSearch(requestId, { success: true, result: {
