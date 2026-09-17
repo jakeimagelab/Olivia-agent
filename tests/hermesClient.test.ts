@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  claimsUiExecutionCompletion, getOliviaAgentEngine, isClientSearchRequest, isHermesFallbackSafe,
-  isMutationIntent, isUiExecutionIntent, runHermesChat,
+  claimsUiExecutionCompletion, extractRequestedDocumentName, getOliviaAgentEngine, isClientSearchRequest,
+  isHermesFallbackSafe, isMutationIntent, isUiExecutionIntent, runHermesChat,
 } from "@/lib/hermes/client";
 import { recordHermesClientSearch, recordHermesToolCall } from "@/lib/hermes/toolAudit";
 
