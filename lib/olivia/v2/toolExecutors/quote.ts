@@ -352,10 +352,16 @@ export async function executeQuoteTool(
       throw new Error("선금/잔금 비율을 0~100 사이로 알려주세요.");
     }
     const amounts = recalculateQuote(quoteItems(quote.items), { ...quote, deposit_rate: depositRate });
+    // form_state.depositRate는 deposit_rate 컬럼과 별개로 저장되는 값이라(QuoteBuilder.tsx의
+    // 로컬 편집 상태 매핑, lib/quote/quoteRowMapping.ts가 이 값만 읽는다) 컬럼만 바꾸면 화면
+    // 편집기는 예전 값을 계속 보여준다 — apply_quote_discount 등 다른 tool과 동일하게 두 곳을
+    // 함께 갱신한다(스펙 §5 "UI 즉시 반영").
+    const formState = { ...quoteFormState(quote), depositRate };
     const updatedResource = await saveQuote(resourceId, {
       deposit_rate: depositRate,
       deposit_amount: amounts.depositAmount,
       balance_amount: amounts.balanceAmount,
+      form_state: formState,
     });
     // deposit_rate=0도 정상 값이므로 == null만 실패로 본다(스펙 §4/§13 TEST 7) — !=(느슨한 비교)로
     // "50" 같은 문자열/숫자 차이까지 실패 처리하지 않는다.
