@@ -52,6 +52,7 @@ const PAGE_TOOL_CAPABILITY: Readonly<Record<string, string>> = {
   remove_quote_item: "quote.edit",
   update_quote_note: "quote.edit",
   update_quote_info: "quote.edit",
+  update_quote_payment_terms: "quote.edit",
   update_quote_vat_mode: "quote.edit",
   rebalance_quote_total: "quote.edit",
   apply_quote_rebalance: "quote.edit",
