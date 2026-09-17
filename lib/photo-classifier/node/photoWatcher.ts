@@ -97,7 +97,13 @@ export type PhotoStorageWatcherOptions = {
   reportReady?: (report: PhotoWatcherReadyReport) => Promise<void>;
 };
 
-const SYSTEM_PROJECT_NAMES = new Set([".DS_Store", ".Trashes", ".Spotlight-V100", ".fseventsd"]);
+// #recycle/@Recycle/@eaDir는 Synology 등 NAS가 자동 생성하는 휴지통/썸네일 캐시 폴더다 —
+// 실제 촬영 프로젝트가 아니므로 baseline/신규 감지 어느 쪽에서도 절대 project로 취급하지
+// 않는다(Olivia OS 2.0 PHASE 6 §5-1).
+const SYSTEM_PROJECT_NAMES = new Set([
+  ".DS_Store", ".Trashes", ".Spotlight-V100", ".fseventsd",
+  "#recycle", "@Recycle", "@eaDir",
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
