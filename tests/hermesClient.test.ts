@@ -262,6 +262,47 @@ describe("Hermes chat adapter", () => {
     expect(result.message).toBe("최근 견적서를 열었어요.");
   });
 
+  it("요청한 이름을 추출한다(§10/TEST 6)", () => {
+    expect(extractRequestedDocumentName("제이크이미지연구소 견적서 열어줘")).toBe("제이크이미지연구소");
+    expect(extractRequestedDocumentName("그거 견적서 열어줘")).toBeNull();
+    expect(extractRequestedDocumentName("아까 얘기한 거 다시 보여줘")).toBeNull();
+  });
+
+  // Olivia OS 채팅/견적서 수정 로직 개선 §10 — TEST 6: "제이크이미지연구소 견적서 열어줘"에서
+  // 실제로 다른 고객(청담스시)의 견적서가 열렸다면 "열었어요"라는 완료 주장을 그대로 내보내지
+  // 않는다. uiActions 자체는 실제로 발생했으므로(§7 가드는 통과) 이름 불일치를 별도로 잡는다.
+  it("다른 고객의 견적서가 열렸으면 완료 주장을 차단한다(TEST 6)", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesToolCall(requestId, "open_document", {
+        success: true, mode: "ui", data: { workspace: "quote", resourceId: "quote-1", hospitalName: "청담스시" },
+        uiActions: [{ type: "SWITCH_WORKSPACE", workspace: "quote", resourceId: "quote-1" }],
+      });
+      return sse("제이크이미지연구소 견적서를 열었어요.");
+    }));
+    const result = await runHermesChat({ message: "제이크이미지연구소 견적서 열어줘" });
+    expect(result.message).not.toContain("열었어요");
+  });
+
+  it("같은 고객의 견적서가 열렸으면 완료 주장을 그대로 인정한다(TEST 6 반대 사례)", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesToolCall(requestId, "open_document", {
+        success: true, mode: "ui", data: { workspace: "quote", resourceId: "quote-1", hospitalName: "제이크이미지연구소" },
+        uiActions: [{ type: "SWITCH_WORKSPACE", workspace: "quote", resourceId: "quote-1" }],
+      });
+      return sse("제이크이미지연구소 견적서를 열었어요.");
+    }));
+    const result = await runHermesChat({ message: "제이크이미지연구소 견적서 열어줘" });
+    expect(result.message).toBe("제이크이미지연구소 견적서를 열었어요.");
+  });
+
   // 순수 검색 요청(§20 TEST 2)에는 UI 실행 완료 주장 가드가 아예 적용되지 않는다 — "찾아줘"는
   // isUiExecutionIntent에 걸리지 않으므로 open 없이 "찾았습니다"만 답해도 차단되지 않는다.
   it("검색만 요청했으면 open 없이도 완료 주장 가드가 적용되지 않는다(TEST 2)", async () => {
