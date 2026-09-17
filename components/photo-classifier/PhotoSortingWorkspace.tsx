@@ -703,6 +703,23 @@ function PhotoSortingInner({
   const [dirPickError, setDirPickError] = useState("");
   const [photoSourcePickerOpen, setPhotoSourcePickerOpen] = useState(false);
   const [remoteSelection, setRemoteSelection] = useState<RemoteNasSelection | null>(null);
+  // Olivia OS 2.0 PHASE 6 §11 — BACKUP_READY 알림의 "분류 시작"이 NAS 폴더 탐색을 대신 해주는
+  // prefill이다. 파라미터가 있으면 폴더 선택 단계만 건너뛰고, department/gap_minutes 등 분류
+  // 설정은 그대로 이 화면에서 사용자가 확정하게 둔다(기존 PHOTO_SORT 파라미터 수집 로직 재사용).
+  const remoteFolderPrefillApplied = useRef(false);
+  useEffect(() => {
+    if (remoteFolderPrefillApplied.current || executionMode !== "REMOTE_WORKER") return;
+    const rawFolder = sp.get("remoteFolder");
+    if (!rawFolder) return;
+    remoteFolderPrefillApplied.current = true;
+    try {
+      const path = normalizeRemoteNasRelativePath(rawFolder);
+      if (!path) return;
+      setRemoteSelection({ path, displayPath: toRemoteNasDisplayPath(path), rootName: REMOTE_NAS_ROOT_NAME });
+    } catch {
+      // 잘못된 경로면 조용히 무시하고 기존처럼 사용자가 직접 폴더를 선택하게 둔다.
+    }
+  }, [executionMode, sp]);
   const [remotePhotoSortError, setRemotePhotoSortError] = useState("");
   const [remotePhotoSortSubmitting, setRemotePhotoSortSubmitting] = useState(false);
   const remotePhotoSortAbortRef = useRef<AbortController | null>(null);
