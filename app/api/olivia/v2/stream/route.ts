@@ -686,6 +686,10 @@ export async function POST(req: NextRequest) {
         const pendingPromptHint = pendingTurn === "correction" && pendingAction
           ? `[사용자가 수정한 직전 승인안]\n${pendingAction.prompt}\n기존 입력은 실행하지 말고 이번 메시지의 새 조건으로 다시 계산하거나 확인한다.`
           : pendingActionPromptContext(pendingAction);
+        // §7/§8 "왜 안 바뀌는 거야?" 같은 후속 항의를 새 Intent로 재분류하지 않는다 — 직전
+        // turn에 실제로 어떤 Tool이 실행됐는지(성공/실패)를 짧게 복기시킨다.
+        const lastActionHint = buildLastActionFollowupHint(rawMessage, history);
+        const historyHint = [pendingPromptHint, lastActionHint].filter(Boolean).join("\n\n") || undefined;
         if (pendingAction) effectiveContext = resolvePendingActionContext(effectiveContext, pendingAction);
         const canonicalRecentUserText = buildCanonicalRecentUserText(history);
         const effectiveRecentUserText = [canonicalRecentUserText, recentUserText].filter(Boolean).join("\n");
