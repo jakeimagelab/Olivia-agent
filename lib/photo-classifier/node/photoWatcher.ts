@@ -222,10 +222,12 @@ export async function fingerprintPhotoProject(projectRoot: string): Promise<Phot
   return fingerprint;
 }
 
+const SYSTEM_PROJECT_NAMES_LOWER = new Set([...SYSTEM_PROJECT_NAMES].map((name) => name.toLocaleLowerCase("en-US")));
+
 async function listProjects(sourceRoot: string): Promise<string[]> {
   const result: string[] = [];
   for (const entry of await readdir(sourceRoot, { withFileTypes: true })) {
-    if (entry.name.startsWith(".") || SYSTEM_PROJECT_NAMES.has(entry.name)) continue;
+    if (entry.name.startsWith(".") || SYSTEM_PROJECT_NAMES_LOWER.has(entry.name.toLocaleLowerCase("en-US"))) continue;
     if (entry.isSymbolicLink()) {
       result.push(entry.name);
       continue;
