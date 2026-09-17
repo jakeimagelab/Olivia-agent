@@ -85,7 +85,7 @@ function serviceCount(value: unknown, current: number | null | undefined) {
 
 export const QUOTE_TOOL_NAMES = [
   "create_quote", "get_quote", "start_quote_wizard", "update_quote_item", "add_quote_item", "remove_quote_item",
-  "update_quote_note", "update_quote_info", "update_quote_service", "apply_quote_discount", "update_quote_vat_mode",
+  "update_quote_note", "update_quote_info", "update_quote_payment_terms", "update_quote_service", "apply_quote_discount", "update_quote_vat_mode",
   "rebalance_quote_total", "apply_quote_rebalance", "preview_quote", "request_quote_publish",
   "download_quote_pdf", "publish_quote", "resolve_quote_client", "link_new_client_to_quote",
 ] as const;
