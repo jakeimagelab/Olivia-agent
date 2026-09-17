@@ -1,4 +1,4 @@
-import type { OliviaMemoryRow } from "./types";
+import type { OliviaMemoryRow, OliviaMemoryType } from "./types";
 
 // 시스템 프롬프트에 주입할 형태 — 모델이 읽을 것이므로 JSON을 그대로 줘도 된다(정밀함 우선).
 export function formatMemoryForPrompt(memory: OliviaMemoryRow): string {
