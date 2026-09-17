@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuoteStore } from "@/lib/store/useQuoteStore";
-import { packages, singleItems } from "@/lib/quote/quoteCatalog";
+import { packages, getSingleItems } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
 
