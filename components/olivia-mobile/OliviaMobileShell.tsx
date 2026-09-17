@@ -84,7 +84,13 @@ export default function OliviaMobileShell() {
   return (
     <OliviaUiSurfaceProvider value="mobile">
       <main className={styles.shell} data-olivia-mobile-shell>
-        <div className={styles.viewport}>{screen}</div>
+        <div className={styles.viewport}>
+          {/* key로 view가 바뀔 때 바운더리를 새로 마운트한다 — 한 화면에서 난 에러가 다른
+              화면으로 넘어간 뒤에도 남아있지 않게 한다. */}
+          <MobileErrorBoundary key={navigation.view} onGoHome={() => navigate({ view: "home" }, "replace")}>
+            {screen}
+          </MobileErrorBoundary>
+        </div>
         {navigation.view === "preview" ? null : (
           <MobileBottomNav activeView={primaryViewForNavigation(navigation)} onNavigate={navigatePrimary} />
         )}
