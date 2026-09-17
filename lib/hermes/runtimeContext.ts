@@ -83,9 +83,16 @@ export function buildHermesRuntime(input: {
     clientId: input.snapshot.activeClientId,
     projectId: input.snapshot.activeProjectId,
   } : undefined;
-  const recentResource = referencesPreviousWork(input.message) ? recentResources[0] : undefined;
-  // Reply가 가장 강한 명시적 참조이고, 그 다음은 지금 실제 UI에 열린 resource다.
-  const resource = replyResource || snapshotResource || recentResource;
+  // §17 "Active UI와 대화 대상 불일치 처리" — "그럼 바꿔줘"/"열어"처럼 이번 메시지 자체에는
+  // 대상이 없는 후속 실행 명령이면, 지금 실제 열려 있는 화면(snapshotResource)보다 방금 전
+  // turn에서 이미 찾아둔 resource를 우선한다. 안 그러면 채팅에서 찾은 문서와 실제 열린 화면이
+  // 다를 때(예: 채팅=최근 견적 A, 화면=견적 B) "바꿔줘"가 지금 열린 B를 다시 골라버려서
+  // 사용자가 원한 A로 전환되지 않는다. isExternalFileTask면 이 메시지가 가리키는 대상이 아예
+  // 문서 workspace가 아니므로("다운로드 사진 4500으로 바꿔") 이 우선순위를 적용하지 않는다.
+  const followupReference = (referencesPreviousWork(input.message) || isUiExecutionFollowup(input.message))
+    && !isExternalFileTask(input.message);
+  const recentResource = followupReference ? recentResources[0] : undefined;
+  const resource = replyResource || (followupReference && recentResource) || snapshotResource || recentResource;
   const workSessionId = resource?.workSessionId || (resource ? `resource:${resource.type}:${resource.id}` : undefined);
   const workSession = workSessionId ? {
     id: workSessionId,
