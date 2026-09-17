@@ -38,11 +38,12 @@
        (User LaunchAgent 자체가 이미 그 조건을 보장한다 — LaunchDaemon과 달리 root로
        실행되지 않는다). -->
 
+  <!-- §4/§14 기존 OliviaWorker/logs 디렉터리를 그대로 쓴다(이미 존재, 새 폴더 안 만듦). -->
   <key>StandardOutPath</key>
-  <string><OLIVIA_REPO_PATH>/logs/nas-watcher.stdout.log</string>
+  <string>/Users/jakemacstudio/OliviaWorker/logs/nas-watcher.stdout.log</string>
 
   <key>StandardErrorPath</key>
-  <string><OLIVIA_REPO_PATH>/logs/nas-watcher.stderr.log</string>
+  <string>/Users/jakemacstudio/OliviaWorker/logs/nas-watcher.stderr.log</string>
 
   <key>EnvironmentVariables</key>
   <dict>
