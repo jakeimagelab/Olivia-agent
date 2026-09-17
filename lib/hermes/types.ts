@@ -2,6 +2,7 @@ import type { OliviaClientSearchResult } from "@/lib/olivia/clientSearch";
 import type { AssistantChannel } from "@/lib/assistant/types";
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
+import type { HermesMemoryEntry } from "@/lib/olivia/memory/format";
 
 export type HermesChatMessage = {
   role: "user" | "assistant";
