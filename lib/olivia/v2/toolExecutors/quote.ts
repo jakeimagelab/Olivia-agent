@@ -332,6 +332,58 @@ export async function executeQuoteTool(
     };
   }
 
+  if (name === "update_quote_payment_terms") {
+    // Olivia OS 채팅/견적서 수정 로직 개선 — "선금 50%, 잔금 50%를 잔금 100%로 바꿔"류 요청이
+    // 이 전용 필드 도구가 없어서 update_quote_note(메모)로 잘못 빠졌다(원인 분석 §1/§3). 계약서의
+    // update_contract_terms와 정확히 같은 패턴(입력 검증 → 저장 → read-back 강제 검증)을 쓴다 —
+    // 새 검증 체계를 만들지 않는다.
+    const resourceId = activeResource(context, "quote");
+    const quote = await loadQuote(resourceId);
+    const rawDeposit = input.depositPercent;
+    const rawBalance = input.balancePercent;
+    let depositRate: number | undefined;
+    if (rawDeposit != null) {
+      depositRate = parseKoreanPercent(rawDeposit as string | number);
+    } else if (rawBalance != null) {
+      const balanceRate = parseKoreanPercent(rawBalance as string | number);
+      depositRate = balanceRate == null ? undefined : 100 - balanceRate;
+    }
+    if (depositRate == null || !Number.isFinite(depositRate) || depositRate < 0 || depositRate > 100) {
+      throw new Error("선금/잔금 비율을 0~100 사이로 알려주세요.");
+    }
+    const amounts = recalculateQuote(quoteItems(quote.items), { ...quote, deposit_rate: depositRate });
+    const updatedResource = await saveQuote(resourceId, {
+      deposit_rate: depositRate,
+      deposit_amount: amounts.depositAmount,
+      balance_amount: amounts.balanceAmount,
+    });
+    // deposit_rate=0도 정상 값이므로 == null만 실패로 본다(스펙 §4/§13 TEST 7) — !=(느슨한 비교)로
+    // "50" 같은 문자열/숫자 차이까지 실패 처리하지 않는다.
+    const savedDepositRate = updatedResource.deposit_rate == null ? null : Number(updatedResource.deposit_rate);
+    if (savedDepositRate !== depositRate) {
+      throw new Error(`결제 조건 저장 검증이 일치하지 않아요: 요청 ${depositRate}% / 저장 ${savedDepositRate}%`);
+    }
+    return {
+      tool: name,
+      success: true,
+      data: {
+        resourceId,
+        quoteId: resourceId,
+        updatedResource,
+        depositPercent: savedDepositRate,
+        balancePercent: 100 - savedDepositRate,
+        summary: `결제 조건을 선금 ${savedDepositRate}%, 잔금 ${100 - savedDepositRate}%로 변경했어요.`,
+        totalAmount: amounts.totalAmount,
+      },
+      // 요청값이 아니라 updatedResource(실제 DB round-trip 결과)의 deposit_rate/deposit_amount를
+      // verification details로 남긴다(스펙 §14/§6 "실제 결과 확인").
+      verification: createVerification({
+        executed: true, persisted: true, resourceExists: true,
+        details: { depositPercent: savedDepositRate, balancePercent: 100 - savedDepositRate, depositAmount: Number(updatedResource.deposit_amount) || 0, balanceAmount: Number(updatedResource.balance_amount) || 0 },
+      }),
+    };
+  }
+
   if (name === "update_quote_service") {
     const resourceId = activeResource(context, "quote");
     const quote = await loadQuote(resourceId);
