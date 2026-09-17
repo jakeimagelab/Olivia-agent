@@ -274,7 +274,7 @@ export function buildAgentQuoteData(input: Record<string, any>, workflowRunId?: 
       quoteTitle: title,
       selectedPackageId: pricingMode === "package" ? packageId : null,
       selectedSingleItemIds: [],
-      singleItemAmounts: {},
+      singleItemNotes: {},
       profileCount: pricingMode === "package" ? Number(input.profileCount) || 0 : 0,
       stagedCount: pricingMode === "package" ? Number(input.stagedCount) || 0 : 0,
       combinedProfileStagedCount: 0,
