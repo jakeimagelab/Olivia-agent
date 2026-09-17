@@ -26,11 +26,37 @@ export function getOliviaAgentEngine(): "legacy" | "hermes" {
   return process.env.OLIVIA_AGENT_ENGINE?.trim().toLowerCase() === "hermes" ? "hermes" : "legacy";
 }
 
+// Secure Tunnel 전환(Olivia↔Hermes network topology 개편) — HERMES_API_SECRET을 새 표준
+// 이름으로 쓰되, 기존 PoC부터 쓰던 HERMES_API_KEY도 그대로 인식한다(둘 다 있으면 SECRET 우선).
+// 이름을 강제로 바꾸면 이미 HERMES_API_KEY로 설정된 운영 환경이 조용히 깨진다.
 function getHermesConfig() {
   const baseUrl = process.env.HERMES_BASE_URL?.trim().replace(/\/+$/, "");
-  const apiKey = process.env.HERMES_API_KEY?.trim();
+  const apiKey = process.env.HERMES_API_SECRET?.trim() || process.env.HERMES_API_KEY?.trim();
   if (!baseUrl || !apiKey) throw new HermesChatError("Hermes Agent 환경변수 설정을 확인해주세요.", true);
+  if (/^(https?:\/\/)?100\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?/.test(baseUrl)) {
+    // Tailscale 대역(CGNAT 100.64.0.0/10)은 Vercel 서버리스에서 원천적으로 도달 불가능하다 —
+    // 여기서 막지 않으면 매 요청이 타임아웃까지 기다린 뒤에야 실패한다(네트워크 토폴로지 개편의
+    // 이유 그 자체). Secure Tunnel(Cloudflare Tunnel 등)의 공개 HTTPS 주소로 바꿔야 한다.
+    console.warn("[HERMES CONFIG] HERMES_BASE_URL이 Tailscale private IP(100.x.x.x)입니다 — Vercel에서 도달할 수 없습니다. Secure Tunnel의 공개 URL로 바꿔주세요.");
+  }
   return { baseUrl, apiKey, model: process.env.HERMES_MODEL?.trim() || "hermes-agent" };
+}
+
+type HermesErrorLogInput = {
+  requestId: string;
+  errorType: "fetch_failed" | "timeout" | "http_error" | "stream_error";
+  httpStatus?: number;
+  startedAt: number;
+};
+
+// 토큰/secret은 절대 남기지 않는다(스펙 §4) — requestId/errorType/httpStatus/elapsedMs만.
+function logHermesError({ requestId, errorType, httpStatus, startedAt }: HermesErrorLogInput): void {
+  console.warn("[HERMES ERROR]", {
+    requestId,
+    errorType,
+    httpStatus: httpStatus ?? null,
+    elapsedMs: Math.round(performance.now() - startedAt),
+  });
 }
 
 // 문서/파일/일정 등 다른 검색 대상이 함께 언급되면 "찾아/검색/조회"가 있어도 고객 검색이 아니다
