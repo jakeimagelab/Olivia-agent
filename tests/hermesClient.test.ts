@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getOliviaAgentEngine, isClientSearchRequest, isHermesFallbackSafe, isMutationIntent, runHermesChat } from "@/lib/hermes/client";
+import {
+  claimsUiExecutionCompletion, getOliviaAgentEngine, isClientSearchRequest, isHermesFallbackSafe,
+  isMutationIntent, isUiExecutionIntent, runHermesChat,
+} from "@/lib/hermes/client";
 import { recordHermesClientSearch, recordHermesToolCall } from "@/lib/hermes/toolAudit";
 
 function sse(text: string) {
