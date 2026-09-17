@@ -243,7 +243,9 @@ export async function runHermesChat(input: {
     if (buffer.trim()) handleEvent(buffer);
   } catch {
     clearHermesExecutionContext(requestId);
-    if (controller.signal.aborted && !input.signal?.aborted) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", false);
+    const timedOut = controller.signal.aborted && !input.signal?.aborted;
+    logHermesError({ requestId, errorType: timedOut ? "timeout" : "stream_error", startedAt });
+    if (timedOut) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", false);
     throw new HermesChatError("Hermes Agent 응답을 받는 중 문제가 발생했습니다.", false);
   } finally {
     clearTimeout(timeout);
