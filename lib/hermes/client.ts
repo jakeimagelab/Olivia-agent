@@ -163,7 +163,9 @@ export async function runHermesChat(input: {
     clearHermesExecutionContext(requestId);
     clearTimeout(timeout);
     input.signal?.removeEventListener("abort", abort);
-    if (controller.signal.aborted && !input.signal?.aborted) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", true);
+    const timedOut = controller.signal.aborted && !input.signal?.aborted;
+    logHermesError({ requestId, errorType: timedOut ? "timeout" : "fetch_failed", startedAt });
+    if (timedOut) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", true);
     throw new HermesChatError("Hermes Agent에 연결할 수 없습니다. Mac Studio Hermes Server 상태를 확인해주세요.", true);
   }
 
@@ -171,6 +173,7 @@ export async function runHermesChat(input: {
     clearHermesExecutionContext(requestId);
     clearTimeout(timeout);
     input.signal?.removeEventListener("abort", abort);
+    logHermesError({ requestId, errorType: "http_error", httpStatus: response.status, startedAt });
     throw new HermesChatError(response.status === 401
       ? "Hermes Agent 인증 설정을 확인해주세요."
       : "Hermes Agent에 연결할 수 없습니다. Mac Studio Hermes Server 상태를 확인해주세요.", true);
