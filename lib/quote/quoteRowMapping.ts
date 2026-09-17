@@ -32,7 +32,7 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
       quoteTitle: formState.quoteTitle ?? "",
       selectedPackageId: formState.selectedPackageId ?? null,
       selectedSingleItemIds: formState.selectedSingleItemIds ?? [],
-      singleItemAmounts: formState.singleItemAmounts ?? {},
+      singleItemNotes: formState.singleItemNotes ?? {},
       profileCount: formState.profileCount ?? 0,
       stagedCount: formState.stagedCount ?? 0,
       combinedProfileStagedCount: formState.combinedProfileStagedCount ?? 0,
