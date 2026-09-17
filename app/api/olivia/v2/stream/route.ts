@@ -995,7 +995,7 @@ export async function POST(req: NextRequest) {
         // 실행 순서 자체는 항상 모델이 나열한 순서 그대로 보장된다(2026-08-15, 코드 요청서 1번 항목).
         let request: StreamingRequest = {
           instructions,
-          input: toInputMessages(history, message, effectiveContext, [pageContext, pendingPromptHint].filter(Boolean).join("\n\n") || undefined, temporalHint),
+          input: toInputMessages(history, message, effectiveContext, [pageContext, historyHint].filter(Boolean).join("\n\n") || undefined, temporalHint),
           tools: selectedTools,
           parallel_tool_calls: true,
           ...(requiredFollowupTool ? { tool_choice: { type: "function" as const, name: requiredFollowupTool } } : {}),
