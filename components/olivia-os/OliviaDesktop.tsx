@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { loadDesktopState, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { HomeDashboardDataProvider } from "@/components/dashboard/HomeDashboardData";
 import { useOliviaDesktopContextBridge } from "./useOliviaDesktopContextBridge";
@@ -9,6 +9,7 @@ import { DesktopSurface } from "./DesktopSurface";
 import { DesktopDock } from "./DesktopDock";
 import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { DesktopSystemOverlay, type DesktopOverlayKind, type WallpaperMode } from "./DesktopSystemOverlay";
+import { BackupReadyNotifications } from "./BackupReadyNotifications";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import styles from "./OliviaDesktop.module.css";
 
