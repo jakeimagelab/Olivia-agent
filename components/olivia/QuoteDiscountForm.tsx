@@ -40,6 +40,7 @@ export default function QuoteDiscountForm({ flowId }: { flowId: string }) {
 
   const selectedPackage = packages.find((item) => item.id === selectedPackageId) ?? null;
   const packageTotal = selectedPackage?.price ?? 0;
+  const singleItems = getSingleItems(brand);
   const singleItemsTotal = (selectedSingleItemIds ?? []).reduce((sum, id) => {
     const item = singleItems.find((candidate) => candidate.id === id);
     if (!item) return sum;
