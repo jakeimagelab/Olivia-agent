@@ -945,10 +945,12 @@ export async function POST(req: NextRequest) {
             if (req.signal.aborted || hermesStartedOutput || !isBrainFallbackSafe(hermesError) || !process.env.OPENAI_API_KEY || !model) throw hermesError;
             activeAgentEngine = "legacy";
             chatRouteLabel = "FALLBACK";
+            fallbackReason = hermesError instanceof Error ? hermesError.message : "unknown";
             console.warn(`[CHAT ROUTE] ${chatRouteLabel}`, {
               requestId,
-              reason: "Hermes unavailable before output; switching to cloud fallback",
-              error: hermesError instanceof Error ? hermesError.message : "unknown",
+              requestedEngine: "hermes",
+              actualEngine: "legacy",
+              fallbackReason,
             });
             send({ type: "agent_status", status: "클라우드 Olivia로 연결을 전환하는 중…" });
           }
