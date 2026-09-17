@@ -26,7 +26,7 @@ import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRe
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
 import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
 import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
-import { buildCanonicalRecentUserText, getOliviaToolDomains, isReadOnlyOliviaTool, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
+import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, isReadOnlyOliviaTool, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
 import { listActiveMemories } from "@/lib/olivia/memory/repository";
 import { formatMemoryForPrompt, toHermesMemoryEntry } from "@/lib/olivia/memory/format";
 import type { OliviaMemoryRow } from "@/lib/olivia/memory/types";
