@@ -72,7 +72,7 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
     quoteTitle: row.title || "",
     selectedPackageId: null,
     selectedSingleItemIds: [],
-    singleItemAmounts: {},
+    singleItemNotes: {},
     profileCount: 0,
     stagedCount: 0,
     combinedProfileStagedCount: 0,
