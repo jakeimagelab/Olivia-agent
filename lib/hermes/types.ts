@@ -26,6 +26,10 @@ export type HermesChatContext = OliviaContextSnapshot & {
   todayDate?: string;
   /** 사용자가 지금 캘린더에서 보고 있는 날짜. 메시지에 날짜가 전혀 없으면 이 날짜를 기본값으로 쓴다. */
   focusDate?: string;
+  /** 현재 요청과 관련된 scope로만 미리 걸러 넘긴 Adaptive Memory. §2 "모든 Memory를 무조건 넣지 않는다". */
+  memories?: HermesMemoryEntry[];
+  /** 최근 12개 메시지 밖의 더 오래된 대화를 사실 기반으로 압축한 요약. §4C. */
+  compactConversationSummary?: string;
 };
 
 export type HermesToolCallRecord = {
