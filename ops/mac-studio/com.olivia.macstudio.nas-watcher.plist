@@ -49,6 +49,9 @@
   <dict>
     <key>PATH</key>
     <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    <!-- §4 상태 파일을 OliviaWorker/state 아래에 둔다(기존 폴더 구조 재사용). -->
+    <key>OLIVIA_NAS_WATCH_STATE_PATH</key>
+    <string>/Users/jakemacstudio/OliviaWorker/state/nas-watcher.json</string>
   </dict>
 </dict>
 </plist>
