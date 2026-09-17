@@ -935,8 +935,10 @@ export async function POST(req: NextRequest) {
           } catch (hermesError) {
             if (req.signal.aborted || hermesStartedOutput || !isBrainFallbackSafe(hermesError) || !process.env.OPENAI_API_KEY || !model) throw hermesError;
             activeAgentEngine = "legacy";
-            console.warn("[olivia-v2] Hermes unavailable before output; switching to cloud fallback", {
+            chatRouteLabel = "FALLBACK";
+            console.warn(`[CHAT ROUTE] ${chatRouteLabel}`, {
               requestId,
+              reason: "Hermes unavailable before output; switching to cloud fallback",
               error: hermesError instanceof Error ? hermesError.message : "unknown",
             });
             send({ type: "agent_status", status: "클라우드 Olivia로 연결을 전환하는 중…" });
