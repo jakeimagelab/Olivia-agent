@@ -708,6 +708,11 @@ export async function POST(req: NextRequest) {
             selectedToolCount: selectedTools.length,
           });
         }
+        // [임시 진단] production에서는 절대 노출하지 않는다 — VERCEL_ENV가 있으면(Vercel 배포)
+        // 그 값을 기준으로, 없으면(순수 로컬) NODE_ENV를 기준으로 판단한다.
+        const isDevDiagnostics = process.env.VERCEL_ENV
+          ? process.env.VERCEL_ENV !== "production"
+          : process.env.NODE_ENV !== "production";
         const saveTurnAssistant = async (content: string, metadata: Record<string, unknown>) => {
           const saved = await saveAssistantMessage(db, {
             ownerId: owner.id,
@@ -725,6 +730,7 @@ export async function POST(req: NextRequest) {
             messageId,
             conversationId: conversation.id,
             persistedMessageId: String(saved.message.id),
+            ...(isDevDiagnostics && chatRouteLabel ? { chatRoute: chatRouteLabel } : {}),
           });
           return saved.message;
         };
