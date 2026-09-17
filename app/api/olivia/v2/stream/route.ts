@@ -894,6 +894,22 @@ export async function POST(req: NextRequest) {
               ? renderVerifiedToolRound(hermesToolEntries)
               : null;
             const hermesText = nextPendingAction?.prompt || hermesVerifiedText || hermesResult.text;
+            // §21 Observability — "왜 이 Tool을 안 썼는가"를 재현 없이 로그만으로 추적할 수 있게
+            // 한다. 민감정보(문서 본문/고객 개인정보)는 넣지 않고 이름/개수/id만 남긴다.
+            console.info("[HermesTurn]", {
+              requestId,
+              intent: requestClass,
+              agentEngine: "hermes",
+              selectedToolCount: selectedTools.length,
+              activeResource: hermesRuntime.context.activeResource,
+              resolvedWorkSessionId: hermesRuntime.workSession?.id,
+              memoryCount: taughtMemories.length,
+              memoryIds: taughtMemories.map((memory) => memory.id),
+              historyCount: hermesRuntime.history.length,
+              toolCalls: hermesResult.toolCalls.map((call) => ({ name: call.name, success: call.success, mode: call.mode })),
+              uiActionCount: hermesResult.toolCalls.reduce((sum, call) => sum + (call.success ? (call.uiActions?.length ?? 0) : 0), 0),
+              finalTextSource: nextPendingAction ? "pending_action" : hermesVerifiedText ? "verified_template" : "hermes_raw",
+            });
             await flushTextAsDeltas(hermesText, send, messageId);
             await saveTurnAssistant(hermesText, {
                 blocks: [{ type: "text", text: hermesText }, ...(hermesApprovalBlock ? [hermesApprovalBlock] : [])],
