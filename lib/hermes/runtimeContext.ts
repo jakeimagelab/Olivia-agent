@@ -42,6 +42,14 @@ function referencesPreviousWork(message: string) {
   return /(아까|방금|그거|그것|이거|이것|거기|다시|이 견적|그 견적|이 계약|그 계약|이 콘티|그 콘티)/i.test(message);
 }
 
+// Olivia OS 2.0 — Hermes Chat Intelligence Upgrade §6/§17. "열어"/"바꿔줘"류 UI 실행 요청.
+// lib/hermes/client.ts의 isUiExecutionIntent()와 같은 판정 기준을 쓴다 — 완료 주장 검증(§7)과
+// 여기(어떤 resource를 쓸지)가 다른 판정 기준을 쓰면 "실행됐다고 판단한 대상"과 "실제로 연
+// 도구를 부른 대상"이 어긋날 수 있다.
+function isUiExecutionFollowup(message: string) {
+  return /(열어줘|열어|보여줘|띄워줘|바꿔줘|바꿔|전환해|이동해|가\s*줘|거기로\s*가|다시\s*열어|그걸로\s*바꿔)/i.test(message);
+}
+
 function isExternalFileTask(message: string) {
   return /(다운로드|파일|폴더|사진|이미지).*(리사이즈|크기|픽셀|px|이동|복사|정리|변환)|(?:리사이즈|픽셀|px).*(?:사진|이미지)|다운로드.*(?:사진|이미지).*\d+/i.test(message);
 }
