@@ -13,7 +13,10 @@ export type QuoteFormState = {
   quoteTitle: string;
   selectedPackageId: string | null;
   selectedSingleItemIds: string[];
-  singleItemAmounts: Record<string, number>;
+  // 제이크이미지연구소 전용 — 단일항목을 선택하면 뜨는 자유 텍스트 내용칸(금액 아님, 견적
+  // 총액 계산에서 제외된다). 이름은 마이그레이션 이전 그대로 두지 않고 실제 용도에 맞게
+  // singleItemNotes로 바꿨다(예전 이름 singleItemAmounts는 숫자 금액으로 오해하기 쉬웠다).
+  singleItemNotes: Record<string, string>;
   profileCount: number;
   stagedCount: number;
   combinedProfileStagedCount: number;
