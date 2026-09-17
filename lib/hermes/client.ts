@@ -327,6 +327,25 @@ export async function runHermesChat(input: {
     finalText = "아직 화면을 실제로 바꾸지는 못했어요. 다시 열어볼게요.";
   }
 
+  // §10(TEST 6) "실제 열린 고객이 다르면 절대로 성공 응답 금지" — uiActions는 실제로 났지만
+  // (위 가드는 통과) 열린 문서의 hospitalName이 사용자가 부른 이름과 명확히 다르면 완료
+  // 주장을 취소한다. 지시대명사만 쓴 경우(requestedDocumentName null)는 비교하지 않는다 —
+  // 검색/직전 context로 고른 결과를 오탐으로 걷어차면 안 된다.
+  const requestedDocumentName = extractRequestedDocumentName(input.message);
+  if (requestedDocumentName && claimsUiExecutionCompletion(finalText)) {
+    const normalizedRequested = normalizeForNameCompare(requestedDocumentName);
+    const mismatchedOpen = [...toolCalls.values()].some((call) => {
+      if (!call.success || !call.uiActions?.length) return false;
+      const hospitalName = call.data && typeof call.data === "object" && !Array.isArray(call.data)
+        ? (call.data as Record<string, unknown>).hospitalName
+        : undefined;
+      if (typeof hospitalName !== "string" || !hospitalName.trim()) return false;
+      const normalizedActual = normalizeForNameCompare(hospitalName);
+      return !normalizedActual.includes(normalizedRequested) && !normalizedRequested.includes(normalizedActual);
+    });
+    if (mismatchedOpen) finalText = "요청하신 고객과 다른 문서가 열린 것 같아요. 고객명을 다시 확인해주세요.";
+  }
+
   if (verifiedSearch?.clients.length === 0) {
     finalText = "등록된 고객에서 찾지 못했습니다.";
   } else if (verifiedSearch && verifiedSearch.clients.length > 1) {
