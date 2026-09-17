@@ -120,7 +120,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     quoteTitle: "",
     selectedPackageId: null,
     selectedSingleItemIds: [],
-    singleItemAmounts: {},
+    singleItemNotes: {},
     profileCount: 0,
     stagedCount: 0,
     combinedProfileStagedCount: 0,
