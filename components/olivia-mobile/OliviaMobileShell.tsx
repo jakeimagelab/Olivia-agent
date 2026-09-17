@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
+import { MobileErrorBoundary } from "./MobileErrorBoundary";
 import MobileBottomNav from "./MobileBottomNav";
 import MobileHome from "./MobileHome";
 import MobileCalendar from "./MobileCalendar";
