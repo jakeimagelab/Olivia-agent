@@ -322,8 +322,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const setSelectedPackageId = useQuoteStore((state) => state.setSelectedPackageId);
   const selectedSingleItemIds = useQuoteStore((state) => state.selectedSingleItemIds);
   const setSelectedSingleItemIds = useQuoteStore((state) => state.setSelectedSingleItemIds);
-  const singleItemAmounts = useQuoteStore((state) => state.singleItemAmounts);
-  const setSingleItemAmounts = useQuoteStore((state) => state.setSingleItemAmounts);
+  const singleItemNotes = useQuoteStore((state) => state.singleItemNotes);
+  const setSingleItemNotes = useQuoteStore((state) => state.setSingleItemNotes);
   const profileCount = useQuoteStore((state) => state.profileCount);
   const setProfileCount = useQuoteStore((state) => state.setProfileCount);
   const stagedCount = useQuoteStore((state) => state.stagedCount);
