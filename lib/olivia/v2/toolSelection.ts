@@ -107,6 +107,40 @@ export function buildCanonicalRecentUserText(rows: Array<{ role?: string; conten
     .join("\n");
 }
 
+// Olivia OS 채팅/견적서 수정 로직 개선 §7/§8 — "왜 안 바뀌는 거야?"/"아직 안 됐는데?"류 후속
+// 항의는 새 Intent로 처음부터 분류하면 안 된다. 직전 turn에 실행된 tool 이름/성공 여부를
+// 짧게 복기시켜, Hermes/legacy가 그 작업을 다시 확인·재실행하는 쪽으로 해석하게 한다.
+// 매 turn 무조건 넣지 않고(토큰 낭비), 후속 항의로 보이는 메시지에서만 넣는다.
+const FOLLOWUP_COMPLAINT_PATTERN = /(왜\s*안|안\s*바뀌|안\s*됐|안\s*되잖아|아직\s*안|다시\s*해|그게\s*아니|그거\s*말고|반영\s*안)/i;
+
+export function isFollowupComplaint(message: string): boolean {
+  return FOLLOWUP_COMPLAINT_PATTERN.test(message);
+}
+
+export function buildLastActionFollowupHint(
+  message: string,
+  rows: Array<{ role?: string; metadata?: unknown }>,
+): string | null {
+  if (!isFollowupComplaint(message)) return null;
+  const lastAssistant = [...rows].reverse().find((row) => row.role === "assistant");
+  const metadata = lastAssistant?.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const toolCalls = (metadata as Record<string, unknown>).toolCalls;
+  if (!Array.isArray(toolCalls) || !toolCalls.length) return null;
+  const summaries = toolCalls
+    .filter((call): call is Record<string, unknown> => Boolean(call) && typeof call === "object")
+    .map((call) => {
+      const name = typeof call.name === "string" ? call.name.replace(/^mcp_olivia_/, "").replaceAll(".", "_") : "";
+      if (!name) return null;
+      return `${name}(${call.success ? "성공" : "실패"}${call.resourceType ? `, ${call.resourceType}` : ""})`;
+    })
+    .filter((line): line is string => Boolean(line));
+  if (!summaries.length) return null;
+  return `[직전 작업 기록] 바로 전 turn에서 실행된 Tool: ${summaries.join(", ")}. `
+    + `지금 메시지는 그 결과에 대한 후속 항의로 보인다 — 새 Intent로 처음부터 다시 분류하지 말고, `
+    + `직전에 어떤 필드를 바꾸려 했는지부터 확인해서 올바른 Tool로 다시 시도하거나 실제 반영 여부를 확인한다.`;
+}
+
 export function restoreDocumentContextFromHistory(
   context: OliviaContextSnapshot,
   rows: Array<{ metadata?: unknown }>,
