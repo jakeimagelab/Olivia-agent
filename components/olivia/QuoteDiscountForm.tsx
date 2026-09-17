@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuoteWizardChatStore } from "@/lib/store/useQuoteWizardChatStore";
 import { useQuoteStore } from "@/lib/store/useQuoteStore";
-import { packages, singleItems } from "@/lib/quote/quoteCatalog";
+import { packages, getSingleItems } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
 import { callOliviaTool } from "@/lib/olivia/inline-tools/callTool";
 
