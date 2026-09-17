@@ -313,6 +313,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const brand = useQuoteStore((state) => state.brand);
   const setBrand = useQuoteStore((state) => state.setBrand);
   const cfg = BRAND_CONFIG[brand];
+  // 브랜드별 단일항목 목록(제이크이미지연구소는 스케치촬영 추가 + 브랜드필름/포인트영상을
+  // 영상촬영으로 통합) — 아래는 전부 이 브랜드별 목록을 그대로 쓴다(이름만 기존 그대로 유지).
+  const singleItems = getSingleItems(brand);
   const quoteTitle = useQuoteStore((state) => state.quoteTitle);
   const setQuoteTitle = useQuoteStore((state) => state.setQuoteTitle);
   const selectedPackageId = useQuoteStore((state) => state.selectedPackageId);
