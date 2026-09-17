@@ -64,6 +64,77 @@ describe("Hermes chat adapter", () => {
     expect(getOliviaAgentEngine()).toBe("hermes");
   });
 
+  // Secure Tunnel 개편 §1 — HERMES_API_SECRET이 표준 이름이지만 기존 HERMES_API_KEY도
+  // 계속 인식해야 운영 환경이 조용히 깨지지 않는다.
+  it("HERMES_API_SECRET이 있으면 우선하고, 없으면 기존 HERMES_API_KEY로 폴백한다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_KEY", "legacy-key");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const headers = init?.headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer legacy-key");
+      return sse("안녕하세요.");
+    }));
+    await runHermesChat({ message: "안녕" });
+
+    vi.stubEnv("HERMES_API_SECRET", "new-secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const headers = init?.headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer new-secret");
+      return sse("안녕하세요.");
+    }));
+    await runHermesChat({ message: "안녕" });
+  });
+
+  it("HERMES_BASE_URL이 Tailscale private IP여도 요청 자체는 그대로 시도한다(경고만 로그)", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    vi.stubGlobal("fetch", vi.fn(async () => sse("안녕하세요.")));
+    const result = await runHermesChat({ message: "안녕" });
+    expect(result.message).toBe("안녕하세요.");
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Tailscale"));
+  });
+
+  // §4 "[HERMES ERROR]" — 연결 실패 시 requestId/errorType/httpStatus/elapsedMs를 남기고
+  // 토큰/secret은 절대 남기지 않는다.
+  it("연결 실패 시 [HERMES ERROR]를 secret 없이 기록한다", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "super-secret-value");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("connection refused"); }));
+    await runHermesChat({ message: "안녕" }).catch(() => undefined);
+    const errorLog = warnSpy.mock.calls.find(([label]) => label === "[HERMES ERROR]");
+    expect(errorLog).toBeTruthy();
+    expect(errorLog?.[1]).toMatchObject({ errorType: "fetch_failed", httpStatus: null });
+    expect(JSON.stringify(errorLog)).not.toContain("super-secret-value");
+  });
+
+  // §3 Health Check — Hermes의 GET /health를 호출해 온라인/오프라인을 판정한다.
+  it("checkHermesHealth — 정상 응답이면 online:true와 body 필드를 그대로 반환한다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      expect(url).toBe("https://hermes.example.com/health");
+      return new Response(JSON.stringify({ status: "ok", service: "hermes", host: "Jake-MacStudio" }), { status: 200 });
+    }));
+    const result = await checkHermesHealth();
+    expect(result).toMatchObject({ online: true, status: "ok", service: "hermes", host: "Jake-MacStudio" });
+  });
+
+  it("checkHermesHealth — 연결 실패면 online:false를 반환하고 던지지 않는다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("connection refused"); }));
+    const result = await checkHermesHealth();
+    expect(result.online).toBe(false);
+  });
+
+  it("checkHermesHealth — 환경변수가 없으면 online:false와 에러 메시지를 반환한다", async () => {
+    const result = await checkHermesHealth();
+    expect(result.online).toBe(false);
+    expect(result.error).toBeTruthy();
+  });
+
   it("MCP 도구 실행 검증이 있으면 검색 결과를 반환한다", async () => {
     vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
     vi.stubEnv("HERMES_API_KEY", "secret");
