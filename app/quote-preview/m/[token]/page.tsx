@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import QuotePreviewMobile, { type PreviewQuote } from "@/components/quote-preview/QuotePreviewMobile";
+import { depositRateOf } from "@/lib/quote/quoteMutationService";
 
 export const dynamic = "force-dynamic";
 
