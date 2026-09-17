@@ -121,6 +121,10 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   remove_quote_item: async ({ result }) => mutationActions("quote", result),
   update_quote_note: async ({ result }) => mutationActions("quote", result),
   update_quote_info: async ({ result }) => mutationActions("quote", result),
+  // Olivia OS 채팅/견적서 수정 로직 개선 §5 — Tool 실행 결과가 REFRESH_RESOURCE ui_action으로
+  // 나가야 useQuoteStore.patchFromAgent()가 화면에 즉시 반영한다(다른 quote mutation tool과
+  // 동일한 패턴). 이 매핑이 없으면 DB는 바뀌지만 화면은 예전 값을 계속 보여준다.
+  update_quote_payment_terms: async ({ result }) => mutationActions("quote", result),
   apply_quote_discount: async ({ result }) => mutationActions("quote", result),
   update_quote_vat_mode: async ({ result }) => mutationActions("quote", result),
   rebalance_quote_total: async ({ result }) => {
