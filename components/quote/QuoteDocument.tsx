@@ -176,7 +176,7 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
 
         <footer className="quote-bottom">
           <div className="payment-box">
-            <div className="payment-terms-note"><strong>결제조건</strong><span>선금 50%, 잔금 50% 기준<br />세부 조건은 상호 협의 가능</span></div>
+            <div className="payment-terms-note"><strong>결제조건</strong><span>선금 {depositRate}%, 잔금 {100 - depositRate}% 기준<br />세부 조건은 상호 협의 가능</span></div>
             <div className="payment-terms-rows">
               <div className="payment-row">{depositRate > 0 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>선금{depositRate}%</strong></span><span>{amount(Math.round(finalAmount * depositRate / 100))}</span></> : null}</div>
               <div className="payment-row">{depositRate < 100 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>잔금{100 - depositRate}%</strong></span><span>{amount(Math.round(finalAmount * (100 - depositRate) / 100))}</span></> : null}</div>
