@@ -24,6 +24,36 @@ describe("Hermes chat adapter", () => {
     expect(isClientSearchRequest("오늘 기분 어때?")).toBe(false);
   });
 
+  // TEST 7/8 (Hermes Chat Intelligence Upgrade §10/§20) — 문서/파일 검색을 고객 검색으로
+  // 오판하면 client.search Tool 실행을 강제하다가 정상 요청을 에러로 막아버린다.
+  it("문서/파일/사진 검색은 고객 검색으로 오판하지 않는다(TEST 7)", () => {
+    expect(isClientSearchRequest("사진 찾아줘")).toBe(false);
+    expect(isClientSearchRequest("파일 검색해줘")).toBe(false);
+    expect(isClientSearchRequest("견적서 찾아줘")).toBe(false);
+    expect(isClientSearchRequest("제일 최근 견적서 찾아줘")).toBe(false);
+    expect(isClientSearchRequest("어제 만든 콘티 열어줘")).toBe(false);
+  });
+
+  it("고객 entity 문맥이 있으면 고객 검색으로 판단한다(TEST 8)", () => {
+    expect(isClientSearchRequest("연세라이프 고객 찾아줘")).toBe(true);
+    expect(isClientSearchRequest("OO의원 등록돼 있어?")).toBe(true);
+    expect(isClientSearchRequest("최근 고객 조회해줘")).toBe(true);
+  });
+
+  it("UI 실행 의도 표현을 감지한다(§6)", () => {
+    expect(isUiExecutionIntent("제일 최근 견적서 열어줘")).toBe(true);
+    expect(isUiExecutionIntent("그럼 바꿔줘")).toBe(true);
+    expect(isUiExecutionIntent("열어")).toBe(true);
+    expect(isUiExecutionIntent("제일 최근 견적서 찾아줘")).toBe(false);
+  });
+
+  it("화면 전환 완료 주장 문구를 감지한다(§15)", () => {
+    expect(claimsUiExecutionCompletion("최근 견적서를 열었어요.")).toBe(true);
+    expect(claimsUiExecutionCompletion("화면을 전환했습니다.")).toBe(true);
+    expect(claimsUiExecutionCompletion("최근 견적으로 바꿨어요.")).toBe(true);
+    expect(claimsUiExecutionCompletion("OO 견적서입니다.")).toBe(false);
+  });
+
   it("짧은 승인 답변도 mutation 가능 요청으로 취급한다", () => {
     expect(isMutationIntent("응")).toBe(true);
     expect(isMutationIntent("승인")).toBe(true);
