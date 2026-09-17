@@ -33,7 +33,13 @@ function getHermesConfig() {
   return { baseUrl, apiKey, model: process.env.HERMES_MODEL?.trim() || "hermes-agent" };
 }
 
+// 문서/파일/일정 등 다른 검색 대상이 함께 언급되면 "찾아/검색/조회"가 있어도 고객 검색이 아니다
+// — "사진 찾아줘"/"파일 검색해줘"/"견적서 찾아줘"까지 고객검색으로 오판하면 client.search Tool을
+// 강제하다가(§아래 guardedResponse) 정상적인 문서 검색 요청을 에러로 막아버린다.
+const NON_CLIENT_SEARCH_TOPIC = /(사진|이미지|파일|폴더|문서|견적|계약|콘티|스토리보드|메모|일정|캘린더|메일|이메일|워크플로|갤러리|셀렉|영상|동영상)/i;
+
 export function isClientSearchRequest(message: string) {
+  if (NON_CLIENT_SEARCH_TOPIC.test(message)) return false;
   return /(찾아|검색|조회|등록.*(?:고객|병원|의원|클리닉)|(?:고객|병원|의원|클리닉).*있[어는나]?)/i.test(message);
 }
 
@@ -44,6 +50,20 @@ export function isMutationIntent(message: string) {
 
 export function claimsMutationCompletion(message: string) {
   return /(추가|등록|생성|만들|수정|변경|삭제|저장|완료|확정|발행|공개)(?:했|됐|되었습니다|했습니다|했어요|됐어요)/i.test(message);
+}
+
+// Olivia OS 2.0 — Hermes Chat Intelligence Upgrade §6. "열어"/"바꿔줘"류 UI 실행 요청 감지.
+// mutation 표현과 겹치지 않는 별도 집합이다 — UI 전환은 DB에 아무것도 쓰지 않으므로
+// claimsMutationCompletion()/mutationAudits로는 검증되지 않는다(§7 "NO UI ACTION = NO SUCCESS CLAIM").
+export function isUiExecutionIntent(message: string) {
+  return /(열어줘|열어|보여줘|띄워줘|바꿔줘|바꿔|전환해|이동해|가\s*줘|거기로\s*가|다시\s*열어|그걸로\s*바꿔)/i.test(message);
+}
+
+// "열었어요"/"바꿨어요"류 완료 주장 — mutation 완료 문구(claimsMutationCompletion)와는 다른
+// 집합이라 별도로 감지한다. Hermes가 open_document/show_workspace류 Tool을 실제로 호출하지
+// 않고도(=uiActions가 비어있는데도) 이렇게 말하면 §7 위반이다.
+export function claimsUiExecutionCompletion(message: string) {
+  return /(열었|열어\s*드렸|보여\s*드렸|보여드렸|보여줬|띄웠|바꿨|바꾸었|바뀌었|전환했|전환됐|이동했)(?:습니다|어요|네요|다)?/i.test(message);
 }
 
 function eventValue(payload: unknown, keys: string[]): string | undefined {
