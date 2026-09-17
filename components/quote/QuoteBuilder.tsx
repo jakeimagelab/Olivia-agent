@@ -79,7 +79,7 @@ type ContractQuoteData = {
     quoteTitle: string;
     selectedPackageId: string | null;
     selectedSingleItemIds: string[];
-    singleItemAmounts?: Record<string, number>;
+    singleItemNotes?: Record<string, string>;
     profileCount: number;
     stagedCount: number;
     combinedProfileStagedCount?: number;
