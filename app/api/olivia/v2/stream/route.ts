@@ -810,7 +810,7 @@ export async function POST(req: NextRequest) {
             channel: messageChannel,
             today: oliviaRuntime.todayISO,
             message,
-            history: pendingPromptHint ? [...history, { role: "assistant", content: pendingPromptHint }] : history,
+            history: historyHint ? [...history, { role: "assistant", content: historyHint }] : history,
             replyContext,
             // taughtMemories는 이미 이번 요청과 관련된 scope(memoryScopes)로만 걸러서 조회했다
             // (getOliviaToolDomains 재사용, 위 Promise.all) — 여기서 다시 필터링하지 않는다.
