@@ -1,6 +1,7 @@
 import type { AssistantChannel } from "@/lib/assistant/types";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 import type { HermesChatContext, HermesChatMessage } from "@/lib/hermes/types";
+import type { HermesMemoryEntry } from "@/lib/olivia/memory/format";
 
 type ContextMessage = {
   role: string;
