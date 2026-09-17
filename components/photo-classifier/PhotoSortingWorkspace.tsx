@@ -41,7 +41,9 @@ import SceneProposalList from "./ai-auto/SceneProposalList";
 import ClassificationProfilePanel from "./ai-auto/ClassificationProfilePanel";
 import PhotoSourcePicker from "./PhotoSourcePicker";
 import { usePhotoSourceSurface } from "./usePhotoSourceSurface";
+import { REMOTE_NAS_ROOT_NAME } from "@/lib/remote-nas/types";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
+import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
 import {
   createRemotePhotoSortJob,
 } from "@/lib/photo-classifier/remotePhotoSort";
