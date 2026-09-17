@@ -13,6 +13,7 @@
     "photo:prepare-source": "node --import tsx scripts/prepare-photo-source.ts",
     "photo:prepare-source-job": "node --import tsx scripts/photo-prepare-source-runner.ts",
     "photo:watch": "node --import tsx scripts/photo-storage-watcher.ts",
+    "nas:watch": "node --import tsx scripts/nas-backup-watcher.ts",
     "photo:stage-jpg": "node --import tsx scripts/photo-stage-jpg-runner.ts",
     "photo:classify-work": "node --import tsx scripts/photo-classify-work-runner.ts"
   },
