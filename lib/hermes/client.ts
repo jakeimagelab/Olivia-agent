@@ -10,6 +10,7 @@ import type {
 } from "@/lib/hermes/types";
 
 const HERMES_TIMEOUT_MS = 60_000;
+const HERMES_HEALTH_TIMEOUT_MS = 5_000;
 
 export class HermesChatError extends Error {
   constructor(message: string, public readonly fallbackSafe: boolean) {
