@@ -1,5 +1,6 @@
 import { BRAND_CONFIG } from "@/lib/quote/quoteCatalog";
 import type { Brand } from "@/lib/quote/quoteFormTypes";
+import { depositRateOf } from "@/lib/quote/quoteMutationService";
 
 // ContractBuilder.tsx의 buildContractHtml() 패턴을 그대로 따른다(외부 CSS 의존 없음, 전부
 // <style> 블록 내부, 이미지는 <base href>로 절대경로 resolve) — headless 브라우저(Playwright)로
