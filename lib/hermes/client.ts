@@ -138,7 +138,8 @@ export async function runHermesChat(input: {
   const toolCalls = new Map<string, HermesToolCallRecord>();
   const searchRequest = isClientSearchRequest(input.message);
   const mutationRequest = isMutationIntent(input.message);
-  const guardedResponse = searchRequest || mutationRequest;
+  const uiExecutionRequest = isUiExecutionIntent(input.message);
+  const guardedResponse = searchRequest || mutationRequest || uiExecutionRequest;
   let buffer = "";
   let finalText = "";
 
