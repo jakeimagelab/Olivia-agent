@@ -32,7 +32,7 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
 };
 
 const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
-  ["calendar",/(일정|캘린더|스케줄|오늘\s*할\s*일)/i], ["quote",/(견적|단가|금액|할인|부가세|vat)/i],
+  ["calendar",/(일정|캘린더|스케줄|오늘\s*할\s*일)/i], ["quote",/(견적|단가|금액|할인|부가세|vat|선금|잔금|결제\s*조건)/i],
   ["contract",/(계약)/i], ["conti",/(콘티|스토리보드|컷|촬영\s*시간|촬영\s*준비물)/i],
   ["workflow",/(워크플로|단계|프로세스|진행\s*상태|체크리스트)/i], ["mailing",/(메일|이메일|발송|답장)/i],
   ["gallery",/(갤러리|사진|셀렉)/i], ["meeting",/(미팅|회의|상담)/i],
