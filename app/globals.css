@@ -3055,7 +3055,11 @@ main:has(> .pc-header) {
   display: inline-flex;
   align-items: center;
   margin-left: 18px;
-  padding: 3px 9px;
+  padding: 4px 9px;
+  /* NanumSquare는 line-height:1(부모 .total-box div에서 상속)에서 실제 글리프 높이가
+     10px보다 크게 렌더링돼, 이 뱃지에서만 텍스트 아래쪽이 배경 박스 밖으로 삐져나왔다.
+     뱃지 안에서만 줄 높이를 넉넉히 줘서 글자가 항상 패딩 안에 들어오게 한다. */
+  line-height: 1.8;
   border-radius: 3px;
   background: var(--orange-soft);
   color: #ffffff;
