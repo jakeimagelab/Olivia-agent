@@ -65,6 +65,8 @@ export function buildHermesRuntime(input: {
   message: string;
   history: ContextMessage[];
   replyContext?: unknown;
+  memories?: HermesMemoryEntry[];
+  compactConversationSummary?: string;
 }) {
   const replyResource = resourceFromMetadata(input.replyContext);
   const recentResources = [...input.history].reverse().flatMap((message) => {
