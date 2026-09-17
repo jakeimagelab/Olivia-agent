@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
           folder_name: folderName,
           file_count: fileCount,
           total_bytes: totalBytes,
+          event_key: eventKey,
           payload: { detectedAt, readyAt },
         },
         { onConflict: "event_key", ignoreDuplicates: true },
