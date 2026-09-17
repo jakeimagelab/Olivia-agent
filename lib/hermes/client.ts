@@ -59,6 +59,22 @@ export function isUiExecutionIntent(message: string) {
   return /(열어줘|열어|보여줘|띄워줘|바꿔줘|바꿔|전환해|이동해|가\s*줘|거기로\s*가|다시\s*열어|그걸로\s*바꿔)/i.test(message);
 }
 
+const DOCUMENT_NAME_PRONOUNS = new Set(["그거", "그것", "이거", "이것", "저거", "저것", "그", "이", "저", "방금", "아까", "다시"]);
+
+// Olivia OS 채팅/견적서 수정 로직 개선 §10(TEST 6) — "OO 견적서 열어줘"에서 고객명 추정.
+// "그거 견적서 열어줘"처럼 지시대명사만 있으면 비교 대상이 없다는 뜻이라 null을 반환한다
+// (검색/직전 context로 이미 정확한 대상이 골라졌을 가능성이 높아 오탐을 만들면 안 된다).
+export function extractRequestedDocumentName(message: string): string | null {
+  const match = message.match(/([가-힣A-Za-z0-9()·・&+\-\s]{1,40}?)\s*(?:견적서|견적|계약서|계약)/);
+  const raw = match?.[1]?.trim();
+  if (!raw || raw.length < 2 || DOCUMENT_NAME_PRONOUNS.has(raw)) return null;
+  return raw;
+}
+
+function normalizeForNameCompare(value: string): string {
+  return value.normalize("NFC").replace(/\s+/g, "").toLocaleLowerCase("ko-KR");
+}
+
 // "열었어요"/"바꿨어요"류 완료 주장 — mutation 완료 문구(claimsMutationCompletion)와는 다른
 // 집합이라 별도로 감지한다. Hermes가 open_document/show_workspace류 Tool을 실제로 호출하지
 // 않고도(=uiActions가 비어있는데도) 이렇게 말하면 §7 위반이다.
