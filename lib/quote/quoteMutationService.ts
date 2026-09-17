@@ -81,7 +81,7 @@ export function recalculateQuote(items: QuoteItem[], quote: Record<string, unkno
   const supplyAmount = mode === "included" ? Math.round(raw / 1.1) : Math.floor(raw / 10_000) * 10_000;
   const vat = mode === "excluded" ? 0 : mode === "included" ? raw - supplyAmount : Math.round(supplyAmount * .1);
   const totalAmount = supplyAmount + vat;
-  const depositRate = Number(quote.deposit_rate) || 50;
+  const depositRate = depositRateOf(quote);
   const depositAmount = Math.round(totalAmount * depositRate / 100);
   return { supplyAmount, vat, totalAmount, depositAmount, balanceAmount: totalAmount - depositAmount };
 }
