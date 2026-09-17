@@ -39,7 +39,7 @@ describe("Hermes Memory context", () => {
   it("approved와 candidate를 서로 다른 블록으로 분리하고 강제 여부를 명시한다(§3)", () => {
     const block = formatHermesMemoryBlock([
       toHermesMemoryEntry(memoryRow({ id: "a1", key: "room_change_rule", value: { note: "구도만 다르면 분리 안 함" } })),
-      toHermesMemoryEntry(memoryRow({ id: "c1", memory_type: "rule_candidate", id2: undefined, key: "merge_pattern", value: { note: "3번 병합 요청" } } as Partial<OliviaMemoryRow>)),
+      toHermesMemoryEntry(memoryRow({ id: "c1", memory_type: "rule_candidate", key: "merge_pattern", value: { note: "3번 병합 요청" } })),
     ]);
     expect(block).toContain("<approved_rules>");
     expect(block).toContain("<rule_candidates>");
