@@ -36,6 +36,7 @@ export default function QuotePreviewChatCard({ flowId }: { flowId: string }) {
   // 필드를 다 채우기 전에) 렌더링될 수 있어 배열/객체 필드를 무조건 있다고 가정하면 안 된다.
   const selectedPackage = packages.find((item) => item.id === selectedPackageId) ?? null;
   const packageTotal = selectedPackage?.price ?? 0;
+  const singleItems = getSingleItems(brand);
   const singleItemsTotal = (selectedSingleItemIds ?? []).reduce((sum, id) => {
     const item = singleItems.find((candidate) => candidate.id === id);
     if (!item) return sum;
