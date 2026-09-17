@@ -129,7 +129,7 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
         </div>
         <div className="rail-notice">
           <strong>CONTACT</strong>
-          <div className="rail-contact-row"><Receipt size={11} /><span>선금 50%, 잔금 50% 기준<br />세부 조건은 상호 협의 가능</span></div>
+          <div className="rail-contact-row"><Receipt size={11} /><span>선금 {depositRate}%, 잔금 {100 - depositRate}% 기준<br />세부 조건은 상호 협의 가능</span></div>
           <div className="rail-contact-row"><Phone size={11} /><span>1002-754-988962<br />우리은행</span></div>
           <div className="rail-contact-row"><MapPin size={11} /><span>제이크이미지연구소<br />(정헌호)</span></div>
         </div>
