@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCanonicalRecentUserText, getOliviaToolDomains, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "./toolSelection";
+import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, isFollowupComplaint, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "./toolSelection";
 import type { OliviaContextSnapshot } from "./types";
 import { getSelectedContiSceneId } from "./toolExecutors/conti";
 
