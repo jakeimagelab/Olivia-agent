@@ -984,6 +984,14 @@ export async function POST(req: NextRequest) {
 
         if (!model) throw new Error("Olivia GPT 모델을 확인해주세요.");
 
+        // [임시 진단] Hermes를 아예 시도하지 않고(useHermes=false) 바로 레거시 GPT로 시작한
+        // 경우만 여기서 라벨을 정한다 — 폴백으로 도달했으면 위 catch에서 이미 "FALLBACK"으로
+        // 정해져 있으므로 덮어쓰지 않는다.
+        if (!chatRouteLabel) {
+          chatRouteLabel = "LEGACY_GPT";
+          console.info(`[CHAT ROUTE] ${chatRouteLabel}`, { requestId });
+        }
+
         send({ type: "agent_status", status: "요청을 이해하는 중…" });
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
