@@ -285,10 +285,16 @@ describe("Hermes chat adapter", () => {
         success: true, status: "FOUND", clients: [{ id: "1", name: "강재활의학과" }],
         verification: { executed: true, resourceExists: true, verifiedAt: new Date().toISOString() },
       } });
-      return sse("확인했고 최근 견적서도 열어드렸어요.");
+      // 실제로 open_document까지 완료됐다는 걸 uiActions로 grounding한다 — 안 그러면 §7 가드가
+      // (정당하게) "열었어요" 주장을 먼저 차단해서 이 테스트가 §11만 검증하지 못한다.
+      recordHermesToolCall(requestId, "open_document", {
+        success: true, mode: "ui", data: { workspace: "quote", resourceId: "quote-1" },
+        uiActions: [{ type: "SWITCH_WORKSPACE", workspace: "quote", resourceId: "quote-1" }],
+      });
+      return sse("확인했고 최근 견적서도 열었어요.");
     }));
     const result = await runHermesChat({ message: "강재활의학과 찾아서 최근 견적 열어줘" });
-    expect(result.message).toBe("확인했고 최근 견적서도 열어드렸어요.");
+    expect(result.message).toBe("확인했고 최근 견적서도 열었어요.");
   });
 
   it("uses the canonical conversation session and mixed-channel DB history", async () => {
