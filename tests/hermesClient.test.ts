@@ -215,6 +215,82 @@ describe("Hermes chat adapter", () => {
     expect((await runHermesChat({ message: "일정 넣어줘" })).message).toBe("실제 Olivia Tool 실행 결과를 확인하지 못해 완료 여부를 확정할 수 없습니다.");
   });
 
+  // TEST 5/13 (§7 "NO UI ACTION = NO SUCCESS CLAIM", §20) — search만 실행되고 open_document가
+  // 전혀 호출되지 않았는데 "열었어요"라고 말하면 그 주장을 그대로 내보내지 않는다.
+  it("open_document를 부르지 않고 열었다고 주장하면 완료 주장을 차단한다(TEST 5/13)", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesToolCall(requestId, "search_documents", { success: true, mode: "read", data: { matched: true, documents: [{ id: "quote:abc123" }] } });
+      return sse("최근 견적서를 열었어요.");
+    }));
+    const result = await runHermesChat({ message: "제일 최근에 사용한 견적서 열어줘" });
+    expect(result.message).not.toContain("열었어요");
+  });
+
+  // TEST 6 — open_document 자체는 success:true여도 uiActions가 비어 있으면(실제 화면 전환 없음)
+  // 완료 주장을 인정하지 않는다.
+  it("open_document가 성공해도 uiActions가 없으면 완료 주장을 차단한다(TEST 6)", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesToolCall(requestId, "open_document", { success: true, mode: "ui", data: { workspace: "quote", resourceId: "quote-1" }, uiActions: [] });
+      return sse("최근 견적서를 열었어요.");
+    }));
+    const result = await runHermesChat({ message: "그거 열어줘" });
+    expect(result.message).not.toContain("열었어요");
+  });
+
+  // 반대 사례 — 실제 uiActions가 있으면 완료 주장을 그대로 인정한다(과잉 차단 금지).
+  it("open_document가 실제 uiActions를 만들면 완료 주장을 그대로 인정한다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesToolCall(requestId, "open_document", {
+        success: true, mode: "ui", data: { workspace: "quote", resourceId: "quote-1" },
+        uiActions: [{ type: "SWITCH_WORKSPACE", workspace: "quote", resourceId: "quote-1" }],
+      });
+      return sse("최근 견적서를 열었어요.");
+    }));
+    const result = await runHermesChat({ message: "그거 열어줘" });
+    expect(result.message).toBe("최근 견적서를 열었어요.");
+  });
+
+  // 순수 검색 요청(§20 TEST 2)에는 UI 실행 완료 주장 가드가 아예 적용되지 않는다 — "찾아줘"는
+  // isUiExecutionIntent에 걸리지 않으므로 open 없이 "찾았습니다"만 답해도 차단되지 않는다.
+  it("검색만 요청했으면 open 없이도 완료 주장 가드가 적용되지 않는다(TEST 2)", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async () => sse("OO 견적서를 찾았어요.")));
+    const result = await runHermesChat({ message: "제일 최근 견적서 찾아줘" });
+    expect(result.message).toBe("OO 견적서를 찾았어요.");
+  });
+
+  // §11 "검색 결과가 최종 답변을 덮어쓰는 구조 수정" — Hermes가 이미 옳게 답했다면(검색+후속
+  // 실행을 함께 설명) 고객명이 문자 그대로 없다는 이유만으로 통째로 덮어쓰지 않는다.
+  it("검색 결과를 올바르게 반영한 Hermes 응답은 이름이 없어도 덮어쓰지 않는다(§11)", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
+    vi.stubEnv("HERMES_API_KEY", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const system = body.messages.find((message) => message.role === "system")?.content ?? "";
+      const requestId = system.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesClientSearch(requestId, { success: true, result: {
+        success: true, status: "FOUND", clients: [{ id: "1", name: "강재활의학과" }],
+        verification: { executed: true, resourceExists: true, verifiedAt: new Date().toISOString() },
+      } });
+      return sse("확인했고 최근 견적서도 열어드렸어요.");
+    }));
+    const result = await runHermesChat({ message: "강재활의학과 찾아서 최근 견적 열어줘" });
+    expect(result.message).toBe("확인했고 최근 견적서도 열어드렸어요.");
+  });
+
   it("uses the canonical conversation session and mixed-channel DB history", async () => {
     vi.stubEnv("HERMES_BASE_URL", "http://100.89.79.55:8642");
     vi.stubEnv("HERMES_API_KEY", "secret");
