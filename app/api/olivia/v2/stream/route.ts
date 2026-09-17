@@ -918,6 +918,8 @@ export async function POST(req: NextRequest) {
               uiActionCount: hermesResult.toolCalls.reduce((sum, call) => sum + (call.success ? (call.uiActions?.length ?? 0) : 0), 0),
               finalTextSource: nextPendingAction ? "pending_action" : hermesVerifiedText ? "verified_template" : "hermes_raw",
             });
+            chatRouteLabel = "HERMES";
+            console.info(`[CHAT ROUTE] ${chatRouteLabel}`, { requestId });
             await flushTextAsDeltas(hermesText, send, messageId);
             await saveTurnAssistant(hermesText, {
                 blocks: [{ type: "text", text: hermesText }, ...(hermesApprovalBlock ? [hermesApprovalBlock] : [])],
