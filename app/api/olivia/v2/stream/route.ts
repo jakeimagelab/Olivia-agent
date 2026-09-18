@@ -864,7 +864,7 @@ export async function POST(req: NextRequest) {
                   const releasable = scriptGuard.push(delta);
                   if (releasable) {
                     send({ type: "text_delta", messageId, delta: releasable });
-                    liveStreamedAny = true;
+                    liveStreamedText += releasable;
                   }
                 },
                 onToolStart: (tool, toolCallId) => {
