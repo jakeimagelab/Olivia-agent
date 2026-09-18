@@ -40,10 +40,11 @@ export default function QuoteDiscountForm({ flowId }: { flowId: string }) {
   const selectedPackage = packages.find((item) => item.id === selectedPackageId) ?? null;
   const packageTotal = selectedPackage?.price ?? 0;
   const singleItems = getSingleItems(brand);
+  // 제이크이미지연구소는 단일항목이 자유 텍스트 내용칸이라 견적 총액 계산에서 제외된다.
   const singleItemsTotal = (selectedSingleItemIds ?? []).reduce((sum, id) => {
     const item = singleItems.find((candidate) => candidate.id === id);
     if (!item) return sum;
-    return sum + (brand === "jakeimage" ? (singleItemAmounts ?? {})[id] || 0 : item.price);
+    return sum + (brand === "jakeimage" ? 0 : item.price);
   }, 0);
   const optionsTotal =
     (profileCount ?? 0) * 250000 +
