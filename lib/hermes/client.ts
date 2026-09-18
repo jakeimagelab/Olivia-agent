@@ -281,6 +281,7 @@ export async function runHermesChat(input: {
     const choices = (payload as { choices?: Array<{ delta?: { content?: unknown } }> }).choices;
     const content = choices?.[0]?.delta?.content;
     if (typeof content === "string" && content) {
+      debugContentDeltaCount += 1;
       finalText += content;
       if (!guardedResponse) input.callbacks?.onTextDelta?.(content);
     }
