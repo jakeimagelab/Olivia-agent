@@ -846,6 +846,13 @@ export async function POST(req: NextRequest) {
           // 밖에서) 발견돼 fallback을 이어붙일 때, DB에 저장되는 텍스트가 실제로 화면에 보인
           // 내용과 정확히 일치하게 하기 위해서다.
           let liveStreamedText = "";
+          // hermesText가 hermesResult.text와 우연히 같다는 것만으로 liveStreamedText를 신뢰하면
+          // 안 된다 — onTextDelta가 이번 라운드에 단 한 번도 실제 내용으로 호출되지 않았을 수도
+          // 있다(예: client.ts 내부 guardedResponse 판정이 달라졌거나, 이 라운드에 델타 자체가
+          // 없었던 경우). 이 플래그가 true일 때만 liveStreamedText를 최종 표시 텍스트로 쓴다 —
+          // 그렇지 않으면 항상 hermesText(신뢰할 수 있는 원본)를 그대로 flushTextAsDeltas로
+          // 보낸다(이번 작업 전과 동일한 안전한 동작으로 자동 폴백).
+          let anyLiveDeltaSent = false;
           try {
             const hermesResult = await hermesProvider.chat({
               message,
