@@ -83,6 +83,30 @@ describe("Olivia Hermes MCP registry", () => {
     }
   });
 
+  // Phase 2 §1 — 죽은 legacy registry(lib/hermes/mcpServer.ts의 createLegacyOliviaHermesMcpServer,
+  // lib/hermes/mcp/register*Tools.ts)는 실제 endpoint에서 호출되지 않는다. "tool 코드가 있다"를
+  // "Hermes에 연결됐다"로 착각하지 않도록, 이번 Phase에서 추가한 7개 tool이 진짜 살아있는 경로
+  // (listHermesOliviaTools() — app/api/hermes/mcp/route.ts가 실제로 쓰는 바로 그 함수)에
+  // 노출되는지 직접 확인한다.
+  it("Phase 2에서 추가한 업무일지/Finder/NAS 신규 tool 7종이 실제 Hermes MCP tool 목록에 노출된다", () => {
+    const exposedNames = new Set(listHermesOliviaTools().map((tool) => tool.name));
+    for (const name of [
+      "work_journal_list", "work_journal_get", "work_journal_create", "work_journal_update", "work_journal_complete", "work_journal_search",
+      "remote_folder_list", "remote_folder_get_info", "remote_file_search",
+      "nas_backup_status", "nas_backup_recent", "nas_backup_get", "nas_backup_start_sort",
+    ]) {
+      expect(exposedNames.has(name)).toBe(true);
+    }
+  });
+
+  it("nas_backup_start_sort는 approval이 아니라 open이지만(비파괴적 job enqueue), department/shootingMode를 요구하는 schema다", () => {
+    expect(getHermesToolPolicy("nas_backup_start_sort")).toBe("open");
+    const tool = listHermesOliviaTools().find((t) => t.name === "nas_backup_start_sort")!;
+    const properties = tool.inputSchema.properties as Record<string, unknown>;
+    expect(properties).toHaveProperty("department");
+    expect(properties).toHaveProperty("shootingMode");
+  });
+
   it("create_quote MCP schema가 자연어 견적 V2 필드와 서비스 수정 도구를 노출한다", () => {
     const createQuote = listHermesOliviaTools().find((tool) => tool.name === "create_quote")!;
     const properties = createQuote.inputSchema.properties as Record<string, unknown>;
