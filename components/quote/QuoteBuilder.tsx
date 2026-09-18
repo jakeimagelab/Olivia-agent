@@ -2031,12 +2031,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                       {isSelected ? (
                         <input
                           type="text"
-                          inputMode="numeric"
-                          pattern="[0-9,]*"
-                          value={singleItemAmounts[item.id] ? amount(singleItemAmounts[item.id]) : ""}
-                          onChange={(event) => updateSingleItemAmount(item.id, event.target.value)}
-                          placeholder="금액 직접 입력"
-                          className="jake-single-item-amount"
+                          value={singleItemNotes[item.id] ?? ""}
+                          onChange={(event) => updateSingleItemNote(item.id, event.target.value)}
+                          placeholder="내용 입력"
+                          className="jake-single-item-note"
                         />
                       ) : null}
                     </div>
