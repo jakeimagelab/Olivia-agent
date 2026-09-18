@@ -502,6 +502,8 @@ const DOMAIN_EXECUTORS: ReadonlyArray<readonly [ReadonlyArray<string>, ToolHandl
   [PHOTO_CLASSIFICATION_TOOL_NAMES, executePhotoClassificationTool],
   [PHOTO_STORAGE_TOOL_NAMES, executePhotoStorageTool],
   [COMMON_TOOL_NAMES, executeCommonTool],
+  [REMOTE_FINDER_TOOL_NAMES, executeRemoteFinderTool],
+  [NAS_BACKUP_TOOL_NAMES, executeNasBackupTool],
 ];
 
 const TOOL_ROUTER = new Map<string, ToolHandler>();
