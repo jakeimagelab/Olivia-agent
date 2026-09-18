@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  OliviaWorker.app 전용 LaunchAgent — macOS TCC 권한 영구 수정.
+
+  기존 com.olivia.macstudio.worker.plist / com.olivia.macstudio.remote-bridge.plist를
+  대체한다(그 둘은 삭제하지 않고 .disabled로 보존, build-and-install.sh가 처리). 이제부터
+  launchd가 실행하는 LaunchAgent는 이 파일 하나뿐이다 — OliviaWorker.app 프로세스 자체가
+  worker.sh/remote-bridge.sh/nas-backup-watcher.ts 3개를 내부에서 감시·재시작한다.
+-->
+<plist version="1.0">
+<dict>
+
+    <key>Label</key>
+    <string>com.olivia.macstudio.oliviaworker</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/jakemacstudio/Applications/OliviaWorker.app/Contents/MacOS/OliviaWorker</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/jakemacstudio/OliviaWorker/logs/oliviaworker-launchd.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/jakemacstudio/OliviaWorker/logs/oliviaworker-launchd.err.log</string>
+
+</dict>
+</plist>
