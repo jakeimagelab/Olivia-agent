@@ -1829,8 +1829,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         return ids.filter((existing) => existing !== id);
       });
     },
-    setSingleItemAmount: (id, amount) => {
-      setSingleItemAmounts((amounts) => ({ ...amounts, [id]: amount }));
+    setSingleItemNote: (id, note) => {
+      setSingleItemNotes((notes) => ({ ...notes, [id]: note }));
     },
     addCustomItem: (name, amount, detail) => {
       setCustomItems((items) => [
