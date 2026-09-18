@@ -912,7 +912,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setQuoteTitle(data.formState.quoteTitle);
       setSelectedPackageId(data.formState.selectedPackageId);
       setSelectedSingleItemIds(data.formState.selectedSingleItemIds);
-      setSingleItemAmounts(data.formState.singleItemAmounts ?? {});
+      setSingleItemNotes(data.formState.singleItemNotes ?? {});
       setProfileCount(data.formState.profileCount);
       setStagedCount(data.formState.stagedCount);
       setCombinedProfileStagedCount(data.formState.combinedProfileStagedCount ?? 0);
