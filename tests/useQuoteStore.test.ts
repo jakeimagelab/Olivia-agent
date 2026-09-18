@@ -10,7 +10,7 @@ describe("useQuoteStore", () => {
     const state = useQuoteStore.getState();
     for (const key of [
       "customer", "brand", "quoteTitle", "selectedPackageId", "selectedSingleItemIds",
-      "singleItemAmounts", "profileCount", "stagedCount", "combinedProfileStagedCount",
+      "singleItemNotes", "profileCount", "stagedCount", "combinedProfileStagedCount",
       "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems",
       "discountRate", "extraDiscount", "memo", "depositRate",
     ]) {
