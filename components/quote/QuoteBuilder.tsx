@@ -1817,7 +1817,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         name: item.name,
         price: item.price,
         selected: selectedSingleItemIds.includes(item.id),
-        amount: singleItemAmounts[item.id] ?? item.price,
+        amount: singleItemPrice(item),
       })),
       customItems: customItems.map(({ id, name, detail, amount }) => ({ id, name, detail, amount })),
       totalAmount: finalAmount,
