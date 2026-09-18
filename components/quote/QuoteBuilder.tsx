@@ -257,7 +257,7 @@ export type QuoteBuilderHandle = {
     depositRate: number;
   };
   setSingleItemSelected: (id: string, selected: boolean) => void;
-  setSingleItemAmount: (id: string, amount: number) => void;
+  setSingleItemNote: (id: string, note: string) => void;
   addCustomItem: (name: string, amount: number, detail?: string) => void;
   removeCustomItem: (id: string) => void;
   setDepositRate: (rate: number) => void;
@@ -1212,7 +1212,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setDirty(snapshot !== lastSavedFormStateRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    isModal, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemAmounts,
+    isModal, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
     customItems, benefitItems, discountRate, extraDiscount, memo, depositRate, brand,
   ]);
@@ -1244,7 +1244,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    isModal, dirty, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemAmounts,
+    isModal, dirty, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
     customItems, benefitItems, discountRate, extraDiscount, memo, depositRate, brand,
   ]);
@@ -1840,7 +1840,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     },
     removeCustomItem,
     setDepositRate,
-  }), [selectedSingleItemIds, singleItemAmounts, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemAmounts]);
+  }), [selectedSingleItemIds, singleItemNotes, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemAmounts]);
 
   return (
     <>
