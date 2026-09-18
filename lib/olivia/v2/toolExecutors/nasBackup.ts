@@ -62,7 +62,7 @@ export async function executeNasBackupTool(
     // department/shootingMode는 절대 추측하지 않는다 — BackupReadyNotifications.tsx의 "분류 시작"
     // 버튼도 같은 이유로 자동 채우지 않는다(잘못된 진료과/촬영모드로 분류가 실행되면 되돌리기
     // 어렵다). add_quote_item의 unitPrice와 동일한 원칙: 대화에 없으면 Hermes가 사용자에게
-        // 반드시 물어보게 한다(스키마에서 required로 강제).
+    // 반드시 물어보게 한다(스키마에서 required로 강제).
     const department = text(input, "department");
     const shootingMode = text(input, "shootingMode");
     if (!department) throw new Error("진료과(department)를 알려주세요 — 추측해서 분류를 시작하지 않아요.");
