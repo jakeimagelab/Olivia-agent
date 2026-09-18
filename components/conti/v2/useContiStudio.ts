@@ -62,6 +62,21 @@ export function useContiStudio(runId: string | null) {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
+  // Hermes(콘티 V2 tool: update_conti_scene_v2/add_conti_scene_v2/remove_conti_scene_v2 등)가
+  // 이 run을 수정하면 actionRouter.ts의 REFRESH_RESOURCE가 이 이벤트를 쏜다(resource는
+  // oliviaToolBridge.ts의 inferResource()가 tool 이름에 "conti"가 있으면 자동으로 "conti"로
+  // 추론) — QuoteBuilder.tsx/ContractBuilder.tsx와 동일한 패턴을 그대로 따른다. 화면을 새로고침
+  //하지 않아도 채팅에서 바꾼 장면이 즉시 보이게 하는 게 목적이다(Phase 2 §2).
+  useEffect(() => {
+    if (!runId) return;
+    const onRefresh = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { resource?: string; resourceId?: string } | undefined;
+      if ((!detail?.resource || detail.resource === "conti") && (!detail?.resourceId || detail.resourceId === runId)) void load();
+    };
+    window.addEventListener("olivia-resource-refresh", onRefresh);
+    return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
+  }, [runId, load]);
+
   const scheduleSave = useCallback(() => {
     mutationVersionRef.current += 1;
     setSaveStatus("dirty");
