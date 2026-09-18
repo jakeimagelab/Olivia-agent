@@ -8,11 +8,53 @@ export const runtime = "nodejs";
 
 // date=YYYY-MM-DD → 그 날의 전체 업무(체크리스트 진행률 포함, 가운데 컬럼용).
 // month=YYYY-MM → 그 달에 업무가 있는 날짜만 가볍게 반환(왼쪽 미니 캘린더 점 표시용).
+// from=YYYY-MM-DD&to=YYYY-MM-DD → 날짜 범위 조회(Hermes work_journal_list, "어제 업무일지"류).
+// q=검색어 → title/memo 부분일치 검색(Hermes work_journal_search), date/from·to와 함께 쓸 수 있다.
+// 전부 기존 date/month 동작은 한 글자도 안 바꾼 순수 추가다(Phase 2 §3).
 export async function GET(req: NextRequest) {
   const db = getSupabaseAdmin();
   const searchParams = new URL(req.url).searchParams;
   const date = searchParams.get("date");
   const month = searchParams.get("month");
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
+  const q = searchParams.get("q")?.trim();
+
+  if ((from || to) && !month) {
+    if (!from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      return NextResponse.json({ ok: false, error: "from/to 형식이 올바르지 않습니다." }, { status: 400 });
+    }
+    let query = db
+      .from("work_journal_tasks")
+      .select("*, work_journal_checklist_items(id, done)")
+      .gte("due_date", from)
+      .lte("due_date", to)
+      .order("due_date", { ascending: true })
+      .order("due_time", { ascending: true, nullsFirst: false });
+    if (q) query = query.or(`title.ilike.%${q}%,memo.ilike.%${q}%`);
+    const { data, error } = await query;
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    const tasks: TaskListItem[] = (data ?? []).map((row) => {
+      const checklist = (row.work_journal_checklist_items ?? []) as { id: string; done: boolean }[];
+      return { ...rowToTask(row), checklistTotal: checklist.length, checklistDone: checklist.filter((item) => item.done).length };
+    });
+    return NextResponse.json({ ok: true, tasks });
+  }
+
+  if (q && !date && !month) {
+    const { data, error } = await db
+      .from("work_journal_tasks")
+      .select("*, work_journal_checklist_items(id, done)")
+      .or(`title.ilike.%${q}%,memo.ilike.%${q}%`)
+      .order("due_date", { ascending: false })
+      .limit(50);
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    const tasks: TaskListItem[] = (data ?? []).map((row) => {
+      const checklist = (row.work_journal_checklist_items ?? []) as { id: string; done: boolean }[];
+      return { ...rowToTask(row), checklistTotal: checklist.length, checklistDone: checklist.filter((item) => item.done).length };
+    });
+    return NextResponse.json({ ok: true, tasks });
+  }
 
   if (month) {
     if (!/^\d{4}-\d{2}$/.test(month)) {
