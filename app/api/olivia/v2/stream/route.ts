@@ -842,7 +842,10 @@ export async function POST(req: NextRequest) {
           // 수 있어서, 검증 전 원문을 실시간으로 보여주면 안 된다.
           const guardedResponse = isClientSearchRequest(message) || isMutationIntent(message) || isUiExecutionIntent(message);
           const scriptGuard = createStreamingScriptGuard();
-          let liveStreamedAny = false;
+          // 실시간으로 이미 내보낸 텍스트를 그대로 누적한다 — 이상 문자가 나중에(sliding-window
+          // 밖에서) 발견돼 fallback을 이어붙일 때, DB에 저장되는 텍스트가 실제로 화면에 보인
+          // 내용과 정확히 일치하게 하기 위해서다.
+          let liveStreamedText = "";
           try {
             const hermesResult = await hermesProvider.chat({
               message,
