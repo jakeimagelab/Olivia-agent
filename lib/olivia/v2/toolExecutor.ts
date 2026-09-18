@@ -30,6 +30,8 @@ import { TASK_SESSION_TOOL_NAMES, executeTaskSessionTool } from "./toolExecutors
 import { PHOTO_CLASSIFICATION_TOOL_NAMES, executePhotoClassificationTool } from "./toolExecutors/photoClassification";
 import { PHOTO_STORAGE_TOOL_NAMES, executePhotoStorageTool } from "./toolExecutors/photoStorage";
 import { COMMON_TOOL_NAMES, executeCommonTool } from "./toolExecutors/common";
+import { REMOTE_FINDER_TOOL_NAMES, executeRemoteFinderTool } from "./toolExecutors/remoteFinder";
+import { NAS_BACKUP_TOOL_NAMES, executeNasBackupTool } from "./toolExecutors/nasBackup";
 
 // 코드 요청서(2026-08-15) 3번 항목 — CRUD 엔진(lib/olivia/crud)은 12개 도메인을 지원하지만
 // 챗 도구로는 quote/contract/conti 3개만 노출돼 있었다. client/workflow는 위험도가 높아
