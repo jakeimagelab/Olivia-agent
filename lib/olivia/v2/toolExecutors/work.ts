@@ -76,7 +76,7 @@ export async function executeWorkTool(
   if (name === "work_journal_update") {
     const taskId = text(input, "taskId");
     if (!taskId) throw new Error("수정할 업무 ID가 필요해요.");
-    const patch: Record<string, unknown> = {};
+    const patch: Record<string, string> = {};
     for (const key of ["dueDate", "dueTime", "title", "assigneeName", "status", "priority", "memo"] as const) {
       const value = text(input, key);
       if (value) patch[key] = value;
