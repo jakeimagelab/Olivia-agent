@@ -954,7 +954,7 @@ export async function POST(req: NextRequest) {
             // 뒤에 fallback 문구를 이어붙인다 — 같은 mutation 도구를 다시 부르면 중복 실행
             // 위험이 있어 재생성은 하지 않는다(legacy 경로의 재생성과 다른 점, 코드 요청서
             // 작업 A §1).
-            const streamedRawMatchesFinal = !guardedResponse && hermesText === hermesResult.text;
+            const streamedRawMatchesFinal = !guardedResponse && anyLiveDeltaSent && hermesText === hermesResult.text;
             let finalDisplayText = hermesText;
             let alreadyFullyStreamed = false;
             if (streamedRawMatchesFinal) {
