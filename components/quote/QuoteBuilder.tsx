@@ -1762,7 +1762,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     customer,
     quoteTitle,
     packageItem: selectedPackage ? { id: selectedPackage.id, name: selectedPackage.name, detail: selectedPackage.composition, amount: selectedPackage.price } : null,
-    singleItems: selectedSingleItems.map((item) => ({ id: item.id, name: item.name, amount: singleItemPrice(item) })),
+    singleItems: selectedSingleItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      amount: singleItemPrice(item),
+      detail: brand === "jakeimage" ? singleItemNotes[item.id] : undefined,
+    })),
     optionItems: optionItems.map((item) => ({ id: item.name, name: item.name, detail: item.detail, amount: item.amount })),
     customItems: visibleCustomItems,
     benefitItems: visibleBenefitItems,
