@@ -66,7 +66,7 @@ export function useContiStudio(runId: string | null) {
   // 이 run을 수정하면 actionRouter.ts의 REFRESH_RESOURCE가 이 이벤트를 쏜다(resource는
   // oliviaToolBridge.ts의 inferResource()가 tool 이름에 "conti"가 있으면 자동으로 "conti"로
   // 추론) — QuoteBuilder.tsx/ContractBuilder.tsx와 동일한 패턴을 그대로 따른다. 화면을 새로고침
-  //하지 않아도 채팅에서 바꾼 장면이 즉시 보이게 하는 게 목적이다(Phase 2 §2).
+  // 하지 않아도 채팅에서 바꾼 장면이 즉시 보이게 하는 게 목적이다(Phase 2 §2).
   useEffect(() => {
     if (!runId) return;
     const onRefresh = (event: Event) => {
