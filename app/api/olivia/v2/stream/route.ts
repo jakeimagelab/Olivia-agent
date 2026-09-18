@@ -390,16 +390,13 @@ async function streamOpenAIResponse(input: {
   return { text, toolCalls, responseId };
 }
 
-// 진짜 토큰 단위 스트리밍 대신, 검사를 통과한 텍스트를 짧은 간격으로 흘려보내 타이핑 느낌만
-// 최대한 유지한다(완전 차단 방식 — 이상 문자가 화면에 뜨는 경우를 원천 차단하기 위해 실시간
-// 스트리밍을 포기하기로 확정, 2026-08 코드 요청서).
+// 검증이 끝난(또는 애초에 실시간으로 흘릴 필요가 없는) 텍스트를 한 번에 내보낸다. 예전엔 6자씩
+// 12ms 간격(초당 500자)으로 가짜 타이핑을 재생했는데, 이미 검증까지 끝난 텍스트를 인위적으로
+// 느리게 보낼 이유가 없다(코드 요청서 2026-09-18 작업 A §2) — 제거했다. 이상 문자 검사 자체는
+// 이 함수가 하는 일이 아니다(호출부가 검증을 마친 텍스트만 여기로 넘긴다).
 async function flushTextAsDeltas(text: string, send: (event: OliviaStreamEvent) => void, messageId: string) {
   if (!text) return;
-  const CHUNK_SIZE = 6;
-  for (let i = 0; i < text.length; i += CHUNK_SIZE) {
-    send({ type: "text_delta", messageId, delta: text.slice(i, i + CHUNK_SIZE) });
-    await new Promise((resolve) => setTimeout(resolve, 12));
-  }
+  send({ type: "text_delta", messageId, delta: text });
 }
 
 // 한 라운드의 응답 텍스트에 이상 문자가 섞여 있으면 클라이언트에 절대 보여주지 않는다 — 같은
