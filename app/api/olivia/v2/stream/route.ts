@@ -899,6 +899,7 @@ export async function POST(req: NextRequest) {
               if (tail) {
                 send({ type: "text_delta", messageId, delta: tail });
                 liveStreamedText += tail;
+                anyLiveDeltaSent = true;
               }
             }
             // hermesProvider(OliviaBrain)는 현재 "message" variant만 반환한다 — Hermes MCP 루프가
