@@ -988,7 +988,7 @@ export async function POST(req: NextRequest) {
               toolCalls: hermesResult.toolCalls.map((call) => ({ name: call.name, success: call.success, mode: call.mode })),
               uiActionCount: hermesResult.toolCalls.reduce((sum, call) => sum + (call.success ? (call.uiActions?.length ?? 0) : 0), 0),
               finalTextSource: nextPendingAction ? "pending_action" : hermesVerifiedText ? "verified_template" : "hermes_raw",
-              streamedLive: streamedRawMatchesFinal,
+              streamedLive: alreadyFullyStreamed,
             });
             chatRouteLabel = "HERMES";
             console.info(`[CHAT ROUTE] ${chatRouteLabel}`, { requestId });
