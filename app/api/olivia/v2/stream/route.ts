@@ -834,6 +834,15 @@ export async function POST(req: NextRequest) {
             activeResourceId: hermesRuntime.context.activeResourceId,
           };
           let hermesStartedOutput = false;
+          // 코드 요청서(2026-09-18) 작업 A — client.ts의 guardedResponse와 완전히 동일한 판정을
+          // 라우트에서도 미리 계산한다(같은 export 함수 재사용, 새 판정 로직 안 만듦). guarded가
+          // 아닌 요청(일반 대화·단순 조회 대부분)은 실시간으로 흘려보낸다 — 완료 주장 위험이
+          // 없는 구간이기 때문이다. guarded 요청(검색/수정/UI실행 의도)은 지금처럼 도구 검증이
+          // 끝난 뒤 한 번에 보낸다 — client.ts가 371~448행에서 finalText를 검증 결과로 바꿔치기할
+          // 수 있어서, 검증 전 원문을 실시간으로 보여주면 안 된다.
+          const guardedResponse = isClientSearchRequest(message) || isMutationIntent(message) || isUiExecutionIntent(message);
+          const scriptGuard = createStreamingScriptGuard();
+          let liveStreamedAny = false;
           try {
             const hermesResult = await hermesProvider.chat({
               message,
@@ -842,9 +851,19 @@ export async function POST(req: NextRequest) {
               context: hermesRuntime.context,
               signal: req.signal,
               callbacks: {
-                // Hermes의 자유 텍스트는 도구 결과가 확정되기 전에는 사용자에게 보내지 않는다.
-                // 성공 후 아래에서 검증된 결과와 합쳐 한 번만 출력한다.
-                onTextDelta: () => undefined,
+                // guarded가 아닐 때만 실시간으로 흘린다. sliding-window 필터(scriptGuard)를 거쳐
+                // 안전하게 확정된 부분만 내보낸다 — 이상 문자는 토큰 경계에서 생기므로 꼬리
+                // 구간만 지켜보면 충분하다(lib/olivia/output/scriptSanitizer.ts). 필터가
+                // poisoned로 전환되면(이상 문자 발견) 그 이후로는 push()가 항상 ""을 반환해
+                // 자동으로 실시간 전송이 멈춘다 — 화면엔 아무것도 안 보인 채로 라운드가 끝나고,
+                // 아래(라운드 종료 후)에서 fallback 문구로 이어붙인다.
+                onTextDelta: guardedResponse ? () => undefined : (delta: string) => {
+                  const releasable = scriptGuard.push(delta);
+                  if (releasable) {
+                    send({ type: "text_delta", messageId, delta: releasable });
+                    liveStreamedAny = true;
+                  }
+                },
                 onToolStart: (tool, toolCallId) => {
                   hermesStartedOutput = true;
                   send({ type: "agent_status", status: toolStatus(tool.replace(/^mcp_olivia_/, "")) });
