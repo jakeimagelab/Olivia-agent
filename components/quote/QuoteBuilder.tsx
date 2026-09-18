@@ -840,7 +840,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         quoteTitle,
         selectedPackageId,
         selectedSingleItemIds,
-        singleItemAmounts,
+        singleItemNotes,
         profileCount,
         stagedCount,
         combinedProfileStagedCount,
