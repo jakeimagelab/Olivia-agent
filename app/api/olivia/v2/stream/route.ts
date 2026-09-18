@@ -881,6 +881,15 @@ export async function POST(req: NextRequest) {
                 },
               },
             });
+            // 라운드가 끝났으니 sliding-window 버퍼에 남아있던 마지막 구간을 한 번 더 검사해서
+            // 내보낸다(guarded면 애초에 push를 한 번도 안 했으니 flush도 항상 빈 문자열).
+            if (!guardedResponse) {
+              const tail = scriptGuard.flush();
+              if (tail) {
+                send({ type: "text_delta", messageId, delta: tail });
+                liveStreamedText += tail;
+              }
+            }
             // hermesProvider(OliviaBrain)는 현재 "message" variant만 반환한다 — Hermes MCP 루프가
             // Tool 실행까지 자체적으로 끝내고 최종 텍스트를 주기 때문이다(§4/§11). tool_call/plan은
             // 향후 Provider 확장을 위해 타입에만 예약해둔 상태라, 여기서 명시적으로 좁혀 사용한다.
