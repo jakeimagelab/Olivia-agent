@@ -65,6 +65,19 @@ describe("Olivia Hermes MCP registry", () => {
     expect(payload.success).toBe(false);
   });
 
+  // client_search는 이름이 "search_"로 시작하지 않아(끝에 붙는 형태) getHermesToolMode()의
+  // 접두사 정규식에 안 걸려 mutation으로 오분류됐었다 — read-only Hermes 컨텍스트(canEdit:false)에서
+  // PERMISSION_DENIED가 잘못 발생하는 버그였다(Phase 2 감사에서 발견, 회귀 방지).
+  it("client_search는 read 전용으로 분류된다", () => {
+    expect(getHermesToolMode("client_search")).toBe("read");
+  });
+
+  it("client_get/create/update는 client_search 수정으로 영향받지 않는다", () => {
+    expect(getHermesToolMode("client_get")).toBe("read");
+    expect(getHermesToolMode("client_create")).toBe("mutation");
+    expect(getHermesToolMode("client_update")).toBe("mutation");
+  });
+
   it("create_quote MCP schema가 자연어 견적 V2 필드와 서비스 수정 도구를 노출한다", () => {
     const createQuote = listHermesOliviaTools().find((tool) => tool.name === "create_quote")!;
     const properties = createQuote.inputSchema.properties as Record<string, unknown>;
