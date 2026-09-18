@@ -861,7 +861,9 @@ export async function POST(req: NextRequest) {
                 // 자동으로 실시간 전송이 멈춘다 — 화면엔 아무것도 안 보인 채로 라운드가 끝나고,
                 // 아래(라운드 종료 후)에서 fallback 문구로 이어붙인다.
                 onTextDelta: guardedResponse ? () => undefined : (delta: string) => {
+                  console.log("[DEBUG onTextDelta]", JSON.stringify(delta));
                   const releasable = scriptGuard.push(delta);
+                  console.log("[DEBUG releasable]", JSON.stringify(releasable));
                   if (releasable) {
                     send({ type: "text_delta", messageId, delta: releasable });
                     liveStreamedText += releasable;
