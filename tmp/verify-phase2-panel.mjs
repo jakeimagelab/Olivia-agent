@@ -3,15 +3,14 @@ const OUT_DIR = "/private/tmp/claude-501/-Users-jakembpm2-UGnasync-Cloade-Olivia
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1500, height: 1100 } });
 page.on("console", (msg) => { if (msg.type() === "error") console.log("[console error]", msg.text()); });
+page.on("pageerror", (err) => console.log("[page error]", err.message));
 await page.goto("http://localhost:3000/work-journal", { waitUntil: "networkidle" });
-await page.waitForTimeout(500);
-await page.screenshot({ path: `${OUT_DIR}/phase2-workjournal-panel.png`, fullPage: false });
+await page.waitForTimeout(1500);
+await page.screenshot({ path: `${OUT_DIR}/phase2-workjournal-loaded.png`, fullPage: false });
 
-const addBtn = page.getByRole("button", { name: "추가" }).first();
-await addBtn.click();
-await page.getByPlaceholder("할 일 제목").fill("Playwright UI 검증용 항목");
-await page.getByRole("button", { name: /추가 중|추가/ }).last().click();
-await page.waitForTimeout(800);
-await page.screenshot({ path: `${OUT_DIR}/phase2-workjournal-panel-after-add.png`, fullPage: false });
+const panel = page.locator(".pc-card").filter({ hasText: "오늘 할 일" });
+await panel.getByRole("button", { name: "추가" }).click();
+await page.waitForTimeout(300);
+await page.screenshot({ path: `${OUT_DIR}/phase2-workjournal-adding.png`, fullPage: false });
 await browser.close();
 console.log("DONE");
