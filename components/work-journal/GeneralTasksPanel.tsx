@@ -80,7 +80,7 @@ export default function GeneralTasksPanel() {
   };
 
   const toggle = async (task: TaskListItem) => {
-    const nextStatus = task.status === "done" ? "pending" : "done";
+    const nextStatus = task.status === "done" ? "todo" : "done";
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)));
     try {
       await fetchJson(`/api/work-journal/tasks/${task.id}`, {
