@@ -61,10 +61,13 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
   const cfg = BRAND_CONFIG[state.brand];
   const packageItem = packages.find((item) => item.id === state.selectedPackageId);
   const selectedSingles = getSingleItems(state.brand).filter((item) => state.selectedSingleItemIds.includes(item.id));
+  // 제이크이미지연구소는 단일항목이 자유 텍스트 내용칸이라 금액은 항상 0(견적 총액 계산에서
+  // 제외)이고, 입력한 내용은 detail로 문서에 그대로 노출한다.
   const singleLines = selectedSingles.map((item) => ({
     id: item.id,
     name: item.name,
-    amount: state.brand === "jakeimage" ? (state.singleItemAmounts[item.id] || 0) : item.price,
+    amount: state.brand === "jakeimage" ? 0 : item.price,
+    detail: state.brand === "jakeimage" ? state.singleItemNotes[item.id] : undefined,
   }));
   const options = optionLines(state, cfg.largeScaleLabel);
   const customItems = state.customItems.filter((item) => item.name || item.detail || item.amount > 0);
