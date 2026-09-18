@@ -48,7 +48,7 @@ describe("useQuoteStore", () => {
     useQuoteStore.getState().setBenefitItems([{ id: "b1", name: "액자 서비스" }]);
     expect(useQuoteStore.getState().benefitItems).toEqual([{ id: "b1", name: "액자 서비스" }]);
 
-    useQuoteStore.getState().setSingleItemAmounts({ "studio-profile": 300000 });
-    expect(useQuoteStore.getState().singleItemAmounts).toEqual({ "studio-profile": 300000 });
+    useQuoteStore.getState().setSingleItemNotes({ "studio-profile": "당일 컨셉: 화이트톤" });
+    expect(useQuoteStore.getState().singleItemNotes).toEqual({ "studio-profile": "당일 컨셉: 화이트톤" });
   });
 });
