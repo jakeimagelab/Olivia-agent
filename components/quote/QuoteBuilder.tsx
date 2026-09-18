@@ -939,7 +939,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setQuoteTitle(data.title || BRAND_CONFIG.photoclinic.defaultQuoteTitle);
       setSelectedPackageId(null);
       setSelectedSingleItemIds([]);
-      setSingleItemAmounts({});
+      setSingleItemNotes({});
       setProfileCount(0);
       setStagedCount(0);
       setCombinedProfileStagedCount(0);
