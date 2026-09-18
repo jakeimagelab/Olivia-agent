@@ -39,7 +39,7 @@ import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmations";
 import { buildContractRoundConfirmation } from "@/lib/olivia/output/contractConfirmations";
 import { resolveDocumentBrand } from "@/lib/olivia/brandResolver";
-import { getOliviaAgentEngine } from "@/lib/hermes/client";
+import { getOliviaAgentEngine, isClientSearchRequest, isMutationIntent, isUiExecutionIntent } from "@/lib/hermes/client";
 import { hermesProvider, isBrainFallbackSafe } from "@/lib/assistant/brain";
 import type { AssistantChannel } from "@/lib/assistant/types";
 import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
