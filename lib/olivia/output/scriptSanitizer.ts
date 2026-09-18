@@ -50,6 +50,55 @@ export function detectAbnormalScript(text: string): ScriptAnomalyResult {
   return { clean: offendingRanges.length === 0, offendingRanges };
 }
 
+// 코드 요청서(2026-09-18) 작업 A — 실시간 스트리밍 중에도 이상 문자를 놓치지 않기 위한
+// sliding-window 필터. detectAbnormalScript()는 완성된 라운드 전체에 한 번 쓰도록 만들어진
+// 함수라 그대로 재사용하되, 매 delta마다 "최근 windowSize자"만 버퍼에 쥐고 검사한다 — 깨진
+// 문자는 대개 토큰 경계에서 생기므로 꼬리 구간만 지켜보면 충분하고, 그 앞부분은 안전하다고
+// 판단해 즉시 내보낸다. 한 번 이상 문자가 걸리면(poisoned) 그 라운드는 더 이상 아무것도 내보내지
+// 않는다 — 호출부가 fallback 문구로 이어붙이는 책임을 진다.
+export type StreamingScriptGuard = {
+  /** 새 delta를 받아 지금 안전하게 내보낼 수 있는 부분만 반환한다(없으면 빈 문자열). */
+  push: (delta: string) => string;
+  /** 라운드가 끝났을 때 버퍼에 남은 마지막 구간을 한 번 더 검사해서 반환한다. */
+  flush: () => string;
+  /** 이상 문자가 발견되어 이후 release를 전부 멈춘 상태인지. */
+  isPoisoned: () => boolean;
+};
+
+export function createStreamingScriptGuard(windowSize = 40): StreamingScriptGuard {
+  let pendingTail = "";
+  let poisoned = false;
+
+  function push(delta: string): string {
+    if (poisoned || !delta) return "";
+    pendingTail += delta;
+    if (pendingTail.length <= windowSize) return "";
+    if (!detectAbnormalScript(pendingTail).clean) {
+      poisoned = true;
+      pendingTail = "";
+      return "";
+    }
+    const releaseLength = pendingTail.length - windowSize;
+    const releasable = pendingTail.slice(0, releaseLength);
+    pendingTail = pendingTail.slice(releaseLength);
+    return releasable;
+  }
+
+  function flush(): string {
+    if (poisoned || !pendingTail) return "";
+    if (!detectAbnormalScript(pendingTail).clean) {
+      poisoned = true;
+      pendingTail = "";
+      return "";
+    }
+    const remainder = pendingTail;
+    pendingTail = "";
+    return remainder;
+  }
+
+  return { push, flush, isPoisoned: () => poisoned };
+}
+
 const STACK_TRACE_PATTERN = /\bat\s+.*\.(ts|tsx|js):\d+:\d+/;
 const RAW_JSON_ERROR_PATTERN = /^\{[\s\S]*"error"[\s\S]*\}$/;
 const MAX_HISTORY_MESSAGE_LENGTH = 4000;
