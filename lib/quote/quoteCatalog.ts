@@ -74,9 +74,9 @@ export const singleItems: SingleItem[] = [
 ];
 
 // 제이크이미지연구소 단일항목 — QuoteBuilder.tsx의 brand === "jakeimage" 분기는 이 price를
-// 화면에 쓰지 않는다(항목을 선택하면 "금액 직접 입력" 칸이 뜨고 singleItemAmounts[id]를 그대로
-// 쓴다) — 그래서 price는 전부 0(미사용 placeholder)이다. 브랜드필름 + 포인트영상은 "영상촬영"
-// 하나로 통합했다.
+// 화면에 쓰지 않는다(항목을 선택하면 자유 텍스트 "내용 입력" 칸이 뜨고 singleItemNotes[id]에
+// 저장되며, 견적 총액 계산에서는 제외된다) — 그래서 price는 전부 0(미사용 placeholder)이다.
+// 브랜드필름 + 포인트영상은 "영상촬영" 하나로 통합했다.
 export const jakeimageSingleItems: SingleItem[] = [
   {
     id: "studio-profile",
