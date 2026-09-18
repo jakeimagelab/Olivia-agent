@@ -26,7 +26,6 @@ export default function QuoteDiscountForm({ flowId }: { flowId: string }) {
   const brand = useQuoteStore((state) => state.brand);
   const selectedPackageId = useQuoteStore((state) => state.selectedPackageId);
   const selectedSingleItemIds = useQuoteStore((state) => state.selectedSingleItemIds);
-  const singleItemAmounts = useQuoteStore((state) => state.singleItemAmounts);
   const profileCount = useQuoteStore((state) => state.profileCount);
   const stagedCount = useQuoteStore((state) => state.stagedCount);
   const combinedProfileStagedCount = useQuoteStore((state) => state.combinedProfileStagedCount);
