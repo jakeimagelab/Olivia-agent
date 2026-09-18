@@ -239,15 +239,10 @@ export async function runHermesChat(input: {
   const mutationRequest = isMutationIntent(input.message);
   const uiExecutionRequest = isUiExecutionIntent(input.message);
   const guardedResponse = searchRequest || mutationRequest || uiExecutionRequest;
-  console.log("[DEBUG client.ts guardedResponse]", { guardedResponse, searchRequest, mutationRequest, uiExecutionRequest, message: input.message });
   let buffer = "";
   let finalText = "";
-  let debugEventCount = 0;
-  let debugContentDeltaCount = 0;
 
   const handleEvent = (block: string) => {
-    debugEventCount += 1;
-    if (debugEventCount <= 5) console.log("[DEBUG raw block]", JSON.stringify(block).slice(0, 300));
     let eventName = "message";
     const dataLines: string[] = [];
     for (const line of block.split("\n")) {
