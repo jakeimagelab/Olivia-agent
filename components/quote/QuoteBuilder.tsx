@@ -566,11 +566,13 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     [selectedSingleItemIds]
   );
 
+  // 제이크이미지연구소는 단일항목이 자유 텍스트 내용칸(견적 총액 계산에서 제외)이므로
+  // 금액은 항상 0이다 — photoclinic만 카탈로그 고정가를 그대로 쓴다.
   const singleItemPrice = (item: SingleItem) =>
-    brand === "jakeimage" ? (singleItemAmounts[item.id] || 0) : item.price;
+    brand === "jakeimage" ? 0 : item.price;
 
-  const updateSingleItemAmount = (id: string, value: string) => {
-    setSingleItemAmounts((current) => ({ ...current, [id]: numberValue(value) }));
+  const updateSingleItemNote = (id: string, value: string) => {
+    setSingleItemNotes((current) => ({ ...current, [id]: value }));
   };
 
   const optionItems = useMemo(() => {
