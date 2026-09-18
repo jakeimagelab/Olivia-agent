@@ -454,6 +454,7 @@ export async function runHermesChat(input: {
   }
 
   if (guardedResponse) input.callbacks?.onTextDelta?.(finalText);
+  console.log("[DEBUG summary]", { debugEventCount, debugContentDeltaCount, finalTextLength: finalText.length, finalTextPreview: finalText.slice(0, 80) });
 
   clearHermesExecutionContext(requestId);
 
