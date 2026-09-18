@@ -315,6 +315,8 @@ function WorkJournalInner() {
         </p>
         {error ? <p style={{ fontSize: 12, color: C.danger, marginBottom: 12 }}>{error}</p> : null}
 
+        <GeneralTasksPanel />
+
         <div
           className="wj-columns"
           style={{ display: "grid", gridTemplateColumns: "280px 1fr 360px", gap: 16, height: "calc(100vh - 260px)", minHeight: 560 }}
