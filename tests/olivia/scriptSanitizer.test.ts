@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectAbnormalScript, isWellFormedHistoryText } from "@/lib/olivia/output/scriptSanitizer";
+import { createStreamingScriptGuard, detectAbnormalScript, isWellFormedHistoryText } from "@/lib/olivia/output/scriptSanitizer";
 
 // 코드 요청서 — Olivia 채팅 안정성. 한국어 응답에 섞여 들어온 아랍어/히브리어/키릴/데바나가리 등
 // "이상 문자"를 감지하되, 정상적인 한국어+영어 혼용(URL/코드/브랜드명/한자 소량)은 절대 걸러내지
