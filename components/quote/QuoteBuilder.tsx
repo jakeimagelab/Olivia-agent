@@ -737,7 +737,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setQuoteTitle(cfg.defaultQuoteTitle);
     setSelectedPackageId(brand === "jakeimage" ? null : packages[0].id);
     setSelectedSingleItemIds([]);
-    setSingleItemAmounts({});
+    setSingleItemNotes({});
     setProfileCount(0);
     setStagedCount(0);
     setCombinedProfileStagedCount(0);
