@@ -88,8 +88,8 @@ export async function executeNasBackupTool(
 
     // worker_events row를 STARTED로 표시한다 — PATCH /api/worker/events/[id]도 GET과 마찬가지로
     // 관리자 세션 인증만 받아서(x-internal-key 미지원) 여기서 직접 호출할 수 없다(라우트 인증은
-        // 이번 Phase에서 바꾸지 않는다, §24). 그 라우트가 하는 것과 정확히 같은 단일 컬럼 업데이트를
-        // 그대로 반복한다 — 새 상태 전이 로직을 만드는 게 아니다.
+    // 이번 Phase에서 바꾸지 않는다, §24). 그 라우트가 하는 것과 정확히 같은 단일 컬럼 업데이트를
+    // 그대로 반복한다 — 새 상태 전이 로직을 만드는 게 아니다.
     const eventId = text(input, "eventId");
     if (eventId) {
       const db = getSupabaseAdmin();
