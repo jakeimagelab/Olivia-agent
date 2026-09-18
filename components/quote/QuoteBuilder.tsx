@@ -1840,7 +1840,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     },
     removeCustomItem,
     setDepositRate,
-  }), [selectedSingleItemIds, singleItemNotes, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemAmounts]);
+  }), [selectedSingleItemIds, singleItemNotes, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemNotes]);
 
   return (
     <>
