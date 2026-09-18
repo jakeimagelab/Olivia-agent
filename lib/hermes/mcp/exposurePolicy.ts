@@ -60,6 +60,9 @@ export function getHermesToolMode(toolName: string, description = ""): ToolExecu
   if (UI_TOOLS.has(toolName)) return "ui";
   if (/^\[READ\]/i.test(description) || /^(get|list|search|check|resolve|estimate)_/.test(toolName)
     || /_(get_latest|preview)$/.test(toolName)
-    || ["email_read", "email_search", "email_summarize", "calendar_availability"].includes(toolName)) return "read";
+    // client_search는 이름이 search_로 시작하지 않아 위 접두사 정규식에 안 걸린다(끝에 _search가
+    // 붙는 형태라 놓침) — 정규식을 더 넓히는 대신, 읽기 전용임이 확실한 이런 예외를 명시적으로
+    // 나열한다(email_* 계열과 동일한 방식).
+    || ["email_read", "email_search", "email_summarize", "calendar_availability", "client_search"].includes(toolName)) return "read";
   return "mutation";
 }
