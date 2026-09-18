@@ -939,6 +939,27 @@ export async function POST(req: NextRequest) {
               ? renderVerifiedToolRound(hermesToolEntries)
               : null;
             const hermesText = nextPendingAction?.prompt || hermesVerifiedText || hermesResult.text;
+            // 이 라운드에서 실시간으로 흘려보낸 원문이 최종적으로 쓰이는 텍스트와 정확히
+            // 같을 때만(=중간에 pending action/검증 템플릿으로 바뀌지 않았을 때만) 재전송을
+            // 건너뛴다. 이상 문자가 중간에 발견됐으면(streamGuard poisoned) 이미 보인 부분
+            // 뒤에 fallback 문구를 이어붙인다 — 같은 mutation 도구를 다시 부르면 중복 실행
+            // 위험이 있어 재생성은 하지 않는다(legacy 경로의 재생성과 다른 점, 코드 요청서
+            // 작업 A §1).
+            const streamedRawMatchesFinal = !guardedResponse && hermesText === hermesResult.text;
+            let finalDisplayText = hermesText;
+            let alreadyFullyStreamed = false;
+            if (streamedRawMatchesFinal) {
+              if (scriptGuard.isPoisoned()) {
+                console.error("[olivia-v2] abnormal script detected mid-stream (hermes), appending fallback", { requestId });
+                const fallback = OLIVIA_FALLBACK_MESSAGES.sanitizationFallback;
+                const continuation = liveStreamedText ? `\n\n${fallback}` : fallback;
+                send({ type: "text_delta", messageId, delta: continuation });
+                finalDisplayText = liveStreamedText ? `${liveStreamedText}\n\n${fallback}` : fallback;
+              } else {
+                finalDisplayText = liveStreamedText;
+              }
+              alreadyFullyStreamed = true;
+            }
             // §21 Observability — "왜 이 Tool을 안 썼는가"를 재현 없이 로그만으로 추적할 수 있게
             // 한다. 민감정보(문서 본문/고객 개인정보)는 넣지 않고 이름/개수/id만 남긴다.
             console.info("[HermesTurn]", {
@@ -954,12 +975,15 @@ export async function POST(req: NextRequest) {
               toolCalls: hermesResult.toolCalls.map((call) => ({ name: call.name, success: call.success, mode: call.mode })),
               uiActionCount: hermesResult.toolCalls.reduce((sum, call) => sum + (call.success ? (call.uiActions?.length ?? 0) : 0), 0),
               finalTextSource: nextPendingAction ? "pending_action" : hermesVerifiedText ? "verified_template" : "hermes_raw",
+              streamedLive: streamedRawMatchesFinal,
             });
             chatRouteLabel = "HERMES";
             console.info(`[CHAT ROUTE] ${chatRouteLabel}`, { requestId });
-            await flushTextAsDeltas(hermesText, send, messageId);
-            await saveTurnAssistant(hermesText, {
-                blocks: [{ type: "text", text: hermesText }, ...(hermesApprovalBlock ? [hermesApprovalBlock] : [])],
+            if (!alreadyFullyStreamed) {
+              await flushTextAsDeltas(finalDisplayText, send, messageId);
+            }
+            await saveTurnAssistant(finalDisplayText, {
+                blocks: [{ type: "text", text: finalDisplayText }, ...(hermesApprovalBlock ? [hermesApprovalBlock] : [])],
                 agentEngine: "hermes",
                 hermesRunId: hermesResult.runId,
                 toolCalls: hermesResult.toolCalls.map(({ id, name, success, mode, resourceType, resourceId, verification }) => ({ id, name, success, mode, resourceType, resourceId, verification })),
