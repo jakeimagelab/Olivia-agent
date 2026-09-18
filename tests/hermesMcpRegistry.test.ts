@@ -66,16 +66,21 @@ describe("Olivia Hermes MCP registry", () => {
   });
 
   // client_search는 이름이 "search_"로 시작하지 않아(끝에 붙는 형태) getHermesToolMode()의
-  // 접두사 정규식에 안 걸려 mutation으로 오분류됐었다 — read-only Hermes 컨텍스트(canEdit:false)에서
-  // PERMISSION_DENIED가 잘못 발생하는 버그였다(Phase 2 감사에서 발견, 회귀 방지).
-  it("client_search는 read 전용으로 분류된다", () => {
+  // 이름 접두사 정규식만으로는 mutation으로 떨어진다. 하지만 실제 호출부(oliviaToolBridge.ts의
+  // executeHermesOliviaTool)는 항상 definition.description(항상 "[READ] ..."로 시작)을 같이
+  // 넘기므로 실제로는 그 description 우선 체크로 이미 올바르게 read로 분류된다 — 이름만으로 호출한
+  // 조사는 false positive였다. 그래도 이름만으로도 안전하게 read가 나오도록 EXPLICIT_READ_TOOLS류
+  // 목록에 client_search를 추가해(exposurePolicy.ts) description이 비어 있는 호출부가 생기더라도
+  // 안전하게 만들었다 — 이 테스트는 그 방어선을 검증한다(description 없이 호출해도 read).
+  it("client_search는 description 없이 이름만으로도 read로 분류된다(방어선)", () => {
     expect(getHermesToolMode("client_search")).toBe("read");
   });
 
-  it("client_get/create/update는 client_search 수정으로 영향받지 않는다", () => {
-    expect(getHermesToolMode("client_get")).toBe("read");
-    expect(getHermesToolMode("client_create")).toBe("mutation");
-    expect(getHermesToolMode("client_update")).toBe("mutation");
+  it("실제 호출 경로와 동일하게 OLIVIA_V2_TOOLS의 진짜 description을 넘기면 client_get/list/search류가 전부 read로 분류된다", () => {
+    for (const name of ["client_search", "client_get", "memo_list", "memo_search", "memo_get", "calendar_list"]) {
+      const definition = OLIVIA_V2_TOOLS.find((tool) => tool.name === name)!;
+      expect(getHermesToolMode(name, definition.description ?? "")).toBe("read");
+    }
   });
 
   it("create_quote MCP schema가 자연어 견적 V2 필드와 서비스 수정 도구를 노출한다", () => {
