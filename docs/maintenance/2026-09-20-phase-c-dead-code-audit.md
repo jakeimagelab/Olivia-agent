@@ -2,8 +2,9 @@
 
 - 기준 커밋: `9bc41de1`
 - 분석일: 2026-09-20
-- 범위: 추적 중인 TypeScript/JavaScript 소스 1,600개, App Router 페이지 139개
-- 상태: **삭제 전 승인 대기**
+- 최초 분석 범위: 추적 중인 TypeScript/JavaScript 소스 1,600개, App Router 페이지 139개
+- 최종 분석 범위: 추적 중인 TypeScript/JavaScript 소스 1,560개, App Router 페이지 138개
+- 상태: **승인된 삭제 및 검증 완료**
 
 ## 분석 방법
 
@@ -19,11 +20,11 @@
 - 엔트리포인트에서 도달 불가한 내부 파일과 그 전용 의존성: 92개
 - Registry/Dock/App Grid에서 도달 불가한 페이지: 7개
 
-정적 분석은 삭제의 충분조건이 아니다. 아래의 **삭제 승인 요청**만 높은 확신으로 분리했고, 나머지는 보류한다.
+정적 분석은 삭제의 충분조건이 아니다. 아래의 **승인된 삭제 목록**만 높은 확신으로 분리해 삭제했고, 나머지는 보류했다.
 
-## 삭제 승인 요청
+## 승인 후 삭제 완료
 
-총 40개 파일, 약 1,825줄이다. 현재는 삭제하지 않았다.
+사용자 승인 후 총 40개 파일, 1,825줄을 삭제했다. 삭제 후 의존 그래프를 다시 계산한 결과 직접 import 0개인 내부 파일은 27개, 엔트리포인트에서 도달 불가한 내부 파일과 전용 의존성은 56개로 줄었다. 새로 확인된 항목은 모두 아래 보류 범주 또는 런타임 특수 로딩에 해당해 추가 삭제하지 않았다.
 
 ### 1. 명시적으로 대체되었거나 완전히 고립된 파일
 
@@ -170,7 +171,7 @@ Backend도 `lib/workflowAutomation.ts`와 `lib/olivia/tools/workflow.ts`가 서�
 - `components/work-journal/TaskDetailPanel.tsx`
 - `components/work-journal/TaskListColumn.tsx`
 
-## 앱 UI에서 도달 불가한 페이지 7개
+## 앱 UI에서 도달 불가한 페이지 최종 결과
 
 아래는 Desktop registry, Dock, `ALL_TOOLS` 앱 그리드, Tablet 앱 목록, Mobile navigation 어디에도 없다.
 
@@ -181,19 +182,23 @@ Backend도 `lib/workflowAutomation.ts`와 `lib/olivia/tools/workflow.ts`가 서�
 | `/instagram-promo-design` | legacy Olivia 허용 경로 목록 | 유지/분류 필요 |
 | `/sns-design` | legacy Olivia 허용 경로 목록 | 유지/분류 필요 |
 | `/variation` | legacy Olivia 허용 경로, 실제 `/api/variation` 사용 | 유지/분류 필요 |
-| `/team/reports` | `/team` redirect | 호환 redirect로 유지 권장 |
-| `/select/demo` | mock 전용, 다른 참조 없음 | 삭제 승인 요청 |
+| `/team/chat` | `/team` redirect | 호환 redirect로 유지 |
+| `/team/goals` | `/team` redirect | 호환 redirect로 유지 |
+| `/team/reports` | `/team` redirect | 호환 redirect로 유지 |
+| `/team/today` | `/team` redirect | 호환 redirect로 유지 |
 
-앞의 다섯 경로는 앱 UI에는 없지만 Olivia의 legacy feature route 목록에 포함되어 있으므로 도달 불가만으로 삭제하면 안 된다.
+앞의 다섯 경로는 앱 UI에는 없지만 Olivia의 legacy feature route 목록에 포함되어 있으므로 도달 불가만으로 삭제하면 안 된다. `/select/demo`는 승인 후 삭제했다. `/team/*` 네 경로는 현재 통합 `/team` 화면으로 보내는 호환 redirect라 유지했다.
 
 ## API route 판정
 
 이번 정적 분석으로 즉시 삭제해도 안전하다고 증명된 API route는 없다. API route는 내부 import가 없어도 webhook, cron, Mac Studio Worker 또는 외부 공유 링크에서 직접 호출될 수 있다. 따라서 내부 문자열 참조가 없다는 이유만으로 삭제하지 않는다.
 
-## 승인 후 실행 순서
+## 최종 검증
 
-1. 위 40개 파일만 삭제한다.
-2. import graph를 다시 계산해 새 고립 파일이 생기는지 확인한다.
-3. `npx tsc --noEmit`, `npm test`, `npm run build`를 실행한다.
-4. 삭제 목록과 보류 목록을 이 문서에 최종 결과로 갱신한다.
-5. PHASE C만 별도 커밋하고 멈춘다.
+- `npm run typecheck`: 통과
+- `npm test`: 176개 파일, 1,241개 테스트 통과
+- `npm run build`: 통과 (기존 lint warning은 남아 있으나 build error 없음)
+- `git diff --check`: 통과
+- 삭제한 API route: 없음
+- 중복·레거시 구현: 목록만 보존, 삭제 없음
+- 기존 사용자 작업 파일: 스테이징 및 커밋 대상에서 제외
