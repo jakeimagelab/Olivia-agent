@@ -1,0 +1,192 @@
+.shell {
+  min-width: 0;
+  min-height: 100dvh;
+  color: #1c2b28;
+  background: #faf9f6;
+  font-family: var(--font-sans);
+}
+
+.shell[data-analysis-surface="window"],
+.shell[data-analysis-surface="tablet"] {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.executionBar {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 280px) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 58px;
+  padding: 9px clamp(16px, 2.4vw, 28px);
+  border-bottom: 1px solid rgba(21, 88, 85, 0.09);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+}
+
+.executionState {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: #155855;
+}
+
+.executionState > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.executionState strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.executionState span {
+  color: #7a9490;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.executionBar[data-status="failed"] .executionState { color: #b64e2a; }
+.executionBar[data-status="completed"] .executionState { color: #2f9255; }
+
+.executionBar > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 11px;
+  color: #fff;
+  background: #155855;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.executionBar > button:disabled { cursor: not-allowed; opacity: 0.46; }
+
+.progress {
+  position: relative;
+  height: 6px;
+  overflow: visible;
+  border-radius: 999px;
+  background: #e6efed;
+}
+
+.progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #e85d2c;
+  transition: width 240ms ease;
+}
+
+.progress span {
+  position: absolute;
+  right: 0;
+  top: 9px;
+  color: #7a9490;
+  font-size: 9px;
+}
+
+.viewport {
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: clamp(18px, 2.6vw, 32px);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.header > div { min-width: 0; }
+.header > div > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #e85d2c;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+}
+
+.header h1 {
+  margin: 0;
+  color: #155855;
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 650;
+  letter-spacing: -0.045em;
+}
+
+.header p {
+  max-width: 720px;
+  margin: 8px 0 0;
+  color: #6f837e;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.65;
+}
+
+.header aside {
+  flex: none;
+  max-width: 38%;
+  overflow: hidden;
+  border: 1px solid rgba(21, 88, 85, 0.1);
+  border-radius: 11px;
+  padding: 8px 12px;
+  color: #155855;
+  background: #eff7f5;
+  font-size: 11px;
+  font-weight: 450;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabs {
+  min-width: 0;
+  margin-bottom: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.body { min-width: 0; }
+
+.spin { animation: analysis-spin 0.85s linear infinite; }
+
+@keyframes analysis-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 720px) {
+  .executionBar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 54px;
+    padding: 8px 12px;
+  }
+  .progress { display: none; }
+  .executionBar > button { min-height: 36px; padding: 0 11px; }
+  .executionState span { display: none; }
+  .viewport { padding: 16px 12px 40px; }
+  .header { display: block; }
+  .header h1 { font-size: 25px; }
+  .header aside { max-width: none; margin-top: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+  .progress i { transition: none; }
+}

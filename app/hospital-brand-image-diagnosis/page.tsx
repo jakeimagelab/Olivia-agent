@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import GlobalHeader from "@/components/GlobalHeader";
 import { C, R, FS, SP } from "@/lib/theme";
 import type {
   ChannelDiagnosisResult, ChannelScores, DiagnosisChannel, DiagnosisProgressStatus,
@@ -9,6 +8,10 @@ import type {
 } from "@/lib/hospitalBrandDiagnosis/types";
 import { HBD_CHANNEL_LABEL, HBD_VISUAL_CATEGORY_LABEL } from "@/lib/hospitalBrandDiagnosis/config";
 import { ReportView } from "@/components/hospital-brand-diagnosis/ReportView";
+import { History, ListChecks, ScrollText } from "lucide-react";
+import { AnalysisExecutionProvider, useAnalysisExecution } from "@/components/analysis-workspace/AnalysisExecutionContext";
+import AnalysisWorkspaceShell from "@/components/analysis-workspace/AnalysisWorkspaceShell";
+import { useAnalysisHost } from "@/components/analysis-workspace/AnalysisHostContext";
 
 /* ─────────────────────────── 공통 스타일 토큰 ─────────────────────────── */
 
@@ -352,7 +355,8 @@ function AssetUploadZone({ diagnosisId, channel, consent, assets, onUploaded, on
 
 type ClientLookup = { id: string; hospital_name: string; specialty?: string; address?: string; website_url?: string; naver_place_url?: string; instagram_url?: string; contact_name?: string };
 
-export default function HospitalBrandImageDiagnosisPage() {
+function HospitalBrandImageDiagnosisContent() {
+  const { surface } = useAnalysisHost();
   const [screen, setScreen] = useState<"landing" | "wizard">("landing");
   const [step, setStep] = useState(1);
   const [maxReached, setMaxReached] = useState(1);
@@ -404,6 +408,14 @@ export default function HospitalBrandImageDiagnosisPage() {
   const [channelResults, setChannelResults] = useState<ChannelDiagnosisResult[]>([]);
   const [compiling, setCompiling] = useState(false);
   const [report, setReport] = useState<HospitalBrandDiagnosisReport | null>(null);
+  const primaryActionRef = useRef<(() => void | Promise<void>) | null>(null);
+  const {
+    registerAction,
+    reportRunning,
+    reportProgress,
+    reportCompleted,
+    reportFailed,
+  } = useAnalysisExecution();
 
   const activeChannels = useMemo(() => CHANNEL_LIST.filter((c) => selectedChannels[c]), [selectedChannels]);
 
@@ -587,6 +599,7 @@ export default function HospitalBrandImageDiagnosisPage() {
 
   const runCollect = async (id: string) => {
     setCollecting(true); setGlobalError("");
+    reportRunning("선택한 채널 자료를 수집하고 있습니다.", 30);
     try {
       const res = await fetch("/api/hospital-brand-diagnosis/collect", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ diagnosisId: id }),
@@ -600,8 +613,11 @@ export default function HospitalBrandImageDiagnosisPage() {
           status: s.status, evidenceCount: s.evidence_count, collectedAt: s.collected_at, limitations: s.limitations_json || [],
         })));
       }
+      reportProgress(45, "채널 자료 수집이 완료되었습니다.");
     } catch (e) {
-      setGlobalError(e instanceof Error ? e.message : "자료 수집 실패");
+      const message = e instanceof Error ? e.message : "자료 수집 실패";
+      setGlobalError(message);
+      reportFailed(message);
     } finally {
       setCollecting(false);
     }
@@ -610,6 +626,7 @@ export default function HospitalBrandImageDiagnosisPage() {
   const runAnalyzeVisual = async () => {
     if (!diagnosisId) return;
     setAnalyzingVisual(true); setGlobalError("");
+    reportRunning("사진·영상 자료를 분석하고 있습니다.", 55);
     try {
       const res = await fetch("/api/hospital-brand-diagnosis/analyze-visual", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ diagnosisId }),
@@ -628,8 +645,11 @@ export default function HospitalBrandImageDiagnosisPage() {
         });
       }
       goToStep(6);
+      reportProgress(68, "채널별 통합 진단을 준비하고 있습니다.");
     } catch (e) {
-      setGlobalError(e instanceof Error ? e.message : "이미지 분석 실패");
+      const message = e instanceof Error ? e.message : "이미지 분석 실패";
+      setGlobalError(message);
+      reportFailed(message);
     } finally {
       setAnalyzingVisual(false);
     }
@@ -638,6 +658,7 @@ export default function HospitalBrandImageDiagnosisPage() {
   const runCompile = async () => {
     if (!diagnosisId) return;
     setCompiling(true); setGlobalError("");
+    reportRunning("채널 결과를 통합 진단하고 있습니다.", 72);
     try {
       // 채널 하나가 실패해도 즉시 중단하지 않고 나머지 채널은 계속 시도한다(섹션 9-2/조건13).
       // 실패한 채널은 analyze-channel API가 이미 "분석 오류" 상태로 DB에 남기므로,
@@ -674,8 +695,11 @@ export default function HospitalBrandImageDiagnosisPage() {
       if (!compileRes.ok || !compileBody.ok) throw new Error(compileBody.error || "통합 리포트 생성 실패");
       setReport(compileBody.report);
       goToStep(7);
+      reportCompleted("병원 브랜드 이미지 진단이 완료되었습니다.");
     } catch (e) {
-      setGlobalError(e instanceof Error ? e.message : "통합 진단 실패");
+      const message = e instanceof Error ? e.message : "통합 진단 실패";
+      setGlobalError(message);
+      reportFailed(message);
     } finally {
       setCompiling(false);
     }
@@ -691,13 +715,58 @@ export default function HospitalBrandImageDiagnosisPage() {
     setGlobalError("");
   };
 
+  const primaryActionLabel = screen === "landing"
+    ? "브랜드 이미지 진단 시작"
+    : step === 6
+      ? "통합 진단 시작"
+      : null;
+  primaryActionRef.current = screen === "landing"
+    ? () => startWizard()
+    : step === 6
+      ? runCompile
+      : null;
+
+  useEffect(() => {
+    if (!primaryActionLabel) return;
+    return registerAction(primaryActionLabel, () => primaryActionRef.current?.());
+  }, [primaryActionLabel, registerAction]);
+
+  const workspaceTabs = [
+    { value: "input", label: "진단 진행", icon: <ListChecks size={15} /> },
+    { value: "result", label: "진단 결과", icon: <ScrollText size={15} /> },
+    { value: "history", label: "이전 진단", icon: <History size={15} /> },
+  ];
+
+  const navigateWorkspaceTab = (value: string) => {
+    if (value === "history") {
+      resetWizard();
+      return;
+    }
+    if (value === "result" && report) {
+      setScreen("wizard");
+      goToStep(7);
+      return;
+    }
+    if (value === "input") {
+      if (screen === "landing") void startWizard();
+      else if (step === 7) goToStep(1);
+    }
+  };
+
   /* ─────────────────────────── 렌더 ─────────────────────────── */
 
   if (screen === "landing") {
     return (
-      <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-        <GlobalHeader title="병원브랜드이미지 진단" description="홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다." />
-        <div className="oa-page" style={{ maxWidth: 720, margin: "0 auto", padding: `60px 20px 80px`, textAlign: "center" }}>
+      <AnalysisWorkspaceShell
+        surface={surface}
+        title="병원 브랜드 이미지 진단"
+        description="홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다."
+        eyebrow="BRAND IMAGE DIAGNOSIS"
+        tabs={workspaceTabs}
+        activeTab="history"
+        onTabChange={navigateWorkspaceTab}
+      >
+        <div className="oa-page" style={{ maxWidth: 720, margin: "0 auto", padding: `24px 0 48px`, textAlign: "center" }}>
           <h1 style={{ fontSize: FS.xxl, fontWeight: 900, color: C.ink, margin: "0 0 14px" }}>병원브랜드이미지 진단</h1>
           <p style={{ fontSize: FS.lg, color: C.ink, lineHeight: 1.7, margin: "0 0 6px" }}>
             사진만 평가하지 않습니다.<br />
@@ -743,14 +812,22 @@ export default function HospitalBrandImageDiagnosisPage() {
             )}
           </div>
         </div>
-      </main>
+      </AnalysisWorkspaceShell>
     );
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-      <GlobalHeader title="병원브랜드이미지 진단" description="홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다." />
-      <div className="oa-page" style={{ maxWidth: 820, margin: "0 auto", padding: `${SP.lg}px 20px 80px` }}>
+    <AnalysisWorkspaceShell
+      surface={surface}
+      title="병원 브랜드 이미지 진단"
+      description="현재 채널과 보유 콘텐츠가 환자에게 전달하는 브랜드 이미지를 단계별로 확인합니다."
+      eyebrow="BRAND IMAGE DIAGNOSIS"
+      target={hospitalName ? <span>{hospitalName}{specialty ? ` · ${specialty}` : ""}</span> : undefined}
+      tabs={workspaceTabs}
+      activeTab={step === 7 ? "result" : "input"}
+      onTabChange={navigateWorkspaceTab}
+    >
+      <div className="oa-page" style={{ maxWidth: 820, margin: "0 auto", padding: `${SP.sm}px 0 48px` }}>
         <StepIndicator current={step} maxReached={maxReached} isMobile={isMobile} />
         {globalError && (
           <div style={{ background: "#FFF0F0", border: `1px solid ${C.danger}`, borderRadius: R.md, padding: 12, marginBottom: 16, color: C.danger, fontSize: FS.sm }}>
@@ -1003,7 +1080,14 @@ export default function HospitalBrandImageDiagnosisPage() {
           <ReportView report={report} onRestart={resetWizard} onBackToStep={goToStep} diagnosisId={diagnosisId} />
         )}
       </div>
-    </main>
+    </AnalysisWorkspaceShell>
   );
 }
 
+export default function HospitalBrandImageDiagnosisPage() {
+  return (
+    <AnalysisExecutionProvider workspaceId="hospital-brand-image-diagnosis">
+      <HospitalBrandImageDiagnosisContent />
+    </AnalysisExecutionProvider>
+  );
+}

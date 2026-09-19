@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import GlobalHeader from "@/components/GlobalHeader";
+import { FileInput, FileSearch } from "lucide-react";
+import { AnalysisExecutionProvider, useAnalysisExecution } from "@/components/analysis-workspace/AnalysisExecutionContext";
+import AnalysisWorkspaceShell from "@/components/analysis-workspace/AnalysisWorkspaceShell";
+import { useAnalysisHost } from "@/components/analysis-workspace/AnalysisHostContext";
 
 const C = {
   green:  "#155855",
@@ -325,7 +328,8 @@ const PURPOSE_OPTIONS = [
 ];
 
 /* ── Main Page ──────────────────────────────────────────────── */
-export default function BrandAnalysisPage() {
+function BrandAnalysisContent() {
+  const { surface } = useAnalysisHost();
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [url, setUrl] = useState("");
   const [purpose, setPurpose] = useState("all");
@@ -336,6 +340,14 @@ export default function BrandAnalysisPage() {
   const [progress, setProgress] = useState(0);
   const [progressMsg, setProgressMsg] = useState(PROGRESS_STEPS[0].msg);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const {
+    registerAction,
+    reportRunning,
+    reportProgress,
+    reportCompleted,
+    reportFailed,
+    resetExecution,
+  } = useAnalysisExecution();
 
   // Animate progress bar during loading
   useEffect(() => {
@@ -343,14 +355,16 @@ export default function BrandAnalysisPage() {
     let idx = 0;
     setProgress(PROGRESS_STEPS[0].pct);
     setProgressMsg(PROGRESS_STEPS[0].msg);
+    reportProgress(PROGRESS_STEPS[0].pct, PROGRESS_STEPS[0].msg);
     const interval = setInterval(() => {
       idx = Math.min(idx + 1, PROGRESS_STEPS.length - 1);
       setProgress(PROGRESS_STEPS[idx].pct);
       setProgressMsg(PROGRESS_STEPS[idx].msg);
+      reportProgress(PROGRESS_STEPS[idx].pct, PROGRESS_STEPS[idx].msg);
       if (idx === PROGRESS_STEPS.length - 1) clearInterval(interval);
     }, 2800);
     return () => clearInterval(interval);
-  }, [step]);
+  }, [reportProgress, step]);
 
   const handleAnalyze = useCallback(async () => {
     const trimmed = url.trim();
@@ -358,6 +372,7 @@ export default function BrandAnalysisPage() {
     setError("");
     setStep(1);
     setProgress(0);
+    reportRunning("홈페이지를 확인하고 있습니다.", 5);
     try {
       const res = await fetch("/api/brand-analysis", {
         method: "POST",
@@ -375,11 +390,16 @@ export default function BrandAnalysisPage() {
       setResult(data);
       setActiveTab(0);
       setStep(2);
+      reportCompleted("브랜드 분석 리포트가 완성되었습니다.");
     } catch (e: any) {
-      setError(e.message ?? "오류가 발생했습니다");
+      const message = e.message ?? "오류가 발생했습니다";
+      setError(message);
       setStep(0);
+      reportFailed(message);
     }
-  }, [url, purpose, depth]);
+  }, [depth, purpose, reportCompleted, reportFailed, reportRunning, url]);
+
+  useEffect(() => registerAction("브랜드 분석 시작", handleAnalyze), [handleAnalyze, registerAction]);
 
   const handleDownload = async (type: "word" | "excel") => {
     if (!result) return;
@@ -533,7 +553,7 @@ export default function BrandAnalysisPage() {
               <Btn variant="secondary" onClick={() => window.print()}>
                 🖨 인쇄/PDF
               </Btn>
-              <Btn variant="ghost" onClick={() => { setStep(0); setResult(null); }}>
+              <Btn variant="ghost" onClick={() => { setStep(0); setResult(null); resetExecution(); }}>
                 다시 분석
               </Btn>
             </div>
@@ -717,14 +737,23 @@ export default function BrandAnalysisPage() {
 
   /* ── Layout ───────────────────────────────────────────────── */
   return (
-    <div style={{ minHeight: "100vh", background: C.ivory, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <GlobalHeader
-        title={result ? `홈페이지 브랜드 분석 — ${result.brandName}` : "홈페이지 브랜드 분석"}
-        description="병원 홈페이지 URL만 입력하면 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 자동 분석합니다."
-      />
-
-      {/* Main */}
-      <div style={{ maxWidth: 940, margin: "0 auto", padding: "24px 20px 80px" }}>
+    <AnalysisWorkspaceShell
+      surface={surface}
+      title={result ? `홈페이지 브랜드 분석 — ${result.brandName}` : "홈페이지 브랜드 분석"}
+      description="병원 홈페이지 URL을 바탕으로 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 분석합니다."
+      eyebrow="BRAND ANALYSIS"
+      target={url ? <span>{url}</span> : undefined}
+      tabs={[
+        { value: "input", label: "분석 입력", icon: <FileInput size={15} /> },
+        { value: "result", label: "분석 결과", icon: <FileSearch size={15} /> },
+      ]}
+      activeTab={step === 2 ? "result" : "input"}
+      onTabChange={(value) => {
+        if (value === "input") setStep(0);
+        if (value === "result" && result) setStep(2);
+      }}
+    >
+      <div style={{ maxWidth: 940, margin: "0 auto" }}>
         {step === 0 && renderForm()}
         {step === 1 && renderLoading()}
         {step === 2 && renderResults()}
@@ -737,6 +766,14 @@ export default function BrandAnalysisPage() {
           body { background: white; }
         }
       `}</style>
-    </div>
+    </AnalysisWorkspaceShell>
+  );
+}
+
+export default function BrandAnalysisPage() {
+  return (
+    <AnalysisExecutionProvider workspaceId="brand-analysis">
+      <BrandAnalysisContent />
+    </AnalysisExecutionProvider>
   );
 }

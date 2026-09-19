@@ -13,6 +13,7 @@ export type WindowContext = {
   clientName?: string;
   projectId?: string;
   projectName?: string;
+  workflowRunId?: string;
   resourceId?: string;
   resourceType?: string;
   documentId?: string;

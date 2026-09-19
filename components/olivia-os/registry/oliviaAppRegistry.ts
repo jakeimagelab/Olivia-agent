@@ -17,6 +17,10 @@ import { AllAppsWindowContent } from "../apps/all-apps/AllAppsWindowContent";
 import { LegacyRouteWindowContent } from "../adapters/LegacyRouteWindowContent";
 import { CalendarAppIcon } from "../CalendarAppIcon";
 import { MemoWindowContent } from "../adapters/MemoWindowContent";
+import { BrandAnalysisWindowContent } from "../adapters/BrandAnalysisWindowContent";
+import { TrendDashboardWindowContent } from "../adapters/TrendDashboardWindowContent";
+import { HospitalBrandDiagnosisWindowContent } from "../adapters/HospitalBrandDiagnosisWindowContent";
+import { ChannelAnalyzerWindowContent } from "../adapters/ChannelAnalyzerWindowContent";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
 // conti는 Phase 3에서 레거시 70/30 시스템이 이미 쓰던 mode="modal" 빌더(QuoteBuilder 등)를
@@ -176,6 +180,46 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 520, height: 380 },
     singleton: true,
     component: AllAppsWindowContent,
+  },
+  {
+    id: "brand-analysis",
+    title: "홈페이지 브랜드 분석",
+    icon: appIcon("brand-audit"),
+    route: "/brand-analysis",
+    defaultSize: { width: 1120, height: 760 },
+    minSize: { width: 620, height: 440 },
+    singleton: true,
+    component: BrandAnalysisWindowContent,
+  },
+  {
+    id: "trend-dashboard",
+    title: "병원 트렌드 분석",
+    icon: appIcon("trend-analysis"),
+    route: "/trend-dashboard",
+    defaultSize: { width: 1180, height: 780 },
+    minSize: { width: 660, height: 460 },
+    singleton: true,
+    component: TrendDashboardWindowContent,
+  },
+  {
+    id: "hospital-brand-image-diagnosis",
+    title: "병원 브랜드 이미지 진단",
+    icon: appIcon("brand-image-diagnosis"),
+    route: "/hospital-brand-image-diagnosis",
+    defaultSize: { width: 1080, height: 760 },
+    minSize: { width: 600, height: 440 },
+    singleton: true,
+    component: HospitalBrandDiagnosisWindowContent,
+  },
+  {
+    id: "channel-analyzer",
+    title: "병원 채널 분석",
+    icon: appIcon("channel-analysis"),
+    route: "/channel-analyzer",
+    defaultSize: { width: 1120, height: 760 },
+    minSize: { width: 620, height: 440 },
+    singleton: true,
+    component: ChannelAnalyzerWindowContent,
   },
   {
     id: "legacy-route",

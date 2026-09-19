@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, BarChart, Bar,
@@ -10,7 +9,9 @@ import {
   TrendingUp, RefreshCw, Sparkles, Hash, Users, Youtube, Instagram, Plus, X, Trash2, Search,
 } from "lucide-react";
 import { TREND_INDUSTRIES } from "@/lib/trend/constants";
-import GlobalHeader from "@/components/GlobalHeader";
+import { AnalysisExecutionProvider, useAnalysisExecution } from "@/components/analysis-workspace/AnalysisExecutionContext";
+import AnalysisWorkspaceShell from "@/components/analysis-workspace/AnalysisWorkspaceShell";
+import { useAnalysisHost } from "@/components/analysis-workspace/AnalysisHostContext";
 
 const SERIES_COLORS = ["#155855", "#E85D2C", "#0891B2", "#9333EA", "#D97706", "#059669"];
 
@@ -64,7 +65,8 @@ function mergeKeywordSeries(series: Record<string, { date: string; value: number
   });
 }
 
-export default function TrendDashboardPage() {
+function TrendDashboardContent() {
+  const { surface } = useAnalysisHost();
   const [industry, setIndustry] = useState<string>("all");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +80,14 @@ export default function TrendDashboardPage() {
   const [keywordInput, setKeywordInput] = useState("");
   const [keywordAnalysis, setKeywordAnalysis] = useState<KeywordAnalysis | null>(null);
   const [searchingKeyword, setSearchingKeyword] = useState(false);
+  const [workspaceTab, setWorkspaceTab] = useState("overview");
+  const contentRef = useRef<HTMLDivElement>(null);
+  const {
+    registerAction,
+    reportRunning,
+    reportCompleted,
+    reportFailed,
+  } = useAnalysisExecution();
 
   const load = useCallback(async (ind: string) => {
     setLoading(true);
@@ -92,15 +102,22 @@ export default function TrendDashboardPage() {
 
   useEffect(() => { load(industry); }, [industry, load]);
 
-  const runCollect = async () => {
+  const runCollect = useCallback(async () => {
     setCollecting(true);
+    reportRunning("트렌드 데이터를 수집하고 있습니다.", 20);
     try {
-      await fetch("/api/trend/collect", { method: "POST" });
+      const response = await fetch("/api/trend/collect", { method: "POST" });
+      if (!response.ok) throw new Error("트렌드 데이터를 수집하지 못했습니다.");
       await load(industry);
+      reportCompleted("최신 트렌드 데이터 수집이 완료되었습니다.");
+    } catch (error) {
+      reportFailed(error instanceof Error ? error.message : "트렌드 수집에 실패했습니다.");
     } finally {
       setCollecting(false);
     }
-  };
+  }, [industry, load, reportCompleted, reportFailed, reportRunning]);
+
+  useEffect(() => registerAction("트렌드 데이터 수집", runCollect), [registerAction, runCollect]);
 
   const runInsight = async () => {
     setGeneratingInsight(true);
@@ -158,10 +175,26 @@ export default function TrendDashboardPage() {
   const keywordNames = data ? Object.keys(data.keywordSeries).slice(0, 6) : [];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#EDF5F3" }}>
-      <GlobalHeader title="병원 트렌드 분석" description="SNS·키워드 검색량·경쟁사 현황을 업종별로 수집해 AI 인사이트와 함께 보여줍니다." />
-
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 20px 60px" }}>
+    <AnalysisWorkspaceShell
+      surface={surface}
+      title="병원 트렌드 분석"
+      description="SNS·키워드 검색량·경쟁사 현황을 업종별로 수집해 AI 인사이트와 함께 확인합니다."
+      eyebrow="TREND DASHBOARD"
+      target={<span>{industry === "all" ? "전체 진료과" : industry}</span>}
+      tabs={[
+        { value: "overview", label: "대시보드", icon: <TrendingUp size={15} /> },
+        { value: "keywords", label: "키워드", icon: <Hash size={15} /> },
+        { value: "competitors", label: "경쟁 병원", icon: <Users size={15} /> },
+      ]}
+      activeTab={workspaceTab}
+      onTabChange={(value) => {
+        setWorkspaceTab(value);
+        window.requestAnimationFrame(() => {
+          contentRef.current?.querySelector<HTMLElement>(`[data-trend-section="${value}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }}
+    >
+      <div ref={contentRef} style={{ maxWidth: 1200, margin: "0 auto" }}>
 
         {/* ── 진료과 선택 + 수집 실행 ── */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
@@ -203,7 +236,7 @@ export default function TrendDashboardPage() {
         )}
 
         {/* ── 요약: 인기/급상승 키워드 TOP5 + 주목할 병원 ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, marginBottom: 24 }}>
+        <div data-trend-section="overview" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, marginBottom: 24, scrollMarginTop: 80 }}>
           <RankCard
             icon={<TrendingUp size={16} />}
             title="이번 주 인기 키워드"
@@ -235,7 +268,7 @@ export default function TrendDashboardPage() {
         </div>
 
         {/* ── 키워드 트렌드 차트 ── */}
-        <SectionCard title="키워드 검색량 트렌드" desc="네이버 데이터랩 · 구글 트렌드">
+        <SectionCard section="keywords" title="키워드 검색량 트렌드" desc="네이버 데이터랩 · 구글 트렌드">
           {chartRows.length === 0 ? (
             <EmptyState text="키워드 데이터가 아직 없습니다." />
           ) : (
@@ -348,6 +381,7 @@ export default function TrendDashboardPage() {
 
         {/* ── 경쟁사 비교 테이블 ── */}
         <SectionCard
+          section="competitors"
           title="경쟁 병원 SNS 비교"
           desc="팔로워 · 게시물 수 · 증감률"
           style={{ marginTop: 16 }}
@@ -512,7 +546,15 @@ export default function TrendDashboardPage() {
         .spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
-    </div>
+    </AnalysisWorkspaceShell>
+  );
+}
+
+export default function TrendDashboardPage() {
+  return (
+    <AnalysisExecutionProvider workspaceId="trend-dashboard">
+      <TrendDashboardContent />
+    </AnalysisExecutionProvider>
   );
 }
 
@@ -594,10 +636,10 @@ function PlatformCard({
 }
 
 function SectionCard({
-  title, desc, children, style, action,
-}: { title: string; desc?: string; children: React.ReactNode; style?: React.CSSProperties; action?: React.ReactNode }) {
+  title, desc, children, style, action, section,
+}: { title: string; desc?: string; children: React.ReactNode; style?: React.CSSProperties; action?: React.ReactNode; section?: string }) {
   return (
-    <div className="pc-card" style={{ padding: "18px 20px", minWidth: 0, ...style }}>
+    <div className="pc-card" data-trend-section={section} style={{ padding: "18px 20px", minWidth: 0, scrollMarginTop: 80, ...style }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 900, color: "#1C2B28" }}>{title}</div>

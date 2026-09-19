@@ -35,4 +35,11 @@ describe("document opening", () => {
     expect(contextFromHref("/review-studio?reviewId=review-1").resourceId).toBe("review-1");
     expect(contextFromHref("/gallery?galleryId=gallery-1").resourceId).toBe("gallery-1");
   });
+
+  it("분석 앱 창에서도 workflowRunId를 별도 context로 보존한다", () => {
+    const context = contextFromHref("/channel-analyzer?clientId=client-1&workflowRunId=run-1");
+    expect(context.clientId).toBe("client-1");
+    expect(context.projectId).toBe("run-1");
+    expect(context.workflowRunId).toBe("run-1");
+  });
 });

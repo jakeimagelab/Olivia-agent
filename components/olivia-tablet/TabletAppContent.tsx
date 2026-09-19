@@ -7,9 +7,9 @@ import TabletAppFrame from "./TabletAppFrame";
 import TabletHome from "./TabletHome";
 import TabletPhotoRemote from "./TabletPhotoRemote";
 import TabletQuoteContract from "./TabletQuoteContract";
-import TabletRouteFrame from "./TabletRouteFrame";
 import TabletVoice from "./TabletVoice";
 import styles from "./OliviaTabletShell.module.css";
+import { AnalysisHostProvider } from "@/components/analysis-workspace/AnalysisHostContext";
 
 function createLoadingComponent(label: string) {
   function TabletAppLoading() {
@@ -44,6 +44,14 @@ const TabletConti = dynamic(
   () => import("@/components/conti/v2/ContiWorkspaceAdapter"),
   { ssr: false, loading: createLoadingComponent("콘티") },
 );
+const TabletChannelAnalysis = dynamic(
+  () => import("@/app/channel-analyzer/page"),
+  { ssr: false, loading: createLoadingComponent("병원 채널분석") },
+);
+const TabletBrandImage = dynamic(
+  () => import("@/app/hospital-brand-image-diagnosis/page"),
+  { ssr: false, loading: createLoadingComponent("브랜드 이미지 진단") },
+);
 
 export default function TabletAppContent({ activeApp, navigation, onNavigate }: {
   activeApp: TabletAppId;
@@ -70,8 +78,8 @@ export default function TabletAppContent({ activeApp, navigation, onNavigate }: 
     case "review-studio": content = <TabletAppFrame compact><TabletReview /></TabletAppFrame>; break;
     case "memo": content = <TabletAppFrame><TabletMemo /></TabletAppFrame>; break;
     case "quote-contract": content = <TabletAppFrame compact><TabletQuoteContract /></TabletAppFrame>; break;
-    case "channel-analysis": content = <TabletAppFrame><TabletRouteFrame href="/channel-analyzer" title="병원 채널분석" /></TabletAppFrame>; break;
-    case "brand-image": content = <TabletAppFrame><TabletRouteFrame href="/hospital-brand-image-diagnosis" title="브랜드이미지" /></TabletAppFrame>; break;
+    case "channel-analysis": content = <TabletAppFrame compact><AnalysisHostProvider surface="tablet"><TabletChannelAnalysis /></AnalysisHostProvider></TabletAppFrame>; break;
+    case "brand-image": content = <TabletAppFrame compact><AnalysisHostProvider surface="tablet"><TabletBrandImage /></AnalysisHostProvider></TabletAppFrame>; break;
     case "voice": content = <TabletAppFrame><TabletVoice /></TabletAppFrame>; break;
     case "photo-workspace": content = <TabletPhotoRemote />; break;
     default: content = <TabletHome onNavigate={onNavigate} />;

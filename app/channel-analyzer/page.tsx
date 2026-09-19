@@ -4,14 +4,18 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useSearchParams } from "next/navigation";
 import { Activity, Check, Clipboard, ExternalLink, History, Loader2, MapPin, Search, Sparkles } from "lucide-react";
 import { CHANNELS, type ChannelAnalysisResult, type ChannelKey } from "@/lib/channelAnalysisTypes";
+import { AnalysisExecutionProvider, useAnalysisExecution } from "@/components/analysis-workspace/AnalysisExecutionContext";
+import AnalysisWorkspaceShell from "@/components/analysis-workspace/AnalysisWorkspaceShell";
+import { useAnalysisHost } from "@/components/analysis-workspace/AnalysisHostContext";
 
 type ReportHistory = { id: string; hospital_name: string; specialty: string; overall_score: number; analysis_status: string; created_at: string };
 
 function ChannelAnalyzerContent() {
+  const { surface, windowContext: context } = useAnalysisHost();
   const params = useSearchParams();
-  const clientId = params.get("clientId") || "";
-  const projectId = params.get("projectId") || "";
-  const workflowRunId = params.get("workflowRunId") || "";
+  const clientId = context?.clientId || params.get("clientId") || "";
+  const projectId = context?.projectId || params.get("projectId") || "";
+  const workflowRunId = context?.workflowRunId || params.get("workflowRunId") || "";
   const [hospitalName, setHospitalName] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [address, setAddress] = useState("");
@@ -25,6 +29,12 @@ function ChannelAnalyzerContent() {
   const [notice, setNotice] = useState("");
   const [tab, setTab] = useState<"analysis"|"history">("analysis");
   const reportRef = useRef<HTMLElement>(null);
+  const {
+    registerAction,
+    reportRunning,
+    reportCompleted,
+    reportFailed,
+  } = useAnalysisExecution();
 
   const loadHistory = useCallback(async () => {
     const query = new URLSearchParams({ limit: "20" });
@@ -45,9 +55,10 @@ function ChannelAnalyzerContent() {
       }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, [clientId, workflowRunId]);
 
-  const runAnalysis = async () => {
+  const runAnalysis = useCallback(async () => {
     if (!Object.values(urls).some((value) => value.trim())) { setError("분석할 URL을 하나 이상 입력해주세요."); return; }
     setLoading(true); setError(""); setNotice(""); setResult(null);
+    reportRunning("병원 채널을 분석하고 있습니다.", 15);
     try {
       const response = await fetch("/api/channel-analysis/analyze", { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ hospitalName: hospitalName || "분석 대상 병원", specialty, address, urls, clientId: clientId || null, projectId: projectId || null, workflowRunId: workflowRunId || null }) });
@@ -56,10 +67,29 @@ function ChannelAnalyzerContent() {
       setResult(data.result);
       setNotice(data.saved ? "분석 결과를 고객 이력에 저장했습니다." : `분석은 완료됐지만 저장하지 못했습니다. ${data.saveError || ""}`);
       await loadHistory();
+      reportCompleted("채널 진단 리포트가 완성되었습니다.");
       window.setTimeout(() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-    } catch (analysisError) { setError(analysisError instanceof Error ? analysisError.message : "분석에 실패했습니다."); }
+    } catch (analysisError) {
+      const message = analysisError instanceof Error ? analysisError.message : "분석에 실패했습니다.";
+      setError(message);
+      reportFailed(message);
+    }
     finally { setLoading(false); }
-  };
+  }, [
+    address,
+    clientId,
+    hospitalName,
+    loadHistory,
+    projectId,
+    reportCompleted,
+    reportFailed,
+    reportRunning,
+    specialty,
+    urls,
+    workflowRunId,
+  ]);
+
+  useEffect(() => registerAction("채널 진단 시작", runAnalysis), [registerAction, runAnalysis]);
 
   const runBenchmark = async () => {
     if (!specialty.trim()) { setError("벤치마킹을 위해 진료과목을 입력해주세요."); return; }
@@ -80,15 +110,19 @@ function ChannelAnalyzerContent() {
 
   const scoreTone = useMemo(() => !result ? "" : result.overall_score >= 75 ? "good" : result.overall_score >= 50 ? "normal" : "risk", [result]);
 
-  return <div className="channel-native-page">
-    <header className="pc-header channel-native-header">
-      <div className="pc-header-left"><div className="pc-header-brand"><img src="/assets/photoclinic-logo.png" alt="포토클리닉" className="pc-header-logo"/><span className="pc-header-title">병원 채널 분석</span></div></div>
-    </header>
-    <nav className="channel-native-tabs" aria-label="채널 분석 메뉴">
-      <button className={tab === "analysis" ? "is-active" : ""} onClick={() => setTab("analysis")}><Activity size={16}/> 채널 진단</button>
-      <button className={tab === "history" ? "is-active" : ""} onClick={() => setTab("history")}><History size={16}/> 분석 이력</button>
-    </nav>
-
+  return <AnalysisWorkspaceShell
+    surface={surface}
+    title="병원 채널 분석"
+    description="인스타그램·홈페이지·네이버 플레이스·블로그를 한 흐름에서 진단합니다."
+    eyebrow="CHANNEL ANALYSIS"
+    target={hospitalName ? <span>{hospitalName}{specialty ? ` · ${specialty}` : ""}</span> : undefined}
+    tabs={[
+      { value: "analysis", label: "채널 진단", icon: <Activity size={15} /> },
+      { value: "history", label: "분석 이력", icon: <History size={15} /> },
+    ]}
+    activeTab={tab}
+    onTabChange={(value) => setTab(value as "analysis" | "history")}
+  >
     {tab === "history" ? <main className="channel-native-main">
       <section className="channel-history-panel"><div className="channel-section-heading"><div><span>REPORT HISTORY</span><h1>{clientId ? "고객 채널 분석 이력" : "최근 채널 분석"}</h1></div><strong>{history.length}건</strong></div>
         <div className="channel-history-list">{history.length ? history.map((item) => <button key={item.id} onClick={() => void openReport(item.id)}><div><strong>{item.hospital_name}</strong><span>{item.specialty || "진료과 미입력"} · {new Date(item.created_at).toLocaleString("ko-KR")}</span></div><b>{item.overall_score}</b></button>) : <p>저장된 분석 결과가 없습니다.</p>}</div>
@@ -116,9 +150,15 @@ function ChannelAnalyzerContent() {
         <footer><button onClick={async () => { await navigator.clipboard.writeText(`${hospitalName}\n${result.overall_score}/100\n${result.overall_summary}\n${result.photo_opportunity}`); setNotice("리포트 요약을 복사했습니다."); }}><Clipboard size={15}/> 요약 복사</button></footer>
       </article>}
     </main>}
-  </div>;
+  </AnalysisWorkspaceShell>;
 }
 
 export default function ChannelAnalyzerPage() {
-  return <Suspense fallback={<div className="channel-native-loading"><Loader2 className="is-spin"/>채널분석기를 준비하고 있습니다.</div>}><ChannelAnalyzerContent/></Suspense>;
+  return (
+    <AnalysisExecutionProvider workspaceId="channel-analysis">
+      <Suspense fallback={<div className="channel-native-loading"><Loader2 className="is-spin"/>채널분석기를 준비하고 있습니다.</div>}>
+        <ChannelAnalyzerContent />
+      </Suspense>
+    </AnalysisExecutionProvider>
+  );
 }
