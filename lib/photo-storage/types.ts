@@ -66,6 +66,8 @@ export type PhotoStorageProject = {
   merge_progress: Record<string, unknown>;
   merge_approved_at: string | null;
   classify_approved_at: string | null;
+  nas_department: string | null;
+  nas_shooting_mode: "field" | "studio" | null;
 };
 
 export type PhotoStorageEvent = {
