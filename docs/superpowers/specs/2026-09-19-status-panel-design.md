@@ -61,9 +61,11 @@ Mac Studio·NAS·백업 감지·원격 작업 상태를 보려면 여러 화면�
 ### 버튼
 
 `DesktopTopBar.tsx`의 `topBarRight`, 기존 온라인 점 왼쪽에 아이콘 버튼을 추가한다
-(`components/olivia-os/StatusPanelButton.tsx`, 새 파일). Mac Studio가 오프라인이거나 NAS가
-미연결이면 버튼 위에 작은 경고 점을 얹는다 — 패널을 열지 않아도 문제를 감지할 수 있게.
-이 경고 판정을 위해 버튼은 패널이 닫혀 있어도 낮은 빈도(예: 60초)로 상태를 폴링한다.
+(`components/olivia-os/StatusPanelButton.tsx`, 새 파일). `worker.online === false`이거나
+`nas_connected === false`(명확히 "연결 안 됨"으로 확인된 경우만 — `null`/"확인 안 됨"은
+경고 아님, 마이그레이션 전 워커거나 아직 보고 전일 뿐이라 문제로 취급하지 않는다)면 버튼 위에
+작은 경고 점을 얹는다. 이 경고 판정을 위해 버튼은 패널이 닫혀 있어도 낮은 빈도로 상태를
+폴링한다.
 
 ### 패널
 
