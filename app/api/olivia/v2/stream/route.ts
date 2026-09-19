@@ -861,6 +861,11 @@ export async function POST(req: NextRequest) {
               conversationId: conversation.id,
               context: hermesRuntime.context,
               signal: req.signal,
+              // 코드 요청서(2026-09-18) 작업 C — legacy 경로가 이미 쓰고 있는 selectOliviaTools()
+              // 결과(selectedTools)를 그대로 재사용한다. 새 선택 로직을 만들지 않는다. MCP의
+              // ListTools 응답만 좁히고, Hermes가 그래도 다른 도구를 부르면 CallTool은 그대로
+              // 실행한다(lib/hermes/mcp/oliviaToolBridge.ts).
+              selectedToolNames: selectedTools.map((tool) => tool.name),
               callbacks: {
                 // guarded가 아닐 때만 실시간으로 흘린다. sliding-window 필터(scriptGuard)를 거쳐
                 // 안전하게 확정된 부분만 내보낸다 — 이상 문자는 토큰 경계에서 생기므로 꼬리
