@@ -92,14 +92,18 @@ export async function executeHermesOliviaTool(options: { toolName: string; input
   }
 }
 
+function requestIdFromHeaders(extra: { requestInfo?: { headers?: Record<string, string | string[] | undefined> } }): string | undefined {
+  const header = extra.requestInfo?.headers?.["x-olivia-request-id"];
+  return Array.isArray(header) ? header[0] : header;
+}
+
 export function attachOliviaToolBridge(server: Server) {
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: listHermesOliviaTools() }));
+  server.setRequestHandler(ListToolsRequestSchema, async (_request, extra) => ({ tools: listHermesOliviaTools(requestIdFromHeaders(extra)) }));
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-    const header = extra.requestInfo?.headers?.["x-olivia-request-id"];
     return executeHermesOliviaTool({
       toolName: request.params.name,
       input: request.params.arguments,
-      requestId: Array.isArray(header) ? header[0] : header,
+      requestId: requestIdFromHeaders(extra),
     });
   });
 }
