@@ -1,8 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { createRemotePhotoSortJob, type RemotePhotoSortPayload } from "@/lib/photo-classifier/remotePhotoSort";
+import { startNasBackupClassification } from "@/lib/photo-storage/nasClassifyHandoff";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text } from "./common";
-import { internalFetcher } from "./http";
 import { createVerification } from "./verification";
 
 // NAS Backup Watcher — Phase 2 §5. Watcher 자체(Mac Studio nas-backup-watcher.ts)는 건드리지
