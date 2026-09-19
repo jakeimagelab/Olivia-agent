@@ -44,7 +44,9 @@ export default function MobileOliviaChat({
 
   return (
     <section ref={rootRef} className={`${styles.screenWithHeader} ${styles.chatScreen}`} aria-label="올리비아 채팅">
-      <MobileHeader title="올리비아 채팅" subtitle="Olivia에게 업무를 지시하세요." />
+      {/* 코드 요청서(2026-09-19) 작업 B — 독을 숨기는 대신 헤더에 뒤로가기를 둔다("앱 전환은
+          상단에서"). 부제는 대화 영역을 한 줄만큼이라도 더 확보하려고 뺀다. */}
+      <MobileHeader title="올리비아 채팅" onBack={onBack} />
       <OliviaChatDockTarget id="mobile-os" priority={70} className={styles.chatDock} />
     </section>
   );
