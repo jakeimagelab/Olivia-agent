@@ -91,7 +91,12 @@ export default function OliviaMobileShell() {
             {screen}
           </MobileErrorBoundary>
         </div>
-        {navigation.view === "preview" ? null : (
+        {/* 코드 요청서(2026-09-19) 작업 B — 채팅이 열려 있는 동안은 독을 숨긴다. chatDock의
+            padding-bottom(calc(80px+safe-area))이 독을 피하려고 남겨둔 공간이었는데, 독 자체를
+            숨기면 그 공간이 고스란히 메시지 영역으로 돌아온다. 앱 전환은 헤더의 뒤로가기로
+            홈에 돌아가서 한다(다른 화면들과 동일한 패턴, MobileResourcePreview도 같은 이유로
+            독을 숨긴다). */}
+        {navigation.view === "preview" || navigation.view === "chat" ? null : (
           <MobileBottomNav activeView={primaryViewForNavigation(navigation)} onNavigate={navigatePrimary} />
         )}
       </main>
