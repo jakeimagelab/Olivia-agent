@@ -181,11 +181,12 @@ export async function runHermesChat(input: {
   context?: HermesChatContext;
   signal?: AbortSignal;
   callbacks?: HermesCallbacks;
+  selectedToolNames?: string[];
 }): Promise<HermesChatResult> {
   const config = getHermesConfig();
   const requestId = crypto.randomUUID();
   const startedAt = performance.now();
-  registerHermesExecutionContext(requestId, input.context ?? { recentActions: [], revision: 0 }, input.conversationId);
+  registerHermesExecutionContext(requestId, input.context ?? { recentActions: [], revision: 0 }, input.conversationId, input.selectedToolNames);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HERMES_TIMEOUT_MS);
   const abort = () => controller.abort();
