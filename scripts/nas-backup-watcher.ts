@@ -120,6 +120,10 @@ async function main(): Promise<void> {
   const workerId = process.env.WORKER_ID?.trim() || process.env.OLIVIA_WORKER_ID?.trim() || "jake-macstudio-01";
   const vercelBypassSecret = process.env.VERCEL_BYPASS_SECRET?.trim();
 
+  const intervalSeconds = positiveNumber(optionValue(args, "--interval-seconds"), "--interval-seconds")
+    ?? positiveNumber(process.env.OLIVIA_NAS_WATCH_INTERVAL_SECONDS, "OLIVIA_NAS_WATCH_INTERVAL_SECONDS")
+    ?? 30;
+
   const watcher = new PhotoStorageWatcher({
     roots: { sourceRoot, workRoot },
     // §7 "이미 알려준 폴더를 다시 BACKUP_READY로 알리지 말 것" — 기존 photo:watch와 완전히
@@ -129,9 +133,7 @@ async function main(): Promise<void> {
       || process.env.OLIVIA_NAS_WATCH_STATE_PATH?.trim()
       || path.join(process.cwd(), ".olivia", "nas-watcher-state.json"),
     // §5-1/§5-4 기본값: 30초 주기, 90초(30초×3회) 안정화.
-    intervalSeconds: positiveNumber(optionValue(args, "--interval-seconds"), "--interval-seconds")
-      ?? positiveNumber(process.env.OLIVIA_NAS_WATCH_INTERVAL_SECONDS, "OLIVIA_NAS_WATCH_INTERVAL_SECONDS")
-      ?? 30,
+    intervalSeconds,
     stableSeconds: positiveNumber(optionValue(args, "--stable-seconds"), "--stable-seconds")
       ?? positiveNumber(process.env.OLIVIA_NAS_STABLE_SECONDS, "OLIVIA_NAS_STABLE_SECONDS")
       ?? 90,
