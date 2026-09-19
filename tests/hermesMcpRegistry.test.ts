@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOliviaHermesMcpServer } from "@/lib/hermes/mcpServer";
 import { OLIVIA_V2_TOOLS } from "@/lib/olivia/v2/toolExecutor";
 import { executeHermesOliviaTool, listHermesOliviaTools } from "@/lib/hermes/mcp/oliviaToolBridge";
 import { BLOCKED_TOOLS, getHermesToolMode, getHermesToolPolicy, isDangerousToolName } from "@/lib/hermes/mcp/exposurePolicy";
+import { clearHermesExecutionContext, registerHermesExecutionContext } from "@/lib/hermes/executionContext";
 
 describe("Olivia Hermes MCP registry", () => {
   it("domain registrations를 중복 없이 구성한다", () => {
