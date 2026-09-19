@@ -1012,7 +1012,7 @@ export async function POST(req: NextRequest) {
               historyCount: hermesRuntime.history.length,
               toolCalls: hermesResult.toolCalls.map((call) => ({ name: call.name, success: call.success, mode: call.mode })),
               uiActionCount: hermesResult.toolCalls.reduce((sum, call) => sum + (call.success ? (call.uiActions?.length ?? 0) : 0), 0),
-              finalTextSource: nextPendingAction ? "pending_action" : hermesVerifiedText ? "verified_template" : "hermes_raw",
+              finalTextSource,
               streamedLive: alreadyFullyStreamed,
             });
             chatRouteLabel = "HERMES";
