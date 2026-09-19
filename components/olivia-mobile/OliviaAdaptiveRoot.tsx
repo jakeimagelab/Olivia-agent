@@ -71,6 +71,12 @@ export default function OliviaAdaptiveRoot() {
       <PhotoStudioBackgroundJobBridge />
       <PhotoProjectNotification />
       <BackgroundJobsWidget />
+      {/* 코드 요청서(2026-09-19) 작업 A — OliviaDesktop 안에서만 마운트되면 mobile/tablet
+          surface에서는 아예 렌더링되지 않는다. PhotoProjectNotification과 같은 레벨(surface
+          분기 밖)로 올려서 로그인한 사용자가 어떤 화면에 있든 뜨게 한다. */}
+      <Suspense fallback={null}>
+        <BackupReadyNotifications />
+      </Suspense>
       {surface === "mobile" ? <OliviaMobileShell /> : surface === "tablet" ? <OliviaTabletShell /> : <OliviaDesktop />}
     </PhotoProjectNotificationProvider>
   );
