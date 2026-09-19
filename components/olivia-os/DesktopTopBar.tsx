@@ -5,6 +5,7 @@ import Image from "next/image";
 import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import type { DesktopOverlayKind } from "./DesktopSystemOverlay";
+import { StatusPanelButton } from "./StatusPanelButton";
 import styles from "./OliviaDesktop.module.css";
 
 type MenuKey = "파일" | "편집" | "보기" | "이동" | "도구" | "도움말";
