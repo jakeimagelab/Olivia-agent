@@ -84,3 +84,30 @@ export function buildVerificationLine(calls: VerifiedToolCallRef[]): string | nu
   });
   return `✓ ${[...new Set(parts)].join(", ")}`;
 }
+
+export type HermesFinalTextSource = "pending_action" | "verified_template_failure" | "hermes_raw_with_verification" | "hermes_raw";
+export type HermesFinalTextResult = { text: string; source: HermesFinalTextSource };
+
+// app/api/olivia/v2/stream/route.ts의 useHermes 블록이 쓰는 우선순위를 그대로 뽑아 유닛
+// 테스트로 고정한다: pending action(승인 카드 문구) > 검증 실패 템플릿 > 원문+검증 한 줄 >
+// 원문 그대로. renderVerifiedToolRound가 실패했는데도 null을 반환하면(예: 요약/금액 필드가
+// 없는 실패) 억지로 템플릿을 만들지 않고 원문으로 폴백한다 — 빈 응답보다는 원문이 낫다.
+export function resolveHermesFinalText(input: {
+  pendingActionPrompt?: string;
+  nonReadOnlyEntries: Array<{ result: OliviaToolResult }>;
+  verificationCalls: VerifiedToolCallRef[];
+  hermesRawText: string;
+}): HermesFinalTextResult {
+  if (input.pendingActionPrompt) {
+    return { text: input.pendingActionPrompt, source: "pending_action" };
+  }
+  const hasFailure = input.nonReadOnlyEntries.some(({ result }) => !result.success);
+  if (hasFailure) {
+    const template = renderVerifiedToolRound(input.nonReadOnlyEntries);
+    if (template) return { text: template, source: "verified_template_failure" };
+  } else if (input.nonReadOnlyEntries.length) {
+    const line = buildVerificationLine(input.verificationCalls);
+    if (line) return { text: `${input.hermesRawText}\n\n${line}`, source: "hermes_raw_with_verification" };
+  }
+  return { text: input.hermesRawText, source: "hermes_raw" };
+}
