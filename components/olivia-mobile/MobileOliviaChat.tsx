@@ -8,8 +8,10 @@ import styles from "./OliviaMobileShell.module.css";
 
 export default function MobileOliviaChat({
   onOpenPreview,
+  onBack,
 }: {
   onOpenPreview: (resource: { resourceType: MobileResourceType; resourceId: string; temporaryDocumentId?: string }) => void;
+  onBack: () => void;
 }) {
   const rootRef = useRef<HTMLElement>(null);
 
