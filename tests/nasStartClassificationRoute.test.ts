@@ -116,7 +116,12 @@ describe("POST /api/worker/events/[id]/start-classification", () => {
     expect(body.ok).toBe(true);
     expect(body.status).toBe("MERGE_APPROVED");
 
-    const [project] = currentDb.from("photo_storage_projects").select()._rows ?? [];
-    void project;
+    expect(store.projects).toMatchObject([{
+      source_relative_path: "0917_청담스시",
+      status: "MERGE_APPROVED",
+      nas_department: "dermatology",
+      nas_shooting_mode: "field",
+    }]);
+    expect(store.events).toMatchObject([{ id: EVENT_ID, status: "STARTED" }]);
   });
 });
