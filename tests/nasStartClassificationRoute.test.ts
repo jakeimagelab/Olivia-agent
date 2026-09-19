@@ -72,12 +72,11 @@ async function postStart(id: string, body: unknown) {
   );
 }
 
+let store: { events: Row[]; projects: Row[] };
 beforeEach(() => {
   adminSession = true;
-  currentDb = createFakeSupabase({
-    events: [{ id: EVENT_ID, folder_name: "0917_청담스시", status: "PENDING" }],
-    projects: [],
-  });
+  store = { events: [{ id: EVENT_ID, folder_name: "0917_청담스시", status: "PENDING" }], projects: [] };
+  currentDb = createFakeSupabase(store);
 });
 
 // 코드 요청서(2026-09-18) 작업 D — 알림 카드의 "[분류 시작]" 버튼이 부르는 경량 API.
