@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { loadDesktopState, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { HomeDashboardDataProvider } from "@/components/dashboard/HomeDashboardData";
 import { useOliviaDesktopContextBridge } from "./useOliviaDesktopContextBridge";
