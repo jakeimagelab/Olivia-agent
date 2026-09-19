@@ -73,9 +73,14 @@ Mac Studio·NAS·백업 감지·원격 작업 상태를 보려면 여러 화면�
 (버튼 아래, 바깥 클릭/Esc로 닫힘, `pointerdown`/`keydown` 리스너 패턴)을 재사용하되, 내용은
 메뉴 버튼 목록이 아니라 섹션 카드 4개다.
 
-1. **맥스튜디오 연결** — 최상단, 카드 안에서 가장 크게. "정상 작동 중" / "오프라인" +
-   `last_seen_at`의 상대 시각("2분 전"). `worker_status`가 `online`/`busy`/`idle`이면 정상,
-   `error`거나 값이 없으면(또는 `online:false`) 문제로 표시.
+1. **맥스튜디오 연결** — 최상단, 카드 안에서 가장 크게. 정상/문제 판정은 `worker.online`
+   하나로만 한다(`last_seen_at`이 15초 이내면 true — `lib/remote-jobs/workerPresence.ts`의
+   `isRemoteWorkerOnline()`, 이미 있는 로직 그대로 재사용). `online:true`→"정상 작동 중",
+   `false`→"오프라인", `null`→"확인 안 됨"(아직 하트비트 기록이 없음). `worker_status`
+   (online/idle/busy/error)는 판정에 안 쓰고 "정상 작동 중" 옆에 보조 텍스트로만 덧붙인다
+   (예: "정상 작동 중 · 대기 중") — 하트비트는 살아있어도 `worker_status`가 오래된 값일 수
+   있어서 이 필드 하나로 연결 여부를 판단하지 않는다. `last_seen_at`의 상대 시각도 같이
+   보여준다("2분 전").
 2. **나스 연결** — 같은 카드 하단에 보조 줄로. `nas_connected`가 `true`→"연결됨",
    `false`→"연결 안 됨", `null`→"확인 안 됨"(회색, 경고 아님 — 마이그레이션 이전 버전
    워커거나 아직 보고 전).
