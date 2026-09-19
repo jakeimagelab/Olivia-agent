@@ -56,7 +56,7 @@ import {
   transitionPendingAction,
   type OliviaPendingAction,
 } from "@/lib/olivia/conversation/dialogueState";
-import { buildVerificationLine, renderOliviaOutcome, renderVerifiedToolRound, toolResultOutcome } from "@/lib/olivia/conversation/response";
+import { renderOliviaOutcome, renderVerifiedToolRound, resolveHermesFinalText, toolResultOutcome } from "@/lib/olivia/conversation/response";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
