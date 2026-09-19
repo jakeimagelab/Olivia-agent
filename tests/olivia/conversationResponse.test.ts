@@ -89,9 +89,12 @@ describe("resolveHermesFinalText — 헤르메스 최종 텍스트 우선순위(
     expect(result.text).toContain("저장 공간이 부족합니다");
   });
 
-  it("실패했는데 템플릿을 못 만들면(summary/totalAmount 없음) 원문으로 안전하게 폴백한다", () => {
+  it("실패 옆에 요약/금액 없는 성공 항목이 섞여 템플릿을 못 만들면(renderVerifiedToolRound가 null) 원문으로 안전하게 폴백한다", () => {
     const result = resolveHermesFinalText({
-      nonReadOnlyEntries: [{ result: { tool: "x", success: false } }],
+      nonReadOnlyEntries: [
+        { result: failedResult },
+        { result: { tool: "y", success: true, data: {} } }, // summary/totalAmount 둘 다 없음 → every() 실패 → null
+      ],
       verificationCalls: [{ success: false }],
       hermesRawText: "요청을 처리하지 못했어요.",
     });
