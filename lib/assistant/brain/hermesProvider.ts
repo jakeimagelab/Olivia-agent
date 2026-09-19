@@ -17,6 +17,7 @@ export const hermesProvider: OliviaBrain = {
         context: input.context,
         signal: input.signal,
         callbacks: input.callbacks,
+        selectedToolNames: input.selectedToolNames,
       });
       return { type: "message", text: result.message, runId: result.runId, toolCalls: result.toolCalls };
     } catch (error) {
