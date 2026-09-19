@@ -1,12 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { resolveOliviaSurface, type OliviaSurface } from "@/lib/olivia/mobile/adaptiveSurface";
 import { PhotoProjectNotificationProvider } from "@/components/photo-storage/PhotoProjectNotificationProvider";
 import PhotoProjectNotification from "@/components/photo-storage/PhotoProjectNotification";
 import PhotoStudioBackgroundJobBridge from "@/components/photo-workspace/PhotoStudioBackgroundJobBridge";
 import BackgroundJobsWidget from "@/components/olivia/BackgroundJobsWidget";
+import { BackupReadyNotifications } from "@/components/olivia-os/BackupReadyNotifications";
 import styles from "./OliviaAdaptiveRoot.module.css";
 
 const OliviaDesktop = dynamic(() => import("@/components/olivia-os/OliviaDesktop"), {
