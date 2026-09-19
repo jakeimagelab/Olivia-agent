@@ -31,7 +31,7 @@ export function DocumentsWindowContent({ surface = "desktop" }: { context?: Wind
       fetch(`/api/documents/search?${params.toString()}`, { signal: controller.signal })
         .then((res) => res.json())
         .then((payload) => setDocuments(payload.ok ? payload.documents : []))
-        .catch(() => {})
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); })
         .finally(() => setLoading(false));
     }, 300);
     return () => { clearTimeout(timer); controller.abort(); };

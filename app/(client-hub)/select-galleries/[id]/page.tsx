@@ -144,7 +144,7 @@ function SelectGalleryDetailInner() {
     try {
       const h = await (window as any).showDirectoryPicker({ mode: "readwrite" });
       setRawDir(h);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   };
 
   /* ── RAW 자동 매칭 (SELECT/JPG_SELECT + SELECT/RAW_SELECT) ── */

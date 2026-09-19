@@ -78,7 +78,7 @@ function QueueTab() {
   const [attachingId, setAttachingId] = useState("");
 
   const checkDb = async () => {
-    try { const res = await fetch("/api/db-check"); setDbStatus(await res.json()); } catch {}
+    try { const res = await fetch("/api/db-check"); setDbStatus(await res.json()); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   };
 
   const testInsert = async () => {
@@ -120,7 +120,7 @@ function QueueTab() {
     fetch(`/api/clients/${clientId}`)
       .then(r => r.json())
       .then(d => { if (d.ok && d.client) setFilterHosp(d.client.name || d.client.hospital_name || ""); })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, []);
 
   useEffect(() => { load(); }, [filterType, filterStatus, filterHosp]);
@@ -137,7 +137,7 @@ function QueueTab() {
       fetch(`/api/workflow-artifacts?${params}`)
         .then(r => r.json())
         .then(d => { if (d.ok) setAvailableArtifacts(d.artifacts || []); })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
   };
 
@@ -778,7 +778,7 @@ function CustomBrandMailTab() {
       const res = await fetch("/api/select-galleries");
       const data = await res.json();
       if (data.ok) setGalleries(data.galleries);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   };
 
   const filteredGalleries = galleries.filter(g =>

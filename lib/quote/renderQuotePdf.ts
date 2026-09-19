@@ -49,6 +49,6 @@ export async function renderQuoteBuffer(
     const shot = el ? await el.screenshot({ type: "png" }) : await page.screenshot({ type: "png", fullPage: true });
     return { buffer: Buffer.from(shot), contentType: "image/png", ext: "png" };
   } finally {
-    await browser?.close().catch(() => {});
+    await browser?.close().catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }
 }

@@ -227,7 +227,7 @@ export default function StrategyDetailPage() {
     fetch(`/api/marketing/strategies/${strategyId}/suggestions`, { cache: "no-store" })
       .then((r) => r.json())
       .then((json) => setSuggestions(json?.ok ? json.suggestions.filter((s: Suggestion) => s.status === "pending") : []))
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   };
 
   useEffect(() => { if (strategyId) { load(); loadSuggestions(); } }, [strategyId]);
@@ -253,7 +253,7 @@ export default function StrategyDetailPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
-    }).catch(() => {});
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     if (status === "accepted") load();
   };
 
@@ -264,7 +264,7 @@ export default function StrategyDetailPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: nextStatus }),
-    }).catch(() => {});
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     load();
   };
 
@@ -275,7 +275,7 @@ export default function StrategyDetailPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
-    }).catch(() => {});
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   };
 
   const allMetrics = useMemo(

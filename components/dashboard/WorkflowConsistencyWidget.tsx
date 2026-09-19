@@ -30,7 +30,7 @@ export default function WorkflowConsistencyWidget() {
     fetch("/api/workflow-consistency", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { if (d.ok) setIssues(d.issues); })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   };
 
   useEffect(() => { load(); }, []);

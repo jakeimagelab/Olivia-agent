@@ -30,7 +30,7 @@ export default function ContractPreviewChatCard({ flowId }: { flowId: string }) 
           totalAmount: Number(quoteData.totalAmount) || 0,
         });
       })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     void load();
     const onRefresh = (event: Event) => {
       const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;

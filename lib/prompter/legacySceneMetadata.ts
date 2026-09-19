@@ -10,7 +10,7 @@ export function decodeLegacySceneMetadata(value: unknown) {
     try {
       const parsed = JSON.parse(decodeURIComponent(encodedGestures));
       if (Array.isArray(parsed)) gestureMap = parsed.map((item) => String(item || ""));
-    } catch { /* 손상된 구형 메타데이터는 화자 정보에 영향 없이 무시한다. */ }
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }
   return { speakerMap, isShot: raw.includes(SHOT_MARKER), gestureMap };
 }

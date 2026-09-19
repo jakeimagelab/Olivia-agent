@@ -16,7 +16,7 @@ export default function PortraitConsentApp({ clientId, workflowRunId }: Portrait
     fetch(`/api/clients/${encodeURIComponent(clientId)}`)
       .then((response) => response.json())
       .then((data) => { if (data.ok && data.client) setHospitalName(data.client.hospital_name || data.client.name || ""); })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, [clientId]);
 
   return (

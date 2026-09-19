@@ -984,7 +984,7 @@ function WebsiteEditor({ content, customTheme, intake, selectedTemplateId, onTem
   }, [c, customTheme, selectedTemplateId, intake]);
 
   const sendToIframe = useCallback((msg: object) => {
-    try { iframeRef.current?.contentWindow?.postMessage({ _wb: 1, ...msg }, "*"); } catch(e) {}
+    try { iframeRef.current?.contentWindow?.postMessage({ _wb: 1, ...msg }, "*"); } catch (e) { console.error("[OLIVIA] Suppressed error", e); }
   }, []);
 
   // Re-apply styleOverrides after iframe reloads

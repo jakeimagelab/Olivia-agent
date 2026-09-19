@@ -121,9 +121,9 @@ export default function PrompterRemotePage() {
     const acquire = async () => {
       try {
         const lock = await nav.wakeLock!.request("screen");
-        if (cancelled) { lock.release().catch(() => {}); return; }
+        if (cancelled) { lock.release().catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); }); return; }
         wakeLockRef.current = lock;
-      } catch { /* 권한 거부 등 — 조용히 무시, 리모컨 자체 동작엔 영향 없음 */ }
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     };
     acquire();
     const onVisible = () => { if (document.visibilityState === "visible") acquire(); };
@@ -131,7 +131,7 @@ export default function PrompterRemotePage() {
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisible);
-      wakeLockRef.current?.release().catch(() => {});
+      wakeLockRef.current?.release().catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
       wakeLockRef.current = null;
     };
   }, []);

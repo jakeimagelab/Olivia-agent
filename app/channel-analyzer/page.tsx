@@ -42,7 +42,7 @@ function ChannelAnalyzerContent() {
         if (!data.ok) return;
         setHospitalName(data.client?.name || "");
         setSpecialty(data.client?.department || data.client?.specialty || "");
-      }).catch(() => {});
+      }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, [clientId, workflowRunId]);
 
   const runAnalysis = async () => {

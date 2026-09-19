@@ -104,7 +104,7 @@ export default function GalleryFormModal({ open, editSource, onClose, onSaved }:
       fetch(`/api/clients?q=${encodeURIComponent(clientQuery)}`)
         .then((r) => r.json())
         .then((d) => { if (d.ok) setClientResults((d.clients || []).slice(0, 8)); })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }, 250);
     return () => clearTimeout(timer);
   }, [clientQuery, showClientPicker]);

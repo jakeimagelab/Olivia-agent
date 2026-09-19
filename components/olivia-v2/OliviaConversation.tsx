@@ -189,7 +189,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
           });
         }
       })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     return () => { cancelled = true; };
   }, [variant, isHydrated, appendMessage]);
   useEffect(() => {

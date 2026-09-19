@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
           }))
           .filter((c: any) => c.email);
       }
-    } catch { /* 다른 연락처는 선택 사항 — 실패해도 무시 */ }
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
     const seen = new Set(contacts.map((c: any) => c.email.toLowerCase()));
     const merged = [...contacts, ...otherContacts.filter((c: any) => !seen.has(c.email.toLowerCase()))];

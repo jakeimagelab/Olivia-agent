@@ -69,7 +69,7 @@ function EvidencePanel({ channel, evidence, diagnosisId, onClose }: {
     })
       .then((r) => r.json())
       .then((body) => { if (body.ok) setSignedUrls(body.urls || {}); })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagnosisId, channel]);
 
@@ -185,7 +185,7 @@ function ShareModal({ diagnosisId, onClose }: { diagnosisId: string; onClose: ()
     fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/shares`)
       .then((r) => r.json())
       .then((body) => { if (body.ok) setShares(body.shares || []); })
-      .catch(() => {})
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); })
       .finally(() => setLoading(false));
   };
 
@@ -214,7 +214,7 @@ function ShareModal({ diagnosisId, onClose }: { diagnosisId: string; onClose: ()
   const revoke = async (shareId: string) => {
     await fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/shares/${shareId}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "revoke" }),
-    }).catch(() => {});
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     load();
   };
 
@@ -340,7 +340,7 @@ export function ReportView({ report, onRestart, onBackToStep, diagnosisId, readO
     if (!diagnosisId) return;
     await fetch(`/api/hospital-brand-diagnosis/${diagnosisId}/actions/${actionId}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
-    }).catch(() => {});
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   };
 
   const openCompare = async () => {

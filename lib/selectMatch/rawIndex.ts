@@ -45,7 +45,7 @@ export async function buildRawIndex(
   if (rawRootDir) {
     await scanDir(rawRootDir);
   } else if (fallbackRootDir) {
-    try { await scanDir(await (fallbackRootDir as any).getDirectoryHandle("RAW")); } catch {}
+    try { await scanDir(await (fallbackRootDir as any).getDirectoryHandle("RAW")); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     if (rawIndex.size === 0) await scanDir(fallbackRootDir);
   }
   onProgress?.(scannedCount);

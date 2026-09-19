@@ -69,7 +69,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   // 다운로드/1차보정/최종전달)은 이 relatedType 문자열이 워크플로우 스텝 키와 일치하지 않고
   // 각자 다른 방식으로 전진하므로 건드리지 않는다.
   if (relatedType === "conti") {
-    await completeOpenStepTasksForManualSave(db, workflowRunId, "conti").catch(() => {});
+    await completeOpenStepTasksForManualSave(db, workflowRunId, "conti").catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     await maybeAdvanceWorkflow(db, workflowRunId, "conti").catch((err) => {
       console.error("[publications] maybeAdvanceWorkflow(conti) 실패", err);
     });

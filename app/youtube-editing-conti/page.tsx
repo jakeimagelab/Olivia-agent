@@ -393,7 +393,7 @@ function YoutubeEditingContiInner() {
       const data = await response.json();
       if (!data.ok) throw new Error(data.error);
       setPromptResult(data.prompt);
-      await navigator.clipboard.writeText(data.prompt).catch(() => {});
+      await navigator.clipboard.writeText(data.prompt).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     } catch (error) {
       setPromptResult(error instanceof Error ? `오류: ${error.message}` : "프롬프트 생성에 실패했습니다.");
     } finally {

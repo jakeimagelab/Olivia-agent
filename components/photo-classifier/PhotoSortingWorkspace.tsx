@@ -254,7 +254,7 @@ async function renameDirHandle(parentDir: any, oldName: string, newName: string,
     await copyFileHandle(fhandle, newDir as FileSystemDirectoryHandle, fname);
     await srcDir.removeEntry(fname);
   }
-  try { await parentDir.removeEntry(oldName); } catch {}
+  try { await parentDir.removeEntry(oldName); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   return newDir as FileSystemDirectoryHandle;
 }
 
@@ -810,7 +810,7 @@ function PhotoSortingInner({
       if (!raw) return;
       const data = JSON.parse(raw) as SavedSortingSession;
       if ((data.version === 1 || data.version === 2) && data.step >= 2) setSavedSession(data);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   useEffect(() => {
@@ -832,11 +832,11 @@ function PhotoSortingInner({
         })),
       };
       localStorage.setItem(SESSION_KEY, JSON.stringify(data));
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, [step, rootDir, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled, rawSelectMode, fieldRawCount, fieldStats, fieldScenes, classificationJobState, boundaryDecisions, sceneCorrections]);
 
   const clearSession = () => {
-    try { localStorage.removeItem(SESSION_KEY); } catch {}
+    try { localStorage.removeItem(SESSION_KEY); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     setSavedSession(null);
   };
 
@@ -1444,7 +1444,7 @@ function PhotoSortingInner({
       await mapWithConcurrency(preciseScenes, 3, async (scene) => {
         const thumbIndexes = Array.from(new Set([0, scene.files.length - 1]));
         await Promise.all(thumbIndexes.map(async (index) => {
-          try { scene.files[index].thumbUrl = await loadThumb(await scene.files[index].handle.getFile(), 160); } catch {}
+          try { scene.files[index].thumbUrl = await loadThumb(await scene.files[index].handle.getFile(), 160); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
         }));
         return scene;
       });
@@ -1526,7 +1526,7 @@ function PhotoSortingInner({
           try {
             const f = await files[idx].handle.getFile();
             images.push({ fileName: files[idx].name, base64: await getApiThumb(f) });
-          } catch {}
+          } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
           if (images.length >= 6) break;
         }
         const sceneId = updated[i].folderName;
@@ -1686,9 +1686,9 @@ function PhotoSortingInner({
       try {
         await copyFileHandle(f.handle, si.sceneDir as FileSystemDirectoryHandle, f.name);
         await (sj.sceneDir as any).removeEntry(f.name);
-      } catch {}
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     }
-    try { await (fieldJpgBaseDir as any).removeEntry(sj.folderName); } catch {}
+    try { await (fieldJpgBaseDir as any).removeEntry(sj.folderName); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     setFieldScenes(prev => {
       const copy = [...prev];
       copy[i] = {
@@ -1881,7 +1881,7 @@ function PhotoSortingInner({
         }
         try {
           await copyFileHandle(fieldRawHandles[i].handle, rawBase, fieldRawHandles[i].name);
-          try { await (rootDir as any).removeEntry(fieldRawHandles[i].name); } catch {}
+          try { await (rootDir as any).removeEntry(fieldRawHandles[i].name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
           operations.push({ type: "copy_remove", category: "RAW", source: fieldRawHandles[i].name, destination: `RAW/${fieldRawHandles[i].name}`, status: "completed", at: new Date().toISOString() });
         } catch (error) {
           operations.push({ type: "copy_remove", category: "RAW", source: fieldRawHandles[i].name, destination: `RAW/${fieldRawHandles[i].name}`, status: "failed", error: error instanceof Error ? error.message : String(error), at: new Date().toISOString() });
@@ -1895,7 +1895,7 @@ function PhotoSortingInner({
       try {
         const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create:true });
         await (selectDir as any).getDirectoryHandle("JPG_SELECT", { create:true });
-      } catch {}
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
       const updated = fieldScenes.map(sc => ({...sc}));
       for (let si = 0; si < updated.length; si++) {
@@ -1914,7 +1914,7 @@ function PhotoSortingInner({
           try {
             await copyFileHandle(entry.handle, sceneDir, entry.name);
             const destHandle = await (sceneDir as any).getFileHandle(entry.name) as FileSystemFileHandle;
-            try { await (rootDir as any).removeEntry(entry.name); } catch {}
+            try { await (rootDir as any).removeEntry(entry.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
             // 썸네일 lazy: 앞 4장만
             let thumbUrl: string | null = null;
             if (newFiles.length < 4) thumbUrl = await loadThumb(await destHandle.getFile(), 120);
@@ -1966,10 +1966,10 @@ function PhotoSortingInner({
           const newDir = await renameDirHandle(fieldJpgBaseDir as any, sc.folderName, sc.editedName, sc.sceneDir);
           const newFiles = sc.files.map(f => ({...f}));
           for (const pf of newFiles) {
-            try { pf.handle = await (newDir as any).getFileHandle(pf.name) as FileSystemFileHandle; } catch {}
+            try { pf.handle = await (newDir as any).getFileHandle(pf.name) as FileSystemFileHandle; } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
           }
           updated[i] = { ...sc, folderName:sc.editedName, sceneDir:newDir, files:newFiles };
-        } catch {}
+        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       }
     }
     setFieldScenes(updated);
@@ -2041,7 +2041,7 @@ function PhotoSortingInner({
               if (!qualityExcDir) qualityExcDir = await (fieldJpgBaseDir as any).getDirectoryHandle("00_QUALITY_EXCLUDED", { create:true }) as FileSystemDirectoryHandle;
               const subDir = await (qualityExcDir as any).getDirectoryHandle(rejectReason, { create:true }) as FileSystemDirectoryHandle;
               await copyFileHandle(pf.handle, subDir, pf.name);
-              try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch {}
+              try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
               qualityRows.push([pf.name, updated[si].editedName, rejectReason, ""]);
               qualityRejectTotal++;
               updated[si].qualityRejectCount++;
@@ -2069,7 +2069,7 @@ function PhotoSortingInner({
                 isProfileCandidate = data.isProfile === true;
                 confidence = data.confidence ?? 0;
               }
-            } catch { /* 판정 실패 시 프로필로 보내지 않고 기존 씬에 남김 */ }
+            } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
             let movedTo = "";
             let rejectReason = "";
@@ -2077,7 +2077,7 @@ function PhotoSortingInner({
             if (isProfileCandidate && updated[si].sceneDir && rootDir) {
               if (!profileDir) profileDir = await (rootDir as any).getDirectoryHandle("PROFILE", { create:true }) as FileSystemDirectoryHandle;
               await copyFileHandle(pf.handle, profileDir, pf.name);
-              try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch {}
+              try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
               movedTo = "PROFILE/";
               profileTotal++;
               updated[si].profileCount++;
@@ -2108,7 +2108,7 @@ function PhotoSortingInner({
               "",
             ]);
           }
-        } catch {}
+        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
         done++;
       }
       setFieldScenes([...updated]);
@@ -2204,7 +2204,7 @@ function PhotoSortingInner({
         createdAt: new Date().toISOString(),
       };
       await wr("summary.json", JSON.stringify(summary, null, 2));
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
     setFieldStats({
       totalJpg: total, totalRaw: fieldRawCount,
@@ -2261,7 +2261,7 @@ function PhotoSortingInner({
         try {
           if (rawSelectMode === "move") {
             await copyFileHandle(handle, rawSelectDir, rawFile.name);
-            try { await (fieldRawBaseDir as any).removeEntry(rawFile.name); } catch {}
+            try { await (fieldRawBaseDir as any).removeEntry(rawFile.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
             log.push(`✅ 이동: ${rawFile.name}`);
           } else {
             await copyFileHandle(handle, rawSelectDir, rawFile.name);
@@ -2304,7 +2304,7 @@ function PhotoSortingInner({
         createdAt: new Date().toISOString(),
       };
       await wr("summary.json", JSON.stringify(summary, null, 2));
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
     setFieldStats(prev => prev ? { ...prev, selectedJpg:selectedBasenames.size, selectedRawMoved:rawMoved, rawMissing } : null);
     setClassificationJobState("COMPLETED");
@@ -2393,7 +2393,7 @@ function PhotoSortingInner({
         try {
           await copyFileHandle(handle, rawSelectDir, rawFile.name);
           if (rawSelectMode === "move") {
-            try { await (fieldRawBaseDir as any).removeEntry(rawFile.name); } catch {}
+            try { await (fieldRawBaseDir as any).removeEntry(rawFile.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
             log.push(`✅ 이동: ${rawFile.name}`);
           } else {
             log.push(`✅ 복사: ${rawFile.name}`);
@@ -2663,7 +2663,7 @@ function PhotoSortingInner({
         setProgress({ cur:processed, total:totalFiles, msg:`${folderName}: ${file.name}` });
         try {
           await copyFileHandle(file.handle, groupDir, file.name);
-          if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch(() => {});
+          if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch((error: unknown) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
           log.push(`✅ ${file.name} → ${folderName}/`);
         } catch { log.push(`❌ ${file.name} 실패`); }
         if (group.isEtc) etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), "", "", ""]);
@@ -2677,7 +2677,7 @@ function PhotoSortingInner({
       }
     }
     const wr = async (name: string, content: string) => {
-      try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch {}
+      try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     };
     await wr("studio_classification_report.csv", makeCSV(["file_name","original_path","assigned_folder","clothing_label","pose_type","lighting_status","confidence","note"], classRows));
     await wr("studio_group_report.csv",           makeCSV(["group_id","folder_name","clothing_label","pose_type","file_count","first_file","last_file","confidence"], groupRows));
@@ -2790,7 +2790,7 @@ function PhotoSortingInner({
         setProgress({ cur:processed, total:totalFiles, msg:`${folderName}: ${file.name}` });
         try {
           await copyFileHandle(file.handle, groupDir, file.name);
-          if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch(() => {});
+          if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch((error: unknown) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
           log.push(`✅ ${file.name} → ${folderName}/`);
         } catch { log.push(`❌ ${file.name} 실패`); }
         if (group.isEtc) etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), ""]);
@@ -2804,7 +2804,7 @@ function PhotoSortingInner({
       }
     }
     const wr = async (name: string, content: string) => {
-      try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch {}
+      try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     };
     await wr("group_person_report.csv",    makeCSV(["group_id","folder_name","label","file_count","first_file","last_file"], groupRows));
     await wr("classification_detail.csv", makeCSV(["file_name","assigned_folder","person_label","gender","age_band","hair_color","hair_length","has_glasses","lighting_status"], classRows));

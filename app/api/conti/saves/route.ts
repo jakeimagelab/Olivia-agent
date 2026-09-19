@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     if (clientId) {
-      await logPortalEvent({ clientId, eventType: "conti_ready", targetType: "conti_saves", targetId: data.id, workflowRunId }).catch(() => {});
+      await logPortalEvent({ clientId, eventType: "conti_ready", targetType: "conti_saves", targetId: data.id, workflowRunId }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
     if (!clientId && hospitalName) {
       after(() => registerClientCandidate(db, { hospitalName, sourceType: "conti", sourceRecordId: data.id })

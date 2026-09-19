@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   if (clientId) {
-    await logPortalEvent({ clientId, eventType: "contract_ready", targetType: "contracts", targetId: data.id }).catch(() => {});
+    await logPortalEvent({ clientId, eventType: "contract_ready", targetType: "contracts", targetId: data.id }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }
   // 최초 생성도 임시저장일 뿐 — 워크플로우 전진은 /api/contracts/[id]/publish("포털 공개")에서만.
   return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at });

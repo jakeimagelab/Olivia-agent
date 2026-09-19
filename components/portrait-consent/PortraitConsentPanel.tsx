@@ -255,7 +255,7 @@ export default function PortraitConsentPanel({
       if (!body.ok) throw new Error(body.error || "링크 생성 실패");
       const url = `${window.location.origin}/portrait-consent/${body.token}`;
       setShareLink({ id, url });
-      await navigator.clipboard.writeText(url).catch(() => {});
+      await navigator.clipboard.writeText(url).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
       setShareCopied(true);
       loadList();
     } catch (err) {

@@ -66,7 +66,7 @@ export default function RecentProjects() {
           .slice(0, 3);
         setRuns(active);
       })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, []);
 
   return (

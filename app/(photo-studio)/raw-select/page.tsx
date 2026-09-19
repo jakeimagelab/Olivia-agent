@@ -319,7 +319,7 @@ export default function RawSelectPage() {
     try {
       const h = await (window as any).showDirectoryPicker({ mode: "readwrite" });
       setter(h);
-    } catch (_) {}
+    } catch (_) { console.error("[OLIVIA] Suppressed error", _); }
   };
 
   /* ── Step 0 → 1: discover scenes ──────────────────────── */
@@ -468,7 +468,7 @@ export default function RawSelectPage() {
             const rawFile = await entry.handle.getFile();
             await copyFileHandle(entry.handle, sceneDir, rawFile.name);
             if (isMove) {
-              try { await (entry.parent as any).removeEntry(rawFile.name); } catch (_) {}
+              try { await (entry.parent as any).removeEntry(rawFile.name); } catch (_) { console.error("[OLIVIA] Suppressed error", _); }
             }
             const status = isMove ? "moved" : "copied";
             updated[si].files[fi] = { ...pf, rawFile: rawFile.name, rawStatus: "copied" };
@@ -498,7 +498,7 @@ export default function RawSelectPage() {
         const fh = await (reportsDir as any).getFileHandle(name, { create: true });
         const wr = await fh.createWritable();
         await wr.write("﻿" + content); await wr.close();
-      } catch (_) {}
+      } catch (_) { console.error("[OLIVIA] Suppressed error", _); }
     };
 
     await writeReport("raw_match_report.csv", makeCSV(["씬", "JPG", "RAW", "상태", "저장 경로"], rawMatchRows));

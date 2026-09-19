@@ -10,6 +10,7 @@ import { DesktopDock } from "./DesktopDock";
 import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { DesktopSystemOverlay, type DesktopOverlayKind, type WallpaperMode } from "./DesktopSystemOverlay";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
+import { DesktopShellErrorBoundary } from "./DesktopShellErrorBoundary";
 import styles from "./OliviaDesktop.module.css";
 
 const WALLPAPER_KEY = "olivia-os-wallpaper-v1";
@@ -38,7 +39,7 @@ async function optimizeWallpaper(file: File): Promise<string> {
 
 // OLIVIA OS Phase 1 루트 셸 — TopBar + Surface(shortcuts+windows) + Dock 조립.
 // height:100dvh overflow:hidden으로 body가 page처럼 길어지지 않게 한다(스펙 1-1).
-export default function OliviaDesktop() {
+function OliviaDesktopContent() {
   const [overlay, setOverlay] = useState<DesktopOverlayKind>(null);
   const [wallpaper, setWallpaper] = useState<WallpaperMode>("original");
   const [customWallpaper, setCustomWallpaper] = useState<string>();
@@ -68,7 +69,7 @@ export default function OliviaDesktop() {
       setCustomWallpaper(savedCustomWallpaper);
       if (savedWallpaper === "custom" && savedCustomWallpaper) setWallpaper("custom");
       else if (savedWallpaper === "original" || savedWallpaper === "soft") setWallpaper(savedWallpaper);
-    } catch { /* optional desktop preference */ }
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     fetch("/api/desktop-settings")
       .then((response) => response.json())
       .then((data) => {
@@ -81,9 +82,9 @@ export default function OliviaDesktop() {
         try {
           window.localStorage.setItem(WALLPAPER_KEY, wallpaper_mode);
           if (custom_wallpaper_data_url) window.localStorage.setItem(CUSTOM_WALLPAPER_KEY, custom_wallpaper_data_url);
-        } catch { /* optional desktop preference */ }
+        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       })
-      .catch(() => { /* DB 미연결이어도 localStorage 값으로 계속 동작 */ });
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     const ensureOliviaFrame = window.requestAnimationFrame(() => {
       const state = useOliviaDesktopStore.getState();
       if (state.windows["olivia-chat"]) return;
@@ -110,7 +111,7 @@ export default function OliviaDesktop() {
   const selectWallpaper = useCallback((mode: WallpaperMode) => {
     if (mode === "custom" && !customWallpaper) return;
     setWallpaper(mode);
-    try { window.localStorage.setItem(WALLPAPER_KEY, mode); } catch { /* optional desktop preference */ }
+    try { window.localStorage.setItem(WALLPAPER_KEY, mode); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     syncWallpaperSettings({ wallpaperMode: mode });
   }, [customWallpaper, syncWallpaperSettings]);
 
@@ -122,7 +123,7 @@ export default function OliviaDesktop() {
       try {
         window.localStorage.setItem(CUSTOM_WALLPAPER_KEY, dataUrl);
         window.localStorage.setItem(WALLPAPER_KEY, "custom");
-      } catch { /* 현재 세션에서는 그대로 사용할 수 있다 */ }
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       syncWallpaperSettings({ wallpaperMode: "custom", customWallpaperDataUrl: dataUrl });
     } catch {
       window.alert("PNG, JPG 또는 WebP 이미지를 선택해 주세요.");
@@ -165,4 +166,8 @@ export default function OliviaDesktop() {
       <DesktopSystemOverlay kind={overlay} wallpaper={wallpaper} customWallpaper={customWallpaper} onWallpaperChange={selectWallpaper} onCustomWallpaper={selectCustomWallpaper} onClose={() => setOverlay(null)} />
     </div>
   );
+}
+
+export default function OliviaDesktop() {
+  return <DesktopShellErrorBoundary><OliviaDesktopContent /></DesktopShellErrorBoundary>;
 }

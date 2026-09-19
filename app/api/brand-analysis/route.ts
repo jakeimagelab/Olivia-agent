@@ -90,7 +90,7 @@ function extractLinks(html: string, baseUrl: string): string[] {
         if (seen.has(u.href) || u.href === baseUrl) continue;
         seen.add(u.href);
         results.push(u.href);
-      } catch { /* ignore malformed */ }
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     }
     return results.slice(0, 8);
   } catch { return []; }

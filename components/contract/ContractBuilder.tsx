@@ -214,7 +214,7 @@ export default function ContractBuilder({
           memos: null,
         });
       })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModal, modalClientId, resourceId]);
 
@@ -251,7 +251,7 @@ export default function ContractBuilder({
             memos: null,
           });
         })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
       return;
     }
 
@@ -516,7 +516,7 @@ export default function ContractBuilder({
       const d = await r.json();
       if (!d.ok) throw new Error(d.error);
       if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(d.portalUrl).catch(() => {});
+        await navigator.clipboard.writeText(d.portalUrl).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
       }
       setPublishState("done");
       setTimeout(() => setPublishState("idle"), 3000);

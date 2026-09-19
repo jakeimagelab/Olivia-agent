@@ -100,7 +100,7 @@ export default function KnowledgePatchesPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isActive: !patch.is_active }),
-    }).catch(() => {});
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   };
 
   const visiblePatches = patches.filter((p) => showInactive || p.is_active);

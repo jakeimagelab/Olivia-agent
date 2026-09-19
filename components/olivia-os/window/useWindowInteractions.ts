@@ -42,7 +42,7 @@ export function useWindowInteractions(
     setInteracting(true);
     const captureTarget = event.currentTarget as HTMLElement;
     const pointerId = event.pointerId;
-    try { captureTarget.setPointerCapture(pointerId); } catch { /* best effort */ }
+    try { captureTarget.setPointerCapture(pointerId); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
     const previousUserSelect = document.body.style.userSelect;
     const previousCursor = document.body.style.cursor;
@@ -82,7 +82,7 @@ export function useWindowInteractions(
       window.removeEventListener("pointercancel", cancel);
       try {
         if (captureTarget.hasPointerCapture(pointerId)) captureTarget.releasePointerCapture(pointerId);
-      } catch { /* the element may already be detached */ }
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       document.body.style.userSelect = previousUserSelect;
       document.body.style.cursor = previousCursor;
       setInteracting(false);
@@ -141,7 +141,7 @@ export function useWindowInteractions(
     setInteracting(true);
     const captureTarget = event.currentTarget as HTMLElement;
     const pointerId = event.pointerId;
-    try { captureTarget.setPointerCapture(pointerId); } catch { /* best effort */ }
+    try { captureTarget.setPointerCapture(pointerId); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     const previousUserSelect = document.body.style.userSelect;
     const previousCursor = document.body.style.cursor;
     document.body.style.userSelect = "none";
@@ -166,7 +166,7 @@ export function useWindowInteractions(
       window.removeEventListener("pointercancel", finish);
       try {
         if (captureTarget.hasPointerCapture(pointerId)) captureTarget.releasePointerCapture(pointerId);
-      } catch { /* the element may already be detached */ }
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       document.body.style.userSelect = previousUserSelect;
       document.body.style.cursor = previousCursor;
       setInteracting(false);

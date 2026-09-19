@@ -40,7 +40,7 @@ export default function IntegratedCalendar() {
         if (!json?.ok) return;
         setEventDates(new Set((json.tasks ?? []).map((t: any) => t.date)));
       })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, [currentMonth]);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function IntegratedCalendar() {
           projectName: typeof t.project_name === "string" ? t.project_name : undefined,
         })));
       })
-      .catch(() => {})
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); })
       .finally(() => setScheduleLoading(false));
   }, [selectedDate]);
 

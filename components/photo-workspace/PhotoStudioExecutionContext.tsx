@@ -97,7 +97,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setExecutionModeState(nextMode);
     try {
       localStorage.setItem(PHOTO_STUDIO_EXECUTION_MODE_STORAGE_KEY, nextMode);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, [surface]);
 
   const trackRemoteJob = useCallback((job: RemotePhotoSortJob) => {
@@ -107,7 +107,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setRemotePollingMessage("");
     try {
       localStorage.setItem(PHOTO_STUDIO_REMOTE_JOB_STORAGE_KEY, job.id);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   const clearRemoteJob = useCallback(() => {
@@ -117,7 +117,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setRemotePollingMessage("");
     try {
       localStorage.removeItem(PHOTO_STUDIO_REMOTE_JOB_STORAGE_KEY);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   useEffect(() => {

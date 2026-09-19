@@ -13,7 +13,7 @@ export function CodeBlock({ code, bg, border, color }: { code: string; bg: strin
       await navigator.clipboard.writeText(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   };
   return (
     <div style={{ position: "relative", margin: "6px 0" }}>

@@ -46,7 +46,7 @@ function SelectGalleriesInner() {
 
   useEffect(() => {
     if (clientId) return; // 이미 특정 고객 컨텍스트로 들어온 경우엔 고를 필요 없음
-    fetch("/api/clients/directory").then(r => r.json()).then(d => { if (d.ok) setAllClients(d.clients); }).catch(() => {});
+    fetch("/api/clients/directory").then(r => r.json()).then(d => { if (d.ok) setAllClients(d.clients); }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, [clientId]);
 
   useEffect(() => {

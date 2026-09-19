@@ -371,7 +371,7 @@ export async function POST(req: NextRequest) {
 
     // 고객 포털에 "새 소식" 기록 (실제 발송 채널은 아직 미확정 — 로그인 시 포털에서 확인 가능)
     if (gallery && client_id) {
-      await logPortalEvent({ clientId: client_id, eventType: "gallery_ready", targetType: "photo_galleries", targetId: gallery.id, workflowRunId: workflow_run_id || null }).catch(() => {});
+      await logPortalEvent({ clientId: client_id, eventType: "gallery_ready", targetType: "photo_galleries", targetId: gallery.id, workflowRunId: workflow_run_id || null }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
 
     return NextResponse.json({ ok: true, gallery });

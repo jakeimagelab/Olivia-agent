@@ -27,7 +27,7 @@ export default function OliviaTaskStrip() {
     fetch(`/api/olivia/task-sessions/${activeTaskSessionId}`)
       .then((r) => r.json())
       .then((d) => { if (!cancelled && d.ok) setSummary(d.session); })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     return () => { cancelled = true; };
   }, [activeTaskSessionId]);
 

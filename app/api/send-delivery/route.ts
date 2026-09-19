@@ -142,13 +142,13 @@ export async function POST(req: NextRequest) {
         queue_id: null, type: "original_files", hospital_name: hospitalName || "", client_id: clientId,
         to_email: to, subject, status: "sent",
       });
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
     // 원본 파일 전달 NAS 링크를 고객 레코드의 "원본사진공유링크"로도 반영한다.
     if (clientId && nasLink) {
       try {
         await supabase.from("clients").update({ original_photos_link: nasLink }).eq("id", clientId);
-      } catch {}
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     }
 
     return NextResponse.json({ ok: true, id });
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
         queue_id: null, type: "original_files", hospital_name: hospitalName || "", client_id: clientId,
         to_email: to, subject, status: "failed", error: message,
       });
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
     return NextResponse.json({ ok: false, error: `메일 발송 실패: ${message}` }, { status: 500 });
   }

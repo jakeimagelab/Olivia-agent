@@ -35,7 +35,7 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
     if (!linkOpen || clients.length) return;
     fetch("/api/clients").then((response) => response.json()).then((body) => {
       if (body.ok) setClients((body.clients ?? []).map((client: { id: string; hospital_name?: string }) => ({ id: client.id, name: client.hospital_name || "(이름 없음)" })));
-    }).catch(() => {});
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, [clients.length, linkOpen]);
 
   const totalMinutes = useMemo(() => document?.scenes.reduce((sum, scene) => sum + (scene.minutes ?? 0), 0) ?? 0, [document]);

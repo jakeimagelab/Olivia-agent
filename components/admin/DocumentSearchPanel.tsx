@@ -60,7 +60,7 @@ export default function DocumentSearchPanel() {
           setDocuments(payload.ok ? payload.documents : []);
           setHasSearched(true);
         })
-        .catch(() => {})
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); })
         .finally(() => setLoading(false));
     }, 300);
     return () => { clearTimeout(timer); controller.abort(); };

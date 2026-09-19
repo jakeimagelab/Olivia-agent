@@ -140,7 +140,7 @@ export default function DiagnosisPage() {
         body: JSON.stringify({ ...answers, consultationOptin: true, uploadedPhotos: uploadedPhotos.map(p => ({ category: p.category, name: p.name, size: p.size })), photoUploadConsent: photoConsent }),
       });
       setSubmitted(true);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     finally { setSubmitting(false); }
   };
 

@@ -145,7 +145,7 @@ export function getInjectScript(): string {
   function sendMsg(type, payload) {
     try {
       window.parent.postMessage({ _wb: 1, type: type, payload: payload || {} }, '*');
-    } catch(e) {}
+    } catch (e) { console.error("[OLIVIA] Suppressed error", e); }
   }
 
   function clearOutlines() {
@@ -157,7 +157,7 @@ export function getInjectScript(): string {
 
   function selectElement(el) {
     if (selectedEl) {
-      try { selectedEl.style.outline = ''; } catch(e) {}
+      try { selectedEl.style.outline = ''; } catch (e) { console.error("[OLIVIA] Suppressed error", e); }
     }
     selectedEl = el;
     el.style.outline = SELECT_STYLE;
@@ -179,7 +179,7 @@ export function getInjectScript(): string {
 
   function deselectAll() {
     if (selectedEl) {
-      try { selectedEl.style.outline = ''; } catch(e) {}
+      try { selectedEl.style.outline = ''; } catch (e) { console.error("[OLIVIA] Suppressed error", e); }
       selectedEl = null;
     }
     sendMsg('deselect', {});
@@ -245,7 +245,7 @@ export function getInjectScript(): string {
           range.collapse(false);
           sel.removeAllRanges();
           sel.addRange(range);
-        } catch(err) {}
+        } catch (err) { console.error("[OLIVIA] Suppressed error", err); }
         return;
       }
       el = el.parentElement;

@@ -123,7 +123,7 @@ function scheduleConversationCache(state: Pick<OliviaConversationState, "convers
         messages: state.messages,
         savedAt: new Date().toISOString(),
       } satisfies ConversationCache));
-    } catch { /* local storage unavailable */ }
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, 180);
 }
 

@@ -179,9 +179,9 @@ export default function PrompterPage() {
   }, []);
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     } else {
-      promptRootRef.current?.requestFullscreen().catch(() => {});
+      promptRootRef.current?.requestFullscreen().catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
   };
 
@@ -583,7 +583,7 @@ export default function PrompterPage() {
       peerBridgeRef.current = null;
       if (channelRef.current) { channelRef.current.unsubscribe(); channelRef.current = null; }
       setSessionCode(null);
-      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      if (document.fullscreenElement) document.exitFullscreen().catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
   }, [mode]);
 

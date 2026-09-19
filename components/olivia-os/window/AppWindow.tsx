@@ -33,6 +33,7 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
   if (!win) return null;
 
   const isActive = activeWindowId === windowId;
+  const errorBoundaryResetKey = [win.appId, win.context?.resourceId, win.context?.clientId, win.context?.projectId].filter(Boolean).join(":");
 
   const toggleMaximize = () => {
     if (win.snapMode === "maximized") {
@@ -75,7 +76,9 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
           onToggleMaximize={toggleMaximize}
         />
         <div className={styles.content}>
-          <AppWindowErrorBoundary appTitle={win.title}>{children}</AppWindowErrorBoundary>
+          <AppWindowErrorBoundary appId={win.appId} appTitle={win.title} windowId={win.id} context={win.context} resetKey={errorBoundaryResetKey}>
+            {children}
+          </AppWindowErrorBoundary>
         </div>
       </div>
       {win.snapMode === "none" && (

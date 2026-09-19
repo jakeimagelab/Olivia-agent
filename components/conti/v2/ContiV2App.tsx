@@ -65,7 +65,7 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
         setLegacyResourceId(undefined);
         setRunId(data.run.id);
       }
-    }).catch(() => {}).finally(() => setResolvingInitial(false));
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); }).finally(() => setResolvingInitial(false));
   }, [clientId, initialRunId, persistenceKey, resourceId, workflowRunId]);
 
   const handleGenerated = (id: string) => {

@@ -279,7 +279,7 @@ export function SelectMatchWorkspace({
 
       // JPG/ 폴더 탐색
       let jpgBase: FileSystemDirectoryHandle | null = null;
-      try { jpgBase = await (dir as any).getDirectoryHandle("JPG"); } catch {}
+      try { jpgBase = await (dir as any).getDirectoryHandle("JPG"); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
       // JPG/ 없으면 루트 직접 사용
       const scanDir = jpgBase ?? dir;
@@ -553,7 +553,7 @@ export function SelectMatchWorkspace({
         await copyFileStreamed(m.handle, destDir, m.name);
         await (m.parentDir as any).removeEntry(m.name);
         moved++;
-      } catch {}
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     }
     setFmMovedCount(moved);
     setFmStep("done");

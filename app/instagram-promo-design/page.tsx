@@ -264,7 +264,7 @@ export default function InstaDesignPage() {
         setMainText(data.captions[0].text.split("\n")[0]);
         setSubText(data.captions[0].text.split("\n").slice(1).join("\n").trim());
       }
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     finally { setGenerating(false); }
   };
 

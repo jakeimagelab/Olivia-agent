@@ -25,7 +25,7 @@ export function useContactDirectory() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/auth/session").then(r => r.json()).then(d => { if (d.ok) setSession(d.session); }).catch(() => {});
+    fetch("/api/auth/session").then(r => r.json()).then(d => { if (d.ok) setSession(d.session); }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, []);
 
   // Google 연락처 연동(OAuth) 후 돌아왔을 때 — 어느 탭이 열려 있든 세션을 갱신한다.

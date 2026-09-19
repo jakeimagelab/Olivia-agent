@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
               }
             }
           }
-        } catch { /* 개별 메시지 실패는 건너뜀 */ }
+        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       }
     };
     await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));

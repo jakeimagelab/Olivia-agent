@@ -181,7 +181,7 @@ export function AllAppsWindowContent() {
     try {
       const cached = window.localStorage.getItem(DESKTOP_FAVORITES_CACHE_KEY);
       if (cached) setFavoriteKeys(normalizeDesktopFavoriteKeys(JSON.parse(cached)));
-    } catch { /* DB 조회 전 기본 목록을 유지한다. */ }
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
     fetch("/api/desktop-settings")
       .then(async (response) => {
@@ -192,9 +192,9 @@ export function AllAppsWindowContent() {
       .then((keys) => {
         if (!active) return;
         setFavoriteKeys(keys);
-        try { window.localStorage.setItem(DESKTOP_FAVORITES_CACHE_KEY, JSON.stringify(keys)); } catch { /* optional cache */ }
+        try { window.localStorage.setItem(DESKTOP_FAVORITES_CACHE_KEY, JSON.stringify(keys)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       })
-      .catch(() => { /* DB 미연결 시 로컬 캐시 또는 기본 목록으로 계속 동작한다. */ });
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
 
     return () => { active = false; };
   }, []);
@@ -244,7 +244,7 @@ export function AllAppsWindowContent() {
     setError(undefined);
     setSaving(true);
     setFavoriteKeys(next);
-    try { window.localStorage.setItem(DESKTOP_FAVORITES_CACHE_KEY, JSON.stringify(next)); } catch { /* optional cache */ }
+    try { window.localStorage.setItem(DESKTOP_FAVORITES_CACHE_KEY, JSON.stringify(next)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
     try {
       const response = await fetch("/api/desktop-settings", {
@@ -257,7 +257,7 @@ export function AllAppsWindowContent() {
     } catch {
       setFavoriteKeys(previous);
       setError("즐겨찾기를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-      try { window.localStorage.setItem(DESKTOP_FAVORITES_CACHE_KEY, JSON.stringify(previous)); } catch { /* optional cache */ }
+      try { window.localStorage.setItem(DESKTOP_FAVORITES_CACHE_KEY, JSON.stringify(previous)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     } finally {
       setSaving(false);
     }

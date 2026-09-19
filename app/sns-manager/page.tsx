@@ -131,7 +131,7 @@ function PatternBlogWriter() {
       if (sp) setSourcePosts(JSON.parse(sp));
       const cp = localStorage.getItem("blog_custom_profiles");
       if (cp) setProfiles([...DEFAULT_PROFILES, ...JSON.parse(cp)]);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   const saveSourcePosts = (posts: SourcePost[]) => {
@@ -676,7 +676,7 @@ function InstagramContentTab() {
     try {
       const raw = localStorage.getItem("pc_insta_content_drafts");
       if (raw) setSaved(JSON.parse(raw));
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   const persist = (items: InstaDraft[]) => {
@@ -1231,7 +1231,7 @@ function YoutubePlannerTab() {
           const bw = bg.width * scale, bh = bg.height * scale;
           ctx.drawImage(bg, (w - bw) / 2, (h - bh) / 2, bw, bh);
           ctx.fillStyle = "rgba(8,36,34,.42)"; ctx.fillRect(0, 0, w, h);
-        } catch {}
+        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       } else {
         ctx.fillStyle = "#155855"; ctx.fillRect(0, 0, w, h);
         ctx.fillStyle = "#EAF4F2"; ctx.fillRect(0, h - 170, w, 170);
@@ -1247,7 +1247,7 @@ function YoutubePlannerTab() {
           const x = thumbForm.template === "center-bold" ? 70 : 40;
           const y = thumbForm.template === "split-card" ? 40 : h - targetH;
           ctx.drawImage(doctor, x, y, dw, targetH);
-        } catch {}
+        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       }
 
       const text = thumbForm.thumbnailText || story?.thumbnailTexts?.[0] || "상담 전 꼭 확인할 것";

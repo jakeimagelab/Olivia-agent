@@ -43,7 +43,7 @@ export async function getCachedFeature(key: string): Promise<LocalVisualFeatures
 }
 
 export async function setCachedFeature(key: string, features: LocalVisualFeatures) {
-  try { await transact(FEATURE_STORE, "readwrite", (store) => store.put(features, key)); } catch {}
+  try { await transact(FEATURE_STORE, "readwrite", (store) => store.put(features, key)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 }
 
 export async function getClassificationCheckpoint<T>(jobId: string): Promise<T | null> {
@@ -52,11 +52,11 @@ export async function getClassificationCheckpoint<T>(jobId: string): Promise<T |
 }
 
 export async function setClassificationCheckpoint<T>(jobId: string, checkpoint: T) {
-  try { await transact(JOB_STORE, "readwrite", (store) => store.put(checkpoint, jobId)); } catch {}
+  try { await transact(JOB_STORE, "readwrite", (store) => store.put(checkpoint, jobId)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 }
 
 export async function clearClassificationCheckpoint(jobId: string) {
-  try { await transact(JOB_STORE, "readwrite", (store) => store.delete(jobId)); } catch {}
+  try { await transact(JOB_STORE, "readwrite", (store) => store.delete(jobId)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 }
 
 // 폴더 지문 — 파일명/크기/mtime/개수로 만든다(스펙 30). 순서에 안 흔들리게 정렬 후 계산하고,
@@ -77,5 +77,5 @@ export async function getCachedPattern<T>(fingerprint: string): Promise<T | null
 }
 
 export async function setCachedPattern<T>(fingerprint: string, pattern: T) {
-  try { await transact(PATTERN_STORE, "readwrite", (store) => store.put(pattern, fingerprint)); } catch {}
+  try { await transact(PATTERN_STORE, "readwrite", (store) => store.put(pattern, fingerprint)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 }

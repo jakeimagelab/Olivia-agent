@@ -150,7 +150,7 @@ export default function ContiBuilder({
             specialties:  c.department ? [c.department] : prev.specialties,
           }));
         })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     } else if (hospitalName || dept) {
       setForm(prev => ({
         ...prev,
@@ -312,7 +312,7 @@ export default function ContiBuilder({
       const data = await res.json();
       if (!data.ok || !data.url) return;
       drawCanvasRef.current?.loadImage(data.url);
-    } catch { /* 드로잉 없음 — 무시 */ }
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   };
 
   useEffect(() => {
@@ -583,7 +583,7 @@ export default function ContiBuilder({
       if (!data.ok) throw new Error(data.error || "공유 링크 생성 실패");
       const url = `${window.location.origin}/conti/view/${data.token}`;
       setShareUrl(url);
-      await navigator.clipboard.writeText(url).catch(() => {});
+      await navigator.clipboard.writeText(url).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 3000);
     } catch (err: any) {
@@ -680,7 +680,7 @@ export default function ContiBuilder({
           // 않아도 알아듣도록, 실제로 콘티를 불러온 시점에 현재 문서로 기록한다.
           setOliviaCurrentDocument(resourceId, "storyboard", entry.title || entry.hospital_name);
         })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
       void loadResource();
       const onRefresh = (event: Event) => {
         const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
@@ -701,7 +701,7 @@ export default function ContiBuilder({
           specialties: c.department ? [c.department] : prev.specialties,
         }));
       })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModal, modalClientId, resourceId]);
 
@@ -724,7 +724,7 @@ export default function ContiBuilder({
           setResultTitle(entry.title || entry.hospital_name);
           setForm((prev) => ({ ...prev, shootTitle: entry.title || entry.hospital_name || prev.shootTitle, hospitalName: entry.hospital_name, specialties: entry.specialties || prev.specialties }));
         })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     };
     window.addEventListener("olivia-resource-refresh", onRefresh);
     return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
@@ -902,7 +902,7 @@ export default function ContiBuilder({
       const res  = await fetch("/api/conti/saves");
       const data = await res.json();
       if (data.ok) setSavedList(data.data || []);
-    } catch { /* 무시 */ }
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     finally { setLoadLoading(false); }
   };
 
@@ -951,7 +951,7 @@ export default function ContiBuilder({
       fetch(`/api/clients?q=${encodeURIComponent(linkQuery)}`)
         .then(r => r.json())
         .then(d => { if (d.ok) setLinkResults((d.clients || []).slice(0, 8)); })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }, 250);
     return () => clearTimeout(timer);
   }, [linkQuery, linkTarget]);

@@ -43,7 +43,7 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
   useEffect(() => {
     fetch("/api/clients").then((response) => response.json()).then((data) => {
       if (data.ok) setClients((data.clients ?? []).map((client: { id: string; hospital_name?: string }) => ({ id: client.id, name: client.hospital_name || "(이름 없음)" })));
-    }).catch(() => {});
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, []);
 
   useEffect(() => { if (initialClientId) setHospitalId(initialClientId); }, [initialClientId]);
@@ -53,7 +53,7 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
     fetch(`/api/conti/hospital-profile?hospitalId=${encodeURIComponent(hospitalId)}`)
       .then((response) => response.json())
       .then((data) => { if (data.ok) { setHospitalSpaces(data.spaces ?? []); setHospitalStaff(data.staff ?? []); } })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, [hospitalId]);
 
   const department = useMemo(() => getDepartmentDefinition(specialty), [specialty]);

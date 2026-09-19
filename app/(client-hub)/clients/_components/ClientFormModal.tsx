@@ -132,9 +132,7 @@ export default function ClientFormModal({ open, mode, client, onClose, onSaved, 
         phone: picked.tel?.[0] || prev.phone,
         email: picked.email?.[0] || prev.email,
       }));
-    } catch {
-      /* 사용자가 선택 취소한 경우 등 — 조용히 무시 */
-    }
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   };
 
   const extractFromMemo = async () => {

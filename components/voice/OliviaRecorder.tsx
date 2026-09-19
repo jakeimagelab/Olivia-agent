@@ -113,7 +113,7 @@ export default function OliviaRecorder({
     const lock = wakeLockRef.current;
     wakeLockRef.current = null;
     if (lock && !lock.released) {
-      try { await lock.release(); } catch { /* 브라우저가 먼저 해제한 경우 */ }
+      try { await lock.release(); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     }
   }, []);
 
@@ -123,17 +123,17 @@ export default function OliviaRecorder({
       wakeLock?: { request: (type: "screen") => Promise<WakeLockSentinelLike> };
     }).wakeLock;
     if (!wakeLock || (wakeLockRef.current && !wakeLockRef.current.released)) return;
-    try { wakeLockRef.current = await wakeLock.request("screen"); } catch { /* 미지원/권한 거절은 녹음을 막지 않는다 */ }
+    try { wakeLockRef.current = await wakeLock.request("screen"); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   const persistPending = useCallback((pending: PendingVoiceUpload) => {
     pendingUploadRef.current = pending;
-    try { localStorage.setItem(`${VOICE_UPLOAD_STORAGE_PREFIX}${pending.id}`, JSON.stringify(pending)); } catch { /* 저장공간 제한 */ }
+    try { localStorage.setItem(`${VOICE_UPLOAD_STORAGE_PREFIX}${pending.id}`, JSON.stringify(pending)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   const clearPending = useCallback((id: string) => {
     pendingUploadRef.current = null;
-    try { localStorage.removeItem(`${VOICE_UPLOAD_STORAGE_PREFIX}${id}`); } catch { /* ignore */ }
+    try { localStorage.removeItem(`${VOICE_UPLOAD_STORAGE_PREFIX}${id}`); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   const patchSession = useCallback(async (id: string, body: Record<string, unknown>) => {
@@ -297,7 +297,7 @@ export default function OliviaRecorder({
     } catch (error) {
       stopTimer(true);
       if (engine?.state === "recording" || engine?.state === "paused") {
-        try { await engine.stop(); } catch { /* cleanup best effort */ }
+        try { await engine.stop(); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       }
       engineRef.current = null;
       const message = error instanceof DOMException && error.name === "NotAllowedError"
@@ -368,7 +368,7 @@ export default function OliviaRecorder({
       });
       const recent = values.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
       if (recent) setStaleSession(recent);
-    } catch { /* localStorage unavailable */ }
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 "use client";
 
-import { Component, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
+import { logOliviaError } from "@/lib/errors/errorDiagnostics";
 
 const CHUNK_ERROR_PATTERN = /ChunkLoadError|Loading chunk|Failed to fetch dynamically imported module/i;
 const RELOAD_GUARD_KEY = "oliviaMobileChunkReloadAttempted";
@@ -25,8 +26,8 @@ export class MobileErrorBoundary extends Component<Props, State> {
     return { hasError: true };
   }
 
-  componentDidCatch(error: unknown) {
-    console.error("[olivia-mobile] screen crashed:", error);
+  componentDidCatch(error: unknown, info: ErrorInfo) {
+    logOliviaError("mobile-screen", error, { componentStack: info.componentStack });
     if (isChunkLoadError(error) && typeof window !== "undefined") {
       // 청크 로드 실패는 "다시 시도" 버튼으로 못 고친다 — 브라우저가 들고 있는 매니페스트가
       // 이미 오래됐기 때문이다. 새로고침 한 번으로 최신 청크를 다시 받아온다. 네트워크가
@@ -36,7 +37,8 @@ export class MobileErrorBoundary extends Component<Props, State> {
           window.sessionStorage.setItem(RELOAD_GUARD_KEY, "1");
           window.location.reload();
         }
-      } catch {
+      } catch (storageError) {
+        logOliviaError("mobile-screen:chunk-reload-guard", storageError);
         // sessionStorage 접근 자체가 막힌 환경(프라이빗 모드 등)이면 자동 새로고침은 건너뛰고
         // 아래 재시도/홈 버튼으로만 복구하게 둔다.
       }

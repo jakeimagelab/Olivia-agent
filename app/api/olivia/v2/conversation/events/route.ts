@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
         clearInterval(heartbeat);
         req.signal.removeEventListener("abort", onAbort);
         void db.removeChannel(channel);
-        try { controller.close(); } catch { /* already closed */ }
+        try { controller.close(); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       };
       req.signal.addEventListener("abort", onAbort, { once: true });
     },

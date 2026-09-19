@@ -26,7 +26,7 @@ export default function DeliveryMailPage() {
     fetch("/api/auth/session")
       .then(r => r.json())
       .then(d => { if (d.ok) setSession(d.session); })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   }, []);
 
   // URL 파라미터로 로그인 결과 확인
@@ -51,7 +51,7 @@ export default function DeliveryMailPage() {
       const res  = await fetch("/api/contacts");
       const data = await res.json();
       if (data.ok) { setContacts(data.contacts); setContactsLoaded(true); }
-    } catch (e) {}
+    } catch (e) { console.error("[OLIVIA] Suppressed error", e); }
   };
 
   useEffect(() => {

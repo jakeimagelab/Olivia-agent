@@ -115,7 +115,7 @@ export default function BrollPromptPage() {
   };
 
   const copy = async (item: GeneratedPrompt) => {
-    await navigator.clipboard.writeText(item.prompt).catch(() => {});
+    await navigator.clipboard.writeText(item.prompt).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     setCopiedId(item.id);
     setTimeout(() => setCopiedId((current) => (current === item.id ? null : current)), 1500);
   };

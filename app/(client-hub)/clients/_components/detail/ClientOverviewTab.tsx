@@ -64,7 +64,7 @@ export default function ClientOverviewTab({ client, workflowRun, artifacts, acti
     fetch(`/api/olivia/insights?workflowRunId=${encodeURIComponent(workflowRun.id)}&limit=10`, { cache: "no-store" })
       .then((r) => r.json())
       .then((json) => { if (!cancelled && json.ok) setInsights(json.insights ?? []); })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     return () => { cancelled = true; };
   }, [workflowRun?.id]);
 

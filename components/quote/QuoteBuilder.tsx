@@ -447,7 +447,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           setCustomer((prev) => (prev.quoteNumber === defaultQuoteNumber ? { ...prev, quoteNumber: safeNumber } : prev));
         }
       })
-      .catch(() => {});
+      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1018,7 +1018,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       );
       if (item.id === (resourceId || currentQuoteId)) setCurrentQuoteStatus("published");
       if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(json.portalUrl).catch(() => {});
+        await navigator.clipboard.writeText(json.portalUrl).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
         setRecentQuoteMessage("포털에 공개했습니다. 포털 링크를 클립보드에 복사했습니다.");
       } else {
         setRecentQuoteMessage(`포털에 공개했습니다: ${json.portalUrl}`);
@@ -1124,7 +1124,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             if (json.quote?.workflow_run_id) setOliviaProject(json.quote.workflow_run_id);
           }
         })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     };
     if (resourceId) {
       loadResource();
@@ -1172,7 +1172,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             shootDate: json.activeProject?.shoot_date || prev.shootDate,
           }));
         })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModal, clientId, resourceId]);
@@ -1197,7 +1197,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         .then((json) => {
           if (json.ok) loadRecentQuote(rowToContractQuoteData(json.quote));
         })
-        .catch(() => {});
+        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     };
     window.addEventListener("olivia-resource-refresh", onRefresh);
     return () => window.removeEventListener("olivia-resource-refresh", onRefresh);

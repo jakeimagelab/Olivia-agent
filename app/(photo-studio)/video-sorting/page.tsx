@@ -109,7 +109,7 @@ async function extractVideoFrames(file: File, fractions: number[]): Promise<stri
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           frames.push(canvas.toDataURL("image/jpeg", 0.6));
           captured = true;
-        } catch {}
+        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       }
     }
   } finally {
@@ -282,7 +282,7 @@ export default function VideoSortingPage() {
     try {
       const h = await (window as any).showDirectoryPicker({ mode: "readwrite" });
       setRootDir(h);
-    } catch {}
+    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   };
 
   // 항목을 직접 변형하지 않고 결과를 반환한다 — 호출부가 clip.name을 키로 functional
@@ -448,7 +448,7 @@ export default function VideoSortingPage() {
         await copyFileHandle(item.clip.handle, dir, item.clip.name);
         if (fileMode === "move") await (rootDir as any).removeEntry(item.clip.name);
         moved++;
-      } catch {}
+      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
       done++;
     }
 
@@ -478,7 +478,7 @@ export default function VideoSortingPage() {
           await copyFileHandle(clip.handle, dir, clip.name);
           if (fileMode === "move") await (rootDir as any).removeEntry(clip.name);
           moved++;
-        } catch {}
+        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
         done++;
       }
     }

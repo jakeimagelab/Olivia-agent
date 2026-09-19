@@ -272,7 +272,7 @@ function AssetUploadZone({ diagnosisId, channel, consent, assets, onUploaded, on
     await fetch("/api/hospital-brand-diagnosis/upload", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ assetId: videoAssetId, videoAnalysisSummary: summary }),
-    }).catch(() => {});
+    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   };
 
   const handleFiles = async (files: FileList | null) => {
@@ -297,7 +297,7 @@ function AssetUploadZone({ diagnosisId, channel, consent, assets, onUploaded, on
 
   const removeAsset = async (assetId: string) => {
     onDeleted(assetId);
-    await fetch(`/api/hospital-brand-diagnosis/upload?assetId=${encodeURIComponent(assetId)}`, { method: "DELETE" }).catch(() => {});
+    await fetch(`/api/hospital-brand-diagnosis/upload?assetId=${encodeURIComponent(assetId)}`, { method: "DELETE" }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
   };
 
   return (
@@ -953,7 +953,7 @@ export default function HospitalBrandImageDiagnosisPage() {
                           await fetch("/api/hospital-brand-diagnosis/upload", {
                             method: "PATCH", headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ assetId: asset.id, category }),
-                          }).catch(() => {});
+                          }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
                         }} style={{ height: 26, fontSize: FS.xs, borderRadius: R.xs, border: `1px solid ${C.border}` }}>
                           {Object.entries(HBD_VISUAL_CATEGORY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                         </select>
