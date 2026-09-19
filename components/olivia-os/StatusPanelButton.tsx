@@ -53,28 +53,27 @@ export function StatusPanelButton() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const openRef = useRef(open);
-  openRef.current = open;
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async () => {
-    setLoading((current) => (data ? current : true));
+    setLoading(!hasLoadedRef.current);
     try {
       const response = await fetch("/api/olivia-os/status-panel", { cache: "no-store" });
       const body = await response.json().catch(() => ({ ok: false }));
       if (!response.ok || !body.ok) throw new Error("상태를 불러오지 못했습니다.");
       setData(body as StatusPanelData);
       setError(false);
+      hasLoadedRef.current = true;
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     void load();
-    let timer = window.setInterval(() => void load(), CLOSED_POLL_MS);
+    const timer = window.setInterval(() => void load(), CLOSED_POLL_MS);
     return () => window.clearInterval(timer);
   }, [load]);
 
