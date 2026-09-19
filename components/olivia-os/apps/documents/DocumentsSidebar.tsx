@@ -9,7 +9,7 @@ export type DocumentCategory = OliviaDocumentType | "temporary" | "all";
 
 // /api/documents/search가 실제로 채워주는 타입만 골랐다(searchDocuments.ts의
 // ALL_SEARCHABLE_TYPES) — 결과가 절대 안 나오는 카테고리를 사이드바에 두지 않는다.
-const CATEGORIES: DocumentCategory[] = ["all", "temporary", "quote", "contract", "storyboard", "memo", "gallery"];
+const CATEGORIES: DocumentCategory[] = ["all", "temporary", "quote", "contract", "storyboard", "memo", "review", "gallery"];
 
 function categoryLabel(category: DocumentCategory) {
   if (category === "all") return "전체";

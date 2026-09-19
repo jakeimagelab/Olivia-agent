@@ -22,6 +22,7 @@ const TYPE_TABS: { value: OliviaDocumentType | "all"; label: string }[] = [
   { value: "contract", label: "계약" },
   { value: "storyboard", label: "콘티" },
   { value: "memo", label: "메모" },
+  { value: "review", label: "후기" },
   { value: "gallery", label: "갤러리" },
   { value: "other", label: "기타" },
 ];

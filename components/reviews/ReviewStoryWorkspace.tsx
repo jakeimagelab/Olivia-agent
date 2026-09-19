@@ -213,7 +213,7 @@ function ToolbarRange({
   );
 }
 
-export default function ReviewStoryWorkspace() {
+export default function ReviewStoryWorkspace({ initialReviewId, initialContentId }: { initialReviewId?: string; initialContentId?: string } = {}) {
   // OS 창 안에서는 타이틀바가 이미 "리뷰콘텐츠"를 보여주므로 본문 h1/설명은 중복이다
   // (제안서 1.1) — standalone /review-studio 라우트에서는 그대로 유지.
   const isDesktopWindow = useDesktopWindowMode();
@@ -317,8 +317,8 @@ export default function ReviewStoryWorkspace() {
     setSelectedTemplateIds((current) => current.length ? current.filter((id) => nextLayouts.some((layout: LayoutAsset) => layout.id === id)) : nextLayouts.slice(0, 3).map((layout: LayoutAsset) => layout.id));
 
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    const queryContentId = params?.get("contentId") || "";
-    const queryReviewId = params?.get("reviewId") || "";
+    const queryContentId = initialContentId || params?.get("contentId") || "";
+    const queryReviewId = initialReviewId || params?.get("reviewId") || "";
 
     let targetContentId = preferredContentId || queryContentId;
     // 리뷰 관리 목록의 [콘텐츠 만들기]는 ?reviewId=만 들고 온다 — 그 리뷰의 콘텐츠가 이미
@@ -359,12 +359,12 @@ export default function ReviewStoryWorkspace() {
         setSource({ hospitalName: review.hospital_name || "", doctorName: review.reviewer_name || "", date: review.delivered_at || "", reviewText: review.review_text || "" });
       }
     }
-  }, [activeContentId]);
+  }, [activeContentId, initialContentId, initialReviewId]);
 
   useEffect(() => {
     setBusy("load");
     void load().catch((loadError) => notify(loadError instanceof Error ? loadError.message : "리뷰 정보를 불러오지 못했습니다.", true)).finally(() => setBusy(""));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialContentId, initialReviewId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const replaceActiveDocument = useCallback((documentValue: ReviewStoryDocument, historyBase?: ReviewStoryDocument) => {
     if (!activePage) return;

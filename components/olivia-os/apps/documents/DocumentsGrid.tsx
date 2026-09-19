@@ -1,10 +1,11 @@
 "use client";
 
 import type { OliviaDocumentType } from "@/lib/olivia/documents/types";
+import { getDocumentOpenTarget } from "@/lib/olivia/documents/openDocument";
 import { useDesktopAppLauncher } from "../../useDesktopAppLauncher";
 import { DocumentTypeIcon } from "./DocumentTypeIcon";
 import styles from "./DocumentsWindowContent.module.css";
-import { Clapperboard, File, FileSignature, FileText, Images, StickyNote } from "lucide-react";
+import { Clapperboard, File, FileSignature, FileText, Images, MessageSquareQuote, StickyNote } from "lucide-react";
 
 export type DocumentRow = {
   id: string;
@@ -15,6 +16,7 @@ export type DocumentRow = {
   status?: string | null;
   updatedAt?: string | null;
   route?: string | null;
+  sourceId?: string;
   metadata?: { temporaryDocumentId?: string; sourceId?: string; sourceTable?: string };
 };
 
@@ -26,6 +28,7 @@ const TYPE_ICON: Record<OliviaDocumentType, React.ComponentType<{ size?: number 
   checklist: FileText,
   revision: FileText,
   memo: StickyNote,
+  review: MessageSquareQuote,
   project_document: FileText,
   uploaded_file: File,
   gallery: Images,
@@ -90,33 +93,40 @@ export function DocumentsGrid({ documents, loading, surface = "desktop" }: { doc
           <div className={styles.grid}>
             {docs.map((doc) => {
               const Icon = TYPE_ICON[doc.type] ?? File;
+              const openTarget = getDocumentOpenTarget(doc);
+              const cardContents = <>
+                {surface === "tablet" ? <DocumentTypeIcon type={doc.type} /> : <div className={styles.cardIcon}><Icon size={22} /></div>}
+                <div className={styles.cardTitle}>{doc.title}</div>
+                <div className={styles.cardSubtitle}>{doc.clientName || doc.projectName || "-"}</div>
+                <div className={styles.cardFooter}>
+                  {doc.status && (
+                    <span className={`oa-status-badge oa-status-badge--${statusVariant(doc.status)}`}>
+                      {STATUS_LABEL[doc.status] || doc.status}
+                    </span>
+                  )}
+                  <span className={styles.cardDate}>{formatDate(doc.updatedAt)}</span>
+                </div>
+              </>;
+
+              if (!openTarget) {
+                return (
+                  <button key={doc.id} type="button" className={`${styles.card} ${styles.cardDisabled}`} disabled title="이 문서는 아직 직접 열 수 없습니다.">
+                    {cardContents}
+                    <span className={styles.cardUnavailable}>열기 지원 안 함</span>
+                  </button>
+                );
+              }
               return (
                 <a
                   key={doc.id}
-                  href={doc.route || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={openTarget.href}
                   className={styles.card}
                   onClick={(event) => {
-                    if (!doc.route) return;
                     event.preventDefault();
-                    launchHref(doc.route, doc.title, {
-                      resourceId: doc.metadata?.sourceId,
-                      resourceType: doc.type,
-                    });
+                    launchHref(openTarget.href, openTarget.title, openTarget.context);
                   }}
                 >
-                  {surface === "tablet" ? <DocumentTypeIcon type={doc.type} /> : <div className={styles.cardIcon}><Icon size={22} /></div>}
-                  <div className={styles.cardTitle}>{doc.title}</div>
-                  <div className={styles.cardSubtitle}>{doc.clientName || doc.projectName || "-"}</div>
-                  <div className={styles.cardFooter}>
-                    {doc.status && (
-                      <span className={`oa-status-badge oa-status-badge--${statusVariant(doc.status)}`}>
-                        {STATUS_LABEL[doc.status] || doc.status}
-                      </span>
-                    )}
-                    <span className={styles.cardDate}>{formatDate(doc.updatedAt)}</span>
-                  </div>
+                  {cardContents}
                 </a>
               );
             })}

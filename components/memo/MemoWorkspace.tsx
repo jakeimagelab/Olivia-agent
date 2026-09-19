@@ -35,9 +35,10 @@ function canvasBackground(type: MemoTemplateType): CanvasExportOptions["backgrou
 
 const DEFAULT_TITLE = "제목 없는 메모";
 
-export function MemoWorkspace({ embedded = false, contextType, contextId }: { embedded?: boolean; contextType?: MemoContextType; contextId?: string }) {
+export function MemoWorkspace({ embedded = false, contextType, contextId, initialMemoId }: { embedded?: boolean; contextType?: MemoContextType; contextId?: string; initialMemoId?: string }) {
   const searchParams = useSearchParams();
   const dateParam = searchParams.get("date") ?? "";
+  const requestedMemoId = initialMemoId || searchParams.get("resourceId") || searchParams.get("memoId") || "";
   const [memos, setMemos] = useState<ConsultationMemo[]>([]);
   // 기본 접힘 — 화면을 열자마자 메모 작성 영역에 집중하도록(과거 메모는 필요할 때만 펼침).
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -57,6 +58,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
   const [transforming, setTransforming] = useState<"text" | "image" | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const canvasRef = useRef<DrawingCanvasHandle>(null);
+  const openedRequestedMemoIdRef = useRef<string | null>(null);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -98,7 +100,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
     setAiText("");
   };
 
-  const openMemo = (memo: ConsultationMemo) => {
+  const openMemo = useCallback((memo: ConsultationMemo) => {
     const loadedType = memo.template_type === "text" ? "blank" : memo.template_type;
     setCurrentId(memo.id);
     setTitle(memo.title || "");
@@ -114,7 +116,16 @@ export function MemoWorkspace({ embedded = false, contextType, contextId }: { em
     setAiText("");
     setStatus(null);
     if (!embedded) window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, [embedded]);
+
+  useEffect(() => {
+    if (!requestedMemoId || openedRequestedMemoIdRef.current === requestedMemoId) return;
+    const requestedMemo = memos.find((memo) => memo.id === requestedMemoId);
+    if (!requestedMemo) return;
+    openedRequestedMemoIdRef.current = requestedMemoId;
+    setHistoryOpen(true);
+    openMemo(requestedMemo);
+  }, [memos, openMemo, requestedMemoId]);
 
   const save = useCallback(async (): Promise<string> => {
     setSaving(true);

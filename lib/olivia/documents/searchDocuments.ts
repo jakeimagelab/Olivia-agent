@@ -15,7 +15,7 @@ export type SearchDocumentsInput = {
   currentProjectId?: string | null;
 };
 
-const ALL_SEARCHABLE_TYPES: OliviaDocumentType[] = ["quote", "contract", "storyboard", "memo", "gallery"];
+const ALL_SEARCHABLE_TYPES: OliviaDocumentType[] = ["quote", "contract", "storyboard", "memo", "review", "gallery"];
 const CANDIDATE_LIMIT = 200;
 const DEFAULT_LIMIT = 10;
 
@@ -65,7 +65,7 @@ async function fetchQuotes(db: SupabaseClient, clientId?: string, projectId?: st
     createdAt: row.created_at ?? null,
     updatedAt: row.updated_at ?? row.created_at ?? null,
     searchableText: [row.title, row.hospital_name, row.quote_number].filter(Boolean).join(" "),
-    route: row.client_id ? `/clients?clientId=${row.client_id}` : null,
+    route: `/quote?resourceId=${row.id}`,
   }));
 }
 
@@ -87,7 +87,7 @@ async function fetchContracts(db: SupabaseClient, clientId?: string, projectId?:
     createdAt: row.created_at ?? null,
     updatedAt: row.updated_at ?? row.created_at ?? null,
     searchableText: [row.hospital_name, row.quote_number].filter(Boolean).join(" "),
-    route: row.client_id ? `/clients?clientId=${row.client_id}` : null,
+    route: `/contract?resourceId=${row.id}`,
   }));
 }
 
@@ -113,7 +113,7 @@ async function fetchConti(db: SupabaseClient, clientId?: string, projectId?: str
     createdAt: row.saved_at ?? null,
     updatedAt: row.saved_at ?? null,
     searchableText: [row.title, row.hospital_name].filter(Boolean).join(" "),
-    route: row.client_id ? `/clients?clientId=${row.client_id}` : null,
+    route: `/conti?resourceId=${row.id}`,
   }));
   const canonical = (canonicalResult.data || []).map((row: Row): OliviaDocumentRef => ({
     id: `conti_run:${row.id}`,
@@ -151,8 +151,42 @@ async function fetchMemos(db: SupabaseClient, clientId?: string, resolvedClientN
     createdAt: row.created_at ?? null,
     updatedAt: row.created_at ?? null,
     searchableText: [row.summary, row.raw_memo].filter(Boolean).join(" "),
-    route: row.hospital_id ? `/clients?clientId=${row.hospital_id}` : null,
+    route: `/memo?resourceId=${row.id}`,
   }));
+}
+
+async function fetchReviews(db: SupabaseClient, clientId?: string, projectId?: string | null, clientNameFilter?: string | null): Promise<OliviaDocumentRef[]> {
+  // client_reviews에는 hospital_name이 없으므로, 이름만 넘어왔는데 clients에서 고객을
+  // 해석하지 못한 경우 전체 후기를 잘못 반환하지 않는다.
+  if (!clientId && clientNameFilter) return [];
+  let q = db
+    .from("client_reviews")
+    .select("id, client_id, workflow_run_id, writer_name, public_review_text, good_points, source_channel, content_status, delivered_at, created_at, updated_at, clients(hospital_name)")
+    .order("updated_at", { ascending: false })
+    .limit(CANDIDATE_LIMIT);
+  if (clientId) q = q.eq("client_id", clientId);
+  if (projectId) q = q.eq("workflow_run_id", projectId);
+  const { data } = await q;
+  return (data || []).map((row: Row): OliviaDocumentRef => {
+    const relatedClient = Array.isArray(row.clients) ? row.clients[0] : row.clients;
+    const hospitalName = relatedClient?.hospital_name ?? null;
+    const reviewText = pick(row, "public_review_text") || pick(row, "good_points") || "";
+    return {
+      id: `review:${row.id}`,
+      type: "review",
+      title: `${hospitalName || "고객"} 후기${row.writer_name ? ` · ${row.writer_name}` : ""}`,
+      clientId: row.client_id ?? null,
+      clientName: hospitalName,
+      projectId: row.workflow_run_id ?? null,
+      sourceType: "client_reviews",
+      sourceId: row.id,
+      status: row.content_status ?? null,
+      createdAt: row.created_at ?? null,
+      updatedAt: row.updated_at ?? row.created_at ?? null,
+      searchableText: [hospitalName, row.writer_name, reviewText, row.source_channel].filter(Boolean).join(" "),
+      route: `/review-studio?reviewId=${row.id}`,
+    };
+  });
 }
 
 async function fetchGalleries(db: SupabaseClient, clientId?: string, projectId?: string | null, clientNameFilter?: string | null): Promise<OliviaDocumentRef[]> {
@@ -183,7 +217,7 @@ async function fetchGalleries(db: SupabaseClient, clientId?: string, projectId?:
     createdAt: row.created_at ?? null,
     updatedAt: row.created_at ?? null,
     searchableText: [row.hospital_name, row.gallery_type].filter(Boolean).join(" "),
-    route: row.client_id ? `/clients?clientId=${row.client_id}` : null,
+    route: `/gallery?galleryId=${row.id}`,
   }));
   const selects = (selectRes.data || []).map((row: Row): OliviaDocumentRef => ({
     id: `select_gallery:${row.id}`,
@@ -208,6 +242,7 @@ const FETCHERS: Partial<Record<OliviaDocumentType, (db: SupabaseClient, clientId
   contract: (db, clientId, projectId, clientName) => fetchContracts(db, clientId, projectId, clientName),
   storyboard: (db, clientId, projectId, clientName) => fetchConti(db, clientId, projectId, clientName),
   memo: (db, clientId, _projectId, clientName) => fetchMemos(db, clientId, clientName),
+  review: (db, clientId, projectId, clientName) => fetchReviews(db, clientId, projectId, clientName),
   gallery: (db, clientId, projectId, clientName) => fetchGalleries(db, clientId, projectId, clientName),
 };
 

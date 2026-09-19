@@ -109,6 +109,7 @@ function GalleryPageInner() {
   const searchParams = useSearchParams();
   const clientId = searchParams.get("client_id") || searchParams.get("clientId") || "";
   const workflowRunId = searchParams.get("workflow_run_id") || searchParams.get("workflowRunId") || "";
+  const requestedGalleryId = searchParams.get("galleryId") || searchParams.get("resourceId") || "";
 
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [loading, setLoading] = useState(true);
@@ -294,6 +295,12 @@ function GalleryPageInner() {
     setSelectedClientName(gallery.client_id ? gallery.hospital_name || "" : "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  useEffect(() => {
+    if (!requestedGalleryId || editingId === requestedGalleryId) return;
+    const requestedGallery = galleries.find((gallery) => gallery.id === requestedGalleryId);
+    if (requestedGallery) startEdit(requestedGallery);
+  }, [editingId, galleries, requestedGalleryId]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();

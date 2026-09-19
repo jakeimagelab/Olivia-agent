@@ -3,16 +3,7 @@
 import { useCallback } from "react";
 import { getOliviaApp, getOliviaAppByRoute } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore, type WindowContext } from "@/lib/store/useOliviaDesktopStore";
-
-function contextFromHref(href: string): WindowContext {
-  const query = href.split("?")[1] ?? "";
-  const params = new URLSearchParams(query);
-  return {
-    clientId: params.get("clientId") ?? params.get("id") ?? undefined,
-    projectId: params.get("projectId") ?? params.get("workflowRunId") ?? undefined,
-    resourceId: params.get("resourceId") ?? undefined,
-  };
-}
+import { contextFromHref, mergeDefinedWindowContext } from "@/lib/olivia/desktop/windowContext";
 
 export function useDesktopAppLauncher() {
   const openApp = useOliviaDesktopStore((state) => state.openApp);
@@ -21,7 +12,7 @@ export function useDesktopAppLauncher() {
     const app = getOliviaAppByRoute(href);
     const hrefContext = contextFromHref(href);
     if (app) {
-      const mergedContext = { ...hrefContext, ...context };
+      const mergedContext = mergeDefinedWindowContext(hrefContext, context);
       openApp({
         appId: app.id,
         title: title && title !== app.title ? `${app.title} · ${title}` : app.title,

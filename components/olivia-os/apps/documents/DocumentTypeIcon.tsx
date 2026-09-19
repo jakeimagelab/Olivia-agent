@@ -1,6 +1,6 @@
 "use client";
 
-import { Clapperboard, File, FileSignature, FileText, Images, StickyNote } from "lucide-react";
+import { Clapperboard, File, FileSignature, FileText, Images, MessageSquareQuote, StickyNote } from "lucide-react";
 import type { OliviaDocumentType } from "@/lib/olivia/documents/types";
 import styles from "./DocumentsWindowContent.module.css";
 
@@ -17,6 +17,7 @@ const TYPE_META: Record<OliviaDocumentType, { tone: string; Icon: typeof FileTex
   checklist: { tone: "general", Icon: FileText },
   revision: { tone: "general", Icon: FileText },
   memo: { tone: "memo", Icon: StickyNote },
+  review: { tone: "review", Icon: MessageSquareQuote },
   project_document: { tone: "general", Icon: FileText },
   uploaded_file: { tone: "general", Icon: File },
   gallery: { tone: "gallery", Icon: Images },

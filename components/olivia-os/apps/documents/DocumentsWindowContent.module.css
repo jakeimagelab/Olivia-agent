@@ -114,11 +114,30 @@
   background: #FFFFFF;
   text-decoration: none;
   color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .card:hover {
   background: rgba(21, 88, 85, 0.04);
   border-color: rgba(21, 88, 85, 0.2);
+}
+
+.cardDisabled {
+  position: relative;
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.cardDisabled:hover {
+  background: #FFFFFF;
+  border-color: rgba(21, 88, 85, 0.1);
+}
+
+.cardUnavailable {
+  font-size: 9.5px;
+  color: #7E918D;
 }
 
 .cardIcon {
@@ -177,6 +196,7 @@
 .typeIcon_storyboard { color: #7650D8; background: #F2ECFF; }
 .typeIcon_general { color: #5793E7; background: #EDF4FF; }
 .typeIcon_memo { color: #B37A26; background: #FFF7E7; }
+.typeIcon_review { color: #B15F83; background: #FBEFF5; }
 .typeIcon_gallery { color: #278F87; background: #E8F7F4; }
 .typeIcon_other { color: #788783; background: #F0F3F2; }
 

@@ -10,6 +10,7 @@ export type OliviaDocumentType =
   | "checklist"
   | "revision"
   | "memo"
+  | "review"
   | "project_document"
   | "uploaded_file"
   | "gallery"
@@ -43,13 +44,14 @@ const DOCUMENT_TYPE_ALIASES: Record<string, OliviaDocumentType> = {
   수정: "revision", 수정요청: "revision", 수정사항: "revision",
   보고서: "report", 리포트: "report", 업무보고: "report",
   메모: "memo", 상담메모: "memo", 상담기록: "memo",
+  후기: "review", 리뷰: "review", 고객후기: "review", 리뷰콘텐츠: "review",
   갤러리: "gallery", 사진갤러리: "gallery", 셀렉갤러리: "gallery", 셀렉: "gallery",
   메일: "other", 메일링: "other",
 };
 
 const KNOWN_TYPES: readonly OliviaDocumentType[] = [
   "quote", "contract", "storyboard", "report", "checklist", "revision",
-  "memo", "project_document", "uploaded_file", "gallery", "other",
+  "memo", "review", "project_document", "uploaded_file", "gallery", "other",
 ];
 
 export function normalizeDocumentTypeHint(hint: unknown): OliviaDocumentType | undefined {
@@ -68,6 +70,7 @@ export const DOCUMENT_TYPE_LABELS: Record<OliviaDocumentType, string> = {
   checklist: "체크리스트",
   revision: "수정요청",
   memo: "메모",
+  review: "후기",
   project_document: "프로젝트 문서",
   uploaded_file: "업로드 파일",
   gallery: "갤러리",
