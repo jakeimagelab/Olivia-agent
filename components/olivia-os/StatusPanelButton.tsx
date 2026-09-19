@@ -71,17 +71,11 @@ export function StatusPanelButton() {
     }
   }, []);
 
+  // 타이머 하나만 쓴다 — open이 바뀔 때마다 이 effect가 다시 실행되면서 같은 간격의 다른
+  // setInterval로 교체된다(닫힘 60초 / 열림 25초). 두 간격이 동시에 도는 일은 없다.
   useEffect(() => {
     void load();
-    const timer = window.setInterval(() => void load(), CLOSED_POLL_MS);
-    return () => window.clearInterval(timer);
-  }, [load]);
-
-  // open이 바뀔 때 같은 폴링을 다른 주기로 재시작한다 — 열려있는 동안만 더 자주 본다.
-  useEffect(() => {
-    if (!open) return;
-    void load();
-    const timer = window.setInterval(() => void load(), OPEN_POLL_MS);
+    const timer = window.setInterval(() => void load(), open ? OPEN_POLL_MS : CLOSED_POLL_MS);
     return () => window.clearInterval(timer);
   }, [open, load]);
 
