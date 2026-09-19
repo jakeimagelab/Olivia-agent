@@ -87,3 +87,52 @@
   opacity: 0.6;
   cursor: default;
 }
+
+.picker {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.select {
+  border-radius: 8px;
+  border: 1.5px solid rgba(21, 88, 85, 0.16);
+  padding: 7px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #17332e;
+  background: #ffffff;
+}
+
+.modeToggle {
+  display: flex;
+  gap: 6px;
+}
+
+.mode, .modeActive {
+  flex: 1;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1.5px solid rgba(21, 88, 85, 0.16);
+}
+
+.mode {
+  background: #ffffff;
+  color: #5a7470;
+}
+
+.modeActive {
+  background: #155855;
+  color: #ffffff;
+  border-color: #155855;
+}
+
+.error {
+  font-size: 11px;
+  color: #c0392b;
+}
