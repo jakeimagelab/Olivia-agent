@@ -10,9 +10,11 @@ import { createVerification } from "./verification";
 // 코드 요청서(2026-08-15) 3번 항목 — CRUD 엔진(lib/olivia/crud)은 12개 도메인을 지원하지만
 // 챗 도구로는 quote/contract/conti 3개만 노출돼 있었다. client/workflow는 위험도가 높아
 // (고객 원장 정보 직접 변경, 단계 강제 이동) 4번 항목(승인 게이트)이 실제로 막는 걸 확인한 뒤
-// 2차로 열기로 하고, 1차는 나머지 7개 도메인만 연다.
+// 2차로 열기로 하고, 1차는 나머지 도메인만 연다.
+// calendar는 calendar_add/update 전용 도구와 중복 쓰기 경로를 만들기 때문에 제외한다.
+// 일정 생성·수정은 충돌 검사와 재조회 검증이 있는 전용 도구만 사용해야 한다.
 export const OPEN_FEATURE_RECORD_DOMAINS: readonly OliviaCrudDomain[] = [
-  "memo", "calendar", "photo_gallery", "select_gallery", "review", "mail_draft", "agent_task",
+  "memo", "photo_gallery", "select_gallery", "review", "mail_draft", "agent_task",
 ];
 
 export const FEATURE_RECORD_TOOL_NAMES = ["create_feature_record", "update_feature_record", "apply_feature_record_write"] as const;
@@ -24,12 +26,19 @@ export async function executeFeatureRecordTool(
 ): Promise<OliviaToolResult> {
   const db = getSupabaseAdmin();
 
+  const assertOpenDomain = (domain: OliviaCrudDomain) => {
+    if (!OPEN_FEATURE_RECORD_DOMAINS.includes(domain)) {
+      if (domain === "calendar") {
+        throw new Error("일정 생성·수정은 calendar_add/calendar_update 전용 도구를 사용해야 해요.");
+      }
+      throw new Error(`"${domain}"은(는) 아직 챗에서 직접 생성·수정할 수 없는 기능이에요.`);
+    }
+  };
+
   // ── 범용 기능 데이터 생성/수정 (코드 요청서 3·4번 항목, 2026-08-15) ──
   if (name === "create_feature_record" || name === "update_feature_record") {
     const domain = text(input, "domain") as OliviaCrudDomain;
-    if (!OPEN_FEATURE_RECORD_DOMAINS.includes(domain)) {
-      throw new Error(`"${domain}"은(는) 아직 챗에서 직접 생성·수정할 수 없는 기능이에요.`);
-    }
+    assertOpenDomain(domain);
     let data: Record<string, unknown>;
     try {
       const parsed = JSON.parse(text(input, "data") || "{}");
@@ -103,6 +112,8 @@ export async function executeFeatureRecordTool(
   if (name === "apply_feature_record_write") {
     const operation = text(input, "operation") === "update" ? "update" as const : "create" as const;
     const domain = text(input, "domain") as OliviaCrudDomain;
+    // 예전에 만들어진 승인 카드가 남아 있어도 범용 경로로 일정을 쓸 수 없게 한다.
+    assertOpenDomain(domain);
     const data = input.crudData && typeof input.crudData === "object" && !Array.isArray(input.crudData)
       ? input.crudData as Record<string, unknown>
       : {};

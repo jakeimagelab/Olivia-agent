@@ -238,9 +238,10 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
   });
 });
 
-// 코드 요청서(2026-08-15) 3·4번 항목 — create_feature_record/update_feature_record는 열린 7개
+// 코드 요청서(2026-08-15) 3·4번 항목 — create_feature_record/update_feature_record는 열린
 // 도메인만 실행하고, 나머지(quote/contract/client/workflow 등)는 executeOliviaCrud를 아예 안 부르고
-// 막는다. owner_only 필드는 열린 7개 도메인 어디에도 없어서(전부 client/quote/contract 전용) 이
+// 막는다. calendar도 전용 도구와 중복되므로 범용 경로에서 차단한다. owner_only 필드는 열린
+// 도메인 어디에도 없어서(전부 client/quote/contract 전용) 이
 // 단계에서는 review_required 즉시 실행 경로만 실제로 도달 가능 — owner_only 분기 자체는
 // tests/olivia/crudValidation.test.ts가 validateOliviaCrudRequest 단에서 이미 검증한다.
 describe("Olivia 범용 기능 생성/수정 도구", () => {
@@ -279,7 +280,28 @@ describe("Olivia 범용 기능 생성/수정 도구", () => {
   });
 
   it("update는 target이 없으면 대상을 찾기 전에 막는다", async () => {
-    const execution = await call("update_feature_record", { domain: "calendar", data: JSON.stringify({ title: "촬영" }), target: "", requestText: null });
+    const execution = await call("update_feature_record", { domain: "memo", data: JSON.stringify({ title: "촬영" }), target: "", requestText: null });
+    expect(executionLog).toEqual([]);
+    expect(execution.result.success).toBe(false);
+  });
+
+  it("calendar는 범용 create_feature_record로 생성할 수 없다", async () => {
+    const execution = await call("create_feature_record", {
+      domain: "calendar",
+      data: JSON.stringify({ date: "2026-09-20", title: "중복 방지 일정" }),
+      requestText: null,
+    });
+    expect(executionLog).toEqual([]);
+    expect(execution.result.success).toBe(false);
+  });
+
+  it("예전 승인 카드도 apply_feature_record_write로 calendar를 생성할 수 없다", async () => {
+    const execution = await call("apply_feature_record_write", {
+      operation: "create",
+      domain: "calendar",
+      crudData: { date: "2026-09-20", title: "중복 방지 일정" },
+      target: undefined,
+    });
     expect(executionLog).toEqual([]);
     expect(execution.result.success).toBe(false);
   });

@@ -40,6 +40,10 @@ export const maxDuration = 60;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// 일정은 calendar_add/calendar_update의 충돌 검사·검증 경로로만 쓴다. 범용 CRUD Tool에
+// calendar까지 노출하면 한 요청에서 두 생성 도구가 호출되어 같은 일정이 중복 저장될 수 있다.
+const LEGACY_FEATURE_RECORD_DOMAINS = OLIVIA_CRUD_DOMAINS.filter((domain) => domain !== "calendar");
+
 // ── query_database 도구가 조회 가능한 전체 테이블 목록 (앱 전체 DB) ──
 const QUERYABLE_TABLES = [
   "activity_logs", "agent_approvals", "agent_logs", "agent_tasks",
@@ -66,11 +70,11 @@ const QUERYABLE_TABLE_SET = new Set<string>(QUERYABLE_TABLES);
 const OLIVIA_CRUD_TOOLS: Anthropic.Tool[] = [
   {
     name: "create_feature_record",
-    description: "앱 기능 데이터를 실제 DB에 새로 생성합니다. 고객, 프로젝트/워크플로우, 메모, 일정, 견적, 계약, 콘티, 갤러리, 후기, 메일 초안, 내부 업무를 생성할 때 사용합니다. 실행 전 사용자 확인 카드가 표시됩니다.",
+    description: "앱 기능 데이터를 실제 DB에 새로 생성합니다. 일정은 이 도구가 아니라 calendar_add를 사용합니다. 고객, 프로젝트/워크플로우, 메모, 견적, 계약, 콘티, 갤러리, 후기, 메일 초안, 내부 업무를 생성할 때 사용합니다. 실행 전 사용자 확인 카드가 표시됩니다.",
     input_schema: {
       type: "object",
       properties: {
-        domain: { type: "string", enum: [...OLIVIA_CRUD_DOMAINS], description: "생성할 기능 도메인" },
+        domain: { type: "string", enum: [...LEGACY_FEATURE_RECORD_DOMAINS], description: "생성할 기능 도메인" },
         data: { type: "object", description: "도메인별 생성 데이터", additionalProperties: true },
         requestText: { type: "string", description: "사용자의 원래 요청 요약" },
       },
@@ -83,7 +87,7 @@ const OLIVIA_CRUD_TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: "object",
       properties: {
-        domain: { type: "string", enum: [...OLIVIA_CRUD_DOMAINS], description: "수정할 기능 도메인" },
+        domain: { type: "string", enum: [...LEGACY_FEATURE_RECORD_DOMAINS], description: "수정할 기능 도메인" },
         target: {
           type: "object",
           properties: {
@@ -806,14 +810,14 @@ Available tools:
 - get_gallery: 병원의 납품 갤러리·NAS 링크 조회
 - create_gallery: 보정 완료 후 갤러리 등록 (client_id 연동 시 메일 draft 자동 생성 + 워크플로우 자동 전진)
 - get_client_profile: 고객 통합 정보 한 번에 조회 (기본정보 + 진행단계 + 누적 촬영금액 + PER 포인트/등급 + 원본·보정 링크 + 최근 메일이력)
-- create_feature_record: 기능별 DB 데이터 생성. domain은 client, workflow, memo, calendar, quote, contract, conti, photo_gallery, select_gallery, review, mail_draft, agent_task 중 하나이며 data는 아래 camelCase 필드를 사용한다.
+- create_feature_record: 기능별 DB 데이터 생성. domain은 client, workflow, memo, quote, contract, conti, photo_gallery, select_gallery, review, mail_draft, agent_task 중 하나이며 data는 아래 camelCase 필드를 사용한다. 일정은 이 도구를 쓰지 않는다.
 - update_feature_record: 기존 기능별 DB 데이터 수정. target에 id 또는 name/naturalKey를 반드시 넣고 data에는 바뀌는 필드만 넣는다. 대상을 못 찾았다고 새로 생성하지 않는다.
 
 기능별 생성·수정 규칙 (매우 중요):
 - 고객 등록/수정 → domain client. data: hospitalName, contactName, phone, email, specialty, memo
 - 프로젝트/워크플로우 등록/수정 → domain workflow. data: clientId, clientName, projectName, managerName, contactName, contactEmail, shootDate, nextAction, status
 - 날짜·시간이 없는 일반 메모 생성/수정 → domain memo. data: hospitalName, title, rawMemo, summary, recommendedPackage, nextAction. 절대 calendar로 보내지 않는다.
-- 명시적인 날짜나 시간이 있는 일정 생성/수정은 기존 calendar_add/calendar_update를 우선 사용한다.
+- 명시적인 날짜나 시간이 있는 일정 생성/수정은 calendar_add/calendar_update만 사용한다. create_feature_record(domain:calendar)는 금지한다.
 - 견적 저장/수정 → domain quote. data: quoteNumber, hospitalName, contactName, items, 금액 필드, memos. 단순히 견적 페이지를 여는 요청은 create_quote를 사용한다.
 - 계약 저장/수정 → domain contract. data: quoteNumber, hospitalName, contactName, email, quoteData
 - 콘티 저장본 생성/수정 → domain conti. data: hospitalName, specialties, title, result
@@ -1072,6 +1076,9 @@ async function executeTool(
     return createAssistantEmailDraft(db, owner.id, input);
   }
   if (name === "create_feature_record" || name === "update_feature_record") {
+    if (input.domain === "calendar") {
+      throw new Error("일정 생성·수정은 calendar_add/calendar_update 전용 도구를 사용해야 합니다.");
+    }
     return executeOliviaCrud(getSupabaseAdmin(), {
       operation: name === "create_feature_record" ? "create" : "update",
       domain: input.domain,

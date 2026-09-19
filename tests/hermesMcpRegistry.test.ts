@@ -49,6 +49,13 @@ describe("Olivia Hermes MCP registry", () => {
     expect(source.parameters!.properties).not.toHaveProperty("requestId");
   });
 
+  it("일정 생성은 calendar_add만 담당하고 범용 create_feature_record는 calendar를 노출하지 않는다", () => {
+    const createFeature = listHermesOliviaTools().find((tool) => tool.name === "create_feature_record")!;
+    const domain = (createFeature.inputSchema.properties as Record<string, { enum?: string[] }>).domain;
+    expect(domain.enum).not.toContain("calendar");
+    expect(listHermesOliviaTools().map((tool) => tool.name)).toContain("calendar_add");
+  });
+
   // 요청서 §18-5 — Hermes가 존재하지 않는 Tool을 호출해도 앱은 안전하게 실패해야 한다.
   it("존재하지 않는 Tool 호출은 예외를 던지지 않고 안전하게 실패한다", async () => {
     const response = await executeHermesOliviaTool({ toolName: "no_such_tool_at_all", input: {} });
