@@ -951,28 +951,15 @@ export async function POST(req: NextRequest) {
             // 저장됐는지" 한 줄만 짧게 덧붙인다. "완료를 주장했는데 실제 실행 기록이 없는" 경우는
             // client.ts의 claimsMutationCompletion/claimsUiExecutionCompletion이 이미
             // hermesResult.text 자체를 안전한 문구로 고쳐서 반환하므로(§건드리지 말 것) 여기서
-            // 다시 검사하지 않는다.
+            // 다시 검사하지 않는다. 우선순위 판단 자체는 lib/olivia/conversation/response.ts의
+            // resolveHermesFinalText()로 뽑아 유닛 테스트로 고정했다.
             const nonReadOnlyEntries = hermesToolEntries.filter(({ toolName }) => !isReadOnlyOliviaTool(toolName));
-            const hasFailedNonReadOnlyTool = nonReadOnlyEntries.some(({ result }) => !result.success);
-            const failureTemplate = hasFailedNonReadOnlyTool ? renderVerifiedToolRound(nonReadOnlyEntries) : null;
-            const verificationLine = !hasFailedNonReadOnlyTool && nonReadOnlyEntries.length
-              ? buildVerificationLine(hermesResult.toolCalls)
-              : null;
-            let hermesText: string;
-            let finalTextSource: "pending_action" | "verified_template_failure" | "hermes_raw_with_verification" | "hermes_raw";
-            if (nextPendingAction) {
-              hermesText = nextPendingAction.prompt;
-              finalTextSource = "pending_action";
-            } else if (failureTemplate) {
-              hermesText = failureTemplate;
-              finalTextSource = "verified_template_failure";
-            } else if (verificationLine) {
-              hermesText = `${hermesResult.text}\n\n${verificationLine}`;
-              finalTextSource = "hermes_raw_with_verification";
-            } else {
-              hermesText = hermesResult.text;
-              finalTextSource = "hermes_raw";
-            }
+            const { text: hermesText, source: finalTextSource } = resolveHermesFinalText({
+              pendingActionPrompt: nextPendingAction?.prompt,
+              nonReadOnlyEntries,
+              verificationCalls: hermesResult.toolCalls,
+              hermesRawText: hermesResult.text,
+            });
             // 이 라운드에서 실시간으로 흘려보낸 원문이 최종적으로 쓰이는 텍스트와 정확히
             // 같을 때만(=중간에 pending action/검증 템플릿으로 바뀌지 않았고 + 실제로 뭔가
             // 스트리밍됐을 때만) 재전송을 건너뛴다 — 판단 로직은 실제 E2E 테스트에서 경계
