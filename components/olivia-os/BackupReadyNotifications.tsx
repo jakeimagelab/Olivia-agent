@@ -77,30 +77,44 @@ export function BackupReadyNotifications() {
     void updateStatus(event.id, "ACKNOWLEDGED");
   }, [updateStatus]);
 
-  // §11 "매우 중요. 새 분류 엔진을 만들지 말 것 — 기존 PHOTO_SORT Job 생성 코드를 재사용".
-  // 여기서 바로 PHOTO_SORT job을 만들지 않고, 기존 사진작업실(분류 설정 화면)을 이 폴더가
-  // 이미 선택된 상태로 연다 — department/gap_minutes 등 분류 파라미터를 이 알림 카드에서
-  // 추측해서 넘기면 기존 화면이 수집하던 값을 건너뛰게 되므로, "AI 자동 분류 시작" 버튼은
-  // 사용자가 기존 화면에서 그대로 누르게 둔다(기존 remote architecture 우회 금지).
-  const handleStart = useCallback((event: WorkerEvent) => {
+  // 코드 요청서(2026-09-18) 작업 D — 예전에는 여기서 기존 사진작업실(수동 분류 화면)로
+  // 딥링크해 그 화면의 "AI 자동 분류 시작"이 만드는 구식 PHOTO_SORT job으로 이어졌다. 이제는
+  // PHASE 6 파이프라인(씬별분류/)으로 바로 연결한다 — "새 분류 엔진을 만들지 말 것"은 여전히
+  // 지킨다(PHASE 6는 이미 있는 엔진, nas_backup_start_sort 도구와 같은 헬퍼를 재사용한다).
+  // department/shootingMode는 이 카드에서 추측하지 않고 아래 인라인 선택 UI로 사람이 직접
+  // 고른 값만 쓴다.
+  const openPicker = useCallback((event: WorkerEvent) => {
+    setStartError(null);
+    setDepartment("");
+    setShootingMode("");
+    setExpandedId(event.id);
+  }, []);
+
+  const cancelPicker = useCallback(() => {
+    setExpandedId(null);
+    setStartError(null);
+  }, []);
+
+  const confirmStart = useCallback(async (event: WorkerEvent) => {
+    if (!department || !shootingMode) return;
     setStartingId(event.id);
-    void updateStatus(event.id, "STARTED");
-    const photoApp = oliviaAppRegistry.find((app) => app.id === "photo-workspace");
-    if (photoApp) {
-      useOliviaDesktopStore.getState().openApp({
-        appId: photoApp.id,
-        title: photoApp.title,
-        width: photoApp.defaultSize.width,
-        height: photoApp.defaultSize.height,
+    setStartError(null);
+    try {
+      const response = await fetch(`/api/worker/events/${event.id}/start-classification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ department, shootingMode }),
       });
+      const body = await response.json().catch(() => ({ ok: false }));
+      if (!response.ok || !body.ok) throw new Error(body.error || "분류 시작에 실패했습니다.");
+      setEvents((current) => current.filter((entry) => entry.id !== event.id));
+      setExpandedId(null);
+    } catch (cause) {
+      setStartError(cause instanceof Error ? cause.message : "분류 시작에 실패했습니다.");
+    } finally {
+      setStartingId(null);
     }
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("mode", "classification");
-    params.set("remoteFolder", event.folder_name);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-    setEvents((current) => current.filter((entry) => entry.id !== event.id));
-    setStartingId(null);
-  }, [pathname, router, searchParams, updateStatus]);
+  }, [department, shootingMode]);
 
   if (!events.length) return null;
 
@@ -111,10 +125,47 @@ export function BackupReadyNotifications() {
           <div className={styles.title}><span className={styles.dot} aria-hidden="true" /> 새 촬영 데이터가 백업되었습니다</div>
           <div className={styles.folder}>{event.folder_name}</div>
           <div className={styles.meta}>{event.file_count.toLocaleString("ko-KR")}개 파일 · {formatBytes(event.total_bytes)}</div>
-          <div className={styles.actions}>
-            <button type="button" className={styles.later} onClick={() => handleLater(event)}>나중에</button>
-            <button type="button" className={styles.start} disabled={startingId === event.id} onClick={() => handleStart(event)}>분류 시작</button>
-          </div>
+          {expandedId === event.id ? (
+            <div className={styles.picker}>
+              <select
+                className={styles.select}
+                value={department}
+                onChange={(e) => setDepartment(e.target.value as MedicalDepartment)}
+              >
+                <option value="">진료과 선택</option>
+                {Object.entries(DEPARTMENT_DISPLAY).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <div className={styles.modeToggle}>
+                <button
+                  type="button"
+                  className={shootingMode === "field" ? styles.modeActive : styles.mode}
+                  onClick={() => setShootingMode("field")}
+                >출장</button>
+                <button
+                  type="button"
+                  className={shootingMode === "studio" ? styles.modeActive : styles.mode}
+                  onClick={() => setShootingMode("studio")}
+                >스튜디오</button>
+              </div>
+              {startError ? <div className={styles.error}>{startError}</div> : null}
+              <div className={styles.actions}>
+                <button type="button" className={styles.later} onClick={cancelPicker}>취소</button>
+                <button
+                  type="button"
+                  className={styles.start}
+                  disabled={!department || !shootingMode || startingId === event.id}
+                  onClick={() => void confirmStart(event)}
+                >{startingId === event.id ? "시작 중..." : "확인"}</button>
+              </div>
+            </div>
+          ) : (
+            <div className={styles.actions}>
+              <button type="button" className={styles.later} onClick={() => handleLater(event)}>나중에</button>
+              <button type="button" className={styles.start} onClick={() => openPicker(event)}>분류 시작</button>
+            </div>
+          )}
         </div>
       ))}
     </div>
