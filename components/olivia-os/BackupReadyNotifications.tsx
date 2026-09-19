@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
-import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
+import { DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
 import styles from "./BackupReadyNotifications.module.css";
 
 type WorkerEvent = {
