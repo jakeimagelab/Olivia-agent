@@ -300,6 +300,146 @@
   text-align: right;
 }
 
+/* 코드 요청서(2026-09-19) 상단바 상태표시 팝업 */
+.statusPanelGroup { position: relative; display: flex; align-items: center; }
+
+.statusPanelWarningDot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e8a27f;
+  box-shadow: 0 0 0 2px rgba(21, 88, 85, .55);
+}
+
+.statusPanel {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  width: min(320px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, .74);
+  border-radius: 12px;
+  background: rgba(250, 252, 251, .97);
+  box-shadow: 0 18px 46px rgba(2, 31, 28, .24), inset 0 1px 0 #fff;
+  color: #213934;
+}
+
+.statusPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+  font-size: 12px;
+  font-weight: 650;
+  color: #17332e;
+}
+
+.statusPanelRefresh {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #5a7470;
+  cursor: pointer;
+}
+.statusPanelRefresh:hover:not(:disabled) { background: #e8f2ef; color: #0d5f57; }
+.statusPanelRefresh:disabled { cursor: default; opacity: .6; }
+
+.statusPanelSpin { animation: widget-spin .8s linear infinite; }
+
+.statusPanelSkeleton {
+  height: 120px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #eef2f1 25%, #f7f9f8 37%, #eef2f1 63%);
+  background-size: 400% 100%;
+  animation: statusPanelShimmer 1.4s ease infinite;
+}
+@keyframes statusPanelShimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+.statusPanelError {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 18px 8px;
+  color: #5a7470;
+  font-size: 12px;
+  text-align: center;
+}
+.statusPanelError button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(21, 88, 85, .16);
+  border-radius: 8px;
+  background: #fff;
+  color: #155855;
+  font: 650 11px/1 inherit;
+  cursor: pointer;
+}
+
+.statusPanelCard {
+  padding: 10px;
+  border-radius: 10px;
+  background: #eff7f5;
+}
+
+.statusPanelRow { display: flex; align-items: flex-start; gap: 8px; }
+.statusPanelRowBody { display: grid; gap: 2px; min-width: 0; }
+.statusPanelRowBody strong { font-size: 12.5px; font-weight: 700; color: #17332e; }
+.statusPanelRowBody span { font-size: 10.5px; color: #5a7470; }
+
+.statusPanelIconOk { flex: 0 0 auto; color: #1a9c6f; margin-top: 1px; }
+.statusPanelIconBad { flex: 0 0 auto; color: #c0473f; margin-top: 1px; }
+.statusPanelIconUnknown { flex: 0 0 auto; color: #9aaba6; margin-top: 1px; }
+
+.statusPanelSubRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(21, 88, 85, .1);
+  font-size: 11px;
+  color: #5a7470;
+}
+.statusPanelBad { color: #c0473f; font-weight: 650; }
+
+.statusPanelSection { display: grid; gap: 6px; }
+.statusPanelSectionTitle { font-size: 11px; font-weight: 650; color: #5a7470; }
+
+.statusPanelList { display: grid; gap: 5px; list-style: none; margin: 0; padding: 0; }
+.statusPanelList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid rgba(21, 88, 85, .08);
+}
+.statusPanelListName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 620;
+  color: #17332e;
+}
+.statusPanelListMeta { flex: 0 0 auto; font-size: 10px; color: #849a96; }
+
+.statusPanelEmpty { margin: 0; padding: 10px 8px; color: #849a96; font-size: 11px; }
+
 .desktopBody {
   position: relative;
   z-index: 2;
