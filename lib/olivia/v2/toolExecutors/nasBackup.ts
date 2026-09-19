@@ -67,23 +67,11 @@ export async function executeNasBackupTool(
     if (!department) throw new Error("진료과(department)를 알려주세요 — 추측해서 분류를 시작하지 않아요.");
     if (shootingMode !== "field" && shootingMode !== "studio") throw new Error("촬영 모드(field 또는 studio)를 알려주세요 — 추측해서 분류를 시작하지 않아요.");
 
-    // 나머지 옵션은 사람이 /photo-sorting 화면을 처음 열었을 때와 동일한 기본값을 쓴다
-    // (PhotoSortingWorkspace.tsx의 useState 초기값과 동일) — 이건 "값을 추측"하는 게 아니라
-    // 화면의 최초 상태를 그대로 재현하는 것이라 안전하다.
-    const payload: RemotePhotoSortPayload = {
-      source_folder: folderName,
-      shooting_mode: shootingMode,
-      department,
-      gap_minutes: Number(input.gapMinutes) || (shootingMode === "studio" ? 3 : 3.5),
-      classification_ui_mode: "ai-auto",
-      fast_analyze_mode: false,
-      department_logic_enabled: true,
-      ai_naming_enabled: false,
-      quality_analysis_enabled: false,
-      profile_classification_enabled: false,
-    };
-
-    const job = await createRemotePhotoSortJob(payload, { fetcher: internalFetcher });
+    // 코드 요청서(2026-09-18) 작업 D — 옛날 단일 PHOTO_SORT job(구식 RAW/JPG/SELECT 구조) 대신
+    // PHASE 6 파이프라인(MERGE→COPY→CLASSIFY, 씬별분류/ 구조)에 연결한다. department/shootingMode는
+    // 위에서 이미 검사했고, 여기서는 절대 다시 추측하지 않고 그대로 넘긴다.
+    const db = getSupabaseAdmin();
+    const project = await startNasBackupClassification(db, { folderName, department, shootingMode });
 
     // worker_events row를 STARTED로 표시한다 — PATCH /api/worker/events/[id]도 GET과 마찬가지로
     // 관리자 세션 인증만 받아서(x-internal-key 미지원) 여기서 직접 호출할 수 없다(라우트 인증은
@@ -91,15 +79,14 @@ export async function executeNasBackupTool(
     // 그대로 반복한다 — 새 상태 전이 로직을 만드는 게 아니다.
     const eventId = text(input, "eventId");
     if (eventId) {
-      const db = getSupabaseAdmin();
       await db.from("worker_events").update({ status: "STARTED" }).eq("id", eventId);
     }
 
     return {
       tool: name,
       success: true,
-      data: { jobId: job.id, folderName, department, shootingMode, summary: `"${folderName}" 분류를 시작했어요.` },
-      verification: createVerification({ executed: true, persisted: true, resourceExists: true, details: { jobId: job.id } }),
+      data: { projectId: project.id, folderName, department, shootingMode, summary: `"${folderName}" 분류를 시작했어요.` },
+      verification: createVerification({ executed: true, persisted: true, resourceExists: true, details: { projectId: project.id } }),
     };
   }
 
