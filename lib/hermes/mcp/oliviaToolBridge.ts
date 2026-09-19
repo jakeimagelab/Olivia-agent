@@ -50,6 +50,13 @@ export async function executeHermesOliviaTool(options: { toolName: string; input
   const input = { ...(options.input ?? {}) };
   const requestId = options.requestId || (typeof input.requestId === "string" ? input.requestId : undefined);
   delete input.requestId;
+  // 좁힌 목록 밖의 도구를 Hermes가 불러도 막지 않는다(요청서 §21 관찰가능성과 같은 원칙 —
+  // 차단이 가끔의 큰 프롬프트보다 더 나쁘다). 왜 좁혀지지 않은 도구가 호출됐는지 로그로만
+  // 남겨서, listHermesOliviaTools()의 좁히기 기준이 실제로 부족한지 나중에 판단할 수 있게 한다.
+  const selectedToolNames = getHermesExecutionContext(requestId)?.selectedToolNames;
+  if (selectedToolNames?.length && !selectedToolNames.includes(options.toolName)) {
+    console.info("[HermesTool] called outside narrowed selection", { requestId, toolName: options.toolName });
+  }
   const mode = getHermesToolMode(definition.name, definition.description ?? "");
   const checked = validator.getValidator(definition.parameters as JsonSchema)(input);
   if (!checked.valid) {
