@@ -174,9 +174,11 @@ async function main(): Promise<void> {
   });
 
   let shuttingDown = false;
+  let dualWatcherTimer: NodeJS.Timeout | undefined;
   const shutdown = async (): Promise<void> => {
     if (shuttingDown) return;
     shuttingDown = true;
+    if (dualWatcherTimer) clearInterval(dualWatcherTimer);
     await watcher.stop();
     if (!once) process.exit(0);
   };
@@ -186,6 +188,8 @@ async function main(): Promise<void> {
 
   try {
     console.log(`[NAS_WATCHER] NAS Watcher started (source=${sourceRoot})`);
+    await warnIfPhotoStorageWatcherRunning();
+    if (!once) dualWatcherTimer = setInterval(() => { void warnIfPhotoStorageWatcherRunning(); }, intervalSeconds * 1000);
     const result = await watcher.start({ once });
     if (once) process.stdout.write(`${JSON.stringify(result)}\n`);
     else await new Promise<void>(() => undefined);
