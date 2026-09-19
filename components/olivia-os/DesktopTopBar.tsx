@@ -106,6 +106,7 @@ export function DesktopTopBar({ onOpenOverlay }: {
         </div>
       </div>
       <div className={styles.topBarRight}>
+        <StatusPanelButton />
         {online !== null ? <span className={styles.topBarStatus} role="status" aria-label={online ? "온라인" : "오프라인"} title={online ? "온라인" : "오프라인"}><span className={`${styles.topBarStatusDot} ${!online ? styles.topBarStatusDotOffline : ""}`} /></span> : null}
         {now ? <span className={styles.topBarClock}>{now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span> : null}
       </div>
