@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildVerificationLine } from "@/lib/olivia/conversation/response";
+import { buildVerificationLine, resolveHermesFinalText } from "@/lib/olivia/conversation/response";
+import type { OliviaToolResult } from "@/lib/olivia/v2/types";
 
 // 코드 요청서(2026-09-18) 작업 B — Hermes 원문 뒤에 붙는 "무엇이 저장/변경됐는지" 한 줄.
 describe("buildVerificationLine — Hermes 원문 뒤에 붙는 검증 한 줄", () => {
