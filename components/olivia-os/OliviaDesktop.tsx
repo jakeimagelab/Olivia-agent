@@ -163,9 +163,6 @@ export default function OliviaDesktop() {
         </div>
       ) : null}
       <DesktopSystemOverlay kind={overlay} wallpaper={wallpaper} customWallpaper={customWallpaper} onWallpaperChange={selectWallpaper} onCustomWallpaper={selectCustomWallpaper} onClose={() => setOverlay(null)} />
-      <Suspense fallback={null}>
-        <BackupReadyNotifications />
-      </Suspense>
     </div>
   );
 }
