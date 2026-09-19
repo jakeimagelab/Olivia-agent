@@ -58,6 +58,27 @@ function positiveNumber(value: string | undefined, name: string): number | undef
   return parsed;
 }
 
+// 코드 요청서(2026-09-18) 작업 D — 두 감지기가 같은 NAS root를 동시에 감시하면 중복 알림/산출물
+// 구조 불일치가 재발한다(이 작업 자체의 원인이었던 문제). package.json에서 photo:watch 실행
+// 스크립트는 제거했지만, 롤백을 위해 파일 자체는 남겨뒀으므로 누군가 수동으로 다시 실행할 수
+// 있다 — 차단하지 않고(요청서: "경고 로그"만 요구) photo-storage-watcher.ts의 기본 lock 파일이
+// 있으면 경고만 남긴다. lib/photo-classifier/node/photoWatcher.ts의 defaultStatePath()와
+// 동일한 기본 경로 규칙을 그대로 따른다(그 파일은 건드리지 않는다).
+function photoStorageWatcherLockPath(): string {
+  const configuredState = process.env.OLIVIA_PHOTO_WATCH_STATE_PATH?.trim();
+  const statePath = configuredState && path.isAbsolute(configuredState)
+    ? path.normalize(configuredState)
+    : path.join(process.cwd(), ".olivia", "photo-watcher-state.json");
+  return `${statePath}.lock`;
+}
+
+async function warnIfPhotoStorageWatcherRunning(): Promise<void> {
+  const lockPath = photoStorageWatcherLockPath();
+  if (existsSync(lockPath)) {
+    console.warn(`[NAS_WATCHER] WARNING photo-storage-watcher(photo:watch)가 동시에 실행 중인 것으로 보입니다(lock=${lockPath}) — 같은 NAS root를 중복 감지해 알림이 두 번 뜰 수 있습니다.`);
+  }
+}
+
 type BackupReadyEventPayload = {
   workerId: string;
   eventType: "BACKUP_READY";
