@@ -463,7 +463,10 @@
 .publicPreviewBody { padding: 14px 12px 28px; }
 
 .chatScreen { height: min(100dvh, var(--mobile-chat-height, 100dvh)); background: #f7fbfa; }
-.chatDock { flex: 1; min-height: 0; display: flex; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+/* 코드 요청서(2026-09-19) 작업 B — 채팅 중에는 독(.bottomNav)을 항상 숨기므로(OliviaMobileShell.tsx),
+   그 독을 피하려고 남겨뒀던 여백이 더 이상 필요 없다. safe-area만 남겨서 그 공간을 메시지
+   영역으로 되돌린다. */
+.chatDock { flex: 1; min-height: 0; display: flex; padding-bottom: env(safe-area-inset-bottom, 0px); }
 .chatDock :global(.olivia-chat-portal-host) { flex: 1; min-height: 0; }
 .chatDock :global(.olivia-conversation--mobile) { height: 100%; min-height: 0; border: 0; border-radius: 0; background: #f7fbfa; box-shadow: none; }
 .chatDock :global(.olivia-conversation--mobile .olivia-conversation__header) { display: none; }
