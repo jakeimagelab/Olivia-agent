@@ -32,9 +32,10 @@ function formatBytes(bytes: number): string {
 export function BackupReadyNotifications() {
   const [events, setEvents] = useState<WorkerEvent[]>([]);
   const [startingId, setStartingId] = useState<string | null>(null);
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [department, setDepartment] = useState<MedicalDepartment | "">("");
+  const [shootingMode, setShootingMode] = useState<"field" | "studio" | "">("");
+  const [startError, setStartError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   const fetchEvents = useCallback(async () => {
