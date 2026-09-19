@@ -20,6 +20,10 @@ export type BrainChatInput = {
     onToolStart?: (tool: string, toolCallId: string) => void;
     onToolResult?: (record: HermesToolCallRecord) => void;
   };
+  /** 코드 요청서(2026-09-18) 작업 C — 이 turn에 선택된 Olivia Tool 이름(legacy 경로의
+   * selectOliviaTools()와 같은 결과). Hermes MCP의 ListTools 응답을 좁히는 데만 쓰이고,
+   * CallTool 실행 자체는 막지 않는다. */
+  selectedToolNames?: string[];
 };
 
 // 1. 일반 대화 — Hermes/legacy가 Tool 없이(또는 Tool 실행까지 마치고) 최종 답변만 낸 경우.
