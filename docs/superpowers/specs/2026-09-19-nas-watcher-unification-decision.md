@@ -56,7 +56,7 @@ department/shooting_mode를 `'dermatology'`/`'field'`로 **하드코딩**하고 
   (c) automation 플래그와 무관하게 항상 동작한다(NAS 분류는 이미 사람이 "분류 시작"을 눌러야
   발생하는 명시적 승인이라 별도 플래그가 필요 없음). 기존 `claim_copy_completed_photo_project`는
   1바이트도 수정하지 않는다.
-- 공용 헬�퍼(`lib/photo-storage/nasClassifyHandoff.ts`)가 `photo_storage_projects` row를
+- 공용 헬퍼(`lib/photo-storage/nasClassifyHandoff.ts`)가 `photo_storage_projects` row를
   `status: 'MERGE_APPROVED'` + `nas_department`/`nas_shooting_mode`로 upsert한다 — 이후는 기존
   MERGE→COPY→CLASSIFY 체인이 그대로(무수정) 진행한다.
 
