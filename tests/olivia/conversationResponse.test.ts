@@ -14,7 +14,7 @@ describe("buildVerificationLine — Hermes 원문 뒤에 붙는 검증 한 줄",
     const line = buildVerificationLine([
       { success: true, resourceType: "contract", resourceId: "resource-id-aaa", changedEntityId: "changed-id-bbb" },
     ]);
-    expect(line).toBe("✓ 계약서 저장됨(changed-i)");
+    expect(line).toBe("✓ 계약서 저장됨(changed-)");
   });
 
   it("여러 도구 호출은 쉼표로 이어붙이고 중복은 제거한다", () => {
