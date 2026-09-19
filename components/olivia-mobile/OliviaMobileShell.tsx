@@ -79,7 +79,7 @@ export default function OliviaMobileShell() {
           ? <MobilePhotoWorkspace onBack={() => navigate({ view: "home" }, "replace")} />
         : navigation.view === "documents"
           ? <MobileDocuments initialSection={documentsSection} onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />
-          : <MobileOliviaChat onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />;
+          : <MobileOliviaChat onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} onBack={() => navigate({ view: "home" }, "replace")} />;
 
   return (
     <OliviaUiSurfaceProvider value="mobile">
