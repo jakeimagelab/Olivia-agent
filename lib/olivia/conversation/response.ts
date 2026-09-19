@@ -57,3 +57,30 @@ export function renderVerifiedToolRound(entries: Array<{ result: OliviaToolResul
   const lines = entries.map(({ result }) => renderOliviaOutcome(toolResultOutcome(result))).filter(Boolean);
   return [...new Set(lines)].join("\n") || null;
 }
+
+// 코드 요청서(2026-09-18) 작업 B — 헤르메스가 쓴 문장을 통째로 검증 템플릿으로 바꾸는 대신,
+// 원문은 그대로 두고 "무엇이 실제로 저장/변경됐는지 + 식별자 수준"만 짧게 한 줄 덧붙인다.
+// lib/hermes/mcp/oliviaToolBridge.ts의 inferResource()가 매기는 resourceType과 동일한 값
+// (quote/contract/conti/memo/calendar/work/client)만 다룬다 — 새 분류 체계를 만들지 않는다.
+const VERIFICATION_RESOURCE_LABEL: Record<string, string> = {
+  quote: "견적서", contract: "계약서", conti: "콘티", memo: "메모",
+  calendar: "일정", work: "업무", client: "고객",
+};
+
+export type VerifiedToolCallRef = {
+  success: boolean;
+  resourceType?: string;
+  resourceId?: string;
+  changedEntityId?: string;
+};
+
+export function buildVerificationLine(calls: VerifiedToolCallRef[]): string | null {
+  const identifiable = calls.filter((call) => call.success && (call.changedEntityId || call.resourceId));
+  if (!identifiable.length) return null;
+  const parts = identifiable.map((call) => {
+    const label = VERIFICATION_RESOURCE_LABEL[call.resourceType ?? ""] ?? "항목";
+    const id = (call.changedEntityId || call.resourceId)!;
+    return `${label} 저장됨(${id.slice(0, 8)})`;
+  });
+  return `✓ ${[...new Set(parts)].join(", ")}`;
+}
