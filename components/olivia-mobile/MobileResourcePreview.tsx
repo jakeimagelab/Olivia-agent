@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Download, MessageCircle, Share2, UserPlus } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { CheckCircle2, Download, MessageCircle, Share2, UserPlus, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { MobileNavigationState } from "@/lib/olivia/mobile/navigation";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { MobileGenericDocument } from "./MobileResourceDocument";
@@ -21,9 +21,11 @@ async function requestJson(url: string, init?: RequestInit) {
 export default function MobileResourcePreview({
   resource,
   onRequestEdit,
+  onClose,
 }: {
   resource: PreviewNavigation;
   onRequestEdit: () => void;
+  onClose: () => void;
 }) {
   const [data, setData] = useState<ResourceRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +34,7 @@ export default function MobileResourcePreview({
   const [busy, setBusy] = useState<"share" | "download" | "approve" | "register" | null>(null);
   const [temporaryDocument, setTemporaryDocument] = useState<ResourceRow | null>(null);
   const [registrationDismissed, setRegistrationDismissed] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const paperRef = useRef<HTMLDivElement>(null);
   const contractFrameRef = useRef<HTMLIFrameElement>(null);
 
@@ -224,10 +227,20 @@ export default function MobileResourcePreview({
 
   return (
     <section className={`${styles.screenWithHeader} ${styles.previewScreen}`} aria-label="모바일 문서 미리보기">
+      <button type="button" className={styles.previewClose} onClick={onClose} aria-label="미리보기 닫기"><X size={19} /></button>
+      <div className={styles.previewZoomControls} aria-label="미리보기 확대 축소">
+        <button type="button" onClick={() => setZoom((current) => Math.max(.75, current - .25))} disabled={zoom <= .75} aria-label="축소"><ZoomOut size={16} /></button>
+        <button type="button" onClick={() => setZoom(1)} aria-label="100퍼센트로 보기">{Math.round(zoom * 100)}%</button>
+        <button type="button" onClick={() => setZoom((current) => Math.min(2, current + .25))} disabled={zoom >= 2} aria-label="확대"><ZoomIn size={16} /></button>
+      </div>
       <div className={styles.previewScroll}>
-        {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void load()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>최신 문서를 불러오고 있어요...</div> : data ? <div ref={paperRef}>
-          {resource.resourceType === "quote" ? <MobileCanonicalQuoteDocument quote={data} /> : resource.resourceType === "contract" ? <MobileCanonicalContractDocument contract={data} frameRef={contractFrameRef} /> : <MobileGenericDocument document={data} resourceType={resource.resourceType} />}
-        </div> : null}
+        {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void load()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>최신 문서를 불러오고 있어요...</div> : data ? (
+          <div className={styles.previewZoomCanvas} style={{ "--mobile-preview-zoom": zoom } as CSSProperties}>
+            <div ref={paperRef}>
+              {resource.resourceType === "quote" ? <MobileCanonicalQuoteDocument quote={data} /> : resource.resourceType === "contract" ? <MobileCanonicalContractDocument contract={data} frameRef={contractFrameRef} /> : <MobileGenericDocument document={data} resourceType={resource.resourceType} />}
+            </div>
+          </div>
+        ) : null}
       </div>
       {notice ? <div className={styles.previewNotice}>{notice}</div> : null}
       {registrationPending && !registrationDismissed ? (

@@ -121,8 +121,13 @@ export default function OliviaMobileShell() {
     navigate({ view: "documents" });
   }, [navigate]);
 
+  const closePreview = useCallback(() => {
+    if (window.history.state?.oliviaMobile) window.history.back();
+    else navigate({ view: "documents" }, "replace");
+  }, [navigate]);
+
   const screenFor = (state: MobileNavigationState) => {
-    if (state.view === "preview") return <MobileResourcePreview resource={state} onRequestEdit={() => navigate({ view: "chat" })} />;
+    if (state.view === "preview") return <MobileResourcePreview resource={state} onRequestEdit={() => navigate({ view: "chat" })} onClose={closePreview} />;
     if (state.view === "home") return <MobileHome onNavigate={navigatePrimary} onOpenDocuments={openDocuments} onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />;
     if (state.view === "calendar") return <MobileCalendar />;
     if (state.view === "memo") return <MobileMemo />;

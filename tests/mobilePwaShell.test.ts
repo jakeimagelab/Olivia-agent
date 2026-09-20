@@ -17,6 +17,8 @@ describe("Olivia mobile PWA shell", () => {
     expect(styles).toContain("--mobile-chat-offset-top");
     expect(chat).toContain("chatClose");
     expect(chat).toContain("onClose");
+    expect(chat).toContain("startNewConversation");
+    expect(chat).toContain("chatNewConversation");
     expect(styles).toContain("padding: calc(env(safe-area-inset-top, 0px) + 58px)");
     expect(styles).toContain("calc(9px + env(safe-area-inset-bottom, 0px))");
   });
@@ -73,6 +75,24 @@ describe("Olivia mobile PWA shell", () => {
     expect(shell).toContain("navigation.view === \"chat\"");
     expect(calendar).toContain("data-mobile-swipe-lock");
     expect(calendar).toContain("selectedSchedulePanel");
+    expect(calendar).toContain('useState<CalendarView>("month")');
+    expect(calendar).toContain("calendarEventScreen");
+    expect(calendar).toContain("calendarTimelineEvent");
+    expect(calendar).toContain('role="switch"');
+  });
+
+  it("adds non-destructive mobile preview controls and dismissible photo-status cards", () => {
+    const preview = read("components/olivia-mobile/MobileResourcePreview.tsx");
+    const shell = read("components/olivia-mobile/OliviaMobileShell.tsx");
+    const photoNotification = read("components/photo-storage/PhotoProjectNotification.tsx");
+
+    expect(preview).toContain("previewClose");
+    expect(preview).toContain("previewZoomControls");
+    expect(preview).toContain("setZoom");
+    expect(shell).toContain("onClose={closePreview}");
+    expect(photoNotification).toContain("dismissCurrent");
+    expect(photoNotification).toContain('aria-label="오류 알림 닫기"');
+    expect(photoNotification).not.toContain('aria-label="알림 닫기" onClick={() => void runAction("defer")}');
   });
 
   it("keeps mobile client management read-only and links to the device phone and message apps", () => {

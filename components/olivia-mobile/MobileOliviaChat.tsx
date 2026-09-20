@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { MessageSquarePlus, X } from "lucide-react";
 import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import type { MobileResourceType } from "@/lib/olivia/mobile/navigation";
+import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import styles from "./OliviaMobileShell.module.css";
 
 export default function MobileOliviaChat({
@@ -14,6 +15,22 @@ export default function MobileOliviaChat({
   onClose: () => void;
 }) {
   const rootRef = useRef<HTMLElement>(null);
+  const startNewConversation = useOliviaConversationStore((state) => state.startNewConversation);
+  const [newConversationBusy, setNewConversationBusy] = useState(false);
+  const [newConversationError, setNewConversationError] = useState("");
+
+  const createConversation = async () => {
+    if (newConversationBusy) return;
+    setNewConversationBusy(true);
+    setNewConversationError("");
+    try {
+      await startNewConversation();
+    } catch (error) {
+      setNewConversationError(error instanceof Error ? error.message : "새 대화를 만들지 못했어요.");
+    } finally {
+      setNewConversationBusy(false);
+    }
+  };
 
   useEffect(() => {
     const onOpenResource = (event: Event) => {
@@ -76,6 +93,8 @@ export default function MobileOliviaChat({
   return (
     <section ref={rootRef} className={`${styles.screenWithHeader} ${styles.chatScreen}`} aria-label="올리비아 채팅">
       <button type="button" className={styles.chatClose} onClick={onClose} aria-label="채팅 닫고 홈으로 이동"><X size={19} /></button>
+      <button type="button" className={styles.chatNewConversation} onClick={() => void createConversation()} disabled={newConversationBusy} aria-label="새 대화 시작"><MessageSquarePlus size={17} /><span>{newConversationBusy ? "준비 중" : "새 대화"}</span></button>
+      {newConversationError ? <div className={styles.chatActionError} role="alert">{newConversationError}</div> : null}
       <OliviaChatDockTarget id="mobile-os" priority={70} className={styles.chatDock} />
     </section>
   );

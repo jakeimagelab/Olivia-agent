@@ -37,11 +37,19 @@ function reviewStage(project: PhotoStorageProject): "merge" | "copy" | "classify
 export default function PhotoProjectNotification() {
   const { projects, events, lastAction, approve, defer, retry } = usePhotoProjectNotifications();
   const [busy, setBusy] = useState<"approve" | "defer" | "retry" | null>(null);
-  const [dismissedReview, setDismissedReview] = useState<string[]>([]);
+  const [dismissedCards, setDismissedCards] = useState<string[]>([]);
   const [showConflicts, setShowConflicts] = useState(false);
-  const pending = projects.filter((project) => ACTIVE_STATUSES.has(project.status) || (project.status === "REVIEW_REQUIRED" && !dismissedReview.includes(project.id)));
+  const pending = projects.filter((project) =>
+    (ACTIVE_STATUSES.has(project.status) || project.status === "REVIEW_REQUIRED")
+    && !dismissedCards.includes(`${project.id}:${project.status}`)
+  );
   const project = pending[0];
   const event = project ? events.find((candidate) => candidate.project_id === project.id && candidate.status === "OPEN") : undefined;
+  const dismissCurrent = () => {
+    if (!project) return;
+    const key = `${project.id}:${project.status}`;
+    setDismissedCards((current) => current.includes(key) ? current : [...current, key]);
+  };
 
   const runAction = async (action: "approve" | "defer" | "retry") => {
     if (!project || busy) return;
@@ -78,6 +86,7 @@ export default function PhotoProjectNotification() {
     const title = project.status === "MERGE_APPROVED" ? "통합을 준비하고 있습니다." : "SSD1에서 JPG를 통합하고 있습니다.";
     return (
       <aside className={styles.card} role="status">
+        <button className={styles.close} type="button" aria-label="작업 상태 닫기" onClick={dismissCurrent}><X size={17} /></button>
         <div className={styles.icon}><HardDrive size={20} /></div>
         <div className={styles.content}>
           <p className={styles.eyebrow}>사진 작업 상태 · 1/2단계</p>
@@ -94,7 +103,7 @@ export default function PhotoProjectNotification() {
   if (project.status === "MERGE_COMPLETED") {
     return (
       <aside className={styles.card} role="status">
-        <button className={styles.close} type="button" aria-label="알림 닫기" onClick={() => void runAction("defer")}><X size={17} /></button>
+        <button className={styles.close} type="button" aria-label="알림 닫기" onClick={dismissCurrent}><X size={17} /></button>
         <div className={styles.icon}><Check size={20} /></div>
         <div className={styles.content}>
           <p className={styles.eyebrow}>원본 통합 완료</p>
@@ -129,6 +138,7 @@ export default function PhotoProjectNotification() {
       : `${current.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")}장 · ${percent}%${totalBytes > 0 ? ` · ${formatBytes(copiedBytes)} / ${formatBytes(totalBytes)}` : ""}`;
     return (
       <aside className={styles.card} role="status">
+        <button className={styles.close} type="button" aria-label="작업 상태 닫기" onClick={dismissCurrent}><X size={17} /></button>
         <div className={styles.icon}><HardDrive size={20} /></div>
         <div className={styles.content}>
           <p className={styles.eyebrow}>사진 작업 상태 · 2/2단계</p>
@@ -153,13 +163,13 @@ export default function PhotoProjectNotification() {
     if (!stage) {
       return (
         <aside className={styles.card} role="status">
-          <button className={styles.close} type="button" aria-label="알림 닫기" onClick={() => setDismissedReview((current) => [...current, project.id])}><X size={17} /></button>
+          <button className={styles.close} type="button" aria-label="알림 닫기" onClick={dismissCurrent}><X size={17} /></button>
           <div className={styles.icon}><HardDrive size={20} /></div>
           <div className={styles.content}>
             <p className={styles.eyebrow}>촬영 파일 확인 필요</p>
             <h2 className={styles.projectTitle}>{project.project_name} 파일을 확인해야 합니다.</h2>
             <p className={styles.detail}>{event?.message || "동일한 JPG 파일이 이미 존재합니다."}</p>
-            <button className={styles.secondaryButton} type="button" onClick={() => setDismissedReview((current) => [...current, project.id])}>확인</button>
+            <button className={styles.secondaryButton} type="button" onClick={dismissCurrent}>확인</button>
           </div>
         </aside>
       );
@@ -177,6 +187,7 @@ export default function PhotoProjectNotification() {
 
     return (
       <aside className={`${styles.card} ${styles.cardDanger}`} role="alert">
+        <button className={styles.close} type="button" aria-label="오류 알림 닫기" onClick={dismissCurrent}><X size={17} /></button>
         <div className={`${styles.icon} ${styles.iconDanger}`}><AlertTriangle size={20} /></div>
         <div className={styles.content}>
           <p className={`${styles.eyebrow} ${styles.eyebrowDanger}`}>확인 필요 · {stageLabel}</p>
@@ -203,7 +214,7 @@ export default function PhotoProjectNotification() {
   // 상태 1 — READY (1차 승인)
   return (
     <aside className={styles.card} role="status">
-      <button className={styles.close} type="button" aria-label="알림 닫기" onClick={() => void runAction("defer")}><X size={17} /></button>
+      <button className={styles.close} type="button" aria-label="알림 닫기" onClick={dismissCurrent}><X size={17} /></button>
       <div className={styles.icon}><HardDrive size={20} /></div>
       <div className={styles.content}>
         <p className={styles.eyebrow}>새 촬영 파일</p>
