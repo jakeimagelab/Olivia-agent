@@ -19,5 +19,10 @@
 }
 
 @media (max-width: 760px) {
-  .overlay { padding: 0; background: #faf9f6; backdrop-filter: none; }
+  .overlay {
+    inset: 0 0 var(--mobile-dock-space, calc(62px + env(safe-area-inset-bottom, 0px))) 0;
+    padding: 0;
+    background: #f7fbfa;
+    backdrop-filter: none;
+  }
 }

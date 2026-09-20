@@ -52,6 +52,11 @@ const REMOTE_NAS_DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   hour: "2-digit",
   minute: "2-digit",
 });
+const REMOTE_NAS_FOLDER_DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
 const DOUBLE_TAP_MS = 300;
 
 function formatFileSize(sizeBytes: number | null): string {
@@ -67,6 +72,13 @@ function formatModifiedAt(modifiedAt: string | null): string {
   const date = new Date(modifiedAt);
   if (Number.isNaN(date.getTime())) return "—";
   return REMOTE_NAS_DATE_FORMATTER.format(date);
+}
+
+function formatFolderModifiedAt(modifiedAt: string | null): string {
+  if (!modifiedAt) return "수정일 정보 없음";
+  const date = new Date(modifiedAt);
+  if (Number.isNaN(date.getTime())) return "수정일 정보 없음";
+  return `${REMOTE_NAS_FOLDER_DATE_FORMATTER.format(date)} 수정됨`;
 }
 
 function getEntryType(entry: RemoteNasEntry): string {
@@ -100,6 +112,7 @@ export default function RemoteNasBrowser({
   const [errorConnection, setErrorConnection] = useState<RemoteNasConnectionState | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedFolder, setSelectedFolder] = useState<RemoteNasSelection | null>(null);
+  const [hintVisible, setHintVisible] = useState(true);
   const lastTapRef = useRef<{ path: string; timestamp: number } | null>(null);
   const deferredQuery = useDeferredValue(query);
 
@@ -175,6 +188,7 @@ export default function RemoteNasBrowser({
   };
 
   const totalEntries = result?.path === currentPath ? result.entries.length : 0;
+  const visibleFolderCount = visibleEntries.filter((entry) => entry.kind === "directory").length;
   const displayLocation = currentPath ? toRemoteNasDisplayPath(currentPath) : "NAS Root";
   const connection = errorConnection ?? result?.connection;
   const sourceIsMock = connection?.source === "mock";
@@ -240,15 +254,18 @@ export default function RemoteNasBrowser({
         </label>
       </div>
 
-      <div className={styles.selectionHint}>
-        <Info size={16} strokeWidth={1.8} aria-hidden="true" />
-        <span><strong>한 번 탭:</strong> 폴더 선택 <i>·</i> <strong>두 번 탭:</strong> 폴더 열기</span>
-      </div>
+      {hintVisible ? (
+        <div className={styles.selectionHint}>
+          <Info size={16} strokeWidth={1.8} aria-hidden="true" />
+          <span><strong>한 번 탭:</strong> 폴더 선택 <i>·</i> <strong>두 번 탭:</strong> 폴더 열기</span>
+          <button type="button" onClick={() => setHintVisible(false)} aria-label="폴더 선택 안내 닫기"><X size={15} aria-hidden="true" /></button>
+        </div>
+      ) : null}
 
       <div className={styles.locationBar}>
         <FolderOpen size={16} strokeWidth={1.7} aria-hidden="true" />
         <strong>{displayLocation}</strong>
-        {loading ? <span className={styles.loadingLabel}>불러오는 중…</span> : null}
+        {loading ? <span className={styles.loadingLabel}>불러오는 중…</span> : <span className={styles.locationCount}>{visibleFolderCount}개의 폴더</span>}
       </div>
 
       <div className={styles.listArea} aria-busy={loading}>
@@ -282,7 +299,12 @@ export default function RemoteNasBrowser({
               <>
                 <span className={styles.entryName}>
                   <i className={entry.kind === "directory" ? styles.folderIcon : styles.fileIcon}><EntryIcon entry={entry} /></i>
-                  <span><strong>{entry.displayName}</strong>{!foldersOnly ? <small>{getEntryType(entry)} · {formatFileSize(entry.sizeBytes)} · {formatModifiedAt(entry.modifiedAt)}</small> : null}</span>
+                  <span>
+                    <strong>{entry.displayName}</strong>
+                    {entry.kind === "directory"
+                      ? <small>{formatFolderModifiedAt(entry.modifiedAt)}</small>
+                      : !foldersOnly ? <small>{getEntryType(entry)} · {formatFileSize(entry.sizeBytes)} · {formatModifiedAt(entry.modifiedAt)}</small> : null}
+                  </span>
                   {entry.kind === "directory" ? selected
                     ? <span className={styles.entryCheck}><Check size={16} strokeWidth={2.3} aria-hidden="true" /></span>
                     : <ChevronRight className={styles.entryChevron} size={16} aria-hidden="true" /> : null}

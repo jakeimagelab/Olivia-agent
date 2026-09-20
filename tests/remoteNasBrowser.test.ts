@@ -78,7 +78,19 @@ describe("Remote NAS mobile folder selection", () => {
     expect(browser).toContain("onSelect?.(selectedFolder.path, selectedFolder)");
     expect(browser).toContain("한 번 탭:");
     expect(browser).toContain("두 번 탭:");
+    expect(browser).toContain("formatFolderModifiedAt");
+    expect(browser).toContain("visibleFolderCount");
+    expect(browser).toContain("setHintVisible(false)");
     expect(browser).toContain("선택한 폴더 적용");
     expect(browser).toContain("disabled={!selectedFolder");
+  });
+
+  it("keeps the mobile dock visible below the full-screen remote browser", () => {
+    const page = readFileSync("app/remote-files/page.tsx", "utf8");
+    const pickerStyles = readFileSync("components/photo-classifier/PhotoSourcePicker.module.css", "utf8");
+
+    expect(page).toContain("MobileBottomNav");
+    expect(page).toContain('activeView="home"');
+    expect(pickerStyles).toContain("var(--mobile-dock-space");
   });
 });

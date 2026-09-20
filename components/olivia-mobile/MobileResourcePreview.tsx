@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Download, MessageCircle, Share2, UserPlus, X } from "lucide-react";
 import type { MobileNavigationState } from "@/lib/olivia/mobile/navigation";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
@@ -44,12 +44,40 @@ export default function MobileResourcePreview({
   const [busy, setBusy] = useState<"share" | "download" | "approve" | "register" | null>(null);
   const [temporaryDocument, setTemporaryDocument] = useState<ResourceRow | null>(null);
   const [registrationDismissed, setRegistrationDismissed] = useState(false);
-  const [zoom, setZoom] = useState(1);
   const paperRef = useRef<HTMLDivElement>(null);
   const contractFrameRef = useRef<HTMLIFrameElement>(null);
   const previewScrollRef = useRef<HTMLDivElement>(null);
-  const pinchRef = useRef({ startDistance: 0, startZoom: 1 });
+  const previewZoomStageRef = useRef<HTMLDivElement>(null);
+  const previewZoomCanvasRef = useRef<HTMLDivElement>(null);
+  const previewBaseHeightRef = useRef(0);
+  const pinchRef = useRef({
+    startDistance: 0,
+    startZoom: 1,
+    contentX: 0,
+    contentY: 0,
+    viewportX: 0,
+    viewportY: 0,
+    frame: null as number | null,
+  });
   const zoomRef = useRef(1);
+
+  const applyPreviewZoom = useCallback((nextZoom: number) => {
+    const preview = previewScrollRef.current;
+    const stage = previewZoomStageRef.current;
+    const canvas = previewZoomCanvasRef.current;
+    if (!preview || !stage || !canvas) return;
+    const normalizedZoom = clampPreviewZoom(nextZoom);
+    const previewStyle = window.getComputedStyle(preview);
+    const horizontalPadding = Number.parseFloat(previewStyle.paddingLeft) + Number.parseFloat(previewStyle.paddingRight);
+    const baseWidth = Math.max(1, preview.clientWidth - horizontalPadding);
+    zoomRef.current = normalizedZoom;
+    stage.style.width = `${baseWidth * normalizedZoom}px`;
+    canvas.style.width = `${baseWidth}px`;
+    canvas.style.transform = `scale(${normalizedZoom})`;
+    if (previewBaseHeightRef.current > 0) {
+      stage.style.height = `${previewBaseHeightRef.current * normalizedZoom}px`;
+    }
+  }, []);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -96,7 +124,35 @@ export default function MobileResourcePreview({
   }, [load]);
 
   useEffect(() => setRegistrationDismissed(false), [resource.temporaryDocumentId]);
-  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
+  useEffect(() => {
+    zoomRef.current = 1;
+    applyPreviewZoom(1);
+    const preview = previewScrollRef.current;
+    if (preview) preview.scrollTo({ left: 0, top: 0 });
+  }, [applyPreviewZoom, resource.resourceId, resource.resourceType]);
+
+  useEffect(() => {
+    const canvas = previewZoomCanvasRef.current;
+    if (!canvas) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const measuredHeight = entries[0]?.contentRect.height ?? 0;
+      if (measuredHeight <= 0) return;
+      previewBaseHeightRef.current = measuredHeight;
+      const stage = previewZoomStageRef.current;
+      if (stage) stage.style.height = `${measuredHeight * zoomRef.current}px`;
+    });
+    resizeObserver.observe(canvas);
+    const viewportObserver = new ResizeObserver(() => applyPreviewZoom(zoomRef.current));
+    const preview = previewScrollRef.current;
+    if (preview) viewportObserver.observe(preview);
+    applyPreviewZoom(zoomRef.current);
+    return () => {
+      resizeObserver.disconnect();
+      viewportObserver.disconnect();
+    };
+  }, [applyPreviewZoom, data]);
 
   useEffect(() => {
     const preview = previewScrollRef.current;
@@ -104,32 +160,52 @@ export default function MobileResourcePreview({
 
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 2) return;
+      event.preventDefault();
+      const first = event.touches.item(0);
+      const second = event.touches.item(1);
+      if (!first || !second) return;
+      const rect = preview.getBoundingClientRect();
+      const viewportX = (first.clientX + second.clientX) / 2 - rect.left;
+      const viewportY = (first.clientY + second.clientY) / 2 - rect.top;
       pinchRef.current = {
         startDistance: touchDistance(event.touches),
         startZoom: zoomRef.current,
+        contentX: (preview.scrollLeft + viewportX) / zoomRef.current,
+        contentY: (preview.scrollTop + viewportY) / zoomRef.current,
+        viewportX,
+        viewportY,
+        frame: null,
       };
     };
     const handleTouchMove = (event: TouchEvent) => {
       if (event.touches.length !== 2 || pinchRef.current.startDistance <= 0) return;
       event.preventDefault();
       const scale = touchDistance(event.touches) / pinchRef.current.startDistance;
-      setZoom(clampPreviewZoom(pinchRef.current.startZoom * scale));
+      const nextZoom = clampPreviewZoom(pinchRef.current.startZoom * scale);
+      if (pinchRef.current.frame !== null) cancelAnimationFrame(pinchRef.current.frame);
+      pinchRef.current.frame = requestAnimationFrame(() => {
+        applyPreviewZoom(nextZoom);
+        preview.scrollLeft = Math.max(0, pinchRef.current.contentX * nextZoom - pinchRef.current.viewportX);
+        preview.scrollTop = Math.max(0, pinchRef.current.contentY * nextZoom - pinchRef.current.viewportY);
+        pinchRef.current.frame = null;
+      });
     };
     const handleTouchEnd = (event: TouchEvent) => {
       if (event.touches.length < 2) pinchRef.current.startDistance = 0;
     };
 
-    preview.addEventListener("touchstart", handleTouchStart, { passive: true });
+    preview.addEventListener("touchstart", handleTouchStart, { passive: false });
     preview.addEventListener("touchmove", handleTouchMove, { passive: false });
     preview.addEventListener("touchend", handleTouchEnd, { passive: true });
     preview.addEventListener("touchcancel", handleTouchEnd, { passive: true });
     return () => {
+      if (pinchRef.current.frame !== null) cancelAnimationFrame(pinchRef.current.frame);
       preview.removeEventListener("touchstart", handleTouchStart);
       preview.removeEventListener("touchmove", handleTouchMove);
       preview.removeEventListener("touchend", handleTouchEnd);
       preview.removeEventListener("touchcancel", handleTouchEnd);
     };
-  }, []);
+  }, [applyPreviewZoom]);
 
   const share = async () => {
     setBusy("share");
@@ -277,9 +353,11 @@ export default function MobileResourcePreview({
       <button type="button" className={styles.previewClose} onClick={onClose} aria-label="미리보기 닫기"><X size={19} /></button>
       <div ref={previewScrollRef} className={styles.previewScroll}>
         {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void load()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>최신 문서를 불러오고 있어요...</div> : data ? (
-          <div className={styles.previewZoomCanvas} style={{ "--mobile-preview-zoom": zoom } as CSSProperties}>
-            <div ref={paperRef}>
-              {resource.resourceType === "quote" ? <MobileCanonicalQuoteDocument quote={data} /> : resource.resourceType === "contract" ? <MobileCanonicalContractDocument contract={data} frameRef={contractFrameRef} /> : <MobileGenericDocument document={data} resourceType={resource.resourceType} />}
+          <div ref={previewZoomStageRef} className={styles.previewZoomStage}>
+            <div ref={previewZoomCanvasRef} className={styles.previewZoomCanvas}>
+              <div ref={paperRef}>
+                {resource.resourceType === "quote" ? <MobileCanonicalQuoteDocument quote={data} /> : resource.resourceType === "contract" ? <MobileCanonicalContractDocument contract={data} frameRef={contractFrameRef} /> : <MobileGenericDocument document={data} resourceType={resource.resourceType} />}
+              </div>
             </div>
           </div>
         ) : null}

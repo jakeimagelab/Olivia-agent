@@ -8,10 +8,23 @@
   background: #f5f8f6;
 }
 
+.mobileDock { display: none; }
+
 @media (max-width: 1100px) {
   .page { padding: 12px; }
 }
 
 @media (max-width: 640px) {
-  .page { min-height: 100dvh; padding: 0; }
+  .page {
+    --remote-files-dock-height: calc(62px + env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+    height: calc(100dvh - var(--remote-files-dock-height));
+    padding: 0;
+  }
+  .mobileDock {
+    --mobile-orange: #e85d2c;
+    --mobile-dock-height: 62px;
+    --mobile-dock-space: calc(var(--mobile-dock-height) + env(safe-area-inset-bottom, 0px));
+    display: block;
+  }
 }

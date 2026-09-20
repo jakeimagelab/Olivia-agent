@@ -616,7 +616,7 @@
 .calendarDeleteEvent:disabled { opacity: .45; }
 
 .calendarEditForm { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.calendarEditBody { flex: 1; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 12px; padding: 18px calc(env(safe-area-inset-right, 0px) + 16px) calc(86px + env(safe-area-inset-bottom, 0px)) calc(env(safe-area-inset-left, 0px) + 16px); }
+.calendarEditBody { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-auto-rows: max-content; align-content: start; gap: 12px; padding: 18px calc(env(safe-area-inset-right, 0px) + 16px) calc(86px + env(safe-area-inset-bottom, 0px)) calc(env(safe-area-inset-left, 0px) + 16px); }
 .calendarField { display: grid; gap: 7px; color: var(--mobile-muted); font-size: 10px; font-weight: 650; }
 .calendarField > span { display: flex; align-items: center; gap: 5px; padding-left: 2px; }
 .calendarField input, .calendarField textarea, .calendarField select { width: 100%; min-width: 0; min-height: 48px; border: 1px solid var(--mobile-line); border-radius: 13px; padding: 9px 12px; outline: 0; background: #fff; color: var(--mobile-ink); font: 550 16px/1.4 inherit; }
@@ -631,13 +631,16 @@
 .calendarSettingRow > button[role="switch"] i { width: 23px; height: 23px; display: block; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(20,63,57,.2); transition: transform 160ms ease; }
 .calendarSettingRow > .calendarSwitchOn { background: var(--mobile-green); }
 .calendarSettingRow > .calendarSwitchOn i { transform: translateX(19px); }
-.calendarDateTimeGroup { overflow: hidden; border: 1px solid var(--mobile-line); border-radius: 15px; background: #fff; }
-.calendarDateTimeGroup label { min-height: 58px; display: grid; grid-template-columns: 42px minmax(0,1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--mobile-line); padding: 7px 9px 7px 12px; }
-.calendarDateTimeGroup label:last-child { border-bottom: 0; }
-.calendarDateTimeGroup label > span { color: var(--mobile-ink); font-size: 11px; font-weight: 650; }
+.calendarDateTimeGroup { min-height: 118px; overflow: hidden; border: 1px solid var(--mobile-line); border-radius: 15px; background: #fff; }
+.calendarDateTimeRow { min-height: 58px; display: grid; grid-template-columns: 42px minmax(0,1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--mobile-line); padding: 7px 9px 7px 12px; }
+.calendarDateTimeRow:last-child { border-bottom: 0; }
+.calendarDateTimeLabel { color: var(--mobile-ink); font-size: 11px; font-weight: 650; }
 .calendarDateTimeInputs { width: 100%; min-width: 0; display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); gap: 6px; }
 .calendarDateTimeInputs[data-all-day="true"] { grid-template-columns: minmax(0,1fr); }
-.calendarDateTimeInputs input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 42px; display: block; overflow: hidden; border: 0; border-radius: 10px; padding: 5px 7px; outline: 0; background: #f5f9f8; color: var(--mobile-ink); font: 560 12px/1.2 inherit; text-align: center; -webkit-appearance: none; appearance: none; }
+.calendarPickerField { position: relative; min-width: 0; min-height: 42px; display: grid; place-items: center; overflow: hidden; border-radius: 10px; background: #f5f9f8; color: var(--mobile-ink); font-size: 12px; font-weight: 560; line-height: 1.2; white-space: nowrap; }
+.calendarPickerField > span { max-width: 100%; overflow: hidden; padding: 0 6px; text-overflow: ellipsis; }
+.calendarPickerField input { position: absolute; inset: 0; width: 100%; min-width: 0; height: 100%; border: 0; margin: 0; padding: 0; opacity: 0; cursor: pointer; font-size: 16px; }
+.calendarPickerField:focus-within { box-shadow: 0 0 0 3px rgba(21,88,85,.08), inset 0 0 0 1px rgba(21,88,85,.36); }
 .calendarFormError { margin: 0; border-radius: 12px; padding: 10px 12px; background: #fff0eb; color: #a8492a; font-size: 10px; line-height: 1.5; }
 .calendarSaveBar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; padding: 8px calc(env(safe-area-inset-right, 0px) + 14px) calc(8px + env(safe-area-inset-bottom, 0px)) calc(env(safe-area-inset-left, 0px) + 14px); border-top: 1px solid var(--mobile-line); background: rgba(255,255,255,.96); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
 .calendarSaveBar button { width: 100%; min-height: 50px; border: 0; border-radius: 14px; background: var(--mobile-green); color: #fff; font: 720 13px/1 inherit; }
@@ -708,10 +711,11 @@
     calc(env(safe-area-inset-left, 0px) + 14px);
 }
 .previewClose { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 10px); left: calc(env(safe-area-inset-left, 0px) + 12px); z-index: 29; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid rgba(21,88,85,.12); border-radius: 13px; background: rgba(255,255,255,.94); color: var(--mobile-green); box-shadow: 0 7px 20px rgba(20,63,57,.13); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-.previewZoomCanvas { width: 100%; transform-origin: top left; zoom: var(--mobile-preview-zoom, 1); }
+.previewZoomStage { position: relative; width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 28px); min-height: 1px; }
+.previewZoomCanvas { width: 100%; transform: scale(1); transform-origin: top left; }
 .canonicalDocumentHost { width: 100%; max-width: 680px; margin: 0 auto; overflow: hidden; border: 1px solid rgba(21,88,85,.12); border-radius: 14px; background: #e8e0d4; box-shadow: 0 10px 30px rgba(20,63,57,.06); }
 .canonicalQuoteViewport, .canonicalContractViewport { position: relative; width: 100%; overflow: hidden; }
-.canonicalQuoteViewport :global(.quote-page) { position: absolute; inset: 0 auto auto 0; margin: 0; transform-origin: top left; box-shadow: none; }
+.canonicalQuoteViewport :global(.quote-page) { position: absolute; inset: 0 auto auto 0; margin: 0; transform-origin: top left; box-shadow: none; transition: none; will-change: auto; }
 .canonicalContractViewport iframe { position: absolute; inset: 0 auto auto 0; display: block; border: 0; background: #f3f8f7; transform-origin: top left; }
 .canonicalDocumentLoading { min-height: 260px; display: grid; place-items: center; color: var(--mobile-muted); font-size: 11px; }
 .previewPaper { width: 100%; max-width: 680px; min-height: 72dvh; margin: 0 auto; overflow: hidden; border: 1px solid rgba(21,88,85,.12); border-radius: 18px; background: #fff; color: #1f312d; box-shadow: 0 10px 30px rgba(20,63,57,.06); }

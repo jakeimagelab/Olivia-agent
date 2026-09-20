@@ -77,6 +77,12 @@ function formatClock(value?: string | null) {
   return `${period} ${hourNumber % 12 || 12}:${minute}`;
 }
 
+function formatPickerDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return `${year}. ${month}. ${day}.`;
+}
+
 function formatTimeRange(task: CalendarTask) {
   if (!task.time) return "종일";
   const start = formatClock(task.time);
@@ -247,20 +253,36 @@ function CalendarEventScreen({ task, draft, saving, deleting, error, onBack, onE
               <button type="button" role="switch" aria-checked={draft.allDay} className={draft.allDay ? styles.calendarSwitchOn : undefined} onClick={() => onDraft({ ...draft, allDay: !draft.allDay, reminderEnabled: draft.allDay ? draft.reminderEnabled : false })}><i /></button>
             </div>
             <div className={styles.calendarDateTimeGroup}>
-              <label>
-                <span>시작</span>
+              <div className={styles.calendarDateTimeRow}>
+                <span className={styles.calendarDateTimeLabel}>시작</span>
                 <span className={styles.calendarDateTimeInputs} data-all-day={draft.allDay}>
-                  <input aria-label="시작 날짜" type="date" value={draft.date} onChange={(event) => onDraft({ ...draft, date: event.target.value })} />
-                  {draft.allDay ? null : <input aria-label="시작 시간" type="time" value={draft.time} onChange={(event) => onDraft({ ...draft, time: event.target.value })} />}
+                  <label className={styles.calendarPickerField}>
+                    <span aria-hidden="true">{formatPickerDate(draft.date)}</span>
+                    <input aria-label="시작 날짜" type="date" value={draft.date} onChange={(event) => onDraft({ ...draft, date: event.target.value })} />
+                  </label>
+                  {draft.allDay ? null : (
+                    <label className={styles.calendarPickerField}>
+                      <span aria-hidden="true">{formatClock(draft.time)}</span>
+                      <input aria-label="시작 시간" type="time" value={draft.time} onChange={(event) => onDraft({ ...draft, time: event.target.value })} />
+                    </label>
+                  )}
                 </span>
-              </label>
-              <label>
-                <span>종료</span>
+              </div>
+              <div className={styles.calendarDateTimeRow}>
+                <span className={styles.calendarDateTimeLabel}>종료</span>
                 <span className={styles.calendarDateTimeInputs} data-all-day={draft.allDay}>
-                  <input aria-label="종료 날짜" type="date" value={draft.date} onChange={(event) => onDraft({ ...draft, date: event.target.value })} />
-                  {draft.allDay ? null : <input aria-label="종료 시간" type="time" value={draft.endTime} onChange={(event) => onDraft({ ...draft, endTime: event.target.value })} />}
+                  <label className={styles.calendarPickerField}>
+                    <span aria-hidden="true">{formatPickerDate(draft.date)}</span>
+                    <input aria-label="종료 날짜" type="date" value={draft.date} onChange={(event) => onDraft({ ...draft, date: event.target.value })} />
+                  </label>
+                  {draft.allDay ? null : (
+                    <label className={styles.calendarPickerField}>
+                      <span aria-hidden="true">{formatClock(draft.endTime)}</span>
+                      <input aria-label="종료 시간" type="time" value={draft.endTime} onChange={(event) => onDraft({ ...draft, endTime: event.target.value })} />
+                    </label>
+                  )}
                 </span>
-              </label>
+              </div>
             </div>
             <div className={styles.calendarSettingRow} aria-label="반복 설정"><span><Repeat2 size={16} /> 반복</span><strong>안 함</strong></div>
             <label className={styles.calendarField}><span>위치</span><input value={draft.location} onChange={(event) => onDraft({ ...draft, location: event.target.value })} placeholder="위치" /></label>

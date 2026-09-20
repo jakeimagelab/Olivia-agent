@@ -81,8 +81,10 @@ describe("Olivia mobile PWA shell", () => {
     expect(calendar).toContain("calendarTimelineEvent");
     expect(calendar).toContain('role="switch"');
     expect(calendar).toContain("calendarDateTimeInputs");
-    expect(styles).toContain(".calendarDateTimeInputs input");
-    expect(styles).toContain("-webkit-appearance: none");
+    expect(calendar).toContain("calendarPickerField");
+    expect(calendar).toContain("formatPickerDate");
+    expect(styles).toContain(".calendarPickerField input");
+    expect(styles).toContain("opacity: 0");
   });
 
   it("uses non-destructive pinch zoom and dismissible photo-status cards", () => {
@@ -98,7 +100,10 @@ describe("Olivia mobile PWA shell", () => {
     expect(preview).toContain("event.touches.length !== 2");
     expect(preview).toContain('{ passive: false }');
     expect(preview).toContain("clampPreviewZoom");
-    expect(preview).toContain("setZoom");
+    expect(preview).toContain("applyPreviewZoom");
+    expect(preview).toContain("requestAnimationFrame");
+    expect(preview).toContain("previewZoomStage");
+    expect(preview).not.toContain("--mobile-preview-zoom");
     expect(shell).toContain("onClose={closePreview}");
     expect(photoNotification).toContain("dismissCurrent");
     expect(photoNotification).toContain('aria-label="오류 알림 닫기"');
