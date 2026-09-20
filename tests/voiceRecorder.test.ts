@@ -82,8 +82,7 @@ describe("Olivia voice integration guardrails", () => {
     const mobileHome = readFileSync("components/olivia-mobile/MobileHome.tsx", "utf8");
     const mobileShell = readFileSync("components/olivia-mobile/OliviaMobileShell.tsx", "utf8");
     const mobileVoice = readFileSync("components/olivia-mobile/MobileVoice.tsx", "utf8");
-    expect(mobileHome).toContain('onNavigate("voice")');
-    expect(mobileHome).toContain('aria-label="음성 기록 열기"');
+    expect(mobileHome).toContain('{ id: "voice", label: "음성 기록"');
     expect(mobileShell).toContain("<MobileVoice />");
     expect(mobileVoice).toContain("<OliviaRecorder embedded mobileShell");
     expect(mobileVoice).not.toContain("<MobileHeader");

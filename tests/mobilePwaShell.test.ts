@@ -17,7 +17,8 @@ describe("Olivia mobile PWA shell", () => {
     expect(styles).toContain("--mobile-chat-offset-top");
     expect(chat).toContain("chatClose");
     expect(chat).toContain("onClose");
-    expect(styles).toContain("padding: calc(env(safe-area-inset-top, 0px) + 54px)");
+    expect(styles).toContain("padding: calc(env(safe-area-inset-top, 0px) + 58px)");
+    expect(styles).toContain("calc(9px + env(safe-area-inset-bottom, 0px))");
   });
 
   it("keeps mobile navigation usable while removing non-home title bars and the narrow conversation guide", () => {
@@ -65,9 +66,38 @@ describe("Olivia mobile PWA shell", () => {
     expect(shell).toContain("onPointerMove={onSwipePointerMove}");
     expect(shell).toContain("setPointerCapture");
     expect(shell).toContain("SWIPE_FLING_VELOCITY_PX_PER_MS");
+    expect(shell).toContain("SWIPE_COMPLETION_RATIO");
+    expect(shell).toContain("swipeTrack");
+    expect(shell).toContain("finishSwipe");
     expect(shell).toContain("swipe.axis === \"vertical\"");
     expect(shell).toContain("navigation.view === \"chat\"");
     expect(calendar).toContain("data-mobile-swipe-lock");
     expect(calendar).toContain("selectedSchedulePanel");
+  });
+
+  it("keeps mobile client management read-only and links to the device phone and message apps", () => {
+    const clients = read("components/olivia-mobile/MobileClients.tsx");
+    const home = read("components/olivia-mobile/MobileHome.tsx");
+    const navigation = read("lib/olivia/mobile/navigation.ts");
+
+    expect(clients).toContain('fetch("/api/clients?scope=list"');
+    expect(clients).toContain('fetch(`/api/clients/${encodeURIComponent(clientId)}`');
+    expect(clients).toContain('href={`tel:${phoneHref(phone)}`}');
+    expect(clients).toContain('href={`sms:${phoneHref(phone)}`}');
+    expect(clients).not.toContain('method: "POST"');
+    expect(clients).not.toContain('method: "PATCH"');
+    expect(clients).not.toContain('method: "DELETE"');
+    expect(home).toContain('{ id: "clients", label: "고객관리"');
+    expect(navigation).toContain('"clients"');
+  });
+
+  it("uses the existing canonical conti read routes and keeps field completion local", () => {
+    const conti = read("components/olivia-mobile/MobileContiFieldView.tsx");
+    expect(conti).toContain('"/api/conti/runs?list=1&limit=60"');
+    expect(conti).toContain('`/api/conti/runs/${encodeURIComponent(id)}`');
+    expect(conti).toContain("localStorage");
+    expect(conti).not.toContain('method: "PATCH"');
+    expect(conti).toContain("wakeLock");
+    expect(conti).toContain("current === 1 ? 4 : current === 4 ? 8 : 1");
   });
 });

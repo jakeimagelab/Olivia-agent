@@ -6,8 +6,6 @@ import {
   ChevronRight,
   Clock3,
   Eye,
-  Mic,
-  Sparkles,
 } from "lucide-react";
 import { AppIcon as DesktopAppIcon, type IconName } from "@/components/AppIcon";
 import { CalendarAppIcon } from "@/components/olivia-os/CalendarAppIcon";
@@ -22,20 +20,42 @@ import {
   type MobileResource,
 } from "@/lib/olivia/mobile/resources";
 import MobileCurrentWorkCard, { type MobileWorkState } from "./MobileCurrentWorkCard";
+import { usePhotoProjectNotifications } from "@/components/photo-storage/PhotoProjectNotificationProvider";
+import type { PhotoStorageProject } from "@/lib/photo-storage/types";
 import type { MobileDocumentsSection } from "./MobileDocuments";
 import styles from "./OliviaMobileShell.module.css";
 
 type CalendarTask = { id: string; title: string; time?: string | null; location?: string | null };
 
 const QUICK_ITEMS = [
-  { id: "calendar", label: "캘린더", description: "오늘 일정 확인" },
-  { id: "memo", label: "메모", description: "아이디어 / 업무 기록", iconName: "memo" },
+  { id: "voice", label: "음성 기록", description: "현장 음성 메모", iconName: "work-log" },
+  { id: "clients", label: "고객관리", description: "고객과 진행 상황", iconName: "clients" },
+  { id: "quote-contract", label: "견적/계약", description: "문서 확인" },
+  { id: "conti", label: "콘티", description: "현장 촬영 순서", iconName: "storyboard" },
   { id: "photo-workspace", label: "사진작업실", description: "Mac Studio 원격 작업", iconName: "photo-studio" },
-  { id: "quote-contract", label: "견적/계약", description: "작성 및 진행 상태" },
-  { id: "library", label: "문서함", description: "파일 한곳에", iconName: "library" },
-  { id: "chat", label: "올리비아 채팅", description: "Olivia에게 업무 지시", iconName: "olivia" },
   { id: "preview", label: "미리보기", description: "현재 작업 결과 확인" },
 ] as const;
+
+const ACTIVE_PHOTO_STATUSES = new Set<PhotoStorageProject["status"]>([
+  "MERGING", "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING",
+]);
+
+function photoProgress(project: PhotoStorageProject) {
+  const progress = project.status === "MERGING" ? project.merge_progress
+    : project.status.startsWith("CLASSIFY") ? project.classification_progress
+      : project.copy_progress;
+  const current = typeof progress.current === "number" ? progress.current : 0;
+  const total = typeof progress.total === "number" ? progress.total : project.jpg_count;
+  const percent = total > 0 ? Math.round((current / total) * 100) : 0;
+  const status = project.status === "MERGING" ? "JPG 통합 중"
+    : project.status === "COPY_QUEUED" ? "복사 준비 중"
+      : project.status === "COPYING" ? "JPG 복사 중"
+        : project.status === "COPY_VERIFYING" ? "복사 확인 중"
+          : project.status === "CLASSIFY_QUEUED" ? "분류 준비 중"
+            : project.status === "CLASSIFYING" ? "씬 분류 중"
+              : "분류 확인 중";
+  return { status, percent: Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0 };
+}
 
 function QuickMenuIcon({
   id,
@@ -46,7 +66,6 @@ function QuickMenuIcon({
   iconName?: IconName;
   resource: MobileResource | null;
 }) {
-  if (id === "calendar") return <CalendarAppIcon />;
   if (id === "quote-contract") return (
     <span className={styles.quickIconPair} aria-hidden="true">
       <DesktopAppIcon name="quote" size={31} />
@@ -109,6 +128,7 @@ export default function MobileHome({
   const [resource, setResource] = useState<MobileResource | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { projects } = usePhotoProjectNotifications();
 
   const load = useCallback(async () => {
     setError("");
@@ -166,9 +186,12 @@ export default function MobileHome({
     return "idle";
   }, [agentRuns, isSending]);
 
+  const activePhotoProject = useMemo(() => projects
+    .filter((project) => ACTIVE_PHOTO_STATUSES.has(project.status))
+    .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime())[0] || null, [projects]);
+
   const handleQuick = (id: typeof QUICK_ITEMS[number]["id"]) => {
     if (id === "quote-contract") return onOpenDocuments("quote-contract");
-    if (id === "library") return onOpenDocuments("library");
     if (id === "preview") {
       if (resource) onOpenPreview({ resourceType: resource.type, resourceId: resource.id, temporaryDocumentId: resource.temporaryDocumentId });
       else onOpenDocuments("quote-contract");
@@ -184,14 +207,9 @@ export default function MobileHome({
           <span className={styles.homeBrandMark}><Image src="/assets/photoclinic-mark.png" alt="" width={30} height={30} priority /></span>
           <span><strong>PHOTO CLINIC</strong><small>OLIVIA MOBILE</small></span>
         </div>
-        <button type="button" className={styles.voiceShortcut} aria-label="음성 기록 열기" onClick={() => onNavigate("voice")}>
-          <Mic size={17} />
-          <span>음성 기록</span>
-        </button>
       </header>
       <div className={styles.homeGreeting}>
-        <h1>안녕하세요,<br />오늘도 좋은 하루 되세요! <span>👋</span></h1>
-        <p>포토클리닉 스튜디오</p>
+        <h1>안녕하세요, 오늘도 좋은 하루 되세요! <span>👋</span></h1>
       </div>
 
       <button type="button" className={`${styles.card} ${styles.todayCard}`} onClick={() => onNavigate("calendar")}>
@@ -208,6 +226,12 @@ export default function MobileHome({
         )}
       </section>
 
+      {activePhotoProject ? <button type="button" className={styles.photoProgressCard} onClick={() => onNavigate("photo-workspace")}>
+        <span>사진 작업</span>
+        <strong>{activePhotoProject.project_name} · {photoProgress(activePhotoProject).status} · {photoProgress(activePhotoProject).percent}%</strong>
+        <ChevronRight size={17} />
+      </button> : null}
+
       <section className={styles.homeSection}>
         <h2 className={styles.sectionLabel}>빠른 메뉴</h2>
         <div className={styles.quickGrid}>
@@ -221,11 +245,6 @@ export default function MobileHome({
         </div>
       </section>
 
-      <button type="button" className={styles.commandCard} onClick={() => onNavigate("chat")}>
-        <span className={styles.commandIcon}><Sparkles size={19} /></span>
-        <span><strong>Olivia에게 무엇을 시킬까요?</strong><small>견적 만들어줘 · 일정 추가 · 메모 남기기</small></span>
-        <ChevronRight size={19} />
-      </button>
     </section>
   );
 }

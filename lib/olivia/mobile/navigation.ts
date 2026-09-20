@@ -1,4 +1,4 @@
-export type MobilePrimaryView = "home" | "calendar" | "memo" | "documents" | "chat" | "voice" | "photo-workspace";
+export type MobilePrimaryView = "home" | "calendar" | "memo" | "documents" | "chat" | "voice" | "photo-workspace" | "clients" | "conti";
 export type MobileResourceType = "quote" | "contract" | "document" | "storyboard";
 
 export type MobileNavigationState =
@@ -13,6 +13,8 @@ const PRIMARY_VIEWS = new Set<MobilePrimaryView>([
   "chat",
   "voice",
   "photo-workspace",
+  "clients",
+  "conti",
 ]);
 const RESOURCE_TYPES = new Set<MobileResourceType>(["quote", "contract", "document", "storyboard"]);
 

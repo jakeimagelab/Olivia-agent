@@ -361,7 +361,8 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       const element = textareaRef.current;
       if (!element) return;
       element.style.height = "auto";
-      element.style.height = `${Math.min(element.scrollHeight, 152)}px`;
+      // 모바일은 한 손 입력을 위해 넓게 시작하되 5줄을 넘기면 입력창 안에서만 스크롤한다.
+      element.style.height = `${Math.min(element.scrollHeight, isMobile ? 124 : 152)}px`;
       if (wasNearBottom && list) list.scrollTo({ top: list.scrollHeight, behavior: "auto" });
     });
   };

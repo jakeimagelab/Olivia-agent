@@ -1,12 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { MobileErrorBoundary } from "./MobileErrorBoundary";
 import MobileBottomNav from "./MobileBottomNav";
 import MobileHome from "./MobileHome";
 import MobileCalendar from "./MobileCalendar";
 import MobileMemo from "./MobileMemo";
+import MobileClients from "./MobileClients";
+import MobileContiFieldView from "./MobileContiFieldView";
 import MobileDocuments, { type MobileDocumentsSection } from "./MobileDocuments";
 import MobileOliviaChat from "./MobileOliviaChat";
 import MobileResourcePreview from "./MobileResourcePreview";
@@ -35,9 +37,10 @@ const SWIPEABLE_PRIMARY_VIEWS = ["home", "calendar", "memo", "documents"] as con
 type SwipeablePrimaryView = typeof SWIPEABLE_PRIMARY_VIEWS[number];
 const IOS_BACK_GESTURE_EDGE_PX = 24;
 const SWIPE_DIRECTION_LOCK_PX = 10;
-const SWIPE_DISTANCE_PX = 54;
-const SWIPE_FLING_DISTANCE_PX = 28;
-const SWIPE_FLING_VELOCITY_PX_PER_MS = .42;
+const SWIPE_COMPLETION_RATIO = .27;
+const SWIPE_FLING_DISTANCE_PX = 20;
+const SWIPE_FLING_VELOCITY_PX_PER_MS = .38;
+const SWIPE_SETTLE_MS = 250;
 
 type SwipeAxis = "pending" | "horizontal" | "vertical";
 type SwipeSession = {
@@ -48,6 +51,14 @@ type SwipeSession = {
   startedAt: number;
   axis: SwipeAxis;
   locked: boolean;
+};
+
+type SwipePreview = {
+  from: SwipeablePrimaryView;
+  target: SwipeablePrimaryView;
+  direction: "previous" | "next";
+  offset: number;
+  settling: boolean;
 };
 
 function isSwipeablePrimaryView(view: MobileNavigationState["view"]): view is SwipeablePrimaryView {
@@ -76,7 +87,9 @@ function releasePointerCapture(container: HTMLDivElement, pointerId: number) {
 export default function OliviaMobileShell() {
   const [navigation, setNavigation] = useState<MobileNavigationState>(currentNavigation);
   const [documentsSection, setDocumentsSection] = useState<MobileDocumentsSection>("quote-contract");
+  const [swipePreview, setSwipePreview] = useState<SwipePreview | null>(null);
   const swipeRef = useRef<SwipeSession | null>(null);
+  const swipeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -89,6 +102,7 @@ export default function OliviaMobileShell() {
       window.removeEventListener("popstate", onPopState);
       document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousBodyOverflow;
+      if (swipeTimerRef.current != null) window.clearTimeout(swipeTimerRef.current);
     };
   }, []);
 
@@ -105,6 +119,31 @@ export default function OliviaMobileShell() {
   const openDocuments = useCallback((section: MobileDocumentsSection) => {
     setDocumentsSection(section);
     navigate({ view: "documents" });
+  }, [navigate]);
+
+  const screenFor = (state: MobileNavigationState) => {
+    if (state.view === "preview") return <MobileResourcePreview resource={state} onRequestEdit={() => navigate({ view: "chat" })} />;
+    if (state.view === "home") return <MobileHome onNavigate={navigatePrimary} onOpenDocuments={openDocuments} onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />;
+    if (state.view === "calendar") return <MobileCalendar />;
+    if (state.view === "memo") return <MobileMemo />;
+    if (state.view === "clients") return <MobileClients />;
+    if (state.view === "conti") return <MobileContiFieldView />;
+    if (state.view === "voice") return <MobileVoice />;
+    if (state.view === "photo-workspace") return <MobilePhotoWorkspace />;
+    if (state.view === "documents") return <MobileDocuments initialSection={documentsSection} onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />;
+    return <MobileOliviaChat onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} onClose={() => navigate({ view: "home" }, "replace")} />;
+  };
+
+  const finishSwipe = useCallback((next: SwipePreview, complete: boolean) => {
+    if (swipeTimerRef.current != null) window.clearTimeout(swipeTimerRef.current);
+    const width = Math.max(1, window.innerWidth);
+    const finalOffset = complete ? (next.direction === "next" ? -width : width) : 0;
+    setSwipePreview({ ...next, offset: finalOffset, settling: true });
+    swipeTimerRef.current = window.setTimeout(() => {
+      if (complete) navigate({ view: next.target });
+      setSwipePreview(null);
+      swipeTimerRef.current = null;
+    }, SWIPE_SETTLE_MS);
   }, [navigate]);
 
   const onSwipePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -141,6 +180,18 @@ export default function OliviaMobileShell() {
     }
     // 가로 전환으로 확정된 뒤에만 기본 동작을 막는다. 세로 스크롤은 그대로 브라우저에 맡긴다.
     event.preventDefault();
+    const currentIndex = SWIPEABLE_PRIMARY_VIEWS.indexOf(swipe.view);
+    const direction = deltaX < 0 ? "next" : "previous";
+    const targetIndex = currentIndex + (direction === "next" ? 1 : -1);
+    if (targetIndex < 0 || targetIndex >= SWIPEABLE_PRIMARY_VIEWS.length) {
+      setSwipePreview(null);
+      return;
+    }
+    const maxOffset = Math.max(1, event.currentTarget.clientWidth);
+    const offset = direction === "next"
+      ? Math.min(0, Math.max(-maxOffset, deltaX))
+      : Math.max(0, Math.min(maxOffset, deltaX));
+    setSwipePreview({ from: swipe.view, target: SWIPEABLE_PRIMARY_VIEWS[targetIndex], direction, offset, settling: false });
   }, []);
 
   const onSwipePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -148,40 +199,45 @@ export default function OliviaMobileShell() {
     swipeRef.current = null;
     if (!swipe || swipe.pointerId !== event.pointerId) return;
     releasePointerCapture(event.currentTarget, event.pointerId);
-    if (swipe.locked || swipe.axis === "vertical") return;
+    if (swipe.locked || swipe.axis === "vertical" || swipe.axis === "pending") return;
     const deltaX = event.clientX - swipe.startX;
     const deltaY = event.clientY - swipe.startY;
     const horizontalDistance = Math.abs(deltaX);
     const elapsedMs = Math.max(1, performance.now() - swipe.startedAt);
     const isIntentionalFling = horizontalDistance >= SWIPE_FLING_DISTANCE_PX && horizontalDistance / elapsedMs >= SWIPE_FLING_VELOCITY_PX_PER_MS;
-    if ((!isIntentionalFling && horizontalDistance < SWIPE_DISTANCE_PX) || horizontalDistance < Math.abs(deltaY) * 1.25) return;
+    const preview = swipePreview;
+    if (!preview) return;
+    const threshold = Math.max(1, event.currentTarget.clientWidth) * SWIPE_COMPLETION_RATIO;
+    if ((!isIntentionalFling && horizontalDistance < threshold) || horizontalDistance < Math.abs(deltaY) * 1.25) {
+      finishSwipe(preview, false);
+      return;
+    }
     const currentIndex = SWIPEABLE_PRIMARY_VIEWS.indexOf(swipe.view);
     const nextIndex = currentIndex + (deltaX < 0 ? 1 : -1);
-    if (nextIndex < 0 || nextIndex >= SWIPEABLE_PRIMARY_VIEWS.length) return;
-    navigate({ view: SWIPEABLE_PRIMARY_VIEWS[nextIndex] });
-  }, [navigate]);
+    if (nextIndex < 0 || nextIndex >= SWIPEABLE_PRIMARY_VIEWS.length) {
+      finishSwipe(preview, false);
+      return;
+    }
+    finishSwipe(preview, true);
+  }, [finishSwipe, swipePreview]);
 
   const clearSwipe = useCallback((event?: ReactPointerEvent<HTMLDivElement>) => {
+    const activeSwipe = swipeRef.current;
     if (event) releasePointerCapture(event.currentTarget, event.pointerId);
     swipeRef.current = null;
-  }, []);
+    if (activeSwipe && swipePreview && !swipePreview.settling) finishSwipe(swipePreview, false);
+  }, [finishSwipe, swipePreview]);
 
-  let screen;
-  if (navigation.view === "preview") {
-    screen = <MobileResourcePreview resource={navigation} onRequestEdit={() => navigate({ view: "chat" })} />;
-  } else screen = navigation.view === "home"
-    ? <MobileHome onNavigate={navigatePrimary} onOpenDocuments={openDocuments} onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />
-    : navigation.view === "calendar"
-      ? <MobileCalendar />
-      : navigation.view === "memo"
-        ? <MobileMemo />
-        : navigation.view === "voice"
-          ? <MobileVoice />
-        : navigation.view === "photo-workspace"
-          ? <MobilePhotoWorkspace />
-        : navigation.view === "documents"
-          ? <MobileDocuments initialSection={documentsSection} onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />
-          : <MobileOliviaChat onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} onClose={() => navigate({ view: "home" }, "replace")} />;
+  const screen = swipePreview ? (
+    <div
+      className={styles.swipeTrack}
+      data-settling={swipePreview.settling || undefined}
+      style={{ "--mobile-swipe-offset": `${swipePreview.offset}px` } as CSSProperties}
+    >
+      <div className={`${styles.swipePanel} ${styles.swipePanelCurrent}`}>{screenFor({ view: swipePreview.from })}</div>
+      <div className={`${styles.swipePanel} ${styles.swipePanelTarget}`} data-direction={swipePreview.direction}>{screenFor({ view: swipePreview.target })}</div>
+    </div>
+  ) : screenFor(navigation);
 
   return (
     <OliviaUiSurfaceProvider value="mobile">

@@ -62,7 +62,7 @@ function getMonthGrid(value: string) {
 const emptyDraft = (date: string): CalendarDraft => ({ title: "", date, time: "", location: "", memo: "" });
 
 export default function MobileCalendar() {
-  const [view, setView] = useState<CalendarView>("today");
+  const [view, setView] = useState<CalendarView>("month");
   const [selectedDate, setSelectedDate] = useState(dateKey);
   const [tasks, setTasks] = useState<CalendarTask[]>([]);
   const [loading, setLoading] = useState(true);
