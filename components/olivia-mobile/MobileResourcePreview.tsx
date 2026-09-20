@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Download, MessageCircle, Share2, UserPlus } from "lucide-react";
 import type { MobileNavigationState } from "@/lib/olivia/mobile/navigation";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
-import MobileHeader from "./MobileHeader";
 import { MobileGenericDocument } from "./MobileResourceDocument";
 import { MobileCanonicalContractDocument, MobileCanonicalQuoteDocument } from "./MobileCanonicalDocuments";
 import styles from "./OliviaMobileShell.module.css";
@@ -21,11 +20,9 @@ async function requestJson(url: string, init?: RequestInit) {
 
 export default function MobileResourcePreview({
   resource,
-  onBack,
   onRequestEdit,
 }: {
   resource: PreviewNavigation;
-  onBack: () => void;
   onRequestEdit: () => void;
 }) {
   const [data, setData] = useState<ResourceRow | null>(null);
@@ -227,7 +224,6 @@ export default function MobileResourcePreview({
 
   return (
     <section className={`${styles.screenWithHeader} ${styles.previewScreen}`} aria-label="모바일 문서 미리보기">
-      <MobileHeader title="미리보기" subtitle="현재 문서의 최신 내용을 확인하세요." onBack={onBack} onMore={() => void share()} />
       <div className={styles.previewScroll}>
         {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void load()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>최신 문서를 불러오고 있어요...</div> : data ? <div ref={paperRef}>
           {resource.resourceType === "quote" ? <MobileCanonicalQuoteDocument quote={data} /> : resource.resourceType === "contract" ? <MobileCanonicalContractDocument contract={data} frameRef={contractFrameRef} /> : <MobileGenericDocument document={data} resourceType={resource.resourceType} />}

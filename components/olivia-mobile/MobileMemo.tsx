@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, StickyNote } from "lucide-react";
-import MobileHeader from "./MobileHeader";
+import { Plus, Search, StickyNote } from "lucide-react";
 import styles from "./OliviaMobileShell.module.css";
 
 type Memo = { id: string; hospital_id?: string | null; title: string; raw_memo?: string; summary?: string; created_at?: string; updated_at?: string };
@@ -88,7 +87,6 @@ export default function MobileMemo() {
 
   return (
     <section className={styles.screenWithHeader} aria-label="모바일 메모">
-      <MobileHeader title="메모" subtitle="아이디어와 업무 기록을 정리하세요." onAdd={() => setDraft({ title: "", body: "", clientId: "" })} />
       <div className={styles.scrollBody}>
         <label className={styles.searchField}><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="메모 검색" /></label>
         <div className={styles.listHeading}><h3>최근 메모</h3><span>{filtered.length}</span></div>
@@ -99,6 +97,9 @@ export default function MobileMemo() {
           </button>)}</div>
         ) : <div className={styles.emptyState}><StickyNote size={22} /><span>{query ? "검색 결과가 없어요." : "아직 작성한 메모가 없어요."}</span></div>}
       </div>
+      <button type="button" className={styles.floatingAction} onClick={() => setDraft({ title: "", body: "", clientId: "" })} aria-label="메모 추가">
+        <Plus size={18} /><span>메모 추가</span>
+      </button>
 
       {draft ? <div className={styles.sheetBackdrop} onPointerDown={() => setDraft(null)}>
         <form className={styles.sheet} onSubmit={(event) => { event.preventDefault(); void save(); }} onPointerDown={(event) => event.stopPropagation()}>

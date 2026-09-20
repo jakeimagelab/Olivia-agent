@@ -14,6 +14,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0d4743",
 };
 
 export const metadata: Metadata = {
@@ -21,6 +23,11 @@ export const metadata: Metadata = {
   title: "포토클리닉 AI 에이전트",
   description: "포토클리닉 AI 에이전트 올리비아가 함께하는 병원 브랜딩·콘텐츠 운영 시스템입니다.",
   robots: { index: false, follow: false },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "OLIVIA",
+  },
   icons: {
     icon: "/assets/photoclinic-logo.png",
     shortcut: "/assets/photoclinic-logo.png",

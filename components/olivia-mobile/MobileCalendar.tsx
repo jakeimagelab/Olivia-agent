@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, MapPin, Plus, Trash2 } from "lucide-react";
 import type { CalendarTodo } from "@/lib/calendarTodos";
-import MobileHeader from "./MobileHeader";
 import styles from "./OliviaMobileShell.module.css";
 
 type CalendarView = "today" | "week" | "month";
@@ -232,7 +231,6 @@ export default function MobileCalendar() {
 
   return (
     <section className={styles.screenWithHeader} aria-label="모바일 캘린더">
-      <MobileHeader title="캘린더" subtitle="오늘과 다가오는 일정을 확인하세요." onAdd={() => setDraft(emptyDraft(selectedDate))} />
       <div className={styles.scrollBody}>
         <div className={styles.segmented}>
           {VIEW_LABELS.map((item) => <button key={item.id} type="button" className={view === item.id ? styles.segmentedActive : undefined} onClick={() => { setView(item.id); if (item.id === "today") setSelectedDate(dateKey()); }}>{item.label}</button>)}
@@ -284,6 +282,9 @@ export default function MobileCalendar() {
           ) : <div className={styles.todoEmpty}>등록된 할 일이 없어요.</div>}
         </section>
       </div>
+      <button type="button" className={styles.floatingAction} onClick={() => setDraft(emptyDraft(selectedDate))} aria-label="일정 추가">
+        <Plus size={18} /><span>일정 추가</span>
+      </button>
 
       {draft ? <div className={styles.sheetBackdrop} onPointerDown={() => setDraft(null)}>
         <form className={styles.sheet} onSubmit={(event) => { event.preventDefault(); void save(); }} onPointerDown={(event) => event.stopPropagation()}>
