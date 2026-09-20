@@ -129,6 +129,25 @@ describe("Olivia Hermes MCP registry", () => {
     }
   });
 
+  it("사진 도구 description이 실제 사용 표현을 모두 포함한다", () => {
+    const tools = listHermesOliviaTools();
+    const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+
+    expect(description("find_photo_folder")).toMatch(/NAS 폴더/);
+    expect(description("find_photo_folder")).toMatch(/백업 폴더/);
+    expect(description("find_photo_folder")).toMatch(/촬영 폴더/);
+    expect(description("find_photo_folder")).toMatch(/Workstation/);
+
+    expect(description("start_photo_source_prep")).toMatch(/원본 분리/);
+    expect(description("start_photo_source_prep")).toMatch(/RAW\/JPG 분리/);
+    expect(description("start_photo_source_prep")).toMatch(/1차 분류/);
+    expect(description("start_photo_source_prep")).toMatch(/JPG 통합/);
+
+    expect(description("start_photo_scene_sort")).toMatch(/씬별 분류/);
+    expect(description("start_photo_scene_sort")).toMatch(/사진 분류/);
+    expect(description("start_photo_scene_sort")).toMatch(/2차 분류/);
+  });
+
   it("create_quote MCP schema가 자연어 견적 V2 필드와 서비스 수정 도구를 노출한다", () => {
     const createQuote = listHermesOliviaTools().find((tool) => tool.name === "create_quote")!;
     const properties = createQuote.inputSchema.properties as Record<string, unknown>;
