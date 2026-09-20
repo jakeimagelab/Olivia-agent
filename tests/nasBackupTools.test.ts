@@ -151,6 +151,27 @@ describe("NAS Backup Watcher 신규 tool — watcher 자체는 안 건드리고 
     }]);
   });
 
+  it("find 직후 정확한 후보로 시작할 때 Workstation 전체를 중복 스캔하지 않는다", async () => {
+    state.projects.length = 0;
+    const folderName = "0918_중복스캔방지";
+    const base = remoteFolders([folderName]);
+    const listFolder = vi.fn(base.listFolder.bind(base));
+    const dataSource: RemoteNasDataSource = { listFolder };
+    const dependencies = { dataSource };
+
+    const found = await executeNasBackupTool("find_photo_folder", { query: "중복스캔방지" }, context, dependencies);
+    expect(found).toMatchObject({ success: true, data: { candidates: [{ sourceRelativePath: folderName }] } });
+    expect(listFolder).toHaveBeenCalledTimes(2);
+
+    const started = await executeNasBackupTool("start_photo_source_prep", {
+      folderName,
+      confirmRestart: false,
+    }, context, dependencies);
+
+    expect(started).toMatchObject({ success: true, data: { status: "MERGE_APPROVED", createdProject: true } });
+    expect(listFolder).toHaveBeenCalledTimes(2);
+  });
+
   it("부분 이름이 여러 폴더에 걸리면 프로젝트 행과 job 의도를 만들지 않는다", async () => {
     state.projects.length = 0;
     const dependencies = { dataSource: remoteFolders(["0730_르셀청담", "0812_르셀청담"]) };

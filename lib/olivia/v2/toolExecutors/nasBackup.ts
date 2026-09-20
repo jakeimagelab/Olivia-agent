@@ -25,6 +25,46 @@ export const NAS_BACKUP_TOOL_NAMES = [
 
 const EVENT_COLUMNS = "id,worker_id,event_type,source,source_root,folder_name,file_count,total_bytes,status,payload,created_at,acknowledged_at";
 const defaultDataSource = createRemoteWorkerNasDataSource({ fetcher: internalFetcher });
+const RECENT_FOLDER_CANDIDATE_TTL_MS = 2 * 60 * 1000;
+
+type RecentFolderCandidate = Awaited<ReturnType<typeof findPhotoFolderCandidates>>[number];
+type RecentFolderCandidateEntry = { candidate: RecentFolderCandidate; verifiedAt: number };
+
+// 한 채팅 turn에서 find_photo_folder가 이미 Workstation을 재귀 조회한 직후 start 도구가 같은
+// 정확한 상대경로를 다시 재귀 조회하면, LIST_FOLDER job 수만큼 대기 시간이 두 배가 되어 Vercel
+// stream의 60초 제한을 넘을 수 있다. 실제 Worker 응답으로 방금 검증한 후보만 dataSource 인스턴스별
+// 짧은 TTL로 재사용한다. 부분 검색어에는 절대 사용하지 않으며, cache miss/만료 시 기존 전체
+// resolveSinglePhotoFolderCandidate 검증으로 돌아간다. 실제 mutation preflight와 RAW 보호는 Worker의
+// PHOTO_PREPARE_SOURCE/PHOTO_STAGE_JPG 파이프라인이 그대로 수행한다.
+const recentFolderCandidates = new WeakMap<RemoteNasDataSource, Map<string, RecentFolderCandidateEntry>>();
+
+function rememberFolderCandidates(dataSource: RemoteNasDataSource, candidates: RecentFolderCandidate[]): void {
+  let entries = recentFolderCandidates.get(dataSource);
+  if (!entries) {
+    entries = new Map();
+    recentFolderCandidates.set(dataSource, entries);
+  }
+  const verifiedAt = Date.now();
+  for (const candidate of candidates) entries.set(candidate.sourceRelativePath, { candidate, verifiedAt });
+}
+
+function recentExactFolderCandidate(dataSource: RemoteNasDataSource, sourceRelativePath: string): RecentFolderCandidate | null {
+  const entries = recentFolderCandidates.get(dataSource);
+  const entry = entries?.get(sourceRelativePath);
+  if (!entry) return null;
+  if (Date.now() - entry.verifiedAt > RECENT_FOLDER_CANDIDATE_TTL_MS) {
+    entries?.delete(sourceRelativePath);
+    return null;
+  }
+  return entry.candidate;
+}
+
+async function resolvePhotoFolderForStart(folderName: string, dataSource: RemoteNasDataSource): Promise<RecentFolderCandidate> {
+  // cache key가 정확한 sourceRelativePath와 일치할 때만 재사용한다. "르셀청담" 같은 부분 이름은
+  // 기존 resolver를 거쳐 복수 후보 guard를 계속 적용한다.
+  return recentExactFolderCandidate(dataSource, folderName)
+    ?? resolveSinglePhotoFolderCandidate(folderName, dataSource);
+}
 
 type NasBackupToolDependencies = { dataSource?: RemoteNasDataSource };
 
@@ -68,6 +108,7 @@ export async function executeNasBackupTool(
   if (name === "find_photo_folder") {
     const query = text(input, "query");
     const candidates = await findPhotoFolderCandidates(query, dataSource);
+    rememberFolderCandidates(dataSource, candidates);
     const db = getSupabaseAdmin();
     const enriched = [];
     for (const candidate of candidates) {
@@ -126,7 +167,7 @@ export async function executeNasBackupTool(
   if (name === "start_photo_source_prep") {
     const folderName = text(input, "folderName");
     if (!folderName) throw new Error("JPG를 통합할 폴더 이름이 필요해요.");
-    const candidate = await resolveSinglePhotoFolderCandidate(folderName, dataSource);
+    const candidate = await resolvePhotoFolderForStart(folderName, dataSource);
     const db = getSupabaseAdmin();
     const existing = await readProjectByPath(db, candidate.sourceRelativePath);
     try {
@@ -170,9 +211,10 @@ export async function executeNasBackupTool(
     if (!department) throw new Error("진료과(department)를 알려주세요 — 추측해서 분류를 시작하지 않아요.");
     if (shootingMode !== "field" && shootingMode !== "studio") throw new Error("촬영 모드(field 또는 studio)를 알려주세요 — 추측해서 분류를 시작하지 않아요.");
 
-    // mutation 직전에 live NAS 후보를 다시 확인한다. 부분 이름이 여러 폴더에 걸리면 프로젝트 행과
-    // job을 만들지 않는다. NFD raw path는 candidate.sourceRelativePath를 그대로 사용한다.
-    const candidate = await resolveSinglePhotoFolderCandidate(folderName, dataSource);
+    // 방금 find에서 검증한 정확한 후보를 재사용하고, 없으면 live NAS 후보를 다시 확인한다.
+    // 부분 이름이 여러 폴더에 걸리면 프로젝트 행과 job을 만들지 않는다. NFD raw path는
+    // candidate.sourceRelativePath를 그대로 사용한다.
+    const candidate = await resolvePhotoFolderForStart(folderName, dataSource);
     const db = getSupabaseAdmin();
     const existing = await readProjectByPath(db, candidate.sourceRelativePath);
     let project;
