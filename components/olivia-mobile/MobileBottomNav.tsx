@@ -16,14 +16,12 @@ const ITEMS: Array<{ view: MobilePrimaryView; label: string; iconName?: IconName
 export default function MobileBottomNav({
   activeView,
   onNavigate,
-  keyboardOpen = false,
 }: {
   activeView: MobilePrimaryView | null;
   onNavigate: (view: MobilePrimaryView) => void;
-  keyboardOpen?: boolean;
 }) {
   return (
-    <nav className={`${styles.bottomNav}${keyboardOpen ? ` ${styles.bottomNavKeyboardOpen}` : ""}`} aria-label="모바일 주요 메뉴" aria-hidden={keyboardOpen || undefined}>
+    <nav className={styles.bottomNav} aria-label="모바일 주요 메뉴">
       {ITEMS.map(({ view, label, iconName, calendar }) => (
         <button
           key={view}

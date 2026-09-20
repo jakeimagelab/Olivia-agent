@@ -15,7 +15,9 @@ describe("Olivia mobile PWA shell", () => {
     expect(chat).toContain("scrollToLatestMessage");
     expect(styles).toContain("--mobile-chat-height");
     expect(styles).toContain("--mobile-chat-offset-top");
-    expect(styles).toContain('.chatScreen[data-keyboard-open="true"] .chatDock');
+    expect(chat).toContain("chatClose");
+    expect(chat).toContain("onClose");
+    expect(styles).toContain("padding: calc(env(safe-area-inset-top, 0px) + 54px)");
   });
 
   it("keeps mobile navigation usable while removing non-home title bars and the narrow conversation guide", () => {
@@ -31,8 +33,8 @@ describe("Olivia mobile PWA shell", () => {
       "components/olivia-mobile/MobileResourcePreview.tsx",
     ];
 
-    expect(shell).toContain('navigation.view === "preview" ? null');
-    expect(shell).toContain("keyboardOpen={navigation.view === \"chat\" && chatKeyboardOpen}");
+    expect(shell).toContain('navigation.view === "preview" || navigation.view === "chat" ? null');
+    expect(shell).toContain('onClose={() => navigate({ view: "home" }, "replace")}');
     expect(conversation).toContain('variant !== "mobile" && exchanges.length >= 4');
     for (const screen of nonHomeScreens) expect(read(screen)).not.toContain("<MobileHeader");
   });
@@ -48,6 +50,20 @@ describe("Olivia mobile PWA shell", () => {
     expect(styles).toContain("safe-area-inset-left");
     expect(styles).toContain("safe-area-inset-right");
     expect(styles).toContain("bottom: 0;");
-    expect(styles).toContain("height: calc(62px + env(safe-area-inset-bottom, 0px))");
+    expect(styles).toContain("--mobile-dock-space");
+    expect(styles).toContain("height: var(--mobile-dock-space)");
+    expect(styles).toContain("var(--mobile-dock-content-padding)");
+  });
+
+  it("keeps the dock out of the chat and protects calendar gestures while enabling primary-tab swipes", () => {
+    const shell = read("components/olivia-mobile/OliviaMobileShell.tsx");
+    const calendar = read("components/olivia-mobile/MobileCalendar.tsx");
+
+    expect(shell).toContain("SWIPEABLE_PRIMARY_VIEWS");
+    expect(shell).toContain("IOS_BACK_GESTURE_EDGE_PX");
+    expect(shell).toContain("onPointerDown={onSwipePointerDown}");
+    expect(shell).toContain("navigation.view === \"chat\"");
+    expect(calendar).toContain("data-mobile-swipe-lock");
+    expect(calendar).toContain("selectedSchedulePanel");
   });
 });

@@ -231,13 +231,13 @@ export default function MobileCalendar() {
 
   return (
     <section className={styles.screenWithHeader} aria-label="모바일 캘린더">
-      <div className={styles.scrollBody}>
+      <div className={`${styles.scrollBody} ${styles.calendarBody}`} data-calendar-view={view}>
         <div className={styles.segmented}>
           {VIEW_LABELS.map((item) => <button key={item.id} type="button" className={view === item.id ? styles.segmentedActive : undefined} onClick={() => { setView(item.id); if (item.id === "today") setSelectedDate(dateKey()); }}>{item.label}</button>)}
         </div>
         <div className={styles.dateHeading}>
           <button type="button" onClick={() => move(-1)} aria-label="이전 날짜"><ChevronLeft size={20} /></button>
-          <div><h2>{formatHeading(selectedDate)}</h2><p>일정 {selectedTasks.length}</p></div>
+          <div><h2>{formatHeading(selectedDate)}</h2></div>
           <button type="button" onClick={() => move(1)} aria-label="다음 날짜"><ChevronRight size={20} /></button>
         </div>
 
@@ -245,19 +245,21 @@ export default function MobileCalendar() {
           {week.map((key) => <button type="button" key={key} className={selectedDate === key ? styles.dateSelected : undefined} onClick={() => setSelectedDate(key)}><span>{new Intl.DateTimeFormat("ko-KR", { weekday: "short" }).format(parseDate(key))}</span><strong>{parseDate(key).getDate()}</strong>{taskDates.has(key) ? <i /> : null}</button>)}
         </div> : null}
 
-        {view === "month" ? <div className={styles.monthGrid}>
+        {view === "month" ? <div className={styles.monthGrid} data-mobile-swipe-lock>
           {Array.from("일월화수목금토").map((day) => <span key={day}>{day}</span>)}
           {monthGrid.map(({ key, inMonth }) => <button type="button" key={key} data-outside={!inMonth || undefined} className={selectedDate === key ? styles.dateSelected : undefined} onClick={() => setSelectedDate(key)}>{parseDate(key).getDate()}{taskDates.has(key) ? <i /> : null}</button>)}
         </div> : null}
 
         <div className={styles.listHeading}><h3>{view === "today" ? "오늘 일정" : "선택한 날짜"}</h3><span>{selectedTasks.length}</span></div>
-        {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void load()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>일정을 확인하고 있어요...</div> : selectedTasks.length ? (
-          <div className={styles.scheduleList}>{selectedTasks.map((task) => <button type="button" key={task.id} onClick={() => editTask(task)}>
-            <span className={styles.scheduleTime}>{task.time?.slice(0, 5) || "—"}</span>
-            <span className={styles.scheduleCopy}><strong>{task.title}</strong><small><MapPin size={12} />{task.location || "장소 미정"}</small></span>
-            <ChevronRight size={18} />
-          </button>)}</div>
-        ) : <div className={styles.emptyState}><CalendarDays size={22} /><span>{selectedDate === dateKey() ? "오늘 예정된 일정이 없어요." : "이날 예정된 일정이 없어요."}</span></div>}
+        <div className={styles.selectedSchedulePanel}>
+          {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void load()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>일정을 확인하고 있어요...</div> : selectedTasks.length ? (
+            <div className={styles.scheduleList}>{selectedTasks.map((task) => <button type="button" key={task.id} onClick={() => editTask(task)}>
+              <span className={styles.scheduleTime}>{task.time?.slice(0, 5) || "—"}</span>
+              <span className={styles.scheduleCopy}><strong>{task.title}</strong><small><MapPin size={12} />{task.location || "장소 미정"}</small></span>
+              <ChevronRight size={18} />
+            </button>)}</div>
+          ) : <div className={styles.emptyState}><CalendarDays size={22} /><span>{selectedDate === dateKey() ? "오늘 예정된 일정이 없어요." : "이날 예정된 일정이 없어요."}</span></div>}
+        </div>
 
         <section className={styles.todoSection} aria-labelledby="mobile-calendar-todos">
           <div className={styles.listHeading}>

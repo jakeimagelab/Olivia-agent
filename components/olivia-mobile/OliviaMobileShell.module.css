@@ -7,6 +7,9 @@
   --mobile-ink: #17332e;
   --mobile-muted: #718580;
   --mobile-line: rgba(21, 88, 85, .11);
+  --mobile-dock-height: 62px;
+  --mobile-dock-space: calc(var(--mobile-dock-height) + env(safe-area-inset-bottom, 0px));
+  --mobile-dock-content-padding: calc(var(--mobile-dock-space) + 18px);
   position: fixed;
   inset: 0;
   z-index: 10000;
@@ -33,7 +36,7 @@
   padding:
     calc(env(safe-area-inset-top, 0px) + 18px)
     calc(env(safe-area-inset-right, 0px) + 18px)
-    calc(84px + env(safe-area-inset-bottom, 0px))
+    var(--mobile-dock-content-padding)
     calc(env(safe-area-inset-left, 0px) + 18px);
   background:
     radial-gradient(circle at 86% 0%, rgba(185, 225, 215, .2), transparent 32%),
@@ -56,7 +59,7 @@
   padding:
     calc(env(safe-area-inset-top, 0px) + 16px)
     calc(env(safe-area-inset-right, 0px) + 18px)
-    calc(84px + env(safe-area-inset-bottom, 0px))
+    var(--mobile-dock-content-padding)
     calc(env(safe-area-inset-left, 0px) + 18px);
 }
 
@@ -105,13 +108,13 @@
   right: 0;
   bottom: 0;
   z-index: 20;
-  height: calc(62px + env(safe-area-inset-bottom, 0px));
+  height: var(--mobile-dock-space);
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   padding:
     5px
     calc(env(safe-area-inset-right, 0px) + 10px)
-    calc(env(safe-area-inset-bottom, 0px) + 5px)
+    env(safe-area-inset-bottom, 0px)
     calc(env(safe-area-inset-left, 0px) + 10px);
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .72);
@@ -122,8 +125,6 @@
   -webkit-backdrop-filter: blur(28px) saturate(160%);
   transition: transform 180ms ease;
 }
-
-.bottomNavKeyboardOpen { transform: translateY(calc(100% + 8px)); pointer-events: none; }
 
 .bottomNav button {
   position: relative;
@@ -205,11 +206,12 @@
 .primaryButton { border-color: var(--mobile-green); background: var(--mobile-green); color: #fff; }
 
 .homeScreen {
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding:
     0
     calc(env(safe-area-inset-right, 0px) + 14px)
-    calc(82px + env(safe-area-inset-bottom, 0px))
+    var(--mobile-dock-content-padding)
     calc(env(safe-area-inset-left, 0px) + 14px);
 }
 .homeHeader {
@@ -259,7 +261,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 .voiceShortcut:active { background: rgba(255, 255, 255, .18); }
-.mobileVoiceBody { flex: 1; min-height: 0; overflow: hidden; box-sizing: border-box; padding: env(safe-area-inset-top, 0px) 0 calc(82px + env(safe-area-inset-bottom, 0px)); background: var(--mobile-bg); }
+.mobileVoiceBody { flex: 1; min-height: 0; overflow: hidden; box-sizing: border-box; padding: env(safe-area-inset-top, 0px) 0 var(--mobile-dock-content-padding); background: var(--mobile-bg); }
 .mobilePhotoWorkspaceBody {
   flex: 1;
   min-height: 0;
@@ -267,7 +269,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--mobile-dock-content-padding);
   background: #f5f8f7;
   -webkit-overflow-scrolling: touch;
 }
@@ -275,11 +277,11 @@
 .mobilePhotoWorkspaceBody :global(.pc-mobile-form-grid) {
   grid-template-columns: minmax(0, 1fr) !important;
 }
-.mobileFeatureLoading { height: 100%; display: grid; place-items: center; padding-bottom: 84px; color: var(--mobile-muted); font-size: 12px; background: var(--mobile-bg); }
+.mobileFeatureLoading { height: 100%; display: grid; place-items: center; padding-bottom: var(--mobile-dock-content-padding); color: var(--mobile-muted); font-size: 12px; background: var(--mobile-bg); }
 .floatingAction {
   position: fixed;
   right: calc(env(safe-area-inset-right, 0px) + 16px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+  bottom: calc(var(--mobile-dock-space) + 12px);
   z-index: 18;
   min-height: 44px;
   display: inline-flex;
@@ -403,6 +405,31 @@
 .todoCompleted .todoToggle { background: var(--mobile-green); color: #fff; box-shadow: none; }
 .todoToggle:disabled, .todoDelete:disabled { opacity: .42; }
 .todoEmpty { margin-top: 8px; border: 1px dashed rgba(21,88,85,.16); border-radius: 14px; padding: 18px 12px; background: rgba(255,255,255,.58); color: var(--mobile-muted); font-size: 11px; text-align: center; }
+
+/* 6주 달력과 선택 날짜 일정은 PWA 한 화면 안에서 우선 확인한다. 할 일은 아래 스크롤에
+   남기되, 선택 날짜의 일정이 많아질 때만 이 작은 패널 안에서 별도로 스크롤한다. */
+.calendarBody { padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
+.calendarBody .segmented { height: 36px; border-radius: 11px; padding: 2px; }
+.calendarBody .segmented button { min-height: 32px; border-radius: 9px; font-size: 11px; }
+.calendarBody .dateHeading { min-height: 62px; }
+.calendarBody .dateHeading > button { width: 40px; height: 40px; }
+.calendarBody .dateHeading h2 { font-size: 15px; }
+.calendarBody .weekStrip { gap: 3px; margin-bottom: 9px; }
+.calendarBody .weekStrip button { min-height: 54px; gap: 3px; border-radius: 11px; }
+.calendarBody .monthGrid { gap: 3px; margin-bottom: 8px; padding: 8px; border-radius: 14px; }
+.calendarBody .monthGrid > span { height: 18px; font-size: 8px; }
+.calendarBody .monthGrid button { min-height: 32px; gap: 2px; border-radius: 9px; font-size: 10px; }
+.calendarBody .listHeading { min-height: 36px; margin-top: 2px; }
+.calendarBody .listHeading h3 { font-size: 14px; }
+.calendarBody .listHeading > span { min-width: 22px; height: 22px; font-size: 9px; }
+.selectedSchedulePanel { min-height: 66px; max-height: 132px; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+.selectedSchedulePanel .scheduleList { gap: 6px; }
+.selectedSchedulePanel .scheduleList > button { min-height: 58px; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 8px; border-radius: 14px; padding: 8px 10px; }
+.selectedSchedulePanel .scheduleCopy { gap: 3px; }
+.selectedSchedulePanel .scheduleCopy strong { font-size: 12px; }
+.selectedSchedulePanel .scheduleCopy small { font-size: 9px; }
+.selectedSchedulePanel .emptyState, .selectedSchedulePanel .errorState { min-height: 66px; padding: 10px; border-radius: 14px; font-size: 10px; }
+.calendarBody .todoSection { margin-top: 12px; }
 .todoError { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; border-radius: 12px; padding: 9px 10px; background: #fff0eb; color: #a8492a; font-size: 10px; }
 .todoError button { min-height: 32px; flex: 0 0 auto; border: 0; border-radius: 9px; padding: 0 9px; background: #fff; color: #a8492a; font: 700 9px/1 inherit; }
 .searchField { height: 48px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--mobile-line); border-radius: 15px; padding: 0 14px; background: #fff; color: var(--mobile-muted); }
@@ -531,9 +558,25 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  padding: env(safe-area-inset-top, 0px) 0 calc(70px + env(safe-area-inset-bottom, 0px));
+  padding: calc(env(safe-area-inset-top, 0px) + 54px) 0 env(safe-area-inset-bottom, 0px);
 }
-.chatScreen[data-keyboard-open="true"] .chatDock { padding-bottom: 0; }
+.chatClose {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: calc(env(safe-area-inset-left, 0px) + 12px);
+  z-index: 25;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(21,88,85,.12);
+  border-radius: 13px;
+  background: rgba(255,255,255,.92);
+  color: var(--mobile-green);
+  box-shadow: 0 6px 18px rgba(20,63,57,.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
 .chatDock :global(.olivia-chat-portal-host) { flex: 1; min-height: 0; }
 .chatDock :global(.olivia-conversation--mobile) { height: 100%; min-height: 0; border: 0; border-radius: 0; background: #f7fbfa; box-shadow: none; }
 .chatDock :global(.olivia-conversation--mobile .olivia-conversation__header) { display: none; }
